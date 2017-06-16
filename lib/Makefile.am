@@ -31,8 +31,12 @@ DISTCLEANFILES = $(pkgconfig_DATA)
 
 lib_LTLIBRARIES = libngtcp2.la
 
-OBJECTS =
-HFILES =
+OBJECTS = \
+	ngtcp2_pkt.c \
+	ngtcp2_conv.c
+HFILES = \
+	ngtcp2_pkt.h \
+	ngtcp2_conv.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \
