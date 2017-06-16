@@ -23,3 +23,11 @@
 SUBDIRS = lib tests
 
 ACLOCAL_AMFLAGS = -I m4
+
+# Format source files using clang-format.  Don't format source files
+# under third-party directory since we are not responsible for thier
+# coding style.
+clang-format:
+	CLANGFORMAT=`git config --get clangformat.binary`; \
+	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
+	$${CLANGFORMAT} -i lib/*.{c,h} lib/includes/ngtcp2/*.h
