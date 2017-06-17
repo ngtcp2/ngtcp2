@@ -28,4 +28,4 @@
 
 #include "ngtcp2_pkt.h"
 
-void test_ngtcp2_pkt_parse_hd_long(void) {}
+void test_ngtcp2_pkt_decode_hd_long(void) {}

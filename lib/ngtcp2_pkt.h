@@ -38,9 +38,9 @@
 #define NGTCP2_SHORT_TYPE_MASK 0x1f
 
 /*
- * ngtcp2_pkt_parse_hd_long parses QUIC long packet header in |pkt| of
- * length |pktlen|.  It stores the result in the object pointed by
- * |dest|, and returns the number of bytes parsed to read the packet
+ * ngtcp2_pkt_decode_hd_long decodes QUIC long packet header in |pkt|
+ * of length |pktlen|.  It stores the result in the object pointed by
+ * |dest|, and returns the number of bytes decoded to read the packet
  * header if it succeeds, or one of the following error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
@@ -48,21 +48,22 @@
  * NGTCP2_ERR_UNKNOWN_PKT_TYPE
  *     Packet type is unknown
  */
-ssize_t ngtcp2_pkt_parse_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                 size_t pktlen);
+ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                  size_t pktlen);
 
 /*
- * ngtcp2_pkt_parse_hd_short parses QUIC short packet header in |pkt|
- * of length |pktlen|.  It stores the result in the object pointed by
- * |dest|, and returns the number of bytes parsed to read the packet
- * header if it succeeds, or one of the following error codes:
+ * ngtcp2_pkt_decode_hd_short decodes QUIC short packet header in
+ * |pkt| of length |pktlen|.  It stores the result in the object
+ * pointed by |dest|, and returns the number of bytes decoded to read
+ * the packet header if it succeeds, or one of the following error
+ * codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Packet is too short; or it is not a short header
  * NGTCP2_ERR_UNKNOWN_PKT_TYPE
  *     Packet type is unknown
  */
-ssize_t ngtcp2_pkt_parse_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                  size_t pktlen);
+ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                   size_t pktlen);
 
 #endif /* NGTCP2_PKT_H */

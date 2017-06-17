@@ -29,6 +29,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_pkt_parse_hd_long(void);
+void test_ngtcp2_pkt_decode_hd_long(void);
 
 #endif /* NGTCP2_PKT_TEST_H */

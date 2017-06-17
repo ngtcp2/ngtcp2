@@ -154,14 +154,14 @@ NGTCP2_EXTERN int ngtcp2_framer_verify_integrity(ngtcp2_framer *fr,
 /**
  * @function
  *
- * `ngtcp2_pkt_parse_hd` parses QUIC packet header included in |pkt|
+ * `ngtcp2_pkt_decode_hd` decodes QUIC packet header included in |pkt|
  * of length |pktlen|, and sotres the result in the object pointed by
- * |dest|.  This function can parse both long and short packet header.
- * On success, if ``dest->flags & NGTCP2_PKT_FLAG_LONG_FORM`` is
- * nonzero, the packet header has long form.
+ * |dest|.  This function can decode both long and short packet
+ * header.  On success, if ``dest->flags & NGTCP2_PKT_FLAG_LONG_FORM``
+ * is nonzero, the packet header has long form.
  *
  * This function returns the exact number of bytes to be read in order
- * to parse packet header, or one of the following negative error
+ * to decode packet header, or one of the following negative error
  * codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
@@ -169,13 +169,13 @@ NGTCP2_EXTERN int ngtcp2_framer_verify_integrity(ngtcp2_framer *fr,
  * :enum:`NGTCP2_ERR_UNKNOWN_PKT_TYPE`
  *     Packet type is unknown
  */
-NGTCP2_EXTERN ssize_t ngtcp2_pkt_parse_hd(ngtcp2_pkt_hd *dest,
-                                          const uint8_t *pkt, size_t pktlen);
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest,
+                                           const uint8_t *pkt, size_t pktlen);
 
-NGTCP2_EXTERN ssize_t ngtcp2_framer_parse_pkt_payload(ngtcp2_framer *fr,
-                                                      ngtcp2_frame **dest,
-                                                      const uint8_t *payload,
-                                                      size_t payloadlen);
+NGTCP2_EXTERN ssize_t ngtcp2_framer_decode_pkt_payload(ngtcp2_framer *fr,
+                                                       ngtcp2_frame **dest,
+                                                       const uint8_t *payload,
+                                                       size_t payloadlen);
 
 NGTCP2_EXTERN int ngtcp2_framer_pkt_start_protected(ngtcp2_framer *fr,
                                                     const ngtcp2_pkt_hd *hd,

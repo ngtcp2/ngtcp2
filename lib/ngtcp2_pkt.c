@@ -25,21 +25,21 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_conv.h"
 
-ssize_t ngtcp2_pkt_parse_hd(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                            size_t pktlen) {
+ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                             size_t pktlen) {
   if (pktlen == 0) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   if (pkt[0] & NGTCP2_HEADER_FORM_MASK) {
-    return ngtcp2_pkt_parse_hd_long(dest, pkt, pktlen);
+    return ngtcp2_pkt_decode_hd_long(dest, pkt, pktlen);
   }
 
-  return ngtcp2_pkt_parse_hd_short(dest, pkt, pktlen);
+  return ngtcp2_pkt_decode_hd_short(dest, pkt, pktlen);
 }
 
-ssize_t ngtcp2_pkt_parse_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                 size_t pktlen) {
+ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                  size_t pktlen) {
   uint8_t type;
 
   if (pktlen < 17) {
@@ -75,8 +75,8 @@ ssize_t ngtcp2_pkt_parse_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   return 17;
 }
 
-ssize_t ngtcp2_pkt_parse_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                  size_t pktlen) {
+ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                   size_t pktlen) {
   uint8_t flags = 0;
   uint8_t type;
   size_t len = 1;
