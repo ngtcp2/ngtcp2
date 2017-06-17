@@ -23,6 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "ngtcp2_pkt.h"
+
+#include <assert.h>
+
 #include "ngtcp2_conv.h"
 
 ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
@@ -139,4 +142,75 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   dest->version = 0;
 
   return (ssize_t)len;
+}
+
+ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
+                                  const ngtcp2_pkt_hd *hd) {
+  uint8_t *p;
+
+  if (outlen < 17) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = out;
+
+  *p++ = NGTCP2_HEADER_FORM_MASK | hd->type;
+  p = ngtcp2_put_uint64be(p, hd->conn_id);
+  p = ngtcp2_put_uint32be(p, hd->pkt_num);
+  p = ngtcp2_put_uint32be(p, hd->version);
+
+  assert(p - out == 17);
+
+  return 17;
+}
+
+ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
+                                   const ngtcp2_pkt_hd *hd) {
+  uint8_t *p;
+  size_t len = 1;
+  int need_conn_id;
+
+  if (hd->flags & NGTCP2_PKT_FLAG_CONN_ID) {
+    need_conn_id = 1;
+    len += 8;
+  }
+  len += hd->type;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = out;
+
+  *p = hd->type;
+  if (need_conn_id) {
+    *p |= NGTCP2_CONN_ID_MASK;
+  }
+  if (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) {
+    *p |= NGTCP2_KEY_PHASE_MASK;
+  }
+
+  ++p;
+
+  if (need_conn_id) {
+    p = ngtcp2_put_uint64be(p, hd->conn_id);
+  }
+
+  switch (hd->type) {
+  case 1:
+    *p++ = (uint8_t)hd->pkt_num;
+    break;
+  case 2:
+    p = ngtcp2_put_uint16be(p, (uint16_t)hd->pkt_num);
+    break;
+  case 3:
+    p = ngtcp2_put_uint32be(p, hd->pkt_num);
+    break;
+  default:
+    assert(0);
+  }
+
+  assert((size_t)(p - out) == len);
+
+  return p - out;
 }

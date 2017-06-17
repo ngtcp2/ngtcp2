@@ -52,4 +52,25 @@ uint32_t ngtcp2_get_uint32(const uint8_t *p);
  */
 uint16_t ngtcp2_get_uint16(const uint8_t *p);
 
+/*
+ * ngtcp2_put_uint64be writes |n| in host byte order in |p| in network
+ * byte order.  It returns the one beyond of the last written
+ * position.
+ */
+uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n);
+
+/*
+ * ngtcp2_put_uint32be writes |n| in host byte order in |p| in network
+ * byte order.  It returns the one beyond of the last written
+ * position.
+ */
+uint8_t *ngtcp2_put_uint32be(uint8_t *p, uint32_t n);
+
+/*
+ * ngtcp2_put_uint16be writes |n| in host byte order in |p| in network
+ * byte order.  It returns the one beyond of the last written
+ * position.
+ */
+uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n);
+
 #endif /* NGTCP2_CONV_H */

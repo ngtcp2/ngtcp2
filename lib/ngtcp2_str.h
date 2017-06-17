@@ -22,52 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_conv.h"
+#ifndef NGTCP2_STR_H
+#define NGTCP2_STR_H
 
-#include <string.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif /* HAVE_ARPA_INET_H */
+#include <ngtcp2/ngtcp2.h>
 
-#include "ngtcp2_str.h"
+uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
 
-#ifdef WORDS_BIGENDIAN
-#define bwap64(N) (N)
-#else /* !WORDS_BIGENDIAN */
-#define bswap64(N)                                                             \
-  (((uint64_t)(ntohl(((uint32_t)(N)) & 0xffffffffu))) << 32 | ntohl((N) >> 32))
-#endif /* !WORDS_BIGENDIAN */
-
-uint64_t ngtcp2_get_uint64(const uint8_t *p) {
-  uint64_t n;
-  memcpy(&n, p, 8);
-  return bswap64(n);
-}
-
-uint32_t ngtcp2_get_uint32(const uint8_t *p) {
-  uint32_t n;
-  memcpy(&n, p, 4);
-  return ntohl(n);
-}
-
-uint16_t ngtcp2_get_uint16(const uint8_t *p) {
-  uint16_t n;
-  memcpy(&n, p, 2);
-  return ntohs(n);
-}
-
-uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n) {
-  n = bswap64(n);
-  return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
-}
-
-uint8_t *ngtcp2_put_uint32be(uint8_t *p, uint32_t n) {
-  n = htonl(n);
-  return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
-}
-
-uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n) {
-  n = htons(n);
-  return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
-}
+#endif /* NGTCP2_STR_H */

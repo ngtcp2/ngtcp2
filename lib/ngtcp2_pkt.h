@@ -66,4 +66,28 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                    size_t pktlen);
 
+/*
+ * ngtcp2_pkt_encode_hd_long encodes |hd| as QUIC long header into
+ * |out| which has length |outlen|.  It returns the number of bytes
+ * written into |outlen| if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Buffer is too short
+ */
+ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
+                                  const ngtcp2_pkt_hd *hd);
+
+/*
+ * ngtcp2_pkt_encode_hd_short encodes |hd| as QUIC short header into
+ * |out| which has length |outlen|.  It returns the number of bytes
+ * written into |outlen| if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Buffer is too short
+ */
+ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
+                                   const ngtcp2_pkt_hd *hd);
+
 #endif /* NGTCP2_PKT_H */
