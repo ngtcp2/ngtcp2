@@ -54,7 +54,9 @@ int main() {
 
   /* add the tests to the suite */
   if (!CU_add_test(pSuite, "pkt_decode_hd_long",
-                   test_ngtcp2_pkt_decode_hd_long)) {
+                   test_ngtcp2_pkt_decode_hd_long) ||
+      !CU_add_test(pSuite, "pkt_decode_hd_short",
+                   test_ngtcp2_pkt_decode_hd_short)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

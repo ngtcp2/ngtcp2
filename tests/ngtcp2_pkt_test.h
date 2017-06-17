@@ -30,5 +30,6 @@
 #endif /* HAVE_CONFIG_H */
 
 void test_ngtcp2_pkt_decode_hd_long(void);
+void test_ngtcp2_pkt_decode_hd_short(void);
 
 #endif /* NGTCP2_PKT_TEST_H */
