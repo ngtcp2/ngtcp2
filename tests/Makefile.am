@@ -1,6 +1,7 @@
 # ngtcp2
 
 # Copyright (c) 2016 ngtcp2 contributors
+# Copyright (c) 2012 nghttp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -22,5 +23,29 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if HAVE_CUNIT
+
+check_PROGRAMS = main
+
+OBJECTS = \
+	main.c \
+	ngtcp2_pkt_test.c
+HFILES= \
+	ngtcp2_pkt_test.h
+
+main_SOURCES = $(HFILES) $(OBJECTS)
+
+# With static lib disabled and symbol hiding enabled, we have to link object
+# files directly because the tests use symbols not included in public API.
+main_LDADD = ${top_builddir}/lib/.libs/*.o
+main_LDADD += @CUNIT_LIBS@
+main_LDFLAGS = -static
+
+AM_CFLAGS = $(WARNCFLAGS) \
+	-I${top_srcdir}/lib \
+	-I${top_srcdir}/lib/includes \
+	-I${top_builddir}/lib/includes \
+	@CUNIT_CFLAGS@ @DEFS@
+
+TESTS = main
 
 endif # HAVE_CUNIT
