@@ -101,9 +101,13 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   type = pkt[0] & NGTCP2_SHORT_TYPE_MASK;
   switch (type) {
   case 1:
+    ++len;
+    break;
   case 2:
+    len += 2;
+    break;
   case 3:
-    len += type;
+    len += 4;
     break;
   default:
     return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
