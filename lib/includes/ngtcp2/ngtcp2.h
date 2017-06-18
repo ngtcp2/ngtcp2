@@ -110,16 +110,6 @@ typedef enum {
   NGTCP2_FRAME_STREAM = 0xc0
 } ngtcp2_frame_type;
 
-struct ngtcp2_framer;
-
-/* TODO
- *
- * ngtcp2_framer:
- * - Must have callback to encrypt and decrypt payload
- * - Must have callback to calculate and verify message digest
- */
-typedef struct ngtcp2_framer ngtcp2_framer;
-
 typedef struct {
   uint8_t flags;
   uint8_t type;
@@ -160,40 +150,6 @@ typedef union {
 /**
  * @function
  *
- * ngtcp2_framer_decrypt performs decryption of QUIC payload included
- * in QUIC packet |pkg| of length |pktlen|.  The result of decryption
- * is written to the memory pointed by |dest|.  The valid length of
- * |dest| is given in |destlen|.
- *
- * This function returns the number of bytes written to |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * TBD
- */
-NGTCP2_EXTERN ssize_t ngtcp2_framer_decrypt(ngtcp2_framer *fr, uint8_t *dest,
-                                            size_t destlen, const uint8_t *pkt,
-                                            size_t pktlen);
-
-/**
- * @function
- *
- * ngtcp2_framer_verify_integrity verifies the integrity of QUIC
- * packet payload included in QUIT packet |pkt| of length |pktlen|.
- * This QUIC packet must be unprotected packet.  Otherwise, the
- * behaviour of this function is undefined.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * TBD
- */
-NGTCP2_EXTERN int ngtcp2_framer_verify_integrity(ngtcp2_framer *fr,
-                                                 const uint8_t *pkt,
-                                                 size_t pktlen);
-
-/**
- * @function
- *
  * `ngtcp2_pkt_decode_hd` decodes QUIC packet header included in |pkt|
  * of length |pktlen|, and sotres the result in the object pointed by
  * |dest|.  This function can decode both long and short packet
@@ -216,32 +172,62 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
                                               const uint8_t *payload,
                                               size_t payloadlen);
 
-NGTCP2_EXTERN int ngtcp2_framer_pkt_start_protected(ngtcp2_framer *fr,
-                                                    const ngtcp2_pkt_hd *hd,
-                                                    uint8_t *out,
-                                                    size_t outlen);
-NGTCP2_EXTERN int ngtcp2_framer_pkt_start_unprotected(ngtcp2_framer *fr,
-                                                      const ngtcp2_pkt_hd *hd,
-                                                      uint8_t *out,
-                                                      size_t outlen);
-NGTCP2_EXTERN int ngtcp2_framer_pkt_push(ngtcp2_framer *fr,
-                                         const ngtcp2_frame *fm);
-NGTCP2_EXTERN ssize_t ngtcp2_framer_pkt_pad_final(ngtcp2_framer *fr);
-NGTCP2_EXTERN ssize_t ngtcp2_framer_pkt_final(ngtcp2_framer *fr);
+/* Protected Packet Encoder: ppe */
+struct ngtcp2_ppe;
+typedef struct ngtcp2_ppe ngtcp2_ppe;
 
-/* TODO How to update key?  Initially, we have none.  For client, it
-   may have 0-RTT key, then 1-RTT key.  For server, it gets 1-RTT key.
-   We have to retain keys to decrypt the packet which arrives in out
-   of order during key updates.  It is possibly tied with packet
-   number. */
-NGTCP2_EXTERN int ngtcp2_framer_set_encryption_key(ngtcp2_framer *fr,
-                                                   const uint8_t *key,
-                                                   size_t keylen);
+struct ngtcp2_crypto_ctx;
+typedef struct ngtcp2_crypto_ctx ngtcp2_crypto_ctx;
 
-NGTCP2_EXTERN int ngtcp2_framer_set_decryption_key(ngtcp2_framer *fr,
-                                                   const uint8_t *key,
-                                                   size_t keylen,
-                                                   uint64_t pkt_num);
+NGTCP2_EXTERN int ngtcp2_ppe_init(ngtcp2_ppe *ppe, ngtcp2_crypto_ctx *cctx,
+                                  uint8_t *out, size_t outlen);
+NGTCP2_EXTERN ssize_t ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe,
+                                           const ngtcp2_pkt_hd *hd);
+NGTCP2_EXTERN ssize_t ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe,
+                                              const ngtcp2_frame *fm);
+NGTCP2_EXTERN ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe);
+
+/* Unprotected Packet Encoder: upe */
+struct ngtcp2_upe;
+typedef struct ngtcp2_upe ngtcp2_upe;
+
+NGTCP2_EXTERN int ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out, size_t outlen);
+NGTCP2_EXTERN ssize_t ngtcp2_upe_encode_hd(ngtcp2_upe *upe,
+                                           const ngtcp2_pkt_hd *hd);
+NGTCP2_EXTERN ssize_t ngtcp2_upe_encode_frame(ngtcp2_upe *upe,
+                                              const ngtcp2_frame *fm);
+NGTCP2_EXTERN ssize_t ngtcp2_upe_final(ngtcp2_upe *upe);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_verify` verifies the integrity of QUIC unprotected
+ * packet included in |pkt| of length |pktlen|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * TBD
+ */
+NGTCP2_EXTERN int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_ctx_decrypt` performs decryption of QUIC payload
+ * included in QUIC packet |pkg| of length |pktlen|.  The result of
+ * decryption is written to the memory pointed by |dest|.  The valid
+ * length of |dest| is given in |destlen|.
+ *
+ * This function returns the number of bytes written to |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * TBD
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_crypto_ctx_decrypt(ngtcp2_crypto_ctx *cctx,
+                                                uint8_t *dest, size_t destlen,
+                                                const uint8_t *pkt,
+                                                size_t pktlen);
 
 /**
  * TODO
