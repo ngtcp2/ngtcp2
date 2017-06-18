@@ -138,6 +138,18 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_frame *dest,
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                     size_t payloadlen);
 
+/*
+ * ngtcp2_pkt_decode_padding_frame decodes contiguous PADDING frames
+ * from |payload| of length |payloadlen|.  It continues to parse
+ * frames as long as the frame type is PADDING.  This function returns
+ * when it encounters the frame type which is not PADDING.  The first
+ * byte (``payload[0]``) must be NGTCP2_FRAME_PADDING.  This function
+ * returns the exact number of bytes read for PADDING frames if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Type indicates that payload does not include PADDING frame.
+ */
 ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_frame *dest,
                                         const uint8_t *payload,
                                         size_t payloadlen);

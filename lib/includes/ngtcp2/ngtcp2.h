@@ -142,10 +142,19 @@ typedef struct {
   uint64_t largest_ack;
 } ngtcp2_ack;
 
+typedef struct {
+  uint8_t type;
+  /**
+   * The length of contiguous PADDING frames.
+   */
+  size_t len;
+} ngtcp2_padding;
+
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
   ngtcp2_ack ack;
+  ngtcp2_padding padding;
 } ngtcp2_frame;
 
 /**

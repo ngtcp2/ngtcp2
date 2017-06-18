@@ -33,5 +33,6 @@ void test_ngtcp2_pkt_decode_hd_long(void);
 void test_ngtcp2_pkt_decode_hd_short(void);
 void test_ngtcp2_pkt_decode_stream_frame(void);
 void test_ngtcp2_pkt_decode_ack_frame(void);
+void test_ngtcp2_pkt_decode_padding_frame(void);
 
 #endif /* NGTCP2_PKT_TEST_H */

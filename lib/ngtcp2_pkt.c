@@ -485,11 +485,24 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_frame *dest, const uint8_t *payload,
 }
 
 ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_frame *dest,
-                                        const uint8_t *payload, size_t len) {
-  (void)dest;
-  (void)payload;
-  (void)len;
-  return -1;
+                                        const uint8_t *payload,
+                                        size_t payloadlen) {
+  const uint8_t *p, *ep;
+
+  if (payloadlen == 0 || payload[0] != NGTCP2_FRAME_PADDING) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = payload + 1;
+  ep = payload + payloadlen;
+
+  for (; p != ep && *p == NGTCP2_FRAME_PADDING; ++p)
+    ;
+
+  dest->type = NGTCP2_FRAME_PADDING;
+  dest->padding.len = (size_t)(p - payload);
+
+  return p - payload;
 }
 
 ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_frame *dest,

@@ -278,3 +278,18 @@ void test_ngtcp2_pkt_decode_ack_frame(void) {
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(0xf1f2f3f4f5f6llu == fm.ack.largest_ack);
 }
+
+void test_ngtcp2_pkt_decode_padding_frame(void) {
+  uint8_t buf[256];
+  ngtcp2_frame fm;
+  ssize_t rv;
+  size_t paddinglen = 31;
+
+  memset(buf, 0, paddinglen);
+  buf[paddinglen] = NGTCP2_FRAME_STREAM;
+
+  rv = ngtcp2_pkt_decode_padding_frame(&fm, buf, paddinglen + 1);
+
+  CU_ASSERT((ssize_t)paddinglen == rv);
+  CU_ASSERT((size_t)31 == fm.padding.len);
+}
