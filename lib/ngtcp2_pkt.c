@@ -389,11 +389,99 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_frame *dest,
 }
 
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_frame *dest, const uint8_t *payload,
-                                    size_t len) {
-  (void)dest;
-  (void)payload;
-  (void)len;
-  return -1;
+                                    size_t payloadlen) {
+  uint8_t type;
+  size_t num_blks = 0;
+  size_t num_ts;
+  size_t lalen;
+  size_t abllen;
+  size_t len = 4;
+  const uint8_t *p;
+
+  /* We can expect at least 3 bytes (type, NumTS, and LA) */
+  if (payloadlen < 3 || !has_mask(payload[0], NGTCP2_FRAME_ACK)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = &payload[0];
+
+  type = *p++;
+
+  if (type & NGTCP2_ACK_N_BIT) {
+    num_blks = *p++;
+    ++len;
+  }
+
+  num_ts = *p++;
+
+  switch ((type & NGTCP2_ACK_LL_MASK) >> 2) {
+  case 0x00:
+    lalen = 1;
+    break;
+  case 0x01:
+    lalen = 2;
+    break;
+  case 0x02:
+    lalen = 4;
+    break;
+  case 0x03:
+    lalen = 6;
+    break;
+  }
+
+  len += lalen;
+
+  switch (type & NGTCP2_ACK_MM_MASK) {
+  case 0x00:
+    abllen = 1;
+    break;
+  case 0x01:
+    abllen = 2;
+    break;
+  case 0x02:
+    abllen = 4;
+    break;
+  case 0x03:
+    abllen = 6;
+    break;
+  }
+
+  /* Length of ACK Block Section */
+  /* First ACK Block Length */
+  len += lalen;
+  len += num_blks * abllen;
+
+  /* Length of Timestamp Section */
+  if (num_ts > 0) {
+    len += num_ts * 3 + 2;
+  }
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  dest->type = NGTCP2_FRAME_ACK;
+
+  switch (lalen) {
+  case 1:
+    dest->ack.largest_ack = *p;
+    break;
+  case 2:
+    dest->ack.largest_ack = ngtcp2_get_uint16(p);
+    break;
+  case 4:
+    dest->ack.largest_ack = ngtcp2_get_uint32(p);
+    break;
+  case 6:
+    dest->ack.largest_ack = ngtcp2_get_uint48(p);
+    break;
+  }
+
+  p += lalen;
+
+  /* TODO Parse remaining fields */
+
+  return (ssize_t)len;
 }
 
 ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_frame *dest,

@@ -258,3 +258,23 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
 
   memset(&fm, 0, sizeof(fm));
 }
+
+void test_ngtcp2_pkt_decode_ack_frame(void) {
+  uint8_t buf[256];
+  size_t buflen;
+  ngtcp2_frame fm;
+  ssize_t rv;
+  size_t expectedlen;
+
+  /* 48 bits Largest Acknowledged + No Num Blocks + 0 NumTS*/
+  buflen = ngtcp2_t_encode_ack_frame(buf, 0xf1f2f3f4f5f6llu);
+
+  expectedlen = 1 + 1 + 6 + 2 + 6;
+
+  CU_ASSERT(expectedlen == buflen);
+
+  rv = ngtcp2_pkt_decode_ack_frame(&fm, buf, buflen);
+
+  CU_ASSERT((ssize_t)expectedlen == rv);
+  CU_ASSERT(0xf1f2f3f4f5f6llu == fm.ack.largest_ack);
+}

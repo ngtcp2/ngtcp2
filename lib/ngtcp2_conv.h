@@ -39,6 +39,13 @@
 uint64_t ngtcp2_get_uint64(const uint8_t *p);
 
 /*
+ * ngtcp2_get_uint48 reads 6 bytes from |p| as 48 bits unsigned
+ * integer encoded as network byte order, and returns it in host byte
+ * order.
+ */
+uint64_t ngtcp2_get_uint48(const uint8_t *p);
+
+/*
  * ngtcp2_get_uint32 reads 4 bytes from |p| as 32 bits unsigned
  * integer encoded as network byte order, and returns it in host byte
  * order.
@@ -65,6 +72,13 @@ uint16_t ngtcp2_get_uint16(const uint8_t *p);
  * position.
  */
 uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n);
+
+/*
+ * ngtcp2_put_uint48be writes |n| in host byte order in |p| in network
+ * byte order.  It writes only least significant 48 bits.  It returns
+ * the one beyond of the last written position.
+ */
+uint8_t *ngtcp2_put_uint48be(uint8_t *p, uint64_t n);
 
 /*
  * ngtcp2_put_uint32be writes |n| in host byte order in |p| in network

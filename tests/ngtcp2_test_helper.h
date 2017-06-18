@@ -45,4 +45,14 @@ size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
                                     uint32_t stream_id, uint64_t offset,
                                     uint16_t datalen);
 
+/*
+ * ngtcp2_t_encode_ack_frame encodes ACK frame into |out| with the
+ * given parameters.  Currently, this function encodes |largest_ack|
+ * in 48 bits, and omits Num Blocks field.  NumTS and ACK Delay fields
+ * are always 0.
+ *
+ * This function returns the number of bytes written to |out|.
+ */
+size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack);
+
 #endif /* NGTCP2_TEST_HELPER_H */

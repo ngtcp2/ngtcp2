@@ -69,3 +69,20 @@ size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
 
   return (size_t)(p - out);
 }
+
+size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack) {
+  uint8_t *p = out;
+
+  p = out;
+
+  *p++ = 0x0c | NGTCP2_FRAME_ACK;
+  /* NumTS */
+  *p++ = 0;
+  p = ngtcp2_put_uint48be(p, largest_ack);
+  p = ngtcp2_put_uint16be(p, 0);
+  /* TODO Draft-04 is pretty much ambiguous that whether the length of
+     First ACK Block Length is subject to LL or MM mask. */
+  p = ngtcp2_put_uint48be(p, 0);
+
+  return (size_t)(p - out);
+}

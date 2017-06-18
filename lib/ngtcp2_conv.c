@@ -45,6 +45,12 @@ uint64_t ngtcp2_get_uint64(const uint8_t *p) {
   return bswap64(n);
 }
 
+uint64_t ngtcp2_get_uint48(const uint8_t *p) {
+  uint64_t n = 0;
+  memcpy(((uint8_t *)&n) + 2, p, 6);
+  return bswap64(n);
+}
+
 uint32_t ngtcp2_get_uint32(const uint8_t *p) {
   uint32_t n;
   memcpy(&n, p, 4);
@@ -66,6 +72,11 @@ uint16_t ngtcp2_get_uint16(const uint8_t *p) {
 uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n) {
   n = bswap64(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
+}
+
+uint8_t *ngtcp2_put_uint48be(uint8_t *p, uint64_t n) {
+  n = bswap64(n);
+  return ngtcp2_cpymem(p, ((const uint8_t *)&n) + 2, 6);
 }
 
 uint8_t *ngtcp2_put_uint32be(uint8_t *p, uint32_t n) {

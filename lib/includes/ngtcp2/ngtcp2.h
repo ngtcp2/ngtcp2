@@ -137,9 +137,15 @@ typedef struct {
   const uint8_t *data;
 } ngtcp2_stream;
 
+typedef struct {
+  uint8_t type;
+  uint64_t largest_ack;
+} ngtcp2_ack;
+
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
+  ngtcp2_ack ack;
 } ngtcp2_frame;
 
 /**
