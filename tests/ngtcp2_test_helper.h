@@ -22,15 +22,27 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_PKT_TEST_H
-#define NGTCP2_PKT_TEST_H
+#ifndef NGTCP2_TEST_HELPER_H
+#define NGTCP2_TEST_HELPER_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_pkt_decode_hd_long(void);
-void test_ngtcp2_pkt_decode_hd_short(void);
-void test_ngtcp2_pkt_decode_stream_frame(void);
+#include <ngtcp2/ngtcp2.h>
 
-#endif /* NGTCP2_PKT_TEST_H */
+/*
+ * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with
+ * the given parameters.  If NGTCP2_STREAM_D_BIT is set in |flags|,
+ * |datalen| is encoded as Data Length, otherwise it is not written.
+ * To set FIN bit in wire format, set NGTCP2_STREAM_FIN_BIT in
+ * |flags|.  This function expects that |out| has enough length to
+ * store entire STREAM frame, excluding the Stream Data.
+ *
+ * This function returns the number of bytes written to |out|.
+ */
+size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
+                                    uint32_t stream_id, uint64_t offset,
+                                    uint16_t datalen);
+
+#endif /* NGTCP2_TEST_HELPER_H */

@@ -28,9 +28,11 @@ check_PROGRAMS = main
 
 OBJECTS = \
 	main.c \
-	ngtcp2_pkt_test.c
+	ngtcp2_pkt_test.c \
+	ngtcp2_test_helper.c
 HFILES= \
-	ngtcp2_pkt_test.h
+	ngtcp2_pkt_test.h \
+	ngtcp2_test_helper.h
 
 main_SOURCES = $(HFILES) $(OBJECTS)
 

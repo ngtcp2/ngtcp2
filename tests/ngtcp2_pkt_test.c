@@ -27,6 +27,7 @@
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_pkt.h"
+#include "ngtcp2_test_helper.h"
 
 void test_ngtcp2_pkt_decode_hd_long(void) {
   ngtcp2_pkt_hd hd, nhd;
@@ -128,4 +129,132 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(hd.conn_id == nhd.conn_id);
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
   CU_ASSERT(0 == nhd.version);
+}
+
+void test_ngtcp2_pkt_decode_stream_frame(void) {
+  uint8_t buf[256];
+  size_t buflen;
+  ngtcp2_frame fm;
+  ssize_t rv;
+  size_t expectedlen;
+
+  /* 32 bits Stream ID + 64 bits Offset + Data Length */
+  buflen = ngtcp2_t_encode_stream_frame(buf, NGTCP2_STREAM_D_BIT, 0xf1f2f3f4u,
+                                        0xf1f2f3f4f5f6f7f8llu, 0x14);
+
+  expectedlen = 1 + 4 + 8 + 2 + 20;
+
+  CU_ASSERT(expectedlen == buflen);
+
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen);
+
+  CU_ASSERT((ssize_t)expectedlen == rv);
+  CU_ASSERT(0 == fm.stream.fin);
+  CU_ASSERT(0xf1f2f3f4u == fm.stream.stream_id);
+  CU_ASSERT(0xf1f2f3f4f5f6f7f8llu == fm.stream.offset);
+  CU_ASSERT(0x14 == fm.stream.datalen);
+
+  /* Cutting 1 bytes from the tail must cause invalid argument
+     error */
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen - 1);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  memset(&fm, 0, sizeof(fm));
+
+  /* 24 bits Stream ID + 32 bits Offset + Data Length */
+  buflen = ngtcp2_t_encode_stream_frame(buf, NGTCP2_STREAM_D_BIT, 0xf1f2f3,
+                                        0xf1f2f3f4u, 0x14);
+
+  expectedlen = 1 + 3 + 4 + 2 + 20;
+
+  CU_ASSERT(expectedlen == buflen);
+
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen);
+
+  CU_ASSERT((ssize_t)expectedlen == rv);
+  CU_ASSERT(0 == fm.stream.fin);
+  CU_ASSERT(0xf1f2f3 == fm.stream.stream_id);
+  CU_ASSERT(0xf1f2f3f4u == fm.stream.offset);
+  CU_ASSERT(0x14 == fm.stream.datalen);
+
+  /* Cutting 1 bytes from the tail must cause invalid argument
+     error */
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen - 1);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  memset(&fm, 0, sizeof(fm));
+
+  /* 16 bits Stream ID + 16 bits Offset + Data Length */
+  buflen = ngtcp2_t_encode_stream_frame(buf, NGTCP2_STREAM_D_BIT, 0xf1f2,
+                                        0xf1f2, 0x14);
+
+  expectedlen = 1 + 2 + 2 + 2 + 20;
+
+  CU_ASSERT(expectedlen == buflen);
+
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen);
+
+  CU_ASSERT((ssize_t)expectedlen == rv);
+  CU_ASSERT(0 == fm.stream.fin);
+  CU_ASSERT(0xf1f2 == fm.stream.stream_id);
+  CU_ASSERT(0xf1f2 == fm.stream.offset);
+  CU_ASSERT(0x14 == fm.stream.datalen);
+
+  /* Cutting 1 bytes from the tail must cause invalid argument
+     error */
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen - 1);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  memset(&fm, 0, sizeof(fm));
+
+  /* 8 bits Stream ID + no Offset + Data Length */
+  buflen =
+      ngtcp2_t_encode_stream_frame(buf, NGTCP2_STREAM_D_BIT, 0xf1, 0x00, 0x14);
+
+  expectedlen = 1 + 1 + 0 + 2 + 20;
+
+  CU_ASSERT(expectedlen == buflen);
+
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen);
+
+  CU_ASSERT((ssize_t)expectedlen == rv);
+  CU_ASSERT(0 == fm.stream.fin);
+  CU_ASSERT(0xf1 == fm.stream.stream_id);
+  CU_ASSERT(0x00 == fm.stream.offset);
+  CU_ASSERT(0x14 == fm.stream.datalen);
+
+  /* Cutting 1 bytes from the tail must cause invalid argument
+     error */
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen - 1);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  memset(&fm, 0, sizeof(fm));
+
+  /* Fin bit set + no Data Length */
+  buflen = ngtcp2_t_encode_stream_frame(buf, NGTCP2_STREAM_FIN_BIT, 0xf1f2f3f4u,
+                                        0x00, 0x00);
+
+  expectedlen = 1 + 4;
+
+  CU_ASSERT(expectedlen == buflen);
+
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen);
+
+  CU_ASSERT((ssize_t)expectedlen == rv);
+  CU_ASSERT(1 == fm.stream.fin);
+  CU_ASSERT(0xf1f2f3f4u == fm.stream.stream_id);
+  CU_ASSERT(0x00 == fm.stream.offset);
+  CU_ASSERT(0x00 == fm.stream.datalen);
+
+  /* Cutting 1 bytes from the tail must cause invalid argument
+     error */
+  rv = ngtcp2_pkt_decode_stream_frame(&fm, buf, buflen - 1);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  memset(&fm, 0, sizeof(fm));
 }

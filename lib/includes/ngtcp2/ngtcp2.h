@@ -93,6 +93,23 @@ typedef enum {
   NGTCP2_PKT_03 = 0x03,
 } ngtcp2_pkt_type;
 
+typedef enum {
+  NGTCP2_FRAME_PADDING = 0x00,
+  NGTCP2_FRAME_RST_STREAM = 0x01,
+  NGTCP2_FRAME_CONNECTION_CLOSE = 0x02,
+  NGTCP2_FRAME_GOAWAY = 0x03,
+  NGTCP2_FRAME_MAX_DATA = 0x04,
+  NGTCP2_FRAME_MAX_STREAM_DATA = 0x05,
+  NGTCP2_FRAME_MAX_STREAM_ID = 0x06,
+  NGTCP2_FRAME_PING = 0x07,
+  NGTCP2_FRAME_BLOCKED = 0x08,
+  NGTCP2_FRAME_STREAM_BLOCKED = 0x09,
+  NGTCP2_FRAME_STREAM_ID_NEEDED = 0x0a,
+  NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
+  NGTCP2_FRAME_ACK = 0xa0,
+  NGTCP2_FRAME_STREAM = 0xc0
+} ngtcp2_frame_type;
+
 struct ngtcp2_framer;
 
 /* TODO
@@ -112,13 +129,18 @@ typedef struct {
 } ngtcp2_pkt_hd;
 
 typedef struct {
+  uint8_t type;
+  uint8_t fin;
   uint64_t stream_id;
   uint64_t offset;
   size_t datalen;
   const uint8_t *data;
 } ngtcp2_stream;
 
-typedef union { ngtcp2_stream stream; } ngtcp2_frame;
+typedef union {
+  uint8_t type;
+  ngtcp2_stream stream;
+} ngtcp2_frame;
 
 /**
  * @function
@@ -175,10 +197,9 @@ NGTCP2_EXTERN int ngtcp2_framer_verify_integrity(ngtcp2_framer *fr,
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest,
                                            const uint8_t *pkt, size_t pktlen);
 
-NGTCP2_EXTERN ssize_t ngtcp2_framer_decode_pkt_payload(ngtcp2_framer *fr,
-                                                       ngtcp2_frame **dest,
-                                                       const uint8_t *payload,
-                                                       size_t payloadlen);
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
+                                              const uint8_t *payload,
+                                              size_t payloadlen);
 
 NGTCP2_EXTERN int ngtcp2_framer_pkt_start_protected(ngtcp2_framer *fr,
                                                     const ngtcp2_pkt_hd *hd,

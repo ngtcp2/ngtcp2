@@ -39,6 +39,12 @@
 
 /* NGTCP2_LONG_HEADERLEN is the length of long header */
 #define NGTCP2_LONG_HEADERLEN 17
+
+#define NGTCP2_STREAM_FIN_BIT 0x20
+#define NGTCP2_STREAM_SS_MASK 0x18
+#define NGTCP2_STREAM_OO_MASK 0x06
+#define NGTCP2_STREAM_D_BIT 0x01
+
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.
  */
@@ -97,5 +103,66 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
  */
 ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
                                    const ngtcp2_pkt_hd *hd);
+
+/*
+ * ngtcp2_pkt_decode_stream_frame decodes STREAM frame from |payload|
+ * of length |payloadlen|.  The result is stored in the object pointed
+ * by |dest|.  STREAM frame must start at `payload[0]`.  This function
+ * returns when it decodes one STREAM frame, and returns the exact
+ * number of bytes for one STREAM frame if it succeeds, or one of the
+ * following negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Type indicates that payload does not include STREAM frame; or
+ *     Payload is too short to include STREAM frame
+ */
+ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_frame *dest,
+                                       const uint8_t *payload,
+                                       size_t payloadlen);
+
+ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_frame *dest, const uint8_t *payload,
+                                    size_t len);
+
+ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_frame *dest,
+                                        const uint8_t *payload, size_t len);
+
+ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_frame *dest,
+                                           const uint8_t *payload, size_t len);
+
+ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_frame *dest,
+                                                 const uint8_t *payload,
+                                                 size_t len);
+
+ssize_t ngtcp2_pkt_decode_goaway_frame(ngtcp2_frame *dest,
+                                       const uint8_t *payload, size_t len);
+
+ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_frame *dest,
+                                         const uint8_t *payload, size_t len);
+
+ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_frame *dest,
+                                                const uint8_t *payload,
+                                                size_t len);
+
+ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_frame *dest,
+                                              const uint8_t *payload,
+                                              size_t len);
+
+ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_frame *dest, const uint8_t *payload,
+                                     size_t len);
+
+ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_frame *dest,
+                                        const uint8_t *payload, size_t len);
+
+ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_frame *dest,
+                                               const uint8_t *payload,
+                                               size_t len);
+
+ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_frame *dest,
+                                                 const uint8_t *payload,
+                                                 size_t len);
+
+ssize_t ngtcp2_pkt_decode_new_connection_id_frame(ngtcp2_frame *dest,
+                                                  const uint8_t *payload,
+                                                  size_t len);
 
 #endif /* NGTCP2_PKT_H */
