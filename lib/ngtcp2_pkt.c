@@ -43,7 +43,7 @@ ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (pkt[0] & NGTCP2_HEADER_FORM_MASK) {
+  if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     return ngtcp2_pkt_decode_hd_long(dest, pkt, pktlen);
   }
 
@@ -58,7 +58,7 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if ((pkt[0] & NGTCP2_HEADER_FORM_MASK) == 0) {
+  if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) == 0) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -98,15 +98,15 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (pkt[0] & NGTCP2_HEADER_FORM_MASK) {
+  if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (pkt[0] & NGTCP2_CONN_ID_MASK) {
+  if (pkt[0] & NGTCP2_CONN_ID_BIT) {
     flags |= NGTCP2_PKT_FLAG_CONN_ID;
     len += 8;
   }
-  if (pkt[0] & NGTCP2_KEY_PHASE_MASK) {
+  if (pkt[0] & NGTCP2_KEY_PHASE_BIT) {
     flags |= NGTCP2_PKT_FLAG_KEY_PHASE;
   }
 
@@ -166,7 +166,7 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = NGTCP2_HEADER_FORM_MASK | hd->type;
+  *p++ = NGTCP2_HEADER_FORM_BIT | hd->type;
   p = ngtcp2_put_uint64be(p, hd->conn_id);
   p = ngtcp2_put_uint32be(p, hd->pkt_num);
   p = ngtcp2_put_uint32be(p, hd->version);
@@ -209,10 +209,10 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 
   *p = hd->type;
   if (need_conn_id) {
-    *p |= NGTCP2_CONN_ID_MASK;
+    *p |= NGTCP2_CONN_ID_BIT;
   }
   if (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) {
-    *p |= NGTCP2_KEY_PHASE_MASK;
+    *p |= NGTCP2_KEY_PHASE_BIT;
   }
 
   ++p;
