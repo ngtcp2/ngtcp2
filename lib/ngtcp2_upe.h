@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_STR_H
-#define NGTCP2_STR_H
+#ifndef NGTCP2_UPE_H
+#define NGTCP2_UPE_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -31,12 +31,13 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
+#include "ngtcp2_buf.h"
 
 /*
- * ngtcp2_fnv1a returns FNV-1a hash value for the data |p| of length
- * |len|.
+ * ngtcp2_upe is the Unprotected Packet Encoder.
  */
-uint64_t ngtcp2_fnv1a(const uint8_t *p, size_t len);
+struct ngtcp2_upe {
+  ngtcp2_buf buf;
+};
 
-#endif /* NGTCP2_STR_H */
+#endif /* NGTCP2_UPE_H */

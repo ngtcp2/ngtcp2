@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_STR_H
-#define NGTCP2_STR_H
+#ifndef NGTCP2_BUF_H
+#define NGTCP2_BUF_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -31,12 +31,30 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
+typedef struct {
+  /* begin points to the beginning of the buffer. */
+  uint8_t *begin;
+  /* end points to the one beyond of the last byte of the buffer */
+  uint8_t *end;
+  /* last points to the one beyond of the last data of the buffer.
+     Initially, it points to |begin|. */
+  uint8_t *last;
+} ngtcp2_buf;
 
 /*
- * ngtcp2_fnv1a returns FNV-1a hash value for the data |p| of length
- * |len|.
+ * ngtcp2_buf_init initializes |buf| with the given buffer.
  */
-uint64_t ngtcp2_fnv1a(const uint8_t *p, size_t len);
+void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len);
 
-#endif /* NGTCP2_STR_H */
+/*
+ * ngtcp2_buf_left returns the number of additional bytes which can be
+ * written to the underlying buffer.
+ */
+size_t ngtcp2_buf_left(ngtcp2_buf *buf);
+
+/*
+ * ngtcp2_buf_len returns the number of bytes written to the buffer.
+ */
+size_t ngtcp2_buf_len(ngtcp2_buf *buf);
+
+#endif /* NGTCP2_BUF_H */

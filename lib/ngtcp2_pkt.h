@@ -49,6 +49,9 @@
 #define NGTCP2_ACK_LL_MASK 0x0c
 #define NGTCP2_ACK_MM_MASK 0x03
 
+/* The length of FNV-1a message digest for Unprotected packet */
+#define NGTCP2_PKT_MDLEN 8
+
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.
  */
@@ -90,7 +93,7 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * written into |outlen| if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_NOBUF
  *     Buffer is too short
  */
 ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
@@ -102,7 +105,7 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
  * written into |outlen| if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_NOBUF
  *     Buffer is too short
  */
 ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
@@ -197,5 +200,24 @@ ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_frame *dest,
 ssize_t ngtcp2_pkt_decode_new_connection_id_frame(ngtcp2_frame *dest,
                                                   const uint8_t *payload,
                                                   size_t payloadlen);
+
+/**
+ * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fm| into the
+ * buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_stream *fm);
+
+ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
+                                    const ngtcp2_ack *fm);
+
+ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
+                                        const ngtcp2_padding *fm);
 
 #endif /* NGTCP2_PKT_H */

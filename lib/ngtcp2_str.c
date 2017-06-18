@@ -30,3 +30,13 @@ uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n) {
   memcpy(dest, src, n);
   return dest + n;
 }
+
+uint64_t ngtcp2_fnv1a(const uint8_t *p, size_t len) {
+  uint64_t h = 0xcbf29ce484222325llu;
+  const uint8_t *ep = p + len;
+  for (; p != ep; ++p) {
+    h ^= *p;
+    h *= 0x100000001b3;
+  }
+  return h;
+}

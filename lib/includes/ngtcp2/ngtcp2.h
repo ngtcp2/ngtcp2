@@ -68,7 +68,8 @@ extern "C" {
 
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
-  NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202
+  NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
+  NGTCP2_ERR_NOBUF = -203
 } ngtcp2_error;
 
 typedef enum {
@@ -121,7 +122,7 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint8_t fin;
-  uint64_t stream_id;
+  uint32_t stream_id;
   uint64_t offset;
   size_t datalen;
   const uint8_t *data;
@@ -172,6 +173,21 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
                                               const uint8_t *payload,
                                               size_t payloadlen);
 
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_encode_frame` encodes a frame |fm| into the buffer
+ * pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer does not have enough capacity to write a frame.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
+                                              const ngtcp2_frame *fm);
+
 /* Protected Packet Encoder: ppe */
 struct ngtcp2_ppe;
 typedef struct ngtcp2_ppe ngtcp2_ppe;
@@ -191,12 +207,52 @@ NGTCP2_EXTERN ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe);
 struct ngtcp2_upe;
 typedef struct ngtcp2_upe ngtcp2_upe;
 
-NGTCP2_EXTERN int ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out, size_t outlen);
-NGTCP2_EXTERN ssize_t ngtcp2_upe_encode_hd(ngtcp2_upe *upe,
-                                           const ngtcp2_pkt_hd *hd);
-NGTCP2_EXTERN ssize_t ngtcp2_upe_encode_frame(ngtcp2_upe *upe,
-                                              const ngtcp2_frame *fm);
-NGTCP2_EXTERN ssize_t ngtcp2_upe_final(ngtcp2_upe *upe);
+/**
+ * @function
+ *
+ * `ngtcp2_upe_init` initializes |upe| with the given buffer.
+ */
+NGTCP2_EXTERN void ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out,
+                                   size_t outlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_upe_encode_hd` encodes QUIC packet header |hd| in the
+ * buffer.  |hd| is encoded as long header.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer does not have enough capacity to write a header.
+ */
+NGTCP2_EXTERN int ngtcp2_upe_encode_hd(ngtcp2_upe *upe,
+                                       const ngtcp2_pkt_hd *hd);
+
+/**
+ * @function
+ *
+ * `ngtcp2_upe_encode_frame` encodes the frame |fm| in the buffer.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer does not have enough capacity to write a header.
+ */
+NGTCP2_EXTERN int ngtcp2_upe_encode_frame(ngtcp2_upe *upe,
+                                          const ngtcp2_frame *fm);
+
+/**
+ * @function
+ *
+ * `ngtcp2_upe_final` calculates checksum of the content in the
+ * buffer, and appends it to the end of the buffer.  The pointer to
+ * the packet is stored into |*pkt|, and the length of packet is
+ * returned.
+ */
+NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
 
 /**
  * @function

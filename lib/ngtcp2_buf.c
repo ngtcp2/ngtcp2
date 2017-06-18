@@ -22,21 +22,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_STR_H
-#define NGTCP2_STR_H
+#include "ngtcp2_buf.h"
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
+  buf->begin = buf->last = begin;
+  buf->end = begin + len;
+}
 
-#include <ngtcp2/ngtcp2.h>
+size_t ngtcp2_buf_left(ngtcp2_buf *buf) {
+  return (size_t)(buf->end - buf->last);
+}
 
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
-
-/*
- * ngtcp2_fnv1a returns FNV-1a hash value for the data |p| of length
- * |len|.
- */
-uint64_t ngtcp2_fnv1a(const uint8_t *p, size_t len);
-
-#endif /* NGTCP2_STR_H */
+size_t ngtcp2_buf_len(ngtcp2_buf *buf) {
+  return (size_t)(buf->last - buf->begin);
+}

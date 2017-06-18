@@ -27,6 +27,7 @@
 #include <assert.h>
 
 #include "ngtcp2_conv.h"
+#include "ngtcp2_str.h"
 
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         uint64_t conn_id, uint32_t pkt_num, uint32_t version) {
@@ -161,7 +162,7 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   uint8_t *p;
 
   if (outlen < NGTCP2_LONG_HEADERLEN) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_NOBUF;
   }
 
   p = out;
@@ -202,7 +203,7 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
   }
 
   if (outlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_NOBUF;
   }
 
   p = out;
@@ -596,5 +597,120 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(ngtcp2_frame *dest,
   (void)dest;
   (void)payload;
   (void)len;
+  return -1;
+}
+
+ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
+                                const ngtcp2_frame *fm) {
+  switch (fm->type) {
+  case NGTCP2_FRAME_STREAM:
+    return ngtcp2_pkt_encode_stream_frame(out, outlen, &fm->stream);
+  case NGTCP2_FRAME_ACK:
+    return ngtcp2_pkt_encode_ack_frame(out, outlen, &fm->ack);
+  case NGTCP2_FRAME_PADDING:
+    return ngtcp2_pkt_encode_padding_frame(out, outlen, &fm->padding);
+  default:
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+}
+
+ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_stream *fm) {
+  size_t len = 1;
+  uint8_t flags = 0;
+  size_t idlen;
+  size_t offsetlen;
+  uint8_t *p;
+
+  if (fm->stream_id > 0xffffff) {
+    idlen = 4;
+    flags |= 0x18;
+  } else if (fm->stream_id > 0xffff) {
+    idlen = 3;
+    flags |= 0x10;
+  } else if (fm->stream_id > 0xff) {
+    idlen = 2;
+    flags |= 0x08;
+  } else {
+    idlen = 1;
+  }
+
+  len += idlen;
+
+  if (fm->offset > 0xffffffffu) {
+    offsetlen = 8;
+    flags |= 0x06;
+  } else if (fm->offset > 0xffff) {
+    offsetlen = 4;
+    flags |= 0x04;
+  } else if (fm->offset > 0xff) {
+    offsetlen = 2;
+    flags |= 0x02;
+  } else {
+    offsetlen = 0;
+  }
+
+  len += offsetlen;
+
+  /* Always write Data Length */
+  len += 2;
+  len += fm->datalen;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = out;
+
+  *p++ = flags | NGTCP2_FRAME_STREAM;
+
+  switch (idlen) {
+  case 4:
+    p = ngtcp2_put_uint32be(p, fm->stream_id);
+    break;
+  case 3:
+    p = ngtcp2_put_uint24be(p, fm->stream_id);
+    break;
+  case 2:
+    p = ngtcp2_put_uint16be(p, (uint16_t)fm->stream_id);
+    break;
+  case 1:
+    *p++ = (uint8_t)fm->stream_id;
+    break;
+  }
+
+  switch (offsetlen) {
+  case 8:
+    p = ngtcp2_put_uint64be(p, fm->offset);
+    break;
+  case 4:
+    p = ngtcp2_put_uint32be(p, (uint32_t)fm->offset);
+    break;
+  case 2:
+    p = ngtcp2_put_uint16be(p, (uint16_t)fm->offset);
+    break;
+  }
+
+  p = ngtcp2_put_uint16be(p, (uint16_t)fm->datalen);
+  p = ngtcp2_cpymem(p, fm->data, fm->datalen);
+
+  assert((size_t)(p - out) == len);
+
+  return (ssize_t)(p - out);
+}
+
+ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
+                                    const ngtcp2_ack *fm) {
+  (void)out;
+  (void)outlen;
+  (void)fm;
+  return -1;
+}
+
+ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
+                                        const ngtcp2_padding *fm) {
+  (void)out;
+  (void)outlen;
+  (void)fm;
   return -1;
 }

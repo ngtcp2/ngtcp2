@@ -34,11 +34,16 @@ lib_LTLIBRARIES = libngtcp2.la
 OBJECTS = \
 	ngtcp2_pkt.c \
 	ngtcp2_conv.c \
-	ngtcp2_str.c
+	ngtcp2_str.c \
+	ngtcp2_buf.c \
+	ngtcp2_upe.c
+
 HFILES = \
 	ngtcp2_pkt.h \
 	ngtcp2_conv.h \
-	ngtcp2_str.h
+	ngtcp2_str.h \
+	ngtcp2_buf.h \
+	ngtcp2_upe.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \
