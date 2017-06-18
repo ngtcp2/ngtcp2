@@ -132,8 +132,9 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_frame *dest,
  * of bytes for one ACK frame if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT Type indicates that payload does not
- *     include ACK frame; or Payload is too short to include ACK frame
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Type indicates that payload does not include ACK frame; or
+ *     Payload is too short to include ACK frame
  */
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                     size_t payloadlen);
