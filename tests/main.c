@@ -64,7 +64,9 @@ int main() {
       !CU_add_test(pSuite, "pkt_decode_padding_frame",
                    test_ngtcp2_pkt_decode_padding_frame) ||
       !CU_add_test(pSuite, "pkt_encode_stream_frame",
-                   test_ngtcp2_pkt_encode_stream_frame)) {
+                   test_ngtcp2_pkt_encode_stream_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_ack_frame",
+                   test_ngtcp2_pkt_encode_ack_frame)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

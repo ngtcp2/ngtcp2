@@ -135,7 +135,13 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
+  /**
+   * flags of decoded ACK frame.  This gets ignored when encoding ACK
+   * frame.
+   */
+  uint8_t flags;
   uint64_t largest_ack;
+  uint16_t ack_delay;
 } ngtcp2_ack;
 
 typedef struct {

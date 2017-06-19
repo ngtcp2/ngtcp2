@@ -213,6 +213,19 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
                                        const ngtcp2_stream *fm);
 
+/**
+ * ngtcp2_pkt_encode_ack_frame encodes ACK frame |fm| into the buffer
+ * pointed by |out| of length |outlen|.
+ *
+ * Currently, this function only encodes Largest Acknowledged and ACK
+ * delay.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
                                     const ngtcp2_ack *fm);
 

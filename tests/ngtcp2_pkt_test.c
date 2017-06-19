@@ -446,3 +446,29 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == rv);
 }
+
+void test_ngtcp2_pkt_encode_ack_frame(void) {
+  uint8_t buf[256];
+  ngtcp2_frame fm, nfm;
+  ssize_t rv;
+  size_t framelen;
+
+  fm.type = NGTCP2_FRAME_ACK;
+  fm.ack.largest_ack = 0xf1f2f3f4f5f6llu;
+  fm.ack.ack_delay = 0;
+
+  framelen = 1 + 1 + 6 + 2 + 6;
+
+  rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fm.ack);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_ack_frame(&nfm.ack, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fm.type == nfm.type);
+  CU_ASSERT(0x0f == nfm.ack.flags);
+  CU_ASSERT(fm.ack.largest_ack == nfm.ack.largest_ack);
+
+  memset(&nfm, 0, sizeof(nfm));
+}

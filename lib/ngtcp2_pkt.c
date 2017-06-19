@@ -470,6 +470,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   }
 
   dest->type = NGTCP2_FRAME_ACK;
+  dest->flags = type & ~NGTCP2_FRAME_ACK;
 
   switch (lalen) {
   case 1:
@@ -713,10 +714,26 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
                                     const ngtcp2_ack *fm) {
-  (void)out;
-  (void)outlen;
-  (void)fm;
-  return -1;
+  size_t len = 1 + 1 + 6 + 2 + 6;
+  uint8_t *p;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = out;
+
+  *p++ = NGTCP2_FRAME_ACK | NGTCP2_ACK_LL_MASK | NGTCP2_ACK_MM_MASK;
+  /* NumTS */
+  *p++ = 0;
+  p = ngtcp2_put_uint48be(p, fm->largest_ack);
+  p = ngtcp2_put_uint16be(p, fm->ack_delay);
+  /* Just ack 1 packet */
+  p = ngtcp2_put_uint48be(p, 1);
+
+  assert((size_t)(p - out) == len);
+
+  return (ssize_t)len;
 }
 
 ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
