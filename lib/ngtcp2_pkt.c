@@ -239,7 +239,7 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return p - out;
+  return (ssize_t)len;
 }
 
 static int has_mask(uint8_t b, uint8_t mask) { return (b & mask) == mask; }
@@ -710,7 +710,7 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)(p - out);
+  return (ssize_t)len;
 }
 
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
