@@ -141,11 +141,44 @@ typedef struct {
   size_t len;
 } ngtcp2_padding;
 
+typedef struct { uint8_t type; } ngtcp2_rst_stream;
+
+typedef struct { uint8_t type; } ngtcp2_connection_close;
+
+typedef struct { uint8_t type; } ngtcp2_goaway;
+
+typedef struct { uint8_t type; } ngtcp2_max_data;
+
+typedef struct { uint8_t type; } ngtcp2_max_stream_data;
+
+typedef struct { uint8_t type; } ngtcp2_max_stream_id;
+
+typedef struct { uint8_t type; } ngtcp2_ping;
+
+typedef struct { uint8_t type; } ngtcp2_blocked;
+
+typedef struct { uint8_t type; } ngtcp2_stream_blocked;
+
+typedef struct { uint8_t type; } ngtcp2_stream_id_needed;
+
+typedef struct { uint8_t type; } ngtcp2_new_connection_id;
+
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
   ngtcp2_ack ack;
   ngtcp2_padding padding;
+  ngtcp2_rst_stream rst_stream;
+  ngtcp2_connection_close connection_close;
+  ngtcp2_goaway goaway;
+  ngtcp2_max_data max_data;
+  ngtcp2_max_stream_data max_stream_data;
+  ngtcp2_max_stream_id max_stream_id;
+  ngtcp2_ping ping;
+  ngtcp2_blocked blocked;
+  ngtcp2_stream_blocked stream_blocked;
+  ngtcp2_stream_id_needed stream_id_needed;
+  ngtcp2_new_connection_id new_connection_id;
 } ngtcp2_frame;
 
 /**

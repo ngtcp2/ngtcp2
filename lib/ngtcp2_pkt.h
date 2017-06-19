@@ -123,7 +123,7 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
  *     Type indicates that payload does not include STREAM frame; or
  *     Payload is too short to include STREAM frame
  */
-ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
                                        const uint8_t *payload,
                                        size_t payloadlen);
 
@@ -139,7 +139,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_frame *dest,
  *     Type indicates that payload does not include ACK frame; or
  *     Payload is too short to include ACK frame
  */
-ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_frame *dest, const uint8_t *payload,
+ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
                                     size_t payloadlen);
 
 /*
@@ -154,52 +154,51 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_frame *dest, const uint8_t *payload,
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Type indicates that payload does not include PADDING frame.
  */
-ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
                                         const uint8_t *payload,
                                         size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
                                            const uint8_t *payload,
                                            size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
                                                  const uint8_t *payload,
                                                  size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_goaway_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_goaway_frame(ngtcp2_goaway *dest,
                                        const uint8_t *payload,
                                        size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
                                          const uint8_t *payload,
                                          size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
                                                 const uint8_t *payload,
                                                 size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
                                               const uint8_t *payload,
                                               size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_frame *dest, const uint8_t *payload,
+ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
                                      size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
                                         const uint8_t *payload,
                                         size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
                                                const uint8_t *payload,
                                                size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_frame *dest,
+ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
                                                  const uint8_t *payload,
                                                  size_t payloadlen);
 
-ssize_t ngtcp2_pkt_decode_new_connection_id_frame(ngtcp2_frame *dest,
-                                                  const uint8_t *payload,
-                                                  size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
+    ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
 
 /**
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fm| into the
