@@ -259,6 +259,7 @@ typedef struct ngtcp2_upe ngtcp2_upe;
 NGTCP2_EXTERN void ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out,
                                    size_t outlen);
 
+
 /**
  * @function
  *
@@ -295,6 +296,22 @@ NGTCP2_EXTERN int ngtcp2_upe_encode_frame(ngtcp2_upe *upe,
  * buffer.
  */
 NGTCP2_EXTERN void ngtcp2_upe_padding(ngtcp2_upe *upe);
+
+/**
+ * @function
+ *
+ * `ngtcp2_upe_encode_version_negotiation` encodes payload of Version
+ * Negotiation packet.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer does not have enough capacity to write a payload.
+ */
+NGTCP2_EXTERN int
+ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, uint8_t *out,
+                                      size_t outlen, uint32_t *sv, size_t nsv);
 
 /**
  * @function
