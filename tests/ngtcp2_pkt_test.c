@@ -238,9 +238,9 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
 
   /* Fin bit set + no Data Length */
   buflen = ngtcp2_t_encode_stream_frame(buf, NGTCP2_STREAM_FIN_BIT, 0xf1f2f3f4u,
-                                        0x00, 0x00);
+                                        0x00, 0x14);
 
-  expectedlen = 1 + 4;
+  expectedlen = 1 + 4 + 20;
 
   CU_ASSERT(expectedlen == buflen);
 
@@ -250,13 +250,7 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
   CU_ASSERT(1 == fm.stream.fin);
   CU_ASSERT(0xf1f2f3f4u == fm.stream.stream_id);
   CU_ASSERT(0x00 == fm.stream.offset);
-  CU_ASSERT(0x00 == fm.stream.datalen);
-
-  /* Cutting 1 bytes from the tail must cause invalid argument
-     error */
-  rv = ngtcp2_pkt_decode_stream_frame(&fm.stream, buf, buflen - 1);
-
-  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  CU_ASSERT(0x14 == fm.stream.datalen);
 
   memset(&fm, 0, sizeof(fm));
 }

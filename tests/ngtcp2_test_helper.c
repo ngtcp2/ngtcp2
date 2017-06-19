@@ -63,6 +63,9 @@ size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
     p = ngtcp2_put_uint16be(p, datalen);
     memset(p, 0, datalen);
     p += datalen;
+  } else {
+    memset(p, 0, datalen);
+    p += datalen;
   }
 
   *out = NGTCP2_FRAME_STREAM | flags;
