@@ -747,3 +747,16 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
 
   return (ssize_t)fm->len;
 }
+
+int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen) {
+  uint64_t a, b;
+
+  if (pktlen <= NGTCP2_PKT_MDLEN) {
+    return -1;
+  }
+
+  a = ngtcp2_get_uint64(pkt + (pktlen - NGTCP2_PKT_MDLEN));
+  b = ngtcp2_fnv1a(pkt, pktlen - NGTCP2_PKT_MDLEN);
+
+  return a == b ? 0 : -1;
+}
