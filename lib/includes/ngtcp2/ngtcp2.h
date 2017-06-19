@@ -291,6 +291,14 @@ NGTCP2_EXTERN int ngtcp2_upe_encode_frame(ngtcp2_upe *upe,
 /**
  * @function
  *
+ * `ngtcp2_upe_padding` encodes PADDING frames to the end of the
+ * buffer.
+ */
+NGTCP2_EXTERN void ngtcp2_upe_padding(ngtcp2_upe *upe);
+
+/**
+ * @function
+ *
  * `ngtcp2_upe_final` calculates checksum of the content in the
  * buffer, and appends it to the end of the buffer.  The pointer to
  * the packet is stored into |*pkt|, and the length of packet is

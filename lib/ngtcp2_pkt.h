@@ -229,6 +229,18 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
                                     const ngtcp2_ack *fm);
 
+/**
+ * ngtcp2_pkt_encode_padding_frame encodes PADDING frame |fm| into the
+ * buffer pointed by |out| of length |outlen|.
+ *
+ * This function encodes consecutive fm->len PADDING frames.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write frame(s).
+ */
 ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_padding *fm);
 

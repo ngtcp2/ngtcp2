@@ -25,6 +25,7 @@
 #include "ngtcp2_pkt.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_conv.h"
 #include "ngtcp2_str.h"
@@ -738,8 +739,11 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
 
 ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_padding *fm) {
-  (void)out;
-  (void)outlen;
-  (void)fm;
-  return -1;
+  if (outlen < fm->len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  memset(out, 0, fm->len);
+
+  return (ssize_t)fm->len;
 }

@@ -25,6 +25,7 @@
 #include "ngtcp2_upe.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_str.h"
@@ -66,6 +67,17 @@ int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, const ngtcp2_frame *fm) {
   buf->last += rv;
 
   return 0;
+}
+
+void ngtcp2_upe_padding(ngtcp2_upe *upe) {
+  ngtcp2_buf *buf = &upe->buf;
+  size_t len;
+
+  assert(ngtcp2_buf_left(buf) >= NGTCP2_PKT_MDLEN);
+
+  len = ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN;
+  memset(buf->last, 0, len);
+  buf->last += len;
 }
 
 size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {
