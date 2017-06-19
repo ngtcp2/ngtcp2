@@ -121,6 +121,11 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
+  /**
+   * flags of decoded STREAM frame.  This gets ignored when encoding
+   * STREAM frame.
+   */
+  uint8_t flags;
   uint8_t fin;
   uint32_t stream_id;
   uint64_t offset;

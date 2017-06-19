@@ -346,6 +346,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   }
 
   dest->type = NGTCP2_FRAME_STREAM;
+  dest->flags = (type & ~NGTCP2_FRAME_STREAM);
   dest->fin = fin;
 
   p = &payload[1];
@@ -387,14 +388,13 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
     p += 2;
     dest->data = p;
     p += datalen;
+    assert((size_t)(p - payload) == len);
+    return p - payload;
   } else {
     dest->datalen = payloadlen - (size_t)(p - payload);
     dest->data = p;
+    return (ssize_t)payloadlen;
   }
-
-  assert((size_t)(p - payload) == len);
-
-  return p - payload;
 }
 
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
@@ -625,10 +625,14 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
                                        const ngtcp2_stream *fm) {
   size_t len = 1;
-  uint8_t flags = 0;
+  uint8_t flags = NGTCP2_STREAM_D_BIT;
   size_t idlen;
   size_t offsetlen;
   uint8_t *p;
+
+  if (fm->fin) {
+    flags |= NGTCP2_STREAM_FIN_BIT;
+  }
 
   if (fm->stream_id > 0xffffff) {
     idlen = 4;
