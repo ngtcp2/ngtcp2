@@ -30,6 +30,7 @@
 
 #include "ngtcp2_upe.h"
 #include "ngtcp2_pkt.h"
+#include "ngtcp2_conv.h"
 #include "ngtcp2_test_helper.h"
 
 void test_ngtcp2_upe_encode(void) {
@@ -135,4 +136,49 @@ void test_ngtcp2_upe_encode(void) {
   CU_ASSERT(nread == (ssize_t)pktlen);
   CU_ASSERT(NGTCP2_FRAME_PADDING == ns.type);
   CU_ASSERT(pktlen == ns.padding.len);
+}
+
+void test_ngtcp2_upe_encode_version_negotiation(void) {
+  ngtcp2_upe upe;
+  const uint32_t sv[] = {0x01, 0x02, 0x03};
+  uint8_t buf[256];
+  ngtcp2_pkt_hd hd, nhd;
+  int rv;
+  const uint8_t *out;
+  size_t pktlen;
+  ssize_t nread;
+  size_t i;
+
+  ngtcp2_upe_init(&upe, buf, sizeof(buf));
+
+  hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
+  hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
+  hd.conn_id = 1000000009;
+  hd.pkt_num = 1000000007;
+  hd.version = 0xff;
+
+  rv = ngtcp2_upe_encode_hd(&upe, &hd);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_upe_encode_version_negotiation(&upe, sv, arraylen(sv));
+
+  CU_ASSERT(0 == rv);
+
+  pktlen = ngtcp2_upe_final(&upe, &out);
+  pktlen -= NGTCP2_PKT_MDLEN;
+
+  nread = ngtcp2_pkt_decode_hd_long(&nhd, out, pktlen);
+
+  CU_ASSERT(NGTCP2_LONG_HEADERLEN == nread);
+
+  out += nread;
+  pktlen -= (size_t)nread;
+
+  CU_ASSERT(sizeof(sv) == pktlen);
+
+  for (i = 0; i < arraylen(sv); ++i) {
+    uint32_t v = ngtcp2_get_uint32(out + sizeof(uint32_t) * i);
+    CU_ASSERT(sv[i] == v);
+  }
 }

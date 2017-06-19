@@ -37,6 +37,11 @@
 #define strsize(S) (sizeof(S) - 1)
 
 /*
+ * arraylen macro returns the number of elements in array |A|.
+ */
+#define arraylen(A) (sizeof(A) / sizeof(A[0]))
+
+/*
  * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with
  * the given parameters.  If NGTCP2_STREAM_D_BIT is set in |flags|,
  * |datalen| is encoded as Data Length, otherwise it is not written.

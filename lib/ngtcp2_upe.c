@@ -80,6 +80,29 @@ void ngtcp2_upe_padding(ngtcp2_upe *upe) {
   buf->last += len;
 }
 
+int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, const uint32_t *sv,
+                                          size_t nsv) {
+  ngtcp2_buf *buf = &upe->buf;
+  uint8_t *p;
+  size_t i;
+
+  if (ngtcp2_buf_left(buf) < sizeof(uint32_t) * nsv + NGTCP2_PKT_MDLEN) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = buf->last;
+
+  for (i = 0; i < nsv; ++i) {
+    p = ngtcp2_put_uint32be(p, sv[i]);
+  }
+
+  assert((size_t)(p - buf->last) == sizeof(uint32_t) * nsv);
+
+  buf->last = p;
+
+  return 0;
+}
+
 size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {
   ngtcp2_buf *buf = &upe->buf;
   uint64_t h;
