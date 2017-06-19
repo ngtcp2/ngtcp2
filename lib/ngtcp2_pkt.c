@@ -371,6 +371,9 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   }
 
   switch (offsetlen) {
+  case 0:
+    dest->offset = 0;
+    break;
   case 2:
     dest->offset = ngtcp2_get_uint16(p);
     break;
@@ -384,7 +387,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
 
   p += offsetlen;
 
-  if (datalen) {
+  if (type & NGTCP2_STREAM_D_BIT) {
     dest->datalen = datalen;
     p += 2;
     dest->data = p;

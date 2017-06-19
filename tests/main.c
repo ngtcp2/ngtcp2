@@ -32,6 +32,7 @@
 #include <CUnit/Basic.h>
 /* include test cases' include files here */
 #include "ngtcp2_pkt_test.h"
+#include "ngtcp2_upe_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -66,7 +67,8 @@ int main() {
       !CU_add_test(pSuite, "pkt_encode_stream_frame",
                    test_ngtcp2_pkt_encode_stream_frame) ||
       !CU_add_test(pSuite, "pkt_encode_ack_frame",
-                   test_ngtcp2_pkt_encode_ack_frame)) {
+                   test_ngtcp2_pkt_encode_ack_frame) ||
+      !CU_add_test(pSuite, "upe_encode", test_ngtcp2_upe_encode)) {
     CU_cleanup_registry();
     return CU_get_error();
   }
