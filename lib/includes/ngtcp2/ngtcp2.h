@@ -259,7 +259,6 @@ typedef struct ngtcp2_upe ngtcp2_upe;
 NGTCP2_EXTERN void ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out,
                                    size_t outlen);
 
-
 /**
  * @function
  *
