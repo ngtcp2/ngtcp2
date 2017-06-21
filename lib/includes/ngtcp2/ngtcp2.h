@@ -159,8 +159,12 @@ typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
   NGTCP2_ERR_NOBUF = -203,
+  NGTCP2_ERR_BAD_PKT_HASH = -204,
+  NGTCP2_ERR_PROTO = -205,
+  /* Fatal error >= 500 */
   NGTCP2_ERR_NOMEM = -501,
-  NGTCP2_ERR_CALLBACK_FAILURE = -502
+  NGTCP2_ERR_CALLBACK_FAILURE = -502,
+  NGTCP2_ERR_INTERNAL_ERROR = -503
 } ngtcp2_error;
 
 typedef enum {
@@ -447,26 +451,31 @@ struct ngtcp2_conn;
 
 typedef struct ngtcp2_conn ngtcp2_conn;
 
-typedef int (*ngtcp2_client_initial_callback)(ngtcp2_conn *conn, uint32_t flags,
+typedef ssize_t (*ngtcp2_send_client_initial)(ngtcp2_conn *conn, uint32_t flags,
                                               uint64_t *ppkt_num,
                                               const uint8_t **pdest,
-                                              size_t *pdestlen,
+                                              size_t maxdestlen,
                                               void *user_data);
 
-typedef int (*ngtcp2_client_cleartext_callback)(ngtcp2_conn *conn,
+typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 const uint8_t **pdest,
-                                                size_t *pdestlen,
+                                                size_t maxdestlen,
                                                 void *user_data);
 
-typedef int (*ngtcp2_server_cleartext_callback)(
-    ngtcp2_conn *conn, uint32_t flags, uint64_t *pconn_id, uint64_t *ppkt_num,
-    const uint8_t **pdest, size_t *pdestlen, void *user_data);
+typedef ssize_t (*ngtcp2_send_server_cleartext)(
+    ngtcp2_conn *conn, uint32_t flags, uint64_t *ppkt_num,
+    const uint8_t **pdest, size_t maxdestlen, void *user_data);
+
+typedef int (*ngtcp2_recv_handshake_data)(ngtcp2_conn *conn,
+                                          const uint8_t *data, size_t datalen,
+                                          void *user_data);
 
 typedef struct {
-  ngtcp2_client_initial_callback client_initial_callback;
-  ngtcp2_client_cleartext_callback client_cleartext_callback;
-  ngtcp2_server_cleartext_callback server_cleartext_callback;
+  ngtcp2_send_client_initial send_client_initial;
+  ngtcp2_send_client_cleartext send_client_cleartext;
+  ngtcp2_send_server_cleartext send_server_cleartext;
+  ngtcp2_recv_handshake_data recv_handshake_data;
 } ngtcp2_conn_callbacks;
 
 NGTCP2_EXTERN int ngtcp2_accept(const uint8_t *pkt, size_t pktlen);

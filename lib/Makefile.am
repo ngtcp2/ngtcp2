@@ -38,7 +38,9 @@ OBJECTS = \
 	ngtcp2_buf.c \
 	ngtcp2_upe.c \
 	ngtcp2_conn.c \
-	ngtcp2_mem.c
+	ngtcp2_mem.c \
+	ngtcp2_pq.c \
+	ngtcp2_framebuf.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -47,7 +49,10 @@ HFILES = \
 	ngtcp2_buf.h \
 	ngtcp2_upe.h \
 	ngtcp2_conn.h \
-	ngtcp2_mem.h
+	ngtcp2_mem.h \
+	ngtcp2_pq.h \
+	ngtcp2_framebuf.h \
+	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \
