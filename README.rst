@@ -1,7 +1,7 @@
 ngtcp2
 ======
 
-ngtcp2 is Not TCP version 2.
+"Call it TCP/2.  One More Time."
 
 License
 -------
