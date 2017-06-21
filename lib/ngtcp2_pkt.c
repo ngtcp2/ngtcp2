@@ -732,8 +732,9 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
   *p++ = 0;
   p = ngtcp2_put_uint48be(p, fm->largest_ack);
   p = ngtcp2_put_uint16be(p, fm->ack_delay);
-  /* Just ack 1 packet */
-  p = ngtcp2_put_uint48be(p, 1);
+  /* I'm not sure this should be 0 or 1. "Additional" means this
+     should be 0. */
+  p = ngtcp2_put_uint48be(p, 0);
 
   assert((size_t)(p - out) == len);
 
