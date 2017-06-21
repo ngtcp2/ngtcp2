@@ -31,7 +31,7 @@
 #include "ngtcp2_str.h"
 
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
-                        uint64_t conn_id, uint32_t pkt_num, uint32_t version) {
+                        uint64_t conn_id, uint64_t pkt_num, uint32_t version) {
   hd->flags = flags;
   hd->type = type;
   hd->conn_id = conn_id;
@@ -170,7 +170,7 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   *p++ = NGTCP2_HEADER_FORM_BIT | hd->type;
   p = ngtcp2_put_uint64be(p, hd->conn_id);
-  p = ngtcp2_put_uint32be(p, hd->pkt_num);
+  p = ngtcp2_put_uint32be(p, (uint32_t)hd->pkt_num);
   p = ngtcp2_put_uint32be(p, hd->version);
 
   assert(p - out == NGTCP2_LONG_HEADERLEN);
@@ -231,7 +231,7 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
     p = ngtcp2_put_uint16be(p, (uint16_t)hd->pkt_num);
     break;
   case NGTCP2_PKT_03:
-    p = ngtcp2_put_uint32be(p, hd->pkt_num);
+    p = ngtcp2_put_uint32be(p, (uint32_t)hd->pkt_num);
     break;
   default:
     assert(0);

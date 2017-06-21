@@ -66,10 +66,101 @@ extern "C" {
 #endif /* !BUILDING_NGTCP2 */
 #endif /* !defined(WIN32) */
 
+/**
+ * @functypedef
+ *
+ * Custom memory allocator to replace malloc().  The |mem_user_data|
+ * is the mem_user_data member of :type:`ngtcp2_mem` structure.
+ */
+typedef void *(*ngtcp2_malloc)(size_t size, void *mem_user_data);
+
+/**
+ * @functypedef
+ *
+ * Custom memory allocator to replace free().  The |mem_user_data| is
+ * the mem_user_data member of :type:`ngtcp2_mem` structure.
+ */
+typedef void (*ngtcp2_free)(void *ptr, void *mem_user_data);
+
+/**
+ * @functypedef
+ *
+ * Custom memory allocator to replace calloc().  The |mem_user_data|
+ * is the mem_user_data member of :type:`ngtcp2_mem` structure.
+ */
+typedef void *(*ngtcp2_calloc)(size_t nmemb, size_t size, void *mem_user_data);
+
+/**
+ * @functypedef
+ *
+ * Custom memory allocator to replace realloc().  The |mem_user_data|
+ * is the mem_user_data member of :type:`ngtcp2_mem` structure.
+ */
+typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *mem_user_data);
+
+/**
+ * @struct
+ *
+ * Custom memory allocator functions and user defined pointer.  The
+ * |mem_user_data| member is passed to each allocator function.  This
+ * can be used, for example, to achieve per-session memory pool.
+ *
+ * In the following example code, ``my_malloc``, ``my_free``,
+ * ``my_calloc`` and ``my_realloc`` are the replacement of the
+ * standard allocators ``malloc``, ``free``, ``calloc`` and
+ * ``realloc`` respectively::
+ *
+ *     void *my_malloc_cb(size_t size, void *mem_user_data) {
+ *       return my_malloc(size);
+ *     }
+ *
+ *     void my_free_cb(void *ptr, void *mem_user_data) { my_free(ptr); }
+ *
+ *     void *my_calloc_cb(size_t nmemb, size_t size, void *mem_user_data) {
+ *       return my_calloc(nmemb, size);
+ *     }
+ *
+ *     void *my_realloc_cb(void *ptr, size_t size, void *mem_user_data) {
+ *       return my_realloc(ptr, size);
+ *     }
+ *
+ *     void conn_new() {
+ *       nghttp2_mem mem = {NULL, my_malloc_cb, my_free_cb, my_calloc_cb,
+ *                          my_realloc_cb};
+ *
+ *       ...
+ *     }
+ */
+typedef struct {
+  /**
+   * An arbitrary user supplied data.  This is passed to each
+   * allocator function.
+   */
+  void *mem_user_data;
+  /**
+   * Custom allocator function to replace malloc().
+   */
+  ngtcp2_malloc malloc;
+  /**
+   * Custom allocator function to replace free().
+   */
+  ngtcp2_free free;
+  /**
+   * Custom allocator function to replace calloc().
+   */
+  ngtcp2_calloc calloc;
+  /**
+   * Custom allocator function to replace realloc().
+   */
+  ngtcp2_realloc realloc;
+} ngtcp2_mem;
+
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
-  NGTCP2_ERR_NOBUF = -203
+  NGTCP2_ERR_NOBUF = -203,
+  NGTCP2_ERR_NOMEM = -501,
+  NGTCP2_ERR_CALLBACK_FAILURE = -502
 } ngtcp2_error;
 
 typedef enum {
@@ -115,7 +206,7 @@ typedef struct {
   uint8_t flags;
   uint8_t type;
   uint64_t conn_id;
-  uint32_t pkt_num;
+  uint64_t pkt_num;
   uint32_t version;
 } ngtcp2_pkt_hd;
 
@@ -317,8 +408,8 @@ NGTCP2_EXTERN int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe,
  *
  * `ngtcp2_upe_final` calculates checksum of the content in the
  * buffer, and appends it to the end of the buffer.  The pointer to
- * the packet is stored into |*pkt|, and the length of packet is
- * returned.
+ * the packet is stored into |*pkt| if |*pkt| is not ``NULL``, and the
+ * length of packet is returned.
  */
 NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
 
@@ -350,14 +441,53 @@ NGTCP2_EXTERN ssize_t ngtcp2_crypto_ctx_decrypt(ngtcp2_crypto_ctx *cctx,
                                                 const uint8_t *pkt,
                                                 size_t pktlen);
 
-/**
- * TODO
- * ngtcp2_conn:
- * - Must have callback to get random byte string generator
- */
+typedef enum { NGTCP2_CONN_FLAG_NONE } ngtcp2_conn_flag;
+
 struct ngtcp2_conn;
 
 typedef struct ngtcp2_conn ngtcp2_conn;
+
+typedef int (*ngtcp2_client_initial_callback)(ngtcp2_conn *conn, uint32_t flags,
+                                              uint64_t *ppkt_num,
+                                              const uint8_t **pdest,
+                                              size_t *pdestlen,
+                                              void *user_data);
+
+typedef int (*ngtcp2_client_cleartext_callback)(ngtcp2_conn *conn,
+                                                uint32_t flags,
+                                                const uint8_t **pdest,
+                                                size_t *pdestlen,
+                                                void *user_data);
+
+typedef int (*ngtcp2_server_cleartext_callback)(
+    ngtcp2_conn *conn, uint32_t flags, uint64_t *pconn_id, uint64_t *ppkt_num,
+    const uint8_t **pdest, size_t *pdestlen, void *user_data);
+
+typedef struct {
+  ngtcp2_client_initial_callback client_initial_callback;
+  ngtcp2_client_cleartext_callback client_cleartext_callback;
+  ngtcp2_server_cleartext_callback server_cleartext_callback;
+} ngtcp2_conn_callbacks;
+
+NGTCP2_EXTERN int ngtcp2_accept(const uint8_t *pkt, size_t pktlen);
+
+NGTCP2_EXTERN int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
+                                         uint32_t version,
+                                         const ngtcp2_conn_callbacks *callbacks,
+                                         void *user_data);
+
+NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
+                                         uint32_t version,
+                                         const ngtcp2_conn_callbacks *callbacks,
+                                         void *user_data);
+
+NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
+
+NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
+                                   size_t pktlen);
+
+NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
+                                       size_t destlen);
 
 #ifdef __cplusplus
 }

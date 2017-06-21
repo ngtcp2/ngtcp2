@@ -112,7 +112,9 @@ size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {
   h = ngtcp2_fnv1a(buf->begin, ngtcp2_buf_len(buf));
   buf->last = ngtcp2_put_uint64be(buf->last, h);
 
-  *ppkt = buf->begin;
+  if (ppkt != NULL) {
+    *ppkt = buf->begin;
+  }
 
   return ngtcp2_buf_len(buf);
 }
