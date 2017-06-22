@@ -50,7 +50,7 @@ int ngtcp2_upe_encode_hd(ngtcp2_upe *upe, const ngtcp2_pkt_hd *hd) {
   return 0;
 }
 
-int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, const ngtcp2_frame *fm) {
+int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, const ngtcp2_frame *fr) {
   ssize_t rv;
   ngtcp2_buf *buf = &upe->buf;
 
@@ -59,7 +59,7 @@ int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, const ngtcp2_frame *fm) {
   }
 
   rv = ngtcp2_pkt_encode_frame(buf->last,
-                               ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN, fm);
+                               ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN, fr);
   if (rv < 0) {
     return (int)rv;
   }

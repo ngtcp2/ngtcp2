@@ -325,7 +325,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
  *     Buffer does not have enough capacity to write a frame.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
-                                              const ngtcp2_frame *fm);
+                                              const ngtcp2_frame *fr);
 
 /* Protected Packet Encoder: ppe */
 struct ngtcp2_ppe;
@@ -339,7 +339,7 @@ NGTCP2_EXTERN int ngtcp2_ppe_init(ngtcp2_ppe *ppe, ngtcp2_crypto_ctx *cctx,
 NGTCP2_EXTERN ssize_t ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe,
                                            const ngtcp2_pkt_hd *hd);
 NGTCP2_EXTERN ssize_t ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe,
-                                              const ngtcp2_frame *fm);
+                                              const ngtcp2_frame *fr);
 NGTCP2_EXTERN ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe);
 
 /* Unprotected Packet Encoder: upe */
@@ -381,7 +381,7 @@ NGTCP2_EXTERN int ngtcp2_upe_encode_hd(ngtcp2_upe *upe,
  *     Buffer does not have enough capacity to write a header.
  */
 NGTCP2_EXTERN int ngtcp2_upe_encode_frame(ngtcp2_upe *upe,
-                                          const ngtcp2_frame *fm);
+                                          const ngtcp2_frame *fr);
 
 /**
  * @function

@@ -26,20 +26,20 @@
 
 #include <string.h>
 
-int ngtcp2_framebuf_new(ngtcp2_framebuf **pfb, ngtcp2_stream *fm,
+int ngtcp2_framebuf_new(ngtcp2_framebuf **pfb, ngtcp2_stream *fr,
                         ngtcp2_mem *mem) {
   uint8_t *data;
 
-  *pfb = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_framebuf) + fm->datalen);
+  *pfb = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_framebuf) + fr->datalen);
   if (*pfb == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
 
   data = ((uint8_t *)*pfb) + sizeof(ngtcp2_framebuf);
-  memcpy(data, fm->data, fm->datalen);
+  memcpy(data, fr->data, fr->datalen);
 
-  (*pfb)->fm.stream = *fm;
-  (*pfb)->fm.stream.data = data;
+  (*pfb)->fr.stream = *fr;
+  (*pfb)->fr.stream.data = data;
 
   return 0;
 }

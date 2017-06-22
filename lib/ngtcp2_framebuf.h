@@ -36,11 +36,11 @@
 
 typedef struct {
   ngtcp2_pq_entry pq_entry;
-  ngtcp2_frame fm;
+  ngtcp2_frame fr;
   uint8_t *data;
 } ngtcp2_framebuf;
 
-int ngtcp2_framebuf_new(ngtcp2_framebuf **pfb, ngtcp2_stream *fm,
+int ngtcp2_framebuf_new(ngtcp2_framebuf **pfb, ngtcp2_stream *fr,
                         ngtcp2_mem *mem);
 
 void ngtcp2_framebuf_del(ngtcp2_framebuf *fb, ngtcp2_mem *mem);

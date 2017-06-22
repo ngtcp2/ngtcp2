@@ -201,7 +201,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
     ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
 
 /**
- * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fm| into the
+ * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
  * This function returns the number of bytes written if it succeeds,
@@ -211,10 +211,10 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
  *     Buffer does not have enough capacity to write a frame.
  */
 ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
-                                       const ngtcp2_stream *fm);
+                                       const ngtcp2_stream *fr);
 
 /**
- * ngtcp2_pkt_encode_ack_frame encodes ACK frame |fm| into the buffer
+ * ngtcp2_pkt_encode_ack_frame encodes ACK frame |fr| into the buffer
  * pointed by |out| of length |outlen|.
  *
  * Currently, this function only encodes Largest Acknowledged and ACK
@@ -227,13 +227,13 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write a frame.
  */
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
-                                    const ngtcp2_ack *fm);
+                                    const ngtcp2_ack *fr);
 
 /**
- * ngtcp2_pkt_encode_padding_frame encodes PADDING frame |fm| into the
+ * ngtcp2_pkt_encode_padding_frame encodes PADDING frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
- * This function encodes consecutive fm->len PADDING frames.
+ * This function encodes consecutive fr->len PADDING frames.
  *
  * This function returns the number of bytes written if it succeeds,
  * or one of the following negative error codes:
@@ -242,6 +242,6 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write frame(s).
  */
 ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
-                                        const ngtcp2_padding *fm);
+                                        const ngtcp2_padding *fr);
 
 #endif /* NGTCP2_PKT_H */

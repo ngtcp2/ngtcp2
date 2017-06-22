@@ -73,7 +73,7 @@ struct ngtcp2_conn {
 };
 
 int ngtcp2_conn_recv_reordering(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                ngtcp2_stream *fm);
+                                ngtcp2_stream *fr);
 
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm);
