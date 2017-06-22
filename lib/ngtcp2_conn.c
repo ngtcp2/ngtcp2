@@ -351,7 +351,8 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, const uint8_t *pkt,
     pkt += nread;
     pktlen -= (size_t)nread;
 
-    if (fm.type != NGTCP2_FRAME_STREAM || fm.stream.stream_id != 0) {
+    if (fm.type != NGTCP2_FRAME_STREAM || fm.stream.stream_id != 0 ||
+        conn->strm0.offset > fm.stream.offset) {
       continue;
     }
 
@@ -363,16 +364,16 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, const uint8_t *pkt,
       if (rv != 0) {
         return rv;
       }
+
+      rv = ngtcp2_conn_emit_pending_recv_handshake(conn, &conn->strm0);
+      if (rv != 0) {
+        return rv;
+      }
     } else {
       rv = ngtcp2_conn_recv_reordering(conn, &conn->strm0, &fm.stream);
       if (rv != 0) {
         return rv;
       }
-    }
-
-    rv = ngtcp2_conn_emit_pending_recv_handshake(conn, &conn->strm0);
-    if (rv != 0) {
-      return rv;
     }
   }
 
@@ -467,11 +468,13 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
 
     delta = strm->offset - fb->fm.stream.offset;
 
-    rv = conn->callbacks.recv_handshake_data(conn, fb->fm.stream.data + delta,
-                                             fb->fm.stream.datalen - delta,
-                                             conn->user_data);
-    if (rv != 0) {
-      return rv;
+    if (delta < fb->fm.stream.datalen) {
+      rv = conn->callbacks.recv_handshake_data(conn, fb->fm.stream.data + delta,
+                                               fb->fm.stream.datalen - delta,
+                                               conn->user_data);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
     ngtcp2_framebuf_del(fb, conn->mem);
