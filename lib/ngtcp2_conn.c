@@ -25,7 +25,6 @@
 #include "ngtcp2_conn.h"
 #include "ngtcp2_upe.h"
 #include "ngtcp2_pkt.h"
-#include "ngtcp2_framebuf.h"
 #include "ngtcp2_macro.h"
 
 static int ngtcp2_conn_new(ngtcp2_conn **pconn, uint64_t conn_id,
@@ -98,7 +97,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
     return;
   }
 
-  ngtcp2_strm_free(&conn->strm0, conn->mem);
+  ngtcp2_strm_free(&conn->strm0);
   ngtcp2_mem_free(conn->mem, conn);
 }
 
@@ -352,7 +351,7 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, const uint8_t *pkt,
     pktlen -= (size_t)nread;
 
     if (fr.type != NGTCP2_FRAME_STREAM || fr.stream.stream_id != 0 ||
-        conn->strm0.offset > fr.stream.offset) {
+        conn->strm0.offset >= fr.stream.offset + fr.stream.datalen) {
       continue;
     }
 
@@ -370,7 +369,7 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
     } else {
-      rv = ngtcp2_conn_recv_reordering(conn, &conn->strm0, &fr.stream);
+      rv = ngtcp2_strm_recv_reordering(&conn->strm0, &fr.stream);
       if (rv != 0) {
         return rv;
       }
@@ -430,91 +429,46 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen) {
   return -1;
 }
 
-int ngtcp2_conn_recv_reordering(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                ngtcp2_stream *fr) {
-  ngtcp2_framebuf *fb;
-  int rv;
-
-  if (strm->nbuffered >= 65536) {
-    return NGTCP2_ERR_INTERNAL_ERROR;
-  }
-
-  rv = ngtcp2_framebuf_new(&fb, fr, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
-
-  /* TODO This is not efficient.  Invent new way to store duplicated
-     buffered data */
-  strm->nbuffered += fr->datalen;
-
-  return ngtcp2_pq_push(&strm->pq, &fb->pq_entry);
-}
-
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
-  ngtcp2_framebuf *fb;
-  uint64_t delta;
+  size_t datalen;
+  const uint8_t *data;
   int rv;
 
-  for (; !ngtcp2_pq_empty(&strm->pq);) {
-    fb = ngtcp2_struct_of(ngtcp2_pq_top(&strm->pq), ngtcp2_framebuf, pq_entry);
-
-    if (strm->offset < fb->fr.stream.offset) {
+  for (;;) {
+    datalen = ngtcp2_rob_data_at(&strm->rob, &data, strm->offset);
+    if (datalen == 0) {
       return 0;
     }
 
-    ngtcp2_pq_pop(&strm->pq);
-
-    delta = strm->offset - fb->fr.stream.offset;
-
-    if (delta < fb->fr.stream.datalen) {
-      rv = conn->callbacks.recv_handshake_data(conn, fb->fr.stream.data + delta,
-                                               fb->fr.stream.datalen - delta,
-                                               conn->user_data);
-      if (rv != 0) {
-        return rv;
-      }
+    rv = conn->callbacks.recv_handshake_data(conn, data, datalen,
+                                             conn->user_data);
+    if (rv != 0) {
+      return rv;
     }
 
-    ngtcp2_framebuf_del(fb, conn->mem);
+    ngtcp2_rob_pop(&strm->rob);
   }
-
-  return 0;
-}
-
-static int ngtcp2_stream_offset_less(const void *lhsx, const void *rhsx) {
-  const ngtcp2_framebuf *lhs, *rhs;
-
-  lhs = ngtcp2_struct_of(lhsx, ngtcp2_framebuf, pq_entry);
-  rhs = ngtcp2_struct_of(rhsx, ngtcp2_framebuf, pq_entry);
-
-  return lhs->fr.stream.offset < rhs->fr.stream.offset;
 }
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem) {
   strm->offset = 0;
   strm->nbuffered = 0;
-  return ngtcp2_pq_init(&strm->pq, ngtcp2_stream_offset_less, mem);
+  strm->mem = mem;
+  return ngtcp2_rob_init(&strm->rob, mem);
 }
 
-static int ngtcp2_framebuf_item_free(ngtcp2_pq_entry *item, void *arg) {
-  ngtcp2_framebuf *fb;
-  ngtcp2_mem *mem;
-
-  fb = ngtcp2_struct_of(item, ngtcp2_framebuf, pq_entry);
-  mem = arg;
-
-  ngtcp2_framebuf_del(fb, mem);
-
-  return 0;
-}
-
-void ngtcp2_strm_free(ngtcp2_strm *strm, ngtcp2_mem *mem) {
+void ngtcp2_strm_free(ngtcp2_strm *strm) {
   if (strm == NULL) {
     return;
   }
+  ngtcp2_rob_free(&strm->rob);
+}
 
-  ngtcp2_pq_each(&strm->pq, ngtcp2_framebuf_item_free, mem);
-  ngtcp2_pq_free(&strm->pq);
+int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr) {
+  if (strm->rob.bufferedlen >= 128 * 1024) {
+    return NGTCP2_ERR_INTERNAL_ERROR;
+  }
+
+  return ngtcp2_rob_push(&strm->rob, fr->offset, fr->data, fr->datalen);
 }

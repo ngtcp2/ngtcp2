@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_FRAMEBUF_H
-#define NGTCP2_FRAMEBUF_H
+#ifndef NGTCP2_ROB_H
+#define NGTCP2_ROB_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -36,13 +36,38 @@
 
 typedef struct {
   ngtcp2_pq_entry pq_entry;
-  ngtcp2_frame fr;
+  uint64_t offset;
   uint8_t *data;
-} ngtcp2_framebuf;
+  size_t datalen;
+} ngtcp2_rob_data;
 
-int ngtcp2_framebuf_new(ngtcp2_framebuf **pfb, ngtcp2_stream *fr,
-                        ngtcp2_mem *mem);
+int ngtcp2_rob_data_new(ngtcp2_rob_data **prdat, uint64_t offset,
+                        const uint8_t *data, size_t datalen, ngtcp2_mem *mem);
 
-void ngtcp2_framebuf_del(ngtcp2_framebuf *fb, ngtcp2_mem *mem);
+void ngtcp2_rob_data_del(ngtcp2_rob_data *rdat, ngtcp2_mem *mem);
 
-#endif /* NGTCP2_FRAMEBUF_H */
+/*
+ * ngtcp2_rob reassembles stream data received in out of order.
+ *
+ * TODO The current implementation is very inefficient.  It should be
+ * redesigned to reduce memory foot print, and avoid dead lock issue.
+ */
+typedef struct {
+  ngtcp2_pq pq;
+  ngtcp2_mem *mem;
+  uint64_t bufferedlen;
+} ngtcp2_rob;
+
+int ngtcp2_rob_init(ngtcp2_rob *rob, ngtcp2_mem *mem);
+
+void ngtcp2_rob_free(ngtcp2_rob *rob);
+
+int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
+                    size_t datalen);
+
+size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
+                          uint64_t offset);
+
+void ngtcp2_rob_pop(ngtcp2_rob *rob);
+
+#endif /* NGTCP2_ROB_H */

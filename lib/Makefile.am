@@ -40,7 +40,7 @@ OBJECTS = \
 	ngtcp2_conn.c \
 	ngtcp2_mem.c \
 	ngtcp2_pq.c \
-	ngtcp2_framebuf.c
+	ngtcp2_rob.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -51,7 +51,7 @@ HFILES = \
 	ngtcp2_conn.h \
 	ngtcp2_mem.h \
 	ngtcp2_pq.h \
-	ngtcp2_framebuf.h \
+	ngtcp2_rob.h \
 	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)

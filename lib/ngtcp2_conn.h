@@ -32,7 +32,8 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_mem.h"
-#include "ngtcp2_pq.h"
+#include "ngtcp2_buf.h"
+#include "ngtcp2_rob.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -52,13 +53,16 @@ typedef enum {
 
 typedef struct {
   uint64_t offset;
-  ngtcp2_pq pq;
+  ngtcp2_rob rob;
+  ngtcp2_mem *mem;
   size_t nbuffered;
 } ngtcp2_strm;
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem);
 
-void ngtcp2_strm_free(ngtcp2_strm *strm, ngtcp2_mem *mem);
+void ngtcp2_strm_free(ngtcp2_strm *strm);
+
+int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr);
 
 struct ngtcp2_conn {
   int state;
@@ -71,9 +75,6 @@ struct ngtcp2_conn {
   uint32_t version;
   int server;
 };
-
-int ngtcp2_conn_recv_reordering(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                ngtcp2_stream *fr);
 
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm);
