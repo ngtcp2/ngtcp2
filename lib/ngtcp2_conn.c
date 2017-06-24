@@ -101,15 +101,53 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_mem_free(conn->mem, conn);
 }
 
-static ssize_t ngtcp2_conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
-                                               size_t destlen) {
+static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                         size_t destlen, uint8_t type,
+                                         const uint8_t *data, size_t datalen) {
   int rv;
-  uint64_t pkt_num = 0;
-  const uint8_t *payload;
-  ssize_t payloadlen;
   ngtcp2_upe upe;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame fr;
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, conn->conn_id,
+                     conn->next_out_pkt_num, conn->version);
+
+  ngtcp2_upe_init(&upe, dest, destlen);
+
+  rv = ngtcp2_upe_encode_hd(&upe, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  /* TODO Make a function to create STREAM frame */
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.fin = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.offset = conn->strm0.tx_offset;
+  fr.stream.datalen = datalen;
+  fr.stream.data = data;
+
+  rv = ngtcp2_upe_encode_frame(&upe, &fr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  ++conn->next_out_pkt_num;
+  conn->strm0.tx_offset += datalen;
+
+  if (type == NGTCP2_PKT_CLIENT_INITIAL) {
+    ngtcp2_upe_padding(&upe);
+  }
+
+  return (ssize_t)ngtcp2_upe_final(&upe, NULL);
+}
+
+static ssize_t ngtcp2_conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
+                                               size_t destlen) {
+  uint64_t pkt_num = 0;
+  const uint8_t *payload;
+  ssize_t payloadlen;
   size_t maxpayloadlen;
 
   if (destlen < 1280) {
@@ -126,51 +164,22 @@ static ssize_t ngtcp2_conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  conn->next_out_pkt_num = pkt_num + 1;
+  conn->next_out_pkt_num = pkt_num;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_CLIENT_INITIAL,
-                     conn->conn_id, pkt_num, conn->version);
-
-  ngtcp2_upe_init(&upe, dest, destlen);
-
-  rv = ngtcp2_upe_encode_hd(&upe, &hd);
-  if (rv != 0) {
-    return rv;
-  }
-
-  /* TODO Make a function to create STREAM frame */
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.flags = 0;
-  fr.stream.fin = 0;
-  fr.stream.stream_id = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = (size_t)payloadlen;
-  fr.stream.data = payload;
-
-  rv = ngtcp2_upe_encode_frame(&upe, &fr);
-  if (rv != 0) {
-    return rv;
-  }
-
-  ngtcp2_upe_padding(&upe);
-
-  conn->strm0.tx_offset += (size_t)payloadlen;
-
-  return (ssize_t)ngtcp2_upe_final(&upe, NULL);
+  return conn_encode_handshake_pkt(conn, dest, destlen,
+                                   NGTCP2_PKT_CLIENT_INITIAL, payload,
+                                   (size_t)payloadlen);
 }
 
 static ssize_t ngtcp2_conn_send_client_cleartext(ngtcp2_conn *conn,
                                                  uint8_t *dest,
                                                  size_t destlen) {
-  int rv;
   const uint8_t *payload;
   ssize_t payloadlen;
-  ngtcp2_upe upe;
-  ngtcp2_pkt_hd hd;
-  ngtcp2_frame fr;
   size_t maxpayloadlen;
 
-  if (destlen < NGTCP2_LONG_HEADERLEN - NGTCP2_PKT_MDLEN) {
+  if (destlen <
+      NGTCP2_LONG_HEADERLEN + NGTCP2_STREAM_OVERHEAD + NGTCP2_PKT_MDLEN) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -186,47 +195,21 @@ static ssize_t ngtcp2_conn_send_client_cleartext(ngtcp2_conn *conn,
     return 0;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_CLIENT_INITIAL,
-                     conn->conn_id, conn->next_out_pkt_num++, conn->version);
-
-  ngtcp2_upe_init(&upe, dest, destlen);
-
-  rv = ngtcp2_upe_encode_hd(&upe, &hd);
-  if (rv != 0) {
-    return rv;
-  }
-
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.flags = 0;
-  fr.stream.fin = 0;
-  fr.stream.stream_id = 0;
-  fr.stream.offset = conn->strm0.tx_offset;
-  fr.stream.datalen = (size_t)payloadlen;
-  fr.stream.data = payload;
-
-  rv = ngtcp2_upe_encode_frame(&upe, &fr);
-  if (rv != 0) {
-    return rv;
-  }
-
-  conn->strm0.tx_offset += (size_t)payloadlen;
-
-  return (ssize_t)ngtcp2_upe_final(&upe, NULL);
+  return conn_encode_handshake_pkt(conn, dest, destlen,
+                                   NGTCP2_PKT_CLIENT_CLEARTEXT, payload,
+                                   (size_t)payloadlen);
 }
 
 static ssize_t ngtcp2_conn_send_server_cleartext(ngtcp2_conn *conn,
                                                  uint8_t *dest, size_t destlen,
                                                  int initial) {
-  int rv;
   uint64_t pkt_num = 0;
   const uint8_t *payload;
   ssize_t payloadlen;
-  ngtcp2_upe upe;
-  ngtcp2_pkt_hd hd;
-  ngtcp2_frame fr;
   size_t maxpayloadlen;
 
-  if (destlen < NGTCP2_LONG_HEADERLEN + NGTCP2_PKT_MDLEN) {
+  if (destlen <
+      NGTCP2_LONG_HEADERLEN + NGTCP2_STREAM_OVERHEAD + NGTCP2_PKT_MDLEN) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -249,38 +232,12 @@ static ssize_t ngtcp2_conn_send_server_cleartext(ngtcp2_conn *conn,
   }
 
   if (initial) {
-    conn->next_out_pkt_num = pkt_num + 1;
-  } else {
-    pkt_num = conn->next_out_pkt_num++;
+    conn->next_out_pkt_num = pkt_num;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM,
-                     NGTCP2_PKT_SERVER_CLEARTEXT, conn->conn_id, pkt_num,
-                     conn->version);
-
-  ngtcp2_upe_init(&upe, dest, destlen);
-
-  rv = ngtcp2_upe_encode_hd(&upe, &hd);
-  if (rv != 0) {
-    return rv;
-  }
-
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.flags = 0;
-  fr.stream.fin = 0;
-  fr.stream.stream_id = 0;
-  fr.stream.offset = conn->strm0.tx_offset;
-  fr.stream.datalen = (size_t)payloadlen;
-  fr.stream.data = payload;
-
-  rv = ngtcp2_upe_encode_frame(&upe, &fr);
-  if (rv != 0) {
-    return rv;
-  }
-
-  conn->strm0.tx_offset += (size_t)payloadlen;
-
-  return (ssize_t)ngtcp2_upe_final(&upe, NULL);
+  return conn_encode_handshake_pkt(conn, dest, destlen,
+                                   NGTCP2_PKT_SERVER_CLEARTEXT, payload,
+                                   (size_t)payloadlen);
 }
 
 ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen) {
