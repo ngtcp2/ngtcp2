@@ -89,6 +89,21 @@ static int conn_call_send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
+static int conn_call_handshake_completed(ngtcp2_conn *conn) {
+  int rv;
+
+  if (!conn->callbacks.handshake_completed) {
+    return 0;
+  }
+
+  rv = conn->callbacks.handshake_completed(conn, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int ngtcp2_conn_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
@@ -313,41 +328,46 @@ static ssize_t ngtcp2_conn_send_server_cleartext(ngtcp2_conn *conn,
 }
 
 ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen) {
-  ssize_t rv = 0;
+  ssize_t nwrite = 0;
+  int rv;
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
-    rv = ngtcp2_conn_send_client_initial(conn, dest, destlen);
-    if (rv < 0) {
+    nwrite = ngtcp2_conn_send_client_initial(conn, dest, destlen);
+    if (nwrite < 0) {
       break;
     }
     conn->state = NGTCP2_CS_CLIENT_CI_SENT;
     break;
   case NGTCP2_CS_CLIENT_SC_RECVED:
-    rv = ngtcp2_conn_send_client_cleartext(conn, dest, destlen);
-    if (rv < 0) {
+    nwrite = ngtcp2_conn_send_client_cleartext(conn, dest, destlen);
+    if (nwrite < 0) {
       break;
     }
     if (conn->handshake_completed) {
+      rv = conn_call_handshake_completed(conn);
+      if (rv != 0) {
+        return rv;
+      }
       conn->state = NGTCP2_CS_HANDSHAKE_COMPLETED;
     }
     break;
   case NGTCP2_CS_SERVER_CI_RECVED:
-    rv = ngtcp2_conn_send_server_cleartext(conn, dest, destlen, 1);
-    if (rv < 0) {
+    nwrite = ngtcp2_conn_send_server_cleartext(conn, dest, destlen, 1);
+    if (nwrite < 0) {
       break;
     }
     conn->state = NGTCP2_CS_SERVER_SC_SENT;
     break;
   case NGTCP2_CS_SERVER_SC_SENT:
-    rv = ngtcp2_conn_send_server_cleartext(conn, dest, destlen, 0);
-    if (rv < 0) {
+    nwrite = ngtcp2_conn_send_server_cleartext(conn, dest, destlen, 0);
+    if (nwrite < 0) {
       break;
     }
     break;
   }
 
-  return rv;
+  return nwrite;
 }
 
 static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
@@ -476,6 +496,10 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen) {
       break;
     }
     if (conn->handshake_completed) {
+      rv = conn_call_handshake_completed(conn);
+      if (rv != 0) {
+        return rv;
+      }
       conn->state = NGTCP2_CS_HANDSHAKE_COMPLETED;
     }
     break;

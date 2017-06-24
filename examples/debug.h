@@ -53,6 +53,8 @@ int recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
 int recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                const ngtcp2_frame *fr, void *user_data);
 
+int handshake_completed(ngtcp2_conn *conn, void *user_data);
+
 } // namespace debug
 
 } // namespace ngtcp2

@@ -236,6 +236,7 @@ int Handler::init(int fd) {
       debug::send_frame,
       debug::recv_pkt,
       debug::recv_frame,
+      debug::handshake_completed,
   };
 
   rv = ngtcp2_conn_server_new(&conn_, 2, 1, &callbacks, this);

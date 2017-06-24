@@ -238,7 +238,7 @@ int Client::init(int fd) {
   auto callbacks = ngtcp2_conn_callbacks{
       send_client_initial, send_client_cleartext, nullptr,
       recv_handshake_data, debug::send_pkt,       debug::send_frame,
-      debug::recv_pkt,     debug::recv_frame,
+      debug::recv_pkt,     debug::recv_frame,     debug::handshake_completed,
   };
 
   rv = ngtcp2_conn_client_new(&conn_, 1, 1, &callbacks, this);
