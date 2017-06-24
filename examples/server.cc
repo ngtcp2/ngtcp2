@@ -191,6 +191,12 @@ ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
 
   auto len = h->read_server_handshake(pdest, maxdestlen);
 
+  // If Client Initial does not have complete ClientHello, then drop
+  // connection.
+  if (ppkt_num && len == 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
   return len;
 }
 } // namespace
