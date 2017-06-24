@@ -39,8 +39,13 @@
 #include "template.h"
 #include "network.h"
 #include "debug.h"
+#include "util.h"
 
 using namespace ngtcp2;
+
+namespace {
+auto randgen = util::make_mt19937();
+} // namespace
 
 namespace {
 void *BIO_get_data(BIO *bio) { return bio->ptr; }
@@ -185,7 +190,8 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  *ppkt_num = 1;
+  *ppkt_num = std::uniform_int_distribution<uint64_t>(
+      0, std::numeric_limits<int32_t>::max())(randgen);
 
   auto len = c->read_client_handshake(pdest, maxdestlen);
 
@@ -241,7 +247,10 @@ int Client::init(int fd) {
       debug::recv_pkt,     debug::recv_frame,     debug::handshake_completed,
   };
 
-  rv = ngtcp2_conn_client_new(&conn_, 1, 1, &callbacks, this);
+  auto conn_id = std::uniform_int_distribution<uint64_t>(
+      0, std::numeric_limits<uint64_t>::max())(randgen);
+
+  rv = ngtcp2_conn_client_new(&conn_, conn_id, 1, &callbacks, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << rv << std::endl;
     return -1;

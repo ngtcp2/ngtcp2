@@ -55,6 +55,11 @@ std::string format_hex(const uint8_t *s, size_t len) {
   return res;
 }
 
+std::mt19937 make_mt19937() {
+  std::random_device rd;
+  return std::mt19937(rd());
+}
+
 } // namespace util
 
 } // namespace ngtcp2

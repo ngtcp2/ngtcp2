@@ -30,6 +30,7 @@
 #endif // HAVE_CONFIG_H
 
 #include <string>
+#include <random>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -40,6 +41,8 @@ namespace util {
 std::string format_hex(uint8_t c);
 
 std::string format_hex(const uint8_t *s, size_t len);
+
+std::mt19937 make_mt19937();
 
 } // namespace util
 
