@@ -149,7 +149,7 @@ const char *frame_ansi_esc(ngtcp2_dir dir) {
 } // namespace
 
 namespace {
-void print_indent() { fprintf(outfile, "    "); }
+void print_indent() { fprintf(outfile, "             "); }
 } // namespace
 
 namespace {
@@ -222,6 +222,12 @@ int recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                const ngtcp2_frame *fr, void *user_data) {
   print_indent();
   print_frame(NGTCP2_DIR_RECV, fr);
+  return 0;
+}
+
+int handshake_completed(ngtcp2_conn *conn, void *user_data) {
+  print_timestamp();
+  fprintf(outfile, " QUIC handshake has completed\n");
   return 0;
 }
 
