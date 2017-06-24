@@ -207,6 +207,9 @@ typedef enum {
   NGTCP2_FRAME_STREAM = 0xc0
 } ngtcp2_frame_type;
 
+/*
+ * ngtcp2_tstamp is a timestamp with microsecond resolution.
+ */
 typedef uint64_t ngtcp2_tstamp;
 
 typedef struct {
@@ -526,10 +529,10 @@ NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
 NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 
 NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
-                                   size_t pktlen);
+                                   size_t pktlen, ngtcp2_tstamp ts);
 
 NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
-                                       size_t destlen);
+                                       size_t destlen, ngtcp2_tstamp ts);
 
 NGTCP2_EXTERN int ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 

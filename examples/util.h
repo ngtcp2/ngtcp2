@@ -44,6 +44,8 @@ std::string format_hex(const uint8_t *s, size_t len);
 
 std::mt19937 make_mt19937();
 
+ngtcp2_tstamp timestamp();
+
 } // namespace util
 
 } // namespace ngtcp2;

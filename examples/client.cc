@@ -295,7 +295,7 @@ int Client::tls_handshake() {
 int Client::feed_data(const uint8_t *data, size_t datalen) {
   int rv;
 
-  rv = ngtcp2_conn_recv(conn_, data, datalen);
+  rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_recv: " << rv << std::endl;
     return -1;
@@ -324,7 +324,7 @@ int Client::on_read() {
 
 int Client::on_write() {
   std::array<uint8_t, 1280> buf;
-  auto n = ngtcp2_conn_send(conn_, buf.data(), buf.size());
+  auto n = ngtcp2_conn_send(conn_, buf.data(), buf.size(), util::timestamp());
   if (n < 0) {
     return -1;
   }

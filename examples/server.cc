@@ -319,7 +319,7 @@ void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
 int Handler::feed_data(const uint8_t *data, size_t datalen) {
   int rv;
 
-  rv = ngtcp2_conn_recv(conn_, data, datalen);
+  rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_recv: " << rv << std::endl;
     return -1;
@@ -351,7 +351,7 @@ int Handler::on_write() {
   std::array<uint8_t, 1280> buf;
 
   for (;;) {
-    auto n = ngtcp2_conn_send(conn_, buf.data(), buf.size());
+    auto n = ngtcp2_conn_send(conn_, buf.data(), buf.size(), util::timestamp());
     if (n < 0) {
       return -1;
     }

@@ -24,6 +24,8 @@
  */
 #include "util.h"
 
+#include <chrono>
+
 namespace ngtcp2 {
 
 namespace util {
@@ -58,6 +60,12 @@ std::string format_hex(const uint8_t *s, size_t len) {
 std::mt19937 make_mt19937() {
   std::random_device rd;
   return std::mt19937(rd());
+}
+
+ngtcp2_tstamp timestamp() {
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
 }
 
 } // namespace util
