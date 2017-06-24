@@ -261,7 +261,7 @@ int Handler::tls_handshake() {
     switch (err) {
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
-      break;
+      return 0;
     case SSL_ERROR_SSL:
       std::cerr << "TLS handshake error: "
                 << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
@@ -270,6 +270,16 @@ int Handler::tls_handshake() {
       std::cerr << "TLS handshake error: " << err << std::endl;
       return -1;
     }
+  }
+
+  // SSL_do_handshake returns 1 if TLS handshake has completed.  With
+  // boringSSL, it may return 1 if we have 0-RTT early data.  This is
+  // a problem, but for First Implementation draft, 0-RTT early data
+  // is out of interest.
+  rv = ngtcp2_conn_handshake_completed(conn_);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_handshake_completed: " << rv << std::endl;
+    return -1;
   }
 
   return 0;

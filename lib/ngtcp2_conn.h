@@ -48,7 +48,9 @@ typedef enum {
   NGTCP2_CS_SERVER_CI_RECVED,
   NGTCP2_CS_SERVER_SC_SENT,
   NGTCP2_CS_SERVER_SC_ACKED,
-  NGTCP2_CS_SERVER_CC_RECVED
+  NGTCP2_CS_SERVER_CC_RECVED,
+  /* Shared by both client and server */
+  NGTCP2_CS_HANDSHAKE_COMPLETED,
 } ngtcp2_conn_state;
 
 typedef struct {
@@ -74,6 +76,7 @@ struct ngtcp2_conn {
   ngtcp2_mem *mem;
   void *user_data;
   uint32_t version;
+  int handshake_completed;
   int server;
 };
 

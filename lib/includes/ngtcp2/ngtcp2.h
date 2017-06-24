@@ -161,6 +161,7 @@ typedef enum {
   NGTCP2_ERR_NOBUF = -203,
   NGTCP2_ERR_BAD_PKT_HASH = -204,
   NGTCP2_ERR_PROTO = -205,
+  NGTCP2_ERR_INVALID_STATE = -206,
   /* Fatal error >= 500 */
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -513,6 +514,8 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
 
 NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen);
+
+NGTCP2_EXTERN int ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 
 #ifdef __cplusplus
 }

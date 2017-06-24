@@ -328,8 +328,9 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen) {
     if (rv < 0) {
       break;
     }
-    /* TODO Ask crypto backend whether TLS handshake has finished or
-       not. */
+    if (conn->handshake_completed) {
+      conn->state = NGTCP2_CS_HANDSHAKE_COMPLETED;
+    }
     break;
   case NGTCP2_CS_SERVER_CI_RECVED:
     rv = ngtcp2_conn_send_server_cleartext(conn, dest, destlen, 1);
@@ -474,9 +475,9 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen) {
     if (rv < 0) {
       break;
     }
-    conn->state = NGTCP2_CS_SERVER_CC_RECVED;
-    /* TODO Ask crypto backend whether TLS handshake has finished or
-       not */
+    if (conn->handshake_completed) {
+      conn->state = NGTCP2_CS_HANDSHAKE_COMPLETED;
+    }
     break;
   }
 
@@ -505,6 +506,20 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
 
     ngtcp2_rob_pop(&strm->rob);
   }
+}
+
+int ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
+  switch (conn->state) {
+  case NGTCP2_CS_CLIENT_SC_RECVED:
+  case NGTCP2_CS_SERVER_SC_SENT:
+    break;
+  default:
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  conn->handshake_completed = 1;
+
+  return 0;
 }
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem) {
