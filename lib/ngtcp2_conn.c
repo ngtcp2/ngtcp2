@@ -27,6 +27,68 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_macro.h"
 
+static int conn_call_recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
+  int rv;
+
+  if (!conn->callbacks.recv_pkt) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_pkt(conn, hd, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                const ngtcp2_frame *fr) {
+  int rv;
+
+  if (!conn->callbacks.recv_frame) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_frame(conn, hd, fr, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_send_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
+  int rv;
+
+  if (!conn->callbacks.send_pkt) {
+    return 0;
+  }
+
+  rv = conn->callbacks.send_pkt(conn, hd, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                const ngtcp2_frame *fr) {
+  int rv;
+
+  if (!conn->callbacks.send_frame) {
+    return 0;
+  }
+
+  rv = conn->callbacks.send_frame(conn, hd, fr, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int ngtcp2_conn_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
@@ -119,6 +181,11 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
+  rv = conn_call_send_pkt(conn, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
   /* TODO Make a function to create STREAM frame */
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -129,6 +196,11 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   fr.stream.data = data;
 
   rv = ngtcp2_upe_encode_frame(&upe, &fr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = conn_call_send_frame(conn, &hd, &fr);
   if (rv != 0) {
     return rv;
   }
@@ -297,6 +369,11 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
   pkt += nread;
   pktlen -= (size_t)nread;
 
+  rv = conn_call_recv_pkt(conn, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
   if (!initial) {
     if (conn->conn_id != hd.conn_id) {
       return NGTCP2_ERR_PROTO;
@@ -317,6 +394,11 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
 
     pkt += nread;
     pktlen -= (size_t)nread;
+
+    rv = conn_call_recv_frame(conn, &hd, &fr);
+    if (rv != 0) {
+      return rv;
+    }
 
     if (fr.type != NGTCP2_FRAME_STREAM || fr.stream.stream_id != 0 ||
         conn->strm0.rx_offset >= fr.stream.offset + fr.stream.datalen) {

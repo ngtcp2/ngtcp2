@@ -22,66 +22,27 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef UTIL_H
+#define UTIL_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif // HAVE_CONFIG_H
 
-#include <vector>
+#include <string>
 
 #include <ngtcp2/ngtcp2.h>
 
-#include <openssl/ssl.h>
-#include <ev.h>
+namespace ngtcp2 {
 
-class Handler {
-public:
-  Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx);
-  ~Handler();
+namespace util {
 
-  int init(int fd);
-  int tls_handshake();
-  int on_read();
-  int on_write();
-  int feed_data(const uint8_t *data, size_t datalen);
-  void signal_write();
+std::string format_hex(uint8_t c);
 
-  void write_server_handshake(const uint8_t *data, size_t datalen);
-  size_t read_server_handshake(const uint8_t **pdest, size_t maxdestlen);
+std::string format_hex(const uint8_t *s, size_t len);
 
-  size_t read_client_handshake(uint8_t *buf, size_t buflen);
-  void write_client_handshake(const uint8_t *data, size_t datalen);
+} // namespace util
 
-private:
-  struct ev_loop *loop_;
-  SSL_CTX *ssl_ctx_;
-  SSL *ssl_;
-  int fd_;
-  ev_io wev_;
-  ev_io rev_;
-  std::vector<uint8_t> chandshake_;
-  size_t ncread_;
-  std::vector<uint8_t> shandshake_;
-  size_t nsread_;
-  ngtcp2_conn *conn_;
-};
+} // namespace ngtcp2;
 
-class Server {
-public:
-  Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
-  ~Server();
-
-  int init(int fd);
-  int on_read();
-
-private:
-  struct ev_loop *loop_;
-  SSL_CTX *ssl_ctx_;
-  int fd_;
-  ev_io wev_;
-  ev_io rev_;
-};
-
-#endif // SERVER_H
+#endif // UTIL_H

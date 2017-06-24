@@ -22,66 +22,39 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SERVER_H
-#define SERVER_H
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif // HAVE_CONFIG_H
 
-#include <vector>
+#include <chrono>
 
 #include <ngtcp2/ngtcp2.h>
 
-#include <openssl/ssl.h>
-#include <ev.h>
+namespace ngtcp2 {
 
-class Handler {
-public:
-  Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx);
-  ~Handler();
+namespace debug {
 
-  int init(int fd);
-  int tls_handshake();
-  int on_read();
-  int on_write();
-  int feed_data(const uint8_t *data, size_t datalen);
-  void signal_write();
+void reset_timestamp();
 
-  void write_server_handshake(const uint8_t *data, size_t datalen);
-  size_t read_server_handshake(const uint8_t **pdest, size_t maxdestlen);
+std::chrono::microseconds timestamp();
 
-  size_t read_client_handshake(uint8_t *buf, size_t buflen);
-  void write_client_handshake(const uint8_t *data, size_t datalen);
+void set_color_output(bool f);
 
-private:
-  struct ev_loop *loop_;
-  SSL_CTX *ssl_ctx_;
-  SSL *ssl_;
-  int fd_;
-  ev_io wev_;
-  ev_io rev_;
-  std::vector<uint8_t> chandshake_;
-  size_t ncread_;
-  std::vector<uint8_t> shandshake_;
-  size_t nsread_;
-  ngtcp2_conn *conn_;
-};
+int send_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
 
-class Server {
-public:
-  Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
-  ~Server();
+int send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+               const ngtcp2_frame *fr, void *user_data);
 
-  int init(int fd);
-  int on_read();
+int recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
 
-private:
-  struct ev_loop *loop_;
-  SSL_CTX *ssl_ctx_;
-  int fd_;
-  ev_io wev_;
-  ev_io rev_;
-};
+int recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+               const ngtcp2_frame *fr, void *user_data);
 
-#endif // SERVER_H
+} // namespace debug
+
+} // namespace ngtcp2
+
+#endif // DEBUG_H

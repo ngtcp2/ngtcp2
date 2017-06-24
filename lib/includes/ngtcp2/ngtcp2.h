@@ -471,11 +471,27 @@ typedef int (*ngtcp2_recv_handshake_data)(ngtcp2_conn *conn,
                                           const uint8_t *data, size_t datalen,
                                           void *user_data);
 
+typedef int (*ngtcp2_send_pkt)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                               void *user_data);
+
+typedef int (*ngtcp2_send_frame)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                 const ngtcp2_frame *fr, void *user_data);
+
+typedef int (*ngtcp2_recv_pkt)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                               void *user_data);
+
+typedef int (*ngtcp2_recv_frame)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                 const ngtcp2_frame *fr, void *user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
   ngtcp2_send_server_cleartext send_server_cleartext;
   ngtcp2_recv_handshake_data recv_handshake_data;
+  ngtcp2_send_pkt send_pkt;
+  ngtcp2_send_frame send_frame;
+  ngtcp2_recv_pkt recv_pkt;
+  ngtcp2_recv_frame recv_frame;
 } ngtcp2_conn_callbacks;
 
 NGTCP2_EXTERN int ngtcp2_accept(const uint8_t *pkt, size_t pktlen);

@@ -34,8 +34,12 @@ LDADD = $(top_builddir)/lib/libngtcp2.la \
 
 noinst_PROGRAMS = client server
 
-client_SOURCES = client.cc \
-	template.h
+client_SOURCES = client.cc client.h \
+	template.h \
+	debug.cc debug.h \
+	util.cc util.h
 
-server_SOURCES = server.cc \
-	template.h
+server_SOURCES = server.cc server.h \
+	template.h \
+	debug.cc debug.h \
+	util.cc util.h

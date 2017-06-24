@@ -38,6 +38,7 @@
 #include "client.h"
 #include "template.h"
 #include "network.h"
+#include "debug.h"
 
 using namespace ngtcp2;
 
@@ -55,8 +56,6 @@ int bio_write(BIO *b, const char *buf, int len) {
 
   c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
 
-  std::cerr << "ClientHello: " << len << " bytes" << std::endl;
-  ;
   return len;
 }
 } // namespace
@@ -72,8 +71,6 @@ int bio_read(BIO *b, char *buf, int len) {
     BIO_set_retry_read(b);
     return -1;
   }
-
-  std::cerr << "ServerHello: " << len << " bytes" << std::endl;
 
   return len;
 }
@@ -154,9 +151,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   rev_.data = this;
 }
 
-Client::~Client() {
-  disconnect();
-}
+Client::~Client() { disconnect(); }
 
 void Client::disconnect() {
   std::cerr << "disconnecting" << std::endl;
@@ -194,8 +189,6 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
 
   auto len = c->read_client_handshake(pdest, maxdestlen);
 
-  std::cerr << "Client Initial: " << len << " bytes" << std::endl;
-
   return len;
 }
 } // namespace
@@ -211,8 +204,6 @@ ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
   }
 
   auto len = c->read_client_handshake(pdest, maxdestlen);
-
-  std::cerr << "Client Cleartext: " << len << " bytes" << std::endl;
 
   return len;
 }
@@ -245,7 +236,9 @@ int Client::init(int fd) {
   SSL_set_connect_state(ssl_);
 
   auto callbacks = ngtcp2_conn_callbacks{
-      send_client_initial, send_client_cleartext, nullptr, recv_handshake_data,
+      send_client_initial, send_client_cleartext, nullptr,
+      recv_handshake_data, debug::send_pkt,       debug::send_frame,
+      debug::recv_pkt,     debug::recv_frame,
   };
 
   rv = ngtcp2_conn_client_new(&conn_, 1, 1, &callbacks, this);
@@ -308,8 +301,6 @@ int Client::on_read() {
     return 0;
   }
 
-  std::cerr << "Read " << nread << " from socket " << fd_ << std::endl;
-
   if (feed_data(buf.data(), nread) != 0) {
     return -1;
   }
@@ -327,15 +318,11 @@ int Client::on_write() {
     return 0;
   }
 
-  std::cerr << "Write " << n << " bytes of UDP payload" << std::endl;
-
   auto nwrite = write(fd_, buf.data(), n);
   if (nwrite == -1) {
     std::cerr << "write: " << strerror(errno) << std::endl;
     return -1;
   }
-
-  std::cerr << "Wrote " << nwrite << " bytes" << std::endl;
 
   return 0;
 }
@@ -481,6 +468,12 @@ int main(int argc, char **argv) {
 
   auto ssl_ctx = create_ssl_ctx();
   auto ssl_ctx_d = defer(SSL_CTX_free, ssl_ctx);
+
+  debug::reset_timestamp();
+
+  if (isatty(STDOUT_FILENO)) {
+    debug::set_color_output(true);
+  }
 
   Client c(EV_DEFAULT, ssl_ctx);
 
