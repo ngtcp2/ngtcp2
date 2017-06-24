@@ -110,7 +110,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_frame fr;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, conn->conn_id,
-                     conn->next_out_pkt_num, conn->version);
+                     conn->next_tx_pkt_num, conn->version);
 
   ngtcp2_upe_init(&upe, dest, destlen);
 
@@ -133,7 +133,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  ++conn->next_out_pkt_num;
+  ++conn->next_tx_pkt_num;
   conn->strm0.tx_offset += datalen;
 
   if (type == NGTCP2_PKT_CLIENT_INITIAL) {
@@ -164,7 +164,7 @@ static ssize_t ngtcp2_conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  conn->next_out_pkt_num = pkt_num;
+  conn->next_tx_pkt_num = pkt_num;
 
   return conn_encode_handshake_pkt(conn, dest, destlen,
                                    NGTCP2_PKT_CLIENT_INITIAL, payload,
@@ -232,7 +232,7 @@ static ssize_t ngtcp2_conn_send_server_cleartext(ngtcp2_conn *conn,
   }
 
   if (initial) {
-    conn->next_out_pkt_num = pkt_num;
+    conn->next_tx_pkt_num = pkt_num;
   }
 
   return conn_encode_handshake_pkt(conn, dest, destlen,
