@@ -59,6 +59,7 @@ typedef struct {
   ngtcp2_rob rob;
   ngtcp2_mem *mem;
   size_t nbuffered;
+  ngtcp2_buf tx_buf;
 } ngtcp2_strm;
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem);
@@ -67,8 +68,15 @@ void ngtcp2_strm_free(ngtcp2_strm *strm);
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr);
 
+typedef struct {
+  ngtcp2_pq_entry pq_entry;
+  uint64_t pkt_num;
+  ngtcp2_tstamp tstamp;
+} ngtcp2_rx_pkt;
+
 struct ngtcp2_conn {
   int state;
+  ngtcp2_pq ackq;
   ngtcp2_conn_callbacks callbacks;
   ngtcp2_strm strm0;
   uint64_t conn_id;
@@ -82,5 +90,8 @@ struct ngtcp2_conn {
 
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm);
+
+int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
+                          ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_CONN_H */

@@ -207,6 +207,8 @@ typedef enum {
   NGTCP2_FRAME_STREAM = 0xc0
 } ngtcp2_frame_type;
 
+typedef uint64_t ngtcp2_tstamp;
+
 typedef struct {
   uint8_t flags;
   uint8_t type;
@@ -245,7 +247,7 @@ typedef struct {
   uint16_t ack_delay;
   uint64_t first_ack_blklen;
   size_t num_blks;
-  ngtcp2_ack_blk blks[256];
+  ngtcp2_ack_blk blks[255];
   size_t num_ts;
 } ngtcp2_ack;
 
@@ -427,6 +429,8 @@ NGTCP2_EXTERN int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe,
  */
 NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
 
+NGTCP2_EXTERN size_t ngtcp2_upe_left(ngtcp2_upe *upe);
+
 /**
  * @function
  *
@@ -464,18 +468,18 @@ typedef struct ngtcp2_conn ngtcp2_conn;
 typedef ssize_t (*ngtcp2_send_client_initial)(ngtcp2_conn *conn, uint32_t flags,
                                               uint64_t *ppkt_num,
                                               const uint8_t **pdest,
-                                              size_t maxdestlen,
                                               void *user_data);
 
 typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 const uint8_t **pdest,
-                                                size_t maxdestlen,
                                                 void *user_data);
 
-typedef ssize_t (*ngtcp2_send_server_cleartext)(
-    ngtcp2_conn *conn, uint32_t flags, uint64_t *ppkt_num,
-    const uint8_t **pdest, size_t maxdestlen, void *user_data);
+typedef ssize_t (*ngtcp2_send_server_cleartext)(ngtcp2_conn *conn,
+                                                uint32_t flags,
+                                                uint64_t *ppkt_num,
+                                                const uint8_t **pdest,
+                                                void *user_data);
 
 typedef int (*ngtcp2_recv_handshake_data)(ngtcp2_conn *conn,
                                           const uint8_t *data, size_t datalen,

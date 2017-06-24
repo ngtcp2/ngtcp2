@@ -51,7 +51,7 @@ public:
   int feed_data(const uint8_t *data, size_t datalen);
 
   void write_client_handshake(const uint8_t *data, size_t datalen);
-  size_t read_client_handshake(const uint8_t **pdest, size_t maxdestlen);
+  size_t read_client_handshake(const uint8_t **pdest);
 
   size_t read_server_handshake(uint8_t *buf, size_t buflen);
   void write_server_handshake(const uint8_t *data, size_t datalen);

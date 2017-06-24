@@ -118,3 +118,11 @@ size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {
 
   return ngtcp2_buf_len(buf);
 }
+
+size_t ngtcp2_upe_left(ngtcp2_upe *upe) {
+  ngtcp2_buf *buf = &upe->buf;
+
+  assert(ngtcp2_buf_left(buf) >= NGTCP2_PKT_MDLEN);
+
+  return ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN;
+}

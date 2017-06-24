@@ -183,7 +183,7 @@ void Client::disconnect() {
 namespace {
 ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
                             uint64_t *ppkt_num, const uint8_t **pdest,
-                            size_t maxdestlen, void *user_data) {
+                            void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
   if (c->tls_handshake() != 0) {
@@ -193,7 +193,7 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
   *ppkt_num = std::uniform_int_distribution<uint64_t>(
       0, std::numeric_limits<int32_t>::max())(randgen);
 
-  auto len = c->read_client_handshake(pdest, maxdestlen);
+  auto len = c->read_client_handshake(pdest);
 
   return len;
 }
@@ -201,15 +201,14 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
 
 namespace {
 ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
-                              const uint8_t **pdest, size_t maxdestlen,
-                              void *user_data) {
+                              const uint8_t **pdest, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
   if (c->tls_handshake() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  auto len = c->read_client_handshake(pdest, maxdestlen);
+  auto len = c->read_client_handshake(pdest);
 
   return len;
 }
@@ -346,10 +345,10 @@ void Client::write_client_handshake(const uint8_t *data, size_t datalen) {
   std::copy_n(data, datalen, std::back_inserter(chandshake_));
 }
 
-size_t Client::read_client_handshake(const uint8_t **pdest, size_t maxdestlen) {
-  auto n = std::min(maxdestlen, chandshake_.size() - ncread_);
+size_t Client::read_client_handshake(const uint8_t **pdest) {
+  auto n = chandshake_.size() - ncread_;
   *pdest = chandshake_.data() + ncread_;
-  ncread_ += n;
+  ncread_ = chandshake_.size();
   return n;
 }
 

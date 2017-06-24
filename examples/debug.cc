@@ -193,6 +193,16 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     print_indent();
     fprintf(outfile, "<length=%zu>\n", fr->padding.len);
     break;
+  case NGTCP2_FRAME_ACK:
+    print_indent();
+    fprintf(outfile,
+            "<num_blks=%zu, num_ts=%zu, largest_ack=%lu, ack_delay=%u>\n",
+            fr->ack.num_blks, fr->ack.num_ts, fr->ack.largest_ack,
+            fr->ack.ack_delay);
+    print_indent();
+    fprintf(outfile, "; first_ack_block_length=%lu\n",
+            fr->ack.first_ack_blklen);
+    break;
   }
 }
 } // namespace

@@ -36,6 +36,7 @@ typedef struct {
   uint8_t *begin;
   /* end points to the one beyond of the last byte of the buffer */
   uint8_t *end;
+  uint8_t *pos;
   /* last points to the one beyond of the last data of the buffer.
      Initially, it points to |begin|. */
   uint8_t *last;

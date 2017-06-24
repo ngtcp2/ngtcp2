@@ -49,7 +49,7 @@ public:
   void signal_write();
 
   void write_server_handshake(const uint8_t *data, size_t datalen);
-  size_t read_server_handshake(const uint8_t **pdest, size_t maxdestlen);
+  size_t read_server_handshake(const uint8_t **pdest);
 
   size_t read_client_handshake(uint8_t *buf, size_t buflen);
   void write_client_handshake(const uint8_t *data, size_t datalen);

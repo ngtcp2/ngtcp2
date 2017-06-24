@@ -177,13 +177,12 @@ Handler::~Handler() {
   if (fd_ != -1) {
     close(fd_);
   }
-  assert(0);
 }
 
 namespace {
 ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
                               uint64_t *ppkt_num, const uint8_t **pdest,
-                              size_t maxdestlen, void *user_data) {
+                              void *user_data) {
   auto h = static_cast<Handler *>(user_data);
 
   if (h->tls_handshake() != 0) {
@@ -195,7 +194,7 @@ ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
         0, std::numeric_limits<int32_t>::max())(randgen);
   }
 
-  auto len = h->read_server_handshake(pdest, maxdestlen);
+  auto len = h->read_server_handshake(pdest);
 
   // If Client Initial does not have complete ClientHello, then drop
   // connection.
@@ -299,11 +298,10 @@ void Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
   std::copy_n(data, datalen, std::back_inserter(chandshake_));
 }
 
-size_t Handler::read_server_handshake(const uint8_t **pdest,
-                                      size_t maxdestlen) {
-  auto n = std::min(maxdestlen, chandshake_.size() - ncread_);
+size_t Handler::read_server_handshake(const uint8_t **pdest) {
+  auto n = chandshake_.size() - ncread_;
   *pdest = chandshake_.data() + ncread_;
-  ncread_ += n;
+  ncread_ = chandshake_.size();
   return n;
 }
 

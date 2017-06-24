@@ -25,7 +25,7 @@
 #include "ngtcp2_buf.h"
 
 void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
-  buf->begin = buf->last = begin;
+  buf->begin = buf->pos = buf->last = begin;
   buf->end = begin + len;
 }
 
@@ -34,5 +34,5 @@ size_t ngtcp2_buf_left(ngtcp2_buf *buf) {
 }
 
 size_t ngtcp2_buf_len(ngtcp2_buf *buf) {
-  return (size_t)(buf->last - buf->begin);
+  return (size_t)(buf->last - buf->pos);
 }
