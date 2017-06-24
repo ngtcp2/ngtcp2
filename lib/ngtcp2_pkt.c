@@ -660,7 +660,7 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
   } else if (fr->offset > 0xffff) {
     offsetlen = 4;
     flags |= 0x04;
-  } else if (fr->offset > 0xff) {
+  } else if (fr->offset) {
     offsetlen = 2;
     flags |= 0x02;
   } else {
