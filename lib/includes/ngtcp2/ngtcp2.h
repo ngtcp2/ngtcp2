@@ -230,6 +230,11 @@ typedef struct {
 } ngtcp2_stream;
 
 typedef struct {
+  uint64_t blklen;
+  uint8_t gap;
+} ngtcp2_ack_blk;
+
+typedef struct {
   uint8_t type;
   /**
    * flags of decoded ACK frame.  This gets ignored when encoding ACK
@@ -238,6 +243,10 @@ typedef struct {
   uint8_t flags;
   uint64_t largest_ack;
   uint16_t ack_delay;
+  uint64_t first_ack_blklen;
+  size_t num_blks;
+  ngtcp2_ack_blk blks[256];
+  size_t num_ts;
 } ngtcp2_ack;
 
 typedef struct {

@@ -408,11 +408,13 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   size_t num_ts;
   size_t lalen;
   size_t abllen;
-  size_t len = 4;
+  size_t len = 4; /* type + NumTS + ACK Delay(2) */
   const uint8_t *p;
+  size_t i;
+  ngtcp2_ack_blk *blk;
 
-  /* We can expect at least 3 bytes (type, NumTS, and LA) */
-  if (payloadlen < 3 || !has_mask(payload[0], NGTCP2_FRAME_ACK)) {
+  /* We can expect at least 4 bytes (type, NumTS, and ACK Delay(2)) */
+  if (payloadlen < len || !has_mask(payload[0], NGTCP2_FRAME_ACK)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -461,8 +463,8 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 
   /* Length of ACK Block Section */
   /* First ACK Block Length */
-  len += lalen;
-  len += num_blks * abllen;
+  len += abllen;
+  len += num_blks * (1 + abllen);
 
   /* Length of Timestamp Section */
   if (num_ts > 0) {
@@ -475,6 +477,8 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 
   dest->type = NGTCP2_FRAME_ACK;
   dest->flags = type & ~NGTCP2_FRAME_ACK;
+  dest->num_blks = num_blks;
+  dest->num_ts = num_ts;
 
   switch (lalen) {
   case 1:
@@ -493,7 +497,57 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 
   p += lalen;
 
-  /* TODO Parse remaining fields */
+  dest->ack_delay = ngtcp2_get_uint16(p);
+  p += 2;
+
+  switch (abllen) {
+  case 1:
+    dest->first_ack_blklen = *p++;
+    for (i = 0; i < num_blks; ++i) {
+      blk = &dest->blks[i];
+      blk->gap = *p++;
+      blk->blklen = *p++;
+    }
+    break;
+  case 2:
+    dest->first_ack_blklen = ngtcp2_get_uint16(p);
+    p += 2;
+    for (i = 0; i < num_blks; ++i) {
+      blk = &dest->blks[i];
+      blk->gap = *p++;
+      blk->blklen = ngtcp2_get_uint16(p);
+      p += 2;
+    }
+    break;
+  case 4:
+    dest->first_ack_blklen = ngtcp2_get_uint32(p);
+    p += 4;
+    for (i = 0; i < num_blks; ++i) {
+      blk = &dest->blks[i];
+      blk->gap = *p++;
+      blk->blklen = ngtcp2_get_uint32(p);
+      p += 4;
+    }
+    break;
+  case 6:
+    dest->first_ack_blklen = ngtcp2_get_uint48(p);
+    p += 6;
+    for (i = 0; i < num_blks; ++i) {
+      blk = &dest->blks[i];
+      blk->gap = *p++;
+      blk->blklen = ngtcp2_get_uint48(p);
+      p += 6;
+    }
+    break;
+  }
+
+  /* TODO Parse Timestamp section */
+
+  if (num_ts) {
+    p += num_ts * 3 + 2;
+  }
+
+  assert((size_t)(p - payload) == len);
 
   return (ssize_t)len;
 }
@@ -720,6 +774,15 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
                                     const ngtcp2_ack *fr) {
   size_t len = 1 + 1 + 6 + 2 + 6;
   uint8_t *p;
+  size_t i;
+  const ngtcp2_ack_blk *blk;
+
+  if (fr->num_blks) {
+    ++len;
+  }
+
+  /* Encode ACK Block N Length in 48 bits for now */
+  len += fr->num_blks * 7;
 
   if (outlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -727,14 +790,22 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = NGTCP2_FRAME_ACK | NGTCP2_ACK_LL_MASK | NGTCP2_ACK_MM_MASK;
+  *p++ = NGTCP2_FRAME_ACK | NGTCP2_ACK_LL_MASK | NGTCP2_ACK_MM_MASK |
+         (fr->num_blks ? NGTCP2_ACK_N_BIT : 0);
+  /* Num Blocks */
+  if (fr->num_blks) {
+    *p++ = (uint8_t)fr->num_blks;
+  }
   /* NumTS */
   *p++ = 0;
   p = ngtcp2_put_uint48be(p, fr->largest_ack);
   p = ngtcp2_put_uint16be(p, fr->ack_delay);
-  /* I'm not sure this should be 0 or 1. "Additional" means this
-     should be 0. */
-  p = ngtcp2_put_uint48be(p, 0);
+  p = ngtcp2_put_uint48be(p, fr->first_ack_blklen);
+  for (i = 0; i < fr->num_blks; ++i) {
+    blk = &fr->blks[i];
+    *p++ = blk->gap;
+    p = ngtcp2_put_uint48be(p, blk->blklen);
+  }
 
   assert((size_t)(p - out) == len);
 

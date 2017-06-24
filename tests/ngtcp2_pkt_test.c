@@ -452,10 +452,15 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   ngtcp2_frame fr, nfr;
   ssize_t rv;
   size_t framelen;
+  size_t i;
 
+  /* 0 Num Blocks */
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 0xf1f2f3f4f5f6llu;
+  fr.ack.first_ack_blklen = 0;
   fr.ack.ack_delay = 0;
+  fr.ack.num_blks = 0;
+  fr.ack.num_ts = 0;
 
   framelen = 1 + 1 + 6 + 2 + 6;
 
@@ -469,6 +474,43 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   CU_ASSERT(fr.type == nfr.type);
   CU_ASSERT(0x0f == nfr.ack.flags);
   CU_ASSERT(fr.ack.largest_ack == nfr.ack.largest_ack);
+  CU_ASSERT(fr.ack.ack_delay == nfr.ack.ack_delay);
+  CU_ASSERT(fr.ack.num_blks == nfr.ack.num_blks);
+  CU_ASSERT(fr.ack.num_ts == nfr.ack.num_ts);
+
+  memset(&nfr, 0, sizeof(nfr));
+
+  /* 2 Num Blocks */
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0xf1f2f3f4f5f6llu;
+  fr.ack.first_ack_blklen = 0xe1e2e3e4e5e6llu;
+  fr.ack.ack_delay = 0xf1f2;
+  fr.ack.num_blks = 2;
+  fr.ack.blks[0].gap = 255;
+  fr.ack.blks[0].blklen = 0xd1d2d3d4d5d6llu;
+  fr.ack.blks[1].gap = 1;
+  fr.ack.blks[1].blklen = 0xd1d2d3d4d5d6llu;
+
+  framelen = 1 + 1 + 1 + 6 + 2 + 6 + (1 + 6) * 2;
+
+  rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fr.ack);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_ack_frame(&nfr.ack, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(0x1f == nfr.ack.flags);
+  CU_ASSERT(fr.ack.largest_ack == nfr.ack.largest_ack);
+  CU_ASSERT(fr.ack.ack_delay = nfr.ack.ack_delay);
+  CU_ASSERT(fr.ack.num_blks == nfr.ack.num_blks);
+  CU_ASSERT(fr.ack.num_ts == nfr.ack.num_ts);
+
+  for (i = 0; i < fr.ack.num_blks; ++i) {
+    CU_ASSERT(fr.ack.blks[i].gap == nfr.ack.blks[i].gap);
+    CU_ASSERT(fr.ack.blks[i].blklen == nfr.ack.blks[i].blklen);
+  }
 
   memset(&nfr, 0, sizeof(nfr));
 }
