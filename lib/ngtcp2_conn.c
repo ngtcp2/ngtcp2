@@ -277,8 +277,9 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen) {
   return rv;
 }
 
-static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, const uint8_t *pkt,
-                                      size_t pktlen, int server, int initial) {
+static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
+                                      const uint8_t *pkt, size_t pktlen,
+                                      int server, int initial) {
   ssize_t nread;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame fr;
@@ -302,6 +303,10 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   } else if (!server) {
     conn->conn_id = hd.conn_id;
+  }
+
+  if (exptype != hd.type) {
+    return NGTCP2_ERR_PROTO;
   }
 
   for (; pktlen;) {
@@ -359,27 +364,31 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen) {
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_CI_SENT:
     /* TODO Handle Version Negotiation */
-    rv = ngtcp2_conn_recv_cleartext(conn, pkt, pktlen, 0, 1);
+    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt,
+                                    pktlen, 0, 1);
     if (rv < 0) {
       break;
     }
     conn->state = NGTCP2_CS_CLIENT_SC_RECVED;
     break;
   case NGTCP2_CS_CLIENT_SC_RECVED:
-    rv = ngtcp2_conn_recv_cleartext(conn, pkt, pktlen, 0, 0);
+    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt,
+                                    pktlen, 0, 0);
     if (rv < 0) {
       break;
     }
     break;
   case NGTCP2_CS_SERVER_INITIAL:
-    rv = ngtcp2_conn_recv_cleartext(conn, pkt, pktlen, 1, 1);
+    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_INITIAL, pkt,
+                                    pktlen, 1, 1);
     if (rv < 0) {
       break;
     }
     conn->state = NGTCP2_CS_SERVER_CI_RECVED;
     break;
   case NGTCP2_CS_SERVER_SC_SENT:
-    rv = ngtcp2_conn_recv_cleartext(conn, pkt, pktlen, 1, 0);
+    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_CLEARTEXT, pkt,
+                                    pktlen, 1, 0);
     if (rv < 0) {
       break;
     }
