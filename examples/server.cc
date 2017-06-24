@@ -398,6 +398,15 @@ int Server::on_read() {
     return 0;
   }
 
+  // Client Initial packet must be at least 1280 bytes long.
+  if (nread < 1280) {
+    return 0;
+  }
+
+  if ((buf[0] & 0x7f) != NGTCP2_PKT_CLIENT_INITIAL) {
+    return 0;
+  }
+
   auto fd = socket(su.storage.ss_family, SOCK_DGRAM, 0);
   if (fd == -1) {
     std::cerr << "socket: " << strerror(errno) << std::endl;
