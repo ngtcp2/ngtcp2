@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2016 ngtcp2
+# Copyright (c) 2017 ngtcp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,40 +20,22 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS = includes
 
-AM_CFLAGS = $(WARNCFLAGS) $(EXTRACFLAG)
-AM_CPPFLAGS = -I$(srcdir)/includes -I$(builddir)/includes -DBUILDING_NGTCP2
+AM_CFLAGS = $(WARNCFLAGS)
+AM_CPPFLAGS = \
+	-I$(top_srcdir)/lib/includes \
+	-I$(top_builddir)/lib/includes \
+	@OPENSSL_CFLAGS@ \
+	@LIBEV_CFLAGS@ \
+	@DEFS@
+LDADD = $(top_builddir)/lib/libngtcp2.la \
+	@OPENSSL_LIBS@ \
+	@LIBEV_LIBS@
 
-pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libngtcp2.pc
-DISTCLEANFILES = $(pkgconfig_DATA)
+noinst_PROGRAMS = client server
 
-lib_LTLIBRARIES = libngtcp2.la
+client_SOURCES = client.cc \
+	template.h
 
-OBJECTS = \
-	ngtcp2_pkt.c \
-	ngtcp2_conv.c \
-	ngtcp2_str.c \
-	ngtcp2_buf.c \
-	ngtcp2_upe.c \
-	ngtcp2_conn.c \
-	ngtcp2_mem.c \
-	ngtcp2_pq.c \
-	ngtcp2_rob.c
-
-HFILES = \
-	ngtcp2_pkt.h \
-	ngtcp2_conv.h \
-	ngtcp2_str.h \
-	ngtcp2_buf.h \
-	ngtcp2_upe.h \
-	ngtcp2_conn.h \
-	ngtcp2_mem.h \
-	ngtcp2_pq.h \
-	ngtcp2_rob.h \
-	ngtcp2_macro.h
-
-libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
-libngtcp2_la_LDFLAGS = -no-undefined \
-	-version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE)
+server_SOURCES = server.cc \
+	template.h

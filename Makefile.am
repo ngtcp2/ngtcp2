@@ -20,7 +20,7 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS = lib tests
+SUBDIRS = lib tests examples
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -30,4 +30,5 @@ ACLOCAL_AMFLAGS = -I m4
 clang-format:
 	CLANGFORMAT=`git config --get clangformat.binary`; \
 	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
-	$${CLANGFORMAT} -i lib/*.{c,h} lib/includes/ngtcp2/*.h
+	$${CLANGFORMAT} -i lib/*.{c,h} lib/includes/ngtcp2/*.h \
+	examples/*.{cc,h}

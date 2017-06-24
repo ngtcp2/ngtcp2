@@ -67,12 +67,16 @@ AC_ARG_ENABLE([debug],
 
 # Checks for programs
 AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_MKDIR_P
 
 PKG_PROG_PKG_CONFIG([0.20])
+
+AX_CXX_COMPILE_STDCXX([14], [noext], [optional])
 
 # Checks for libraries.
 
@@ -104,6 +108,29 @@ if test "x${have_cunit}" = "xyes"; then
 fi
 
 AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
+
+# openssl (for examples)
+PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
+                  [have_openssl=yes], [have_openssl=no])
+if test "x${have_openssl}" = "xno"; then
+  AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
+fi
+
+# libev (for examples)
+# libev does not have pkg-config file.  Check it in an old way.
+save_LIBS=$LIBS
+# android requires -lm for floor
+AC_CHECK_LIB([ev], [ev_time], [have_libev=yes], [have_libev=no], [-lm])
+if test "x${have_libev}" = "xyes"; then
+  AC_CHECK_HEADER([ev.h], [have_libev=yes], [have_libev=no])
+  if test "x${have_libev}" = "xyes"; then
+    LIBEV_LIBS=-lev
+    LIBEV_CFLAGS=
+    AC_SUBST([LIBEV_LIBS])
+    AC_SUBST([LIBEV_CFLAGS])
+  fi
+fi
+LIBS=$save_LIBS
 
 # Checks for header files.
 AC_CHECK_HEADERS([ \
@@ -222,6 +249,7 @@ AC_CONFIG_FILES([
   lib/includes/Makefile
   lib/includes/ngtcp2/version.h
   tests/Makefile
+  examples/Makefile
 ])
 AC_OUTPUT
 
@@ -250,4 +278,7 @@ AC_MSG_NOTICE([summary of build options:
       CUnit:          ${have_cunit} (CFLAGS='${CUNIT_CFLAGS}' LIBS='${CUNIT_LIBS}')
     Debug:
       Debug:          ${debug}
+    Libs:
+      OpenSSL:        ${have_openssl} (CFLAGS='${OPENSSL_CFLAGS}' LIBS='${OPENSSL_LIBS}')
+      Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')
 ])

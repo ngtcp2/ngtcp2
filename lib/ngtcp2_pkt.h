@@ -45,6 +45,11 @@
 #define NGTCP2_STREAM_OO_MASK 0x06
 #define NGTCP2_STREAM_D_BIT 0x01
 
+/* NGTCP2_STREAM_OVERHEAD is the maximum number of bytes required
+   other than payload for STREAM frame.  That is from type field to
+   the beginning of the payload. */
+#define NGTCP2_STREAM_OVERHEAD 15
+
 #define NGTCP2_ACK_N_BIT 0x10
 #define NGTCP2_ACK_LL_MASK 0x0c
 #define NGTCP2_ACK_MM_MASK 0x03

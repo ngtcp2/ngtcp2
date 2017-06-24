@@ -52,7 +52,8 @@ typedef enum {
 } ngtcp2_conn_state;
 
 typedef struct {
-  uint64_t offset;
+  uint64_t rx_offset;
+  uint64_t tx_offset;
   ngtcp2_rob rob;
   ngtcp2_mem *mem;
   size_t nbuffered;
