@@ -614,6 +614,10 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
     return NGTCP2_ERR_PROTO;
   }
 
+  if (conn->version != hd.version) {
+    return NGTCP2_ERR_PROTO;
+  }
+
   for (; pktlen;) {
     nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen);
     if (nread < 0) {
