@@ -81,6 +81,73 @@ Client/Server
 After successful build, the client and server executable should be
 found under examples directory.
 
+.. code-block:: text
+
+    $ examples/client 127.0.0.1 3000
+    [  0.000631] send Client Initial packet
+                 <conn_id=0x663da7f3ec0fa005, pkt_num=2131773923, ver=0xff000004>
+                 STREAM frame
+                 <stream_id=0x00000000, offset=0, data_length=147>
+    [  0.008070] recv Server Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=113882351, ver=0xff000004>
+                 ACK frame
+                 <num_blks=0, num_ts=0, largest_ack=2131773923, ack_delay=7008>
+                 ; first_ack_block_length=0
+                 STREAM frame
+                 <stream_id=0x00000000, offset=0, data_length=1196>
+    [  0.009220] send Client Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=2131773924, ver=0xff000004>
+                 ACK frame
+                 <num_blks=0, num_ts=0, largest_ack=113882351, ack_delay=1148>
+                 ; first_ack_block_length=0
+    [  0.009271] recv Server Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=113882352, ver=0xff000004>
+                 STREAM frame
+                 <stream_id=0x00000000, offset=1196, data_length=203>
+    [  0.010545] send Client Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=2131773925, ver=0xff000004>
+                 ACK frame
+                 <num_blks=0, num_ts=0, largest_ack=113882352, ack_delay=1273>
+                 ; first_ack_block_length=0
+                 STREAM frame
+                 <stream_id=0x00000000, offset=147, data_length=58>
+    [  0.010583] QUIC handshake has completed
+
+
+.. code-block:: text
+
+    $ examples/server 127.0.0.1 3000 server.key server.crt
+    [  1.859533] recv Client Initial packet
+                 <conn_id=0x663da7f3ec0fa005, pkt_num=2131773923, ver=0xff000004>
+                 STREAM frame
+                 <stream_id=0x00000000, offset=0, data_length=147>
+                 PADDING frame
+                 <length=1076>
+    [  1.866546] send Server Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=113882351, ver=0xff000004>
+                 ACK frame
+                 <num_blks=0, num_ts=0, largest_ack=2131773923, ack_delay=7008>
+                 ; first_ack_block_length=0
+                 STREAM frame
+                 <stream_id=0x00000000, offset=0, data_length=1196>
+    [  1.866619] send Server Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=113882352, ver=0xff000004>
+                 STREAM frame
+                 <stream_id=0x00000000, offset=1196, data_length=203>
+    [  1.867923] recv Client Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=2131773924, ver=0xff000004>
+                 ACK frame
+                 <num_blks=0, num_ts=0, largest_ack=113882351, ack_delay=1148>
+                 ; first_ack_block_length=0
+    [  1.869424] recv Client Cleartext packet
+                 <conn_id=0x0d2b3264360d37bc, pkt_num=2131773925, ver=0xff000004>
+                 ACK frame
+                 <num_blks=0, num_ts=0, largest_ack=113882352, ack_delay=1273>
+                 ; first_ack_block_length=0
+                 STREAM frame
+                 <stream_id=0x00000000, offset=147, data_length=58>
+    [  1.869793] QUIC handshake has completed
+
 License
 -------
 
