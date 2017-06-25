@@ -200,6 +200,12 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     print_indent();
     fprintf(outfile, "; first_ack_block_length=%lu\n",
             fr->ack.first_ack_blklen);
+    for (size_t i = 0; i < fr->ack.num_blks; ++i) {
+      auto blk = &fr->ack.blks[i];
+      print_indent();
+      fprintf(outfile, "; gap=%u, ack_block_length=%lu\n", blk->gap,
+              blk->blklen);
+    }
     break;
   }
 }
