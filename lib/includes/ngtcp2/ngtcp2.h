@@ -158,6 +158,9 @@ typedef struct {
 /* NGTCP2_PROTO_VERSION is the supported QUIC protocol version */
 #define NGTCP2_PROTO_VERSION 0xff000004u
 
+#define NGTCP2_MAX_PKTLEN_IPV4 1252
+#define NGTCP2_MAX_PKTLEN_IPV6 1232
+
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,

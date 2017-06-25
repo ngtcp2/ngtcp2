@@ -52,7 +52,7 @@ union sockaddr_union {
 };
 
 struct Address {
-  size_t len;
+  socklen_t len;
   union sockaddr_union su;
 };
 

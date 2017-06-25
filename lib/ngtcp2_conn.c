@@ -379,10 +379,6 @@ static ssize_t ngtcp2_conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t payloadlen;
   ngtcp2_buf *tx_buf = &conn->strm0.tx_buf;
 
-  if (destlen < 1280) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
   payloadlen = conn->callbacks.send_client_initial(
       conn, NGTCP2_CONN_FLAG_NONE, &pkt_num, &payload, conn->user_data);
 
@@ -840,7 +836,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     p = &hd;
   }
 
-  if (pktlen < 1280 || (pkt[0] & NGTCP2_HEADER_FORM_BIT) == 0) {
+  if (pktlen == 0 || (pkt[0] & NGTCP2_HEADER_FORM_BIT) == 0) {
     return -1;
   }
 

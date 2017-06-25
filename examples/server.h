@@ -36,12 +36,16 @@
 #include <openssl/ssl.h>
 #include <ev.h>
 
+#include "network.h"
+
+using namespace ngtcp2;
+
 class Handler {
 public:
   Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Handler();
 
-  int init(int fd);
+  int init(int fd, const sockaddr *sa, socklen_t salen);
   int tls_handshake();
   int on_read();
   int on_write();
@@ -55,6 +59,8 @@ public:
   void write_client_handshake(const uint8_t *data, size_t datalen);
 
 private:
+  Address remote_addr_;
+  size_t max_pktlen_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;

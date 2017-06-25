@@ -143,7 +143,9 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
 } // namespace
 
 Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
-    : loop_(loop),
+    : remote_addr_{},
+      max_pktlen_(0),
+      loop_(loop),
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       fd_(-1),
@@ -229,8 +231,21 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 }
 } // namespace
 
-int Client::init(int fd) {
+int Client::init(int fd, const Address &remote_addr) {
   int rv;
+
+  remote_addr_ = remote_addr;
+
+  switch (remote_addr_.su.storage.ss_family) {
+  case AF_INET:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
+    break;
+  case AF_INET6:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
+    break;
+  default:
+    return -1;
+  }
 
   fd_ = fd;
   ssl_ = SSL_new(ssl_ctx_);
@@ -331,8 +346,9 @@ int Client::on_read() {
 }
 
 int Client::on_write() {
-  std::array<uint8_t, 1280> buf;
-  auto n = ngtcp2_conn_send(conn_, buf.data(), buf.size(), util::timestamp());
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+  assert(buf.size() >= max_pktlen_);
+  auto n = ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
   if (n < 0) {
     return -1;
   }
@@ -385,7 +401,7 @@ SSL_CTX *create_ssl_ctx() {
 } // namespace
 
 namespace {
-int create_sock(const char *addr, const char *port) {
+int create_sock(Address &remote_addr, const char *addr, const char *port) {
   addrinfo hints{};
   addrinfo *res, *rp;
   int rv;
@@ -430,6 +446,9 @@ int create_sock(const char *addr, const char *port) {
     return -1;
   }
 
+  remote_addr.len = rp->ai_addrlen;
+  memcpy(&remote_addr.su, rp->ai_addr, rp->ai_addrlen);
+
   return fd;
 }
 
@@ -438,13 +457,14 @@ int create_sock(const char *addr, const char *port) {
 namespace {
 int run(Client &c, const char *addr, const char *port) {
   int rv;
+  Address remote_addr;
 
-  auto fd = create_sock(addr, port);
+  auto fd = create_sock(remote_addr, addr, port);
   if (fd == -1) {
     return -1;
   }
 
-  if (c.init(fd) != 0) {
+  if (c.init(fd, remote_addr) != 0) {
     return -1;
   }
 

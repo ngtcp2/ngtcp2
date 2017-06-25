@@ -37,12 +37,16 @@
 
 #include <ev.h>
 
+#include "network.h"
+
+using namespace ngtcp2;
+
 class Client {
 public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Client();
 
-  int init(int fd);
+  int init(int fd, const Address &remote_addr);
   void disconnect();
 
   int tls_handshake();
@@ -57,6 +61,8 @@ public:
   void write_server_handshake(const uint8_t *data, size_t datalen);
 
 private:
+  Address remote_addr_;
+  size_t max_pktlen_;
   ev_io wev_;
   ev_io rev_;
   struct ev_loop *loop_;

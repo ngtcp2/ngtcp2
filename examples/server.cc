@@ -150,7 +150,9 @@ void hreadcb(struct ev_loop *loop, ev_io *w, int revents) {
 } // namespace
 
 Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx)
-    : loop_(loop),
+    : remote_addr_{},
+      max_pktlen_(0),
+      loop_(loop),
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       fd_(-1),
@@ -222,8 +224,22 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 }
 } // namespace
 
-int Handler::init(int fd) {
+int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   int rv;
+
+  remote_addr_.len = salen;
+  memcpy(&remote_addr_.su.sa, sa, salen);
+
+  switch (remote_addr_.su.storage.ss_family) {
+  case AF_INET:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
+    break;
+  case AF_INET6:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
+    break;
+  default:
+    return -1;
+  }
 
   fd_ = fd;
   ssl_ = SSL_new(ssl_ctx_);
@@ -333,10 +349,12 @@ int Handler::feed_data(const uint8_t *data, size_t datalen) {
 int Handler::on_read() {
   sockaddr_union su;
   socklen_t addrlen = sizeof(su);
-  std::array<uint8_t, 1280> buf;
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+
+  assert(buf.size() >= max_pktlen_);
 
   auto nread =
-      recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
+      recvfrom(fd_, buf.data(), max_pktlen_, MSG_DONTWAIT, &su.sa, &addrlen);
   if (nread == -1) {
     std::cerr << "recvfrom: " << strerror(errno) << std::endl;
     return 0;
@@ -350,7 +368,9 @@ int Handler::on_read() {
 }
 
 int Handler::on_write() {
-  std::array<uint8_t, 1280> buf;
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+
+  assert(buf.size() >= max_pktlen_);
 
   for (;;) {
     auto n = ngtcp2_conn_send(conn_, buf.data(), buf.size(), util::timestamp());
@@ -414,7 +434,7 @@ int Server::init(int fd) {
 int Server::on_read() {
   sockaddr_union su;
   socklen_t addrlen = sizeof(su);
-  std::array<uint8_t, 1280> buf;
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
   int rv;
   ngtcp2_pkt_hd hd;
 
@@ -426,17 +446,27 @@ int Server::on_read() {
     return 0;
   }
 
+  switch (su.storage.ss_family) {
+  case AF_INET:
+    if (nread < NGTCP2_MAX_PKTLEN_IPV4) {
+      return 0;
+    }
+    break;
+  case AF_INET6:
+    if (nread < NGTCP2_MAX_PKTLEN_IPV6) {
+      return 0;
+    }
+    break;
+  }
+
   rv = ngtcp2_accept(&hd, buf.data(), nread);
   if (rv == -1) {
+    std::cerr << "Unexpected packet received" << std::endl;
     return 0;
   }
   if (rv == 1) {
+    std::cerr << "Unsupported version: Send Version Negotiation" << std::endl;
     send_version_negotiation(&hd, &su.sa, addrlen);
-    return 0;
-  }
-
-  // Client Initial packet must be at least 1280 bytes long.
-  if (nread < 1280) {
     return 0;
   }
 
@@ -477,7 +507,7 @@ int Server::on_read() {
   }
 
   auto h = std::make_unique<Handler>(loop_, ssl_ctx_);
-  h->init(fd);
+  h->init(fd, &su.sa, addrlen);
   if (h->feed_data(buf.data(), nread) != 0) {
     return 0;
   }
