@@ -36,9 +36,13 @@ typedef struct {
   uint8_t *begin;
   /* end points to the one beyond of the last byte of the buffer */
   uint8_t *end;
+  /* pos pointers to the start of data.  Typically, this points to the
+     point that next data should be read.  Initially, it points to
+     |begin|. */
   uint8_t *pos;
   /* last points to the one beyond of the last data of the buffer.
-     Initially, it points to |begin|. */
+     Typically, new data is written at this point.  Initially, it
+     points to |begin|. */
   uint8_t *last;
 } ngtcp2_buf;
 
@@ -49,12 +53,14 @@ void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len);
 
 /*
  * ngtcp2_buf_left returns the number of additional bytes which can be
- * written to the underlying buffer.
+ * written to the underlying buffer.  In other words, it returns
+ * buf->end - buf->last.
  */
 size_t ngtcp2_buf_left(ngtcp2_buf *buf);
 
 /*
- * ngtcp2_buf_len returns the number of bytes written to the buffer.
+ * ngtcp2_buf_len returns the number of bytes left to read.  In other
+ * words, it returns buf->last - buf->pos.
  */
 size_t ngtcp2_buf_len(ngtcp2_buf *buf);
 

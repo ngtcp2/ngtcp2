@@ -66,8 +66,23 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem);
 
 void ngtcp2_strm_free(ngtcp2_strm *strm);
 
+/*
+ * ngtcp2_strm_recv_reordering handles reordered STREAM frame |fr|.
+ *
+ * It returns 0 if it succeeds, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_INTERNAL_ERROR
+ *     There are too many buffered data
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr);
 
+/*
+ * ngtcp2_rx_pkt records packet number and its reception timestamp for
+ * its transmission of ACK.
+ */
 typedef struct {
   ngtcp2_pq_entry pq_entry;
   uint64_t pkt_num;
@@ -88,9 +103,31 @@ struct ngtcp2_conn {
   int server;
 };
 
+/*
+ * ngtcp2_conn_emit_pending_recv_handshake delivers pending stream
+ * data to the application due to packet reordering.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed
+ */
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm);
 
+/*
+ * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
+ * reception timestamp |ts| in order to send its ACK.
+ *
+ * It returns 0 if it succeeds, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_INTERNAL_ERROR
+ *     There are too many unacked packets
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
                           ngtcp2_tstamp ts);
 

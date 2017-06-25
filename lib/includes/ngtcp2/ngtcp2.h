@@ -432,6 +432,12 @@ NGTCP2_EXTERN int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe,
  */
 NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
 
+/**
+ * @function
+ *
+ * `ngtcp2_upe_left` returns the number of bytes left to write
+ * additional frames.  It does not include the checksum bytes.
+ */
 NGTCP2_EXTERN size_t ngtcp2_upe_left(ngtcp2_upe *upe);
 
 /**
@@ -534,6 +540,19 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
 NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts);
 
+/**
+ * @function
+ *
+ * `ngtcp2_conn_handshake_completed` tells |conn| that the QUIC
+ * handshake has completed.
+ *
+ * It returns 0 if it succeeds, or one of the following negative error
+ * codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     The state of |conn| is not valid for this event
+ *
+ */
 NGTCP2_EXTERN int ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 
 #ifdef __cplusplus
