@@ -36,7 +36,7 @@ uint64_t ngtcp2_fnv1a(const uint8_t *p, size_t len) {
   const uint8_t *ep = p + len;
   for (; p != ep; ++p) {
     h ^= *p;
-    h *= 0x100000001b3;
+    h *= 0x100000001b3llu;
   }
   return h;
 }

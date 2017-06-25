@@ -117,6 +117,18 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
                                    const ngtcp2_pkt_hd *hd);
 
 /*
+ * ngtcp2_pkt_decode_version_negotiation decodes Version Negotiation
+ * packet payload |payload| of length |payloadlen|, and stores the
+ * result in |dest|.  |dest| must have enough capacity to store the
+ * result.  |payloadlen| also must be a multiple of sizeof(uint32_t).
+ *
+ * This function returns the number of versions written in |dest|.
+ */
+size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen);
+
+/*
  * ngtcp2_pkt_decode_stream_frame decodes STREAM frame from |payload|
  * of length |payloadlen|.  The result is stored in the object pointed
  * by |dest|.  STREAM frame must start at `payload[0]`.  This function

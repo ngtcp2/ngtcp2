@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <stdio.h>
 
 #include <openssl/bio.h>
 
@@ -413,12 +414,23 @@ int Server::on_read() {
   sockaddr_union su;
   socklen_t addrlen = sizeof(su);
   std::array<uint8_t, 1280> buf;
+  int rv;
+  ngtcp2_pkt_hd hd;
 
   auto nread =
       recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
   if (nread == -1) {
     std::cerr << "recvfrom: " << strerror(errno) << std::endl;
     // TODO Handle running out of fd
+    return 0;
+  }
+
+  rv = ngtcp2_accept(&hd, buf.data(), nread);
+  if (rv == -1) {
+    return 0;
+  }
+  if (rv == 1) {
+    send_version_negotiation(&hd, &su.sa, addrlen);
     return 0;
   }
 
@@ -470,6 +482,79 @@ int Server::on_read() {
   }
   h->signal_write();
   h.release();
+
+  return 0;
+}
+
+namespace {
+uint32_t generate_reserved_vesrion(const sockaddr *sa, socklen_t salen,
+                                   uint32_t version) {
+  uint32_t h = 0x811C9DC5u;
+  const uint8_t *p = (const uint8_t *)sa;
+  const uint8_t *ep = p + salen;
+  for (; p != ep; ++p) {
+    h ^= *p;
+    h *= 0x01000193u;
+  }
+  version = htonl(version);
+  p = (const uint8_t *)&version;
+  ep = p + sizeof(version);
+  for (; p != ep; ++p) {
+    h ^= *p;
+    h *= 0x01000193u;
+  }
+  h &= 0xf0f0f0f0u;
+  h |= 0x0a0a0a0au;
+  return h;
+}
+} // namespace
+
+int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
+                                     const sockaddr *sa, socklen_t salen) {
+  std::array<uint8_t, 256> buf;
+  ngtcp2_upe *upe;
+  ngtcp2_pkt_hd hd;
+  uint32_t reserved_ver;
+  uint32_t sv[2];
+  size_t pktlen;
+  ssize_t nwrite;
+  int rv;
+
+  hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
+  hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
+  hd.conn_id = chd->conn_id;
+  hd.pkt_num = chd->pkt_num;
+  hd.version = chd->version;
+
+  reserved_ver = generate_reserved_vesrion(sa, salen, hd.version);
+
+  sv[0] = reserved_ver;
+  sv[1] = NGTCP2_PROTO_VERSION;
+
+  rv = ngtcp2_upe_new(&upe, buf.data(), buf.size());
+  if (rv != 0) {
+    return -1;
+  }
+
+  auto upe_d = defer(ngtcp2_upe_del, upe);
+
+  rv = ngtcp2_upe_encode_hd(upe, &hd);
+  if (rv != 0) {
+    return -1;
+  }
+
+  rv = ngtcp2_upe_encode_version_negotiation(upe, sv, array_size(sv));
+  if (rv != 0) {
+    return -1;
+  }
+
+  pktlen = ngtcp2_upe_final(upe, NULL);
+
+  nwrite = sendto(fd_, buf.data(), pktlen, 0, sa, salen);
+  if (nwrite == -1) {
+    std::cerr << "sendto: " << strerror(errno) << std::endl;
+    return -1;
+  }
 
   return 0;
 }

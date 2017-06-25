@@ -155,6 +155,9 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
+/* NGTCP2_PROTO_VERSION is the supported QUIC protocol version */
+#define NGTCP2_PROTO_VERSION 0xff000004u
+
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
@@ -364,10 +367,25 @@ typedef struct ngtcp2_upe ngtcp2_upe;
 /**
  * @function
  *
- * `ngtcp2_upe_init` initializes |upe| with the given buffer.
+ * `ngtcp2_upe_new` creates new ngtcp2_upe, and initializes it with
+ * the given buffer.
+ *
+ * It returns 0, and stores the pointer to the created object to
+ * |*pupe|, otherwise it returns one of the following negative error
+ * codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
  */
-NGTCP2_EXTERN void ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out,
-                                   size_t outlen);
+NGTCP2_EXTERN int ngtcp2_upe_new(ngtcp2_upe **pupe, uint8_t *out,
+                                 size_t outlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_upe_del` deletes |upe|.
+ */
+NGTCP2_EXTERN void ngtcp2_upe_del(ngtcp2_upe *upe);
 
 /**
  * @function
@@ -508,6 +526,11 @@ typedef int (*ngtcp2_recv_frame)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 typedef int (*ngtcp2_handshake_completed)(ngtcp2_conn *conn, void *user_data);
 
+typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
+                                               const ngtcp2_pkt_hd *hd,
+                                               const uint32_t *sv, size_t nsv,
+                                               void *user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
@@ -518,9 +541,23 @@ typedef struct {
   ngtcp2_recv_pkt recv_pkt;
   ngtcp2_recv_frame recv_frame;
   ngtcp2_handshake_completed handshake_completed;
+  ngtcp2_recv_version_negotiation recv_version_negotiation;
 } ngtcp2_conn_callbacks;
 
-NGTCP2_EXTERN int ngtcp2_accept(const uint8_t *pkt, size_t pktlen);
+/*
+ * `ngtcp2_accept` is used by server implementation, and decides
+ * whether packet |pkt| of length |pktlen| is acceptable for initial
+ * packet from client.
+ *
+ * If it is acceptable, it returns 0.  If it is not acceptable, and
+ * Version Negotiation packet is required to send, it returns 1.
+ * Otherwise, it returns -1.
+ *
+ * If |dest| is not NULL, and the return value is 0 or 1, the decoded
+ * packet header is stored to the object pointed by |dest|.
+ */
+NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                size_t pktlen);
 
 NGTCP2_EXTERN int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                                          uint32_t version,

@@ -241,6 +241,15 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 
+int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                             const uint32_t *sv, size_t nsv, void *user_data) {
+  for (size_t i = 0; i < nsv; ++i) {
+    print_indent();
+    fprintf(outfile, "; version=0x%08x\n", sv[i]);
+  }
+  return 0;
+}
+
 } // namespace debug
 
 } // namespace ngtcp2

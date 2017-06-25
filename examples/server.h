@@ -75,6 +75,8 @@ public:
 
   int init(int fd);
   int on_read();
+  int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
+                               socklen_t salen);
 
 private:
   struct ev_loop *loop_;

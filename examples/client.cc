@@ -241,9 +241,16 @@ int Client::init(int fd) {
   SSL_set_connect_state(ssl_);
 
   auto callbacks = ngtcp2_conn_callbacks{
-      send_client_initial, send_client_cleartext, nullptr,
-      recv_handshake_data, debug::send_pkt,       debug::send_frame,
-      debug::recv_pkt,     debug::recv_frame,     debug::handshake_completed,
+      send_client_initial,
+      send_client_cleartext,
+      nullptr,
+      recv_handshake_data,
+      debug::send_pkt,
+      debug::send_frame,
+      debug::recv_pkt,
+      debug::recv_frame,
+      debug::handshake_completed,
+      debug::recv_version_negotiation,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(

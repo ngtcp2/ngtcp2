@@ -25,6 +25,7 @@
 #include "ngtcp2_conn.h"
 
 #include <string.h>
+#include <assert.h>
 
 #include "ngtcp2_upe.h"
 #include "ngtcp2_pkt.h"
@@ -526,6 +527,47 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   return nwrite;
 }
 
+static int conn_on_version_negotiation(ngtcp2_conn *conn,
+                                       const ngtcp2_pkt_hd *hd,
+                                       const uint8_t *pkt, size_t pktlen) {
+  uint32_t sv[16];
+  uint32_t *p;
+  int rv;
+  size_t nsv;
+
+  if (pktlen % sizeof(uint32_t)) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  if (!conn->callbacks.recv_version_negotiation) {
+    return 0;
+  }
+
+  if (pktlen > sizeof(sv)) {
+    p = ngtcp2_mem_malloc(conn->mem, pktlen);
+    if (p == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+  } else {
+    p = sv;
+  }
+
+  nsv = ngtcp2_pkt_decode_version_negotiation(p, pkt, pktlen);
+
+  rv = conn->callbacks.recv_version_negotiation(conn, hd, sv, nsv,
+                                                conn->user_data);
+
+  if (p != sv) {
+    ngtcp2_mem_free(conn->mem, p);
+  }
+
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
                                       const uint8_t *pkt, size_t pktlen,
                                       int server, int initial,
@@ -559,6 +601,13 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
     }
   } else if (!server) {
     conn->conn_id = hd.conn_id;
+  }
+
+  if (!server && hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+    rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   if (exptype != hd.type) {
@@ -772,6 +821,36 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
   if (rv != 0) {
     ngtcp2_mem_free(conn->mem, rpkt);
     return rv;
+  }
+
+  return 0;
+}
+
+int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
+  ssize_t nread;
+  ngtcp2_pkt_hd hd, *p;
+
+  if (dest) {
+    p = dest;
+  } else {
+    p = &hd;
+  }
+
+  if (pktlen < 1280 || (pkt[0] & NGTCP2_HEADER_FORM_BIT) == 0) {
+    return -1;
+  }
+
+  nread = ngtcp2_pkt_decode_hd_long(p, pkt, pktlen);
+  if (nread < 0) {
+    return -1;
+  }
+
+  if (p->type != NGTCP2_PKT_CLIENT_INITIAL) {
+    return -1;
+  }
+
+  if (p->version != NGTCP2_PROTO_VERSION) {
+    return 1;
   }
 
   return 0;

@@ -47,4 +47,8 @@ template <typename F, typename... T> Defer<F, T...> defer(F &&f, T &&... t) {
   return Defer<F, T...>(std::forward<F>(f), std::forward<T>(t)...);
 }
 
+template <typename T, size_t N> constexpr size_t array_size(T (&)[N]) {
+  return N;
+}
+
 #endif // TEMPLATE_H

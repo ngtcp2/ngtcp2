@@ -40,4 +40,9 @@ struct ngtcp2_upe {
   ngtcp2_buf buf;
 };
 
+/*
+ * ngtcp2_upe_init initializes |upe| with the given buffer.
+ */
+void ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out, size_t outlen);
+
 #endif /* NGTCP2_UPE_H */

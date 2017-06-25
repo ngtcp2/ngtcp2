@@ -835,3 +835,17 @@ int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen) {
 
   return a == b ? 0 : -1;
 }
+
+size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen) {
+  const uint8_t *end = payload + payloadlen;
+
+  assert((payloadlen % sizeof(uint32_t)) == 0);
+
+  for (; payload != end; payload += sizeof(uint32_t)) {
+    *dest++ = ngtcp2_get_uint32(payload);
+  }
+
+  return payloadlen / sizeof(uint32_t);
+}

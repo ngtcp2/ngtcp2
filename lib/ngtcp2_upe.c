@@ -30,6 +30,7 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
+#include "ngtcp2_mem.h"
 
 void ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out, size_t outlen) {
   ngtcp2_buf_init(&upe->buf, out, outlen);
@@ -125,4 +126,27 @@ size_t ngtcp2_upe_left(ngtcp2_upe *upe) {
   assert(ngtcp2_buf_left(buf) >= NGTCP2_PKT_MDLEN);
 
   return ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN;
+}
+
+int ngtcp2_upe_new(ngtcp2_upe **pupe, uint8_t *out, size_t outlen) {
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+
+  *pupe = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_upe));
+  if (*pupe == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  ngtcp2_upe_init(*pupe, out, outlen);
+
+  return 0;
+}
+
+void ngtcp2_upe_del(ngtcp2_upe *upe) {
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+
+  if (upe == NULL) {
+    return;
+  }
+
+  ngtcp2_mem_free(mem, upe);
 }
