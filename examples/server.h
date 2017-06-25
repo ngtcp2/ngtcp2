@@ -67,6 +67,7 @@ private:
   int fd_;
   ev_io wev_;
   ev_io rev_;
+  ev_timer timer_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
   std::vector<uint8_t> shandshake_;

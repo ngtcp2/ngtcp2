@@ -43,6 +43,8 @@ std::chrono::microseconds timestamp();
 
 void set_color_output(bool f);
 
+void print_timestamp();
+
 int send_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
 
 int send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,

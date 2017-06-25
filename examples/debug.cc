@@ -127,14 +127,12 @@ std::string strframetype(uint8_t type) {
 }
 } // namespace
 
-namespace {
 void print_timestamp() {
   auto t = timestamp().count();
-  fprintf(outfile, "%s[%3d.%06d]%s", ansi_esc("\033[33m"),
+  fprintf(outfile, "%s[%3d.%06d]%s ", ansi_esc("\033[33m"),
           static_cast<int32_t>(t / 1000000), static_cast<int32_t>(t % 1000000),
           ansi_escend());
 }
-} // namespace
 
 namespace {
 const char *pkt_ansi_esc(ngtcp2_dir dir) {
@@ -209,7 +207,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
 
 int send_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data) {
   print_timestamp();
-  fprintf(outfile, " send ");
+  fprintf(outfile, "send ");
   print_pkt(NGTCP2_DIR_SEND, hd);
   return 0;
 }
@@ -223,7 +221,7 @@ int send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 int recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data) {
   print_timestamp();
-  fprintf(outfile, " recv ");
+  fprintf(outfile, "recv ");
   print_pkt(NGTCP2_DIR_RECV, hd);
   return 0;
 }
@@ -237,7 +235,7 @@ int recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   print_timestamp();
-  fprintf(outfile, " QUIC handshake has completed\n");
+  fprintf(outfile, "QUIC handshake has completed\n");
   return 0;
 }
 

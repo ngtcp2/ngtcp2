@@ -149,6 +149,17 @@ void hreadcb(struct ev_loop *loop, ev_io *w, int revents) {
 }
 } // namespace
 
+namespace {
+void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  auto h = static_cast<Handler *>(w->data);
+
+  debug::print_timestamp();
+  std::cerr << "Timeout" << std::endl;
+
+  delete h;
+}
+} // namespace
+
 Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx)
     : remote_addr_{},
       max_pktlen_(0),
@@ -163,9 +174,16 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   ev_io_init(&rev_, hreadcb, 0, EV_READ);
   wev_.data = this;
   rev_.data = this;
+  ev_timer_init(&timer_, timeoutcb, 5., 0.);
+  timer_.data = this;
 }
 
 Handler::~Handler() {
+  debug::print_timestamp();
+  std::cerr << "Closing QUIC connection" << std::endl;
+
+  ev_timer_stop(loop_, &timer_);
+
   ev_io_stop(loop_, &rev_);
   ev_io_stop(loop_, &wev_);
 
@@ -275,6 +293,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   ev_io_set(&rev_, fd_, EV_READ);
 
   ev_io_start(loop_, &rev_);
+  ev_timer_start(loop_, &timer_);
 
   return 0;
 }
