@@ -256,7 +256,8 @@ int Client::init(int fd) {
   auto conn_id = std::uniform_int_distribution<uint64_t>(
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
-  rv = ngtcp2_conn_client_new(&conn_, conn_id, 1, &callbacks, this);
+  rv = ngtcp2_conn_client_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
+                              this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << rv << std::endl;
     return -1;
