@@ -34,6 +34,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_buf.h"
 #include "ngtcp2_rob.h"
+#include "ngtcp2_crypto.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -50,7 +51,8 @@ typedef enum {
   NGTCP2_CS_SERVER_SC_ACKED,
   NGTCP2_CS_SERVER_CC_RECVED,
   /* Shared by both client and server */
-  NGTCP2_CS_HANDSHAKE_COMPLETED,
+  NGTCP2_CS_POST_HANDSHAKE,
+  NGTCP2_CS_CLOSE_WAIT,
 } ngtcp2_conn_state;
 
 typedef struct {
@@ -102,6 +104,9 @@ struct ngtcp2_conn {
   uint32_t version;
   int handshake_completed;
   int server;
+  ngtcp2_crypto_km *tx_ckm;
+  ngtcp2_crypto_km *rx_ckm;
+  size_t aead_overhead;
 };
 
 /*

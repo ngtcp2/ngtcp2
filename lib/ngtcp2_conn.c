@@ -28,6 +28,7 @@
 #include <assert.h>
 
 #include "ngtcp2_upe.h"
+#include "ngtcp2_ppe.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_macro.h"
 
@@ -205,6 +206,9 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   if (conn == NULL) {
     return;
   }
+
+  ngtcp2_crypto_km_del(conn->rx_ckm, conn->mem);
+  ngtcp2_crypto_km_del(conn->tx_ckm, conn->mem);
 
   ngtcp2_strm_free(&conn->strm0);
 
@@ -479,6 +483,95 @@ static ssize_t ngtcp2_conn_send_server_cleartext(ngtcp2_conn *conn,
                                    ackfr.type == 0 ? NULL : &ackfr, tx_buf);
 }
 
+static ssize_t conn_send_connection_close(ngtcp2_conn *conn, uint8_t *dest,
+                                          size_t destlen, ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_ppe ppe;
+  ngtcp2_pkt_hd hd;
+  ngtcp2_frame fr;
+  ngtcp2_frame ackfr;
+  ssize_t nwrite;
+  ngtcp2_crypto_ctx ctx;
+
+  ackfr.type = 0;
+  rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  /* TODO Choose appropriate packet number size */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
+                     conn->next_tx_pkt_num, conn->version);
+
+  ctx.ckm = conn->tx_ckm;
+  ctx.aead_overhead = conn->aead_overhead;
+  ctx.encrypt = conn->callbacks.encrypt;
+  ctx.user_data = conn;
+
+  rv = ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    nwrite = rv;
+    goto fin;
+  }
+
+  rv = conn_call_send_pkt(conn, &hd);
+  if (rv != 0) {
+    nwrite = rv;
+    goto fin;
+  }
+
+  if (ackfr.type) {
+    rv = ngtcp2_ppe_encode_frame(&ppe, &ackfr);
+    if (rv != 0) {
+      nwrite = rv;
+      goto fin;
+    }
+
+    rv = conn_call_send_frame(conn, &hd, &ackfr);
+    if (rv != 0) {
+      nwrite = rv;
+      goto fin;
+    }
+  }
+
+  /* TODO CONNECTION_CLOSE cannot be sent if ACK frame is too
+     large. */
+
+  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
+  fr.connection_close.error_code = NGTCP2_QUIC_INTERNAL_ERROR;
+  fr.connection_close.reasonlen = 0;
+  fr.connection_close.reason = NULL;
+
+  rv = ngtcp2_ppe_encode_frame(&ppe, &fr);
+  if (rv != 0) {
+    nwrite = rv;
+    goto fin;
+  }
+
+  rv = conn_call_send_frame(conn, &hd, &fr);
+  if (rv != 0) {
+    nwrite = rv;
+    goto fin;
+  }
+
+  nwrite = ngtcp2_ppe_final(&ppe, NULL);
+  if (nwrite < 0) {
+    goto fin;
+  }
+
+  ++conn->next_tx_pkt_num;
+
+fin:
+  ngtcp2_ppe_free(&ppe);
+
+  return nwrite;
+}
+
 ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                          ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
@@ -502,7 +595,7 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       if (rv != 0) {
         return rv;
       }
-      conn->state = NGTCP2_CS_HANDSHAKE_COMPLETED;
+      conn->state = NGTCP2_CS_POST_HANDSHAKE;
     }
     break;
   case NGTCP2_CS_SERVER_CI_RECVED:
@@ -517,6 +610,13 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (nwrite < 0) {
       break;
     }
+    break;
+  case NGTCP2_CS_POST_HANDSHAKE:
+    nwrite = conn_send_connection_close(conn, dest, destlen, ts);
+    if (nwrite < 0) {
+      break;
+    }
+    conn->state = NGTCP2_CS_CLOSE_WAIT;
     break;
   }
 
@@ -630,9 +730,11 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
       return rv;
     }
 
-    /* We don't ack packet which contains ACK frames only. */
+    /* We don't ack packet which contains ACK and CONNECTION_CLOSE
+       only. */
     /* TODO What about packet with PADDING frames only? */
-    require_ack |= fr.type != NGTCP2_FRAME_ACK;
+    require_ack |=
+        fr.type != NGTCP2_FRAME_ACK && fr.type != NGTCP2_FRAME_CONNECTION_CLOSE;
 
     if (fr.type != NGTCP2_FRAME_STREAM || fr.stream.stream_id != 0 ||
         conn->strm0.rx_offset >= fr.stream.offset + fr.stream.datalen) {
@@ -660,6 +762,8 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
     }
   }
 
+  conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
+
   if (require_ack) {
     rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, ts);
     if (rv != 0) {
@@ -668,6 +772,137 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
   }
 
   return 0;
+}
+
+static ssize_t conn_decrypt_packet(ngtcp2_conn *conn, uint8_t *dest,
+                                   size_t destlen, const uint8_t *pkt,
+                                   size_t pktlen, const uint8_t *ad,
+                                   size_t adlen, uint64_t pkt_num) {
+  uint8_t nonce[64];
+  ngtcp2_crypto_km *ckm = conn->rx_ckm;
+  ssize_t nwrite;
+
+  assert(sizeof(nonce) >= ckm->ivlen);
+
+  ngtcp2_crypto_create_nonce(nonce, ckm->iv, ckm->ivlen, pkt_num);
+
+  nwrite = conn->callbacks.decrypt(conn, dest, destlen, pkt, pktlen, ckm->key,
+                                   ckm->keylen, nonce, ckm->ivlen, ad, adlen,
+                                   conn->user_data);
+
+  if (nwrite < 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return nwrite;
+}
+
+static int conn_recv_packet(ngtcp2_conn *conn, const uint8_t *pkt,
+                            size_t pktlen, ngtcp2_tstamp ts) {
+  ngtcp2_pkt_hd hd;
+  size_t pkt_num_bits;
+  int encrypted = 0;
+  int rv = 0;
+  const uint8_t *hdpkt = pkt;
+  uint8_t *plaintext = NULL;
+  ssize_t nread, nwrite;
+  ngtcp2_frame fr;
+  int require_ack = 0;
+
+  if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
+    nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
+  } else {
+    nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen);
+  }
+  if (nread < 0) {
+    return (int)nread;
+  }
+
+  pkt += nread;
+  pktlen -= (size_t)nread;
+
+  if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+    pkt_num_bits = 32;
+    if (hd.type == NGTCP2_PKT_1RTT_PROTECTED_K0) {
+      encrypted = 1;
+    }
+  } else {
+    switch (hd.type) {
+    case NGTCP2_PKT_01:
+      pkt_num_bits = 8;
+      break;
+    case NGTCP2_PKT_02:
+      pkt_num_bits = 16;
+      break;
+    case NGTCP2_PKT_03:
+      pkt_num_bits = 32;
+      break;
+    default:
+      assert(0);
+    }
+    if (!(hd.flags & NGTCP2_PKT_FLAG_KEY_PHASE)) {
+      encrypted = 1;
+    }
+  }
+
+  hd.pkt_num =
+      ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, pkt_num_bits);
+
+  rv = conn_call_recv_pkt(conn, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (encrypted) {
+    plaintext = ngtcp2_mem_malloc(conn->mem, pktlen);
+    if (plaintext == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+    nwrite = conn_decrypt_packet(conn, plaintext, pktlen, pkt, pktlen, hdpkt,
+                                 (size_t)nread, hd.pkt_num);
+    if (nwrite < 0) {
+      rv = (int)nwrite;
+      goto fin;
+    }
+    pkt = plaintext;
+    pktlen = (size_t)nwrite;
+  }
+
+  for (; pktlen;) {
+    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen, conn->max_rx_pkt_num);
+    if (nread < 0) {
+      rv = (int)nread;
+      goto fin;
+    }
+
+    pkt += nread;
+    pktlen -= (size_t)nread;
+
+    rv = conn_call_recv_frame(conn, &hd, &fr);
+    if (rv != 0) {
+      goto fin;
+    }
+
+    /* We don't ack packet which contains ACK and CONNECTION_CLOSE
+       only. */
+    /* TODO What about packet with PADDING frames only? */
+    require_ack |=
+        fr.type != NGTCP2_FRAME_ACK && fr.type != NGTCP2_FRAME_CONNECTION_CLOSE;
+  }
+
+  conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
+
+  if (require_ack) {
+    rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, ts);
+    if (rv != 0) {
+      goto fin;
+    }
+  }
+
+fin:
+  ngtcp2_mem_free(conn->mem, plaintext);
+
+  return rv;
 }
 
 int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
@@ -721,7 +956,14 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       if (rv != 0) {
         return rv;
       }
-      conn->state = NGTCP2_CS_HANDSHAKE_COMPLETED;
+      conn->state = NGTCP2_CS_POST_HANDSHAKE;
+    }
+    break;
+  case NGTCP2_CS_POST_HANDSHAKE:
+  case NGTCP2_CS_CLOSE_WAIT:
+    rv = conn_recv_packet(conn, pkt, pktlen, ts);
+    if (rv < 0) {
+      break;
     }
     break;
   }
@@ -856,4 +1098,26 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
   }
 
   return 0;
+}
+
+void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn, size_t aead_overhead) {
+  conn->aead_overhead = aead_overhead;
+}
+
+int ngtcp2_conn_update_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                               size_t keylen, const uint8_t *iv, size_t ivlen) {
+  if (conn->tx_ckm) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  return ngtcp2_crypto_km_new(&conn->tx_ckm, key, keylen, iv, ivlen, conn->mem);
+}
+
+int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                               size_t keylen, const uint8_t *iv, size_t ivlen) {
+  if (conn->rx_ckm) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  return ngtcp2_crypto_km_new(&conn->rx_ckm, key, keylen, iv, ivlen, conn->mem);
 }

@@ -2,7 +2,6 @@
  * ngtcp2
  *
  * Copyright (c) 2017 ngtcp2 contributors
- * Copyright (c) 2015 ngttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,36 +22,42 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TEMPLATE_H
-#define TEMPLATE_H
+#ifndef NGTCP2_PPE_H
+#define NGTCP2_PPE_H
 
-#include <functional>
-#include <utility>
-#include <type_traits>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-// inspired by <http://blog.korfuri.fr/post/go-defer-in-cpp/>, but our
-// template can take functions returning other than void.
-template <typename F, typename... T> struct Defer {
-  Defer(F &&f, T &&... t)
-      : f(std::bind(std::forward<F>(f), std::forward<T>(t)...)) {}
-  Defer(Defer &&o) noexcept : f(std::move(o.f)) {}
-  ~Defer() { f(); }
+#include <ngtcp2/ngtcp2.h>
 
-  using ResultType = typename std::result_of<typename std::decay<F>::type(
-      typename std::decay<T>::type...)>::type;
-  std::function<ResultType()> f;
-};
+#include "ngtcp2_buf.h"
+#include "ngtcp2_crypto.h"
 
-template <typename F, typename... T> Defer<F, T...> defer(F &&f, T &&... t) {
-  return Defer<F, T...>(std::forward<F>(f), std::forward<T>(t)...);
-}
+/*
+ * ngtcp2_ppe is the Protected Packet Encoder.
+ */
+typedef struct {
+  uint8_t *nonce;
+  ngtcp2_buf cbuf;
+  ngtcp2_buf pbuf;
+  ngtcp2_crypto_ctx *ctx;
+  uint64_t pkt_num;
+  ngtcp2_mem *mem;
+} ngtcp2_ppe;
 
-template <typename T, size_t N> constexpr size_t array_size(T (&)[N]) {
-  return N;
-}
+/*
+ * ngtcp2_ppe_init initializes |ppe| with the given buffer.
+ */
+int ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
+                    ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem);
 
-template <typename T, size_t N> constexpr size_t str_size(T (&)[N]) {
-  return N - 1;
-}
+void ngtcp2_ppe_free(ngtcp2_ppe *ppe);
 
-#endif // TEMPLATE_H
+int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd);
+
+int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, const ngtcp2_frame *fr);
+
+ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
+
+#endif /* NGTCP2_PPE_H */

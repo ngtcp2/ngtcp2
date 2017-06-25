@@ -2,7 +2,6 @@
  * ngtcp2
  *
  * Copyright (c) 2017 ngtcp2 contributors
- * Copyright (c) 2015 ngttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,36 +22,54 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TEMPLATE_H
-#define TEMPLATE_H
+#include "ngtcp2_crypto.h"
 
-#include <functional>
-#include <utility>
-#include <type_traits>
+#include <string.h>
+#include <assert.h>
 
-// inspired by <http://blog.korfuri.fr/post/go-defer-in-cpp/>, but our
-// template can take functions returning other than void.
-template <typename F, typename... T> struct Defer {
-  Defer(F &&f, T &&... t)
-      : f(std::bind(std::forward<F>(f), std::forward<T>(t)...)) {}
-  Defer(Defer &&o) noexcept : f(std::move(o.f)) {}
-  ~Defer() { f(); }
+#include "ngtcp2_str.h"
+#include "ngtcp2_conv.h"
 
-  using ResultType = typename std::result_of<typename std::decay<F>::type(
-      typename std::decay<T>::type...)>::type;
-  std::function<ResultType()> f;
-};
+int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
+                         size_t keylen, const uint8_t *iv, size_t ivlen,
+                         ngtcp2_mem *mem) {
+  size_t len;
+  uint8_t *p;
 
-template <typename F, typename... T> Defer<F, T...> defer(F &&f, T &&... t) {
-  return Defer<F, T...>(std::forward<F>(f), std::forward<T>(t)...);
+  len = sizeof(ngtcp2_crypto_km) + keylen + ivlen;
+
+  *pckm = ngtcp2_mem_malloc(mem, len);
+  if (*pckm == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  p = (uint8_t *)(*pckm) + sizeof(ngtcp2_crypto_km);
+  (*pckm)->key = p;
+  (*pckm)->keylen = keylen;
+  p = ngtcp2_cpymem(p, key, keylen);
+  (*pckm)->iv = p;
+  (*pckm)->ivlen = ivlen;
+  p = ngtcp2_cpymem(p, iv, ivlen);
+
+  return 0;
 }
 
-template <typename T, size_t N> constexpr size_t array_size(T (&)[N]) {
-  return N;
+void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, ngtcp2_mem *mem) {
+  if (ckm == NULL) {
+    return;
+  }
+
+  ngtcp2_mem_free(mem, ckm);
 }
 
-template <typename T, size_t N> constexpr size_t str_size(T (&)[N]) {
-  return N - 1;
-}
+void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
+                                uint64_t pkt_num) {
+  size_t i;
 
-#endif // TEMPLATE_H
+  memcpy(dest, iv, ivlen);
+  pkt_num = bswap64(pkt_num);
+
+  for (i = 0; i < 8; ++i) {
+    dest[ivlen - 8 + i] ^= ((uint8_t *)&pkt_num)[i];
+  }
+}

@@ -29,7 +29,18 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif /* HAVE_ARPA_INET_H */
+
 #include <ngtcp2/ngtcp2.h>
+
+#ifdef WORDS_BIGENDIAN
+#define bwap64(N) (N)
+#else /* !WORDS_BIGENDIAN */
+#define bswap64(N)                                                             \
+  (((uint64_t)(ntohl(((uint32_t)(N)) & 0xffffffffu))) << 32 | ntohl((N) >> 32))
+#endif /* !WORDS_BIGENDIAN */
 
 /*
  * ngtcp2_get_uint64 reads 8 bytes from |p| as 64 bits unsigned

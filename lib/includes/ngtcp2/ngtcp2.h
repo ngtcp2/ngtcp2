@@ -172,7 +172,7 @@ typedef enum {
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
   NGTCP2_ERR_INTERNAL_ERROR = -503
-} ngtcp2_error;
+} ngtcp2_lib_error;
 
 typedef enum {
   NGTCP2_PKT_FLAG_NONE = 0,
@@ -212,6 +212,8 @@ typedef enum {
   NGTCP2_FRAME_ACK = 0xa0,
   NGTCP2_FRAME_STREAM = 0xc0
 } ngtcp2_frame_type;
+
+typedef enum { NGTCP2_QUIC_INTERNAL_ERROR = 0x80000001u } ngtcp2_error;
 
 /*
  * ngtcp2_tstamp is a timestamp with microsecond resolution.
@@ -270,7 +272,12 @@ typedef struct {
 
 typedef struct { uint8_t type; } ngtcp2_rst_stream;
 
-typedef struct { uint8_t type; } ngtcp2_connection_close;
+typedef struct {
+  uint8_t type;
+  uint32_t error_code;
+  size_t reasonlen;
+  uint8_t *reason;
+} ngtcp2_connection_close;
 
 typedef struct { uint8_t type; } ngtcp2_goaway;
 
@@ -348,21 +355,6 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
                                               const ngtcp2_frame *fr);
-
-/* Protected Packet Encoder: ppe */
-struct ngtcp2_ppe;
-typedef struct ngtcp2_ppe ngtcp2_ppe;
-
-struct ngtcp2_crypto_ctx;
-typedef struct ngtcp2_crypto_ctx ngtcp2_crypto_ctx;
-
-NGTCP2_EXTERN int ngtcp2_ppe_init(ngtcp2_ppe *ppe, ngtcp2_crypto_ctx *cctx,
-                                  uint8_t *out, size_t outlen);
-NGTCP2_EXTERN ssize_t ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe,
-                                           const ngtcp2_pkt_hd *hd);
-NGTCP2_EXTERN ssize_t ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe,
-                                              const ngtcp2_frame *fr);
-NGTCP2_EXTERN ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe);
 
 /* Unprotected Packet Encoder: upe */
 struct ngtcp2_upe;
@@ -472,24 +464,6 @@ NGTCP2_EXTERN size_t ngtcp2_upe_left(ngtcp2_upe *upe);
  */
 NGTCP2_EXTERN int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen);
 
-/**
- * @function
- *
- * `ngtcp2_crypto_ctx_decrypt` performs decryption of QUIC payload
- * included in QUIC packet |pkg| of length |pktlen|.  The result of
- * decryption is written to the memory pointed by |dest|.  The valid
- * length of |dest| is given in |destlen|.
- *
- * This function returns the number of bytes written to |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * TBD
- */
-NGTCP2_EXTERN ssize_t ngtcp2_crypto_ctx_decrypt(ngtcp2_crypto_ctx *cctx,
-                                                uint8_t *dest, size_t destlen,
-                                                const uint8_t *pkt,
-                                                size_t pktlen);
-
 typedef enum { NGTCP2_CONN_FLAG_NONE } ngtcp2_conn_flag;
 
 struct ngtcp2_conn;
@@ -535,6 +509,20 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
                                                const uint32_t *sv, size_t nsv,
                                                void *user_data);
 
+typedef ssize_t (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
+                                  size_t destlen, const uint8_t *plaintext,
+                                  size_t plaintextlen, const uint8_t *key,
+                                  size_t keylen, const uint8_t *nonce,
+                                  size_t noncelen, const uint8_t *ad,
+                                  size_t adlen, void *user_data);
+
+typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
+                                  size_t destlen, const uint8_t *ciphertext,
+                                  size_t ciphertextlen, const uint8_t *key,
+                                  size_t keylen, const uint8_t *nonce,
+                                  size_t noncelen, const uint8_t *ad,
+                                  size_t adlen, void *user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
@@ -546,6 +534,8 @@ typedef struct {
   ngtcp2_recv_frame recv_frame;
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
+  ngtcp2_encrypt encrypt;
+  ngtcp2_decrypt decrypt;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -595,6 +585,17 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
  *
  */
 NGTCP2_EXTERN int ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
+
+NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
+                                                 size_t aead_overhead);
+
+NGTCP2_EXTERN int ngtcp2_conn_update_tx_keys(ngtcp2_conn *conn,
+                                             const uint8_t *key, size_t keylen,
+                                             const uint8_t *iv, size_t ivlen);
+
+NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
+                                             const uint8_t *key, size_t keylen,
+                                             const uint8_t *iv, size_t ivlen);
 
 #ifdef __cplusplus
 }

@@ -91,6 +91,21 @@ std::string strpkttype_long(uint8_t type) {
 } // namespace
 
 namespace {
+std::string strpkttype_short(uint8_t type) {
+  switch (type) {
+  case NGTCP2_PKT_01:
+    return "Short 01";
+  case NGTCP2_PKT_02:
+    return "Short 02";
+  case NGTCP2_PKT_03:
+    return "Short 03";
+  default:
+    return "UNKNOWN(0x" + util::format_hex(type) + ")";
+  }
+}
+} // namespace
+
+namespace {
 std::string strframetype(uint8_t type) {
   switch (type) {
   case NGTCP2_FRAME_PADDING:
@@ -162,7 +177,11 @@ void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "short pkt\n");
+  fprintf(outfile, "%s%s%s packet\n", pkt_ansi_esc(dir),
+          strpkttype_short(hd->type).c_str(), ansi_escend());
+  print_indent();
+  fprintf(outfile, "<conn_id=0x%016lx, pkt_num=%lu>\n", hd->conn_id,
+          hd->pkt_num);
 }
 } // namespace
 
@@ -206,6 +225,11 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
       fprintf(outfile, "; gap=%u, ack_block_length=%lu\n", blk->gap,
               blk->blklen);
     }
+    break;
+  case NGTCP2_FRAME_CONNECTION_CLOSE:
+    print_indent();
+    fprintf(outfile, "<error_code=0x%08x, reason_length=%zu>\n",
+            fr->connection_close.error_code, fr->connection_close.reasonlen);
     break;
   }
 }

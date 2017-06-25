@@ -133,6 +133,8 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   ++p;
 
+  dest->type = type;
+
   if (flags & NGTCP2_PKT_FLAG_CONN_ID) {
     dest->conn_id = ngtcp2_get_uint64(p);
     p += 8;
@@ -588,11 +590,39 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
 
 ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
                                                  const uint8_t *payload,
-                                                 size_t len) {
-  (void)dest;
-  (void)payload;
-  (void)len;
-  return -1;
+                                                 size_t payloadlen) {
+  size_t len = 1 + 4 + 2;
+  const uint8_t *p;
+  size_t reasonlen;
+
+  if (payloadlen < len || payload[0] != NGTCP2_FRAME_CONNECTION_CLOSE) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  reasonlen = ngtcp2_get_uint16(payload + 1 + 4);
+  len += reasonlen;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = payload + 1;
+
+  dest->type = NGTCP2_FRAME_CONNECTION_CLOSE;
+  dest->error_code = ngtcp2_get_uint32(p);
+  p += 4;
+  dest->reasonlen = reasonlen;
+  p += 2;
+  if (reasonlen == 0) {
+    dest->reason = NULL;
+  } else {
+    dest->reason = (uint8_t *)p;
+    p += reasonlen;
+  }
+
+  assert((size_t)(p - payload) == len);
+
+  return (ssize_t)len;
 }
 
 ssize_t ngtcp2_pkt_decode_goaway_frame(ngtcp2_goaway *dest,
@@ -681,6 +711,9 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
     return ngtcp2_pkt_encode_ack_frame(out, outlen, &fr->ack);
   case NGTCP2_FRAME_PADDING:
     return ngtcp2_pkt_encode_padding_frame(out, outlen, &fr->padding);
+  case NGTCP2_FRAME_CONNECTION_CLOSE:
+    return ngtcp2_pkt_encode_connection_close_frame(out, outlen,
+                                                    &fr->connection_close);
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -826,6 +859,30 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
   memset(out, 0, fr->len);
 
   return (ssize_t)fr->len;
+}
+
+ssize_t
+ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
+                                         const ngtcp2_connection_close *fr) {
+  size_t len = 1 + 4 + 2 + fr->reasonlen;
+  uint8_t *p;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = out;
+
+  *p++ = NGTCP2_FRAME_CONNECTION_CLOSE;
+  p = ngtcp2_put_uint32be(p, fr->error_code);
+  p = ngtcp2_put_uint16be(p, (uint16_t)fr->reasonlen);
+  if (fr->reasonlen) {
+    p = ngtcp2_cpymem(p, fr->reason, fr->reasonlen);
+  }
+
+  assert((size_t)(p - out) == len);
+
+  return (ssize_t)len;
 }
 
 int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen) {

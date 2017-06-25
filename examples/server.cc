@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-#include <stdio.h>
 
 #include <openssl/bio.h>
 
@@ -41,6 +40,7 @@
 #include "network.h"
 #include "debug.h"
 #include "util.h"
+#include "crypto.h"
 
 using namespace ngtcp2;
 
@@ -169,7 +169,10 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       fd_(-1),
       ncread_(0),
       nsread_(0),
-      conn_(nullptr) {
+      conn_(nullptr),
+      prf_(nullptr),
+      aead_(nullptr),
+      secretlen_(0) {
   ev_io_init(&wev_, hwritecb, 0, EV_WRITE);
   ev_io_init(&rev_, hreadcb, 0, EV_READ);
   wev_.data = this;
@@ -228,6 +231,56 @@ ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
 } // namespace
 
 namespace {
+int handshake_completed(ngtcp2_conn *conn, void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  debug::handshake_completed(conn, user_data);
+
+  if (h->setup_crypto_context() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+namespace {
+ssize_t do_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                   const uint8_t *plaintext, size_t plaintextlen,
+                   const uint8_t *key, size_t keylen, const uint8_t *nonce,
+                   size_t noncelen, const uint8_t *ad, size_t adlen,
+                   void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  auto nwrite = h->encrypt_data(dest, destlen, plaintext, plaintextlen, key,
+                                keylen, nonce, noncelen, ad, adlen);
+  if (nwrite < 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return nwrite;
+}
+} // namespace
+
+namespace {
+ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                   const uint8_t *ciphertext, size_t ciphertextlen,
+                   const uint8_t *key, size_t keylen, const uint8_t *nonce,
+                   size_t noncelen, const uint8_t *ad, size_t adlen,
+                   void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  auto nwrite = h->decrypt_data(dest, destlen, ciphertext, ciphertextlen, key,
+                                keylen, nonce, noncelen, ad, adlen);
+  if (nwrite < 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return nwrite;
+}
+} // namespace
+
+namespace {
 int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
                         void *user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -276,7 +329,10 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
       debug::send_frame,
       debug::recv_pkt,
       debug::recv_frame,
-      debug::handshake_completed,
+      handshake_completed,
+      nullptr,
+      do_encrypt,
+      do_decrypt,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(
@@ -351,6 +407,81 @@ size_t Handler::read_client_handshake(uint8_t *buf, size_t buflen) {
 
 void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
   std::copy_n(data, datalen, std::back_inserter(shandshake_));
+}
+
+int Handler::setup_crypto_context() {
+  int rv;
+
+  prf_ = crypto::get_negotiated_prf(ssl_);
+  assert(prf_);
+  aead_ = crypto::get_negotiated_aead(ssl_);
+  assert(aead_);
+
+  auto length = EVP_MD_size(prf_);
+
+  secretlen_ = length;
+
+  rv = crypto::export_server_secret(tx_secret_.data(), secretlen_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  std::array<uint8_t, 64> key{}, iv{};
+
+  auto keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), tx_secret_.data(), secretlen_, aead_, prf_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  auto ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), tx_secret_.data(), secretlen_, aead_, prf_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  ngtcp2_conn_update_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+
+  rv = crypto::export_client_secret(rx_secret_.data(), secretlen_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), rx_secret_.data(), secretlen_, aead_, prf_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), rx_secret_.data(), secretlen_, aead_, prf_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  ngtcp2_conn_update_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+
+  ngtcp2_conn_set_aead_overhead(conn_, EVP_AEAD_max_overhead(aead_));
+
+  return 0;
+}
+
+ssize_t Handler::encrypt_data(uint8_t *dest, size_t destlen,
+                              const uint8_t *plaintext, size_t plaintextlen,
+                              const uint8_t *key, size_t keylen,
+                              const uint8_t *nonce, size_t noncelen,
+                              const uint8_t *ad, size_t adlen) {
+  return crypto::encrypt(dest, destlen, plaintext, plaintextlen, aead_, key,
+                         keylen, nonce, noncelen, ad, adlen);
+}
+
+ssize_t Handler::decrypt_data(uint8_t *dest, size_t destlen,
+                              const uint8_t *ciphertext, size_t ciphertextlen,
+                              const uint8_t *key, size_t keylen,
+                              const uint8_t *nonce, size_t noncelen,
+                              const uint8_t *ad, size_t adlen) {
+  return crypto::decrypt(dest, destlen, ciphertext, ciphertextlen, aead_, key,
+                         keylen, nonce, noncelen, ad, adlen);
 }
 
 int Handler::feed_data(const uint8_t *data, size_t datalen) {
