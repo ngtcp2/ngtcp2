@@ -38,6 +38,10 @@ libngtcp2 uses cunit for its unit test frame work:
 
 * cunit >= 2.1
 
+To build sources under the examples directory, libev is required:
+
+* libev
+
 The client and server under examples directory require boringssl as
 crypto backend:
 
