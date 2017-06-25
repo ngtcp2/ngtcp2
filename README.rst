@@ -45,7 +45,7 @@ crypto backend:
 
 We plan to switch to OpenSSL once TLSv1.3 exporter is implemented in
 OpenSSL (see `openssl/openssl#3680
-<https://github.com/openssl/openssl/issues/3680>`_.
+<https://github.com/openssl/openssl/issues/3680>`_).
 
 Build from git
 --------------
