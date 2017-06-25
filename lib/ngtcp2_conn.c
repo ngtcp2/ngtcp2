@@ -586,6 +586,8 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
   pkt += nread;
   pktlen -= (size_t)nread;
 
+  hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, 32);
+
   rv = conn_call_recv_pkt(conn, &hd);
   if (rv != 0) {
     return rv;
@@ -615,7 +617,7 @@ static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
   }
 
   for (; pktlen;) {
-    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen);
+    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen, conn->max_rx_pkt_num);
     if (nread < 0) {
       return (int)nread;
     }

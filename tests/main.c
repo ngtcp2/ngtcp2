@@ -68,6 +68,8 @@ int main() {
                    test_ngtcp2_pkt_encode_stream_frame) ||
       !CU_add_test(pSuite, "pkt_encode_ack_frame",
                    test_ngtcp2_pkt_encode_ack_frame) ||
+      !CU_add_test(pSuite, "pkt_adjust_pkt_num",
+                   test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "upe_encode", test_ngtcp2_upe_encode) ||
       !CU_add_test(pSuite, "upe_encode_version_negotiation",
                    test_ngtcp2_upe_encode_version_negotiation)) {

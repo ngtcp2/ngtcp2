@@ -157,7 +157,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
  *     Payload is too short to include ACK frame
  */
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
-                                    size_t payloadlen);
+                                    size_t payloadlen, uint64_t max_rx_pkt_num);
 
 /*
  * ngtcp2_pkt_decode_padding_frame decodes contiguous PADDING frames
@@ -260,5 +260,20 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
  */
 ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_padding *fr);
+
+/**
+ * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
+ * |pkt_num|, which is expected to be least significant |n| bits.  The
+ * |max_pkt_num| is the highest successfully authenticated packet
+ * number.
+ */
+uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
+                                   size_t n);
+
+/**
+ * ngtcp2_pkt_adjust_ack_pkt_num adjusts all packet numbers in |ack|
+ * using the maximum packet number |max_pkt_num| received so far.
+ */
+void ngtcp2_pkt_adjust_ack_pkt_num(ngtcp2_ack *ack, uint64_t max_pkt_num);
 
 #endif /* NGTCP2_PKT_H */

@@ -269,10 +269,11 @@ void test_ngtcp2_pkt_decode_ack_frame(void) {
 
   CU_ASSERT(expectedlen == buflen);
 
-  rv = ngtcp2_pkt_decode_ack_frame(&fr.ack, buf, buflen);
+  rv = ngtcp2_pkt_decode_ack_frame(&fr.ack, buf, buflen, 0);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(0xf1f2f3f4f5f6llu == fr.ack.largest_ack);
+  fprintf(stderr, "%016lx\n", fr.ack.largest_ack);
 }
 
 void test_ngtcp2_pkt_decode_padding_frame(void) {
@@ -468,7 +469,7 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
 
-  rv = ngtcp2_pkt_decode_ack_frame(&nfr.ack, buf, framelen);
+  rv = ngtcp2_pkt_decode_ack_frame(&nfr.ack, buf, framelen, 0);
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
@@ -497,7 +498,7 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
 
-  rv = ngtcp2_pkt_decode_ack_frame(&nfr.ack, buf, framelen);
+  rv = ngtcp2_pkt_decode_ack_frame(&nfr.ack, buf, framelen, 0);
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
@@ -513,4 +514,12 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   }
 
   memset(&nfr, 0, sizeof(nfr));
+}
+
+void test_ngtcp2_pkt_adjust_pkt_num(void) {
+  CU_ASSERT(0xaa831f94llu ==
+            ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
+
+  CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 1));
+  CU_ASSERT(0x02ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 1));
 }

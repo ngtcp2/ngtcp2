@@ -96,6 +96,7 @@ struct ngtcp2_conn {
   ngtcp2_strm strm0;
   uint64_t conn_id;
   uint64_t next_tx_pkt_num;
+  uint64_t max_rx_pkt_num;
   ngtcp2_mem *mem;
   void *user_data;
   uint32_t version;
