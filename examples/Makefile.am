@@ -37,9 +37,11 @@ noinst_PROGRAMS = client server
 client_SOURCES = client.cc client.h \
 	template.h \
 	debug.cc debug.h \
-	util.cc util.h
+	util.cc util.h \
+	crypto.cc crypto.h
 
 server_SOURCES = server.cc server.h \
 	template.h \
 	debug.cc debug.h \
-	util.cc util.h
+	util.cc util.h \
+	crypto.cc crypto.h

@@ -60,11 +60,22 @@ public:
   size_t read_server_handshake(uint8_t *buf, size_t buflen);
   void write_server_handshake(const uint8_t *data, size_t datalen);
 
+  int setup_crypto_context();
+  ssize_t encrypt_data(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
+                       size_t plaintextlen, const uint8_t *key, size_t keylen,
+                       const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
+                       size_t adlen);
+  ssize_t decrypt_data(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
+                       size_t ciphertextlen, const uint8_t *key, size_t keylen,
+                       const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
+                       size_t adlen);
+
 private:
   Address remote_addr_;
   size_t max_pktlen_;
   ev_io wev_;
   ev_io rev_;
+  ev_timer timer_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
@@ -74,6 +85,10 @@ private:
   std::vector<uint8_t> shandshake_;
   size_t nsread_;
   ngtcp2_conn *conn_;
+  const EVP_MD *prf_;
+  const EVP_AEAD *aead_;
+  std::array<uint8_t, 64> tx_secret_, rx_secret_;
+  size_t secretlen_;
 };
 
 #endif // CLIENT_H

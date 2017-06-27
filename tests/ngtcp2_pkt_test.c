@@ -73,6 +73,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
+  CU_ASSERT(NGTCP2_PKT_03 == nhd.type);
   CU_ASSERT(0 == nhd.conn_id);
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
   CU_ASSERT(0 == nhd.version);
@@ -91,6 +92,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
+  CU_ASSERT(NGTCP2_PKT_02 == nhd.type);
   CU_ASSERT(0 == nhd.conn_id);
   CU_ASSERT((hd.pkt_num & 0xffff) == nhd.pkt_num);
   CU_ASSERT(0 == nhd.version);
@@ -109,6 +111,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
+  CU_ASSERT(NGTCP2_PKT_01 == nhd.type);
   CU_ASSERT(0 == nhd.conn_id);
   CU_ASSERT((hd.pkt_num & 0xff) == nhd.pkt_num);
   CU_ASSERT(0 == nhd.version);
@@ -128,6 +131,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
+  CU_ASSERT(NGTCP2_PKT_03 == nhd.type);
   CU_ASSERT(hd.conn_id == nhd.conn_id);
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
   CU_ASSERT(0 == nhd.version);
@@ -512,6 +516,64 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
     CU_ASSERT(fr.ack.blks[i].gap == nfr.ack.blks[i].gap);
     CU_ASSERT(fr.ack.blks[i].blklen == nfr.ack.blks[i].blklen);
   }
+
+  memset(&nfr, 0, sizeof(nfr));
+}
+
+void test_ngtcp2_pkt_encode_connection_close_frame(void) {
+  uint8_t buf[2048];
+  ngtcp2_frame fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+  uint8_t reason[1024];
+
+  memset(reason, 0xfa, sizeof(reason));
+
+  /* no Reason Phrase */
+  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
+  fr.connection_close.error_code = 0xf1f2f3f4u;
+  fr.connection_close.reasonlen = 0;
+  fr.connection_close.reason = NULL;
+
+  framelen = 1 + 4 + 2;
+
+  rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
+                                                &fr.connection_close);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_connection_close_frame(&nfr.connection_close, buf,
+                                                framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.connection_close.error_code == nfr.connection_close.error_code);
+  CU_ASSERT(fr.connection_close.reasonlen == nfr.connection_close.reasonlen);
+  CU_ASSERT(fr.connection_close.reason == nfr.connection_close.reason);
+
+  memset(&nfr, 0, sizeof(nfr));
+
+  /* 1024 bytes Reason Phrase */
+  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
+  fr.connection_close.error_code = 0xf1f2f3f4u;
+  fr.connection_close.reasonlen = sizeof(reason);
+  fr.connection_close.reason = reason;
+
+  framelen = 1 + 4 + 2 + sizeof(reason);
+
+  rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
+                                                &fr.connection_close);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_connection_close_frame(&nfr.connection_close, buf,
+                                                framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.connection_close.error_code == nfr.connection_close.error_code);
+  CU_ASSERT(fr.connection_close.reasonlen == nfr.connection_close.reasonlen);
+  CU_ASSERT(0 == memcmp(reason, nfr.connection_close.reason, sizeof(reason)));
 
   memset(&nfr, 0, sizeof(nfr));
 }

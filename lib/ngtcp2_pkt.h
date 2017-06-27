@@ -262,6 +262,20 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_padding *fr);
 
 /**
+ * ngtcp2_pkt_encode_connection_close_frame encodes CONNECTION_CLOSE
+ * frame |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t
+ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
+                                         const ngtcp2_connection_close *fr);
+
+/**
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
  * |pkt_num|, which is expected to be least significant |n| bits.  The
  * |max_pkt_num| is the highest successfully authenticated packet

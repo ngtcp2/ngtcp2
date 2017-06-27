@@ -26,18 +26,7 @@
 
 #include <string.h>
 
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif /* HAVE_ARPA_INET_H */
-
 #include "ngtcp2_str.h"
-
-#ifdef WORDS_BIGENDIAN
-#define bwap64(N) (N)
-#else /* !WORDS_BIGENDIAN */
-#define bswap64(N)                                                             \
-  (((uint64_t)(ntohl(((uint32_t)(N)) & 0xffffffffu))) << 32 | ntohl((N) >> 32))
-#endif /* !WORDS_BIGENDIAN */
 
 uint64_t ngtcp2_get_uint64(const uint8_t *p) {
   uint64_t n;
