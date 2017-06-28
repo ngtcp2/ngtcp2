@@ -171,7 +171,7 @@ typedef enum {
   /* Fatal error >= 500 */
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
-  NGTCP2_ERR_INTERNAL_ERROR = -503
+  NGTCP2_ERR_INTERNAL = -503
 } ngtcp2_lib_error;
 
 typedef enum {

@@ -1004,7 +1004,7 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr) {
   if (strm->rob.bufferedlen >= 128 * 1024) {
-    return NGTCP2_ERR_INTERNAL_ERROR;
+    return NGTCP2_ERR_INTERNAL;
   }
 
   return ngtcp2_rob_push(&strm->rob, fr->offset, fr->data, fr->datalen);
@@ -1017,7 +1017,7 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
   int rv;
 
   if (ngtcp2_pq_size(&conn->ackq) > 1024) {
-    return NGTCP2_ERR_INTERNAL_ERROR;
+    return NGTCP2_ERR_INTERNAL;
   }
 
   rpkt = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_rx_pkt));
