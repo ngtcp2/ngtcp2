@@ -39,7 +39,8 @@
 #define bwap64(N) (N)
 #else /* !WORDS_BIGENDIAN */
 #define bswap64(N)                                                             \
-  (((uint64_t)(ntohl(((uint32_t)(N)) & 0xffffffffu))) << 32 | ntohl((N) >> 32))
+  (((uint64_t)(ntohl(((uint32_t)(N)) & 0xffffffffu))) << 32 |                  \
+   ntohl((uint32_t)((N) >> 32)))
 #endif /* !WORDS_BIGENDIAN */
 
 /*

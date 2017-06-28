@@ -350,7 +350,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   CU_ASSERT(0x15 == nfr.stream.flags);
   CU_ASSERT(fr.stream.fin == nfr.stream.fin);
   CU_ASSERT(fr.stream.stream_id == nfr.stream.stream_id);
-  CU_ASSERT(fr.stream.offset = nfr.stream.offset);
+  CU_ASSERT(fr.stream.offset == nfr.stream.offset);
   CU_ASSERT(fr.stream.datalen == nfr.stream.datalen);
   CU_ASSERT(0 == memcmp(fr.stream.data, nfr.stream.data, fr.stream.datalen));
 
@@ -377,7 +377,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   CU_ASSERT(0x0b == nfr.stream.flags);
   CU_ASSERT(fr.stream.fin == nfr.stream.fin);
   CU_ASSERT(fr.stream.stream_id == nfr.stream.stream_id);
-  CU_ASSERT(fr.stream.offset = nfr.stream.offset);
+  CU_ASSERT(fr.stream.offset == nfr.stream.offset);
   CU_ASSERT(fr.stream.datalen == nfr.stream.datalen);
   CU_ASSERT(0 == memcmp(fr.stream.data, nfr.stream.data, fr.stream.datalen));
 
