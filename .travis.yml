@@ -1,0 +1,45 @@
+language: cpp
+compiler:
+  - clang
+  - gcc
+sudo: false
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    - llvm-toolchain-precise-3.8
+    - george-edison55-precise-backports
+    packages:
+    - g++-5
+    - clang-3.8
+    - autoconf
+    - automake
+    - autotools-dev
+    - libtool
+    - pkg-config
+    - libcunit1-dev
+    - libssl-dev
+    - libev-dev
+    - cmake
+    - cmake-data
+before_install:
+  - $CC --version
+  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; else export CXX="clang++-3.8" CC="clang-3.8"; fi
+  - $CC --version
+  - cmake --version
+before_script:
+  # First build boringssl
+  - git clone https://boringssl.googlesource.com/boringssl
+  - cd boringssl
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - cd ../../
+
+  # configure ngtcp2
+  - autoreconf -i
+  - ./configure OPENSSL_CFLAGS=-I$PWD/boringssl/include OPENSSL_LIBS="-L$PWD/boringssl/build/ssl -L$PWD/boringssl/build/crypto -lssl -lcrypto -pthread"
+script:
+  # Now build ngtcp2
+  - make
