@@ -327,7 +327,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
 
   idlen = (size_t)(((type & NGTCP2_STREAM_SS_MASK) >> 3) + 1);
 
-  b = (type & NGTCP2_STREAM_OO_MASK) >> 1;
+  b = (uint8_t)((type & NGTCP2_STREAM_OO_MASK) >> 1);
   if (b) {
     offsetlen = (size_t)(1 << b);
   }

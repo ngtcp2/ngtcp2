@@ -20,6 +20,7 @@ addons:
     - libcunit1-dev
     - libssl-dev
     - libev-dev
+    - libcunit1-dev
     - cmake
     - cmake-data
 before_install:
@@ -39,7 +40,7 @@ before_script:
 
   # configure ngtcp2
   - autoreconf -i
-  - ./configure OPENSSL_CFLAGS=-I$PWD/boringssl/include OPENSSL_LIBS="-L$PWD/boringssl/build/ssl -L$PWD/boringssl/build/crypto -lssl -lcrypto -pthread"
+  - ./configure --enable-werror OPENSSL_CFLAGS=-I$PWD/boringssl/include OPENSSL_LIBS="-L$PWD/boringssl/build/ssl -L$PWD/boringssl/build/crypto -lssl -lcrypto -pthread"
 script:
   # Now build ngtcp2
-  - make
+  - make check

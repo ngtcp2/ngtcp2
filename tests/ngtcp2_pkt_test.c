@@ -277,7 +277,6 @@ void test_ngtcp2_pkt_decode_ack_frame(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(0xf1f2f3f4f5f6llu == fr.ack.largest_ack);
-  fprintf(stderr, "%016lx\n", fr.ack.largest_ack);
 }
 
 void test_ngtcp2_pkt_decode_padding_frame(void) {
