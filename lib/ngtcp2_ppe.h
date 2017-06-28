@@ -38,21 +38,23 @@
  * ngtcp2_ppe is the Protected Packet Encoder.
  */
 typedef struct {
-  uint8_t *nonce;
-  ngtcp2_buf cbuf;
-  ngtcp2_buf pbuf;
+  ngtcp2_buf buf;
   ngtcp2_crypto_ctx *ctx;
+  /* hdlen is the number of bytes for packet header written in buf. */
+  size_t hdlen;
+  /* pkt_num is the packet number written in buf. */
   uint64_t pkt_num;
   ngtcp2_mem *mem;
+  /* nonce is the buffer to store nonce.  It should be equal or longer
+     than then length of IV. */
+  uint8_t nonce[32];
 } ngtcp2_ppe;
 
 /*
  * ngtcp2_ppe_init initializes |ppe| with the given buffer.
  */
-int ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
-                    ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem);
-
-void ngtcp2_ppe_free(ngtcp2_ppe *ppe);
+void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
+                     ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem);
 
 int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd);
 

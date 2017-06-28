@@ -508,34 +508,27 @@ static ssize_t conn_send_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.user_data = conn;
 
-  rv = ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     return rv;
   }
 
-  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
-  if (rv != 0) {
-    nwrite = rv;
-    goto fin;
-  }
-
   rv = conn_call_send_pkt(conn, &hd);
   if (rv != 0) {
-    nwrite = rv;
-    goto fin;
+    return rv;
   }
 
   if (ackfr.type) {
     rv = ngtcp2_ppe_encode_frame(&ppe, &ackfr);
     if (rv != 0) {
-      nwrite = rv;
-      goto fin;
+      return rv;
     }
 
     rv = conn_call_send_frame(conn, &hd, &ackfr);
     if (rv != 0) {
-      nwrite = rv;
-      goto fin;
+      return rv;
     }
   }
 
@@ -549,25 +542,20 @@ static ssize_t conn_send_connection_close(ngtcp2_conn *conn, uint8_t *dest,
 
   rv = ngtcp2_ppe_encode_frame(&ppe, &fr);
   if (rv != 0) {
-    nwrite = rv;
-    goto fin;
+    return rv;
   }
 
   rv = conn_call_send_frame(conn, &hd, &fr);
   if (rv != 0) {
-    nwrite = rv;
-    goto fin;
+    return rv;
   }
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
   if (nwrite < 0) {
-    goto fin;
+    return nwrite;
   }
 
   ++conn->next_tx_pkt_num;
-
-fin:
-  ngtcp2_ppe_free(&ppe);
 
   return nwrite;
 }
