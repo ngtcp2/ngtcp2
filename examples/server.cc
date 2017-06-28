@@ -378,11 +378,7 @@ int Handler::tls_handshake() {
   // boringSSL, it may return 1 if we have 0-RTT early data.  This is
   // a problem, but for First Implementation draft, 0-RTT early data
   // is out of interest.
-  rv = ngtcp2_conn_handshake_completed(conn_);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_handshake_completed: " << rv << std::endl;
-    return -1;
-  }
+  ngtcp2_conn_handshake_completed(conn_);
 
   return 0;
 }

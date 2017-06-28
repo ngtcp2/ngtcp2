@@ -376,11 +376,7 @@ int Client::tls_handshake() {
     }
   }
 
-  rv = ngtcp2_conn_handshake_completed(conn_);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_handshake_completed: " << rv << std::endl;
-    return -1;
-  }
+  ngtcp2_conn_handshake_completed(conn_);
 
   return 0;
 }

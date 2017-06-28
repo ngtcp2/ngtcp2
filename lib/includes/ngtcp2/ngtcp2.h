@@ -576,15 +576,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
  *
  * `ngtcp2_conn_handshake_completed` tells |conn| that the QUIC
  * handshake has completed.
- *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
- *
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     The state of |conn| is not valid for this event
- *
  */
-NGTCP2_EXTERN int ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
+NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 
 NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
                                                  size_t aead_overhead);

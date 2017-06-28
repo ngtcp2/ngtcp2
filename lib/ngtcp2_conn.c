@@ -995,18 +995,8 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
   }
 }
 
-int ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
-  switch (conn->state) {
-  case NGTCP2_CS_CLIENT_SC_RECVED:
-  case NGTCP2_CS_SERVER_SC_SENT:
-    break;
-  default:
-    return NGTCP2_ERR_INVALID_STATE;
-  }
-
+void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
   conn->handshake_completed = 1;
-
-  return 0;
 }
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem) {
