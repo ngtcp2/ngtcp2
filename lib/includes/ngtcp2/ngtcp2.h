@@ -594,6 +594,13 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
                                              const uint8_t *key, size_t keylen,
                                              const uint8_t *iv, size_t ivlen);
 
+/**
+ * @function
+ *
+ * `ngtcp2_strerror` returns the text representation of |liberr|.
+ */
+NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
+
 #ifdef __cplusplus
 }
 #endif
