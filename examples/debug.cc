@@ -85,7 +85,7 @@ std::string strpkttype_long(uint8_t type) {
   case NGTCP2_PKT_PUBLIC_RESET:
     return "Public Reset";
   default:
-    return "UNKNOWN(0x" + util::format_hex(type) + ")";
+    return "UNKNOWN (0x" + util::format_hex(type) + ")";
   }
 }
 } // namespace
@@ -100,7 +100,7 @@ std::string strpkttype_short(uint8_t type) {
   case NGTCP2_PKT_03:
     return "Short 03";
   default:
-    return "UNKNOWN(0x" + util::format_hex(type) + ")";
+    return "UNKNOWN (0x" + util::format_hex(type) + ")";
   }
 }
 } // namespace
@@ -137,14 +137,14 @@ std::string strframetype(uint8_t type) {
   case NGTCP2_FRAME_STREAM:
     return "STREAM";
   default:
-    return "UNKNOWN(0x" + util::format_hex(type) + ")";
+    return "UNKNOWN (0x" + util::format_hex(type) + ")";
   }
 }
 } // namespace
 
 void print_timestamp() {
   auto t = timestamp().count();
-  fprintf(outfile, "%s[%3d.%06d]%s ", ansi_esc("\033[33m"),
+  fprintf(outfile, "%st=%d.%06d%s ", ansi_esc("\033[33m"),
           static_cast<int32_t>(t / 1000000), static_cast<int32_t>(t % 1000000),
           ansi_escend());
 }
@@ -162,25 +162,21 @@ const char *frame_ansi_esc(ngtcp2_dir dir) {
 } // namespace
 
 namespace {
-void print_indent() { fprintf(outfile, "             "); }
+void print_indent() { fprintf(outfile, "    "); }
 } // namespace
 
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s packet\n", pkt_ansi_esc(dir),
-          strpkttype_long(hd->type).c_str(), ansi_escend());
-  print_indent();
-  fprintf(outfile, "<conn_id=0x%016lx, pkt_num=%lu, ver=0x%08x>\n", hd->conn_id,
+  fprintf(outfile, "%s%s%s CID=%016lx PN=%lu V=%08x\n", pkt_ansi_esc(dir),
+          strpkttype_long(hd->type).c_str(), ansi_escend(), hd->conn_id,
           hd->pkt_num, hd->version);
 }
 } // namespace
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s packet\n", pkt_ansi_esc(dir),
-          strpkttype_short(hd->type).c_str(), ansi_escend());
-  print_indent();
-  fprintf(outfile, "<conn_id=0x%016lx, pkt_num=%lu>\n", hd->conn_id,
+  fprintf(outfile, "%s%s%s CID=%016lx PN=%lu\n", pkt_ansi_esc(dir),
+          strpkttype_short(hd->type).c_str(), ansi_escend(), hd->conn_id,
           hd->pkt_num);
 }
 } // namespace
@@ -197,38 +193,35 @@ void print_pkt(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 
 namespace {
 void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
-  fprintf(outfile, "%s%s%s frame\n", frame_ansi_esc(dir),
+  fprintf(outfile, "%s%s%s\n", frame_ansi_esc(dir),
           strframetype(fr->type).c_str(), ansi_escend());
 
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
     print_indent();
-    fprintf(outfile, "<stream_id=0x%08x, offset=%lu, data_length=%zu>\n",
+    fprintf(outfile, "stream_id=%08x offset=%lu data_length=%zu\n",
             fr->stream.stream_id, fr->stream.offset, fr->stream.datalen);
     break;
   case NGTCP2_FRAME_PADDING:
     print_indent();
-    fprintf(outfile, "<length=%zu>\n", fr->padding.len);
+    fprintf(outfile, "length=%zu\n", fr->padding.len);
     break;
   case NGTCP2_FRAME_ACK:
     print_indent();
-    fprintf(outfile,
-            "<num_blks=%zu, num_ts=%zu, largest_ack=%lu, ack_delay=%u>\n",
+    fprintf(outfile, "num_blks=%zu num_ts=%zu largest_ack=%lu ack_delay=%u\n",
             fr->ack.num_blks, fr->ack.num_ts, fr->ack.largest_ack,
             fr->ack.ack_delay);
     print_indent();
-    fprintf(outfile, "; first_ack_block_length=%lu\n",
-            fr->ack.first_ack_blklen);
+    fprintf(outfile, "first_ack_block_length=%lu\n", fr->ack.first_ack_blklen);
     for (size_t i = 0; i < fr->ack.num_blks; ++i) {
       auto blk = &fr->ack.blks[i];
       print_indent();
-      fprintf(outfile, "; gap=%u, ack_block_length=%lu\n", blk->gap,
-              blk->blklen);
+      fprintf(outfile, "gap=%u ack_block_length=%lu\n", blk->gap, blk->blklen);
     }
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     print_indent();
-    fprintf(outfile, "<error_code=0x%08x, reason_length=%zu>\n",
+    fprintf(outfile, "error_code=%08x reason_length=%zu\n",
             fr->connection_close.error_code, fr->connection_close.reasonlen);
     break;
   }
@@ -237,7 +230,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
 
 int send_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data) {
   print_timestamp();
-  fprintf(outfile, "send ");
+  fprintf(outfile, "TX ");
   print_pkt(NGTCP2_DIR_SEND, hd);
   return 0;
 }
@@ -251,7 +244,7 @@ int send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 int recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data) {
   print_timestamp();
-  fprintf(outfile, "recv ");
+  fprintf(outfile, "RX ");
   print_pkt(NGTCP2_DIR_RECV, hd);
   return 0;
 }
@@ -273,7 +266,7 @@ int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                              const uint32_t *sv, size_t nsv, void *user_data) {
   for (size_t i = 0; i < nsv; ++i) {
     print_indent();
-    fprintf(outfile, "; version=0x%08x\n", sv[i]);
+    fprintf(outfile, "version=%08x\n", sv[i]);
   }
   return 0;
 }
