@@ -49,7 +49,7 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
   p = ngtcp2_cpymem(p, key, keylen);
   (*pckm)->iv = p;
   (*pckm)->ivlen = ivlen;
-  p = ngtcp2_cpymem(p, iv, ivlen);
+  /*p = */ ngtcp2_cpymem(p, iv, ivlen);
 
   return 0;
 }
