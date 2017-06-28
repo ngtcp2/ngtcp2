@@ -343,7 +343,7 @@ int Client::init(int fd, const Address &remote_addr) {
   rv = ngtcp2_conn_client_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
                               this);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_client_new: " << rv << std::endl;
+    std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
@@ -386,7 +386,7 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
 
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_recv: " << rv << std::endl;
+    std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
@@ -419,6 +419,7 @@ int Client::on_write() {
     auto n =
         ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
     if (n < 0) {
+      std::cerr << "ngtcp2_conn_send: " << ngtcp2_strerror(n) << std::endl;
       return -1;
     }
     if (n == 0) {

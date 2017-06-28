@@ -341,7 +341,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   rv = ngtcp2_conn_server_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
                               this);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_server_new: " << rv << std::endl;
+    std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
@@ -485,7 +485,7 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
 
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_recv: " << rv << std::endl;
+    std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
@@ -519,6 +519,7 @@ int Handler::on_write() {
   for (;;) {
     auto n = ngtcp2_conn_send(conn_, buf.data(), buf.size(), util::timestamp());
     if (n < 0) {
+      std::cerr << "ngtcp2_conn_send: " << ngtcp2_strerror(n) << std::endl;
       return -1;
     }
     if (n == 0) {
@@ -708,6 +709,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
 
   rv = ngtcp2_upe_new(&upe, buf.data(), buf.size());
   if (rv != 0) {
+    std::cerr << "ngtcp2_upe_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
@@ -720,6 +722,8 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
 
   rv = ngtcp2_upe_encode_version_negotiation(upe, sv, array_size(sv));
   if (rv != 0) {
+    std::cerr << "ngtcp2_upe_encode_version_negotiation: "
+              << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
