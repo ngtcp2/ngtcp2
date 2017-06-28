@@ -55,4 +55,18 @@ template <typename T, size_t N> constexpr size_t str_size(T (&)[N]) {
   return N - 1;
 }
 
+// User-defined literals for K, M, and G (powers of 1024)
+
+constexpr unsigned long long operator"" _k(unsigned long long k) {
+  return k * 1024;
+}
+
+constexpr unsigned long long operator"" _m(unsigned long long m) {
+  return m * 1024 * 1024;
+}
+
+constexpr unsigned long long operator"" _g(unsigned long long g) {
+  return g * 1024 * 1024 * 1024;
+}
+
 #endif // TEMPLATE_H

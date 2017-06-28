@@ -495,12 +495,10 @@ int Handler::feed_data(const uint8_t *data, size_t datalen) {
 int Handler::on_read() {
   sockaddr_union su;
   socklen_t addrlen = sizeof(su);
-  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
-
-  assert(buf.size() >= max_pktlen_);
+  std::array<uint8_t, 64_k> buf;
 
   auto nread =
-      recvfrom(fd_, buf.data(), max_pktlen_, MSG_DONTWAIT, &su.sa, &addrlen);
+      recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
   if (nread == -1) {
     std::cerr << "recvfrom: " << strerror(errno) << std::endl;
     return 0;
@@ -580,7 +578,7 @@ int Server::init(int fd) {
 int Server::on_read() {
   sockaddr_union su;
   socklen_t addrlen = sizeof(su);
-  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+  std::array<uint8_t, 64_k> buf;
   int rv;
   ngtcp2_pkt_hd hd;
 
