@@ -565,7 +565,11 @@ NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
 
 NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 
-NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
+/*
+ * |pkt| is intentionally non-const so that we can decrypt packet
+ * payload in-place.  We may reconsider this strategy later.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts);
 
 NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,

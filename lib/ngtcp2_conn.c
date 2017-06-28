@@ -785,14 +785,13 @@ static ssize_t conn_decrypt_packet(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
-static int conn_recv_packet(ngtcp2_conn *conn, const uint8_t *pkt,
-                            size_t pktlen, ngtcp2_tstamp ts) {
+static int conn_recv_packet(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
+                            ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
   size_t pkt_num_bits;
   int encrypted = 0;
   int rv = 0;
   const uint8_t *hdpkt = pkt;
-  uint8_t *plaintext = NULL;
   ssize_t nread, nwrite;
   ngtcp2_frame fr;
   int require_ack = 0;
@@ -842,25 +841,18 @@ static int conn_recv_packet(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 
   if (encrypted) {
-    plaintext = ngtcp2_mem_malloc(conn->mem, pktlen);
-    if (plaintext == NULL) {
-      return NGTCP2_ERR_NOMEM;
-    }
-    nwrite = conn_decrypt_packet(conn, plaintext, pktlen, pkt, pktlen, hdpkt,
+    nwrite = conn_decrypt_packet(conn, pkt, pktlen, pkt, pktlen, hdpkt,
                                  (size_t)nread, hd.pkt_num);
     if (nwrite < 0) {
-      rv = (int)nwrite;
-      goto fin;
+      return (int)nwrite;
     }
-    pkt = plaintext;
     pktlen = (size_t)nwrite;
   }
 
   for (; pktlen;) {
     nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen, conn->max_rx_pkt_num);
     if (nread < 0) {
-      rv = (int)nread;
-      goto fin;
+      return (int)nread;
     }
 
     pkt += nread;
@@ -868,7 +860,7 @@ static int conn_recv_packet(ngtcp2_conn *conn, const uint8_t *pkt,
 
     rv = conn_call_recv_frame(conn, &hd, &fr);
     if (rv != 0) {
-      goto fin;
+      return rv;
     }
 
     /* We don't ack packet which contains ACK and CONNECTION_CLOSE
@@ -883,17 +875,14 @@ static int conn_recv_packet(ngtcp2_conn *conn, const uint8_t *pkt,
   if (require_ack) {
     rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, ts);
     if (rv != 0) {
-      goto fin;
+      return rv;
     }
   }
-
-fin:
-  ngtcp2_mem_free(conn->mem, plaintext);
 
   return rv;
 }
 
-int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
+int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
                      ngtcp2_tstamp ts) {
   int rv = 0;
 

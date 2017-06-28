@@ -49,7 +49,7 @@ public:
   int tls_handshake();
   int on_read();
   int on_write();
-  int feed_data(const uint8_t *data, size_t datalen);
+  int feed_data(uint8_t *data, size_t datalen);
   void signal_write();
 
   void write_server_handshake(const uint8_t *data, size_t datalen);

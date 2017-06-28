@@ -480,7 +480,7 @@ ssize_t Handler::decrypt_data(uint8_t *dest, size_t destlen,
                          keylen, nonce, noncelen, ad, adlen);
 }
 
-int Handler::feed_data(const uint8_t *data, size_t datalen) {
+int Handler::feed_data(uint8_t *data, size_t datalen) {
   int rv;
 
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());

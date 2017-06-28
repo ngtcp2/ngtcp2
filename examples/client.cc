@@ -381,7 +381,7 @@ int Client::tls_handshake() {
   return 0;
 }
 
-int Client::feed_data(const uint8_t *data, size_t datalen) {
+int Client::feed_data(uint8_t *data, size_t datalen) {
   int rv;
 
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
