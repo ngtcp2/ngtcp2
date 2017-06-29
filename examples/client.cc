@@ -457,8 +457,14 @@ void Client::write_server_handshake(const uint8_t *data, size_t datalen) {
 int Client::setup_crypto_context() {
   int rv;
 
-  crypto_ctx_.prf = crypto::get_negotiated_prf(ssl_);
-  crypto_ctx_.aead = crypto::get_negotiated_aead(ssl_);
+  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
 
   auto length = EVP_MD_size(crypto_ctx_.prf);
 

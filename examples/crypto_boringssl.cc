@@ -39,28 +39,33 @@ namespace ngtcp2 {
 
 namespace crypto {
 
-const EVP_MD *get_negotiated_prf(SSL *ssl) {
+int negotiated_prf(Context &ctx, SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case 0x03001301u: // TLS_AES_128_GCM_SHA256
   case 0x03001303u: // TLS_CHACHA20_POLY1305_SHA256
-    return EVP_sha256();
+    ctx.prf = EVP_sha256();
+    return 0;
   case 0x03001302u: // TLS_AES_256_GCM_SHA384
-    return EVP_sha384();
+    ctx.prf = EVP_sha384();
+    return 0;
   default:
-    return NULL;
+    return -1;
   }
 }
 
-const EVP_AEAD *get_negotiated_aead(SSL *ssl) {
+int negotiated_aead(Context &ctx, SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case 0x03001301u: // TLS_AES_128_GCM_SHA256
-    return EVP_aead_aes_128_gcm();
+    ctx.aead = EVP_aead_aes_128_gcm();
+    return 0;
   case 0x03001302u: // TLS_AES_256_GCM_SHA384
-    return EVP_aead_aes_256_gcm();
+    ctx.aead = EVP_aead_aes_256_gcm();
+    return 0;
   case 0x03001303u: // TLS_CHACHA20_POLY1305_SHA256
-    return EVP_aead_chacha20_poly1305();
+    ctx.aead = EVP_aead_chacha20_poly1305();
+    return 0;
   default:
-    return NULL;
+    return -1;
   }
 }
 

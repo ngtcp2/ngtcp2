@@ -50,11 +50,13 @@ struct Context {
   size_t secretlen;
 };
 
-// get_negotiated_prf returns the negotiated PRF by TLS.
-const EVP_MD *get_negotiated_prf(SSL *ssl);
+// negotiated_prf stores the negotiated PRF by TLS into |ctx|.  This
+// function returns 0 if it succeeds, or -1.
+int negotiated_prf(Context &ctx, SSL *ssl);
 
-// get_negotiated_aead returns the negotiated AEAD by TLS.
-const EVP_AEAD *get_negotiated_aead(SSL *ssl);
+// negotiated_aead stores the negotiated AEAD by TLS into |ctx|.  This
+// function returns 0 if it succeeds, or -1.
+int negotiated_aead(Context &ctx, SSL *ssl);
 
 // export_secret exports secret with given label.  It returns 0 if it
 // succeeds, or -1.
