@@ -164,9 +164,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ncread_(0),
       nsread_(0),
       conn_(nullptr),
-      prf_(nullptr),
-      aead_(nullptr),
-      secretlen_(0) {
+      crypto_ctx_{} {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
@@ -459,16 +457,15 @@ void Client::write_server_handshake(const uint8_t *data, size_t datalen) {
 int Client::setup_crypto_context() {
   int rv;
 
-  prf_ = crypto::get_negotiated_prf(ssl_);
-  assert(prf_);
-  aead_ = crypto::get_negotiated_aead(ssl_);
-  assert(aead_);
+  crypto_ctx_.prf = crypto::get_negotiated_prf(ssl_);
+  crypto_ctx_.aead = crypto::get_negotiated_aead(ssl_);
 
-  auto length = EVP_MD_size(prf_);
+  auto length = EVP_MD_size(crypto_ctx_.prf);
 
-  secretlen_ = length;
+  crypto_ctx_.secretlen = length;
 
-  rv = crypto::export_client_secret(tx_secret_.data(), secretlen_, ssl_);
+  rv = crypto::export_client_secret(crypto_ctx_.tx_secret.data(),
+                                    crypto_ctx_.secretlen, ssl_);
   if (rv != 0) {
     return -1;
   }
@@ -476,39 +473,44 @@ int Client::setup_crypto_context() {
   std::array<uint8_t, 64> key{}, iv{};
 
   auto keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), tx_secret_.data(), secretlen_, aead_, prf_);
+      key.data(), key.size(), crypto_ctx_.tx_secret.data(),
+      crypto_ctx_.secretlen, crypto_ctx_);
   if (rv != 0) {
     return -1;
   }
 
   auto ivlen = crypto::derive_packet_protection_iv(
-      iv.data(), iv.size(), tx_secret_.data(), secretlen_, aead_, prf_);
+      iv.data(), iv.size(), crypto_ctx_.tx_secret.data(), crypto_ctx_.secretlen,
+      crypto_ctx_);
   if (rv != 0) {
     return -1;
   }
 
   ngtcp2_conn_update_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
 
-  rv = crypto::export_server_secret(rx_secret_.data(), secretlen_, ssl_);
+  rv = crypto::export_server_secret(crypto_ctx_.rx_secret.data(),
+                                    crypto_ctx_.secretlen, ssl_);
   if (rv != 0) {
     return -1;
   }
 
   keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), rx_secret_.data(), secretlen_, aead_, prf_);
+      key.data(), key.size(), crypto_ctx_.rx_secret.data(),
+      crypto_ctx_.secretlen, crypto_ctx_);
   if (rv != 0) {
     return -1;
   }
 
   ivlen = crypto::derive_packet_protection_iv(
-      iv.data(), iv.size(), rx_secret_.data(), secretlen_, aead_, prf_);
+      iv.data(), iv.size(), crypto_ctx_.rx_secret.data(), crypto_ctx_.secretlen,
+      crypto_ctx_);
   if (rv != 0) {
     return -1;
   }
 
   ngtcp2_conn_update_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
 
-  ngtcp2_conn_set_aead_overhead(conn_, EVP_AEAD_max_overhead(aead_));
+  ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
 
   return 0;
 }
@@ -518,8 +520,8 @@ ssize_t Client::encrypt_data(uint8_t *dest, size_t destlen,
                              const uint8_t *key, size_t keylen,
                              const uint8_t *nonce, size_t noncelen,
                              const uint8_t *ad, size_t adlen) {
-  return crypto::encrypt(dest, destlen, plaintext, plaintextlen, aead_, key,
-                         keylen, nonce, noncelen, ad, adlen);
+  return crypto::encrypt(dest, destlen, plaintext, plaintextlen, crypto_ctx_,
+                         key, keylen, nonce, noncelen, ad, adlen);
 }
 
 ssize_t Client::decrypt_data(uint8_t *dest, size_t destlen,
@@ -527,8 +529,8 @@ ssize_t Client::decrypt_data(uint8_t *dest, size_t destlen,
                              const uint8_t *key, size_t keylen,
                              const uint8_t *nonce, size_t noncelen,
                              const uint8_t *ad, size_t adlen) {
-  return crypto::decrypt(dest, destlen, ciphertext, ciphertextlen, aead_, key,
-                         keylen, nonce, noncelen, ad, adlen);
+  return crypto::decrypt(dest, destlen, ciphertext, ciphertextlen, crypto_ctx_,
+                         key, keylen, nonce, noncelen, ad, adlen);
 }
 
 namespace {

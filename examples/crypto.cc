@@ -99,7 +99,7 @@ int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
 
 int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
                       size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                      const EVP_MD *prf) {
+                      const Context &ctx) {
   std::array<uint8_t, 256> info;
   int rv;
   constexpr const uint8_t LABEL[] = "TLS 1.3, ";
@@ -112,7 +112,7 @@ int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
   p = std::copy_n(qlabel, qlabellen, p);
   *p++ = 0;
 
-  rv = HKDF(dest, destlen, prf, secret, secretlen, nullptr, 0, info.data(),
+  rv = HKDF(dest, destlen, ctx.prf, secret, secretlen, nullptr, 0, info.data(),
             p - std::begin(info));
 
   if (rv != 1) {
@@ -124,17 +124,17 @@ int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
 
 ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
                                      const uint8_t *secret, size_t secretlen,
-                                     const EVP_AEAD *aead, const EVP_MD *prf) {
+                                     const Context &ctx) {
   int rv;
   constexpr uint8_t LABEL_KEY[] = "key";
 
-  auto keylen = EVP_AEAD_key_length(aead);
+  auto keylen = EVP_AEAD_key_length(ctx.aead);
   if (keylen > destlen) {
     return -1;
   }
 
   rv = crypto::hkdf_expand_label(dest, keylen, secret, secretlen, LABEL_KEY,
-                                 str_size(LABEL_KEY), prf);
+                                 str_size(LABEL_KEY), ctx);
   if (rv != 0) {
     return -1;
   }
@@ -144,17 +144,18 @@ ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
 
 ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
-                                    const EVP_AEAD *aead, const EVP_MD *prf) {
+                                    const Context &ctx) {
   int rv;
   constexpr uint8_t LABEL_IV[] = "iv";
 
-  auto ivlen = std::max(static_cast<size_t>(8), EVP_AEAD_nonce_length(aead));
+  auto ivlen =
+      std::max(static_cast<size_t>(8), EVP_AEAD_nonce_length(ctx.aead));
   if (ivlen > destlen) {
     return -1;
   }
 
   rv = crypto::hkdf_expand_label(dest, ivlen, secret, secretlen, LABEL_IV,
-                                 str_size(LABEL_IV), prf);
+                                 str_size(LABEL_IV), ctx);
   if (rv != 0) {
     return -1;
   }
@@ -163,12 +164,12 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
 }
 
 ssize_t encrypt(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
-                size_t plaintextlen, const EVP_AEAD *aead, const uint8_t *key,
+                size_t plaintextlen, const Context &ctx, const uint8_t *key,
                 size_t keylen, const uint8_t *nonce, size_t noncelen,
                 const uint8_t *ad, size_t adlen) {
   int rv;
 
-  auto actx = EVP_AEAD_CTX_new(aead, key, keylen, 0);
+  auto actx = EVP_AEAD_CTX_new(ctx.aead, key, keylen, 0);
 
   assert(actx);
 
@@ -186,12 +187,12 @@ ssize_t encrypt(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
 }
 
 ssize_t decrypt(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
-                size_t ciphertextlen, const EVP_AEAD *aead, const uint8_t *key,
+                size_t ciphertextlen, const Context &ctx, const uint8_t *key,
                 size_t keylen, const uint8_t *nonce, size_t noncelen,
                 const uint8_t *ad, size_t adlen) {
   int rv;
 
-  auto actx = EVP_AEAD_CTX_new(aead, key, keylen, 0);
+  auto actx = EVP_AEAD_CTX_new(ctx.aead, key, keylen, 0);
 
   assert(actx);
 
@@ -206,6 +207,10 @@ ssize_t decrypt(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
   }
 
   return outlen;
+}
+
+size_t aead_max_overhead(const Context &ctx) {
+  return EVP_AEAD_max_overhead(ctx.aead);
 }
 
 } // namespace crypto

@@ -37,6 +37,7 @@
 #include <ev.h>
 
 #include "network.h"
+#include "crypto.h"
 
 using namespace ngtcp2;
 
@@ -83,10 +84,7 @@ private:
   std::vector<uint8_t> shandshake_;
   size_t nsread_;
   ngtcp2_conn *conn_;
-  const EVP_MD *prf_;
-  const EVP_AEAD *aead_;
-  std::array<uint8_t, 64> tx_secret_, rx_secret_;
-  size_t secretlen_;
+  crypto::Context crypto_ctx_;
 };
 
 class Server {

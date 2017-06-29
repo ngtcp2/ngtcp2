@@ -29,6 +29,8 @@
 #include <config.h>
 #endif // HAVE_CONFIG_H
 
+#include <array>
+
 #include <ngtcp2/ngtcp2.h>
 
 #include <openssl/ssl.h>
@@ -36,6 +38,13 @@
 namespace ngtcp2 {
 
 namespace crypto {
+
+struct Context {
+  const EVP_AEAD *aead;
+  const EVP_MD *prf;
+  std::array<uint8_t, 64> tx_secret, rx_secret;
+  size_t secretlen;
+};
 
 // get_negotiated_prf returns the negotiated PRF by TLS.
 const EVP_MD *get_negotiated_prf(SSL *ssl);
@@ -60,7 +69,7 @@ int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 // returns 0 if it succeeds, or -1.
 int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
                       size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                      const EVP_MD *prf);
+                      const Context &ctx);
 
 // derive_packet_protection_key derives and stores the packet
 // protection key in the buffer pointed by |dest| of length |destlen|,
@@ -68,14 +77,14 @@ int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
 // if it succeeds, or -1.
 ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
                                      const uint8_t *secret, size_t secretlen,
-                                     const EVP_AEAD *aead, const EVP_MD *prf);
+                                     const Context &ctx);
 
 // derive_packet_protection_iv derives and stores the packet
 // protection IV in the buffer pointed by |dest| of length |destlen|.
 // This function returns the length of IV if it succeeds, or -1.
 ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
-                                    const EVP_AEAD *aead, const EVP_MD *prf);
+                                    const Context &ctx);
 
 // encrypt encrypts |plaintext| of length |plaintextlen| and writes
 // the encrypted data in the buffer pointed by |dest| of length
@@ -83,7 +92,7 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
 // words, |dest| == |plaintext| is allowed.  This function returns the
 // number of bytes written if it succeeds, or -1.
 ssize_t encrypt(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
-                size_t plaintextlen, const EVP_AEAD *aead, const uint8_t *key,
+                size_t plaintextlen, const Context &ctx, const uint8_t *key,
                 size_t keylen, const uint8_t *nonce, size_t noncelen,
                 const uint8_t *ad, size_t adlen);
 
@@ -93,9 +102,12 @@ ssize_t encrypt(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
 // words, |dest| == |ciphertext| is allowed.  This function returns
 // the number of bytes written if it succeeds, or -1.
 ssize_t decrypt(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
-                size_t ciphertextlen, const EVP_AEAD *aead, const uint8_t *key,
+                size_t ciphertextlen, const Context &ctx, const uint8_t *key,
                 size_t keylen, const uint8_t *nonce, size_t noncelen,
                 const uint8_t *ad, size_t adlen);
+
+// aead_max_overhead returns the maximum overhead of ctx.aead.
+size_t aead_max_overhead(const Context &ctx);
 
 } // namespace crypto
 
