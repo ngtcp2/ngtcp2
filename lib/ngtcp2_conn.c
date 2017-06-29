@@ -118,10 +118,8 @@ static int conn_ackq_greater(const void *lhsx, const void *rhsx) {
   return lhs->pkt_num > rhs->pkt_num;
 }
 
-static int ngtcp2_conn_new(ngtcp2_conn **pconn, uint64_t conn_id,
-                           uint32_t version,
-                           const ngtcp2_conn_callbacks *callbacks,
-                           void *user_data) {
+static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
+                    const ngtcp2_conn_callbacks *callbacks, void *user_data) {
   int rv;
   ngtcp2_mem *mem = ngtcp2_mem_default();
 
@@ -163,7 +161,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            void *user_data) {
   int rv;
 
-  rv = ngtcp2_conn_new(pconn, conn_id, version, callbacks, user_data);
+  rv = conn_new(pconn, conn_id, version, callbacks, user_data);
   if (rv != 0) {
     return rv;
   }
@@ -179,7 +177,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            void *user_data) {
   int rv;
 
-  rv = ngtcp2_conn_new(pconn, conn_id, version, callbacks, user_data);
+  rv = conn_new(pconn, conn_id, version, callbacks, user_data);
   if (rv != 0) {
     return rv;
   }
@@ -376,8 +374,8 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return (ssize_t)ngtcp2_upe_final(&upe, NULL);
 }
 
-static ssize_t ngtcp2_conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
-                                               size_t destlen) {
+static ssize_t conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
+                                        size_t destlen) {
   uint64_t pkt_num = 0;
   const uint8_t *payload;
   ssize_t payloadlen;
@@ -399,9 +397,8 @@ static ssize_t ngtcp2_conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
                                    NGTCP2_PKT_CLIENT_INITIAL, NULL, tx_buf);
 }
 
-static ssize_t ngtcp2_conn_send_client_cleartext(ngtcp2_conn *conn,
-                                                 uint8_t *dest, size_t destlen,
-                                                 ngtcp2_tstamp ts) {
+static ssize_t conn_send_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
+                                          size_t destlen, ngtcp2_tstamp ts) {
   const uint8_t *payload;
   ssize_t payloadlen;
   ngtcp2_frame ackfr;
@@ -435,10 +432,9 @@ static ssize_t ngtcp2_conn_send_client_cleartext(ngtcp2_conn *conn,
                                    ackfr.type == 0 ? NULL : &ackfr, tx_buf);
 }
 
-static ssize_t ngtcp2_conn_send_server_cleartext(ngtcp2_conn *conn,
-                                                 uint8_t *dest, size_t destlen,
-                                                 int initial,
-                                                 ngtcp2_tstamp ts) {
+static ssize_t conn_send_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
+                                          size_t destlen, int initial,
+                                          ngtcp2_tstamp ts) {
   uint64_t pkt_num = 0;
   const uint8_t *payload;
   ssize_t payloadlen;
@@ -567,14 +563,14 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
-    nwrite = ngtcp2_conn_send_client_initial(conn, dest, destlen);
+    nwrite = conn_send_client_initial(conn, dest, destlen);
     if (nwrite < 0) {
       break;
     }
     conn->state = NGTCP2_CS_CLIENT_CI_SENT;
     break;
   case NGTCP2_CS_CLIENT_SC_RECVED:
-    nwrite = ngtcp2_conn_send_client_cleartext(conn, dest, destlen, ts);
+    nwrite = conn_send_client_cleartext(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
     }
@@ -587,14 +583,14 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     break;
   case NGTCP2_CS_SERVER_CI_RECVED:
-    nwrite = ngtcp2_conn_send_server_cleartext(conn, dest, destlen, 1, ts);
+    nwrite = conn_send_server_cleartext(conn, dest, destlen, 1, ts);
     if (nwrite < 0) {
       break;
     }
     conn->state = NGTCP2_CS_SERVER_SC_SENT;
     break;
   case NGTCP2_CS_SERVER_SC_SENT:
-    nwrite = ngtcp2_conn_send_server_cleartext(conn, dest, destlen, 0, ts);
+    nwrite = conn_send_server_cleartext(conn, dest, destlen, 0, ts);
     if (nwrite < 0) {
       break;
     }
@@ -652,10 +648,9 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
   return 0;
 }
 
-static int ngtcp2_conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
-                                      const uint8_t *pkt, size_t pktlen,
-                                      int server, int initial,
-                                      ngtcp2_tstamp ts) {
+static int conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
+                               const uint8_t *pkt, size_t pktlen, int server,
+                               int initial, ngtcp2_tstamp ts) {
   ssize_t nread;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame fr;
@@ -900,31 +895,31 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_CI_SENT:
     /* TODO Handle Version Negotiation */
-    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt,
-                                    pktlen, 0, 1, ts);
+    rv = conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt, pktlen, 0,
+                             1, ts);
     if (rv < 0) {
       break;
     }
     conn->state = NGTCP2_CS_CLIENT_SC_RECVED;
     break;
   case NGTCP2_CS_CLIENT_SC_RECVED:
-    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt,
-                                    pktlen, 0, 0, ts);
+    rv = conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt, pktlen, 0,
+                             0, ts);
     if (rv < 0) {
       break;
     }
     break;
   case NGTCP2_CS_SERVER_INITIAL:
-    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_INITIAL, pkt,
-                                    pktlen, 1, 1, ts);
+    rv = conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_INITIAL, pkt, pktlen, 1, 1,
+                             ts);
     if (rv < 0) {
       break;
     }
     conn->state = NGTCP2_CS_SERVER_CI_RECVED;
     break;
   case NGTCP2_CS_SERVER_SC_SENT:
-    rv = ngtcp2_conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_CLEARTEXT, pkt,
-                                    pktlen, 1, 0, ts);
+    rv = conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_CLEARTEXT, pkt, pktlen, 1,
+                             0, ts);
     if (rv < 0) {
       break;
     }
