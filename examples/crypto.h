@@ -40,7 +40,11 @@ namespace ngtcp2 {
 namespace crypto {
 
 struct Context {
+#if defined(OPENSSL_IS_BORINGSSL)
   const EVP_AEAD *aead;
+#else  // !OPENSSL_IS_BORINGSSL
+  const EVP_CIPHER *aead;
+#endif // !OPENSSL_IS_BORINGSSL
   const EVP_MD *prf;
   std::array<uint8_t, 64> tx_secret, rx_secret;
   size_t secretlen;

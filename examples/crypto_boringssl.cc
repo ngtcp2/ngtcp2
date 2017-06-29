@@ -24,6 +24,8 @@
  */
 #include "crypto.h"
 
+#if defined(OPENSSL_IS_BORINGSSL)
+
 #include <cassert>
 #include <algorithm>
 
@@ -216,3 +218,5 @@ size_t aead_max_overhead(const Context &ctx) {
 } // namespace crypto
 
 } // namespace ngtcp2
+
+#endif // defined(OPENSSL_IS_BORINGSSL)
