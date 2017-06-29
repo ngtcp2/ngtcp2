@@ -14,7 +14,7 @@ First Implementation Draft
 
 We are focusing on implementing `First Implementation Draft
 <https://github.com/quicwg/base-drafts/wiki/First-Implementation-Draft>`_
-which is a subset of QUIC transport and QUI TLS draft-04.
+which is a subset of QUIC transport and QUIC TLS draft-04.
 
 * https://tools.ietf.org/html/draft-ietf-quic-transport-04
 * https://tools.ietf.org/html/draft-ietf-quic-tls-04
