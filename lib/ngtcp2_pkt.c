@@ -446,6 +446,9 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   case 0x03:
     lalen = 6;
     break;
+  default: /* it is no possible but Clang analyzer don't this ... */
+    lalen = 0;
+    break;
   }
 
   len += lalen;
@@ -462,6 +465,9 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
     break;
   case 0x03:
     abllen = 6;
+    break;
+  default: /* it is no possible but Clang analyzer don't this ... */
+    abllen = 0;
     break;
   }
 
