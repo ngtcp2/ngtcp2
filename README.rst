@@ -42,19 +42,22 @@ To build sources under the examples directory, libev is required:
 
 * libev
 
-The client and server under examples directory require boringssl as
-crypto backend:
+The client and server under examples directory require boringssl or
+OpenSSL (master branch) as crypto backend:
 
 * boringssl (https://boringssl.googlesource.com/boringssl/)
+* or, OpenSSL (https://github.com/openssl/openssl/)
 
-We plan to switch to OpenSSL once TLSv1.3 exporter is implemented in
-OpenSSL (see `openssl/openssl#3680
-<https://github.com/openssl/openssl/issues/3680>`_).
+At the of time writing, choosing crypto backend from them dictates
+TLSv1.3 draft version.  boringssl implements TLSv1.3 draft-18.  On the
+other hand, OpenSSL implements TLSv1.3 draft-20.  They are
+incompatible.  If you want TLSv1.3 draft-18, choose boringssl.  If you
+want TLSv1.3 draft-20, choose OpenSSL.
 
 Build from git
 --------------
 
-Firstly, build boringssl:
+If you choose boringssl, build it like so:
 
 .. code-block:: text
 
@@ -63,17 +66,30 @@ Firstly, build boringssl:
    $ mkdir build
    $ cd build
    $ cmake ..
-   $ make
+   $ make -j$(nproc)
    $ cd ../../
-
-Then build ngtcp2:
-
-.. code-block:: text
-
    $ git clone https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
    $ autoreconf -i
    $ ./configure OPENSSL_CFLAGS=-I$PWD/../boringssl/include OPENSSL_LIBS="-L$PWD/../boringssl/build/ssl -L$PWD/../boringssl/build/crypto -lssl -lcrypto -pthread"
+   $ make -j$(nproc) check
+
+Otherwise, you choose OpenSSL, build it like so:
+
+.. code-block:: text
+
+   $ git clone --depth 1 https://github.com/openssl/openssl
+   $ cd openssl
+   $ # For Linux
+   $ ./Configure enable-tls1_3 --prefix=$PWD/build linux-x86_64
+   $ make -j$(nproc)
+   $ make install_sw
+   $ cd ..
+   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ cd ngtcp2
+   $ autoreconf -i
+   $ ./configure PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/../openssl/build/lib"
+   $ make -j$(nproc) check
 
 Client/Server
 -------------
