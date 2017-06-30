@@ -167,7 +167,7 @@ void print_indent() { fprintf(outfile, "    "); }
 
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016lx PN=%lu V=%08x\n", pkt_ansi_esc(dir),
+  fprintf(outfile, "%s%s%s CID=%016lx PKN=%lu V=%08x\n", pkt_ansi_esc(dir),
           strpkttype_long(hd->type).c_str(), ansi_escend(), hd->conn_id,
           hd->pkt_num, hd->version);
 }
