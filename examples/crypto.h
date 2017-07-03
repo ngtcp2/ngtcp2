@@ -50,11 +50,13 @@ struct Context {
   size_t secretlen;
 };
 
-// get_negotiated_prf returns the negotiated PRF by TLS.
-const EVP_MD *get_negotiated_prf(SSL *ssl);
+// negotiated_prf stores the negotiated PRF by TLS into |ctx|.  This
+// function returns 0 if it succeeds, or -1.
+int negotiated_prf(Context &ctx, SSL *ssl);
 
-// get_negotiated_aead returns the negotiated AEAD by TLS.
-const EVP_AEAD *get_negotiated_aead(SSL *ssl);
+// negotiated_aead stores the negotiated AEAD by TLS into |ctx|.  This
+// function returns 0 if it succeeds, or -1.
+int negotiated_aead(Context &ctx, SSL *ssl);
 
 // export_secret exports secret with given label.  It returns 0 if it
 // succeeds, or -1.
@@ -113,8 +115,62 @@ ssize_t decrypt(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
 // aead_max_overhead returns the maximum overhead of ctx.aead.
 size_t aead_max_overhead(const Context &ctx);
 
+// aead_key_length returns the key size of ctx.aead.
+size_t aead_key_length(const Context &ctx);
+
+// aead_nonce_length returns the nonce size of ctx.aead.
+size_t aead_nonce_length(const Context &ctx);
+
+// hkdf computes HKDF with empty salt.  This function returns 0 if it
+// succeeds, or -1.
+int hkdf(uint8_t *dest, size_t destlen, const uint8_t *secret, size_t secretlen,
+         const uint8_t *info, size_t infolen, const Context &ctx);
+
 } // namespace crypto
 
 } // namespace ngtcp2
+
+#if defined(OPENSSL_IS_BORINGSSL)
+inline void *BIO_get_data(BIO *bio) { return bio->ptr; }
+inline void BIO_set_data(BIO *bio, void *ptr) { bio->ptr = ptr; }
+inline void BIO_set_init(BIO *bio, int init) { bio->init = init; }
+
+inline BIO_METHOD *BIO_meth_new(int type, const char *name) {
+  return new BIO_METHOD{type, name};
+}
+inline int BIO_meth_set_write(BIO_METHOD *meth,
+                              int (*write)(BIO *, const char *, int)) {
+  meth->bwrite = write;
+  return 1;
+}
+inline int BIO_meth_set_read(BIO_METHOD *meth,
+                             int (*read)(BIO *, char *, int)) {
+  meth->bread = read;
+  return 1;
+}
+inline int BIO_meth_set_puts(BIO_METHOD *meth,
+                             int (*puts)(BIO *, const char *)) {
+  meth->bputs = puts;
+  return 1;
+}
+inline int BIO_meth_set_gets(BIO_METHOD *meth,
+                             int (*gets)(BIO *, char *, int)) {
+  meth->bgets = gets;
+  return 1;
+}
+inline int BIO_meth_set_ctrl(BIO_METHOD *meth,
+                             long (*ctrl)(BIO *, int, long, void *)) {
+  meth->ctrl = ctrl;
+  return 1;
+}
+inline int BIO_meth_set_create(BIO_METHOD *meth, int (*create)(BIO *)) {
+  meth->create = create;
+  return 1;
+}
+inline int BIO_meth_set_destroy(BIO_METHOD *meth, int (*destroy)(BIO *)) {
+  meth->destroy = destroy;
+  return 1;
+}
+#endif // defined(OPENSSL_IS_BORINGSSL)
 
 #endif // CRYPTO_H

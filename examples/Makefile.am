@@ -38,10 +38,14 @@ client_SOURCES = client.cc client.h \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
-	crypto_boringssl.cc crypto_boringssl.h
+	crypto_boringssl.cc \
+	crypto_openssl.cc \
+	crypto.cc
 
 server_SOURCES = server.cc server.h \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
-	crypto_boringssl.cc crypto_boringssl.h
+	crypto_boringssl.cc \
+	crypto_openssl.cc \
+	crypto.cc

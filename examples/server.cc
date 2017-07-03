@@ -26,6 +26,7 @@
 #include <cassert>
 #include <iostream>
 #include <algorithm>
+#include <memory>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -34,6 +35,7 @@
 #include <netdb.h>
 
 #include <openssl/bio.h>
+#include <openssl/err.h>
 
 #include "server.h"
 #include "template.h"
@@ -46,12 +48,6 @@ using namespace ngtcp2;
 
 namespace {
 auto randgen = util::make_mt19937();
-} // namespace
-
-namespace {
-void *BIO_get_data(BIO *bio) { return bio->ptr; }
-void BIO_set_data(BIO *bio, void *ptr) { bio->ptr = ptr; }
-void BIO_set_init(BIO *bio, int init) { bio->init = init; }
 } // namespace
 
 namespace {
@@ -120,11 +116,14 @@ int bio_destroy(BIO *b) {
 
 namespace {
 BIO_METHOD *create_bio_method() {
-  static auto meth = new BIO_METHOD{
-      BIO_TYPE_FD, "bio",    bio_write,  bio_read,    bio_puts,
-      bio_gets,    bio_ctrl, bio_create, bio_destroy,
-  };
-
+  static auto meth = BIO_meth_new(BIO_TYPE_FD, "bio");
+  BIO_meth_set_write(meth, bio_write);
+  BIO_meth_set_read(meth, bio_read);
+  BIO_meth_set_puts(meth, bio_puts);
+  BIO_meth_set_gets(meth, bio_gets);
+  BIO_meth_set_ctrl(meth, bio_ctrl);
+  BIO_meth_set_create(meth, bio_create);
+  BIO_meth_set_destroy(meth, bio_destroy);
   return meth;
 }
 } // namespace
@@ -406,8 +405,14 @@ void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
 int Handler::setup_crypto_context() {
   int rv;
 
-  crypto_ctx_.prf = crypto::get_negotiated_prf(ssl_);
-  crypto_ctx_.aead = crypto::get_negotiated_aead(ssl_);
+  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
 
   auto length = EVP_MD_size(crypto_ctx_.prf);
 

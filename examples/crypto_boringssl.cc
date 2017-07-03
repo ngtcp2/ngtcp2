@@ -27,7 +27,6 @@
 #if defined(OPENSSL_IS_BORINGSSL)
 
 #include <cassert>
-#include <algorithm>
 
 #include <openssl/evp.h>
 #include <openssl/hkdf.h>
@@ -39,119 +38,34 @@ namespace ngtcp2 {
 
 namespace crypto {
 
-const EVP_MD *get_negotiated_prf(SSL *ssl) {
+int negotiated_prf(Context &ctx, SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case 0x03001301u: // TLS_AES_128_GCM_SHA256
   case 0x03001303u: // TLS_CHACHA20_POLY1305_SHA256
-    return EVP_sha256();
+    ctx.prf = EVP_sha256();
+    return 0;
   case 0x03001302u: // TLS_AES_256_GCM_SHA384
-    return EVP_sha384();
+    ctx.prf = EVP_sha384();
+    return 0;
   default:
-    return NULL;
+    return -1;
   }
 }
 
-const EVP_AEAD *get_negotiated_aead(SSL *ssl) {
+int negotiated_aead(Context &ctx, SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case 0x03001301u: // TLS_AES_128_GCM_SHA256
-    return EVP_aead_aes_128_gcm();
+    ctx.aead = EVP_aead_aes_128_gcm();
+    return 0;
   case 0x03001302u: // TLS_AES_256_GCM_SHA384
-    return EVP_aead_aes_256_gcm();
+    ctx.aead = EVP_aead_aes_256_gcm();
+    return 0;
   case 0x03001303u: // TLS_CHACHA20_POLY1305_SHA256
-    return EVP_aead_chacha20_poly1305();
+    ctx.aead = EVP_aead_chacha20_poly1305();
+    return 0;
   default:
-    return NULL;
-  }
-}
-
-int export_secret(uint8_t *dest, size_t destlen, SSL *ssl, const uint8_t *label,
-                  size_t labellen) {
-  int rv;
-
-  rv = SSL_export_keying_material(ssl, dest, destlen,
-                                  reinterpret_cast<const char *>(label),
-                                  labellen, nullptr, 0, 1);
-  if (rv != 1) {
     return -1;
   }
-
-  return 0;
-}
-
-int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  constexpr uint8_t label[] = "EXPORTER-QUIC client 1-RTT Secret";
-  return export_secret(dest, destlen, ssl, label, str_size(label));
-}
-
-int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  constexpr uint8_t label[] = "EXPORTER-QUIC server 1-RTT Secret";
-  return export_secret(dest, destlen, ssl, label, str_size(label));
-}
-
-int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                      size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                      const Context &ctx) {
-  std::array<uint8_t, 256> info;
-  int rv;
-  constexpr const uint8_t LABEL[] = "TLS 1.3, ";
-
-  auto p = std::begin(info);
-  *p++ = destlen / 256;
-  *p++ = destlen % 256;
-  *p++ = str_size(LABEL) + qlabellen;
-  p = std::copy_n(LABEL, str_size(LABEL), p);
-  p = std::copy_n(qlabel, qlabellen, p);
-  *p++ = 0;
-
-  rv = HKDF(dest, destlen, ctx.prf, secret, secretlen, nullptr, 0, info.data(),
-            p - std::begin(info));
-
-  if (rv != 1) {
-    return -1;
-  }
-
-  return 0;
-}
-
-ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
-                                     const uint8_t *secret, size_t secretlen,
-                                     const Context &ctx) {
-  int rv;
-  constexpr uint8_t LABEL_KEY[] = "key";
-
-  auto keylen = EVP_AEAD_key_length(ctx.aead);
-  if (keylen > destlen) {
-    return -1;
-  }
-
-  rv = crypto::hkdf_expand_label(dest, keylen, secret, secretlen, LABEL_KEY,
-                                 str_size(LABEL_KEY), ctx);
-  if (rv != 0) {
-    return -1;
-  }
-
-  return keylen;
-}
-
-ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
-                                    const uint8_t *secret, size_t secretlen,
-                                    const Context &ctx) {
-  int rv;
-  constexpr uint8_t LABEL_IV[] = "iv";
-
-  auto ivlen =
-      std::max(static_cast<size_t>(8), EVP_AEAD_nonce_length(ctx.aead));
-  if (ivlen > destlen) {
-    return -1;
-  }
-
-  rv = crypto::hkdf_expand_label(dest, ivlen, secret, secretlen, LABEL_IV,
-                                 str_size(LABEL_IV), ctx);
-  if (rv != 0) {
-    return -1;
-  }
-
-  return ivlen;
 }
 
 ssize_t encrypt(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
@@ -202,6 +116,23 @@ ssize_t decrypt(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
 
 size_t aead_max_overhead(const Context &ctx) {
   return EVP_AEAD_max_overhead(ctx.aead);
+}
+
+size_t aead_key_length(const Context &ctx) {
+  return EVP_AEAD_key_length(ctx.aead);
+}
+
+size_t aead_nonce_length(const Context &ctx) {
+  return EVP_AEAD_nonce_length(ctx.aead);
+}
+
+int hkdf(uint8_t *dest, size_t destlen, const uint8_t *secret, size_t secretlen,
+         const uint8_t *info, size_t infolen, const Context &ctx) {
+  if (HKDF(dest, destlen, ctx.prf, secret, secretlen, nullptr, 0, info,
+           infolen) != 1) {
+    return -1;
+  }
+  return 0;
 }
 
 } // namespace crypto
