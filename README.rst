@@ -54,6 +54,10 @@ other hand, OpenSSL implements TLSv1.3 draft-20.  They are
 incompatible.  If you want TLSv1.3 draft-18, choose boringssl.  If you
 want TLSv1.3 draft-20, choose OpenSSL.
 
+To build boringssl, golang is required:
+
+* golang
+
 Build from git
 --------------
 
