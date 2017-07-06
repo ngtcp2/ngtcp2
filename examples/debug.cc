@@ -175,7 +175,7 @@ void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016lx PN=%lu\n", pkt_ansi_esc(dir),
+  fprintf(outfile, "%s%s%s CID=%016lx PKN=%lu\n", pkt_ansi_esc(dir),
           strpkttype_short(hd->type).c_str(), ansi_escend(), hd->conn_id,
           hd->pkt_num);
 }
