@@ -656,6 +656,7 @@ static int conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
   ngtcp2_frame fr;
   int rv;
   int require_ack = 0;
+  uint64_t rx_offset;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
     return NGTCP2_ERR_PROTO;
@@ -720,20 +721,36 @@ static int conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
         fr.type != NGTCP2_FRAME_ACK && fr.type != NGTCP2_FRAME_CONNECTION_CLOSE;
 
     if (fr.type != NGTCP2_FRAME_STREAM || fr.stream.stream_id != 0 ||
-        conn->strm0.rx_offset >= fr.stream.offset + fr.stream.datalen) {
+        fr.stream.datalen == 0) {
       continue;
     }
 
-    if (conn->strm0.rx_offset == fr.stream.offset) {
-      conn->strm0.rx_offset += fr.stream.datalen;
+    rx_offset = ngtcp2_strm_rx_offset(&conn->strm0);
+    if (rx_offset >= fr.stream.offset + fr.stream.datalen) {
+      continue;
+    }
 
-      rv = conn->callbacks.recv_handshake_data(
-          conn, fr.stream.data, fr.stream.datalen, conn->user_data);
+    /* TODO Refused to receive stream data which is more than 128KiB
+       for now.  We can ditch this if flow control is implemented. */
+    if (fr.stream.offset > 128 * 1024) {
+      return NGTCP2_ERR_INTERNAL;
+    }
+
+    if (fr.stream.offset <= rx_offset) {
+      size_t ncut = (rx_offset - fr.stream.offset);
+      const uint8_t *data = fr.stream.data + ncut;
+      size_t datalen = fr.stream.datalen - ncut;
+
+      ngtcp2_rob_remove_prefix(&conn->strm0.rob, rx_offset + datalen);
+
+      rv = conn->callbacks.recv_handshake_data(conn, data, datalen,
+                                               conn->user_data);
       if (rv != 0) {
         return rv;
       }
 
-      rv = ngtcp2_conn_emit_pending_recv_handshake(conn, &conn->strm0);
+      rv = ngtcp2_conn_emit_pending_recv_handshake(conn, &conn->strm0,
+                                                   rx_offset + datalen);
       if (rv != 0) {
         return rv;
       }
@@ -944,18 +961,20 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
 }
 
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
-                                            ngtcp2_strm *strm) {
+                                            ngtcp2_strm *strm,
+                                            uint64_t rx_offset) {
   size_t datalen;
   const uint8_t *data;
   int rv;
 
   for (;;) {
-    datalen = ngtcp2_rob_data_at(&strm->rob, &data, strm->rx_offset);
+    datalen = ngtcp2_rob_data_at(&strm->rob, &data, rx_offset);
     if (datalen == 0) {
+      assert(rx_offset == ngtcp2_strm_rx_offset(strm));
       return 0;
     }
 
-    strm->rx_offset += datalen;
+    rx_offset += datalen;
 
     rv = conn->callbacks.recv_handshake_data(conn, data, datalen,
                                              conn->user_data);
@@ -963,7 +982,7 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
       return rv;
     }
 
-    ngtcp2_rob_pop(&strm->rob);
+    ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
   }
 }
 
@@ -975,12 +994,11 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem) {
   int rv;
 
   strm->tx_offset = 0;
-  strm->rx_offset = 0;
   strm->nbuffered = 0;
   strm->mem = mem;
   memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
 
-  rv = ngtcp2_rob_init(&strm->rob, mem);
+  rv = ngtcp2_rob_init(&strm->rob, 8 * 1024, mem);
   if (rv != 0) {
     goto fail_rob_init;
   }
@@ -997,11 +1015,11 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
   ngtcp2_rob_free(&strm->rob);
 }
 
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr) {
-  if (strm->rob.bufferedlen >= 128 * 1024) {
-    return NGTCP2_ERR_INTERNAL;
-  }
+uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
+  return ngtcp2_rob_first_gap_offset(&strm->rob);
+}
 
+int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr) {
   return ngtcp2_rob_push(&strm->rob, fr->offset, fr->data, fr->datalen);
 }
 

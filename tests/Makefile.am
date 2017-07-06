@@ -30,10 +30,14 @@ OBJECTS = \
 	main.c \
 	ngtcp2_pkt_test.c \
 	ngtcp2_upe_test.c \
+	ngtcp2_range_test.c \
+	ngtcp2_rob_test.c \
 	ngtcp2_test_helper.c
 HFILES= \
 	ngtcp2_pkt_test.h \
 	ngtcp2_upe_test.h \
+	ngtcp2_range_test.h \
+	ngtcp2_rob_test.h \
 	ngtcp2_test_helper.h
 
 main_SOURCES = $(HFILES) $(OBJECTS)
