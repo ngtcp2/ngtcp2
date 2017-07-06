@@ -1,4 +1,8 @@
 language: cpp
+env:
+  matrix:
+    - SSL_LIB=boringssl
+    - SSL_LIB=openssl
 compiler:
   - clang
   - gcc
@@ -29,18 +33,13 @@ before_install:
   - $CC --version
   - cmake --version
 before_script:
-  # First build boringssl
-  - git clone https://boringssl.googlesource.com/boringssl
-  - cd boringssl
-  - mkdir build
-  - cd build
-  - cmake ..
-  - make
-  - cd ../../
-
+  # First build external lib
+  - if [ "$SSL_LIB" = "boringssl" ]; then ./ci/build_boringssl.sh; fi
+  - if [ "$SSL_LIB" = "openssl" ]; then ./ci/build_openssl.sh; fi
   # configure ngtcp2
   - autoreconf -i
-  - ./configure --enable-werror OPENSSL_CFLAGS=-I$PWD/boringssl/include OPENSSL_LIBS="-L$PWD/boringssl/build/ssl -L$PWD/boringssl/build/crypto -lssl -lcrypto -pthread"
+  - if [ "$SSL_LIB" = "boringssl" ]; then ./configure --enable-werror OPENSSL_CFLAGS=-I$PWD/../boringssl/include OPENSSL_LIBS="-L$PWD/../boringssl/build/ssl -L$PWD/../boringssl/build/crypto -lssl -lcrypto -pthread"; fi
+  - if [ "$SSL_LIB" = "openssl" ]; then ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/openssl/build/lib"; fi
 script:
   # Now build ngtcp2
   - make check
