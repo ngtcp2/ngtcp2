@@ -33,6 +33,8 @@
 /* include test cases' include files here */
 #include "ngtcp2_pkt_test.h"
 #include "ngtcp2_upe_test.h"
+#include "ngtcp2_range_test.h"
+#include "ngtcp2_rob_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -74,7 +76,14 @@ int main() {
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "upe_encode", test_ngtcp2_upe_encode) ||
       !CU_add_test(pSuite, "upe_encode_version_negotiation",
-                   test_ngtcp2_upe_encode_version_negotiation)) {
+                   test_ngtcp2_upe_encode_version_negotiation) ||
+      !CU_add_test(pSuite, "range_intersect", test_ngtcp2_range_intersect) ||
+      !CU_add_test(pSuite, "range_cut", test_ngtcp2_range_cut) ||
+      !CU_add_test(pSuite, "range_not_after", test_ngtcp2_range_not_after) ||
+      !CU_add_test(pSuite, "rob_push", test_ngtcp2_rob_push) ||
+      !CU_add_test(pSuite, "rob_data_at", test_ngtcp2_rob_data_at) ||
+      !CU_add_test(pSuite, "rob_remove_prefix",
+                   test_ngtcp2_rob_remove_prefix)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

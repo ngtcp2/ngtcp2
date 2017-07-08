@@ -35,6 +35,7 @@
 #include "ngtcp2_buf.h"
 #include "ngtcp2_rob.h"
 #include "ngtcp2_crypto.h"
+#include "ngtcp2_pq.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -56,7 +57,6 @@ typedef enum {
 } ngtcp2_conn_state;
 
 typedef struct {
-  uint64_t rx_offset;
   uint64_t tx_offset;
   ngtcp2_rob rob;
   ngtcp2_mem *mem;
@@ -67,6 +67,8 @@ typedef struct {
 int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem);
 
 void ngtcp2_strm_free(ngtcp2_strm *strm);
+
+uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_recv_reordering handles reordered STREAM frame |fr|.
@@ -120,7 +122,7 @@ struct ngtcp2_conn {
  *     User callback failed
  */
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
-                                            ngtcp2_strm *strm);
+                                            ngtcp2_strm *strm, uint64_t offset);
 
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its

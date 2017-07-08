@@ -43,7 +43,8 @@ OBJECTS = \
 	ngtcp2_rob.c \
 	ngtcp2_ppe.c \
 	ngtcp2_crypto.c \
-	ngtcp2_err.c
+	ngtcp2_err.c \
+	ngtcp2_range.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -58,6 +59,7 @@ HFILES = \
 	ngtcp2_ppe.h \
 	ngtcp2_crypto.h \
 	ngtcp2_err.h \
+	ngtcp2_range.h \
 	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
