@@ -932,6 +932,9 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
     if (rv < 0) {
       break;
     }
+    if (ngtcp2_strm_rx_offset(&conn->strm0) == 0) {
+      return NGTCP2_ERR_PROTO;
+    }
     conn->state = NGTCP2_CS_SERVER_CI_RECVED;
     break;
   case NGTCP2_CS_SERVER_SC_SENT:
