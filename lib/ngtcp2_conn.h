@@ -35,7 +35,7 @@
 #include "ngtcp2_buf.h"
 #include "ngtcp2_rob.h"
 #include "ngtcp2_crypto.h"
-#include "ngtcp2_pq.h"
+#include "ngtcp2_acktr.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -83,19 +83,8 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
  */
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr);
 
-/*
- * ngtcp2_rx_pkt records packet number and its reception timestamp for
- * its transmission of ACK.
- */
-typedef struct {
-  ngtcp2_pq_entry pq_entry;
-  uint64_t pkt_num;
-  ngtcp2_tstamp tstamp;
-} ngtcp2_rx_pkt;
-
 struct ngtcp2_conn {
   int state;
-  ngtcp2_pq ackq;
   ngtcp2_conn_callbacks callbacks;
   ngtcp2_strm strm0;
   uint64_t conn_id;
@@ -103,6 +92,7 @@ struct ngtcp2_conn {
   uint64_t max_rx_pkt_num;
   ngtcp2_mem *mem;
   void *user_data;
+  ngtcp2_acktr acktr;
   uint32_t version;
   int handshake_completed;
   int server;

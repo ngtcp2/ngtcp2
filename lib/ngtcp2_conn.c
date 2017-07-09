@@ -109,15 +109,6 @@ static int conn_call_handshake_completed(ngtcp2_conn *conn) {
   return 0;
 }
 
-static int conn_ackq_greater(const void *lhsx, const void *rhsx) {
-  const ngtcp2_rx_pkt *lhs, *rhs;
-
-  lhs = ngtcp2_struct_of(lhsx, ngtcp2_rx_pkt, pq_entry);
-  rhs = ngtcp2_struct_of(rhsx, ngtcp2_rx_pkt, pq_entry);
-
-  return lhs->pkt_num > rhs->pkt_num;
-}
-
 static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
                     const ngtcp2_conn_callbacks *callbacks, void *user_data) {
   int rv;
@@ -129,15 +120,12 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_conn;
   }
 
-  rv = ngtcp2_pq_init(&(*pconn)->ackq, conn_ackq_greater, mem);
-  if (rv != 0) {
-    goto fail_pq_init;
-  }
-
   rv = ngtcp2_strm_init(&(*pconn)->strm0, mem);
   if (rv != 0) {
     goto fail_strm_init;
   }
+
+  ngtcp2_acktr_init(&(*pconn)->acktr);
 
   (*pconn)->callbacks = *callbacks;
   (*pconn)->conn_id = conn_id;
@@ -148,8 +136,6 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   return 0;
 
 fail_strm_init:
-  ngtcp2_pq_free(&(*pconn)->ackq);
-fail_pq_init:
   ngtcp2_mem_free(mem, *pconn);
 fail_conn:
   return rv;
@@ -188,16 +174,14 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
   return 0;
 }
 
-static int ackq_rx_pkt_free(ngtcp2_pq_entry *item, void *arg) {
-  ngtcp2_rx_pkt *rpkt;
-  ngtcp2_conn *conn;
+static void delete_acktr_entry(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem) {
+  ngtcp2_acktr_entry *next;
 
-  rpkt = ngtcp2_struct_of(item, ngtcp2_rx_pkt, pq_entry);
-  conn = arg;
-
-  ngtcp2_mem_free(conn->mem, rpkt);
-
-  return 0;
+  for (; ent;) {
+    next = ent->next;
+    ngtcp2_acktr_entry_del(ent, mem);
+    ent = next;
+  }
 }
 
 void ngtcp2_conn_del(ngtcp2_conn *conn) {
@@ -205,13 +189,14 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
     return;
   }
 
+  delete_acktr_entry(conn->acktr.ent, conn->mem);
+  ngtcp2_acktr_free(&conn->acktr);
+
   ngtcp2_crypto_km_del(conn->rx_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->tx_ckm, conn->mem);
 
   ngtcp2_strm_free(&conn->strm0);
 
-  ngtcp2_pq_each(&conn->ackq, ackq_rx_pkt_free, conn);
-  ngtcp2_pq_free(&conn->ackq);
   ngtcp2_mem_free(conn->mem, conn);
 }
 
@@ -220,35 +205,31 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   uint64_t first_pkt_num;
   ngtcp2_tstamp ack_delay;
   uint64_t last_pkt_num;
-  ngtcp2_rx_pkt *rpkt;
   ngtcp2_ack_blk *blk;
   int initial = 1;
   uint64_t gap;
+  ngtcp2_acktr_entry *rpkt;
 
-  if (ngtcp2_pq_empty(&conn->ackq)) {
+  rpkt = ngtcp2_acktr_get(&conn->acktr);
+  if (rpkt == NULL) {
     return 0;
   }
-
-  rpkt = ngtcp2_struct_of(ngtcp2_pq_top(&conn->ackq), ngtcp2_rx_pkt, pq_entry);
-  ngtcp2_pq_pop(&conn->ackq);
 
   first_pkt_num = last_pkt_num = rpkt->pkt_num;
   ack_delay = ts - rpkt->tstamp;
 
-  ngtcp2_mem_free(conn->mem, rpkt);
+  ngtcp2_acktr_remove(&conn->acktr, rpkt);
+  ngtcp2_acktr_entry_del(rpkt, conn->mem);
 
   ack->type = NGTCP2_FRAME_ACK;
   ack->num_ts = 0;
   ack->num_blks = 0;
 
-  for (; !ngtcp2_pq_empty(&conn->ackq);) {
-    rpkt =
-        ngtcp2_struct_of(ngtcp2_pq_top(&conn->ackq), ngtcp2_rx_pkt, pq_entry);
-
+  for (; (rpkt = ngtcp2_acktr_get(&conn->acktr));) {
     if (rpkt->pkt_num + 1 == last_pkt_num) {
       last_pkt_num = rpkt->pkt_num;
-      ngtcp2_pq_pop(&conn->ackq);
-      ngtcp2_mem_free(conn->mem, rpkt);
+      ngtcp2_acktr_remove(&conn->acktr, rpkt);
+      ngtcp2_acktr_entry_del(rpkt, conn->mem);
       continue;
     }
 
@@ -274,8 +255,8 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
 
     first_pkt_num = last_pkt_num = rpkt->pkt_num;
 
-    ngtcp2_pq_pop(&conn->ackq);
-    ngtcp2_mem_free(conn->mem, rpkt);
+    ngtcp2_acktr_remove(&conn->acktr, rpkt);
+    ngtcp2_acktr_entry_del(rpkt, conn->mem);
 
     if (ack->num_blks == 255) {
       break;
@@ -1026,29 +1007,18 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr) {
   return ngtcp2_rob_push(&strm->rob, fr->offset, fr->data, fr->datalen);
 }
 
-/* TODO This is not efficient and not robust. */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
                           ngtcp2_tstamp ts) {
-  ngtcp2_rx_pkt *rpkt;
+  ngtcp2_acktr_entry *rpkt;
   int rv;
 
-  if (ngtcp2_pq_size(&conn->ackq) > 1024) {
-    return NGTCP2_ERR_INTERNAL;
-  }
-
-  rpkt = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_rx_pkt));
-  if (rpkt == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  rpkt->pkt_num = pkt_num;
-  rpkt->tstamp = ts;
-
-  rv = ngtcp2_pq_push(&conn->ackq, &rpkt->pq_entry);
+  rv = ngtcp2_acktr_entry_new(&rpkt, pkt_num, ts, conn->mem);
   if (rv != 0) {
-    ngtcp2_mem_free(conn->mem, rpkt);
     return rv;
   }
+
+  /* TODO Ignore error for now */
+  ngtcp2_acktr_add(&conn->acktr, rpkt);
 
   return 0;
 }
