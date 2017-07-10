@@ -36,7 +36,17 @@ void test_ngtcp2_pkt_decode_ack_frame(void);
 void test_ngtcp2_pkt_decode_padding_frame(void);
 void test_ngtcp2_pkt_encode_stream_frame(void);
 void test_ngtcp2_pkt_encode_ack_frame(void);
+void test_ngtcp2_pkt_encode_rst_stream_frame(void);
 void test_ngtcp2_pkt_encode_connection_close_frame(void);
+void test_ngtcp2_pkt_encode_goaway(void);
+void test_ngtcp2_pkt_encode_max_data_frame(void);
+void test_ngtcp2_pkt_encode_max_stream_data_frame(void);
+void test_ngtcp2_pkt_encode_max_stream_id_frame(void);
+void test_ngtcp2_pkt_encode_ping_frame(void);
+void test_ngtcp2_pkt_encode_blocked_frame(void);
+void test_ngtcp2_pkt_encode_stream_blocked_frame(void);
+void test_ngtcp2_pkt_encode_stream_id_needed_frame(void);
+void test_ngtcp2_pkt_encode_new_connection_id_frame(void);
 void test_ngtcp2_pkt_adjust_pkt_num(void);
 
 #endif /* NGTCP2_PKT_TEST_H */
