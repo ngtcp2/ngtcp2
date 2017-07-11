@@ -270,7 +270,12 @@ typedef struct {
   size_t len;
 } ngtcp2_padding;
 
-typedef struct { uint8_t type; } ngtcp2_rst_stream;
+typedef struct {
+  uint8_t type;
+  uint32_t stream_id;
+  uint32_t error_code;
+  uint64_t final_offset;
+} ngtcp2_rst_stream;
 
 typedef struct {
   uint8_t type;
@@ -279,23 +284,47 @@ typedef struct {
   uint8_t *reason;
 } ngtcp2_connection_close;
 
-typedef struct { uint8_t type; } ngtcp2_goaway;
+typedef struct {
+  uint8_t type;
+  uint32_t largest_client_stream_id;
+  uint32_t largest_server_stream_id;
+} ngtcp2_goaway;
 
-typedef struct { uint8_t type; } ngtcp2_max_data;
+typedef struct {
+  uint8_t type;
+  /**
+   * max_data is Maximum Data.
+   */
+  uint64_t max_data;
+} ngtcp2_max_data;
 
-typedef struct { uint8_t type; } ngtcp2_max_stream_data;
+typedef struct {
+  uint8_t type;
+  uint32_t stream_id;
+  uint64_t max_stream_data;
+} ngtcp2_max_stream_data;
 
-typedef struct { uint8_t type; } ngtcp2_max_stream_id;
+typedef struct {
+  uint8_t type;
+  uint32_t max_stream_id;
+} ngtcp2_max_stream_id;
 
 typedef struct { uint8_t type; } ngtcp2_ping;
 
 typedef struct { uint8_t type; } ngtcp2_blocked;
 
-typedef struct { uint8_t type; } ngtcp2_stream_blocked;
+typedef struct {
+  uint8_t type;
+  uint32_t stream_id;
+} ngtcp2_stream_blocked;
 
 typedef struct { uint8_t type; } ngtcp2_stream_id_needed;
 
-typedef struct { uint8_t type; } ngtcp2_new_connection_id;
+typedef struct {
+  uint8_t type;
+  uint16_t seq;
+  uint64_t conn_id;
+} ngtcp2_new_connection_id;
 
 typedef union {
   uint8_t type;

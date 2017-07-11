@@ -219,10 +219,51 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
       fprintf(outfile, "gap=%u ack_block_length=%lu\n", blk->gap, blk->blklen);
     }
     break;
+  case NGTCP2_FRAME_RST_STREAM:
+    print_indent();
+    fprintf(outfile, "stream_id=%08x error_code=%08x final_offset=%lu\n",
+            fr->rst_stream.stream_id, fr->rst_stream.error_code,
+            fr->rst_stream.final_offset);
+    break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     print_indent();
     fprintf(outfile, "error_code=%08x reason_length=%zu\n",
             fr->connection_close.error_code, fr->connection_close.reasonlen);
+    break;
+  case NGTCP2_FRAME_GOAWAY:
+    print_indent();
+    fprintf(outfile,
+            "largest_client_stream_id=%08x largest_server_stream_id=%08x\n",
+            fr->goaway.largest_client_stream_id,
+            fr->goaway.largest_server_stream_id);
+    break;
+  case NGTCP2_FRAME_MAX_DATA:
+    print_indent();
+    fprintf(outfile, "max_data=%lu\n", fr->max_data.max_data);
+    break;
+  case NGTCP2_FRAME_MAX_STREAM_DATA:
+    print_indent();
+    fprintf(outfile, "stream_id=%08x max_stream_data=%lu\n",
+            fr->max_stream_data.stream_id, fr->max_stream_data.max_stream_data);
+    break;
+  case NGTCP2_FRAME_MAX_STREAM_ID:
+    print_indent();
+    fprintf(outfile, "max_stream_id=%08x\n", fr->max_stream_id.max_stream_id);
+    break;
+  case NGTCP2_FRAME_PING:
+    break;
+  case NGTCP2_FRAME_BLOCKED:
+    break;
+  case NGTCP2_FRAME_STREAM_BLOCKED:
+    print_indent();
+    fprintf(outfile, "stream_id=%08x\n", fr->stream_blocked.stream_id);
+    break;
+  case NGTCP2_FRAME_STREAM_ID_NEEDED:
+    break;
+  case NGTCP2_FRAME_NEW_CONNECTION_ID:
+    print_indent();
+    fprintf(outfile, "seq=%u conn_id=%016lx\n", fr->new_connection_id.seq,
+            fr->new_connection_id.conn_id);
     break;
   }
 }
