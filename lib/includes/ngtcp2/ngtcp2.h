@@ -445,9 +445,9 @@ NGTCP2_EXTERN int ngtcp2_upe_encode_frame(ngtcp2_upe *upe,
  * @function
  *
  * `ngtcp2_upe_padding` encodes PADDING frames to the end of the
- * buffer.
+ * buffer.  This function returns the number of bytes padded.
  */
-NGTCP2_EXTERN void ngtcp2_upe_padding(ngtcp2_upe *upe);
+NGTCP2_EXTERN size_t ngtcp2_upe_padding(ngtcp2_upe *upe);
 
 /**
  * @function
