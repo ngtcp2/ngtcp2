@@ -50,9 +50,9 @@ OpenSSL (master branch) as crypto backend:
 
 At the of time writing, choosing crypto backend from them dictates
 TLSv1.3 draft version.  boringssl implements TLSv1.3 draft-18.  On the
-other hand, OpenSSL implements TLSv1.3 draft-20.  They are
+other hand, OpenSSL implements TLSv1.3 draft-21.  They are
 incompatible.  If you want TLSv1.3 draft-18, choose boringssl.  If you
-want TLSv1.3 draft-20, choose OpenSSL.
+want TLSv1.3 draft-21, choose OpenSSL.
 
 To build boringssl, golang is required:
 
