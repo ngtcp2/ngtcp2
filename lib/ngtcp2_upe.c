@@ -70,7 +70,7 @@ int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, const ngtcp2_frame *fr) {
   return 0;
 }
 
-void ngtcp2_upe_padding(ngtcp2_upe *upe) {
+size_t ngtcp2_upe_padding(ngtcp2_upe *upe) {
   ngtcp2_buf *buf = &upe->buf;
   size_t len;
 
@@ -79,6 +79,8 @@ void ngtcp2_upe_padding(ngtcp2_upe *upe) {
   len = ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN;
   memset(buf->last, 0, len);
   buf->last += len;
+
+  return len;
 }
 
 int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, const uint32_t *sv,
