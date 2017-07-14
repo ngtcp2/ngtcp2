@@ -460,13 +460,13 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   /* 0 Num Blocks */
   fr.type = NGTCP2_FRAME_ACK;
-  fr.ack.largest_ack = 0xf1f2f3f4f5f6llu;
+  fr.ack.largest_ack = 0xf1f2f3f4llu;
   fr.ack.first_ack_blklen = 0;
   fr.ack.ack_delay = 0;
   fr.ack.num_blks = 0;
   fr.ack.num_ts = 0;
 
-  framelen = 1 + 1 + 6 + 2 + 6;
+  framelen = 1 + 1 + 4 + 2 + 4;
 
   rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fr.ack);
 
@@ -476,7 +476,7 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(0x0f == nfr.ack.flags);
+  CU_ASSERT((NGTCP2_ACK_LL_02_MASK | NGTCP2_ACK_MM_02_MASK) == nfr.ack.flags);
   CU_ASSERT(fr.ack.largest_ack == nfr.ack.largest_ack);
   CU_ASSERT(fr.ack.ack_delay == nfr.ack.ack_delay);
   CU_ASSERT(fr.ack.num_blks == nfr.ack.num_blks);
@@ -486,16 +486,16 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   /* 2 Num Blocks */
   fr.type = NGTCP2_FRAME_ACK;
-  fr.ack.largest_ack = 0xf1f2f3f4f5f6llu;
-  fr.ack.first_ack_blklen = 0xe1e2e3e4e5e6llu;
+  fr.ack.largest_ack = 0xf1f2f3f4llu;
+  fr.ack.first_ack_blklen = 0xe1e2e3e4llu;
   fr.ack.ack_delay = 0xf1f2;
   fr.ack.num_blks = 2;
   fr.ack.blks[0].gap = 255;
-  fr.ack.blks[0].blklen = 0xd1d2d3d4d5d6llu;
+  fr.ack.blks[0].blklen = 0xd1d2d3d4llu;
   fr.ack.blks[1].gap = 1;
-  fr.ack.blks[1].blklen = 0xd1d2d3d4d5d6llu;
+  fr.ack.blks[1].blklen = 0xd1d2d3d4llu;
 
-  framelen = 1 + 1 + 1 + 6 + 2 + 6 + (1 + 6) * 2;
+  framelen = 1 + 1 + 1 + 4 + 2 + 4 + (1 + 4) * 2;
 
   rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fr.ack);
 
@@ -505,7 +505,8 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(0x1f == nfr.ack.flags);
+  CU_ASSERT((NGTCP2_ACK_N_BIT | NGTCP2_ACK_LL_02_MASK |
+             NGTCP2_ACK_MM_02_MASK) == nfr.ack.flags);
   CU_ASSERT(fr.ack.largest_ack == nfr.ack.largest_ack);
   CU_ASSERT(fr.ack.ack_delay = nfr.ack.ack_delay);
   CU_ASSERT(fr.ack.num_blks == nfr.ack.num_blks);

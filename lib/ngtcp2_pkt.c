@@ -947,7 +947,7 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
                                     const ngtcp2_ack *fr) {
-  size_t len = 1 + 1 + 6 + 2 + 6;
+  size_t len = 1 + 1 + 4 /* LL = 02 */ + 2 + 4 /* MM = 02 */;
   uint8_t *p;
   size_t i;
   const ngtcp2_ack_blk *blk;
@@ -956,8 +956,8 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
     ++len;
   }
 
-  /* Encode ACK Block N Length in 48 bits for now */
-  len += fr->num_blks * 7;
+  /* Encode ACK Block N Length in 32 bits for now */
+  len += fr->num_blks * 5;
 
   if (outlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -965,7 +965,7 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = NGTCP2_FRAME_ACK | NGTCP2_ACK_LL_MASK | NGTCP2_ACK_MM_MASK |
+  *p++ = NGTCP2_FRAME_ACK | NGTCP2_ACK_LL_02_MASK | NGTCP2_ACK_MM_02_MASK |
          (fr->num_blks ? NGTCP2_ACK_N_BIT : 0);
   /* Num Blocks */
   if (fr->num_blks) {
@@ -973,13 +973,13 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
   }
   /* NumTS */
   *p++ = 0;
-  p = ngtcp2_put_uint48be(p, fr->largest_ack);
+  p = ngtcp2_put_uint32be(p, (uint32_t)fr->largest_ack);
   p = ngtcp2_put_uint16be(p, fr->ack_delay);
-  p = ngtcp2_put_uint48be(p, fr->first_ack_blklen);
+  p = ngtcp2_put_uint32be(p, (uint32_t)fr->first_ack_blklen);
   for (i = 0; i < fr->num_blks; ++i) {
     blk = &fr->blks[i];
     *p++ = blk->gap;
-    p = ngtcp2_put_uint48be(p, blk->blklen);
+    p = ngtcp2_put_uint32be(p, (uint32_t)blk->blklen);
   }
 
   assert((size_t)(p - out) == len);
