@@ -129,6 +129,23 @@ BIO_METHOD *create_bio_method() {
 } // namespace
 
 namespace {
+std::string create_conn_key(const sockaddr *sa, socklen_t salen) {
+  int rv;
+  std::array<char, NI_MAXHOST> host;
+  std::array<char, NI_MAXSERV> serv;
+
+  rv = getnameinfo(sa, salen, host.data(), host.size(), serv.data(),
+                   serv.size(), NI_NUMERICHOST | NI_NUMERICSERV);
+  if (rv != 0) {
+    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+    return "";
+  }
+
+  return "[" + std::string{host.data()} + "]:" + serv.data();
+}
+} // namespace
+
+namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto h = static_cast<Handler *>(w->data);
 
@@ -139,12 +156,24 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
 }
 } // namespace
 
-Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx)
+namespace {
+void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  auto h = static_cast<Handler *>(w->data);
+
+  if (h->on_write() != 0) {
+    auto server = h->server();
+    server->remove(h);
+  }
+}
+} // namespace
+
+Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
     : remote_addr_{},
       max_pktlen_(0),
       loop_(loop),
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
+      server_(server),
       fd_(-1),
       ncread_(0),
       nsread_(0),
@@ -152,12 +181,15 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       crypto_ctx_{} {
   ev_timer_init(&timer_, timeoutcb, 5., 0.);
   timer_.data = this;
+  ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
+  rttimer_.data = this;
 }
 
 Handler::~Handler() {
   debug::print_timestamp();
   std::cerr << "Closing QUIC connection" << std::endl;
 
+  ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
 
   if (conn_) {
@@ -484,6 +516,7 @@ int Handler::on_write() {
       return -1;
     }
     if (n == 0) {
+      schedule_retransmit();
       return 0;
     }
 
@@ -495,6 +528,28 @@ int Handler::on_write() {
     }
   }
 }
+
+void Handler::schedule_retransmit() {
+  auto expiry = ngtcp2_conn_earliest_expiry(conn_);
+  if (expiry == 0) {
+    return;
+  }
+
+  ev_tstamp t;
+  auto now = util::timestamp();
+  if (now >= expiry) {
+    t = 0.;
+  } else {
+    t = static_cast<ev_tstamp>(expiry - now) / 1000000;
+  }
+  ev_timer_stop(loop_, &rttimer_);
+  ev_timer_set(&rttimer_, t, 0.);
+  ev_timer_start(loop_, &rttimer_);
+}
+
+Server *Handler::server() const { return server_; }
+
+const Address &Handler::remote_addr() const { return remote_addr_; }
 
 namespace {
 void swritecb(struct ev_loop *loop, ev_io *w, int revents) {}
@@ -534,21 +589,6 @@ int Server::init(int fd) {
   ev_io_start(loop_, &rev_);
 
   return 0;
-}
-
-std::string create_conn_key(const sockaddr *sa, socklen_t salen) {
-  int rv;
-  std::array<char, NI_MAXHOST> host;
-  std::array<char, NI_MAXSERV> serv;
-
-  rv = getnameinfo(sa, salen, host.data(), host.size(), serv.data(),
-                   serv.size(), NI_NUMERICHOST | NI_NUMERICSERV);
-  if (rv != 0) {
-    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
-    return "";
-  }
-
-  return "[" + std::string{host.data()} + "]:" + serv.data();
 }
 
 int Server::on_read() {
@@ -605,7 +645,7 @@ int Server::on_read() {
       return 0;
     }
 
-    auto h = std::make_unique<Handler>(loop_, ssl_ctx_);
+    auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this);
     h->init(fd_, &su.sa, addrlen);
 
     if (h->on_read(buf.data(), nread) != 0) {
@@ -698,6 +738,12 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   }
 
   return 0;
+}
+
+void Server::remove(const Handler *h) {
+  auto &addr = h->remote_addr();
+  auto key = create_conn_key(&addr.su.sa, addr.len);
+  handlers_.erase(key);
 }
 
 namespace {
