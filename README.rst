@@ -52,7 +52,8 @@ At the of time writing, choosing crypto backend from them dictates
 TLSv1.3 draft version.  boringssl implements TLSv1.3 draft-18.  On the
 other hand, OpenSSL implements TLSv1.3 draft-21.  They are
 incompatible.  If you want TLSv1.3 draft-18, choose boringssl.  If you
-want TLSv1.3 draft-21, choose OpenSSL.
+want TLSv1.3 draft-21, choose OpenSSL.  If you want to try draft-20,
+pull OpenSSL master a95d7574dbcd91c734c1542a423e1cac34dc18b5.
 
 To build boringssl, golang is required:
 
