@@ -55,6 +55,6 @@ typedef struct {
 } ngtcp2_crypto_ctx;
 
 void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
-                                size_t pkt_num);
+                                uint64_t pkt_num);
 
 #endif /* NGTCP2_CRYPTO_H */
