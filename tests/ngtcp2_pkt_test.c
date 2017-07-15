@@ -266,17 +266,25 @@ void test_ngtcp2_pkt_decode_ack_frame(void) {
   ssize_t rv;
   size_t expectedlen;
 
-  /* 48 bits Largest Acknowledged + No Num Blocks + 0 NumTS*/
-  buflen = ngtcp2_t_encode_ack_frame(buf, 0xf1f2f3f4f5f6llu);
+  /* 64 bits Largest Acknowledged + No Num Blocks + 0 NumTS*/
+  buflen = ngtcp2_t_encode_ack_frame(buf, 0xf1f2f3f4f5f6f7f8llu,
+                                     0xe1e2e3e4e5e6e7e8llu, 99,
+                                     0xd1d2d3d4d5d6d7d8llu);
 
-  expectedlen = 1 + 1 + 6 + 2 + 6;
+  expectedlen = 1 + 1 + 1 + 8 + 2 + 8 + 1 + 8;
 
   CU_ASSERT(expectedlen == buflen);
 
   rv = ngtcp2_pkt_decode_ack_frame(&fr.ack, buf, buflen, 0);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
-  CU_ASSERT(0xf1f2f3f4f5f6llu == fr.ack.largest_ack);
+  CU_ASSERT(0x1f == fr.ack.flags);
+  CU_ASSERT(0xf1f2f3f4f5f6f7f8llu == fr.ack.largest_ack);
+  CU_ASSERT(1 == fr.ack.num_blks);
+  CU_ASSERT(0xe1e2e3e4e5e6e7e8llu == fr.ack.first_ack_blklen);
+  CU_ASSERT(99 == fr.ack.blks[0].gap);
+  CU_ASSERT(0xd1d2d3d4d5d6d7d8llu == fr.ack.blks[0].blklen);
+  CU_ASSERT(0 == fr.ack.num_ts);
 }
 
 void test_ngtcp2_pkt_decode_padding_frame(void) {

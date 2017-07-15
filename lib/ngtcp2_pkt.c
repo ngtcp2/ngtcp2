@@ -444,7 +444,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
     lalen = 4;
     break;
   case 0x03:
-    lalen = 6;
+    lalen = 8;
     break;
   default: /* it is no possible but Clang analyzer don't this ... */
     lalen = 0;
@@ -464,7 +464,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
     abllen = 4;
     break;
   case 0x03:
-    abllen = 6;
+    abllen = 8;
     break;
   default: /* it is no possible but Clang analyzer don't this ... */
     abllen = 0;
@@ -502,9 +502,8 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
     dest->largest_ack =
         ngtcp2_pkt_adjust_pkt_num(max_rx_pkt_num, ngtcp2_get_uint32(p), 32);
     break;
-  case 6:
-    dest->largest_ack =
-        ngtcp2_pkt_adjust_pkt_num(max_rx_pkt_num, ngtcp2_get_uint48(p), 48);
+  case 8:
+    dest->largest_ack = ngtcp2_get_uint64(p);
     break;
   }
 
@@ -524,32 +523,32 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
     break;
   case 2:
     dest->first_ack_blklen = ngtcp2_get_uint16(p);
-    p += 2;
+    p += abllen;
     for (i = 0; i < num_blks; ++i) {
       blk = &dest->blks[i];
       blk->gap = *p++;
       blk->blklen = ngtcp2_get_uint16(p);
-      p += 2;
+      p += abllen;
     }
     break;
   case 4:
     dest->first_ack_blklen = ngtcp2_get_uint32(p);
-    p += 4;
+    p += abllen;
     for (i = 0; i < num_blks; ++i) {
       blk = &dest->blks[i];
       blk->gap = *p++;
       blk->blklen = ngtcp2_get_uint32(p);
-      p += 4;
+      p += abllen;
     }
     break;
-  case 6:
-    dest->first_ack_blklen = ngtcp2_get_uint48(p);
-    p += 6;
+  case 8:
+    dest->first_ack_blklen = ngtcp2_get_uint64(p);
+    p += abllen;
     for (i = 0; i < num_blks; ++i) {
       blk = &dest->blks[i];
       blk->gap = *p++;
-      blk->blklen = ngtcp2_get_uint48(p);
-      p += 6;
+      blk->blklen = ngtcp2_get_uint64(p);
+      p += abllen;
     }
     break;
   }
