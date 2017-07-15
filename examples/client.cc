@@ -546,6 +546,8 @@ SSL_CTX *create_ssl_ctx() {
 
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 
+  assert(SSL_CTX_set1_curves_list(ssl_ctx, "P-256"));
+
   return ssl_ctx;
 }
 } // namespace
