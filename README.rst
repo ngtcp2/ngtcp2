@@ -104,93 +104,81 @@ found under examples directory.
 .. code-block:: text
 
     $ examples/client 127.0.0.1 3000
-    [  0.000213] send Client Initial packet
-                 <conn_id=0x06675539ce47c609, pkt_num=417370691, ver=0xff000004>
-                 STREAM frame
-                 <stream_id=0x00000000, offset=0, data_length=147>
-    [  0.003846] recv Server Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=702747551, ver=0xff000004>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=417370691, ack_delay=3387>
-                 ; first_ack_block_length=0
-                 STREAM frame
-                 <stream_id=0x00000000, offset=0, data_length=1196>
-    [  0.004460] send Client Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=417370692, ver=0xff000004>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=702747551, ack_delay=616>
-                 ; first_ack_block_length=0
-    [  0.004497] recv Server Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=702747552, ver=0xff000004>
-                 STREAM frame
-                 <stream_id=0x00000000, offset=1196, data_length=203>
-    [  0.005286] send Client Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=417370693, ver=0xff000004>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=702747552, ack_delay=788>
-                 ; first_ack_block_length=0
-                 STREAM frame
-                 <stream_id=0x00000000, offset=147, data_length=58>
-    [  0.005309] QUIC handshake has completed
-    [  0.005414] send Short 03 packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=417370694>
-                 CONNECTION_CLOSE frame
-                 <error_code=0x80000001, reason_length=0>
-    [  0.005766] recv Short 03 packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=702747553>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=417370693, ack_delay=301>
-                 ; first_ack_block_length=0
-                 CONNECTION_CLOSE frame
-                 <error_code=0x80000001, reason_length=0>
-    [  5.001246] Timeout
+    t=0.000245 TX Client Initial CID=98968335033bb4fa PKN=492337170 V=ff000005
+        STREAM
+        stream_id=00000000 offset=0 data_length=174
+        PADDING
+        length=1049
+    t=0.002178 RX Server Cleartext CID=464e241ac7e5dc8c PKN=1925126390 V=ff000005
+        ACK
+        num_blks=0 num_ts=0 largest_ack=492337170 ack_delay=1665
+        first_ack_block_length=0
+        STREAM
+        stream_id=00000000 offset=0 data_length=1200
+    t=0.002614 TX Client Cleartext CID=464e241ac7e5dc8c PKN=492337171 V=ff000005
+        ACK
+        num_blks=0 num_ts=0 largest_ack=1925126390 ack_delay=435
+        first_ack_block_length=0
+    t=0.002643 RX Server Cleartext CID=464e241ac7e5dc8c PKN=1925126391 V=ff000005
+        STREAM
+        stream_id=00000000 offset=1200 data_length=215
+    t=0.002899 TX Client Cleartext CID=464e241ac7e5dc8c PKN=492337172 V=ff000005
+        ACK
+        num_blks=0 num_ts=0 largest_ack=1925126391 ack_delay=256
+        first_ack_block_length=0
+        STREAM
+        stream_id=00000000 offset=174 data_length=74
+    t=0.002913 QUIC handshake has completed
+    t=0.003003 TX Short 03 CID=464e241ac7e5dc8c PKN=492337173
+        CONNECTION_CLOSE
+        error_code=80000001 reason_length=0
+    t=0.003308 RX Short 03 CID=464e241ac7e5dc8c PKN=1925126392
+        ACK
+        num_blks=0 num_ts=0 largest_ack=492337172 ack_delay=231
+        first_ack_block_length=0
+        CONNECTION_CLOSE
+        error_code=80000001 reason_length=0
+    t=5.004411 Timeout
 
 .. code-block:: text
 
     $ examples/server 127.0.0.1 3000 server.key server.crt
-    [  0.806688] recv Client Initial packet
-                 <conn_id=0x06675539ce47c609, pkt_num=417370691, ver=0xff000004>
-                 STREAM frame
-                 <stream_id=0x00000000, offset=0, data_length=147>
-                 PADDING frame
-                 <length=1076>
-    [  0.810082] send Server Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=702747551, ver=0xff000004>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=417370691, ack_delay=3387>
-                 ; first_ack_block_length=0
-                 STREAM frame
-                 <stream_id=0x00000000, offset=0, data_length=1196>
-    [  0.810116] send Server Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=702747552, ver=0xff000004>
-                 STREAM frame
-                 <stream_id=0x00000000, offset=1196, data_length=203>
-    [  0.810785] recv Client Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=417370692, ver=0xff000004>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=702747551, ack_delay=616>
-                 ; first_ack_block_length=0
-    [  0.811706] recv Client Cleartext packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=417370693, ver=0xff000004>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=702747552, ack_delay=788>
-                 ; first_ack_block_length=0
-                 STREAM frame
-                 <stream_id=0x00000000, offset=147, data_length=58>
-    [  0.811909] QUIC handshake has completed
-    [  0.812010] send Short 03 packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=702747553>
-                 ACK frame
-                 <num_blks=0, num_ts=0, largest_ack=417370693, ack_delay=301>
-                 ; first_ack_block_length=0
-                 CONNECTION_CLOSE frame
-                 <error_code=0x80000001, reason_length=0>
-    [  0.812054] recv Short 03 packet
-                 <conn_id=0x40dd4c3b28596d86, pkt_num=417370694>
-                 CONNECTION_CLOSE frame
-                 <error_code=0x80000001, reason_length=0>
-    [  5.811097] Timeout
-    [  5.811242] Closing QUIC connection
+    t=1.868633 RX Client Initial CID=98968335033bb4fa PKN=492337170 V=ff000005
+        STREAM
+        stream_id=00000000 offset=0 data_length=174
+        PADDING
+        length=1049
+    t=1.870304 TX Server Cleartext CID=464e241ac7e5dc8c PKN=1925126390 V=ff000005
+        ACK
+        num_blks=0 num_ts=0 largest_ack=492337170 ack_delay=1665
+        first_ack_block_length=0
+        STREAM
+        stream_id=00000000 offset=0 data_length=1200
+    t=1.870344 TX Server Cleartext CID=464e241ac7e5dc8c PKN=1925126391 V=ff000005
+        STREAM
+        stream_id=00000000 offset=1200 data_length=215
+    t=1.870825 RX Client Cleartext CID=464e241ac7e5dc8c PKN=492337171 V=ff000005
+        ACK
+        num_blks=0 num_ts=0 largest_ack=1925126390 ack_delay=435
+        first_ack_block_length=0
+    t=1.871189 RX Client Cleartext CID=464e241ac7e5dc8c PKN=492337172 V=ff000005
+        ACK
+        num_blks=0 num_ts=0 largest_ack=1925126391 ack_delay=256
+        first_ack_block_length=0
+        STREAM
+        stream_id=00000000 offset=174 data_length=74
+    t=1.871333 QUIC handshake has completed
+    t=1.871420 TX Short 03 CID=464e241ac7e5dc8c PKN=1925126392
+        ACK
+        num_blks=0 num_ts=0 largest_ack=492337172 ack_delay=231
+        first_ack_block_length=0
+        CONNECTION_CLOSE
+        error_code=80000001 reason_length=0
+    t=1.871459 RX Short 03 CID=464e241ac7e5dc8c PKN=492337173
+        CONNECTION_CLOSE
+        error_code=80000001 reason_length=0
+    t=6.873543 Timeout
+    t=6.873663 Closing QUIC connection
 
 License
 -------
