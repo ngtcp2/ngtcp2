@@ -12,12 +12,15 @@ Development status
 First Implementation Draft
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We are focusing on implementing `First Implementation Draft
-<https://github.com/quicwg/base-drafts/wiki/First-Implementation-Draft>`_
-which is a subset of QUIC transport and QUIC TLS draft-04.
+We are focusing on implementing `First Implementation
+<https://github.com/quicwg/base-drafts/wiki/First-Implementation>`_
+which is a subset of editor's draft version of QUIC transport and QUIC
+TLS (roughly called pre-05) at the time of this writing.
 
-* https://tools.ietf.org/html/draft-ietf-quic-transport-04
-* https://tools.ietf.org/html/draft-ietf-quic-tls-04
+* https://quicwg.github.io/base-drafts/draft-ietf-quic-transport.html
+* https://quicwg.github.io/base-drafts/draft-ietf-quic-tls.html
+
+TLSv1.3 draft-21 should be used for interop.
 
 Requirements
 ------------
