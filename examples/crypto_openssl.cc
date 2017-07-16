@@ -221,6 +221,10 @@ int hkdf(uint8_t *dest, size_t destlen, const uint8_t *secret, size_t secretlen,
     return -1;
   }
 
+  if (EVP_PKEY_CTX_hkdf_mode(pctx, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) != 1) {
+    return -1;
+  }
+
   if (EVP_PKEY_CTX_set_hkdf_md(pctx, ctx.prf) != 1) {
     return -1;
   }
