@@ -407,6 +407,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
                                     size_t payloadlen,
                                     uint64_t max_rx_pkt_num) {
+  static const size_t len_def[] = {1, 2, 4, 8};
   uint8_t type;
   size_t num_blks = 0;
   size_t num_ts;
@@ -433,43 +434,11 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 
   num_ts = *p++;
 
-  switch ((type & NGTCP2_ACK_LL_MASK) >> 2) {
-  case 0x00:
-    lalen = 1;
-    break;
-  case 0x01:
-    lalen = 2;
-    break;
-  case 0x02:
-    lalen = 4;
-    break;
-  case 0x03:
-    lalen = 8;
-    break;
-  default: /* it is no possible but Clang analyzer don't this ... */
-    lalen = 0;
-    break;
-  }
+  lalen = len_def[(type & NGTCP2_ACK_LL_MASK) >> 2];
 
   len += lalen;
 
-  switch (type & NGTCP2_ACK_MM_MASK) {
-  case 0x00:
-    abllen = 1;
-    break;
-  case 0x01:
-    abllen = 2;
-    break;
-  case 0x02:
-    abllen = 4;
-    break;
-  case 0x03:
-    abllen = 8;
-    break;
-  default: /* it is no possible but Clang analyzer don't this ... */
-    abllen = 0;
-    break;
-  }
+  abllen = len_def[type & NGTCP2_ACK_MM_MASK];
 
   /* Length of ACK Block Section */
   /* First ACK Block Length */
