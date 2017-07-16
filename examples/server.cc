@@ -51,6 +51,10 @@ auto randgen = util::make_mt19937();
 } // namespace
 
 namespace {
+Config config{};
+} // namespace
+
+namespace {
 int bio_write(BIO *b, const char *buf, int len) {
   BIO_clear_retry_flags(b);
 
@@ -606,6 +610,11 @@ int Server::on_read() {
     return 0;
   }
 
+  if (debug::packet_lost(config.loss_prob)) {
+    std::cerr << "** Simulated packet loss **" << std::endl;
+    return 0;
+  }
+
   auto conn_key = create_conn_key(&su.sa, addrlen);
   if (conn_key.empty()) {
     return 0;
@@ -860,22 +869,55 @@ int serve(Server &s, const char *addr, const char *port) {
 
 namespace {
 void print_usage() {
-  std::cerr << "Usage: server ADDR PORT PRIVATE_KEY_FILE CERTIFICATE_FILE"
-            << std::endl;
+  std::cerr
+      << "Usage: server <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>"
+      << std::endl;
+}
+} // namespace
+
+namespace {
+void print_help() {
+  print_usage();
+
+  std::cout << R"(
+  <ADDR>      Remote server address
+  <PORT>      Remote server port
+  <PRIVATE_KEY_FILE>
+              Path to private key file
+  <CERTIFICATE_FILE>
+              Path to certificate file
+Options:
+  -l, --loss=<P>
+              The probability of losing incoming packets.  <P> must be
+              [0.0, 1.0],  inclusive.  0.0 means no  packet loss.  1.0
+              means 100% packet loss.
+  -h, --help  Display this help and exit.
+)";
 }
 } // namespace
 
 int main(int argc, char **argv) {
   for (;;) {
     static int flag = 0;
-    constexpr static option long_opts[] = {{nullptr, 0, nullptr, 0}};
+    constexpr static option long_opts[] = {
+        {"help", no_argument, nullptr, 'h'},
+        {"loss", required_argument, nullptr, 'l'},
+        {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "hl:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
     switch (c) {
+    case 'h':
+      // --help
+      print_help();
+      exit(EXIT_SUCCESS);
+    case 'l':
+      // --loss
+      config.loss_prob = strtod(optarg, nullptr);
+      break;
     case '?':
       print_usage();
       exit(EXIT_FAILURE);

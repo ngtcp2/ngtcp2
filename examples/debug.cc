@@ -23,11 +23,18 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "debug.h"
+
+#include <random>
+
 #include "util.h"
 
 namespace ngtcp2 {
 
 namespace debug {
+
+namespace {
+auto randgen = util::make_mt19937();
+} // namespace
 
 namespace {
 std::chrono::steady_clock::time_point ts_base;
@@ -310,6 +317,11 @@ int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     fprintf(outfile, "version=%08x\n", sv[i]);
   }
   return 0;
+}
+
+bool packet_lost(double prob) {
+  auto p = std::uniform_real_distribution<>(0, 1)(randgen);
+  return p < prob;
 }
 
 } // namespace debug

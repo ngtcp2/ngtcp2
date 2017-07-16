@@ -42,6 +42,11 @@
 
 using namespace ngtcp2;
 
+struct Config {
+  // loss_prob is probability of losing packet.
+  double loss_prob;
+};
+
 class Client {
 public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
