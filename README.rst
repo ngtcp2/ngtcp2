@@ -86,7 +86,8 @@ Otherwise, you choose OpenSSL, build it like so:
 
 .. code-block:: text
 
-   $ git clone --depth 1 https://github.com/openssl/openssl
+   $ # Before the exporter fix gets merged, use my branch.
+   $ git clone --depth 1 -b fix-exporter-secret https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./Configure enable-tls1_3 --prefix=$PWD/build linux-x86_64
