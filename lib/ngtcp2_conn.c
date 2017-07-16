@@ -891,10 +891,18 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   }
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
-    if (ngtcp2_pkt_verify(pkt, pktlen) != 0) {
-      return NGTCP2_ERR_BAD_PKT_HASH;
+    switch (pkt[0] & NGTCP2_LONG_TYPE_MASK) {
+    case NGTCP2_PKT_CLIENT_INITIAL:
+    case NGTCP2_PKT_SERVER_STATELESS_RETRY:
+    case NGTCP2_PKT_SERVER_CLEARTEXT:
+    case NGTCP2_PKT_CLIENT_CLEARTEXT:
+    case NGTCP2_PKT_PUBLIC_RESET:
+      if (ngtcp2_pkt_verify(pkt, pktlen) != 0) {
+        return NGTCP2_ERR_BAD_PKT_HASH;
+      }
+      pktlen -= NGTCP2_PKT_MDLEN;
+      break;
     }
-    pktlen -= NGTCP2_PKT_MDLEN;
   }
 
   switch (conn->state) {
