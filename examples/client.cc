@@ -317,6 +317,7 @@ int Client::init(int fd, const Address &remote_addr) {
   SSL_set_bio(ssl_, bio, bio);
   SSL_set_app_data(ssl_, this);
   SSL_set_connect_state(ssl_);
+  SSL_set_tlsext_host_name(ssl_, "localhost");
 
   auto callbacks = ngtcp2_conn_callbacks{
       send_client_initial,
