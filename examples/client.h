@@ -43,8 +43,10 @@
 using namespace ngtcp2;
 
 struct Config {
-  // loss_prob is probability of losing packet.
-  double loss_prob;
+  // tx_loss_prob is probability of losing outgoing packet.
+  double tx_loss_prob;
+  // rx_loss_prob is probability of losing incoming packet.
+  double rx_loss_prob;
 };
 
 class Client {

@@ -524,6 +524,11 @@ int Handler::on_write() {
       return 0;
     }
 
+    if (debug::packet_lost(config.tx_loss_prob)) {
+      std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+      return 0;
+    }
+
     auto nwrite =
         sendto(fd_, buf.data(), n, 0, &remote_addr_.su.sa, remote_addr_.len);
     if (nwrite == -1) {
@@ -610,8 +615,8 @@ int Server::on_read() {
     return 0;
   }
 
-  if (debug::packet_lost(config.loss_prob)) {
-    std::cerr << "** Simulated packet loss **" << std::endl;
+  if (debug::packet_lost(config.rx_loss_prob)) {
+    std::cerr << "** Simulated incoming packet loss **" << std::endl;
     return 0;
   }
 
@@ -887,7 +892,11 @@ void print_help() {
   <CERTIFICATE_FILE>
               Path to certificate file
 Options:
-  -l, --loss=<P>
+  -t, --tx-loss=<P>
+              The probability of losing outgoing packets.  <P> must be
+              [0.0, 1.0],  inclusive.  0.0 means no  packet loss.  1.0
+              means 100% packet loss.
+  -r, --rx-loss=<P>
               The probability of losing incoming packets.  <P> must be
               [0.0, 1.0],  inclusive.  0.0 means no  packet loss.  1.0
               means 100% packet loss.
@@ -897,15 +906,19 @@ Options:
 } // namespace
 
 int main(int argc, char **argv) {
+  config.tx_loss_prob = 0.;
+  config.rx_loss_prob = 0.;
+
   for (;;) {
     static int flag = 0;
     constexpr static option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
-        {"loss", required_argument, nullptr, 'l'},
+        {"tx-loss", required_argument, nullptr, 't'},
+        {"rx-loss", required_argument, nullptr, 'r'},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "hl:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "hr:t:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
@@ -914,9 +927,13 @@ int main(int argc, char **argv) {
       // --help
       print_help();
       exit(EXIT_SUCCESS);
-    case 'l':
-      // --loss
-      config.loss_prob = strtod(optarg, nullptr);
+    case 'r':
+      // --rx-loss
+      config.rx_loss_prob = strtod(optarg, nullptr);
+      break;
+    case 't':
+      // --tx-loss
+      config.tx_loss_prob = strtod(optarg, nullptr);
       break;
     case '?':
       print_usage();
