@@ -294,7 +294,7 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 } // namespace
 
-int Client::init(int fd, const Address &remote_addr) {
+int Client::init(int fd, const Address &remote_addr, const char *addr) {
   int rv;
 
   remote_addr_ = remote_addr;
@@ -317,7 +317,14 @@ int Client::init(int fd, const Address &remote_addr) {
   SSL_set_bio(ssl_, bio, bio);
   SSL_set_app_data(ssl_, this);
   SSL_set_connect_state(ssl_);
-  SSL_set_tlsext_host_name(ssl_, "localhost");
+
+  if (util::numeric_host(addr)) {
+    // If remote host is numeric address, just send "localhost" as SNI
+    // for now.
+    SSL_set_tlsext_host_name(ssl_, "localhost");
+  } else {
+    SSL_set_tlsext_host_name(ssl_, addr);
+  }
 
   auto callbacks = ngtcp2_conn_callbacks{
       send_client_initial,
@@ -617,7 +624,7 @@ int run(Client &c, const char *addr, const char *port) {
     return -1;
   }
 
-  if (c.init(fd, remote_addr) != 0) {
+  if (c.init(fd, remote_addr, addr) != 0) {
     return -1;
   }
 

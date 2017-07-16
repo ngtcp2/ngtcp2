@@ -2,6 +2,7 @@
  * ngtcp2
  *
  * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2012 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -24,7 +25,12 @@
  */
 #include "util.h"
 
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif // HAVE_ARPA_INET_H
+
 #include <chrono>
+#include <array>
 
 namespace ngtcp2 {
 
@@ -66,6 +72,19 @@ ngtcp2_tstamp timestamp() {
   return std::chrono::duration_cast<std::chrono::microseconds>(
              std::chrono::steady_clock::now().time_since_epoch())
       .count();
+}
+
+bool numeric_host(const char *hostname) {
+  return numeric_host(hostname, AF_INET) || numeric_host(hostname, AF_INET6);
+}
+
+bool numeric_host(const char *hostname, int family) {
+  int rv;
+  std::array<uint8_t, sizeof(struct in6_addr)> dst;
+
+  rv = inet_pton(family, hostname, dst.data());
+
+  return rv == 1;
 }
 
 } // namespace util

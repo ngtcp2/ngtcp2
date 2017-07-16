@@ -2,6 +2,7 @@
  * ngtcp2
  *
  * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2012 nghttp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -45,6 +46,10 @@ std::string format_hex(const uint8_t *s, size_t len);
 std::mt19937 make_mt19937();
 
 ngtcp2_tstamp timestamp();
+
+bool numeric_host(const char *hostname);
+
+bool numeric_host(const char *hostname, int family);
 
 } // namespace util
 

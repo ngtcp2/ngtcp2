@@ -47,7 +47,7 @@ public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Client();
 
-  int init(int fd, const Address &remote_addr);
+  int init(int fd, const Address &remote_addr, const char *addr);
   void disconnect();
 
   int tls_handshake();
