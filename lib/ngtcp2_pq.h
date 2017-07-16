@@ -57,14 +57,8 @@ typedef struct {
 
 /*
  * Initializes priority queue |pq| with compare function |cmp|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_pq_init(ngtcp2_pq *pq, ngtcp2_less less, ngtcp2_mem *mem);
+void ngtcp2_pq_init(ngtcp2_pq *pq, ngtcp2_less less, ngtcp2_mem *mem);
 
 /*
  * Deallocates any resources allocated for |pq|.  The stored items are

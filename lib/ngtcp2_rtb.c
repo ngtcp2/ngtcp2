@@ -83,24 +83,16 @@ static int expiry_less(const void *lhsx, const void *rhsx) {
 int ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
   int rv;
 
-  rv = ngtcp2_pq_init(&rtb->pq, expiry_less, mem);
-  if (rv != 0) {
-    goto fail;
-  }
+  ngtcp2_pq_init(&rtb->pq, expiry_less, mem);
 
   rv = ngtcp2_map_init(&rtb->map, mem);
   if (rv != 0) {
-    goto map_fail;
+    return rv;
   }
 
   rtb->mem = mem;
 
   return 0;
-
-map_fail:
-  ngtcp2_pq_free(&rtb->pq);
-fail:
-  return rv;
 }
 
 static int pq_entry_free(ngtcp2_pq_entry *item, void *arg) {
