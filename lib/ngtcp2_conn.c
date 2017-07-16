@@ -768,6 +768,65 @@ static ssize_t conn_send_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
+static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                             ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_ppe ppe;
+  ngtcp2_pkt_hd hd;
+  ngtcp2_frame ackfr;
+  ssize_t nwrite;
+  ngtcp2_crypto_ctx ctx;
+
+  /* TODO Just send ACK for now */
+  ackfr.type = 0;
+  rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
+  if (rv != 0) {
+    return rv;
+  }
+  if (ackfr.type == 0) {
+    return 0;
+  }
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
+                     conn->next_tx_pkt_num, conn->version);
+
+  ctx.ckm = conn->tx_ckm;
+  ctx.aead_overhead = conn->aead_overhead;
+  ctx.encrypt = conn->callbacks.encrypt;
+  ctx.user_data = conn;
+
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = conn_call_send_pkt(conn, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = ngtcp2_ppe_encode_frame(&ppe, &ackfr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = conn_call_send_frame(conn, &hd, &ackfr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  nwrite = ngtcp2_ppe_final(&ppe, NULL);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  ++conn->next_tx_pkt_num;
+
+  return nwrite;
+}
+
 ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                          ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
@@ -820,6 +879,11 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     conn->state = NGTCP2_CS_CLOSE_WAIT;
     break;
+  case NGTCP2_CS_CLOSE_WAIT:
+    nwrite = conn_send_pkt(conn, dest, destlen, ts);
+    if (nwrite < 0) {
+      break;
+    }
   }
 
   return nwrite;
