@@ -626,6 +626,15 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_earliest_expiry` returns the earliest expiry time
+ * point that application should call `ngtcp2_conn_send` before that
+ * expires.  It returns 0 if there is no expiry.
+ */
+NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);

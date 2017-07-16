@@ -54,6 +54,7 @@ public:
   int on_read();
   int on_write();
   int feed_data(uint8_t *data, size_t datalen);
+  void schedule_retransmit();
 
   void write_client_handshake(const uint8_t *data, size_t datalen);
   size_t read_client_handshake(const uint8_t **pdest);
@@ -77,6 +78,7 @@ private:
   ev_io wev_;
   ev_io rev_;
   ev_timer timer_;
+  ev_timer rttimer_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;

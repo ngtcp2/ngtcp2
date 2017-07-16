@@ -152,6 +152,16 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
 }
 } // namespace
 
+namespace {
+void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  auto c = static_cast<Client *>(w->data);
+
+  if (c->on_write() != 0) {
+    c->disconnect();
+  }
+}
+} // namespace
+
 Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
     : remote_addr_{},
       max_pktlen_(0),
@@ -169,11 +179,14 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   rev_.data = this;
   ev_timer_init(&timer_, timeoutcb, 5., 0.);
   timer_.data = this;
+  ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
+  rttimer_.data = this;
 }
 
 Client::~Client() { disconnect(); }
 
 void Client::disconnect() {
+  ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
 
   ev_io_stop(loop_, &rev_);
@@ -427,6 +440,7 @@ int Client::on_write() {
       return -1;
     }
     if (n == 0) {
+      schedule_retransmit();
       return 0;
     }
 
@@ -436,6 +450,24 @@ int Client::on_write() {
       return -1;
     }
   }
+}
+
+void Client::schedule_retransmit() {
+  auto expiry = ngtcp2_conn_earliest_expiry(conn_);
+  if (expiry == 0) {
+    return;
+  }
+
+  ev_tstamp t;
+  auto now = util::timestamp();
+  if (now >= expiry) {
+    t = 0.;
+  } else {
+    t = static_cast<ev_tstamp>(expiry - now) / 1000000;
+  }
+  ev_timer_stop(loop_, &rttimer_);
+  ev_timer_set(&rttimer_, t, 0.);
+  ev_timer_start(loop_, &rttimer_);
 }
 
 void Client::write_client_handshake(const uint8_t *data, size_t datalen) {

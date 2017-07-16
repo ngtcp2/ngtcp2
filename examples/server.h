@@ -42,9 +42,11 @@
 
 using namespace ngtcp2;
 
+class Server;
+
 class Handler {
 public:
-  Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx);
+  Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server);
   ~Handler();
 
   int init(int fd, const sockaddr *sa, socklen_t salen);
@@ -52,6 +54,7 @@ public:
   int on_read(uint8_t *data, size_t datalen);
   int on_write();
   int feed_data(uint8_t *data, size_t datalen);
+  void schedule_retransmit();
   void signal_write();
 
   void write_server_handshake(const uint8_t *data, size_t datalen);
@@ -69,6 +72,8 @@ public:
                        size_t ciphertextlen, const uint8_t *key, size_t keylen,
                        const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
                        size_t adlen);
+  Server *server() const;
+  const Address &remote_addr() const;
 
 private:
   Address remote_addr_;
@@ -76,8 +81,10 @@ private:
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
+  Server *server_;
   int fd_;
   ev_timer timer_;
+  ev_timer rttimer_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
   std::vector<uint8_t> shandshake_;
@@ -95,6 +102,7 @@ public:
   int on_read();
   int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                                socklen_t salen);
+  void remove(const Handler *h);
 
 private:
   std::map<std::string, std::unique_ptr<Handler>> handlers_;

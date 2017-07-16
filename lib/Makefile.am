@@ -40,12 +40,14 @@ OBJECTS = \
 	ngtcp2_conn.c \
 	ngtcp2_mem.c \
 	ngtcp2_pq.c \
+	ngtcp2_map.c \
 	ngtcp2_rob.c \
 	ngtcp2_ppe.c \
 	ngtcp2_crypto.c \
 	ngtcp2_err.c \
 	ngtcp2_range.c \
-	ngtcp2_acktr.c
+	ngtcp2_acktr.c \
+	ngtcp2_rtb.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -56,12 +58,14 @@ HFILES = \
 	ngtcp2_conn.h \
 	ngtcp2_mem.h \
 	ngtcp2_pq.h \
+	ngtcp2_map.h \
 	ngtcp2_rob.h \
 	ngtcp2_ppe.h \
 	ngtcp2_crypto.h \
 	ngtcp2_err.h \
 	ngtcp2_range.h \
 	ngtcp2_acktr.h \
+	ngtcp2_rtb.h \
 	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)

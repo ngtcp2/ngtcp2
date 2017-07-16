@@ -36,6 +36,7 @@
 #include "ngtcp2_rob.h"
 #include "ngtcp2_crypto.h"
 #include "ngtcp2_acktr.h"
+#include "ngtcp2_rtb.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -55,6 +56,10 @@ typedef enum {
   NGTCP2_CS_POST_HANDSHAKE,
   NGTCP2_CS_CLOSE_WAIT,
 } ngtcp2_conn_state;
+
+/* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in
+   microsecond resolution. */
+#define NGTCP2_INITIAL_EXPIRY 800000
 
 typedef struct {
   uint64_t tx_offset;
@@ -93,6 +98,7 @@ struct ngtcp2_conn {
   ngtcp2_mem *mem;
   void *user_data;
   ngtcp2_acktr acktr;
+  ngtcp2_rtb rtb;
   uint32_t version;
   int handshake_completed;
   int server;
