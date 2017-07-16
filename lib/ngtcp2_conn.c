@@ -785,9 +785,9 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (nwrite < 0) {
       break;
     }
-    conn->state = NGTCP2_CS_CLIENT_CI_SENT;
+    conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
     break;
-  case NGTCP2_CS_CLIENT_SC_RECVED:
+  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
     nwrite = conn_send_client_cleartext(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
@@ -800,14 +800,14 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
     }
     break;
-  case NGTCP2_CS_SERVER_CI_RECVED:
+  case NGTCP2_CS_SERVER_INITIAL:
     nwrite = conn_send_server_cleartext(conn, dest, destlen, 1, ts);
     if (nwrite < 0) {
       break;
     }
-    conn->state = NGTCP2_CS_SERVER_SC_SENT;
+    conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
     break;
-  case NGTCP2_CS_SERVER_SC_SENT:
+  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     nwrite = conn_send_server_cleartext(conn, dest, destlen, 0, ts);
     if (nwrite < 0) {
       break;
@@ -909,9 +909,8 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr) {
   return 0;
 }
 
-static int conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
-                               const uint8_t *pkt, size_t pktlen, int server,
-                               int initial, ngtcp2_tstamp ts) {
+static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
+                                   size_t pktlen, ngtcp2_tstamp ts) {
   ssize_t nread;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame fr;
@@ -938,33 +937,34 @@ static int conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
     return rv;
   }
 
-  if (!initial) {
-    /* Client Initial may arrive late, and it may contain client's
-       initial connection ID. */
-    if (hd.type != NGTCP2_PKT_CLIENT_INITIAL && conn->conn_id != hd.conn_id) {
-      return NGTCP2_ERR_PROTO;
-    }
-  } else if (!server) {
-    conn->conn_id = hd.conn_id;
-  }
-
-  if (!server && hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
-    rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
-  if (exptype != hd.type) {
-    /* For server, Client Initial may be delayed */
-    if (exptype != NGTCP2_PKT_CLIENT_CLEARTEXT ||
-        hd.type != NGTCP2_PKT_CLIENT_INITIAL) {
-      return NGTCP2_ERR_PROTO;
-    }
-  }
-
   if (conn->version != hd.version) {
     return NGTCP2_ERR_PROTO;
+  }
+
+  /* TODO What happen if connection ID changes in mid handshake? */
+  if (conn->server) {
+    switch (hd.type) {
+    case NGTCP2_PKT_CLIENT_INITIAL:
+    case NGTCP2_PKT_CLIENT_CLEARTEXT:
+      break;
+    default:
+      return NGTCP2_ERR_PROTO;
+    }
+  } else {
+    conn->conn_id = hd.conn_id;
+
+    switch (hd.type) {
+    case NGTCP2_PKT_SERVER_CLEARTEXT:
+      break;
+    case NGTCP2_PKT_VERSION_NEGOTIATION:
+      rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
+      if (rv != 0) {
+        return rv;
+      }
+      return 0;
+    default:
+      return NGTCP2_ERR_PROTO;
+    }
   }
 
   for (; pktlen;) {
@@ -998,6 +998,10 @@ static int conn_recv_cleartext(ngtcp2_conn *conn, uint8_t exptype,
     if (fr.type != NGTCP2_FRAME_STREAM || fr.stream.stream_id != 0 ||
         fr.stream.datalen == 0) {
       continue;
+    }
+
+    if (hd.type == NGTCP2_PKT_CLIENT_INITIAL && fr.stream.offset != 0) {
+      return NGTCP2_ERR_PROTO;
     }
 
     rx_offset = ngtcp2_strm_rx_offset(&conn->strm0);
@@ -1200,36 +1204,15 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   }
 
   switch (conn->state) {
-  case NGTCP2_CS_CLIENT_CI_SENT:
-    /* TODO Handle Version Negotiation */
-    rv = conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt, pktlen, 0,
-                             1, ts);
-    if (rv < 0) {
-      break;
-    }
-    conn->state = NGTCP2_CS_CLIENT_SC_RECVED;
-    break;
-  case NGTCP2_CS_CLIENT_SC_RECVED:
-    rv = conn_recv_cleartext(conn, NGTCP2_PKT_SERVER_CLEARTEXT, pkt, pktlen, 0,
-                             0, ts);
+  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
+    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
       break;
     }
     break;
   case NGTCP2_CS_SERVER_INITIAL:
-    rv = conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_INITIAL, pkt, pktlen, 1, 1,
-                             ts);
-    if (rv < 0) {
-      break;
-    }
-    if (ngtcp2_strm_rx_offset(&conn->strm0) == 0) {
-      return NGTCP2_ERR_PROTO;
-    }
-    conn->state = NGTCP2_CS_SERVER_CI_RECVED;
-    break;
-  case NGTCP2_CS_SERVER_SC_SENT:
-    rv = conn_recv_cleartext(conn, NGTCP2_PKT_CLIENT_CLEARTEXT, pkt, pktlen, 1,
-                             0, ts);
+  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
+    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
       break;
     }
