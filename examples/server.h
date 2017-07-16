@@ -30,6 +30,7 @@
 #endif // HAVE_CONFIG_H
 
 #include <vector>
+#include <map>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -48,7 +49,7 @@ public:
 
   int init(int fd, const sockaddr *sa, socklen_t salen);
   int tls_handshake();
-  int on_read();
+  int on_read(uint8_t *data, size_t datalen);
   int on_write();
   int feed_data(uint8_t *data, size_t datalen);
   void signal_write();
@@ -76,8 +77,6 @@ private:
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
   int fd_;
-  ev_io wev_;
-  ev_io rev_;
   ev_timer timer_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
@@ -98,6 +97,7 @@ public:
                                socklen_t salen);
 
 private:
+  std::map<std::string, std::unique_ptr<Handler>> handlers_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   int fd_;

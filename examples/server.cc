@@ -129,26 +129,6 @@ BIO_METHOD *create_bio_method() {
 } // namespace
 
 namespace {
-void hwritecb(struct ev_loop *loop, ev_io *w, int revents) {
-  auto h = static_cast<Handler *>(w->data);
-
-  if (h->on_write() != 0) {
-    delete h;
-  }
-}
-} // namespace
-
-namespace {
-void hreadcb(struct ev_loop *loop, ev_io *w, int revents) {
-  auto h = static_cast<Handler *>(w->data);
-
-  if (h->on_read() != 0) {
-    delete h;
-  }
-}
-} // namespace
-
-namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto h = static_cast<Handler *>(w->data);
 
@@ -170,10 +150,6 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       nsread_(0),
       conn_(nullptr),
       crypto_ctx_{} {
-  ev_io_init(&wev_, hwritecb, 0, EV_WRITE);
-  ev_io_init(&rev_, hreadcb, 0, EV_READ);
-  wev_.data = this;
-  rev_.data = this;
   ev_timer_init(&timer_, timeoutcb, 5., 0.);
   timer_.data = this;
 }
@@ -184,19 +160,12 @@ Handler::~Handler() {
 
   ev_timer_stop(loop_, &timer_);
 
-  ev_io_stop(loop_, &rev_);
-  ev_io_stop(loop_, &wev_);
-
   if (conn_) {
     ngtcp2_conn_del(conn_);
   }
 
   if (ssl_) {
     SSL_free(ssl_);
-  }
-
-  if (fd_ != -1) {
-    close(fd_);
   }
 }
 
@@ -342,10 +311,6 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
     return -1;
   }
 
-  ev_io_set(&wev_, fd_, EV_WRITE);
-  ev_io_set(&rev_, fd_, EV_READ);
-
-  ev_io_start(loop_, &rev_);
   ev_timer_start(loop_, &timer_);
 
   return 0;
@@ -499,19 +464,8 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
   return 0;
 }
 
-int Handler::on_read() {
-  sockaddr_union su;
-  socklen_t addrlen = sizeof(su);
-  std::array<uint8_t, 64_k> buf;
-
-  auto nread =
-      recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
-  if (nread == -1) {
-    std::cerr << "recvfrom: " << strerror(errno) << std::endl;
-    return 0;
-  }
-
-  if (feed_data(buf.data(), nread) != 0) {
+int Handler::on_read(uint8_t *data, size_t datalen) {
+  if (feed_data(data, datalen) != 0) {
     return -1;
   }
 
@@ -533,15 +487,14 @@ int Handler::on_write() {
       return 0;
     }
 
-    auto nwrite = write(fd_, buf.data(), n);
+    auto nwrite =
+        sendto(fd_, buf.data(), n, 0, &remote_addr_.su.sa, remote_addr_.len);
     if (nwrite == -1) {
-      std::cerr << "write: " << strerror(errno) << std::endl;
+      std::cerr << "sendto: " << strerror(errno) << std::endl;
       return -1;
     }
   }
 }
-
-void Handler::signal_write() { ev_feed_event(loop_, &wev_, EV_WRITE); }
 
 namespace {
 void swritecb(struct ev_loop *loop, ev_io *w, int revents) {}
@@ -583,6 +536,21 @@ int Server::init(int fd) {
   return 0;
 }
 
+std::string create_conn_key(const sockaddr *sa, socklen_t salen) {
+  int rv;
+  std::array<char, NI_MAXHOST> host;
+  std::array<char, NI_MAXSERV> serv;
+
+  rv = getnameinfo(sa, salen, host.data(), host.size(), serv.data(),
+                   serv.size(), NI_NUMERICHOST | NI_NUMERICSERV);
+  if (rv != 0) {
+    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+    return "";
+  }
+
+  return "[" + std::string{host.data()} + "]:" + serv.data();
+}
+
 int Server::on_read() {
   sockaddr_union su;
   socklen_t addrlen = sizeof(su);
@@ -598,73 +566,60 @@ int Server::on_read() {
     return 0;
   }
 
-  switch (su.storage.ss_family) {
-  case AF_INET:
-    if (nread < NGTCP2_MAX_PKTLEN_IPV4) {
+  auto conn_key = create_conn_key(&su.sa, addrlen);
+  if (conn_key.empty()) {
+    return 0;
+  }
+
+  auto handler_it = handlers_.find(conn_key);
+  if (handler_it == std::end(handlers_)) {
+    switch (su.storage.ss_family) {
+    case AF_INET:
+      if (nread < NGTCP2_MAX_PKTLEN_IPV4) {
+        std::cerr << "IPv4 packet is too short: " << nread << " < "
+                  << NGTCP2_MAX_PKTLEN_IPV4 << std::endl;
+        return 0;
+      }
+      break;
+    case AF_INET6:
+      if (nread < NGTCP2_MAX_PKTLEN_IPV6) {
+        std::cerr << "IPv6 packet is too short: " << nread << " < "
+                  << NGTCP2_MAX_PKTLEN_IPV6 << std::endl;
+        return 0;
+      }
+      break;
+    }
+
+    rv = ngtcp2_accept(&hd, buf.data(), nread);
+    if (rv == -1) {
+      std::cerr << "Unexpected packet received" << std::endl;
       return 0;
     }
-    break;
-  case AF_INET6:
-    if (nread < NGTCP2_MAX_PKTLEN_IPV6) {
+    if (rv == 1) {
+      std::cerr << "Unsupported version: Send Version Negotiation" << std::endl;
+      send_version_negotiation(&hd, &su.sa, addrlen);
       return 0;
     }
-    break;
-  }
 
-  rv = ngtcp2_accept(&hd, buf.data(), nread);
-  if (rv == -1) {
-    std::cerr << "Unexpected packet received" << std::endl;
-    return 0;
-  }
-  if (rv == 1) {
-    std::cerr << "Unsupported version: Send Version Negotiation" << std::endl;
-    send_version_negotiation(&hd, &su.sa, addrlen);
-    return 0;
-  }
-
-  if ((buf[0] & 0x7f) != NGTCP2_PKT_CLIENT_INITIAL) {
-    return 0;
-  }
-
-  auto fd = socket(su.storage.ss_family, SOCK_DGRAM, 0);
-  if (fd == -1) {
-    std::cerr << "socket: " << strerror(errno) << std::endl;
-    return 0;
-  }
-
-  auto val = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
-                 static_cast<socklen_t>(sizeof(val))) == -1) {
-    close(fd);
-    return 0;
-  }
-
-  {
-    sockaddr_union su;
-    socklen_t addrlen = sizeof(su);
-
-    if (getsockname(fd_, &su.sa, &addrlen) == -1) {
-      std::cerr << "getsockname: " << strerror(errno) << std::endl;
+    if ((buf[0] & 0x7f) != NGTCP2_PKT_CLIENT_INITIAL) {
+      return 0;
     }
 
-    if (bind(fd, &su.sa, addrlen) == -1) {
-      std::cerr << "bind: " << strerror(errno) << std::endl;
+    auto h = std::make_unique<Handler>(loop_, ssl_ctx_);
+    h->init(fd_, &su.sa, addrlen);
+
+    if (h->on_read(buf.data(), nread) != 0) {
+      return 0;
     }
-  }
 
-  if (connect(fd, &su.sa, addrlen) == -1) {
-    std::cerr << "connect: " << strerror(errno) << std::endl;
-    close(fd);
+    handlers_.insert(std::make_pair(conn_key, std::move(h)));
     return 0;
   }
 
-  auto h = std::make_unique<Handler>(loop_, ssl_ctx_);
-  h->init(fd, &su.sa, addrlen);
-  if (h->feed_data(buf.data(), nread) != 0) {
-    return 0;
+  auto h = (*handler_it).second.get();
+  if (h->on_read(buf.data(), nread) != 0) {
+    handlers_.erase(conn_key);
   }
-  h->signal_write();
-  h.release();
 
   return 0;
 }
