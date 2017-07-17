@@ -191,10 +191,22 @@ static void delete_acktr_entry(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem) {
   }
 }
 
+static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
+  ngtcp2_pkt_chain *next;
+
+  for (; pc;) {
+    next = pc->next;
+    ngtcp2_pkt_chain_del(pc, mem);
+    pc = next;
+  }
+}
+
 void ngtcp2_conn_del(ngtcp2_conn *conn) {
   if (conn == NULL) {
     return;
   }
+
+  delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
 
   delete_acktr_entry(conn->acktr.ent, conn->mem);
   ngtcp2_acktr_free(&conn->acktr);
@@ -830,7 +842,6 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                          ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
-  int rv;
   ngtcp2_rtb_entry *rtbent;
 
   rtbent = ngtcp2_rtb_top(&conn->rtb);
@@ -851,11 +862,13 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (nwrite < 0) {
       break;
     }
-    if (conn->handshake_completed) {
-      rv = conn_call_handshake_completed(conn);
-      if (rv != 0) {
-        return rv;
-      }
+    break;
+  case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
+    nwrite = conn_send_client_cleartext(conn, dest, destlen, ts);
+    if (nwrite < 0) {
+      break;
+    }
+    if (nwrite == 0) {
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
     }
     break;
@@ -973,6 +986,30 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr) {
   return 0;
 }
 
+static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
+                                     size_t pktlen, ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_pkt_chain **ppc = &conn->buffed_rx_ppkts;
+  ngtcp2_pkt_chain *pc;
+  size_t i;
+  for (i = 0; *ppc && i < NGTCP2_MAX_NUM_BUFFED_RX_PPKTS;
+       ppc = &(*ppc)->next, ++i)
+    ;
+
+  if (i == NGTCP2_MAX_NUM_BUFFED_RX_PPKTS) {
+    return 0;
+  }
+
+  rv = ngtcp2_pkt_chain_new(&pc, pkt, pktlen, ts, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  *ppc = pc;
+
+  return 0;
+}
+
 static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts) {
   ssize_t nread;
@@ -983,7 +1020,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   uint64_t rx_offset;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
-    return NGTCP2_ERR_PROTO;
+    return conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
   }
 
   nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -1244,6 +1281,29 @@ static int conn_recv_packet(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   return rv;
 }
 
+static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
+                                               ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_pkt_chain *pc = conn->buffed_rx_ppkts, *next;
+
+  for (; pc; pc = pc->next) {
+    rv = conn_recv_packet(conn, pc->pkt, pc->pktlen, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  for (pc = conn->buffed_rx_ppkts; pc;) {
+    next = pc->next;
+    ngtcp2_pkt_chain_del(pc, conn->mem);
+    pc = next;
+  }
+
+  conn->buffed_rx_ppkts = NULL;
+
+  return 0;
+}
+
 int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
                      ngtcp2_tstamp ts) {
   int rv = 0;
@@ -1273,6 +1333,18 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
     if (rv < 0) {
       break;
     }
+    if (conn->handshake_completed) {
+      rv = conn_call_handshake_completed(conn);
+      if (rv != 0) {
+        return rv;
+      }
+      conn->state = NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED;
+
+      rv = conn_process_buffered_protected_pkt(conn, ts);
+      if (rv != 0) {
+        return rv;
+      }
+    }
     break;
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
@@ -1286,6 +1358,11 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
         return rv;
       }
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
+
+      rv = conn_process_buffered_protected_pkt(conn, ts);
+      if (rv != 0) {
+        return rv;
+      }
     }
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
@@ -1439,4 +1516,25 @@ ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn) {
   }
 
   return ent->expiry;
+}
+
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
+                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem) {
+  *ppc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pkt_chain) + pktlen);
+  if (*ppc == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  (*ppc)->next = NULL;
+  (*ppc)->pkt = (uint8_t *)(*ppc) + sizeof(ngtcp2_pkt_chain);
+  (*ppc)->pktlen = pktlen;
+  (*ppc)->ts = ts;
+
+  memcpy((*ppc)->pkt, pkt, pktlen);
+
+  return 0;
+}
+
+void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
+  ngtcp2_mem_free(mem, pc);
 }

@@ -42,6 +42,7 @@ typedef enum {
   /* Client specific handshake states */
   NGTCP2_CS_CLIENT_INITIAL,
   NGTCP2_CS_CLIENT_WAIT_HANDSHAKE,
+  NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED,
   /* Server specific handshake states */
   NGTCP2_CS_SERVER_INITIAL,
   NGTCP2_CS_SERVER_WAIT_HANDSHAKE,
@@ -53,6 +54,10 @@ typedef enum {
 /* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in
    microsecond resolution. */
 #define NGTCP2_INITIAL_EXPIRY 800000
+
+/* NGTCP2_MAX_NUM_BUFFED_RX_PPKTS is the maximum number of protected
+   packets buffered which arrive before handshake completes. */
+#define NGTCP2_MAX_NUM_BUFFED_RX_PPKTS 16
 
 typedef struct {
   uint64_t tx_offset;
@@ -81,6 +86,39 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
  */
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr);
 
+struct ngtcp2_pkt_chain;
+typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
+
+/*
+ * ngtcp2_pkt_chain is the chain of incoming packets buffered.
+ */
+struct ngtcp2_pkt_chain {
+  ngtcp2_pkt_chain *next;
+  uint8_t *pkt;
+  size_t pktlen;
+  ngtcp2_tstamp ts;
+};
+
+/*
+ * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
+ * assigns its pointer to |*ppc|.  The content of buffer pointed by
+ * |pkt| of length |pktlen| is copied into |*ppc|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
+                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_pkt_chain_del deallocates |pc|.  It also frees the memory
+ * pointed by |pc|.
+ */
+void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
+
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
@@ -98,6 +136,9 @@ struct ngtcp2_conn {
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;
   size_t aead_overhead;
+  /* buffed_rx_ppkts is buffered protected packets which come before
+     handshake completed due to packet reordering. */
+  ngtcp2_pkt_chain *buffed_rx_ppkts;
 };
 
 /*
