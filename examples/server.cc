@@ -772,6 +772,29 @@ void Server::remove(const Handler *h) {
 }
 
 namespace {
+int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
+                         unsigned char *outlen, const unsigned char *in,
+                         unsigned int inlen, void *arg) {
+  for (auto p = in, end = in + inlen; p + str_size(NGTCP2_ALPN) <= end;
+       p += *p + 1) {
+    if (std::equal(std::begin(NGTCP2_ALPN), std::end(NGTCP2_ALPN) - 1, p)) {
+      *out = p + 1;
+      *outlen = *p;
+      debug::print_timestamp();
+      std::cerr << "Negotiated ALPN ";
+      std::cerr.write(reinterpret_cast<const char *>(*out), *outlen);
+      std::cerr << std::endl;
+      return SSL_TLSEXT_ERR_OK;
+    }
+  }
+  // Just select NGTCP2_ALPN for now.
+  *out = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN + 1);
+  *outlen = NGTCP2_ALPN[0];
+  return SSL_TLSEXT_ERR_OK;
+}
+} // namespace
+
+namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
@@ -785,6 +808,8 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
+
+  SSL_CTX_set_alpn_select_cb(ssl_ctx, alpn_select_proto_cb, nullptr);
 
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 

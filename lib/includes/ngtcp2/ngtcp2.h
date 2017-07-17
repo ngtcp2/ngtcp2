@@ -158,6 +158,11 @@ typedef struct {
 /* NGTCP2_PROTO_VERSION is the supported QUIC protocol version */
 #define NGTCP2_PROTO_VERSION 0xff000005u
 
+/* NGTCP2_ALPN is a serialized form of ALPN protocol identifier this
+   library supports.  Notice that the first byte is the length of the
+   following protocol identifier. */
+#define NGTCP2_ALPN "\x5hq-05"
+
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
 

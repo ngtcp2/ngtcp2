@@ -243,10 +243,6 @@ ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
                               const uint8_t **pdest, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->tls_handshake() != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
   auto len = c->read_client_handshake(pdest);
 
   return len;
@@ -407,6 +403,17 @@ int Client::tls_handshake() {
   }
 
   ngtcp2_conn_handshake_completed(conn_);
+
+  const unsigned char *alpn = nullptr;
+  unsigned int alpnlen;
+
+  SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
+  if (alpn) {
+    debug::print_timestamp();
+    std::cerr << "Negotiated ALPN ";
+    std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
+    std::cerr << std::endl;
+  }
 
   return 0;
 }
@@ -614,6 +621,10 @@ SSL_CTX *create_ssl_ctx() {
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 
   SSL_CTX_set1_curves_list(ssl_ctx, "P-256");
+
+  SSL_CTX_set_alpn_protos(ssl_ctx,
+                          reinterpret_cast<const uint8_t *>(NGTCP2_ALPN),
+                          str_size(NGTCP2_ALPN));
 
   return ssl_ctx;
 }
