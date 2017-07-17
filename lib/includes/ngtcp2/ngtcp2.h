@@ -349,6 +349,79 @@ typedef union {
   ngtcp2_new_connection_id new_connection_id;
 } ngtcp2_frame;
 
+typedef enum {
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA = 0,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 1,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID = 2,
+  NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
+  NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID = 4,
+  NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
+} ngtcp2_transport_param_id;
+
+typedef enum {
+  NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
+  NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+  NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET,
+} ngtcp2_transport_param_type;
+
+#define NGTCP2_MAX_PKT_SIZE 65527
+
+typedef struct {
+  union {
+    struct {
+      uint32_t negotiated_version;
+      uint32_t initial_version;
+    } ch;
+    struct {
+      uint32_t supported_versions[63];
+      size_t len;
+    } ee;
+  } v;
+  uint32_t initial_max_stream_data;
+  uint32_t initial_max_data;
+  uint32_t initial_max_stream_id;
+  uint16_t idle_timeout;
+  uint8_t omit_connection_id;
+  uint16_t max_packet_size;
+} ngtcp2_transport_params;
+
+/**
+ * @function
+ *
+ * `ngtcp2_encode_transport_params` encodes |params| in |dest| of
+ * length |destlen|.
+ *
+ * This function returns the number of written, or one of the
+ * following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ */
+NGTCP2_EXTERN ssize_t
+ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen, uint8_t exttype,
+                               const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_decode_transport_params` decodes transport parameters in
+ * |data| of length |datalen|, and stores the result in the object
+ * pointed by |params|.
+ *
+ * If the optional parameters are missing, the default value is
+ * assigned.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     The input is malformed; the input does not contain all required
+ *     parameters.
+ */
+NGTCP2_EXTERN int
+ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,
+                               const uint8_t *data, size_t datalen);
+
 /**
  * @function
  *

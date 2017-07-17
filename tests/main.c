@@ -36,6 +36,7 @@
 #include "ngtcp2_range_test.h"
 #include "ngtcp2_rob_test.h"
 #include "ngtcp2_acktr_test.h"
+#include "ngtcp2_crypto_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -104,7 +105,9 @@ int main() {
       !CU_add_test(pSuite, "rob_data_at", test_ngtcp2_rob_data_at) ||
       !CU_add_test(pSuite, "rob_remove_prefix",
                    test_ngtcp2_rob_remove_prefix) ||
-      !CU_add_test(pSuite, "acktr_add", test_ngtcp2_acktr_add)) {
+      !CU_add_test(pSuite, "acktr_add", test_ngtcp2_acktr_add) ||
+      !CU_add_test(pSuite, "encode_transport_params",
+                   test_ngtcp2_encode_transport_params)) {
     CU_cleanup_registry();
     return CU_get_error();
   }
