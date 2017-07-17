@@ -537,7 +537,7 @@ int Handler::on_write() {
 
     if (debug::packet_lost(config.tx_loss_prob)) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
-      return 0;
+      continue;
     }
 
     auto nwrite =
