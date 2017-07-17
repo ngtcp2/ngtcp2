@@ -218,10 +218,6 @@ ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
                               void *user_data) {
   auto h = static_cast<Handler *>(user_data);
 
-  if (h->tls_handshake() != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
   if (ppkt_num) {
     *ppkt_num = std::uniform_int_distribution<uint64_t>(
         0, std::numeric_limits<int32_t>::max())(randgen);
