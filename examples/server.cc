@@ -382,25 +382,25 @@ int Handler::tls_handshake() {
 }
 
 void Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
-  std::copy_n(data, datalen, std::back_inserter(chandshake_));
+  std::copy_n(data, datalen, std::back_inserter(shandshake_));
 }
 
 size_t Handler::read_server_handshake(const uint8_t **pdest) {
-  auto n = chandshake_.size() - ncread_;
-  *pdest = chandshake_.data() + ncread_;
-  ncread_ = chandshake_.size();
+  auto n = shandshake_.size() - nsread_;
+  *pdest = shandshake_.data() + nsread_;
+  nsread_ = shandshake_.size();
   return n;
 }
 
 size_t Handler::read_client_handshake(uint8_t *buf, size_t buflen) {
-  auto n = std::min(buflen, shandshake_.size() - nsread_);
-  std::copy_n(std::begin(shandshake_) + nsread_, n, buf);
-  nsread_ += n;
+  auto n = std::min(buflen, chandshake_.size() - ncread_);
+  std::copy_n(std::begin(chandshake_) + ncread_, n, buf);
+  ncread_ += n;
   return n;
 }
 
 void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
-  std::copy_n(data, datalen, std::back_inserter(shandshake_));
+  std::copy_n(data, datalen, std::back_inserter(chandshake_));
 }
 
 int Handler::setup_crypto_context() {
