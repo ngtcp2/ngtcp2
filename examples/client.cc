@@ -55,11 +55,16 @@ Config config{};
 
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
+  int rv;
+
   BIO_clear_retry_flags(b);
 
   auto c = static_cast<Client *>(BIO_get_data(b));
 
-  c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
+  rv = c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
+  if (rv != 0) {
+    return -1;
+  }
 
   return len;
 }
@@ -177,6 +182,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       nsread_(0),
       conn_(nullptr),
       crypto_ctx_{} {
+  chandshake_.reserve(128_k);
+
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
@@ -249,6 +256,8 @@ ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
 namespace {
 int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
                         void *user_data) {
+  int rv;
+
   auto c = static_cast<Client *>(user_data);
 
   c->write_server_handshake(data, datalen);
@@ -484,8 +493,12 @@ void Client::schedule_retransmit() {
   ev_timer_start(loop_, &rttimer_);
 }
 
-void Client::write_client_handshake(const uint8_t *data, size_t datalen) {
+int Client::write_client_handshake(const uint8_t *data, size_t datalen) {
+  if (chandshake_.capacity() <= chandshake_.size() + datalen) {
+    return -1;
+  }
   std::copy_n(data, datalen, std::back_inserter(chandshake_));
+  return 0;
 }
 
 size_t Client::read_client_handshake(const uint8_t **pdest) {

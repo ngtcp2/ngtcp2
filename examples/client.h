@@ -63,7 +63,7 @@ public:
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();
 
-  void write_client_handshake(const uint8_t *data, size_t datalen);
+  int write_client_handshake(const uint8_t *data, size_t datalen);
   size_t read_client_handshake(const uint8_t **pdest);
 
   size_t read_server_handshake(uint8_t *buf, size_t buflen);

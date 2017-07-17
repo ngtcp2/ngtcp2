@@ -56,11 +56,16 @@ Config config{};
 
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
+  int rv;
+
   BIO_clear_retry_flags(b);
 
   auto h = static_cast<Handler *>(BIO_get_data(b));
 
-  h->write_server_handshake(reinterpret_cast<const uint8_t *>(buf), len);
+  rv = h->write_server_handshake(reinterpret_cast<const uint8_t *>(buf), len);
+  if (rv != 0) {
+    return -1;
+  }
 
   return len;
 }
@@ -183,6 +188,8 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
       nsread_(0),
       conn_(nullptr),
       crypto_ctx_{} {
+  shandshake_.reserve(128_k);
+
   ev_timer_init(&timer_, timeoutcb, 5., 0.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
@@ -381,8 +388,12 @@ int Handler::tls_handshake() {
   return 0;
 }
 
-void Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
+int Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
+  if (shandshake_.capacity() < shandshake_.size() + datalen) {
+    return -1;
+  }
   std::copy_n(data, datalen, std::back_inserter(shandshake_));
+  return 0;
 }
 
 size_t Handler::read_server_handshake(const uint8_t **pdest) {
