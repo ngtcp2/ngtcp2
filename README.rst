@@ -45,44 +45,13 @@ To build sources under the examples directory, libev is required:
 
 * libev
 
-The client and server under examples directory require boringssl or
-OpenSSL (master branch) as crypto backend:
+The client and server under examples directory require OpenSSL (master
+branch) as crypto backend:
 
-* boringssl (https://boringssl.googlesource.com/boringssl/)
-* or, OpenSSL (https://github.com/openssl/openssl/)
-
-At the of time writing, choosing crypto backend from them dictates
-TLSv1.3 draft version.  boringssl implements TLSv1.3 draft-18.  On the
-other hand, OpenSSL implements TLSv1.3 draft-21.  They are
-incompatible.  If you want TLSv1.3 draft-18, choose boringssl.  If you
-want TLSv1.3 draft-21, choose OpenSSL.  If you want to try draft-20,
-pull OpenSSL master a95d7574dbcd91c734c1542a423e1cac34dc18b5.
-
-To build boringssl, golang is required:
-
-* golang
+* OpenSSL (https://github.com/openssl/openssl/)
 
 Build from git
 --------------
-
-If you choose boringssl, build it like so:
-
-.. code-block:: text
-
-   $ git clone https://boringssl.googlesource.com/boringssl
-   $ cd boringssl
-   $ mkdir build
-   $ cd build
-   $ cmake ..
-   $ make -j$(nproc)
-   $ cd ../../
-   $ git clone https://github.com/ngtcp2/ngtcp2
-   $ cd ngtcp2
-   $ autoreconf -i
-   $ ./configure OPENSSL_CFLAGS=-I$PWD/../boringssl/include OPENSSL_LIBS="-L$PWD/../boringssl/build/ssl -L$PWD/../boringssl/build/crypto -lssl -lcrypto -pthread"
-   $ make -j$(nproc) check
-
-Otherwise, you choose OpenSSL, build it like so:
 
 .. code-block:: text
 
