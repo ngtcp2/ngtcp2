@@ -366,6 +366,14 @@ typedef enum {
 
 #define NGTCP2_MAX_PKT_SIZE 65527
 
+/**
+ * @macro
+ *
+ * NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS is TLS extension type of
+ * quic_transport_parameters.
+ */
+#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS 26
+
 typedef struct {
   union {
     struct {
