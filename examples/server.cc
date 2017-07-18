@@ -791,6 +791,83 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
 } // namespace
 
 namespace {
+int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
+                            unsigned int content, const unsigned char **out,
+                            size_t *outlen, X509 *x, size_t chainidx, int *al,
+                            void *add_arg) {
+  ngtcp2_transport_params params;
+
+  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VERSION;
+  params.v.ee.len = 1;
+  params.initial_max_stream_data = 128_k;
+  params.initial_max_data = 128;
+  // TODO Just allow stream ID = 1 to exchange encrypted data for now.
+  params.initial_max_stream_id = 1;
+  params.idle_timeout = 5;
+  params.omit_connection_id = 0;
+  params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+
+  constexpr size_t bufsize = 64;
+  auto buf = std::make_unique<uint8_t[]>(bufsize);
+
+  auto nwrite = ngtcp2_encode_transport_params(
+      buf.get(), bufsize, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+      &params);
+  if (nwrite < 0) {
+    std::cerr << "ngtcp2_encode_transport_params: "
+              << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
+    // TODO Set *al
+    return -1;
+  }
+
+  *out = buf.release();
+  *outlen = static_cast<size_t>(nwrite);
+
+  return 1;
+}
+} // namespace
+
+namespace {
+void transport_params_free_cb(SSL *ssl, unsigned int ext_type,
+                              unsigned int context, const unsigned char *out,
+                              void *add_arg) {
+  delete[] const_cast<unsigned char *>(out);
+}
+} // namespace
+
+namespace {
+int transport_params_parse_cb(SSL *s, unsigned int ext_type,
+                              unsigned int context, const unsigned char *in,
+                              size_t inlen, X509 *x, size_t chainidx, int *al,
+                              void *parse_arg) {
+  if (context != SSL_EXT_CLIENT_HELLO) {
+    // TODO Set *al
+    return -1;
+  }
+
+  int rv;
+
+  ngtcp2_transport_params params;
+
+  rv = ngtcp2_decode_transport_params(
+      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, in, inlen);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
+              << std::endl;
+    // TODO Just continue for now
+    return 1;
+  }
+
+  debug::print_timestamp();
+  std::cerr << "TransportParameter received in ClientHello" << std::endl;
+  debug::print_transport_params(&params,
+                                NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
+
+  return 1;
+}
+} // namespace
+
+namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
@@ -824,6 +901,18 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
 
   if (SSL_CTX_check_private_key(ssl_ctx) != 1) {
     std::cerr << "SSL_CTX_check_private_key: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    goto fail;
+  }
+
+  if (SSL_CTX_add_custom_ext(
+          ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
+          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS |
+              SSL_EXT_IGNORE_ON_RESUMPTION,
+          transport_params_add_cb, transport_params_free_cb, nullptr,
+          transport_params_parse_cb, nullptr) != 1) {
+    std::cerr << "SSL_CTX_add_custom_ext(NGTCP2_TLSEXT_QUIC_TRANSPORT_"
+                 "PARAMETERS) failed: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     goto fail;
   }

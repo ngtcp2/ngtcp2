@@ -22,50 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef DEBUG_H
-#define DEBUG_H
+#ifndef NGTCP2_CRYPTO_TEST_H
+#define NGTCP2_CRYPTO_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif // HAVE_CONFIG_H
+#endif /* HAVE_CONFIG_H */
 
-#include <chrono>
+void test_ngtcp2_encode_transport_params(void);
 
-#include <ngtcp2/ngtcp2.h>
-
-namespace ngtcp2 {
-
-namespace debug {
-
-void reset_timestamp();
-
-std::chrono::microseconds timestamp();
-
-void set_color_output(bool f);
-
-void print_timestamp();
-
-int send_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
-
-int send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-               const ngtcp2_frame *fr, void *user_data);
-
-int recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
-
-int recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-               const ngtcp2_frame *fr, void *user_data);
-
-int handshake_completed(ngtcp2_conn *conn, void *user_data);
-
-int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                             const uint32_t *sv, size_t nsv, void *user_data);
-
-void print_transport_params(const ngtcp2_transport_params *params, int type);
-
-bool packet_lost(double prob);
-
-} // namespace debug
-
-} // namespace ngtcp2
-
-#endif // DEBUG_H
+#endif /* NGTCP2_CRYPTO_TEST_H */
