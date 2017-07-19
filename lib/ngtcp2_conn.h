@@ -139,6 +139,8 @@ struct ngtcp2_conn {
   /* buffed_rx_ppkts is buffered protected packets which come before
      handshake completed due to packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
+  ngtcp2_settings local_settings;
+  ngtcp2_settings remote_settings;
 };
 
 /*

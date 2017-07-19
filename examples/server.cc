@@ -343,8 +343,18 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   auto conn_id = std::uniform_int_distribution<uint64_t>(
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
+  ngtcp2_settings settings;
+
+  settings.initial_max_stream_data = 128_k;
+  settings.initial_max_data = 128;
+  // TODO Just allow stream ID = 1 to exchange encrypted data for now.
+  settings.initial_max_stream_id = 1;
+  settings.idle_timeout = 5;
+  settings.omit_connection_id = 0;
+  settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+
   rv = ngtcp2_conn_server_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
-                              this);
+                              &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
@@ -566,6 +576,8 @@ void Handler::schedule_retransmit() {
 Server *Handler::server() const { return server_; }
 
 const Address &Handler::remote_addr() const { return remote_addr_; }
+
+ngtcp2_conn *Handler::conn() const { return conn_; }
 
 namespace {
 void swritecb(struct ev_loop *loop, ev_io *w, int revents) {}
@@ -795,17 +807,18 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
                             unsigned int content, const unsigned char **out,
                             size_t *outlen, X509 *x, size_t chainidx, int *al,
                             void *add_arg) {
+  int rv;
+  auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
+  auto conn = h->conn();
+
   ngtcp2_transport_params params;
 
-  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VERSION;
-  params.v.ee.len = 1;
-  params.initial_max_stream_data = 128_k;
-  params.initial_max_data = 128;
-  // TODO Just allow stream ID = 1 to exchange encrypted data for now.
-  params.initial_max_stream_id = 1;
-  params.idle_timeout = 5;
-  params.omit_connection_id = 0;
-  params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  rv = ngtcp2_conn_get_local_transport_params(
+      conn, &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
+  if (rv != 0) {
+    // TODO Set *al
+    return -1;
+  }
 
   constexpr size_t bufsize = 64;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
@@ -836,7 +849,7 @@ void transport_params_free_cb(SSL *ssl, unsigned int ext_type,
 } // namespace
 
 namespace {
-int transport_params_parse_cb(SSL *s, unsigned int ext_type,
+int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
                               unsigned int context, const unsigned char *in,
                               size_t inlen, X509 *x, size_t chainidx, int *al,
                               void *parse_arg) {
@@ -844,6 +857,9 @@ int transport_params_parse_cb(SSL *s, unsigned int ext_type,
     // TODO Set *al
     return -1;
   }
+
+  auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
+  auto conn = h->conn();
 
   int rv;
 
@@ -862,6 +878,13 @@ int transport_params_parse_cb(SSL *s, unsigned int ext_type,
   std::cerr << "TransportParameter received in ClientHello" << std::endl;
   debug::print_transport_params(&params,
                                 NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
+
+  rv = ngtcp2_conn_set_remote_transport_params(
+      conn, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
+  if (rv != 0) {
+    // TODO Set *al
+    return -1;
+  }
 
   return 1;
 }

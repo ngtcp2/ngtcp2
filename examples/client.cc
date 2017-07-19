@@ -367,8 +367,16 @@ int Client::init(int fd, const Address &remote_addr, const char *addr) {
   auto conn_id = std::uniform_int_distribution<uint64_t>(
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
+  ngtcp2_settings settings;
+  settings.initial_max_stream_data = 128_k;
+  settings.initial_max_data = 128;
+  settings.initial_max_stream_id = 0;
+  settings.idle_timeout = 5;
+  settings.omit_connection_id = 0;
+  settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+
   rv = ngtcp2_conn_client_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
-                              this);
+                              &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
@@ -612,21 +620,24 @@ ssize_t Client::decrypt_data(uint8_t *dest, size_t destlen,
                          key, keylen, nonce, noncelen, ad, adlen);
 }
 
+ngtcp2_conn *Client::conn() const { return conn_; }
+
 namespace {
 int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
                             unsigned int content, const unsigned char **out,
                             size_t *outlen, X509 *x, size_t chainidx, int *al,
                             void *add_arg) {
+  int rv;
+  auto c = static_cast<Client *>(SSL_get_app_data(ssl));
+  auto conn = c->conn();
+
   ngtcp2_transport_params params;
 
-  params.v.ch.initial_version = NGTCP2_PROTO_VERSION;
-  params.v.ch.negotiated_version = NGTCP2_PROTO_VERSION;
-  params.initial_max_stream_data = 128_k;
-  params.initial_max_data = 128;
-  params.initial_max_stream_id = 0;
-  params.idle_timeout = 5;
-  params.omit_connection_id = 0;
-  params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  rv = ngtcp2_conn_get_local_transport_params(
+      conn, &params, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
+  if (rv != 0) {
+    return -1;
+  }
 
   constexpr size_t bufsize = 64;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
@@ -656,7 +667,7 @@ void transport_params_free_cb(SSL *ssl, unsigned int ext_type,
 } // namespace
 
 namespace {
-int transport_params_parse_cb(SSL *s, unsigned int ext_type,
+int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
                               unsigned int context, const unsigned char *in,
                               size_t inlen, X509 *x, size_t chainidx, int *al,
                               void *parse_arg) {
@@ -664,6 +675,9 @@ int transport_params_parse_cb(SSL *s, unsigned int ext_type,
     // TODO Handle transport parameter in NewSessionTicket.
     return 1;
   }
+
+  auto c = static_cast<Client *>(SSL_get_app_data(ssl));
+  auto conn = c->conn();
 
   int rv;
 
@@ -683,6 +697,13 @@ int transport_params_parse_cb(SSL *s, unsigned int ext_type,
             << std::endl;
   debug::print_transport_params(
       &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
+
+  rv = ngtcp2_conn_set_remote_transport_params(
+      conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+  if (rv != 0) {
+    // TODO Set *al
+    return -1;
+  }
 
   return 1;
 }

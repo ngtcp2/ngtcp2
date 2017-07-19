@@ -151,7 +151,7 @@ fail_conn:
 int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
-                           void *user_data) {
+                           const ngtcp2_settings *settings, void *user_data) {
   int rv;
 
   rv = conn_new(pconn, conn_id, version, callbacks, user_data);
@@ -161,13 +161,21 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
 
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
 
+  /* TODO Since transport parameters are not required for interop now,
+     just supply sensible default here. */
+  (*pconn)->remote_settings.initial_max_stream_data = 128 * 1024;
+  (*pconn)->remote_settings.initial_max_data = 128;
+  (*pconn)->remote_settings.initial_max_stream_id = 1;
+
+  (*pconn)->local_settings = *settings;
+
   return 0;
 }
 
 int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
-                           void *user_data) {
+                           const ngtcp2_settings *settings, void *user_data) {
   int rv;
 
   rv = conn_new(pconn, conn_id, version, callbacks, user_data);
@@ -177,6 +185,14 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
 
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   (*pconn)->server = 1;
+
+  /* TODO Since transport parameters are not required for interop now,
+     just supply sensible default here. */
+  (*pconn)->remote_settings.initial_max_stream_data = 128 * 1024;
+  (*pconn)->remote_settings.initial_max_data = 128;
+  (*pconn)->remote_settings.initial_max_stream_id = 0;
+
+  (*pconn)->local_settings = *settings;
 
   return 0;
 }
@@ -1539,4 +1555,84 @@ int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
 
 void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, pc);
+}
+
+static void
+settings_copy_from_transport_params(ngtcp2_settings *dest,
+                                    const ngtcp2_transport_params *src) {
+  dest->initial_max_stream_data = src->initial_max_stream_data;
+  dest->initial_max_data = src->initial_max_data;
+  dest->initial_max_stream_id = src->initial_max_stream_id;
+  dest->idle_timeout = src->idle_timeout;
+  dest->omit_connection_id = src->omit_connection_id;
+  dest->max_packet_size = src->max_packet_size;
+}
+
+static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
+                                                const ngtcp2_settings *src) {
+  dest->initial_max_stream_data = src->initial_max_stream_data;
+  dest->initial_max_data = src->initial_max_data;
+  dest->initial_max_stream_id = src->initial_max_stream_id;
+  dest->idle_timeout = src->idle_timeout;
+  dest->omit_connection_id = src->omit_connection_id;
+  dest->max_packet_size = src->max_packet_size;
+}
+
+int ngtcp2_conn_set_remote_transport_params(
+    ngtcp2_conn *conn, uint8_t exttype, const ngtcp2_transport_params *params) {
+  switch (exttype) {
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
+    if (!conn->server) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    /* TODO More extensive validation is required */
+    if (conn->server && params->v.ch.negotiated_version != conn->version) {
+      return NGTCP2_ERR_PROTO;
+    }
+    break;
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
+    if (conn->server) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    break;
+  default:
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  settings_copy_from_transport_params(&conn->remote_settings, params);
+
+  return 0;
+}
+
+int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
+                                           ngtcp2_transport_params *params,
+                                           uint8_t exttype) {
+  switch (exttype) {
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
+    if (conn->server) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    /* TODO Fix this; not sure how to handle them correctly */
+    params->v.ch.initial_version = conn->version;
+    params->v.ch.negotiated_version = conn->version;
+    break;
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+    if (!conn->server) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    /* TODO Fix this; not sure how to handle them correctly */
+    params->v.ee.len = 1;
+    params->v.ee.supported_versions[0] = conn->version;
+    break;
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
+    if (!conn->server) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    break;
+  default:
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+  transport_params_copy_from_settings(params, &conn->local_settings);
+  return 0;
 }

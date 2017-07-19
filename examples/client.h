@@ -78,6 +78,7 @@ public:
                        size_t ciphertextlen, const uint8_t *key, size_t keylen,
                        const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
                        size_t adlen);
+  ngtcp2_conn *conn() const;
 
 private:
   Address remote_addr_;

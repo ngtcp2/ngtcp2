@@ -362,7 +362,7 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
   NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
   NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET,
-} ngtcp2_transport_param_type;
+} ngtcp2_transport_params_type;
 
 #define NGTCP2_MAX_PKT_SIZE 65527
 
@@ -392,6 +392,15 @@ typedef struct {
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
 } ngtcp2_transport_params;
+
+typedef struct {
+  uint32_t initial_max_stream_data;
+  uint32_t initial_max_data;
+  uint32_t initial_max_stream_id;
+  uint16_t idle_timeout;
+  uint8_t omit_connection_id;
+  uint16_t max_packet_size;
+} ngtcp2_settings;
 
 /**
  * @function
@@ -671,11 +680,13 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 NGTCP2_EXTERN int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                                          uint32_t version,
                                          const ngtcp2_conn_callbacks *callbacks,
+                                         const ngtcp2_settings *settings,
                                          void *user_data);
 
 NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
                                          uint32_t version,
                                          const ngtcp2_conn_callbacks *callbacks,
+                                         const ngtcp2_settings *settings,
                                          void *user_data);
 
 NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
@@ -717,6 +728,51 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
  * expires.  It returns 0 if there is no expiry.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
+ * |params| to |conn|.  |exttype| is the type of message it is
+ * carried, and it should be one of
+ * :type:`ngtcp2_transport_params_type`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_PROTO`
+ *     If |conn| is server, and negotiated_version field is not the
+ *     same as the used version.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     If |conn| is client, and |exttype| is
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
+ *     |conn| is server, and |exttype| is either
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`, or
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET`
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
+                                        const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_local_transport_params` fills settings values in
+ * |params|.  |exttype| is the type of message it is carried, and it
+ * should be one of :type:`ngtcp2_transport_params_type`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     If |conn| is server, and |exttype| is
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
+ *     |conn| is client, and |exttype| is either
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`, or
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET`
+ */
+NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
+    ngtcp2_conn *conn, ngtcp2_transport_params *params, uint8_t exttype);
 
 /**
  * @function

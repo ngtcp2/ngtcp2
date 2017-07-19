@@ -81,6 +81,7 @@ public:
                        size_t adlen);
   Server *server() const;
   const Address &remote_addr() const;
+  ngtcp2_conn *conn() const;
 
 private:
   Address remote_addr_;
