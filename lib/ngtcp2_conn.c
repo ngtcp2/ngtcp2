@@ -466,23 +466,25 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   /* Encode ACK here */
   if (type != NGTCP2_PKT_CLIENT_INITIAL) {
+    localfr.type = !NGTCP2_FRAME_ACK;
     /* TODO Should we retransmit ACK frame? */
     rv = conn_create_ack_frame(conn, &localfr.ack, ts);
     if (rv != 0) {
       goto fail;
     }
+    if (localfr.type == NGTCP2_FRAME_ACK) {
+      rv = ngtcp2_upe_encode_frame(&upe, &localfr);
+      if (rv != 0) {
+        goto fail;
+      }
 
-    rv = ngtcp2_upe_encode_frame(&upe, &localfr);
-    if (rv != 0) {
-      goto fail;
+      rv = conn_call_send_frame(conn, &hd, &localfr);
+      if (rv != 0) {
+        goto fail;
+      }
+
+      pkt_empty = 0;
     }
-
-    rv = conn_call_send_frame(conn, &hd, &localfr);
-    if (rv != 0) {
-      goto fail;
-    }
-
-    pkt_empty = 0;
   }
 
   if (ngtcp2_upe_left(&upe) < NGTCP2_STREAM_OVERHEAD + 1) {
