@@ -32,11 +32,11 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_mem.h"
-#include "ngtcp2_buf.h"
-#include "ngtcp2_rob.h"
 #include "ngtcp2_crypto.h"
 #include "ngtcp2_acktr.h"
 #include "ngtcp2_rtb.h"
+#include "ngtcp2_strm.h"
+#include "ngtcp2_mem.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -58,33 +58,6 @@ typedef enum {
 /* NGTCP2_MAX_NUM_BUFFED_RX_PPKTS is the maximum number of protected
    packets buffered which arrive before handshake completes. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PPKTS 16
-
-typedef struct {
-  uint64_t tx_offset;
-  ngtcp2_rob rob;
-  ngtcp2_mem *mem;
-  size_t nbuffered;
-  ngtcp2_buf tx_buf;
-} ngtcp2_strm;
-
-int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem);
-
-void ngtcp2_strm_free(ngtcp2_strm *strm);
-
-uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
-
-/*
- * ngtcp2_strm_recv_reordering handles reordered STREAM frame |fr|.
- *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
- *
- * NGTCP2_ERR_INTERNAL_ERROR
- *     There are too many buffered data
- * NGTCP2_ERR_NOMEM
- *     Out of memory
- */
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr);
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;

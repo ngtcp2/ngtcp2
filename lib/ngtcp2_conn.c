@@ -1425,39 +1425,6 @@ void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
   conn->handshake_completed = 1;
 }
 
-int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem) {
-  int rv;
-
-  strm->tx_offset = 0;
-  strm->nbuffered = 0;
-  strm->mem = mem;
-  memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
-
-  rv = ngtcp2_rob_init(&strm->rob, 8 * 1024, mem);
-  if (rv != 0) {
-    goto fail_rob_init;
-  }
-
-fail_rob_init:
-  return rv;
-}
-
-void ngtcp2_strm_free(ngtcp2_strm *strm) {
-  if (strm == NULL) {
-    return;
-  }
-
-  ngtcp2_rob_free(&strm->rob);
-}
-
-uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
-  return ngtcp2_rob_first_gap_offset(&strm->rob);
-}
-
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr) {
-  return ngtcp2_rob_push(&strm->rob, fr->offset, fr->data, fr->datalen);
-}
-
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
                           ngtcp2_tstamp ts) {
   ngtcp2_acktr_entry *rpkt;
