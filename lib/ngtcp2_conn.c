@@ -715,7 +715,7 @@ static ssize_t conn_send_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
 
-  ackfr.type = 0;
+  ackfr.type = !NGTCP2_FRAME_ACK;
   rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
   if (rv != 0) {
     return rv;
@@ -742,7 +742,7 @@ static ssize_t conn_send_connection_close(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  if (ackfr.type) {
+  if (ackfr.type == NGTCP2_FRAME_ACK) {
     rv = ngtcp2_ppe_encode_frame(&ppe, &ackfr);
     if (rv != 0) {
       return rv;
@@ -792,12 +792,12 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_crypto_ctx ctx;
 
   /* TODO Just send ACK for now */
-  ackfr.type = 0;
+  ackfr.type = !NGTCP2_FRAME_ACK;
   rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
   if (rv != 0) {
     return rv;
   }
-  if (ackfr.type == 0) {
+  if (ackfr.type != NGTCP2_FRAME_ACK) {
     return 0;
   }
 
