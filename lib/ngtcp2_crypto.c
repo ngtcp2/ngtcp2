@@ -78,19 +78,26 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                        uint8_t exttype,
                                        const ngtcp2_transport_params *params) {
   uint8_t *p;
-  size_t len = 2 /* ext length */ + 8 /* initial_max_stream_data */ +
-               8 /* initial_max_data */ + 8 /* initial_max_stream_id */
+  size_t len = 2 /* transport parameters length */ +
+               8 /* initial_max_stream_data */ + 8 /* initial_max_data */ +
+               8 /* initial_max_stream_id */
                + 6 /* idle_timeout */;
   size_t i;
+  size_t vlen;
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
-    len += 8;
+    vlen = sizeof(uint32_t) * 2;
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    len += 1 + params->v.ee.len * sizeof(uint32_t);
+    vlen = 1 + params->v.ee.len * sizeof(uint32_t);
+    break;
+  default:
+    vlen = 0;
     break;
   }
+
+  len += vlen;
 
   if (params->omit_connection_id) {
     len += 4;
@@ -104,7 +111,6 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   p = dest;
-  p = ngtcp2_put_uint16be(p, (uint16_t)(len - 2));
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
@@ -118,6 +124,8 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     }
     break;
   }
+
+  p = ngtcp2_put_uint16be(p, (uint16_t)(len - vlen - sizeof(uint16_t)));
 
   p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA);
   p = ngtcp2_put_uint16be(p, 4);
@@ -154,24 +162,15 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
                                    uint8_t exttype, const uint8_t *data,
                                    size_t datalen) {
-  size_t len;
   uint32_t flags = 0;
   const uint8_t *p, *end;
   size_t supported_versionslen;
   size_t i;
   uint16_t param_type;
   size_t valuelen;
+  size_t vlen;
 
-  if (datalen < 2) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  len = ngtcp2_get_uint16(data);
-  if (len != datalen - sizeof(uint16_t)) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  p = data + 2;
+  p = data;
   end = data + datalen;
 
   switch (exttype) {
@@ -183,6 +182,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     p += sizeof(uint32_t);
     params->v.ch.initial_version = ngtcp2_get_uint32(p);
     p += sizeof(uint32_t);
+    vlen = sizeof(uint32_t) * 2;
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
     if (end - p < 1) {
@@ -199,8 +199,21 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       params->v.ee.supported_versions[i / sizeof(uint32_t)] =
           ngtcp2_get_uint32(p);
     }
+    vlen = 1 + supported_versionslen;
+    break;
+  default:
+    vlen = 0;
     break;
   }
+
+  if ((size_t)(end - p) < sizeof(uint16_t)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  if (vlen + sizeof(uint16_t) + ngtcp2_get_uint16(p) != datalen) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+  p += sizeof(uint16_t);
 
   for (; (size_t)(end - p) > sizeof(uint16_t) * 2;) {
     param_type = ngtcp2_get_uint16(p);

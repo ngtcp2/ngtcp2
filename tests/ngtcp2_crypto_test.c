@@ -51,7 +51,7 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(2 + 8 /* negotiated_version + initial_version */ + 8 * 3 + 6 ==
+  CU_ASSERT(8 /* negotiated_version + initial_version */ + 2 + 8 * 3 + 6 ==
             nwrite);
 
   rv = ngtcp2_decode_transport_params(
@@ -85,7 +85,7 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
 
-  CU_ASSERT(2 + 1 + 4 * 3 /* supported_versions and its length */ + 8 * 3 + 6 ==
+  CU_ASSERT(1 + 4 * 3 /* supported_versions and its length */ + 2 + 8 * 3 + 6 ==
             nwrite);
 
   rv = ngtcp2_decode_transport_params(
@@ -148,7 +148,7 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  for (i = 0; i < (size_t)nwrite - 1; ++i) {
+  for (i = 0; i < (size_t)nwrite; ++i) {
     rv = ngtcp2_decode_transport_params(
         &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, i);
 
@@ -168,13 +168,17 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
   for (i = 0;
-       i < 2 + 8 /* negotiated_version + initial_version */ + 8 * 3 + 6 - 1;
+       i < 8 /* negotiated_version + initial_version */ + 2 + 8 * 3 + 6;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
   }
+  nwrite = ngtcp2_encode_transport_params(
+      buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
+
+  CU_ASSERT((ssize_t)i == nwrite);
 
   /* EE, Buffer is too short to encode */
   params.v.ee.supported_versions[0] = 0xd1d2d3d4u;
@@ -188,12 +192,16 @@ void test_ngtcp2_encode_transport_params(void) {
   params.omit_connection_id = 0;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
-  for (i = 0; i < 2 + 1 + 4 * 3 /* supported_versions and its length */ +
-                      8 * 3 + 6 - 1;
+  for (i = 0; i < 1 + 4 * 3 /* supported_versions and its length */ + 2 +
+                      8 * 3 + 6;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
 
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
   }
+  nwrite = ngtcp2_encode_transport_params(
+      buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+
+  CU_ASSERT((ssize_t)i == nwrite);
 }
