@@ -74,6 +74,13 @@ Client/Server
 After successful build, the client and server executable should be
 found under examples directory.
 
+examples/client has ``-i`` option to read data from stdin, and send
+them as STREAM data to server.  examples/server responds them with
+some modification.
+
+Both program have ``--tx-loss`` and ``--rx-loss`` to simulate packet
+loss.
+
 .. code-block:: text
 
     $ examples/client 127.0.0.1 3000
