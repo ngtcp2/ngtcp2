@@ -169,7 +169,7 @@ const char *frame_ansi_esc(ngtcp2_dir dir) {
 } // namespace
 
 namespace {
-void print_indent() { fprintf(outfile, "    "); }
+void print_indent() { fprintf(outfile, "           "); }
 } // namespace
 
 namespace {
