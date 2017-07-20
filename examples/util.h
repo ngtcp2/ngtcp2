@@ -51,6 +51,9 @@ bool numeric_host(const char *hostname);
 
 bool numeric_host(const char *hostname, int family);
 
+// Dumps |src| of length |len| in the format similar to `hexdump -C`.
+void hexdump(FILE *out, const uint8_t *src, size_t len);
+
 } // namespace util
 
 } // namespace ngtcp2;

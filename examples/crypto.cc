@@ -47,12 +47,12 @@ int export_secret(uint8_t *dest, size_t destlen, SSL *ssl, const uint8_t *label,
 }
 
 int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  constexpr uint8_t label[] = "EXPORTER-QUIC client 1-RTT Secret";
+  static constexpr uint8_t label[] = "EXPORTER-QUIC client 1-RTT Secret";
   return export_secret(dest, destlen, ssl, label, str_size(label));
 }
 
 int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  constexpr uint8_t label[] = "EXPORTER-QUIC server 1-RTT Secret";
+  static constexpr uint8_t label[] = "EXPORTER-QUIC server 1-RTT Secret";
   return export_secret(dest, destlen, ssl, label, str_size(label));
 }
 
@@ -60,7 +60,7 @@ ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
                                      const uint8_t *secret, size_t secretlen,
                                      const Context &ctx) {
   int rv;
-  constexpr uint8_t LABEL_KEY[] = "key";
+  static constexpr uint8_t LABEL_KEY[] = "key";
 
   auto keylen = aead_key_length(ctx);
   if (keylen > destlen) {
@@ -80,7 +80,7 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const Context &ctx) {
   int rv;
-  constexpr uint8_t LABEL_IV[] = "iv";
+  static constexpr uint8_t LABEL_IV[] = "iv";
 
   auto ivlen = std::max(static_cast<size_t>(8), aead_nonce_length(ctx));
   if (ivlen > destlen) {
@@ -101,7 +101,7 @@ int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
                       const Context &ctx) {
   std::array<uint8_t, 256> info;
   int rv;
-  constexpr const uint8_t LABEL[] = "tls13 ";
+  static constexpr const uint8_t LABEL[] = "tls13 ";
 
   auto p = std::begin(info);
   *p++ = destlen / 256;

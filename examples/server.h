@@ -39,6 +39,7 @@
 
 #include "network.h"
 #include "crypto.h"
+#include "template.h"
 
 using namespace ngtcp2;
 
@@ -47,6 +48,13 @@ struct Config {
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.
   double rx_loss_prob;
+};
+
+struct Stream {
+  Stream();
+
+  std::array<uint8_t, 32_k> streambuf;
+  size_t stream_offset;
 };
 
 class Server;
@@ -82,6 +90,8 @@ public:
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;
+  int recv_stream_data(uint32_t stream_id, const uint8_t *data, size_t datalen);
+  uint64_t conn_id() const;
 
 private:
   Address remote_addr_;
@@ -99,6 +109,8 @@ private:
   size_t nsread_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
+  std::map<uint32_t, Stream> streams_;
+  uint64_t conn_id_;
 };
 
 class Server {
@@ -113,7 +125,7 @@ public:
   void remove(const Handler *h);
 
 private:
-  std::map<std::string, std::unique_ptr<Handler>> handlers_;
+  std::map<uint64_t, std::unique_ptr<Handler>> handlers_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   int fd_;

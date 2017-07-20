@@ -64,6 +64,8 @@ void print_transport_params(const ngtcp2_transport_params *params, int type);
 
 bool packet_lost(double prob);
 
+void print_stream_data(uint32_t stream_id, const uint8_t *data, size_t datalen);
+
 } // namespace debug
 
 } // namespace ngtcp2

@@ -96,9 +96,12 @@ struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
   ngtcp2_strm strm0;
+  ngtcp2_map strms;
   uint64_t conn_id;
   uint64_t next_tx_pkt_num;
   uint64_t max_rx_pkt_num;
+  uint32_t next_tx_stream_id;
+  ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
   ngtcp2_acktr acktr;
@@ -143,5 +146,11 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
  */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
                           ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_conn_find_stream returns a stream whose stream ID is
+ * |stream_id|.  If no such stream is found, it returns NULL.
+ */
+ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id);
 
 #endif /* NGTCP2_CONN_H */

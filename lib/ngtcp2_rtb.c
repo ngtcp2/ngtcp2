@@ -119,6 +119,7 @@ int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   int rv;
 
   ent->me.key = ent->hd.pkt_num;
+  ent->me.next = NULL;
 
   rv = ngtcp2_map_insert(&rtb->map, &ent->me);
   if (rv != 0) {

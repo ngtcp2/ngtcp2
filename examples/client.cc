@@ -24,6 +24,7 @@
  */
 #include <cstdlib>
 #include <cassert>
+#include <cerrno>
 #include <iostream>
 #include <algorithm>
 #include <memory>
@@ -38,7 +39,6 @@
 #include <openssl/err.h>
 
 #include "client.h"
-#include "template.h"
 #include "network.h"
 #include "debug.h"
 #include "util.h"
@@ -152,6 +152,16 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
 } // namespace
 
 namespace {
+void stdin_readcb(struct ev_loop *loop, ev_io *w, int revents) {
+  auto c = static_cast<Client *>(w->data);
+
+  if (c->send_interactive_input()) {
+    c->disconnect();
+  }
+}
+} // namespace
+
+namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
@@ -179,17 +189,22 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       fd_(-1),
+      stdinfd_(-1),
+      stream_id_(0),
       ncread_(0),
       nsread_(0),
       conn_(nullptr),
-      crypto_ctx_{} {
+      crypto_ctx_{},
+      stream_offset_(0) {
   chandshake_.reserve(128_k);
 
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
+  ev_io_init(&stdinrev_, stdin_readcb, 0, EV_READ);
   wev_.data = this;
   rev_.data = this;
-  ev_timer_init(&timer_, timeoutcb, 5., 0.);
+  stdinrev_.data = this;
+  ev_timer_init(&timer_, timeoutcb, 0., 30.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
@@ -201,6 +216,7 @@ void Client::disconnect() {
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
 
+  ev_io_stop(loop_, &stdinrev_);
   ev_io_stop(loop_, &rev_);
   ev_io_stop(loop_, &wev_);
 
@@ -268,12 +284,25 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 } // namespace
 
 namespace {
+int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, const uint8_t *data,
+                     size_t datalen, void *user_data, void *stream_user_data) {
+  debug::print_stream_data(stream_id, data, datalen);
+
+  return 0;
+}
+} // namespace
+
+namespace {
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
   debug::handshake_completed(conn, user_data);
 
   if (c->setup_crypto_context() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  if (c->start_interactive_input() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -317,7 +346,8 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 } // namespace
 
-int Client::init(int fd, const Address &remote_addr, const char *addr) {
+int Client::init(int fd, const Address &remote_addr, const char *addr,
+                 int stdinfd) {
   int rv;
 
   remote_addr_ = remote_addr;
@@ -334,6 +364,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr) {
   }
 
   fd_ = fd;
+  stdinfd_ = stdinfd;
   ssl_ = SSL_new(ssl_ctx_);
   auto bio = BIO_new(create_bio_method());
   BIO_set_data(bio, this);
@@ -362,15 +393,16 @@ int Client::init(int fd, const Address &remote_addr, const char *addr) {
       debug::recv_version_negotiation,
       do_encrypt,
       do_decrypt,
+      recv_stream_data,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
   ngtcp2_settings settings;
-  settings.initial_max_stream_data = 128_k;
-  settings.initial_max_data = 128;
-  settings.initial_max_stream_id = 0;
+  settings.max_stream_data = 128_k;
+  settings.max_data = 128;
+  settings.max_stream_id = 0;
   settings.idle_timeout = 5;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
@@ -386,7 +418,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr) {
   ev_io_set(&rev_, fd_, EV_READ);
 
   ev_io_start(loop_, &rev_);
-  ev_timer_start(loop_, &timer_);
+  ev_timer_again(loop_, &timer_);
 
   return 0;
 }
@@ -442,22 +474,28 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
 int Client::on_read() {
   std::array<uint8_t, 65536> buf;
 
-  auto nread =
-      recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, nullptr, nullptr);
+  for (;;) {
+    auto nread =
+        recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, nullptr, nullptr);
 
-  if (nread == -1) {
-    std::cerr << "recvfrom: " << strerror(errno) << std::endl;
-    return 0;
+    if (nread == -1) {
+      if (errno != EAGAIN && errno != EWOULDBLOCK) {
+        std::cerr << "recvfrom: " << strerror(errno) << std::endl;
+      }
+      break;
+    }
+
+    if (debug::packet_lost(config.rx_loss_prob)) {
+      std::cerr << "** Simulated incoming packet loss **" << std::endl;
+      break;
+    }
+
+    if (feed_data(buf.data(), nread) != 0) {
+      return -1;
+    }
   }
 
-  if (debug::packet_lost(config.rx_loss_prob)) {
-    std::cerr << "** Simulated incoming packet loss **" << std::endl;
-    return 0;
-  }
-
-  if (feed_data(buf.data(), nread) != 0) {
-    return -1;
-  }
+  ev_timer_again(loop_, &timer_);
 
   return on_write();
 }
@@ -621,6 +659,77 @@ ssize_t Client::decrypt_data(uint8_t *dest, size_t destlen,
 }
 
 ngtcp2_conn *Client::conn() const { return conn_; }
+
+int Client::start_interactive_input() {
+  int rv;
+  if (stdinfd_ == -1) {
+    return 0;
+  }
+
+  std::cerr << "Interactive session started.  Hit Ctrl-D to end the session."
+            << std::endl;
+
+  ev_io_set(&stdinrev_, stdinfd_, EV_READ);
+  ev_io_start(loop_, &stdinrev_);
+
+  uint32_t stream_id;
+  rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  stream_id_ = stream_id;
+
+  std::cerr << "The stream " << stream_id_ << " has opened." << std::endl;
+
+  return 0;
+}
+
+int Client::send_interactive_input() {
+  int rv;
+  ssize_t nread;
+
+  auto p = streambuf_.data() + stream_offset_;
+  auto plen = streambuf_.size() - stream_offset_;
+
+  while ((nread = read(stdinfd_, p, plen)) == -1 && errno == EINTR)
+    ;
+  if (nread == -1) {
+    return stop_interactive_input();
+  }
+  if (nread == 0) {
+    return stop_interactive_input();
+  }
+
+  stream_offset_ += nread;
+
+  rv = ngtcp2_conn_write_stream(conn_, stream_id_, 0, p, nread);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  return on_write();
+}
+
+int Client::stop_interactive_input() {
+  int rv;
+  rv = ngtcp2_conn_write_stream(conn_, stream_id_, 1, nullptr, 0);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  ev_io_stop(loop_, &stdinrev_);
+
+  std::cerr << "Interactive session has ended." << std::endl;
+
+  return on_write();
+}
 
 namespace {
 int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
@@ -804,7 +913,7 @@ int run(Client &c, const char *addr, const char *port) {
     return -1;
   }
 
-  if (c.init(fd, remote_addr, addr) != 0) {
+  if (c.init(fd, remote_addr, addr, config.fd) != 0) {
     return -1;
   }
 
@@ -817,7 +926,9 @@ int run(Client &c, const char *addr, const char *port) {
 } // namespace
 
 namespace {
-void print_usage() { std::cerr << "Usage: client <ADDR> <PORT>" << std::endl; }
+void print_usage() {
+  std::cerr << "Usage: client [OPTIONS] <ADDR> <PORT>" << std::endl;
+}
 } // namespace
 
 namespace {
@@ -836,6 +947,8 @@ Options:
               The probability of losing incoming packets.  <P> must be
               [0.0, 1.0],  inclusive.  0.0 means no  packet loss.  1.0
               means 100% packet loss.
+  -i, --interactive
+              Read input from stdin, and send them as STREAM data.
   -h, --help  Display this help and exit.
 )";
 }
@@ -844,6 +957,7 @@ Options:
 int main(int argc, char **argv) {
   config.tx_loss_prob = 0.;
   config.rx_loss_prob = 0.;
+  config.fd = -1;
 
   for (;;) {
     static int flag = 0;
@@ -851,11 +965,12 @@ int main(int argc, char **argv) {
         {"help", no_argument, nullptr, 'h'},
         {"tx-loss", required_argument, nullptr, 't'},
         {"rx-loss", required_argument, nullptr, 'r'},
+        {"interactive", no_argument, nullptr, 'i'},
         {nullptr, 0, nullptr, 0},
     };
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "hr:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "hir:t:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
@@ -871,6 +986,10 @@ int main(int argc, char **argv) {
     case 't':
       // --tx-loss
       config.tx_loss_prob = strtod(optarg, nullptr);
+      break;
+    case 'i':
+      // --interactive
+      config.fd = fileno(stdin);
       break;
     case '?':
       print_usage();

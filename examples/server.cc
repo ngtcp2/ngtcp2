@@ -38,7 +38,6 @@
 #include <openssl/err.h>
 
 #include "server.h"
-#include "template.h"
 #include "network.h"
 #include "debug.h"
 #include "util.h"
@@ -137,22 +136,7 @@ BIO_METHOD *create_bio_method() {
 }
 } // namespace
 
-namespace {
-std::string create_conn_key(const sockaddr *sa, socklen_t salen) {
-  int rv;
-  std::array<char, NI_MAXHOST> host;
-  std::array<char, NI_MAXSERV> serv;
-
-  rv = getnameinfo(sa, salen, host.data(), host.size(), serv.data(),
-                   serv.size(), NI_NUMERICHOST | NI_NUMERICSERV);
-  if (rv != 0) {
-    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
-    return "";
-  }
-
-  return "[" + std::string{host.data()} + "]:" + serv.data();
-}
-} // namespace
+Stream::Stream() : stream_offset(0) {}
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
@@ -161,7 +145,8 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   debug::print_timestamp();
   std::cerr << "Timeout" << std::endl;
 
-  delete h;
+  auto server = h->server();
+  server->remove(h);
 }
 } // namespace
 
@@ -187,10 +172,12 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
       ncread_(0),
       nsread_(0),
       conn_(nullptr),
-      crypto_ctx_{} {
+      crypto_ctx_{},
+      conn_id_(std::uniform_int_distribution<uint64_t>(
+          0, std::numeric_limits<uint64_t>::max())(randgen)) {
   shandshake_.reserve(128_k);
 
-  ev_timer_init(&timer_, timeoutcb, 5., 0.);
+  ev_timer_init(&timer_, timeoutcb, 0., 30.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
@@ -300,6 +287,19 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 }
 } // namespace
 
+namespace {
+int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, const uint8_t *data,
+                     size_t datalen, void *user_data, void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  if (h->recv_stream_data(stream_id, data, datalen) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   int rv;
 
@@ -338,29 +338,27 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
       nullptr,
       do_encrypt,
       do_decrypt,
+      ::recv_stream_data,
   };
-
-  auto conn_id = std::uniform_int_distribution<uint64_t>(
-      0, std::numeric_limits<uint64_t>::max())(randgen);
 
   ngtcp2_settings settings;
 
-  settings.initial_max_stream_data = 128_k;
-  settings.initial_max_data = 128;
+  settings.max_stream_data = 128_k;
+  settings.max_data = 128;
   // TODO Just allow stream ID = 1 to exchange encrypted data for now.
-  settings.initial_max_stream_id = 1;
+  settings.max_stream_id = 1;
   settings.idle_timeout = 5;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
-  rv = ngtcp2_conn_server_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
-                              &settings, this);
+  rv = ngtcp2_conn_server_new(&conn_, conn_id_, NGTCP2_PROTO_VERSION,
+                              &callbacks, &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
-  ev_timer_start(loop_, &timer_);
+  ev_timer_again(loop_, &timer_);
 
   return 0;
 }
@@ -522,6 +520,8 @@ int Handler::on_read(uint8_t *data, size_t datalen) {
     return -1;
   }
 
+  ev_timer_again(loop_, &timer_);
+
   return on_write();
 }
 
@@ -572,6 +572,49 @@ void Handler::schedule_retransmit() {
   ev_timer_set(&rttimer_, t, 0.);
   ev_timer_start(loop_, &rttimer_);
 }
+
+int Handler::recv_stream_data(uint32_t stream_id, const uint8_t *data,
+                              size_t datalen) {
+  int rv;
+
+  debug::print_stream_data(stream_id, data, datalen);
+
+  auto it = streams_.find(stream_id);
+  if (it == std::end(streams_)) {
+    it = streams_.emplace(stream_id, Stream{}).first;
+  }
+
+  auto &stream = (*it).second;
+
+  static constexpr uint8_t start_tag[] = "<blink>";
+  static constexpr uint8_t end_tag[] = "</blink>";
+
+  auto left = stream.streambuf.size() - stream.stream_offset;
+
+  auto len = str_size(start_tag) + datalen + str_size(end_tag);
+  if (left < len) {
+    std::cerr << "Stream buffer is too short to write outgoing message."
+              << std::endl;
+    return 0;
+  }
+
+  auto p = std::begin(stream.streambuf) + stream.stream_offset;
+
+  p = std::copy_n(start_tag, str_size(start_tag), p);
+  p = std::copy_n(data, datalen, p);
+  p = std::copy_n(end_tag, str_size(end_tag), p);
+
+  stream.stream_offset += len;
+
+  rv = ngtcp2_conn_write_stream(conn_, stream_id, 0, p - len, len);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+}
+
+uint64_t Handler::conn_id() const { return conn_id_; }
 
 Server *Handler::server() const { return server_; }
 
@@ -639,12 +682,16 @@ int Server::on_read() {
     return 0;
   }
 
-  auto conn_key = create_conn_key(&su.sa, addrlen);
-  if (conn_key.empty()) {
+  rv = ngtcp2_pkt_decode_hd(&hd, buf.data(), nread);
+  if (rv < 0) {
+    std::cerr << "Could not decode QUIC packet header: " << ngtcp2_strerror(rv)
+              << std::endl;
     return 0;
   }
 
-  auto handler_it = handlers_.find(conn_key);
+  auto conn_id = hd.conn_id;
+
+  auto handler_it = handlers_.find(conn_id);
   if (handler_it == std::end(handlers_)) {
     switch (su.storage.ss_family) {
     case AF_INET:
@@ -685,13 +732,14 @@ int Server::on_read() {
       return 0;
     }
 
-    handlers_.insert(std::make_pair(conn_key, std::move(h)));
+    conn_id = h->conn_id();
+    handlers_.emplace(conn_id, std::move(h));
     return 0;
   }
 
   auto h = (*handler_it).second.get();
   if (h->on_read(buf.data(), nread) != 0) {
-    handlers_.erase(conn_key);
+    handlers_.erase(conn_id);
   }
 
   return 0;
@@ -773,11 +821,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   return 0;
 }
 
-void Server::remove(const Handler *h) {
-  auto &addr = h->remote_addr();
-  auto key = create_conn_key(&addr.su.sa, addr.len);
-  handlers_.erase(key);
-}
+void Server::remove(const Handler *h) { handlers_.erase(h->conn_id()); }
 
 namespace {
 int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
@@ -1018,9 +1062,9 @@ int serve(Server &s, const char *addr, const char *port) {
 
 namespace {
 void print_usage() {
-  std::cerr
-      << "Usage: server <ADDR> <PORT> <PRIVATE_KEY_FILE> <CERTIFICATE_FILE>"
-      << std::endl;
+  std::cerr << "Usage: server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> "
+               "<CERTIFICATE_FILE>"
+            << std::endl;
 }
 } // namespace
 

@@ -906,7 +906,9 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
   }
 
   p = ngtcp2_put_uint16be(p, (uint16_t)fr->datalen);
-  p = ngtcp2_cpymem(p, fr->data, fr->datalen);
+  if (fr->datalen) {
+    p = ngtcp2_cpymem(p, fr->data, fr->datalen);
+  }
 
   assert((size_t)(p - out) == len);
 

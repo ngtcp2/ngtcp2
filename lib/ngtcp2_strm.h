@@ -33,16 +33,21 @@
 
 #include "ngtcp2_rob.h"
 #include "ngtcp2_buf.h"
+#include "ngtcp2_map.h"
 
 typedef struct {
+  ngtcp2_map_entry me;
   uint64_t tx_offset;
   ngtcp2_rob rob;
   ngtcp2_mem *mem;
   size_t nbuffered;
   ngtcp2_buf tx_buf;
+  uint32_t stream_id;
+  void *stream_user_data;
 } ngtcp2_strm;
 
-int ngtcp2_strm_init(ngtcp2_strm *strm, ngtcp2_mem *mem);
+int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id,
+                     void *stream_user_data, ngtcp2_mem *mem);
 
 void ngtcp2_strm_free(ngtcp2_strm *strm);
 
@@ -59,6 +64,6 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, ngtcp2_stream *fr);
+int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const ngtcp2_stream *fr);
 
 #endif /* NGTCP2_STRM_H */

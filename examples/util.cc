@@ -87,6 +87,69 @@ bool numeric_host(const char *hostname, int family) {
   return rv == 1;
 }
 
+namespace {
+void hexdump8(FILE *out, const uint8_t *first, const uint8_t *last) {
+  auto stop = std::min(first + 8, last);
+  for (auto k = first; k != stop; ++k) {
+    fprintf(out, "%02x ", *k);
+  }
+  // each byte needs 3 spaces (2 hex value and space)
+  for (; stop != first + 8; ++stop) {
+    fputs("   ", out);
+  }
+  // we have extra space after 8 bytes
+  fputc(' ', out);
+}
+} // namespace
+
+void hexdump(FILE *out, const uint8_t *src, size_t len) {
+  if (len == 0) {
+    return;
+  }
+  size_t buflen = 0;
+  auto repeated = false;
+  std::array<uint8_t, 16> buf{};
+  auto end = src + len;
+  auto i = src;
+  for (;;) {
+    auto nextlen =
+        std::min(static_cast<size_t>(16), static_cast<size_t>(end - i));
+    if (nextlen == buflen &&
+        std::equal(std::begin(buf), std::begin(buf) + buflen, i)) {
+      // as long as adjacent 16 bytes block are the same, we just
+      // print single '*'.
+      if (!repeated) {
+        repeated = true;
+        fputs("*\n", out);
+      }
+      i += nextlen;
+      continue;
+    }
+    repeated = false;
+    fprintf(out, "%08lx", static_cast<unsigned long>(i - src));
+    if (i == end) {
+      fputc('\n', out);
+      break;
+    }
+    fputs("  ", out);
+    hexdump8(out, i, end);
+    hexdump8(out, i + 8, std::max(i + 8, end));
+    fputc('|', out);
+    auto stop = std::min(i + 16, end);
+    buflen = stop - i;
+    auto p = buf.data();
+    for (; i != stop; ++i) {
+      *p++ = *i;
+      if (0x20 <= *i && *i <= 0x7e) {
+        fputc(*i, out);
+      } else {
+        fputc('.', out);
+      }
+    }
+    fputs("|\n", out);
+  }
+}
+
 } // namespace util
 
 } // namespace ngtcp2

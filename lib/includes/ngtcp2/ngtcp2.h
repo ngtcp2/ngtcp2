@@ -394,9 +394,9 @@ typedef struct {
 } ngtcp2_transport_params;
 
 typedef struct {
-  uint32_t initial_max_stream_data;
-  uint32_t initial_max_data;
-  uint32_t initial_max_stream_id;
+  uint32_t max_stream_data;
+  uint32_t max_data;
+  uint32_t max_stream_id;
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
@@ -647,6 +647,10 @@ typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
                                   size_t noncelen, const uint8_t *ad,
                                   size_t adlen, void *user_data);
 
+typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t stream_id,
+                                       const uint8_t *data, size_t datalen,
+                                       void *user_data, void *stream_user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
@@ -660,6 +664,7 @@ typedef struct {
   ngtcp2_recv_version_negotiation recv_version_negotiation;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
+  ngtcp2_recv_stream_data recv_stream_data;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -773,6 +778,42 @@ ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
     ngtcp2_conn *conn, ngtcp2_transport_params *params, uint8_t exttype);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_open_stream` opens new stream.  The stream ID is
+ * assigned to |*pstream_id|.  The |stream_user_data| is the user data
+ * specific to the stream.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ */
+NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn,
+                                          uint32_t *pstream_id,
+                                          void *stream_user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_write_stream` writes stream data of stream denoted by
+ * |stream_id|.  If |fin| is nonzero, fin flag is set in outgoing
+ * STREAM frame.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     Stream does not exist.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_write_stream(ngtcp2_conn *conn,
+                                           uint32_t stream_id, uint8_t fin,
+                                           const uint8_t *data, size_t datalen);
 
 /**
  * @function

@@ -206,8 +206,9 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
     print_indent();
-    fprintf(outfile, "stream_id=%08x offset=%lu data_length=%zu\n",
-            fr->stream.stream_id, fr->stream.offset, fr->stream.datalen);
+    fprintf(outfile, "stream_id=%08x fin=%u offset=%lu data_length=%zu\n",
+            fr->stream.stream_id, fr->stream.fin, fr->stream.offset,
+            fr->stream.datalen);
     break;
   case NGTCP2_FRAME_PADDING:
     print_indent();
@@ -355,6 +356,14 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
   fprintf(outfile, "omit_connection_id=%u\n", params->omit_connection_id);
   print_indent();
   fprintf(outfile, "max_packet_size=%u\n", params->max_packet_size);
+}
+
+void print_stream_data(uint32_t stream_id, const uint8_t *data,
+                       size_t datalen) {
+  print_timestamp();
+  fprintf(outfile, "%sSTREAM%s data stream_id=%08x\n",
+          frame_ansi_esc(NGTCP2_DIR_RECV), ansi_escend(), stream_id);
+  util::hexdump(outfile, data, datalen);
 }
 
 } // namespace debug

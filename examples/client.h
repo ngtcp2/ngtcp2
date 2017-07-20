@@ -39,6 +39,7 @@
 
 #include "network.h"
 #include "crypto.h"
+#include "template.h"
 
 using namespace ngtcp2;
 
@@ -47,6 +48,8 @@ struct Config {
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.
   double rx_loss_prob;
+  // fd is a file descriptor to read input for stream 1.
+  int fd;
 };
 
 class Client {
@@ -54,7 +57,7 @@ public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Client();
 
-  int init(int fd, const Address &remote_addr, const char *addr);
+  int init(int fd, const Address &remote_addr, const char *addr, int stdinfd);
   void disconnect();
 
   int tls_handshake();
@@ -79,24 +82,32 @@ public:
                        const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
                        size_t adlen);
   ngtcp2_conn *conn() const;
+  int start_interactive_input();
+  int send_interactive_input();
+  int stop_interactive_input();
 
 private:
   Address remote_addr_;
   size_t max_pktlen_;
   ev_io wev_;
   ev_io rev_;
+  ev_io stdinrev_;
   ev_timer timer_;
   ev_timer rttimer_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
   int fd_;
+  int stdinfd_;
+  uint32_t stream_id_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
   std::vector<uint8_t> shandshake_;
   size_t nsread_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
+  std::array<uint8_t, 32_k> streambuf_;
+  size_t stream_offset_;
 };
 
 #endif // CLIENT_H

@@ -235,6 +235,7 @@ size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
     return 0;
   }
 
+  assert(d);
   assert(d->offset <= offset);
   assert(offset < d->offset + rob->chunk);
 
