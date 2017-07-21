@@ -612,6 +612,8 @@ int Handler::recv_stream_data(uint32_t stream_id, const uint8_t *data,
               << std::endl;
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
+
+  return 0;
 }
 
 uint64_t Handler::conn_id() const { return conn_id_; }
