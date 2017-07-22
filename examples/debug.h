@@ -29,6 +29,10 @@
 #include <config.h>
 #endif // HAVE_CONFIG_H
 
+// For travis and PRIu64
+#define __STDC_FORMAT_MACROS
+#include <cinttypes>
+
 #include <chrono>
 
 #include <ngtcp2/ngtcp2.h>

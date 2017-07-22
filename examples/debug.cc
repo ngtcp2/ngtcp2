@@ -24,7 +24,6 @@
  */
 #include "debug.h"
 
-#include <cinttypes>
 #include <random>
 
 #include "util.h"
