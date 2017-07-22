@@ -366,9 +366,8 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
 
 void print_stream_data(uint32_t stream_id, const uint8_t *data,
                        size_t datalen) {
-  print_timestamp();
-  fprintf(outfile, "%sSTREAM%s data stream_id=%08x\n",
-          frame_ansi_esc(NGTCP2_DIR_RECV), ansi_escend(), stream_id);
+  print_indent();
+  fprintf(outfile, "ordered STREAM data stream_id=%08x\n", stream_id);
   util::hexdump(outfile, data, datalen);
 }
 
