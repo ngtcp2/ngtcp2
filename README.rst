@@ -139,7 +139,7 @@ loss.
                first_ack_block_length=0
                STREAM
                stream_id=00000001 fin=0 offset=0 data_length=28
-    t=5.752283 STREAM data stream_id=00000001
+               ordered STREAM data stream_id=00000001
     00000000  3c 62 6c 69 6e 6b 3e 48  65 6c 6c 6f 20 57 6f 72  |<blink>Hello Wor|
     00000010  6c 64 21 0a 3c 2f 62 6c  69 6e 6b 3e              |ld!.</blink>|
     0000001c
@@ -198,7 +198,7 @@ loss.
     t=7.008381 RX Short 03 CID=7cbb8b6f75703e7e PKN=1577002473
                STREAM
                stream_id=00000001 fin=0 offset=0 data_length=13
-    t=7.008529 STREAM data stream_id=00000001
+               ordered STREAM data stream_id=00000001
     00000000  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a           |Hello World!.|
     0000000d
     t=7.008817 TX Short 03 CID=7cbb8b6f75703e7e PKN=932960313
