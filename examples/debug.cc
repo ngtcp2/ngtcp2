@@ -24,6 +24,7 @@
  */
 #include "debug.h"
 
+#include <cinttypes>
 #include <random>
 
 #include "util.h"
@@ -174,15 +175,15 @@ void print_indent() { fprintf(outfile, "           "); }
 
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016lx PKN=%lu V=%08x\n", pkt_ansi_esc(dir),
-          strpkttype_long(hd->type).c_str(), ansi_escend(), hd->conn_id,
-          hd->pkt_num, hd->version);
+  fprintf(outfile, "%s%s%s CID=%016lx PKN=%" PRIu64 " V=%08x\n",
+          pkt_ansi_esc(dir), strpkttype_long(hd->type).c_str(), ansi_escend(),
+          hd->conn_id, hd->pkt_num, hd->version);
 }
 } // namespace
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016lx PKN=%lu\n", pkt_ansi_esc(dir),
+  fprintf(outfile, "%s%s%s CID=%016lx PKN=%" PRIu64 "\n", pkt_ansi_esc(dir),
           strpkttype_short(hd->type).c_str(), ansi_escend(), hd->conn_id,
           hd->pkt_num);
 }
@@ -206,7 +207,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
     print_indent();
-    fprintf(outfile, "stream_id=%08x fin=%u offset=%lu data_length=%zu\n",
+    fprintf(outfile,
+            "stream_id=%08x fin=%u offset=%" PRIu64 " data_length=%zu\n",
             fr->stream.stream_id, fr->stream.fin, fr->stream.offset,
             fr->stream.datalen);
     break;
@@ -216,20 +218,24 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_ACK:
     print_indent();
-    fprintf(outfile, "num_blks=%zu num_ts=%zu largest_ack=%lu ack_delay=%u\n",
+    fprintf(outfile,
+            "num_blks=%zu num_ts=%zu largest_ack=%" PRIu64 " ack_delay=%u\n",
             fr->ack.num_blks, fr->ack.num_ts, fr->ack.largest_ack,
             fr->ack.ack_delay);
     print_indent();
-    fprintf(outfile, "first_ack_block_length=%lu\n", fr->ack.first_ack_blklen);
+    fprintf(outfile, "first_ack_block_length=%" PRIu64 "\n",
+            fr->ack.first_ack_blklen);
     for (size_t i = 0; i < fr->ack.num_blks; ++i) {
       auto blk = &fr->ack.blks[i];
       print_indent();
-      fprintf(outfile, "gap=%u ack_block_length=%lu\n", blk->gap, blk->blklen);
+      fprintf(outfile, "gap=%u ack_block_length=%" PRIu64 "\n", blk->gap,
+              blk->blklen);
     }
     break;
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
-    fprintf(outfile, "stream_id=%08x error_code=%08x final_offset=%lu\n",
+    fprintf(outfile,
+            "stream_id=%08x error_code=%08x final_offset=%" PRIu64 "\n",
             fr->rst_stream.stream_id, fr->rst_stream.error_code,
             fr->rst_stream.final_offset);
     break;
@@ -247,11 +253,11 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_MAX_DATA:
     print_indent();
-    fprintf(outfile, "max_data=%lu\n", fr->max_data.max_data);
+    fprintf(outfile, "max_data=%" PRIu64 "\n", fr->max_data.max_data);
     break;
   case NGTCP2_FRAME_MAX_STREAM_DATA:
     print_indent();
-    fprintf(outfile, "stream_id=%08x max_stream_data=%lu\n",
+    fprintf(outfile, "stream_id=%08x max_stream_data=%" PRIu64 "\n",
             fr->max_stream_data.stream_id, fr->max_stream_data.max_stream_data);
     break;
   case NGTCP2_FRAME_MAX_STREAM_ID:
