@@ -41,6 +41,10 @@ int ngtcp2_upe_encode_hd(ngtcp2_upe *upe, const ngtcp2_pkt_hd *hd) {
   ssize_t rv;
   ngtcp2_buf *buf = &upe->buf;
 
+  if (ngtcp2_buf_left(buf) < NGTCP2_PKT_MDLEN) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
   rv = ngtcp2_pkt_encode_hd_long(buf->last, ngtcp2_buf_left(buf), hd);
   if (rv < 0) {
     return (int)rv;
@@ -125,7 +129,9 @@ size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {
 size_t ngtcp2_upe_left(ngtcp2_upe *upe) {
   ngtcp2_buf *buf = &upe->buf;
 
-  assert(ngtcp2_buf_left(buf) >= NGTCP2_PKT_MDLEN);
+  if (ngtcp2_buf_left(buf) < NGTCP2_PKT_MDLEN) {
+    return 0;
+  }
 
   return ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN;
 }
