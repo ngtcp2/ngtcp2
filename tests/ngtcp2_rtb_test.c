@@ -255,4 +255,38 @@ void test_ngtcp2_rtb_recv_ack(void) {
   CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 
   ngtcp2_rtb_free(&rtb);
+
+  /* pkt_num = 0 (first ack block) */
+  ngtcp2_rtb_init(&rtb, mem);
+  add_rtb_entry_range(&rtb, 0, 1, mem);
+
+  fr.largest_ack = 0;
+  fr.first_ack_blklen = 0;
+  fr.num_blks = 1;
+  fr.blks[0].gap = 0;
+  fr.blks[0].blklen = 0;
+
+  rv = ngtcp2_rtb_recv_ack(&rtb, &fr);
+
+  CU_ASSERT(0 == rv);
+  assert_rtb_entry_not_found(&rtb, 0);
+
+  ngtcp2_rtb_free(&rtb);
+
+  /* pkt_num = 0 */
+  ngtcp2_rtb_init(&rtb, mem);
+  add_rtb_entry_range(&rtb, 0, 1, mem);
+
+  fr.largest_ack = 1;
+  fr.first_ack_blklen = 0;
+  fr.num_blks = 1;
+  fr.blks[0].gap = 1;
+  fr.blks[0].blklen = 1;
+
+  rv = ngtcp2_rtb_recv_ack(&rtb, &fr);
+
+  CU_ASSERT(0 == rv);
+  assert_rtb_entry_not_found(&rtb, 0);
+
+  ngtcp2_rtb_free(&rtb);
 }
