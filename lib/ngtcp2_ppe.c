@@ -42,17 +42,25 @@ void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
 int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
   ssize_t rv;
   ngtcp2_buf *buf = &ppe->buf;
+  ngtcp2_crypto_ctx *ctx = ppe->ctx;
+
+  if (ngtcp2_buf_left(buf) < ctx->aead_overhead) {
+    return NGTCP2_ERR_NOBUF;
+  }
 
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    rv = ngtcp2_pkt_encode_hd_long(buf->last, ngtcp2_buf_left(buf), hd);
+    rv = ngtcp2_pkt_encode_hd_long(
+        buf->last, ngtcp2_buf_left(buf) - ctx->aead_overhead, hd);
   } else {
-    rv = ngtcp2_pkt_encode_hd_short(buf->last, ngtcp2_buf_left(buf), hd);
+    rv = ngtcp2_pkt_encode_hd_short(
+        buf->last, ngtcp2_buf_left(buf) - ctx->aead_overhead, hd);
   }
   if (rv < 0) {
     return (int)rv;
   }
 
   buf->last += rv;
+
   ppe->hdlen = (size_t)rv;
 
   ppe->pkt_num = hd->pkt_num;
@@ -63,8 +71,14 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
 int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, const ngtcp2_frame *fr) {
   ssize_t rv;
   ngtcp2_buf *buf = &ppe->buf;
+  ngtcp2_crypto_ctx *ctx = ppe->ctx;
 
-  rv = ngtcp2_pkt_encode_frame(buf->last, ngtcp2_buf_left(buf), fr);
+  if (ngtcp2_buf_left(buf) < ctx->aead_overhead) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  rv = ngtcp2_pkt_encode_frame(buf->last,
+                               ngtcp2_buf_left(buf) - ctx->aead_overhead, fr);
   if (rv < 0) {
     return (int)rv;
   }
@@ -101,4 +115,14 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   }
 
   return (ssize_t)ngtcp2_buf_len(buf);
+}
+
+size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe) {
+  ngtcp2_crypto_ctx *ctx = ppe->ctx;
+
+  if (ngtcp2_buf_left(&ppe->buf) < ctx->aead_overhead) {
+    return 0;
+  }
+
+  return ngtcp2_buf_left(&ppe->buf) - ctx->aead_overhead;
 }

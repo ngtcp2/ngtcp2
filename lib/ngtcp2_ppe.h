@@ -62,4 +62,10 @@ int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, const ngtcp2_frame *fr);
 
 ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
 
+/*
+ * ngtcp2_ppe_left returns the number of bytes left to write
+ * additional frames.  This does not count AEAD overhead.
+ */
+size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe);
+
 #endif /* NGTCP2_PPE_H */

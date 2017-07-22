@@ -900,8 +900,9 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_frame ackfr;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
-  ngtcp2_frame_chain **pfrc;
+  ngtcp2_frame_chain **pfrc, *nfrc;
   ngtcp2_rtb_entry *ent;
+  size_t left;
 
   ackfr.type = !NGTCP2_FRAME_ACK;
   rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
@@ -945,6 +946,29 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   for (pfrc = &conn->frq; *pfrc; pfrc = &(*pfrc)->next) {
+    if ((*pfrc)->fr.type == NGTCP2_FRAME_STREAM) {
+      left = ngtcp2_ppe_left(&ppe);
+      if (left <= NGTCP2_STREAM_OVERHEAD) {
+        break;
+      }
+      left -= NGTCP2_STREAM_OVERHEAD;
+      if (left < (*pfrc)->fr.stream.datalen) {
+        if (left < 1024) {
+          break;
+        }
+        rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+        if (rv != 0) {
+          return rv;
+        }
+        nfrc->fr.stream = (*pfrc)->fr.stream;
+        nfrc->fr.stream.datalen = left;
+        (*pfrc)->fr.stream.datalen -= left;
+        (*pfrc)->fr.stream.data += left;
+        (*pfrc)->fr.stream.offset += left;
+        nfrc->next = *pfrc;
+        *pfrc = nfrc;
+      }
+    }
     rv = ngtcp2_ppe_encode_frame(&ppe, &(*pfrc)->fr);
     if (rv != 0) {
       if (rv == NGTCP2_ERR_NOBUF) {
