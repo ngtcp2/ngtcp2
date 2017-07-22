@@ -161,10 +161,7 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
 
   ngtcp2_acktr_init(&(*pconn)->acktr);
 
-  rv = ngtcp2_rtb_init(&(*pconn)->rtb, mem);
-  if (rv != 0) {
-    goto fail_rtb_init;
-  }
+  ngtcp2_rtb_init(&(*pconn)->rtb, mem);
 
   (*pconn)->callbacks = *callbacks;
   (*pconn)->conn_id = conn_id;
@@ -174,8 +171,6 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
 
   return 0;
 
-fail_rtb_init:
-  ngtcp2_map_free(&(*pconn)->strms);
 fail_strms_init:
   ngtcp2_strm_free(&(*pconn)->strm0);
 fail_strm_init:
@@ -1093,47 +1088,8 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
   return 0;
 }
 
-/*
- * rtb_each_ack is called for each ngtcp2_rtb_entry when ACK frame is
- * received.  If the entry is acked by the frame, it will be removed
- * from |rtb|.
- */
-static int rtb_each_ack(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent, void *arg) {
-  size_t i;
-  const ngtcp2_ack *fr = arg;
-  uint64_t pkt_num = ent->hd.pkt_num;
-  uint64_t largest_ack = fr->largest_ack;
-
-  if (fr->largest_ack < fr->first_ack_blklen) {
-    /* TODO Badly encoded ACK frame */
-    return -1;
-  }
-
-  if (largest_ack - fr->first_ack_blklen <= pkt_num && pkt_num <= largest_ack) {
-    ngtcp2_rtb_remove(rtb, ent->hd.pkt_num);
-    return 0;
-  }
-
-  for (i = 0; i < fr->num_blks; ++i) {
-    /* TODO Badly encoded ACK frame */
-    if (largest_ack < fr->blks[i].gap + fr->blks[i].blklen) {
-      return -1;
-    }
-    largest_ack -= fr->blks[i].gap;
-
-    if (largest_ack - fr->blks[i].blklen <= pkt_num && pkt_num <= largest_ack) {
-      ngtcp2_rtb_remove(rtb, ent->hd.pkt_num);
-      return 0;
-    }
-  }
-
-  return 0;
-}
-
 static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr) {
-  ngtcp2_rtb_each(&conn->rtb, rtb_each_ack, fr);
-
-  return 0;
+  return ngtcp2_rtb_recv_ack(&conn->rtb, fr);
 }
 
 static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,

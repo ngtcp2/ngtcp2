@@ -63,20 +63,23 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem);
  */
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
 
+struct ngtcp2_rtb_entry;
+typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
+
 /*
  * ngtcp2_rtb_entry is an object stored in ngtcp2_rtb.  It corresponds
  * to the one packet which is waiting for its ACK.
  */
-typedef struct {
+struct ngtcp2_rtb_entry {
   ngtcp2_pq_entry pe;
-  ngtcp2_map_entry me;
+  ngtcp2_rtb_entry *next;
 
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frc;
   /* expiry is the time point when this entry expires, and the
      retransmission is required. */
   ngtcp2_tstamp expiry;
-} ngtcp2_rtb_entry;
+};
 
 /*
  * ngtcp2_rtb_entry_new allocates ngtcp2_rtb_entry object, and assigns
@@ -106,22 +109,16 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem);
 typedef struct {
   /* pq is a priority queue, and sorted by lesser timeout */
   ngtcp2_pq pq;
-  /* map contains key value pair, and key is packet number, and value
-     is its contents (frames). */
-  ngtcp2_map map;
+  /* head points to the singly linked list of ngtcp2_rtb_entry, sorted
+     by decreasing order of packet number. */
+  ngtcp2_rtb_entry *head;
   ngtcp2_mem *mem;
 } ngtcp2_rtb;
 
 /*
  * ngtcp2_rtb_init initializes |rtb|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem);
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.
@@ -154,18 +151,14 @@ ngtcp2_rtb_entry *ngtcp2_rtb_top(ngtcp2_rtb *rtb);
 void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_remove removes entry which has packet number |pkt_num|.
- * If there is no such entry, this function does nothing.
+ * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     ACK frame is malformed
  */
-void ngtcp2_rtb_remove(ngtcp2_rtb *rtb, uint64_t pkt_num);
-
-/*
- * ngtcp2_rtb_each calls function |f| for each entry in |rtb|.  If the
- * callback function returns nonzero, the iteration is immediately
- * stopped, and its value is returned.
- */
-int ngtcp2_rtb_each(ngtcp2_rtb *rtb,
-                    int (*f)(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent, void *arg),
-                    void *arg);
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr);
 
 #endif /* NGTCP2_RTB_H */

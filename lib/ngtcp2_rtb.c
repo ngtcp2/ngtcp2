@@ -80,58 +80,38 @@ static int expiry_less(const void *lhsx, const void *rhsx) {
   return lhs->expiry < rhs->expiry;
 }
 
-int ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
-  int rv;
-
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
   ngtcp2_pq_init(&rtb->pq, expiry_less, mem);
 
-  rv = ngtcp2_map_init(&rtb->map, mem);
-  if (rv != 0) {
-    return rv;
-  }
-
+  rtb->head = NULL;
   rtb->mem = mem;
-
-  return 0;
-}
-
-static int pq_entry_free(ngtcp2_pq_entry *item, void *arg) {
-  ngtcp2_rtb_entry *ent = ngtcp2_struct_of(item, ngtcp2_rtb_entry, pe);
-  ngtcp2_mem *mem = arg;
-
-  ngtcp2_rtb_entry_del(ent, mem);
-
-  return 0;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
+  ngtcp2_rtb_entry *ent, *next;
   if (rtb == NULL) {
     return;
   }
 
-  ngtcp2_pq_each(&rtb->pq, pq_entry_free, rtb->mem);
+  for (ent = rtb->head; ent;) {
+    next = ent->next;
+    ngtcp2_rtb_entry_del(ent, rtb->mem);
+    ent = next;
+  }
 
-  ngtcp2_map_free(&rtb->map);
   ngtcp2_pq_free(&rtb->pq);
 }
 
 int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   int rv;
 
-  ent->me.key = ent->hd.pkt_num;
-  ent->me.next = NULL;
-
-  rv = ngtcp2_map_insert(&rtb->map, &ent->me);
-  if (rv != 0) {
-    return rv;
-  }
-
   rv = ngtcp2_pq_push(&rtb->pq, &ent->pe);
   if (rv != 0) {
-    /* Ignore return value here */
-    ngtcp2_map_remove(&rtb->map, ent->me.key);
     return rv;
   }
+
+  ent->next = rtb->head;
+  rtb->head = ent;
 
   return 0;
 }
@@ -145,7 +125,7 @@ ngtcp2_rtb_entry *ngtcp2_rtb_top(ngtcp2_rtb *rtb) {
 }
 
 void ngtcp2_rtb_pop(ngtcp2_rtb *rtb) {
-  ngtcp2_rtb_entry *ent;
+  ngtcp2_rtb_entry *ent, **pent;
 
   if (ngtcp2_pq_empty(&rtb->pq)) {
     return;
@@ -153,47 +133,89 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb) {
 
   ent = ngtcp2_struct_of(ngtcp2_pq_top(&rtb->pq), ngtcp2_rtb_entry, pe);
   ngtcp2_pq_pop(&rtb->pq);
-  ngtcp2_map_remove(&rtb->map, ent->me.key);
+
+  /* TODO Use doubly linked list to remove entry in O(1) if the
+     current O(N) operation causes performance penalty. */
+  for (pent = &rtb->head; *pent; pent = &(*pent)->next) {
+    if (*pent == ent) {
+      *pent = (*pent)->next;
+      ent->next = NULL;
+      break;
+    }
+  }
 }
 
-void ngtcp2_rtb_remove(ngtcp2_rtb *rtb, uint64_t pkt_num) {
-  ngtcp2_map_entry *me;
+static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry **pent) {
   ngtcp2_rtb_entry *ent;
 
-  me = ngtcp2_map_find(&rtb->map, pkt_num);
-  if (me == NULL) {
-    return;
-  }
+  ent = *pent;
+  *pent = (*pent)->next;
 
-  ent = ngtcp2_struct_of(me, ngtcp2_rtb_entry, me);
-
-  ngtcp2_map_remove(&rtb->map, pkt_num);
   ngtcp2_pq_remove(&rtb->pq, &ent->pe);
-
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 }
 
-typedef struct {
-  ngtcp2_rtb *rtb;
-  int (*f)(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent, void *arg);
-  void *arg;
-} rtb_each_arg;
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr) {
+  ngtcp2_rtb_entry **pent;
+  uint64_t largest_ack = fr->largest_ack, min_ack;
+  size_t i;
 
-static int rtb_each(ngtcp2_map_entry *entry, void *ptr) {
-  rtb_each_arg *param = ptr;
+  if (largest_ack < fr->first_ack_blklen) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+  for (pent = &rtb->head; *pent; pent = &(*pent)->next) {
+    if (largest_ack >= (*pent)->hd.pkt_num) {
+      break;
+    }
+  }
+  if (*pent == NULL) {
+    return 0;
+  }
 
-  return param->f(param->rtb, ngtcp2_struct_of(entry, ngtcp2_rtb_entry, me),
-                  param->arg);
-}
+  min_ack = largest_ack - fr->first_ack_blklen;
 
-int ngtcp2_rtb_each(ngtcp2_rtb *rtb,
-                    int (*f)(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent, void *arg),
-                    void *arg) {
-  rtb_each_arg param;
+  for (; *pent;) {
+    if (min_ack <= (*pent)->hd.pkt_num && (*pent)->hd.pkt_num <= largest_ack) {
+      rtb_remove(rtb, pent);
+      continue;
+    }
+    break;
+  }
 
-  param.rtb = rtb;
-  param.f = f;
-  param.arg = arg;
+  largest_ack = min_ack;
 
-  return ngtcp2_map_each(&rtb->map, rtb_each, &param);
+  for (i = 0; i < fr->num_blks && *pent;) {
+    if (fr->blks[i].blklen == 0) {
+      if (largest_ack < fr->blks[i].gap) {
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
+      largest_ack -= fr->blks[i].gap;
+      ++i;
+
+      continue;
+    }
+
+    if (largest_ack - fr->blks[i].gap < fr->blks[i].blklen - 1) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
+    largest_ack -= fr->blks[i].gap;
+    min_ack = largest_ack - (fr->blks[i].blklen - 1);
+
+    for (; *pent;) {
+      if ((*pent)->hd.pkt_num > largest_ack) {
+        pent = &(*pent)->next;
+        continue;
+      }
+      if ((*pent)->hd.pkt_num < min_ack) {
+        break;
+      }
+      rtb_remove(rtb, pent);
+    }
+
+    largest_ack = min_ack;
+    ++i;
+  }
+
+  return 0;
 }
