@@ -184,7 +184,7 @@ void ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr) {
 
   for (i = 0; i < fr->num_blks && *pent;) {
     if (fr->blks[i].blklen == 0) {
-      if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
+      if (largest_ack == fr->blks[i].gap) {
         return;
       }
       largest_ack -= (uint64_t)fr->blks[i].gap + 1;
