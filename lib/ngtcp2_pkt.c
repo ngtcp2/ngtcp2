@@ -1228,6 +1228,9 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
       if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
         /* Edge case */
         if (largest_ack == fr->blks[i].gap && i == fr->num_blks - 1) {
+          /* Cut the last empty block here, so that we don't have to
+             handle this case later. */
+          --fr->num_blks;
           break;
         }
         return NGTCP2_ERR_BAD_ACK;
