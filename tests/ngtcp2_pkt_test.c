@@ -797,3 +797,39 @@ void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 1));
   CU_ASSERT(0x02ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 1));
 }
+
+void test_ngtcp2_pkt_validate_ack(void) {
+  int rv;
+  ngtcp2_ack fr;
+
+  /* too long first_ack_blklen */
+  fr.largest_ack = 1;
+  fr.first_ack_blklen = 2;
+  fr.num_blks = 0;
+
+  rv = ngtcp2_pkt_validate_ack(&fr);
+
+  CU_ASSERT(NGTCP2_ERR_BAD_ACK == rv);
+
+  /* gap is too large */
+  fr.largest_ack = 250;
+  fr.first_ack_blklen = 0;
+  fr.num_blks = 1;
+  fr.blks[0].gap = 251;
+  fr.blks[0].blklen = 0;
+
+  rv = ngtcp2_pkt_validate_ack(&fr);
+
+  CU_ASSERT(NGTCP2_ERR_BAD_ACK == rv);
+
+  /* too large blklen */
+  fr.largest_ack = 250;
+  fr.first_ack_blklen = 0;
+  fr.num_blks = 1;
+  fr.blks[0].gap = 250;
+  fr.blks[0].blklen = 2;
+
+  rv = ngtcp2_pkt_validate_ack(&fr);
+
+  CU_ASSERT(NGTCP2_ERR_BAD_ACK == rv);
+}

@@ -1117,7 +1117,13 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 }
 
 static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr) {
-  return ngtcp2_rtb_recv_ack(&conn->rtb, fr);
+  int rv;
+  rv = ngtcp2_pkt_validate_ack(fr);
+  if (rv != 0) {
+    return rv;
+  }
+  ngtcp2_rtb_recv_ack(&conn->rtb, fr);
+  return 0;
 }
 
 static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,

@@ -152,13 +152,7 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     ACK frame is malformed
  */
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr);
+void ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr);
 
 #endif /* NGTCP2_RTB_H */

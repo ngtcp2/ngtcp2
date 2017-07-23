@@ -1214,3 +1214,40 @@ uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
   }
   return b;
 }
+
+int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
+  uint64_t largest_ack = fr->largest_ack;
+  size_t i;
+
+  if (largest_ack < fr->first_ack_blklen) {
+    return NGTCP2_ERR_BAD_ACK;
+  }
+
+  for (i = 0; i < fr->num_blks; ++i) {
+    if (fr->blks[i].blklen == 0) {
+      if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
+        /* Edge case */
+        if (largest_ack == fr->blks[i].gap && i == fr->num_blks - 1) {
+          break;
+        }
+        return NGTCP2_ERR_BAD_ACK;
+      }
+      largest_ack -= (uint64_t)fr->blks[i].gap + 1;
+      continue;
+    }
+
+    if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
+      return NGTCP2_ERR_BAD_ACK;
+    }
+
+    largest_ack -= (uint64_t)fr->blks[i].gap + 1;
+
+    if (largest_ack < fr->blks[i].blklen - 1) {
+      return NGTCP2_ERR_BAD_ACK;
+    }
+
+    largest_ack -= fr->blks[i].blklen - 1;
+  }
+
+  return 0;
+}
