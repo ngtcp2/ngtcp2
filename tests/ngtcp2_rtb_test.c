@@ -164,7 +164,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   fr.num_blks = 2;
   fr.blks[0].gap = 255;
   fr.blks[0].blklen = 0;
-  /* 182 */
+  /* 180 */
   fr.blks[1].gap = 1;
   fr.blks[1].blklen = 1;
 
@@ -174,7 +174,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   CU_ASSERT(64 == ngtcp2_pq_size(&rtb.pq));
   assert_rtb_entry_not_found(&rtb, 441);
   assert_rtb_entry_not_found(&rtb, 440);
-  assert_rtb_entry_not_found(&rtb, 182);
+  assert_rtb_entry_not_found(&rtb, 180);
 
   ngtcp2_rtb_free(&rtb);
 
@@ -231,7 +231,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   fr.largest_ack = 250;
   fr.first_ack_blklen = 0;
   fr.num_blks = 1;
-  fr.blks[0].gap = 250;
+  fr.blks[0].gap = 249;
   fr.blks[0].blklen = 1;
 
   rv = ngtcp2_rtb_recv_ack(&rtb, &fr);
@@ -277,7 +277,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_init(&rtb, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
-  fr.largest_ack = 1;
+  fr.largest_ack = 2;
   fr.first_ack_blklen = 0;
   fr.num_blks = 1;
   fr.blks[0].gap = 1;

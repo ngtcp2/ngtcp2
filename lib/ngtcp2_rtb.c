@@ -186,20 +186,29 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr) {
 
   for (i = 0; i < fr->num_blks && *pent;) {
     if (fr->blks[i].blklen == 0) {
-      if (largest_ack < fr->blks[i].gap) {
+      if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
+        /* Edge case */
+        if (largest_ack == fr->blks[i].gap && i == fr->num_blks - 1) {
+          break;
+        }
         return NGTCP2_ERR_INVALID_ARGUMENT;
       }
-      largest_ack -= fr->blks[i].gap;
+      largest_ack -= (uint64_t)fr->blks[i].gap + 1;
       ++i;
 
       continue;
     }
 
-    if (largest_ack - fr->blks[i].gap < fr->blks[i].blklen - 1) {
+    if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
-    largest_ack -= fr->blks[i].gap;
+    largest_ack -= (uint64_t)fr->blks[i].gap + 1;
+
+    if (largest_ack < fr->blks[i].blklen - 1) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
     min_ack = largest_ack - (fr->blks[i].blklen - 1);
 
     for (; *pent;) {

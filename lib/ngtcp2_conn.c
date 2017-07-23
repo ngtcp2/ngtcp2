@@ -336,7 +336,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
       blk->blklen = first_pkt_num - last_pkt_num + 1;
     }
 
-    gap = last_pkt_num - rpkt->pkt_num;
+    gap = last_pkt_num - rpkt->pkt_num - 1;
     if (gap > 255) {
       /* TODO We need to encode next ack in the separate ACK frame or
          use the trick of 0 length ACK Block Length (not sure it is
