@@ -333,7 +333,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
     } else {
       blk = &ack->blks[ack->num_blks++];
       blk->gap = (uint8_t)gap;
-      blk->blklen = first_pkt_num - last_pkt_num;
+      blk->blklen = first_pkt_num - last_pkt_num + 1;
     }
 
     gap = last_pkt_num - rpkt->pkt_num;
@@ -359,6 +359,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
     ack->largest_ack = first_pkt_num;
     ack->ack_delay = (uint16_t)ack_delay;
     ack->first_ack_blklen = first_pkt_num - last_pkt_num;
+  } else if (first_pkt_num != last_pkt_num) {
+    blk = &ack->blks[ack->num_blks++];
+    blk->gap = (uint8_t)gap;
+    blk->blklen = first_pkt_num - last_pkt_num + 1;
   }
 
   return 0;
@@ -1884,17 +1888,55 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id) {
   return ngtcp2_struct_of(me, ngtcp2_strm, me);
 }
 
-int ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
-                             const uint8_t *data, size_t datalen) {
+ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
+                                 size_t destlen, size_t *pdatalen,
+                                 uint32_t stream_id, uint8_t fin,
+                                 const uint8_t *data, size_t datalen,
+                                 ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
   ngtcp2_frame_chain *frc;
+  ngtcp2_pkt_hd hd;
+  ngtcp2_ppe ppe;
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_rtb_entry *ent;
   int rv;
-  ngtcp2_frame_chain **pfrc;
+  size_t ndatalen, left;
+  ssize_t nwrite;
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
+                     conn->next_tx_pkt_num, conn->version);
+
+  ctx.ckm = conn->tx_ckm;
+  ctx.aead_overhead = conn->aead_overhead;
+  ctx.encrypt = conn->callbacks.encrypt;
+  ctx.user_data = conn;
+
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = conn_call_send_pkt(conn, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  left = ngtcp2_ppe_left(&ppe);
+  if (left <= NGTCP2_STREAM_OVERHEAD) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  left -= NGTCP2_STREAM_OVERHEAD;
+
+  /* TODO Take into account flow control credit here */
+  ndatalen = ngtcp2_min(datalen, left);
 
   rv = ngtcp2_frame_chain_new(&frc, conn->mem);
   if (rv != 0) {
@@ -1903,19 +1945,46 @@ int ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
 
   frc->fr.type = NGTCP2_FRAME_STREAM;
   frc->fr.stream.flags = 0;
-  frc->fr.stream.fin = (fin != 0);
+  frc->fr.stream.fin = fin && ndatalen == datalen;
   frc->fr.stream.stream_id = stream_id;
   frc->fr.stream.offset = strm->tx_offset;
-  frc->fr.stream.datalen = datalen;
+  frc->fr.stream.datalen = ndatalen;
   frc->fr.stream.data = data;
 
-  strm->tx_offset += datalen;
+  rv = ngtcp2_ppe_encode_frame(&ppe, &frc->fr);
+  if (rv != 0) {
+    ngtcp2_frame_chain_del(frc, conn->mem);
+    return rv;
+  }
 
-  /* TODO Make this O(1) */
-  for (pfrc = &conn->frq; *pfrc; pfrc = &(*pfrc)->next)
-    ;
+  rv = conn_call_send_frame(conn, &hd, &frc->fr);
+  if (rv != 0) {
+    ngtcp2_frame_chain_del(frc, conn->mem);
+    return rv;
+  }
 
-  *pfrc = frc;
+  nwrite = ngtcp2_ppe_final(&ppe, NULL);
+  if (nwrite < 0) {
+    ngtcp2_frame_chain_del(frc, conn->mem);
+    return nwrite;
+  }
 
-  return 0;
+  rv = ngtcp2_rtb_entry_new(&ent, &hd, frc, ts + NGTCP2_INITIAL_EXPIRY,
+                            conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = ngtcp2_rtb_add(&conn->rtb, ent);
+  if (rv != 0) {
+    ngtcp2_rtb_entry_del(ent, conn->mem);
+    return rv;
+  }
+
+  strm->tx_offset += ndatalen;
+  ++conn->next_tx_pkt_num;
+
+  *pdatalen = ndatalen;
+
+  return nwrite;
 }

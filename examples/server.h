@@ -51,10 +51,12 @@ struct Config {
 };
 
 struct Stream {
-  Stream();
+  Stream(uint32_t stream_id);
 
+  uint32_t stream_id;
   std::array<uint8_t, 32_k> streambuf;
-  size_t stream_offset;
+  size_t stream_woffset;
+  size_t stream_roffset;
 };
 
 class Server;
@@ -68,6 +70,7 @@ public:
   int tls_handshake();
   int on_read(uint8_t *data, size_t datalen);
   int on_write();
+  int on_write_stream(Stream &stream);
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();
   void signal_write();

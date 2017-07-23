@@ -799,21 +799,35 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_write_stream` writes stream data of stream denoted by
- * |stream_id|.  If |fin| is nonzero, fin flag is set in outgoing
- * STREAM frame.
+ * `ngtcp2_conn_write_stream` writes a packet containing stream data
+ * of stream denoted by |stream_id|.  The buffer of the packet is
+ * pointed by |dest| of length |destlen|.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * If the all given data is encoded as STREAM frame in|dest|, and if
+ * |fin| is nonzero, fin flag is set in outgoing STREAM frame.
+ * Otherwise, fin flag in STREAM frame is not set.
+ *
+ * The number of data encoded in STREAM frame is stored in
+ * |*pdatalen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Stream does not exist.
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
  */
-NGTCP2_EXTERN int ngtcp2_conn_write_stream(ngtcp2_conn *conn,
-                                           uint32_t stream_id, uint8_t fin,
-                                           const uint8_t *data, size_t datalen);
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
+                                               size_t destlen, size_t *pdatalen,
+                                               uint32_t stream_id, uint8_t fin,
+                                               const uint8_t *data,
+                                               size_t datalen,
+                                               ngtcp2_tstamp ts);
 
 /**
  * @function

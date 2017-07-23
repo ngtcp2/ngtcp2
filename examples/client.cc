@@ -529,6 +529,50 @@ int Client::on_write() {
   }
 }
 
+int Client::on_write_stream(uint32_t stream_id, uint8_t fin,
+                            const uint8_t *data, size_t datalen) {
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+  assert(buf.size() >= max_pktlen_);
+  size_t ndatalen;
+
+  for (;;) {
+    auto n = ngtcp2_conn_write_stream(conn_, buf.data(), max_pktlen_, &ndatalen,
+                                      stream_id, fin, data, datalen,
+                                      util::timestamp());
+    if (n < 0) {
+      std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
+                << std::endl;
+      return -1;
+    }
+
+    data += ndatalen;
+    datalen -= ndatalen;
+
+    if (debug::packet_lost(config.tx_loss_prob)) {
+      std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+      if (datalen == 0) {
+        break;
+      }
+      continue;
+    }
+
+    auto nwrite = write(fd_, buf.data(), n);
+    if (nwrite == -1) {
+      std::cerr << "write: " << strerror(errno) << std::endl;
+      return -1;
+    }
+
+    if (datalen == 0) {
+      break;
+    }
+  }
+
+  if (datalen == 0) {
+    schedule_retransmit();
+    return 0;
+  }
+}
+
 void Client::schedule_retransmit() {
   auto expiry = ngtcp2_conn_earliest_expiry(conn_);
   if (expiry == 0) {
@@ -705,10 +749,8 @@ int Client::send_interactive_input() {
 
   stream_offset_ += nread;
 
-  rv = ngtcp2_conn_write_stream(conn_, stream_id_, 0, p, nread);
+  rv = on_write_stream(stream_id_, 0, p, nread);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
     return -1;
   }
 
@@ -717,10 +759,8 @@ int Client::send_interactive_input() {
 
 int Client::stop_interactive_input() {
   int rv;
-  rv = ngtcp2_conn_write_stream(conn_, stream_id_, 1, nullptr, 0);
+  rv = on_write_stream(stream_id_, 1, nullptr, 0);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
     return -1;
   }
 

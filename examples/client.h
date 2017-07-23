@@ -63,6 +63,8 @@ public:
   int tls_handshake();
   int on_read();
   int on_write();
+  int on_write_stream(uint32_t stream_id, uint8_t fin, const uint8_t *data,
+                      size_t datalen);
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();
 
