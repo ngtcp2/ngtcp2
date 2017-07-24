@@ -31,6 +31,7 @@ before_install:
 before_script:
   # First build external lib
   - ./ci/build_openssl.sh
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libev; fi
   # configure ngtcp2
   - autoreconf -i
   - ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig CPPFLAGS=-fsanitize=address LDFLAGS="$EXTRA_LDFLAGS -fsanitize=address -Wl,-rpath,$PWD/openssl/build/lib" || cat config.log
