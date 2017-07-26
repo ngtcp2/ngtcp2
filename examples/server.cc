@@ -137,7 +137,10 @@ BIO_METHOD *create_bio_method() {
 } // namespace
 
 Stream::Stream(uint32_t stream_id)
-    : stream_id(stream_id), stream_woffset(0), stream_roffset(0) {}
+    : stream_id(stream_id),
+      stream_woffset(0),
+      stream_roffset(0),
+      should_send_fin(false) {}
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
@@ -289,11 +292,12 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, const uint8_t *data,
-                     size_t datalen, void *user_data, void *stream_user_data) {
+int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
+                     const uint8_t *data, size_t datalen, void *user_data,
+                     void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
 
-  if (h->recv_stream_data(stream_id, data, datalen) != 0) {
+  if (h->recv_stream_data(stream_id, fin, data, datalen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -575,13 +579,20 @@ int Handler::on_write_stream(Stream &stream) {
 
   auto data = stream.streambuf.data() + stream.stream_roffset;
   auto datalen = stream.stream_woffset - stream.stream_roffset;
-  if (datalen == 0) {
-    return 0;
-  }
+
+  uint8_t fin = 0;
 
   for (;;) {
+    if (datalen == 0) {
+      if (stream.should_send_fin) {
+        stream.should_send_fin = false;
+        fin = 1;
+      } else {
+        break;
+      }
+    }
     auto n = ngtcp2_conn_write_stream(conn_, buf.data(), max_pktlen_, &ndatalen,
-                                      stream.stream_id, 0, data, datalen,
+                                      stream.stream_id, fin, data, datalen,
                                       util::timestamp());
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
@@ -606,10 +617,6 @@ int Handler::on_write_stream(Stream &stream) {
     if (nwrite == -1) {
       std::cerr << "sendto: " << strerror(errno) << std::endl;
       return -1;
-    }
-
-    if (datalen == 0) {
-      break;
     }
   }
 
@@ -637,8 +644,8 @@ void Handler::schedule_retransmit() {
   ev_timer_start(loop_, &rttimer_);
 }
 
-int Handler::recv_stream_data(uint32_t stream_id, const uint8_t *data,
-                              size_t datalen) {
+int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
+                              const uint8_t *data, size_t datalen) {
   int rv;
 
   debug::print_stream_data(stream_id, data, datalen);
@@ -650,25 +657,29 @@ int Handler::recv_stream_data(uint32_t stream_id, const uint8_t *data,
 
   auto &stream = (*it).second;
 
-  static constexpr uint8_t start_tag[] = "<blink>";
-  static constexpr uint8_t end_tag[] = "</blink>";
+  size_t len = 0;
+  if (datalen > 0) {
+    static constexpr uint8_t start_tag[] = "<blink>";
+    static constexpr uint8_t end_tag[] = "</blink>";
 
-  auto left = stream.streambuf.size() - stream.stream_woffset;
+    auto left = stream.streambuf.size() - stream.stream_woffset;
 
-  auto len = str_size(start_tag) + datalen + str_size(end_tag);
-  if (left < len) {
-    std::cerr << "Stream buffer is too short to write outgoing message."
-              << std::endl;
-    return 0;
+    len = str_size(start_tag) + datalen + str_size(end_tag);
+    if (left < len) {
+      std::cerr << "Stream buffer is too short to write outgoing message."
+                << std::endl;
+      return 0;
+    }
+
+    auto p = std::begin(stream.streambuf) + stream.stream_woffset;
+
+    p = std::copy_n(start_tag, str_size(start_tag), p);
+    p = std::copy_n(data, datalen, p);
+    p = std::copy_n(end_tag, str_size(end_tag), p);
   }
 
-  auto p = std::begin(stream.streambuf) + stream.stream_woffset;
-
-  p = std::copy_n(start_tag, str_size(start_tag), p);
-  p = std::copy_n(data, datalen, p);
-  p = std::copy_n(end_tag, str_size(end_tag), p);
-
   stream.stream_woffset += len;
+  stream.should_send_fin = fin != 0;
 
   return 0;
 }

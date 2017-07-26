@@ -37,6 +37,7 @@
 #include "ngtcp2_rtb.h"
 #include "ngtcp2_strm.h"
 #include "ngtcp2_mem.h"
+#include "ngtcp2_idtr.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -97,10 +98,15 @@ struct ngtcp2_conn {
   ngtcp2_conn_callbacks callbacks;
   ngtcp2_strm strm0;
   ngtcp2_map strms;
+  ngtcp2_idtr local_idtr;
+  ngtcp2_idtr remote_idtr;
   uint64_t conn_id;
   uint64_t next_tx_pkt_num;
   uint64_t max_rx_pkt_num;
   uint32_t next_tx_stream_id;
+  /* max_remote_stream_id is the maximum stream ID of peer initiated
+     stream which the local endpoint can accept. */
+  uint32_t max_remote_stream_id;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
@@ -152,5 +158,29 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
  * |stream_id|.  If no such stream is found, it returns NULL.
  */
 ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id);
+
+/*
+ * conn_init_stream initializes |strm|.  Its stream ID is |stream_id|.
+ * This function adds |strm| to conn->strms.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
+                            uint32_t stream_id, void *stream_user_data);
+
+/*
+ * ngtcp2_conn_close_stream closes stream |strm|.
+ */
+int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_conn_close_stream closes stream |strm| if no further
+ * transmission and reception are allowed.
+ */
+int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
 #endif /* NGTCP2_CONN_H */
