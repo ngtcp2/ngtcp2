@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_conn.h"
+
 /*
  * strsize macro returns the length of string literal |S|.
  */
@@ -66,5 +68,14 @@ size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
 size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
                                  uint64_t first_ack_blklen, uint8_t gap,
                                  uint64_t ack_blklen);
+
+/*
+ * write_stream_pkt writes a QUIC packet containing single frame |fr|
+ * in |out| whose capacity is |outlen|.  This function returns the
+ * number of bytes written.
+ */
+size_t write_stream_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
+                        uint64_t conn_id, uint64_t pkt_num,
+                        const ngtcp2_frame *fr);
 
 #endif /* NGTCP2_TEST_HELPER_H */

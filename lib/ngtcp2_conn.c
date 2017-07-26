@@ -2061,7 +2061,9 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   strm->tx_offset += ndatalen;
   ++conn->next_tx_pkt_num;
 
-  *pdatalen = ndatalen;
+  if (pdatalen) {
+    *pdatalen = ndatalen;
+  }
 
   if (fin) {
     ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);

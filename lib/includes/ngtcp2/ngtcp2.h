@@ -810,8 +810,8 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn,
  * |fin| is nonzero, fin flag is set in outgoing STREAM frame.
  * Otherwise, fin flag in STREAM frame is not set.
  *
- * The number of data encoded in STREAM frame is stored in
- * |*pdatalen|.
+ * The number of data encoded in STREAM frame is stored in |*pdatalen|
+ * if it is not NULL.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:

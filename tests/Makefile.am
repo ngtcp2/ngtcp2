@@ -37,6 +37,7 @@ OBJECTS = \
 	ngtcp2_crypto_test.c \
 	ngtcp2_rtb_test.c \
 	ngtcp2_idtr_test.c \
+	ngtcp2_conn_test.c \
 	ngtcp2_test_helper.c
 HFILES= \
 	ngtcp2_pkt_test.h \
@@ -48,6 +49,7 @@ HFILES= \
 	ngtcp2_crypto_test.h \
 	ngtcp2_rtb_test.h \
 	ngtcp2_idtr_test.h \
+	ngtcp2_conn_test.h \
 	ngtcp2_test_helper.h
 
 main_SOURCES = $(HFILES) $(OBJECTS)

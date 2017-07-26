@@ -25,9 +25,11 @@
 #include "ngtcp2_test_helper.h"
 
 #include <string.h>
+#include <assert.h>
 
 #include "ngtcp2_conv.h"
 #include "ngtcp2_pkt.h"
+#include "ngtcp2_ppe.h"
 
 size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
                                     uint32_t stream_id, uint64_t offset,
@@ -97,4 +99,51 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
   p = ngtcp2_put_uint64be(p, ack_blklen);
 
   return (size_t)(p - out);
+}
+
+static ssize_t null_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                            const uint8_t *plaintext, size_t plaintextlen,
+                            const uint8_t *key, size_t keylen,
+                            const uint8_t *nonce, size_t noncelen,
+                            const uint8_t *ad, size_t adlen, void *user_data) {
+  (void)conn;
+  (void)dest;
+  (void)destlen;
+  (void)plaintext;
+  (void)key;
+  (void)keylen;
+  (void)nonce;
+  (void)noncelen;
+  (void)ad;
+  (void)adlen;
+  (void)user_data;
+  return (ssize_t)plaintextlen;
+}
+
+size_t write_stream_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
+                        uint64_t conn_id, uint64_t pkt_num,
+                        const ngtcp2_frame *fr) {
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_ppe ppe;
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_pkt_hd hd;
+  int rv;
+  ssize_t n;
+
+  memset(&ctx, 0, sizeof(ctx));
+  ctx.encrypt = null_encrypt;
+  ctx.ckm = conn->rx_ckm;
+  ctx.user_data = conn;
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn_id,
+                     pkt_num, NGTCP2_PROTO_VERSION);
+
+  ngtcp2_ppe_init(&ppe, out, outlen, &ctx, mem);
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  assert(0 == rv);
+  rv = ngtcp2_ppe_encode_frame(&ppe, fr);
+  assert(0 == rv);
+  n = ngtcp2_ppe_final(&ppe, NULL);
+  assert(n > 0);
+  return (size_t)n;
 }
