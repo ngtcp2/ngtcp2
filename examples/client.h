@@ -99,6 +99,8 @@ private:
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
+  ngtcp2_conn_callbacks callbacks_;
+  ngtcp2_settings settings_;
   int fd_;
   int stdinfd_;
   uint32_t stream_id_;
