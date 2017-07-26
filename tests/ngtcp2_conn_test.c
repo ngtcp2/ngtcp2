@@ -92,6 +92,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
   ngtcp2_frame fr;
   ngtcp2_strm *strm;
 
+  memset(&cb, 0, sizeof(cb));
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   server_default_settings(&settings);
