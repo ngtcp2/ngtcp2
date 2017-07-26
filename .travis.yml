@@ -28,7 +28,7 @@ addons:
     - cmake-data
 before_install:
   - $CC --version
-  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5"; else export CXX="clang++-3.8" CC="clang-3.8"; fi
+  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++-3.8" CC="clang-3.8"; fi
   - $CC --version
   - cmake --version
 before_script:
@@ -36,7 +36,7 @@ before_script:
   - if [ "$SSL_LIB" = "openssl" ]; then ./ci/build_openssl.sh; fi
   # configure ngtcp2
   - autoreconf -i
-  - if [ "$SSL_LIB" = "openssl" ]; then ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig CPPFLAGS=-fsanitize=address LDFLAGS="-fsanitize=address -Wl,-rpath,$PWD/openssl/build/lib"; fi
+  - if [ "$SSL_LIB" = "openssl" ]; then ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig CPPFLAGS=-fsanitize=address LDFLAGS="$EXTRA_LDFLAGS -fsanitize=address -Wl,-rpath,$PWD/openssl/build/lib" || cat config.log; fi
 script:
   # Now build ngtcp2
   - make check
