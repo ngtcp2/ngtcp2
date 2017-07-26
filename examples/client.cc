@@ -570,8 +570,8 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin,
 
   if (datalen == 0) {
     schedule_retransmit();
-    return 0;
   }
+  return 0;
 }
 
 void Client::schedule_retransmit() {

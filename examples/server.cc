@@ -622,8 +622,8 @@ int Handler::on_write_stream(Stream &stream) {
 
   if (datalen == 0) {
     schedule_retransmit();
-    return 0;
   }
+  return 0;
 }
 
 void Handler::schedule_retransmit() {
