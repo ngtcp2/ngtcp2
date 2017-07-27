@@ -176,7 +176,7 @@ typedef enum {
   NGTCP2_ERR_BAD_ACK = -207,
   NGTCP2_ERR_STREAM_ID_BLOCKED = -208,
   NGTCP2_ERR_STREAM_IN_USE = -209,
-  /* Fatal error >= 500 */
+  NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
   NGTCP2_ERR_INTERNAL = -503
@@ -842,6 +842,13 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
+
+/**
+ * @function
+ *
+ * `ngtcp2_err_fatal` returns nonzero if |liberr| is a fatal error.
+ */
+NGTCP2_EXTERN int ngtcp2_err_fatal(int liberr);
 
 #ifdef __cplusplus
 }

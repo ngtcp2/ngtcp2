@@ -645,12 +645,10 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       case NGTCP2_PKT_SERVER_CLEARTEXT:
       case NGTCP2_PKT_CLIENT_CLEARTEXT:
         nwrite = conn_retransmit_unprotected(conn, dest, destlen, ent, ts);
-        if (nwrite != 0) {
-          return nwrite;
-        }
         break;
       default:
         /* TODO fix this */
+        ngtcp2_rtb_entry_del(ent, conn->mem);
         return NGTCP2_ERR_INVALID_ARGUMENT;
       }
     } else {
@@ -662,21 +660,34 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         break;
       default:
         /* TODO fix this */
+        ngtcp2_rtb_entry_del(ent, conn->mem);
         return NGTCP2_ERR_INVALID_ARGUMENT;
       }
     }
 
     if (nwrite <= 0) {
-      ngtcp2_rtb_entry_del(ent, conn->mem);
       if (nwrite == 0) {
+        ngtcp2_rtb_entry_del(ent, conn->mem);
         continue;
       }
+      if (nwrite == NGTCP2_ERR_NOBUF) {
+        rv = ngtcp2_rtb_add(&conn->rtb, ent);
+        if (rv != 0) {
+          ngtcp2_rtb_entry_del(ent, conn->mem);
+          assert(ngtcp2_err_fatal(rv));
+          return rv;
+        }
+        return nwrite;
+      }
+
+      ngtcp2_rtb_entry_del(ent, conn->mem);
       return nwrite;
     }
 
     rv = ngtcp2_rtb_add(&conn->rtb, ent);
     if (rv != 0) {
       ngtcp2_rtb_entry_del(ent, conn->mem);
+      assert(ngtcp2_err_fatal(rv));
       return rv;
     }
 

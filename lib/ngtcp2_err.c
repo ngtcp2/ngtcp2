@@ -54,3 +54,5 @@ const char *ngtcp2_strerror(int liberr) {
     return "UNKNOWN";
   }
 }
+
+int ngtcp2_err_fatal(int liberr) { return liberr >= NGTCP2_ERR_FATAL; }
