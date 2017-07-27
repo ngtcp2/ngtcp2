@@ -217,14 +217,15 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
   }
 
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
+  (*pconn)->local_settings = *settings;
+  (*pconn)->max_remote_stream_id = settings->max_stream_id;
 
   /* TODO Since transport parameters are not required for interop now,
-     just supply sensible default here. */
+     just supply sensible default here.  Remove this when transport
+     parameter gets mandatory. */
   (*pconn)->remote_settings.max_stream_data = 128 * 1024;
   (*pconn)->remote_settings.max_data = 128;
   (*pconn)->remote_settings.max_stream_id = 1;
-
-  (*pconn)->local_settings = *settings;
 
   return 0;
 }
@@ -242,14 +243,15 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
 
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   (*pconn)->server = 1;
+  (*pconn)->local_settings = *settings;
+  (*pconn)->max_remote_stream_id = settings->max_stream_id;
 
   /* TODO Since transport parameters are not required for interop now,
-     just supply sensible default here. */
+     just supply sensible default here.  Remove this when transport
+     parameter gets mandatory. */
   (*pconn)->remote_settings.max_stream_data = 128 * 1024;
   (*pconn)->remote_settings.max_data = 128;
   (*pconn)->remote_settings.max_stream_id = 0;
-
-  (*pconn)->local_settings = *settings;
 
   return 0;
 }
@@ -502,7 +504,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd = ent->hd;
-  ngtcp2_frame_chain **pfrc;
+  ngtcp2_frame_chain **pfrc, *frc;
   ngtcp2_rtb_entry *nent = NULL;
   ngtcp2_frame localfr;
   int pkt_empty = 1;
@@ -549,7 +551,14 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     pkt_empty = 0;
   }
 
-  for (pfrc = &ent->frc; *pfrc; pfrc = &(*pfrc)->next) {
+  for (pfrc = &ent->frc; *pfrc;) {
+    if ((*pfrc)->fr.type == NGTCP2_FRAME_MAX_STREAM_ID &&
+        (*pfrc)->fr.max_stream_id.max_stream_id < conn->max_remote_stream_id) {
+      frc = *pfrc;
+      pfrc = &(*pfrc)->next;
+      ngtcp2_frame_chain_del(frc, conn->mem);
+      continue;
+    }
     rv = ngtcp2_ppe_encode_frame(&ppe, &(*pfrc)->fr);
     if (rv != 0) {
       if (rv == NGTCP2_ERR_NOBUF) {
@@ -560,6 +569,8 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     if (rv != 0) {
       return rv;
     }
+
+    pfrc = &(*pfrc)->next;
   }
 
   if (*pfrc != ent->frc) {
@@ -994,6 +1005,21 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
   }
 
+  if (conn->max_remote_stream_id > conn->local_settings.max_stream_id) {
+    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
+    nfrc->fr.max_stream_id.max_stream_id = conn->max_remote_stream_id;
+    nfrc->next = conn->frq;
+    conn->frq = nfrc;
+
+    conn->local_settings.max_stream_id = conn->max_remote_stream_id;
+    /* MAX_STREAM_ID frame could appear in the following for loop if
+       buffer is too small. */
+  }
+
   for (pfrc = &conn->frq; *pfrc; pfrc = &(*pfrc)->next) {
     if ((*pfrc)->fr.type == NGTCP2_FRAME_STREAM) {
       left = ngtcp2_ppe_left(&ppe);
@@ -1009,6 +1035,7 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         if (rv != 0) {
           return rv;
         }
+        nfrc->fr.type = NGTCP2_FRAME_STREAM;
         nfrc->fr.stream = (*pfrc)->fr.stream;
         nfrc->fr.stream.datalen = left;
         (*pfrc)->fr.stream.datalen -= left;
@@ -1899,7 +1926,6 @@ int ngtcp2_conn_set_remote_transport_params(
   /* TODO Should we check that conn->max_remote_stream_id is larger
      than conn->remote_settings.max_stream_id here?  What happens for
      0-RTT stream? */
-  conn->max_remote_stream_id = conn->remote_settings.max_stream_id;
 
   return 0;
 }
