@@ -451,21 +451,15 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (pkt_empty) {
-    return NGTCP2_ERR_NOBUF;
+    return rv;
   }
 
   if (*pfrc == NULL) {
     /* We have retransmit complete packet.  Update ent with new packet
        header, and push it into rbt again. */
-    ngtcp2_rtb_pop(&conn->rtb);
     ent->hd = hd;
     /* TODO Should we change expiry time in 2nd try? */
     ent->expiry = ts + NGTCP2_INITIAL_EXPIRY;
-    rv = ngtcp2_rtb_add(&conn->rtb, ent);
-    if (rv != 0) {
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      return rv;
-    }
 
     if (hd.type == NGTCP2_PKT_CLIENT_INITIAL) {
       localfr.type = NGTCP2_FRAME_PADDING;
@@ -575,21 +569,15 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (pkt_empty) {
-    return NGTCP2_ERR_NOBUF;
+    return rv;
   }
 
   if (*pfrc == NULL) {
     /* We have retransmit complete packet.  Update ent with new packet
        header, and push it into rbt again. */
-    ngtcp2_rtb_pop(&conn->rtb);
     ent->hd = hd;
     /* TODO Should we change expiry time in 2nd try? */
     ent->expiry = ts + NGTCP2_INITIAL_EXPIRY;
-    rv = ngtcp2_rtb_add(&conn->rtb, ent);
-    if (rv != 0) {
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      return rv;
-    }
 
     nwrite = ngtcp2_ppe_final(&ppe, NULL);
     if (nwrite < 0) {
@@ -632,29 +620,59 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
+  ssize_t nwrite;
+  int rv;
 
-  ent = ngtcp2_rtb_top(&conn->rtb);
-  if (ent == NULL) {
-    return 0;
-  }
-
-  if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    switch (ent->hd.type) {
-    case NGTCP2_PKT_CLIENT_INITIAL:
-    case NGTCP2_PKT_SERVER_CLEARTEXT:
-    case NGTCP2_PKT_CLIENT_CLEARTEXT:
-      return conn_retransmit_unprotected(conn, dest, destlen, ent, ts);
+  for (;;) {
+    ent = ngtcp2_rtb_top(&conn->rtb);
+    if (ent == NULL || ent->expiry > ts) {
+      return 0;
     }
-  } else {
-    switch (ent->hd.type) {
-    case NGTCP2_PKT_01:
-    case NGTCP2_PKT_02:
-    case NGTCP2_PKT_03:
-      return conn_retransmit_protected(conn, dest, destlen, ent, ts);
-    }
-  }
+    ngtcp2_rtb_pop(&conn->rtb);
 
-  return NGTCP2_ERR_INVALID_ARGUMENT;
+    if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+      switch (ent->hd.type) {
+      case NGTCP2_PKT_CLIENT_INITIAL:
+      case NGTCP2_PKT_SERVER_CLEARTEXT:
+      case NGTCP2_PKT_CLIENT_CLEARTEXT:
+        nwrite = conn_retransmit_unprotected(conn, dest, destlen, ent, ts);
+        if (nwrite != 0) {
+          return nwrite;
+        }
+        break;
+      default:
+        /* TODO fix this */
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
+    } else {
+      switch (ent->hd.type) {
+      case NGTCP2_PKT_01:
+      case NGTCP2_PKT_02:
+      case NGTCP2_PKT_03:
+        nwrite = conn_retransmit_protected(conn, dest, destlen, ent, ts);
+        break;
+      default:
+        /* TODO fix this */
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
+    }
+
+    if (nwrite <= 0) {
+      ngtcp2_rtb_entry_del(ent, conn->mem);
+      if (nwrite == 0) {
+        continue;
+      }
+      return nwrite;
+    }
+
+    rv = ngtcp2_rtb_add(&conn->rtb, ent);
+    if (rv != 0) {
+      ngtcp2_rtb_entry_del(ent, conn->mem);
+      return rv;
+    }
+
+    return nwrite;
+  }
 }
 
 static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
@@ -1050,11 +1068,10 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                          ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
-  ngtcp2_rtb_entry *rtbent;
 
-  rtbent = ngtcp2_rtb_top(&conn->rtb);
-  if (rtbent && rtbent->expiry <= ts) {
-    return conn_retransmit(conn, dest, destlen, ts);
+  nwrite = conn_retransmit(conn, dest, destlen, ts);
+  if (nwrite != 0) {
+    return nwrite;
   }
 
   switch (conn->state) {
