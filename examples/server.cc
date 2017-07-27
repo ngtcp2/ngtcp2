@@ -171,6 +171,8 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
       loop_(loop),
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
+      callbacks_{},
+      settings_{},
       server_(server),
       fd_(-1),
       ncread_(0),
@@ -197,6 +199,9 @@ Handler::~Handler() {
   if (conn_) {
     ngtcp2_conn_del(conn_);
   }
+
+  callbacks_ = {};
+  settings_ = {};
 
   if (ssl_) {
     SSL_free(ssl_);
@@ -330,34 +335,33 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   SSL_set_app_data(ssl_, this);
   SSL_set_accept_state(ssl_);
 
-  auto callbacks = ngtcp2_conn_callbacks{
-      nullptr,
-      nullptr,
-      send_server_cleartext,
-      recv_handshake_data,
-      debug::send_pkt,
-      debug::send_frame,
-      debug::recv_pkt,
-      debug::recv_frame,
-      handshake_completed,
-      nullptr,
-      do_encrypt,
-      do_decrypt,
-      ::recv_stream_data,
+  callbacks_ = {
+    .send_client_initial = nullptr,
+    .send_client_cleartext = nullptr,
+    .send_server_cleartext = send_server_cleartext,
+    .recv_handshake_data = recv_handshake_data,
+    .send_pkt = debug::send_pkt,
+    .send_frame = debug::send_frame,
+    .recv_pkt = debug::recv_pkt,
+    .recv_frame = debug::recv_frame,
+    .handshake_completed = handshake_completed,
+    .recv_version_negotiation = nullptr,
+    .encrypt = do_encrypt,
+    .decrypt = do_decrypt,
+    .recv_stream_data = ::recv_stream_data
+  };
+  settings_ = {
+    .max_stream_data = 128_k,
+    .max_data = 128,
+    // TODO Just allow stream ID = 1 to exchange encrypted data for now.
+    .max_stream_id = 1,
+    .idle_timeout = 5,
+    .omit_connection_id = 0,
+    .max_packet_size = NGTCP2_MAX_PKT_SIZE,
   };
 
-  ngtcp2_settings settings;
-
-  settings.max_stream_data = 128_k;
-  settings.max_data = 128;
-  // TODO Just allow stream ID = 1 to exchange encrypted data for now.
-  settings.max_stream_id = 1;
-  settings.idle_timeout = 5;
-  settings.omit_connection_id = 0;
-  settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
-
   rv = ngtcp2_conn_server_new(&conn_, conn_id_, NGTCP2_PROTO_VERSION,
-                              &callbacks, &settings, this);
+                              &callbacks_, &settings_, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;

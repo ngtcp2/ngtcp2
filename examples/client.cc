@@ -188,6 +188,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       loop_(loop),
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
+      callbacks_{},
+      settings_{},
       fd_(-1),
       stdinfd_(-1),
       stream_id_(0),
@@ -224,6 +226,9 @@ void Client::disconnect() {
     ngtcp2_conn_del(conn_);
     conn_ = nullptr;
   }
+
+  callbacks_ = {};
+  settings_ = {};
 
   if (ssl_) {
     SSL_free(ssl_);
@@ -381,35 +386,35 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     SSL_set_tlsext_host_name(ssl_, addr);
   }
 
-  auto callbacks = ngtcp2_conn_callbacks{
-      send_client_initial,
-      send_client_cleartext,
-      nullptr,
-      recv_handshake_data,
-      debug::send_pkt,
-      debug::send_frame,
-      debug::recv_pkt,
-      debug::recv_frame,
-      handshake_completed,
-      debug::recv_version_negotiation,
-      do_encrypt,
-      do_decrypt,
-      recv_stream_data,
+  callbacks_ = {
+    .send_client_initial = send_client_initial,
+    .send_client_cleartext = send_client_cleartext,
+    .send_server_cleartext = nullptr,
+    .recv_handshake_data = recv_handshake_data,
+    .send_pkt = debug::send_pkt,
+    .send_frame = debug::send_frame,
+    .recv_pkt = debug::recv_pkt,
+    .recv_frame = debug::recv_frame,
+    .handshake_completed = handshake_completed,
+    .recv_version_negotiation = debug::recv_version_negotiation,
+    .encrypt = do_encrypt,
+    .decrypt = do_decrypt,
+    .recv_stream_data = recv_stream_data
+  };
+  settings_ = {
+    .max_stream_data = 128_k,
+    .max_data = 128,
+    .max_stream_id = 0,
+    .idle_timeout = 5,
+    .omit_connection_id = 0,
+    .max_packet_size = NGTCP2_MAX_PKT_SIZE,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
-  ngtcp2_settings settings;
-  settings.max_stream_data = 128_k;
-  settings.max_data = 128;
-  settings.max_stream_id = 0;
-  settings.idle_timeout = 5;
-  settings.omit_connection_id = 0;
-  settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
-
-  rv = ngtcp2_conn_client_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
-                              &settings, this);
+  rv = ngtcp2_conn_client_new(&conn_, conn_id, NGTCP2_PROTO_VERSION,
+                              &callbacks_, &settings_, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
