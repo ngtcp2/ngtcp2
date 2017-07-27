@@ -1,7 +1,4 @@
 language: cpp
-env:
-  matrix:
-    - SSL_LIB=openssl
 compiler:
   - clang
   - gcc
@@ -33,10 +30,10 @@ before_install:
   - cmake --version
 before_script:
   # First build external lib
-  - if [ "$SSL_LIB" = "openssl" ]; then ./ci/build_openssl.sh; fi
+  - ./ci/build_openssl.sh
   # configure ngtcp2
   - autoreconf -i
-  - if [ "$SSL_LIB" = "openssl" ]; then ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig CPPFLAGS=-fsanitize=address LDFLAGS="$EXTRA_LDFLAGS -fsanitize=address -Wl,-rpath,$PWD/openssl/build/lib" || cat config.log; fi
+  - ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig CPPFLAGS=-fsanitize=address LDFLAGS="$EXTRA_LDFLAGS -fsanitize=address -Wl,-rpath,$PWD/openssl/build/lib" || cat config.log
 script:
   # Now build ngtcp2
   - make check
