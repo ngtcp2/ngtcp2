@@ -26,13 +26,15 @@
 
 #include <string.h>
 
-int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id,
+int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
                      void *stream_user_data, ngtcp2_mem *mem) {
   int rv;
 
   strm->tx_offset = 0;
+  strm->last_rx_offset = 0;
   strm->nbuffered = 0;
   strm->stream_id = stream_id;
+  strm->flags = flags;
   strm->stream_user_data = stream_user_data;
   strm->me.key = stream_id;
   strm->me.next = NULL;
@@ -62,4 +64,8 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const ngtcp2_stream *fr) {
   return ngtcp2_rob_push(&strm->rob, fr->offset, fr->data, fr->datalen);
+}
+
+void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
+  strm->flags |= flags & NGTCP2_STRM_FLAG_SHUT_RDWR;
 }

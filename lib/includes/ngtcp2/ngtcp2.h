@@ -174,6 +174,7 @@ typedef enum {
   NGTCP2_ERR_PROTO = -205,
   NGTCP2_ERR_INVALID_STATE = -206,
   NGTCP2_ERR_BAD_ACK = -207,
+  NGTCP2_ERR_STREAM_ID_BLOCKED = -208,
   /* Fatal error >= 500 */
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -649,8 +650,9 @@ typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
                                   size_t adlen, void *user_data);
 
 typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t stream_id,
-                                       const uint8_t *data, size_t datalen,
-                                       void *user_data, void *stream_user_data);
+                                       uint8_t fin, const uint8_t *data,
+                                       size_t datalen, void *user_data,
+                                       void *stream_user_data);
 
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
@@ -808,8 +810,8 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn,
  * |fin| is nonzero, fin flag is set in outgoing STREAM frame.
  * Otherwise, fin flag in STREAM frame is not set.
  *
- * The number of data encoded in STREAM frame is stored in
- * |*pdatalen|.
+ * The number of data encoded in STREAM frame is stored in |*pdatalen|
+ * if it is not NULL.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:

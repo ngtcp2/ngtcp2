@@ -35,18 +35,35 @@
 #include "ngtcp2_buf.h"
 #include "ngtcp2_map.h"
 
+typedef enum {
+  NGTCP2_STRM_FLAG_NONE = 0,
+  /* NGTCP2_STRM_FLAG_SHUT_RD indicates that further reception of
+     stream data is not allowed. */
+  NGTCP2_STRM_FLAG_SHUT_RD = 0x01,
+  /* NGTCP2_STRM_FLAG_SHUT_WR indicates that further transmission of
+     stream data is not allowed. */
+  NGTCP2_STRM_FLAG_SHUT_WR = 0x02,
+  NGTCP2_STRM_FLAG_SHUT_RDWR =
+      NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR,
+} ngtcp2_strm_flags;
+
 typedef struct {
   ngtcp2_map_entry me;
   uint64_t tx_offset;
+  /* last_rx_offset is the largest offset of stream data received for
+     this stream. */
+  uint64_t last_rx_offset;
   ngtcp2_rob rob;
   ngtcp2_mem *mem;
   size_t nbuffered;
   ngtcp2_buf tx_buf;
   uint32_t stream_id;
   void *stream_user_data;
+  /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
+  uint32_t flags;
 } ngtcp2_strm;
 
-int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id,
+int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
                      void *stream_user_data, ngtcp2_mem *mem);
 
 void ngtcp2_strm_free(ngtcp2_strm *strm);
@@ -65,5 +82,11 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
  *     Out of memory
  */
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const ngtcp2_stream *fr);
+
+/*
+ * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be
+ * NGTCP2_STRM_FLAG_SHUT_RD, and/or NGTCP2_STRM_FLAG_SHUT_WR.
+ */
+void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags);
 
 #endif /* NGTCP2_STRM_H */

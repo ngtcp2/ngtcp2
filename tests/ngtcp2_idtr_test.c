@@ -22,33 +22,53 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_err.h"
+#include "ngtcp2_idtr_test.h"
 
-const char *ngtcp2_strerror(int liberr) {
-  switch (liberr) {
-  case NGTCP2_ERR_INVALID_ARGUMENT:
-    return "ERR_INVALID_ARGUMENT";
-  case NGTCP2_ERR_UNKNOWN_PKT_TYPE:
-    return "ERR_UNKNOWN_PKT_TYPE";
-  case NGTCP2_ERR_NOBUF:
-    return "ERR_NOBUF";
-  case NGTCP2_ERR_BAD_PKT_HASH:
-    return "ERR_BAD_PKT_HASH";
-  case NGTCP2_ERR_PROTO:
-    return "ERR_PROTO";
-  case NGTCP2_ERR_INVALID_STATE:
-    return "ERR_INVALID_STATE";
-  case NGTCP2_ERR_BAD_ACK:
-    return "ERR_BAD_ACK";
-  case NGTCP2_ERR_STREAM_ID_BLOCKED:
-    return "ERR_STREAM_ID_BLOCKED";
-  case NGTCP2_ERR_NOMEM:
-    return "ERR_NOMEM";
-  case NGTCP2_ERR_CALLBACK_FAILURE:
-    return "ERR_CALLBACK_FAILURE";
-  case NGTCP2_ERR_INTERNAL:
-    return "ERR_INTERNAL";
-  default:
-    return "UNKNOWN";
-  }
+#include <CUnit/CUnit.h>
+
+#include "ngtcp2_idtr.h"
+#include "ngtcp2_test_helper.h"
+#include "ngtcp2_mem.h"
+
+void test_ngtcp2_idtr_open(void) {
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_idtr idtr;
+  int rv;
+  ngtcp2_idtr_gap *g;
+
+  rv = ngtcp2_idtr_init(&idtr, mem);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_idtr_open(&idtr, 0);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == idtr.gap->range.begin);
+  CU_ASSERT(UINT64_MAX == idtr.gap->range.end);
+  CU_ASSERT(NULL == idtr.gap->next);
+
+  rv = ngtcp2_idtr_open(&idtr, 1000000007);
+
+  CU_ASSERT(0 == rv);
+
+  g = idtr.gap;
+
+  CU_ASSERT(1 == idtr.gap->range.begin);
+  CU_ASSERT(1000000007 == g->range.end);
+
+  g = g->next;
+
+  CU_ASSERT(1000000008 == g->range.begin);
+  CU_ASSERT(UINT64_MAX == g->range.end);
+  CU_ASSERT(NULL == g->next);
+
+  rv = ngtcp2_idtr_open(&idtr, 0);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  rv = ngtcp2_idtr_open(&idtr, 1000000007);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  ngtcp2_idtr_free(&idtr);
 }

@@ -22,33 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_err.h"
+#ifndef NGTCP2_CONN_TEST_H
+#define NGTCP2_CONN_TEST_H
 
-const char *ngtcp2_strerror(int liberr) {
-  switch (liberr) {
-  case NGTCP2_ERR_INVALID_ARGUMENT:
-    return "ERR_INVALID_ARGUMENT";
-  case NGTCP2_ERR_UNKNOWN_PKT_TYPE:
-    return "ERR_UNKNOWN_PKT_TYPE";
-  case NGTCP2_ERR_NOBUF:
-    return "ERR_NOBUF";
-  case NGTCP2_ERR_BAD_PKT_HASH:
-    return "ERR_BAD_PKT_HASH";
-  case NGTCP2_ERR_PROTO:
-    return "ERR_PROTO";
-  case NGTCP2_ERR_INVALID_STATE:
-    return "ERR_INVALID_STATE";
-  case NGTCP2_ERR_BAD_ACK:
-    return "ERR_BAD_ACK";
-  case NGTCP2_ERR_STREAM_ID_BLOCKED:
-    return "ERR_STREAM_ID_BLOCKED";
-  case NGTCP2_ERR_NOMEM:
-    return "ERR_NOMEM";
-  case NGTCP2_ERR_CALLBACK_FAILURE:
-    return "ERR_CALLBACK_FAILURE";
-  case NGTCP2_ERR_INTERNAL:
-    return "ERR_INTERNAL";
-  default:
-    return "UNKNOWN";
-  }
-}
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
+
+void test_ngtcp2_conn_stream_open_close(void);
+
+#endif /* NGTCP2_CONN_TEST_H */

@@ -57,6 +57,7 @@ struct Stream {
   std::array<uint8_t, 32_k> streambuf;
   size_t stream_woffset;
   size_t stream_roffset;
+  bool should_send_fin;
 };
 
 class Server;
@@ -93,7 +94,8 @@ public:
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;
-  int recv_stream_data(uint32_t stream_id, const uint8_t *data, size_t datalen);
+  int recv_stream_data(uint32_t stream_id, uint8_t fin, const uint8_t *data,
+                       size_t datalen);
   uint64_t conn_id() const;
 
 private:

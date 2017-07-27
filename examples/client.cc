@@ -284,8 +284,9 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, const uint8_t *data,
-                     size_t datalen, void *user_data, void *stream_user_data) {
+int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
+                     const uint8_t *data, size_t datalen, void *user_data,
+                     void *stream_user_data) {
   debug::print_stream_data(stream_id, data, datalen);
 
   return 0;
@@ -569,8 +570,8 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin,
 
   if (datalen == 0) {
     schedule_retransmit();
-    return 0;
   }
+  return 0;
 }
 
 void Client::schedule_retransmit() {
