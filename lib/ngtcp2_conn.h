@@ -103,7 +103,6 @@ struct ngtcp2_conn {
   uint64_t conn_id;
   uint64_t next_tx_pkt_num;
   uint64_t max_rx_pkt_num;
-  uint32_t next_tx_stream_id;
   /* max_remote_stream_id is the maximum stream ID of peer initiated
      stream which the local endpoint can accept. */
   uint32_t max_remote_stream_id;

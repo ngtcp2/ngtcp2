@@ -175,6 +175,7 @@ typedef enum {
   NGTCP2_ERR_INVALID_STATE = -206,
   NGTCP2_ERR_BAD_ACK = -207,
   NGTCP2_ERR_STREAM_ID_BLOCKED = -208,
+  NGTCP2_ERR_STREAM_IN_USE = -209,
   /* Fatal error >= 500 */
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -785,18 +786,21 @@ NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
 /**
  * @function
  *
- * `ngtcp2_conn_open_stream` opens new stream.  The stream ID is
- * assigned to |*pstream_id|.  The |stream_user_data| is the user data
- * specific to the stream.
+ * `ngtcp2_conn_open_stream` opens new stream denoted by |stream_id|..
+ * The |stream_user_data| is the user data specific to the stream.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
+ * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
+ *     The remote peer does not allow |stream_id| yet.
+ * :enum:`NGTCP2_ERR_STREAM_IN_USE`
+ *     The stream has already been opened.
+
  */
-NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn,
-                                          uint32_t *pstream_id,
+NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
                                           void *stream_user_data);
 
 /**

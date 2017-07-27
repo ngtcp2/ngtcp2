@@ -64,11 +64,11 @@ void test_ngtcp2_idtr_open(void) {
 
   rv = ngtcp2_idtr_open(&idtr, 0);
 
-  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE == rv);
 
   rv = ngtcp2_idtr_open(&idtr, 1000000007);
 
-  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE == rv);
 
   ngtcp2_idtr_free(&idtr);
 }

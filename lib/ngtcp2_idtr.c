@@ -74,7 +74,7 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t q) {
 
   for (pg = &idtr->gap; *pg; pg = &(*pg)->next) {
     if (q < (*pg)->range.begin) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      return NGTCP2_ERR_STREAM_IN_USE;
     }
     if ((*pg)->range.end <= q) {
       continue;
@@ -103,5 +103,20 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t q) {
     return 0;
   }
 
-  return NGTCP2_ERR_INVALID_ARGUMENT;
+  return NGTCP2_ERR_STREAM_IN_USE;
+}
+
+int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t q) {
+  ngtcp2_idtr_gap **pg;
+
+  for (pg = &idtr->gap; *pg; pg = &(*pg)->next) {
+    if (q < (*pg)->range.begin) {
+      return NGTCP2_ERR_STREAM_IN_USE;
+    }
+    if ((*pg)->range.end <= q) {
+      continue;
+    }
+    break;
+  }
+  return 0;
 }

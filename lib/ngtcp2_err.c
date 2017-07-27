@@ -42,6 +42,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_BAD_ACK";
   case NGTCP2_ERR_STREAM_ID_BLOCKED:
     return "ERR_STREAM_ID_BLOCKED";
+  case NGTCP2_ERR_STREAM_IN_USE:
+    return "ERR_STREAM_IN_USE";
   case NGTCP2_ERR_NOMEM:
     return "ERR_NOMEM";
   case NGTCP2_ERR_CALLBACK_FAILURE:

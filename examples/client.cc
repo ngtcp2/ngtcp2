@@ -717,15 +717,13 @@ int Client::start_interactive_input() {
   ev_io_set(&stdinrev_, stdinfd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
-  uint32_t stream_id;
-  rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
+  stream_id_ = 1;
+  rv = ngtcp2_conn_open_stream(conn_, stream_id_, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
-
-  stream_id_ = stream_id;
 
   std::cerr << "The stream " << stream_id_ << " has opened." << std::endl;
 

@@ -102,14 +102,25 @@ int ngtcp2_idtr_init(ngtcp2_idtr *idtr, ngtcp2_mem *mem);
 void ngtcp2_idtr_free(ngtcp2_idtr *idtr);
 
 /*
- * ngtcp2_idtr_open tells |idtr| that ID |id| is in used.
+ * ngtcp2_idtr_open claims that |id| is in used.
  *
  * It returns 0 if it succeeds, or one of the following negative error
  * codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_STREAM_IN_USE
  *     ID has already been used.
  */
 int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t id);
+
+/*
+ * ngtcp2_idtr_open tells whether ID |id| is in used or not.
+ *
+ * It returns 0 if it succeeds, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_STREAM_IN_USE
+ *     ID has already been used.
+ */
+int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t id);
 
 #endif /* NGTCP2_IDTR_H */

@@ -216,7 +216,6 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
     return rv;
   }
 
-  (*pconn)->next_tx_stream_id = 1;
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
 
   /* TODO Since transport parameters are not required for interop now,
@@ -241,7 +240,6 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
     return rv;
   }
 
-  (*pconn)->next_tx_stream_id = 2;
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   (*pconn)->server = 1;
 
@@ -1427,14 +1425,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
   local_stream = conn_local_stream(conn, fr->stream_id);
 
-  if (local_stream) {
-    if (conn->next_tx_stream_id <= fr->stream_id) {
-      return NGTCP2_ERR_PROTO;
-    }
-  } else {
-    if (conn->local_settings.max_stream_id < fr->stream_id) {
-      return NGTCP2_ERR_PROTO;
-    }
+  if (!local_stream && conn->local_settings.max_stream_id < fr->stream_id) {
+    return NGTCP2_ERR_PROTO;
   }
 
   if (UINT64_MAX - fr->datalen < fr->offset ||
@@ -1445,14 +1437,14 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
-      rv =
-          ngtcp2_idtr_open(&conn->local_idtr, id_from_stream_id(fr->stream_id));
+      rv = ngtcp2_idtr_is_open(&conn->local_idtr,
+                               id_from_stream_id(fr->stream_id));
     } else {
       rv = ngtcp2_idtr_open(&conn->remote_idtr,
                             id_from_stream_id(fr->stream_id));
     }
     if (rv != 0) {
-      if (rv == NGTCP2_ERR_INVALID_ARGUMENT) {
+      if (rv == NGTCP2_ERR_STREAM_IN_USE) {
         /* The stream has been closed.  This should be responded with
            RST_STREAM, or simply ignored. */
         return 0;
@@ -1944,13 +1936,27 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t *pstream_id,
+int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
                             void *stream_user_data) {
   int rv;
   ngtcp2_strm *strm;
 
-  if (conn->next_tx_stream_id > conn->remote_settings.max_stream_id) {
+  if (!conn_local_stream(conn, stream_id)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  if (stream_id > conn->remote_settings.max_stream_id) {
     return NGTCP2_ERR_STREAM_ID_BLOCKED;
+  }
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  if (strm != NULL) {
+    return NGTCP2_ERR_STREAM_IN_USE;
+  }
+
+  rv = ngtcp2_idtr_open(&conn->local_idtr, id_from_stream_id(stream_id));
+  if (rv != 0) {
+    return rv;
   }
 
   strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
@@ -1958,15 +1964,10 @@ int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t *pstream_id,
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = ngtcp2_conn_init_stream(conn, strm, conn->next_tx_stream_id,
-                               stream_user_data);
+  rv = ngtcp2_conn_init_stream(conn, strm, stream_id, stream_user_data);
   if (rv != 0) {
     return rv;
   }
-
-  conn->next_tx_stream_id += 2;
-
-  *pstream_id = strm->stream_id;
 
   return 0;
 }
