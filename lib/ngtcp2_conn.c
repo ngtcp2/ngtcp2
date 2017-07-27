@@ -1522,8 +1522,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
 }
 
-static int conn_recv_packet(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
-                            ngtcp2_tstamp ts) {
+static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
+                         ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
   size_t pkt_num_bits;
   int encrypted = 0;
@@ -1640,7 +1640,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   ngtcp2_pkt_chain *pc = conn->buffed_rx_ppkts, *next;
 
   for (; pc; pc = pc->next) {
-    rv = conn_recv_packet(conn, pc->pkt, pc->pktlen, ts);
+    rv = conn_recv_pkt(conn, pc->pkt, pc->pktlen, ts);
     if (rv != 0) {
       return rv;
     }
@@ -1720,7 +1720,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
   case NGTCP2_CS_CLOSE_WAIT:
-    rv = conn_recv_packet(conn, pkt, pktlen, ts);
+    rv = conn_recv_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
       break;
     }
