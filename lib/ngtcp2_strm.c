@@ -41,12 +41,21 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
   strm->mem = mem;
   memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
 
+  rv = ngtcp2_gaptr_init(&strm->acked_tx_offset, mem);
+  if (rv != 0) {
+    goto fail_gaptr_init;
+  }
+
   rv = ngtcp2_rob_init(&strm->rob, 8 * 1024, mem);
   if (rv != 0) {
     goto fail_rob_init;
   }
 
+  return 0;
+
 fail_rob_init:
+  ngtcp2_gaptr_free(&strm->acked_tx_offset);
+fail_gaptr_init:
   return rv;
 }
 
@@ -56,6 +65,7 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
   }
 
   ngtcp2_rob_free(&strm->rob);
+  ngtcp2_gaptr_free(&strm->acked_tx_offset);
 }
 
 uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {

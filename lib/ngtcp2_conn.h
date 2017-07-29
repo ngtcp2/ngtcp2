@@ -96,7 +96,7 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
-  ngtcp2_strm strm0;
+  ngtcp2_strm *strm0;
   ngtcp2_map strms;
   ngtcp2_idtr local_idtr;
   ngtcp2_idtr remote_idtr;

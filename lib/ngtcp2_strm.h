@@ -34,6 +34,7 @@
 #include "ngtcp2_rob.h"
 #include "ngtcp2_buf.h"
 #include "ngtcp2_map.h"
+#include "ngtcp2_gaptr.h"
 
 typedef enum {
   NGTCP2_STRM_FLAG_NONE = 0,
@@ -50,6 +51,7 @@ typedef enum {
 typedef struct {
   ngtcp2_map_entry me;
   uint64_t tx_offset;
+  ngtcp2_gaptr acked_tx_offset;
   /* last_rx_offset is the largest offset of stream data received for
      this stream. */
   uint64_t last_rx_offset;

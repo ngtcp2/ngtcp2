@@ -30,6 +30,7 @@
 #endif // HAVE_CONFIG_H
 
 #include <vector>
+#include <deque>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -87,6 +88,8 @@ public:
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
+  void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                             size_t datalen);
 
 private:
   Address remote_addr_;
@@ -102,14 +105,14 @@ private:
   int fd_;
   int stdinfd_;
   uint32_t stream_id_;
-  std::vector<uint8_t> chandshake_;
-  size_t ncread_;
+  std::deque<std::vector<uint8_t>> chandshake_;
+  size_t chandshake_idx_;
   std::vector<uint8_t> shandshake_;
   size_t nsread_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
-  std::array<uint8_t, 32_k> streambuf_;
-  size_t stream_offset_;
+  std::deque<std::vector<uint8_t>> streambuf_;
+  size_t streambuf_idx_;
 };
 
 #endif // CLIENT_H
