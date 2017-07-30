@@ -137,10 +137,7 @@ BIO_METHOD *create_bio_method() {
 } // namespace
 
 Stream::Stream(uint32_t stream_id)
-    : stream_id(stream_id),
-      stream_woffset(0),
-      stream_roffset(0),
-      should_send_fin(false) {}
+    : stream_id(stream_id), streambuf_idx(0), should_send_fin(false) {}
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
@@ -174,13 +171,11 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
       server_(server),
       fd_(-1),
       ncread_(0),
-      nsread_(0),
+      shandshake_idx_(0),
       conn_(nullptr),
       crypto_ctx_{},
       conn_id_(std::uniform_int_distribution<uint64_t>(
           0, std::numeric_limits<uint64_t>::max())(randgen)) {
-  shandshake_.reserve(128_k);
-
   ev_timer_init(&timer_, timeoutcb, 0., 30.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
@@ -305,6 +300,16 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
 }
 } // namespace
 
+namespace {
+int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
+                             uint64_t offset, size_t datalen, void *user_data,
+                             void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  h->remove_tx_stream_data(stream_id, offset, datalen);
+  return 0;
+}
+} // namespace
+
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   int rv;
 
@@ -344,6 +349,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
       do_encrypt,
       do_decrypt,
       ::recv_stream_data,
+      acked_stream_data_offset,
   };
 
   ngtcp2_settings settings;
@@ -398,18 +404,17 @@ int Handler::tls_handshake() {
 }
 
 int Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
-  if (shandshake_.capacity() < shandshake_.size() + datalen) {
-    return -1;
-  }
-  std::copy_n(data, datalen, std::back_inserter(shandshake_));
+  shandshake_.emplace_back(data, data + datalen);
   return 0;
 }
 
 size_t Handler::read_server_handshake(const uint8_t **pdest) {
-  auto n = shandshake_.size() - nsread_;
-  *pdest = shandshake_.data() + nsread_;
-  nsread_ = shandshake_.size();
-  return n;
+  if (shandshake_idx_ == shandshake_.size()) {
+    return 0;
+  }
+  const auto &v = shandshake_[shandshake_idx_++];
+  *pdest = v.data();
+  return v.size();
 }
 
 size_t Handler::read_client_handshake(uint8_t *buf, size_t buflen) {
@@ -577,23 +582,46 @@ int Handler::on_write_stream(Stream &stream) {
 
   assert(buf.size() >= max_pktlen_);
 
-  auto data = stream.streambuf.data() + stream.stream_roffset;
-  auto datalen = stream.stream_woffset - stream.stream_roffset;
-
-  uint8_t fin = 0;
-
-  for (;;) {
-    if (datalen == 0) {
-      if (stream.should_send_fin) {
-        stream.should_send_fin = false;
-        fin = 1;
-      } else {
-        break;
+  if (stream.streambuf_idx == stream.streambuf.size()) {
+    if (stream.should_send_fin) {
+      stream.should_send_fin = false;
+      if (write_stream_data(stream, 1, nullptr, 0) != 0) {
+        return -1;
       }
     }
+    return 0;
+  }
+
+  for (auto it = std::begin(stream.streambuf) + stream.streambuf_idx;
+       it != std::end(stream.streambuf); ++it) {
+    const auto &v = *it;
+    auto fin = stream.should_send_fin &&
+               stream.streambuf_idx == stream.streambuf.size() - 1;
+    if (fin) {
+      stream.should_send_fin = false;
+    }
+    if (write_stream_data(stream, fin, v.data(), v.size()) != 0) {
+      return -1;
+    }
+    ++stream.streambuf_idx;
+  }
+
+  schedule_retransmit();
+
+  return 0;
+}
+
+int Handler::write_stream_data(Stream &stream, int fin, const uint8_t *data,
+                               size_t datalen) {
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+  size_t ndatalen;
+
+  assert(buf.size() >= max_pktlen_);
+
+  for (; datalen || fin;) {
     auto n = ngtcp2_conn_write_stream(conn_, buf.data(), max_pktlen_, &ndatalen,
-                                      stream.stream_id, fin, data, datalen,
-                                      util::timestamp());
+                                      stream.stream_id, fin && datalen == 0,
+                                      data, datalen, util::timestamp());
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
@@ -602,12 +630,11 @@ int Handler::on_write_stream(Stream &stream) {
 
     data += ndatalen;
     datalen -= ndatalen;
-    stream.stream_roffset += ndatalen;
 
     if (debug::packet_lost(config.tx_loss_prob)) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
-      if (datalen == 0) {
-        break;
+      if (fin && ndatalen == 0) {
+        return 0;
       }
       continue;
     }
@@ -618,11 +645,11 @@ int Handler::on_write_stream(Stream &stream) {
       std::cerr << "sendto: " << strerror(errno) << std::endl;
       return -1;
     }
+    if (fin && ndatalen == 0) {
+      return 0;
+    }
   }
 
-  if (datalen == 0) {
-    schedule_retransmit();
-  }
   return 0;
 }
 
@@ -662,23 +689,18 @@ int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
     static constexpr uint8_t start_tag[] = "<blink>";
     static constexpr uint8_t end_tag[] = "</blink>";
 
-    auto left = stream.streambuf.size() - stream.stream_woffset;
+    auto v = std::vector<uint8_t>();
+    v.resize(str_size(start_tag) + datalen + str_size(end_tag));
 
-    len = str_size(start_tag) + datalen + str_size(end_tag);
-    if (left < len) {
-      std::cerr << "Stream buffer is too short to write outgoing message."
-                << std::endl;
-      return 0;
-    }
-
-    auto p = std::begin(stream.streambuf) + stream.stream_woffset;
+    auto p = v.data();
 
     p = std::copy_n(start_tag, str_size(start_tag), p);
     p = std::copy_n(data, datalen, p);
     p = std::copy_n(end_tag, str_size(end_tag), p);
+
+    stream.streambuf.emplace_back(std::move(v));
   }
 
-  stream.stream_woffset += len;
   stream.should_send_fin = fin != 0;
 
   return 0;
@@ -691,6 +713,29 @@ Server *Handler::server() const { return server_; }
 const Address &Handler::remote_addr() const { return remote_addr_; }
 
 ngtcp2_conn *Handler::conn() const { return conn_; }
+
+namespace {
+void remove_tx_stream_data(std::deque<std::vector<uint8_t>> &d, size_t &idx,
+                           size_t datalen) {
+  for (; !d.empty() && d.front().size() <= datalen;) {
+    --idx;
+    datalen -= d.front().size();
+    d.pop_front();
+  }
+}
+} // namespace
+
+void Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                                    size_t datalen) {
+  if (stream_id == 0) {
+    ::remove_tx_stream_data(shandshake_, shandshake_idx_, datalen);
+    return;
+  }
+  auto it = streams_.find(stream_id);
+  assert(it != std::end(streams_));
+  auto &stream = (*it).second;
+  ::remove_tx_stream_data(stream.streambuf, stream.streambuf_idx, datalen);
+}
 
 namespace {
 void swritecb(struct ev_loop *loop, ev_io *w, int revents) {}

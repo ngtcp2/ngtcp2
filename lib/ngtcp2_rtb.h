@@ -34,6 +34,9 @@
 #include "ngtcp2_pq.h"
 #include "ngtcp2_map.h"
 
+struct ngtcp2_conn;
+typedef struct ngtcp2_conn ngtcp2_conn;
+
 struct ngtcp2_frame_chain;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
@@ -152,7 +155,14 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed
  */
-void ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr);
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
+                        ngtcp2_conn *conn);
 
 #endif /* NGTCP2_RTB_H */

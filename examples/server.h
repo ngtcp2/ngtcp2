@@ -30,6 +30,7 @@
 #endif // HAVE_CONFIG_H
 
 #include <vector>
+#include <deque>
 #include <map>
 
 #include <ngtcp2/ngtcp2.h>
@@ -54,7 +55,8 @@ struct Stream {
   Stream(uint32_t stream_id);
 
   uint32_t stream_id;
-  std::array<uint8_t, 32_k> streambuf;
+  std::deque<std::vector<uint8_t>> streambuf;
+  size_t streambuf_idx;
   size_t stream_woffset;
   size_t stream_roffset;
   bool should_send_fin;
@@ -72,6 +74,8 @@ public:
   int on_read(uint8_t *data, size_t datalen);
   int on_write();
   int on_write_stream(Stream &stream);
+  int write_stream_data(Stream &stream, int fin, const uint8_t *data,
+                        size_t datalen);
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();
   void signal_write();
@@ -97,6 +101,8 @@ public:
   int recv_stream_data(uint32_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
   uint64_t conn_id() const;
+  void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                             size_t datalen);
 
 private:
   Address remote_addr_;
@@ -110,8 +116,8 @@ private:
   ev_timer rttimer_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
-  std::vector<uint8_t> shandshake_;
-  size_t nsread_;
+  std::deque<std::vector<uint8_t>> shandshake_;
+  size_t shandshake_idx_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
   std::map<uint32_t, Stream> streams_;

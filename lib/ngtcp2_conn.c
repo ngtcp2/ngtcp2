@@ -161,14 +161,24 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_conn;
   }
 
-  rv = ngtcp2_strm_init(&(*pconn)->strm0, 0, NGTCP2_STRM_FLAG_NONE, NULL, mem);
+  (*pconn)->strm0 = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_strm));
+  if ((*pconn)->strm0 == NULL) {
+    rv = NGTCP2_ERR_NOMEM;
+    goto fail_strm0_malloc;
+  }
+  rv = ngtcp2_strm_init((*pconn)->strm0, 0, NGTCP2_STRM_FLAG_NONE, NULL, mem);
   if (rv != 0) {
-    goto fail_strm_init;
+    goto fail_strm0_init;
   }
 
   rv = ngtcp2_map_init(&(*pconn)->strms, mem);
   if (rv != 0) {
     goto fail_strms_init;
+  }
+
+  rv = ngtcp2_map_insert(&(*pconn)->strms, &(*pconn)->strm0->me);
+  if (rv != 0) {
+    goto fail_strms_insert;
   }
 
   rv = ngtcp2_idtr_init(&(*pconn)->local_idtr, mem);
@@ -196,10 +206,13 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
 fail_remote_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->local_idtr);
 fail_local_idtr_init:
+fail_strms_insert:
   ngtcp2_map_free(&(*pconn)->strms);
 fail_strms_init:
-  ngtcp2_strm_free(&(*pconn)->strm0);
-fail_strm_init:
+  ngtcp2_strm_free((*pconn)->strm0);
+fail_strm0_init:
+  ngtcp2_mem_free(mem, (*pconn)->strm0);
+fail_strm0_malloc:
   ngtcp2_mem_free(mem, *pconn);
 fail_conn:
   return rv;
@@ -316,7 +329,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_idtr_free(&conn->local_idtr);
   ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
   ngtcp2_map_free(&conn->strms);
-  ngtcp2_strm_free(&conn->strm0);
 
   ngtcp2_mem_free(conn->mem, conn);
 }
@@ -771,7 +783,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     fr->stream.flags = 0;
     fr->stream.fin = 0;
     fr->stream.stream_id = 0;
-    fr->stream.offset = conn->strm0.tx_offset;
+    fr->stream.offset = conn->strm0->tx_offset;
     fr->stream.datalen = nwrite;
     fr->stream.data = tx_buf->pos;
 
@@ -786,7 +798,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     tx_buf->pos += nwrite;
-    conn->strm0.tx_offset += nwrite;
+    conn->strm0->tx_offset += nwrite;
   }
 
   if (type == NGTCP2_PKT_CLIENT_INITIAL) {
@@ -881,7 +893,7 @@ static ssize_t conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   uint64_t pkt_num = 0;
   const uint8_t *payload;
   ssize_t payloadlen;
-  ngtcp2_buf *tx_buf = &conn->strm0.tx_buf;
+  ngtcp2_buf *tx_buf = &conn->strm0->tx_buf;
 
   payloadlen = conn->callbacks.send_client_initial(
       conn, NGTCP2_CONN_FLAG_NONE, &pkt_num, &payload, conn->user_data);
@@ -903,7 +915,7 @@ static ssize_t conn_send_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
                                           size_t destlen, ngtcp2_tstamp ts) {
   const uint8_t *payload;
   ssize_t payloadlen;
-  ngtcp2_buf *tx_buf = &conn->strm0.tx_buf;
+  ngtcp2_buf *tx_buf = &conn->strm0->tx_buf;
 
   if (ngtcp2_buf_len(tx_buf) == 0) {
     payloadlen = conn->callbacks.send_client_cleartext(
@@ -932,7 +944,7 @@ static ssize_t conn_send_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
   uint64_t pkt_num = 0;
   const uint8_t *payload;
   ssize_t payloadlen;
-  ngtcp2_buf *tx_buf = &conn->strm0.tx_buf;
+  ngtcp2_buf *tx_buf = &conn->strm0->tx_buf;
 
   if (ngtcp2_buf_len(tx_buf) == 0) {
     payloadlen = conn->callbacks.send_server_cleartext(
@@ -1204,8 +1216,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr) {
   if (rv != 0) {
     return rv;
   }
-  ngtcp2_rtb_recv_ack(&conn->rtb, fr);
-  return 0;
+  return ngtcp2_rtb_recv_ack(&conn->rtb, fr, conn);
 }
 
 static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
@@ -1327,7 +1338,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
 
-    rx_offset = ngtcp2_strm_rx_offset(&conn->strm0);
+    rx_offset = ngtcp2_strm_rx_offset(conn->strm0);
     if (rx_offset >= fr.stream.offset + fr.stream.datalen) {
       continue;
     }
@@ -1344,7 +1355,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       size_t datalen = fr.stream.datalen - ncut;
 
       rx_offset += datalen;
-      ngtcp2_rob_remove_prefix(&conn->strm0.rob, rx_offset);
+      ngtcp2_rob_remove_prefix(&conn->strm0->rob, rx_offset);
 
       rv = conn->callbacks.recv_handshake_data(conn, data, datalen,
                                                conn->user_data);
@@ -1352,13 +1363,13 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
 
-      rv = ngtcp2_conn_emit_pending_recv_handshake(conn, &conn->strm0,
-                                                   rx_offset);
+      rv =
+          ngtcp2_conn_emit_pending_recv_handshake(conn, conn->strm0, rx_offset);
       if (rv != 0) {
         return rv;
       }
     } else {
-      rv = ngtcp2_strm_recv_reordering(&conn->strm0, &fr.stream);
+      rv = ngtcp2_strm_recv_reordering(conn->strm0, &fr.stream);
       if (rv != 0) {
         return rv;
       }

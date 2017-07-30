@@ -655,6 +655,20 @@ typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t stream_id,
                                        size_t datalen, void *user_data,
                                        void *stream_user_data);
 
+/*
+ * :type:`ngtcp2_acked_stream_data_offset` is a callback function
+ * which is called when stream data is acked, and application can free
+ * the data.  The acked range of data is [offset, offset + datalen).
+ * For a given stream_id, this callback is called sequentially in
+ * increasing order of |offset|.  |datalen| must be strictly greater
+ * than 0.
+ */
+typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
+                                               uint32_t stream_id,
+                                               uint64_t offset, size_t datalen,
+                                               void *user_data,
+                                               void *stream_user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
@@ -669,6 +683,7 @@ typedef struct {
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
   ngtcp2_recv_stream_data recv_stream_data;
+  ngtcp2_acked_stream_data_offset acked_stream_data_offset;
 } ngtcp2_conn_callbacks;
 
 /*
