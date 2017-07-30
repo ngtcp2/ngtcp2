@@ -53,6 +53,18 @@ struct Config {
   int fd;
 };
 
+struct Buffer {
+  Buffer(const uint8_t *data, size_t datalen);
+  Buffer();
+  size_t left() const { return std::end(buf) - pos; }
+  const uint8_t *rpos() const {
+    return buf.data() + std::distance(std::begin(buf), pos);
+  }
+
+  std::vector<uint8_t> buf;
+  std::vector<uint8_t>::const_iterator pos;
+};
+
 class Client {
 public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
@@ -64,8 +76,7 @@ public:
   int tls_handshake();
   int on_read();
   int on_write();
-  int on_write_stream(uint32_t stream_id, uint8_t fin, const uint8_t *data,
-                      size_t datalen);
+  int on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();
 
@@ -105,14 +116,23 @@ private:
   int fd_;
   int stdinfd_;
   uint32_t stream_id_;
-  std::deque<std::vector<uint8_t>> chandshake_;
+  std::deque<Buffer> chandshake_;
+  // chandshake_idx_ is the index in chandshake_, which points to the
+  // buffer to read next.
   size_t chandshake_idx_;
+  uint64_t tx_stream0_offset_;
   std::vector<uint8_t> shandshake_;
   size_t nsread_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
-  std::deque<std::vector<uint8_t>> streambuf_;
+  std::deque<Buffer> streambuf_;
+  // streambuf_idx_ is the index in streambuf_, which points to the
+  // buffer to send next.
   size_t streambuf_idx_;
+  // tx_stream_offset_ is the offset where all data before offset is
+  // acked by the remote endpoint.
+  uint64_t tx_stream_offset_;
+  bool should_send_fin_;
 };
 
 #endif // CLIENT_H

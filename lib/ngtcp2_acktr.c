@@ -55,7 +55,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
     }
     /* TODO What to do if we receive duplicated packet number? */
     if ((*pent)->pkt_num == ent->pkt_num) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      return NGTCP2_ERR_PROTO;
     }
     break;
   }

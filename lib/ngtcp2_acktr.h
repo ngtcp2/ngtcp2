@@ -85,7 +85,7 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_PROTO
  *     Same packet number has already been included in |acktr|.
  */
 int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);

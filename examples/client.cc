@@ -54,6 +54,11 @@ namespace {
 Config config{};
 } // namespace
 
+Buffer::Buffer(const uint8_t *data, size_t datalen)
+    : buf{data, data + datalen}, pos(std::begin(buf)) {}
+
+Buffer::Buffer() : pos(std::begin(buf)) {}
+
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
   int rv;
@@ -138,7 +143,13 @@ BIO_METHOD *create_bio_method() {
 } // namespace
 
 namespace {
-void writecb(struct ev_loop *loop, ev_io *w, int revents) {}
+void writecb(struct ev_loop *loop, ev_io *w, int revents) {
+  auto c = static_cast<Client *>(w->data);
+
+  if (c->on_write() != 0) {
+    c->disconnect();
+  }
+}
 } // namespace
 
 namespace {
@@ -192,10 +203,13 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       stdinfd_(-1),
       stream_id_(0),
       chandshake_idx_(0),
+      tx_stream0_offset_(0),
       nsread_(0),
       conn_(nullptr),
       crypto_ctx_{},
-      streambuf_idx_(0) {
+      streambuf_idx_(0),
+      tx_stream_offset_(0),
+      should_send_fin_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   ev_io_init(&stdinrev_, stdin_readcb, 0, EV_READ);
@@ -286,7 +300,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
                      const uint8_t *data, size_t datalen, void *user_data,
                      void *stream_user_data) {
   debug::print_stream_data(stream_id, data, datalen);
-
+  ngtcp2_conn_extend_max_stream_offset(conn, stream_id, datalen);
   return 0;
 }
 } // namespace
@@ -410,8 +424,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
   ngtcp2_settings settings;
-  settings.max_stream_data = 128_k;
-  settings.max_data = 128;
+  settings.max_stream_data = 64_k;
+  settings.max_data = 64;
   settings.max_stream_id = 0;
   settings.idle_timeout = 5;
   settings.omit_connection_id = 0;
@@ -514,6 +528,26 @@ int Client::on_write() {
   std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
   assert(buf.size() >= max_pktlen_);
 
+  for (auto it = std::begin(streambuf_) + streambuf_idx_;
+       it != std::end(streambuf_); ++it) {
+    auto &v = *it;
+    if (on_write_stream(stream_id_, 0, v) != 0) {
+      return -1;
+    }
+    if (v.left() > 0) {
+      break;
+    }
+    ++streambuf_idx_;
+  }
+
+  if (streambuf_idx_ == streambuf_.size() && should_send_fin_) {
+    should_send_fin_ = false;
+    auto v = Buffer{};
+    if (on_write_stream(stream_id_, 1, v) != 0) {
+      return -1;
+    }
+  }
+
   for (;;) {
     auto n =
         ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
@@ -522,8 +556,7 @@ int Client::on_write() {
       return -1;
     }
     if (n == 0) {
-      schedule_retransmit();
-      return 0;
+      break;
     }
 
     if (debug::packet_lost(config.tx_loss_prob)) {
@@ -537,30 +570,34 @@ int Client::on_write() {
       return -1;
     }
   }
+
+  schedule_retransmit();
+  return 0;
 }
 
-int Client::on_write_stream(uint32_t stream_id, uint8_t fin,
-                            const uint8_t *data, size_t datalen) {
+int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
   std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
   assert(buf.size() >= max_pktlen_);
   size_t ndatalen;
 
   for (;;) {
     auto n = ngtcp2_conn_write_stream(conn_, buf.data(), max_pktlen_, &ndatalen,
-                                      stream_id, fin, data, datalen,
+                                      stream_id, fin, data.rpos(), data.left(),
                                       util::timestamp());
     if (n < 0) {
+      if (n == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
+        return 0;
+      }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
       return -1;
     }
 
-    data += ndatalen;
-    datalen -= ndatalen;
+    data.pos += ndatalen;
 
     if (debug::packet_lost(config.tx_loss_prob)) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
-      if (datalen == 0) {
+      if (data.left() == 0) {
         break;
       }
       continue;
@@ -572,14 +609,11 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin,
       return -1;
     }
 
-    if (datalen == 0) {
+    if (data.left() == 0) {
       break;
     }
   }
 
-  if (datalen == 0) {
-    schedule_retransmit();
-  }
   return 0;
 }
 
@@ -602,7 +636,7 @@ void Client::schedule_retransmit() {
 }
 
 int Client::write_client_handshake(const uint8_t *data, size_t datalen) {
-  chandshake_.emplace_back(data, data + datalen);
+  chandshake_.emplace_back(data, datalen);
   return 0;
 }
 
@@ -611,8 +645,8 @@ size_t Client::read_client_handshake(const uint8_t **pdest) {
     return 0;
   }
   const auto &v = chandshake_[chandshake_idx_++];
-  *pdest = v.data();
-  return v.size();
+  *pdest = v.buf.data();
+  return v.buf.size();
 }
 
 size_t Client::read_server_handshake(uint8_t *buf, size_t buflen) {
@@ -753,37 +787,32 @@ int Client::send_interactive_input() {
     return stop_interactive_input();
   }
 
-  streambuf_.emplace_back(std::begin(buf), std::end(buf));
-  const auto &v = streambuf_.back();
+  streambuf_.emplace_back(buf.data(), nread);
 
-  rv = on_write_stream(stream_id_, 0, v.data(), nread);
-  if (rv != 0) {
-    return -1;
-  }
+  ev_feed_event(loop_, &wev_, EV_WRITE);
 
-  return on_write();
+  return 0;
 }
 
 int Client::stop_interactive_input() {
   int rv;
-  rv = on_write_stream(stream_id_, 1, nullptr, 0);
-  if (rv != 0) {
-    return -1;
-  }
 
+  should_send_fin_ = true;
   ev_io_stop(loop_, &stdinrev_);
 
   std::cerr << "Interactive session has ended." << std::endl;
 
-  return on_write();
+  ev_feed_event(loop_, &wev_, EV_WRITE);
+
+  return 0;
 }
 
 namespace {
-void remove_tx_stream_data(std::deque<std::vector<uint8_t>> &d, size_t &idx,
-                           size_t datalen) {
-  for (; !d.empty() && d.front().size() <= datalen;) {
+void remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
+                           uint64_t &tx_offset, uint64_t offset) {
+  for (; !d.empty() && tx_offset + d.front().buf.size() <= offset;) {
     --idx;
-    datalen -= d.front().size();
+    tx_offset += d.front().buf.size();
     d.pop_front();
   }
 }
@@ -792,10 +821,12 @@ void remove_tx_stream_data(std::deque<std::vector<uint8_t>> &d, size_t &idx,
 void Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                                    size_t datalen) {
   if (stream_id == 0) {
-    ::remove_tx_stream_data(chandshake_, chandshake_idx_, datalen);
+    ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
+                            offset + datalen);
     return;
   }
-  ::remove_tx_stream_data(streambuf_, streambuf_idx_, datalen);
+  ::remove_tx_stream_data(streambuf_, streambuf_idx_, tx_stream_offset_,
+                          offset + datalen);
 }
 
 namespace {

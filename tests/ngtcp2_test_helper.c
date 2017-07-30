@@ -120,9 +120,9 @@ static ssize_t null_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   return (ssize_t)plaintextlen;
 }
 
-size_t write_stream_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
-                        uint64_t conn_id, uint64_t pkt_num,
-                        const ngtcp2_frame *fr) {
+size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
+                              uint64_t conn_id, uint64_t pkt_num,
+                              const ngtcp2_frame *fr) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;
   ngtcp2_mem *mem = ngtcp2_mem_default();

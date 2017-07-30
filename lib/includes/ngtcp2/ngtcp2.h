@@ -176,6 +176,8 @@ typedef enum {
   NGTCP2_ERR_BAD_ACK = -207,
   NGTCP2_ERR_STREAM_ID_BLOCKED = -208,
   NGTCP2_ERR_STREAM_IN_USE = -209,
+  NGTCP2_ERR_STREAM_DATA_BLOCKED = -210,
+  NGTCP2_ERR_FLOW_CONTROL = -211,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -840,7 +842,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     Stream does not exist.
+ *     Stream does not exist; or |stream_id| is 0.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */
@@ -850,6 +852,22 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
                                                const uint8_t *data,
                                                size_t datalen,
                                                ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_extend_max_stream_offset` extends stream's max stream
+ * data value by |datalen|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |stream_id| is 0; or stream was not found
+ */
+NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
+                                                       uint32_t stream_id,
+                                                       size_t datalen);
 
 /**
  * @function

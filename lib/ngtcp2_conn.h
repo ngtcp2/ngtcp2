@@ -60,6 +60,10 @@ typedef enum {
    packets buffered which arrive before handshake completes. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PPKTS 16
 
+/* NGTCP2_STRM0_MAX_STREAM_DATA is the maximum stream offset that an
+   endpoint can send initially. */
+#define NGTCP2_STRM0_MAX_STREAM_DATA 65535
+
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
 
@@ -98,6 +102,7 @@ struct ngtcp2_conn {
   ngtcp2_conn_callbacks callbacks;
   ngtcp2_strm *strm0;
   ngtcp2_map strms;
+  ngtcp2_strm *fc_strms;
   ngtcp2_idtr local_idtr;
   ngtcp2_idtr remote_idtr;
   uint64_t conn_id;
