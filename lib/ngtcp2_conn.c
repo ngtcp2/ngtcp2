@@ -1588,8 +1588,16 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     pkt_num_bits = 32;
-    if (hd.type == NGTCP2_PKT_1RTT_PROTECTED_K0) {
+    switch (hd.type) {
+    case NGTCP2_PKT_1RTT_PROTECTED_K0:
       encrypted = 1;
+      break;
+    case NGTCP2_PKT_SERVER_CLEARTEXT:
+      if (!conn->server) {
+        /* TODO Client may keep sending old connection ID */
+        conn->conn_id = hd.conn_id;
+      }
+      break;
     }
   } else {
     switch (hd.type) {
