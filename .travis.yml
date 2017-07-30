@@ -1,14 +1,13 @@
+dist: trusty
 language: cpp
 compiler:
   - clang
   - gcc
-sudo: false
+sudo: required
 addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
-    - llvm-toolchain-precise-3.8
-    - george-edison55-precise-backports
     packages:
     - g++-5
     - clang-3.8
