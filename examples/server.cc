@@ -53,6 +53,11 @@ namespace {
 Config config{};
 } // namespace
 
+Buffer::Buffer(const uint8_t *data, size_t datalen)
+    : buf{data, data + datalen}, pos(std::begin(buf)) {}
+
+Buffer::Buffer() : pos(std::begin(buf)) {}
+
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
   int rv;
@@ -137,7 +142,10 @@ BIO_METHOD *create_bio_method() {
 } // namespace
 
 Stream::Stream(uint32_t stream_id)
-    : stream_id(stream_id), streambuf_idx(0), should_send_fin(false) {}
+    : stream_id(stream_id),
+      streambuf_idx(0),
+      tx_stream_offset(0),
+      should_send_fin(false) {}
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
@@ -175,7 +183,8 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
       conn_(nullptr),
       crypto_ctx_{},
       conn_id_(std::uniform_int_distribution<uint64_t>(
-          0, std::numeric_limits<uint64_t>::max())(randgen)) {
+          0, std::numeric_limits<uint64_t>::max())(randgen)),
+      tx_stream0_offset_(0) {
   ev_timer_init(&timer_, timeoutcb, 0., 30.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
@@ -354,8 +363,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
 
   ngtcp2_settings settings;
 
-  settings.max_stream_data = 128_k;
-  settings.max_data = 128;
+  settings.max_stream_data = 64_k;
+  settings.max_data = 64;
   // TODO Just allow stream ID = 1 to exchange encrypted data for now.
   settings.max_stream_id = 1;
   settings.idle_timeout = 5;
@@ -404,7 +413,7 @@ int Handler::tls_handshake() {
 }
 
 int Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
-  shandshake_.emplace_back(data, data + datalen);
+  shandshake_.emplace_back(data, datalen);
   return 0;
 }
 
@@ -412,9 +421,11 @@ size_t Handler::read_server_handshake(const uint8_t **pdest) {
   if (shandshake_idx_ == shandshake_.size()) {
     return 0;
   }
-  const auto &v = shandshake_[shandshake_idx_++];
-  *pdest = v.data();
-  return v.size();
+  auto &v = shandshake_[shandshake_idx_++];
+  *pdest = v.rpos();
+  auto left = v.left();
+  v.pos += left;
+  return left;
 }
 
 size_t Handler::read_client_handshake(uint8_t *buf, size_t buflen) {
@@ -558,8 +569,7 @@ int Handler::on_write() {
       return -1;
     }
     if (n == 0) {
-      schedule_retransmit();
-      return 0;
+      break;
     }
 
     if (debug::packet_lost(config.tx_loss_prob)) {
@@ -574,6 +584,9 @@ int Handler::on_write() {
       return -1;
     }
   }
+
+  schedule_retransmit();
+  return 0;
 }
 
 int Handler::on_write_stream(Stream &stream) {
@@ -585,7 +598,8 @@ int Handler::on_write_stream(Stream &stream) {
   if (stream.streambuf_idx == stream.streambuf.size()) {
     if (stream.should_send_fin) {
       stream.should_send_fin = false;
-      if (write_stream_data(stream, 1, nullptr, 0) != 0) {
+      auto v = Buffer{};
+      if (write_stream_data(stream, 1, v) != 0) {
         return -1;
       }
     }
@@ -594,46 +608,48 @@ int Handler::on_write_stream(Stream &stream) {
 
   for (auto it = std::begin(stream.streambuf) + stream.streambuf_idx;
        it != std::end(stream.streambuf); ++it) {
-    const auto &v = *it;
+    auto &v = *it;
     auto fin = stream.should_send_fin &&
                stream.streambuf_idx == stream.streambuf.size() - 1;
+    if (write_stream_data(stream, fin, v) != 0) {
+      return -1;
+    }
+    if (v.left() > 0) {
+      break;
+    }
+    ++stream.streambuf_idx;
     if (fin) {
       stream.should_send_fin = false;
     }
-    if (write_stream_data(stream, fin, v.data(), v.size()) != 0) {
-      return -1;
-    }
-    ++stream.streambuf_idx;
   }
-
-  schedule_retransmit();
 
   return 0;
 }
 
-int Handler::write_stream_data(Stream &stream, int fin, const uint8_t *data,
-                               size_t datalen) {
+int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
   std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
   size_t ndatalen;
 
   assert(buf.size() >= max_pktlen_);
 
-  for (; datalen || fin;) {
+  for (;;) {
     auto n = ngtcp2_conn_write_stream(conn_, buf.data(), max_pktlen_, &ndatalen,
-                                      stream.stream_id, fin && datalen == 0,
-                                      data, datalen, util::timestamp());
+                                      stream.stream_id, fin, data.rpos(),
+                                      data.left(), util::timestamp());
     if (n < 0) {
+      if (n == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
+        return 0;
+      }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
       return -1;
     }
 
-    data += ndatalen;
-    datalen -= ndatalen;
+    data.pos += ndatalen;
 
     if (debug::packet_lost(config.tx_loss_prob)) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
-      if (fin && ndatalen == 0) {
+      if (data.left() == 0) {
         return 0;
       }
       continue;
@@ -645,7 +661,7 @@ int Handler::write_stream_data(Stream &stream, int fin, const uint8_t *data,
       std::cerr << "sendto: " << strerror(errno) << std::endl;
       return -1;
     }
-    if (fin && ndatalen == 0) {
+    if (data.left() == 0) {
       return 0;
     }
   }
@@ -689,19 +705,23 @@ int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
     static constexpr uint8_t start_tag[] = "<blink>";
     static constexpr uint8_t end_tag[] = "</blink>";
 
-    auto v = std::vector<uint8_t>();
-    v.resize(str_size(start_tag) + datalen + str_size(end_tag));
+    auto v = Buffer{};
+    v.buf.resize(str_size(start_tag) + datalen + str_size(end_tag));
 
-    auto p = v.data();
+    auto p = std::begin(v.buf);
 
     p = std::copy_n(start_tag, str_size(start_tag), p);
     p = std::copy_n(data, datalen, p);
     p = std::copy_n(end_tag, str_size(end_tag), p);
 
+    v.pos = std::begin(v.buf);
+
     stream.streambuf.emplace_back(std::move(v));
   }
 
   stream.should_send_fin = fin != 0;
+
+  ngtcp2_conn_extend_max_stream_offset(conn_, stream_id, datalen);
 
   return 0;
 }
@@ -715,11 +735,11 @@ const Address &Handler::remote_addr() const { return remote_addr_; }
 ngtcp2_conn *Handler::conn() const { return conn_; }
 
 namespace {
-void remove_tx_stream_data(std::deque<std::vector<uint8_t>> &d, size_t &idx,
-                           size_t datalen) {
-  for (; !d.empty() && d.front().size() <= datalen;) {
+void remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
+                           uint64_t &tx_offset, uint64_t offset) {
+  for (; !d.empty() && tx_offset + d.front().buf.size() <= offset;) {
     --idx;
-    datalen -= d.front().size();
+    tx_offset += d.front().buf.size();
     d.pop_front();
   }
 }
@@ -728,13 +748,15 @@ void remove_tx_stream_data(std::deque<std::vector<uint8_t>> &d, size_t &idx,
 void Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                                     size_t datalen) {
   if (stream_id == 0) {
-    ::remove_tx_stream_data(shandshake_, shandshake_idx_, datalen);
+    ::remove_tx_stream_data(shandshake_, shandshake_idx_, tx_stream0_offset_,
+                            offset + datalen);
     return;
   }
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
-  ::remove_tx_stream_data(stream.streambuf, stream.streambuf_idx, datalen);
+  ::remove_tx_stream_data(stream.streambuf, stream.streambuf_idx,
+                          stream.tx_stream_offset, offset + datalen);
 }
 
 namespace {

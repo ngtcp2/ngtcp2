@@ -48,14 +48,28 @@ typedef enum {
       NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR,
 } ngtcp2_strm_flags;
 
-typedef struct {
+struct ngtcp2_strm;
+
+typedef struct ngtcp2_strm ngtcp2_strm;
+
+struct ngtcp2_strm {
   ngtcp2_map_entry me;
   uint64_t tx_offset;
   ngtcp2_gaptr acked_tx_offset;
+  /* max_tx_offset is the maximum offset that local endpoint can send
+     for this stream. */
+  uint64_t max_tx_offset;
   /* last_rx_offset is the largest offset of stream data received for
      this stream. */
   uint64_t last_rx_offset;
   ngtcp2_rob rob;
+  /* max_rx_offset is the maximum offset that remote endpoint can send
+     to this stream. */
+  uint64_t max_rx_offset;
+  /* unsent_max_rx_offset is the maximum offset that remote endpoint
+     can send to this stream, and it is not notified to the remote
+     endpoint.  unsent_max_rx_offset >= max_rx_offset must be hold. */
+  uint64_t unsent_max_rx_offset;
   ngtcp2_mem *mem;
   size_t nbuffered;
   ngtcp2_buf tx_buf;
@@ -63,9 +77,11 @@ typedef struct {
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
   uint32_t flags;
-} ngtcp2_strm;
+  ngtcp2_strm **fc_pprev, *fc_next;
+};
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
+                     uint64_t max_rx_offset, uint64_t max_tx_offset,
                      void *stream_user_data, ngtcp2_mem *mem);
 
 void ngtcp2_strm_free(ngtcp2_strm *strm);

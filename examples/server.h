@@ -51,14 +51,29 @@ struct Config {
   double rx_loss_prob;
 };
 
+struct Buffer {
+  Buffer(const uint8_t *data, size_t datalen);
+  Buffer();
+  size_t left() const { return std::end(buf) - pos; }
+  const uint8_t *rpos() const {
+    return buf.data() + std::distance(std::begin(buf), pos);
+  }
+
+  std::vector<uint8_t> buf;
+  std::vector<uint8_t>::const_iterator pos;
+};
+
 struct Stream {
   Stream(uint32_t stream_id);
 
   uint32_t stream_id;
-  std::deque<std::vector<uint8_t>> streambuf;
+  std::deque<Buffer> streambuf;
+  // streambuf_idx is the index in streambuf, which points to the
+  // buffer to send next.
   size_t streambuf_idx;
-  size_t stream_woffset;
-  size_t stream_roffset;
+  // tx_stream_offset is the offset where all data before offset is
+  // acked by the remote endpoint.
+  uint64_t tx_stream_offset;
   bool should_send_fin;
 };
 
@@ -74,8 +89,7 @@ public:
   int on_read(uint8_t *data, size_t datalen);
   int on_write();
   int on_write_stream(Stream &stream);
-  int write_stream_data(Stream &stream, int fin, const uint8_t *data,
-                        size_t datalen);
+  int write_stream_data(Stream &stream, int fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();
   void signal_write();
@@ -116,12 +130,17 @@ private:
   ev_timer rttimer_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
-  std::deque<std::vector<uint8_t>> shandshake_;
+  std::deque<Buffer> shandshake_;
+  // shandshake_idx_ is the index in shandshake_, which points to the
+  // buffer to read next.
   size_t shandshake_idx_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
   std::map<uint32_t, Stream> streams_;
   uint64_t conn_id_;
+  // tx_stream0_offset_ is the offset where all data before offset is
+  // acked by the remote endpoint.
+  uint64_t tx_stream0_offset_;
 };
 
 class Server {

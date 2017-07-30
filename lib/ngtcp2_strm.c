@@ -27,6 +27,7 @@
 #include <string.h>
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
+                     uint64_t max_rx_offset, uint64_t max_tx_offset,
                      void *stream_user_data, ngtcp2_mem *mem) {
   int rv;
 
@@ -36,9 +37,13 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
   strm->stream_id = stream_id;
   strm->flags = flags;
   strm->stream_user_data = stream_user_data;
+  strm->max_rx_offset = strm->unsent_max_rx_offset = max_rx_offset;
+  strm->max_tx_offset = max_tx_offset;
   strm->me.key = stream_id;
   strm->me.next = NULL;
   strm->mem = mem;
+  strm->fc_pprev = NULL;
+  strm->fc_next = NULL;
   memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
 
   rv = ngtcp2_gaptr_init(&strm->acked_tx_offset, mem);
