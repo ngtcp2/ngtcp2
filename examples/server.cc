@@ -722,6 +722,7 @@ int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
   stream.should_send_fin = fin != 0;
 
   ngtcp2_conn_extend_max_stream_offset(conn_, stream_id, datalen);
+  ngtcp2_conn_extend_max_offset(conn_, datalen);
 
   return 0;
 }

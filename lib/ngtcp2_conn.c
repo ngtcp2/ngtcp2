@@ -235,6 +235,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->local_settings = *settings;
   (*pconn)->max_remote_stream_id = settings->max_stream_id;
+  (*pconn)->unsent_max_rx_offset_high = settings->max_data;
 
   /* TODO Since transport parameters are not required for interop now,
      just supply sensible default here.  Remove this when transport
@@ -261,6 +262,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
   (*pconn)->server = 1;
   (*pconn)->local_settings = *settings;
   (*pconn)->max_remote_stream_id = settings->max_stream_id;
+  (*pconn)->unsent_max_rx_offset_high = settings->max_data;
 
   /* TODO Since transport parameters are not required for interop now,
      just supply sensible default here.  Remove this when transport
@@ -602,6 +604,14 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       if (strm == NULL ||
           (*pfrc)->fr.max_stream_data.max_stream_data <
               strm->unsent_max_rx_offset) {
+        frc = *pfrc;
+        *pfrc = (*pfrc)->next;
+        ngtcp2_frame_chain_del(frc, conn->mem);
+        continue;
+      }
+      break;
+    case NGTCP2_FRAME_MAX_DATA:
+      if ((*pfrc)->fr.max_data.max_data < conn->unsent_max_rx_offset_high) {
         frc = *pfrc;
         *pfrc = (*pfrc)->next;
         ngtcp2_frame_chain_del(frc, conn->mem);
@@ -1073,13 +1083,77 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   size_t left;
   ngtcp2_strm *strm, *strm_next;
   int send_pkt_cb_called = 0;
+  int pkt_empty = 1;
 
   ackfr.type = !NGTCP2_FRAME_ACK;
   rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
   if (rv != 0) {
     return rv;
   }
-  if (ackfr.type != NGTCP2_FRAME_ACK && conn->frq == NULL) {
+
+  if (ackfr.type == NGTCP2_FRAME_ACK) {
+    pkt_empty = 0;
+  }
+
+  if (conn->max_remote_stream_id > conn->local_settings.max_stream_id) {
+    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
+    nfrc->fr.max_stream_id.max_stream_id = conn->max_remote_stream_id;
+    nfrc->next = conn->frq;
+    conn->frq = nfrc;
+
+    conn->local_settings.max_stream_id = conn->max_remote_stream_id;
+    /* MAX_STREAM_ID frame could appear in the following for loop if
+       buffer is too small. */
+
+    pkt_empty = 0;
+  }
+
+  if (conn->unsent_max_rx_offset_high > conn->local_settings.max_data) {
+    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+    nfrc->fr.type = NGTCP2_FRAME_MAX_DATA;
+    nfrc->fr.max_data.max_data = conn->unsent_max_rx_offset_high;
+    nfrc->next = conn->frq;
+    conn->frq = nfrc;
+
+    conn->local_settings.max_data = conn->unsent_max_rx_offset_high;
+
+    pkt_empty = 0;
+  }
+
+  while (conn->fc_strms) {
+    strm = conn->fc_strms;
+    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+    nfrc->fr.max_stream_data.stream_id = strm->stream_id;
+    nfrc->fr.max_stream_data.max_stream_data = strm->unsent_max_rx_offset;
+    nfrc->next = conn->frq;
+    conn->frq = nfrc;
+
+    strm->max_rx_offset = strm->unsent_max_rx_offset;
+
+    strm_next = strm->fc_next;
+    conn->fc_strms = strm_next;
+    if (strm_next) {
+      strm_next->fc_pprev = &conn->fc_strms;
+    }
+    strm->fc_next = NULL;
+    strm->fc_pprev = NULL;
+    strm = strm_next;
+
+    pkt_empty = 0;
+  }
+
+  if (pkt_empty && conn->frq == NULL) {
     return 0;
   }
 
@@ -1116,45 +1190,6 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (rv != 0) {
       return rv;
     }
-  }
-
-  if (conn->max_remote_stream_id > conn->local_settings.max_stream_id) {
-    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
-    if (rv != 0) {
-      return rv;
-    }
-    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
-    nfrc->fr.max_stream_id.max_stream_id = conn->max_remote_stream_id;
-    nfrc->next = conn->frq;
-    conn->frq = nfrc;
-
-    conn->local_settings.max_stream_id = conn->max_remote_stream_id;
-    /* MAX_STREAM_ID frame could appear in the following for loop if
-       buffer is too small. */
-  }
-
-  while (conn->fc_strms) {
-    strm = conn->fc_strms;
-    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
-    if (rv != 0) {
-      return rv;
-    }
-    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
-    nfrc->fr.max_stream_data.stream_id = strm->stream_id;
-    nfrc->fr.max_stream_data.max_stream_data = strm->unsent_max_rx_offset;
-    nfrc->next = conn->frq;
-    conn->frq = nfrc;
-
-    strm->max_rx_offset = strm->unsent_max_rx_offset;
-
-    strm_next = strm->fc_next;
-    conn->fc_strms = strm_next;
-    if (strm_next) {
-      strm_next->fc_pprev = &conn->fc_strms;
-    }
-    strm->fc_next = NULL;
-    strm->fc_pprev = NULL;
-    strm = strm_next;
   }
 
   for (pfrc = &conn->frq; *pfrc; pfrc = &(*pfrc)->next) {
@@ -1202,9 +1237,11 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (rv != 0) {
       return rv;
     }
+
+    pkt_empty = 0;
   }
 
-  if (rv == NGTCP2_ERR_NOBUF && ackfr.type != NGTCP2_FRAME_ACK) {
+  if (pkt_empty) {
     return rv;
   }
 
@@ -1354,6 +1391,11 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
   strm->max_tx_offset = ngtcp2_max(strm->max_tx_offset, fr->max_stream_data);
 
   return 0;
+}
+
+static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
+  conn->remote_settings.max_data =
+      ngtcp2_max(conn->remote_settings.max_data, fr->max_data);
 }
 
 static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
@@ -1641,8 +1683,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     }
     if (rv != 0) {
       if (rv == NGTCP2_ERR_STREAM_IN_USE) {
-        /* The stream has been closed.  This should be responded with
-           RST_STREAM, or simply ignored. */
+        /* TODO The stream has been closed.  This should be responded
+           with RST_STREAM, or simply ignored. */
         return 0;
       }
       return rv;
@@ -1825,6 +1867,9 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
       if (rv != 0) {
         return rv;
       }
+      break;
+    case NGTCP2_FRAME_MAX_DATA:
+      conn_recv_max_data(conn, &fr.max_data);
       break;
     }
   }
@@ -2085,7 +2130,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
 static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
   dest->initial_max_stream_data = src->max_stream_data;
-  dest->initial_max_data = src->max_data;
+  dest->initial_max_data = (uint32_t)src->max_data;
   dest->initial_max_stream_id = src->max_stream_id;
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
@@ -2202,6 +2247,33 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id) {
   return ngtcp2_struct_of(me, ngtcp2_strm, me);
 }
 
+static void increment_tx_offset(uint64_t *offset_high, uint32_t *offset_low,
+                                size_t datalen) {
+  uint64_t datalen_high = datalen / 1024;
+  uint32_t datalen_low = datalen & 0x3ff;
+
+  if (*offset_high > UINT64_MAX - datalen_high) {
+    *offset_high = UINT64_MAX;
+    *offset_low = 0x3ff;
+    return;
+  }
+
+  *offset_high += datalen_high;
+  *offset_low += datalen_low;
+
+  if (*offset_low <= 0x3ff) {
+    return;
+  }
+
+  if (*offset_high == UINT64_MAX) {
+    *offset_low = 0x3ff;
+    return;
+  }
+
+  *offset_low &= 0x3ff;
+  ++*offset_high;
+}
+
 ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
                                  size_t destlen, size_t *pdatalen,
                                  uint32_t stream_id, uint8_t fin,
@@ -2247,6 +2319,13 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   /* TODO Take into account flow control credit here */
   ndatalen = ngtcp2_min(datalen, left);
   ndatalen = ngtcp2_min(ndatalen, strm->max_tx_offset - strm->tx_offset);
+  if (conn->remote_settings.max_data - conn->tx_offset_high <=
+      (ndatalen + conn->tx_offset_low) / 1024) {
+    ndatalen = ngtcp2_min(
+        ndatalen,
+        (conn->remote_settings.max_data - conn->tx_offset_high) * 1024 -
+            conn->tx_offset_low);
+  }
 
   if (datalen > 0 && ndatalen == 0) {
     return NGTCP2_ERR_STREAM_DATA_BLOCKED;
@@ -2302,6 +2381,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   strm->tx_offset += ndatalen;
+  increment_tx_offset(&conn->tx_offset_high, &conn->tx_offset_low, ndatalen);
   ++conn->next_tx_pkt_num;
 
   if (pdatalen) {
@@ -2348,7 +2428,10 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
                                           ngtcp2_strm *strm) {
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
-      NGTCP2_STRM_FLAG_SHUT_RDWR) {
+          NGTCP2_STRM_FLAG_SHUT_RDWR &&
+      ngtcp2_rob_first_gap_offset(&strm->rob) == strm->last_rx_offset &&
+      ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset) ==
+          strm->tx_offset) {
     return ngtcp2_conn_close_stream(conn, strm);
   }
   return 0;
@@ -2381,4 +2464,9 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, uint32_t stream_id,
   }
 
   return 0;
+}
+
+void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, size_t datalen) {
+  increment_tx_offset(&conn->unsent_max_rx_offset_high,
+                      &conn->unsent_max_rx_offset_low, datalen);
 }

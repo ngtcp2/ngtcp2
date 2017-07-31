@@ -400,7 +400,7 @@ typedef struct {
 
 typedef struct {
   uint32_t max_stream_data;
-  uint32_t max_data;
+  uint64_t max_data;
   uint32_t max_stream_id;
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
@@ -868,6 +868,15 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
                                                        uint32_t stream_id,
                                                        size_t datalen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_extend_max_offset` extends max data offset by
+ * |datalen|.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn,
+                                                 size_t datalen);
 
 /**
  * @function

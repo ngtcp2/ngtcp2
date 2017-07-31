@@ -111,6 +111,16 @@ struct ngtcp2_conn {
   /* max_remote_stream_id is the maximum stream ID of peer initiated
      stream which the local endpoint can accept. */
   uint32_t max_remote_stream_id;
+  /* unsent_max_rx_offset_high and unsent_max_rx_offset_low are the
+     maximum offset that remote endpoint can send without extending
+     MAX_DATA.  This limit is not yet notified to the remote
+     endpoint. */
+  uint64_t unsent_max_rx_offset_high;
+  uint32_t unsent_max_rx_offset_low;
+  /* tx_offset_high and tx_offset_low are the offset the local
+     endpoint has sent to the remote endpoint. */
+  uint64_t tx_offset_high;
+  uint32_t tx_offset_low;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;

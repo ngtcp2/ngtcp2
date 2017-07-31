@@ -301,6 +301,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
                      void *stream_user_data) {
   debug::print_stream_data(stream_id, data, datalen);
   ngtcp2_conn_extend_max_stream_offset(conn, stream_id, datalen);
+  ngtcp2_conn_extend_max_offset(conn, datalen);
   return 0;
 }
 } // namespace
