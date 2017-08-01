@@ -33,5 +33,8 @@ void test_ngtcp2_conn_stream_open_close(void);
 void test_ngtcp2_conn_stream_rx_flow_control(void);
 void test_ngtcp2_conn_stream_rx_flow_control_error(void);
 void test_ngtcp2_conn_stream_tx_flow_control(void);
+void test_ngtcp2_conn_rx_flow_control(void);
+void test_ngtcp2_conn_rx_flow_control_error(void);
+void test_ngtcp2_conn_tx_flow_control(void);
 
 #endif /* NGTCP2_CONN_TEST_H */
