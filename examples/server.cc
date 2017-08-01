@@ -768,11 +768,7 @@ namespace {
 void sreadcb(struct ev_loop *loop, ev_io *w, int revents) {
   auto s = static_cast<Server *>(w->data);
 
-  for (;;) {
-    if (s->on_read() != 0) {
-      break;
-    }
-  }
+  s->on_read();
 }
 } // namespace
 
@@ -816,7 +812,7 @@ int Server::on_read() {
   if (nread == -1) {
     std::cerr << "recvfrom: " << strerror(errno) << std::endl;
     // TODO Handle running out of fd
-    return -1;
+    return 0;
   }
 
   if (debug::packet_lost(config.rx_loss_prob)) {
