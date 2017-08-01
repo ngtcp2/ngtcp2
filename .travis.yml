@@ -1,5 +1,8 @@
 dist: trusty
 language: cpp
+os:
+  - osx
+  - linux
 compiler:
   - clang
   - gcc
@@ -24,15 +27,17 @@ addons:
     - cmake-data
 before_install:
   - $CC --version
-  - if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++-3.8" CC="clang-3.8"; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then  if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++-3.8" CC="clang-3.8"; fi; fi
   - $CC --version
   - cmake --version
 before_script:
   # First build external lib
   - ./ci/build_openssl.sh
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libev; fi
   # configure ngtcp2
   - autoreconf -i
-  - ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig CPPFLAGS=-fsanitize=address LDFLAGS="$EXTRA_LDFLAGS -fsanitize=address -Wl,-rpath,$PWD/openssl/build/lib" || cat config.log
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig CPPFLAGS=-fsanitize=address LDFLAGS="$EXTRA_LDFLAGS -fsanitize=address -Wl,-rpath,$PWD/openssl/build/lib" || cat config.log; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then ./configure --enable-werror PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/openssl/build/lib"; fi
 script:
   # Now build ngtcp2
   - make check
