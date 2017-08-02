@@ -54,7 +54,11 @@ typedef enum {
 
 /* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in
    microsecond resolution. */
-#define NGTCP2_INITIAL_EXPIRY 800000
+#define NGTCP2_INITIAL_EXPIRY 100000
+
+/* NGTCP2_DELAYED_ACK_TIMEOUT is the delayed ACK timeout in
+   microsecond resolution. */
+#define NGTCP2_DELAYED_ACK_TIMEOUT 25000
 
 /* NGTCP2_MAX_NUM_BUFFED_RX_PPKTS is the maximum number of protected
    packets buffered which arrive before handshake completes. */
@@ -117,6 +121,9 @@ struct ngtcp2_conn {
      endpoint. */
   uint64_t unsent_max_rx_offset_high;
   uint32_t unsent_max_rx_offset_low;
+  /* max_rx_offset_high is the maximum offset that remote endpoint can
+     send. */
+  uint64_t max_rx_offset_high;
   /* rx_offset_high and rx_offset_low are the cumulative sum of stream
      data received for this connection. */
   uint64_t rx_offset_high;
@@ -125,6 +132,9 @@ struct ngtcp2_conn {
      endpoint has sent to the remote endpoint. */
   uint64_t tx_offset_high;
   uint32_t tx_offset_low;
+  /* max_tx_offset_high is the maximum offset that local endpoint can
+     send. */
+  uint64_t max_tx_offset_high;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
@@ -141,6 +151,8 @@ struct ngtcp2_conn {
   ngtcp2_pkt_chain *buffed_rx_ppkts;
   ngtcp2_settings local_settings;
   ngtcp2_settings remote_settings;
+  /* next_ack_expiry is the timeout of delayed ack. */
+  ngtcp2_tstamp next_ack_expiry;
 };
 
 /*

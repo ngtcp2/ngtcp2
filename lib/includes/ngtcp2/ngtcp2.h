@@ -400,7 +400,7 @@ typedef struct {
 
 typedef struct {
   uint32_t max_stream_data;
-  uint64_t max_data;
+  uint32_t max_data;
   uint32_t max_stream_id;
   uint16_t idle_timeout;
   uint8_t omit_connection_id;

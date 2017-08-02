@@ -227,6 +227,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     fprintf(outfile,
             "first_ack_block_length=%" PRIu64 "; [%" PRIu64 "..%" PRIu64 "]\n",
             fr->ack.first_ack_blklen, largest_ack, min_ack);
+    largest_ack = min_ack;
     for (size_t i = 0; i < fr->ack.num_blks; ++i) {
       auto blk = &fr->ack.blks[i];
       largest_ack -= (uint64_t)blk->gap + 1;

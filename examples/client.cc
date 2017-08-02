@@ -425,8 +425,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
   ngtcp2_settings settings;
-  settings.max_stream_data = 64_k;
-  settings.max_data = 64;
+  settings.max_stream_data = 256_k;
+  settings.max_data = 1_k;
   settings.max_stream_id = 0;
   settings.idle_timeout = 5;
   settings.omit_connection_id = 0;
