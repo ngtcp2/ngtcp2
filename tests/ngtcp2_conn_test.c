@@ -175,7 +175,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
 
   strm = ngtcp2_conn_find_stream(conn, 1);
 
-  CU_ASSERT(NULL == strm);
+  CU_ASSERT(NULL != strm);
 
   ngtcp2_conn_del(conn);
 }
