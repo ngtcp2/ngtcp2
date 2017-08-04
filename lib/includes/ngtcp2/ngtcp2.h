@@ -657,6 +657,9 @@ typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t stream_id,
                                        size_t datalen, void *user_data,
                                        void *stream_user_data);
 
+typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t stream_id,
+                                   uint32_t error_code, void *user_data,
+                                   void *stream_user_data);
 /*
  * :type:`ngtcp2_acked_stream_data_offset` is a callback function
  * which is called when stream data is acked, and application can free
@@ -686,6 +689,7 @@ typedef struct {
   ngtcp2_decrypt decrypt;
   ngtcp2_recv_stream_data recv_stream_data;
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
+  ngtcp2_stream_close stream_close;
 } ngtcp2_conn_callbacks;
 
 /*

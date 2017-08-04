@@ -150,6 +150,22 @@ static int conn_call_recv_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
+static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm) {
+  int rv;
+
+  if (!conn->callbacks.stream_close) {
+    return 0;
+  }
+
+  rv = conn->callbacks.stream_close(conn, strm->stream_id, 0, conn->user_data,
+                                    strm->stream_user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
                     const ngtcp2_conn_callbacks *callbacks, void *user_data) {
   int rv;
@@ -2571,10 +2587,6 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 
   if (fin) {
     ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
-    rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
-    if (rv != 0) {
-      return rv;
-    }
   }
 
   return nwrite;
@@ -2582,6 +2594,11 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   int rv;
+
+  rv = conn_call_stream_close(conn, strm);
+  if (rv != 0) {
+    return rv;
+  }
 
   rv = ngtcp2_map_remove(&conn->strms, strm->me.key);
   if (rv != 0) {

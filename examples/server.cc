@@ -323,6 +323,15 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
 }
 } // namespace
 
+namespace {
+int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint32_t error_code,
+                 void *user_data, void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  h->on_stream_close(stream_id);
+  return 0;
+}
+} // namespace
+
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   int rv;
 
@@ -363,6 +372,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
       do_decrypt,
       ::recv_stream_data,
       acked_stream_data_offset,
+      stream_close,
   };
 
   ngtcp2_settings settings;
@@ -775,6 +785,15 @@ void Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
   auto &stream = (*it).second;
   ::remove_tx_stream_data(stream.streambuf, stream.streambuf_idx,
                           stream.tx_stream_offset, offset + datalen);
+}
+
+void Handler::on_stream_close(uint32_t stream_id) {
+  if (stream_id == 0) {
+    return;
+  }
+  auto it = streams_.find(stream_id);
+  assert(it != std::end(streams_));
+  streams_.erase(it);
 }
 
 namespace {

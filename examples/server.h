@@ -117,6 +117,7 @@ public:
   uint64_t conn_id() const;
   void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                              size_t datalen);
+  void on_stream_close(uint32_t stream_id);
 
 private:
   Address remote_addr_;
