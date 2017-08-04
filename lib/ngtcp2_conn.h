@@ -142,6 +142,9 @@ struct ngtcp2_conn {
   ngtcp2_rtb rtb;
   uint32_t version;
   int handshake_completed;
+  /* conn_id_negotiated is nonzero if connection ID is negotiated.
+     This is only used for client. */
+  int conn_id_negotiated;
   int server;
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;

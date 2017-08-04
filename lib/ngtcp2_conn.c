@@ -1601,7 +1601,14 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
   } else {
-    conn->conn_id = hd.conn_id;
+    if (conn->conn_id_negotiated) {
+      if (conn->conn_id != hd.conn_id) {
+        return NGTCP2_ERR_PROTO;
+      }
+    } else {
+      conn->conn_id_negotiated = 1;
+      conn->conn_id = hd.conn_id;
+    }
 
     switch (hd.type) {
     case NGTCP2_PKT_SERVER_CLEARTEXT:
