@@ -82,6 +82,8 @@ struct ngtcp2_rtb_entry {
   /* expiry is the time point when this entry expires, and the
      retransmission is required. */
   ngtcp2_tstamp expiry;
+  /* pktlen is the length of QUIC packet */
+  size_t pktlen;
 };
 
 /*
@@ -97,7 +99,7 @@ struct ngtcp2_rtb_entry {
  */
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         ngtcp2_mem *mem);
+                         size_t pktlen, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_entry_del deallocates |ent|.  It also frees memory
@@ -116,6 +118,8 @@ typedef struct {
      by decreasing order of packet number. */
   ngtcp2_rtb_entry *head;
   ngtcp2_mem *mem;
+  /* bytes_in_flight is the sum of packet length linked from head. */
+  size_t bytes_in_flight;
 } ngtcp2_rtb;
 
 /*

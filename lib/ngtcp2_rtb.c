@@ -23,6 +23,9 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "ngtcp2_rtb.h"
+
+#include <assert.h>
+
 #include "ngtcp2_macro.h"
 #include "ngtcp2_conn.h"
 
@@ -43,7 +46,7 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         ngtcp2_mem *mem) {
+                         size_t pktlen, ngtcp2_mem *mem) {
   (*pent) = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_rtb_entry));
   if (*pent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -52,6 +55,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->hd = *hd;
   (*pent)->frc = frc;
   (*pent)->expiry = expiry;
+  (*pent)->pktlen = pktlen;
 
   return 0;
 }
@@ -113,6 +117,7 @@ int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
 
   ent->next = rtb->head;
   rtb->head = ent;
+  rtb->bytes_in_flight += ent->pktlen;
 
   return 0;
 }
@@ -135,6 +140,9 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb) {
   ent = ngtcp2_struct_of(ngtcp2_pq_top(&rtb->pq), ngtcp2_rtb_entry, pe);
   ngtcp2_pq_pop(&rtb->pq);
 
+  assert(rtb->bytes_in_flight >= ent->pktlen);
+
+  rtb->bytes_in_flight -= ent->pktlen;
   /* TODO Use doubly linked list to remove entry in O(1) if the
      current O(N) operation causes performance penalty. */
   for (pent = &rtb->head; *pent; pent = &(*pent)->next) {
@@ -153,6 +161,11 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry **pent) {
   *pent = (*pent)->next;
 
   ngtcp2_pq_remove(&rtb->pq, &ent->pe);
+
+  assert(rtb->bytes_in_flight >= ent->pktlen);
+
+  rtb->bytes_in_flight -= ent->pktlen;
+
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 }
 

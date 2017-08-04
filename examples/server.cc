@@ -53,6 +53,10 @@ namespace {
 Config config{};
 } // namespace
 
+namespace {
+constexpr size_t MAX_BYTES_IN_FLIGHT = 1460 * 10;
+} // namespace
+
 Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen}, pos(std::begin(buf)) {}
 
@@ -562,8 +566,13 @@ int Handler::on_write() {
   assert(buf.size() >= max_pktlen_);
 
   for (;;) {
-    auto n =
-        ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
+    ssize_t n;
+    if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
+      n = ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
+    } else {
+      n = ngtcp2_conn_send_ack(conn_, buf.data(), max_pktlen_,
+                               util::timestamp());
+    }
     if (n < 0) {
       std::cerr << "ngtcp2_conn_send: " << ngtcp2_strerror(n) << std::endl;
       return -1;
@@ -595,6 +604,10 @@ int Handler::on_write_stream(Stream &stream) {
 
   assert(buf.size() >= max_pktlen_);
 
+  if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
+    return 0;
+  }
+
   if (stream.streambuf_idx == stream.streambuf.size()) {
     if (stream.should_send_fin) {
       stream.should_send_fin = false;
@@ -608,6 +621,10 @@ int Handler::on_write_stream(Stream &stream) {
 
   for (auto it = std::begin(stream.streambuf) + stream.streambuf_idx;
        it != std::end(stream.streambuf); ++it) {
+    if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
+      break;
+    }
+
     auto &v = *it;
     auto fin = stream.should_send_fin &&
                stream.streambuf_idx == stream.streambuf.size() - 1;

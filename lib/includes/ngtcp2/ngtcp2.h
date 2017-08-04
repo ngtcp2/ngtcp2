@@ -727,6 +727,13 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt,
 NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts);
 
+/*
+ * Just like `ngtcp2_conn_send`, but only sends ACK only packet, or
+ * lost packet.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen, ngtcp2_tstamp ts);
+
 /**
  * @function
  *
@@ -877,6 +884,15 @@ NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn,
                                                  size_t datalen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_bytes_in_flight` returns the number of bytes which is
+ * the sum of outgoing QUIC packet length in flight.  This does not
+ * include a packet which only includes ACK frames.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn);
 
 /**
  * @function

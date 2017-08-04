@@ -54,6 +54,10 @@ namespace {
 Config config{};
 } // namespace
 
+namespace {
+constexpr size_t MAX_BYTES_IN_FLIGHT = 1460 * 10;
+} // namespace
+
 Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen}, pos(std::begin(buf)) {}
 
@@ -550,8 +554,13 @@ int Client::on_write() {
   }
 
   for (;;) {
-    auto n =
-        ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
+    ssize_t n;
+    if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
+      n = ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
+    } else {
+      n = ngtcp2_conn_send_ack(conn_, buf.data(), max_pktlen_,
+                               util::timestamp());
+    }
     if (n < 0) {
       std::cerr << "ngtcp2_conn_send: " << ngtcp2_strerror(n) << std::endl;
       return -1;
@@ -582,6 +591,10 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
   size_t ndatalen;
 
   for (;;) {
+    if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
+      break;
+    }
+
     auto n = ngtcp2_conn_write_stream(conn_, buf.data(), max_pktlen_, &ndatalen,
                                       stream_id, fin, data.rpos(), data.left(),
                                       util::timestamp());
