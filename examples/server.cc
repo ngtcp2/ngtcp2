@@ -634,7 +634,6 @@ int Handler::on_write() {
 
 int Handler::on_write_stream(Stream &stream) {
   std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
-  size_t ndatalen;
 
   assert(buf.size() >= max_pktlen_);
 
@@ -765,8 +764,6 @@ void Handler::schedule_retransmit() {
 
 int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
                               const uint8_t *data, size_t datalen) {
-  int rv;
-
   debug::print_stream_data(stream_id, data, datalen);
 
   auto it = streams_.find(stream_id);
@@ -776,7 +773,6 @@ int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
 
   auto &stream = (*it).second;
 
-  size_t len = 0;
   if (datalen > 0) {
     static constexpr uint8_t start_tag[] = "<blink>";
     static constexpr uint8_t end_tag[] = "</blink>";
@@ -1266,8 +1262,6 @@ int create_sock(const char *addr, const char *port) {
 
 namespace {
 int serve(Server &s, const char *addr, const char *port) {
-  int rv;
-
   auto fd = create_sock(addr, port);
   if (fd == -1) {
     return -1;
@@ -1321,7 +1315,6 @@ int main(int argc, char **argv) {
   config.rx_loss_prob = 0.;
 
   for (;;) {
-    static int flag = 0;
     constexpr static option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
         {"tx-loss", required_argument, nullptr, 't'},
