@@ -1006,8 +1006,8 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
     if (std::equal(std::begin(NGTCP2_ALPN), std::end(NGTCP2_ALPN) - 1, p)) {
       *out = p + 1;
       *outlen = *p;
-      debug::print_timestamp();
-      std::cerr << "Negotiated ALPN ";
+      debug::print_indent();
+      std::cerr << "; Negotiated ALPN ";
       std::cerr.write(reinterpret_cast<const char *>(*out), *outlen);
       std::cerr << std::endl;
       return SSL_TLSEXT_ERR_OK;
@@ -1092,8 +1092,8 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
     return 1;
   }
 
-  debug::print_timestamp();
-  std::cerr << "TransportParameter received in ClientHello" << std::endl;
+  debug::print_indent();
+  std::cerr << "; TransportParameter received in ClientHello" << std::endl;
   debug::print_transport_params(&params,
                                 NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
 

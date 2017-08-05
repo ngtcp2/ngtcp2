@@ -168,9 +168,7 @@ const char *frame_ansi_esc(ngtcp2_dir dir) {
 }
 } // namespace
 
-namespace {
 void print_indent() { fprintf(outfile, "           "); }
-} // namespace
 
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
@@ -349,33 +347,34 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
   switch (type) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     print_indent();
-    fprintf(outfile, "negotiated_version=%08x\n",
+    fprintf(outfile, "; negotiated_version=%08x\n",
             params->v.ch.negotiated_version);
     print_indent();
-    fprintf(outfile, "initial_version=%08x\n", params->v.ch.initial_version);
+    fprintf(outfile, "; initial_version=%08x\n", params->v.ch.initial_version);
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
     for (size_t i = 0; i < params->v.ee.len; ++i) {
       print_indent();
-      fprintf(outfile, "supported_version[%zu]=%08x\n", i,
+      fprintf(outfile, "; supported_version[%zu]=%08x\n", i,
               params->v.ee.supported_versions[i]);
     }
     break;
   }
 
   print_indent();
-  fprintf(outfile, "initial_max_stream_data=%u\n",
+  fprintf(outfile, "; initial_max_stream_data=%u\n",
           params->initial_max_stream_data);
   print_indent();
-  fprintf(outfile, "initial_max_data=%u\n", params->initial_max_data);
+  fprintf(outfile, "; initial_max_data=%u\n", params->initial_max_data);
   print_indent();
-  fprintf(outfile, "initial_max_stream_id=%u\n", params->initial_max_stream_id);
+  fprintf(outfile, "; initial_max_stream_id=%u\n",
+          params->initial_max_stream_id);
   print_indent();
-  fprintf(outfile, "idle_timeout=%u\n", params->idle_timeout);
+  fprintf(outfile, "; idle_timeout=%u\n", params->idle_timeout);
   print_indent();
-  fprintf(outfile, "omit_connection_id=%u\n", params->omit_connection_id);
+  fprintf(outfile, "; omit_connection_id=%u\n", params->omit_connection_id);
   print_indent();
-  fprintf(outfile, "max_packet_size=%u\n", params->max_packet_size);
+  fprintf(outfile, "; max_packet_size=%u\n", params->max_packet_size);
 }
 
 void print_stream_data(uint32_t stream_id, const uint8_t *data,

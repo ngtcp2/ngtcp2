@@ -479,8 +479,8 @@ int Client::tls_handshake() {
 
   SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
   if (alpn) {
-    debug::print_timestamp();
-    std::cerr << "Negotiated ALPN ";
+    debug::print_indent();
+    std::cerr << "; Negotiated ALPN ";
     std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
     std::cerr << std::endl;
   }
@@ -913,8 +913,8 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
     return 1;
   }
 
-  debug::print_timestamp();
-  std::cerr << "TransportParameter received in EncryptedExtensions"
+  debug::print_indent();
+  std::cerr << "; TransportParameter received in EncryptedExtensions"
             << std::endl;
   debug::print_transport_params(
       &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
