@@ -86,138 +86,176 @@ loss.
 
 .. code-block:: text
 
-    $ examples/client 127.0.0.1 3000 -i -r 0.3 -t 0.3
-    t=0.000376 TX Client Initial CID=892e74f16e48fae9 PKN=1577002470 V=ff000005
+    $ examples/client 127.0.0.1 4433 -i
+    t=0.000412 TX Client Initial CID=82db2c51708b999f PKN=1003612304 V=ff000005
                STREAM
                stream_id=00000000 fin=0 offset=0 data_length=274
                PADDING
                length=949
-    ** Simulated outgoing packet loss **
-    t=0.800322 TX Client Initial CID=892e74f16e48fae9 PKN=1577002471 V=ff000005
-               STREAM
-               stream_id=00000000 fin=0 offset=0 data_length=274
-               PADDING
-               length=949
-    t=0.809073 RX Server Cleartext CID=7cbb8b6f75703e7e PKN=932960310 V=ff000005
+    t=0.002432 RX Server Cleartext CID=c4ae8106ebe3f1ff PKN=567626255 V=ff000005
                ACK
-               num_blks=0 num_ts=0 largest_ack=1577002471 ack_delay=7876
-               first_ack_block_length=0
+               num_blks=0 num_ts=0 largest_ack=1003612304 ack_delay=1702
+               first_ack_block_length=0; [1003612304..1003612304]
+               MAX_STREAM_DATA
+               stream_id=00000000 max_stream_data=65809
                STREAM
-               stream_id=00000000 fin=0 offset=0 data_length=1200
-    t=0.810240 TransportParameter received in EncryptedExtensions
-               supported_version[0]=ff000005
-               initial_max_stream_data=131072
-               initial_max_data=128
-               initial_max_stream_id=1
-               idle_timeout=5
-               omit_connection_id=0
-               max_packet_size=65527
-    t=0.810966 RX Server Cleartext CID=7cbb8b6f75703e7e PKN=932960311 V=ff000005
+               stream_id=00000000 fin=0 offset=0 data_length=1187
+               ; TransportParameter received in EncryptedExtensions
+               ; supported_version[0]=ff000005
+               ; initial_max_stream_data=262144
+               ; initial_max_data=1024
+               ; initial_max_stream_id=1
+               ; idle_timeout=5
+               ; omit_connection_id=0
+               ; max_packet_size=65527
+    t=0.002870 RX Server Cleartext CID=c4ae8106ebe3f1ff PKN=567626256 V=ff000005
                STREAM
-               stream_id=00000000 fin=0 offset=1200 data_length=315
-    t=0.812505 Negotiated ALPN hq-05
-    t=0.812546 QUIC handshake has completed
+               stream_id=00000000 fin=0 offset=1187 data_length=328
+               ; Negotiated cipher suite is TLS13-AES-256-GCM-SHA384
+               ; Negotiated ALPN is hq-05
+    t=0.003112 QUIC handshake has completed
     Interactive session started.  Hit Ctrl-D to end the session.
     The stream 1 has opened.
-    t=0.812904 TX Client Cleartext CID=7cbb8b6f75703e7e PKN=1577002472 V=ff000005
+    t=0.003212 TX Client Cleartext CID=c4ae8106ebe3f1ff PKN=1003612305 V=ff000005
                ACK
-               num_blks=0 num_ts=0 largest_ack=932960311 ack_delay=1939
-               first_ack_block_length=1
+               num_blks=0 num_ts=0 largest_ack=567626256 ack_delay=343
+               first_ack_block_length=1; [567626256..567626255]
+               MAX_STREAM_DATA
+               stream_id=00000000 max_stream_data=67050
                STREAM
                stream_id=00000000 fin=0 offset=274 data_length=74
-    t=0.814378 RX Short 03 CID=7cbb8b6f75703e7e PKN=932960312
+    t=0.028810 RX Short 03 CID=c4ae8106ebe3f1ff PKN=567626257
                ACK
-               num_blks=0 num_ts=0 largest_ack=1577002472 ack_delay=1093
-               first_ack_block_length=0
-    Hello World!
-    t=5.751208 TX Short 03 CID=7cbb8b6f75703e7e PKN=1577002473
+               num_blks=0 num_ts=0 largest_ack=1003612305 ack_delay=25448
+               first_ack_block_length=0; [1003612305..1003612305]
+    hello world!
+    t=4.707194 TX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612306
                STREAM
                stream_id=00000001 fin=0 offset=0 data_length=13
-    t=5.752136 RX Short 03 CID=7cbb8b6f75703e7e PKN=932960313
-               ACK
-               num_blks=0 num_ts=0 largest_ack=1577002473 ack_delay=435
-               first_ack_block_length=0
+    t=4.708135 RX Short 03 CID=c4ae8106ebe3f1ff PKN=567626258
                STREAM
                stream_id=00000001 fin=0 offset=0 data_length=28
                ordered STREAM data stream_id=00000001
-    00000000  3c 62 6c 69 6e 6b 3e 48  65 6c 6c 6f 20 57 6f 72  |<blink>Hello Wor|
+    00000000  3c 62 6c 69 6e 6b 3e 68  65 6c 6c 6f 20 77 6f 72  |<blink>hello wor|
     00000010  6c 64 21 0a 3c 2f 62 6c  69 6e 6b 3e              |ld!.</blink>|
     0000001c
-    t=5.752612 TX Short 03 CID=7cbb8b6f75703e7e PKN=1577002474
+    t=4.733601 TX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612307
                ACK
-               num_blks=0 num_ts=0 largest_ack=932960313 ack_delay=475
-               first_ack_block_length=0
+               num_blks=0 num_ts=0 largest_ack=567626258 ack_delay=25462
+               first_ack_block_length=0; [567626258..567626258]
+    t=4.733636 RX Short 03 CID=c4ae8106ebe3f1ff PKN=567626259
+               ACK
+               num_blks=0 num_ts=0 largest_ack=1003612306 ack_delay=25966
+               first_ack_block_length=0; [1003612306..1003612306]
     Interactive session has ended.
-    t=20.058077 TX Short 03 CID=7cbb8b6f75703e7e PKN=1577002475
+    t=20.560859 TX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612308
                STREAM
                stream_id=00000001 fin=1 offset=13 data_length=0
-    t=20.058259 RX Short 03 CID=7cbb8b6f75703e7e PKN=932960314
+    t=20.561530 RX Short 03 CID=c4ae8106ebe3f1ff PKN=567626260
+               STREAM
+               stream_id=00000001 fin=1 offset=28 data_length=0
+               ordered STREAM data stream_id=00000001
+    t=20.586864 TX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612309
                ACK
-               num_blks=0 num_ts=0 largest_ack=1577002475 ack_delay=40
-               first_ack_block_length=0
-    ^C
+               num_blks=0 num_ts=0 largest_ack=567626260 ack_delay=25320
+               first_ack_block_length=0; [567626260..567626260]
+    t=20.586910 RX Short 03 CID=c4ae8106ebe3f1ff PKN=567626261
+               ACK
+               num_blks=0 num_ts=0 largest_ack=1003612308 ack_delay=25577
+               first_ack_block_length=0; [1003612308..1003612308]
+    t=20.587061 RX Short 03 CID=c4ae8106ebe3f1ff PKN=567626262
+               MAX_STREAM_ID
+               max_stream_id=00000003
+    t=20.612264 TX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612310
+               ACK
+               num_blks=0 num_ts=0 largest_ack=567626262 ack_delay=25202
+               first_ack_block_length=0; [567626262..567626262]
+    t=50.616326 Timeout
 
 .. code-block:: text
 
-    $ examples/server 127.0.0.1 3000 server.key server.crt
-    t=2.057785 RX Client Initial CID=892e74f16e48fae9 PKN=1577002471 V=ff000005
+    $ examples/server 127.0.0.1 4433 server.key server.crt
+    t=8.409850 RX Client Initial CID=82db2c51708b999f PKN=1003612304 V=ff000005
                STREAM
                stream_id=00000000 fin=0 offset=0 data_length=274
-    t=2.058707 TransportParameter received in ClientHello
-               negotiated_version=ff000005
-               initial_version=ff000005
-               initial_max_stream_data=131072
-               initial_max_data=128
-               initial_max_stream_id=0
-               idle_timeout=5
-               omit_connection_id=0
-               max_packet_size=65527
-    t=2.058884 Negotiated ALPN hq-05
+               ; TransportParameter received in ClientHello
+               ; negotiated_version=ff000005
+               ; initial_version=ff000005
+               ; initial_max_stream_data=262144
+               ; initial_max_data=1024
+               ; initial_max_stream_id=0
+               ; idle_timeout=5
+               ; omit_connection_id=0
+               ; max_packet_size=65527
                PADDING
                length=949
-    t=2.065653 TX Server Cleartext CID=7cbb8b6f75703e7e PKN=932960310 V=ff000005
+    t=8.411547 TX Server Cleartext CID=c4ae8106ebe3f1ff PKN=567626255 V=ff000005
                ACK
-               num_blks=0 num_ts=0 largest_ack=1577002471 ack_delay=7876
-               first_ack_block_length=0
+               num_blks=0 num_ts=0 largest_ack=1003612304 ack_delay=1702
+               first_ack_block_length=0; [1003612304..1003612304]
+               MAX_STREAM_DATA
+               stream_id=00000000 max_stream_data=65809
                STREAM
-               stream_id=00000000 fin=0 offset=0 data_length=1200
-    t=2.065854 TX Server Cleartext CID=7cbb8b6f75703e7e PKN=932960311 V=ff000005
+               stream_id=00000000 fin=0 offset=0 data_length=1187
+    t=8.411597 TX Server Cleartext CID=c4ae8106ebe3f1ff PKN=567626256 V=ff000005
                STREAM
-               stream_id=00000000 fin=0 offset=1200 data_length=315
-    t=2.069977 RX Client Cleartext CID=7cbb8b6f75703e7e PKN=1577002472 V=ff000005
+               stream_id=00000000 fin=0 offset=1187 data_length=328
+    t=8.412510 RX Client Cleartext CID=c4ae8106ebe3f1ff PKN=1003612305 V=ff000005
                ACK
-               num_blks=0 num_ts=0 largest_ack=932960311 ack_delay=1939
-               first_ack_block_length=1
+               num_blks=0 num_ts=0 largest_ack=567626256 ack_delay=343
+               first_ack_block_length=1; [567626256..567626255]
+               MAX_STREAM_DATA
+               stream_id=00000000 max_stream_data=67050
                STREAM
                stream_id=00000000 fin=0 offset=274 data_length=74
-    t=2.070732 QUIC handshake has completed
-    t=2.071071 TX Short 03 CID=7cbb8b6f75703e7e PKN=932960312
+               ; Negotiated cipher suite is TLS13-AES-256-GCM-SHA384
+               ; Negotiated ALPN is hq-05
+    t=8.412694 QUIC handshake has completed
+    t=8.437965 TX Short 03 CID=c4ae8106ebe3f1ff PKN=567626257
                ACK
-               num_blks=0 num_ts=0 largest_ack=1577002472 ack_delay=1093
-               first_ack_block_length=0
-    t=7.008381 RX Short 03 CID=7cbb8b6f75703e7e PKN=1577002473
+               num_blks=0 num_ts=0 largest_ack=1003612305 ack_delay=25448
+               first_ack_block_length=0; [1003612305..1003612305]
+    t=13.116710 RX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612306
                STREAM
                stream_id=00000001 fin=0 offset=0 data_length=13
                ordered STREAM data stream_id=00000001
-    00000000  48 65 6c 6c 6f 20 57 6f  72 6c 64 21 0a           |Hello World!.|
+    00000000  68 65 6c 6c 6f 20 77 6f  72 6c 64 21 0a           |hello world!.|
     0000000d
-    t=7.008817 TX Short 03 CID=7cbb8b6f75703e7e PKN=932960313
-               ACK
-               num_blks=0 num_ts=0 largest_ack=1577002473 ack_delay=435
-               first_ack_block_length=0
+    t=13.117165 TX Short 03 CID=c4ae8106ebe3f1ff PKN=567626258
                STREAM
                stream_id=00000001 fin=0 offset=0 data_length=28
-    t=7.009641 RX Short 03 CID=7cbb8b6f75703e7e PKN=1577002474
+    t=13.142691 TX Short 03 CID=c4ae8106ebe3f1ff PKN=567626259
                ACK
-               num_blks=0 num_ts=0 largest_ack=932960313 ack_delay=475
-               first_ack_block_length=0
-    t=21.315054 RX Short 03 CID=7cbb8b6f75703e7e PKN=1577002475
+               num_blks=0 num_ts=0 largest_ack=1003612306 ack_delay=25966
+               first_ack_block_length=0; [1003612306..1003612306]
+    t=13.142876 RX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612307
+               ACK
+               num_blks=0 num_ts=0 largest_ack=567626258 ack_delay=25462
+               first_ack_block_length=0; [567626258..567626258]
+    t=28.970399 RX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612308
                STREAM
                stream_id=00000001 fin=1 offset=13 data_length=0
-    t=21.315093 TX Short 03 CID=7cbb8b6f75703e7e PKN=932960314
+               ordered STREAM data stream_id=00000001
+    t=28.970528 TX Short 03 CID=c4ae8106ebe3f1ff PKN=567626260
+               STREAM
+               stream_id=00000001 fin=1 offset=28 data_length=0
+    t=28.995992 TX Short 03 CID=c4ae8106ebe3f1ff PKN=567626261
                ACK
-               num_blks=0 num_ts=0 largest_ack=1577002475 ack_delay=40
-               first_ack_block_length=0
+               num_blks=0 num_ts=0 largest_ack=1003612308 ack_delay=25577
+               first_ack_block_length=0; [1003612308..1003612308]
+    t=28.996151 RX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612309
+               ACK
+               num_blks=0 num_ts=0 largest_ack=567626260 ack_delay=25320
+               first_ack_block_length=0; [567626260..567626260]
+    t=28.996213 TX Short 03 CID=c4ae8106ebe3f1ff PKN=567626262
+               MAX_STREAM_ID
+               max_stream_id=00000003
+    t=29.021536 RX Short 03 CID=c4ae8106ebe3f1ff PKN=1003612310
+               ACK
+               num_blks=0 num_ts=0 largest_ack=567626262 ack_delay=25202
+               first_ack_block_length=0; [567626262..567626262]
+    t=59.050818 Timeout
+    t=59.050834 Closing QUIC connection
 
 License
 -------
