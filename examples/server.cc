@@ -423,6 +423,21 @@ int Handler::tls_handshake() {
   // is out of interest.
   ngtcp2_conn_handshake_completed(conn_);
 
+  debug::print_indent();
+  std::cerr << "; Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
+            << std::endl;
+
+  const unsigned char *alpn = nullptr;
+  unsigned int alpnlen;
+
+  SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
+  if (alpn) {
+    debug::print_indent();
+    std::cerr << "; Negotiated ALPN is ";
+    std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
+    std::cerr << std::endl;
+  }
+
   return 0;
 }
 
@@ -1006,16 +1021,16 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
     if (std::equal(std::begin(NGTCP2_ALPN), std::end(NGTCP2_ALPN) - 1, p)) {
       *out = p + 1;
       *outlen = *p;
-      debug::print_indent();
-      std::cerr << "; Negotiated ALPN ";
-      std::cerr.write(reinterpret_cast<const char *>(*out), *outlen);
-      std::cerr << std::endl;
       return SSL_TLSEXT_ERR_OK;
     }
   }
   // Just select NGTCP2_ALPN for now.
   *out = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN + 1);
   *outlen = NGTCP2_ALPN[0];
+
+  debug::print_indent();
+  std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN + 1 << std::endl;
+
   return SSL_TLSEXT_ERR_OK;
 }
 } // namespace
