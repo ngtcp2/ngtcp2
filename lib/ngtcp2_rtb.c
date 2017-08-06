@@ -46,7 +46,7 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         size_t pktlen, ngtcp2_mem *mem) {
+                         size_t pktlen, uint8_t unprotected, ngtcp2_mem *mem) {
   (*pent) = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_rtb_entry));
   if (*pent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -56,6 +56,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->frc = frc;
   (*pent)->expiry = expiry;
   (*pent)->pktlen = pktlen;
+  (*pent)->unprotected = unprotected;
 
   return 0;
 }
@@ -214,7 +215,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
 }
 
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        ngtcp2_conn *conn) {
+                        uint8_t unprotected, ngtcp2_conn *conn) {
   ngtcp2_rtb_entry **pent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
@@ -234,6 +235,10 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   for (; *pent;) {
     if (min_ack <= (*pent)->hd.pkt_num && (*pent)->hd.pkt_num <= largest_ack) {
+      if (unprotected && !(*pent)->unprotected) {
+        pent = &(*pent)->next;
+        continue;
+      }
       if (conn && conn->callbacks.acked_stream_data_offset) {
         rv = call_acked_stream_offset(*pent, conn);
         if (rv != 0) {
@@ -265,6 +270,9 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       }
       if ((*pent)->hd.pkt_num < min_ack) {
         break;
+      }
+      if (unprotected && !(*pent)->unprotected) {
+        continue;
       }
       if (conn && conn->callbacks.acked_stream_data_offset) {
         rv = call_acked_stream_offset(*pent, conn);

@@ -84,6 +84,8 @@ struct ngtcp2_rtb_entry {
   ngtcp2_tstamp expiry;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
+  /* unprotected is nonzero if a packet is unprotected. */
+  uint8_t unprotected;
 };
 
 /*
@@ -99,7 +101,7 @@ struct ngtcp2_rtb_entry {
  */
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         size_t pktlen, ngtcp2_mem *mem);
+                         size_t pktlen, uint8_t unprotected, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_entry_del deallocates |ent|.  It also frees memory
@@ -167,6 +169,6 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
  *     User callback failed
  */
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        ngtcp2_conn *conn);
+                        uint8_t unprotected, ngtcp2_conn *conn);
 
 #endif /* NGTCP2_RTB_H */
