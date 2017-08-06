@@ -43,6 +43,7 @@
 #include "debug.h"
 #include "util.h"
 #include "crypto.h"
+#include "shared.h"
 
 using namespace ngtcp2;
 
@@ -182,6 +183,8 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
   debug::print_timestamp();
   std::cerr << "Timeout" << std::endl;
+
+  c->handle_error(0);
 
   c->disconnect();
 }
@@ -432,7 +435,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.max_stream_data = 256_k;
   settings.max_data = 1_k;
   settings.max_stream_id = 0;
-  settings.idle_timeout = 5;
+  settings.idle_timeout = 30;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
@@ -498,6 +501,11 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
+    handle_error(rv);
+    return -1;
+  }
+  if (ngtcp2_conn_closed(conn_)) {
+    std::cerr << "QUIC connection has been closed by peer" << std::endl;
     return -1;
   }
 
@@ -567,6 +575,7 @@ int Client::on_write() {
     }
     if (n < 0) {
       std::cerr << "ngtcp2_conn_send: " << ngtcp2_strerror(n) << std::endl;
+      handle_error(n);
       return -1;
     }
     if (n == 0) {
@@ -608,6 +617,7 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
+      handle_error(n);
       return -1;
     }
 
@@ -823,6 +833,30 @@ int Client::stop_interactive_input() {
   ev_feed_event(loop_, &wev_, EV_WRITE);
 
   return 0;
+}
+
+void Client::handle_error(int liberr) {
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+
+  auto n = ngtcp2_conn_write_connection_close(conn_, buf.data(), max_pktlen_,
+                                              infer_quic_error_code(liberr));
+  if (n < 0) {
+    std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
+              << std::endl;
+    return;
+  }
+
+  if (debug::packet_lost(config.tx_loss_prob)) {
+    std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    return;
+  }
+
+  auto nwrite =
+      sendto(fd_, buf.data(), n, 0, &remote_addr_.su.sa, remote_addr_.len);
+  if (nwrite == -1) {
+    std::cerr << "sendto: " << strerror(errno) << std::endl;
+    return;
+  }
 }
 
 namespace {

@@ -223,7 +223,20 @@ typedef enum {
   NGTCP2_FRAME_STREAM = 0xc0
 } ngtcp2_frame_type;
 
-typedef enum { NGTCP2_QUIC_INTERNAL_ERROR = 0x80000001u } ngtcp2_error;
+typedef enum {
+  NGTCP2_NO_ERROR = 0x80000000u,
+  NGTCP2_INTERNAL_ERROR = 0x80000001u,
+  NGTCP2_CANCELLED = 0x80000002u,
+  NGTCP2_FLOW_CONTROL_ERROR = 0x80000003u,
+  NGTCP2_STREAM_ID_ERROR = 0x80000004u,
+  NGTCP2_STREAM_STATE_ERROR = 0x80000005u,
+  NGTCP2_FINAL_OFFSET_ERROR = 0x80000006u,
+  NGTCP2_FRAME_FORMAT_ERROR = 0x80000007u,
+  NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x80000008u,
+  NGTCP2_VERSION_NEGOTIATION_ERROR = 0x80000009u,
+  NGTCP2_PROTOCOL_VIOLATION = 0x8000000au,
+  NGTCP2_QUIC_RECEIVED_RST = 0x80000035u
+} ngtcp2_error;
 
 /*
  * ngtcp2_tstamp is a timestamp with microsecond resolution.
@@ -863,6 +876,39 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
                                                const uint8_t *data,
                                                size_t datalen,
                                                ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_write_connection_close` writes a packet which contains
+ * a CONNECTION_CLOSE frame in the buffer pointed by |dest| whose
+ * capacity is |datalen|.
+ *
+ * At the moment, successful call to this function makes connection
+ * close.  We may change this behaviour in the future to allow
+ * graceful shutdown.
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     The current state does not allow sending CONNECTION_CLOSE.
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
+                                                         uint8_t *dest,
+                                                         size_t destlen,
+                                                         uint32_t error_code);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_closed` returns nonzero if QUIC connection has been
+ * closed.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_closed(ngtcp2_conn *conn);
 
 /**
  * @function

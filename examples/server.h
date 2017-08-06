@@ -118,6 +118,7 @@ public:
   void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                              size_t datalen);
   void on_stream_close(uint32_t stream_id);
+  void handle_error(int liberror);
 
 private:
   Address remote_addr_;

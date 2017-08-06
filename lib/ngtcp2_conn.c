@@ -1332,29 +1332,18 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   return nwrite;
 }
 
-static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
-                                       size_t destlen, ngtcp2_tstamp ts) {
+/*
+ * conn_write_single_frame_pkt writes a protected packet which
+ * contains |fr| frame only.
+ */
+static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen,
+                                           const ngtcp2_frame *fr) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
-  ngtcp2_frame ackfr;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
-  int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
-
-  if (!ack_expired) {
-    return 0;
-  }
-
-  ackfr.type = !NGTCP2_FRAME_ACK;
-  rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
-  if (rv != 0) {
-    return rv;
-  }
-
-  if (ackfr.type != NGTCP2_FRAME_ACK) {
-    return 0;
-  }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
                      conn->next_tx_pkt_num, conn->version);
@@ -1376,12 +1365,12 @@ static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  rv = ngtcp2_ppe_encode_frame(&ppe, &ackfr);
+  rv = ngtcp2_ppe_encode_frame(&ppe, fr);
   if (rv != 0) {
     return rv;
   }
 
-  rv = conn_call_send_frame(conn, &hd, &ackfr);
+  rv = conn_call_send_frame(conn, &hd, fr);
   if (rv != 0) {
     return rv;
   }
@@ -1394,6 +1383,29 @@ static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
   ++conn->next_tx_pkt_num;
 
   return nwrite;
+}
+
+static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
+                                       size_t destlen, ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_frame ackfr;
+  int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
+
+  if (!ack_expired) {
+    return 0;
+  }
+
+  ackfr.type = !NGTCP2_FRAME_ACK;
+  rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (ackfr.type != NGTCP2_FRAME_ACK) {
+    return 0;
+  }
+
+  return conn_write_single_frame_pkt(conn, dest, destlen, &ackfr);
 }
 
 ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
@@ -1442,7 +1454,6 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
-  case NGTCP2_CS_CLOSE_WAIT:
     nwrite = conn_send_pkt(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
@@ -1474,7 +1485,6 @@ ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         ts);
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
-  case NGTCP2_CS_CLOSE_WAIT:
     nwrite = conn_send_ack_protected(conn, dest, destlen, ts);
     break;
   }
@@ -2184,7 +2194,6 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
     }
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
-  case NGTCP2_CS_CLOSE_WAIT:
     rv = conn_recv_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
       break;
@@ -2590,6 +2599,37 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   return nwrite;
+}
+
+ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen,
+                                           uint32_t error_code) {
+  ssize_t nwrite;
+  ngtcp2_frame fr;
+
+  switch (conn->state) {
+  case NGTCP2_CS_POST_HANDSHAKE:
+  case NGTCP2_CS_CLOSE_WAIT:
+    fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
+    fr.connection_close.error_code = error_code;
+    fr.connection_close.reasonlen = 0;
+    fr.connection_close.reason = NULL;
+
+    nwrite = conn_write_single_frame_pkt(conn, dest, destlen, &fr);
+    if (nwrite > 0) {
+      conn->state = NGTCP2_CS_CLOSE_WAIT;
+    }
+
+    break;
+  default:
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  return nwrite;
+}
+
+int ngtcp2_conn_closed(ngtcp2_conn *conn) {
+  return conn->state == NGTCP2_CS_CLOSE_WAIT;
 }
 
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {

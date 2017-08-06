@@ -42,6 +42,7 @@
 #include "debug.h"
 #include "util.h"
 #include "crypto.h"
+#include "shared.h"
 
 using namespace ngtcp2;
 
@@ -157,6 +158,8 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
   debug::print_timestamp();
   std::cerr << "Timeout" << std::endl;
+
+  h->handle_error(0);
 
   auto server = h->server();
   server->remove(h);
@@ -381,7 +384,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   settings.max_data = 1_k;
   // TODO Just allow stream ID = 1 to exchange encrypted data for now.
   settings.max_stream_id = 1;
-  settings.idle_timeout = 5;
+  settings.idle_timeout = 30;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
@@ -559,6 +562,11 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
+    handle_error(rv);
+    return -1;
+  }
+  if (ngtcp2_conn_closed(conn_)) {
+    std::cerr << "QUIC connection has been closed by peer" << std::endl;
     return -1;
   }
 
@@ -578,7 +586,7 @@ int Handler::on_read(uint8_t *data, size_t datalen) {
     auto &stream = p.second;
     rv = on_write_stream(stream);
     if (rv != 0) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
+      return -1;
     }
   }
 
@@ -600,6 +608,7 @@ int Handler::on_write() {
     }
     if (n < 0) {
       std::cerr << "ngtcp2_conn_send: " << ngtcp2_strerror(n) << std::endl;
+      handle_error(n);
       return -1;
     }
     if (n == 0) {
@@ -684,6 +693,7 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
+      handle_error(n);
       return -1;
     }
 
@@ -709,6 +719,30 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
   }
 
   return 0;
+}
+
+void Handler::handle_error(int liberr) {
+  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+
+  auto n = ngtcp2_conn_write_connection_close(conn_, buf.data(), max_pktlen_,
+                                              infer_quic_error_code(liberr));
+  if (n < 0) {
+    std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
+              << std::endl;
+    return;
+  }
+
+  if (debug::packet_lost(config.tx_loss_prob)) {
+    std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    return;
+  }
+
+  auto nwrite =
+      sendto(fd_, buf.data(), n, 0, &remote_addr_.su.sa, remote_addr_.len);
+  if (nwrite == -1) {
+    std::cerr << "sendto: " << strerror(errno) << std::endl;
+    return;
+  }
 }
 
 void Handler::schedule_retransmit() {

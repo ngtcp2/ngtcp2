@@ -101,6 +101,7 @@ public:
   int stop_interactive_input();
   void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                              size_t datalen);
+  void handle_error(int liberr);
 
 private:
   Address remote_addr_;
