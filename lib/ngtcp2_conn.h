@@ -54,7 +54,7 @@ typedef enum {
 
 /* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in
    microsecond resolution. */
-#define NGTCP2_INITIAL_EXPIRY 100000
+#define NGTCP2_INITIAL_EXPIRY 400000
 
 /* NGTCP2_DELAYED_ACK_TIMEOUT is the delayed ACK timeout in
    microsecond resolution. */
