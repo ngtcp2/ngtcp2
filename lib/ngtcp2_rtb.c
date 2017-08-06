@@ -46,7 +46,8 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         size_t pktlen, uint8_t unprotected, ngtcp2_mem *mem) {
+                         ngtcp2_tstamp deadline, size_t pktlen,
+                         uint8_t unprotected, ngtcp2_mem *mem) {
   (*pent) = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_rtb_entry));
   if (*pent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -55,6 +56,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->hd = *hd;
   (*pent)->frc = frc;
   (*pent)->expiry = expiry;
+  (*pent)->deadline = deadline;
   (*pent)->pktlen = pktlen;
   (*pent)->unprotected = unprotected;
 

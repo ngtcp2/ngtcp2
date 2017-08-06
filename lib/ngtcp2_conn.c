@@ -547,7 +547,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   /* We have partially retransmitted lost frames.  Create new
      ngtcp2_rtb_entry to track down the sent packet. */
   rv = ngtcp2_rtb_entry_new(&nent, &hd, NULL, ts + NGTCP2_INITIAL_EXPIRY,
-                            nwrite, 1, conn->mem);
+                            ent->deadline, nwrite, 1, conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -713,7 +713,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   /* We have partially retransmitted lost frames.  Create new
      ngtcp2_rtb_entry to track down the sent packet. */
   rv = ngtcp2_rtb_entry_new(&nent, &hd, NULL, ts + NGTCP2_INITIAL_EXPIRY,
-                            (size_t)nwrite, 0, conn->mem);
+                            ent->deadline, (size_t)nwrite, 0, conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -745,6 +745,11 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return 0;
     }
     ngtcp2_rtb_pop(&conn->rtb);
+
+    if (ent->deadline <= ts) {
+      ngtcp2_rtb_entry_del(ent, conn->mem);
+      return NGTCP2_ERR_PKT_TIMEOUT;
+    }
 
     if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
       switch (ent->hd.type) {
@@ -950,8 +955,9 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   pktlen = ngtcp2_upe_final(&upe, NULL);
 
   if (frc_head) {
-    rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frc_head,
-                              ts + NGTCP2_INITIAL_EXPIRY, pktlen, 1, conn->mem);
+    rv = ngtcp2_rtb_entry_new(
+        &rtbent, &hd, frc_head, ts + NGTCP2_INITIAL_EXPIRY,
+        ts + NGTCP2_PKT_DEADLINE_PERIOD, pktlen, 1, conn->mem);
     if (rv != 0) {
       goto fail;
     }
@@ -1311,7 +1317,8 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   if (*pfrc != conn->frq) {
     rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, ts + NGTCP2_INITIAL_EXPIRY,
-                              (size_t)nwrite, 0, conn->mem);
+                              ts + NGTCP2_PKT_DEADLINE_PERIOD, (size_t)nwrite,
+                              0, conn->mem);
     if (rv != 0) {
       return rv;
     }
@@ -2580,7 +2587,8 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   rv = ngtcp2_rtb_entry_new(&ent, &hd, frc, ts + NGTCP2_INITIAL_EXPIRY,
-                            (size_t)nwrite, 0, conn->mem);
+                            ts + NGTCP2_PKT_DEADLINE_PERIOD, (size_t)nwrite, 0,
+                            conn->mem);
   if (rv != 0) {
     ngtcp2_frame_chain_del(frc, conn->mem);
     return rv;

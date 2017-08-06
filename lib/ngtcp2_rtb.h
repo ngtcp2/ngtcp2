@@ -82,6 +82,9 @@ struct ngtcp2_rtb_entry {
   /* expiry is the time point when this entry expires, and the
      retransmission is required. */
   ngtcp2_tstamp expiry;
+  /* deadline is the time point when the library gives up
+     retransmission of a packet, and closes its connection. */
+  ngtcp2_tstamp deadline;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
   /* unprotected is nonzero if a packet is unprotected. */
@@ -101,7 +104,8 @@ struct ngtcp2_rtb_entry {
  */
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         size_t pktlen, uint8_t unprotected, ngtcp2_mem *mem);
+                         ngtcp2_tstamp deadline, size_t pktlen,
+                         uint8_t unprotected, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_entry_del deallocates |ent|.  It also frees memory

@@ -48,6 +48,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_STREAM_DATA_BLOCKED";
   case NGTCP2_ERR_FLOW_CONTROL:
     return "ERR_FLOW_CONTROL";
+  case NGTCP2_ERR_PKT_TIMEOUT:
+    return "ERR_PKT_TIMEOUT";
   case NGTCP2_ERR_NOMEM:
     return "ERR_NOMEM";
   case NGTCP2_ERR_CALLBACK_FAILURE:

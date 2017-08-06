@@ -56,6 +56,10 @@ typedef enum {
    microsecond resolution. */
 #define NGTCP2_INITIAL_EXPIRY 400000
 
+/* NGTCP2_PKT_DEADLINE_PERIOD is the period of time when the library
+   gives up re-sending packet, and closes connection. */
+#define NGTCP2_PKT_DEADLINE_PERIOD 5000000
+
 /* NGTCP2_DELAYED_ACK_TIMEOUT is the delayed ACK timeout in
    microsecond resolution. */
 #define NGTCP2_DELAYED_ACK_TIMEOUT 25000
