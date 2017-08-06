@@ -123,4 +123,10 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t id);
  */
 int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t id);
 
+/*
+ * ngtcp2_idtr_first_gap returns the first id of first gap.  If there
+ * is no gap, it returns UINT64_MAX.
+ */
+uint64_t ngtcp2_idtr_first_gap(ngtcp2_idtr *idtr);
+
 #endif /* NGTCP2_IDTR_H */

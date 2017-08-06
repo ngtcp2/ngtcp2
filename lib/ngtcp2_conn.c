@@ -2661,7 +2661,9 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   }
 
   if (!conn_local_stream(conn, strm->stream_id) &&
-      conn->max_remote_stream_id <= UINT32_MAX - 2) {
+      conn->max_remote_stream_id <= UINT32_MAX - 2 &&
+      ngtcp2_idtr_first_gap(&conn->remote_idtr) ==
+          id_from_stream_id(conn->max_remote_stream_id + 2)) {
     conn->max_remote_stream_id += 2;
   }
 

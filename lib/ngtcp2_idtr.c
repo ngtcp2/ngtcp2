@@ -120,3 +120,10 @@ int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t q) {
   }
   return 0;
 }
+
+uint64_t ngtcp2_idtr_first_gap(ngtcp2_idtr *idtr) {
+  if (idtr->gap) {
+    return idtr->gap->range.begin;
+  }
+  return UINT64_MAX;
+}
