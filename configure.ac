@@ -54,7 +54,7 @@ PACKAGE_VERSION_NUM=`printf "0x%02x%02x%02x" "$major" "$minor" "$patch"`
 
 AC_SUBST(PACKAGE_VERSION_NUM)
 
-# Checks for command-line options from nghttp2
+# Checks for command-line options from ngtcp2
 AC_ARG_ENABLE([werror],
     [AS_HELP_STRING([--enable-werror],
                     [Turn on compile time warnings])],
@@ -64,6 +64,11 @@ AC_ARG_ENABLE([debug],
     [AS_HELP_STRING([--enable-debug],
                     [Turn on debug output])],
     [debug=$enableval], [debug=no])
+
+if test "x${debug}" = "x${enableval}"; then
+  DEBUGCFLAGS="-Wall -Werror -Wformat -Wfatal-errors -O0 -g3"
+  AC_SUBST([DEBUGCFLAGS])
+fi
 
 # Checks for programs
 AC_PROG_CC
@@ -277,7 +282,7 @@ AC_MSG_NOTICE([summary of build options:
     Test:
       CUnit:          ${have_cunit} (CFLAGS='${CUNIT_CFLAGS}' LIBS='${CUNIT_LIBS}')
     Debug:
-      Debug:          ${debug}
+      Debug:          ${debug} (CFLAGS='${DEBUGCFLAGS}')
     Libs:
       OpenSSL:        ${have_openssl} (CFLAGS='${OPENSSL_CFLAGS}' LIBS='${OPENSSL_LIBS}')
       Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')

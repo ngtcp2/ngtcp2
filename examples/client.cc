@@ -288,8 +288,6 @@ ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
 namespace {
 int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
                         void *user_data) {
-  int rv;
-
   auto c = static_cast<Client *>(user_data);
 
   c->write_server_handshake(data, datalen);
@@ -801,7 +799,6 @@ int Client::start_interactive_input() {
 }
 
 int Client::send_interactive_input() {
-  int rv;
   ssize_t nread;
   std::array<uint8_t, 1_k> buf;
 
@@ -823,8 +820,6 @@ int Client::send_interactive_input() {
 }
 
 int Client::stop_interactive_input() {
-  int rv;
-
   should_send_fin_ = true;
   ev_io_stop(loop_, &stdinrev_);
 
@@ -1055,7 +1050,6 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
 
 namespace {
 int run(Client &c, const char *addr, const char *port) {
-  int rv;
   Address remote_addr;
 
   auto fd = create_sock(remote_addr, addr, port);
@@ -1110,7 +1104,6 @@ int main(int argc, char **argv) {
   config.fd = -1;
 
   for (;;) {
-    static int flag = 0;
     constexpr static option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
         {"tx-loss", required_argument, nullptr, 't'},

@@ -65,6 +65,7 @@ AM_CFLAGS = $(WARNCFLAGS) \
 	-I${top_srcdir}/lib/includes \
 	-I${top_builddir}/lib/includes \
 	@CUNIT_CFLAGS@ @DEFS@
+AM_LDFLAGS = -no-install
 
 TESTS = main
 
