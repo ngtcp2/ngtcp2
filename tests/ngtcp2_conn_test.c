@@ -496,3 +496,299 @@ void test_ngtcp2_conn_tx_flow_control(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_reset_stream(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  ngtcp2_frame_chain *frc;
+  uint8_t buf[2048];
+
+  /* Stream not found */
+  setup_default_server(&conn);
+
+  rv = ngtcp2_conn_reset_stream(conn, 1, NGTCP2_NO_ERROR);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Check final_offset */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0, null_data, 1239,
+                           1);
+  rv = ngtcp2_conn_reset_stream(conn, 1, NGTCP2_PROTOCOL_VIOLATION);
+
+  CU_ASSERT(0 == rv);
+
+  for (frc = conn->frq; frc; frc = frc->next) {
+    if (frc->fr.type == NGTCP2_FRAME_RST_STREAM) {
+      break;
+    }
+  }
+
+  CU_ASSERT(NULL != frc);
+  CU_ASSERT(1 == frc->fr.rst_stream.stream_id);
+  CU_ASSERT(NGTCP2_PROTOCOL_VIOLATION == frc->fr.rst_stream.error_code);
+  CU_ASSERT(1239 == frc->fr.rst_stream.final_offset);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_rst_stream(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[2048];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_frame_chain *frc;
+
+  /* Receive RST_STREAM */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 955;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0, null_data, 354,
+                           2);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_FLOW_CONTROL_ERROR;
+  fr.rst_stream.final_offset = 955;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 2, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 3);
+
+  CU_ASSERT(0 == rv);
+
+  for (frc = conn->frq; frc; frc = frc->next) {
+    if (frc->fr.type == NGTCP2_FRAME_RST_STREAM) {
+      break;
+    }
+  }
+
+  CU_ASSERT(NULL != frc);
+  CU_ASSERT(1 == frc->fr.rst_stream.stream_id);
+  CU_ASSERT(NGTCP2_QUIC_RECEIVED_RST == frc->fr.rst_stream.error_code);
+  CU_ASSERT(354 == frc->fr.rst_stream.final_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* final_offset in RST_STREAM exceeds the already received offset */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 955;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_FLOW_CONTROL_ERROR;
+  fr.rst_stream.final_offset = 954;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 2, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+
+  CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* final_offset in RST_STREAM differs from the final offset which
+     STREAM frame with fin indicated. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 955;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_FLOW_CONTROL_ERROR;
+  fr.rst_stream.final_offset = 956;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 2, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+
+  CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* RST_STREAM against local stream which has not been initiated. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 2;
+  fr.rst_stream.error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.final_offset = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* RST_STREAM against remote stream which is larger than allowed
+     maximum */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 7;
+  fr.rst_stream.error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.final_offset = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* RST_STREAM against remote stream which is allowed, and no
+     ngtcp2_strm object has been created */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.final_offset = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE ==
+            ngtcp2_idtr_is_open(&conn->remote_idtr, fr.rst_stream.stream_id));
+
+  ngtcp2_conn_del(conn);
+
+  /* RST_STREAM against remote stream which is allowed, and no
+     ngtcp2_strm object has been created, and final_offset violates
+     connection-level flow control. */
+  setup_default_server(&conn);
+
+  conn->local_settings.max_stream_data = 1 << 21;
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.final_offset = 1 << 20;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* RST_STREAM against remote stream which is allowed, and no
+      ngtcp2_strm object has been created, and final_offset violates
+      stream-level flow control. */
+  setup_default_server(&conn);
+
+  conn->max_rx_offset_high = 1 << 11;
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.final_offset = 1 << 20;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* final_offset in RST_STREAM violates connection-level flow
+     control */
+  setup_default_server(&conn);
+
+  conn->local_settings.max_stream_data = 1 << 21;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 955;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_FLOW_CONTROL_ERROR;
+  fr.rst_stream.final_offset = 1024 * 1024;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 2, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+
+  CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* final_offset in RST_STREAM violates stream-level flow
+     control */
+  setup_default_server(&conn);
+
+  conn->max_rx_offset_high = 1 << 11;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 955;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_FLOW_CONTROL_ERROR;
+  fr.rst_stream.final_offset = 1024 * 1024;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 2, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+
+  CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
+
+  ngtcp2_conn_del(conn);
+}

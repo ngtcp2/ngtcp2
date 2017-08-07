@@ -26,6 +26,8 @@
 
 const char *ngtcp2_strerror(int liberr) {
   switch (liberr) {
+  case 0:
+    return "NO_ERROR";
   case NGTCP2_ERR_INVALID_ARGUMENT:
     return "ERR_INVALID_ARGUMENT";
   case NGTCP2_ERR_UNKNOWN_PKT_TYPE:
@@ -50,6 +52,10 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_FLOW_CONTROL";
   case NGTCP2_ERR_PKT_TIMEOUT:
     return "ERR_PKT_TIMEOUT";
+  case NGTCP2_ERR_STREAM_ID:
+    return "ERR_STREAM_ID";
+  case NGTCP2_ERR_FINAL_OFFSET:
+    return "ERR_FINAL_OFFSET";
   case NGTCP2_ERR_NOMEM:
     return "ERR_NOMEM";
   case NGTCP2_ERR_CALLBACK_FAILURE:

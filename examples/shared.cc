@@ -32,6 +32,10 @@ uint32_t infer_quic_error_code(int liberr) {
     return NGTCP2_NO_ERROR;
   case NGTCP2_ERR_FLOW_CONTROL:
     return NGTCP2_FLOW_CONTROL_ERROR;
+  case NGTCP2_ERR_STREAM_ID:
+    return NGTCP2_STREAM_ID_ERROR;
+  case NGTCP2_ERR_FINAL_OFFSET:
+    return NGTCP2_FINAL_OFFSET_ERROR;
   default:
     return NGTCP2_PROTOCOL_VIOLATION;
   }

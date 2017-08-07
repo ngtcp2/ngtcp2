@@ -128,7 +128,11 @@ int main() {
       !CU_add_test(pSuite, "conn_rx_flow_control_error",
                    test_ngtcp2_conn_rx_flow_control_error) ||
       !CU_add_test(pSuite, "conn_tx_flow_control",
-                   test_ngtcp2_conn_tx_flow_control)) {
+                   test_ngtcp2_conn_tx_flow_control) ||
+      !CU_add_test(pSuite, "conn_reset_stream",
+                   test_ngtcp2_conn_reset_stream) ||
+      !CU_add_test(pSuite, "conn_recv_rst_stream",
+                   test_ngtcp2_conn_recv_rst_stream)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

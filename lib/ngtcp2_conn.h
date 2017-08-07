@@ -212,7 +212,8 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
 /*
  * ngtcp2_conn_close_stream closes stream |strm|.
  */
-int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm);
+int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
+                             uint32_t error_code);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm| if no further

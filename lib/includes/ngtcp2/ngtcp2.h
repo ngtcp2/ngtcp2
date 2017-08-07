@@ -179,6 +179,8 @@ typedef enum {
   NGTCP2_ERR_STREAM_DATA_BLOCKED = -210,
   NGTCP2_ERR_FLOW_CONTROL = -211,
   NGTCP2_ERR_PKT_TIMEOUT = -212,
+  NGTCP2_ERR_STREAM_ID = -213,
+  NGTCP2_ERR_FINAL_OFFSET = -214,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -844,6 +846,27 @@ NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
                                           void *stream_user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_reset_stream` closes stream denoted by |stream_id|
+ * abruptly.  Successful call of this function immediately erases the
+ * state of the stream.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     Stream does not exist; or |stream_id| is 0.
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ */
+NGTCP2_EXTERN int ngtcp2_conn_reset_stream(ngtcp2_conn *conn,
+                                           uint32_t stream_id,
+                                           uint32_t error_code);
 
 /**
  * @function
