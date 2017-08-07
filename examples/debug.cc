@@ -172,7 +172,7 @@ void print_indent() { fprintf(outfile, "           "); }
 
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016lx PKN=%" PRIu64 " V=%08x\n",
+  fprintf(outfile, "%s%s%s CID=%016" PRIx64 " PKN=%" PRIu64 " V=%08x\n",
           pkt_ansi_esc(dir), strpkttype_long(hd->type).c_str(), ansi_escend(),
           hd->conn_id, hd->pkt_num, hd->version);
 }
@@ -180,9 +180,9 @@ void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016lx PKN=%" PRIu64 "\n", pkt_ansi_esc(dir),
-          strpkttype_short(hd->type).c_str(), ansi_escend(), hd->conn_id,
-          hd->pkt_num);
+  fprintf(outfile, "%s%s%s CID=%016" PRIx64 " PKN=%" PRIu64 "\n",
+          pkt_ansi_esc(dir), strpkttype_short(hd->type).c_str(), ansi_escend(),
+          hd->conn_id, hd->pkt_num);
 }
 } // namespace
 
@@ -288,8 +288,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     print_indent();
-    fprintf(outfile, "seq=%u conn_id=%016lx\n", fr->new_connection_id.seq,
-            fr->new_connection_id.conn_id);
+    fprintf(outfile, "seq=%u conn_id=%016" PRIx64 "\n",
+            fr->new_connection_id.seq, fr->new_connection_id.conn_id);
     break;
   }
 }
