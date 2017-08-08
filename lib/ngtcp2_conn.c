@@ -1867,7 +1867,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   local_stream = conn_local_stream(conn, fr->stream_id);
 
   if (!local_stream && conn->local_settings.max_stream_id < fr->stream_id) {
-    return NGTCP2_ERR_PROTO;
+    return NGTCP2_ERR_STREAM_ID;
   }
 
   if (UINT64_MAX - fr->datalen < fr->offset) {
@@ -1921,13 +1921,13 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   }
 
   if (fr->fin) {
-    strm->last_rx_offset = ngtcp2_max(strm->last_rx_offset, fr_end_offset);
+    if (strm->last_rx_offset > fr_end_offset) {
+      return NGTCP2_ERR_FINAL_OFFSET;
+    }
+
+    strm->last_rx_offset = fr_end_offset;
 
     ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
-
-    if (strm->last_rx_offset != fr_end_offset) {
-      return NGTCP2_ERR_PROTO;
-    }
 
     rx_offset = ngtcp2_strm_rx_offset(strm);
     if (fr_end_offset == rx_offset) {
@@ -1940,7 +1940,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   } else {
     if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
         strm->last_rx_offset < fr_end_offset) {
-      return NGTCP2_ERR_PROTO;
+      return NGTCP2_ERR_FINAL_OFFSET;
     }
 
     strm->last_rx_offset = ngtcp2_max(strm->last_rx_offset, fr_end_offset);
