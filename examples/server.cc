@@ -295,7 +295,7 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
   h->write_client_handshake(data, datalen);
 
   if (h->tls_handshake() != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+    return NGTCP2_ERR_TLS_HANDSHAKE;
   }
 
   return 0;

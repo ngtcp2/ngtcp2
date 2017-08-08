@@ -58,6 +58,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_FINAL_OFFSET";
   case NGTCP2_ERR_NOMEM:
     return "ERR_NOMEM";
+  case NGTCP2_ERR_TLS_HANDSHAKE:
+    return "ERR_TLS_HANDSHAKE";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:

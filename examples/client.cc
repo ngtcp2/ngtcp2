@@ -293,7 +293,7 @@ int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
   c->write_server_handshake(data, datalen);
 
   if (c->tls_handshake() != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+    return NGTCP2_ERR_TLS_HANDSHAKE;
   }
 
   return 0;
@@ -972,7 +972,7 @@ SSL_CTX *create_ssl_ctx() {
 
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 
-  SSL_CTX_set1_curves_list(ssl_ctx, "P-256");
+  SSL_CTX_set1_curves_list(ssl_ctx, "p-256");
 
   SSL_CTX_set_alpn_protos(ssl_ctx,
                           reinterpret_cast<const uint8_t *>(NGTCP2_ALPN),

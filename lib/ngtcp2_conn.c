@@ -1423,6 +1423,12 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
     }
     break;
+  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
+    nwrite = conn_send_client_cleartext(conn, dest, destlen, ts);
+    if (nwrite < 0) {
+      break;
+    }
+    break;
   case NGTCP2_CS_SERVER_INITIAL:
     nwrite = conn_send_server_cleartext(conn, dest, destlen, 1, ts);
     if (nwrite < 0) {
@@ -1432,6 +1438,13 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     break;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     nwrite = conn_send_server_cleartext(conn, dest, destlen, 0, ts);
+    if (nwrite < 0) {
+      break;
+    }
+    break;
+  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+    nwrite = conn_send_server_cleartext(conn, dest, destlen,
+                                        conn->strm0->tx_offset == 0, ts);
     if (nwrite < 0) {
       break;
     }
@@ -1577,6 +1590,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   int require_ack = 0;
   uint64_t rx_offset;
   uint64_t fr_end_offset;
+  int handshake_failed = 0;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
     return conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
@@ -1699,18 +1713,26 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
       rv = conn->callbacks.recv_handshake_data(conn, data, datalen,
                                                conn->user_data);
-      if (rv != 0) {
+      switch (rv) {
+      case 0:
+        break;
+      case NGTCP2_ERR_TLS_HANDSHAKE:
+        handshake_failed = 1;
+        break;
+      default:
         return rv;
       }
 
       conn->strm0->unsent_max_rx_offset += datalen;
 
-      rv =
-          ngtcp2_conn_emit_pending_recv_handshake(conn, conn->strm0, rx_offset);
-      if (rv != 0) {
-        return rv;
+      if (!handshake_failed) {
+        rv = ngtcp2_conn_emit_pending_recv_handshake(conn, conn->strm0,
+                                                     rx_offset);
+        if (rv != 0) {
+          return rv;
+        }
       }
-    } else {
+    } else if (!handshake_failed) {
       rv = ngtcp2_strm_recv_reordering(conn->strm0, &fr.stream);
       if (rv != 0) {
         return rv;
@@ -1727,7 +1749,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
-  return 0;
+  return handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : 0;
 }
 
 static ssize_t conn_decrypt_packet(ngtcp2_conn *conn, uint8_t *dest,
@@ -2250,6 +2272,10 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
+      if (rv == NGTCP2_ERR_TLS_HANDSHAKE) {
+        conn->state = NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED;
+        rv = 0;
+      }
       break;
     }
     if (conn->handshake_completed) {
@@ -2269,6 +2295,10 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
+      if (rv == NGTCP2_ERR_TLS_HANDSHAKE) {
+        conn->state = NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED;
+        rv = 0;
+      }
       break;
     }
     if (conn->handshake_completed) {
@@ -2282,6 +2312,13 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
       if (rv != 0) {
         return rv;
       }
+    }
+    break;
+  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
+  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    if (rv < 0) {
+      break;
     }
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
