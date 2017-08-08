@@ -66,7 +66,7 @@ AC_ARG_ENABLE([debug],
     [debug=$enableval], [debug=no])
 
 if test "x${debug}" = "x${enableval}"; then
-  DEBUGCFLAGS="-Wall -Werror -Wformat -Wfatal-errors -O0 -g3"
+  DEBUGCFLAGS="-O0 -g3"
   AC_SUBST([DEBUGCFLAGS])
 fi
 
