@@ -228,6 +228,6 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm);
  * function sets offset to its maximum value.
  */
 void ngtcp2_increment_offset(uint64_t *offset_high, uint32_t *offset_low,
-                             size_t datalen);
+                             uint64_t datalen);
 
 #endif /* NGTCP2_CONN_H */
