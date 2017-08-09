@@ -57,6 +57,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->frc = frc;
   (*pent)->expiry = expiry;
   (*pent)->deadline = deadline;
+  (*pent)->count = 0;
   (*pent)->pktlen = pktlen;
   (*pent)->unprotected = unprotected;
 
