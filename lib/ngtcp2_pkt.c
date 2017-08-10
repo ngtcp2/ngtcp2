@@ -1188,7 +1188,7 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
 
 uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
                                    size_t n) {
-  uint64_t k = max_pkt_num + 1;
+  uint64_t k = max_pkt_num == UINT64_MAX ? max_pkt_num : max_pkt_num + 1;
   uint64_t u = k & ~((1llu << n) - 1);
   uint64_t a = u | pkt_num;
   uint64_t b = (u + (1llu << n)) | pkt_num;

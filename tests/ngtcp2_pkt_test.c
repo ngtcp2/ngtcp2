@@ -794,8 +794,11 @@ void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
 
-  CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 1));
-  CU_ASSERT(0x02ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 1));
+  CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 8));
+  CU_ASSERT(0x02ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 8));
+
+  CU_ASSERT(0xffffffffffffffabllu ==
+            ngtcp2_pkt_adjust_pkt_num(0xffffffffffffffffllu, 0xab, 8));
 }
 
 void test_ngtcp2_pkt_validate_ack(void) {
