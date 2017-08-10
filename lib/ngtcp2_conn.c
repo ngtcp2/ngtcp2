@@ -1625,7 +1625,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 
   for (; pktlen;) {
-    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen, conn->max_rx_pkt_num);
+    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen, conn->last_tx_pkt_num);
     if (nread < 0) {
       return (int)nread;
     }
@@ -2136,7 +2136,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   }
 
   for (; pktlen;) {
-    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen, conn->max_rx_pkt_num);
+    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen, conn->last_tx_pkt_num);
     if (nread < 0) {
       return (int)nread;
     }

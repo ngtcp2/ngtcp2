@@ -243,7 +243,7 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 static int has_mask(uint8_t b, uint8_t mask) { return (b & mask) == mask; }
 
 ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
-                                size_t payloadlen, uint64_t max_rx_pkt_num) {
+                                size_t payloadlen, uint64_t last_tx_pkt_num) {
   uint8_t type;
 
   if (payloadlen == 0) {
@@ -258,7 +258,7 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
 
   if (has_mask(type, NGTCP2_FRAME_ACK)) {
     return ngtcp2_pkt_decode_ack_frame(&dest->ack, payload, payloadlen,
-                                       max_rx_pkt_num);
+                                       last_tx_pkt_num);
   }
 
   switch (type) {
@@ -398,7 +398,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
 
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
                                     size_t payloadlen,
-                                    uint64_t max_rx_pkt_num) {
+                                    uint64_t last_tx_pkt_num) {
   static const size_t len_def[] = {1, 2, 4, 8};
   uint8_t type;
   size_t num_blks = 0;
@@ -453,15 +453,15 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 
   switch (lalen) {
   case 1:
-    dest->largest_ack = ngtcp2_pkt_adjust_pkt_num(max_rx_pkt_num, *p, 8);
+    dest->largest_ack = ngtcp2_pkt_adjust_pkt_num(last_tx_pkt_num, *p, 8);
     break;
   case 2:
     dest->largest_ack =
-        ngtcp2_pkt_adjust_pkt_num(max_rx_pkt_num, ngtcp2_get_uint16(p), 16);
+        ngtcp2_pkt_adjust_pkt_num(last_tx_pkt_num, ngtcp2_get_uint16(p), 16);
     break;
   case 4:
     dest->largest_ack =
-        ngtcp2_pkt_adjust_pkt_num(max_rx_pkt_num, ngtcp2_get_uint32(p), 32);
+        ngtcp2_pkt_adjust_pkt_num(last_tx_pkt_num, ngtcp2_get_uint32(p), 32);
     break;
   case 8:
     dest->largest_ack = ngtcp2_get_uint64(p);
