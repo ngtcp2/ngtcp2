@@ -168,7 +168,9 @@ static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
-                    const ngtcp2_conn_callbacks *callbacks, void *user_data) {
+                    const ngtcp2_conn_callbacks *callbacks,
+                    const ngtcp2_settings *settings, void *user_data,
+                    int server) {
   int rv;
   ngtcp2_mem *mem = ngtcp2_mem_default();
 
@@ -185,8 +187,8 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   }
   /* TODO Initial max_stream_data for stream 0? */
   rv = ngtcp2_strm_init((*pconn)->strm0, 0, NGTCP2_STRM_FLAG_NONE,
-                        NGTCP2_STRM0_MAX_STREAM_DATA,
-                        NGTCP2_STRM0_MAX_STREAM_DATA, NULL, mem);
+                        settings->max_stream_data, NGTCP2_STRM0_MAX_STREAM_DATA,
+                        NULL, mem);
   if (rv != 0) {
     goto fail_strm0_init;
   }
@@ -221,6 +223,21 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
 
+  (*pconn)->local_settings = *settings;
+  (*pconn)->max_remote_stream_id = settings->max_stream_id;
+  (*pconn)->unsent_max_rx_offset_high = (*pconn)->max_rx_offset_high =
+      settings->max_data;
+  (*pconn)->server = server;
+  (*pconn)->state =
+      server ? NGTCP2_CS_SERVER_INITIAL : NGTCP2_CS_CLIENT_INITIAL;
+  /* TODO Since transport parameters are not required for interop now,
+     just supply sensible default here.  Remove this when transport
+     parameter gets mandatory. */
+  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
+  (*pconn)->remote_settings.max_data = 64;
+  (*pconn)->remote_settings.max_stream_id = server ? 0 : 1;
+  (*pconn)->max_tx_offset_high = (*pconn)->remote_settings.max_data;
+
   return 0;
 
 fail_remote_idtr_init:
@@ -242,59 +259,14 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
-  int rv;
-
-  rv = conn_new(pconn, conn_id, version, callbacks, user_data);
-  if (rv != 0) {
-    return rv;
-  }
-
-  (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
-  (*pconn)->local_settings = *settings;
-  (*pconn)->max_remote_stream_id = settings->max_stream_id;
-  (*pconn)->unsent_max_rx_offset_high = (*pconn)->max_rx_offset_high =
-      settings->max_data;
-
-  /* TODO Since transport parameters are not required for interop now,
-     just supply sensible default here.  Remove this when transport
-     parameter gets mandatory. */
-  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
-  (*pconn)->remote_settings.max_data = 64;
-  (*pconn)->remote_settings.max_stream_id = 1;
-
-  (*pconn)->max_tx_offset_high = (*pconn)->remote_settings.max_data;
-
-  return 0;
+  return conn_new(pconn, conn_id, version, callbacks, settings, user_data, 0);
 }
 
 int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
-  int rv;
-
-  rv = conn_new(pconn, conn_id, version, callbacks, user_data);
-  if (rv != 0) {
-    return rv;
-  }
-
-  (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
-  (*pconn)->server = 1;
-  (*pconn)->local_settings = *settings;
-  (*pconn)->max_remote_stream_id = settings->max_stream_id;
-  (*pconn)->unsent_max_rx_offset_high = (*pconn)->max_rx_offset_high =
-      settings->max_data;
-
-  /* TODO Since transport parameters are not required for interop now,
-     just supply sensible default here.  Remove this when transport
-     parameter gets mandatory. */
-  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
-  (*pconn)->remote_settings.max_data = 64;
-  (*pconn)->remote_settings.max_stream_id = 0;
-
-  (*pconn)->max_tx_offset_high = (*pconn)->remote_settings.max_data;
-
-  return 0;
+  return conn_new(pconn, conn_id, version, callbacks, settings, user_data, 1);
 }
 
 static void delete_acktr_entry(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem) {
@@ -903,10 +875,14 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     goto fail;
   }
 
-  nwrite = ngtcp2_min(ngtcp2_buf_len(tx_buf),
-                      ngtcp2_upe_left(&upe) - NGTCP2_STREAM_OVERHEAD);
-  nwrite =
-      ngtcp2_min(nwrite, conn->strm0->max_tx_offset - conn->strm0->tx_offset);
+  if (conn->strm0->max_tx_offset > conn->strm0->tx_offset) {
+    nwrite = ngtcp2_min(ngtcp2_buf_len(tx_buf),
+                        ngtcp2_upe_left(&upe) - NGTCP2_STREAM_OVERHEAD);
+    nwrite =
+        ngtcp2_min(nwrite, conn->strm0->max_tx_offset - conn->strm0->tx_offset);
+  } else {
+    nwrite = 0;
+  }
 
   if (nwrite > 0) {
     rv = ngtcp2_frame_chain_new(&frc, conn->mem);
@@ -2524,6 +2500,8 @@ int ngtcp2_conn_set_remote_transport_params(
   /* TODO Should we check that conn->max_remote_stream_id is larger
      than conn->remote_settings.max_stream_id here?  What happens for
      0-RTT stream? */
+
+  conn->strm0->max_tx_offset = conn->remote_settings.max_stream_data;
 
   return 0;
 }
