@@ -444,7 +444,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   /* This is required because ent->hd may have old client version. */
   hd.version = conn->version;
   hd.conn_id = conn->conn_id;
-  hd.pkt_num = conn->next_tx_pkt_num;
+  hd.pkt_num = conn->last_tx_pkt_num + 1;
 
   ngtcp2_upe_init(&upe, dest, destlen);
 
@@ -511,7 +511,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
       }
     }
 
-    ++conn->next_tx_pkt_num;
+    ++conn->last_tx_pkt_num;
     return (ssize_t)ngtcp2_upe_final(&upe, NULL);
   }
 
@@ -535,7 +535,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  ++conn->next_tx_pkt_num;
+  ++conn->last_tx_pkt_num;
 
   return (ssize_t)nwrite;
 }
@@ -559,7 +559,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   /* This is required because ent->hd may have old client version. */
   hd.version = conn->version;
   hd.conn_id = conn->conn_id;
-  hd.pkt_num = conn->next_tx_pkt_num;
+  hd.pkt_num = conn->last_tx_pkt_num + 1;
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -673,7 +673,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       return nwrite;
     }
 
-    ++conn->next_tx_pkt_num;
+    ++conn->last_tx_pkt_num;
 
     return nwrite;
   }
@@ -701,7 +701,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  ++conn->next_tx_pkt_num;
+  ++conn->last_tx_pkt_num;
 
   return nwrite;
 }
@@ -797,7 +797,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   pfrc = &frc_head;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, conn->conn_id,
-                     conn->next_tx_pkt_num, conn->version);
+                     conn->last_tx_pkt_num + 1, conn->version);
 
   ngtcp2_upe_init(&upe, dest, destlen);
 
@@ -867,7 +867,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (ngtcp2_upe_left(&upe) < NGTCP2_STREAM_OVERHEAD + 1) {
     if (!pkt_empty) {
-      ++conn->next_tx_pkt_num;
+      ++conn->last_tx_pkt_num;
       return (ssize_t)ngtcp2_upe_final(&upe, NULL);
     }
 
@@ -946,7 +946,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  ++conn->next_tx_pkt_num;
+  ++conn->last_tx_pkt_num;
 
   return (ssize_t)pktlen;
 
@@ -982,7 +982,7 @@ static ssize_t conn_encode_unprotected_ack_if_any(ngtcp2_conn *conn,
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, conn->conn_id,
-                     conn->next_tx_pkt_num, conn->version);
+                     conn->last_tx_pkt_num + 1, conn->version);
 
   ngtcp2_upe_init(&upe, dest, destlen);
 
@@ -1006,7 +1006,7 @@ static ssize_t conn_encode_unprotected_ack_if_any(ngtcp2_conn *conn,
     return rv;
   }
 
-  ++conn->next_tx_pkt_num;
+  ++conn->last_tx_pkt_num;
 
   return (ssize_t)ngtcp2_upe_final(&upe, NULL);
 }
@@ -1028,7 +1028,7 @@ static ssize_t conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
   tx_buf->last += payloadlen;
 
-  conn->next_tx_pkt_num = pkt_num;
+  conn->last_tx_pkt_num = pkt_num - 1;
 
   return conn_encode_handshake_pkt(conn, dest, destlen,
                                    NGTCP2_PKT_CLIENT_INITIAL, tx_buf, ts);
@@ -1091,7 +1091,7 @@ static ssize_t conn_send_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (initial) {
-    conn->next_tx_pkt_num = pkt_num;
+    conn->last_tx_pkt_num = pkt_num - 1;
   }
 
   return conn_encode_handshake_pkt(conn, dest, destlen,
@@ -1200,7 +1200,7 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
-                     conn->next_tx_pkt_num, conn->version);
+                     conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -1286,7 +1286,7 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
   }
 
-  ++conn->next_tx_pkt_num;
+  ++conn->last_tx_pkt_num;
 
   return nwrite;
 }
@@ -1305,7 +1305,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_crypto_ctx ctx;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
-                     conn->next_tx_pkt_num, conn->version);
+                     conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -1339,7 +1339,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return nwrite;
   }
 
-  ++conn->next_tx_pkt_num;
+  ++conn->last_tx_pkt_num;
 
   return nwrite;
 }
@@ -2606,7 +2606,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
-                     conn->next_tx_pkt_num, conn->version);
+                     conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -2695,7 +2695,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   strm->tx_offset += ndatalen;
   ngtcp2_increment_offset(&conn->tx_offset_high, &conn->tx_offset_low,
                           ndatalen);
-  ++conn->next_tx_pkt_num;
+  ++conn->last_tx_pkt_num;
 
   if (pdatalen) {
     *pdatalen = ndatalen;
