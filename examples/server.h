@@ -49,6 +49,8 @@ struct Config {
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.
   double rx_loss_prob;
+  // ciphers is the list of enabled ciphers.
+  const char *ciphers;
 };
 
 struct Buffer {

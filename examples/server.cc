@@ -1162,6 +1162,13 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
                             SSL_OP_CIPHER_SERVER_PREFERENCE;
 
   SSL_CTX_set_options(ssl_ctx, ssl_opts);
+
+  if (SSL_CTX_set_cipher_list(ssl_ctx, config.ciphers) != 1) {
+    std::cerr << "SSL_CTX_set_cipher_list: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    goto fail;
+  }
+
   SSL_CTX_set1_curves_list(ssl_ctx, "p-256");
   SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
 
@@ -1305,6 +1312,10 @@ Options:
               The probability of losing incoming packets.  <P> must be
               [0.0, 1.0],  inclusive.  0.0 means no  packet loss.  1.0
               means 100% packet loss.
+  --ciphers=<CIPHERS>
+              Specify the cipher suite list to enable.
+              Default: )"
+            << config.ciphers << R"(
   -h, --help  Display this help and exit.
 )";
 }
@@ -1313,12 +1324,16 @@ Options:
 int main(int argc, char **argv) {
   config.tx_loss_prob = 0.;
   config.rx_loss_prob = 0.;
+  config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
+                   "CHACHA20-POLY1305-SHA256";
 
   for (;;) {
+    static int flag = 0;
     constexpr static option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
         {"tx-loss", required_argument, nullptr, 't'},
         {"rx-loss", required_argument, nullptr, 'r'},
+        {"ciphers", required_argument, &flag, 1},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -1342,6 +1357,14 @@ int main(int argc, char **argv) {
     case '?':
       print_usage();
       exit(EXIT_FAILURE);
+    case 0:
+      switch (flag) {
+      case 1:
+        // --ciphers
+        config.ciphers = optarg;
+        break;
+      }
+      break;
     default:
       break;
     };

@@ -51,6 +51,8 @@ struct Config {
   double rx_loss_prob;
   // fd is a file descriptor to read input for stream 1.
   int fd;
+  // ciphers is the list of enabled ciphers.
+  const char *ciphers;
 };
 
 struct Buffer {
