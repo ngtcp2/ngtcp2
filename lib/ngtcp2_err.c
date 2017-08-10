@@ -56,6 +56,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_STREAM_ID";
   case NGTCP2_ERR_FINAL_OFFSET:
     return "ERR_FINAL_OFFSET";
+  case NGTCP2_ERR_PKT_NUM_EXHAUSTED:
+    return "ERR_PKT_NUM_EXHAUSTED";
   case NGTCP2_ERR_NOMEM:
     return "ERR_NOMEM";
   case NGTCP2_ERR_TLS_HANDSHAKE:

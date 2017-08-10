@@ -182,6 +182,7 @@ typedef enum {
   NGTCP2_ERR_STREAM_ID = -213,
   NGTCP2_ERR_FINAL_OFFSET = -214,
   NGTCP2_ERR_TLS_HANDSHAKE = -215,
+  NGTCP2_ERR_PKT_NUM_EXHAUSTED = -216,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -892,6 +893,8 @@ NGTCP2_EXTERN int ngtcp2_conn_reset_stream(ngtcp2_conn *conn,
  *     Buffer is too small
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Stream does not exist; or |stream_id| is 0.
+ * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
+ *     Packet number is exhausted, and cannot send any more packet.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */
@@ -919,6 +922,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
  *     Buffer is too small
  * :enum:`NGTCP2_ERR_INVALID_STATE`
  *     The current state does not allow sending CONNECTION_CLOSE.
+ * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
+ *     Packet number is exhausted, and cannot send any more packet.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */

@@ -1371,6 +1371,10 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                          ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
 
+  if (conn->last_tx_pkt_num == UINT64_MAX) {
+    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
+  }
+
   nwrite = conn_retransmit(conn, dest, destlen, ts);
   if (nwrite != 0) {
     return nwrite;
@@ -1438,6 +1442,10 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                              ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
+
+  if (conn->last_tx_pkt_num == UINT64_MAX) {
+    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
+  }
 
   nwrite = conn_retransmit(conn, dest, destlen, ts);
   if (nwrite != 0) {
@@ -2600,6 +2608,10 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   size_t ndatalen, left;
   ssize_t nwrite;
 
+  if (conn->last_tx_pkt_num == UINT64_MAX) {
+    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
+  }
+
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -2713,6 +2725,10 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
                                            uint32_t error_code) {
   ssize_t nwrite;
   ngtcp2_frame fr;
+
+  if (conn->last_tx_pkt_num == UINT64_MAX) {
+    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
+  }
 
   switch (conn->state) {
   case NGTCP2_CS_POST_HANDSHAKE:
