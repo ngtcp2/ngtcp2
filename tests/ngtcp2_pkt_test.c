@@ -474,7 +474,7 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   fr.ack.num_blks = 0;
   fr.ack.num_ts = 0;
 
-  framelen = 1 + 1 + 4 + 2 + 4;
+  framelen = 1 + 1 + 2 + 2 + 4;
 
   rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fr.ack);
 
@@ -484,8 +484,8 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT((NGTCP2_ACK_LL_02_MASK | NGTCP2_ACK_MM_02_MASK) == nfr.ack.flags);
-  CU_ASSERT(fr.ack.largest_ack == nfr.ack.largest_ack);
+  CU_ASSERT((NGTCP2_ACK_LL_01_MASK | NGTCP2_ACK_MM_02_MASK) == nfr.ack.flags);
+  CU_ASSERT((fr.ack.largest_ack & 0xffff) == nfr.ack.largest_ack);
   CU_ASSERT(fr.ack.ack_delay == nfr.ack.ack_delay);
   CU_ASSERT(fr.ack.num_blks == nfr.ack.num_blks);
   CU_ASSERT(fr.ack.num_ts == nfr.ack.num_ts);
@@ -503,7 +503,7 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   fr.ack.blks[1].gap = 1;
   fr.ack.blks[1].blklen = 0xd1d2d3d4llu;
 
-  framelen = 1 + 1 + 1 + 4 + 2 + 4 + (1 + 4) * 2;
+  framelen = 1 + 1 + 1 + 2 + 2 + 4 + (1 + 4) * 2;
 
   rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fr.ack);
 
@@ -513,9 +513,9 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT((NGTCP2_ACK_N_BIT | NGTCP2_ACK_LL_02_MASK |
+  CU_ASSERT((NGTCP2_ACK_N_BIT | NGTCP2_ACK_LL_01_MASK |
              NGTCP2_ACK_MM_02_MASK) == nfr.ack.flags);
-  CU_ASSERT(fr.ack.largest_ack == nfr.ack.largest_ack);
+  CU_ASSERT((fr.ack.largest_ack & 0xffff) == nfr.ack.largest_ack);
   CU_ASSERT(fr.ack.ack_delay = nfr.ack.ack_delay);
   CU_ASSERT(fr.ack.num_blks == nfr.ack.num_blks);
   CU_ASSERT(fr.ack.num_ts == nfr.ack.num_ts);
