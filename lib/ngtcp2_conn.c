@@ -1527,7 +1527,6 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   int rv;
   int require_ack = 0;
   uint64_t rx_offset;
-  uint64_t fr_end_offset;
   int handshake_failed = 0;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
@@ -1630,11 +1629,10 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       continue;
     }
 
-    fr_end_offset = fr.stream.offset + fr.stream.datalen;
-
     /* At the moment, we assume that MAX_STREAM_DATA for stream 0 is
        sufficient for handshake */
 
+    /* fr_end_offset = fr.stream.offset + fr.stream.datalen; */
     /* if (conn->strm0->max_rx_offset < fr_end_offset) { */
     /*   return NGTCP2_ERR_FLOW_CONTROL; */
     /* } */
