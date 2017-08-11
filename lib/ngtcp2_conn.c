@@ -434,7 +434,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   int rv;
   ngtcp2_upe upe;
   ngtcp2_pkt_hd hd = ent->hd;
-  ngtcp2_frame_chain **pfrc, *frc;
+  ngtcp2_frame_chain **pfrc;
   ngtcp2_rtb_entry *nent = NULL;
   ngtcp2_frame localfr;
   int pkt_empty = 1;
@@ -457,15 +457,6 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
      ack protected packet here for now. */
 
   for (pfrc = &ent->frc; *pfrc;) {
-    if ((*pfrc)->fr.type == NGTCP2_FRAME_MAX_STREAM_DATA) {
-      if ((*pfrc)->fr.max_stream_data.max_stream_data <
-          conn->strm0->unsent_max_rx_offset) {
-        frc = *pfrc;
-        *pfrc = (*pfrc)->next;
-        ngtcp2_frame_chain_del(frc, conn->mem);
-        continue;
-      }
-    }
     rv = ngtcp2_upe_encode_frame(&upe, &(*pfrc)->fr);
     if (rv != 0) {
       if (rv == NGTCP2_ERR_NOBUF) {
@@ -832,37 +823,6 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
       pkt_empty = 0;
     }
-
-    if (conn->strm0->max_rx_offset < conn->strm0->unsent_max_rx_offset) {
-      rv = ngtcp2_frame_chain_new(&frc, conn->mem);
-      if (rv != 0) {
-        return rv;
-      }
-
-      *pfrc = frc;
-      pfrc = &frc->next;
-
-      frc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
-      frc->fr.max_stream_data.stream_id = 0;
-      frc->fr.max_stream_data.max_stream_data =
-          conn->strm0->unsent_max_rx_offset;
-
-      /* TODO If we get NGTCP2_ERR_NOBUF below, we lose
-         MAX_STREAM_DATA update. */
-      conn->strm0->max_rx_offset = conn->strm0->unsent_max_rx_offset;
-
-      rv = ngtcp2_upe_encode_frame(&upe, &frc->fr);
-      if (rv != 0) {
-        goto fail;
-      }
-
-      rv = conn_call_send_frame(conn, &hd, &frc->fr);
-      if (rv != 0) {
-        goto fail;
-      }
-
-      pkt_empty = 0;
-    }
   }
 
   if (ngtcp2_upe_left(&upe) < NGTCP2_STREAM_OVERHEAD + 1) {
@@ -875,14 +835,8 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     goto fail;
   }
 
-  if (conn->strm0->max_tx_offset > conn->strm0->tx_offset) {
-    nwrite = ngtcp2_min(ngtcp2_buf_len(tx_buf),
-                        ngtcp2_upe_left(&upe) - NGTCP2_STREAM_OVERHEAD);
-    nwrite =
-        ngtcp2_min(nwrite, conn->strm0->max_tx_offset - conn->strm0->tx_offset);
-  } else {
-    nwrite = 0;
-  }
+  nwrite = ngtcp2_min(ngtcp2_buf_len(tx_buf),
+                      ngtcp2_upe_left(&upe) - NGTCP2_STREAM_OVERHEAD);
 
   if (nwrite > 0) {
     rv = ngtcp2_frame_chain_new(&frc, conn->mem);
@@ -1660,12 +1614,6 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
       continue;
-    case NGTCP2_FRAME_MAX_STREAM_DATA:
-      rv = conn_recv_max_stream_data(conn, &fr.max_stream_data);
-      if (rv != 0) {
-        return rv;
-      }
-      continue;
     }
 
     if (fr.type != NGTCP2_FRAME_STREAM || fr.stream.stream_id != 0 ||
@@ -1683,9 +1631,13 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     fr_end_offset = fr.stream.offset + fr.stream.datalen;
-    if (conn->strm0->max_rx_offset < fr_end_offset) {
-      return NGTCP2_ERR_FLOW_CONTROL;
-    }
+
+    /* At the moment, we assume that MAX_STREAM_DATA for stream 0 is
+       sufficient for handshake */
+
+    /* if (conn->strm0->max_rx_offset < fr_end_offset) { */
+    /*   return NGTCP2_ERR_FLOW_CONTROL; */
+    /* } */
 
     if (fr.stream.offset <= rx_offset) {
       size_t ncut = (rx_offset - fr.stream.offset);
