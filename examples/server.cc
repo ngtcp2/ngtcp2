@@ -912,21 +912,11 @@ int Server::on_read() {
 
   auto handler_it = handlers_.find(conn_id);
   if (handler_it == std::end(handlers_)) {
-    switch (su.storage.ss_family) {
-    case AF_INET:
-      if (nread < NGTCP2_MAX_PKTLEN_IPV4) {
-        std::cerr << "IPv4 packet is too short: " << nread << " < "
-                  << NGTCP2_MAX_PKTLEN_IPV4 << std::endl;
-        return 0;
-      }
-      break;
-    case AF_INET6:
-      if (nread < NGTCP2_MAX_PKTLEN_IPV6) {
-        std::cerr << "IPv6 packet is too short: " << nread << " < "
-                  << NGTCP2_MAX_PKTLEN_IPV6 << std::endl;
-        return 0;
-      }
-      break;
+    constexpr size_t MIN_PKT_SIZE = 1200;
+    if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
+      std::cerr << "Client Initial packet is too short: " << nread << " < "
+                << MIN_PKT_SIZE << std::endl;
+      return 0;
     }
 
     rv = ngtcp2_accept(&hd, buf.data(), nread);
