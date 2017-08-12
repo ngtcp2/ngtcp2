@@ -2016,6 +2016,18 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
   return conn_reset_stream(conn, strm, NGTCP2_QUIC_RECEIVED_RST);
 }
 
+static void conn_recv_connection_close(ngtcp2_conn *conn,
+                                       const ngtcp2_connection_close *fr,
+                                       uint8_t unprotected) {
+  (void)fr;
+
+  if (unprotected) {
+    return;
+  }
+
+  conn->state = NGTCP2_CS_CLOSE_WAIT;
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
@@ -2140,6 +2152,9 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
       break;
     case NGTCP2_FRAME_MAX_DATA:
       conn_recv_max_data(conn, &fr.max_data);
+      break;
+    case NGTCP2_FRAME_CONNECTION_CLOSE:
+      conn_recv_connection_close(conn, &fr.connection_close, unprotected);
       break;
     }
   }
