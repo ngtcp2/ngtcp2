@@ -85,6 +85,8 @@ struct ngtcp2_rtb_entry {
   /* deadline is the time point when the library gives up
      retransmission of a packet, and closes its connection. */
   ngtcp2_tstamp deadline;
+  /* count is the number of times a retransmission has been sent. */
+  size_t count;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
   /* unprotected is nonzero if a packet is unprotected. */
