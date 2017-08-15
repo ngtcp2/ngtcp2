@@ -490,7 +490,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
        header, and push it into rbt again. */
     ent->hd = hd;
     ++ent->count;
-    ent->expiry = ts + (size_t)(NGTCP2_INITIAL_EXPIRY << ent->count);
+    ent->expiry = ts + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ent->count);
 
     if (hd.type == NGTCP2_PKT_CLIENT_INITIAL) {
       localfr.type = NGTCP2_FRAME_PADDING;
@@ -657,7 +657,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
        header, and push it into rbt again. */
     ent->hd = hd;
     ++ent->count;
-    ent->expiry = ts + (size_t)(NGTCP2_INITIAL_EXPIRY << ent->count);
+    ent->expiry = ts + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ent->count);
 
     nwrite = ngtcp2_ppe_final(&ppe, NULL);
     if (nwrite < 0) {
