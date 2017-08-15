@@ -2054,17 +2054,6 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     pkt_num_bits = 32;
-    switch (hd.type) {
-    case NGTCP2_PKT_1RTT_PROTECTED_K0:
-      encrypted = 1;
-      break;
-    case NGTCP2_PKT_SERVER_CLEARTEXT:
-      if (!conn->server) {
-        /* TODO Client may keep sending old connection ID */
-        conn->conn_id = hd.conn_id;
-      }
-      break;
-    }
   } else {
     switch (hd.type) {
     case NGTCP2_PKT_01:
@@ -2079,9 +2068,6 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
     default:
       assert(0);
     }
-    if (!(hd.flags & NGTCP2_PKT_FLAG_KEY_PHASE)) {
-      encrypted = 1;
-    }
   }
 
   hd.pkt_num =
@@ -2090,6 +2076,26 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   rv = conn_call_recv_pkt(conn, &hd);
   if (rv != 0) {
     return rv;
+  }
+
+  if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+    switch (hd.type) {
+    case NGTCP2_PKT_1RTT_PROTECTED_K0:
+      encrypted = 1;
+      break;
+    case NGTCP2_PKT_VERSION_NEGOTIATION:
+      /* TODO Not sure we have to handle Version Negotiation packet
+         after handshake. */
+      rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
+      if (rv < 0) {
+        return rv;
+      }
+      conn->state = NGTCP2_CS_CLOSE_WAIT;
+      return 0;
+    }
+  } else if (!(hd.flags & NGTCP2_PKT_FLAG_KEY_PHASE)) {
+    /* TODO No key update support right now */
+    encrypted = 1;
   }
 
   if (encrypted) {
