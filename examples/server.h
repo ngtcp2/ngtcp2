@@ -65,6 +65,12 @@ struct Buffer {
   std::vector<uint8_t>::const_iterator pos;
 };
 
+struct BIOMethod {
+  BIOMethod();
+  ~BIOMethod();
+  BIO_METHOD *meth;
+};
+
 struct Stream {
   Stream(uint32_t stream_id);
 
