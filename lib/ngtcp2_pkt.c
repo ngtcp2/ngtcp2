@@ -935,8 +935,8 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = NGTCP2_FRAME_ACK | NGTCP2_ACK_MM_02_MASK | lamask |
-         (fr->num_blks ? NGTCP2_ACK_N_BIT : 0);
+  *p++ = (uint8_t)(NGTCP2_FRAME_ACK | NGTCP2_ACK_MM_02_MASK | lamask |
+                   (fr->num_blks ? NGTCP2_ACK_N_BIT : 0));
   /* Num Blocks */
   if (fr->num_blks) {
     *p++ = (uint8_t)fr->num_blks;
