@@ -485,8 +485,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest,
 
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
                                               const uint8_t *payload,
-                                              size_t payloadlen,
-                                              uint64_t max_rx_pkt_num);
+                                              size_t payloadlen);
 
 /**
  * @function

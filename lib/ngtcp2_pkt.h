@@ -53,8 +53,10 @@
 #define NGTCP2_ACK_N_BIT 0x10
 #define NGTCP2_ACK_LL_MASK 0x0c
 #define NGTCP2_ACK_MM_MASK 0x03
+#define NGTCP2_ACK_LL_00_MASK 0x00
 #define NGTCP2_ACK_LL_01_MASK 0x04
 #define NGTCP2_ACK_LL_02_MASK 0x08
+#define NGTCP2_ACK_LL_03_MASK 0x0c
 #define NGTCP2_ACK_MM_02_MASK 0x02
 
 /* The length of FNV-1a message digest for Unprotected packet */
@@ -160,7 +162,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
  *     Payload is too short to include ACK frame
  */
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
-                                    size_t payloadlen, uint64_t max_rx_pkt_num);
+                                    size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_padding_frame decodes contiguous PADDING frames

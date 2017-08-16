@@ -105,7 +105,7 @@ void test_ngtcp2_upe_encode(void) {
   pktlen -= (size_t)nread;
 
   /* Read first STREAM frame */
-  nread = ngtcp2_pkt_decode_frame(&ns, out, pktlen, 0);
+  nread = ngtcp2_pkt_decode_frame(&ns, out, pktlen);
 
   CU_ASSERT(nread > 0);
   CU_ASSERT(s1.type == ns.type);
@@ -118,7 +118,7 @@ void test_ngtcp2_upe_encode(void) {
   pktlen -= (size_t)nread;
 
   /* Read second STREAM frame */
-  nread = ngtcp2_pkt_decode_frame(&ns, out, pktlen, 0);
+  nread = ngtcp2_pkt_decode_frame(&ns, out, pktlen);
 
   CU_ASSERT(nread > 0);
   CU_ASSERT(s2.type == ns.type);
@@ -131,7 +131,7 @@ void test_ngtcp2_upe_encode(void) {
   pktlen -= (size_t)nread;
 
   /* Read PADDING frames to the end */
-  nread = ngtcp2_pkt_decode_frame(&ns, out, pktlen, 0);
+  nread = ngtcp2_pkt_decode_frame(&ns, out, pktlen);
 
   CU_ASSERT(nread == (ssize_t)pktlen);
   CU_ASSERT(NGTCP2_FRAME_PADDING == ns.type);
