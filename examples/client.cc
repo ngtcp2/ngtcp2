@@ -133,9 +133,8 @@ int bio_destroy(BIO *b) {
 }
 } // namespace
 
-namespace {
-BIO_METHOD *create_bio_method() {
-  static auto meth = BIO_meth_new(BIO_TYPE_FD, "bio");
+BIOMethod::BIOMethod()
+    : meth(BIO_meth_new(BIO_TYPE_FD, "bio")) {
   BIO_meth_set_write(meth, bio_write);
   BIO_meth_set_read(meth, bio_read);
   BIO_meth_set_puts(meth, bio_puts);
@@ -143,8 +142,15 @@ BIO_METHOD *create_bio_method() {
   BIO_meth_set_ctrl(meth, bio_ctrl);
   BIO_meth_set_create(meth, bio_create);
   BIO_meth_set_destroy(meth, bio_destroy);
-  return meth;
 }
+
+BIOMethod::~BIOMethod() {
+  BIO_meth_free(meth);
+  meth = nullptr;
+}
+
+namespace {
+BIOMethod biomethod;
 } // namespace
 
 namespace {
@@ -395,7 +401,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   fd_ = fd;
   stdinfd_ = stdinfd;
   ssl_ = SSL_new(ssl_ctx_);
-  auto bio = BIO_new(create_bio_method());
+  auto bio = BIO_new(biomethod.meth);
   BIO_set_data(bio, this);
   SSL_set_bio(ssl_, bio, bio);
   SSL_set_app_data(ssl_, this);
@@ -964,6 +970,12 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
 } // namespace
 
 namespace {
+void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
+  ev_break(EV_DEFAULT, EVBREAK_ALL);
+}
+} // namespace
+
+namespace {
 SSL_CTX *create_ssl_ctx() {
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
@@ -1173,6 +1185,11 @@ int main(int argc, char **argv) {
   auto addr = argv[optind++];
   auto port = argv[optind++];
 
+  auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);
+  ev_signal sigint_watcher;
+  ev_signal_init(&sigint_watcher, siginthandler, SIGINT);
+  ev_signal_start(EV_DEFAULT, &sigint_watcher);
+
   auto ssl_ctx = create_ssl_ctx();
   auto ssl_ctx_d = defer(SSL_CTX_free, ssl_ctx);
 
@@ -1187,4 +1204,6 @@ int main(int argc, char **argv) {
   if (run(c, addr, port) != 0) {
     exit(EXIT_FAILURE);
   }
+
+  return EXIT_SUCCESS;
 }

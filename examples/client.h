@@ -67,6 +67,12 @@ struct Buffer {
   std::vector<uint8_t>::const_iterator pos;
 };
 
+struct BIOMethod {
+  BIOMethod();
+  ~BIOMethod();
+  BIO_METHOD *meth;
+};
+
 class Client {
 public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
