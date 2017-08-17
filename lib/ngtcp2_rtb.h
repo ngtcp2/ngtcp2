@@ -66,6 +66,13 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem);
  */
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
 
+typedef enum {
+  NGTCP2_RTB_FLAG_NONE = 0x00,
+  /* NGTCP2_RTB_FLAG_UNPROTECTED indicates that the entry contains
+     frames which were sent in an unprotected packet. */
+  NGTCP2_RTB_FLAG_UNPROTECTED = 0x1,
+} ngtcp2_rtb_flag;
+
 struct ngtcp2_rtb_entry;
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
@@ -89,8 +96,8 @@ struct ngtcp2_rtb_entry {
   size_t count;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
-  /* unprotected is nonzero if a packet is unprotected. */
-  uint8_t unprotected;
+  /* flags is bitwise-OR of zero or more of ngtcp2_rtb_flag. */
+  uint8_t flags;
 };
 
 /*
@@ -106,8 +113,8 @@ struct ngtcp2_rtb_entry {
  */
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         ngtcp2_tstamp deadline, size_t pktlen,
-                         uint8_t unprotected, ngtcp2_mem *mem);
+                         ngtcp2_tstamp deadline, size_t pktlen, uint8_t flags,
+                         ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_entry_del deallocates |ent|.  It also frees memory

@@ -46,8 +46,8 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
-                         ngtcp2_tstamp deadline, size_t pktlen,
-                         uint8_t unprotected, ngtcp2_mem *mem) {
+                         ngtcp2_tstamp deadline, size_t pktlen, uint8_t flags,
+                         ngtcp2_mem *mem) {
   (*pent) = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_rtb_entry));
   if (*pent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -59,7 +59,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->deadline = deadline;
   (*pent)->count = 0;
   (*pent)->pktlen = pktlen;
-  (*pent)->unprotected = unprotected;
+  (*pent)->flags = flags;
 
   return 0;
 }
@@ -238,7 +238,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   for (; *pent;) {
     if (min_ack <= (*pent)->hd.pkt_num && (*pent)->hd.pkt_num <= largest_ack) {
-      if (unprotected && !(*pent)->unprotected) {
+      if (unprotected && !((*pent)->flags & NGTCP2_RTB_FLAG_UNPROTECTED)) {
         pent = &(*pent)->next;
         continue;
       }
@@ -274,7 +274,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       if ((*pent)->hd.pkt_num < min_ack) {
         break;
       }
-      if (unprotected && !(*pent)->unprotected) {
+      if (unprotected && !((*pent)->flags & NGTCP2_RTB_FLAG_UNPROTECTED)) {
         continue;
       }
       if (conn && conn->callbacks.acked_stream_data_offset) {
