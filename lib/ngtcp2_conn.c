@@ -351,6 +351,11 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   uint64_t gap;
   ngtcp2_acktr_entry *rpkt;
 
+  if (conn->acktr.nactive_ack == 0) {
+    conn_invalidate_next_ack_expiry(conn);
+    return 0;
+  }
+
   rpkt = ngtcp2_acktr_get(&conn->acktr);
   if (rpkt == NULL) {
     /* TODO This might not be necessary if we don't forget ACK. */
@@ -1470,8 +1475,8 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
-                         uint8_t unprotected) {
+static ssize_t conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
+                             uint8_t unprotected) {
   int rv;
   rv = ngtcp2_pkt_validate_ack(fr);
   if (rv != 0) {
@@ -1531,6 +1536,8 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   int require_ack = 0;
   uint64_t rx_offset;
   int handshake_failed = 0;
+  ssize_t nacked;
+  uint8_t acktr_flags = 0;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
     return conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
@@ -1602,18 +1609,24 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return rv;
     }
 
-    /* We don't ack packet which contains ACK and CONNECTION_CLOSE
-       only. */
-    /* TODO What about packet with PADDING frames only? */
-    require_ack |=
-        fr.type != NGTCP2_FRAME_ACK && fr.type != NGTCP2_FRAME_CONNECTION_CLOSE;
+    switch (fr.type) {
+    case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_PADDING:
+    case NGTCP2_FRAME_CONNECTION_CLOSE:
+      break;
+    default:
+      require_ack = 1;
+    }
 
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
       /* TODO Assume that all packets here are unprotected */
-      rv = conn_recv_ack(conn, &fr.ack, 1);
-      if (rv != 0) {
-        return rv;
+      nacked = conn_recv_ack(conn, &fr.ack, 1);
+      if (nacked < 0) {
+        return (int)nacked;
+      }
+      if (nacked) {
+        acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
       }
       continue;
     }
@@ -1680,7 +1693,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
   if (require_ack) {
-    rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, ts);
+    acktr_flags &= ~NGTCP2_ACKTR_FLAG_PASSIVE;
+  }
+
+  if (require_ack || (acktr_flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
+    rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
     if (rv != 0) {
       return rv;
     }
@@ -2042,6 +2059,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   ngtcp2_frame fr;
   int require_ack = 0;
   uint8_t unprotected;
+  uint8_t acktr_flags = 0;
+  ssize_t nacked;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -2127,17 +2146,23 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
       return rv;
     }
 
-    /* We don't ack packet which contains ACK and CONNECTION_CLOSE
-       only. */
-    /* TODO What about packet with PADDING frames only? */
-    require_ack |=
-        fr.type != NGTCP2_FRAME_ACK && fr.type != NGTCP2_FRAME_CONNECTION_CLOSE;
+    switch (fr.type) {
+    case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_PADDING:
+    case NGTCP2_FRAME_CONNECTION_CLOSE:
+      break;
+    default:
+      require_ack = 1;
+    }
 
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
-      rv = conn_recv_ack(conn, &fr.ack, unprotected);
-      if (rv != 0) {
-        return rv;
+      nacked = conn_recv_ack(conn, &fr.ack, unprotected);
+      if (nacked < 0) {
+        return (int)nacked;
+      }
+      if (nacked) {
+        acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
       }
       break;
     case NGTCP2_FRAME_STREAM:
@@ -2170,7 +2195,11 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
   if (require_ack) {
-    rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, ts);
+    acktr_flags &= ~NGTCP2_ACKTR_FLAG_PASSIVE;
+  }
+
+  if (require_ack || (acktr_flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
+    rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
     if (rv != 0) {
       return rv;
     }
@@ -2322,11 +2351,11 @@ void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
-                          ngtcp2_tstamp ts) {
+                          uint8_t acktr_flags, ngtcp2_tstamp ts) {
   ngtcp2_acktr_entry *rpkt;
   int rv;
 
-  rv = ngtcp2_acktr_entry_new(&rpkt, pkt_num, ts, conn->mem);
+  rv = ngtcp2_acktr_entry_new(&rpkt, pkt_num, ts, acktr_flags, conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -2337,7 +2366,7 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
     return rv;
   }
 
-  if (conn->next_ack_expiry == 0) {
+  if (conn->next_ack_expiry == 0 && conn->acktr.nactive_ack > 0) {
     conn_set_next_ack_expiry(conn, ts);
   }
 

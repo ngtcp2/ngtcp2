@@ -24,8 +24,11 @@
  */
 #include "ngtcp2_acktr.h"
 
+#include <assert.h>
+
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem) {
+                           ngtcp2_tstamp tstamp, uint8_t flags,
+                           ngtcp2_mem *mem) {
   *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));
   if (*ent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -34,6 +37,7 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
   (*ent)->next = NULL;
   (*ent)->pkt_num = pkt_num;
   (*ent)->tstamp = tstamp;
+  (*ent)->flags = flags;
 
   return 0;
 }
@@ -42,7 +46,10 @@ void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, ent);
 }
 
-void ngtcp2_acktr_init(ngtcp2_acktr *acktr) { acktr->ent = NULL; }
+void ngtcp2_acktr_init(ngtcp2_acktr *acktr) {
+  acktr->ent = NULL;
+  acktr->nactive_ack = 0;
+}
 
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) { (void)acktr; }
 
@@ -62,6 +69,11 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
 
   ent->next = *pent;
   *pent = ent;
+
+  if (!(ent->flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
+    ++acktr->nactive_ack;
+  }
+
   return 0;
 }
 
@@ -76,6 +88,11 @@ void ngtcp2_acktr_remove(ngtcp2_acktr *acktr, const ngtcp2_acktr_entry *ent) {
     }
 
     *pent = (*pent)->next;
+
+    if (!(ent->flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
+      assert(acktr->nactive_ack > 0);
+      --acktr->nactive_ack;
+    }
 
     return;
   }

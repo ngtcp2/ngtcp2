@@ -217,12 +217,13 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   return 0;
 }
 
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        uint8_t unprotected, ngtcp2_conn *conn) {
+ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
+                            uint8_t unprotected, ngtcp2_conn *conn) {
   ngtcp2_rtb_entry **pent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
   int rv;
+  ssize_t nacked = 0;
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   for (pent = &rtb->head; *pent; pent = &(*pent)->next) {
@@ -248,6 +249,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           return rv;
         }
       }
+      ++nacked;
       rtb_remove(rtb, pent);
       continue;
     }
@@ -283,6 +285,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           return rv;
         }
       }
+      ++nacked;
       rtb_remove(rtb, pent);
     }
 
@@ -290,5 +293,5 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     ++i;
   }
 
-  return 0;
+  return nacked;
 }

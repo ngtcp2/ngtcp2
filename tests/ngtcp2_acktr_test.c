@@ -32,8 +32,13 @@
 void test_ngtcp2_acktr_add(void) {
   ngtcp2_acktr acktr;
   ngtcp2_acktr_entry ents[] = {
-      {NULL, 1, 1000}, {NULL, 5, 1001}, {NULL, 7, 1002}, {NULL, 4, 1003},
-      {NULL, 6, 1004}, {NULL, 2, 1005}, {NULL, 3, 1006},
+      {NULL, 1, 1000, NGTCP2_ACKTR_FLAG_NONE},
+      {NULL, 5, 1001, NGTCP2_ACKTR_FLAG_NONE},
+      {NULL, 7, 1002, NGTCP2_ACKTR_FLAG_NONE},
+      {NULL, 4, 1003, NGTCP2_ACKTR_FLAG_NONE},
+      {NULL, 6, 1004, NGTCP2_ACKTR_FLAG_NONE},
+      {NULL, 2, 1005, NGTCP2_ACKTR_FLAG_NONE},
+      {NULL, 3, 1006, NGTCP2_ACKTR_FLAG_NONE},
   };
   uint64_t max_pkt_num[] = {1, 5, 7, 7, 7, 7, 7};
   ngtcp2_acktr_entry *ent;

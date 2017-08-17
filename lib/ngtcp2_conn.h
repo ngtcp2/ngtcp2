@@ -192,7 +192,7 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
  *     Out of memory
  */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
-                          ngtcp2_tstamp ts);
+                          uint8_t acktr_flags, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is

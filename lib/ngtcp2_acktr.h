@@ -33,6 +33,14 @@
 
 #include "ngtcp2_mem.h"
 
+typedef enum {
+  NGTCP2_ACKTR_FLAG_NONE = 0x00,
+  /* NGTCP2_ACKTR_FLAG_PASSIVE means that the ack should not be
+     generated with passive entry only, but it should with at least
+     one non-passive entry. */
+  NGTCP2_ACKTR_FLAG_PASSIVE = 0x01,
+} ngtcp2_acktr_flag;
+
 struct ngtcp2_acktr_entry;
 typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
 
@@ -43,6 +51,8 @@ struct ngtcp2_acktr_entry {
   ngtcp2_acktr_entry *next;
   uint64_t pkt_num;
   ngtcp2_tstamp tstamp;
+  /* flags is bitwise OR of zero or more of ngtcp2_acktr_flag. */
+  uint8_t flags;
 };
 
 /*
@@ -50,7 +60,8 @@ struct ngtcp2_acktr_entry {
  * with the given parameters.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
+                           ngtcp2_tstamp tstamp, uint8_t flags,
+                           ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_entry_del deallocates memory allocated for |ent|.  It
@@ -65,6 +76,9 @@ typedef struct {
   /* ent points to the head of list which is ordered by the decreasing
      order of packet number. */
   ngtcp2_acktr_entry *ent;
+  /* nactive_ack is the number of entries which do not have
+     NGTCP2_ACKTR_FLAG_PASSIVE flag set. */
+  size_t nactive_ack;
 } ngtcp2_acktr;
 
 /*
