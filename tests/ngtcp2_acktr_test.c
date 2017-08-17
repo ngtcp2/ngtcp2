@@ -58,8 +58,7 @@ void test_ngtcp2_acktr_add(void) {
   }
 
   for (i = 0; i < arraylen(ents); ++i) {
-    ent = ngtcp2_acktr_get(&acktr);
-    ngtcp2_acktr_remove(&acktr, ent);
+    ngtcp2_acktr_pop(&acktr);
 
     ent = ngtcp2_acktr_get(&acktr);
 

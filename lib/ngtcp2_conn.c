@@ -366,7 +366,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   first_pkt_num = last_pkt_num = rpkt->pkt_num;
   ack_delay = ts - rpkt->tstamp;
 
-  ngtcp2_acktr_remove(&conn->acktr, rpkt);
+  ngtcp2_acktr_pop(&conn->acktr);
   ngtcp2_acktr_entry_del(rpkt, conn->mem);
 
   ack->type = NGTCP2_FRAME_ACK;
@@ -376,7 +376,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   for (; (rpkt = ngtcp2_acktr_get(&conn->acktr));) {
     if (rpkt->pkt_num + 1 == last_pkt_num) {
       last_pkt_num = rpkt->pkt_num;
-      ngtcp2_acktr_remove(&conn->acktr, rpkt);
+      ngtcp2_acktr_pop(&conn->acktr);
       ngtcp2_acktr_entry_del(rpkt, conn->mem);
       continue;
     }
@@ -403,7 +403,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
 
     first_pkt_num = last_pkt_num = rpkt->pkt_num;
 
-    ngtcp2_acktr_remove(&conn->acktr, rpkt);
+    ngtcp2_acktr_pop(&conn->acktr);
     ngtcp2_acktr_entry_del(rpkt, conn->mem);
 
     if (ack->num_blks == 255) {

@@ -112,8 +112,9 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 ngtcp2_acktr_entry *ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
 /*
- * ngtcp2_acktr_remove removes the |ent|.
+ * ngtcp2_acktr_remove the head of entries, which has the largest
+ * packet number.
  */
-void ngtcp2_acktr_remove(ngtcp2_acktr *acktr, const ngtcp2_acktr_entry *ent);
+void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
 
 #endif /* NGTCP2_ACKTR_H */

@@ -79,21 +79,10 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
 
 ngtcp2_acktr_entry *ngtcp2_acktr_get(ngtcp2_acktr *acktr) { return acktr->ent; }
 
-void ngtcp2_acktr_remove(ngtcp2_acktr *acktr, const ngtcp2_acktr_entry *ent) {
-  ngtcp2_acktr_entry **pent;
-
-  for (pent = &acktr->ent; *pent; pent = &(*pent)->next) {
-    if (ent->pkt_num != (*pent)->pkt_num) {
-      continue;
-    }
-
-    *pent = (*pent)->next;
-
-    if (!(ent->flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
-      assert(acktr->nactive_ack > 0);
-      --acktr->nactive_ack;
-    }
-
-    return;
+void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
+  if (!(acktr->ent->flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
+    assert(acktr->nactive_ack > 0);
+    --acktr->nactive_ack;
   }
+  acktr->ent = acktr->ent->next;
 }
