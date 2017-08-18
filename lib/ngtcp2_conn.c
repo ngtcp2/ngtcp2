@@ -1693,7 +1693,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
   if (require_ack) {
-    acktr_flags &= ~NGTCP2_ACKTR_FLAG_PASSIVE;
+    acktr_flags &= (uint8_t)(~NGTCP2_ACKTR_FLAG_PASSIVE);
   }
 
   if (require_ack || (acktr_flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
@@ -2195,7 +2195,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
   if (require_ack) {
-    acktr_flags &= ~NGTCP2_ACKTR_FLAG_PASSIVE;
+    acktr_flags &= (uint8_t)(~NGTCP2_ACKTR_FLAG_PASSIVE);
   }
 
   if (require_ack || (acktr_flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
