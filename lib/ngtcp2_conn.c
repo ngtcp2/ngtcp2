@@ -1451,9 +1451,9 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_send_ack_protected writes a protected QUIC packet which only
- * includes ACK frame in the buffer pointed by |dest| whose length is
- * |destlen|.
+ * conn_write_protected_ack_pkt writes a protected QUIC packet which
+ * only includes ACK frame in the buffer pointed by |dest| whose
+ * length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1463,8 +1463,8 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
-                                       size_t destlen, ngtcp2_tstamp ts) {
+static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                            size_t destlen, ngtcp2_tstamp ts) {
   ngtcp2_frame ackfr;
   int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
 
@@ -1580,7 +1580,7 @@ ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                      ts);
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
-    nwrite = conn_send_ack_protected(conn, dest, destlen, ts);
+    nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
     break;
   }
 
