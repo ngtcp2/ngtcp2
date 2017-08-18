@@ -1047,6 +1047,20 @@ static ssize_t conn_encode_unprotected_ack_if_any(ngtcp2_conn *conn,
   return (ssize_t)ngtcp2_upe_final(&upe, NULL);
 }
 
+/*
+ * conn_send_client_initial writes Client Initial packet in the buffer
+ * pointed by |dest| whose length is |destlen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
 static ssize_t conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
                                         size_t destlen, ngtcp2_tstamp ts) {
   uint64_t pkt_num = 0;
@@ -1070,6 +1084,20 @@ static ssize_t conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
                                    NGTCP2_PKT_CLIENT_INITIAL, tx_buf, ts);
 }
 
+/*
+ * conn_send_client_cleartext writes Client Cleartext packet in the
+ * buffer pointed by |dest| whose length is |destlen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
 static ssize_t conn_send_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
                                           size_t destlen, ngtcp2_tstamp ts) {
   const uint8_t *payload;
@@ -1097,6 +1125,20 @@ static ssize_t conn_send_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
                                    NGTCP2_PKT_CLIENT_CLEARTEXT, tx_buf, ts);
 }
 
+/*
+ * conn_send_server_cleartext writes Server Cleartext packet in the
+ * buffer pointed by |dest| whose length is |destlen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
 static ssize_t conn_send_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
                                           size_t destlen, int initial,
                                           ngtcp2_tstamp ts) {
