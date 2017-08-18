@@ -987,10 +987,10 @@ fail:
 }
 
 /*
- * conn_encode_unprotected_ack_if_any writes unprotected QUIC packet
- * in the buffer pointed by |dest| whose length is |destlen|.  The
- * packet only includes ACK frame if any ack is required.  |type|
- * specifies the long packet type.
+ * conn_write_handshake_ack_pkt writes unprotected QUIC packet in the
+ * buffer pointed by |dest| whose length is |destlen|.  The packet
+ * only includes ACK frame if any ack is required.  |type| specifies
+ * the long packet type.
  *
  * If there is no ACK frame to send, this function returns 0.
  *
@@ -1002,10 +1002,9 @@ fail:
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_encode_unprotected_ack_if_any(ngtcp2_conn *conn,
-                                                  uint8_t *dest, size_t destlen,
-                                                  uint8_t type,
-                                                  ngtcp2_tstamp ts) {
+static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                            size_t destlen, uint8_t type,
+                                            ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_upe upe;
   ngtcp2_pkt_hd hd;
@@ -1113,8 +1112,8 @@ static ssize_t conn_send_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     if (payloadlen == 0) {
-      return conn_encode_unprotected_ack_if_any(
-          conn, dest, destlen, NGTCP2_PKT_CLIENT_CLEARTEXT, ts);
+      return conn_write_handshake_ack_pkt(conn, dest, destlen,
+                                          NGTCP2_PKT_CLIENT_CLEARTEXT, ts);
     }
 
     ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
@@ -1160,8 +1159,8 @@ static ssize_t conn_send_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
       if (initial) {
         return NGTCP2_ERR_CALLBACK_FAILURE;
       }
-      return conn_encode_unprotected_ack_if_any(
-          conn, dest, destlen, NGTCP2_PKT_SERVER_CLEARTEXT, ts);
+      return conn_write_handshake_ack_pkt(conn, dest, destlen,
+                                          NGTCP2_PKT_SERVER_CLEARTEXT, ts);
     }
 
     ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
@@ -1529,11 +1528,11 @@ ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    nwrite = conn_encode_unprotected_ack_if_any(
-        conn, dest, destlen,
-        conn->server ? NGTCP2_PKT_SERVER_CLEARTEXT
-                     : NGTCP2_PKT_CLIENT_CLEARTEXT,
-        ts);
+    nwrite =
+        conn_write_handshake_ack_pkt(conn, dest, destlen,
+                                     conn->server ? NGTCP2_PKT_SERVER_CLEARTEXT
+                                                  : NGTCP2_PKT_CLIENT_CLEARTEXT,
+                                     ts);
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
     nwrite = conn_send_ack_protected(conn, dest, destlen, ts);
