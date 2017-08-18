@@ -1450,6 +1450,19 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
+/*
+ * conn_send_ack_protected writes a protected QUIC packet which only
+ * includes ACK frame in the buffer pointed by |dest| whose length is
+ * |destlen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
 static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts) {
   ngtcp2_frame ackfr;
