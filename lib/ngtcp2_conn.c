@@ -605,7 +605,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  localfr.type = !NGTCP2_FRAME_ACK;
+  localfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
   if (ack_expired) {
     conn_create_ack_frame(conn, &localfr.ack, ts);
     if (localfr.type == NGTCP2_FRAME_ACK) {
@@ -878,7 +878,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   /* Encode ACK here */
   if (type != NGTCP2_PKT_CLIENT_INITIAL) {
-    localfr.type = !NGTCP2_FRAME_ACK;
+    localfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
     /* TODO Should we retransmit ACK frame? */
     conn_create_ack_frame(conn, &localfr.ack, ts);
     if (localfr.type == NGTCP2_FRAME_ACK) {
@@ -1010,11 +1010,11 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_pkt_hd hd;
   ngtcp2_frame fr;
 
-  if (conn->acktr.nactive_ack == 0 || ngtcp2_acktr_get(&conn->acktr) == NULL) {
+  fr.type = (uint8_t)~NGTCP2_FRAME_ACK;
+  conn_create_ack_frame(conn, &fr.ack, ts);
+  if (fr.type != NGTCP2_FRAME_ACK) {
     return 0;
   }
-
-  conn_create_ack_frame(conn, &fr.ack, ts);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, conn->conn_id,
                      conn->last_tx_pkt_num + 1, conn->version);
@@ -1223,7 +1223,7 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   int pkt_empty = 1;
   int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
 
-  ackfr.type = !NGTCP2_FRAME_ACK;
+  ackfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
   if (ack_expired) {
     conn_create_ack_frame(conn, &ackfr.ack, ts);
 
@@ -1459,7 +1459,7 @@ static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  ackfr.type = !NGTCP2_FRAME_ACK;
+  ackfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
   conn_create_ack_frame(conn, &ackfr.ack, ts);
 
   if (ackfr.type != NGTCP2_FRAME_ACK) {
