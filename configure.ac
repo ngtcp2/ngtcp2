@@ -254,6 +254,7 @@ AC_CONFIG_FILES([
   lib/includes/Makefile
   lib/includes/ngtcp2/version.h
   tests/Makefile
+  third-party/Makefile
   examples/Makefile
 ])
 AC_OUTPUT
