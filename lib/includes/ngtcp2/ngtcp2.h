@@ -832,8 +832,10 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts);
 
 /*
- * Just like `ngtcp2_conn_send`, but only sends ACK only packet, or
- * lost packet.
+ * @function
+ *
+ * `ngtcp2_conn_send_ack` is just like `ngtcp2_conn_send`, but only
+ * sends ACK only packet, or lost packet.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ngtcp2_tstamp ts);
