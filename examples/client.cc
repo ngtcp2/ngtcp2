@@ -239,6 +239,10 @@ void Client::disconnect() {
   ev_io_stop(loop_, &rev_);
   ev_io_stop(loop_, &wev_);
 
+  // Call ev_break to stop event loop.  This is strange, but it is OK
+  // because we have 1 client only.
+  ev_break(loop_, EVBREAK_ALL);
+
   if (conn_) {
     ngtcp2_conn_del(conn_);
     conn_ = nullptr;
