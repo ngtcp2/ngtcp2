@@ -831,7 +831,7 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 
 /*
- * conn_encode_handshake_pkt writes handshake packet in the buffer
+ * conn_write_handshake_pkt writes handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.  |type| specifies long
  * packet type.  |tx_buf| contains cryptographic handshake data to
  * send.
@@ -846,9 +846,9 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, uint8_t type,
-                                         ngtcp2_buf *tx_buf, ngtcp2_tstamp ts) {
+static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                        size_t destlen, uint8_t type,
+                                        ngtcp2_buf *tx_buf, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_upe upe;
   ngtcp2_pkt_hd hd;
@@ -1080,8 +1080,8 @@ static ssize_t conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
 
   conn->last_tx_pkt_num = pkt_num - 1;
 
-  return conn_encode_handshake_pkt(conn, dest, destlen,
-                                   NGTCP2_PKT_CLIENT_INITIAL, tx_buf, ts);
+  return conn_write_handshake_pkt(conn, dest, destlen,
+                                  NGTCP2_PKT_CLIENT_INITIAL, tx_buf, ts);
 }
 
 /*
@@ -1121,8 +1121,8 @@ static ssize_t conn_send_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
     tx_buf->last += payloadlen;
   }
 
-  return conn_encode_handshake_pkt(conn, dest, destlen,
-                                   NGTCP2_PKT_CLIENT_CLEARTEXT, tx_buf, ts);
+  return conn_write_handshake_pkt(conn, dest, destlen,
+                                  NGTCP2_PKT_CLIENT_CLEARTEXT, tx_buf, ts);
 }
 
 /*
@@ -1172,8 +1172,8 @@ static ssize_t conn_send_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
     conn->last_tx_pkt_num = pkt_num - 1;
   }
 
-  return conn_encode_handshake_pkt(conn, dest, destlen,
-                                   NGTCP2_PKT_SERVER_CLEARTEXT, tx_buf, ts);
+  return conn_write_handshake_pkt(conn, dest, destlen,
+                                  NGTCP2_PKT_SERVER_CLEARTEXT, tx_buf, ts);
 }
 
 static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
