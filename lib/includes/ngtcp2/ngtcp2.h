@@ -801,6 +801,33 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts);
 
+/*
+ * @function
+ *
+ * `ngtcp2_conn_send` writes a QUIC packet in the buffer pointed by
+ * |dest| whose length is |destlen|.  |ts| is the timestamp of the
+ * current time.
+ *
+ * If there is no packet to send, this function returns 0.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User-defined callback function failed.
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ * :enum:`NGTCP2_ERR_PKT_TIMEOUT`
+ *     Give up the retransmission of lost packet because of timeout.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     Packet type is unexpected.  TODO: This will be removed in the
+ *     future.
+ * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
+ *     The packet number has reached at the maximum value, therefore
+ *     the function cannot make new packet on this connection.
+ */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts);
 
