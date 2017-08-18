@@ -1125,7 +1125,7 @@ static ssize_t conn_write_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_send_server_cleartext writes Server Cleartext packet in the
+ * conn_write_server_cleartext writes Server Cleartext packet in the
  * buffer pointed by |dest| whose length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
@@ -1138,9 +1138,9 @@ static ssize_t conn_write_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_send_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
-                                          size_t destlen, int initial,
-                                          ngtcp2_tstamp ts) {
+static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen, int initial,
+                                           ngtcp2_tstamp ts) {
   uint64_t pkt_num = 0;
   const uint8_t *payload;
   ssize_t payloadlen;
@@ -1480,21 +1480,21 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     break;
   case NGTCP2_CS_SERVER_INITIAL:
-    nwrite = conn_send_server_cleartext(conn, dest, destlen, 1, ts);
+    nwrite = conn_write_server_cleartext(conn, dest, destlen, 1, ts);
     if (nwrite < 0) {
       break;
     }
     conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
     break;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    nwrite = conn_send_server_cleartext(conn, dest, destlen, 0, ts);
+    nwrite = conn_write_server_cleartext(conn, dest, destlen, 0, ts);
     if (nwrite < 0) {
       break;
     }
     break;
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
-    nwrite = conn_send_server_cleartext(conn, dest, destlen,
-                                        conn->strm0->tx_offset == 0, ts);
+    nwrite = conn_write_server_cleartext(conn, dest, destlen,
+                                         conn->strm0->tx_offset == 0, ts);
     if (nwrite < 0) {
       break;
     }
