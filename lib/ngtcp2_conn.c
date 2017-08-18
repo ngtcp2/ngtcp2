@@ -929,7 +929,7 @@ static ssize_t conn_encode_unprotected_ack_if_any(ngtcp2_conn *conn,
   ngtcp2_pkt_hd hd;
   ngtcp2_frame fr;
 
-  if (ngtcp2_acktr_get(&conn->acktr) == NULL) {
+  if (conn->acktr.nactive_ack == 0 || ngtcp2_acktr_get(&conn->acktr) == NULL) {
     return 0;
   }
 
