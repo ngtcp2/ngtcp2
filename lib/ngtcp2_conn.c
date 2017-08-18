@@ -830,6 +830,22 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 }
 
+/*
+ * conn_encode_handshake_pkt writes handshake packet in the buffer
+ * pointed by |dest| whose length is |destlen|.  |type| specifies long
+ * packet type.  |tx_buf| contains cryptographic handshake data to
+ * send.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
 static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                          size_t destlen, uint8_t type,
                                          ngtcp2_buf *tx_buf, ngtcp2_tstamp ts) {
@@ -951,6 +967,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
     rv = ngtcp2_rtb_add(&conn->rtb, rtbent);
     if (rv != 0) {
+      assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
       ngtcp2_rtb_entry_del(rtbent, conn->mem);
       return rv;
     }
