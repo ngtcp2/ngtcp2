@@ -742,18 +742,56 @@ typedef struct {
 NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                 size_t pktlen);
 
+/*
+ * @function
+ *
+ * `ngtcp2_conn_client_new` creates new :type:`ngtcp2_conn`, and
+ * initializes it as client.  |conn_id| is client-chosen connection
+ * ID.  |version| is a QUIC version to use.  |callbacks|, and
+ * |settings| must not be NULL, and the function make a copy of each
+ * of them.  |user_data| is the arbitrary pointer which is passed to
+ * the user-defined callback functions.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
 NGTCP2_EXTERN int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                                          uint32_t version,
                                          const ngtcp2_conn_callbacks *callbacks,
                                          const ngtcp2_settings *settings,
                                          void *user_data);
 
+/*
+ * @function
+ *
+ * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
+ * initializes it as client.  |conn_id| is server-chosen connection
+ * ID.  |version| is a QUIC version to use.  |callbacks|, and
+ * |settings| must not be NULL, and the function make a copy of each
+ * of them.  |user_data| is the arbitrary pointer which is passed to
+ * the user-defined callback functions.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
 NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
                                          uint32_t version,
                                          const ngtcp2_conn_callbacks *callbacks,
                                          const ngtcp2_settings *settings,
                                          void *user_data);
 
+/*
+ * @function
+ *
+ * `ngtcp2_conn_del` frees resources allocated for |conn|.  It also
+ * frees memory pointed by |conn|.
+ */
 NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 
 /*

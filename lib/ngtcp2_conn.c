@@ -333,10 +333,13 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_mem_free(conn->mem, conn);
 }
 
+/* conn_set_next_ack_expiry sets the next ACK timeout. */
 static void conn_set_next_ack_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->next_ack_expiry = ts + NGTCP2_DELAYED_ACK_TIMEOUT;
 }
 
+/* conn_invalidate_next_ack_expiry invalidates ACK timeout.  It makes
+   ACK timeout not expire. */
 static void conn_invalidate_next_ack_expiry(ngtcp2_conn *conn) {
   conn->next_ack_expiry = 0;
 }
