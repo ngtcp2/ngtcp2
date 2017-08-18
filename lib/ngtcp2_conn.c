@@ -1047,8 +1047,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_send_client_initial writes Client Initial packet in the buffer
- * pointed by |dest| whose length is |destlen|.
+ * conn_write_client_initial writes Client Initial packet in the
+ * buffer pointed by |dest| whose length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1060,8 +1060,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_send_client_initial(ngtcp2_conn *conn, uint8_t *dest,
-                                        size_t destlen, ngtcp2_tstamp ts) {
+static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
+                                         size_t destlen, ngtcp2_tstamp ts) {
   uint64_t pkt_num = 0;
   const uint8_t *payload;
   ssize_t payloadlen;
@@ -1452,7 +1452,7 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
-    nwrite = conn_send_client_initial(conn, dest, destlen, ts);
+    nwrite = conn_write_client_initial(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
     }
