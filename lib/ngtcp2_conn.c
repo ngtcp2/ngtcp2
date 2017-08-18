@@ -1175,17 +1175,39 @@ static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
                                   NGTCP2_PKT_SERVER_CLEARTEXT, tx_buf, ts);
 }
 
+/*
+ * conn_should_send_max_stream_data returns nonzero if MAX_STREAM_DATA
+ * frame should be send for |strm|.
+ */
 static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
   return conn->local_settings.max_stream_data / 2 <
          (strm->unsent_max_rx_offset - strm->max_rx_offset);
 }
 
+/*
+ * conn_should_send_max_data returns nonzero if MAX_DATA frame should
+ * be sent.
+ */
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   return conn->local_settings.max_data / 2 >=
          conn->max_rx_offset_high - conn->rx_offset_high;
 }
 
+/*
+ * conn_send_pkt writes a protected packet in the buffer pointed by
+ * |dest| whose length if |destlen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
 static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                              ngtcp2_tstamp ts) {
   int rv;
@@ -1355,6 +1377,7 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     rv = ngtcp2_rtb_add(&conn->rtb, ent);
     if (rv != 0) {
+      assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
       ngtcp2_rtb_entry_del(ent, conn->mem);
       return rv;
     }
@@ -1367,7 +1390,16 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
 /*
  * conn_write_single_frame_pkt writes a protected packet which
- * contains |fr| frame only.
+ * contains |fr| frame only in the buffer pointed by |dest| whose
+ * length if |destlen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
  */
 static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen,
