@@ -987,8 +987,20 @@ fail:
 }
 
 /*
- * conn_encode_unprotected_ack_if_any creates packet which only
- * includes ACK frame if any ack is required.
+ * conn_encode_unprotected_ack_if_any writes unprotected QUIC packet
+ * in the buffer pointed by |dest| whose length is |destlen|.  The
+ * packet only includes ACK frame if any ack is required.  |type|
+ * specifies the long packet type.
+ *
+ * If there is no ACK frame to send, this function returns 0.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
  */
 static ssize_t conn_encode_unprotected_ack_if_any(ngtcp2_conn *conn,
                                                   uint8_t *dest, size_t destlen,
