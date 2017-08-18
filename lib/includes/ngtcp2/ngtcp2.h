@@ -804,8 +804,8 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt,
 /*
  * @function
  *
- * `ngtcp2_conn_send` writes a QUIC packet in the buffer pointed by
- * |dest| whose length is |destlen|.  |ts| is the timestamp of the
+ * `ngtcp2_conn_write_pkt` writes a QUIC packet in the buffer pointed
+ * by |dest| whose length is |destlen|.  |ts| is the timestamp of the
  * current time.
  *
  * If there is no packet to send, this function returns 0.
@@ -828,17 +828,18 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt,
  *     The packet number has reached at the maximum value, therefore
  *     the function cannot make new packet on this connection.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest,
-                                       size_t destlen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                            size_t destlen, ngtcp2_tstamp ts);
 
 /*
  * @function
  *
- * `ngtcp2_conn_send_ack` is just like `ngtcp2_conn_send`, but only
- * sends ACK only packet, or lost packet.
+ * `ngtcp2_conn_write_ack_pkt` is just like `ngtcp2_conn_write_pkt`,
+ * but only sends ACK only packet, or lost packet.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn,
+                                                uint8_t *dest, size_t destlen,
+                                                ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -863,8 +864,8 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_earliest_expiry` returns the earliest expiry time
- * point that application should call `ngtcp2_conn_send` before that
- * expires.  It returns 0 if there is no expiry.
+ * point that application should call `ngtcp2_conn_write_pkt` before
+ * that expires.  It returns 0 if there is no expiry.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
 

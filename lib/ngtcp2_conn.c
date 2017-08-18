@@ -1482,8 +1482,8 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return conn_write_single_frame_pkt(conn, dest, destlen, &ackfr);
 }
 
-ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                         ngtcp2_tstamp ts) {
+ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                              ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
 
   if (conn->last_tx_pkt_num == UINT64_MAX) {
@@ -1554,8 +1554,8 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   return nwrite;
 }
 
-ssize_t ngtcp2_conn_send_ack(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                             ngtcp2_tstamp ts) {
+ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                  size_t destlen, ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
 
   if (conn->last_tx_pkt_num == UINT64_MAX) {

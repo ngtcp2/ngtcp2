@@ -570,13 +570,14 @@ int Client::on_write() {
   for (;;) {
     ssize_t n;
     if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
-      n = ngtcp2_conn_send(conn_, buf.data(), max_pktlen_, util::timestamp());
+      n = ngtcp2_conn_write_pkt(conn_, buf.data(), max_pktlen_,
+                                util::timestamp());
     } else {
-      n = ngtcp2_conn_send_ack(conn_, buf.data(), max_pktlen_,
-                               util::timestamp());
+      n = ngtcp2_conn_write_ack_pkt(conn_, buf.data(), max_pktlen_,
+                                    util::timestamp());
     }
     if (n < 0) {
-      std::cerr << "ngtcp2_conn_send: " << ngtcp2_strerror(n) << std::endl;
+      std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
       handle_error(n);
       return -1;
     }

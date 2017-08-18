@@ -236,7 +236,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
 
   CU_ASSERT(NULL == strm);
 
-  spktlen = ngtcp2_conn_send(conn, buf, sizeof(buf), 2);
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), 2);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(NULL == conn->fc_strms);
@@ -391,7 +391,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   CU_ASSERT(0 == conn->unsent_max_rx_offset_low);
   CU_ASSERT(1 == conn->max_rx_offset_high);
 
-  spktlen = ngtcp2_conn_send(conn, buf, sizeof(buf), 3);
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), 3);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(2 == conn->max_rx_offset_high);
