@@ -1587,6 +1587,22 @@ ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
+/*
+ * conn_on_version_negotiation is called when Version Negotiation
+ * packet is received.  The function decodes the data in the buffer
+ * pointed by |pkt| whose length is |pktlen| as Version Negotiation
+ * packet payload.  The packet header is given in |hd|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_PROTO
+ *     Packet payload is badly formatted.
+ */
 static int conn_on_version_negotiation(ngtcp2_conn *conn,
                                        const ngtcp2_pkt_hd *hd,
                                        const uint8_t *pkt, size_t pktlen) {
