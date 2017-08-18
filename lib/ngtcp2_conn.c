@@ -1195,7 +1195,7 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_send_pkt writes a protected packet in the buffer pointed by
+ * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
@@ -1208,8 +1208,8 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                             ngtcp2_tstamp ts) {
+static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                              ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -1532,7 +1532,7 @@ ssize_t ngtcp2_conn_send(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
-    nwrite = conn_send_pkt(conn, dest, destlen, ts);
+    nwrite = conn_write_pkt(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
     }
