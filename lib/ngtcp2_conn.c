@@ -344,8 +344,8 @@ static void conn_invalidate_next_ack_expiry(ngtcp2_conn *conn) {
   conn->next_ack_expiry = 0;
 }
 
-static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
-                                 ngtcp2_tstamp ts) {
+static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
+                                  ngtcp2_tstamp ts) {
   uint64_t first_pkt_num;
   ngtcp2_tstamp ack_delay;
   uint64_t last_pkt_num;
@@ -356,14 +356,14 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
 
   if (conn->acktr.nactive_ack == 0) {
     conn_invalidate_next_ack_expiry(conn);
-    return 0;
+    return;
   }
 
   rpkt = ngtcp2_acktr_get(&conn->acktr);
   if (rpkt == NULL) {
     /* TODO This might not be necessary if we don't forget ACK. */
     conn_invalidate_next_ack_expiry(conn);
-    return 0;
+    return;
   }
 
   first_pkt_num = last_pkt_num = rpkt->pkt_num;
@@ -427,8 +427,6 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   if (ngtcp2_acktr_get(&conn->acktr) == NULL) {
     conn_invalidate_next_ack_expiry(conn);
   }
-
-  return 0;
 }
 
 /*
@@ -575,10 +573,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 
   localfr.type = !NGTCP2_FRAME_ACK;
   if (ack_expired) {
-    rv = conn_create_ack_frame(conn, &localfr.ack, ts);
-    if (rv != 0) {
-      return rv;
-    }
+    conn_create_ack_frame(conn, &localfr.ack, ts);
     if (localfr.type == NGTCP2_FRAME_ACK) {
       rv = ngtcp2_ppe_encode_frame(&ppe, &localfr);
       if (rv != 0) {
@@ -816,10 +811,7 @@ static ssize_t conn_encode_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (type != NGTCP2_PKT_CLIENT_INITIAL) {
     localfr.type = !NGTCP2_FRAME_ACK;
     /* TODO Should we retransmit ACK frame? */
-    rv = conn_create_ack_frame(conn, &localfr.ack, ts);
-    if (rv != 0) {
-      return rv;
-    }
+    conn_create_ack_frame(conn, &localfr.ack, ts);
     if (localfr.type == NGTCP2_FRAME_ACK) {
       rv = ngtcp2_upe_encode_frame(&upe, &localfr);
       if (rv != 0) {
@@ -941,10 +933,7 @@ static ssize_t conn_encode_unprotected_ack_if_any(ngtcp2_conn *conn,
     return 0;
   }
 
-  rv = conn_create_ack_frame(conn, &fr.ack, ts);
-  if (rv != 0) {
-    return rv;
-  }
+  conn_create_ack_frame(conn, &fr.ack, ts);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, conn->conn_id,
                      conn->last_tx_pkt_num + 1, conn->version);
@@ -1091,10 +1080,7 @@ static ssize_t conn_send_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   ackfr.type = !NGTCP2_FRAME_ACK;
   if (ack_expired) {
-    rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
-    if (rv != 0) {
-      return rv;
-    }
+    conn_create_ack_frame(conn, &ackfr.ack, ts);
 
     if (ackfr.type == NGTCP2_FRAME_ACK) {
       pkt_empty = 0;
@@ -1311,7 +1297,6 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
 static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts) {
-  int rv;
   ngtcp2_frame ackfr;
   int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
 
@@ -1320,10 +1305,7 @@ static ssize_t conn_send_ack_protected(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ackfr.type = !NGTCP2_FRAME_ACK;
-  rv = conn_create_ack_frame(conn, &ackfr.ack, ts);
-  if (rv != 0) {
-    return rv;
-  }
+  conn_create_ack_frame(conn, &ackfr.ack, ts);
 
   if (ackfr.type != NGTCP2_FRAME_ACK) {
     return 0;
