@@ -632,6 +632,24 @@ typedef ssize_t (*ngtcp2_send_server_cleartext)(ngtcp2_conn *conn,
                                                 const uint8_t **pdest,
                                                 void *user_data);
 
+/**
+ * @functypedef
+ *
+ * ngtcp2_recv_handshake_data is invoked when cryptographic handshake
+ * data are received.  The received handshake data are pointed by
+ * |data|, and its length is |datalen|.  |user_data| is the arbitrary
+ * pointer passed to `ngtcp2_conn_client_new` or
+ * `ngtcp2_conn_server_new`.
+ *
+ * The callback function must return 0 if it succeeds.  Depending on
+ * the TLS backend, handshake is aborted with TLS alert when reading
+ * this data.  In this case, return :enum:`NGTCP2_ERR_TLS_HANDSHAKE`.
+ * This will ensure that pending data, especially TLS alert, is sent.
+ * If application encounters fatal error, return
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
+ * return immediately.  It is undefined when the other value is
+ * returned.
+ */
 typedef int (*ngtcp2_recv_handshake_data)(ngtcp2_conn *conn,
                                           const uint8_t *data, size_t datalen,
                                           void *user_data);
