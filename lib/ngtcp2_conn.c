@@ -213,7 +213,7 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_remote_idtr_init;
   }
 
-  ngtcp2_acktr_init(&(*pconn)->acktr);
+  ngtcp2_acktr_init(&(*pconn)->acktr, mem);
 
   ngtcp2_rtb_init(&(*pconn)->rtb, mem);
 

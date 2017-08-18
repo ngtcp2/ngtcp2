@@ -33,6 +33,10 @@
 
 #include "ngtcp2_mem.h"
 
+/* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
+   which ngtcp2_acktr stores. */
+#define NGTCP2_ACKTR_MAX_ENT 1024
+
 typedef enum {
   NGTCP2_ACKTR_FLAG_NONE = 0x00,
   /* NGTCP2_ACKTR_FLAG_PASSIVE means that the ack should not be
@@ -48,7 +52,7 @@ typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
  * ngtcp2_acktr_entry is a single packet which needs to be acked.
  */
 struct ngtcp2_acktr_entry {
-  ngtcp2_acktr_entry *next;
+  ngtcp2_acktr_entry **pprev, *next;
   uint64_t pkt_num;
   ngtcp2_tstamp tstamp;
   /* flags is bitwise OR of zero or more of ngtcp2_acktr_flag. */
@@ -75,16 +79,19 @@ void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 typedef struct {
   /* ent points to the head of list which is ordered by the decreasing
      order of packet number. */
-  ngtcp2_acktr_entry *ent;
+  ngtcp2_acktr_entry *ent, *tail;
+  ngtcp2_mem *mem;
   /* nactive_ack is the number of entries which do not have
      NGTCP2_ACKTR_FLAG_PASSIVE flag set. */
   size_t nactive_ack;
+  /* nack is the number of entries. */
+  size_t nack;
 } ngtcp2_acktr;
 
 /*
  * ngtcp2_acktr_init initializes |acktr|.
  */
-void ngtcp2_acktr_init(ngtcp2_acktr *acktr);
+void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It does

@@ -30,5 +30,6 @@
 #endif /* HAVE_CONFIG_H */
 
 void test_ngtcp2_acktr_add(void);
+void test_ngtcp2_acktr_eviction(void);
 
 #endif /* NGTCP2_ACKTR_TEST_H */
