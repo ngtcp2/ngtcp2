@@ -56,10 +56,39 @@ typedef struct {
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
                      ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_ppe_encode_hd encodes |hd|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     The buffer is too small.
+ */
 int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd);
 
+/*
+ * ngtcp2_ppe_encode_frame encodes |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     The buffer is too small.
+ */
 int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, const ngtcp2_frame *fr);
 
+/*
+ * ngtcp2_ppe_final encrypts QUIC packet payload.  If |**ppkt| is not
+ * NULL, the pointer to the packet is assigned to it.
+ *
+ * This function returns the length of QUIC packet, including header,
+ * and payload if it succeeds, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
 ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
 
 /*

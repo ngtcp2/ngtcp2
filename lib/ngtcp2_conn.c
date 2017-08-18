@@ -344,6 +344,14 @@ static void conn_invalidate_next_ack_expiry(ngtcp2_conn *conn) {
   conn->next_ack_expiry = 0;
 }
 
+/*
+ * conn_create_ack_frame fills ACK frame pointed by |ack|.
+ *
+ * There is a case that there is no ACK frame to send.  To distinguish
+ * this case, call this function with |ack| after assigning
+ * `~NGTCP2_FRAME_ACK` to ack->type.  If there is ACK frame to send,
+ * ack->type will be NGTCP2_FRAME_ACK.
+ */
 static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
                                   ngtcp2_tstamp ts) {
   uint64_t first_pkt_num;
@@ -430,8 +438,19 @@ static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
 }
 
 /*
- * conn_retransmit_unprotected performs retransmission of lost
+ * conn_retransmit_unprotected writes QUIC packet in the buffer
+ * pointed by |dest| whose length is |destlen| to retransmit lost
  * unprotected packet.
+ *
+ * This function returns the number of bytes written into |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity
  */
 static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen,
@@ -465,9 +484,8 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   for (pfrc = &ent->frc; *pfrc;) {
     rv = ngtcp2_upe_encode_frame(&upe, &(*pfrc)->fr);
     if (rv != 0) {
-      if (rv == NGTCP2_ERR_NOBUF) {
-        break;
-      }
+      assert(NGTCP2_ERR_NOBUF == rv);
+      break;
     }
 
     if (!send_pkt_cb_called) {
@@ -529,6 +547,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
 
   rv = ngtcp2_rtb_add(&conn->rtb, nent);
   if (rv != 0) {
+    assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
     ngtcp2_rtb_entry_del(nent, conn->mem);
     return rv;
   }
@@ -538,6 +557,21 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   return (ssize_t)nwrite;
 }
 
+/*
+ * conn_retransmit_protected writes QUIC packet in the buffer pointed
+ * by |dest| whose length is |destlen| to retransmit lost protected
+ * packet.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
 static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
                                          size_t destlen, ngtcp2_rtb_entry *ent,
                                          ngtcp2_tstamp ts) {
@@ -630,9 +664,8 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     }
     rv = ngtcp2_ppe_encode_frame(&ppe, &(*pfrc)->fr);
     if (rv != 0) {
-      if (rv == NGTCP2_ERR_NOBUF) {
-        break;
-      }
+      assert(NGTCP2_ERR_NOBUF == rv);
+      break;
     }
 
     if (!send_pkt_cb_called) {
@@ -693,6 +726,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 
   rv = ngtcp2_rtb_add(&conn->rtb, nent);
   if (rv != 0) {
+    assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
     ngtcp2_rtb_entry_del(nent, conn->mem);
     return rv;
   }
@@ -702,6 +736,25 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
+/*
+ * conn_retransmit writes QUIC packet in the buffer pointed by |dest|
+ * whose length is |destlen| to retransmit lost packet.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ * NGTCP2_ERR_PKT_TIMEOUT
+ *     Give up the retransmission of lost packet because of timeout.
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Packet type is unexpected.  TODO: This will be removed in the
+ *     future.
+ */
 static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
