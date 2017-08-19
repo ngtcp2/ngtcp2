@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_idtr.h"
 
+#include <assert.h>
+
 int ngtcp2_idtr_gap_new(ngtcp2_idtr_gap **pg, uint64_t begin, uint64_t end,
                         ngtcp2_mem *mem) {
   *pg = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_idtr_gap));
@@ -41,7 +43,7 @@ void ngtcp2_idtr_gap_del(ngtcp2_idtr_gap *g, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, g);
 }
 
-int ngtcp2_idtr_init(ngtcp2_idtr *idtr, ngtcp2_mem *mem) {
+int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, ngtcp2_mem *mem) {
   int rv;
 
   rv = ngtcp2_idtr_gap_new(&idtr->gap, 0, UINT64_MAX, mem);
@@ -49,6 +51,7 @@ int ngtcp2_idtr_init(ngtcp2_idtr *idtr, ngtcp2_mem *mem) {
     return rv;
   }
 
+  idtr->server = server;
   idtr->mem = mem;
 
   return 0;
@@ -68,9 +71,26 @@ void ngtcp2_idtr_free(ngtcp2_idtr *idtr) {
   }
 }
 
-int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t q) {
+/*
+ * id_from_stream_id translates |stream_id| to id space used by
+ * ngtcp2_idtr.
+ */
+static uint64_t id_from_stream_id(uint32_t stream_id) {
+  if (stream_id & 1) {
+    return (stream_id - 1) / 2;
+  }
+  return (stream_id - 2) / 2;
+}
+
+int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint32_t stream_id) {
   ngtcp2_idtr_gap *g, **pg;
   int rv;
+  uint64_t q;
+
+  assert((idtr->server && (stream_id % 2) == 0) ||
+         (!idtr->server && (stream_id % 2)));
+
+  q = id_from_stream_id(stream_id);
 
   for (pg = &idtr->gap; *pg; pg = &(*pg)->next) {
     if (q < (*pg)->range.begin) {
@@ -106,8 +126,14 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t q) {
   return NGTCP2_ERR_STREAM_IN_USE;
 }
 
-int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t q) {
+int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint32_t stream_id) {
   ngtcp2_idtr_gap **pg;
+  uint64_t q;
+
+  assert((idtr->server && (stream_id % 2) == 0) ||
+         (!idtr->server && (stream_id % 2)));
+
+  q = id_from_stream_id(stream_id);
 
   for (pg = &idtr->gap; *pg; pg = &(*pg)->next) {
     if (q < (*pg)->range.begin) {

@@ -43,17 +43,6 @@ static int conn_local_stream(ngtcp2_conn *conn, uint32_t stream_id) {
   return stream_id % 2 != 0;
 }
 
-/*
- * id_from_stream_id translates |stream_id| to id space used by
- * ngtcp2_idtr.
- */
-static uint64_t id_from_stream_id(uint32_t stream_id) {
-  if (stream_id & 1) {
-    return (stream_id - 1) / 2;
-  }
-  return (stream_id - 2) / 2;
-}
-
 static int conn_call_recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
   int rv;
 
@@ -203,12 +192,12 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_strms_insert;
   }
 
-  rv = ngtcp2_idtr_init(&(*pconn)->local_idtr, mem);
+  rv = ngtcp2_idtr_init(&(*pconn)->local_idtr, server, mem);
   if (rv != 0) {
     goto fail_local_idtr_init;
   }
 
-  rv = ngtcp2_idtr_init(&(*pconn)->remote_idtr, mem);
+  rv = ngtcp2_idtr_init(&(*pconn)->remote_idtr, !server, mem);
   if (rv != 0) {
     goto fail_remote_idtr_init;
   }
@@ -2043,11 +2032,9 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
-      rv = ngtcp2_idtr_is_open(&conn->local_idtr,
-                               id_from_stream_id(fr->stream_id));
+      rv = ngtcp2_idtr_is_open(&conn->local_idtr, fr->stream_id);
     } else {
-      rv = ngtcp2_idtr_open(&conn->remote_idtr,
-                            id_from_stream_id(fr->stream_id));
+      rv = ngtcp2_idtr_open(&conn->remote_idtr, fr->stream_id);
     }
     if (rv != 0) {
       if (rv == NGTCP2_ERR_STREAM_IN_USE) {
@@ -2184,8 +2171,7 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
   if (local_stream) {
     /* If RST_STREAM is sent to a stream initiated by local endpoint,
        conn->local_idtr must indicate that it has opened already, */
-    if (!ngtcp2_idtr_is_open(&conn->local_idtr,
-                             id_from_stream_id(fr->stream_id))) {
+    if (!ngtcp2_idtr_is_open(&conn->local_idtr, fr->stream_id)) {
       return NGTCP2_ERR_PROTO;
     }
   } else if (fr->stream_id > conn->max_remote_stream_id) {
@@ -2195,14 +2181,13 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (!local_stream &&
-        !ngtcp2_idtr_is_open(&conn->remote_idtr,
-                             id_from_stream_id(fr->stream_id))) {
+        !ngtcp2_idtr_is_open(&conn->remote_idtr, fr->stream_id)) {
       /* Stream is reset before we create ngtcp2_strm object. */
       if (conn->local_settings.max_stream_data < fr->final_offset ||
           conn_max_data_violated(conn, fr->final_offset)) {
         return NGTCP2_ERR_FLOW_CONTROL;
       }
-      ngtcp2_idtr_open(&conn->remote_idtr, id_from_stream_id(fr->stream_id));
+      ngtcp2_idtr_open(&conn->remote_idtr, fr->stream_id);
       ngtcp2_increment_offset(&conn->rx_offset_high, &conn->rx_offset_low,
                               fr->final_offset);
     }
@@ -2764,7 +2749,7 @@ int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
     return NGTCP2_ERR_STREAM_IN_USE;
   }
 
-  rv = ngtcp2_idtr_open(&conn->local_idtr, id_from_stream_id(stream_id));
+  rv = ngtcp2_idtr_open(&conn->local_idtr, stream_id);
   if (rv != 0) {
     return rv;
   }
@@ -2972,7 +2957,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   if (!conn_local_stream(conn, strm->stream_id) &&
       conn->max_remote_stream_id <= UINT32_MAX - 2 &&
       ngtcp2_idtr_first_gap(&conn->remote_idtr) ==
-          id_from_stream_id(conn->max_remote_stream_id + 2)) {
+          conn->max_remote_stream_id + 2) {
     conn->max_remote_stream_id += 2;
   }
 

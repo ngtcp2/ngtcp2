@@ -30,13 +30,6 @@
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
 
-static uint64_t id_from_stream_id(uint32_t stream_id) {
-  if (stream_id & 1) {
-    return (stream_id - 1) / 2;
-  }
-  return (stream_id - 2) / 2;
-}
-
 static ssize_t null_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                             const uint8_t *plaintext, size_t plaintextlen,
                             const uint8_t *key, size_t keylen,
@@ -695,8 +688,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE ==
-            ngtcp2_idtr_is_open(&conn->remote_idtr,
-                                id_from_stream_id(fr.rst_stream.stream_id)));
+            ngtcp2_idtr_is_open(&conn->remote_idtr, fr.rst_stream.stream_id));
 
   ngtcp2_conn_del(conn);
 

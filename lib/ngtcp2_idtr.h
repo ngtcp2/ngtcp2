@@ -74,12 +74,15 @@ int ngtcp2_idtr_gap_new(ngtcp2_idtr_gap **pg, uint64_t begin, uint64_t end,
 void ngtcp2_idtr_gap_del(ngtcp2_idtr_gap *g, ngtcp2_mem *mem);
 
 /*
- * ngtcp2_idtr tracks the usage of ID.
+ * ngtcp2_idtr tracks the usage of stream ID.
  */
 typedef struct {
   /* gap maintains the range of ID which is not used yet. Initially,
      its range is [0, UINT64_MAX). */
   ngtcp2_idtr_gap *gap;
+  /* server is nonzero if this object records server initiated stream
+     ID. */
+  int server;
   /* mem is custom memory allocator */
   ngtcp2_mem *mem;
 } ngtcp2_idtr;
@@ -88,13 +91,16 @@ typedef struct {
  * ngtcp2_idtr_init initializes |idtr|.  |chunk| is the size of buffer
  * per chunk.
  *
+ * If this object records server initiated ID (even number), set
+ * |server| to nonzero.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_idtr_init(ngtcp2_idtr *idtr, ngtcp2_mem *mem);
+int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_idtr_free frees resources allocated for |idtr|.
@@ -102,7 +108,7 @@ int ngtcp2_idtr_init(ngtcp2_idtr *idtr, ngtcp2_mem *mem);
 void ngtcp2_idtr_free(ngtcp2_idtr *idtr);
 
 /*
- * ngtcp2_idtr_open claims that |id| is in used.
+ * ngtcp2_idtr_open claims that |stream_id| is in used.
  *
  * It returns 0 if it succeeds, or one of the following negative error
  * codes:
@@ -110,10 +116,10 @@ void ngtcp2_idtr_free(ngtcp2_idtr *idtr);
  * NGTCP2_ERR_STREAM_IN_USE
  *     ID has already been used.
  */
-int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t id);
+int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint32_t stream_id);
 
 /*
- * ngtcp2_idtr_open tells whether ID |id| is in used or not.
+ * ngtcp2_idtr_open tells whether ID |stream_id| is in used or not.
  *
  * It returns 0 if it succeeds, or one of the following negative error
  * codes:
@@ -121,7 +127,7 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t id);
  * NGTCP2_ERR_STREAM_IN_USE
  *     ID has already been used.
  */
-int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t id);
+int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint32_t stream_id);
 
 /*
  * ngtcp2_idtr_first_gap returns the first id of first gap.  If there

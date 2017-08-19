@@ -30,24 +30,28 @@
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
 
+static uint32_t stream_id_from_id(uint64_t id) {
+  return (uint32_t)(id * 2 + 1);
+}
+
 void test_ngtcp2_idtr_open(void) {
   ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_idtr idtr;
   int rv;
   ngtcp2_idtr_gap *g;
 
-  rv = ngtcp2_idtr_init(&idtr, mem);
+  rv = ngtcp2_idtr_init(&idtr, 0, mem);
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_idtr_open(&idtr, 0);
+  rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(0));
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == idtr.gap->range.begin);
   CU_ASSERT(UINT64_MAX == idtr.gap->range.end);
   CU_ASSERT(NULL == idtr.gap->next);
 
-  rv = ngtcp2_idtr_open(&idtr, 1000000007);
+  rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(1000000007));
 
   CU_ASSERT(0 == rv);
 
@@ -62,11 +66,11 @@ void test_ngtcp2_idtr_open(void) {
   CU_ASSERT(UINT64_MAX == g->range.end);
   CU_ASSERT(NULL == g->next);
 
-  rv = ngtcp2_idtr_open(&idtr, 0);
+  rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(0));
 
   CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE == rv);
 
-  rv = ngtcp2_idtr_open(&idtr, 1000000007);
+  rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(1000000007));
 
   CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE == rv);
 
