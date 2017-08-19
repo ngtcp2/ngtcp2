@@ -1195,6 +1195,39 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_ppe_write_frame writes |fr| to |ppe|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
+static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
+                                int *psend_pkt_cb_called,
+                                const ngtcp2_pkt_hd *hd,
+                                const ngtcp2_frame *fr) {
+  int rv;
+
+  rv = ngtcp2_ppe_encode_frame(ppe, fr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (!*psend_pkt_cb_called) {
+    rv = conn_call_send_pkt(conn, hd);
+    if (rv != 0) {
+      return rv;
+    }
+    *psend_pkt_cb_called = 1;
+  }
+
+  return conn_call_send_frame(conn, hd, fr);
+}
+
+/*
  * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.
  *
@@ -1230,23 +1263,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (ackfr.type == NGTCP2_FRAME_ACK) {
       pkt_empty = 0;
     }
-  }
-
-  if (conn->max_remote_stream_id > conn->local_settings.max_stream_id) {
-    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
-    if (rv != 0) {
-      return rv;
-    }
-    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
-    nfrc->fr.max_stream_id.max_stream_id = conn->max_remote_stream_id;
-    nfrc->next = conn->frq;
-    conn->frq = nfrc;
-
-    conn->local_settings.max_stream_id = conn->max_remote_stream_id;
-    /* MAX_STREAM_ID frame could appear in the following for loop if
-       buffer is too small. */
-
-    pkt_empty = 0;
   }
 
   if ((!pkt_empty || conn->frq || conn_should_send_max_data(conn)) &&
@@ -1311,44 +1327,18 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   if (ackfr.type == NGTCP2_FRAME_ACK) {
-    rv = ngtcp2_ppe_encode_frame(&ppe, &ackfr);
-    if (rv != 0) {
-      return rv;
-    }
-
-    if (!send_pkt_cb_called) {
-      rv = conn_call_send_pkt(conn, &hd);
-      if (rv != 0) {
-        return rv;
-      }
-      send_pkt_cb_called = 1;
-    }
-
-    rv = conn_call_send_frame(conn, &hd, &ackfr);
+    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, &ackfr);
     if (rv != 0) {
       return rv;
     }
   }
+
   for (pfrc = &conn->frq; *pfrc; pfrc = &(*pfrc)->next) {
-    rv = ngtcp2_ppe_encode_frame(&ppe, &(*pfrc)->fr);
+    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
+                              &(*pfrc)->fr);
     if (rv != 0) {
-      if (rv == NGTCP2_ERR_NOBUF) {
-        break;
-      }
-      return rv;
-    }
-
-    if (!send_pkt_cb_called) {
-      rv = conn_call_send_pkt(conn, &hd);
-      if (rv != 0) {
-        return rv;
-      }
-      send_pkt_cb_called = 1;
-    }
-
-    rv = conn_call_send_frame(conn, &hd, &(*pfrc)->fr);
-    if (rv != 0) {
-      return rv;
+      assert(NGTCP2_ERR_NOBUF == rv);
+      break;
     }
 
     if ((*pfrc)->fr.type == NGTCP2_FRAME_RST_STREAM) {
@@ -1363,6 +1353,31 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     pkt_empty = 0;
+  }
+
+  /* Write MAX_STREAM_ID after RST_STREAM so that we can extend stream
+     ID space in one packet. */
+  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
+      conn->max_remote_stream_id > conn->local_settings.max_stream_id) {
+    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
+    nfrc->fr.max_stream_id.max_stream_id = conn->max_remote_stream_id;
+    *pfrc = nfrc;
+
+    conn->local_settings.max_stream_id = conn->max_remote_stream_id;
+
+    pkt_empty = 0;
+
+    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
+                              &(*pfrc)->fr);
+    if (rv != 0) {
+      assert(NGTCP2_ERR_NOBUF == rv);
+    } else {
+      pfrc = &(*pfrc)->next;
+    }
   }
 
   if (pkt_empty) {
