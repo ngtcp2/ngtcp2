@@ -938,8 +938,9 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * @function
  *
  * `ngtcp2_conn_reset_stream` closes stream denoted by |stream_id|
- * abruptly.  Successful call of this function immediately erases the
- * state of the stream.
+ * abruptly.  Successful call of this function does not immediately
+ * erase the state of the stream.  The actual deletion is done when
+ * writing this frame to a packet (e.g., `ngtcp2_conn_write_pkt`).
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -948,8 +949,6 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Stream does not exist; or |stream_id| is 0.
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
- *     User callback failed
  */
 NGTCP2_EXTERN int ngtcp2_conn_reset_stream(ngtcp2_conn *conn,
                                            uint32_t stream_id,

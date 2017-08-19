@@ -1351,6 +1351,17 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return rv;
     }
 
+    if ((*pfrc)->fr.type == NGTCP2_FRAME_RST_STREAM) {
+      strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.rst_stream.stream_id);
+      if (strm != NULL) {
+        rv = ngtcp2_conn_close_stream(conn, strm,
+                                      (*pfrc)->fr.rst_stream.error_code);
+        if (rv != 0) {
+          return rv;
+        }
+      }
+    }
+
     pkt_empty = 0;
   }
 
@@ -2141,11 +2152,12 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   frc->next = conn->frq;
   conn->frq = frc;
 
-  return ngtcp2_conn_close_stream(conn, strm, error_code);
+  return 0;
 }
 
 static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
                                 uint8_t unprotected) {
+  int rv;
   ngtcp2_strm *strm;
   int local_stream = conn_local_stream(conn, fr->stream_id);
   uint64_t datalen;
@@ -2204,7 +2216,12 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
 
   ngtcp2_increment_offset(&conn->rx_offset_high, &conn->rx_offset_low, datalen);
 
-  return conn_reset_stream(conn, strm, NGTCP2_QUIC_RECEIVED_RST);
+  rv = conn_reset_stream(conn, strm, NGTCP2_QUIC_RECEIVED_RST);
+  if (rv != 0) {
+    return rv;
+  }
+
+  return ngtcp2_conn_close_stream(conn, strm, NGTCP2_QUIC_RECEIVED_RST);
 }
 
 static void conn_recv_connection_close(ngtcp2_conn *conn,
