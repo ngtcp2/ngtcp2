@@ -78,8 +78,8 @@ After successful build, the client and server executable should be
 found under examples directory.
 
 examples/client has ``-i`` option to read data from stdin, and send
-them as STREAM data to server.  examples/server responds them with
-some modification.
+them as STREAM data to server.  examples/server parses stream data as
+HTTP/1.x request.
 
 Both program have ``--tx-loss`` and ``--rx-loss`` to simulate packet
 loss.
