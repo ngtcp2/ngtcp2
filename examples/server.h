@@ -32,11 +32,13 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <string>
 
 #include <ngtcp2/ngtcp2.h>
 
 #include <openssl/ssl.h>
 #include <ev.h>
+#include <http-parser/http_parser.h>
 
 #include "network.h"
 #include "crypto.h"
@@ -51,6 +53,11 @@ struct Config {
   double rx_loss_prob;
   // ciphers is the list of enabled ciphers.
   const char *ciphers;
+  // htdocs is a root directory to serve documents.
+  std::string htdocs;
+  // port is the port number which server listens on for incoming
+  // connections.
+  uint16_t port;
 };
 
 struct Buffer {
@@ -65,18 +72,47 @@ struct Buffer {
   std::vector<uint8_t>::const_iterator pos;
 };
 
+enum {
+  RESP_IDLE,
+  RESP_STARTED,
+  RESP_COMPLETED,
+};
+
 struct Stream {
   Stream(uint32_t stream_id);
+  ~Stream();
+
+  int recv_data(uint8_t fin, const uint8_t *data, size_t datalen);
+  int start_response();
+  int open_file(const std::string &path);
+  int buffer_file();
+  void send_status_response(unsigned int status_code);
 
   uint32_t stream_id;
   std::deque<Buffer> streambuf;
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
   size_t streambuf_idx;
+  size_t streambuf_bytes;
   // tx_stream_offset is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream_offset;
+  // should_send_fin tells that fin should be sent after currently
+  // buffered data is sent.  After sending fin, it is set to false.
   bool should_send_fin;
+  // resp_state is the state of response.
+  int resp_state;
+  http_parser htp;
+  // uri is request uri/path.
+  std::string uri;
+  // hdrs contains request HTTP header fields.
+  std::vector<std::pair<std::string, std::string>> hdrs;
+  // prev_hdr_key is true if the previous modification to hdrs is
+  // adding key (header field name).
+  bool prev_hdr_key;
+  // fd is a file descriptor to read file to send its content to a
+  // client.
+  int fd;
 };
 
 class Server;
@@ -117,8 +153,8 @@ public:
   int recv_stream_data(uint32_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
   uint64_t conn_id() const;
-  void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
-                             size_t datalen);
+  int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                            size_t datalen);
   void on_stream_close(uint32_t stream_id);
   void handle_error(int liberror);
 
@@ -140,7 +176,7 @@ private:
   size_t shandshake_idx_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
-  std::map<uint32_t, Stream> streams_;
+  std::map<uint32_t, std::unique_ptr<Stream>> streams_;
   uint64_t conn_id_;
   // tx_stream0_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.

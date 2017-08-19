@@ -33,6 +33,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -43,6 +45,7 @@
 #include "util.h"
 #include "crypto.h"
 #include "shared.h"
+#include "http.h"
 
 using namespace ngtcp2;
 
@@ -146,11 +149,280 @@ BIO_METHOD *create_bio_method() {
 }
 } // namespace
 
+namespace {
+int on_msg_begin(http_parser *htp) {
+  auto s = static_cast<Stream *>(htp->data);
+  if (s->resp_state != RESP_IDLE) {
+    return -1;
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int on_url_cb(http_parser *htp, const char *data, size_t datalen) {
+  auto s = static_cast<Stream *>(htp->data);
+  s->uri.append(data, datalen);
+  return 0;
+}
+} // namespace
+
+namespace {
+int on_header_field(http_parser *htp, const char *data, size_t datalen) {
+  auto s = static_cast<Stream *>(htp->data);
+  if (s->prev_hdr_key) {
+    s->hdrs.back().first.append(data, datalen);
+  } else {
+    s->prev_hdr_key = true;
+    s->hdrs.emplace_back(std::string(data, datalen), "");
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int on_header_value(http_parser *htp, const char *data, size_t datalen) {
+  auto s = static_cast<Stream *>(htp->data);
+  s->prev_hdr_key = false;
+  s->hdrs.back().second.append(data, datalen);
+  return 0;
+}
+} // namespace
+
+namespace {
+int on_headers_complete(http_parser *htp) {
+  auto s = static_cast<Stream *>(htp->data);
+  if (s->start_response() != 0) {
+    return -1;
+  }
+  return 0;
+}
+} // namespace
+
+auto htp_settings = http_parser_settings{
+    on_msg_begin,        // on_message_begin
+    on_url_cb,           // on_url
+    nullptr,             // on_status
+    on_header_field,     // on_header_field
+    on_header_value,     // on_header_value
+    on_headers_complete, // on_headers_complete
+    nullptr,             // on_body
+    nullptr,             // on_message_complete
+    nullptr,             // on_chunk_header,
+    nullptr,             // on_chunk_complete
+};
+
 Stream::Stream(uint32_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
+      streambuf_bytes(0),
       tx_stream_offset(0),
-      should_send_fin(false) {}
+      should_send_fin(false),
+      resp_state(RESP_IDLE),
+      prev_hdr_key(false),
+      fd(-1) {
+  http_parser_init(&htp, HTTP_REQUEST);
+  htp.data = this;
+}
+
+Stream::~Stream() {
+  if (fd != -1) {
+    close(fd);
+  }
+}
+
+int Stream::recv_data(uint8_t fin, const uint8_t *data, size_t datalen) {
+  auto nread = http_parser_execute(
+      &htp, &htp_settings, reinterpret_cast<const char *>(data), datalen);
+  if (nread != datalen) {
+    return -1;
+  }
+
+  return 0;
+}
+
+namespace {
+constexpr char NGTCP2_SERVER[] = "ngtcp2";
+} // namespace
+
+namespace {
+std::string make_status_body(unsigned int status_code) {
+  auto status_string = std::to_string(status_code);
+  auto reason_phrase = http::get_reason_phrase(status_code);
+
+  std::string body;
+  body = "<html><head><title>";
+  body += status_string;
+  body += ' ';
+  body += reason_phrase;
+  body += "</title></head><body><h1>";
+  body += status_string;
+  body += ' ';
+  body += reason_phrase;
+  body += "</h1><hr><address>";
+  body += NGTCP2_SERVER;
+  body += " at port ";
+  body += std::to_string(config.port);
+  body += "</address>";
+  body += "</body></html>";
+  return body;
+}
+} // namespace
+
+namespace {
+std::string request_path(const std::string &uri, bool is_connect) {
+  http_parser_url u;
+
+  http_parser_url_init(&u);
+
+  auto rv = http_parser_parse_url(uri.c_str(), uri.size(), is_connect, &u);
+  if (rv != 0) {
+    return "";
+  }
+
+  if (u.field_set & (1 << UF_PATH)) {
+    // TODO path could be empty?
+    return std::string(uri.c_str() + u.field_data[UF_PATH].off,
+                       u.field_data[UF_PATH].len);
+  }
+
+  return "/index.html";
+}
+} // namespace
+
+namespace {
+std::string resolve_path(const std::string &req_path) {
+  auto raw_path = config.htdocs + req_path;
+  auto malloced_path = realpath(raw_path.c_str(), nullptr);
+  if (malloced_path == nullptr) {
+    return "";
+  }
+  auto path = std::string(malloced_path);
+  free(malloced_path);
+
+  if (path.size() < config.htdocs.size() ||
+      !std::equal(std::begin(config.htdocs), std::end(config.htdocs),
+                  std::begin(path))) {
+    return "";
+  }
+  return path;
+}
+} // namespace
+
+namespace {
+int64_t get_content_length(int fd) {
+  struct stat st {};
+
+  if (fstat(fd, &st) == -1) {
+    return -1;
+  }
+
+  return st.st_size;
+}
+} // namespace
+
+int Stream::open_file(const std::string &path) {
+  fd = open(path.c_str(), O_RDONLY);
+  if (fd == -1) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int Stream::buffer_file() {
+  if (streambuf_bytes > 256_k) {
+    return 0;
+  }
+
+  for (;;) {
+    auto v = Buffer{};
+    v.buf.resize(16_k);
+    auto nread = read(fd, v.buf.data(), v.buf.size());
+    if (nread == -1) {
+      return -1;
+    }
+    if (nread == 0) {
+      should_send_fin = true;
+      resp_state = RESP_COMPLETED;
+      close(fd);
+      fd = -1;
+      break;
+    }
+    v.buf.resize(nread);
+    v.pos = std::begin(v.buf);
+    streambuf_bytes += v.buf.size();
+    streambuf.emplace_back(std::move(v));
+  }
+
+  return 0;
+}
+
+void Stream::send_status_response(unsigned int status_code) {
+  auto body = make_status_body(status_code);
+  std::string hdr;
+  hdr += "HTTP/1.1 ";
+  hdr += std::to_string(status_code);
+  hdr += " ";
+  hdr += http::get_reason_phrase(status_code);
+  hdr += "\r\n";
+  hdr += "Server: ";
+  hdr += NGTCP2_SERVER;
+  hdr += "\r\n";
+  hdr += "Content-Type: text/html; charset=UTF-8\r\n";
+  hdr += "Content-Length: ";
+  hdr += std::to_string(body.size());
+  hdr += "\r\n\r\n";
+
+  auto v = Buffer{};
+  v.buf.resize(hdr.size() + body.size());
+  auto p = std::begin(v.buf);
+  p = std::copy(std::begin(hdr), std::end(hdr), p);
+  p = std::copy(std::begin(body), std::end(body), p);
+  v.pos = std::begin(v.buf);
+  streambuf_bytes += v.buf.size();
+  streambuf.emplace_back(std::move(v));
+  should_send_fin = true;
+  resp_state = RESP_COMPLETED;
+}
+
+int Stream::start_response() {
+  auto req_path = request_path(uri, htp.method == HTTP_CONNECT);
+  auto path = resolve_path(req_path);
+  if (path.empty() || open_file(path) != 0) {
+    send_status_response(404);
+    return 0;
+  }
+
+  auto content_length = get_content_length(fd);
+
+  std::string hdr;
+  hdr += "HTTP/1.1 200 OK\r\n";
+  hdr += "Server: ";
+  hdr += NGTCP2_SERVER;
+  hdr += "\r\n";
+  if (content_length != -1) {
+    hdr += "Content-Length: ";
+    hdr += std::to_string(content_length);
+    hdr += "\r\n";
+  }
+  hdr += "r\n";
+
+  auto v = Buffer{};
+  v.buf.resize(hdr.size());
+  auto p = std::begin(v.buf);
+  p = std::copy(std::begin(hdr), std::end(hdr), p);
+  v.pos = std::begin(v.buf);
+  streambuf_bytes += v.buf.size();
+  streambuf.emplace_back(std::move(v));
+  resp_state = RESP_STARTED;
+
+  if (buffer_file() != 0) {
+    return -1;
+  }
+
+  return 0;
+}
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
@@ -321,7 +593,9 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
-  h->remove_tx_stream_data(stream_id, offset, datalen);
+  if (h->remove_tx_stream_data(stream_id, offset, datalen) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
   return 0;
 }
 } // namespace
@@ -584,7 +858,7 @@ int Handler::on_read(uint8_t *data, size_t datalen) {
 
   for (auto &p : streams_) {
     auto &stream = p.second;
-    rv = on_write_stream(stream);
+    rv = on_write_stream(*stream);
     if (rv != 0) {
       return -1;
     }
@@ -765,37 +1039,32 @@ void Handler::schedule_retransmit() {
 
 int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
                               const uint8_t *data, size_t datalen) {
+  int rv;
+
   debug::print_stream_data(stream_id, data, datalen);
 
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
-    it = streams_.emplace(stream_id, Stream{stream_id}).first;
+    it = streams_.emplace(stream_id, std::make_unique<Stream>(stream_id)).first;
   }
 
   auto &stream = (*it).second;
 
-  if (datalen > 0) {
-    static constexpr uint8_t start_tag[] = "<blink>";
-    static constexpr uint8_t end_tag[] = "</blink>";
-
-    auto v = Buffer{};
-    v.buf.resize(str_size(start_tag) + datalen + str_size(end_tag));
-
-    auto p = std::begin(v.buf);
-
-    p = std::copy_n(start_tag, str_size(start_tag), p);
-    p = std::copy_n(data, datalen, p);
-    p = std::copy_n(end_tag, str_size(end_tag), p);
-
-    v.pos = std::begin(v.buf);
-
-    stream.streambuf.emplace_back(std::move(v));
-  }
-
-  stream.should_send_fin = fin != 0;
-
   ngtcp2_conn_extend_max_stream_offset(conn_, stream_id, datalen);
   ngtcp2_conn_extend_max_offset(conn_, datalen);
+
+  if (stream->recv_data(fin, data, datalen) != 0) {
+    if (stream->resp_state == RESP_IDLE) {
+      stream->send_status_response(400);
+      return 0;
+    }
+    rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_INTERNAL_ERROR);
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+  }
 
   return 0;
 }
@@ -809,28 +1078,45 @@ const Address &Handler::remote_addr() const { return remote_addr_; }
 ngtcp2_conn *Handler::conn() const { return conn_; }
 
 namespace {
-void remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
-                           uint64_t &tx_offset, uint64_t offset) {
+size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
+                             uint64_t &tx_offset, uint64_t offset) {
+  size_t len = 0;
   for (; !d.empty() && tx_offset + d.front().buf.size() <= offset;) {
     --idx;
+    len += d.front().buf.size();
     tx_offset += d.front().buf.size();
     d.pop_front();
   }
+  return len;
 }
 } // namespace
 
-void Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
-                                    size_t datalen) {
+int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                                   size_t datalen) {
+  int rv;
+
   if (stream_id == 0) {
     ::remove_tx_stream_data(shandshake_, shandshake_idx_, tx_stream0_offset_,
                             offset + datalen);
-    return;
+    return 0;
   }
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
-  ::remove_tx_stream_data(stream.streambuf, stream.streambuf_idx,
-                          stream.tx_stream_offset, offset + datalen);
+  stream->streambuf_bytes -=
+      ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
+                              stream->tx_stream_offset, offset + datalen);
+  if (stream->fd != -1) {
+    if (stream->buffer_file() != 0) {
+      rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_INTERNAL_ERROR);
+      if (rv != 0) {
+        std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
+                  << std::endl;
+        return -1;
+      }
+    }
+  }
+  return 0;
 }
 
 void Handler::on_stream_close(uint32_t stream_id) {
@@ -1313,6 +1599,9 @@ Options:
               Specify the cipher suite list to enable.
               Default: )"
             << config.ciphers << R"(
+  -d, --htdocs=<PATH>
+              Specify document root.  If this option is not specified,
+              the document root is the current working directory.
   -h, --help  Display this help and exit.
 )";
 }
@@ -1323,22 +1612,38 @@ int main(int argc, char **argv) {
   config.rx_loss_prob = 0.;
   config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
                    "CHACHA20-POLY1305-SHA256";
-
+  {
+    auto path = realpath(".", nullptr);
+    config.htdocs = path;
+    free(path);
+  }
   for (;;) {
     static int flag = 0;
     constexpr static option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
         {"tx-loss", required_argument, nullptr, 't'},
         {"rx-loss", required_argument, nullptr, 'r'},
+        {"htdocs", required_argument, nullptr, 'd'},
         {"ciphers", required_argument, &flag, 1},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "hr:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hr:t:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
     switch (c) {
+    case 'd': {
+      // --htdocs
+      auto path = realpath(optarg, nullptr);
+      if (path == nullptr) {
+        std::cerr << "path: invalid path " << optarg << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      config.htdocs = path;
+      free(path);
+      break;
+    }
     case 'h':
       // --help
       print_help();
@@ -1378,10 +1683,23 @@ int main(int argc, char **argv) {
   auto private_key_file = argv[optind++];
   auto cert_file = argv[optind++];
 
+  errno = 0;
+  config.port = strtoul(port, nullptr, 10);
+  if (errno != 0) {
+    std::cerr << "port: invalid port number" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
   auto ssl_ctx = create_ssl_ctx(private_key_file, cert_file);
   if (ssl_ctx == nullptr) {
     exit(EXIT_FAILURE);
   }
+
+  if (config.htdocs.back() != '/') {
+    config.htdocs += '/';
+  }
+
+  std::cerr << "Using document root " << config.htdocs << std::endl;
 
   auto ssl_ctx_d = defer(SSL_CTX_free, ssl_ctx);
 

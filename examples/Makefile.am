@@ -26,11 +26,13 @@ AM_CXXFLAGS = $(DEBUGCFLAGS)
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/lib/includes \
 	-I$(top_builddir)/lib/includes \
+	-I$(top_srcdir)/third-party \
 	@OPENSSL_CFLAGS@ \
 	@LIBEV_CFLAGS@ \
 	@DEFS@
 AM_LDFLAGS = -no-install
 LDADD = $(top_builddir)/lib/libngtcp2.la \
+	$(top_builddir)/third-party/libhttp-parser.la \
 	@OPENSSL_LIBS@ \
 	@LIBEV_LIBS@
 
@@ -50,4 +52,5 @@ server_SOURCES = server.cc server.h \
 	util.cc util.h \
 	shared.cc shared.h \
 	crypto_openssl.cc \
-	crypto.cc
+	crypto.cc \
+	http.cc http.h
