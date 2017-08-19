@@ -408,7 +408,7 @@ int Stream::start_response() {
     hdr += std::to_string(content_length);
     hdr += "\r\n";
   }
-  hdr += "r\n";
+  hdr += "\r\n";
 
   auto v = Buffer{};
   v.buf.resize(hdr.size());
