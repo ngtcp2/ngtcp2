@@ -375,10 +375,12 @@ void Stream::send_status_response(unsigned int status_code) {
   hdr += "\r\n\r\n";
 
   auto v = Buffer{};
-  v.buf.resize(hdr.size() + body.size());
+  v.buf.resize(hdr.size() + (htp.method == HTTP_HEAD ? 0 : body.size()));
   auto p = std::begin(v.buf);
   p = std::copy(std::begin(hdr), std::end(hdr), p);
-  p = std::copy(std::begin(body), std::end(body), p);
+  if (htp.method != HTTP_HEAD) {
+    p = std::copy(std::begin(body), std::end(body), p);
+  }
   v.pos = std::begin(v.buf);
   streambuf_bytes += v.buf.size();
   streambuf.emplace_back(std::move(v));
@@ -415,10 +417,20 @@ int Stream::start_response() {
   v.pos = std::begin(v.buf);
   streambuf_bytes += v.buf.size();
   streambuf.emplace_back(std::move(v));
-  resp_state = RESP_STARTED;
 
-  if (buffer_file() != 0) {
-    return -1;
+  switch (htp.method) {
+  case HTTP_HEAD:
+    should_send_fin = true;
+    resp_state = RESP_COMPLETED;
+    close(fd);
+    fd = -1;
+    break;
+  default:
+    resp_state = RESP_STARTED;
+
+    if (buffer_file() != 0) {
+      return -1;
+    }
   }
 
   return 0;
