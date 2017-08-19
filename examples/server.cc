@@ -282,8 +282,12 @@ std::string request_path(const std::string &uri, bool is_connect) {
 
   if (u.field_set & (1 << UF_PATH)) {
     // TODO path could be empty?
-    return std::string(uri.c_str() + u.field_data[UF_PATH].off,
-                       u.field_data[UF_PATH].len);
+    auto req_path = std::string(uri.c_str() + u.field_data[UF_PATH].off,
+                                u.field_data[UF_PATH].len);
+    if (!req_path.empty() && req_path.back() == '/') {
+      req_path += "index.html";
+    }
+    return req_path;
   }
 
   return "/index.html";
