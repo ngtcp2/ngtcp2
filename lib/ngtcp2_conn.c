@@ -1259,13 +1259,10 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ackfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
   if (ack_expired) {
     conn_create_ack_frame(conn, &ackfr.ack, ts);
-
-    if (ackfr.type == NGTCP2_FRAME_ACK) {
-      pkt_empty = 0;
-    }
   }
 
-  if ((!pkt_empty || conn->frq || conn_should_send_max_data(conn)) &&
+  if ((ackfr.type == NGTCP2_FRAME_ACK || conn->frq ||
+       conn_should_send_max_data(conn)) &&
       conn->unsent_max_rx_offset_high > conn->max_rx_offset_high) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
@@ -1277,8 +1274,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->frq = nfrc;
 
     conn->max_rx_offset_high = conn->unsent_max_rx_offset_high;
-
-    pkt_empty = 0;
   }
 
   while (conn->fc_strms) {
@@ -1303,11 +1298,11 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     strm->fc_next = NULL;
     strm->fc_pprev = NULL;
     strm = strm_next;
-
-    pkt_empty = 0;
   }
 
-  if (pkt_empty && conn->frq == NULL) {
+  if (ackfr.type != NGTCP2_FRAME_ACK &&
+      conn->max_remote_stream_id <= conn->local_settings.max_stream_id &&
+      conn->frq == NULL) {
     return 0;
   }
 
@@ -1331,6 +1326,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (rv != 0) {
       return rv;
     }
+    pkt_empty = 0;
   }
 
   for (pfrc = &conn->frq; *pfrc; pfrc = &(*pfrc)->next) {
@@ -1369,13 +1365,12 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     conn->local_settings.max_stream_id = conn->max_remote_stream_id;
 
-    pkt_empty = 0;
-
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
                               &(*pfrc)->fr);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
     } else {
+      pkt_empty = 0;
       pfrc = &(*pfrc)->next;
     }
   }
