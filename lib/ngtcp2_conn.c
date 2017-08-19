@@ -2162,7 +2162,8 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
   if (local_stream) {
     /* If RST_STREAM is sent to a stream initiated by local endpoint,
        conn->local_idtr must indicate that it has opened already, */
-    if (!ngtcp2_idtr_is_open(&conn->local_idtr, fr->stream_id)) {
+    if (!ngtcp2_idtr_is_open(&conn->local_idtr,
+                             id_from_stream_id(fr->stream_id))) {
       return NGTCP2_ERR_PROTO;
     }
   } else if (fr->stream_id > conn->max_remote_stream_id) {
@@ -2172,13 +2173,14 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (!local_stream &&
-        !ngtcp2_idtr_is_open(&conn->remote_idtr, fr->stream_id)) {
+        !ngtcp2_idtr_is_open(&conn->remote_idtr,
+                             id_from_stream_id(fr->stream_id))) {
       /* Stream is reset before we create ngtcp2_strm object. */
       if (conn->local_settings.max_stream_data < fr->final_offset ||
           conn_max_data_violated(conn, fr->final_offset)) {
         return NGTCP2_ERR_FLOW_CONTROL;
       }
-      ngtcp2_idtr_open(&conn->remote_idtr, fr->stream_id);
+      ngtcp2_idtr_open(&conn->remote_idtr, id_from_stream_id(fr->stream_id));
       ngtcp2_increment_offset(&conn->rx_offset_high, &conn->rx_offset_low,
                               fr->final_offset);
     }
