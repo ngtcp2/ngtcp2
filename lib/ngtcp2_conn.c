@@ -1238,7 +1238,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_frame ackfr;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
-  ngtcp2_frame_chain **pfrc, *nfrc;
+  ngtcp2_frame_chain **pfrc, *nfrc, *frc;
   ngtcp2_rtb_entry *ent;
   ngtcp2_strm *strm, *strm_next;
   int send_pkt_cb_called = 0;
@@ -1318,7 +1318,18 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     pkt_empty = 0;
   }
 
-  for (pfrc = &conn->frq; *pfrc; pfrc = &(*pfrc)->next) {
+  for (pfrc = &conn->frq; *pfrc;) {
+    if ((*pfrc)->fr.type == NGTCP2_FRAME_RST_STREAM) {
+      strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.rst_stream.stream_id);
+      if (strm == NULL &&
+          (*pfrc)->fr.rst_stream.error_code != NGTCP2_QUIC_RECEIVED_RST) {
+        frc = *pfrc;
+        *pfrc = (*pfrc)->next;
+        ngtcp2_frame_chain_del(frc, conn->mem);
+        continue;
+      }
+    }
+
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
                               &(*pfrc)->fr);
     if (rv != 0) {
@@ -1326,18 +1337,16 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       break;
     }
 
-    if ((*pfrc)->fr.type == NGTCP2_FRAME_RST_STREAM) {
-      strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.rst_stream.stream_id);
-      if (strm != NULL) {
-        rv = ngtcp2_conn_close_stream(conn, strm,
-                                      (*pfrc)->fr.rst_stream.error_code);
-        if (rv != 0) {
-          return rv;
-        }
+    if ((*pfrc)->fr.type == NGTCP2_FRAME_RST_STREAM && strm) {
+      rv = ngtcp2_conn_close_stream(conn, strm,
+                                    (*pfrc)->fr.rst_stream.error_code);
+      if (rv != 0) {
+        return rv;
       }
     }
 
     pkt_empty = 0;
+    pfrc = &(*pfrc)->next;
   }
 
   /* Write MAX_STREAM_ID after RST_STREAM so that we can extend stream
