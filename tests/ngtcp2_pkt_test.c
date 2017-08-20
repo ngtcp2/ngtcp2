@@ -636,28 +636,6 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 }
 
-void test_ngtcp2_pkt_encode_goaway(void) {
-  uint8_t buf[16];
-  ngtcp2_goaway fr, nfr;
-  ssize_t rv;
-  size_t framelen = 1 + 4 + 4;
-
-  fr.type = NGTCP2_FRAME_GOAWAY;
-  fr.largest_client_stream_id = 0xf1f2f3f4u;
-  fr.largest_server_stream_id = 0xf5f6f7f8u;
-
-  rv = ngtcp2_pkt_encode_goaway_frame(buf, sizeof(buf), &fr);
-
-  CU_ASSERT((ssize_t)framelen == rv);
-
-  rv = ngtcp2_pkt_decode_goaway_frame(&nfr, buf, framelen);
-
-  CU_ASSERT((ssize_t)framelen == rv);
-  CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(fr.largest_client_stream_id == nfr.largest_client_stream_id);
-  CU_ASSERT(fr.largest_server_stream_id == nfr.largest_server_stream_id);
-}
-
 void test_ngtcp2_pkt_encode_max_data_frame(void) {
   uint8_t buf[16];
   ngtcp2_max_data fr, nfr;

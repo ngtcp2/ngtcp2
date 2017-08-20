@@ -269,8 +269,6 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     return ngtcp2_pkt_decode_connection_close_frame(&dest->connection_close,
                                                     payload, payloadlen);
-  case NGTCP2_FRAME_GOAWAY:
-    return ngtcp2_pkt_decode_goaway_frame(&dest->goaway, payload, payloadlen);
   case NGTCP2_FRAME_MAX_DATA:
     return ngtcp2_pkt_decode_max_data_frame(&dest->max_data, payload,
                                             payloadlen);
@@ -604,29 +602,6 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   return (ssize_t)len;
 }
 
-ssize_t ngtcp2_pkt_decode_goaway_frame(ngtcp2_goaway *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen) {
-  size_t len = 1 + 4 + 4;
-  const uint8_t *p;
-
-  if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  p = payload + 1;
-
-  dest->type = NGTCP2_FRAME_GOAWAY;
-  dest->largest_client_stream_id = ngtcp2_get_uint32(p);
-  p += 4;
-  dest->largest_server_stream_id = ngtcp2_get_uint32(p);
-  p += 4;
-
-  assert((size_t)(p - payload) == len);
-
-  return (ssize_t)len;
-}
-
 ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
                                          const uint8_t *payload,
                                          size_t payloadlen) {
@@ -778,8 +753,6 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     return ngtcp2_pkt_encode_connection_close_frame(out, outlen,
                                                     &fr->connection_close);
-  case NGTCP2_FRAME_GOAWAY:
-    return ngtcp2_pkt_encode_goaway_frame(out, outlen, &fr->goaway);
   case NGTCP2_FRAME_MAX_DATA:
     return ngtcp2_pkt_encode_max_data_frame(out, outlen, &fr->max_data);
   case NGTCP2_FRAME_MAX_STREAM_DATA:
@@ -1020,26 +993,6 @@ ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
   if (fr->reasonlen) {
     p = ngtcp2_cpymem(p, fr->reason, fr->reasonlen);
   }
-
-  assert((size_t)(p - out) == len);
-
-  return (ssize_t)len;
-}
-
-ssize_t ngtcp2_pkt_encode_goaway_frame(uint8_t *out, size_t outlen,
-                                       const ngtcp2_goaway *fr) {
-  size_t len = 1 + 4 + 4;
-  uint8_t *p;
-
-  if (outlen < len) {
-    return NGTCP2_ERR_NOBUF;
-  }
-
-  p = out;
-
-  *p++ = NGTCP2_FRAME_GOAWAY;
-  p = ngtcp2_put_uint32be(p, fr->largest_client_stream_id);
-  p = ngtcp2_put_uint32be(p, fr->largest_server_stream_id);
 
   assert((size_t)(p - out) == len);
 

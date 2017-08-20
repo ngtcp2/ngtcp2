@@ -215,7 +215,6 @@ typedef enum {
   NGTCP2_FRAME_PADDING = 0x00,
   NGTCP2_FRAME_RST_STREAM = 0x01,
   NGTCP2_FRAME_CONNECTION_CLOSE = 0x02,
-  NGTCP2_FRAME_GOAWAY = 0x03,
   NGTCP2_FRAME_MAX_DATA = 0x04,
   NGTCP2_FRAME_MAX_STREAM_DATA = 0x05,
   NGTCP2_FRAME_MAX_STREAM_ID = 0x06,
@@ -314,12 +313,6 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint32_t largest_client_stream_id;
-  uint32_t largest_server_stream_id;
-} ngtcp2_goaway;
-
-typedef struct {
-  uint8_t type;
   /**
    * max_data is Maximum Data.
    */
@@ -361,7 +354,6 @@ typedef union {
   ngtcp2_padding padding;
   ngtcp2_rst_stream rst_stream;
   ngtcp2_connection_close connection_close;
-  ngtcp2_goaway goaway;
   ngtcp2_max_data max_data;
   ngtcp2_max_stream_data max_stream_data;
   ngtcp2_max_stream_id max_stream_id;

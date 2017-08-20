@@ -38,7 +38,6 @@ void test_ngtcp2_pkt_encode_stream_frame(void);
 void test_ngtcp2_pkt_encode_ack_frame(void);
 void test_ngtcp2_pkt_encode_rst_stream_frame(void);
 void test_ngtcp2_pkt_encode_connection_close_frame(void);
-void test_ngtcp2_pkt_encode_goaway(void);
 void test_ngtcp2_pkt_encode_max_data_frame(void);
 void test_ngtcp2_pkt_encode_max_stream_data_frame(void);
 void test_ngtcp2_pkt_encode_max_stream_id_frame(void);
