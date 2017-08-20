@@ -348,7 +348,7 @@ ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
 ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
     ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
 
-/**
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -361,7 +361,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
                                        const ngtcp2_stream *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_ack_frame encodes ACK frame |fr| into the buffer
  * pointed by |out| of length |outlen|.
  *
@@ -377,7 +377,7 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
                                     const ngtcp2_ack *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_padding_frame encodes PADDING frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -392,7 +392,7 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_padding *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_rst_stream_frame encodes RST_STREAM frame |fr|
  * into the buffer pointed by |out| of length |buflen|.
  *
@@ -405,7 +405,7 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
                                            const ngtcp2_rst_stream *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_connection_close_frame encodes CONNECTION_CLOSE
  * frame |fr| into the buffer pointed by |out| of length |outlen|.
  *
@@ -419,7 +419,7 @@ ssize_t
 ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_connection_close *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_max_data_frame encodes MAX_DATA frame |fr| into
  * the buffer pointed by |out| of length |outlen|.
  *
@@ -432,7 +432,7 @@ ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_max_data *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_max_stream_data_frame encodes MAX_STREAM_DATA
  * frame |fr| into the buffer pointed by |out| of length |outlen|.
  *
@@ -446,7 +446,7 @@ ssize_t
 ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_max_stream_data *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_max_stream_id_frame encodes MAX_STREAM_ID frame
  * |fr| into the buffer pointed by |out| of length |outlen|.
  *
@@ -459,7 +459,7 @@ ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_max_stream_id_frame(uint8_t *out, size_t outlen,
                                               const ngtcp2_max_stream_id *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_ping_frame encodes PING frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -472,7 +472,7 @@ ssize_t ngtcp2_pkt_encode_max_stream_id_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
                                      const ngtcp2_ping *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_blocked_frame encodes BLOCKED frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -485,7 +485,7 @@ ssize_t ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_blocked_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_blocked *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_stream_blocked_frame encodes STREAM_BLOCKED frame
  * |fr| into the buffer pointed by |out| of length |outlen|.
  *
@@ -498,7 +498,7 @@ ssize_t ngtcp2_pkt_encode_blocked_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_stream_blocked_frame(uint8_t *out, size_t outlen,
                                                const ngtcp2_stream_blocked *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_stream_id_needed_frame encodes STREAM_ID_NEEDED
  * frame |fr| into the buffer pointed by |out| of length |outlen|.
  *
@@ -512,7 +512,7 @@ ssize_t
 ngtcp2_pkt_encode_stream_id_needed_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_stream_id_needed *fr);
 
-/**
+/*
  * ngtcp2_pkt_encode_new_connection_id_frame encodes NEW_CONNECTION_ID
  * frame |fr| into the buffer pointed by |out| of length |outlen|.
  *
@@ -526,7 +526,7 @@ ssize_t
 ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
                                           const ngtcp2_new_connection_id *fr);
 
-/**
+/*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
  * |pkt_num|, which is expected to be least significant |n| bits.  The
  * |max_pkt_num| is the highest successfully authenticated packet
@@ -535,7 +535,7 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
 uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
                                    size_t n);
 
-/**
+/*
  * ngtcp2_pkt_adjust_ack_pkt_num adjusts all packet numbers in |ack|
  * using the maximum packet number |max_pkt_num| received so far.
  */
