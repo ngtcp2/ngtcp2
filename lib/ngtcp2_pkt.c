@@ -527,7 +527,7 @@ ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
                                         size_t payloadlen) {
   const uint8_t *p, *ep;
 
-  if (payloadlen == 0 || payload[0] != NGTCP2_FRAME_PADDING) {
+  if (payloadlen == 0) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -549,7 +549,7 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
   size_t len = 1 + 4 + 4 + 8;
   const uint8_t *p;
 
-  if (payloadlen < len || payload[0] != NGTCP2_FRAME_RST_STREAM) {
+  if (payloadlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 

@@ -136,14 +136,13 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
 /*
  * ngtcp2_pkt_decode_stream_frame decodes STREAM frame from |payload|
  * of length |payloadlen|.  The result is stored in the object pointed
- * by |dest|.  STREAM frame must start at `payload[0]`.  This function
- * returns when it decodes one STREAM frame, and returns the exact
- * number of bytes for one STREAM frame if it succeeds, or one of the
- * following negative error codes:
+ * by |dest|.  STREAM frame must start at payload[0].  This function
+ * finishes when it decodes one STREAM frame, and returns the exact
+ * number of bytes read to decode a frame if it succeeds, or one of
+ * the following negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include STREAM frame; or
- *     Payload is too short to include STREAM frame
+ *     Payload is too short to include STREAM frame.
  */
 ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
                                        const uint8_t *payload,
@@ -152,14 +151,13 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
 /*
  * ngtcp2_pkt_decode_ack_frame decodes ACK frame from |payload| of
  * length |payloadlen|.  The result is stored in the object pointed by
- * |dest|.  ACK frame must start at `payload[0]`.  This function
- * returns when it decodes one ACK frame, and returns the exact number
- * of bytes for one ACK frame if it succeeds, or one of the following
- * negative error codes:
+ * |dest|.  ACK frame must start at payload[0].  This function
+ * finishes when it decodes one ACK frame, and returns the exact
+ * number of bytes read to decode a frame if it succeeds, or one of
+ * the following negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include ACK frame; or
- *     Payload is too short to include ACK frame
+ *     Payload is too short to include ACK frame.
  */
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
                                     size_t payloadlen);
@@ -167,14 +165,15 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 /*
  * ngtcp2_pkt_decode_padding_frame decodes contiguous PADDING frames
  * from |payload| of length |payloadlen|.  It continues to parse
- * frames as long as the frame type is PADDING.  This function returns
- * when it encounters the frame type which is not PADDING.  The first
- * byte (``payload[0]``) must be NGTCP2_FRAME_PADDING.  This function
- * returns the exact number of bytes read for PADDING frames if it
- * succeeds, or one of the following negative error codes:
+ * frames as long as the frame type is PADDING.  This finishes when it
+ * encounters the frame type which is not PADDING, or all input data
+ * is read.  The first byte (payload[0]) must be NGTCP2_FRAME_PADDING.
+ * This function returns the exact number of bytes read to decode
+ * PADDING frames if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include PADDING frame.
+ *     Payload is too short to include PADDING frame.
  */
 ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
                                         const uint8_t *payload,
@@ -184,13 +183,12 @@ ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
  * ngtcp2_pkt_decode_rst_stream_frame decodes RST_STREAM frame from
  * |payload| of length |payloadlen|.  The result is stored in the
  * object pointed by |dest|.  RST_STREAM frame must start at
- * `payload[0]`.  This function returns when it decodes one RST_STREAM
- * frame., and returns the exact number of bytes for one RST_STREAM
- * frame if it succeeds, or one of the following negative error codes:
+ * payload[0].  This function finishes when it decodes one RST_STREAM
+ * frame, and returns the exact number of bytes read to decode a frame
+ * if it succeeds, or one of the following negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include RST_STREAM frame;
- *     or Payload is too short to include RST_STREAM frame.
+ *     Payload is too short to include RST_STREAM frame.
  */
 ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
                                            const uint8_t *payload,
@@ -200,15 +198,13 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
  * ngtcp2_pkt_decode_connection_close_frame decodes CONNECTION_CLOSE
  * frame from |payload| of length |payloadlen|.  The result is stored
  * in the object pointed by |dest|.  CONNECTION_CLOSE frame must start
- * at `payload[0]`.  This function returns when it decodes one
- * CONNECTION_CLOSE frame., and returns the exact number of bytes for
- * one CONNECTION_CLOSE frame if it succeeds, or one of the following
- * negative error codes:
+ * at payload[0].  This function finishes it decodes one
+ * CONNECTION_CLOSE frame, and returns the exact number of bytes read
+ * to decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include CONNECTION_CLOSE
- *     frame; or Payload is too short to include CONNECTION_CLOSE
- *     frame.
+ *     Payload is too short to include CONNECTION_CLOSE frame.
  */
 ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
                                                  const uint8_t *payload,
@@ -217,13 +213,12 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
 /*
  * ngtcp2_pkt_decode_max_data_frame decodes MAX_DATA frame from
  * |payload| of length |payloadlen|.  The result is stored in the
- * object pointed by |dest|.  MAX_DATA frame must start at
- * `payload[0]`.  This function returns when it decodes one MAX_DATA
- * frame., and returns the exact number of bytes for one MAX_DATA
- * frame if it succeeds, or one of the following negative error codes:
+ * object pointed by |dest|.  MAX_DATA frame must start at payload[0].
+ * This function finishes when it decodes one MAX_DATA frame, and
+ * returns the exact number of bytes read to decode a frame if it
+ * succeeds, or one of the following negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include MAX_DATA frame; or
  *     Payload is too short to include MAX_DATA frame.
  */
 ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
@@ -234,15 +229,13 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
  * ngtcp2_pkt_decode_max_stream_data_frame decodes MAX_STREAM_DATA
  * frame from |payload| of length |payloadlen|.  The result is stored
  * in the object pointed by |dest|.  MAX_STREAM_DATA frame must start
- * at `payload[0]`.  This function returns when it decodes one
- * MAX_STREAM_DATA frame., and returns the exact number of bytes for
- * one MAX_STREAM_DATA frame if it succeeds, or one of the following
- * negative error codes:
+ * at payload[0].  This function finishes when it decodes one
+ * MAX_STREAM_DATA frame, and returns the exact number of bytes read
+ * to decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include MAX_STREAM_DATA
- *     frame; or Payload is too short to include MAX_STREAM_DATA
- *     frame.
+ *     Payload is too short to include MAX_STREAM_DATA frame.
  */
 ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
                                                 const uint8_t *payload,
@@ -252,14 +245,13 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
  * ngtcp2_pkt_decode_max_stream_id_frame decodes MAX_STREAM_ID frame
  * from |payload| of length |payloadlen|.  The result is stored in the
  * object pointed by |dest|.  MAX_STREAM_ID frame must start at
- * `payload[0]`.  This function returns when it decodes one
- * MAX_STREAM_ID frame., and returns the exact number of bytes for one
- * MAX_STREAM_ID frame if it succeeds, or one of the following
- * negative error codes:
+ * payload[0].  This function finishes when it decodes one
+ * MAX_STREAM_ID frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include MAX_STREAM_ID
- *     frame; or Payload is too short to include MAX_STREAM_ID frame.
+ *     Payload is too short to include MAX_STREAM_ID frame.
  */
 ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
                                               const uint8_t *payload,
@@ -268,13 +260,12 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
 /*
  * ngtcp2_pkt_decode_ping_frame decodes PING frame from |payload| of
  * length |payloadlen|.  The result is stored in the object pointed by
- * |dest|.  PING frame must start at `payload[0]`.  This function
- * returns when it decodes one PING frame., and returns the exact
- * number of bytes for one PING frame if it succeeds, or one of the
- * following negative error codes:
+ * |dest|.  PING frame must start at payload[0].  This function
+ * finishes when it decodes one PING frame, and returns the exact
+ * number of bytes read to decode a frame if it succeeds, or one of
+ * the following negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include PING frame; or
  *     Payload is too short to include PING frame.
  */
 ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
@@ -283,13 +274,12 @@ ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
 /*
  * ngtcp2_pkt_decode_blocked_frame decodes BLOCKED frame from
  * |payload| of length |payloadlen|.  The result is stored in the
- * object pointed by |dest|.  BLOCKED frame must start at
- * `payload[0]`.  This function returns when it decodes one BLOCKED
- * frame., and returns the exact number of bytes for one BLOCKED frame
- * if it succeeds, or one of the following negative error codes:
+ * object pointed by |dest|.  BLOCKED frame must start at payload[0].
+ * This function finishes when it decodes one BLOCKED frame, and
+ * returns the exact number of bytes read to decode a frame if it
+ * succeeds, or one of the following negative error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include BLOCKED frame; or
  *     Payload is too short to include BLOCKED frame.
  */
 ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
@@ -300,14 +290,13 @@ ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
  * ngtcp2_pkt_decode_stream_blocked_frame decodes STREAM_BLOCKED frame
  * from |payload| of length |payloadlen|.  The result is stored in the
  * object pointed by |dest|.  STREAM_BLOCKED frame must start at
- * `payload[0]`.  This function returns when it decodes one
- * STREAM_BLOCKED frame., and returns the exact number of bytes for
- * one STREAM_BLOCKED frame if it succeeds, or one of the following
- * negative error codes:
+ * payload[0].  This function finishes when it decodes one
+ * STREAM_BLOCKED frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include STREAM_BLOCKED
- *     frame; or Payload is too short to include STREAM_BLOCKED frame.
+ *     Payload is too short to include STREAM_BLOCKED frame.
  */
 ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
                                                const uint8_t *payload,
@@ -317,15 +306,13 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
  * ngtcp2_pkt_decode_stream_id_needed_frame decodes STREAM_ID_NEEDED
  * frame from |payload| of length |payloadlen|.  The result is stored
  * in the object pointed by |dest|.  STREAM_ID_NEEDED frame must start
- * at `payload[0]`.  This function returns when it decodes one
- * STREAM_ID_NEEDED frame., and returns the exact number of bytes for
- * one STREAM_ID_NEEDED frame if it succeeds, or one of the following
- * negative error codes:
+ * at payload[0].  This function finishes when it decodes one
+ * STREAM_ID_NEEDED frame, and returns the exact number of bytes read
+ * to decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include STREAM_ID_NEEDED
- *     frame; or Payload is too short to include STREAM_ID_NEEDED
- *     frame.
+ *     Payload is too short to include STREAM_ID_NEEDED frame.
  */
 ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
                                                  const uint8_t *payload,
@@ -335,15 +322,13 @@ ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
  * ngtcp2_pkt_decode_new_connection_id_frame decodes NEW_CONNECTION_ID
  * frame from |payload| of length |payloadlen|.  The result is stored
  * in the object pointed by |dest|.  NEW_CONNECTION_ID frame must
- * start at `payload[0]`.  This function returns when it decodes one
- * NEW_CONNECTION_ID frame., and returns the exact number of bytes for
- * one NEW_CONNECTION_ID frame if it succeeds, or one of the following
- * negative error codes:
+ * start at payload[0].  This function finishes when it decodes one
+ * NEW_CONNECTION_ID frame, and returns the exact number of bytes read
+ * to decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Type indicates that payload does not include NEW_CONNECTION_ID
- *     frame; or Payload is too short to include NEW_CONNECTION_ID
- *     frame.
+ *     Payload is too short to include NEW_CONNECTION_ID frame.
  */
 ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
     ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
@@ -352,7 +337,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
  * ngtcp2_pkt_decode_stop_sending_frame decodes STOP_SENDING frame
  * from |payload| of length |payloadlen|.  The result is stored in the
  * object pointed by |dest|.  STOP_SENDING frame must start at
- * `payload[0]`.  This function finishes when it decodes one
+ * payload[0].  This function finishes when it decodes one
  * STOP_SENDING frame, and returns the exact number of bytes read to
  * decode a frame if it succeeds, or one of the following negative
  * error codes:
