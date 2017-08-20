@@ -681,8 +681,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
 
   settings.max_stream_data = 256_k;
   settings.max_data = 1_k;
-  // TODO Just allow stream ID = 1 to exchange encrypted data for now.
-  settings.max_stream_id = 1;
+  settings.max_stream_id = 199;
   settings.idle_timeout = 30;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
