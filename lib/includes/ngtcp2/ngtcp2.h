@@ -617,8 +617,6 @@ NGTCP2_EXTERN size_t ngtcp2_upe_left(ngtcp2_upe *upe);
  */
 NGTCP2_EXTERN int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen);
 
-typedef enum { NGTCP2_CONN_FLAG_NONE } ngtcp2_conn_flag;
-
 struct ngtcp2_conn;
 
 typedef struct ngtcp2_conn ngtcp2_conn;

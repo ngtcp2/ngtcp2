@@ -107,6 +107,19 @@ int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
  */
 void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
 
+typedef enum {
+  NGTCP2_CONN_FLAG_NONE = 0x00,
+  /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set if handshake
+     completed. */
+  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED = 0x01,
+  /* NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED is set if connection ID is
+     negotiated.  This is only used for client. */
+  NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED = 0x02,
+  /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
+     parameters are received. */
+  NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED = 0x04,
+} ngtcp2_conn_flag;
+
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
@@ -149,10 +162,8 @@ struct ngtcp2_conn {
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
   uint32_t version;
-  int handshake_completed;
-  /* conn_id_negotiated is nonzero if connection ID is negotiated.
-     This is only used for client. */
-  int conn_id_negotiated;
+  /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
+  uint8_t flags;
   int server;
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;

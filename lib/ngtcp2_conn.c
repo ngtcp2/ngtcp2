@@ -1760,12 +1760,12 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
   } else {
-    if (conn->conn_id_negotiated) {
+    if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
       if (conn->conn_id != hd.conn_id) {
         return NGTCP2_ERR_PROTO;
       }
     } else {
-      conn->conn_id_negotiated = 1;
+      conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
       conn->conn_id = hd.conn_id;
     }
 
@@ -2456,7 +2456,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
       }
       break;
     }
-    if (conn->handshake_completed) {
+    if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
       rv = conn_call_handshake_completed(conn);
       if (rv != 0) {
         return rv;
@@ -2479,7 +2479,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
       }
       break;
     }
-    if (conn->handshake_completed) {
+    if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
       rv = conn_call_handshake_completed(conn);
       if (rv != 0) {
         return rv;
@@ -2539,7 +2539,7 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
 }
 
 void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
-  conn->handshake_completed = 1;
+  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED;
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
