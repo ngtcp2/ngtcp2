@@ -86,7 +86,10 @@ struct Stream {
   int start_response();
   int open_file(const std::string &path);
   int buffer_file();
-  void send_status_response(unsigned int status_code);
+  void send_status_response(unsigned int status_code,
+                            const std::string &extra_headers = "");
+  void send_redirect_response(unsigned int status_code,
+                              const std::string &path);
 
   uint32_t stream_id;
   std::deque<Buffer> streambuf;

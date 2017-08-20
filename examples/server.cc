@@ -313,18 +313,6 @@ std::string resolve_path(const std::string &req_path) {
 }
 } // namespace
 
-namespace {
-int64_t get_content_length(int fd) {
-  struct stat st {};
-
-  if (fstat(fd, &st) == -1) {
-    return -1;
-  }
-
-  return st.st_size;
-}
-} // namespace
-
 int Stream::open_file(const std::string &path) {
   fd = open(path.c_str(), O_RDONLY);
   if (fd == -1) {
@@ -362,7 +350,8 @@ int Stream::buffer_file() {
   return 0;
 }
 
-void Stream::send_status_response(unsigned int status_code) {
+void Stream::send_status_response(unsigned int status_code,
+                                  const std::string &extra_headers) {
   auto body = make_status_body(status_code);
   std::string hdr;
   hdr += "HTTP/1.1 ";
@@ -376,7 +365,9 @@ void Stream::send_status_response(unsigned int status_code) {
   hdr += "Content-Type: text/html; charset=UTF-8\r\n";
   hdr += "Content-Length: ";
   hdr += std::to_string(body.size());
-  hdr += "\r\n\r\n";
+  hdr += "\r\n";
+  hdr += extra_headers;
+  hdr += "\r\n";
 
   auto v = Buffer{};
   v.buf.resize(hdr.size() + (htp.method == HTTP_HEAD ? 0 : body.size()));
@@ -392,6 +383,14 @@ void Stream::send_status_response(unsigned int status_code) {
   resp_state = RESP_COMPLETED;
 }
 
+void Stream::send_redirect_response(unsigned int status_code,
+                                    const std::string &path) {
+  std::string hdrs = "Location: ";
+  hdrs += path;
+  hdrs += "\r\n";
+  send_status_response(status_code, hdrs);
+}
+
 int Stream::start_response() {
   auto req_path = request_path(uri, htp.method == HTTP_CONNECT);
   auto path = resolve_path(req_path);
@@ -400,7 +399,17 @@ int Stream::start_response() {
     return 0;
   }
 
-  auto content_length = get_content_length(fd);
+  struct stat st {};
+
+  int64_t content_length = -1;
+
+  if (fstat(fd, &st) == 0) {
+    if (st.st_mode & S_IFDIR) {
+      send_redirect_response(308, path.substr(config.htdocs.size() - 1) + '/');
+      return 0;
+    }
+    content_length = st.st_size;
+  }
 
   std::string hdr;
   hdr += "HTTP/1.1 200 OK\r\n";
