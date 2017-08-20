@@ -2661,6 +2661,8 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
+  memcpy(dest->stateless_reset_token, src->stateless_reset_token,
+         sizeof(dest->stateless_reset_token));
 }
 
 static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
@@ -2671,6 +2673,8 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
+  memcpy(dest->stateless_reset_token, src->stateless_reset_token,
+         sizeof(dest->stateless_reset_token));
 }
 
 int ngtcp2_conn_set_remote_transport_params(

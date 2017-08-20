@@ -380,6 +380,7 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
   NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID = 4,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
+  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -415,6 +416,7 @@ typedef struct {
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
+  uint8_t stateless_reset_token[16];
 } ngtcp2_transport_params;
 
 typedef struct {
@@ -424,6 +426,7 @@ typedef struct {
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
+  uint8_t stateless_reset_token[16];
 } ngtcp2_settings;
 
 /**

@@ -91,9 +91,11 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
     vlen = 1 + params->v.ee.len * sizeof(uint32_t);
+    len += 20 /* stateless_reset_token */;
     break;
   default:
     vlen = 0;
+    len += 20 /* stateless_reset_token */;
     break;
   }
 
@@ -142,6 +144,16 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT);
   p = ngtcp2_put_uint16be(p, 2);
   p = ngtcp2_put_uint16be(p, params->idle_timeout);
+
+  switch (exttype) {
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN);
+    p = ngtcp2_put_uint16be(p, sizeof(params->stateless_reset_token));
+    p = ngtcp2_cpymem(p, params->stateless_reset_token,
+                      sizeof(params->stateless_reset_token));
+    break;
+  }
 
   if (params->omit_connection_id) {
     p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID);
@@ -275,6 +287,28 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       params->max_packet_size = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
       break;
+    case NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN:
+      flags |= 1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN;
+      if (ngtcp2_get_uint16(p) != sizeof(params->stateless_reset_token)) {
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
+      p += sizeof(uint16_t);
+      if ((size_t)(end - p) < sizeof(params->stateless_reset_token)) {
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
+
+      /* TODO draft-05 allows client to send stateless_reset_token.
+         Just ignore it for now. */
+      switch (exttype) {
+      case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+      case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
+        memcpy(params->stateless_reset_token, p,
+               sizeof(params->stateless_reset_token));
+        break;
+      }
+
+      p += sizeof(params->stateless_reset_token);
+      break;
     default:
       /* Ignore unknown parameter */
       valuelen = ngtcp2_get_uint16(p);
@@ -300,6 +334,15 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   if ((flags & NGTCP2_REQUIRED_TRANSPORT_PARAMS) !=
       NGTCP2_REQUIRED_TRANSPORT_PARAMS) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  switch (exttype) {
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
+    if (!(flags & (1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN))) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    break;
   }
 
   if ((flags & (1u << NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID)) == 0) {

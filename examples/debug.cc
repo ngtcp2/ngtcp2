@@ -375,6 +375,15 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
   fprintf(outfile, "; omit_connection_id=%u\n", params->omit_connection_id);
   print_indent();
   fprintf(outfile, "; max_packet_size=%u\n", params->max_packet_size);
+
+  switch (type) {
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
+    print_indent();
+    fprintf(outfile, "; stateless_reset_token=%s\n",
+            util::format_hex(params->stateless_reset_token).c_str());
+    break;
+  }
 }
 
 void print_stream_data(uint32_t stream_id, const uint8_t *data,

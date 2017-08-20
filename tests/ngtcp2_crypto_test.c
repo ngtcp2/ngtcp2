@@ -80,12 +80,15 @@ void test_ngtcp2_encode_transport_params(void) {
   params.idle_timeout = 0xd1d2;
   params.omit_connection_id = 0;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  memset(params.stateless_reset_token, 0xf1,
+         sizeof(params.stateless_reset_token));
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
 
-  CU_ASSERT(1 + 4 * 3 /* supported_versions and its length */ + 2 + 8 * 3 + 6 ==
+  CU_ASSERT(1 + 4 * 3 /* supported_versions and its length */ + 2 + 8 * 3 + 6 +
+                20 ==
             nwrite);
 
   rv = ngtcp2_decode_transport_params(
@@ -104,6 +107,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.omit_connection_id == nparams.omit_connection_id);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
+  CU_ASSERT(0 == memcmp(params.stateless_reset_token,
+                        nparams.stateless_reset_token,
+                        sizeof(params.stateless_reset_token)));
 
   memset(&nparams, 0, sizeof(nparams));
 
@@ -114,12 +120,14 @@ void test_ngtcp2_encode_transport_params(void) {
   params.idle_timeout = 0xd1d2;
   params.omit_connection_id = 1;
   params.max_packet_size = 1400;
+  memset(params.stateless_reset_token, 0xf1,
+         sizeof(params.stateless_reset_token));
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET,
       &params);
 
-  CU_ASSERT(2 + 8 * 3 + 6 + 4 + 6 == nwrite);
+  CU_ASSERT(2 + 8 * 3 + 6 + 4 + 6 + 20 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET, buf,
@@ -132,6 +140,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.omit_connection_id == nparams.omit_connection_id);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
+  CU_ASSERT(0 == memcmp(params.stateless_reset_token,
+                        nparams.stateless_reset_token,
+                        sizeof(params.stateless_reset_token)));
 
   memset(&nparams, 0, sizeof(nparams));
 
@@ -166,6 +177,8 @@ void test_ngtcp2_encode_transport_params(void) {
   params.idle_timeout = 0xd1d2;
   params.omit_connection_id = 0;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  memset(params.stateless_reset_token, 0xf1,
+         sizeof(params.stateless_reset_token));
 
   for (i = 0;
        i < 8 /* negotiated_version + initial_version */ + 2 + 8 * 3 + 6;
@@ -193,7 +206,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
   for (i = 0; i < 1 + 4 * 3 /* supported_versions and its length */ + 2 +
-                      8 * 3 + 6;
+                      8 * 3 + 6 + 20;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);

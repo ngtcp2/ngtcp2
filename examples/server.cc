@@ -687,6 +687,11 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  std::generate(std::begin(settings.stateless_reset_token),
+                std::end(settings.stateless_reset_token),
+                [&dis]() { return dis(randgen); });
+
   rv = ngtcp2_conn_server_new(&conn_, conn_id_, NGTCP2_PROTO_VERSION,
                               &callbacks, &settings, this);
   if (rv != 0) {
