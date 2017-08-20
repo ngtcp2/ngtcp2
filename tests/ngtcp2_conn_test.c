@@ -106,6 +106,10 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_update_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                              sizeof(null_iv));
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
+  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_id = 0;
+  (*pconn)->remote_settings.max_data = 64;
+  (*pconn)->max_tx_offset_high = (*pconn)->remote_settings.max_data;
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
@@ -124,6 +128,10 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_conn_update_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                              sizeof(null_iv));
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
+  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_id = 1;
+  (*pconn)->remote_settings.max_data = 64;
+  (*pconn)->max_tx_offset_high = (*pconn)->remote_settings.max_data;
 }
 
 void test_ngtcp2_conn_stream_open_close(void) {

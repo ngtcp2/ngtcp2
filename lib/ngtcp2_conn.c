@@ -219,13 +219,6 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   (*pconn)->server = server;
   (*pconn)->state =
       server ? NGTCP2_CS_SERVER_INITIAL : NGTCP2_CS_CLIENT_INITIAL;
-  /* TODO Since transport parameters are not required for interop now,
-     just supply sensible default here.  Remove this when transport
-     parameter gets mandatory. */
-  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
-  (*pconn)->remote_settings.max_data = 64;
-  (*pconn)->remote_settings.max_stream_id = server ? 0 : 1;
-  (*pconn)->max_tx_offset_high = (*pconn)->remote_settings.max_data;
 
   return 0;
 
@@ -1535,6 +1528,9 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     if (nwrite == 0) {
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
+      if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
+        nwrite = NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+      }
     }
     break;
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
@@ -2486,6 +2482,10 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
       }
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
+      if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
+        return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+      }
+
       rv = conn_process_buffered_protected_pkt(conn, ts);
       if (rv != 0) {
         return rv;
@@ -2708,6 +2708,8 @@ int ngtcp2_conn_set_remote_transport_params(
      0-RTT stream? */
 
   conn->strm0->max_tx_offset = conn->remote_settings.max_stream_data;
+
+  conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 
   return 0;
 }

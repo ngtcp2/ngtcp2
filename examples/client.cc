@@ -795,6 +795,9 @@ int Client::start_interactive_input() {
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
               << std::endl;
+    if (rv == NGTCP2_ERR_STREAM_ID_BLOCKED) {
+      return 0;
+    }
     return -1;
   }
 
