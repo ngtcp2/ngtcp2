@@ -137,6 +137,8 @@ std::string strframetype(uint8_t type) {
     return "STREAM_ID_NEEDED";
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     return "NEW_CONNECTION_ID";
+  case NGTCP2_FRAME_STOP_SENDING:
+    return "STOP_SENDING";
   case NGTCP2_FRAME_ACK:
     return "ACK";
   case NGTCP2_FRAME_STREAM:
@@ -281,6 +283,11 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     print_indent();
     fprintf(outfile, "seq=%u conn_id=%016" PRIx64 "\n",
             fr->new_connection_id.seq, fr->new_connection_id.conn_id);
+    break;
+  case NGTCP2_FRAME_STOP_SENDING:
+    print_indent();
+    fprintf(outfile, "stream_id=%08x error_code=%08x\n",
+            fr->stop_sending.stream_id, fr->stop_sending.error_code);
     break;
   }
 }

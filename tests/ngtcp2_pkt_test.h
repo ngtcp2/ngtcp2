@@ -46,6 +46,7 @@ void test_ngtcp2_pkt_encode_blocked_frame(void);
 void test_ngtcp2_pkt_encode_stream_blocked_frame(void);
 void test_ngtcp2_pkt_encode_stream_id_needed_frame(void);
 void test_ngtcp2_pkt_encode_new_connection_id_frame(void);
+void test_ngtcp2_pkt_encode_stop_sending_frame(void);
 void test_ngtcp2_pkt_adjust_pkt_num(void);
 void test_ngtcp2_pkt_validate_ack(void);
 
