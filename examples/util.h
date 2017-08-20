@@ -43,6 +43,10 @@ std::string format_hex(uint8_t c);
 
 std::string format_hex(const uint8_t *s, size_t len);
 
+template <size_t N> std::string format_hex(const uint8_t (&s)[N]) {
+  return format_hex(s, N);
+}
+
 std::mt19937 make_mt19937();
 
 ngtcp2_tstamp timestamp();

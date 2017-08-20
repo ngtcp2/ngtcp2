@@ -281,8 +281,10 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     print_indent();
-    fprintf(outfile, "seq=%u conn_id=%016" PRIx64 "\n",
-            fr->new_connection_id.seq, fr->new_connection_id.conn_id);
+    fprintf(
+        outfile, "seq=%u conn_id=%016" PRIx64 " stateless_reset_token=%s\n",
+        fr->new_connection_id.seq, fr->new_connection_id.conn_id,
+        util::format_hex(fr->new_connection_id.stateless_reset_token).c_str());
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();

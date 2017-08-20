@@ -773,14 +773,15 @@ void test_ngtcp2_pkt_encode_stream_id_needed_frame(void) {
 }
 
 void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
-  uint8_t buf[16];
+  uint8_t buf[32];
   ngtcp2_new_connection_id fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 2 + 8;
+  size_t framelen = 1 + 2 + 8 + 16;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.seq = 0xf1f2;
   fr.conn_id = 0xf3f4f5f6f7f8f9fallu;
+  memset(fr.stateless_reset_token, 0xe1, sizeof(fr.stateless_reset_token));
 
   rv = ngtcp2_pkt_encode_new_connection_id_frame(buf, sizeof(buf), &fr);
 
@@ -792,6 +793,8 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   CU_ASSERT(fr.type == nfr.type);
   CU_ASSERT(fr.seq = nfr.seq);
   CU_ASSERT(fr.conn_id == nfr.conn_id);
+  CU_ASSERT(0 == memcmp(fr.stateless_reset_token, nfr.stateless_reset_token,
+                        sizeof(fr.stateless_reset_token)));
 }
 
 void test_ngtcp2_pkt_encode_stop_sending_frame(void) {

@@ -346,6 +346,7 @@ typedef struct {
   uint8_t type;
   uint16_t seq;
   uint64_t conn_id;
+  uint8_t stateless_reset_token[16];
 } ngtcp2_new_connection_id;
 
 typedef struct {
