@@ -163,7 +163,7 @@ void test_ngtcp2_encode_transport_params(void) {
     rv = ngtcp2_decode_transport_params(
         &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, i);
 
-    CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+    CU_ASSERT(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM == rv);
   }
 
   memset(&nparams, 0, sizeof(nparams));

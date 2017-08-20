@@ -183,6 +183,8 @@ typedef enum {
   NGTCP2_ERR_FINAL_OFFSET = -214,
   NGTCP2_ERR_TLS_HANDSHAKE = -215,
   NGTCP2_ERR_PKT_NUM_EXHAUSTED = -216,
+  NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM = -217,
+  NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM = -218,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -458,9 +460,10 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen, uint8_t exttype,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     The input is malformed; the input does not contain all required
- *     parameters.
+ * :enum:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM`
+ *     The required parameter is missing.
+ * :enum:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
+ *     The input is malformed.
  */
 NGTCP2_EXTERN int
 ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,

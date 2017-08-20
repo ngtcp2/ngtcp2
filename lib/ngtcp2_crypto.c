@@ -188,7 +188,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     if ((size_t)(end - p) < sizeof(uint32_t) * 2) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
     }
     params->v.ch.negotiated_version = ngtcp2_get_uint32(p);
     p += sizeof(uint32_t);
@@ -198,12 +198,12 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
     if (end - p < 1) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
     }
     supported_versionslen = *p++;
     if ((size_t)(end - p) < supported_versionslen ||
         supported_versionslen % sizeof(uint32_t)) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
     }
     params->v.ee.len = supported_versionslen / sizeof(uint32_t);
     for (i = 0; i < supported_versionslen;
@@ -219,11 +219,11 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   }
 
   if ((size_t)(end - p) < sizeof(uint16_t)) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
   }
 
   if (vlen + sizeof(uint16_t) + ngtcp2_get_uint16(p) != datalen) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
   }
   p += sizeof(uint16_t);
 
@@ -236,11 +236,11 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID:
       flags |= 1u << param_type;
       if (ngtcp2_get_uint16(p) != sizeof(uint32_t)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += sizeof(uint16_t);
       if ((size_t)(end - p) < sizeof(uint32_t)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       switch (param_type) {
       case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA:
@@ -258,11 +258,11 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     case NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT:
       flags |= 1u << NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT;
       if (ngtcp2_get_uint16(p) != sizeof(uint16_t)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += sizeof(uint16_t);
       if ((size_t)(end - p) < sizeof(uint16_t)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       params->idle_timeout = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
@@ -270,7 +270,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     case NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID:
       flags |= 1u << NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID;
       if (ngtcp2_get_uint16(p) != 0) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += sizeof(uint16_t);
       params->omit_connection_id = 1;
@@ -278,11 +278,11 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     case NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE:
       flags |= 1u << NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE;
       if (ngtcp2_get_uint16(p) != sizeof(uint16_t)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += sizeof(uint16_t);
       if ((size_t)(end - p) < sizeof(uint16_t)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       params->max_packet_size = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
@@ -290,11 +290,11 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     case NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN:
       flags |= 1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN;
       if (ngtcp2_get_uint16(p) != sizeof(params->stateless_reset_token)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += sizeof(uint16_t);
       if ((size_t)(end - p) < sizeof(params->stateless_reset_token)) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
 
       /* TODO draft-05 allows client to send stateless_reset_token.
@@ -314,7 +314,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       valuelen = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
       if ((size_t)(end - p) < valuelen) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += valuelen;
       break;
@@ -322,7 +322,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   }
 
   if (end - p != 0) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
   }
 
 #define NGTCP2_REQUIRED_TRANSPORT_PARAMS                                       \
@@ -333,14 +333,14 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
   if ((flags & NGTCP2_REQUIRED_TRANSPORT_PARAMS) !=
       NGTCP2_REQUIRED_TRANSPORT_PARAMS) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
   }
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
   case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     if (!(flags & (1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN))) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
     }
     break;
   }
