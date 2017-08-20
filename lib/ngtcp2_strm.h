@@ -94,8 +94,6 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
  * It returns 0 if it succeeds, or one of the following negative error
  * codes:
  *
- * NGTCP2_ERR_INTERNAL_ERROR
- *     There are too many buffered data
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */

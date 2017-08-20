@@ -186,6 +186,8 @@ struct ngtcp2_conn {
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
+ * NGTCP2_ERR_TLS_HANDSHAKE
+ *     TLS handshake failed, and TLS alert was sent.
  */
 int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm, uint64_t offset);
@@ -197,10 +199,10 @@ int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
  * It returns 0 if it succeeds, or one of the following negative error
  * codes:
  *
- * NGTCP2_ERR_INTERNAL_ERROR
- *     There are too many unacked packets
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_PROTO
+ *     Same packet number has already been added.
  */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
                           uint8_t acktr_flags, ngtcp2_tstamp ts);
@@ -226,13 +228,31 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Stream is not found.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint32_t error_code);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm| if no further
- * transmission and reception are allowed.
+ * transmission and reception are allowed, and all reordered incoming
+ * data are emitted to the application, and the transmitted data are
+ * acked.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Stream is not found.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
