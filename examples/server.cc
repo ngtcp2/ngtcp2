@@ -1449,8 +1449,8 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
   if (rv != 0) {
     std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
               << std::endl;
-    // TODO Just continue for now
-    return 1;
+    // TODO Set *al
+    return -1;
   }
 
   debug::print_indent();
