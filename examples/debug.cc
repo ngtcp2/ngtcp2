@@ -149,6 +149,42 @@ std::string strframetype(uint8_t type) {
 }
 } // namespace
 
+namespace {
+std::string strerrorcode(uint32_t error_code) {
+  switch (error_code) {
+  case NGTCP2_NO_ERROR:
+    return "NO_ERROR";
+  case NGTCP2_INTERNAL_ERROR:
+    return "INTERNAL_ERROR";
+  case NGTCP2_CANCELLED:
+    return "CANCELLED";
+  case NGTCP2_FLOW_CONTROL_ERROR:
+    return "FLOW_CONTROL_ERROR";
+  case NGTCP2_STREAM_ID_ERROR:
+    return "STREAM_ID_ERROR";
+  case NGTCP2_STREAM_STATE_ERROR:
+    return "STREAM_STATE_ERROR";
+  case NGTCP2_FINAL_OFFSET_ERROR:
+    return "FINAL_OFFSET_ERROR";
+  case NGTCP2_FRAME_FORMAT_ERROR:
+    return "FRAME_FORMAT_ERROR";
+  case NGTCP2_TRANSPORT_PARAMETER_ERROR:
+    return "TRANSPORT_PARAMETER_ERROR";
+  case NGTCP2_VERSION_NEGOTIATION_ERROR:
+    return "VERSION_NEGOTIATION_ERROR";
+  case NGTCP2_PROTOCOL_VIOLATION:
+    return "PROTOCOL_VIOLATION";
+  case NGTCP2_QUIC_RECEIVED_RST:
+    return "QUIC_RECEIVED_RST";
+  default:
+    if (0x80000100u <= error_code && error_code <= 0x800001ffu) {
+      return "FRAME_ERROR";
+    }
+    return "UNKNOWN";
+  }
+}
+} // namespace
+
 void print_timestamp() {
   auto t = timestamp().count();
   fprintf(outfile, "%st=%d.%06d%s ", ansi_esc("\033[33m"),
@@ -247,13 +283,15 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=%08x error_code=%08x final_offset=%" PRIu64 "\n",
-            fr->rst_stream.stream_id, fr->rst_stream.error_code,
-            fr->rst_stream.final_offset);
+            "stream_id=%08x error_code=%s(%08x) final_offset=%" PRIu64 "\n",
+            fr->rst_stream.stream_id,
+            strerrorcode(fr->rst_stream.error_code).c_str(),
+            fr->rst_stream.error_code, fr->rst_stream.final_offset);
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     print_indent();
-    fprintf(outfile, "error_code=%08x reason_length=%zu\n",
+    fprintf(outfile, "error_code=%s(%08x) reason_length=%zu\n",
+            strerrorcode(fr->connection_close.error_code).c_str(),
             fr->connection_close.error_code, fr->connection_close.reasonlen);
     break;
   case NGTCP2_FRAME_MAX_DATA:
@@ -288,8 +326,10 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();
-    fprintf(outfile, "stream_id=%08x error_code=%08x\n",
-            fr->stop_sending.stream_id, fr->stop_sending.error_code);
+    fprintf(outfile, "stream_id=%08x error_code=%s(%08x)\n",
+            fr->stop_sending.stream_id,
+            strerrorcode(fr->stop_sending.error_code).c_str(),
+            fr->stop_sending.error_code);
     break;
   }
 }
