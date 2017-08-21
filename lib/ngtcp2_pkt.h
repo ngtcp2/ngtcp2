@@ -57,7 +57,10 @@
 #define NGTCP2_ACK_LL_01_MASK 0x04
 #define NGTCP2_ACK_LL_02_MASK 0x08
 #define NGTCP2_ACK_LL_03_MASK 0x0c
+#define NGTCP2_ACK_MM_00_MASK 0x00
+#define NGTCP2_ACK_MM_01_MASK 0x01
 #define NGTCP2_ACK_MM_02_MASK 0x02
+#define NGTCP2_ACK_MM_03_MASK 0x03
 
 /* The length of FNV-1a message digest for Unprotected packet */
 #define NGTCP2_PKT_MDLEN 8
