@@ -208,7 +208,7 @@ void print_indent() { fprintf(outfile, "           "); }
 
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016" PRIx64 " PKN=%" PRIu64 " V=%08x\n",
+  fprintf(outfile, "%s%s%s CID=0x%016" PRIx64 " PKN=%" PRIu64 " V=0x%08x\n",
           pkt_ansi_esc(dir), strpkttype_long(hd->type).c_str(), ansi_escend(),
           hd->conn_id, hd->pkt_num, hd->version);
 }
@@ -216,7 +216,7 @@ void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=%016" PRIx64 " PKN=%" PRIu64 "\n",
+  fprintf(outfile, "%s%s%s CID=0x%016" PRIx64 " PKN=%" PRIu64 "\n",
           pkt_ansi_esc(dir), strpkttype_short(hd->type).c_str(), ansi_escend(),
           hd->conn_id, hd->pkt_num);
 }
@@ -241,7 +241,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=%08x fin=%u offset=%" PRIu64 " data_length=%zu\n",
+            "stream_id=0x%08x fin=%u offset=%" PRIu64 " data_length=%zu\n",
             fr->stream.stream_id, fr->stream.fin, fr->stream.offset,
             fr->stream.datalen);
     break;
@@ -283,14 +283,14 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=%08x error_code=%s(%08x) final_offset=%" PRIu64 "\n",
+            "stream_id=0x%08x error_code=%s(0x%08x) final_offset=%" PRIu64 "\n",
             fr->rst_stream.stream_id,
             strerrorcode(fr->rst_stream.error_code).c_str(),
             fr->rst_stream.error_code, fr->rst_stream.final_offset);
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     print_indent();
-    fprintf(outfile, "error_code=%s(%08x) reason_length=%zu\n",
+    fprintf(outfile, "error_code=%s(0x%08x) reason_length=%zu\n",
             strerrorcode(fr->connection_close.error_code).c_str(),
             fr->connection_close.error_code, fr->connection_close.reasonlen);
     break;
@@ -300,12 +300,12 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_MAX_STREAM_DATA:
     print_indent();
-    fprintf(outfile, "stream_id=%08x max_stream_data=%" PRIu64 "\n",
+    fprintf(outfile, "stream_id=0x%08x max_stream_data=%" PRIu64 "\n",
             fr->max_stream_data.stream_id, fr->max_stream_data.max_stream_data);
     break;
   case NGTCP2_FRAME_MAX_STREAM_ID:
     print_indent();
-    fprintf(outfile, "max_stream_id=%08x\n", fr->max_stream_id.max_stream_id);
+    fprintf(outfile, "max_stream_id=0x%08x\n", fr->max_stream_id.max_stream_id);
     break;
   case NGTCP2_FRAME_PING:
     break;
@@ -313,20 +313,20 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STREAM_BLOCKED:
     print_indent();
-    fprintf(outfile, "stream_id=%08x\n", fr->stream_blocked.stream_id);
+    fprintf(outfile, "stream_id=0x%08x\n", fr->stream_blocked.stream_id);
     break;
   case NGTCP2_FRAME_STREAM_ID_NEEDED:
     break;
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     print_indent();
     fprintf(
-        outfile, "seq=%u conn_id=%016" PRIx64 " stateless_reset_token=%s\n",
+        outfile, "seq=%u conn_id=0x%016" PRIx64 " stateless_reset_token=%s\n",
         fr->new_connection_id.seq, fr->new_connection_id.conn_id,
         util::format_hex(fr->new_connection_id.stateless_reset_token).c_str());
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();
-    fprintf(outfile, "stream_id=%08x error_code=%s(%08x)\n",
+    fprintf(outfile, "stream_id=0x%08x error_code=%s(0x%08x)\n",
             fr->stop_sending.stream_id,
             strerrorcode(fr->stop_sending.error_code).c_str(),
             fr->stop_sending.error_code);
@@ -373,7 +373,7 @@ int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                              const uint32_t *sv, size_t nsv, void *user_data) {
   for (size_t i = 0; i < nsv; ++i) {
     print_indent();
-    fprintf(outfile, "version=%08x\n", sv[i]);
+    fprintf(outfile, "version=0x%08x\n", sv[i]);
   }
   return 0;
 }
@@ -387,15 +387,16 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
   switch (type) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     print_indent();
-    fprintf(outfile, "; negotiated_version=%08x\n",
+    fprintf(outfile, "; negotiated_version=0x%08x\n",
             params->v.ch.negotiated_version);
     print_indent();
-    fprintf(outfile, "; initial_version=%08x\n", params->v.ch.initial_version);
+    fprintf(outfile, "; initial_version=0x%08x\n",
+            params->v.ch.initial_version);
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
     for (size_t i = 0; i < params->v.ee.len; ++i) {
       print_indent();
-      fprintf(outfile, "; supported_version[%zu]=%08x\n", i,
+      fprintf(outfile, "; supported_version[%zu]=0x%08x\n", i,
               params->v.ee.supported_versions[i]);
     }
     break;
@@ -429,7 +430,7 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
 void print_stream_data(uint32_t stream_id, const uint8_t *data,
                        size_t datalen) {
   print_indent();
-  fprintf(outfile, "ordered STREAM data stream_id=%08x\n", stream_id);
+  fprintf(outfile, "ordered STREAM data stream_id=0x%08x\n", stream_id);
   util::hexdump(outfile, data, datalen);
 }
 
