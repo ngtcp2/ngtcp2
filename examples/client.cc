@@ -184,8 +184,6 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   debug::print_timestamp();
   std::cerr << "Timeout" << std::endl;
 
-  c->handle_error(0);
-
   c->disconnect();
 }
 } // namespace
@@ -229,19 +227,30 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   rttimer_.data = this;
 }
 
-Client::~Client() { disconnect(); }
+Client::~Client() { disconnect(); close(); }
 
 void Client::disconnect() {
+  disconnect(0);
+}
+
+void Client::disconnect(int liberr) {
+  if (!conn_ || ngtcp2_conn_closed(conn_)) {
+    return;
+  }
+
+  config.tx_loss_prob = 0;
+
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
 
   ev_io_stop(loop_, &stdinrev_);
   ev_io_stop(loop_, &rev_);
-  ev_io_stop(loop_, &wev_);
 
-  // Call ev_break to stop event loop.  This is strange, but it is OK
-  // because we have 1 client only.
-  ev_break(loop_, EVBREAK_ALL);
+  handle_error(liberr);
+}
+
+void Client::close() {
+  ev_io_stop(loop_, &wev_);
 
   if (conn_) {
     ngtcp2_conn_del(conn_);
@@ -254,7 +263,7 @@ void Client::disconnect() {
   }
 
   if (fd_ != -1) {
-    close(fd_);
+    ::close(fd_);
     fd_ = -1;
   }
 }
@@ -503,7 +512,7 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
-    handle_error(rv);
+    disconnect(rv);
     return -1;
   }
   if (ngtcp2_conn_closed(conn_)) {
@@ -578,7 +587,7 @@ int Client::on_write() {
     }
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
-      handle_error(n);
+      disconnect(n);
       return -1;
     }
     if (n == 0) {
@@ -620,7 +629,7 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
-      handle_error(n);
+      disconnect(n);
       return -1;
     }
 
@@ -1090,6 +1099,14 @@ int run(Client &c, const char *addr, const char *port) {
 } // namespace
 
 namespace {
+void close(Client &c) {
+  c.disconnect();
+
+  c.close();
+}
+} // namespace
+
+namespace {
 void print_usage() {
   std::cerr << "Usage: client [OPTIONS] <ADDR> <PORT>" << std::endl;
 }
@@ -1206,4 +1223,8 @@ int main(int argc, char **argv) {
   if (run(c, addr, port) != 0) {
     exit(EXIT_FAILURE);
   }
+
+  close(c);
+
+  return EXIT_SUCCESS;
 }

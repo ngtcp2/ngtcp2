@@ -2978,7 +2978,6 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
 
   switch (conn->state) {
   case NGTCP2_CS_POST_HANDSHAKE:
-  case NGTCP2_CS_CLOSE_WAIT:
     fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
     fr.connection_close.error_code = error_code;
     fr.connection_close.reasonlen = 0;
@@ -2988,7 +2987,6 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
     if (nwrite > 0) {
       conn->state = NGTCP2_CS_CLOSE_WAIT;
     }
-
     break;
   default:
     return NGTCP2_ERR_INVALID_STATE;
