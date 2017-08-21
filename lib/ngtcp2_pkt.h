@@ -566,7 +566,7 @@ void ngtcp2_pkt_adjust_ack_pkt_num(ngtcp2_ack *ack, uint64_t max_pkt_num);
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_BAD_ACK
+ * NGTCP2_ERR_ACK_FRAME
  *     ACK frame is malformed
  */
 int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);

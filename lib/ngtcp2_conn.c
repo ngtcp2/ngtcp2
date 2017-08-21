@@ -1665,7 +1665,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_BAD_ACK
+ * NGTCP2_ERR_ACK_FRAME
  *     ACK frame is malformed.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
@@ -1758,7 +1758,7 @@ static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
  *     User-defined callback function failed.
  * NGTCP2_ERR_PROTO
  *     Generic QUIC protocol error.
- * NGTCP2_ERR_BAD_ACK
+ * NGTCP2_ERR_ACK_FRAME
  *     ACK frame is malformed.
  * NGTCP2_ERR_TLS_HANDSHAKE
  *     TLS handshake failed, and TLS alert was sent.

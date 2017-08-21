@@ -957,7 +957,7 @@ void test_ngtcp2_pkt_validate_ack(void) {
 
   rv = ngtcp2_pkt_validate_ack(&fr);
 
-  CU_ASSERT(NGTCP2_ERR_BAD_ACK == rv);
+  CU_ASSERT(NGTCP2_ERR_ACK_FRAME == rv);
 
   /* gap is too large */
   fr.largest_ack = 250;
@@ -968,7 +968,7 @@ void test_ngtcp2_pkt_validate_ack(void) {
 
   rv = ngtcp2_pkt_validate_ack(&fr);
 
-  CU_ASSERT(NGTCP2_ERR_BAD_ACK == rv);
+  CU_ASSERT(NGTCP2_ERR_ACK_FRAME == rv);
 
   /* too large blklen */
   fr.largest_ack = 250;
@@ -979,5 +979,5 @@ void test_ngtcp2_pkt_validate_ack(void) {
 
   rv = ngtcp2_pkt_validate_ack(&fr);
 
-  CU_ASSERT(NGTCP2_ERR_BAD_ACK == rv);
+  CU_ASSERT(NGTCP2_ERR_ACK_FRAME == rv);
 }

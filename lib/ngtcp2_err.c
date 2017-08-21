@@ -40,8 +40,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_PROTO";
   case NGTCP2_ERR_INVALID_STATE:
     return "ERR_INVALID_STATE";
-  case NGTCP2_ERR_BAD_ACK:
-    return "ERR_BAD_ACK";
+  case NGTCP2_ERR_ACK_FRAME:
+    return "ERR_ACK_FRAME";
   case NGTCP2_ERR_STREAM_ID_BLOCKED:
     return "ERR_STREAM_ID_BLOCKED";
   case NGTCP2_ERR_STREAM_IN_USE:
