@@ -144,7 +144,7 @@ std::string strframetype(uint8_t type) {
   case NGTCP2_FRAME_STREAM:
     return "STREAM";
   default:
-    return "UNKNOWN (0x" + util::format_hex(type) + ")";
+    return "UNKNOWN";
   }
 }
 } // namespace
@@ -235,8 +235,23 @@ void print_pkt(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 
 namespace {
 void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
-  fprintf(outfile, "%s%s%s\n", frame_ansi_esc(dir),
+  fprintf(outfile, "%s%s%s", frame_ansi_esc(dir),
           strframetype(fr->type).c_str(), ansi_escend());
+  switch (fr->type) {
+  case NGTCP2_FRAME_STREAM:
+    fprintf(outfile, "(0x%02x) F=0x%02x SS=0x%02x OO=0x%02x D=0x%02x\n",
+            fr->type | fr->stream.flags, (fr->stream.flags >> 5) & 0x1,
+            (fr->stream.flags >> 3) & 0x3, (fr->stream.flags >> 1) & 0x3,
+            fr->stream.flags & 0x1);
+    break;
+  case NGTCP2_FRAME_ACK:
+    fprintf(outfile, "(0x%02x) N=0x%02x LL=0x%02x MM=0x%02x\n",
+            fr->type | fr->ack.flags, (fr->ack.flags >> 4) & 0x1,
+            (fr->ack.flags >> 2) & 0x3, fr->ack.flags & 0x3);
+    break;
+  default:
+    fprintf(outfile, "(0x%02x)\n", fr->type);
+  }
 
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:

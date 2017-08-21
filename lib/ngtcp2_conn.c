@@ -1189,8 +1189,7 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
  */
 static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
                                 int *psend_pkt_cb_called,
-                                const ngtcp2_pkt_hd *hd,
-                                const ngtcp2_frame *fr) {
+                                const ngtcp2_pkt_hd *hd, ngtcp2_frame *fr) {
   int rv;
 
   rv = ngtcp2_ppe_encode_frame(ppe, fr);
@@ -1415,8 +1414,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  *     Buffer is too small.
  */
 static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen,
-                                           const ngtcp2_frame *fr) {
+                                           size_t destlen, ngtcp2_frame *fr) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;

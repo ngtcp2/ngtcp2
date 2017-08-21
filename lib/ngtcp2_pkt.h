@@ -352,6 +352,9 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
+ * This function assigns <the serialized frame type> &
+ * ~NGTCP2_FRAME_STREAM to fr->flags.
+ *
  * This function returns the number of bytes written if it succeeds,
  * or one of the following negative error codes:
  *
@@ -359,14 +362,14 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
  *     Buffer does not have enough capacity to write a frame.
  */
 ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
-                                       const ngtcp2_stream *fr);
+                                       ngtcp2_stream *fr);
 
 /*
  * ngtcp2_pkt_encode_ack_frame encodes ACK frame |fr| into the buffer
  * pointed by |out| of length |outlen|.
  *
- * Currently, this function only encodes Largest Acknowledged and ACK
- * delay.
+ * This function assigns <the serialized frame type> &
+ * ~NGTCP2_FRAME_ACK to fr->flags.
  *
  * This function returns the number of bytes written if it succeeds,
  * or one of the following negative error codes:
@@ -375,7 +378,7 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write a frame.
  */
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
-                                    const ngtcp2_ack *fr);
+                                    ngtcp2_ack *fr);
 
 /*
  * ngtcp2_pkt_encode_padding_frame encodes PADDING frame |fr| into the

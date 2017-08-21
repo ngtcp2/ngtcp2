@@ -55,7 +55,7 @@ int ngtcp2_upe_encode_hd(ngtcp2_upe *upe, const ngtcp2_pkt_hd *hd) {
   return 0;
 }
 
-int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, const ngtcp2_frame *fr) {
+int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, ngtcp2_frame *fr) {
   ssize_t rv;
   ngtcp2_buf *buf = &upe->buf;
 

@@ -68,7 +68,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
   return 0;
 }
 
-int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, const ngtcp2_frame *fr) {
+int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr) {
   ssize_t rv;
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_ctx *ctx = ppe->ctx;

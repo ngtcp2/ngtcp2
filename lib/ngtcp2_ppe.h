@@ -76,7 +76,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd);
  * NGTCP2_ERR_NOBUF
  *     The buffer is too small.
  */
-int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, const ngtcp2_frame *fr);
+int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr);
 
 /*
  * ngtcp2_ppe_final encrypts QUIC packet payload.  If |**ppkt| is not
