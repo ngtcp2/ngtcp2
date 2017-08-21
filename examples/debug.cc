@@ -92,7 +92,7 @@ std::string strpkttype_long(uint8_t type) {
   case NGTCP2_PKT_PUBLIC_RESET:
     return "Public Reset";
   default:
-    return "UNKNOWN (0x" + util::format_hex(type) + ")";
+    return "UNKNOWN";
   }
 }
 } // namespace
@@ -107,7 +107,7 @@ std::string strpkttype_short(uint8_t type) {
   case NGTCP2_PKT_03:
     return "Short 03";
   default:
-    return "UNKNOWN (0x" + util::format_hex(type) + ")";
+    return "UNKNOWN";
   }
 }
 } // namespace
@@ -208,17 +208,18 @@ void print_indent() { fprintf(outfile, "           "); }
 
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=0x%016" PRIx64 " PKN=%" PRIu64 " V=0x%08x\n",
+  fprintf(outfile,
+          "%s%s%s(0x%02x) CID=0x%016" PRIx64 " PKN=%" PRIu64 " V=0x%08x\n",
           pkt_ansi_esc(dir), strpkttype_long(hd->type).c_str(), ansi_escend(),
-          hd->conn_id, hd->pkt_num, hd->version);
+          hd->type, hd->conn_id, hd->pkt_num, hd->version);
 }
 } // namespace
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s CID=0x%016" PRIx64 " PKN=%" PRIu64 "\n",
+  fprintf(outfile, "%s%s%s(0x%02x) CID=0x%016" PRIx64 " PKN=%" PRIu64 "\n",
           pkt_ansi_esc(dir), strpkttype_short(hd->type).c_str(), ansi_escend(),
-          hd->conn_id, hd->pkt_num);
+          hd->type, hd->conn_id, hd->pkt_num);
 }
 } // namespace
 
