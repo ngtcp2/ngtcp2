@@ -1664,16 +1664,16 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
  * conn_recv_ack processes received ACK frame |fr|.  |unprotected| is
  * nonzero if |fr| is received in an unprotected packet.
  *
- * This function returns the number of packets acked by |fr| if it
- * succeeds, or one of the following negative error codes:
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
  *
  * NGTCP2_ERR_BAD_ACK
  *     ACK frame is malformed.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */
-static ssize_t conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
-                             uint8_t unprotected) {
+static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
+                         uint8_t unprotected) {
   int rv;
   rv = ngtcp2_pkt_validate_ack(fr);
   if (rv != 0) {
@@ -1774,7 +1774,6 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   int require_ack = 0;
   uint64_t rx_offset;
   int handshake_failed = 0;
-  ssize_t nacked;
   uint8_t acktr_flags = 0;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
@@ -1859,12 +1858,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
       /* TODO Assume that all packets here are unprotected */
-      nacked = conn_recv_ack(conn, &fr.ack, 1);
-      if (nacked < 0) {
-        return (int)nacked;
-      }
-      if (nacked) {
-        acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
+      rv = conn_recv_ack(conn, &fr.ack, 1);
+      if (rv != 0) {
+        return rv;
       }
       continue;
     }
@@ -1930,15 +1926,13 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
-  if (require_ack) {
-    acktr_flags &= (uint8_t)(~NGTCP2_ACKTR_FLAG_PASSIVE);
+  if (!require_ack) {
+    acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
   }
 
-  if (require_ack || (acktr_flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
-    rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
-    if (rv != 0) {
-      return rv;
-    }
+  rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
+  if (rv != 0) {
+    return rv;
   }
 
   return handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : 0;
@@ -2311,7 +2305,6 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   int require_ack = 0;
   uint8_t unprotected;
   uint8_t acktr_flags = 0;
-  ssize_t nacked;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -2408,12 +2401,9 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
 
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
-      nacked = conn_recv_ack(conn, &fr.ack, unprotected);
-      if (nacked < 0) {
-        return (int)nacked;
-      }
-      if (nacked) {
-        acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
+      rv = conn_recv_ack(conn, &fr.ack, unprotected);
+      if (rv != 0) {
+        return rv;
       }
       break;
     case NGTCP2_FRAME_STREAM:
@@ -2442,15 +2432,13 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
-  if (require_ack) {
-    acktr_flags &= (uint8_t)(~NGTCP2_ACKTR_FLAG_PASSIVE);
+  if (!require_ack) {
+    acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
   }
 
-  if (require_ack || (acktr_flags & NGTCP2_ACKTR_FLAG_PASSIVE)) {
-    rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
-    if (rv != 0) {
-      return rv;
-    }
+  rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
+  if (rv != 0) {
+    return rv;
   }
 
   return rv;

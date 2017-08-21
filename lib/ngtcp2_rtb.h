@@ -175,13 +175,13 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
  *
- * This function returns the number of packets it acked if it
- * succeeds, or one of the following negative error codes:
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
  */
-ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                            uint8_t unprotected, ngtcp2_conn *conn);
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
+                        uint8_t unprotected, ngtcp2_conn *conn);
 
 #endif /* NGTCP2_RTB_H */
