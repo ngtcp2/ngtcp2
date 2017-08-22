@@ -74,6 +74,8 @@ public:
 
   int init(int fd, const Address &remote_addr, const char *addr, int stdinfd);
   void disconnect();
+  void disconnect(int liberr);
+  void close();
 
   int tls_handshake();
   int on_read();

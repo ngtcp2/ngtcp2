@@ -1187,12 +1187,32 @@ Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   rev_.data = this;
 }
 
-Server::~Server() {
+Server::~Server() { disconnect(); close(); }
+
+void Server::disconnect() {
+  disconnect(0);
+}
+
+void Server::disconnect(int liberr) {
+  config.tx_loss_prob = 0;
+
   ev_io_stop(loop_, &rev_);
+
+  while (!handlers_.empty()) {
+    Handler *h = std::begin(handlers_)->second.get();
+
+    h->handle_error(0);
+
+    remove(h);
+  }
+}
+
+void Server::close() {
   ev_io_stop(loop_, &wev_);
 
   if (fd_ != -1) {
-    close(fd_);
+    ::close(fd_);
+    fd_ = -1;
   }
 }
 
@@ -1607,6 +1627,14 @@ int serve(Server &s, const char *addr, const char *port) {
 } // namespace
 
 namespace {
+void close(Server &s) {
+  s.disconnect();
+
+  s.close();
+}
+}
+
+namespace {
 void print_usage() {
   std::cerr << "Usage: server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> "
                "<CERTIFICATE_FILE>"
@@ -1758,4 +1786,8 @@ int main(int argc, char **argv) {
   if (serve(s, addr, port) != 0) {
     exit(EXIT_FAILURE);
   }
+
+  close(s);
+
+  return EXIT_SUCCESS;
 }

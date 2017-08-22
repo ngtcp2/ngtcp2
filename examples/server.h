@@ -126,6 +126,7 @@ public:
   ~Handler();
 
   int init(int fd, const sockaddr *sa, socklen_t salen);
+
   int tls_handshake();
   int on_read(uint8_t *data, size_t datalen);
   int on_write();
@@ -192,6 +193,10 @@ public:
   ~Server();
 
   int init(int fd);
+  void disconnect();
+  void disconnect(int liberr);
+  void close();
+
   int on_read();
   int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                                socklen_t salen);
