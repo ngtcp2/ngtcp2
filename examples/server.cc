@@ -1187,11 +1187,12 @@ Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   rev_.data = this;
 }
 
-Server::~Server() { disconnect(); close(); }
-
-void Server::disconnect() {
-  disconnect(0);
+Server::~Server() {
+  disconnect();
+  close();
 }
+
+void Server::disconnect() { disconnect(0); }
 
 void Server::disconnect(int liberr) {
   config.tx_loss_prob = 0;

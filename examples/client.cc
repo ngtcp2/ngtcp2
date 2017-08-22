@@ -227,11 +227,12 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   rttimer_.data = this;
 }
 
-Client::~Client() { disconnect(); close(); }
-
-void Client::disconnect() {
-  disconnect(0);
+Client::~Client() {
+  disconnect();
+  close();
 }
+
+void Client::disconnect() { disconnect(0); }
 
 void Client::disconnect(int liberr) {
   if (!conn_ || ngtcp2_conn_closed(conn_)) {
