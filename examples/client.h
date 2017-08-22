@@ -115,6 +115,7 @@ private:
   ev_io stdinrev_;
   ev_timer timer_;
   ev_timer rttimer_;
+  ev_signal sigintev_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;

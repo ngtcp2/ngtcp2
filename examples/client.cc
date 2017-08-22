@@ -198,6 +198,12 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 }
 } // namespace
 
+namespace {
+void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
+  ev_break(loop, EVBREAK_ALL);
+}
+} // namespace
+
 Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
     : remote_addr_{},
       max_pktlen_(0),
@@ -225,6 +231,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
+  ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
 Client::~Client() {
@@ -235,10 +242,6 @@ Client::~Client() {
 void Client::disconnect() { disconnect(0); }
 
 void Client::disconnect(int liberr) {
-  if (!conn_ || ngtcp2_conn_closed(conn_)) {
-    return;
-  }
-
   config.tx_loss_prob = 0;
 
   ev_timer_stop(loop_, &rttimer_);
@@ -246,6 +249,8 @@ void Client::disconnect(int liberr) {
 
   ev_io_stop(loop_, &stdinrev_);
   ev_io_stop(loop_, &rev_);
+
+  ev_signal_stop(loop_, &sigintev_);
 
   handle_error(liberr);
 }
@@ -463,6 +468,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
 
   ev_io_start(loop_, &rev_);
   ev_timer_again(loop_, &timer_);
+
+  ev_signal_start(loop_, &sigintev_);
 
   return 0;
 }
@@ -849,6 +856,10 @@ int Client::stop_interactive_input() {
 }
 
 void Client::handle_error(int liberr) {
+  if (!conn_ || ngtcp2_conn_closed(conn_)) {
+    return;
+  }
+
   std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
 
   auto n = ngtcp2_conn_write_connection_close(conn_, buf.data(), max_pktlen_,
@@ -978,12 +989,6 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
   }
 
   return 1;
-}
-} // namespace
-
-namespace {
-void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
-  ev_break(EV_DEFAULT, EVBREAK_ALL);
 }
 } // namespace
 
@@ -1209,9 +1214,6 @@ int main(int argc, char **argv) {
   auto ssl_ctx_d = defer(SSL_CTX_free, ssl_ctx);
 
   auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);
-  ev_signal sigint_watcher;
-  ev_signal_init(&sigint_watcher, siginthandler, SIGINT);
-  ev_signal_start(EV_DEFAULT, &sigint_watcher);
 
   debug::reset_timestamp();
 
