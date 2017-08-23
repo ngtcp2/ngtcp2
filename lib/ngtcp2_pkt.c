@@ -263,7 +263,8 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
 
   switch (type) {
   case NGTCP2_FRAME_PADDING:
-    return ngtcp2_pkt_decode_padding_frame(&dest->padding, payload, payloadlen);
+    return (ssize_t)ngtcp2_pkt_decode_padding_frame(&dest->padding, payload,
+                                                    payloadlen);
   case NGTCP2_FRAME_RST_STREAM:
     return ngtcp2_pkt_decode_rst_stream_frame(&dest->rst_stream, payload,
                                               payloadlen);
@@ -280,15 +281,17 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     return ngtcp2_pkt_decode_max_stream_id_frame(&dest->max_stream_id, payload,
                                                  payloadlen);
   case NGTCP2_FRAME_PING:
-    return ngtcp2_pkt_decode_ping_frame(&dest->ping, payload, payloadlen);
+    return (ssize_t)ngtcp2_pkt_decode_ping_frame(&dest->ping, payload,
+                                                 payloadlen);
   case NGTCP2_FRAME_BLOCKED:
-    return ngtcp2_pkt_decode_blocked_frame(&dest->blocked, payload, payloadlen);
+    return (ssize_t)ngtcp2_pkt_decode_blocked_frame(&dest->blocked, payload,
+                                                    payloadlen);
   case NGTCP2_FRAME_STREAM_BLOCKED:
     return ngtcp2_pkt_decode_stream_blocked_frame(&dest->stream_blocked,
                                                   payload, payloadlen);
   case NGTCP2_FRAME_STREAM_ID_NEEDED:
-    return ngtcp2_pkt_decode_stream_id_needed_frame(&dest->stream_id_needed,
-                                                    payload, payloadlen);
+    return (ssize_t)ngtcp2_pkt_decode_stream_id_needed_frame(
+        &dest->stream_id_needed, payload, payloadlen);
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     return ngtcp2_pkt_decode_new_connection_id_frame(&dest->new_connection_id,
                                                      payload, payloadlen);
@@ -296,7 +299,7 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     return ngtcp2_pkt_decode_stop_sending_frame(&dest->stop_sending, payload,
                                                 payloadlen);
   default:
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 }
 
@@ -331,7 +334,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
     len += 2;
 
     if (payloadlen < len) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      return NGTCP2_ERR_FRAME_FORMAT;
     }
 
     datalen = ngtcp2_get_uint16(&payload[len - 2]);
@@ -339,7 +342,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   }
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   dest->type = NGTCP2_FRAME_STREAM;
@@ -412,7 +415,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 
   /* We can expect at least 4 bytes (type, NumTS, and ACK Delay(2)) */
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = &payload[0];
@@ -443,7 +446,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   }
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   dest->type = NGTCP2_FRAME_ACK;
@@ -523,14 +526,12 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   return (ssize_t)len;
 }
 
-ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
-                                        const uint8_t *payload,
-                                        size_t payloadlen) {
+size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
+                                       const uint8_t *payload,
+                                       size_t payloadlen) {
   const uint8_t *p, *ep;
 
-  if (payloadlen == 0) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
+  assert(payloadlen > 0);
 
   p = payload + 1;
   ep = payload + payloadlen;
@@ -541,7 +542,7 @@ ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
   dest->type = NGTCP2_FRAME_PADDING;
   dest->len = (size_t)(p - payload);
 
-  return p - payload;
+  return (size_t)(p - payload);
 }
 
 ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
@@ -551,7 +552,7 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;
@@ -577,14 +578,14 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   size_t reasonlen;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   reasonlen = ngtcp2_get_uint16(payload + 1 + 4);
   len += reasonlen;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;
@@ -613,7 +614,7 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;
@@ -634,7 +635,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;
@@ -657,7 +658,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;
@@ -671,8 +672,8 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
   return (ssize_t)len;
 }
 
-ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
-                                     size_t payloadlen) {
+size_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
+                                    size_t payloadlen) {
   (void)payload;
   (void)payloadlen;
   dest->type = NGTCP2_FRAME_PING;
@@ -680,9 +681,9 @@ ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
   return 1;
 }
 
-ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
-                                        const uint8_t *payload,
-                                        size_t payloadlen) {
+size_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
+                                       const uint8_t *payload,
+                                       size_t payloadlen) {
   (void)payload;
   (void)payloadlen;
   dest->type = NGTCP2_FRAME_BLOCKED;
@@ -697,7 +698,7 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;
@@ -711,9 +712,9 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
   return (ssize_t)len;
 }
 
-ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
-                                                 const uint8_t *payload,
-                                                 size_t payloadlen) {
+size_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
+                                                const uint8_t *payload,
+                                                size_t payloadlen) {
   (void)payload;
   (void)payloadlen;
   dest->type = NGTCP2_FRAME_STREAM_ID_NEEDED;
@@ -727,7 +728,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;
@@ -752,7 +753,7 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1;

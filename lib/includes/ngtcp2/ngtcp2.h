@@ -491,6 +491,18 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest,
                                            const uint8_t *pkt, size_t pktlen);
 
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_decode_frame` decodes a QUIC frame from the buffer
+ * pointed by |payload| whose length is |payloadlen|.
+ *
+ * This function returns the number of bytes read to decode a single
+ * frame if it succeeds, or one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_FRAME_FORMAT`
+ *     Frame is badly formatted; or frame type is unknown.
+ */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
                                               const uint8_t *payload,
                                               size_t payloadlen);

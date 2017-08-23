@@ -144,7 +144,7 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
  * number of bytes read to decode a frame if it succeeds, or one of
  * the following negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include STREAM frame.
  */
 ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
@@ -159,7 +159,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
  * number of bytes read to decode a frame if it succeeds, or one of
  * the following negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include ACK frame.
  */
 ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
@@ -172,15 +172,11 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
  * encounters the frame type which is not PADDING, or all input data
  * is read.  The first byte (payload[0]) must be NGTCP2_FRAME_PADDING.
  * This function returns the exact number of bytes read to decode
- * PADDING frames if it succeeds, or one of the following negative
- * error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Payload is too short to include PADDING frame.
+ * PADDING frames.
  */
-ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
-                                        const uint8_t *payload,
-                                        size_t payloadlen);
+size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
+                                       const uint8_t *payload,
+                                       size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_rst_stream_frame decodes RST_STREAM frame from
@@ -190,7 +186,7 @@ ssize_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
  * frame, and returns the exact number of bytes read to decode a frame
  * if it succeeds, or one of the following negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include RST_STREAM frame.
  */
 ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
@@ -206,7 +202,7 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
  * to decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include CONNECTION_CLOSE frame.
  */
 ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
@@ -221,7 +217,7 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
  * returns the exact number of bytes read to decode a frame if it
  * succeeds, or one of the following negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include MAX_DATA frame.
  */
 ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
@@ -237,7 +233,7 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
  * to decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include MAX_STREAM_DATA frame.
  */
 ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
@@ -253,7 +249,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
  * decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include MAX_STREAM_ID frame.
  */
 ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
@@ -265,29 +261,21 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
  * length |payloadlen|.  The result is stored in the object pointed by
  * |dest|.  PING frame must start at payload[0].  This function
  * finishes when it decodes one PING frame, and returns the exact
- * number of bytes read to decode a frame if it succeeds, or one of
- * the following negative error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Payload is too short to include PING frame.
+ * number of bytes read to decode a frame.
  */
-ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
-                                     size_t payloadlen);
+size_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
+                                    size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_blocked_frame decodes BLOCKED frame from
  * |payload| of length |payloadlen|.  The result is stored in the
  * object pointed by |dest|.  BLOCKED frame must start at payload[0].
  * This function finishes when it decodes one BLOCKED frame, and
- * returns the exact number of bytes read to decode a frame if it
- * succeeds, or one of the following negative error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Payload is too short to include BLOCKED frame.
+ * returns the exact number of bytes read to decode a frame.
  */
-ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
-                                        const uint8_t *payload,
-                                        size_t payloadlen);
+size_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
+                                       const uint8_t *payload,
+                                       size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_stream_blocked_frame decodes STREAM_BLOCKED frame
@@ -298,7 +286,7 @@ ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
  * decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include STREAM_BLOCKED frame.
  */
 ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
@@ -311,15 +299,11 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
  * in the object pointed by |dest|.  STREAM_ID_NEEDED frame must start
  * at payload[0].  This function finishes when it decodes one
  * STREAM_ID_NEEDED frame, and returns the exact number of bytes read
- * to decode a frame if it succeeds, or one of the following negative
- * error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Payload is too short to include STREAM_ID_NEEDED frame.
+ * to decode a frame.
  */
-ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
-                                                 const uint8_t *payload,
-                                                 size_t payloadlen);
+size_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
+                                                const uint8_t *payload,
+                                                size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_new_connection_id_frame decodes NEW_CONNECTION_ID
@@ -330,7 +314,7 @@ ssize_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
  * to decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include NEW_CONNECTION_ID frame.
  */
 ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
@@ -345,7 +329,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
  * decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
+ * NGTCP2_ERR_FRAME_FORMAT
  *     Payload is too short to include STOP_SENDING frame.
  */
 ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,

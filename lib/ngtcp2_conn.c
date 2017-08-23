@@ -1750,8 +1750,7 @@ static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  * NGTCP2_ERR_INVALID_ARGUMENT
- *     Packet is too short; or it is not a long header; or decoding
- *     frame failed.
+ *     Packet is too short; or it is not a long header.
  * NGTCP2_ERR_UNKNOWN_PKT_TYPE
  *     Packet type is unknown
  * NGTCP2_ERR_CALLBACK_FAILURE
