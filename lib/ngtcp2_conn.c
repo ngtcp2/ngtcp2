@@ -1872,6 +1872,10 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
 
+    if (fr.stream.fin) {
+      return NGTCP2_ERR_PROTO;
+    }
+
     rx_offset = ngtcp2_strm_rx_offset(conn->strm0);
     if (rx_offset >= fr.stream.offset + fr.stream.datalen) {
       continue;
@@ -2063,6 +2067,9 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
 
   /* TODO What to do if we get data for stream 0? */
   if (fr->stream_id == 0) {
+    if (fr->fin) {
+      return NGTCP2_ERR_PROTO;
+    }
     return 0;
   }
 
@@ -2219,9 +2226,8 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
   int local_stream = conn_local_stream(conn, fr->stream_id);
   uint64_t datalen;
 
-  /* TODO What to do when stream 0 is reset? */
   if (fr->stream_id == 0) {
-    return 0;
+    return NGTCP2_ERR_PROTO;
   }
 
   if (unprotected) {
