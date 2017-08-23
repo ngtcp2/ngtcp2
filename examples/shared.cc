@@ -31,6 +31,7 @@ uint32_t infer_quic_error_code(int liberr) {
   case 0:
     return NGTCP2_NO_ERROR;
   case NGTCP2_ERR_ACK_FRAME:
+  case NGTCP2_ERR_FRAME_FORMAT:
     return NGTCP2_FRAME_FORMAT_ERROR;
   case NGTCP2_ERR_FLOW_CONTROL:
     return NGTCP2_FLOW_CONTROL_ERROR;
