@@ -1773,6 +1773,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   uint64_t rx_offset;
   int handshake_failed = 0;
   uint8_t acktr_flags = 0;
+  uint64_t fr_end_offset;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
     return conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
@@ -1878,15 +1879,18 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
 
+    fr_end_offset = fr.stream.offset + fr.stream.datalen;
     rx_offset = ngtcp2_strm_rx_offset(conn->strm0);
-    if (rx_offset >= fr.stream.offset + fr.stream.datalen) {
+    if (rx_offset >= fr_end_offset) {
       continue;
     }
+
+    conn->strm0->last_rx_offset =
+        ngtcp2_max(conn->strm0->last_rx_offset, fr_end_offset);
 
     /* At the moment, we assume that MAX_STREAM_DATA for stream 0 is
        sufficient for handshake */
 
-    /* fr_end_offset = fr.stream.offset + fr.stream.datalen; */
     /* if (conn->strm0->max_rx_offset < fr_end_offset) { */
     /*   return NGTCP2_ERR_FLOW_CONTROL; */
     /* } */
@@ -1926,6 +1930,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
     }
+  }
+
+  if (hd.type == NGTCP2_PKT_CLIENT_INITIAL &&
+      conn->strm0->last_rx_offset == 0) {
+    return NGTCP2_ERR_PROTO;
   }
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
