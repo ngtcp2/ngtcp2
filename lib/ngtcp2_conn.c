@@ -1846,25 +1846,27 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
-    case NGTCP2_FRAME_PADDING:
-    case NGTCP2_FRAME_CONNECTION_CLOSE:
-      break;
-    default:
-      require_ack = 1;
-    }
-
-    switch (fr.type) {
-    case NGTCP2_FRAME_ACK:
+      if (hd.type == NGTCP2_PKT_CLIENT_INITIAL) {
+        return NGTCP2_ERR_PROTO;
+      }
       /* TODO Assume that all packets here are unprotected */
       rv = conn_recv_ack(conn, &fr.ack, 1);
       if (rv != 0) {
         return rv;
       }
       continue;
+    case NGTCP2_FRAME_PADDING:
+      continue;
+    case NGTCP2_FRAME_STREAM:
+      require_ack = 1;
+      break;
+    default:
+      return NGTCP2_ERR_PROTO;
     }
 
-    if (fr.type != NGTCP2_FRAME_STREAM || fr.stream.stream_id != 0 ||
-        fr.stream.datalen == 0) {
+    assert(fr.type == NGTCP2_FRAME_STREAM);
+
+    if (fr.stream.stream_id != 0 || fr.stream.datalen == 0) {
       continue;
     }
 
