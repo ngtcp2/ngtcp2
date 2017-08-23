@@ -1762,6 +1762,8 @@ static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
  *     ACK frame is malformed.
  * NGTCP2_ERR_TLS_HANDSHAKE
  *     TLS handshake failed, and TLS alert was sent.
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Frame is badly formatted.
  */
 static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts) {
@@ -1867,8 +1869,12 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     assert(fr.type == NGTCP2_FRAME_STREAM);
 
-    if (fr.stream.stream_id != 0 || fr.stream.datalen == 0) {
+    if (fr.stream.stream_id != 0) {
       continue;
+    }
+
+    if (fr.stream.datalen == 0) {
+      return NGTCP2_ERR_FRAME_FORMAT;
     }
 
     if (hd.type == NGTCP2_PKT_CLIENT_INITIAL && fr.stream.offset != 0) {
@@ -2086,6 +2092,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
 
   if (unprotected) {
     return NGTCP2_ERR_PROTO;
+  }
+
+  if (!fr->fin && fr->datalen == 0) {
+    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   local_stream = conn_local_stream(conn, fr->stream_id);
