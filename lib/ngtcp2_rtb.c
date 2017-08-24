@@ -257,13 +257,12 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   largest_ack = min_ack;
 
   for (i = 0; i < fr->num_blks && *pent;) {
+    largest_ack -= (uint64_t)fr->blks[i].gap + 1;
     if (fr->blks[i].blklen == 0) {
-      largest_ack -= (uint64_t)fr->blks[i].gap + 1;
       ++i;
       continue;
     }
 
-    largest_ack -= (uint64_t)fr->blks[i].gap + 1;
     min_ack = largest_ack - (fr->blks[i].blklen - 1);
 
     for (; *pent;) {
