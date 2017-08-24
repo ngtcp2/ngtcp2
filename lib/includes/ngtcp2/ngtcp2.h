@@ -671,18 +671,74 @@ typedef int (*ngtcp2_recv_handshake_data)(ngtcp2_conn *conn,
                                           const uint8_t *data, size_t datalen,
                                           void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_send_pkt` is invoked when outgoing packet header |hd|
+ * is being encoded.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
 typedef int (*ngtcp2_send_pkt)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                                void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_send_frame` is invoked when outgoing frame |fr| is
+ * being encoded.  The packet header is the object pointed by |hd|.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
 typedef int (*ngtcp2_send_frame)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                                  const ngtcp2_frame *fr, void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_revc_pkt` is invoked when incoming packet header |hd|
+ * is successfully decoded.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
 typedef int (*ngtcp2_recv_pkt)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                                void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_frame` is invoked when incoming frame |fr| is
+ * successfully decoded.  The packet header is the object pointed by
+ * |hd|.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
 typedef int (*ngtcp2_recv_frame)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                                  const ngtcp2_frame *fr, void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_handshake_completed` is invoked when QUIC
+ * cryptographic handshake has completed.
+ *
+ * Application should prepare cryptographic context (e.g., exporting
+ * keys from TLS backend, and deriving packet protection key, and iv,
+ * etc).  See also `ngtcp2_conn_set_aead_overhead`,
+ * `ngtcp2_conn_update_tx_keys`, and `ngtcp2_conn_update_rx_keys`.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
 typedef int (*ngtcp2_handshake_completed)(ngtcp2_conn *conn, void *user_data);
 
 typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
@@ -713,6 +769,8 @@ typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t stream_id,
                                    uint32_t error_code, void *user_data,
                                    void *stream_user_data);
 /*
+ * @functypedef
+ *
  * :type:`ngtcp2_acked_stream_data_offset` is a callback function
  * which is called when stream data is acked, and application can free
  * the data.  The acked range of data is [offset, offset + datalen).
