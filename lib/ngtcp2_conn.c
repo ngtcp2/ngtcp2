@@ -2332,11 +2332,18 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
+    if (nread < 0) {
+      return (int)nread;
+    }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen);
-  }
-  if (nread < 0) {
-    return (int)nread;
+    if (nread < 0) {
+      return (int)nread;
+    }
+    if (!conn->local_settings.omit_connection_id &&
+        !(hd.flags & NGTCP2_PKT_FLAG_CONN_ID)) {
+      return NGTCP2_ERR_PROTO;
+    }
   }
 
   pkt += nread;

@@ -800,3 +800,43 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_recv_conn_id_omitted(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[2048];
+  ngtcp2_frame fr;
+  size_t pktlen;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 100;
+  fr.stream.data = null_data;
+
+  /* Receiving packet which has no connection ID while local_settings
+     does not allow it. */
+  setup_default_server(&conn);
+
+  pktlen =
+      write_single_frame_pkt_without_conn_id(conn, buf, sizeof(buf), 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Allow omission of connection ID */
+  setup_default_server(&conn);
+  conn->local_settings.omit_connection_id = 1;
+
+  pktlen =
+      write_single_frame_pkt_without_conn_id(conn, buf, sizeof(buf), 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+}

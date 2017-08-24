@@ -134,7 +134,9 @@ int main() {
       !CU_add_test(pSuite, "conn_reset_stream",
                    test_ngtcp2_conn_reset_stream) ||
       !CU_add_test(pSuite, "conn_recv_rst_stream",
-                   test_ngtcp2_conn_recv_rst_stream)) {
+                   test_ngtcp2_conn_recv_rst_stream) ||
+      !CU_add_test(pSuite, "conn_recv_conn_id_omitted",
+                   test_ngtcp2_conn_recv_conn_id_omitted)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

@@ -78,4 +78,14 @@ size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
                               uint64_t conn_id, uint64_t pkt_num,
                               ngtcp2_frame *fr);
 
+/*
+ * write_single_frame_pkt_without_conn_id writes a QUIC packet
+ * containing single frame |fr| in |out| whose capacity is |outlen|.
+ * Connection ID is omitted.  This function returns the number of
+ * bytes written.
+ */
+size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
+                                              size_t outlen, uint64_t pkt_num,
+                                              ngtcp2_frame *fr);
+
 #endif /* NGTCP2_TEST_HELPER_H */
