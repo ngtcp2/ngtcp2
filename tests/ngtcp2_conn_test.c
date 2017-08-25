@@ -29,6 +29,7 @@
 #include "ngtcp2_conn.h"
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
+#include "ngtcp2_pkt.h"
 
 static ssize_t null_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                             const uint8_t *plaintext, size_t plaintextlen,
@@ -837,6 +838,122 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_short_pkt_type(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ssize_t spktlen;
+
+  /* 1 octet pkt num */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_01 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+
+  /* 2 octet pkt num */
+  setup_default_client(&conn);
+  conn->rtb.largest_acked = 0x6afa2f;
+  conn->last_tx_pkt_num = 0x6b4263;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_02 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+
+  /* 3 octet pkt num */
+  setup_default_client(&conn);
+  conn->rtb.largest_acked = 0x6afa2f;
+  conn->last_tx_pkt_num = 0x6bc106;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_03 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+
+  /* 1 octet pkt num (largest)*/
+  setup_default_client(&conn);
+  conn->rtb.largest_acked = 1;
+  conn->last_tx_pkt_num = 127;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_01 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+
+  /* 2 octet pkt num (shortest)*/
+  setup_default_client(&conn);
+  conn->rtb.largest_acked = 1;
+  conn->last_tx_pkt_num = 128;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_02 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+
+  /* 2 octet pkt num (largest)*/
+  setup_default_client(&conn);
+  conn->rtb.largest_acked = 1;
+  conn->last_tx_pkt_num = 32767;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_02 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+
+  /* 3 octet pkt num (shortest)*/
+  setup_default_client(&conn);
+  conn->rtb.largest_acked = 1;
+  conn->last_tx_pkt_num = 32768;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_03 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+
+  /* Overflow */
+  setup_default_client(&conn);
+  conn->rtb.largest_acked = 1;
+  conn->last_tx_pkt_num = 0x8000000000000000llu;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 19, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_PKT_03 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
 
   ngtcp2_conn_del(conn);
 }

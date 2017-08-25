@@ -135,6 +135,9 @@ typedef struct {
   ngtcp2_mem *mem;
   /* bytes_in_flight is the sum of packet length linked from head. */
   size_t bytes_in_flight;
+  /* largest_acked is the largest packet number acknowledged by the
+     peer. */
+  uint64_t largest_acked;
 } ngtcp2_rtb;
 
 /*

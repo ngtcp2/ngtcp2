@@ -540,6 +540,27 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
+ * conn_select_pkt_type selects shorted short packet type based on the
+ * next packet number |pkt_num|.
+ */
+static uint8_t conn_select_pkt_type(ngtcp2_conn *conn, uint64_t pkt_num) {
+  uint64_t n = pkt_num - conn->rtb.largest_acked;
+  if (UINT64_MAX / 2 <= pkt_num) {
+    return NGTCP2_PKT_03;
+  }
+
+  n = n * 2 + 1;
+
+  if (n > 0xffff) {
+    return NGTCP2_PKT_03;
+  }
+  if (n > 0xff) {
+    return NGTCP2_PKT_02;
+  }
+  return NGTCP2_PKT_01;
+}
+
+/*
  * conn_retransmit_protected writes QUIC packet in the buffer pointed
  * by |dest| whose length is |destlen| to retransmit lost protected
  * packet.
@@ -574,6 +595,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   hd.version = conn->version;
   hd.conn_id = conn->conn_id;
   hd.pkt_num = conn->last_tx_pkt_num + 1;
+  hd.type = conn_select_pkt_type(conn, hd.pkt_num);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -1151,6 +1173,7 @@ static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
 
   if (initial) {
     conn->last_tx_pkt_num = pkt_num - 1;
+    conn->rtb.largest_acked = conn->last_tx_pkt_num;
   }
 
   return conn_write_handshake_pkt(conn, dest, destlen,
@@ -1287,8 +1310,9 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     return 0;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
-                     conn->last_tx_pkt_num + 1, conn->version);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID,
+                     conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
+                     conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -1421,8 +1445,9 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
-                     conn->last_tx_pkt_num + 1, conn->version);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID,
+                     conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
+                     conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -2896,8 +2921,9 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn->conn_id,
-                     conn->last_tx_pkt_num + 1, conn->version);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID,
+                     conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
+                     conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
