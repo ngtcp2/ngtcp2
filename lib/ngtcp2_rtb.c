@@ -94,6 +94,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
 
   rtb->head = NULL;
   rtb->mem = mem;
+  rtb->bytes_in_flight = 0;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
