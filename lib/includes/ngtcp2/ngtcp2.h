@@ -526,6 +526,30 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
                                               ngtcp2_frame *fr);
 
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_write_stateless_reset` writes Stateless Reset packet in
+ * the buffer pointed by |dest| whose length is |destlen|.  |flags| is
+ * bitwise OR of zero or more of ngtcp2_pkt_flag.
+ * |stateless_reset_token| is a pointer to the Stateless Reset Token,
+ * and its length must be :macro:`NGTCP2_STATELESS_RESET_TOKENLEN`
+ * bytes long.  |rand| specifies the random octets following Stateless
+ * Reset Token.  The length of |rand| is specified by |randlen|.
+ *
+ * If |randlen| is too long to write them all in the buffer, |rand| is
+ * written to the buffer as much as possible, and is truncated.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
+    uint8_t *dest, size_t destlen, uint8_t flags, uint64_t conn_id,
+    uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
+
 /* Unprotected Packet Encoder: upe */
 struct ngtcp2_upe;
 typedef struct ngtcp2_upe ngtcp2_upe;

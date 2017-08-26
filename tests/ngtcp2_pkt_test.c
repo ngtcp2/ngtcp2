@@ -30,6 +30,7 @@
 
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_test_helper.h"
+#include "ngtcp2_conv.h"
 
 void test_ngtcp2_pkt_decode_hd_long(void) {
   ngtcp2_pkt_hd hd, nhd;
@@ -980,4 +981,71 @@ void test_ngtcp2_pkt_validate_ack(void) {
   rv = ngtcp2_pkt_validate_ack(&fr);
 
   CU_ASSERT(NGTCP2_ERR_ACK_FRAME == rv);
+}
+
+void test_ngtcp2_pkt_write_stateless_reset(void) {
+  uint8_t buf[256];
+  ssize_t spktlen;
+  uint64_t conn_id;
+  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t rand[256];
+  size_t i;
+  uint8_t *p;
+
+  memset(rand, 0, sizeof(rand));
+  conn_id = 0xf1f2f3f4f5f6f7f8llu;
+  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
+    token[i] = (uint8_t)(i + 1);
+  }
+
+  /* With connection ID */
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), NGTCP2_PKT_FLAG_CONN_ID | NGTCP2_PKT_FLAG_KEY_PHASE,
+      conn_id, token, rand, sizeof(rand));
+
+  p = buf;
+
+  CU_ASSERT(256 == spktlen);
+  CU_ASSERT((NGTCP2_CONN_ID_BIT | NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_01) ==
+            *p);
+
+  ++p;
+
+  CU_ASSERT(conn_id == ngtcp2_get_uint64(p));
+
+  p += 8;
+
+  CU_ASSERT(0 == memcmp(token, p, NGTCP2_STATELESS_RESET_TOKENLEN));
+
+  p += NGTCP2_STATELESS_RESET_TOKENLEN;
+
+  CU_ASSERT(0 == memcmp(rand, p, (size_t)(spktlen - (p - buf))));
+
+  /* Without connection ID */
+  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf),
+                                             NGTCP2_PKT_FLAG_KEY_PHASE, conn_id,
+                                             token, rand, sizeof(rand));
+
+  p = buf;
+
+  CU_ASSERT(256 == spktlen);
+  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_01) == *p);
+
+  ++p;
+
+  CU_ASSERT(0 == memcmp(token, p, NGTCP2_STATELESS_RESET_TOKENLEN));
+
+  /* Not enough buffer with connection ID */
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, 1 + 8 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, NGTCP2_PKT_FLAG_CONN_ID,
+      conn_id, token, rand, sizeof(rand));
+
+  CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
+
+  /* Not enough buffer without connection ID */
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, 1 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, NGTCP2_PKT_FLAG_NONE,
+      conn_id, token, rand, sizeof(rand));
+
+  CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }

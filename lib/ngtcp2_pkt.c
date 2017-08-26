@@ -1329,3 +1329,38 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
 
   return 0;
 }
+
+ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
+                                         uint8_t flags, uint64_t conn_id,
+                                         uint8_t *stateless_reset_token,
+                                         uint8_t *rand, size_t randlen) {
+  size_t len = 1 + NGTCP2_STATELESS_RESET_TOKENLEN;
+  uint8_t *p;
+
+  if (flags & NGTCP2_PKT_FLAG_CONN_ID) {
+    len += 8;
+  }
+
+  if (destlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  len = ngtcp2_min(destlen, len + randlen);
+
+  p = dest;
+
+  *p++ = (uint8_t)(
+      ((flags & NGTCP2_PKT_FLAG_CONN_ID) ? NGTCP2_CONN_ID_BIT : 0) |
+      ((flags & NGTCP2_PKT_FLAG_KEY_PHASE) ? NGTCP2_KEY_PHASE_BIT : 0) |
+      NGTCP2_PKT_01);
+
+  if (flags & NGTCP2_PKT_FLAG_CONN_ID) {
+    p = ngtcp2_put_uint64be(p, conn_id);
+  }
+  p = ngtcp2_cpymem(p, stateless_reset_token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  p = ngtcp2_cpymem(p, rand, len - (size_t)(p - dest));
+
+  assert((size_t)(p - dest) == len);
+
+  return (ssize_t)len;
+}

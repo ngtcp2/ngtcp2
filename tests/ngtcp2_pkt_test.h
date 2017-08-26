@@ -49,5 +49,6 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void);
 void test_ngtcp2_pkt_encode_stop_sending_frame(void);
 void test_ngtcp2_pkt_adjust_pkt_num(void);
 void test_ngtcp2_pkt_validate_ack(void);
+void test_ngtcp2_pkt_write_stateless_reset(void);
 
 #endif /* NGTCP2_PKT_TEST_H */
