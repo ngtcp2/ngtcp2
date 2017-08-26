@@ -166,6 +166,10 @@ typedef struct {
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
 
+/* NGTCP2_STATELESS_RESET_TOKENLEN is the length of Stateless Reset
+   Token. */
+#define NGTCP2_STATELESS_RESET_TOKENLEN 16
+
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
@@ -349,7 +353,7 @@ typedef struct {
   uint8_t type;
   uint16_t seq;
   uint64_t conn_id;
-  uint8_t stateless_reset_token[16];
+  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_new_connection_id;
 
 typedef struct {
@@ -419,7 +423,7 @@ typedef struct {
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
-  uint8_t stateless_reset_token[16];
+  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_transport_params;
 
 typedef struct {
@@ -429,7 +433,7 @@ typedef struct {
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
-  uint8_t stateless_reset_token[16];
+  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_settings;
 
 /**
