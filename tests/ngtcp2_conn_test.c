@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_conn_test.h"
 
+#include <assert.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_conn.h"
@@ -66,16 +68,43 @@ static ssize_t null_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   (void)ad;
   (void)adlen;
   (void)user_data;
+  assert(destlen >= ciphertextlen);
+  memcpy(dest, ciphertext, ciphertextlen);
   return (ssize_t)ciphertextlen;
 }
 
+static ssize_t fail_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                            const uint8_t *ciphertext, size_t ciphertextlen,
+                            const uint8_t *key, size_t keylen,
+                            const uint8_t *nonce, size_t noncelen,
+                            const uint8_t *ad, size_t adlen, void *user_data) {
+  (void)conn;
+  (void)dest;
+  (void)destlen;
+  (void)ciphertext;
+  (void)ciphertextlen;
+  (void)key;
+  (void)keylen;
+  (void)nonce;
+  (void)noncelen;
+  (void)ad;
+  (void)adlen;
+  (void)user_data;
+  return NGTCP2_ERR_TLS_DECRYPT;
+}
+
 static void server_default_settings(ngtcp2_settings *settings) {
+  size_t i;
+
   settings->max_stream_data = 65535;
   settings->max_data = 128;
   settings->max_stream_id = 5;
   settings->idle_timeout = 60;
   settings->omit_connection_id = 0;
   settings->max_packet_size = 65535;
+  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
+    settings->stateless_reset_token[i] = (uint8_t)i;
+  }
 }
 
 static void client_default_settings(ngtcp2_settings *settings) {
@@ -954,6 +983,75 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(NGTCP2_PKT_03 == (buf[0] & NGTCP2_SHORT_TYPE_MASK));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_stateless_reset(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[256];
+  ssize_t spktlen;
+  int rv;
+  size_t i;
+  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+
+  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
+    token[i] = (uint8_t)~i;
+  }
+
+  /* server */
+  setup_default_server(&conn);
+  conn->callbacks.decrypt = fail_decrypt;
+  conn->max_rx_pkt_num = 24324325;
+
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), NGTCP2_PKT_FLAG_CONN_ID, conn->conn_id,
+      conn->local_settings.stateless_reset_token, null_data, 17);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_CS_CLOSE_WAIT == conn->state);
+
+  ngtcp2_conn_del(conn);
+
+  /* client */
+  setup_default_client(&conn);
+  conn->callbacks.decrypt = fail_decrypt;
+  conn->max_rx_pkt_num = 3255454;
+  memcpy(conn->remote_settings.stateless_reset_token, token,
+         NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), NGTCP2_PKT_FLAG_CONN_ID, conn->conn_id, token,
+      null_data, 19);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_CS_CLOSE_WAIT == conn->state);
+
+  ngtcp2_conn_del(conn);
+
+  /* token does not match */
+  setup_default_server(&conn);
+  conn->callbacks.decrypt = fail_decrypt;
+  conn->max_rx_pkt_num = 24324325;
+
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), NGTCP2_PKT_FLAG_CONN_ID, conn->conn_id, token,
+      null_data, 17);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_TLS_DECRYPT == rv);
+  CU_ASSERT(NGTCP2_CS_CLOSE_WAIT != conn->state);
 
   ngtcp2_conn_del(conn);
 }

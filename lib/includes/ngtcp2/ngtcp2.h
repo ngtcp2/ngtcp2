@@ -190,6 +190,7 @@ typedef enum {
   NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM = -217,
   NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM = -218,
   NGTCP2_ERR_FRAME_FORMAT = -219,
+  NGTCP2_ERR_TLS_DECRYPT = -220,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -262,6 +263,12 @@ typedef struct {
   uint64_t pkt_num;
   uint32_t version;
 } ngtcp2_pkt_hd;
+
+typedef struct {
+  const uint8_t *stateless_reset_token;
+  const uint8_t *rand;
+  size_t randlen;
+} ngtcp2_pkt_stateless_reset;
 
 typedef struct {
   uint8_t type;
@@ -812,6 +819,11 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
                                                void *user_data,
                                                void *stream_user_data);
 
+typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
+                                           const ngtcp2_pkt_hd *hd,
+                                           const ngtcp2_pkt_stateless_reset *sr,
+                                           void *user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
@@ -828,6 +840,7 @@ typedef struct {
   ngtcp2_recv_stream_data recv_stream_data;
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
   ngtcp2_stream_close stream_close;
+  ngtcp2_recv_stateless_reset recv_stateless_reset;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -1160,6 +1173,14 @@ NGTCP2_EXTERN void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn,
  * include a packet which only includes ACK frames.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_negotiated_conn_id` returns the negotiated connection
+ * ID.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_negotiated_conn_id(ngtcp2_conn *conn);
 
 /**
  * @function

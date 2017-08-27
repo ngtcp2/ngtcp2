@@ -295,6 +295,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
     return;
   }
 
+  free(conn->decrypt_buf);
+
   delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
 
   delete_acktr_entry(conn->acktr.ent, conn->mem);
@@ -1998,6 +2000,9 @@ static ssize_t conn_decrypt_packet(ngtcp2_conn *conn, uint8_t *dest,
                                    conn->user_data);
 
   if (nwrite < 0) {
+    if (nwrite == NGTCP2_ERR_TLS_DECRYPT) {
+      return nwrite;
+    }
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -2342,6 +2347,64 @@ static void conn_recv_connection_close(ngtcp2_conn *conn,
   conn->state = NGTCP2_CS_CLOSE_WAIT;
 }
 
+/*
+ * conn_on_stateless_reset decodes Stateless Reset from the buffer
+ * pointed by |pkt| whose length is |pktlen|.  |pkt| should start with
+ * Stateless Reset Token.  The short packet header and optional
+ * connection ID are already parsed and removed from the buffer.
+ *
+ * If Stateless Reset is decoded, and the Stateless Reset Token is
+ * validated, the connection is closed.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Could not decode Stateless Reset; or Stateless Reset Token does
+ *     not match.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ */
+static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                   const uint8_t *pkt, size_t pktlen) {
+  int rv;
+  ngtcp2_pkt_stateless_reset sr;
+  const uint8_t *token;
+  size_t i;
+
+  rv = ngtcp2_pkt_decode_stateless_reset(&sr, pkt, pktlen);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (conn->server) {
+    token = conn->local_settings.stateless_reset_token;
+  } else {
+    token = conn->remote_settings.stateless_reset_token;
+  }
+
+  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
+    rv |= token[i] ^ sr.stateless_reset_token[i];
+  }
+
+  if (rv != 0) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  conn->state = NGTCP2_CS_CLOSE_WAIT;
+
+  if (!conn->callbacks.recv_stateless_reset) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_stateless_reset(conn, hd, &sr, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
@@ -2420,11 +2483,34 @@ static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
   }
 
   if (encrypted) {
-    nwrite = conn_decrypt_packet(conn, pkt, pktlen, pkt, pktlen, hdpkt,
-                                 (size_t)nread, hd.pkt_num);
+    if (conn->decrypt_buflen < pktlen) {
+      uint8_t *nbuf;
+      size_t len;
+
+      len = conn->decrypt_buflen == 0 ? 2048 : conn->decrypt_buflen * 2;
+      for (; len < pktlen; len *= 2)
+        ;
+      nbuf = ngtcp2_mem_realloc(conn->mem, conn->decrypt_buf, len);
+      if (nbuf == NULL) {
+        return NGTCP2_ERR_NOMEM;
+      }
+      conn->decrypt_buf = nbuf;
+      conn->decrypt_buflen = len;
+    }
+    nwrite = conn_decrypt_packet(conn, conn->decrypt_buf, pktlen, pkt, pktlen,
+                                 hdpkt, (size_t)nread, hd.pkt_num);
     if (nwrite < 0) {
+      /* rewrind packet number portion of packet data */
+      pkt -= pkt_num_bits / 8;
+      pktlen += pkt_num_bits / 8;
+
+      rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
+      if (rv == 0) {
+        return 0;
+      }
       return (int)nwrite;
     }
+    pkt = conn->decrypt_buf;
     pktlen = (size_t)nwrite;
 
     unprotected = 0;
@@ -3152,4 +3238,8 @@ void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, size_t datalen) {
 
 size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn) {
   return conn->rtb.bytes_in_flight;
+}
+
+uint64_t ngtcp2_conn_negotiated_conn_id(ngtcp2_conn *conn) {
+  return conn->conn_id;
 }

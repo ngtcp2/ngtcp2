@@ -137,6 +137,21 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
                                              size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_stateless_reset decodes Stateless Reset payload
+ * |payload| of length |payloadlen|.  The |payload| must start with
+ * Stateless Reset Token.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Payloadlen is too short.
+ */
+int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
+                                      const uint8_t *payload,
+                                      size_t payloadlen);
+
+/*
  * ngtcp2_pkt_decode_stream_frame decodes STREAM frame from |payload|
  * of length |payloadlen|.  The result is stored in the object pointed
  * by |dest|.  STREAM frame must start at payload[0].  This function

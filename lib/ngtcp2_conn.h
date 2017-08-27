@@ -175,6 +175,11 @@ struct ngtcp2_conn {
   ngtcp2_settings remote_settings;
   /* next_ack_expiry is the timeout of delayed ack. */
   ngtcp2_tstamp next_ack_expiry;
+  /* decrypt_buf is a pointer to the buffer which is used to write
+     decrypted data. */
+  uint8_t *decrypt_buf;
+  /* decrypt_buflen is the capacity of decrypt_buf. */
+  size_t decrypt_buflen;
 };
 
 /*

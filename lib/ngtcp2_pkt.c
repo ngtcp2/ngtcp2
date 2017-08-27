@@ -1275,6 +1275,23 @@ size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
   return payloadlen / sizeof(uint32_t);
 }
 
+int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
+                                      const uint8_t *payload,
+                                      size_t payloadlen) {
+  const uint8_t *p = payload;
+
+  if (payloadlen < NGTCP2_STATELESS_RESET_TOKENLEN) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  sr->stateless_reset_token = p;
+  p += NGTCP2_STATELESS_RESET_TOKENLEN;
+  sr->rand = p;
+  sr->randlen = payloadlen - (size_t)(p - payload);
+
+  return 0;
+}
+
 uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
                                    size_t n) {
   uint64_t k = max_pkt_num == UINT64_MAX ? max_pkt_num : max_pkt_num + 1;

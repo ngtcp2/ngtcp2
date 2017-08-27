@@ -394,6 +394,21 @@ int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
+int recv_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                         const ngtcp2_pkt_stateless_reset *sr,
+                         void *user_data) {
+  print_indent();
+  fprintf(outfile, "; Stateless Reset\n");
+  print_indent();
+  fprintf(outfile, "stateless_reset_token=%s randlen=%zu\n",
+          util::format_hex(sr->stateless_reset_token,
+                           NGTCP2_STATELESS_RESET_TOKENLEN)
+              .c_str(),
+          sr->randlen);
+  util::hexdump(outfile, sr->rand, sr->randlen);
+  return 0;
+}
+
 bool packet_lost(double prob) {
   auto p = std::uniform_real_distribution<>(0, 1)(randgen);
   return p < prob;

@@ -68,6 +68,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_MALFORMED_TRANSPORT_PARAM";
   case NGTCP2_ERR_FRAME_FORMAT:
     return "ERR_FRAME_FORMAT";
+  case NGTCP2_ERR_TLS_DECRYPT:
+    return "ERR_TLS_DECRYPT";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:

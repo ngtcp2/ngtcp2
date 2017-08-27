@@ -387,7 +387,7 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   auto nwrite = c->decrypt_data(dest, destlen, ciphertext, ciphertextlen, key,
                                 keylen, nonce, noncelen, ad, adlen);
   if (nwrite < 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+    return NGTCP2_ERR_TLS_DECRYPT;
   }
 
   return nwrite;
@@ -443,6 +443,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       do_decrypt,
       recv_stream_data,
       acked_stream_data_offset,
+      nullptr,
+      debug::recv_stateless_reset,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(
