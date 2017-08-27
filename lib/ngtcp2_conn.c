@@ -2405,7 +2405,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
-static int conn_recv_pkt(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
+static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
   size_t pkt_num_bits;
@@ -2609,7 +2609,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_conn_recv(ngtcp2_conn *conn, uint8_t *pkt, size_t pktlen,
+int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                      ngtcp2_tstamp ts) {
   int rv = 0;
 
