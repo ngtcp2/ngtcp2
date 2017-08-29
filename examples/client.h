@@ -53,6 +53,8 @@ struct Config {
   int fd;
   // ciphers is the list of enabled ciphers.
   const char *ciphers;
+  // groups is the list of supported groups.
+  const char *groups;
 };
 
 struct Buffer {

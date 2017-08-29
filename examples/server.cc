@@ -1512,7 +1512,11 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
     goto fail;
   }
 
-  SSL_CTX_set1_curves_list(ssl_ctx, "p-256");
+  if (SSL_CTX_set1_groups_list(ssl_ctx, config.groups) != 1) {
+    std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
+    goto fail;
+  }
+
   SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
@@ -1667,6 +1671,10 @@ Options:
               Specify the cipher suite list to enable.
               Default: )"
             << config.ciphers << R"(
+  --groups=<GROUPS>
+              Specify the supported groups.
+              Default: )"
+            << config.groups << R"(
   -d, --htdocs=<PATH>
               Specify document root.  If this option is not specified,
               the document root is the current working directory.
@@ -1680,6 +1688,7 @@ int main(int argc, char **argv) {
   config.rx_loss_prob = 0.;
   config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
                    "CHACHA20-POLY1305-SHA256";
+  config.groups = "P-256";
   {
     auto path = realpath(".", nullptr);
     config.htdocs = path;
@@ -1693,6 +1702,7 @@ int main(int argc, char **argv) {
         {"rx-loss", required_argument, nullptr, 'r'},
         {"htdocs", required_argument, nullptr, 'd'},
         {"ciphers", required_argument, &flag, 1},
+        {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -1732,6 +1742,10 @@ int main(int argc, char **argv) {
       case 1:
         // --ciphers
         config.ciphers = optarg;
+        break;
+      case 2:
+        // --groups
+        config.groups = optarg;
         break;
       }
       break;

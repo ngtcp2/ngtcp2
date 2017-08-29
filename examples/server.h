@@ -53,6 +53,8 @@ struct Config {
   double rx_loss_prob;
   // ciphers is the list of enabled ciphers.
   const char *ciphers;
+  // groups is the list of supported groups.
+  const char *groups;
   // htdocs is a root directory to serve documents.
   std::string htdocs;
   // port is the port number which server listens on for incoming

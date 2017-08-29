@@ -1009,7 +1009,10 @@ SSL_CTX *create_ssl_ctx() {
     exit(EXIT_FAILURE);
   }
 
-  SSL_CTX_set1_curves_list(ssl_ctx, "p-256");
+  if (SSL_CTX_set1_groups_list(ssl_ctx, config.groups) != 1) {
+    std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
   SSL_CTX_set_alpn_protos(ssl_ctx,
                           reinterpret_cast<const uint8_t *>(NGTCP2_ALPN),
@@ -1142,6 +1145,10 @@ Options:
               Specify the cipher suite list to enable.
               Default: )"
             << config.ciphers << R"(
+  --groups=<GROUPS>
+              Specify the supported groups.
+              Default: )"
+            << config.groups << R"(
   -h, --help  Display this help and exit.
 )";
 }
@@ -1153,6 +1160,7 @@ int main(int argc, char **argv) {
   config.fd = -1;
   config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
                    "CHACHA20-POLY1305-SHA256";
+  config.groups = "P-256";
 
   for (;;) {
     static int flag = 0;
@@ -1162,6 +1170,7 @@ int main(int argc, char **argv) {
         {"rx-loss", required_argument, nullptr, 'r'},
         {"interactive", no_argument, nullptr, 'i'},
         {"ciphers", required_argument, &flag, 1},
+        {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -1195,6 +1204,10 @@ int main(int argc, char **argv) {
       case 1:
         // --ciphers
         config.ciphers = optarg;
+        break;
+      case 2:
+        // --groups
+        config.groups = optarg;
         break;
       }
       break;
