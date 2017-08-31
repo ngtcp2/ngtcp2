@@ -781,6 +781,10 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
                                                const uint32_t *sv, size_t nsv,
                                                void *user_data);
 
+typedef int (*ngtcp2_recv_server_stateless_retry)(ngtcp2_conn *conn,
+                                                  uint64_t *conn_id,
+                                                  void *user_data);
+
 typedef ssize_t (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
                                   size_t destlen, const uint8_t *plaintext,
                                   size_t plaintextlen, const uint8_t *key,
@@ -841,6 +845,7 @@ typedef struct {
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
+  ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
 } ngtcp2_conn_callbacks;
 
 /*

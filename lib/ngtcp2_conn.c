@@ -1768,6 +1768,64 @@ static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 }
 
 /*
+ * conn_recv_server_stateless_retry resets connection state.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
+  ngtcp2_strm *strm0;
+  int rv;
+  uint64_t conn_id;
+
+  rv = conn->callbacks.recv_server_stateless_retry(conn, &conn_id,
+                                                   conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  conn->conn_id = conn_id;
+
+  strm0 = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+  if (strm0 == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  rv = ngtcp2_strm_init(strm0, 0, NGTCP2_STRM_FLAG_NONE,
+                        conn->local_settings.max_stream_data,
+                        NGTCP2_STRM0_MAX_STREAM_DATA, NULL, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  conn->last_tx_pkt_num = 0;
+  conn->max_rx_pkt_num = 0;
+
+  ngtcp2_rtb_free(&conn->rtb);
+  delete_acktr_entry(conn->acktr.ent, conn->mem);
+  ngtcp2_acktr_free(&conn->acktr);
+  ngtcp2_map_remove(&conn->strms, 0);
+  ngtcp2_strm_free(conn->strm0);
+  ngtcp2_mem_free(conn->mem, conn->strm0);
+
+  conn->strm0 = strm0;
+
+  ngtcp2_acktr_init(&conn->acktr, conn->mem);
+  ngtcp2_rtb_init(&conn->rtb, conn->mem);
+  ngtcp2_map_insert(&conn->strms, &conn->strm0->me);
+
+  conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
+  conn->state = NGTCP2_CS_CLIENT_INITIAL;
+
+  return 0;
+}
+
+/*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length if |pktlen| during handshake period.
  *
@@ -1847,6 +1905,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (hd.type) {
     case NGTCP2_PKT_SERVER_CLEARTEXT:
+    case NGTCP2_PKT_SERVER_STATELESS_RETRY:
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
       rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
@@ -1970,6 +2029,19 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
+
+  if (hd.type == NGTCP2_PKT_SERVER_STATELESS_RETRY) {
+    if (handshake_failed) {
+      return NGTCP2_ERR_PROTO;
+    }
+
+    rv = conn_recv_server_stateless_retry(conn);
+    if (rv != 0) {
+      return rv;
+    }
+
+    return 0;
+  }
 
   if (!require_ack) {
     acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;

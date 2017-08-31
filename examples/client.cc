@@ -359,6 +359,15 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
+int recv_server_stateless_retry(ngtcp2_conn *conn, uint64_t *conn_id,
+                                void *user_data) {
+  *conn_id = std::uniform_int_distribution<uint64_t>(
+      0, std::numeric_limits<uint64_t>::max())(randgen);
+  return 0;
+}
+} // namespace
+
+namespace {
 ssize_t do_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                    const uint8_t *plaintext, size_t plaintextlen,
                    const uint8_t *key, size_t keylen, const uint8_t *nonce,
@@ -445,6 +454,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       acked_stream_data_offset,
       nullptr,
       debug::recv_stateless_reset,
+      recv_server_stateless_retry,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(
