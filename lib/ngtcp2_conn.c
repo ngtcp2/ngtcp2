@@ -1800,6 +1800,7 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
                         conn->local_settings.max_stream_data,
                         NGTCP2_STRM0_MAX_STREAM_DATA, NULL, conn->mem);
   if (rv != 0) {
+    ngtcp2_mem_free(conn->mem, strm0);
     return rv;
   }
 
