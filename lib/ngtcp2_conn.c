@@ -1906,7 +1906,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (hd.type) {
     case NGTCP2_PKT_SERVER_CLEARTEXT:
+      break;
     case NGTCP2_PKT_SERVER_STATELESS_RETRY:
+      if (conn->strm0->last_rx_offset != 0) {
+        return NGTCP2_ERR_PROTO;
+      }
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
       rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
@@ -2024,9 +2028,13 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
-  if (hd.type == NGTCP2_PKT_CLIENT_INITIAL &&
-      conn->strm0->last_rx_offset == 0) {
-    return NGTCP2_ERR_PROTO;
+  switch (hd.type) {
+  case NGTCP2_PKT_CLIENT_INITIAL:
+  case NGTCP2_PKT_SERVER_STATELESS_RETRY:
+    if (ngtcp2_rob_first_gap_offset(&conn->strm0->rob) == 0) {
+      return NGTCP2_ERR_PROTO;
+    }
+    break;
   }
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
