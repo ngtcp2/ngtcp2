@@ -2064,10 +2064,26 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   return handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : 0;
 }
 
+/*
+ * conn_decrypt_packet decrypts the data pointed by |pkt| whose length
+ * is |pktlen|, and writes cleartext data to the buffer pointed by
+ * |dest| whose capacity is |destlen|.  The buffer pointed by |ad| is
+ * the Additional Data, and its length is |adlen|.  |pkt_num| is used
+ * to create a nonce.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ * NGTCP2_ERR_TLS_DECRYPT
+ *     TLS backend failed to decrypt data.
+ */
 static ssize_t conn_decrypt_packet(ngtcp2_conn *conn, uint8_t *dest,
                                    size_t destlen, const uint8_t *pkt,
                                    size_t pktlen, const uint8_t *ad,
                                    size_t adlen, uint64_t pkt_num) {
+  /* TODO nonce is limited to 64 bytes. */
   uint8_t nonce[64];
   ngtcp2_crypto_km *ckm = conn->rx_ckm;
   ssize_t nwrite;
@@ -2115,6 +2131,20 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
+/*
+ * conn_emit_pending_stream_data passes buffered ordered stream data
+ * to the application.  |rx_offset| is the first offset to deliver to
+ * the application.  This function assumes that the data up to
+ * |rx_offset| has been delivered already.  This function only passes
+ * the ordered data without any gap.  If there is a gap, it stops
+ * providing the data to the application, and returns.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ */
 static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                          uint64_t rx_offset) {
   size_t datalen;
