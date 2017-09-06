@@ -30,6 +30,7 @@
 #include "ngtcp2_conv.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_ppe.h"
+#include "ngtcp2_upe.h"
 
 size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
                                     uint32_t stream_id, uint64_t offset,
@@ -174,4 +175,23 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   n = ngtcp2_ppe_final(&ppe, NULL);
   assert(n > 0);
   return (size_t)n;
+}
+
+size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
+                                        uint8_t pkt_type, uint64_t conn_id,
+                                        uint64_t pkt_num, uint32_t version,
+                                        ngtcp2_frame *fr) {
+  ngtcp2_upe upe;
+  ngtcp2_pkt_hd hd;
+  int rv;
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM | NGTCP2_PKT_FLAG_CONN_ID,
+                     pkt_type, conn_id, pkt_num, version);
+
+  ngtcp2_upe_init(&upe, out, outlen);
+  rv = ngtcp2_upe_encode_hd(&upe, &hd);
+  assert(0 == rv);
+  rv = ngtcp2_upe_encode_frame(&upe, fr);
+  assert(0 == rv);
+  return ngtcp2_upe_final(&upe, NULL);
 }

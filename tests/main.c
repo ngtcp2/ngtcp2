@@ -142,7 +142,9 @@ int main() {
       !CU_add_test(pSuite, "conn_short_pkt_type",
                    test_ngtcp2_conn_short_pkt_type) ||
       !CU_add_test(pSuite, "conn_recv_stateless_reset",
-                   test_ngtcp2_conn_recv_stateless_reset)) {
+                   test_ngtcp2_conn_recv_stateless_reset) ||
+      !CU_add_test(pSuite, "conn_recv_server_stateless_retry",
+                   test_ngtcp2_conn_recv_server_stateless_retry)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

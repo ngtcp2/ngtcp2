@@ -1782,9 +1782,11 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
   ngtcp2_strm *strm0;
   int rv;
 
-  rv = conn->callbacks.recv_server_stateless_retry(conn, conn->user_data);
-  if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+  if (conn->callbacks.recv_server_stateless_retry) {
+    rv = conn->callbacks.recv_server_stateless_retry(conn, conn->user_data);
+    if (rv != 0) {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
   }
 
   strm0 = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));

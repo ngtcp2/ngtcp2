@@ -41,5 +41,6 @@ void test_ngtcp2_conn_recv_rst_stream(void);
 void test_ngtcp2_conn_recv_conn_id_omitted(void);
 void test_ngtcp2_conn_short_pkt_type(void);
 void test_ngtcp2_conn_recv_stateless_reset(void);
+void test_ngtcp2_conn_recv_server_stateless_retry(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

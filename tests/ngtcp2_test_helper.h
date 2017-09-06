@@ -88,4 +88,15 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
                                               size_t outlen, uint64_t pkt_num,
                                               ngtcp2_frame *fr);
 
+/*
+ * write_single_frame_handshake_pkt writes a unprotected QUIC
+ * handshake packet containing single frame |fr| in |out| whose
+ * capacity is |outlen|.  This function returns the number of bytes
+ * written.
+ */
+size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
+                                        uint8_t pkt_type, uint64_t conn_id,
+                                        uint64_t pkt_num, uint32_t version,
+                                        ngtcp2_frame *fr);
+
 #endif /* NGTCP2_TEST_HELPER_H */
