@@ -1070,10 +1070,13 @@ reexecute:
           case LF:
             parser->http_major = 0;
             parser->http_minor = 9;
-            UPDATE_STATE((ch == CR) ?
-              s_req_line_almost_done :
-              s_header_field_start);
             CALLBACK_DATA(url);
+            if (ch == CR) {
+              UPDATE_STATE(s_req_line_almost_done);
+            } else {
+              UPDATE_STATE(s_headers_almost_done);
+              REEXECUTE();
+            }
             break;
           default:
             UPDATE_STATE(parse_url_char(CURRENT_STATE(), ch));
@@ -1174,7 +1177,12 @@ reexecute:
           goto error;
         }
 
-        UPDATE_STATE(s_header_field_start);
+        if (parser->http_major == 0) {
+          UPDATE_STATE(s_headers_almost_done);
+          REEXECUTE();
+        } else {
+          UPDATE_STATE(s_header_field_start);
+        }
         break;
       }
 
