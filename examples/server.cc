@@ -218,6 +218,8 @@ Stream::Stream(uint32_t stream_id)
       streambuf_bytes(0),
       tx_stream_offset(0),
       should_send_fin(false),
+      http_major(0),
+      http_minor(0),
       resp_state(RESP_IDLE),
       prev_hdr_key(false),
       fd(-1) {
@@ -354,20 +356,26 @@ void Stream::send_status_response(unsigned int status_code,
                                   const std::string &extra_headers) {
   auto body = make_status_body(status_code);
   std::string hdr;
-  hdr += "HTTP/1.1 ";
-  hdr += std::to_string(status_code);
-  hdr += " ";
-  hdr += http::get_reason_phrase(status_code);
-  hdr += "\r\n";
-  hdr += "Server: ";
-  hdr += NGTCP2_SERVER;
-  hdr += "\r\n";
-  hdr += "Content-Type: text/html; charset=UTF-8\r\n";
-  hdr += "Content-Length: ";
-  hdr += std::to_string(body.size());
-  hdr += "\r\n";
-  hdr += extra_headers;
-  hdr += "\r\n";
+  if (http_major >= 1) {
+    hdr += "HTTP/";
+    hdr += std::to_string(http_major);
+    hdr += '.';
+    hdr += std::to_string(http_minor);
+    hdr += ' ';
+    hdr += std::to_string(status_code);
+    hdr += " ";
+    hdr += http::get_reason_phrase(status_code);
+    hdr += "\r\n";
+    hdr += "Server: ";
+    hdr += NGTCP2_SERVER;
+    hdr += "\r\n";
+    hdr += "Content-Type: text/html; charset=UTF-8\r\n";
+    hdr += "Content-Length: ";
+    hdr += std::to_string(body.size());
+    hdr += "\r\n";
+    hdr += extra_headers;
+    hdr += "\r\n";
+  }
 
   auto v = Buffer{};
   v.buf.resize(hdr.size() + (htp.method == HTTP_HEAD ? 0 : body.size()));
@@ -392,6 +400,9 @@ void Stream::send_redirect_response(unsigned int status_code,
 }
 
 int Stream::start_response() {
+  http_major = htp.http_major;
+  http_minor = htp.http_minor;
+
   auto req_path = request_path(uri, htp.method == HTTP_CONNECT);
   auto path = resolve_path(req_path);
   if (path.empty() || open_file(path) != 0) {
@@ -411,25 +422,31 @@ int Stream::start_response() {
     content_length = st.st_size;
   }
 
-  std::string hdr;
-  hdr += "HTTP/1.1 200 OK\r\n";
-  hdr += "Server: ";
-  hdr += NGTCP2_SERVER;
-  hdr += "\r\n";
-  if (content_length != -1) {
-    hdr += "Content-Length: ";
-    hdr += std::to_string(content_length);
+  if (http_major >= 1) {
+    std::string hdr;
+    hdr += "HTTP/";
+    hdr += std::to_string(http_major);
+    hdr += '.';
+    hdr += std::to_string(http_minor);
+    hdr += " 200 OK\r\n";
+    hdr += "Server: ";
+    hdr += NGTCP2_SERVER;
     hdr += "\r\n";
-  }
-  hdr += "\r\n";
+    if (content_length != -1) {
+      hdr += "Content-Length: ";
+      hdr += std::to_string(content_length);
+      hdr += "\r\n";
+    }
+    hdr += "\r\n";
 
-  auto v = Buffer{};
-  v.buf.resize(hdr.size());
-  auto p = std::begin(v.buf);
-  p = std::copy(std::begin(hdr), std::end(hdr), p);
-  v.pos = std::begin(v.buf);
-  streambuf_bytes += v.buf.size();
-  streambuf.emplace_back(std::move(v));
+    auto v = Buffer{};
+    v.buf.resize(hdr.size());
+    auto p = std::begin(v.buf);
+    p = std::copy(std::begin(hdr), std::end(hdr), p);
+    v.pos = std::begin(v.buf);
+    streambuf_bytes += v.buf.size();
+    streambuf.emplace_back(std::move(v));
+  }
 
   switch (htp.method) {
   case HTTP_HEAD:

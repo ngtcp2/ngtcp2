@@ -108,6 +108,8 @@ struct Stream {
   // resp_state is the state of response.
   int resp_state;
   http_parser htp;
+  unsigned int http_major;
+  unsigned int http_minor;
   // uri is request uri/path.
   std::string uri;
   // hdrs contains request HTTP header fields.
