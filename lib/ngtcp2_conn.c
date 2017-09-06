@@ -1781,15 +1781,11 @@ static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
   ngtcp2_strm *strm0;
   int rv;
-  uint64_t conn_id;
 
-  rv = conn->callbacks.recv_server_stateless_retry(conn, &conn_id,
-                                                   conn->user_data);
+  rv = conn->callbacks.recv_server_stateless_retry(conn, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
-
-  conn->conn_id = conn_id;
 
   strm0 = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
   if (strm0 == NULL) {

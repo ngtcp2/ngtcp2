@@ -359,10 +359,7 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int recv_server_stateless_retry(ngtcp2_conn *conn, uint64_t *conn_id,
-                                void *user_data) {
-  *conn_id = std::uniform_int_distribution<uint64_t>(
-      0, std::numeric_limits<uint64_t>::max())(randgen);
+int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 } // namespace

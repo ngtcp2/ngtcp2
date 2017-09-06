@@ -782,7 +782,6 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
                                                void *user_data);
 
 typedef int (*ngtcp2_recv_server_stateless_retry)(ngtcp2_conn *conn,
-                                                  uint64_t *conn_id,
                                                   void *user_data);
 
 typedef ssize_t (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
