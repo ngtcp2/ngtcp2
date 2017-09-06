@@ -1893,24 +1893,26 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
   } else {
-    if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-      if (conn->conn_id != hd.conn_id) {
-        return NGTCP2_ERR_PROTO;
-      }
-    } else {
-      conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-      conn->conn_id = hd.conn_id;
-    }
-
     switch (hd.type) {
     case NGTCP2_PKT_SERVER_CLEARTEXT:
+      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+        if (conn->conn_id != hd.conn_id) {
+          return NGTCP2_ERR_PROTO;
+        }
+      } else {
+        conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
+        conn->conn_id = hd.conn_id;
+      }
       break;
     case NGTCP2_PKT_SERVER_STATELESS_RETRY:
-      if (conn->strm0->last_rx_offset != 0) {
+      if (conn->strm0->last_rx_offset != 0 || conn->conn_id != hd.conn_id) {
         return NGTCP2_ERR_PROTO;
       }
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
+      if (conn->conn_id != hd.conn_id) {
+        return NGTCP2_ERR_PROTO;
+      }
       rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
       if (rv != 0) {
         return rv;
