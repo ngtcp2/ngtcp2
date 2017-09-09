@@ -277,6 +277,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         break;
       }
       if (unprotected && !((*pent)->flags & NGTCP2_RTB_FLAG_UNPROTECTED)) {
+        pent = &(*pent)->next;
         continue;
       }
       if (conn && conn->callbacks.acked_stream_data_offset) {

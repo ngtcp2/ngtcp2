@@ -256,4 +256,20 @@ void test_ngtcp2_rtb_recv_ack(void) {
   CU_ASSERT(1 == ngtcp2_pq_size(&rtb.pq));
 
   ngtcp2_rtb_free(&rtb);
+
+  /* unprotected ack cannot ack protected packet with blks */
+  ngtcp2_rtb_init(&rtb, mem);
+  add_rtb_entry_range(&rtb, 0, 1, mem);
+
+  fr.largest_ack = 3;
+  fr.first_ack_blklen = 0;
+  fr.num_blks = 1;
+  fr.blks[0].gap = 2;
+  fr.blks[0].blklen = 1;
+
+  ngtcp2_rtb_recv_ack(&rtb, &fr, 1, NULL);
+
+  CU_ASSERT(1 == ngtcp2_pq_size(&rtb.pq));
+
+  ngtcp2_rtb_free(&rtb);
 }
