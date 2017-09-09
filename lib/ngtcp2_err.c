@@ -70,6 +70,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_FRAME_FORMAT";
   case NGTCP2_ERR_TLS_DECRYPT:
     return "ERR_TLS_DECRYPT";
+  case NGTCP2_ERR_STREAM_SHUT_WR:
+    return "ERR_STREAM_SHUT_WR";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:
