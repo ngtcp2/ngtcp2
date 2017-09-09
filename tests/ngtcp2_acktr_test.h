@@ -31,5 +31,7 @@
 
 void test_ngtcp2_acktr_add(void);
 void test_ngtcp2_acktr_eviction(void);
+void test_ngtcp2_acktr_forget(void);
+void test_ngtcp2_acktr_recv_ack(void);
 
 #endif /* NGTCP2_ACKTR_TEST_H */

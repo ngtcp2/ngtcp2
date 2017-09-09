@@ -115,6 +115,7 @@ int main() {
                    test_ngtcp2_rob_remove_prefix) ||
       !CU_add_test(pSuite, "acktr_add", test_ngtcp2_acktr_add) ||
       !CU_add_test(pSuite, "acktr_eviction", test_ngtcp2_acktr_eviction) ||
+      !CU_add_test(pSuite, "acktr_forget", test_ngtcp2_acktr_forget) ||
       !CU_add_test(pSuite, "encode_transport_params",
                    test_ngtcp2_encode_transport_params) ||
       !CU_add_test(pSuite, "rtb_add", test_ngtcp2_rtb_add) ||

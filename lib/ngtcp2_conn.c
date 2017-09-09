@@ -202,7 +202,10 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_remote_idtr_init;
   }
 
-  ngtcp2_acktr_init(&(*pconn)->acktr, mem);
+  rv = ngtcp2_acktr_init(&(*pconn)->acktr, mem);
+  if (rv != 0) {
+    goto fail_acktr_init;
+  }
 
   ngtcp2_rtb_init(&(*pconn)->rtb, mem);
 
@@ -222,6 +225,8 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
 
   return 0;
 
+fail_acktr_init:
+  ngtcp2_idtr_free(&(*pconn)->remote_idtr);
 fail_remote_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->local_idtr);
 fail_local_idtr_init:
@@ -344,35 +349,32 @@ static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   ngtcp2_ack_blk *blk;
   int initial = 1;
   uint64_t gap;
-  ngtcp2_acktr_entry *rpkt;
+  ngtcp2_acktr_entry **prpkt;
 
-  if (conn->acktr.nactive_ack == 0) {
+  if (!conn->acktr.active_ack) {
     conn_invalidate_next_ack_expiry(conn);
     return;
   }
 
-  rpkt = ngtcp2_acktr_get(&conn->acktr);
-  if (rpkt == NULL) {
+  prpkt = ngtcp2_acktr_get(&conn->acktr);
+  if (*prpkt == NULL) {
     /* TODO This might not be necessary if we don't forget ACK. */
     conn_invalidate_next_ack_expiry(conn);
     return;
   }
 
-  first_pkt_num = last_pkt_num = rpkt->pkt_num;
-  ack_delay = ts - rpkt->tstamp;
-
-  ngtcp2_acktr_pop(&conn->acktr);
-  ngtcp2_acktr_entry_del(rpkt, conn->mem);
+  first_pkt_num = last_pkt_num = (*prpkt)->pkt_num;
+  ack_delay = ts - (*prpkt)->tstamp;
 
   ack->type = NGTCP2_FRAME_ACK;
   ack->num_ts = 0;
   ack->num_blks = 0;
 
-  for (; (rpkt = ngtcp2_acktr_get(&conn->acktr));) {
-    if (rpkt->pkt_num + 1 == last_pkt_num) {
-      last_pkt_num = rpkt->pkt_num;
-      ngtcp2_acktr_pop(&conn->acktr);
-      ngtcp2_acktr_entry_del(rpkt, conn->mem);
+  prpkt = &(*prpkt)->next;
+
+  for (; *prpkt; prpkt = &(*prpkt)->next) {
+    if ((*prpkt)->pkt_num + 1 == last_pkt_num) {
+      last_pkt_num = (*prpkt)->pkt_num;
       continue;
     }
 
@@ -387,7 +389,7 @@ static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
       blk->blklen = first_pkt_num - last_pkt_num + 1;
     }
 
-    gap = last_pkt_num - rpkt->pkt_num - 1;
+    gap = last_pkt_num - (*prpkt)->pkt_num - 1;
     if (gap > 255) {
       /* TODO We need to encode next ack in the separate ACK frame or
          use the trick of 0 length ACK Block Length (not sure it is
@@ -396,10 +398,7 @@ static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
       break;
     }
 
-    first_pkt_num = last_pkt_num = rpkt->pkt_num;
-
-    ngtcp2_acktr_pop(&conn->acktr);
-    ngtcp2_acktr_entry_del(rpkt, conn->mem);
+    first_pkt_num = last_pkt_num = (*prpkt)->pkt_num;
 
     if (ack->num_blks == 255) {
       break;
@@ -416,9 +415,15 @@ static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
     blk->blklen = first_pkt_num - last_pkt_num + 1;
   }
 
-  if (ngtcp2_acktr_get(&conn->acktr) == NULL) {
-    conn_invalidate_next_ack_expiry(conn);
+  /* TODO Just remove entries which cannot be fit into a single ACK
+     frame for now. */
+  if (*prpkt) {
+    ngtcp2_acktr_forget(&conn->acktr, *prpkt);
   }
+
+  conn_invalidate_next_ack_expiry(conn);
+
+  conn->acktr.active_ack = 0;
 }
 
 /*
@@ -634,6 +639,8 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       }
 
       pkt_empty = 0;
+
+      ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &localfr.ack, 0);
     }
   }
 
@@ -899,6 +906,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       }
 
       pkt_empty = 0;
+
+      ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &localfr.ack, 1);
     }
   }
 
@@ -1046,6 +1055,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     return rv;
   }
+
+  ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &fr.ack, 1);
 
   ++conn->last_tx_pkt_num;
 
@@ -1334,6 +1345,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return rv;
     }
     pkt_empty = 0;
+
+    ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr.ack, 0);
   }
 
   for (pfrc = &conn->frq; *pfrc;) {
@@ -1476,6 +1489,10 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   rv = conn_call_send_frame(conn, &hd, fr);
   if (rv != 0) {
     return rv;
+  }
+
+  if (fr->type == NGTCP2_FRAME_ACK) {
+    ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &fr->ack, 0);
   }
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
@@ -1704,6 +1721,9 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
   if (rv != 0) {
     return rv;
   }
+
+  ngtcp2_acktr_recv_ack(&conn->acktr, fr, unprotected);
+
   return ngtcp2_rtb_recv_ack(&conn->rtb, fr, unprotected, conn);
 }
 
@@ -1857,7 +1877,6 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   int require_ack = 0;
   uint64_t rx_offset;
   int handshake_failed = 0;
-  uint8_t acktr_flags = 0;
   uint64_t fr_end_offset;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
@@ -2052,11 +2071,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return 0;
   }
 
-  if (!require_ack) {
-    acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
-  }
-
-  rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
+  rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, require_ack, ts);
   if (rv != 0) {
     return rv;
   }
@@ -2527,7 +2542,6 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   ngtcp2_frame fr;
   int require_ack = 0;
   uint8_t unprotected;
-  uint8_t acktr_flags = 0;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -2685,11 +2699,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
-  if (!require_ack) {
-    acktr_flags |= NGTCP2_ACKTR_FLAG_PASSIVE;
-  }
-
-  rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, acktr_flags, ts);
+  rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, require_ack, ts);
   if (rv != 0) {
     return rv;
   }
@@ -2843,23 +2853,23 @@ void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED;
 }
 
-int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num,
-                          uint8_t acktr_flags, ngtcp2_tstamp ts) {
+int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
+                          ngtcp2_tstamp ts) {
   ngtcp2_acktr_entry *rpkt;
   int rv;
 
-  rv = ngtcp2_acktr_entry_new(&rpkt, pkt_num, ts, acktr_flags, conn->mem);
+  rv = ngtcp2_acktr_entry_new(&rpkt, pkt_num, ts, conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  rv = ngtcp2_acktr_add(&conn->acktr, rpkt);
+  rv = ngtcp2_acktr_add(&conn->acktr, rpkt, active_ack);
   if (rv != 0) {
     ngtcp2_acktr_entry_del(rpkt, conn->mem);
     return rv;
   }
 
-  if (conn->next_ack_expiry == 0 && conn->acktr.nactive_ack > 0) {
+  if (conn->next_ack_expiry == 0 && conn->acktr.active_ack) {
     conn_set_next_ack_expiry(conn, ts);
   }
 
