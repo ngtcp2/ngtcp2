@@ -204,6 +204,12 @@ const char *frame_ansi_esc(ngtcp2_dir dir) {
 }
 } // namespace
 
+namespace {
+const char *pkt_num_ansi_esc(ngtcp2_dir dir) {
+  return ansi_esc(dir == NGTCP2_DIR_SEND ? "\033[38;5;40m" : "\033[38;5;51m");
+}
+} // namespace
+
 void print_indent() { fprintf(outfile, "           "); }
 
 namespace {
@@ -217,9 +223,10 @@ void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 
 namespace {
 void print_pkt_short(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
-  fprintf(outfile, "%s%s%s(0x%02x) CID=0x%016" PRIx64 " PKN=%" PRIu64 "\n",
+  fprintf(outfile, "%s%s%s(0x%02x) CID=0x%016" PRIx64 " PKN=%s%" PRIu64 "%s\n",
           pkt_ansi_esc(dir), strpkttype_short(hd->type).c_str(), ansi_escend(),
-          hd->type, hd->conn_id, hd->pkt_num);
+          hd->type, hd->conn_id, pkt_num_ansi_esc(dir), hd->pkt_num,
+          ansi_escend());
 }
 } // namespace
 
