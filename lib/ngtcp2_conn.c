@@ -3170,6 +3170,8 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_STREAM_DATA_BLOCKED;
   }
 
+  fin = fin && ndatalen == datalen;
+
   rv = conn_call_send_pkt(conn, &hd);
   if (rv != 0) {
     return rv;
@@ -3182,7 +3184,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 
   frc->fr.type = NGTCP2_FRAME_STREAM;
   frc->fr.stream.flags = 0;
-  frc->fr.stream.fin = fin && ndatalen == datalen;
+  frc->fr.stream.fin = fin;
   frc->fr.stream.stream_id = stream_id;
   frc->fr.stream.offset = strm->tx_offset;
   frc->fr.stream.datalen = ndatalen;
