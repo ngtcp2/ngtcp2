@@ -644,6 +644,8 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
       switch (n) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
       case NGTCP2_ERR_STREAM_SHUT_WR:
+      case NGTCP2_ERR_INVALID_ARGUMENT: // This means that stream is
+                                        // closed.
         return 0;
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
