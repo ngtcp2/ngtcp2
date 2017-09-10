@@ -32,18 +32,11 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_mem.h"
+#include "ngtcp2_ringbuf.h"
 
 /* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
    which ngtcp2_acktr stores. */
 #define NGTCP2_ACKTR_MAX_ENT 1024
-
-typedef enum {
-  NGTCP2_ACKTR_FLAG_NONE = 0x00,
-  /* NGTCP2_ACKTR_FLAG_PASSIVE means that the ack should not be
-     generated with passive entry only, but it should with at least
-     one non-passive entry. */
-  NGTCP2_ACKTR_FLAG_PASSIVE = 0x01,
-} ngtcp2_acktr_flag;
 
 struct ngtcp2_acktr_entry;
 typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
@@ -55,8 +48,6 @@ struct ngtcp2_acktr_entry {
   ngtcp2_acktr_entry **pprev, *next;
   uint64_t pkt_num;
   ngtcp2_tstamp tstamp;
-  /* flags is bitwise OR of zero or more of ngtcp2_acktr_flag. */
-  uint8_t flags;
 };
 
 /*
@@ -64,8 +55,7 @@ struct ngtcp2_acktr_entry {
  * with the given parameters.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, uint8_t flags,
-                           ngtcp2_mem *mem);
+                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_entry_del deallocates memory allocated for |ent|.  It
@@ -73,25 +63,36 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
  */
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 
+typedef struct {
+  ngtcp2_ack ack;
+  uint64_t pkt_num;
+  uint8_t unprotected;
+} ngtcp2_acktr_ack_entry;
+
 /*
  * ngtcp2_acktr tracks received packets which we have to send ack.
  */
 typedef struct {
+  ngtcp2_ringbuf acks;
   /* ent points to the head of list which is ordered by the decreasing
      order of packet number. */
   ngtcp2_acktr_entry *ent, *tail;
   ngtcp2_mem *mem;
-  /* nactive_ack is the number of entries which do not have
-     NGTCP2_ACKTR_FLAG_PASSIVE flag set. */
-  size_t nactive_ack;
-  /* nack is the number of entries. */
   size_t nack;
+  /* active_ack is nonzero if ACK frame should be sent actively. */
+  int active_ack;
 } ngtcp2_acktr;
 
 /*
  * ngtcp2_acktr_init initializes |acktr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
-void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem);
+int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It does
@@ -109,19 +110,45 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
  * NGTCP2_ERR_PROTO
  *     Same packet number has already been included in |acktr|.
  */
-int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
+int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
+                     int active_ack);
 
 /*
- * ngtcp2_acktr_get returns the entry which has the largest packet
- * number to be acked.  If there is no entry, this function returns
- * NULL.
+ * ngtcp2_acktr_forget removes all entries from |ent| to the end of
+ * the list.  This function assumes that |ent| is linked directly, or
+ * indirectly from acktr->ent.
  */
-ngtcp2_acktr_entry *ngtcp2_acktr_get(ngtcp2_acktr *acktr);
+void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
+
+/*
+ * ngtcp2_acktr_get returns the pointer to the entry which has the
+ * largest packet number to be acked.  If there is no entry, this
+ * function returns NULL.
+ */
+ngtcp2_acktr_entry **ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_remove the head of entries, which has the largest
  * packet number.
  */
 void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
+
+/*
+ * ngtcp2_acktr_add_ack adds the outgoing ACK frame |fr| to |acktr|.
+ * |pkt_num| is the packet number which |fr| belongs.  |unprotected|
+ * is nonzero if the packet is an unprotected packet.
+ */
+void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
+                          const ngtcp2_ack *fr, uint8_t unprotected);
+
+/*
+ * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.
+ * |unprotected| is nonzero if the packet which |fr| is included is an
+ * unprotected packet.  If we receive ACK which acknowledges the ACKs
+ * added by ngtcp2_acktr_add_ack, ngtcp2_acktr_entry which the
+ * outgoing ACK acknowledges is removed.
+ */
+void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
+                           uint8_t unprotected);
 
 #endif /* NGTCP2_ACKTR_H */

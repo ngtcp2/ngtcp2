@@ -40,6 +40,7 @@
 #include "ngtcp2_crypto_test.h"
 #include "ngtcp2_idtr_test.h"
 #include "ngtcp2_conn_test.h"
+#include "ngtcp2_ringbuf_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -114,11 +115,14 @@ int main() {
                    test_ngtcp2_rob_remove_prefix) ||
       !CU_add_test(pSuite, "acktr_add", test_ngtcp2_acktr_add) ||
       !CU_add_test(pSuite, "acktr_eviction", test_ngtcp2_acktr_eviction) ||
+      !CU_add_test(pSuite, "acktr_forget", test_ngtcp2_acktr_forget) ||
       !CU_add_test(pSuite, "encode_transport_params",
                    test_ngtcp2_encode_transport_params) ||
       !CU_add_test(pSuite, "rtb_add", test_ngtcp2_rtb_add) ||
       !CU_add_test(pSuite, "rtb_recv_ack", test_ngtcp2_rtb_recv_ack) ||
       !CU_add_test(pSuite, "idtr_open", test_ngtcp2_idtr_open) ||
+      !CU_add_test(pSuite, "ringbuf_push_front",
+                   test_ngtcp2_ringbuf_push_front) ||
       !CU_add_test(pSuite, "conn_stream_open_close",
                    test_ngtcp2_conn_stream_open_close) ||
       !CU_add_test(pSuite, "conn_stream_rx_flow_control",

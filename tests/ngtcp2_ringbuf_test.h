@@ -22,16 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_ACKTR_TEST_H
-#define NGTCP2_ACKTR_TEST_H
+#ifndef NGTCP2_RINGBUF_TEST_H
+#define NGTCP2_RINGBUF_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_acktr_add(void);
-void test_ngtcp2_acktr_eviction(void);
-void test_ngtcp2_acktr_forget(void);
-void test_ngtcp2_acktr_recv_ack(void);
+void test_ngtcp2_ringbuf_push_front(void);
 
-#endif /* NGTCP2_ACKTR_TEST_H */
+#endif /* NGTCP2_RINGBUF_TEST_H */

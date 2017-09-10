@@ -22,16 +22,43 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_ACKTR_TEST_H
-#define NGTCP2_ACKTR_TEST_H
+#include "ngtcp2_ringbuf_test.h"
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif /* HAVE_CONFIG_H */
+#include <CUnit/CUnit.h>
 
-void test_ngtcp2_acktr_add(void);
-void test_ngtcp2_acktr_eviction(void);
-void test_ngtcp2_acktr_forget(void);
-void test_ngtcp2_acktr_recv_ack(void);
+#include "ngtcp2_ringbuf.h"
+#include "ngtcp2_test_helper.h"
 
-#endif /* NGTCP2_ACKTR_TEST_H */
+typedef struct {
+  int32_t a;
+  uint64_t b;
+} ints;
+
+void test_ngtcp2_ringbuf_push_front(void) {
+  ngtcp2_ringbuf rb;
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  size_t i;
+
+  ngtcp2_ringbuf_init(&rb, 64, sizeof(ints), mem);
+
+  for (i = 0; i < 64; ++i) {
+    ints *p = ngtcp2_ringbuf_push_front(&rb);
+    p->a = (int32_t)(i + 1);
+    p->b = (i + 1) * 10;
+  }
+
+  CU_ASSERT(64 == ngtcp2_ringbuf_len(&rb));
+
+  for (i = 0; i < 64; ++i) {
+    ints *p = ngtcp2_ringbuf_get(&rb, i);
+    CU_ASSERT((int32_t)(64 - i) == p->a);
+    CU_ASSERT((64 - i) * 10 == p->b);
+  }
+
+  ngtcp2_ringbuf_push_front(&rb);
+
+  CU_ASSERT(64 == ngtcp2_ringbuf_len(&rb));
+  CU_ASSERT((int32_t)64 == ((ints *)ngtcp2_ringbuf_get(&rb, 1))->a);
+
+  ngtcp2_ringbuf_free(&rb);
+}
