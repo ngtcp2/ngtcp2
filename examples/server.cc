@@ -1008,7 +1008,9 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
                                       stream.stream_id, fin, data.rpos(),
                                       data.left(), util::timestamp());
     if (n < 0) {
-      if (n == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
+      switch (n) {
+      case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+      case NGTCP2_ERR_STREAM_SHUT_WR:
         return 0;
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
