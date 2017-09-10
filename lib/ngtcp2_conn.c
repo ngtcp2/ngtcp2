@@ -2368,10 +2368,6 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     return rv;
   }
 
-  /* Set this flag so that we don't accidentally send DATA to this
-     stream. */
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR;
-
   frc->fr.type = NGTCP2_FRAME_RST_STREAM;
   frc->fr.rst_stream.stream_id = strm->stream_id;
   frc->fr.rst_stream.error_code = error_code;
@@ -3317,6 +3313,14 @@ int ngtcp2_conn_reset_stream(ngtcp2_conn *conn, uint32_t stream_id,
   if (strm == NULL) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
+
+  if (strm->flags & NGTCP2_STRM_FLAG_RESET) {
+    return 0;
+  }
+
+  /* Set this flag so that we don't accidentally send DATA to this
+     stream. */
+  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_RESET;
 
   return conn_reset_stream(conn, strm, error_code);
 }

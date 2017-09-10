@@ -46,6 +46,8 @@ typedef enum {
   NGTCP2_STRM_FLAG_SHUT_WR = 0x02,
   NGTCP2_STRM_FLAG_SHUT_RDWR =
       NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR,
+  /* NGTCP2_STRM_FLAG_RESET indicates that stream is reset. */
+  NGTCP2_STRM_FLAG_RESET = 0x04,
 } ngtcp2_strm_flags;
 
 struct ngtcp2_strm;
