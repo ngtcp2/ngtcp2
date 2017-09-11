@@ -192,6 +192,7 @@ typedef enum {
   NGTCP2_ERR_FRAME_FORMAT = -219,
   NGTCP2_ERR_TLS_DECRYPT = -220,
   NGTCP2_ERR_STREAM_SHUT_WR = -221,
+  NGTCP2_ERR_STREAM_NOT_FOUND = -222,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -1093,7 +1094,9 @@ NGTCP2_EXTERN int ngtcp2_conn_reset_stream(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     Stream does not exist; or |stream_id| is 0.
+ *     |stream_id| is 0.
+ * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *     Stream does not exist
  * :enum:`NGTCP2_ERR_STREAM_SHUT_WR`
  *     Stream is half closed (local); or stream is being reset.
  * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`

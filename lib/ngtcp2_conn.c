@@ -3119,13 +3119,17 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   size_t ndatalen, left;
   ssize_t nwrite;
 
+  if (stream_id == 0) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
   if (conn->last_tx_pkt_num == UINT64_MAX) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_STREAM_NOT_FOUND;
   }
 
   if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
