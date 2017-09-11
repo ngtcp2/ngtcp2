@@ -1158,7 +1158,9 @@ NGTCP2_EXTERN int ngtcp2_conn_closed(ngtcp2_conn *conn);
  * negative error codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0; or stream was not found
+ *     |stream_id| is 0
+ * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *     Stream was not found
  */
 NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
                                                        uint32_t stream_id,

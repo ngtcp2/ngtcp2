@@ -3355,7 +3355,7 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, uint32_t stream_id,
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_STREAM_NOT_FOUND;
   }
 
   if (strm->unsent_max_rx_offset <= UINT64_MAX - datalen) {
