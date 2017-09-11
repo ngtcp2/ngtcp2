@@ -1066,7 +1066,9 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     Stream does not exist; or |stream_id| is 0.
+ *     |stream_id| is 0.
+ * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_reset_stream(ngtcp2_conn *conn,
                                            uint32_t stream_id,

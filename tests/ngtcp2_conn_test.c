@@ -586,7 +586,7 @@ void test_ngtcp2_conn_reset_stream(void) {
 
   rv = ngtcp2_conn_reset_stream(conn, 1, NGTCP2_NO_ERROR);
 
-  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_NOT_FOUND == rv);
 
   ngtcp2_conn_del(conn);
 

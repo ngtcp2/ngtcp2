@@ -3325,9 +3325,13 @@ int ngtcp2_conn_reset_stream(ngtcp2_conn *conn, uint32_t stream_id,
                              uint32_t error_code) {
   ngtcp2_strm *strm;
 
+  if (stream_id == 0) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    return NGTCP2_ERR_STREAM_NOT_FOUND;
   }
 
   if (strm->flags & NGTCP2_STRM_FLAG_RESET) {

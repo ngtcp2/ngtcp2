@@ -1167,7 +1167,7 @@ int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
 
   if (stream->streambuf_bytes == 0 && stream->resp_state == RESP_COMPLETED) {
     rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_NO_ERROR);
-    if (rv != 0 && rv != NGTCP2_ERR_INVALID_ARGUMENT) {
+    if (rv != 0 && rv != NGTCP2_ERR_STREAM_NOT_FOUND) {
       std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
                 << std::endl;
       return -1;
