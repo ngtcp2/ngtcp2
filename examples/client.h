@@ -59,14 +59,23 @@ struct Config {
 
 struct Buffer {
   Buffer(const uint8_t *data, size_t datalen);
+  explicit Buffer(size_t datalen);
   Buffer();
-  size_t left() const { return std::end(buf) - pos; }
-  const uint8_t *rpos() const {
-    return buf.data() + std::distance(std::begin(buf), pos);
+
+  size_t size() const { return tail - head; }
+  size_t left() const { return buf.size() - tail; }
+  uint8_t *const wpos() { return &buf[tail]; }
+  const uint8_t *rpos() const { return &buf[head]; }
+  void seek(size_t len) { head += len; }
+  void push(size_t len) { tail += len; }
+  void reset() {
+    head = 0;
+    tail = 0;
   }
 
   std::vector<uint8_t> buf;
-  std::vector<uint8_t>::const_iterator pos;
+  size_t head;
+  size_t tail;
 };
 
 class Client {
@@ -102,12 +111,13 @@ public:
                        const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
                        size_t adlen);
   ngtcp2_conn *conn() const;
+  int send_packet();
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
   void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                              size_t datalen);
-  void handle_error(int liberr);
+  int handle_error(int liberr);
 
 private:
   Address remote_addr_;
@@ -137,6 +147,8 @@ private:
   // streambuf_idx_ is the index in streambuf_, which points to the
   // buffer to send next.
   size_t streambuf_idx_;
+  // common buffer used to store packet data before sending
+  Buffer sendbuf_;
   // tx_stream_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream_offset_;

@@ -60,9 +60,9 @@ constexpr size_t MAX_BYTES_IN_FLIGHT = 1460 * 10;
 } // namespace
 
 Buffer::Buffer(const uint8_t *data, size_t datalen)
-    : buf{data, data + datalen}, pos(std::begin(buf)) {}
-
-Buffer::Buffer() : pos(std::begin(buf)) {}
+    : buf{data, data + datalen}, head(0), tail(datalen) {}
+Buffer::Buffer(size_t datalen) : buf(datalen), head(0), tail(0) {}
+Buffer::Buffer() : head(0), tail(0) {}
 
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
@@ -149,10 +149,14 @@ BIO_METHOD *create_bio_method() {
 
 namespace {
 void writecb(struct ev_loop *loop, ev_io *w, int revents) {
+  ev_io_stop(loop, w);
+
   auto c = static_cast<Client *>(w->data);
 
-  if (c->on_write() != 0) {
+  auto rv = c->on_write();
+  if (rv == NETWORK_ERR_SEND_FATAL) {
     c->disconnect();
+    return;
   }
 }
 } // namespace
@@ -162,6 +166,11 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
   if (c->on_read() != 0) {
+    c->disconnect();
+    return;
+  }
+  auto rv = c->on_write();
+  if (rv == NETWORK_ERR_SEND_FATAL) {
     c->disconnect();
   }
 }
@@ -219,6 +228,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       conn_(nullptr),
       crypto_ctx_{},
       streambuf_idx_(0),
+      sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       tx_stream_offset_(0),
       should_send_fin_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
@@ -566,40 +576,48 @@ int Client::on_read() {
 
   ev_timer_again(loop_, &timer_);
 
-  return on_write();
+  return 0;
 }
 
 int Client::on_write() {
-  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
-  assert(buf.size() >= max_pktlen_);
+  if (sendbuf_.size() > 0) {
+    auto rv = send_packet();
+    if (rv != NETWORK_ERR_OK) {
+      return rv;
+    }
+  }
 
   for (auto it = std::begin(streambuf_) + streambuf_idx_;
        it != std::end(streambuf_); ++it) {
     auto &v = *it;
-    if (on_write_stream(stream_id_, 0, v) != 0) {
-      return -1;
+    auto rv = on_write_stream(stream_id_, 0, v);
+    if (rv != 0) {
+      return rv;
     }
-    if (v.left() > 0) {
+    if (v.size() > 0) {
       break;
     }
     ++streambuf_idx_;
   }
 
   if (streambuf_idx_ == streambuf_.size() && should_send_fin_) {
-    should_send_fin_ = false;
     auto v = Buffer{};
-    if (on_write_stream(stream_id_, 1, v) != 0) {
-      return -1;
+    auto rv = on_write_stream(stream_id_, 1, v);
+    if (rv != 0) {
+      return rv;
     }
+    should_send_fin_ = false;
   }
+
+  assert(sendbuf_.left() >= max_pktlen_);
 
   for (;;) {
     ssize_t n;
     if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
-      n = ngtcp2_conn_write_pkt(conn_, buf.data(), max_pktlen_,
+      n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
                                 util::timestamp());
     } else {
-      n = ngtcp2_conn_write_ack_pkt(conn_, buf.data(), max_pktlen_,
+      n = ngtcp2_conn_write_ack_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
                                     util::timestamp());
     }
     if (n < 0) {
@@ -611,15 +629,14 @@ int Client::on_write() {
       break;
     }
 
-    if (debug::packet_lost(config.tx_loss_prob)) {
-      std::cerr << "** Simulated outgoing packet loss **" << std::endl;
-      continue;
-    }
+    sendbuf_.push(n);
 
-    auto nwrite = write(fd_, buf.data(), n);
-    if (nwrite == -1) {
-      std::cerr << "write: " << strerror(errno) << std::endl;
-      return -1;
+    auto rv = send_packet();
+    if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+      break;
+    }
+    if (rv != NETWORK_ERR_OK) {
+      return rv;
     }
   }
 
@@ -628,8 +645,6 @@ int Client::on_write() {
 }
 
 int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
-  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
-  assert(buf.size() >= max_pktlen_);
   size_t ndatalen;
 
   for (;;) {
@@ -637,9 +652,9 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
       break;
     }
 
-    auto n = ngtcp2_conn_write_stream(conn_, buf.data(), max_pktlen_, &ndatalen,
-                                      stream_id, fin, data.rpos(), data.left(),
-                                      util::timestamp());
+    auto n = ngtcp2_conn_write_stream(conn_, sendbuf_.wpos(), max_pktlen_,
+                                      &ndatalen, stream_id, fin, data.rpos(),
+                                      data.size(), util::timestamp());
     if (n < 0) {
       switch (n) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -654,23 +669,16 @@ int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
       return -1;
     }
 
-    data.pos += ndatalen;
+    data.seek(ndatalen);
 
-    if (debug::packet_lost(config.tx_loss_prob)) {
-      std::cerr << "** Simulated outgoing packet loss **" << std::endl;
-      if (data.left() == 0) {
-        break;
-      }
-      continue;
+    sendbuf_.push(n);
+
+    auto rv = send_packet();
+    if (rv != NETWORK_ERR_OK) {
+      return rv;
     }
 
-    auto nwrite = write(fd_, buf.data(), n);
-    if (nwrite == -1) {
-      std::cerr << "write: " << strerror(errno) << std::endl;
-      return -1;
-    }
-
-    if (data.left() == 0) {
+    if (data.size() == 0) {
       break;
     }
   }
@@ -706,8 +714,8 @@ size_t Client::read_client_handshake(const uint8_t **pdest) {
     return 0;
   }
   const auto &v = chandshake_[chandshake_idx_++];
-  *pdest = v.buf.data();
-  return v.buf.size();
+  *pdest = v.rpos();
+  return v.size();
 }
 
 size_t Client::read_server_handshake(uint8_t *buf, size_t buflen) {
@@ -808,6 +816,38 @@ ssize_t Client::decrypt_data(uint8_t *dest, size_t destlen,
 
 ngtcp2_conn *Client::conn() const { return conn_; }
 
+int Client::send_packet() {
+  if (debug::packet_lost(config.tx_loss_prob)) {
+    std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    return NETWORK_ERR_OK;
+  }
+
+  int eintr_retries = 5;
+  ssize_t nwrite = 0;
+
+  do {
+    nwrite = sendto(fd_, sendbuf_.rpos(), sendbuf_.size(), 0,
+                    &remote_addr_.su.sa, remote_addr_.len);
+  } while ((nwrite == -1) && (errno == EINTR) && (eintr_retries-- > 0));
+
+  if (nwrite == -1) {
+    switch (errno) {
+    case EAGAIN:
+    case EINTR:
+    case 0:
+      return NETWORK_ERR_SEND_NON_FATAL;
+    default:
+      std::cerr << "sendto: " << strerror(errno) << std::endl;
+      return NETWORK_ERR_SEND_FATAL;
+    }
+  }
+
+  assert(nwrite == sendbuf_.size());
+  sendbuf_.reset();
+
+  return NETWORK_ERR_OK;
+}
+
 int Client::start_interactive_input() {
   int rv;
   if (stdinfd_ == -1) {
@@ -868,40 +908,33 @@ int Client::stop_interactive_input() {
   return 0;
 }
 
-void Client::handle_error(int liberr) {
+int Client::handle_error(int liberr) {
   if (!conn_ || ngtcp2_conn_closed(conn_)) {
-    return;
+    return 0;
   }
 
-  std::array<uint8_t, NGTCP2_MAX_PKTLEN_IPV4> buf;
+  sendbuf_.reset();
+  assert(sendbuf_.left() >= max_pktlen_);
 
-  auto n = ngtcp2_conn_write_connection_close(conn_, buf.data(), max_pktlen_,
-                                              infer_quic_error_code(liberr));
+  auto n = ngtcp2_conn_write_connection_close(
+      conn_, sendbuf_.wpos(), max_pktlen_, infer_quic_error_code(liberr));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
-    return;
+    return -1;
   }
 
-  if (debug::packet_lost(config.tx_loss_prob)) {
-    std::cerr << "** Simulated outgoing packet loss **" << std::endl;
-    return;
-  }
+  sendbuf_.push(n);
 
-  auto nwrite =
-      sendto(fd_, buf.data(), n, 0, &remote_addr_.su.sa, remote_addr_.len);
-  if (nwrite == -1) {
-    std::cerr << "sendto: " << strerror(errno) << std::endl;
-    return;
-  }
+  return send_packet();
 }
 
 namespace {
 void remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
                            uint64_t &tx_offset, uint64_t offset) {
-  for (; !d.empty() && tx_offset + d.front().buf.size() <= offset;) {
+  for (; !d.empty() && tx_offset + d.front().tail <= offset;) {
     --idx;
-    tx_offset += d.front().buf.size();
+    tx_offset += d.front().tail;
     d.pop_front();
   }
 }

@@ -64,14 +64,28 @@ struct Config {
 
 struct Buffer {
   Buffer(const uint8_t *data, size_t datalen);
+  explicit Buffer(size_t datalen);
   Buffer();
-  size_t left() const { return std::end(buf) - pos; }
-  const uint8_t *rpos() const {
-    return buf.data() + std::distance(std::begin(buf), pos);
+
+  size_t size() const { return tail - head; }
+  size_t left() const { return buf.size() - tail; }
+  uint8_t *const wpos() { return &buf[tail]; }
+  const uint8_t *rpos() const { return &buf[head]; }
+  void seek(size_t len) { head += len; }
+  void push(size_t len) { tail += len; }
+  void push_resize(size_t len) {
+    push(len);
+    buf.resize(tail);
+  }
+  void resize(size_t size) { buf.resize(size); }
+  void reset() {
+    head = 0;
+    tail = 0;
   }
 
   std::vector<uint8_t> buf;
-  std::vector<uint8_t>::const_iterator pos;
+  size_t head;
+  size_t tail;
 };
 
 enum {
@@ -164,7 +178,7 @@ public:
   int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint32_t stream_id);
-  void handle_error(int liberror);
+  int handle_error(int liberror);
 
 private:
   Address remote_addr_;
@@ -185,6 +199,8 @@ private:
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
   std::map<uint32_t, std::unique_ptr<Stream>> streams_;
+  // common buffer used to store packet data before sending
+  Buffer sendbuf_;
   uint64_t conn_id_;
   // tx_stream0_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
@@ -201,10 +217,13 @@ public:
   void disconnect(int liberr);
   void close();
 
+  int on_write();
   int on_read();
   int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                                socklen_t salen);
+  int send_packet(Address &remote_addr, Buffer &buf);
   void remove(const Handler *h);
+  void start_wev();
 
 private:
   std::map<uint64_t, std::unique_ptr<Handler>> handlers_;
