@@ -232,6 +232,7 @@ private:
   int fd_;
   ev_io wev_;
   ev_io rev_;
+  ev_signal sigintev_;
 };
 
 #endif // SERVER_H

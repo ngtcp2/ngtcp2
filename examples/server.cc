@@ -1203,12 +1203,19 @@ void sreadcb(struct ev_loop *loop, ev_io *w, int revents) {
 }
 } // namespace
 
+namespace {
+void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
+  ev_break(loop, EVBREAK_ALL);
+}
+} // namespace
+
 Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
     : loop_(loop), ssl_ctx_(ssl_ctx), fd_(-1) {
   ev_io_init(&wev_, swritecb, 0, EV_WRITE);
   ev_io_init(&rev_, sreadcb, 0, EV_READ);
   wev_.data = this;
   rev_.data = this;
+  ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
 Server::~Server() {
@@ -1222,6 +1229,8 @@ void Server::disconnect(int liberr) {
   config.tx_loss_prob = 0;
 
   ev_io_stop(loop_, &rev_);
+
+  ev_signal_stop(loop_, &sigintev_);
 
   while (!handlers_.empty()) {
     auto h = std::begin(handlers_)->second.get();
@@ -1248,6 +1257,8 @@ int Server::init(int fd) {
   ev_io_set(&rev_, fd_, EV_READ);
 
   ev_io_start(loop_, &rev_);
+
+  ev_signal_start(loop_, &sigintev_);
 
   return 0;
 }
@@ -1588,12 +1599,6 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
 } // namespace
 
 namespace {
-void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
-  ev_break(EV_DEFAULT, EVBREAK_ALL);
-}
-} // namespace
-
-namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
@@ -1883,9 +1888,6 @@ int main(int argc, char **argv) {
   auto ssl_ctx_d = defer(SSL_CTX_free, ssl_ctx);
 
   auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);
-  ev_signal sigint_watcher;
-  ev_signal_init(&sigint_watcher, siginthandler, SIGINT);
-  ev_signal_start(EV_DEFAULT, &sigint_watcher);
 
   debug::reset_timestamp();
 
