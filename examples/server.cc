@@ -1430,12 +1430,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
     return -1;
   }
 
-  size_t n = ngtcp2_upe_final(upe, NULL);
-  if (n < 0) {
-    std::cerr << "ngtcp2_upe_final: " << ngtcp2_strerror(n) << std::endl;
-    return -1;
-  }
-
+  auto n = ngtcp2_upe_final(upe, NULL);
   buf.push(n);
 
   Address remote_addr;
