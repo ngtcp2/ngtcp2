@@ -1190,8 +1190,6 @@ void swritecb(struct ev_loop *loop, ev_io *w, int revents) {
   if (rv != 0) {
     if (rv == NETWORK_ERR_SEND_NON_FATAL) {
       s->start_wev();
-    } else {
-      s->disconnect();
     }
   }
 }
@@ -1264,8 +1262,6 @@ int Server::on_write() {
       continue;
     case NETWORK_ERR_SEND_NON_FATAL:
       return NETWORK_ERR_SEND_NON_FATAL;
-    case NETWORK_ERR_SEND_FATAL:
-      return NETWORK_ERR_SEND_FATAL;
     }
     it = handlers_.erase(it);
   }
