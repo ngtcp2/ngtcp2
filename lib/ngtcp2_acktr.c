@@ -168,9 +168,14 @@ static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_acktr_entry **pent) {
   *pent = (*pent)->next;
   if (*pent) {
     (*pent)->pprev = pent;
+  } else {
+    acktr->tail =
+        ngtcp2_struct_of((ngtcp2_acktr_entry *)pent, ngtcp2_acktr_entry, next);
   }
 
   ngtcp2_acktr_entry_del(ent, acktr->mem);
+
+  --acktr->nack;
 }
 
 static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
@@ -191,7 +196,7 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
     }
   }
   if (*pent == NULL) {
-    return;
+    goto fin;
   }
 
   min_ack = largest_ack - fr->first_ack_blklen;
@@ -229,6 +234,9 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
     largest_ack = min_ack;
     ++i;
   }
+
+fin:
+  ngtcp2_ringbuf_resize(&acktr->acks, ack_ent_offset);
 }
 
 void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
