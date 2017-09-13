@@ -122,6 +122,10 @@ int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   }
 
   ent->next = rtb->head;
+  if (ent->next) {
+    ent->next->pprev = &ent->next;
+  }
+  ent->pprev = &rtb->head;
   rtb->head = ent;
   rtb->bytes_in_flight += ent->pktlen;
 
@@ -149,15 +153,15 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb) {
   assert(rtb->bytes_in_flight >= ent->pktlen);
 
   rtb->bytes_in_flight -= ent->pktlen;
-  /* TODO Use doubly linked list to remove entry in O(1) if the
-     current O(N) operation causes performance penalty. */
-  for (pent = &rtb->head; *pent; pent = &(*pent)->next) {
-    if (*pent == ent) {
-      *pent = (*pent)->next;
-      ent->next = NULL;
-      break;
-    }
+
+  pent = ent->pprev;
+  *pent = ent->next;
+  if (*pent) {
+    (*pent)->pprev = pent;
   }
+
+  ent->pprev = NULL;
+  ent->next = NULL;
 }
 
 static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry **pent) {
@@ -165,6 +169,9 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry **pent) {
 
   ent = *pent;
   *pent = (*pent)->next;
+  if (*pent) {
+    (*pent)->pprev = pent;
+  }
 
   ngtcp2_pq_remove(&rtb->pq, &ent->pe);
 

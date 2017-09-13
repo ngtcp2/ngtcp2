@@ -82,7 +82,7 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
  */
 struct ngtcp2_rtb_entry {
   ngtcp2_pq_entry pe;
-  ngtcp2_rtb_entry *next;
+  ngtcp2_rtb_entry **pprev, *next;
 
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frc;
