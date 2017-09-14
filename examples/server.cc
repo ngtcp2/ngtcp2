@@ -921,14 +921,6 @@ int Handler::on_write() {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
-  for (auto &p : streams_) {
-    auto &stream = p.second;
-    rv = on_write_stream(*stream);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
   for (;;) {
     ssize_t n;
     if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
@@ -954,6 +946,14 @@ int Handler::on_write() {
       break;
     }
     if (rv != NETWORK_ERR_OK) {
+      return rv;
+    }
+  }
+
+  for (auto &p : streams_) {
+    auto &stream = p.second;
+    rv = on_write_stream(*stream);
+    if (rv != 0) {
       return rv;
     }
   }

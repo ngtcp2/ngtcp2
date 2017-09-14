@@ -587,28 +587,6 @@ int Client::on_write() {
     }
   }
 
-  for (auto it = std::begin(streambuf_) + streambuf_idx_;
-       it != std::end(streambuf_); ++it) {
-    auto &v = *it;
-    auto rv = on_write_stream(stream_id_, 0, v);
-    if (rv != 0) {
-      return rv;
-    }
-    if (v.size() > 0) {
-      break;
-    }
-    ++streambuf_idx_;
-  }
-
-  if (streambuf_idx_ == streambuf_.size() && should_send_fin_) {
-    auto v = Buffer{};
-    auto rv = on_write_stream(stream_id_, 1, v);
-    if (rv != 0) {
-      return rv;
-    }
-    should_send_fin_ = false;
-  }
-
   assert(sendbuf_.left() >= max_pktlen_);
 
   for (;;) {
@@ -638,6 +616,28 @@ int Client::on_write() {
     if (rv != NETWORK_ERR_OK) {
       return rv;
     }
+  }
+
+  for (auto it = std::begin(streambuf_) + streambuf_idx_;
+       it != std::end(streambuf_); ++it) {
+    auto &v = *it;
+    auto rv = on_write_stream(stream_id_, 0, v);
+    if (rv != 0) {
+      return rv;
+    }
+    if (v.size() > 0) {
+      break;
+    }
+    ++streambuf_idx_;
+  }
+
+  if (streambuf_idx_ == streambuf_.size() && should_send_fin_) {
+    auto v = Buffer{};
+    auto rv = on_write_stream(stream_id_, 1, v);
+    if (rv != 0) {
+      return rv;
+    }
+    should_send_fin_ = false;
   }
 
   schedule_retransmit();
