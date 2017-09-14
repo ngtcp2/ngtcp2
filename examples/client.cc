@@ -64,6 +64,15 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
 Buffer::Buffer(size_t datalen) : buf(datalen), head(0), tail(0) {}
 Buffer::Buffer() : head(0), tail(0) {}
 
+Stream::Stream(uint32_t stream_id)
+    : stream_id(stream_id),
+      streambuf_idx(0),
+      tx_stream_offset(0),
+      should_send_fin(false),
+      fd(-1) {}
+
+Stream::~Stream() {}
+
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
   int rv;
@@ -221,16 +230,12 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_(nullptr),
       fd_(-1),
       stdinfd_(-1),
-      stream_id_(0),
       chandshake_idx_(0),
-      tx_stream0_offset_(0),
       nsread_(0),
       conn_(nullptr),
       crypto_ctx_{},
-      streambuf_idx_(0),
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      tx_stream_offset_(0),
-      should_send_fin_(false) {
+      next_stream_id_(1) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   ev_io_init(&stdinrev_, stdin_readcb, 0, EV_READ);
@@ -375,6 +380,17 @@ int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
+int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint32_t error_code,
+                 void *user_data, void *stream_user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  c->on_stream_close(stream_id, error_code);
+
+  return 0;
+}
+} // namespace
+
+namespace {
 ssize_t do_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                    const uint8_t *plaintext, size_t plaintextlen,
                    const uint8_t *key, size_t keylen, const uint8_t *nonce,
@@ -459,7 +475,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       do_decrypt,
       recv_stream_data,
       acked_stream_data_offset,
-      nullptr,
+      stream_close,
       debug::recv_stateless_reset,
       recv_server_stateless_retry,
   };
@@ -618,26 +634,32 @@ int Client::on_write() {
     }
   }
 
-  for (auto it = std::begin(streambuf_) + streambuf_idx_;
-       it != std::end(streambuf_); ++it) {
-    auto &v = *it;
-    auto rv = on_write_stream(stream_id_, 0, v);
-    if (rv != 0) {
-      return rv;
-    }
-    if (v.size() > 0) {
-      break;
-    }
-    ++streambuf_idx_;
-  }
+  for (auto &p : streams_) {
+    auto &stream = p.second;
+    auto &streambuf = stream->streambuf;
+    auto &streambuf_idx = stream->streambuf_idx;
 
-  if (streambuf_idx_ == streambuf_.size() && should_send_fin_) {
-    auto v = Buffer{};
-    auto rv = on_write_stream(stream_id_, 1, v);
-    if (rv != 0) {
-      return rv;
+    for (auto it = std::begin(streambuf) + streambuf_idx;
+         it != std::end(streambuf); ++it) {
+      auto &v = *it;
+      auto rv = on_write_stream(stream->stream_id, 0, v);
+      if (rv != 0) {
+        return rv;
+      }
+      if (v.size() > 0) {
+        break;
+      }
+      ++streambuf_idx;
     }
-    should_send_fin_ = false;
+
+    if (streambuf_idx == streambuf.size() && stream->should_send_fin) {
+      auto v = Buffer{};
+      auto rv = on_write_stream(stream->stream_id, 1, v);
+      if (rv != 0) {
+        return rv;
+      }
+      stream->should_send_fin = false;
+    }
   }
 
   schedule_retransmit();
@@ -861,8 +883,9 @@ int Client::start_interactive_input() {
   ev_io_set(&stdinrev_, stdinfd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
-  stream_id_ = 1;
-  rv = ngtcp2_conn_open_stream(conn_, stream_id_, nullptr);
+  auto stream_id = next_stream_id_;
+
+  rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -872,7 +895,11 @@ int Client::start_interactive_input() {
     return -1;
   }
 
-  std::cerr << "The stream " << stream_id_ << " has opened." << std::endl;
+  std::cerr << "The stream " << stream_id << " has opened." << std::endl;
+
+  ++next_stream_id_;
+
+  streams_.emplace(stream_id, std::make_unique<Stream>(stream_id));
 
   return 0;
 }
@@ -891,7 +918,12 @@ int Client::send_interactive_input() {
     return stop_interactive_input();
   }
 
-  streambuf_.emplace_back(buf.data(), nread);
+  // TODO fix this
+  assert(!streams_.empty());
+
+  auto &stream = (*std::begin(streams_)).second;
+
+  stream->streambuf.emplace_back(buf.data(), nread);
 
   ev_feed_event(loop_, &wev_, EV_WRITE);
 
@@ -899,7 +931,11 @@ int Client::send_interactive_input() {
 }
 
 int Client::stop_interactive_input() {
-  should_send_fin_ = true;
+  assert(!streams_.empty());
+
+  auto &stream = (*std::begin(streams_)).second;
+
+  stream->should_send_fin = true;
   ev_io_stop(loop_, &stdinrev_);
 
   std::cerr << "Interactive session has ended." << std::endl;
@@ -948,8 +984,31 @@ void Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                             offset + datalen);
     return;
   }
-  ::remove_tx_stream_data(streambuf_, streambuf_idx_, tx_stream_offset_,
-                          offset + datalen);
+
+  auto it = streams_.find(stream_id);
+  if (it == std::end(streams_)) {
+    std::cerr << "Stream " << stream_id << "not found" << std::endl;
+    return;
+  }
+  auto &stream = (*it).second;
+  ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
+                          stream->tx_stream_offset, offset + datalen);
+}
+
+void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
+  auto it = streams_.find(stream_id);
+
+  if (it == std::end(streams_)) {
+    return;
+  }
+
+  auto &stream = (*it).second;
+
+  if (stdinfd_ != -1) {
+    ev_io_stop(loop_, &stdinrev_);
+  }
+
+  streams_.erase(it);
 }
 
 namespace {

@@ -31,6 +31,7 @@
 
 #include <vector>
 #include <deque>
+#include <map>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -78,6 +79,24 @@ struct Buffer {
   size_t tail;
 };
 
+struct Stream {
+  Stream(uint32_t stream_id);
+  ~Stream();
+
+  int buffer_file();
+
+  uint32_t stream_id;
+  std::deque<Buffer> streambuf;
+  // streambuf_idx is the index in streambuf, which points to the
+  // buffer to send next.
+  size_t streambuf_idx;
+  // tx_stream_offset is the offset where all data before offset is
+  // acked by the remote endpoint.
+  uint64_t tx_stream_offset;
+  bool should_send_fin;
+  int fd;
+};
+
 class Client {
 public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
@@ -117,6 +136,7 @@ public:
   int stop_interactive_input();
   void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                              size_t datalen);
+  void on_stream_close(uint32_t stream_id, uint32_t error_code);
   int handle_error(int liberr);
 
 private:
@@ -133,7 +153,7 @@ private:
   SSL *ssl_;
   int fd_;
   int stdinfd_;
-  uint32_t stream_id_;
+  std::map<uint32_t, std::unique_ptr<Stream>> streams_;
   std::deque<Buffer> chandshake_;
   // chandshake_idx_ is the index in chandshake_, which points to the
   // buffer to read next.
@@ -143,16 +163,9 @@ private:
   size_t nsread_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
-  std::deque<Buffer> streambuf_;
-  // streambuf_idx_ is the index in streambuf_, which points to the
-  // buffer to send next.
-  size_t streambuf_idx_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
-  // tx_stream_offset_ is the offset where all data before offset is
-  // acked by the remote endpoint.
-  uint64_t tx_stream_offset_;
-  bool should_send_fin_;
+  uint32_t next_stream_id_;
 };
 
 #endif // CLIENT_H
