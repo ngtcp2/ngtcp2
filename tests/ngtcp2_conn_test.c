@@ -1189,3 +1189,24 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_recv_max_stream_id(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  int rv;
+  ngtcp2_frame fr;
+
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
+  fr.max_stream_id.max_stream_id = 999;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(999 == conn->remote_settings.max_stream_id);
+
+  ngtcp2_conn_del(conn);
+}

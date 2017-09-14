@@ -235,7 +235,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       conn_(nullptr),
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      next_stream_id_(1) {
+      next_stream_id_(1),
+      max_stream_id_(0) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   ev_io_init(&stdinrev_, stdin_readcb, 0, EV_READ);
@@ -365,10 +366,6 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  if (c->start_interactive_input() != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
   return 0;
 }
 } // namespace
@@ -388,6 +385,20 @@ int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint32_t error_code,
 
   return 0;
 }
+} // namespace
+
+namespace {
+int extend_max_stream_id(ngtcp2_conn *conn, uint32_t max_stream_id,
+                         void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  if (c->on_extend_max_stream_id(max_stream_id) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 } // namespace
 
 namespace {
@@ -478,6 +489,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       stream_close,
       debug::recv_stateless_reset,
       recv_server_stateless_retry,
+      extend_max_stream_id,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(
@@ -873,9 +885,6 @@ int Client::send_packet() {
 
 int Client::start_interactive_input() {
   int rv;
-  if (stdinfd_ == -1) {
-    return 0;
-  }
 
   std::cerr << "Interactive session started.  Hit Ctrl-D to end the session."
             << std::endl;
@@ -897,7 +906,7 @@ int Client::start_interactive_input() {
 
   std::cerr << "The stream " << stream_id << " has opened." << std::endl;
 
-  ++next_stream_id_;
+  next_stream_id_ += 2;
 
   streams_.emplace(stream_id, std::make_unique<Stream>(stream_id));
 
@@ -1009,6 +1018,23 @@ void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
   }
 
   streams_.erase(it);
+}
+
+int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
+  max_stream_id_ = max_stream_id;
+
+  if (stdinfd_ != -1) {
+    if (next_stream_id_ != 1) {
+      return 0;
+    }
+    if (start_interactive_input() != 0) {
+      return -1;
+    }
+
+    return 0;
+  }
+
+  return 0;
 }
 
 namespace {

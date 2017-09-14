@@ -156,6 +156,23 @@ static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
+static int conn_call_extend_max_stream_id(ngtcp2_conn *conn,
+                                          uint32_t max_stream_id) {
+  int rv;
+
+  if (!conn->callbacks.extend_max_stream_id) {
+    return 0;
+  }
+
+  rv = conn->callbacks.extend_max_stream_id(conn, max_stream_id,
+                                            conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
                     const ngtcp2_conn_callbacks *callbacks,
                     const ngtcp2_settings *settings, void *user_data,
@@ -2597,6 +2614,24 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
   return ngtcp2_conn_sched_ack(conn, hd->pkt_num, require_ack, ts);
 }
 
+/*
+ * conn_recv_max_stream_id processes the incoming MAX_STREAM_ID frame
+ * |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ */
+static int conn_recv_max_stream_id(ngtcp2_conn *conn,
+                                   const ngtcp2_max_stream_id *fr) {
+  conn->remote_settings.max_stream_id =
+      ngtcp2_max(conn->remote_settings.max_stream_id, fr->max_stream_id);
+
+  return conn_call_extend_max_stream_id(conn, fr->max_stream_id);
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
@@ -2752,6 +2787,12 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     case NGTCP2_FRAME_MAX_DATA:
       conn_recv_max_data(conn, &fr.max_data);
       break;
+    case NGTCP2_FRAME_MAX_STREAM_ID:
+      rv = conn_recv_max_stream_id(conn, &fr.max_stream_id);
+      if (rv != 0) {
+        return rv;
+      }
+      break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
       conn_recv_connection_close(conn, &fr.connection_close);
       break;
@@ -2782,6 +2823,35 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   }
 
   conn->buffed_rx_ppkts = NULL;
+
+  return 0;
+}
+
+/*
+ * conn_handshake_completed is called once cryptographic handshake has
+ * completed.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ */
+static int conn_handshake_completed(ngtcp2_conn *conn) {
+  int rv;
+
+  rv = conn_call_handshake_completed(conn);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (conn->remote_settings.max_stream_id > 0) {
+    rv = conn_call_extend_max_stream_id(conn,
+                                        conn->remote_settings.max_stream_id);
+    if (rv != 0) {
+      return rv;
+    }
+  }
 
   return 0;
 }
@@ -2820,7 +2890,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       break;
     }
     if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
-      rv = conn_call_handshake_completed(conn);
+      rv = conn_handshake_completed(conn);
       if (rv != 0) {
         return rv;
       }
@@ -2843,7 +2913,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       break;
     }
     if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
-      rv = conn_call_handshake_completed(conn);
+      rv = conn_handshake_completed(conn);
       if (rv != 0) {
         return rv;
       }
