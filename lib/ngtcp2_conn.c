@@ -2230,8 +2230,7 @@ void ngtcp2_increment_offset(uint64_t *offset_high, uint32_t *offset_low,
   ++*offset_high;
 }
 
-static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
-                            uint8_t unprotected) {
+static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   int rv;
   ngtcp2_strm *strm;
   uint64_t rx_offset, fr_end_offset;
@@ -2243,10 +2242,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
       return NGTCP2_ERR_PROTO;
     }
     return 0;
-  }
-
-  if (unprotected) {
-    return NGTCP2_ERR_PROTO;
   }
 
   if (!fr->fin && fr->datalen == 0) {
@@ -2395,18 +2390,14 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
-static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
-                                uint8_t unprotected) {
+static int conn_recv_rst_stream(ngtcp2_conn *conn,
+                                const ngtcp2_rst_stream *fr) {
   int rv;
   ngtcp2_strm *strm;
   int local_stream = conn_local_stream(conn, fr->stream_id);
   uint64_t datalen;
 
   if (fr->stream_id == 0) {
-    return NGTCP2_ERR_PROTO;
-  }
-
-  if (unprotected) {
     return NGTCP2_ERR_PROTO;
   }
 
@@ -2462,13 +2453,8 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn, const ngtcp2_rst_stream *fr,
 }
 
 static void conn_recv_connection_close(ngtcp2_conn *conn,
-                                       const ngtcp2_connection_close *fr,
-                                       uint8_t unprotected) {
+                                       const ngtcp2_connection_close *fr) {
   (void)fr;
-
-  if (unprotected) {
-    return;
-  }
 
   conn->state = NGTCP2_CS_CLOSE_WAIT;
 }
@@ -2535,13 +2521,11 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
   size_t pkt_num_bits;
-  int encrypted = 0;
   int rv = 0;
   const uint8_t *hdpkt = pkt;
   ssize_t nread, nwrite;
   ngtcp2_frame fr;
   int require_ack = 0;
-  uint8_t unprotected;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -2591,7 +2575,6 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     switch (hd.type) {
     case NGTCP2_PKT_1RTT_PROTECTED_K0:
-      encrypted = 1;
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
       /* Parse, and ignore Version Negotiation packet after
@@ -2601,47 +2584,41 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
         return rv;
       }
       return 0;
+    default:
+      /* Ignore unprotected packet after handshake */
+      return 0;
     }
-  } else if (!(hd.flags & NGTCP2_PKT_FLAG_KEY_PHASE)) {
-    /* TODO No key update support right now */
-    encrypted = 1;
   }
 
-  if (encrypted) {
-    if (conn->decrypt_buflen < pktlen) {
-      uint8_t *nbuf;
-      size_t len;
+  if (conn->decrypt_buflen < pktlen) {
+    uint8_t *nbuf;
+    size_t len;
 
-      len = conn->decrypt_buflen == 0 ? 2048 : conn->decrypt_buflen * 2;
-      for (; len < pktlen; len *= 2)
-        ;
-      nbuf = ngtcp2_mem_realloc(conn->mem, conn->decrypt_buf, len);
-      if (nbuf == NULL) {
-        return NGTCP2_ERR_NOMEM;
-      }
-      conn->decrypt_buf = nbuf;
-      conn->decrypt_buflen = len;
+    len = conn->decrypt_buflen == 0 ? 2048 : conn->decrypt_buflen * 2;
+    for (; len < pktlen; len *= 2)
+      ;
+    nbuf = ngtcp2_mem_realloc(conn->mem, conn->decrypt_buf, len);
+    if (nbuf == NULL) {
+      return NGTCP2_ERR_NOMEM;
     }
-    nwrite = conn_decrypt_packet(conn, conn->decrypt_buf, pktlen, pkt, pktlen,
-                                 hdpkt, (size_t)nread, hd.pkt_num);
-    if (nwrite < 0) {
-      /* rewrind packet number portion of packet data */
-      pkt -= pkt_num_bits / 8;
-      pktlen += pkt_num_bits / 8;
-
-      rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
-      if (rv == 0) {
-        return 0;
-      }
-      return (int)nwrite;
-    }
-    pkt = conn->decrypt_buf;
-    pktlen = (size_t)nwrite;
-
-    unprotected = 0;
-  } else {
-    unprotected = 1;
+    conn->decrypt_buf = nbuf;
+    conn->decrypt_buflen = len;
   }
+  nwrite = conn_decrypt_packet(conn, conn->decrypt_buf, pktlen, pkt, pktlen,
+                               hdpkt, (size_t)nread, hd.pkt_num);
+  if (nwrite < 0) {
+    /* rewrind packet number portion of packet data */
+    pkt -= pkt_num_bits / 8;
+    pktlen += pkt_num_bits / 8;
+
+    rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
+    if (rv == 0) {
+      return 0;
+    }
+    return (int)nwrite;
+  }
+  pkt = conn->decrypt_buf;
+  pktlen = (size_t)nwrite;
 
   for (; pktlen;) {
     nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen);
@@ -2668,19 +2645,19 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
-      rv = conn_recv_ack(conn, &fr.ack, unprotected);
+      rv = conn_recv_ack(conn, &fr.ack, 0);
       if (rv != 0) {
         return rv;
       }
       break;
     case NGTCP2_FRAME_STREAM:
-      rv = conn_recv_stream(conn, &fr.stream, unprotected);
+      rv = conn_recv_stream(conn, &fr.stream);
       if (rv != 0) {
         return rv;
       }
       break;
     case NGTCP2_FRAME_RST_STREAM:
-      rv = conn_recv_rst_stream(conn, &fr.rst_stream, unprotected);
+      rv = conn_recv_rst_stream(conn, &fr.rst_stream);
       if (rv != 0) {
         return rv;
       }
@@ -2692,7 +2669,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       conn_recv_max_data(conn, &fr.max_data);
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
-      conn_recv_connection_close(conn, &fr.connection_close, unprotected);
+      conn_recv_connection_close(conn, &fr.connection_close);
       break;
     }
   }
