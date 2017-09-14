@@ -819,6 +819,7 @@ ngtcp2_conn *Client::conn() const { return conn_; }
 int Client::send_packet() {
   if (debug::packet_lost(config.tx_loss_prob)) {
     std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    sendbuf_.reset();
     return NETWORK_ERR_OK;
   }
 

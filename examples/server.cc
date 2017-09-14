@@ -1454,6 +1454,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
 int Server::send_packet(Address &remote_addr, Buffer &buf) {
   if (debug::packet_lost(config.tx_loss_prob)) {
     std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    buf.reset();
     return NETWORK_ERR_OK;
   }
 
