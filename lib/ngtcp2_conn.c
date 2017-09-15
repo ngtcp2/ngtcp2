@@ -2760,12 +2760,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
-  rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, require_ack, ts);
-  if (rv != 0) {
-    return rv;
-  }
-
-  return rv;
+  return ngtcp2_conn_sched_ack(conn, hd.pkt_num, require_ack, ts);
 }
 
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
