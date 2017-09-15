@@ -2517,6 +2517,86 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
+/*
+ * conn_recv_delayed_handshake_pkt processes the received handshake
+ * packet which is received after handshake completed.  This function
+ * does the minimal job, and its purpose is send acknowledgement of
+ * this packet to the peer.  We assume that hd->type is one of Client
+ * Initial, Client Cleartext, or Server Cleartext.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_PROTO
+ *     Packet type is unexpected; or same packet number has already
+ *     been added.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed.
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Frame is badly formatted; or frame type is unknown.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
+                                           const ngtcp2_pkt_hd *hd,
+                                           const uint8_t *pkt, size_t pktlen,
+                                           ngtcp2_tstamp ts) {
+  ssize_t nread;
+  ngtcp2_frame fr;
+  int rv;
+  int require_ack = 0;
+
+  if (conn->server) {
+    if (hd->type == NGTCP2_PKT_SERVER_CLEARTEXT) {
+      return NGTCP2_ERR_PROTO;
+    }
+  } else {
+    switch (hd->type) {
+    case NGTCP2_PKT_CLIENT_INITIAL:
+    case NGTCP2_PKT_CLIENT_CLEARTEXT:
+      return NGTCP2_ERR_PROTO;
+    }
+  }
+
+  for (; pktlen;) {
+    nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen);
+    if (nread < 0) {
+      return (int)nread;
+    }
+
+    pkt += nread;
+    pktlen -= (size_t)nread;
+
+    rv = conn_call_recv_frame(conn, hd, &fr);
+    if (rv != 0) {
+      return rv;
+    }
+
+    switch (fr.type) {
+    case NGTCP2_FRAME_ACK:
+      if (hd->type == NGTCP2_PKT_CLIENT_INITIAL) {
+        return NGTCP2_ERR_PROTO;
+      }
+      rv = conn_recv_ack(conn, &fr.ack, 1);
+      if (rv != 0) {
+        return rv;
+      }
+      continue;
+    case NGTCP2_FRAME_PADDING:
+      break;
+    case NGTCP2_FRAME_STREAM:
+      require_ack = 1;
+      break;
+    default:
+      return NGTCP2_ERR_PROTO;
+    }
+  }
+
+  conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd->pkt_num);
+
+  return ngtcp2_conn_sched_ack(conn, hd->pkt_num, require_ack, ts);
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
@@ -2584,6 +2664,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
         return rv;
       }
       return 0;
+    case NGTCP2_PKT_CLIENT_INITIAL:
+    case NGTCP2_PKT_CLIENT_CLEARTEXT:
+    case NGTCP2_PKT_SERVER_CLEARTEXT:
+      return conn_recv_delayed_handshake_pkt(conn, &hd, pkt, pktlen, ts);
     default:
       /* Ignore unprotected packet after handshake */
       return 0;
