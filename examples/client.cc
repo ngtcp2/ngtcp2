@@ -229,7 +229,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       fd_(-1),
-      stdinfd_(-1),
+      datafd_(-1),
       chandshake_idx_(0),
       nsread_(0),
       conn_(nullptr),
@@ -438,7 +438,7 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 } // namespace
 
 int Client::init(int fd, const Address &remote_addr, const char *addr,
-                 int stdinfd) {
+                 int datafd) {
   int rv;
 
   remote_addr_ = remote_addr;
@@ -455,7 +455,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   }
 
   fd_ = fd;
-  stdinfd_ = stdinfd;
+  datafd_ = datafd;
+
   ssl_ = SSL_new(ssl_ctx_);
   auto bio = BIO_new(create_bio_method());
   BIO_set_data(bio, this);
@@ -889,7 +890,7 @@ int Client::start_interactive_input() {
   std::cerr << "Interactive session started.  Hit Ctrl-D to end the session."
             << std::endl;
 
-  ev_io_set(&stdinrev_, stdinfd_, EV_READ);
+  ev_io_set(&stdinrev_, datafd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
   auto stream_id = next_stream_id_;
@@ -917,7 +918,7 @@ int Client::send_interactive_input() {
   ssize_t nread;
   std::array<uint8_t, 1_k> buf;
 
-  while ((nread = read(stdinfd_, buf.data(), buf.size())) == -1 &&
+  while ((nread = read(datafd_, buf.data(), buf.size())) == -1 &&
          errno == EINTR)
     ;
   if (nread == -1) {
@@ -1013,7 +1014,7 @@ void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
 
   auto &stream = (*it).second;
 
-  if (stdinfd_ != -1) {
+  if (config.interactive) {
     ev_io_stop(loop_, &stdinrev_);
   }
 
@@ -1023,7 +1024,7 @@ void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
 int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
   max_stream_id_ = max_stream_id;
 
-  if (stdinfd_ != -1) {
+  if (config.interactive) {
     if (next_stream_id_ != 1) {
       return 0;
     }
@@ -1325,6 +1326,7 @@ int main(int argc, char **argv) {
     case 'i':
       // --interactive
       config.fd = fileno(stdin);
+      config.interactive = true;
       break;
     case '?':
       print_usage();

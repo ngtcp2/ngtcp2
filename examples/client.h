@@ -50,12 +50,14 @@ struct Config {
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.
   double rx_loss_prob;
-  // fd is a file descriptor to read input for stream 1.
+  // fd is a file descriptor to read input for streams.
   int fd;
   // ciphers is the list of enabled ciphers.
   const char *ciphers;
   // groups is the list of supported groups.
   const char *groups;
+  // interactive is true if interactive input mode is on.
+  bool interactive;
 };
 
 struct Buffer {
@@ -102,7 +104,7 @@ public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Client();
 
-  int init(int fd, const Address &remote_addr, const char *addr, int stdinfd);
+  int init(int fd, const Address &remote_addr, const char *addr, int datafd);
   void disconnect();
   void disconnect(int liberr);
   void close();
@@ -153,7 +155,7 @@ private:
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
   int fd_;
-  int stdinfd_;
+  int datafd_;
   std::map<uint32_t, std::unique_ptr<Stream>> streams_;
   std::deque<Buffer> chandshake_;
   // chandshake_idx_ is the index in chandshake_, which points to the
