@@ -136,6 +136,15 @@ struct ngtcp2_conn {
   /* max_remote_stream_id is the maximum stream ID of peer initiated
      stream which the local endpoint can accept. */
   uint32_t max_remote_stream_id;
+  /* remote_stream_id_window_start is the left edge of a remote stream
+     ID window.  This value is not stream ID.  It is an id space which
+     is converted from a stream ID to a continuous integer starting
+     from 0.  In other words, this is the same id space that
+     ngtcp2_idtr uses internally, and ngtcp2_idtr_first_gap() returns.
+     This value is used to determine when we enlarge the right edge of
+     stream ID window in order to avoid excessive fragmentation in
+     ngtcp2_idtr. */
+  uint32_t remote_stream_id_window_start;
   /* unsent_max_rx_offset_high and unsent_max_rx_offset_low are the
      maximum offset that remote endpoint can send without extending
      MAX_DATA.  This limit is not yet notified to the remote

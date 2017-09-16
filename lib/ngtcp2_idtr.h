@@ -131,7 +131,8 @@ int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint32_t stream_id);
 
 /*
  * ngtcp2_idtr_first_gap returns the first id of first gap.  If there
- * is no gap, it returns UINT64_MAX.
+ * is no gap, it returns UINT64_MAX.  The returned id is an id space
+ * used in this object internally, and not stream ID.
  */
 uint64_t ngtcp2_idtr_first_gap(ngtcp2_idtr *idtr);
 
