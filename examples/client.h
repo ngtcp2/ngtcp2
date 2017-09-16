@@ -60,54 +60,59 @@ struct Config {
   bool interactive;
   // nstreams is the number of streams to open.
   size_t nstreams;
+  // data is the pointer to memory region which maps file denoted by
+  // fd.
+  uint8_t *data;
+  // datalen is the length of file denoted by fd.
+  size_t datalen;
 };
 
 struct Buffer {
   Buffer(const uint8_t *data, size_t datalen);
+  Buffer(uint8_t *begin, uint8_t *end);
   explicit Buffer(size_t datalen);
   Buffer();
 
   size_t size() const { return tail - head; }
-  size_t left() const { return buf.size() - tail; }
-  uint8_t *const wpos() { return &buf[tail]; }
-  const uint8_t *rpos() const { return &buf[head]; }
+  size_t left() const { return buf.data() + buf.size() - tail; }
+  uint8_t *const wpos() { return tail; }
+  const uint8_t *rpos() const { return head; }
   void seek(size_t len) { head += len; }
   void push(size_t len) { tail += len; }
-  void push_resize(size_t len) {
-    push(len);
-    buf.resize(tail);
-  }
   void reset() {
-    head = 0;
-    tail = 0;
+    head = begin;
+    tail = begin;
   }
+  size_t bufsize() const { return tail - begin; }
 
   std::vector<uint8_t> buf;
-  size_t head;
-  size_t tail;
+  // begin points to the beginning of the buffer.  This might point to
+  // buf.data() if a buffer space is allocated by this object.  It is
+  // also allowed to point to the external shared buffer.
+  uint8_t *begin;
+  // head points to the position of the buffer where read should
+  // occur.
+  uint8_t *head;
+  // tail points to the position of the buffer where write should
+  // occur.
+  uint8_t *tail;
 };
 
 struct Stream {
   Stream(uint32_t stream_id);
   ~Stream();
 
-  int buffer_file();
+  void buffer_file();
 
   uint32_t stream_id;
   std::deque<Buffer> streambuf;
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
   size_t streambuf_idx;
-  // streambuf_bytes is the number of bytes buffered in streambuf.
-  size_t streambuf_bytes;
   // tx_stream_offset is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream_offset;
   bool should_send_fin;
-  int fd;
-  // data_offset is how many bytes read from fd if interactive mode is
-  // off.
-  uint64_t data_offset;
 };
 
 class Client {

@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <sys/mman.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -62,44 +63,27 @@ constexpr size_t MAX_BYTES_IN_FLIGHT = 1460 * 10;
 } // namespace
 
 Buffer::Buffer(const uint8_t *data, size_t datalen)
-    : buf{data, data + datalen}, head(0), tail(datalen) {}
-Buffer::Buffer(size_t datalen) : buf(datalen), head(0), tail(0) {}
-Buffer::Buffer() : head(0), tail(0) {}
+    : buf{data, data + datalen},
+      begin(buf.data()),
+      head(begin),
+      tail(begin + datalen) {}
+Buffer::Buffer(uint8_t *begin, uint8_t *end)
+    : begin(begin), head(begin), tail(end) {}
+Buffer::Buffer(size_t datalen)
+    : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
+Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
 Stream::Stream(uint32_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
-      streambuf_bytes(0),
       tx_stream_offset(0),
-      should_send_fin(false),
-      fd(-1),
-      data_offset(0) {}
+      should_send_fin(false) {}
 
 Stream::~Stream() {}
 
-int Stream::buffer_file() {
-  if (fd == -1) {
-    return 0;
-  }
-  for (; streambuf_bytes < 256_k;) {
-    auto v = Buffer{16_k};
-    auto nread = pread(fd, v.wpos(), v.left(), data_offset);
-    if (nread == -1) {
-      std::cerr << "pread: " << strerror(errno) << std::endl;
-      return -1;
-    }
-    if (nread == 0) {
-      should_send_fin = true;
-      fd = -1;
-      return 0;
-    }
-    data_offset += nread;
-    streambuf_bytes += nread;
-    v.push_resize(nread);
-    streambuf.emplace_back(std::move(v));
-  }
-
-  return 0;
+void Stream::buffer_file() {
+  streambuf.emplace_back(config.data, config.data + config.datalen);
+  should_send_fin = true;
 }
 
 namespace {
@@ -687,7 +671,8 @@ int Client::on_write() {
     for (auto it = std::begin(streambuf) + streambuf_idx;
          it != std::end(streambuf); ++it) {
       auto &v = *it;
-      auto rv = on_write_stream(stream->stream_id, 0, v);
+      auto fin = stream->should_send_fin && it + 1 == std::end(streambuf);
+      auto rv = on_write_stream(stream->stream_id, fin, v);
       if (rv != 0) {
         return rv;
       }
@@ -695,15 +680,6 @@ int Client::on_write() {
         break;
       }
       ++streambuf_idx;
-    }
-
-    if (streambuf_idx == streambuf.size() && stream->should_send_fin) {
-      auto v = Buffer{};
-      auto rv = on_write_stream(stream->stream_id, 1, v);
-      if (rv != 0) {
-        return rv;
-      }
-      stream->should_send_fin = false;
     }
   }
 
@@ -942,7 +918,6 @@ int Client::start_interactive_input() {
   next_stream_id_ += 2;
 
   auto stream = std::make_unique<Stream>(stream_id);
-  stream->fd = datafd_;
 
   streams_.emplace(stream_id, std::move(stream));
 
@@ -981,6 +956,9 @@ int Client::stop_interactive_input() {
   auto &stream = (*std::begin(streams_)).second;
 
   stream->should_send_fin = true;
+  if (stream->streambuf.empty()) {
+    stream->streambuf.emplace_back();
+  }
   ev_io_stop(loop_, &stdinrev_);
 
   std::cerr << "Interactive session has ended." << std::endl;
@@ -1015,10 +993,10 @@ namespace {
 size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
                              uint64_t &tx_offset, uint64_t offset) {
   size_t len = 0;
-  for (; !d.empty() && tx_offset + d.front().tail <= offset;) {
+  for (; !d.empty() && tx_offset + d.front().bufsize() <= offset;) {
     --idx;
-    tx_offset += d.front().tail;
-    len += d.front().tail;
+    tx_offset += d.front().bufsize();
+    len += d.front().bufsize();
     d.pop_front();
   }
   return len;
@@ -1041,17 +1019,8 @@ int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
     return 0;
   }
   auto &stream = (*it).second;
-  stream->streambuf_bytes -=
-      ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
-                              stream->tx_stream_offset, offset + datalen);
-  if (stream->buffer_file() != 0) {
-    rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_INTERNAL_ERROR);
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
-                << std::endl;
-      return -1;
-    }
-  }
+  ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
+                          stream->tx_stream_offset, offset + datalen);
 
   return 0;
 }
@@ -1099,7 +1068,6 @@ int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
       next_stream_id_ += 2;
 
       auto stream = std::make_unique<Stream>(stream_id);
-      stream->fd = datafd_;
       stream->buffer_file();
 
       streams_.emplace(stream_id, std::move(stream));
@@ -1370,6 +1338,8 @@ int main(int argc, char **argv) {
                    "CHACHA20-POLY1305-SHA256";
   config.groups = "P-256";
   config.nstreams = 1;
+  config.data = nullptr;
+  config.datalen = 0;
   char *data_path = nullptr;
 
   for (;;) {
@@ -1457,7 +1427,16 @@ int main(int argc, char **argv) {
                 << strerror(errno) << std::endl;
       exit(EXIT_FAILURE);
     }
+    struct stat st;
+    if (fstat(fd, &st) != 0) {
+      std::cerr << "data: Could not stat file " << data_path << ": "
+                << strerror(errno) << std::endl;
+      exit(EXIT_FAILURE);
+    }
     config.fd = fd;
+    config.datalen = st.st_size;
+    config.data = static_cast<uint8_t *>(
+        mmap(nullptr, config.datalen, PROT_READ, MAP_SHARED, fd, 0));
   }
 
   auto addr = argv[optind++];
