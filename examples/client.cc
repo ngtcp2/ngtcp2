@@ -32,6 +32,8 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -63,6 +65,42 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen}, head(0), tail(datalen) {}
 Buffer::Buffer(size_t datalen) : buf(datalen), head(0), tail(0) {}
 Buffer::Buffer() : head(0), tail(0) {}
+
+Stream::Stream(uint32_t stream_id)
+    : stream_id(stream_id),
+      streambuf_idx(0),
+      streambuf_bytes(0),
+      tx_stream_offset(0),
+      should_send_fin(false),
+      fd(-1),
+      data_offset(0) {}
+
+Stream::~Stream() {}
+
+int Stream::buffer_file() {
+  if (fd == -1) {
+    return 0;
+  }
+  for (; streambuf_bytes < 256_k;) {
+    auto v = Buffer{16_k};
+    auto nread = pread(fd, v.wpos(), v.left(), data_offset);
+    if (nread == -1) {
+      std::cerr << "pread: " << strerror(errno) << std::endl;
+      return -1;
+    }
+    if (nread == 0) {
+      should_send_fin = true;
+      fd = -1;
+      return 0;
+    }
+    data_offset += nread;
+    streambuf_bytes += nread;
+    v.push_resize(nread);
+    streambuf.emplace_back(std::move(v));
+  }
+
+  return 0;
+}
 
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
@@ -220,17 +258,15 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       fd_(-1),
-      stdinfd_(-1),
-      stream_id_(0),
+      datafd_(-1),
       chandshake_idx_(0),
-      tx_stream0_offset_(0),
       nsread_(0),
       conn_(nullptr),
       crypto_ctx_{},
-      streambuf_idx_(0),
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      tx_stream_offset_(0),
-      should_send_fin_(false) {
+      next_stream_id_(1),
+      max_stream_id_(0),
+      nstreams_done_(0) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   ev_io_init(&stdinrev_, stdin_readcb, 0, EV_READ);
@@ -345,7 +381,9 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
-  c->remove_tx_stream_data(stream_id, offset, datalen);
+  if (c->remove_tx_stream_data(stream_id, offset, datalen) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
   return 0;
 }
 } // namespace
@@ -360,10 +398,6 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  if (c->start_interactive_input() != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
   return 0;
 }
 } // namespace
@@ -372,6 +406,31 @@ namespace {
 int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
+} // namespace
+
+namespace {
+int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint32_t error_code,
+                 void *user_data, void *stream_user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  c->on_stream_close(stream_id, error_code);
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int extend_max_stream_id(ngtcp2_conn *conn, uint32_t max_stream_id,
+                         void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  if (c->on_extend_max_stream_id(max_stream_id) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 } // namespace
 
 namespace {
@@ -411,7 +470,7 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 } // namespace
 
 int Client::init(int fd, const Address &remote_addr, const char *addr,
-                 int stdinfd) {
+                 int datafd) {
   int rv;
 
   remote_addr_ = remote_addr;
@@ -428,7 +487,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   }
 
   fd_ = fd;
-  stdinfd_ = stdinfd;
+  datafd_ = datafd;
+
   ssl_ = SSL_new(ssl_ctx_);
   auto bio = BIO_new(create_bio_method());
   BIO_set_data(bio, this);
@@ -459,9 +519,10 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       do_decrypt,
       recv_stream_data,
       acked_stream_data_offset,
-      nullptr,
+      stream_close,
       debug::recv_stateless_reset,
       recv_server_stateless_retry,
+      extend_max_stream_id,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(
@@ -618,26 +679,32 @@ int Client::on_write() {
     }
   }
 
-  for (auto it = std::begin(streambuf_) + streambuf_idx_;
-       it != std::end(streambuf_); ++it) {
-    auto &v = *it;
-    auto rv = on_write_stream(stream_id_, 0, v);
-    if (rv != 0) {
-      return rv;
-    }
-    if (v.size() > 0) {
-      break;
-    }
-    ++streambuf_idx_;
-  }
+  for (auto &p : streams_) {
+    auto &stream = p.second;
+    auto &streambuf = stream->streambuf;
+    auto &streambuf_idx = stream->streambuf_idx;
 
-  if (streambuf_idx_ == streambuf_.size() && should_send_fin_) {
-    auto v = Buffer{};
-    auto rv = on_write_stream(stream_id_, 1, v);
-    if (rv != 0) {
-      return rv;
+    for (auto it = std::begin(streambuf) + streambuf_idx;
+         it != std::end(streambuf); ++it) {
+      auto &v = *it;
+      auto rv = on_write_stream(stream->stream_id, 0, v);
+      if (rv != 0) {
+        return rv;
+      }
+      if (v.size() > 0) {
+        break;
+      }
+      ++streambuf_idx;
     }
-    should_send_fin_ = false;
+
+    if (streambuf_idx == streambuf.size() && stream->should_send_fin) {
+      auto v = Buffer{};
+      auto rv = on_write_stream(stream->stream_id, 1, v);
+      if (rv != 0) {
+        return rv;
+      }
+      stream->should_send_fin = false;
+    }
   }
 
   schedule_retransmit();
@@ -851,18 +918,16 @@ int Client::send_packet() {
 
 int Client::start_interactive_input() {
   int rv;
-  if (stdinfd_ == -1) {
-    return 0;
-  }
 
   std::cerr << "Interactive session started.  Hit Ctrl-D to end the session."
             << std::endl;
 
-  ev_io_set(&stdinrev_, stdinfd_, EV_READ);
+  ev_io_set(&stdinrev_, datafd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
-  stream_id_ = 1;
-  rv = ngtcp2_conn_open_stream(conn_, stream_id_, nullptr);
+  auto stream_id = next_stream_id_;
+
+  rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -872,7 +937,14 @@ int Client::start_interactive_input() {
     return -1;
   }
 
-  std::cerr << "The stream " << stream_id_ << " has opened." << std::endl;
+  std::cerr << "The stream " << stream_id << " has opened." << std::endl;
+
+  next_stream_id_ += 2;
+
+  auto stream = std::make_unique<Stream>(stream_id);
+  stream->fd = datafd_;
+
+  streams_.emplace(stream_id, std::move(stream));
 
   return 0;
 }
@@ -881,7 +953,7 @@ int Client::send_interactive_input() {
   ssize_t nread;
   std::array<uint8_t, 1_k> buf;
 
-  while ((nread = read(stdinfd_, buf.data(), buf.size())) == -1 &&
+  while ((nread = read(datafd_, buf.data(), buf.size())) == -1 &&
          errno == EINTR)
     ;
   if (nread == -1) {
@@ -891,7 +963,12 @@ int Client::send_interactive_input() {
     return stop_interactive_input();
   }
 
-  streambuf_.emplace_back(buf.data(), nread);
+  // TODO fix this
+  assert(!streams_.empty());
+
+  auto &stream = (*std::begin(streams_)).second;
+
+  stream->streambuf.emplace_back(buf.data(), nread);
 
   ev_feed_event(loop_, &wev_, EV_WRITE);
 
@@ -899,7 +976,11 @@ int Client::send_interactive_input() {
 }
 
 int Client::stop_interactive_input() {
-  should_send_fin_ = true;
+  assert(!streams_.empty());
+
+  auto &stream = (*std::begin(streams_)).second;
+
+  stream->should_send_fin = true;
   ev_io_stop(loop_, &stdinrev_);
 
   std::cerr << "Interactive session has ended." << std::endl;
@@ -931,25 +1012,102 @@ int Client::handle_error(int liberr) {
 }
 
 namespace {
-void remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
-                           uint64_t &tx_offset, uint64_t offset) {
+size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
+                             uint64_t &tx_offset, uint64_t offset) {
+  size_t len = 0;
   for (; !d.empty() && tx_offset + d.front().tail <= offset;) {
     --idx;
     tx_offset += d.front().tail;
+    len += d.front().tail;
     d.pop_front();
   }
+  return len;
 }
 } // namespace
 
-void Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
-                                   size_t datalen) {
+int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                                  size_t datalen) {
+  int rv;
+
   if (stream_id == 0) {
     ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
                             offset + datalen);
+    return 0;
+  }
+
+  auto it = streams_.find(stream_id);
+  if (it == std::end(streams_)) {
+    std::cerr << "Stream " << stream_id << "not found" << std::endl;
+    return 0;
+  }
+  auto &stream = (*it).second;
+  stream->streambuf_bytes -=
+      ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
+                              stream->tx_stream_offset, offset + datalen);
+  if (stream->buffer_file() != 0) {
+    rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_INTERNAL_ERROR);
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
+  auto it = streams_.find(stream_id);
+
+  if (it == std::end(streams_)) {
     return;
   }
-  ::remove_tx_stream_data(streambuf_, streambuf_idx_, tx_stream_offset_,
-                          offset + datalen);
+
+  auto &stream = (*it).second;
+
+  if (config.interactive) {
+    ev_io_stop(loop_, &stdinrev_);
+  }
+
+  streams_.erase(it);
+}
+
+int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
+  int rv;
+
+  max_stream_id_ = max_stream_id;
+
+  if (config.interactive) {
+    if (next_stream_id_ != 1) {
+      return 0;
+    }
+    if (start_interactive_input() != 0) {
+      return -1;
+    }
+
+    return 0;
+  }
+
+  if (datafd_ != -1) {
+    for (; nstreams_done_ < config.nstreams && next_stream_id_ <= max_stream_id;
+         ++nstreams_done_) {
+      auto stream_id = next_stream_id_;
+
+      rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
+      assert(0 == rv);
+
+      next_stream_id_ += 2;
+
+      auto stream = std::make_unique<Stream>(stream_id);
+      stream->fd = datafd_;
+      stream->buffer_file();
+
+      streams_.emplace(stream_id, std::move(stream));
+    }
+    return 0;
+  }
+
+  return 0;
 }
 
 namespace {
@@ -1186,6 +1344,11 @@ Options:
               means 100% packet loss.
   -i, --interactive
               Read input from stdin, and send them as STREAM data.
+  -d, --data=<PATH>
+              Read data from <PATH>, and send them as STREAM data.
+  -n, --nstreams=<N>
+              When used with --data,  this option specifies the number
+              of streams to send the data specified by --data.
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
               Default: )"
@@ -1206,6 +1369,8 @@ int main(int argc, char **argv) {
   config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
                    "CHACHA20-POLY1305-SHA256";
   config.groups = "P-256";
+  config.nstreams = 1;
+  char *data_path = nullptr;
 
   for (;;) {
     static int flag = 0;
@@ -1214,21 +1379,31 @@ int main(int argc, char **argv) {
         {"tx-loss", required_argument, nullptr, 't'},
         {"rx-loss", required_argument, nullptr, 'r'},
         {"interactive", no_argument, nullptr, 'i'},
+        {"data", required_argument, nullptr, 'd'},
+        {"nstreams", required_argument, nullptr, 'n'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0},
     };
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "hir:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hin:r:t:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
     switch (c) {
+    case 'd':
+      // --data
+      data_path = optarg;
+      break;
     case 'h':
       // --help
       print_help();
       exit(EXIT_SUCCESS);
+    case 'n':
+      // --streams
+      config.nstreams = strtol(optarg, nullptr, 10);
+      break;
     case 'r':
       // --rx-loss
       config.rx_loss_prob = strtod(optarg, nullptr);
@@ -1240,6 +1415,7 @@ int main(int argc, char **argv) {
     case 'i':
       // --interactive
       config.fd = fileno(stdin);
+      config.interactive = true;
       break;
     case '?':
       print_usage();
@@ -1265,6 +1441,23 @@ int main(int argc, char **argv) {
     std::cerr << "Too few arguments" << std::endl;
     print_usage();
     exit(EXIT_FAILURE);
+  }
+
+  if (data_path && config.interactive) {
+    std::cerr
+        << "interactive, data: Exclusive options are specified at the same time"
+        << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (data_path) {
+    auto fd = open(data_path, O_RDONLY);
+    if (fd == -1) {
+      std::cerr << "data: Could not open file " << data_path << ": "
+                << strerror(errno) << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    config.fd = fd;
   }
 
   auto addr = argv[optind++];

@@ -31,6 +31,7 @@
 
 #include <vector>
 #include <deque>
+#include <map>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -49,12 +50,16 @@ struct Config {
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.
   double rx_loss_prob;
-  // fd is a file descriptor to read input for stream 1.
+  // fd is a file descriptor to read input for streams.
   int fd;
   // ciphers is the list of enabled ciphers.
   const char *ciphers;
   // groups is the list of supported groups.
   const char *groups;
+  // interactive is true if interactive input mode is on.
+  bool interactive;
+  // nstreams is the number of streams to open.
+  size_t nstreams;
 };
 
 struct Buffer {
@@ -68,6 +73,10 @@ struct Buffer {
   const uint8_t *rpos() const { return &buf[head]; }
   void seek(size_t len) { head += len; }
   void push(size_t len) { tail += len; }
+  void push_resize(size_t len) {
+    push(len);
+    buf.resize(tail);
+  }
   void reset() {
     head = 0;
     tail = 0;
@@ -78,12 +87,35 @@ struct Buffer {
   size_t tail;
 };
 
+struct Stream {
+  Stream(uint32_t stream_id);
+  ~Stream();
+
+  int buffer_file();
+
+  uint32_t stream_id;
+  std::deque<Buffer> streambuf;
+  // streambuf_idx is the index in streambuf, which points to the
+  // buffer to send next.
+  size_t streambuf_idx;
+  // streambuf_bytes is the number of bytes buffered in streambuf.
+  size_t streambuf_bytes;
+  // tx_stream_offset is the offset where all data before offset is
+  // acked by the remote endpoint.
+  uint64_t tx_stream_offset;
+  bool should_send_fin;
+  int fd;
+  // data_offset is how many bytes read from fd if interactive mode is
+  // off.
+  uint64_t data_offset;
+};
+
 class Client {
 public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Client();
 
-  int init(int fd, const Address &remote_addr, const char *addr, int stdinfd);
+  int init(int fd, const Address &remote_addr, const char *addr, int datafd);
   void disconnect();
   void disconnect(int liberr);
   void close();
@@ -115,8 +147,10 @@ public:
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
-  void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
-                             size_t datalen);
+  int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                            size_t datalen);
+  void on_stream_close(uint32_t stream_id, uint32_t error_code);
+  int on_extend_max_stream_id(uint32_t max_stream_id);
   int handle_error(int liberr);
 
 private:
@@ -132,8 +166,8 @@ private:
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
   int fd_;
-  int stdinfd_;
-  uint32_t stream_id_;
+  int datafd_;
+  std::map<uint32_t, std::unique_ptr<Stream>> streams_;
   std::deque<Buffer> chandshake_;
   // chandshake_idx_ is the index in chandshake_, which points to the
   // buffer to read next.
@@ -143,16 +177,12 @@ private:
   size_t nsread_;
   ngtcp2_conn *conn_;
   crypto::Context crypto_ctx_;
-  std::deque<Buffer> streambuf_;
-  // streambuf_idx_ is the index in streambuf_, which points to the
-  // buffer to send next.
-  size_t streambuf_idx_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
-  // tx_stream_offset_ is the offset where all data before offset is
-  // acked by the remote endpoint.
-  uint64_t tx_stream_offset_;
-  bool should_send_fin_;
+  uint32_t next_stream_id_;
+  uint32_t max_stream_id_;
+  // nstreams_done_ is the number of streams opened.
+  uint32_t nstreams_done_;
 };
 
 #endif // CLIENT_H

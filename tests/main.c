@@ -151,7 +151,9 @@ int main() {
       !CU_add_test(pSuite, "conn_recv_server_stateless_retry",
                    test_ngtcp2_conn_recv_server_stateless_retry) ||
       !CU_add_test(pSuite, "conn_recv_delayed_handshake_pkt",
-                   test_ngtcp2_conn_recv_delayed_handshake_pkt)) {
+                   test_ngtcp2_conn_recv_delayed_handshake_pkt) ||
+      !CU_add_test(pSuite, "conn_recv_max_stream_id",
+                   test_ngtcp2_conn_recv_max_stream_id)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

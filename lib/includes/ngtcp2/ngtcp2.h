@@ -829,6 +829,22 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_stateless_reset *sr,
                                            void *user_data);
 
+/*
+ * @functypedef
+ *
+ * :type:`ngtcp2_extend_max_stream_id` is a callback function which is
+ * called every time max stream ID is strictly extended.
+ * |max_stream_id| is the maximum stream ID which a local endpoint can
+ * open.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
+                                           uint32_t max_stream_id,
+                                           void *user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
@@ -847,6 +863,7 @@ typedef struct {
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
+  ngtcp2_extend_max_stream_id extend_max_stream_id;
 } ngtcp2_conn_callbacks;
 
 /*

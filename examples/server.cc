@@ -325,11 +325,7 @@ int Stream::open_file(const std::string &path) {
 }
 
 int Stream::buffer_file() {
-  if (streambuf_bytes > 256_k) {
-    return 0;
-  }
-
-  for (;;) {
+  for (; streambuf_bytes < 256_k;) {
     auto v = Buffer{16_k};
     auto nread = read(fd, v.wpos(), v.left());
     if (nread == -1) {

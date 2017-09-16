@@ -43,5 +43,6 @@ void test_ngtcp2_conn_short_pkt_type(void);
 void test_ngtcp2_conn_recv_stateless_reset(void);
 void test_ngtcp2_conn_recv_server_stateless_retry(void);
 void test_ngtcp2_conn_recv_delayed_handshake_pkt(void);
+void test_ngtcp2_conn_recv_max_stream_id(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

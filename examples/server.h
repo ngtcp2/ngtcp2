@@ -112,6 +112,7 @@ struct Stream {
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
   size_t streambuf_idx;
+  // streambuf_bytes is the number of bytes buffered in streambuf.
   size_t streambuf_bytes;
   // tx_stream_offset is the offset where all data before offset is
   // acked by the remote endpoint.
