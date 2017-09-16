@@ -58,6 +58,8 @@ struct Config {
   const char *groups;
   // interactive is true if interactive input mode is on.
   bool interactive;
+  // nstreams is the number of streams to open.
+  size_t nstreams;
 };
 
 struct Buffer {
@@ -179,6 +181,8 @@ private:
   Buffer sendbuf_;
   uint32_t next_stream_id_;
   uint32_t max_stream_id_;
+  // nstreams_done_ is the number of streams opened.
+  uint32_t nstreams_done_;
 };
 
 #endif // CLIENT_H

@@ -265,7 +265,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       next_stream_id_(1),
-      max_stream_id_(0) {
+      max_stream_id_(0),
+      nstreams_done_(0) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   ev_io_init(&stdinrev_, stdin_readcb, 0, EV_READ);
@@ -1087,8 +1088,9 @@ int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
     return 0;
   }
 
-  if (datafd_ != -1 && next_stream_id_ == 1) {
-    for (; next_stream_id_ <= max_stream_id;) {
+  if (datafd_ != -1) {
+    for (; nstreams_done_ < config.nstreams && next_stream_id_ <= max_stream_id;
+         ++nstreams_done_) {
       auto stream_id = next_stream_id_;
 
       rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
@@ -1344,6 +1346,9 @@ Options:
               Read input from stdin, and send them as STREAM data.
   -d, --data=<PATH>
               Read data from <PATH>, and send them as STREAM data.
+  -n, --nstreams=<N>
+              When used with --data,  this option specifies the number
+              of streams to send the data specified by --data.
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
               Default: )"
@@ -1364,6 +1369,7 @@ int main(int argc, char **argv) {
   config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
                    "CHACHA20-POLY1305-SHA256";
   config.groups = "P-256";
+  config.nstreams = 1;
   char *data_path = nullptr;
 
   for (;;) {
@@ -1374,13 +1380,14 @@ int main(int argc, char **argv) {
         {"rx-loss", required_argument, nullptr, 'r'},
         {"interactive", no_argument, nullptr, 'i'},
         {"data", required_argument, nullptr, 'd'},
+        {"nstreams", required_argument, nullptr, 'n'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0},
     };
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "d:hir:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hin:r:t:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
@@ -1393,6 +1400,10 @@ int main(int argc, char **argv) {
       // --help
       print_help();
       exit(EXIT_SUCCESS);
+    case 'n':
+      // --streams
+      config.nstreams = strtol(optarg, nullptr, 10);
+      break;
     case 'r':
       // --rx-loss
       config.rx_loss_prob = strtod(optarg, nullptr);
