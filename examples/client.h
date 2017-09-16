@@ -96,6 +96,8 @@ struct Stream {
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
   size_t streambuf_idx;
+  // streambuf_bytes is the number of bytes buffered in streambuf.
+  size_t streambuf_bytes;
   // tx_stream_offset is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream_offset;
@@ -143,8 +145,8 @@ public:
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
-  void remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
-                             size_t datalen);
+  int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                            size_t datalen);
   void on_stream_close(uint32_t stream_id, uint32_t error_code);
   int on_extend_max_stream_id(uint32_t max_stream_id);
   int handle_error(int liberr);

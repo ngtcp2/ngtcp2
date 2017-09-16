@@ -69,6 +69,7 @@ Buffer::Buffer() : head(0), tail(0) {}
 Stream::Stream(uint32_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
+      streambuf_bytes(0),
       tx_stream_offset(0),
       should_send_fin(false),
       fd(-1),
@@ -77,19 +78,26 @@ Stream::Stream(uint32_t stream_id)
 Stream::~Stream() {}
 
 int Stream::buffer_file() {
-  auto v = Buffer{16_k};
-  auto nread = pread(fd, v.wpos(), v.left(), data_offset);
-  if (nread == -1) {
-    return -1;
-  }
-  if (nread == 0) {
-    should_send_fin = true;
-    fd = -1;
+  if (fd == -1) {
     return 0;
   }
-  data_offset += nread;
-  v.push_resize(nread);
-  streambuf.emplace_back(std::move(v));
+  for (; streambuf_bytes < 256_k;) {
+    auto v = Buffer{16_k};
+    auto nread = pread(fd, v.wpos(), v.left(), data_offset);
+    if (nread == -1) {
+      std::cerr << "pread: " << strerror(errno) << std::endl;
+      return -1;
+    }
+    if (nread == 0) {
+      should_send_fin = true;
+      fd = -1;
+      return 0;
+    }
+    data_offset += nread;
+    streambuf_bytes += nread;
+    v.push_resize(nread);
+    streambuf.emplace_back(std::move(v));
+  }
 
   return 0;
 }
@@ -372,7 +380,9 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
-  c->remove_tx_stream_data(stream_id, offset, datalen);
+  if (c->remove_tx_stream_data(stream_id, offset, datalen) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
   return 0;
 }
 } // namespace
@@ -1001,32 +1011,48 @@ int Client::handle_error(int liberr) {
 }
 
 namespace {
-void remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
-                           uint64_t &tx_offset, uint64_t offset) {
+size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
+                             uint64_t &tx_offset, uint64_t offset) {
+  size_t len = 0;
   for (; !d.empty() && tx_offset + d.front().tail <= offset;) {
     --idx;
     tx_offset += d.front().tail;
+    len += d.front().tail;
     d.pop_front();
   }
+  return len;
 }
 } // namespace
 
-void Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
-                                   size_t datalen) {
+int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+                                  size_t datalen) {
+  int rv;
+
   if (stream_id == 0) {
     ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
                             offset + datalen);
-    return;
+    return 0;
   }
 
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
     std::cerr << "Stream " << stream_id << "not found" << std::endl;
-    return;
+    return 0;
   }
   auto &stream = (*it).second;
-  ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
-                          stream->tx_stream_offset, offset + datalen);
+  stream->streambuf_bytes -=
+      ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
+                              stream->tx_stream_offset, offset + datalen);
+  if (stream->buffer_file() != 0) {
+    rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_INTERNAL_ERROR);
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+  }
+
+  return 0;
 }
 
 void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
