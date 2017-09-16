@@ -71,6 +71,10 @@ struct Buffer {
   const uint8_t *rpos() const { return &buf[head]; }
   void seek(size_t len) { head += len; }
   void push(size_t len) { tail += len; }
+  void push_resize(size_t len) {
+    push(len);
+    buf.resize(tail);
+  }
   void reset() {
     head = 0;
     tail = 0;
@@ -97,6 +101,9 @@ struct Stream {
   uint64_t tx_stream_offset;
   bool should_send_fin;
   int fd;
+  // data_offset is how many bytes read from fd if interactive mode is
+  // off.
+  uint64_t data_offset;
 };
 
 class Client {

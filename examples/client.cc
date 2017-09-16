@@ -32,6 +32,8 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -69,9 +71,28 @@ Stream::Stream(uint32_t stream_id)
       streambuf_idx(0),
       tx_stream_offset(0),
       should_send_fin(false),
-      fd(-1) {}
+      fd(-1),
+      data_offset(0) {}
 
 Stream::~Stream() {}
+
+int Stream::buffer_file() {
+  auto v = Buffer{16_k};
+  auto nread = pread(fd, v.wpos(), v.left(), data_offset);
+  if (nread == -1) {
+    return -1;
+  }
+  if (nread == 0) {
+    should_send_fin = true;
+    fd = -1;
+    return 0;
+  }
+  data_offset += nread;
+  v.push_resize(nread);
+  streambuf.emplace_back(std::move(v));
+
+  return 0;
+}
 
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
@@ -909,7 +930,10 @@ int Client::start_interactive_input() {
 
   next_stream_id_ += 2;
 
-  streams_.emplace(stream_id, std::make_unique<Stream>(stream_id));
+  auto stream = std::make_unique<Stream>(stream_id);
+  stream->fd = datafd_;
+
+  streams_.emplace(stream_id, std::move(stream));
 
   return 0;
 }
@@ -1022,6 +1046,8 @@ void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
 }
 
 int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
+  int rv;
+
   max_stream_id_ = max_stream_id;
 
   if (config.interactive) {
@@ -1032,6 +1058,24 @@ int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
       return -1;
     }
 
+    return 0;
+  }
+
+  if (datafd_ != -1 && next_stream_id_ == 1) {
+    for (; next_stream_id_ <= max_stream_id;) {
+      auto stream_id = next_stream_id_;
+
+      rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
+      assert(0 == rv);
+
+      next_stream_id_ += 2;
+
+      auto stream = std::make_unique<Stream>(stream_id);
+      stream->fd = datafd_;
+      stream->buffer_file();
+
+      streams_.emplace(stream_id, std::move(stream));
+    }
     return 0;
   }
 
@@ -1272,6 +1316,8 @@ Options:
               means 100% packet loss.
   -i, --interactive
               Read input from stdin, and send them as STREAM data.
+  -d, --data=<PATH>
+              Read data from <PATH>, and send them as STREAM data.
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
               Default: )"
@@ -1292,6 +1338,7 @@ int main(int argc, char **argv) {
   config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
                    "CHACHA20-POLY1305-SHA256";
   config.groups = "P-256";
+  char *data_path = nullptr;
 
   for (;;) {
     static int flag = 0;
@@ -1300,17 +1347,22 @@ int main(int argc, char **argv) {
         {"tx-loss", required_argument, nullptr, 't'},
         {"rx-loss", required_argument, nullptr, 'r'},
         {"interactive", no_argument, nullptr, 'i'},
+        {"data", required_argument, nullptr, 'd'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0},
     };
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "hir:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hir:t:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
     switch (c) {
+    case 'd':
+      // --data
+      data_path = optarg;
+      break;
     case 'h':
       // --help
       print_help();
@@ -1352,6 +1404,23 @@ int main(int argc, char **argv) {
     std::cerr << "Too few arguments" << std::endl;
     print_usage();
     exit(EXIT_FAILURE);
+  }
+
+  if (data_path && config.interactive) {
+    std::cerr
+        << "interactive, data: Exclusive options are specified at the same time"
+        << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (data_path) {
+    auto fd = open(data_path, O_RDONLY);
+    if (fd == -1) {
+      std::cerr << "data: Could not open file " << data_path << ": "
+                << strerror(errno) << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    config.fd = fd;
   }
 
   auto addr = argv[optind++];
