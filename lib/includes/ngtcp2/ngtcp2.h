@@ -815,8 +815,10 @@ typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t stream_id,
  * which is called when stream data is acked, and application can free
  * the data.  The acked range of data is [offset, offset + datalen).
  * For a given stream_id, this callback is called sequentially in
- * increasing order of |offset|.  |datalen| must be strictly greater
- * than 0.
+ * increasing order of |offset|.  |datalen| is normally strictly
+ * greater than 0.  One exception is that when a packet which includes
+ * STREAM frame which has fin flag set, and 0 length data, this
+ * callback is invoked with 0 passed as |datalen|.
  */
 typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
                                                uint32_t stream_id,

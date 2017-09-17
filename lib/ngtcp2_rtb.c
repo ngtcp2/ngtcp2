@@ -205,19 +205,17 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
     }
     stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
     datalen = stream_offset - prev_stream_offset;
-    if (datalen == 0) {
-      if (stream_offset < strm->last_rx_offset ||
-          (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) == 0) {
-        continue;
-      }
-    } else {
-      rv = conn->callbacks.acked_stream_data_offset(
-          conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
-          strm->stream_user_data);
-      if (rv != 0) {
-        return NGTCP2_ERR_CALLBACK_FAILURE;
-      }
+    if (datalen == 0 && !frc->fr.stream.fin) {
+      continue;
     }
+
+    rv = conn->callbacks.acked_stream_data_offset(
+        conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
+        strm->stream_user_data);
+    if (rv != 0) {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
+
     rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
     if (rv != 0) {
       return rv;
