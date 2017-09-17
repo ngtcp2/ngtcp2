@@ -64,28 +64,30 @@ struct Config {
 
 struct Buffer {
   Buffer(const uint8_t *data, size_t datalen);
+  Buffer(uint8_t *begin, uint8_t *end);
   explicit Buffer(size_t datalen);
   Buffer();
 
   size_t size() const { return tail - head; }
-  size_t left() const { return buf.size() - tail; }
-  uint8_t *const wpos() { return &buf[tail]; }
-  const uint8_t *rpos() const { return &buf[head]; }
+  size_t left() const { return buf.data() + buf.size() - tail; }
+  uint8_t *const wpos() { return tail; }
+  const uint8_t *rpos() const { return head; }
   void seek(size_t len) { head += len; }
   void push(size_t len) { tail += len; }
-  void push_resize(size_t len) {
-    push(len);
-    buf.resize(tail);
-  }
-  void resize(size_t size) { buf.resize(size); }
-  void reset() {
-    head = 0;
-    tail = 0;
-  }
+  void reset() { head = tail = begin; }
+  size_t bufsize() const { return tail - begin; }
 
   std::vector<uint8_t> buf;
-  size_t head;
-  size_t tail;
+  // begin points to the beginning of the buffer.  This might point to
+  // buf.data() if a buffer space is allocated by this object.  It is
+  // also allowed to point to the external shared buffer.
+  uint8_t *begin;
+  // head points to the position of the buffer where read should
+  // occur.
+  uint8_t *head;
+  // tail points to the position of the buffer where write should
+  // occur.
+  uint8_t *tail;
 };
 
 enum {
@@ -101,7 +103,8 @@ struct Stream {
   int recv_data(uint8_t fin, const uint8_t *data, size_t datalen);
   int start_response();
   int open_file(const std::string &path);
-  int buffer_file();
+  int map_file(size_t len);
+  void buffer_file();
   void send_status_response(unsigned int status_code,
                             const std::string &extra_headers = "");
   void send_redirect_response(unsigned int status_code,
@@ -112,8 +115,6 @@ struct Stream {
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
   size_t streambuf_idx;
-  // streambuf_bytes is the number of bytes buffered in streambuf.
-  size_t streambuf_bytes;
   // tx_stream_offset is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream_offset;
@@ -135,6 +136,10 @@ struct Stream {
   // fd is a file descriptor to read file to send its content to a
   // client.
   int fd;
+  // data is a pointer to the memory which maps file denoted by fd.
+  uint8_t *data;
+  // datalen is the length of mapped file by data.
+  uint64_t datalen;
 };
 
 class Server;

@@ -35,6 +35,7 @@
 #include <netdb.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -62,9 +63,15 @@ constexpr size_t MAX_BYTES_IN_FLIGHT = 1460 * 10;
 } // namespace
 
 Buffer::Buffer(const uint8_t *data, size_t datalen)
-    : buf{data, data + datalen}, head(0), tail(datalen) {}
-Buffer::Buffer(size_t datalen) : buf(datalen), head(0), tail(0) {}
-Buffer::Buffer() : head(0), tail(0) {}
+    : buf{data, data + datalen},
+      begin(buf.data()),
+      head(begin),
+      tail(begin + datalen) {}
+Buffer::Buffer(uint8_t *begin, uint8_t *end)
+    : begin(begin), head(begin), tail(end) {}
+Buffer::Buffer(size_t datalen)
+    : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
+Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
 namespace {
 int bio_write(BIO *b, const char *buf, int len) {
@@ -215,19 +222,21 @@ auto htp_settings = http_parser_settings{
 Stream::Stream(uint32_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
-      streambuf_bytes(0),
       tx_stream_offset(0),
       should_send_fin(false),
       http_major(0),
       http_minor(0),
       resp_state(RESP_IDLE),
       prev_hdr_key(false),
-      fd(-1) {
+      fd(-1),
+      data(nullptr),
+      datalen(0) {
   http_parser_init(&htp, HTTP_REQUEST);
   htp.data = this;
 }
 
 Stream::~Stream() {
+  munmap(data, datalen);
   if (fd != -1) {
     close(fd);
   }
@@ -324,26 +333,23 @@ int Stream::open_file(const std::string &path) {
   return 0;
 }
 
-int Stream::buffer_file() {
-  for (; streambuf_bytes < 256_k;) {
-    auto v = Buffer{16_k};
-    auto nread = read(fd, v.wpos(), v.left());
-    if (nread == -1) {
-      return -1;
-    }
-    if (nread == 0) {
-      should_send_fin = true;
-      resp_state = RESP_COMPLETED;
-      close(fd);
-      fd = -1;
-      break;
-    }
-    v.push_resize(nread);
-    streambuf_bytes += v.size();
-    streambuf.emplace_back(std::move(v));
+int Stream::map_file(size_t len) {
+  if (len == 0) {
+    return 0;
   }
-
+  data =
+      static_cast<uint8_t *>(mmap(nullptr, len, PROT_READ, MAP_SHARED, fd, 0));
+  if (data == MAP_FAILED) {
+    std::cerr << "mmap: " << strerror(errno) << std::endl;
+    return -1;
+  }
+  datalen = len;
   return 0;
+}
+
+void Stream::buffer_file() {
+  streambuf.emplace_back(data, data + datalen);
+  should_send_fin = true;
 }
 
 void Stream::send_status_response(unsigned int status_code,
@@ -378,7 +384,6 @@ void Stream::send_status_response(unsigned int status_code,
     p = std::copy(std::begin(body), std::end(body), p);
   }
   v.push(std::distance(std::begin(v.buf), p));
-  streambuf_bytes += v.size();
   streambuf.emplace_back(std::move(v));
   should_send_fin = true;
   resp_state = RESP_COMPLETED;
@@ -413,6 +418,14 @@ int Stream::start_response() {
       return 0;
     }
     content_length = st.st_size;
+  } else {
+    send_status_response(404);
+    return 0;
+  }
+
+  if (map_file(content_length) != 0) {
+    send_status_response(500);
+    return 0;
   }
 
   if (http_major >= 1) {
@@ -436,23 +449,19 @@ int Stream::start_response() {
     auto p = std::begin(v.buf);
     p = std::copy(std::begin(hdr), std::end(hdr), p);
     v.push(std::distance(std::begin(v.buf), p));
-    streambuf_bytes += v.size();
     streambuf.emplace_back(std::move(v));
   }
+
+  resp_state = RESP_COMPLETED;
 
   switch (htp.method) {
   case HTTP_HEAD:
     should_send_fin = true;
-    resp_state = RESP_COMPLETED;
     close(fd);
     fd = -1;
     break;
   default:
-    resp_state = RESP_STARTED;
-
-    if (buffer_file() != 0) {
-      return -1;
-    }
+    buffer_file();
   }
 
   return 0;
@@ -1118,11 +1127,11 @@ namespace {
 size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
                              uint64_t &tx_offset, uint64_t offset) {
   size_t len = 0;
-  for (; !d.empty() && tx_offset + d.front().tail <= offset;) {
+  for (; !d.empty() && tx_offset + d.front().bufsize() <= offset;) {
     --idx;
     auto &v = d.front();
-    len += v.tail;
-    tx_offset += v.tail;
+    len += v.bufsize();
+    tx_offset += v.bufsize();
     d.pop_front();
   }
   return len;
@@ -1141,21 +1150,10 @@ int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
-  stream->streambuf_bytes -=
-      ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
-                              stream->tx_stream_offset, offset + datalen);
-  if (stream->fd != -1) {
-    if (stream->buffer_file() != 0) {
-      rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_INTERNAL_ERROR);
-      if (rv != 0) {
-        std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
-                  << std::endl;
-        return -1;
-      }
-    }
-  }
+  ::remove_tx_stream_data(stream->streambuf, stream->streambuf_idx,
+                          stream->tx_stream_offset, offset + datalen);
 
-  if (stream->streambuf_bytes == 0 && stream->resp_state == RESP_COMPLETED) {
+  if (stream->streambuf.empty() && stream->resp_state == RESP_COMPLETED) {
     rv = ngtcp2_conn_reset_stream(conn_, stream_id, NGTCP2_NO_ERROR);
     if (rv != 0 && rv != NGTCP2_ERR_STREAM_NOT_FOUND) {
       std::cerr << "ngtcp2_conn_reset_stream: " << ngtcp2_strerror(rv)
