@@ -1146,6 +1146,10 @@ static ssize_t conn_write_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     if (payloadlen == 0) {
+      if (conn->state == NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED) {
+        return NGTCP2_ERR_TLS_HANDSHAKE;
+      }
+
       return conn_write_handshake_ack_pkt(conn, dest, destlen,
                                           NGTCP2_PKT_CLIENT_CLEARTEXT, ts);
     }
@@ -1192,6 +1196,9 @@ static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
     if (payloadlen == 0) {
       if (initial) {
         return NGTCP2_ERR_CALLBACK_FAILURE;
+      }
+      if (conn->state == NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED) {
+        return NGTCP2_ERR_TLS_HANDSHAKE;
       }
       return conn_write_handshake_ack_pkt(conn, dest, destlen,
                                           NGTCP2_PKT_SERVER_CLEARTEXT, ts);

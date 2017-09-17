@@ -962,6 +962,9 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
  * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
  *     The packet number has reached at the maximum value, therefore
  *     the function cannot make new packet on this connection.
+ * :enum:`NGTCP2_ERR_TLS_HANDSHAKE`
+ *     QUIC cryptographic handshake failed.  Application should just
+ *     discard state, and delete |conn|.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts);
