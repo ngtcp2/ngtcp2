@@ -1663,12 +1663,13 @@ fail:
 } // namespace
 
 namespace {
-int create_sock(const char *addr, const char *port) {
+int create_sock(const char *addr, const char *port, int family) {
   addrinfo hints{};
   addrinfo *res, *rp;
   int rv;
+  int val = 1;
 
-  hints.ai_family = AF_UNSPEC;
+  hints.ai_family = family;
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
 
@@ -1688,6 +1689,14 @@ int create_sock(const char *addr, const char *port) {
       continue;
     }
 
+    if (rp->ai_family == AF_INET6) {
+      if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val,
+                     static_cast<socklen_t>(sizeof(val))) == -1) {
+        close(fd);
+        continue;
+      }
+    }
+
     if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
       break;
     }
@@ -1700,7 +1709,6 @@ int create_sock(const char *addr, const char *port) {
     return -1;
   }
 
-  auto val = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
                  static_cast<socklen_t>(sizeof(val))) == -1) {
     return -1;
@@ -1712,8 +1720,8 @@ int create_sock(const char *addr, const char *port) {
 } // namespace
 
 namespace {
-int serve(Server &s, const char *addr, const char *port) {
-  auto fd = create_sock(addr, port);
+int serve(Server &s, const char *addr, const char *port, int family) {
+  auto fd = create_sock(addr, port, family);
   if (fd == -1) {
     return -1;
   }
@@ -1721,8 +1729,6 @@ int serve(Server &s, const char *addr, const char *port) {
   if (s.init(fd) != 0) {
     return -1;
   }
-
-  ev_run(EV_DEFAULT, 0);
 
   return 0;
 }
@@ -1890,13 +1896,30 @@ int main(int argc, char **argv) {
     debug::set_color_output(true);
   }
 
-  Server s(EV_DEFAULT, ssl_ctx);
+  auto ready = false;
 
-  if (serve(s, addr, port) != 0) {
+  Server s4(EV_DEFAULT, ssl_ctx);
+  if (!util::numeric_host(addr, AF_INET6)) {
+    if (serve(s4, addr, port, AF_INET) == 0) {
+      ready = true;
+    }
+  }
+
+  Server s6(EV_DEFAULT, ssl_ctx);
+  if (!util::numeric_host(addr, AF_INET)) {
+    if (serve(s6, addr, port, AF_INET6) == 0) {
+      ready = true;
+    }
+  }
+
+  if (!ready) {
     exit(EXIT_FAILURE);
   }
 
-  close(s);
+  ev_run(EV_DEFAULT, 0);
+
+  close(s6);
+  close(s4);
 
   return EXIT_SUCCESS;
 }
