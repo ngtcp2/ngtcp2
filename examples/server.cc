@@ -1673,6 +1673,10 @@ int create_sock(const char *addr, const char *port, int family) {
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
 
+  if (strcmp("addr", "*") == 0) {
+    addr = nullptr;
+  }
+
   rv = getaddrinfo(addr, port, &hints, &res);
   if (rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
@@ -1755,8 +1759,8 @@ void print_help() {
   print_usage();
 
   std::cout << R"(
-  <ADDR>      Remote server address
-  <PORT>      Remote server port
+  <ADDR>      Address to listen to.  '*' binds to any address.
+  <PORT>      Port
   <PRIVATE_KEY_FILE>
               Path to private key file
   <CERTIFICATE_FILE>
