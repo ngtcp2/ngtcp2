@@ -1387,6 +1387,59 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_frame fr;
   ngtcp2_rtb_entry *ent;
 
+  /* Retransmit a packet completely */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 126, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* Kick delayed ACK timer */
+  t += 1000000;
+
+  ent = ngtcp2_rtb_top(&conn->rtb);
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ent == ngtcp2_rtb_top(&conn->rtb));
+  CU_ASSERT(1 == ent->count);
+  CU_ASSERT(t + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ent->count) == ent->expiry);
+
+  ngtcp2_conn_del(conn);
+
+  /* Retransmit a packet partially */
+  setup_default_client(&conn);
+  conn->remote_settings.max_stream_id = 3;
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  ngtcp2_conn_open_stream(conn, 3, NULL);
+
+  ngtcp2_conn_reset_stream(conn, 1, NGTCP2_NO_ERROR);
+  ngtcp2_conn_reset_stream(conn, 3, NGTCP2_NO_ERROR);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* Kick delayed ACK timer */
+  t += 1000000;
+
+  ent = ngtcp2_rtb_top(&conn->rtb);
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, (size_t)(spktlen - 1), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ent == ngtcp2_rtb_top(&conn->rtb));
+  CU_ASSERT(0 == ent->count);
+
+  ent = ent->next;
+
+  CU_ASSERT(1 == ent->count);
+  CU_ASSERT(t + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ent->count) == ent->expiry);
+
+  ngtcp2_conn_del(conn);
+
   /* ngtcp2_rtb_entry gets empty because stream was reset */
   setup_default_client(&conn);
 
