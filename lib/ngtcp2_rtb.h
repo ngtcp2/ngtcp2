@@ -112,7 +112,7 @@ struct ngtcp2_rtb_entry {
  *     Out of memory.
  */
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
-                         ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
+                         ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
                          ngtcp2_tstamp deadline, size_t pktlen, uint8_t flags,
                          ngtcp2_mem *mem);
 
@@ -121,6 +121,12 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
  * pointed by |ent|.
  */
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_rtb_entry_extend_expiry extends expiry for a next
+ * retransmission.
+ */
+void ngtcp2_rtb_entry_extend_expiry(ngtcp2_rtb_entry *ent, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for

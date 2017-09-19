@@ -45,7 +45,7 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
 }
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
-                         ngtcp2_frame_chain *frc, ngtcp2_tstamp expiry,
+                         ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
                          ngtcp2_tstamp deadline, size_t pktlen, uint8_t flags,
                          ngtcp2_mem *mem) {
   (*pent) = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_rtb_entry));
@@ -55,7 +55,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
 
   (*pent)->hd = *hd;
   (*pent)->frc = frc;
-  (*pent)->expiry = expiry;
+  (*pent)->expiry = ts + NGTCP2_INITIAL_EXPIRY;
   (*pent)->deadline = deadline;
   (*pent)->count = 0;
   (*pent)->pktlen = pktlen;
@@ -80,6 +80,10 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
   }
 
   ngtcp2_mem_free(mem, ent);
+}
+
+void ngtcp2_rtb_entry_extend_expiry(ngtcp2_rtb_entry *ent, ngtcp2_tstamp ts) {
+  ent->expiry = ts + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ++ent->count);
 }
 
 static int expiry_less(const void *lhsx, const void *rhsx) {
