@@ -663,6 +663,15 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 
   for (pfrc = &ent->frc; *pfrc;) {
     switch ((*pfrc)->fr.type) {
+    case NGTCP2_FRAME_STREAM:
+      strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.stream.stream_id);
+      if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_RESET)) {
+        frc = *pfrc;
+        *pfrc = (*pfrc)->next;
+        ngtcp2_frame_chain_del(frc, conn->mem);
+        continue;
+      }
+      break;
     case NGTCP2_FRAME_MAX_STREAM_ID:
       if ((*pfrc)->fr.max_stream_id.max_stream_id <
           conn->max_remote_stream_id) {
