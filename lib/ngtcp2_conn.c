@@ -538,24 +538,29 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
 
   nwrite = ngtcp2_upe_final(&upe, NULL);
 
-  /* We have partially retransmitted lost frames.  Create new
-     ngtcp2_rtb_entry to track down the sent packet. */
-  rv = ngtcp2_rtb_entry_new(&nent, &hd, NULL, ts + NGTCP2_INITIAL_EXPIRY,
-                            ent->deadline, nwrite, NGTCP2_RTB_FLAG_UNPROTECTED,
-                            conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
+  if (*pfrc != ent->frc) {
+    /* We have partially retransmitted lost frames.  Create new
+       ngtcp2_rtb_entry to track down the sent packet. */
+    rv = ngtcp2_rtb_entry_new(&nent, &hd, NULL, ts + NGTCP2_INITIAL_EXPIRY,
+                              ent->deadline, nwrite,
+                              NGTCP2_RTB_FLAG_UNPROTECTED, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
 
-  nent->frc = ent->frc;
-  ent->frc = *pfrc;
-  *pfrc = NULL;
+    nent->count = ent->count + 1;
+    nent->expiry = ts + ((uint64_t)NGTCP2_INITIAL_EXPIRY << nent->count);
 
-  rv = ngtcp2_rtb_add(&conn->rtb, nent);
-  if (rv != 0) {
-    assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
-    ngtcp2_rtb_entry_del(nent, conn->mem);
-    return rv;
+    nent->frc = ent->frc;
+    ent->frc = *pfrc;
+    *pfrc = NULL;
+
+    rv = ngtcp2_rtb_add(&conn->rtb, nent);
+    if (rv != 0) {
+      assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
+      ngtcp2_rtb_entry_del(nent, conn->mem);
+      return rv;
+    }
   }
 
   ++conn->last_tx_pkt_num;
@@ -750,24 +755,28 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     return nwrite;
   }
 
-  /* We have partially retransmitted lost frames.  Create new
-     ngtcp2_rtb_entry to track down the sent packet. */
-  rv = ngtcp2_rtb_entry_new(&nent, &hd, NULL, ts + NGTCP2_INITIAL_EXPIRY,
-                            ent->deadline, (size_t)nwrite, NGTCP2_RTB_FLAG_NONE,
-                            conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
+  if (*pfrc != ent->frc) {
+    /* We have partially retransmitted lost frames.  Create new
+       ngtcp2_rtb_entry to track down the sent packet. */
+    rv = ngtcp2_rtb_entry_new(&nent, &hd, NULL, ts + NGTCP2_INITIAL_EXPIRY,
+                              ent->deadline, (size_t)nwrite,
+                              NGTCP2_RTB_FLAG_NONE, conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+    nent->count = ent->count + 1;
+    nent->expiry = ts + ((uint64_t)NGTCP2_INITIAL_EXPIRY << nent->count);
 
-  nent->frc = ent->frc;
-  ent->frc = *pfrc;
-  *pfrc = NULL;
+    nent->frc = ent->frc;
+    ent->frc = *pfrc;
+    *pfrc = NULL;
 
-  rv = ngtcp2_rtb_add(&conn->rtb, nent);
-  if (rv != 0) {
-    assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
-    ngtcp2_rtb_entry_del(nent, conn->mem);
-    return rv;
+    rv = ngtcp2_rtb_add(&conn->rtb, nent);
+    if (rv != 0) {
+      assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
+      ngtcp2_rtb_entry_del(nent, conn->mem);
+      return rv;
+    }
   }
 
   ++conn->last_tx_pkt_num;
@@ -853,6 +862,12 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         return nwrite;
       }
 
+      ngtcp2_rtb_entry_del(ent, conn->mem);
+      return nwrite;
+    }
+
+    /* No retransmittable frame was written, and now ent is empty. */
+    if (ent->frc == NULL) {
       ngtcp2_rtb_entry_del(ent, conn->mem);
       return nwrite;
     }

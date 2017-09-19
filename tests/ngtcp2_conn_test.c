@@ -1375,3 +1375,78 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_retransmit_protected(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ssize_t spktlen;
+  int rv;
+  uint64_t pkt_num = 890;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  ngtcp2_rtb_entry *ent;
+
+  /* ngtcp2_rtb_entry gets empty because stream was reset */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 126, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.final_offset = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  /* Kick delayed ACK timer */
+  t += 1000000;
+
+  /* This should send ACK only packet */
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NULL == ngtcp2_rtb_top(&conn->rtb));
+
+  ngtcp2_conn_del(conn);
+
+  /* ngtcp2_rtb_entry is reused because buffer was too small */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_open_stream(conn, 1, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, 1, 0,
+                                     null_data, 1000, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* Kick delayed ACK timer */
+  t += 1000000;
+
+  ent = ngtcp2_rtb_top(&conn->rtb);
+
+  /* This should send ACK only packet */
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, 999, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ent == ngtcp2_rtb_top(&conn->rtb));
+
+  ngtcp2_conn_del(conn);
+}

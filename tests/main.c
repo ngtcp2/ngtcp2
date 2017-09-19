@@ -155,7 +155,9 @@ int main() {
       !CU_add_test(pSuite, "conn_recv_max_stream_id",
                    test_ngtcp2_conn_recv_max_stream_id) ||
       !CU_add_test(pSuite, "conn_handshake_error",
-                   test_ngtcp2_conn_handshake_error)) {
+                   test_ngtcp2_conn_handshake_error) ||
+      !CU_add_test(pSuite, "conn_retransmit_protected",
+                   test_ngtcp2_conn_retransmit_protected)) {
     CU_cleanup_registry();
     return CU_get_error();
   }
