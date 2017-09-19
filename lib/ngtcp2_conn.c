@@ -517,7 +517,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
 
   if (*pfrc == NULL) {
     /* We have retransmit complete packet.  Update ent with new packet
-       header, and push it into rbt again. */
+       header, and push it into rtb again. */
     ent->hd = hd;
     ngtcp2_rtb_entry_extend_expiry(ent, ts);
 
@@ -733,7 +733,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 
   if (*pfrc == NULL) {
     /* We have retransmit complete packet.  Update ent with new packet
-       header, and push it into rbt again. */
+       header, and push it into rtb again. */
     ent->hd = hd;
     ngtcp2_rtb_entry_extend_expiry(ent, ts);
 
