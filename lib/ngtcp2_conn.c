@@ -1392,15 +1392,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       break;
     }
 
-    if ((*pfrc)->fr.type == NGTCP2_FRAME_RST_STREAM && strm) {
-      rv = ngtcp2_conn_close_stream(conn, strm,
-                                    (*pfrc)->fr.rst_stream.error_code);
-      if (rv != 0) {
-        assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
-        return rv;
-      }
-    }
-
     pkt_empty = 0;
     pfrc = &(*pfrc)->next;
   }
@@ -2336,7 +2327,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
 
     rx_offset = ngtcp2_strm_rx_offset(strm);
-    if (fr_end_offset == rx_offset) {
+    if (!(strm->flags & NGTCP2_STRM_FLAG_RESET) && fr_end_offset == rx_offset) {
       rv = conn_call_recv_stream_data(conn, strm, 1, NULL, 0);
       if (rv != 0) {
         return rv;
@@ -2355,6 +2346,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     if (fr_end_offset <= rx_offset) {
       return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
     }
+  }
+
+  if (strm->flags & NGTCP2_STRM_FLAG_RESET) {
+    return 0;
   }
 
   if (fr->offset <= rx_offset) {
@@ -2468,12 +2463,21 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
 
   ngtcp2_increment_offset(&conn->rx_offset_high, &conn->rx_offset_low, datalen);
 
+  if (strm->flags & NGTCP2_STRM_FLAG_RESET) {
+    rv = ngtcp2_conn_close_stream(conn, strm, strm->error_code);
+    if (rv != 0) {
+      assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
+      return rv;
+    }
+    return 0;
+  }
+
   rv = conn_reset_stream(conn, strm, NGTCP2_QUIC_RECEIVED_RST);
   if (rv != 0) {
     return rv;
   }
 
-  return ngtcp2_conn_close_stream(conn, strm, NGTCP2_QUIC_RECEIVED_RST);
+  return ngtcp2_conn_close_stream(conn, strm, fr->error_code);
 }
 
 static void conn_recv_connection_close(ngtcp2_conn *conn,
@@ -3475,6 +3479,7 @@ int ngtcp2_conn_reset_stream(ngtcp2_conn *conn, uint32_t stream_id,
   /* Set this flag so that we don't accidentally send DATA to this
      stream. */
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_RESET;
+  strm->error_code = error_code;
 
   return conn_reset_stream(conn, strm, error_code);
 }

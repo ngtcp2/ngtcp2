@@ -640,6 +640,9 @@ void test_ngtcp2_conn_reset_stream(void) {
   int rv;
   ngtcp2_frame_chain *frc;
   uint8_t buf[2048];
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_strm *strm;
 
   /* Stream not found */
   setup_default_server(&conn);
@@ -670,6 +673,24 @@ void test_ngtcp2_conn_reset_stream(void) {
   CU_ASSERT(1 == frc->fr.rst_stream.stream_id);
   CU_ASSERT(NGTCP2_PROTOCOL_VIOLATION == frc->fr.rst_stream.error_code);
   CU_ASSERT(1239 == frc->fr.rst_stream.final_offset);
+
+  strm = ngtcp2_conn_find_stream(conn, 1);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(NGTCP2_PROTOCOL_VIOLATION == strm->error_code);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_QUIC_RECEIVED_RST;
+  fr.rst_stream.final_offset = 100;
+
+  pktlen =
+      write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id, 890, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, 1));
 
   ngtcp2_conn_del(conn);
 }

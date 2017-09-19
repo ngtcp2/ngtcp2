@@ -44,6 +44,7 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
   strm->mem = mem;
   strm->fc_pprev = NULL;
   strm->fc_next = NULL;
+  strm->error_code = NGTCP2_NO_ERROR;
   memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
 
   rv = ngtcp2_gaptr_init(&strm->acked_tx_offset, mem);
