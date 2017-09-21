@@ -688,6 +688,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       strm =
           ngtcp2_conn_find_stream(conn, (*pfrc)->fr.max_stream_data.stream_id);
       if (strm == NULL ||
+          (strm->flags & (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RESET)) ||
           (*pfrc)->fr.max_stream_data.max_stream_data < strm->max_rx_offset) {
         frc = *pfrc;
         *pfrc = (*pfrc)->next;
@@ -1339,17 +1340,20 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   while (conn->fc_strms) {
     strm = conn->fc_strms;
-    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
-    if (rv != 0) {
-      return rv;
-    }
-    nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
-    nfrc->fr.max_stream_data.stream_id = strm->stream_id;
-    nfrc->fr.max_stream_data.max_stream_data = strm->unsent_max_rx_offset;
-    nfrc->next = conn->frq;
-    conn->frq = nfrc;
 
-    strm->max_rx_offset = strm->unsent_max_rx_offset;
+    if (!(strm->flags & (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RESET))) {
+      rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+      if (rv != 0) {
+        return rv;
+      }
+      nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+      nfrc->fr.max_stream_data.stream_id = strm->stream_id;
+      nfrc->fr.max_stream_data.max_stream_data = strm->unsent_max_rx_offset;
+      nfrc->next = conn->frq;
+      conn->frq = nfrc;
+
+      strm->max_rx_offset = strm->unsent_max_rx_offset;
+    }
 
     strm_next = strm->fc_next;
     conn->fc_strms = strm_next;
