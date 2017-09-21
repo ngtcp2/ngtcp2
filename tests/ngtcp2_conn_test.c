@@ -1503,3 +1503,142 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_send_max_stream_data(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_strm *strm;
+  uint64_t pkt_num = 890;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  int rv;
+  const size_t datalen = 1024;
+
+  /* MAX_STREAM_DATA should be sent */
+  setup_default_server(&conn);
+  conn->local_settings.max_stream_data = datalen;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = datalen;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_extend_max_stream_offset(conn, 1, datalen);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 1);
+
+  CU_ASSERT(NULL != strm->fc_pprev);
+
+  ngtcp2_conn_del(conn);
+
+  /* MAX_STREAM_DATA should not be sent on incoming fin */
+  setup_default_server(&conn);
+  conn->local_settings.max_stream_data = datalen;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datalen = datalen;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_extend_max_stream_offset(conn, 1, datalen);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 1);
+
+  CU_ASSERT(NULL == strm->fc_pprev);
+
+  ngtcp2_conn_del(conn);
+
+  /* MAX_STREAM_DATA should not be sent if stream is being reset by
+     local endpoint */
+  setup_default_server(&conn);
+  conn->local_settings.max_stream_data = datalen;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = datalen;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_reset_stream(conn, 1, NGTCP2_NO_ERROR);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_extend_max_stream_offset(conn, 1, datalen);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 1);
+
+  CU_ASSERT(NULL == strm->fc_pprev);
+
+  ngtcp2_conn_del(conn);
+
+  /* MAX_STREAM_DATA should not be sent if stream is being reset by
+     remote endpoint */
+  setup_default_server(&conn);
+  conn->local_settings.max_stream_data = datalen;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 1;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = datalen;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 1;
+  fr.rst_stream.error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.final_offset = datalen;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_extend_max_stream_offset(conn, 1, datalen);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_NOT_FOUND == rv);
+  CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, 1));
+
+  ngtcp2_conn_del(conn);
+}

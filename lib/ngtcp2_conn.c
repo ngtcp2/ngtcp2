@@ -2346,6 +2346,17 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
     ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
 
+    /* Since strm is now in closed (remote), we don't have to send
+       MAX_STREAM_DATA anymore. */
+    if (strm->fc_pprev) {
+      *strm->fc_pprev = strm->fc_next;
+      if (strm->fc_next) {
+        strm->fc_next->fc_pprev = strm->fc_pprev;
+      }
+      strm->fc_pprev = NULL;
+      strm->fc_next = NULL;
+    }
+
     rx_offset = ngtcp2_strm_rx_offset(strm);
     if (!(strm->flags & NGTCP2_STRM_FLAG_RESET) && fr_end_offset == rx_offset) {
       rv = conn_call_recv_stream_data(conn, strm, 1, NULL, 0);
@@ -2425,6 +2436,17 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   /* TODO This prepends RST_STREAM to conn->frq. */
   frc->next = conn->frq;
   conn->frq = frc;
+
+  /* Since STREAM is being reset, we don't have to send
+     MAX_STREAM_DATA anymore */
+  if (strm->fc_pprev) {
+    *strm->fc_pprev = strm->fc_next;
+    if (strm->fc_next) {
+      strm->fc_next->fc_pprev = strm->fc_pprev;
+    }
+    strm->fc_pprev = NULL;
+    strm->fc_next = NULL;
+  }
 
   return 0;
 }
@@ -3520,7 +3542,8 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, uint32_t stream_id,
     strm->unsent_max_rx_offset += datalen;
   }
 
-  if (!strm->fc_pprev && conn_should_send_max_stream_data(conn, strm)) {
+  if (!(strm->flags & (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RESET)) &&
+      !strm->fc_pprev && conn_should_send_max_stream_data(conn, strm)) {
     strm->fc_pprev = &conn->fc_strms;
     if (conn->fc_strms) {
       strm->fc_next = conn->fc_strms;
