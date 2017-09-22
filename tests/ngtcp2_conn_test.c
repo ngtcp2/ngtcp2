@@ -1513,7 +1513,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   int rv;
-  const size_t datalen = 1024;
+  const uint32_t datalen = 1024;
 
   /* MAX_STREAM_DATA should be sent */
   setup_default_server(&conn);
