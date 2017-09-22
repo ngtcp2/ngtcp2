@@ -1795,7 +1795,7 @@ int main(int argc, char **argv) {
   config.rx_loss_prob = 0.;
   config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
                    "CHACHA20-POLY1305-SHA256";
-  config.groups = "P-256";
+  config.groups = "P-256:X25519:P-384:P-521";
   {
     auto path = realpath(".", nullptr);
     config.htdocs = path;
