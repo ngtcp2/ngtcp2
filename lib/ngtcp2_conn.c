@@ -273,16 +273,6 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
   return conn_new(pconn, conn_id, version, callbacks, settings, user_data, 1);
 }
 
-static void delete_acktr_entry(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem) {
-  ngtcp2_acktr_entry *next;
-
-  for (; ent;) {
-    next = ent->next;
-    ngtcp2_acktr_entry_del(ent, mem);
-    ent = next;
-  }
-}
-
 static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
   ngtcp2_pkt_chain *next;
 
@@ -321,7 +311,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
 
-  delete_acktr_entry(conn->acktr.ent, conn->mem);
   ngtcp2_acktr_free(&conn->acktr);
 
   ngtcp2_crypto_km_del(conn->rx_ckm, conn->mem);
@@ -1861,7 +1850,6 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
   conn->max_rx_pkt_num = 0;
 
   ngtcp2_rtb_free(&conn->rtb);
-  delete_acktr_entry(conn->acktr.ent, conn->mem);
   ngtcp2_acktr_free(&conn->acktr);
   ngtcp2_map_remove(&conn->strms, 0);
   ngtcp2_strm_free(conn->strm0);

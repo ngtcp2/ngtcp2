@@ -66,11 +66,19 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
 }
 
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
+  ngtcp2_acktr_entry *ent, *next;
+
   if (acktr == NULL) {
     return;
   }
 
   ngtcp2_ringbuf_free(&acktr->acks);
+
+  for (ent = acktr->ent; ent;) {
+    next = ent->next;
+    ngtcp2_acktr_entry_del(ent, acktr->mem);
+    ent = next;
+  }
 }
 
 int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
@@ -142,6 +150,10 @@ ngtcp2_acktr_entry **ngtcp2_acktr_get(ngtcp2_acktr *acktr) {
 }
 
 void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
+  ngtcp2_acktr_entry *ent = acktr->ent;
+
+  assert(acktr->ent);
+
   --acktr->nack;
   acktr->ent = acktr->ent->next;
   if (acktr->ent) {
@@ -149,6 +161,8 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
   } else {
     acktr->tail = NULL;
   }
+
+  ngtcp2_acktr_entry_del(ent, acktr->mem);
 }
 
 void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,

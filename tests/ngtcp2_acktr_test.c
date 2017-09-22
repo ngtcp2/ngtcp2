@@ -31,11 +31,7 @@
 
 void test_ngtcp2_acktr_add(void) {
   ngtcp2_acktr acktr;
-  ngtcp2_acktr_entry ents[] = {
-      {NULL, NULL, 1, 1000}, {NULL, NULL, 5, 1001}, {NULL, NULL, 7, 1002},
-      {NULL, NULL, 4, 1003}, {NULL, NULL, 6, 1004}, {NULL, NULL, 2, 1005},
-      {NULL, NULL, 3, 1006},
-  };
+  ngtcp2_acktr_entry *ents[7];
   uint64_t max_pkt_num[] = {1, 5, 7, 7, 7, 7, 7};
   ngtcp2_acktr_entry **pent;
   size_t i;
@@ -44,8 +40,16 @@ void test_ngtcp2_acktr_add(void) {
 
   ngtcp2_acktr_init(&acktr, mem);
 
+  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, mem);
+  ngtcp2_acktr_entry_new(&ents[1], 5, 1001, mem);
+  ngtcp2_acktr_entry_new(&ents[2], 7, 1002, mem);
+  ngtcp2_acktr_entry_new(&ents[3], 4, 1003, mem);
+  ngtcp2_acktr_entry_new(&ents[4], 6, 1004, mem);
+  ngtcp2_acktr_entry_new(&ents[5], 2, 1005, mem);
+  ngtcp2_acktr_entry_new(&ents[6], 3, 1006, mem);
+
   for (i = 0; i < arraylen(ents); ++i) {
-    rv = ngtcp2_acktr_add(&acktr, &ents[i], 1);
+    rv = ngtcp2_acktr_add(&acktr, ents[i], 1);
 
     CU_ASSERT(0 == rv);
 
@@ -70,12 +74,13 @@ void test_ngtcp2_acktr_add(void) {
 
   /* Check duplicates */
   ngtcp2_acktr_init(&acktr, mem);
+  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, mem);
 
-  rv = ngtcp2_acktr_add(&acktr, &ents[0], 1);
+  rv = ngtcp2_acktr_add(&acktr, ents[0], 1);
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_acktr_add(&acktr, &ents[0], 1);
+  rv = ngtcp2_acktr_add(&acktr, ents[0], 1);
 
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
@@ -108,7 +113,6 @@ void test_ngtcp2_acktr_eviction(void) {
 
     CU_ASSERT(NGTCP2_ACKTR_MAX_ENT + extra - i - 1 == ent->pkt_num);
 
-    ngtcp2_acktr_entry_del(ent, mem);
     ent = next;
   }
 
@@ -134,7 +138,6 @@ void test_ngtcp2_acktr_eviction(void) {
 
     CU_ASSERT(NGTCP2_ACKTR_MAX_ENT + extra - i - 1 == ent->pkt_num);
 
-    ngtcp2_acktr_entry_del(ent, mem);
     ent = next;
   }
 
@@ -179,7 +182,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   uint64_t pkt_nums[] = {
       4500, 4499, 4497, 4496, 4494, 4493, 4491, 4490, 4488, 4487,
   };
-  ngtcp2_acktr_entry *ent, *next;
+  ngtcp2_acktr_entry *ent;
 
   ngtcp2_acktr_init(&acktr, mem);
 
@@ -226,10 +229,4 @@ void test_ngtcp2_acktr_recv_ack(void) {
   CU_ASSERT(ent == acktr.tail);
 
   ngtcp2_acktr_free(&acktr);
-
-  for (ent = acktr.ent; ent;) {
-    next = ent->next;
-    ngtcp2_acktr_entry_del(ent, mem);
-    ent = next;
-  }
 }

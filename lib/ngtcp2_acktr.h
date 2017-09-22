@@ -95,8 +95,8 @@ typedef struct {
 int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem);
 
 /*
- * ngtcp2_acktr_free frees resources allocated for |acktr|.  It does
- * not free any ngtcp2_acktr_entry directly or indirectly pointed by
+ * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees
+ * any ngtcp2_acktr_entry directly or indirectly pointed by
  * acktr->ent.
  */
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
@@ -128,8 +128,8 @@ void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 ngtcp2_acktr_entry **ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
 /*
- * ngtcp2_acktr_remove the head of entries, which has the largest
- * packet number.
+ * ngtcp2_acktr_removes and frees the head of entries, which has the
+ * largest packet number.
  */
 void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
 
