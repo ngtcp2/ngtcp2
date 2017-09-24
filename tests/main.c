@@ -92,8 +92,8 @@ int main() {
                    test_ngtcp2_pkt_encode_blocked_frame) ||
       !CU_add_test(pSuite, "pkt_encode_stream_blocked_frame",
                    test_ngtcp2_pkt_encode_stream_blocked_frame) ||
-      !CU_add_test(pSuite, "pkt_encode_stream_id_needed_frame",
-                   test_ngtcp2_pkt_encode_stream_id_needed_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_stream_id_blocked_frame",
+                   test_ngtcp2_pkt_encode_stream_id_blocked_frame) ||
       !CU_add_test(pSuite, "pkt_encode_new_connection_id_frame",
                    test_ngtcp2_pkt_encode_new_connection_id_frame) ||
       !CU_add_test(pSuite, "pkt_encode_stop_sending_frame",

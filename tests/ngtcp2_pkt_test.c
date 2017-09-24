@@ -871,19 +871,19 @@ void test_ngtcp2_pkt_encode_stream_blocked_frame(void) {
   CU_ASSERT(fr.stream_id == nfr.stream_id);
 }
 
-void test_ngtcp2_pkt_encode_stream_id_needed_frame(void) {
+void test_ngtcp2_pkt_encode_stream_id_blocked_frame(void) {
   uint8_t buf[8];
-  ngtcp2_stream_id_needed fr, nfr;
+  ngtcp2_stream_id_blocked fr, nfr;
   ssize_t rv;
   size_t framelen = 1, nframelen;
 
-  fr.type = NGTCP2_FRAME_STREAM_ID_NEEDED;
+  fr.type = NGTCP2_FRAME_STREAM_ID_BLOCKED;
 
-  rv = ngtcp2_pkt_encode_stream_id_needed_frame(buf, sizeof(buf), &fr);
+  rv = ngtcp2_pkt_encode_stream_id_blocked_frame(buf, sizeof(buf), &fr);
 
   CU_ASSERT((ssize_t)framelen == rv);
 
-  nframelen = ngtcp2_pkt_decode_stream_id_needed_frame(&nfr, buf, framelen);
+  nframelen = ngtcp2_pkt_decode_stream_id_blocked_frame(&nfr, buf, framelen);
 
   CU_ASSERT(framelen == nframelen);
   CU_ASSERT(fr.type == nfr.type);

@@ -231,7 +231,7 @@ typedef enum {
   NGTCP2_FRAME_PING = 0x07,
   NGTCP2_FRAME_BLOCKED = 0x08,
   NGTCP2_FRAME_STREAM_BLOCKED = 0x09,
-  NGTCP2_FRAME_STREAM_ID_NEEDED = 0x0a,
+  NGTCP2_FRAME_STREAM_ID_BLOCKED = 0x0a,
   NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
   NGTCP2_FRAME_STOP_SENDING = 0x0c,
   NGTCP2_FRAME_ACK = 0xa0,
@@ -356,7 +356,7 @@ typedef struct {
   uint32_t stream_id;
 } ngtcp2_stream_blocked;
 
-typedef struct { uint8_t type; } ngtcp2_stream_id_needed;
+typedef struct { uint8_t type; } ngtcp2_stream_id_blocked;
 
 typedef struct {
   uint8_t type;
@@ -384,7 +384,7 @@ typedef union {
   ngtcp2_ping ping;
   ngtcp2_blocked blocked;
   ngtcp2_stream_blocked stream_blocked;
-  ngtcp2_stream_id_needed stream_id_needed;
+  ngtcp2_stream_id_blocked stream_id_blocked;
   ngtcp2_new_connection_id new_connection_id;
   ngtcp2_stop_sending stop_sending;
 } ngtcp2_frame;

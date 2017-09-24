@@ -289,9 +289,9 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   case NGTCP2_FRAME_STREAM_BLOCKED:
     return ngtcp2_pkt_decode_stream_blocked_frame(&dest->stream_blocked,
                                                   payload, payloadlen);
-  case NGTCP2_FRAME_STREAM_ID_NEEDED:
-    return (ssize_t)ngtcp2_pkt_decode_stream_id_needed_frame(
-        &dest->stream_id_needed, payload, payloadlen);
+  case NGTCP2_FRAME_STREAM_ID_BLOCKED:
+    return (ssize_t)ngtcp2_pkt_decode_stream_id_blocked_frame(
+        &dest->stream_id_blocked, payload, payloadlen);
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     return ngtcp2_pkt_decode_new_connection_id_frame(&dest->new_connection_id,
                                                      payload, payloadlen);
@@ -712,12 +712,12 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
   return (ssize_t)len;
 }
 
-size_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
-                                                const uint8_t *payload,
-                                                size_t payloadlen) {
+size_t ngtcp2_pkt_decode_stream_id_blocked_frame(ngtcp2_stream_id_blocked *dest,
+                                                 const uint8_t *payload,
+                                                 size_t payloadlen) {
   (void)payload;
   (void)payloadlen;
-  dest->type = NGTCP2_FRAME_STREAM_ID_NEEDED;
+  dest->type = NGTCP2_FRAME_STREAM_ID_BLOCKED;
 
   return 1;
 }
@@ -797,9 +797,9 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
   case NGTCP2_FRAME_STREAM_BLOCKED:
     return ngtcp2_pkt_encode_stream_blocked_frame(out, outlen,
                                                   &fr->stream_blocked);
-  case NGTCP2_FRAME_STREAM_ID_NEEDED:
-    return ngtcp2_pkt_encode_stream_id_needed_frame(out, outlen,
-                                                    &fr->stream_id_needed);
+  case NGTCP2_FRAME_STREAM_ID_BLOCKED:
+    return ngtcp2_pkt_encode_stream_id_blocked_frame(out, outlen,
+                                                     &fr->stream_id_blocked);
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     return ngtcp2_pkt_encode_new_connection_id_frame(out, outlen,
                                                      &fr->new_connection_id);
@@ -1192,15 +1192,15 @@ ngtcp2_pkt_encode_stream_blocked_frame(uint8_t *out, size_t outlen,
 }
 
 ssize_t
-ngtcp2_pkt_encode_stream_id_needed_frame(uint8_t *out, size_t outlen,
-                                         const ngtcp2_stream_id_needed *fr) {
+ngtcp2_pkt_encode_stream_id_blocked_frame(uint8_t *out, size_t outlen,
+                                          const ngtcp2_stream_id_blocked *fr) {
   (void)fr;
 
   if (outlen < 1) {
     return NGTCP2_ERR_NOBUF;
   }
 
-  *out = NGTCP2_FRAME_STREAM_ID_NEEDED;
+  *out = NGTCP2_FRAME_STREAM_ID_BLOCKED;
 
   return 1;
 }

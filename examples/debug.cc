@@ -133,8 +133,8 @@ std::string strframetype(uint8_t type) {
     return "BLOCKED";
   case NGTCP2_FRAME_STREAM_BLOCKED:
     return "STREAM_BLOCKED";
-  case NGTCP2_FRAME_STREAM_ID_NEEDED:
-    return "STREAM_ID_NEEDED";
+  case NGTCP2_FRAME_STREAM_ID_BLOCKED:
+    return "STREAM_ID_BLOCKED";
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     return "NEW_CONNECTION_ID";
   case NGTCP2_FRAME_STOP_SENDING:
@@ -338,7 +338,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     print_indent();
     fprintf(outfile, "stream_id=0x%08x\n", fr->stream_blocked.stream_id);
     break;
-  case NGTCP2_FRAME_STREAM_ID_NEEDED:
+  case NGTCP2_FRAME_STREAM_ID_BLOCKED:
     break;
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     print_indent();

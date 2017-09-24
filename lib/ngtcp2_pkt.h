@@ -309,16 +309,16 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
                                                size_t payloadlen);
 
 /*
- * ngtcp2_pkt_decode_stream_id_needed_frame decodes STREAM_ID_NEEDED
+ * ngtcp2_pkt_decode_stream_id_blocked_frame decodes STREAM_ID_BLOCKED
  * frame from |payload| of length |payloadlen|.  The result is stored
- * in the object pointed by |dest|.  STREAM_ID_NEEDED frame must start
- * at payload[0].  This function finishes when it decodes one
- * STREAM_ID_NEEDED frame, and returns the exact number of bytes read
+ * in the object pointed by |dest|.  STREAM_ID_BLOCKED frame must
+ * start at payload[0].  This function finishes when it decodes one
+ * STREAM_ID_BLOCKED frame, and returns the exact number of bytes read
  * to decode a frame.
  */
-size_t ngtcp2_pkt_decode_stream_id_needed_frame(ngtcp2_stream_id_needed *dest,
-                                                const uint8_t *payload,
-                                                size_t payloadlen);
+size_t ngtcp2_pkt_decode_stream_id_blocked_frame(ngtcp2_stream_id_blocked *dest,
+                                                 const uint8_t *payload,
+                                                 size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_new_connection_id_frame decodes NEW_CONNECTION_ID
@@ -504,7 +504,7 @@ ssize_t ngtcp2_pkt_encode_stream_blocked_frame(uint8_t *out, size_t outlen,
                                                const ngtcp2_stream_blocked *fr);
 
 /*
- * ngtcp2_pkt_encode_stream_id_needed_frame encodes STREAM_ID_NEEDED
+ * ngtcp2_pkt_encode_stream_id_blocked_frame encodes STREAM_ID_BLOCKED
  * frame |fr| into the buffer pointed by |out| of length |outlen|.
  *
  * This function returns the number of bytes written if it succeeds,
@@ -514,8 +514,8 @@ ssize_t ngtcp2_pkt_encode_stream_blocked_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write a frame.
  */
 ssize_t
-ngtcp2_pkt_encode_stream_id_needed_frame(uint8_t *out, size_t outlen,
-                                         const ngtcp2_stream_id_needed *fr);
+ngtcp2_pkt_encode_stream_id_blocked_frame(uint8_t *out, size_t outlen,
+                                          const ngtcp2_stream_id_blocked *fr);
 
 /*
  * ngtcp2_pkt_encode_new_connection_id_frame encodes NEW_CONNECTION_ID
