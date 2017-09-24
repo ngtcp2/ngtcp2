@@ -288,6 +288,13 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       p += sizeof(uint16_t);
       break;
     case NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN:
+      switch (exttype) {
+      case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+      case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
+        break;
+      default:
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
       flags |= 1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN;
       if (ngtcp2_get_uint16(p) != sizeof(params->stateless_reset_token)) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
@@ -297,15 +304,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
 
-      /* TODO draft-05 allows client to send stateless_reset_token.
-         Just ignore it for now. */
-      switch (exttype) {
-      case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-      case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
-        memcpy(params->stateless_reset_token, p,
-               sizeof(params->stateless_reset_token));
-        break;
-      }
+      memcpy(params->stateless_reset_token, p,
+             sizeof(params->stateless_reset_token));
 
       p += sizeof(params->stateless_reset_token);
       break;
