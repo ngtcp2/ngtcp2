@@ -184,7 +184,9 @@ public:
   int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint32_t stream_id);
+  int start_drain_period(int liberror);
   int handle_error(int liberror);
+  int send_conn_close();
 
 private:
   Address remote_addr_;
@@ -207,6 +209,10 @@ private:
   std::map<uint32_t, std::unique_ptr<Stream>> streams_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
+  // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.
+  // This packet is repeatedly sent as a response to the incoming
+  // packet in draining period.
+  std::unique_ptr<Buffer> conn_closebuf_;
   uint64_t conn_id_;
   // tx_stream0_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.

@@ -469,15 +469,26 @@ int Stream::start_response() {
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  int rv;
+
   auto h = static_cast<Handler *>(w->data);
+  auto s = h->server();
+
+  if (ngtcp2_conn_closed(h->conn())) {
+    debug::print_timestamp();
+    std::cerr << "Draining Period is over" << std::endl;
+
+    s->remove(h);
+    return;
+  }
 
   debug::print_timestamp();
   std::cerr << "Timeout" << std::endl;
 
-  h->handle_error(0);
-
-  auto server = h->server();
-  server->remove(h);
+  rv = h->start_drain_period(0);
+  if (rv != 0) {
+    s->remove(h);
+  }
 }
 } // namespace
 
@@ -491,6 +502,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   rv = h->on_write();
   switch (rv) {
   case 0:
+  case NETWORK_ERR_CLOSE_WAIT:
     break;
   case NETWORK_ERR_SEND_NON_FATAL:
     s->start_wev();
@@ -891,8 +903,7 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
   rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
-    handle_error(rv);
-    return -1;
+    return handle_error(rv);
   }
   if (ngtcp2_conn_closed(conn_)) {
     std::cerr << "QUIC connection has been closed by peer" << std::endl;
@@ -905,8 +916,9 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
 int Handler::on_read(uint8_t *data, size_t datalen) {
   int rv;
 
-  if (feed_data(data, datalen) != 0) {
-    return -1;
+  rv = feed_data(data, datalen);
+  if (rv != 0) {
+    return rv;
   }
 
   ev_timer_again(loop_, &timer_);
@@ -916,6 +928,10 @@ int Handler::on_read(uint8_t *data, size_t datalen) {
 
 int Handler::on_write() {
   int rv;
+
+  if (ngtcp2_conn_closed(conn_)) {
+    return 0;
+  }
 
   if (sendbuf_.size() > 0) {
     auto rv = server_->send_packet(remote_addr_, sendbuf_);
@@ -937,8 +953,7 @@ int Handler::on_write() {
     }
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
-      handle_error(n);
-      return -1;
+      return handle_error(n);
     }
     if (n == 0) {
       break;
@@ -1023,8 +1038,7 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
-      handle_error(n);
-      return -1;
+      return handle_error(n);
     }
 
     data.seek(ndatalen);
@@ -1044,23 +1058,66 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
   return 0;
 }
 
-int Handler::handle_error(int liberr) {
+int Handler::start_drain_period(int liberr) {
+  int rv;
+
   if (!conn_ || ngtcp2_conn_closed(conn_)) {
     return 0;
   }
 
+  ev_timer_stop(loop_, &rttimer_);
+
+  timer_.repeat = 15.;
+  ev_timer_again(loop_, &timer_);
+
   sendbuf_.reset();
   assert(sendbuf_.left() >= max_pktlen_);
 
-  auto n = ngtcp2_conn_write_connection_close(
-      conn_, sendbuf_.wpos(), max_pktlen_, infer_quic_error_code(liberr));
+  conn_closebuf_ = std::make_unique<Buffer>(NGTCP2_MAX_PKTLEN_IPV4);
+
+  auto n = ngtcp2_conn_write_connection_close(conn_, conn_closebuf_->wpos(),
+                                              max_pktlen_,
+                                              infer_quic_error_code(liberr));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
     return -1;
   }
 
-  sendbuf_.push(n);
+  conn_closebuf_->push(n);
+
+  return 0;
+}
+
+int Handler::handle_error(int liberr) {
+  int rv;
+
+  rv = start_drain_period(liberr);
+  if (rv != 0) {
+    return -1;
+  }
+
+  rv = send_conn_close();
+  if (rv != NETWORK_ERR_OK) {
+    return rv;
+  }
+
+  return NETWORK_ERR_CLOSE_WAIT;
+}
+
+int Handler::send_conn_close() {
+  int rv;
+
+  debug::print_timestamp();
+  std::cerr << "Draining Period: TX CONNECTION_CLOSE" << std::endl;
+
+  assert(conn_closebuf_ && conn_closebuf_->size());
+
+  if (sendbuf_.size() == 0) {
+    std::copy_n(conn_closebuf_->rpos(), conn_closebuf_->size(),
+                sendbuf_.wpos());
+    sendbuf_.push(conn_closebuf_->size());
+  }
 
   return server_->send_packet(remote_addr_, sendbuf_);
 }
@@ -1263,6 +1320,7 @@ int Server::on_write() {
     auto rv = h->on_write();
     switch (rv) {
     case 0:
+    case NETWORK_ERR_CLOSE_WAIT:
       ++it;
       continue;
     case NETWORK_ERR_SEND_NON_FATAL:
@@ -1350,13 +1408,31 @@ int Server::on_read() {
   }
 
   auto h = (*handler_it).second.get();
-  if (h->on_read(buf.data(), nread) != 0) {
-    handlers_.erase(conn_id);
+  if (ngtcp2_conn_closed(h->conn())) {
+    // TODO do exponential backoff.
+    rv = h->send_conn_close();
+    switch (rv) {
+    case 0:
+    case NETWORK_ERR_SEND_NON_FATAL:
+      break;
+    default:
+      handlers_.erase(conn_id);
+    }
     return 0;
   }
+
+  rv = h->on_read(buf.data(), nread);
+  if (rv != 0) {
+    if (rv != NETWORK_ERR_CLOSE_WAIT) {
+      handlers_.erase(conn_id);
+    }
+    return 0;
+  }
+
   rv = h->on_write();
   switch (rv) {
   case 0:
+  case NETWORK_ERR_CLOSE_WAIT:
     break;
   case NETWORK_ERR_SEND_NON_FATAL:
     start_wev();
