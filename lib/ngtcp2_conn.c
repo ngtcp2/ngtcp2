@@ -1929,6 +1929,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   if (conn->server) {
     switch (hd.type) {
     case NGTCP2_PKT_CLIENT_INITIAL:
+      if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
+        conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
+        conn->client_conn_id = hd.conn_id;
+      }
+      break;
     case NGTCP2_PKT_CLIENT_CLEARTEXT:
       break;
     default:
@@ -2689,7 +2694,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       return (int)nread;
     }
 
-    if (conn->conn_id != hd.conn_id) {
+    if (conn->conn_id != hd.conn_id &&
+        (!conn->server || conn->client_conn_id != hd.conn_id)) {
       return 0;
     }
   } else {

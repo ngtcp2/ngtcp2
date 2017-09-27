@@ -129,6 +129,10 @@ struct ngtcp2_conn {
   ngtcp2_idtr local_idtr;
   ngtcp2_idtr remote_idtr;
   uint64_t conn_id;
+  /* client_conn_id is the connection ID client sent in its Client
+     Initial packet.  This field is only used if ngtcp2_conn is
+     initialized for server use. */
+  uint64_t client_conn_id;
   /* last_tx_pkt_num is the packet number which the local endpoint
      sent last time.*/
   uint64_t last_tx_pkt_num;
