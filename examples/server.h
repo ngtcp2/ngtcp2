@@ -146,7 +146,8 @@ class Server;
 
 class Handler {
 public:
-  Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server);
+  Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
+          uint64_t client_conn_id);
   ~Handler();
 
   int init(int fd, const sockaddr *sa, socklen_t salen);
@@ -181,6 +182,7 @@ public:
   int recv_stream_data(uint32_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
   uint64_t conn_id() const;
+  uint64_t client_conn_id() const;
   int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint32_t stream_id);
@@ -214,6 +216,7 @@ private:
   // packet in draining period.
   std::unique_ptr<Buffer> conn_closebuf_;
   uint64_t conn_id_;
+  uint64_t client_conn_id_;
   // tx_stream0_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream0_offset_;
@@ -235,10 +238,15 @@ public:
                                socklen_t salen);
   int send_packet(Address &remote_addr, Buffer &buf);
   void remove(const Handler *h);
+  std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator
+  remove(std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator it);
   void start_wev();
 
 private:
   std::map<uint64_t, std::unique_ptr<Handler>> handlers_;
+  // ctos_ is a mapping between client's initial connection ID, and
+  // server chosen connection ID.
+  std::map<uint64_t, uint64_t> ctos_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   int fd_;

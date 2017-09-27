@@ -513,7 +513,8 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 }
 } // namespace
 
-Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
+Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
+                 uint64_t client_conn_id)
     : remote_addr_{},
       max_pktlen_(0),
       loop_(loop),
@@ -528,6 +529,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server)
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       conn_id_(std::uniform_int_distribution<uint64_t>(
           0, std::numeric_limits<uint64_t>::max())(randgen)),
+      client_conn_id_(client_conn_id),
       tx_stream0_offset_(0) {
   ev_timer_init(&timer_, timeoutcb, 0., 30.);
   timer_.data = this;
@@ -1174,6 +1176,8 @@ int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
 
 uint64_t Handler::conn_id() const { return conn_id_; }
 
+uint64_t Handler::client_conn_id() const { return client_conn_id_; }
+
 Server *Handler::server() const { return server_; }
 
 const Address &Handler::remote_addr() const { return remote_addr_; }
@@ -1284,11 +1288,12 @@ void Server::disconnect(int liberr) {
   ev_signal_stop(loop_, &sigintev_);
 
   while (!handlers_.empty()) {
-    auto h = std::begin(handlers_)->second.get();
+    auto it = std::begin(handlers_);
+    auto &h = (*it).second;
 
     h->handle_error(0);
 
-    remove(h);
+    remove(it);
   }
 }
 
@@ -1315,7 +1320,7 @@ int Server::init(int fd) {
 }
 
 int Server::on_write() {
-  for (auto it = std::begin(handlers_); it != std::end(handlers_);) {
+  for (auto it = std::cbegin(handlers_); it != std::cend(handlers_);) {
     auto h = it->second.get();
     auto rv = h->on_write();
     switch (rv) {
@@ -1326,7 +1331,7 @@ int Server::on_write() {
     case NETWORK_ERR_SEND_NON_FATAL:
       return NETWORK_ERR_SEND_NON_FATAL;
     }
-    it = handlers_.erase(it);
+    it = remove(it);
   }
 
   return NETWORK_ERR_OK;
@@ -1363,48 +1368,59 @@ int Server::on_read() {
 
   auto handler_it = handlers_.find(conn_id);
   if (handler_it == std::end(handlers_)) {
-    constexpr size_t MIN_PKT_SIZE = 1200;
-    if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
-      std::cerr << "Client Initial packet is too short: " << nread << " < "
-                << MIN_PKT_SIZE << std::endl;
-      return 0;
-    }
+    auto ctos_it = ctos_.find(conn_id);
+    if (ctos_it == std::end(ctos_)) {
+      auto client_conn_id = conn_id;
+      constexpr size_t MIN_PKT_SIZE = 1200;
+      if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
+        std::cerr << "Client Initial packet is too short: " << nread << " < "
+                  << MIN_PKT_SIZE << std::endl;
+        return 0;
+      }
 
-    rv = ngtcp2_accept(&hd, buf.data(), nread);
-    if (rv == -1) {
-      std::cerr << "Unexpected packet received" << std::endl;
-      return 0;
-    }
-    if (rv == 1) {
-      std::cerr << "Unsupported version: Send Version Negotiation" << std::endl;
-      send_version_negotiation(&hd, &su.sa, addrlen);
-      return 0;
-    }
+      rv = ngtcp2_accept(&hd, buf.data(), nread);
+      if (rv == -1) {
+        std::cerr << "Unexpected packet received" << std::endl;
+        return 0;
+      }
+      if (rv == 1) {
+        std::cerr << "Unsupported version: Send Version Negotiation"
+                  << std::endl;
+        send_version_negotiation(&hd, &su.sa, addrlen);
+        return 0;
+      }
 
-    if ((buf[0] & 0x7f) != NGTCP2_PKT_CLIENT_INITIAL) {
+      if ((buf[0] & 0x7f) != NGTCP2_PKT_CLIENT_INITIAL) {
+        return 0;
+      }
+
+      auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, client_conn_id);
+      h->init(fd_, &su.sa, addrlen);
+
+      if (h->on_read(buf.data(), nread) != 0) {
+        return 0;
+      }
+      rv = h->on_write();
+      switch (rv) {
+      case 0:
+        break;
+      case NETWORK_ERR_SEND_NON_FATAL:
+        start_wev();
+        break;
+      default:
+        return 0;
+      }
+
+      conn_id = h->conn_id();
+      handlers_.emplace(conn_id, std::move(h));
+      ctos_.emplace(client_conn_id, conn_id);
       return 0;
     }
-
-    auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this);
-    h->init(fd_, &su.sa, addrlen);
-
-    if (h->on_read(buf.data(), nread) != 0) {
-      return 0;
-    }
-    rv = h->on_write();
-    switch (rv) {
-    case 0:
-      break;
-    case NETWORK_ERR_SEND_NON_FATAL:
-      start_wev();
-      break;
-    default:
-      return 0;
-    }
-
-    conn_id = h->conn_id();
-    handlers_.emplace(conn_id, std::move(h));
-    return 0;
+    debug::print_timestamp();
+    fprintf(stderr, "Forward CID=%016" PRIx64 " to CID=%016" PRIx64 "\n",
+            (*ctos_it).first, (*ctos_it).second);
+    handler_it = handlers_.find((*ctos_it).second);
+    assert(handler_it != std::end(handlers_));
   }
 
   auto h = (*handler_it).second.get();
@@ -1416,7 +1432,7 @@ int Server::on_read() {
     case NETWORK_ERR_SEND_NON_FATAL:
       break;
     default:
-      handlers_.erase(conn_id);
+      remove(handler_it);
     }
     return 0;
   }
@@ -1424,7 +1440,7 @@ int Server::on_read() {
   rv = h->on_read(buf.data(), nread);
   if (rv != 0) {
     if (rv != NETWORK_ERR_CLOSE_WAIT) {
-      handlers_.erase(conn_id);
+      remove(handler_it);
     }
     return 0;
   }
@@ -1438,7 +1454,7 @@ int Server::on_read() {
     start_wev();
     break;
   default:
-    handlers_.erase(conn_id);
+    remove(handler_it);
   }
 
   return 0;
@@ -1554,7 +1570,16 @@ int Server::send_packet(Address &remote_addr, Buffer &buf) {
   return NETWORK_ERR_OK;
 }
 
-void Server::remove(const Handler *h) { handlers_.erase(h->conn_id()); }
+void Server::remove(const Handler *h) {
+  ctos_.erase(h->client_conn_id());
+  handlers_.erase(h->conn_id());
+}
+
+std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator Server::remove(
+    std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator it) {
+  ctos_.erase((*it).second->client_conn_id());
+  return handlers_.erase(it);
+}
 
 void Server::start_wev() { ev_io_start(loop_, &wev_); }
 
