@@ -2688,6 +2688,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     if (nread < 0) {
       return (int)nread;
     }
+
+    if (conn->conn_id != hd.conn_id) {
+      return 0;
+    }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen);
     if (nread < 0) {
