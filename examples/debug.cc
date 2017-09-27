@@ -215,9 +215,10 @@ void print_indent() { fprintf(outfile, "           "); }
 namespace {
 void print_pkt_long(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
   fprintf(outfile,
-          "%s%s%s(0x%02x) CID=0x%016" PRIx64 " PKN=%" PRIu64 " V=0x%08x\n",
+          "%s%s%s(0x%02x) CID=0x%016" PRIx64 " PKN=%s%" PRIu64 "%s V=0x%08x\n",
           pkt_ansi_esc(dir), strpkttype_long(hd->type).c_str(), ansi_escend(),
-          hd->type, hd->conn_id, hd->pkt_num, hd->version);
+          hd->type, hd->conn_id, pkt_num_ansi_esc(dir), hd->pkt_num,
+          ansi_escend(), hd->version);
 }
 } // namespace
 
