@@ -145,7 +145,7 @@ void test_ngtcp2_upe_encode_version_negotiation(void) {
   ngtcp2_pkt_hd hd, nhd;
   int rv;
   const uint8_t *out;
-  size_t pktlen;
+  ssize_t spktlen;
   ssize_t nread;
   size_t i;
 
@@ -161,21 +161,18 @@ void test_ngtcp2_upe_encode_version_negotiation(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_upe_encode_version_negotiation(&upe, sv, arraylen(sv));
+  spktlen = ngtcp2_upe_encode_version_negotiation(&upe, &out, sv, arraylen(sv));
 
-  CU_ASSERT(0 == rv);
+  CU_ASSERT(spktlen > 0);
 
-  pktlen = ngtcp2_upe_final(&upe, &out);
-  pktlen -= NGTCP2_PKT_MDLEN;
-
-  nread = ngtcp2_pkt_decode_hd_long(&nhd, out, pktlen);
+  nread = ngtcp2_pkt_decode_hd_long(&nhd, out, (size_t)spktlen);
 
   CU_ASSERT(NGTCP2_LONG_HEADERLEN == nread);
 
   out += nread;
-  pktlen -= (size_t)nread;
+  spktlen -= nread;
 
-  CU_ASSERT(sizeof(sv) == pktlen);
+  CU_ASSERT(sizeof(sv) == (size_t)spktlen);
 
   for (i = 0; i < arraylen(sv); ++i) {
     uint32_t v = ngtcp2_get_uint32(out + sizeof(uint32_t) * i);
