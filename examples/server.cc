@@ -1646,6 +1646,10 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
     return -1;
   }
 
+  params.v.ee.len = 2;
+  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D5;
+  params.v.ee.supported_versions[1] = NGTCP2_PROTO_VER_D6;
+
   constexpr size_t bufsize = 64;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
 
