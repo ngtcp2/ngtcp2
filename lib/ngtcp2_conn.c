@@ -3076,7 +3076,11 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     return -1;
   }
 
-  if (p->version != NGTCP2_PROTO_VERSION) {
+  switch (p->version) {
+  case NGTCP2_PROTO_VER_D5:
+  case NGTCP2_PROTO_VER_D6:
+    break;
+  default:
     return 1;
   }
 
@@ -3564,4 +3568,8 @@ size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn) {
 
 uint64_t ngtcp2_conn_negotiated_conn_id(ngtcp2_conn *conn) {
   return conn->conn_id;
+}
+
+uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn) {
+  return conn->version;
 }

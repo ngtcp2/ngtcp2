@@ -41,7 +41,7 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_rtb_init(&rtb, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, 1000000009,
-                     1000000007, NGTCP2_PROTO_VERSION);
+                     1000000007, NGTCP2_PROTO_VER_MAX);
 
   rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 10, 100, 0, NGTCP2_RTB_FLAG_NONE,
                             mem);
@@ -53,7 +53,7 @@ void test_ngtcp2_rtb_add(void) {
   CU_ASSERT(0 == rv);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_02, 1000000009,
-                     1000000008, NGTCP2_PROTO_VERSION);
+                     1000000008, NGTCP2_PROTO_VER_MAX);
 
   rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 9, 100, 0, NGTCP2_RTB_FLAG_NONE,
                             mem);
@@ -65,7 +65,7 @@ void test_ngtcp2_rtb_add(void) {
   CU_ASSERT(0 == rv);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, 1000000009,
-                     1000000009, NGTCP2_PROTO_VERSION);
+                     1000000009, NGTCP2_PROTO_VER_MAX);
 
   rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 11, 100, 0, NGTCP2_RTB_FLAG_NONE,
                             mem);
@@ -110,7 +110,7 @@ static void add_rtb_entry_range(ngtcp2_rtb *rtb, uint64_t base_pkt_num,
 
   for (i = base_pkt_num; i < base_pkt_num + len; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, 1, i,
-                       NGTCP2_PROTO_VERSION);
+                       NGTCP2_PROTO_VER_MAX);
     ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 100, 0, NGTCP2_RTB_FLAG_NONE, mem);
     rv = ngtcp2_rtb_add(rtb, ent);
 

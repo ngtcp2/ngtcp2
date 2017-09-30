@@ -120,7 +120,8 @@ public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Client();
 
-  int init(int fd, const Address &remote_addr, const char *addr, int datafd);
+  int init(int fd, const Address &remote_addr, const char *addr, int datafd,
+           uint32_t version);
   void disconnect();
   void disconnect(int liberr);
   void close();

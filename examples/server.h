@@ -150,7 +150,7 @@ public:
           uint64_t client_conn_id);
   ~Handler();
 
-  int init(int fd, const sockaddr *sa, socklen_t salen);
+  int init(int fd, const sockaddr *sa, socklen_t salen, uint32_t version);
 
   int tls_handshake();
   int on_read(uint8_t *data, size_t datalen);
@@ -183,6 +183,7 @@ public:
                        size_t datalen);
   uint64_t conn_id() const;
   uint64_t client_conn_id() const;
+  uint32_t version() const;
   int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint32_t stream_id);

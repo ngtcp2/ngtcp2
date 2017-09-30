@@ -454,7 +454,7 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 } // namespace
 
 int Client::init(int fd, const Address &remote_addr, const char *addr,
-                 int datafd) {
+                 int datafd, uint32_t version) {
   int rv;
 
   remote_addr_ = remote_addr;
@@ -479,6 +479,23 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   SSL_set_bio(ssl_, bio, bio);
   SSL_set_app_data(ssl_, this);
   SSL_set_connect_state(ssl_);
+
+  const uint8_t *alpn;
+  size_t alpnlen;
+
+  switch (version) {
+  case NGTCP2_PROTO_VER_D5:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D5);
+    alpnlen = str_size(NGTCP2_ALPN_D5);
+    break;
+  case NGTCP2_PROTO_VER_D6:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D6);
+    alpnlen = str_size(NGTCP2_ALPN_D6);
+    break;
+  default:
+    assert(0);
+  }
+  SSL_set_alpn_protos(ssl_, alpn, alpnlen);
 
   if (util::numeric_host(addr)) {
     // If remote host is numeric address, just send "localhost" as SNI
@@ -520,8 +537,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
-  rv = ngtcp2_conn_client_new(&conn_, conn_id, NGTCP2_PROTO_VERSION, &callbacks,
-                              &settings, this);
+  rv = ngtcp2_conn_client_new(&conn_, conn_id, version, &callbacks, &settings,
+                              this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
@@ -1185,10 +1202,6 @@ SSL_CTX *create_ssl_ctx() {
     exit(EXIT_FAILURE);
   }
 
-  SSL_CTX_set_alpn_protos(ssl_ctx,
-                          reinterpret_cast<const uint8_t *>(NGTCP2_ALPN),
-                          str_size(NGTCP2_ALPN));
-
   if (SSL_CTX_add_custom_ext(
           ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
           SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS |
@@ -1268,7 +1281,7 @@ int run(Client &c, const char *addr, const char *port) {
     return -1;
   }
 
-  if (c.init(fd, remote_addr, addr, config.fd) != 0) {
+  if (c.init(fd, remote_addr, addr, config.fd, NGTCP2_PROTO_VER_D5) != 0) {
     return -1;
   }
 

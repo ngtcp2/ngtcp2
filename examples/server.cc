@@ -676,7 +676,8 @@ int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint32_t error_code,
 }
 } // namespace
 
-int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
+int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
+                  uint32_t version) {
   int rv;
 
   remote_addr_.len = salen;
@@ -733,8 +734,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen) {
                 std::end(settings.stateless_reset_token),
                 [&dis]() { return dis(randgen); });
 
-  rv = ngtcp2_conn_server_new(&conn_, conn_id_, NGTCP2_PROTO_VERSION,
-                              &callbacks, &settings, this);
+  rv = ngtcp2_conn_server_new(&conn_, conn_id_, version, &callbacks, &settings,
+                              this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
@@ -1395,7 +1396,7 @@ int Server::on_read() {
       }
 
       auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, client_conn_id);
-      h->init(fd_, &su.sa, addrlen);
+      h->init(fd_, &su.sa, addrlen, hd.version);
 
       if (h->on_read(buf.data(), nread) != 0) {
         return 0;
@@ -1489,7 +1490,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   ngtcp2_upe *upe;
   ngtcp2_pkt_hd hd;
   uint32_t reserved_ver;
-  uint32_t sv[2];
+  uint32_t sv[3];
   int rv;
 
   hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
@@ -1501,7 +1502,8 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   reserved_ver = generate_reserved_vesrion(sa, salen, hd.version);
 
   sv[0] = reserved_ver;
-  sv[1] = NGTCP2_PROTO_VERSION;
+  sv[1] = NGTCP2_PROTO_VER_D5;
+  sv[2] = NGTCP2_PROTO_VER_D6;
 
   rv = ngtcp2_upe_new(&upe, buf.wpos(), buf.left());
   if (rv != 0) {
@@ -1587,20 +1589,40 @@ namespace {
 int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
                          unsigned char *outlen, const unsigned char *in,
                          unsigned int inlen, void *arg) {
-  for (auto p = in, end = in + inlen; p + str_size(NGTCP2_ALPN) <= end;
-       p += *p + 1) {
-    if (std::equal(std::begin(NGTCP2_ALPN), std::end(NGTCP2_ALPN) - 1, p)) {
+  auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
+  const uint8_t *alpn;
+  size_t alpnlen;
+  auto version = ngtcp2_conn_negotiated_version(h->conn());
+
+  switch (version) {
+  case NGTCP2_PROTO_VER_D5:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D5);
+    alpnlen = str_size(NGTCP2_ALPN_D5);
+    break;
+  case NGTCP2_PROTO_VER_D6:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D6);
+    alpnlen = str_size(NGTCP2_ALPN_D6);
+    break;
+  default:
+    std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
+              << version << std::endl;
+    return SSL_TLSEXT_ERR_NOACK;
+  }
+
+  for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
+    if (std::equal(alpn, alpn + alpnlen, p)) {
       *out = p + 1;
       *outlen = *p;
       return SSL_TLSEXT_ERR_OK;
     }
   }
-  // Just select NGTCP2_ALPN for now.
-  *out = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN + 1);
-  *outlen = NGTCP2_ALPN[0];
+  // Just select alpn for now.
+  *out = reinterpret_cast<const uint8_t *>(alpn + 1);
+  *outlen = alpn[0];
 
   debug::print_indent();
-  std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN + 1 << std::endl;
+  std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN_D5 + 1 << " or "
+            << NGTCP2_ALPN_D6 + 1 << std::endl;
 
   return SSL_TLSEXT_ERR_OK;
 }

@@ -203,7 +203,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   cb.encrypt = null_encrypt;
   server_default_settings(&settings);
 
-  ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VERSION, &cb, &settings,
+  ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
   ngtcp2_conn_update_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                              sizeof(null_iv));
@@ -225,7 +225,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   cb.encrypt = null_encrypt;
   client_default_settings(&settings);
 
-  ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VERSION, &cb, &settings,
+  ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
   ngtcp2_conn_update_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                              sizeof(null_iv));
@@ -247,7 +247,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   cb.recv_handshake_data = recv_handshake_data;
   server_default_settings(&settings);
 
-  ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VERSION, &cb, &settings,
+  ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
 }
 
@@ -260,7 +260,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   cb.recv_handshake_data = recv_handshake_data;
   client_default_settings(&settings);
 
-  ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VERSION, &cb, &settings,
+  ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
 }
 
@@ -1240,7 +1240,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
 
   pktlen = write_single_frame_handshake_pkt(
       buf, sizeof(buf), NGTCP2_PKT_SERVER_CLEARTEXT, conn->conn_id, 1,
-      NGTCP2_PROTO_VERSION, &fr);
+      NGTCP2_PROTO_VER_MAX, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
@@ -1261,7 +1261,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
 
   pktlen = write_single_frame_handshake_pkt(
       buf, sizeof(buf), NGTCP2_PKT_SERVER_CLEARTEXT, conn->conn_id, 1,
-      NGTCP2_PROTO_VERSION, &fr);
+      NGTCP2_PROTO_VER_MAX, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);

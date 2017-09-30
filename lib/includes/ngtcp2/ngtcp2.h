@@ -155,13 +155,21 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VERSION is the supported QUIC protocol version */
-#define NGTCP2_PROTO_VERSION 0xff000005u
+/* NGTCP2_PROTO_VER_D5 is the supported QUIC protocol version
+   draft-5. */
+#define NGTCP2_PROTO_VER_D5 0xff000005u
+/* NGTCP2_PROTO_VER_D6 is the supported QUIC protocol version
+   draft-6. */
+#define NGTCP2_PROTO_VER_D6 0xff000006u
+/* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
+   supports. */
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D6
 
-/* NGTCP2_ALPN is a serialized form of ALPN protocol identifier this
+/* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN "\x5hq-05"
+#define NGTCP2_ALPN_D5 "\x5hq-05"
+#define NGTCP2_ALPN_D6 "\x5hq-06"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -1213,6 +1221,13 @@ NGTCP2_EXTERN size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn);
  * ID.
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_negotiated_conn_id(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_negotiated_version` returns the negotiated version.
+ */
+NGTCP2_EXTERN uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn);
 
 /**
  * @function
