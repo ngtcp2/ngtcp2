@@ -65,6 +65,8 @@ struct Config {
   uint8_t *data;
   // datalen is the length of file denoted by fd.
   size_t datalen;
+  // version is a QUIC version to use.
+  uint32_t version;
 };
 
 struct Buffer {

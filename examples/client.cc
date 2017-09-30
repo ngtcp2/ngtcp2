@@ -480,7 +480,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   SSL_set_app_data(ssl_, this);
   SSL_set_connect_state(ssl_);
 
-  const uint8_t *alpn;
+  const uint8_t *alpn = nullptr;
   size_t alpnlen;
 
   switch (version) {
@@ -492,10 +492,10 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D6);
     alpnlen = str_size(NGTCP2_ALPN_D6);
     break;
-  default:
-    assert(0);
   }
-  SSL_set_alpn_protos(ssl_, alpn, alpnlen);
+  if (alpn) {
+    SSL_set_alpn_protos(ssl_, alpn, alpnlen);
+  }
 
   if (util::numeric_host(addr)) {
     // If remote host is numeric address, just send "localhost" as SNI
@@ -1281,7 +1281,7 @@ int run(Client &c, const char *addr, const char *port) {
     return -1;
   }
 
-  if (c.init(fd, remote_addr, addr, config.fd, NGTCP2_PROTO_VER_D5) != 0) {
+  if (c.init(fd, remote_addr, addr, config.fd, config.version) != 0) {
     return -1;
   }
 
@@ -1308,8 +1308,26 @@ void print_usage() {
 } // namespace
 
 namespace {
+void config_set_default(Config &config) {
+  config = Config{};
+  config.tx_loss_prob = 0.;
+  config.rx_loss_prob = 0.;
+  config.fd = -1;
+  config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
+                   "CHACHA20-POLY1305-SHA256";
+  config.groups = "P-256:X25519:P-384:P-521";
+  config.nstreams = 1;
+  config.data = nullptr;
+  config.datalen = 0;
+  config.version = NGTCP2_PROTO_VER_D5;
+}
+} // namespace
+
+namespace {
 void print_help() {
   print_usage();
+
+  config_set_default(config);
 
   std::cout << R"(
   <ADDR>      Remote server address
@@ -1330,6 +1348,10 @@ Options:
   -n, --nstreams=<N>
               When used with --data,  this option specifies the number
               of streams to send the data specified by --data.
+  -v, --version=<HEX>
+              Specify QUIC version to use in hex string.
+              Default: )"
+            << std::hex << "0x" << config.version << std::dec << R"(
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
               Default: )"
@@ -1344,15 +1366,7 @@ Options:
 } // namespace
 
 int main(int argc, char **argv) {
-  config.tx_loss_prob = 0.;
-  config.rx_loss_prob = 0.;
-  config.fd = -1;
-  config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
-                   "CHACHA20-POLY1305-SHA256";
-  config.groups = "P-256:X25519:P-384:P-521";
-  config.nstreams = 1;
-  config.data = nullptr;
-  config.datalen = 0;
+  config_set_default(config);
   char *data_path = nullptr;
 
   for (;;) {
@@ -1364,13 +1378,14 @@ int main(int argc, char **argv) {
         {"interactive", no_argument, nullptr, 'i'},
         {"data", required_argument, nullptr, 'd'},
         {"nstreams", required_argument, nullptr, 'n'},
+        {"version", required_argument, nullptr, 'v'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0},
     };
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "d:hin:r:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hin:r:t:v:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
@@ -1399,6 +1414,10 @@ int main(int argc, char **argv) {
       // --interactive
       config.fd = fileno(stdin);
       config.interactive = true;
+      break;
+    case 'v':
+      // --version
+      config.version = strtol(optarg, nullptr, 16);
       break;
     case '?':
       print_usage();
