@@ -473,6 +473,12 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   fd_ = fd;
   datafd_ = datafd;
 
+
+  if (-1 == connect(fd_, &remote_addr_.su.sa, remote_addr_.len)) {
+    std::cerr << "connect: " << strerror(errno) << std::endl;
+    return -1;
+  }
+
   ssl_ = SSL_new(ssl_ctx_);
   auto bio = BIO_new(create_bio_method());
   BIO_set_data(bio, this);
@@ -883,12 +889,12 @@ int Client::send_packet() {
     return NETWORK_ERR_OK;
   }
 
+
   int eintr_retries = 5;
   ssize_t nwrite = 0;
 
   do {
-    nwrite = sendto(fd_, sendbuf_.rpos(), sendbuf_.size(), 0,
-                    &remote_addr_.su.sa, remote_addr_.len);
+    nwrite = send(fd_, sendbuf_.rpos(), sendbuf_.size(), 0);
   } while ((nwrite == -1) && (errno == EINTR) && (eintr_retries-- > 0));
 
   if (nwrite == -1) {
@@ -898,7 +904,7 @@ int Client::send_packet() {
     case 0:
       return NETWORK_ERR_SEND_NON_FATAL;
     default:
-      std::cerr << "sendto: " << strerror(errno) << std::endl;
+      std::cerr << "send: " << strerror(errno) << std::endl;
       return NETWORK_ERR_SEND_FATAL;
     }
   }
