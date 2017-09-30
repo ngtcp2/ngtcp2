@@ -1890,6 +1890,8 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
  *     TLS handshake failed, and TLS alert was sent.
  * NGTCP2_ERR_FRAME_FORMAT
  *     Frame is badly formatted.
+ * NGTCP2_ERR_VERSION_NEGOTIATION
+ *     Version Negotiation packet is received.
  */
 static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts) {
@@ -1964,7 +1966,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (rv != 0) {
         return rv;
       }
-      return 0;
+      return NGTCP2_ERR_VERSION_NEGOTIATION;
     default:
       return NGTCP2_ERR_PROTO;
     }
