@@ -87,8 +87,9 @@ size_t ngtcp2_upe_padding(ngtcp2_upe *upe) {
   return len;
 }
 
-int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, const uint32_t *sv,
-                                          size_t nsv) {
+ssize_t ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe,
+                                              const uint8_t **ppkt,
+                                              const uint32_t *sv, size_t nsv) {
   ngtcp2_buf *buf = &upe->buf;
   uint8_t *p;
   size_t i;
@@ -107,7 +108,11 @@ int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, const uint32_t *sv,
 
   buf->last = p;
 
-  return 0;
+  if (ppkt != NULL) {
+    *ppkt = buf->begin;
+  }
+
+  return (ssize_t)ngtcp2_buf_len(buf);
 }
 
 size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {

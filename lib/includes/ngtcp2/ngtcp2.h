@@ -634,17 +634,22 @@ NGTCP2_EXTERN size_t ngtcp2_upe_padding(ngtcp2_upe *upe);
  * @function
  *
  * `ngtcp2_upe_encode_version_negotiation` encodes payload of Version
- * Negotiation packet.
+ * Negotiation packet.  Unlike the other functions to encode a frame,
+ * this function returns the packet size just like `ngtcp2_upe_final`.
+ * You should not call `ngtcp2_upe_final` since Version Negotiation
+ * packet does not have an integrity check.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the length of a packet, and assigns the
+ * pointer to the packet to |*pkt| if |pkt| is not ``NULL``.  If it
+ * fails, one of the following negative error codes is returned:
  *
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer does not have enough capacity to write a payload.
  */
-NGTCP2_EXTERN int ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe,
-                                                        const uint32_t *sv,
-                                                        size_t nsv);
+NGTCP2_EXTERN ssize_t
+ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, const uint8_t **ppkt,
+
+                                      const uint32_t *sv, size_t nsv);
 
 /**
  * @function

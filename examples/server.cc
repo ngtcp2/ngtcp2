@@ -1518,15 +1518,15 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
     return -1;
   }
 
-  rv = ngtcp2_upe_encode_version_negotiation(upe, sv, array_size(sv));
-  if (rv != 0) {
+  auto sn =
+      ngtcp2_upe_encode_version_negotiation(upe, nullptr, sv, array_size(sv));
+  if (sn < 0) {
     std::cerr << "ngtcp2_upe_encode_version_negotiation: "
               << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
-  auto n = ngtcp2_upe_final(upe, NULL);
-  buf.push(n);
+  buf.push(sn);
 
   Address remote_addr;
   remote_addr.len = salen;
