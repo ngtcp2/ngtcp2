@@ -212,8 +212,10 @@ namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
-  debug::print_timestamp();
-  std::cerr << "Timeout" << std::endl;
+  if (!config.quiet) {
+    debug::print_timestamp();
+    std::cerr << "Timeout" << std::endl;
+  }
 
   c->disconnect();
 }
@@ -353,7 +355,9 @@ namespace {
 int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
                      const uint8_t *data, size_t datalen, void *user_data,
                      void *stream_user_data) {
-  debug::print_stream_data(stream_id, data, datalen);
+  if (!config.quiet) {
+    debug::print_stream_data(stream_id, data, datalen);
+  }
   ngtcp2_conn_extend_max_stream_offset(conn, stream_id, datalen);
   ngtcp2_conn_extend_max_offset(conn, datalen);
   return 0;
@@ -376,7 +380,9 @@ namespace {
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  debug::handshake_completed(conn, user_data);
+  if (!config.quiet) {
+    debug::handshake_completed(conn, user_data);
+  }
 
   if (c->setup_crypto_context() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -515,18 +521,18 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       send_client_cleartext,
       nullptr,
       recv_handshake_data,
-      debug::send_pkt,
-      debug::send_frame,
-      debug::recv_pkt,
-      debug::recv_frame,
+      config.quiet ? nullptr : debug::send_pkt,
+      config.quiet ? nullptr : debug::send_frame,
+      config.quiet ? nullptr : debug::recv_pkt,
+      config.quiet ? nullptr : debug::recv_frame,
       handshake_completed,
-      debug::recv_version_negotiation,
+      config.quiet ? nullptr : debug::recv_version_negotiation,
       do_encrypt,
       do_decrypt,
       recv_stream_data,
       acked_stream_data_offset,
       stream_close,
-      debug::recv_stateless_reset,
+      config.quiet ? nullptr : debug::recv_stateless_reset,
       recv_server_stateless_retry,
       extend_max_stream_id,
   };
@@ -582,19 +588,21 @@ int Client::tls_handshake() {
 
   ngtcp2_conn_handshake_completed(conn_);
 
-  debug::print_indent();
-  std::cerr << "; Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
-            << std::endl;
-
-  const unsigned char *alpn = nullptr;
-  unsigned int alpnlen;
-
-  SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
-  if (alpn) {
+  if (!config.quiet) {
     debug::print_indent();
-    std::cerr << "; Negotiated ALPN is ";
-    std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
-    std::cerr << std::endl;
+    std::cerr << "; Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
+              << std::endl;
+
+    const unsigned char *alpn = nullptr;
+    unsigned int alpnlen;
+
+    SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
+    if (alpn) {
+      debug::print_indent();
+      std::cerr << "; Negotiated ALPN is ";
+      std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
+      std::cerr << std::endl;
+    }
   }
 
   return 0;
@@ -610,7 +618,10 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
     return -1;
   }
   if (ngtcp2_conn_closed(conn_)) {
-    std::cerr << "QUIC connection has been closed by peer" << std::endl;
+    if (!config.quiet) {
+      debug::print_timestamp();
+      std::cerr << "QUIC connection has been closed by peer" << std::endl;
+    }
     return -1;
   }
 
@@ -632,7 +643,9 @@ int Client::on_read() {
     }
 
     if (debug::packet_lost(config.rx_loss_prob)) {
-      std::cerr << "** Simulated incoming packet loss **" << std::endl;
+      if (!config.quiet) {
+        std::cerr << "** Simulated incoming packet loss **" << std::endl;
+      }
       break;
     }
 
@@ -883,7 +896,9 @@ ngtcp2_conn *Client::conn() const { return conn_; }
 
 int Client::send_packet() {
   if (debug::packet_lost(config.tx_loss_prob)) {
-    std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    }
     sendbuf_.reset();
     return NETWORK_ERR_OK;
   }
@@ -1169,11 +1184,13 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
     return -1;
   }
 
-  debug::print_indent();
-  std::cerr << "; TransportParameter received in EncryptedExtensions"
-            << std::endl;
-  debug::print_transport_params(
-      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
+  if (!config.quiet) {
+    debug::print_indent();
+    std::cerr << "; TransportParameter received in EncryptedExtensions"
+              << std::endl;
+    debug::print_transport_params(
+        &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
+  }
 
   rv = ngtcp2_conn_set_remote_transport_params(
       conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -1356,6 +1373,7 @@ Options:
               Specify QUIC version to use in hex string.
               Default: )"
             << std::hex << "0x" << config.version << std::dec << R"(
+  -q, --quiet Suppress debug output.
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
               Default: )"
@@ -1383,13 +1401,14 @@ int main(int argc, char **argv) {
         {"data", required_argument, nullptr, 'd'},
         {"nstreams", required_argument, nullptr, 'n'},
         {"version", required_argument, nullptr, 'v'},
+        {"quiet", no_argument, nullptr, 'q'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0},
     };
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "d:hin:r:t:v:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hin:qr:t:v:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
@@ -1405,6 +1424,10 @@ int main(int argc, char **argv) {
     case 'n':
       // --streams
       config.nstreams = strtol(optarg, nullptr, 10);
+      break;
+    case 'q':
+      // -quiet
+      config.quiet = true;
       break;
     case 'r':
       // --rx-loss

@@ -475,15 +475,19 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto s = h->server();
 
   if (ngtcp2_conn_closed(h->conn())) {
-    debug::print_timestamp();
-    std::cerr << "Draining Period is over" << std::endl;
+    if (!config.quiet) {
+      debug::print_timestamp();
+      std::cerr << "Draining Period is over" << std::endl;
+    }
 
     s->remove(h);
     return;
   }
 
-  debug::print_timestamp();
-  std::cerr << "Timeout" << std::endl;
+  if (!config.quiet) {
+    debug::print_timestamp();
+    std::cerr << "Timeout" << std::endl;
+  }
 
   rv = h->start_drain_period(0);
   if (rv != 0) {
@@ -538,8 +542,10 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
 }
 
 Handler::~Handler() {
-  debug::print_timestamp();
-  std::cerr << "Closing QUIC connection" << std::endl;
+  if (!config.quiet) {
+    debug::print_timestamp();
+    std::cerr << "Closing QUIC connection" << std::endl;
+  }
 
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
@@ -580,7 +586,9 @@ namespace {
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   auto h = static_cast<Handler *>(user_data);
 
-  debug::handshake_completed(conn, user_data);
+  if (!config.quiet) {
+    debug::handshake_completed(conn, user_data);
+  }
 
   if (h->setup_crypto_context() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -707,10 +715,10 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr,
       send_server_cleartext,
       recv_handshake_data,
-      debug::send_pkt,
-      debug::send_frame,
-      debug::recv_pkt,
-      debug::recv_frame,
+      config.quiet ? nullptr : debug::send_pkt,
+      config.quiet ? nullptr : debug::send_frame,
+      config.quiet ? nullptr : debug::recv_pkt,
+      config.quiet ? nullptr : debug::recv_frame,
       handshake_completed,
       nullptr,
       do_encrypt,
@@ -772,19 +780,21 @@ int Handler::tls_handshake() {
   // is out of interest.
   ngtcp2_conn_handshake_completed(conn_);
 
-  debug::print_indent();
-  std::cerr << "; Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
-            << std::endl;
-
-  const unsigned char *alpn = nullptr;
-  unsigned int alpnlen;
-
-  SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
-  if (alpn) {
+  if (!config.quiet) {
     debug::print_indent();
-    std::cerr << "; Negotiated ALPN is ";
-    std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
-    std::cerr << std::endl;
+    std::cerr << "; Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
+              << std::endl;
+
+    const unsigned char *alpn = nullptr;
+    unsigned int alpnlen;
+
+    SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
+    if (alpn) {
+      debug::print_indent();
+      std::cerr << "; Negotiated ALPN is ";
+      std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
+      std::cerr << std::endl;
+    }
   }
 
   return 0;
@@ -909,7 +919,10 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
     return handle_error(rv);
   }
   if (ngtcp2_conn_closed(conn_)) {
-    std::cerr << "QUIC connection has been closed by peer" << std::endl;
+    if (!config.quiet) {
+      debug::print_timestamp();
+      std::cerr << "QUIC connection has been closed by peer" << std::endl;
+    }
     return -1;
   }
 
@@ -1111,8 +1124,10 @@ int Handler::handle_error(int liberr) {
 int Handler::send_conn_close() {
   int rv;
 
-  debug::print_timestamp();
-  std::cerr << "Draining Period: TX CONNECTION_CLOSE" << std::endl;
+  if (!config.quiet) {
+    debug::print_timestamp();
+    std::cerr << "Draining Period: TX CONNECTION_CLOSE" << std::endl;
+  }
 
   assert(conn_closebuf_ && conn_closebuf_->size());
 
@@ -1147,7 +1162,9 @@ int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
                               const uint8_t *data, size_t datalen) {
   int rv;
 
-  debug::print_stream_data(stream_id, data, datalen);
+  if (!config.quiet) {
+    debug::print_stream_data(stream_id, data, datalen);
+  }
 
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
@@ -1354,7 +1371,9 @@ int Server::on_read() {
   }
 
   if (debug::packet_lost(config.rx_loss_prob)) {
-    std::cerr << "** Simulated incoming packet loss **" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "** Simulated incoming packet loss **" << std::endl;
+    }
     return 0;
   }
 
@@ -1374,19 +1393,25 @@ int Server::on_read() {
       auto client_conn_id = conn_id;
       constexpr size_t MIN_PKT_SIZE = 1200;
       if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
-        std::cerr << "Client Initial packet is too short: " << nread << " < "
-                  << MIN_PKT_SIZE << std::endl;
+        if (!config.quiet) {
+          std::cerr << "Client Initial packet is too short: " << nread << " < "
+                    << MIN_PKT_SIZE << std::endl;
+        }
         return 0;
       }
 
       rv = ngtcp2_accept(&hd, buf.data(), nread);
       if (rv == -1) {
-        std::cerr << "Unexpected packet received" << std::endl;
+        if (!config.quiet) {
+          std::cerr << "Unexpected packet received" << std::endl;
+        }
         return 0;
       }
       if (rv == 1) {
-        std::cerr << "Unsupported version: Send Version Negotiation"
-                  << std::endl;
+        if (!config.quiet) {
+          std::cerr << "Unsupported version: Send Version Negotiation"
+                    << std::endl;
+        }
         send_version_negotiation(&hd, &su.sa, addrlen);
         return 0;
       }
@@ -1417,9 +1442,11 @@ int Server::on_read() {
       ctos_.emplace(client_conn_id, conn_id);
       return 0;
     }
-    debug::print_timestamp();
-    fprintf(stderr, "Forward CID=%016" PRIx64 " to CID=%016" PRIx64 "\n",
-            (*ctos_it).first, (*ctos_it).second);
+    if (!config.quiet) {
+      debug::print_timestamp();
+      fprintf(stderr, "Forward CID=%016" PRIx64 " to CID=%016" PRIx64 "\n",
+              (*ctos_it).first, (*ctos_it).second);
+    }
     handler_it = handlers_.find((*ctos_it).second);
     assert(handler_it != std::end(handlers_));
   }
@@ -1541,7 +1568,9 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
 
 int Server::send_packet(Address &remote_addr, Buffer &buf) {
   if (debug::packet_lost(config.tx_loss_prob)) {
-    std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "** Simulated outgoing packet loss **" << std::endl;
+    }
     buf.reset();
     return NETWORK_ERR_OK;
   }
@@ -1604,8 +1633,10 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
     alpnlen = str_size(NGTCP2_ALPN_D6);
     break;
   default:
-    std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
-              << version << std::endl;
+    if (!config.quiet) {
+      std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
+                << version << std::endl;
+    }
     return SSL_TLSEXT_ERR_NOACK;
   }
 
@@ -1620,9 +1651,11 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   *out = reinterpret_cast<const uint8_t *>(alpn + 1);
   *outlen = alpn[0];
 
-  debug::print_indent();
-  std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN_D5 + 1 << " or "
-            << NGTCP2_ALPN_D6 + 1 << std::endl;
+  if (!config.quiet) {
+    debug::print_indent();
+    std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN_D5 + 1
+              << " or " << NGTCP2_ALPN_D6 + 1 << std::endl;
+  }
 
   return SSL_TLSEXT_ERR_OK;
 }
@@ -1704,10 +1737,12 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
     return -1;
   }
 
-  debug::print_indent();
-  std::cerr << "; TransportParameter received in ClientHello" << std::endl;
-  debug::print_transport_params(&params,
-                                NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
+  if (!config.quiet) {
+    debug::print_indent();
+    std::cerr << "; TransportParameter received in ClientHello" << std::endl;
+    debug::print_transport_params(&params,
+                                  NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
+  }
 
   rv = ngtcp2_conn_set_remote_transport_params(
       conn, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
@@ -1912,6 +1947,7 @@ Options:
   -d, --htdocs=<PATH>
               Specify document root.  If this option is not specified,
               the document root is the current working directory.
+  -q, --quiet Suppress debug output.
   -h, --help  Display this help and exit.
 )";
 }
@@ -1935,12 +1971,13 @@ int main(int argc, char **argv) {
         {"tx-loss", required_argument, nullptr, 't'},
         {"rx-loss", required_argument, nullptr, 'r'},
         {"htdocs", required_argument, nullptr, 'd'},
+        {"quiet", no_argument, nullptr, 'q'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "d:hr:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hqr:t:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
@@ -1960,6 +1997,10 @@ int main(int argc, char **argv) {
       // --help
       print_help();
       exit(EXIT_SUCCESS);
+    case 'q':
+      // -quiet
+      config.quiet = true;
+      break;
     case 'r':
       // --rx-loss
       config.rx_loss_prob = strtod(optarg, nullptr);

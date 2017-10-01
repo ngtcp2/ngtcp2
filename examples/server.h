@@ -60,6 +60,9 @@ struct Config {
   // port is the port number which server listens on for incoming
   // connections.
   uint16_t port;
+  // quiet suppresses the output normally shown except for the error
+  // messages.
+  bool quiet;
 };
 
 struct Buffer {

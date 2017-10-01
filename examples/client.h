@@ -67,6 +67,9 @@ struct Config {
   size_t datalen;
   // version is a QUIC version to use.
   uint32_t version;
+  // quiet suppresses the output normally shown except for the error
+  // messages.
+  bool quiet;
 };
 
 struct Buffer {
