@@ -2370,7 +2370,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
     rx_offset = ngtcp2_strm_rx_offset(strm);
     if (fr_end_offset <= rx_offset) {
-      return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
+      return 0;
     }
   }
 
