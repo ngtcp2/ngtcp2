@@ -3061,7 +3061,8 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
     return rv;
   }
 
-  if (conn->next_ack_expiry == 0 && conn->acktr.active_ack) {
+  if (!conn->immediate_ack && conn->next_ack_expiry == 0 &&
+      conn->acktr.active_ack) {
     conn_set_next_ack_expiry(conn, ts);
   }
 
