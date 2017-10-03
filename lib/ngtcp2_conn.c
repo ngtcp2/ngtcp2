@@ -331,12 +331,25 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 /* conn_set_next_ack_expiry sets the next ACK timeout. */
 static void conn_set_next_ack_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->next_ack_expiry = ts + NGTCP2_DELAYED_ACK_TIMEOUT;
+  conn->immediate_ack = 0;
 }
 
 /* conn_invalidate_next_ack_expiry invalidates ACK timeout.  It makes
    ACK timeout not expire. */
 static void conn_invalidate_next_ack_expiry(ngtcp2_conn *conn) {
   conn->next_ack_expiry = 0;
+  conn->immediate_ack = 0;
+}
+
+static void conn_immediate_ack(ngtcp2_conn *conn) { conn->immediate_ack = 1; }
+
+/*
+ * conn_next_ack_expired returns nonzero if the next delayed ack timer
+ * is expired.
+ */
+static int conn_next_ack_expired(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  return conn->immediate_ack ||
+         (conn->next_ack_expiry && conn->next_ack_expiry <= ts);
 }
 
 /*
@@ -605,7 +618,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_crypto_ctx ctx;
   ngtcp2_strm *strm;
   int send_pkt_cb_called = 0;
-  int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
+  int ack_expired = conn_next_ack_expired(conn, ts);
 
   /* This is required because ent->hd may have old client version. */
   hd.version = conn->version;
@@ -1304,7 +1317,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_strm *strm, *strm_next;
   int send_pkt_cb_called = 0;
   int pkt_empty = 1;
-  int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
+  int ack_expired = conn_next_ack_expired(conn, ts);
 
   ackfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
   if (ack_expired) {
@@ -1545,7 +1558,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts) {
   ngtcp2_frame ackfr;
-  int ack_expired = conn->next_ack_expiry && conn->next_ack_expiry <= ts;
+  int ack_expired = conn_next_ack_expired(conn, ts);
 
   if (!ack_expired) {
     return 0;
@@ -3488,6 +3501,11 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   ngtcp2_strm_free(strm);
   ngtcp2_mem_free(conn->mem, strm);
+
+  /* Send the next ACK immediately.  This might acknowledge the
+     incoming STREAM + FIN or RST_STREAM faster, and it helps for peer
+     to send MAX_STREAM_ID timely. */
+  conn_immediate_ack(conn);
 
   return 0;
 }
