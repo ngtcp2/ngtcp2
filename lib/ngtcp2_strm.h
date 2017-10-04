@@ -46,8 +46,17 @@ typedef enum {
   NGTCP2_STRM_FLAG_SHUT_WR = 0x02,
   NGTCP2_STRM_FLAG_SHUT_RDWR =
       NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR,
-  /* NGTCP2_STRM_FLAG_RESET indicates that stream is reset. */
-  NGTCP2_STRM_FLAG_RESET = 0x04,
+  /* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is sent from
+     the local endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_WR is
+     also set. */
+  NGTCP2_STRM_FLAG_SENT_RST = 0x04,
+  /* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is received
+     from the remote endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_RD
+     is also set. */
+  NGTCP2_STRM_FLAG_RECV_RST = 0x08,
+  /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
+     from the local endpoint. */
+  NGTCP2_STRM_FLAG_STOP_SENDING = 0x10,
 } ngtcp2_strm_flags;
 
 struct ngtcp2_strm;
@@ -80,8 +89,8 @@ struct ngtcp2_strm {
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
   uint32_t flags;
   ngtcp2_strm **fc_pprev, *fc_next;
-  /* error_code is an error code the local endpoint sent in
-     RST_STREAM. */
+  /* error_code is an error code the local endpoint sent in RST_STREAM
+     or STOP_SENDING. */
   uint32_t error_code;
 };
 

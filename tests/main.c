@@ -138,10 +138,12 @@ int main() {
                    test_ngtcp2_conn_rx_flow_control_error) ||
       !CU_add_test(pSuite, "conn_tx_flow_control",
                    test_ngtcp2_conn_tx_flow_control) ||
-      !CU_add_test(pSuite, "conn_reset_stream",
-                   test_ngtcp2_conn_reset_stream) ||
+      !CU_add_test(pSuite, "conn_shutdown_stream_write",
+                   test_ngtcp2_conn_shutdown_stream_write) ||
       !CU_add_test(pSuite, "conn_recv_rst_stream",
                    test_ngtcp2_conn_recv_rst_stream) ||
+      !CU_add_test(pSuite, "conn_recv_stop_sending",
+                   test_ngtcp2_conn_recv_stop_sending) ||
       !CU_add_test(pSuite, "conn_recv_conn_id_omitted",
                    test_ngtcp2_conn_recv_conn_id_omitted) ||
       !CU_add_test(pSuite, "conn_short_pkt_type",

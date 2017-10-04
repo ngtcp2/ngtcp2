@@ -1091,10 +1091,12 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
 /**
  * @function
  *
- * `ngtcp2_conn_reset_stream` closes stream denoted by |stream_id|
+ * `ngtcp2_conn_shutdown_stream` closes stream denoted by |stream_id|
  * abruptly.  Successful call of this function does not immediately
  * erase the state of the stream.  The actual deletion is done when
- * writing this frame to a packet (e.g., `ngtcp2_conn_write_pkt`).
+ * the remote endpoint sends acknowledgement.  Calling this function
+ * is equivalent to call `ngtcp2_conn_shutdown_stream_read`, and
+ * `ngtcp2_conn_shutdown_stream_write` sequentially.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1106,9 +1108,52 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
-NGTCP2_EXTERN int ngtcp2_conn_reset_stream(ngtcp2_conn *conn,
-                                           uint32_t stream_id,
-                                           uint32_t error_code);
+NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
+                                              uint32_t stream_id,
+                                              uint32_t error_code);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_shutdown_stream_write` closes write-side of stream
+ * denoted by |stream_id| abruptly.  If this function succeeds, no
+ * application data is sent to the remote endpoint.  It discards all
+ * data which has not been acknowledged yet.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |stream_id| is 0.
+ * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *     Stream does not exist
+ */
+NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
+                                                    uint32_t stream_id,
+                                                    uint32_t error_code);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_shutdown_stream_read` closes read-side of stream
+ * denoted by |stream_id| abruptly.  If this function succeeds, no
+ * application data is forwarded to an application layer.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |stream_id| is 0.
+ * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *     Stream does not exist
+ */
+NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
+                                                   uint32_t stream_id,
+                                                   uint32_t error_code);
 
 /**
  * @function

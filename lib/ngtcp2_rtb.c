@@ -220,7 +220,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
       return NGTCP2_ERR_CALLBACK_FAILURE;
     }
 
-    rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
+    rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
     if (rv != 0) {
       return rv;
     }
