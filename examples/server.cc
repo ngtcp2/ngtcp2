@@ -999,12 +999,12 @@ int Handler::on_write() {
 }
 
 int Handler::on_write_stream(Stream &stream) {
-  if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
-    return 0;
-  }
-
   if (stream.streambuf_idx == stream.streambuf.size()) {
     if (stream.should_send_fin) {
+      if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
+        return 0;
+      }
+
       stream.should_send_fin = false;
       auto v = Buffer{};
       if (write_stream_data(stream, 1, v) != 0) {
@@ -1016,10 +1016,6 @@ int Handler::on_write_stream(Stream &stream) {
 
   for (auto it = std::begin(stream.streambuf) + stream.streambuf_idx;
        it != std::end(stream.streambuf); ++it) {
-    if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
-      break;
-    }
-
     auto &v = *it;
     auto fin = stream.should_send_fin &&
                stream.streambuf_idx == stream.streambuf.size() - 1;
@@ -1043,6 +1039,10 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
   size_t ndatalen;
 
   for (;;) {
+    if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
+      break;
+    }
+
     auto n = ngtcp2_conn_write_stream(
         conn_, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream.stream_id, fin,
         data.rpos(), data.size(), util::timestamp());
