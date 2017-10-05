@@ -724,31 +724,32 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 
   /* ACK is added last so that we don't send ACK only frame here. */
   localfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
+  /* TODO Is it better to check the remaining space in packet? */
   if (ack_expired) {
     conn_create_ack_frame(conn, &localfr.ack, ts);
     if (localfr.type == NGTCP2_FRAME_ACK) {
       rv = ngtcp2_ppe_encode_frame(&ppe, &localfr);
-      if (rv != 0) {
-        return rv;
-      }
-      conn_commit_tx_ack(conn);
+      if (rv == 0) {
+        conn_commit_tx_ack(conn);
+        if (!send_pkt_cb_called) {
+          rv = conn_call_send_pkt(conn, &hd);
+          if (rv != 0) {
+            return rv;
+          }
+          send_pkt_cb_called = 1;
+        }
 
-      if (!send_pkt_cb_called) {
-        rv = conn_call_send_pkt(conn, &hd);
+        rv = conn_call_send_frame(conn, &hd, &localfr);
         if (rv != 0) {
           return rv;
         }
-        send_pkt_cb_called = 1;
+
+        pkt_empty = 0;
+
+        ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &localfr.ack, 0);
+      } else {
+        assert(NGTCP2_ERR_NOBUF == rv);
       }
-
-      rv = conn_call_send_frame(conn, &hd, &localfr);
-      if (rv != 0) {
-        return rv;
-      }
-
-      pkt_empty = 0;
-
-      ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &localfr.ack, 0);
     }
   }
 
@@ -1610,13 +1611,13 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   spktlen = conn_write_single_frame_pkt(conn, dest, destlen, &ackfr);
-  if (spktlen != 0) {
+  if (spktlen < 0) {
     return spktlen;
   }
 
   conn_commit_tx_ack(conn);
 
-  return 0;
+  return spktlen;
 }
 
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
