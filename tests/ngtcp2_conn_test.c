@@ -1651,10 +1651,10 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   ent = ngtcp2_rtb_top(&conn->rtb);
 
-  /* This should send ACK only packet */
+  /* This should not send ACK only packet */
   spktlen = ngtcp2_conn_write_pkt(conn, buf, 999, ++t);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NGTCP2_ERR_NOBUF == (int)spktlen);
   CU_ASSERT(ent == ngtcp2_rtb_top(&conn->rtb));
 
   ngtcp2_conn_del(conn);

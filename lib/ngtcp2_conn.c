@@ -359,6 +359,9 @@ static int conn_next_ack_expired(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  * this case, call this function with |ack| after assigning
  * `~NGTCP2_FRAME_ACK` to ack->type.  If there is ACK frame to send,
  * ack->type will be NGTCP2_FRAME_ACK.
+ *
+ * Call conn_commit_tx_ack after a created ACK frame is successfully
+ * serialized into a packet.
  */
 static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
                                   ngtcp2_tstamp ts) {
@@ -439,7 +442,13 @@ static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   if (*prpkt) {
     ngtcp2_acktr_forget(&conn->acktr, *prpkt);
   }
+}
 
+/*
+ * conn_commit_tx_ack should be called when creating ACK is
+ * successful, and it is serialized in a packet.
+ */
+static void conn_commit_tx_ack(ngtcp2_conn *conn) {
   conn_invalidate_next_ack_expiry(conn);
 
   conn->acktr.active_ack = 0;
@@ -638,34 +647,6 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  localfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
-  if (ack_expired) {
-    conn_create_ack_frame(conn, &localfr.ack, ts);
-    if (localfr.type == NGTCP2_FRAME_ACK) {
-      rv = ngtcp2_ppe_encode_frame(&ppe, &localfr);
-      if (rv != 0) {
-        return rv;
-      }
-
-      if (!send_pkt_cb_called) {
-        rv = conn_call_send_pkt(conn, &hd);
-        if (rv != 0) {
-          return rv;
-        }
-        send_pkt_cb_called = 1;
-      }
-
-      rv = conn_call_send_frame(conn, &hd, &localfr);
-      if (rv != 0) {
-        return rv;
-      }
-
-      pkt_empty = 0;
-
-      ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &localfr.ack, 0);
-    }
-  }
-
   for (pfrc = &ent->frc; *pfrc;) {
     switch ((*pfrc)->fr.type) {
     case NGTCP2_FRAME_STREAM:
@@ -735,6 +716,40 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 
     pkt_empty = 0;
     pfrc = &(*pfrc)->next;
+  }
+
+  if (pkt_empty) {
+    return rv;
+  }
+
+  /* ACK is added last so that we don't send ACK only frame here. */
+  localfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
+  if (ack_expired) {
+    conn_create_ack_frame(conn, &localfr.ack, ts);
+    if (localfr.type == NGTCP2_FRAME_ACK) {
+      rv = ngtcp2_ppe_encode_frame(&ppe, &localfr);
+      if (rv != 0) {
+        return rv;
+      }
+      conn_commit_tx_ack(conn);
+
+      if (!send_pkt_cb_called) {
+        rv = conn_call_send_pkt(conn, &hd);
+        if (rv != 0) {
+          return rv;
+        }
+        send_pkt_cb_called = 1;
+      }
+
+      rv = conn_call_send_frame(conn, &hd, &localfr);
+      if (rv != 0) {
+        return rv;
+      }
+
+      pkt_empty = 0;
+
+      ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &localfr.ack, 0);
+    }
   }
 
   if (pkt_empty) {
@@ -947,6 +962,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       if (rv != 0) {
         return rv;
       }
+      conn_commit_tx_ack(conn);
 
       rv = conn_call_send_frame(conn, &hd, &localfr);
       if (rv != 0) {
@@ -1097,6 +1113,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     return rv;
   }
+  conn_commit_tx_ack(conn);
 
   rv = conn_call_send_frame(conn, &hd, &fr);
   if (rv != 0) {
@@ -1398,6 +1415,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (rv != 0) {
       return rv;
     }
+    conn_commit_tx_ack(conn);
     pkt_empty = 0;
 
     ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr.ack, 0);
@@ -1576,6 +1594,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
  */
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts) {
+  ssize_t spktlen;
   ngtcp2_frame ackfr;
   int ack_expired = conn_next_ack_expired(conn, ts);
 
@@ -1590,7 +1609,14 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  return conn_write_single_frame_pkt(conn, dest, destlen, &ackfr);
+  spktlen = conn_write_single_frame_pkt(conn, dest, destlen, &ackfr);
+  if (spktlen != 0) {
+    return spktlen;
+  }
+
+  conn_commit_tx_ack(conn);
+
+  return 0;
 }
 
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
