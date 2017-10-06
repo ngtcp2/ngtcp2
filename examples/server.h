@@ -63,6 +63,8 @@ struct Config {
   // quiet suppresses the output normally shown except for the error
   // messages.
   bool quiet;
+  // timeout is an idle timeout for QUIC connection.
+  uint32_t timeout;
 };
 
 struct Buffer {

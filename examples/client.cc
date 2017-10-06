@@ -259,7 +259,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   wev_.data = this;
   rev_.data = this;
   stdinrev_.data = this;
-  ev_timer_init(&timer_, timeoutcb, 0., 30.);
+  ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
@@ -544,7 +544,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.max_stream_data = 256_k;
   settings.max_data = 1_k;
   settings.max_stream_id = 0;
-  settings.idle_timeout = 30;
+  settings.idle_timeout = config.timeout;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
@@ -1341,6 +1341,7 @@ void config_set_default(Config &config) {
   config.data = nullptr;
   config.datalen = 0;
   config.version = NGTCP2_PROTO_VER_D5;
+  config.timeout = 30;
 }
 } // namespace
 
@@ -1374,6 +1375,10 @@ Options:
               Default: )"
             << std::hex << "0x" << config.version << std::dec << R"(
   -q, --quiet Suppress debug output.
+  --timeout=<T>
+              Specify idle timeout in seconds.
+              Default: )"
+            << config.timeout << R"(
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
               Default: )"
@@ -1404,6 +1409,7 @@ int main(int argc, char **argv) {
         {"quiet", no_argument, nullptr, 'q'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
+        {"timeout", required_argument, &flag, 3},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -1458,6 +1464,10 @@ int main(int argc, char **argv) {
       case 2:
         // --groups
         config.groups = optarg;
+        break;
+      case 3:
+        // --timeout
+        config.timeout = strtol(optarg, nullptr, 10);
         break;
       }
       break;

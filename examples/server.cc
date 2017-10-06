@@ -535,7 +535,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
           0, std::numeric_limits<uint64_t>::max())(randgen)),
       client_conn_id_(client_conn_id),
       tx_stream0_offset_(0) {
-  ev_timer_init(&timer_, timeoutcb, 0., 30.);
+  ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
@@ -733,7 +733,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   settings.max_stream_data = 256_k;
   settings.max_data = 1_k;
   settings.max_stream_id = 199;
-  settings.idle_timeout = 30;
+  settings.idle_timeout = config.timeout;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
 
@@ -1917,8 +1917,27 @@ void print_usage() {
 } // namespace
 
 namespace {
+void config_set_default(Config &config) {
+  config = Config{};
+  config.tx_loss_prob = 0.;
+  config.rx_loss_prob = 0.;
+  config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
+                   "CHACHA20-POLY1305-SHA256";
+  config.groups = "P-256:X25519:P-384:P-521";
+  config.timeout = 30;
+  {
+    auto path = realpath(".", nullptr);
+    config.htdocs = path;
+    free(path);
+  }
+}
+} // namespace
+
+namespace {
 void print_help() {
   print_usage();
+
+  config_set_default(config);
 
   std::cout << R"(
   <ADDR>      Address to listen to.  '*' binds to any address.
@@ -1948,22 +1967,18 @@ Options:
               Specify document root.  If this option is not specified,
               the document root is the current working directory.
   -q, --quiet Suppress debug output.
+  --timeout=<T>
+              Specify idle timeout in seconds.
+              Default: )"
+            << config.timeout << R"(
   -h, --help  Display this help and exit.
 )";
 }
 } // namespace
 
 int main(int argc, char **argv) {
-  config.tx_loss_prob = 0.;
-  config.rx_loss_prob = 0.;
-  config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
-                   "CHACHA20-POLY1305-SHA256";
-  config.groups = "P-256:X25519:P-384:P-521";
-  {
-    auto path = realpath(".", nullptr);
-    config.htdocs = path;
-    free(path);
-  }
+  config_set_default(config);
+
   for (;;) {
     static int flag = 0;
     constexpr static option long_opts[] = {
@@ -1974,6 +1989,7 @@ int main(int argc, char **argv) {
         {"quiet", no_argument, nullptr, 'q'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
+        {"timeout", required_argument, &flag, 3},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -2021,6 +2037,10 @@ int main(int argc, char **argv) {
       case 2:
         // --groups
         config.groups = optarg;
+        break;
+      case 3:
+        // --timeout
+        config.timeout = strtol(optarg, nullptr, 10);
         break;
       }
       break;
