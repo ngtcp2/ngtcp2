@@ -30,17 +30,15 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
-#include "ngtcp2_mem.h"
 #include "ngtcp2_conn.h"
 
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
-                     ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem) {
+                     ngtcp2_crypto_ctx *cctx) {
   ngtcp2_buf_init(&ppe->buf, out, outlen);
 
   ppe->hdlen = 0;
   ppe->pkt_num = 0;
   ppe->ctx = cctx;
-  ppe->mem = mem;
 }
 
 int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {

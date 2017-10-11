@@ -44,7 +44,6 @@ typedef struct {
   size_t hdlen;
   /* pkt_num is the packet number written in buf. */
   uint64_t pkt_num;
-  ngtcp2_mem *mem;
   /* nonce is the buffer to store nonce.  It should be equal or longer
      than then length of IV. */
   uint8_t nonce[32];
@@ -54,7 +53,7 @@ typedef struct {
  * ngtcp2_ppe_init initializes |ppe| with the given buffer.
  */
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
-                     ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem);
+                     ngtcp2_crypto_ctx *cctx);
 
 /*
  * ngtcp2_ppe_encode_hd encodes |hd|.

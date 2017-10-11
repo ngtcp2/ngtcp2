@@ -511,7 +511,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.hs_encrypt;
   ctx.user_data = conn;
 
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -667,7 +667,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.user_data = conn;
 
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -973,7 +973,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.hs_encrypt;
   ctx.user_data = conn;
 
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -1138,7 +1138,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.hs_encrypt;
   ctx.user_data = conn;
 
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -1444,7 +1444,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.user_data = conn;
 
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -1584,7 +1584,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.user_data = conn;
 
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -3572,7 +3572,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.user_data = conn;
 
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx, conn->mem);
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
