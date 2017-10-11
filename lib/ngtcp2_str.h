@@ -33,10 +33,4 @@
 
 uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
 
-/*
- * ngtcp2_fnv1a returns FNV-1a hash value for the data |p| of length
- * |len|.
- */
-uint64_t ngtcp2_fnv1a(const uint8_t *p, size_t len);
-
 #endif /* NGTCP2_STR_H */

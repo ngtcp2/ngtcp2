@@ -676,16 +676,6 @@ NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
  */
 NGTCP2_EXTERN size_t ngtcp2_upe_left(ngtcp2_upe *upe);
 
-/**
- * @function
- *
- * `ngtcp2_pkt_verify` verifies the integrity of QUIC unprotected
- * packet included in |pkt| of length |pktlen|.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-NGTCP2_EXTERN int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen);
-
 struct ngtcp2_conn;
 
 typedef struct ngtcp2_conn ngtcp2_conn;
