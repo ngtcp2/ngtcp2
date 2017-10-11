@@ -97,4 +97,12 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
  */
 size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe);
 
+/**
+ * @function
+ *
+ * `ngtcp2_ppe_padding` encodes PADDING frames to the end of the
+ * buffer.  This function returns the number of bytes padded.
+ */
+size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe);
+
 #endif /* NGTCP2_PPE_H */

@@ -127,6 +127,14 @@ static ssize_t send_client_cleartext_zero(ngtcp2_conn *conn, uint32_t flags,
   return 0;
 }
 
+static int recv_client_initial(ngtcp2_conn *conn, uint64_t conn_id,
+                               void *user_data) {
+  (void)conn;
+  (void)conn_id;
+  (void)user_data;
+  return 0;
+}
+
 static ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
                                      uint64_t *ppkt_num, const uint8_t **pdest,
                                      void *user_data) {
@@ -199,12 +207,18 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
 
   memset(&cb, 0, sizeof(cb));
+  cb.hs_decrypt = null_decrypt;
+  cb.hs_encrypt = null_encrypt;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
+  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
   ngtcp2_conn_update_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                              sizeof(null_iv));
   ngtcp2_conn_update_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
@@ -221,12 +235,18 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
 
   memset(&cb, 0, sizeof(cb));
+  cb.hs_decrypt = null_decrypt;
+  cb.hs_encrypt = null_encrypt;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
+  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
   ngtcp2_conn_update_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                              sizeof(null_iv));
   ngtcp2_conn_update_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
@@ -243,12 +263,19 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
 
   memset(&cb, 0, sizeof(cb));
+  cb.recv_client_initial = recv_client_initial;
   cb.send_server_cleartext = send_server_cleartext;
   cb.recv_handshake_data = recv_handshake_data;
+  cb.hs_decrypt = null_decrypt;
+  cb.hs_encrypt = null_encrypt;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
+  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
 }
 
 static void setup_handshake_client(ngtcp2_conn **pconn) {
@@ -258,10 +285,16 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   memset(&cb, 0, sizeof(cb));
   cb.send_client_initial = send_client_initial;
   cb.recv_handshake_data = recv_handshake_data;
+  cb.hs_decrypt = null_decrypt;
+  cb.hs_encrypt = null_encrypt;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
                          NULL);
+  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
 }
 
 void test_ngtcp2_conn_stream_open_close(void) {

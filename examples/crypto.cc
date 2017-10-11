@@ -24,6 +24,10 @@
  */
 #include "crypto.h"
 
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif /* HAVE_ARPA_INET_H */
+
 #include <algorithm>
 
 #include "template.h"
@@ -54,6 +58,41 @@ int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
 int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
   static constexpr uint8_t label[] = "EXPORTER-QUIC server 1-RTT Secret";
   return export_secret(dest, destlen, ssl, label, str_size(label));
+}
+
+#ifdef WORDS_BIGENDIAN
+#define bswap64(N) (N)
+#else /* !WORDS_BIGENDIAN */
+#define bswap64(N)                                                             \
+  (((uint64_t)(ntohl(((uint32_t)(N)) & 0xffffffffu))) << 32 |                  \
+   ntohl((uint32_t)((N) >> 32)))
+#endif /* !WORDS_BIGENDIAN */
+
+int derive_cleartext_secret(uint8_t *dest, size_t destlen, uint64_t secret,
+                            const uint8_t *salt, size_t saltlen) {
+  Context ctx;
+  prf_sha256(ctx);
+  secret = bswap64(secret);
+  return hkdf_extract(dest, destlen, reinterpret_cast<uint8_t *>(&secret),
+                      sizeof(secret), salt, saltlen, ctx);
+}
+
+int derive_client_cleartext_secret(uint8_t *dest, size_t destlen,
+                                   const uint8_t *secret, size_t secretlen) {
+  static constexpr uint8_t LABEL[] = "QUIC client cleartext Secret";
+  Context ctx;
+  prf_sha256(ctx);
+  return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
+                                   str_size(LABEL), ctx);
+}
+
+int derive_server_cleartext_secret(uint8_t *dest, size_t destlen,
+                                   const uint8_t *secret, size_t secretlen) {
+  static constexpr uint8_t LABEL[] = "QUIC server cleartext Secret";
+  Context ctx;
+  prf_sha256(ctx);
+  return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
+                                   str_size(LABEL), ctx);
 }
 
 ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
@@ -110,8 +149,8 @@ int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
   p = std::copy_n(qlabel, qlabellen, p);
   *p++ = 0;
 
-  return hkdf(dest, destlen, secret, secretlen, info.data(),
-              p - std::begin(info), ctx);
+  return hkdf_expand(dest, destlen, secret, secretlen, info.data(),
+                     p - std::begin(info), ctx);
 }
 
 } // namespace crypto

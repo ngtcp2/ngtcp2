@@ -178,6 +178,12 @@ typedef struct {
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
+/* NGTCP2_QUIC_V1_SALT is a salt value which is used to derive
+   cleartext secret. */
+#define NGTCP2_QUIC_V1_SALT                                                    \
+  "\xaf\xc8\x24\xec\x5f\xc7\x7e\xca\x1e\x9d\x36\xf3\x7f\xb2\xd4\x65\x18\xc3"   \
+  "\x66\x39"
+
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
@@ -694,6 +700,24 @@ typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
                                                 const uint8_t **pdest,
                                                 void *user_data);
 
+/**
+ * @function
+ *
+ * :type:`ngtcp2_recv_client_initial` is invoked when Client Initial
+ * packet is received.  An server application must implement this
+ * callback, and generate handshake key, and iv.  Then call
+ * `ngtcp2_conn_set_handshake_tx_keys` and
+ * `ngtcp2_conn_set_handshake_rx_keys` to inform |conn| of the packet
+ * protection keys and ivs.
+ *
+ * The callback function must return 0 if it succeeds.  If an error
+ * occurs, return :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the
+ * library call return immediately.
+ *
+ */
+typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn, uint64_t conn_id,
+                                          void *user_data);
+
 typedef ssize_t (*ngtcp2_send_server_cleartext)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 uint64_t *ppkt_num,
@@ -864,6 +888,7 @@ typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
+  ngtcp2_recv_client_initial recv_client_initial;
   ngtcp2_send_server_cleartext send_server_cleartext;
   ngtcp2_recv_handshake_data recv_handshake_data;
   ngtcp2_send_pkt send_pkt;
@@ -872,6 +897,12 @@ typedef struct {
   ngtcp2_recv_frame recv_frame;
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
+  /* hs_encrypt is a callback function which is invoked to encrypt
+     handshake cleartext packets. */
+  ngtcp2_encrypt hs_encrypt;
+  /* hs_decrypt is a callback function which is invoked to encrypt
+     handshake cleartext packets. */
+  ngtcp2_decrypt hs_decrypt;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
   ngtcp2_recv_stream_data recv_stream_data;
@@ -1002,6 +1033,42 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn,
  * handshake has completed.
  */
 NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to
+ *  encrypt handshake cleartext packets.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     A packet protection key and iv are already set.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
+                                                    const uint8_t *key,
+                                                    size_t keylen,
+                                                    const uint8_t *iv,
+                                                    size_t ivlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_handshake_rx_keys` sets key and iv to decrypt
+ * handshake cleartext packets.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     A packet protection key and iv are already set.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn,
+                                                    const uint8_t *key,
+                                                    size_t keylen,
+                                                    const uint8_t *iv,
+                                                    size_t ivlen);
 
 NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
                                                  size_t aead_overhead);

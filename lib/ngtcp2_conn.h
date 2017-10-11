@@ -178,6 +178,12 @@ struct ngtcp2_conn {
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint8_t flags;
   int server;
+  /* hs_tx_ckm is a cryptographic key, and iv to encrypt handshake
+     cleartext packets. */
+  ngtcp2_crypto_km *hs_tx_ckm;
+  /* hs_rx_ckm is a cryptographic key, and iv to decrypt handshake
+     packets. */
+  ngtcp2_crypto_km *hs_rx_ckm;
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;
   size_t aead_overhead;

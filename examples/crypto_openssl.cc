@@ -208,8 +208,9 @@ size_t aead_nonce_length(const Context &ctx) {
   return EVP_CIPHER_iv_length(ctx.aead);
 }
 
-int hkdf(uint8_t *dest, size_t destlen, const uint8_t *secret, size_t secretlen,
-         const uint8_t *info, size_t infolen, const Context &ctx) {
+int hkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
+                size_t secretlen, const uint8_t *info, size_t infolen,
+                const Context &ctx) {
   auto pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
   if (pctx == nullptr) {
     return -1;
@@ -247,6 +248,47 @@ int hkdf(uint8_t *dest, size_t destlen, const uint8_t *secret, size_t secretlen,
 
   return 0;
 }
+
+int hkdf_extract(uint8_t *dest, size_t destlen, const uint8_t *secret,
+                 size_t secretlen, const uint8_t *salt, size_t saltlen,
+                 const Context &ctx) {
+  auto pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+  if (pctx == nullptr) {
+    return -1;
+  }
+
+  auto pctx_d = defer(EVP_PKEY_CTX_free, pctx);
+
+  if (EVP_PKEY_derive_init(pctx) != 1) {
+    return -1;
+  }
+
+  if (EVP_PKEY_CTX_hkdf_mode(pctx, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) != 1) {
+    return -1;
+  }
+
+  if (EVP_PKEY_CTX_set_hkdf_md(pctx, ctx.prf) != 1) {
+    return -1;
+  }
+
+  if (EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt, saltlen) != 1) {
+    return -1;
+  }
+
+  if (EVP_PKEY_CTX_set1_hkdf_key(pctx, secret, secretlen) != 1) {
+    return -1;
+  }
+
+  if (EVP_PKEY_derive(pctx, dest, &destlen) != 1) {
+    return -1;
+  }
+
+  return 0;
+}
+
+void prf_sha256(Context &ctx) { ctx.prf = EVP_sha256(); }
+
+void aead_aes_128_gcm(Context &ctx) { ctx.aead = EVP_aes_128_gcm(); }
 
 } // namespace crypto
 

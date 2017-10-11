@@ -84,13 +84,6 @@ void test_ngtcp2_upe_encode(void) {
   CU_ASSERT(1024 == pktlen);
   CU_ASSERT(buf == out);
 
-  /* Verify checksum */
-  rv = ngtcp2_pkt_verify(out, pktlen);
-
-  CU_ASSERT(0 == rv);
-
-  pktlen -= NGTCP2_PKT_MDLEN;
-
   /* Let's decode packet */
   nread = ngtcp2_pkt_decode_hd_long(&nhd, out, pktlen);
 
