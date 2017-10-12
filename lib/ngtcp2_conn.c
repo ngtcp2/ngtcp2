@@ -2234,12 +2234,14 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     conn->strm0->last_rx_offset =
         ngtcp2_max(conn->strm0->last_rx_offset, fr_end_offset);
 
-    /* At the moment, we assume that MAX_STREAM_DATA for stream 0 is
-       sufficient for handshake */
-
-    /* if (conn->strm0->max_rx_offset < fr_end_offset) { */
-    /*   return NGTCP2_ERR_FLOW_CONTROL; */
-    /* } */
+    /* Although there is no way to send MAX_STREAM_DATA frame during a
+       handshake, stream 0 is subject to stream-level flow control, so
+       we have to verify it here.  The current consensus is that the
+       initial max stream data should be sufficient for a
+       handshake. */
+    if (conn->strm0->max_rx_offset < fr_end_offset) {
+      return NGTCP2_ERR_FLOW_CONTROL;
+    }
 
     if (fr.stream.offset <= rx_offset) {
       size_t ncut = (rx_offset - fr.stream.offset);
