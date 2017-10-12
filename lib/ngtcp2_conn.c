@@ -2004,11 +2004,11 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t pktlen) {
 }
 
 /*
- * conn_decrypt_packet decrypts the data pointed by |pkt| whose length
- * is |pktlen|, and writes cleartext data to the buffer pointed by
- * |dest| whose capacity is |destlen|.  The buffer pointed by |ad| is
- * the Additional Data, and its length is |adlen|.  |pkt_num| is used
- * to create a nonce.  |ckm| is the cryptographic key, and iv to use.
+ * conn_decrypt_pkt decrypts the data pointed by |pkt| whose length is
+ * |pktlen|, and writes cleartext data to the buffer pointed by |dest|
+ * whose capacity is |destlen|.  The buffer pointed by |ad| is the
+ * Additional Data, and its length is |adlen|.  |pkt_num| is used to
+ * create a nonce.  |ckm| is the cryptographic key, and iv to use.
  * |decrypt| is a callback function which actually decrypts a packet.
  *
  * This function returns the number of bytes written in |dest| if it
@@ -2019,12 +2019,11 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t pktlen) {
  * NGTCP2_ERR_TLS_DECRYPT
  *     TLS backend failed to decrypt data.
  */
-static ssize_t conn_decrypt_packet(ngtcp2_conn *conn, uint8_t *dest,
-                                   size_t destlen, const uint8_t *pkt,
-                                   size_t pktlen, const uint8_t *ad,
-                                   size_t adlen, uint64_t pkt_num,
-                                   ngtcp2_crypto_km *ckm,
-                                   ngtcp2_decrypt decrypt) {
+static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                size_t destlen, const uint8_t *pkt,
+                                size_t pktlen, const uint8_t *ad, size_t adlen,
+                                uint64_t pkt_num, ngtcp2_crypto_km *ckm,
+                                ngtcp2_decrypt decrypt) {
   /* TODO nonce is limited to 64 bytes. */
   uint8_t nonce[64];
   ssize_t nwrite;
@@ -2164,9 +2163,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return rv;
   }
 
-  nwrite = conn_decrypt_packet(conn, conn->decrypt_buf, pktlen, pkt, pktlen,
-                               hdpkt, (size_t)nread, hd.pkt_num,
-                               conn->hs_rx_ckm, conn->callbacks.hs_decrypt);
+  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf, pktlen, pkt, pktlen, hdpkt,
+                            (size_t)nread, hd.pkt_num, conn->hs_rx_ckm,
+                            conn->callbacks.hs_decrypt);
   if (nwrite < 0) {
     return (int)nwrite;
   }
@@ -2853,9 +2852,9 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     return rv;
   }
 
-  nwrite = conn_decrypt_packet(conn, conn->decrypt_buf, pktlen, pkt, pktlen, ad,
-                               adlen, hd->pkt_num, conn->hs_rx_ckm,
-                               conn->callbacks.hs_decrypt);
+  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf, pktlen, pkt, pktlen, ad,
+                            adlen, hd->pkt_num, conn->hs_rx_ckm,
+                            conn->callbacks.hs_decrypt);
   if (nwrite < 0) {
     return (int)nwrite;
   }
@@ -3008,9 +3007,9 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     return rv;
   }
 
-  nwrite = conn_decrypt_packet(conn, conn->decrypt_buf, pktlen, pkt, pktlen,
-                               hdpkt, (size_t)nread, hd.pkt_num, conn->rx_ckm,
-                               conn->callbacks.decrypt);
+  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf, pktlen, pkt, pktlen, hdpkt,
+                            (size_t)nread, hd.pkt_num, conn->rx_ckm,
+                            conn->callbacks.decrypt);
   if (nwrite < 0) {
     if (nwrite != NGTCP2_ERR_TLS_DECRYPT) {
       return (int)nwrite;
