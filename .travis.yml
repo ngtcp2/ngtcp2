@@ -1,7 +1,7 @@
 dist: trusty
 language: cpp
 os:
-  - osx
+#  - osx
   - linux
 compiler:
   - clang
