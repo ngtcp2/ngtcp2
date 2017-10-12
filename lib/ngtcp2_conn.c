@@ -2189,7 +2189,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
-      if (hd.type == NGTCP2_PKT_CLIENT_INITIAL) {
+      switch (hd.type) {
+      case NGTCP2_PKT_CLIENT_INITIAL:
+      case NGTCP2_PKT_SERVER_STATELESS_RETRY:
         return NGTCP2_ERR_PROTO;
       }
       /* TODO Assume that all packets here are unprotected */
@@ -2199,6 +2201,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       continue;
     case NGTCP2_FRAME_PADDING:
+      if (hd.type == NGTCP2_PKT_SERVER_STATELESS_RETRY) {
+        return NGTCP2_ERR_PROTO;
+      }
       continue;
     case NGTCP2_FRAME_STREAM:
       require_ack = 1;
