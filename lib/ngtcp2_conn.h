@@ -118,6 +118,12 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
      parameters are received. */
   NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED = 0x04,
+  /* NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT is set when a protected
+     packet is received, and decrypted successfully.  This flag is
+     used to stop retransmitting cleartext packets.  It might be
+     replaced with an another mechanism when we implement key
+     update. */
+  NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT = 0x08,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {

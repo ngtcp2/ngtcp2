@@ -875,6 +875,13 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       case NGTCP2_PKT_CLIENT_INITIAL:
       case NGTCP2_PKT_SERVER_CLEARTEXT:
       case NGTCP2_PKT_CLIENT_CLEARTEXT:
+        /* Stop retransmitting cleartext packet after at least one
+           protected packet is received, and decrypted
+           successfully. */
+        if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
+          nwrite = 0;
+          break;
+        }
         nwrite = conn_retransmit_unprotected(conn, dest, destlen, ent, ts);
         break;
       default:
@@ -3020,6 +3027,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   }
   pkt = conn->decrypt_buf;
   pktlen = (size_t)nwrite;
+
+  conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
 
   for (; pktlen;) {
     nread = ngtcp2_pkt_decode_frame(&fr, pkt, pktlen);
