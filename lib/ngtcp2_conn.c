@@ -2993,8 +2993,6 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     switch (hd.type) {
-    case NGTCP2_PKT_1RTT_PROTECTED_K0:
-      break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
       /* Parse, and ignore Version Negotiation packet after
          handshake */

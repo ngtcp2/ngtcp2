@@ -73,8 +73,6 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   case NGTCP2_PKT_SERVER_CLEARTEXT:
   case NGTCP2_PKT_CLIENT_CLEARTEXT:
   case NGTCP2_PKT_0RTT_PROTECTED:
-  case NGTCP2_PKT_1RTT_PROTECTED_K0:
-  case NGTCP2_PKT_1RTT_PROTECTED_K1:
   case NGTCP2_PKT_PUBLIC_RESET:
     break;
   default:

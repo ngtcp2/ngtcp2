@@ -85,10 +85,6 @@ std::string strpkttype_long(uint8_t type) {
     return "Client Cleartext";
   case NGTCP2_PKT_0RTT_PROTECTED:
     return "0-RTT Protected";
-  case NGTCP2_PKT_1RTT_PROTECTED_K0:
-    return "1-RTT Protected (key phase 0)";
-  case NGTCP2_PKT_1RTT_PROTECTED_K1:
-    return "1-RTT Protected (key phase 1)";
   case NGTCP2_PKT_PUBLIC_RESET:
     return "Public Reset";
   default:
