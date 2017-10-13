@@ -944,7 +944,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.rst_stream.stream_id = 2;
-  fr.rst_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
   fr.rst_stream.final_offset = 0;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
@@ -960,7 +960,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.rst_stream.stream_id = 7;
-  fr.rst_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
   fr.rst_stream.final_offset = 0;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
@@ -976,7 +976,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.rst_stream.stream_id = 1;
-  fr.rst_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
   fr.rst_stream.final_offset = 0;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
@@ -997,7 +997,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.rst_stream.stream_id = 1;
-  fr.rst_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
   fr.rst_stream.final_offset = 1 << 20;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
@@ -1016,7 +1016,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.rst_stream.stream_id = 1;
-  fr.rst_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
   fr.rst_stream.final_offset = 1 << 20;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
@@ -1813,7 +1813,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.rst_stream.stream_id = 1;
-  fr.rst_stream.app_error_code = NGTCP2_NO_ERROR;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
   fr.rst_stream.final_offset = datalen;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
