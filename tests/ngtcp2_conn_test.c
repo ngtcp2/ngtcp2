@@ -1478,7 +1478,6 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   fr.ack.ack_delay = 122;
   fr.ack.first_ack_blklen = 0;
   fr.ack.num_blks = 0;
-  fr.ack.num_ts = 0;
 
   pktlen = write_single_frame_handshake_pkt(
       buf, sizeof(buf), NGTCP2_PKT_SERVER_CLEARTEXT, conn->conn_id, 1,

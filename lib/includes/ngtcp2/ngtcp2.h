@@ -318,7 +318,6 @@ typedef struct {
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[255];
-  size_t num_ts;
 } ngtcp2_ack;
 
 typedef struct {

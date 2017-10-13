@@ -86,8 +86,6 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
   *p++ = 0x1f | NGTCP2_FRAME_ACK;
   /* Num Blocks */
   *p++ = 1;
-  /* NumTS */
-  *p++ = 0;
   /* Largest Acknowledged */
   p = ngtcp2_put_uint64be(p, largest_ack);
   /* ACK Delay */

@@ -405,15 +405,14 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   static const size_t len_def[] = {1, 2, 4, 8};
   uint8_t type;
   size_t num_blks = 0;
-  size_t num_ts;
   size_t lalen;
   size_t abllen;
-  size_t len = 4; /* type + NumTS + ACK Delay(2) */
+  size_t len = 3; /* type + ACK Delay(2) */
   const uint8_t *p;
   size_t i;
   ngtcp2_ack_blk *blk;
 
-  /* We can expect at least 4 bytes (type, NumTS, and ACK Delay(2)) */
+  /* We can expect at least 3 bytes (type, and ACK Delay(2)) */
   if (payloadlen < len) {
     return NGTCP2_ERR_FRAME_FORMAT;
   }
@@ -427,8 +426,6 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
     ++len;
   }
 
-  num_ts = *p++;
-
   lalen = len_def[(type & NGTCP2_ACK_LL_MASK) >> 2];
 
   len += lalen;
@@ -440,11 +437,6 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   len += abllen;
   len += num_blks * (1 + abllen);
 
-  /* Length of Timestamp Section */
-  if (num_ts > 0) {
-    len += num_ts * 3 + 2;
-  }
-
   if (payloadlen < len) {
     return NGTCP2_ERR_FRAME_FORMAT;
   }
@@ -452,7 +444,6 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   dest->type = NGTCP2_FRAME_ACK;
   dest->flags = (uint8_t)(type & ~NGTCP2_FRAME_ACK);
   dest->num_blks = num_blks;
-  dest->num_ts = num_ts;
 
   switch (lalen) {
   case 1:
@@ -513,12 +504,6 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
       p += abllen;
     }
     break;
-  }
-
-  /* TODO Parse Timestamp section */
-
-  if (num_ts) {
-    p += num_ts * 3 + 2;
   }
 
   assert((size_t)(p - payload) == len);
@@ -906,7 +891,7 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
                                     ngtcp2_ack *fr) {
   static const size_t len_def[] = {1, 2, 4, 8};
-  size_t len = 1 + 1 + 2;
+  size_t len = 1 + 2;
   uint8_t *p;
   size_t i;
   const ngtcp2_ack_blk *blk;
@@ -972,8 +957,6 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
   if (fr->num_blks) {
     *p++ = (uint8_t)fr->num_blks;
   }
-  /* NumTS */
-  *p++ = 0;
   switch (lamask) {
   case NGTCP2_ACK_LL_00_MASK:
     *p++ = (uint8_t)fr->largest_ack;

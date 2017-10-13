@@ -405,7 +405,6 @@ static void conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_ack *ack,
   ack_delay = ts - (*prpkt)->tstamp;
 
   ack->type = NGTCP2_FRAME_ACK;
-  ack->num_ts = 0;
   ack->num_blks = 0;
 
   prpkt = &(*prpkt)->next;

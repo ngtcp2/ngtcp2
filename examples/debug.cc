@@ -282,10 +282,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_ACK: {
     print_indent();
-    fprintf(outfile,
-            "num_blks=%zu num_ts=%zu largest_ack=%" PRIu64 " ack_delay=%u\n",
-            fr->ack.num_blks, fr->ack.num_ts, fr->ack.largest_ack,
-            fr->ack.ack_delay);
+    fprintf(outfile, "num_blks=%zu largest_ack=%" PRIu64 " ack_delay=%u\n",
+            fr->ack.num_blks, fr->ack.largest_ack, fr->ack.ack_delay);
     print_indent();
     auto largest_ack = fr->ack.largest_ack;
     auto min_ack = fr->ack.largest_ack - fr->ack.first_ack_blklen;
