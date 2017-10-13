@@ -124,6 +124,9 @@ typedef enum {
      replaced with an another mechanism when we implement key
      update. */
   NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT = 0x08,
+  /* NGTCP2_CONN_FLAG_STATELESS_RETRY is set when a client receives
+     Server Stateless Retry packet. */
+  NGTCP2_CONN_FLAG_STATELESS_RETRY = 0x10,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {

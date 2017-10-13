@@ -1195,7 +1195,9 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_buf *tx_buf = &conn->strm0->tx_buf;
 
   payloadlen = conn->callbacks.send_client_initial(
-      conn, NGTCP2_CONN_FLAG_NONE, &pkt_num, &payload, conn->user_data);
+      conn, NGTCP2_CONN_FLAG_NONE,
+      (conn->flags & NGTCP2_CONN_FLAG_STATELESS_RETRY) ? NULL : &pkt_num,
+      &payload, conn->user_data);
 
   if (payloadlen <= 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -1204,7 +1206,9 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
   tx_buf->last += payloadlen;
 
-  conn->last_tx_pkt_num = pkt_num - 1;
+  if (!(conn->flags & NGTCP2_CONN_FLAG_STATELESS_RETRY)) {
+    conn->last_tx_pkt_num = pkt_num - 1;
+  }
 
   return conn_write_handshake_pkt(conn, dest, destlen,
                                   NGTCP2_PKT_CLIENT_INITIAL, tx_buf, ts);
@@ -1929,6 +1933,8 @@ static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
   ngtcp2_strm *strm0;
   int rv;
+
+  conn->flags |= NGTCP2_CONN_FLAG_STATELESS_RETRY;
 
   if (conn->callbacks.recv_server_stateless_retry) {
     rv = conn->callbacks.recv_server_stateless_retry(conn, conn->user_data);

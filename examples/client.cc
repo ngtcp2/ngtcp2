@@ -316,8 +316,10 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  *ppkt_num = std::uniform_int_distribution<uint64_t>(
-      0, std::numeric_limits<int32_t>::max())(randgen);
+  if (ppkt_num) {
+    *ppkt_num = std::uniform_int_distribution<uint64_t>(
+        0, std::numeric_limits<int32_t>::max())(randgen);
+  }
 
   auto len = c->read_client_handshake(pdest);
 

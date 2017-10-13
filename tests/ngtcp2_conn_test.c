@@ -108,10 +108,12 @@ static ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
 
   *pdest = null_data;
 
-  if (ud) {
-    *ppkt_num = ++ud->pkt_num;
-  } else {
-    *ppkt_num = 1000000007;
+  if (ppkt_num) {
+    if (ud) {
+      *ppkt_num = ++ud->pkt_num;
+    } else {
+      *ppkt_num = 1000000007;
+    }
   }
 
   return 217;
@@ -1436,7 +1438,7 @@ void test_ngtcp2_conn_recv_server_stateless_retry(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), 3);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(2 == conn->last_tx_pkt_num);
+  CU_ASSERT(1 == conn->last_tx_pkt_num);
 
   ngtcp2_conn_del(conn);
 }
