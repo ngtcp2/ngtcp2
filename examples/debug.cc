@@ -156,8 +156,6 @@ std::string strerrorcode(uint32_t error_code) {
     return "NO_ERROR";
   case NGTCP2_INTERNAL_ERROR:
     return "INTERNAL_ERROR";
-  case NGTCP2_CANCELLED:
-    return "CANCELLED";
   case NGTCP2_FLOW_CONTROL_ERROR:
     return "FLOW_CONTROL_ERROR";
   case NGTCP2_STREAM_ID_ERROR:
@@ -174,12 +172,21 @@ std::string strerrorcode(uint32_t error_code) {
     return "VERSION_NEGOTIATION_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
-  case NGTCP2_QUIC_RECEIVED_RST:
-    return "QUIC_RECEIVED_RST";
   default:
     if (0x80000100u <= error_code && error_code <= 0x800001ffu) {
       return "FRAME_ERROR";
     }
+    return "UNKNOWN";
+  }
+}
+} // namespace
+
+namespace {
+std::string strapperrorcode(uint32_t app_error_code) {
+  switch (app_error_code) {
+  case NGTCP2_STOPPING:
+    return "STOPPING";
+  default:
     return "UNKNOWN";
   }
 }
@@ -307,10 +314,11 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=0x%08x error_code=%s(0x%08x) final_offset=%" PRIu64 "\n",
+            "stream_id=0x%08x app_error_code=%s(0x%08x) final_offset=%" PRIu64
+            "\n",
             fr->rst_stream.stream_id,
-            strerrorcode(fr->rst_stream.error_code).c_str(),
-            fr->rst_stream.error_code, fr->rst_stream.final_offset);
+            strapperrorcode(fr->rst_stream.app_error_code).c_str(),
+            fr->rst_stream.app_error_code, fr->rst_stream.final_offset);
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     print_indent();
@@ -350,10 +358,10 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();
-    fprintf(outfile, "stream_id=0x%08x error_code=%s(0x%08x)\n",
+    fprintf(outfile, "stream_id=0x%08x app_error_code=%s(0x%08x)\n",
             fr->stop_sending.stream_id,
-            strerrorcode(fr->stop_sending.error_code).c_str(),
-            fr->stop_sending.error_code);
+            strapperrorcode(fr->stop_sending.app_error_code).c_str(),
+            fr->stop_sending.app_error_code);
     break;
   }
 }

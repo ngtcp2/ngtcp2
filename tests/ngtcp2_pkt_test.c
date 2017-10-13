@@ -679,7 +679,7 @@ void test_ngtcp2_pkt_encode_rst_stream_frame(void) {
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.stream_id = 1000000007;
-  fr.error_code = 1000000009;
+  fr.app_error_code = 1000000009;
   fr.final_offset = 0xf1f2f3f4f5f6f7f8llu;
 
   rv = ngtcp2_pkt_encode_rst_stream_frame(buf, sizeof(buf), &fr);
@@ -691,7 +691,7 @@ void test_ngtcp2_pkt_encode_rst_stream_frame(void) {
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
   CU_ASSERT(fr.stream_id == nfr.stream_id);
-  CU_ASSERT(fr.error_code == nfr.error_code);
+  CU_ASSERT(fr.app_error_code == nfr.app_error_code);
   CU_ASSERT(fr.final_offset == nfr.final_offset);
 }
 
@@ -922,7 +922,7 @@ void test_ngtcp2_pkt_encode_stop_sending_frame(void) {
 
   fr.type = NGTCP2_FRAME_STOP_SENDING;
   fr.stream_id = 0xf1f2f3f4u;
-  fr.error_code = 0xe1e2e3e4u;
+  fr.app_error_code = 0xe1e2e3e4u;
 
   rv = ngtcp2_pkt_encode_stop_sending_frame(buf, sizeof(buf), &fr);
 
@@ -933,7 +933,7 @@ void test_ngtcp2_pkt_encode_stop_sending_frame(void) {
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
   CU_ASSERT(fr.stream_id == nfr.stream_id);
-  CU_ASSERT(fr.error_code == nfr.error_code);
+  CU_ASSERT(fr.app_error_code == nfr.app_error_code);
 }
 
 void test_ngtcp2_pkt_adjust_pkt_num(void) {

@@ -560,7 +560,7 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
   dest->type = NGTCP2_FRAME_RST_STREAM;
   dest->stream_id = ngtcp2_get_uint32(p);
   p += 4;
-  dest->error_code = ngtcp2_get_uint32(p);
+  dest->app_error_code = ngtcp2_get_uint32(p);
   p += 4;
   dest->final_offset = ngtcp2_get_uint64(p);
   p += 8;
@@ -761,7 +761,7 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
   dest->type = NGTCP2_FRAME_STOP_SENDING;
   dest->stream_id = ngtcp2_get_uint32(p);
   p += 4;
-  dest->error_code = ngtcp2_get_uint32(p);
+  dest->app_error_code = ngtcp2_get_uint32(p);
   p += 4;
 
   assert((size_t)(p - payload) == len);
@@ -1054,7 +1054,7 @@ ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
 
   *p++ = NGTCP2_FRAME_RST_STREAM;
   p = ngtcp2_put_uint32be(p, fr->stream_id);
-  p = ngtcp2_put_uint32be(p, fr->error_code);
+  p = ngtcp2_put_uint32be(p, fr->app_error_code);
   p = ngtcp2_put_uint64be(p, fr->final_offset);
 
   assert((size_t)(p - out) == len);
@@ -1241,7 +1241,7 @@ ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
 
   *p++ = NGTCP2_FRAME_STOP_SENDING;
   p = ngtcp2_put_uint32be(p, fr->stream_id);
-  p = ngtcp2_put_uint32be(p, fr->error_code);
+  p = ngtcp2_put_uint32be(p, fr->app_error_code);
 
   assert((size_t)(p - out) == len);
 

@@ -254,19 +254,19 @@ typedef enum {
 } ngtcp2_frame_type;
 
 typedef enum {
-  NGTCP2_NO_ERROR = 0x80000000u,
-  NGTCP2_INTERNAL_ERROR = 0x80000001u,
-  NGTCP2_CANCELLED = 0x80000002u,
-  NGTCP2_FLOW_CONTROL_ERROR = 0x80000003u,
-  NGTCP2_STREAM_ID_ERROR = 0x80000004u,
-  NGTCP2_STREAM_STATE_ERROR = 0x80000005u,
-  NGTCP2_FINAL_OFFSET_ERROR = 0x80000006u,
-  NGTCP2_FRAME_FORMAT_ERROR = 0x80000007u,
-  NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x80000008u,
-  NGTCP2_VERSION_NEGOTIATION_ERROR = 0x80000009u,
-  NGTCP2_PROTOCOL_VIOLATION = 0x8000000au,
-  NGTCP2_QUIC_RECEIVED_RST = 0x80000035u
-} ngtcp2_error;
+  NGTCP2_NO_ERROR = 0x0u,
+  NGTCP2_INTERNAL_ERROR = 0x1u,
+  NGTCP2_FLOW_CONTROL_ERROR = 0x3u,
+  NGTCP2_STREAM_ID_ERROR = 0x4u,
+  NGTCP2_STREAM_STATE_ERROR = 0x5u,
+  NGTCP2_FINAL_OFFSET_ERROR = 0x6u,
+  NGTCP2_FRAME_FORMAT_ERROR = 0x7u,
+  NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
+  NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
+  NGTCP2_PROTOCOL_VIOLATION = 0xau
+} ngtcp2_transport_error;
+
+typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
 
 /*
  * ngtcp2_tstamp is a timestamp with microsecond resolution.
@@ -332,7 +332,7 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint32_t stream_id;
-  uint32_t error_code;
+  uint32_t app_error_code;
   uint64_t final_offset;
 } ngtcp2_rst_stream;
 
@@ -383,7 +383,7 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint32_t stream_id;
-  uint32_t error_code;
+  uint32_t app_error_code;
 } ngtcp2_stop_sending;
 
 typedef union {
@@ -1149,10 +1149,12 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * @function
  *
  * `ngtcp2_conn_shutdown_stream` closes stream denoted by |stream_id|
- * abruptly.  Successful call of this function does not immediately
- * erase the state of the stream.  The actual deletion is done when
- * the remote endpoint sends acknowledgement.  Calling this function
- * is equivalent to call `ngtcp2_conn_shutdown_stream_read`, and
+ * abruptly.  |app_error_code| is one of application error codes, and
+ * indicates the reason of shutdown.  Successful call of this function
+ * does not immediately erase the state of the stream.  The actual
+ * deletion is done when the remote endpoint sends acknowledgement.
+ * Calling this function is equivalent to call
+ * `ngtcp2_conn_shutdown_stream_read`, and
  * `ngtcp2_conn_shutdown_stream_write` sequentially.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -1167,15 +1169,17 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
                                               uint32_t stream_id,
-                                              uint32_t error_code);
+                                              uint32_t app_error_code);
 
 /**
  * @function
  *
  * `ngtcp2_conn_shutdown_stream_write` closes write-side of stream
- * denoted by |stream_id| abruptly.  If this function succeeds, no
- * application data is sent to the remote endpoint.  It discards all
- * data which has not been acknowledged yet.
+ * denoted by |stream_id| abruptly.  |app_error_code| is one of
+ * application error codes, and indicates the reason of shutdown.  If
+ * this function succeeds, no application data is sent to the remote
+ * endpoint.  It discards all data which has not been acknowledged
+ * yet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1189,14 +1193,16 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
                                                     uint32_t stream_id,
-                                                    uint32_t error_code);
+                                                    uint32_t app_error_code);
 
 /**
  * @function
  *
  * `ngtcp2_conn_shutdown_stream_read` closes read-side of stream
- * denoted by |stream_id| abruptly.  If this function succeeds, no
- * application data is forwarded to an application layer.
+ * denoted by |stream_id| abruptly.  |app_error_code| is one of
+ * application error codes, and indicates the reason of shutdown.  If
+ * this function succeeds, no application data is forwarded to an
+ * application layer.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1210,7 +1216,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
                                                    uint32_t stream_id,
-                                                   uint32_t error_code);
+                                                   uint32_t app_error_code);
 
 /**
  * @function

@@ -89,9 +89,9 @@ struct ngtcp2_strm {
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
   uint32_t flags;
   ngtcp2_strm **fc_pprev, *fc_next;
-  /* error_code is an error code the local endpoint sent in RST_STREAM
-     or STOP_SENDING. */
-  uint32_t error_code;
+  /* app_error_code is an error code the local endpoint sent in
+     RST_STREAM or STOP_SENDING. */
+  uint32_t app_error_code;
 };
 
 /*

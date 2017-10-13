@@ -1320,7 +1320,7 @@ int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
       stream->send_status_response(400);
       return 0;
     }
-    rv = ngtcp2_conn_shutdown_stream(conn_, stream_id, NGTCP2_INTERNAL_ERROR);
+    rv = ngtcp2_conn_shutdown_stream(conn_, stream_id, NGTCP2_APP_PROTO);
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_shutdown_stream: " << ngtcp2_strerror(rv)
                 << std::endl;
@@ -1372,7 +1372,7 @@ int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                           stream->tx_stream_offset, offset + datalen);
 
   if (stream->streambuf.empty() && stream->resp_state == RESP_COMPLETED) {
-    rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id, NGTCP2_NO_ERROR);
+    rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id, NGTCP2_APP_NOERROR);
     if (rv != 0 && rv != NGTCP2_ERR_STREAM_NOT_FOUND) {
       std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
                 << std::endl;
