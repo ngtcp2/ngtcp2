@@ -150,7 +150,7 @@ std::string strframetype(uint8_t type) {
 } // namespace
 
 namespace {
-std::string strerrorcode(uint32_t error_code) {
+std::string strerrorcode(uint16_t error_code) {
   switch (error_code) {
   case NGTCP2_NO_ERROR:
     return "NO_ERROR";
@@ -173,7 +173,7 @@ std::string strerrorcode(uint32_t error_code) {
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
   default:
-    if (0x80000100u <= error_code && error_code <= 0x800001ffu) {
+    if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "FRAME_ERROR";
     }
     return "UNKNOWN";
@@ -182,7 +182,7 @@ std::string strerrorcode(uint32_t error_code) {
 } // namespace
 
 namespace {
-std::string strapperrorcode(uint32_t app_error_code) {
+std::string strapperrorcode(uint16_t app_error_code) {
   switch (app_error_code) {
   case NGTCP2_STOPPING:
     return "STOPPING";
@@ -312,7 +312,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=0x%08x app_error_code=%s(0x%08x) final_offset=%" PRIu64
+            "stream_id=0x%08x app_error_code=%s(0x%04x) final_offset=%" PRIu64
             "\n",
             fr->rst_stream.stream_id,
             strapperrorcode(fr->rst_stream.app_error_code).c_str(),
@@ -320,7 +320,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     print_indent();
-    fprintf(outfile, "error_code=%s(0x%08x) reason_length=%zu\n",
+    fprintf(outfile, "error_code=%s(0x%04x) reason_length=%zu\n",
             strerrorcode(fr->connection_close.error_code).c_str(),
             fr->connection_close.error_code, fr->connection_close.reasonlen);
     break;
@@ -356,7 +356,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();
-    fprintf(outfile, "stream_id=0x%08x app_error_code=%s(0x%08x)\n",
+    fprintf(outfile, "stream_id=0x%08x app_error_code=%s(0x%04x)\n",
             fr->stop_sending.stream_id,
             strapperrorcode(fr->stop_sending.app_error_code).c_str(),
             fr->stop_sending.app_error_code);

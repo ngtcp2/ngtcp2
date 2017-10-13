@@ -172,7 +172,7 @@ public:
   int stop_interactive_input();
   int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                             size_t datalen);
-  void on_stream_close(uint32_t stream_id, uint32_t error_code);
+  void on_stream_close(uint32_t stream_id);
   int on_extend_max_stream_id(uint32_t max_stream_id);
   int handle_error(int liberr);
 

@@ -661,11 +661,11 @@ void test_ngtcp2_pkt_encode_rst_stream_frame(void) {
   uint8_t buf[32];
   ngtcp2_rst_stream fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4 + 4 + 8;
+  size_t framelen = 1 + 4 + 2 + 8;
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.stream_id = 1000000007;
-  fr.app_error_code = 1000000009;
+  fr.app_error_code = 0xe1e2;
   fr.final_offset = 0xf1f2f3f4f5f6f7f8llu;
 
   rv = ngtcp2_pkt_encode_rst_stream_frame(buf, sizeof(buf), &fr);
@@ -692,11 +692,11 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
 
   /* no Reason Phrase */
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
-  fr.connection_close.error_code = 0xf1f2f3f4u;
+  fr.connection_close.error_code = 0xf1f2u;
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
 
-  framelen = 1 + 4 + 2;
+  framelen = 1 + 2 + 2;
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);
@@ -716,11 +716,11 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
 
   /* 1024 bytes Reason Phrase */
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
-  fr.connection_close.error_code = 0xf1f2f3f4u;
+  fr.connection_close.error_code = 0xf3f4u;
   fr.connection_close.reasonlen = sizeof(reason);
   fr.connection_close.reason = reason;
 
-  framelen = 1 + 4 + 2 + sizeof(reason);
+  framelen = 1 + 2 + 2 + sizeof(reason);
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);
@@ -904,11 +904,11 @@ void test_ngtcp2_pkt_encode_stop_sending_frame(void) {
   uint8_t buf[16];
   ngtcp2_stop_sending fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4 + 4;
+  size_t framelen = 1 + 4 + 2;
 
   fr.type = NGTCP2_FRAME_STOP_SENDING;
   fr.stream_id = 0xf1f2f3f4u;
-  fr.app_error_code = 0xe1e2e3e4u;
+  fr.app_error_code = 0xe1e2u;
 
   rv = ngtcp2_pkt_encode_stop_sending_frame(buf, sizeof(buf), &fr);
 

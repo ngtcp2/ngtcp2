@@ -47,8 +47,8 @@
  * NGTCP2_APP_ERRxx is an application error code solely used in test
  * code.
  */
-#define NGTCP2_APP_ERR01 0xff000001
-#define NGTCP2_APP_ERR02 0xff000002
+#define NGTCP2_APP_ERR01 0xff01u
+#define NGTCP2_APP_ERR02 0xff02u
 
 /*
  * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with

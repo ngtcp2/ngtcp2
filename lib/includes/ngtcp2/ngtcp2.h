@@ -331,13 +331,13 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint32_t stream_id;
-  uint32_t app_error_code;
+  uint16_t app_error_code;
   uint64_t final_offset;
 } ngtcp2_rst_stream;
 
 typedef struct {
   uint8_t type;
-  uint32_t error_code;
+  uint16_t error_code;
   size_t reasonlen;
   uint8_t *reason;
 } ngtcp2_connection_close;
@@ -382,7 +382,7 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint32_t stream_id;
-  uint32_t app_error_code;
+  uint16_t app_error_code;
 } ngtcp2_stop_sending;
 
 typedef union {
@@ -833,7 +833,7 @@ typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t stream_id,
                                        void *stream_user_data);
 
 typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t stream_id,
-                                   uint32_t error_code, void *user_data,
+                                   uint16_t app_error_code, void *user_data,
                                    void *stream_user_data);
 /*
  * @functypedef
@@ -1169,7 +1169,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
                                               uint32_t stream_id,
-                                              uint32_t app_error_code);
+                                              uint16_t app_error_code);
 
 /**
  * @function
@@ -1194,7 +1194,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
                                                     uint32_t stream_id,
-                                                    uint32_t app_error_code);
+                                                    uint16_t app_error_code);
 
 /**
  * @function
@@ -1218,7 +1218,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
                                                    uint32_t stream_id,
-                                                   uint32_t app_error_code);
+                                                   uint16_t app_error_code);
 
 /**
  * @function
@@ -1284,7 +1284,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
                                                          uint8_t *dest,
                                                          size_t destlen,
-                                                         uint32_t error_code);
+                                                         uint16_t error_code);
 
 /**
  * @function

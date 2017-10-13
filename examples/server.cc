@@ -724,7 +724,7 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint32_t error_code,
+int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   h->on_stream_close(stream_id);

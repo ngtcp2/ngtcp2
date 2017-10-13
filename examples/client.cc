@@ -399,11 +399,11 @@ int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint32_t error_code,
+int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  c->on_stream_close(stream_id, error_code);
+  c->on_stream_close(stream_id);
 
   return 0;
 }
@@ -1182,7 +1182,7 @@ int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
   return 0;
 }
 
-void Client::on_stream_close(uint32_t stream_id, uint32_t error_code) {
+void Client::on_stream_close(uint32_t stream_id) {
   auto it = streams_.find(stream_id);
 
   if (it == std::end(streams_)) {

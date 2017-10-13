@@ -26,7 +26,7 @@
 
 namespace ngtcp2 {
 
-uint32_t infer_quic_error_code(int liberr) {
+uint16_t infer_quic_error_code(int liberr) {
   switch (liberr) {
   case 0:
     return NGTCP2_NO_ERROR;

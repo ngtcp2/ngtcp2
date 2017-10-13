@@ -91,7 +91,7 @@ struct ngtcp2_strm {
   ngtcp2_strm **fc_pprev, *fc_next;
   /* app_error_code is an error code the local endpoint sent in
      RST_STREAM or STOP_SENDING. */
-  uint32_t app_error_code;
+  uint16_t app_error_code;
 };
 
 /*
