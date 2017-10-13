@@ -3804,7 +3804,7 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint32_t stream_id,
   int rv;
   ngtcp2_strm *strm;
 
-  if (stream_id == 0) {
+  if (stream_id == 0 || app_error_code == NGTCP2_STOPPING) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -3830,7 +3830,7 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint32_t stream_id,
                                       uint32_t app_error_code) {
   ngtcp2_strm *strm;
 
-  if (stream_id == 0) {
+  if (stream_id == 0 || app_error_code == NGTCP2_STOPPING) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -3846,7 +3846,7 @@ int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint32_t stream_id,
                                      uint32_t app_error_code) {
   ngtcp2_strm *strm;
 
-  if (stream_id == 0) {
+  if (stream_id == 0 || app_error_code == NGTCP2_STOPPING) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 

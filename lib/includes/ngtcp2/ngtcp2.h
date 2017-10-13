@@ -1163,7 +1163,8 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0.
+ *     |stream_id| is 0; or |app_error_code| ==
+ *     :enum:`NGTCP2_STOPPING`.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -1187,7 +1188,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0.
+ *     |stream_id| is 0; or |app_error_code| ==
+ *     :enum:`NGTCP2_STOPPING`.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -1210,7 +1212,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0.
+ *     |stream_id| is 0; or |app_error_code| ==
+ *     :enum:`NGTCP2_STOPPING`.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */

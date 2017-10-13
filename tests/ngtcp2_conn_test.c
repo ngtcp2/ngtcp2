@@ -680,7 +680,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   /* Stream not found */
   setup_default_server(&conn);
 
-  rv = ngtcp2_conn_shutdown_stream_write(conn, 1, NGTCP2_NO_ERROR);
+  rv = ngtcp2_conn_shutdown_stream_write(conn, 1, NGTCP2_APP_ERR01);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_NOT_FOUND == rv);
 
@@ -1637,8 +1637,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_conn_open_stream(conn, 1, NULL);
   ngtcp2_conn_open_stream(conn, 3, NULL);
 
-  ngtcp2_conn_shutdown_stream_write(conn, 1, NGTCP2_NO_ERROR);
-  ngtcp2_conn_shutdown_stream_write(conn, 3, NGTCP2_NO_ERROR);
+  ngtcp2_conn_shutdown_stream_write(conn, 1, NGTCP2_APP_ERR01);
+  ngtcp2_conn_shutdown_stream_write(conn, 3, NGTCP2_APP_ERR01);
 
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
@@ -1779,7 +1779,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_shutdown_stream_read(conn, 1, NGTCP2_NO_ERROR);
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 1, NGTCP2_APP_ERR01);
 
   CU_ASSERT(0 == rv);
 
