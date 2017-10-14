@@ -2757,9 +2757,10 @@ static void conn_recv_connection_close(ngtcp2_conn *conn,
 
 /*
  * conn_on_stateless_reset decodes Stateless Reset from the buffer
- * pointed by |pkt| whose length is |pktlen|.  |pkt| should start with
- * Stateless Reset Token.  The short packet header and optional
- * connection ID are already parsed and removed from the buffer.
+ * pointed by |pkt| whose length is |pktlen|.  |pkt| should start
+ * after Packet Number.  The short packet header, optional connection
+ * ID, and Packet number are already parsed and removed from the
+ * buffer.
  *
  * If Stateless Reset is decoded, and the Stateless Reset Token is
  * validated, the connection is closed.
@@ -3021,12 +3022,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                             hdpkt, (size_t)nread, hd.pkt_num, conn->rx_ckm,
                             conn->callbacks.decrypt);
   if (nwrite < 0) {
-    if (nwrite != NGTCP2_ERR_TLS_DECRYPT) {
+    if (nwrite != NGTCP2_ERR_TLS_DECRYPT ||
+        (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
       return (int)nwrite;
     }
-    /* rewrind packet number portion of packet data */
-    pkt -= pkt_num_bits / 8;
-    pktlen += pkt_num_bits / 8;
 
     rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
     if (rv == 0) {

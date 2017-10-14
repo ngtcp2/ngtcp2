@@ -977,6 +977,8 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   uint8_t rand[256];
   size_t i;
   uint8_t *p;
+  ngtcp2_pkt_hd hd;
+  size_t randlen;
 
   memset(rand, 0, sizeof(rand));
   conn_id = 0xf1f2f3f4f5f6f7f8llu;
@@ -985,53 +987,74 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   }
 
   /* With connection ID */
-  spktlen = ngtcp2_pkt_write_stateless_reset(
-      buf, sizeof(buf), NGTCP2_PKT_FLAG_CONN_ID | NGTCP2_PKT_FLAG_KEY_PHASE,
-      conn_id, token, rand, sizeof(rand));
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID | NGTCP2_PKT_FLAG_KEY_PHASE,
+                     NGTCP2_PKT_01, conn_id, 0xf1, 0);
+  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token, rand,
+                                             sizeof(rand));
 
   p = buf;
 
   CU_ASSERT(256 == spktlen);
-  CU_ASSERT((NGTCP2_CONN_ID_BIT | NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_01) ==
-            *p);
+  CU_ASSERT((NGTCP2_CONN_ID_BIT | NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_01) == *p);
 
   ++p;
 
   CU_ASSERT(conn_id == ngtcp2_get_uint64(p));
 
-  p += 8;
+  p += 9;
+
+  randlen = (size_t)(spktlen - (p - buf) - NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  CU_ASSERT(0 == memcmp(rand, p, randlen));
+
+  p += randlen;
 
   CU_ASSERT(0 == memcmp(token, p, NGTCP2_STATELESS_RESET_TOKENLEN));
 
   p += NGTCP2_STATELESS_RESET_TOKENLEN;
 
-  CU_ASSERT(0 == memcmp(rand, p, (size_t)(spktlen - (p - buf))));
+  CU_ASSERT(spktlen == p - buf);
 
   /* Without connection ID */
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf),
-                                             NGTCP2_PKT_FLAG_KEY_PHASE, conn_id,
-                                             token, rand, sizeof(rand));
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_02, conn_id,
+                     0xf1, 0);
+  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token, rand,
+                                             sizeof(rand));
 
   p = buf;
 
   CU_ASSERT(256 == spktlen);
-  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_01) == *p);
+  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_02) == *p);
 
-  ++p;
+  p += 1 + 2;
+
+  randlen = (size_t)(spktlen - (p - buf) - NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  CU_ASSERT(0 == memcmp(rand, p, randlen));
+
+  p += randlen;
 
   CU_ASSERT(0 == memcmp(token, p, NGTCP2_STATELESS_RESET_TOKENLEN));
 
+  p += NGTCP2_STATELESS_RESET_TOKENLEN;
+
+  CU_ASSERT(spktlen == p - buf);
+
   /* Not enough buffer with connection ID */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_02, conn_id, 0xf1,
+                     0);
   spktlen = ngtcp2_pkt_write_stateless_reset(
-      buf, 1 + 8 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, NGTCP2_PKT_FLAG_CONN_ID,
-      conn_id, token, rand, sizeof(rand));
+      buf, 1 + 8 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, &hd, token, rand,
+      sizeof(rand));
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 
   /* Not enough buffer without connection ID */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_02, conn_id, 0xf1,
+                     0);
   spktlen = ngtcp2_pkt_write_stateless_reset(
-      buf, 1 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, NGTCP2_PKT_FLAG_NONE,
-      conn_id, token, rand, sizeof(rand));
+      buf, 1 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, &hd, token, rand,
+      sizeof(rand));
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }
