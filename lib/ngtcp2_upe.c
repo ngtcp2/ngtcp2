@@ -41,10 +41,6 @@ int ngtcp2_upe_encode_hd(ngtcp2_upe *upe, const ngtcp2_pkt_hd *hd) {
   ssize_t rv;
   ngtcp2_buf *buf = &upe->buf;
 
-  if (ngtcp2_buf_left(buf) < NGTCP2_PKT_MDLEN) {
-    return NGTCP2_ERR_NOBUF;
-  }
-
   rv = ngtcp2_pkt_encode_hd_long(buf->last, ngtcp2_buf_left(buf), hd);
   if (rv < 0) {
     return (int)rv;
@@ -59,12 +55,7 @@ int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, ngtcp2_frame *fr) {
   ssize_t rv;
   ngtcp2_buf *buf = &upe->buf;
 
-  if (ngtcp2_buf_left(buf) < NGTCP2_PKT_MDLEN) {
-    return NGTCP2_ERR_NOBUF;
-  }
-
-  rv = ngtcp2_pkt_encode_frame(buf->last,
-                               ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN, fr);
+  rv = ngtcp2_pkt_encode_frame(buf->last, ngtcp2_buf_left(buf), fr);
   if (rv < 0) {
     return (int)rv;
   }
@@ -78,9 +69,7 @@ size_t ngtcp2_upe_padding(ngtcp2_upe *upe) {
   ngtcp2_buf *buf = &upe->buf;
   size_t len;
 
-  assert(ngtcp2_buf_left(buf) >= NGTCP2_PKT_MDLEN);
-
-  len = ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN;
+  len = ngtcp2_buf_left(buf);
   memset(buf->last, 0, len);
   buf->last += len;
 
@@ -94,7 +83,7 @@ ssize_t ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe,
   uint8_t *p;
   size_t i;
 
-  if (ngtcp2_buf_left(buf) < sizeof(uint32_t) * nsv + NGTCP2_PKT_MDLEN) {
+  if (ngtcp2_buf_left(buf) < sizeof(uint32_t) * nsv) {
     return NGTCP2_ERR_NOBUF;
   }
 
@@ -117,12 +106,6 @@ ssize_t ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe,
 
 size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {
   ngtcp2_buf *buf = &upe->buf;
-  uint64_t h;
-
-  assert(ngtcp2_buf_left(buf) >= NGTCP2_PKT_MDLEN);
-
-  h = ngtcp2_fnv1a(buf->begin, ngtcp2_buf_len(buf));
-  buf->last = ngtcp2_put_uint64be(buf->last, h);
 
   if (ppkt != NULL) {
     *ppkt = buf->begin;
@@ -131,15 +114,7 @@ size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt) {
   return ngtcp2_buf_len(buf);
 }
 
-size_t ngtcp2_upe_left(ngtcp2_upe *upe) {
-  ngtcp2_buf *buf = &upe->buf;
-
-  if (ngtcp2_buf_left(buf) < NGTCP2_PKT_MDLEN) {
-    return 0;
-  }
-
-  return ngtcp2_buf_left(buf) - NGTCP2_PKT_MDLEN;
-}
+size_t ngtcp2_upe_left(ngtcp2_upe *upe) { return ngtcp2_buf_left(&upe->buf); }
 
 int ngtcp2_upe_new(ngtcp2_upe **pupe, uint8_t *out, size_t outlen) {
   ngtcp2_mem *mem = ngtcp2_mem_default();

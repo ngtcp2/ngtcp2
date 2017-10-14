@@ -172,7 +172,18 @@ public:
   size_t read_client_handshake(uint8_t *buf, size_t buflen);
   void write_client_handshake(const uint8_t *data, size_t datalen);
 
+  int recv_client_initial(uint64_t conn_id);
   int setup_crypto_context();
+  ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
+                          const uint8_t *plaintext, size_t plaintextlen,
+                          const uint8_t *key, size_t keylen,
+                          const uint8_t *nonce, size_t noncelen,
+                          const uint8_t *ad, size_t adlen);
+  ssize_t hs_decrypt_data(uint8_t *dest, size_t destlen,
+                          const uint8_t *ciphertext, size_t ciphertextlen,
+                          const uint8_t *key, size_t keylen,
+                          const uint8_t *nonce, size_t noncelen,
+                          const uint8_t *ad, size_t adlen);
   ssize_t encrypt_data(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
                        size_t plaintextlen, const uint8_t *key, size_t keylen,
                        const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
@@ -213,6 +224,7 @@ private:
   // buffer to read next.
   size_t shandshake_idx_;
   ngtcp2_conn *conn_;
+  crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
   std::map<uint32_t, std::unique_ptr<Stream>> streams_;
   // common buffer used to store packet data before sending

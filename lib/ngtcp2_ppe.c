@@ -23,20 +23,22 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "ngtcp2_ppe.h"
+
+#include <string.h>
+#include <assert.h>
+
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
-#include "ngtcp2_mem.h"
 #include "ngtcp2_conn.h"
 
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
-                     ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem) {
+                     ngtcp2_crypto_ctx *cctx) {
   ngtcp2_buf_init(&ppe->buf, out, outlen);
 
   ppe->hdlen = 0;
   ppe->pkt_num = 0;
   ppe->ctx = cctx;
-  ppe->mem = mem;
 }
 
 int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
@@ -125,4 +127,18 @@ size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe) {
   }
 
   return ngtcp2_buf_left(&ppe->buf) - ctx->aead_overhead;
+}
+
+size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe) {
+  ngtcp2_crypto_ctx *ctx = ppe->ctx;
+  ngtcp2_buf *buf = &ppe->buf;
+  size_t len;
+
+  assert(ngtcp2_buf_left(buf) >= ctx->aead_overhead);
+
+  len = ngtcp2_buf_left(buf) - ctx->aead_overhead;
+  memset(buf->last, 0, len);
+  buf->last += len;
+
+  return len;
 }

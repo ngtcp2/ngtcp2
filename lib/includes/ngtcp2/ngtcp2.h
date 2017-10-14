@@ -155,21 +155,17 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER_D5 is the supported QUIC protocol version
-   draft-5. */
-#define NGTCP2_PROTO_VER_D5 0xff000005u
-/* NGTCP2_PROTO_VER_D6 is the supported QUIC protocol version
-   draft-6. */
-#define NGTCP2_PROTO_VER_D6 0xff000006u
+/* NGTCP2_PROTO_VER_D7 is the supported QUIC protocol version
+   draft-7. */
+#define NGTCP2_PROTO_VER_D7 0xff000007u
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D6
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D7
 
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D5 "\x5hq-05"
-#define NGTCP2_ALPN_D6 "\x5hq-06"
+#define NGTCP2_ALPN_D7 "\x5hq-07"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -177,6 +173,12 @@ typedef struct {
 /* NGTCP2_STATELESS_RESET_TOKENLEN is the length of Stateless Reset
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
+
+/* NGTCP2_QUIC_V1_SALT is a salt value which is used to derive
+   cleartext secret. */
+#define NGTCP2_QUIC_V1_SALT                                                    \
+  "\xaf\xc8\x24\xec\x5f\xc7\x7e\xca\x1e\x9d\x36\xf3\x7f\xb2\xd4\x65\x18\xc3"   \
+  "\x66\x39"
 
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
@@ -222,8 +224,6 @@ typedef enum {
   NGTCP2_PKT_SERVER_CLEARTEXT = 0x04,
   NGTCP2_PKT_CLIENT_CLEARTEXT = 0x05,
   NGTCP2_PKT_0RTT_PROTECTED = 0x06,
-  NGTCP2_PKT_1RTT_PROTECTED_K0 = 0x07,
-  NGTCP2_PKT_1RTT_PROTECTED_K1 = 0x08,
   NGTCP2_PKT_PUBLIC_RESET = 0x09,
   NGTCP2_PKT_01 = 0x01,
   NGTCP2_PKT_02 = 0x02,
@@ -248,19 +248,19 @@ typedef enum {
 } ngtcp2_frame_type;
 
 typedef enum {
-  NGTCP2_NO_ERROR = 0x80000000u,
-  NGTCP2_INTERNAL_ERROR = 0x80000001u,
-  NGTCP2_CANCELLED = 0x80000002u,
-  NGTCP2_FLOW_CONTROL_ERROR = 0x80000003u,
-  NGTCP2_STREAM_ID_ERROR = 0x80000004u,
-  NGTCP2_STREAM_STATE_ERROR = 0x80000005u,
-  NGTCP2_FINAL_OFFSET_ERROR = 0x80000006u,
-  NGTCP2_FRAME_FORMAT_ERROR = 0x80000007u,
-  NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x80000008u,
-  NGTCP2_VERSION_NEGOTIATION_ERROR = 0x80000009u,
-  NGTCP2_PROTOCOL_VIOLATION = 0x8000000au,
-  NGTCP2_QUIC_RECEIVED_RST = 0x80000035u
-} ngtcp2_error;
+  NGTCP2_NO_ERROR = 0x0u,
+  NGTCP2_INTERNAL_ERROR = 0x1u,
+  NGTCP2_FLOW_CONTROL_ERROR = 0x3u,
+  NGTCP2_STREAM_ID_ERROR = 0x4u,
+  NGTCP2_STREAM_STATE_ERROR = 0x5u,
+  NGTCP2_FINAL_OFFSET_ERROR = 0x6u,
+  NGTCP2_FRAME_FORMAT_ERROR = 0x7u,
+  NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
+  NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
+  NGTCP2_PROTOCOL_VIOLATION = 0xau
+} ngtcp2_transport_error;
+
+typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
 
 /*
  * ngtcp2_tstamp is a timestamp with microsecond resolution.
@@ -312,7 +312,6 @@ typedef struct {
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[255];
-  size_t num_ts;
 } ngtcp2_ack;
 
 typedef struct {
@@ -326,13 +325,13 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint32_t stream_id;
-  uint32_t error_code;
+  uint16_t app_error_code;
   uint64_t final_offset;
 } ngtcp2_rst_stream;
 
 typedef struct {
   uint8_t type;
-  uint32_t error_code;
+  uint16_t error_code;
   size_t reasonlen;
   uint8_t *reason;
 } ngtcp2_connection_close;
@@ -377,7 +376,7 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint32_t stream_id;
-  uint32_t error_code;
+  uint16_t app_error_code;
 } ngtcp2_stop_sending;
 
 typedef union {
@@ -548,8 +547,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  * @function
  *
  * `ngtcp2_pkt_write_stateless_reset` writes Stateless Reset packet in
- * the buffer pointed by |dest| whose length is |destlen|.  |flags| is
- * bitwise OR of zero or more of ngtcp2_pkt_flag.
+ * the buffer pointed by |dest| whose length is |destlen|.  |hd| is a
+ * short packet header.  This function assumes that
+ * :enum:`NGTCP2_PKT_FLAG_LONG_FORM` is not set in hd->type.
  * |stateless_reset_token| is a pointer to the Stateless Reset Token,
  * and its length must be :macro:`NGTCP2_STATELESS_RESET_TOKENLEN`
  * bytes long.  |rand| specifies the random octets following Stateless
@@ -565,7 +565,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  *     Buffer is too small.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
-    uint8_t *dest, size_t destlen, uint8_t flags, uint64_t conn_id,
+    uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd,
     uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
 
 /* Unprotected Packet Encoder: upe */
@@ -670,16 +670,6 @@ NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
  */
 NGTCP2_EXTERN size_t ngtcp2_upe_left(ngtcp2_upe *upe);
 
-/**
- * @function
- *
- * `ngtcp2_pkt_verify` verifies the integrity of QUIC unprotected
- * packet included in |pkt| of length |pktlen|.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-NGTCP2_EXTERN int ngtcp2_pkt_verify(const uint8_t *pkt, size_t pktlen);
-
 struct ngtcp2_conn;
 
 typedef struct ngtcp2_conn ngtcp2_conn;
@@ -693,6 +683,24 @@ typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 const uint8_t **pdest,
                                                 void *user_data);
+
+/**
+ * @function
+ *
+ * :type:`ngtcp2_recv_client_initial` is invoked when Client Initial
+ * packet is received.  An server application must implement this
+ * callback, and generate handshake key, and iv.  Then call
+ * `ngtcp2_conn_set_handshake_tx_keys` and
+ * `ngtcp2_conn_set_handshake_rx_keys` to inform |conn| of the packet
+ * protection keys and ivs.
+ *
+ * The callback function must return 0 if it succeeds.  If an error
+ * occurs, return :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the
+ * library call return immediately.
+ *
+ */
+typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn, uint64_t conn_id,
+                                          void *user_data);
 
 typedef ssize_t (*ngtcp2_send_server_cleartext)(ngtcp2_conn *conn,
                                                 uint32_t flags,
@@ -820,7 +828,7 @@ typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t stream_id,
                                        void *stream_user_data);
 
 typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t stream_id,
-                                   uint32_t error_code, void *user_data,
+                                   uint16_t app_error_code, void *user_data,
                                    void *stream_user_data);
 /*
  * @functypedef
@@ -864,6 +872,7 @@ typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_cleartext send_client_cleartext;
+  ngtcp2_recv_client_initial recv_client_initial;
   ngtcp2_send_server_cleartext send_server_cleartext;
   ngtcp2_recv_handshake_data recv_handshake_data;
   ngtcp2_send_pkt send_pkt;
@@ -872,6 +881,12 @@ typedef struct {
   ngtcp2_recv_frame recv_frame;
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
+  /* hs_encrypt is a callback function which is invoked to encrypt
+     handshake cleartext packets. */
+  ngtcp2_encrypt hs_encrypt;
+  /* hs_decrypt is a callback function which is invoked to encrypt
+     handshake cleartext packets. */
+  ngtcp2_decrypt hs_decrypt;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
   ngtcp2_recv_stream_data recv_stream_data;
@@ -1003,6 +1018,42 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to
+ *  encrypt handshake cleartext packets.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     A packet protection key and iv are already set.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
+                                                    const uint8_t *key,
+                                                    size_t keylen,
+                                                    const uint8_t *iv,
+                                                    size_t ivlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_handshake_rx_keys` sets key and iv to decrypt
+ * handshake cleartext packets.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     A packet protection key and iv are already set.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn,
+                                                    const uint8_t *key,
+                                                    size_t keylen,
+                                                    const uint8_t *iv,
+                                                    size_t ivlen);
+
 NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
                                                  size_t aead_overhead);
 
@@ -1092,10 +1143,12 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * @function
  *
  * `ngtcp2_conn_shutdown_stream` closes stream denoted by |stream_id|
- * abruptly.  Successful call of this function does not immediately
- * erase the state of the stream.  The actual deletion is done when
- * the remote endpoint sends acknowledgement.  Calling this function
- * is equivalent to call `ngtcp2_conn_shutdown_stream_read`, and
+ * abruptly.  |app_error_code| is one of application error codes, and
+ * indicates the reason of shutdown.  Successful call of this function
+ * does not immediately erase the state of the stream.  The actual
+ * deletion is done when the remote endpoint sends acknowledgement.
+ * Calling this function is equivalent to call
+ * `ngtcp2_conn_shutdown_stream_read`, and
  * `ngtcp2_conn_shutdown_stream_write` sequentially.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -1104,21 +1157,24 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0.
+ *     |stream_id| is 0; or |app_error_code| ==
+ *     :enum:`NGTCP2_STOPPING`.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
                                               uint32_t stream_id,
-                                              uint32_t error_code);
+                                              uint16_t app_error_code);
 
 /**
  * @function
  *
  * `ngtcp2_conn_shutdown_stream_write` closes write-side of stream
- * denoted by |stream_id| abruptly.  If this function succeeds, no
- * application data is sent to the remote endpoint.  It discards all
- * data which has not been acknowledged yet.
+ * denoted by |stream_id| abruptly.  |app_error_code| is one of
+ * application error codes, and indicates the reason of shutdown.  If
+ * this function succeeds, no application data is sent to the remote
+ * endpoint.  It discards all data which has not been acknowledged
+ * yet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1126,20 +1182,23 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0.
+ *     |stream_id| is 0; or |app_error_code| ==
+ *     :enum:`NGTCP2_STOPPING`.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
                                                     uint32_t stream_id,
-                                                    uint32_t error_code);
+                                                    uint16_t app_error_code);
 
 /**
  * @function
  *
  * `ngtcp2_conn_shutdown_stream_read` closes read-side of stream
- * denoted by |stream_id| abruptly.  If this function succeeds, no
- * application data is forwarded to an application layer.
+ * denoted by |stream_id| abruptly.  |app_error_code| is one of
+ * application error codes, and indicates the reason of shutdown.  If
+ * this function succeeds, no application data is forwarded to an
+ * application layer.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1147,13 +1206,14 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0.
+ *     |stream_id| is 0; or |app_error_code| ==
+ *     :enum:`NGTCP2_STOPPING`.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
                                                    uint32_t stream_id,
-                                                   uint32_t error_code);
+                                                   uint16_t app_error_code);
 
 /**
  * @function
@@ -1219,7 +1279,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
                                                          uint8_t *dest,
                                                          size_t destlen,
-                                                         uint32_t error_code);
+                                                         uint16_t error_code);
 
 /**
  * @function

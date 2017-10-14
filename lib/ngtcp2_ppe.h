@@ -44,7 +44,6 @@ typedef struct {
   size_t hdlen;
   /* pkt_num is the packet number written in buf. */
   uint64_t pkt_num;
-  ngtcp2_mem *mem;
   /* nonce is the buffer to store nonce.  It should be equal or longer
      than then length of IV. */
   uint8_t nonce[32];
@@ -54,7 +53,7 @@ typedef struct {
  * ngtcp2_ppe_init initializes |ppe| with the given buffer.
  */
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
-                     ngtcp2_crypto_ctx *cctx, ngtcp2_mem *mem);
+                     ngtcp2_crypto_ctx *cctx);
 
 /*
  * ngtcp2_ppe_encode_hd encodes |hd|.
@@ -96,5 +95,13 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
  * additional frames.  This does not count AEAD overhead.
  */
 size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe);
+
+/**
+ * @function
+ *
+ * `ngtcp2_ppe_padding` encodes PADDING frames to the end of the
+ * buffer.  This function returns the number of bytes padded.
+ */
+size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe);
 
 #endif /* NGTCP2_PPE_H */

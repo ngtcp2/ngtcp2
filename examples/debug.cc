@@ -85,10 +85,6 @@ std::string strpkttype_long(uint8_t type) {
     return "Client Cleartext";
   case NGTCP2_PKT_0RTT_PROTECTED:
     return "0-RTT Protected";
-  case NGTCP2_PKT_1RTT_PROTECTED_K0:
-    return "1-RTT Protected (key phase 0)";
-  case NGTCP2_PKT_1RTT_PROTECTED_K1:
-    return "1-RTT Protected (key phase 1)";
   case NGTCP2_PKT_PUBLIC_RESET:
     return "Public Reset";
   default:
@@ -150,14 +146,12 @@ std::string strframetype(uint8_t type) {
 } // namespace
 
 namespace {
-std::string strerrorcode(uint32_t error_code) {
+std::string strerrorcode(uint16_t error_code) {
   switch (error_code) {
   case NGTCP2_NO_ERROR:
     return "NO_ERROR";
   case NGTCP2_INTERNAL_ERROR:
     return "INTERNAL_ERROR";
-  case NGTCP2_CANCELLED:
-    return "CANCELLED";
   case NGTCP2_FLOW_CONTROL_ERROR:
     return "FLOW_CONTROL_ERROR";
   case NGTCP2_STREAM_ID_ERROR:
@@ -174,12 +168,21 @@ std::string strerrorcode(uint32_t error_code) {
     return "VERSION_NEGOTIATION_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
-  case NGTCP2_QUIC_RECEIVED_RST:
-    return "QUIC_RECEIVED_RST";
   default:
-    if (0x80000100u <= error_code && error_code <= 0x800001ffu) {
+    if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "FRAME_ERROR";
     }
+    return "UNKNOWN";
+  }
+}
+} // namespace
+
+namespace {
+std::string strapperrorcode(uint16_t app_error_code) {
+  switch (app_error_code) {
+  case NGTCP2_STOPPING:
+    return "STOPPING";
+  default:
     return "UNKNOWN";
   }
 }
@@ -275,10 +278,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_ACK: {
     print_indent();
-    fprintf(outfile,
-            "num_blks=%zu num_ts=%zu largest_ack=%" PRIu64 " ack_delay=%u\n",
-            fr->ack.num_blks, fr->ack.num_ts, fr->ack.largest_ack,
-            fr->ack.ack_delay);
+    fprintf(outfile, "num_blks=%zu largest_ack=%" PRIu64 " ack_delay=%u\n",
+            fr->ack.num_blks, fr->ack.largest_ack, fr->ack.ack_delay);
     print_indent();
     auto largest_ack = fr->ack.largest_ack;
     auto min_ack = fr->ack.largest_ack - fr->ack.first_ack_blklen;
@@ -307,14 +308,15 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=0x%08x error_code=%s(0x%08x) final_offset=%" PRIu64 "\n",
+            "stream_id=0x%08x app_error_code=%s(0x%04x) final_offset=%" PRIu64
+            "\n",
             fr->rst_stream.stream_id,
-            strerrorcode(fr->rst_stream.error_code).c_str(),
-            fr->rst_stream.error_code, fr->rst_stream.final_offset);
+            strapperrorcode(fr->rst_stream.app_error_code).c_str(),
+            fr->rst_stream.app_error_code, fr->rst_stream.final_offset);
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     print_indent();
-    fprintf(outfile, "error_code=%s(0x%08x) reason_length=%zu\n",
+    fprintf(outfile, "error_code=%s(0x%04x) reason_length=%zu\n",
             strerrorcode(fr->connection_close.error_code).c_str(),
             fr->connection_close.error_code, fr->connection_close.reasonlen);
     break;
@@ -350,10 +352,10 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();
-    fprintf(outfile, "stream_id=0x%08x error_code=%s(0x%08x)\n",
+    fprintf(outfile, "stream_id=0x%08x app_error_code=%s(0x%04x)\n",
             fr->stop_sending.stream_id,
-            strerrorcode(fr->stop_sending.error_code).c_str(),
-            fr->stop_sending.error_code);
+            strapperrorcode(fr->stop_sending.app_error_code).c_str(),
+            fr->stop_sending.app_error_code);
     break;
   }
 }

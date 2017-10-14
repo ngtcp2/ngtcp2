@@ -44,7 +44,12 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, uint32_t stream_id, uint32_t flags,
   strm->mem = mem;
   strm->fc_pprev = NULL;
   strm->fc_next = NULL;
-  strm->error_code = NGTCP2_NO_ERROR;
+  /* Initializing to 0 is a bit controversial because application
+     error code 0 is STOPPING.  But STOPPING is only sent with
+     RST_STREAM in response to STOP_SENDING, and it is not used to
+     indicate the cause of closure.  So effectively, 0 means "no
+     error." */
+  strm->app_error_code = 0;
   memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
 
   rv = ngtcp2_gaptr_init(&strm->acked_tx_offset, mem);

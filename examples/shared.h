@@ -33,7 +33,10 @@
 
 namespace ngtcp2 {
 
-uint32_t infer_quic_error_code(int liberr);
+constexpr uint16_t NGTCP2_APP_NOERROR = 0xff00;
+constexpr uint16_t NGTCP2_APP_PROTO = 0xff01;
+
+uint16_t infer_quic_error_code(int liberr);
 
 } // namespace ngtcp2
 

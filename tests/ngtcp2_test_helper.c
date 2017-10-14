@@ -86,8 +86,6 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
   *p++ = 0x1f | NGTCP2_FRAME_ACK;
   /* Num Blocks */
   *p++ = 1;
-  /* NumTS */
-  *p++ = 0;
   /* Largest Acknowledged */
   p = ngtcp2_put_uint64be(p, largest_ack);
   /* ACK Delay */
@@ -126,7 +124,6 @@ size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
                               ngtcp2_frame *fr) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_pkt_hd hd;
   int rv;
   ssize_t n;
@@ -139,7 +136,7 @@ size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn_id,
                      pkt_num, NGTCP2_PROTO_VER_MAX);
 
-  ngtcp2_ppe_init(&ppe, out, outlen, &ctx, mem);
+  ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
   rv = ngtcp2_ppe_encode_frame(&ppe, fr);
@@ -154,7 +151,6 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
                                               ngtcp2_frame *fr) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_pkt_hd hd;
   int rv;
   ssize_t n;
@@ -167,7 +163,7 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, 0, pkt_num,
                      NGTCP2_PROTO_VER_MAX);
 
-  ngtcp2_ppe_init(&ppe, out, outlen, &ctx, mem);
+  ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
   rv = ngtcp2_ppe_encode_frame(&ppe, fr);

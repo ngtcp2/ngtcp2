@@ -38,6 +38,7 @@
 #include "ngtcp2_strm.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_idtr.h"
+#include "ngtcp2_str.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -118,6 +119,15 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
      parameters are received. */
   NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED = 0x04,
+  /* NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT is set when a protected
+     packet is received, and decrypted successfully.  This flag is
+     used to stop retransmitting cleartext packets.  It might be
+     replaced with an another mechanism when we implement key
+     update. */
+  NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT = 0x08,
+  /* NGTCP2_CONN_FLAG_STATELESS_RETRY is set when a client receives
+     Server Stateless Retry packet. */
+  NGTCP2_CONN_FLAG_STATELESS_RETRY = 0x10,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {
@@ -178,6 +188,12 @@ struct ngtcp2_conn {
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint8_t flags;
   int server;
+  /* hs_tx_ckm is a cryptographic key, and iv to encrypt handshake
+     cleartext packets. */
+  ngtcp2_crypto_km *hs_tx_ckm;
+  /* hs_rx_ckm is a cryptographic key, and iv to decrypt handshake
+     packets. */
+  ngtcp2_crypto_km *hs_rx_ckm;
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;
   size_t aead_overhead;
@@ -191,11 +207,8 @@ struct ngtcp2_conn {
   /* immediate_ack becomes nonzero if the next ack should be sent
      immediately. */
   uint8_t immediate_ack;
-  /* decrypt_buf is a pointer to the buffer which is used to write
-     decrypted data. */
-  uint8_t *decrypt_buf;
-  /* decrypt_buflen is the capacity of decrypt_buf. */
-  size_t decrypt_buflen;
+  /* decrypt_buf is a buffer which is used to write decrypted data. */
+  ngtcp2_array decrypt_buf;
 };
 
 /*
@@ -259,7 +272,7 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint32_t error_code);
+                             uint16_t app_error_code);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm| if no further
@@ -276,7 +289,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          uint32_t error_code);
+                                          uint16_t app_error_code);
 
 /*
  * ngtcp2_increment_offset increases offset by |datalen|.  The actual
