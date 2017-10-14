@@ -38,6 +38,7 @@
 #include "ngtcp2_strm.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_idtr.h"
+#include "ngtcp2_str.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -206,11 +207,8 @@ struct ngtcp2_conn {
   /* immediate_ack becomes nonzero if the next ack should be sent
      immediately. */
   uint8_t immediate_ack;
-  /* decrypt_buf is a pointer to the buffer which is used to write
-     decrypted data. */
-  uint8_t *decrypt_buf;
-  /* decrypt_buflen is the capacity of decrypt_buf. */
-  size_t decrypt_buflen;
+  /* decrypt_buf is a buffer which is used to write decrypted data. */
+  ngtcp2_array decrypt_buf;
 };
 
 /*

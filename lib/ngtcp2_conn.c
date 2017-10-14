@@ -320,7 +320,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
     return;
   }
 
-  free(conn->decrypt_buf);
+  free(conn->decrypt_buf.base);
 
   delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
 
@@ -1991,19 +1991,19 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t pktlen) {
   uint8_t *nbuf;
   size_t len;
 
-  if (conn->decrypt_buflen >= pktlen) {
+  if (conn->decrypt_buf.len >= pktlen) {
     return 0;
   }
 
-  len = conn->decrypt_buflen == 0 ? 2048 : conn->decrypt_buflen * 2;
+  len = conn->decrypt_buf.len == 0 ? 2048 : conn->decrypt_buf.len * 2;
   for (; len < pktlen; len *= 2)
     ;
-  nbuf = ngtcp2_mem_realloc(conn->mem, conn->decrypt_buf, len);
+  nbuf = ngtcp2_mem_realloc(conn->mem, conn->decrypt_buf.base, len);
   if (nbuf == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
-  conn->decrypt_buf = nbuf;
-  conn->decrypt_buflen = len;
+  conn->decrypt_buf.base = nbuf;
+  conn->decrypt_buf.len = len;
 
   return 0;
 }
@@ -2168,14 +2168,14 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return rv;
   }
 
-  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf, pktlen, pkt, pktlen, hdpkt,
-                            (size_t)nread, hd.pkt_num, conn->hs_rx_ckm,
+  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf.base, pktlen, pkt, pktlen,
+                            hdpkt, (size_t)nread, hd.pkt_num, conn->hs_rx_ckm,
                             conn->callbacks.hs_decrypt);
   if (nwrite < 0) {
     return (int)nwrite;
   }
 
-  pkt = conn->decrypt_buf;
+  pkt = conn->decrypt_buf.base;
   pktlen = (size_t)nwrite;
 
   for (; pktlen;) {
@@ -2864,14 +2864,14 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     return rv;
   }
 
-  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf, pktlen, pkt, pktlen, ad,
-                            adlen, hd->pkt_num, conn->hs_rx_ckm,
+  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf.base, pktlen, pkt, pktlen,
+                            ad, adlen, hd->pkt_num, conn->hs_rx_ckm,
                             conn->callbacks.hs_decrypt);
   if (nwrite < 0) {
     return (int)nwrite;
   }
 
-  pkt = conn->decrypt_buf;
+  pkt = conn->decrypt_buf.base;
   pktlen = (size_t)nwrite;
 
   for (; pktlen;) {
@@ -3017,8 +3017,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     return rv;
   }
 
-  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf, pktlen, pkt, pktlen, hdpkt,
-                            (size_t)nread, hd.pkt_num, conn->rx_ckm,
+  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf.base, pktlen, pkt, pktlen,
+                            hdpkt, (size_t)nread, hd.pkt_num, conn->rx_ckm,
                             conn->callbacks.decrypt);
   if (nwrite < 0) {
     if (nwrite != NGTCP2_ERR_TLS_DECRYPT) {
@@ -3034,7 +3034,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     }
     return (int)nwrite;
   }
-  pkt = conn->decrypt_buf;
+  pkt = conn->decrypt_buf.base;
   pktlen = (size_t)nwrite;
 
   conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
