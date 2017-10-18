@@ -117,6 +117,8 @@ std::string strframetype(uint8_t type) {
     return "RST_STREAM";
   case NGTCP2_FRAME_CONNECTION_CLOSE:
     return "CONNECTION_CLOSE";
+  case NGTCP2_FRAME_APPLICATION_CLOSE:
+    return "APPLICATION_CLOSE";
   case NGTCP2_FRAME_MAX_DATA:
     return "MAX_DATA";
   case NGTCP2_FRAME_MAX_STREAM_DATA:
@@ -319,6 +321,13 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     fprintf(outfile, "error_code=%s(0x%04x) reason_length=%zu\n",
             strerrorcode(fr->connection_close.error_code).c_str(),
             fr->connection_close.error_code, fr->connection_close.reasonlen);
+    break;
+  case NGTCP2_FRAME_APPLICATION_CLOSE:
+    print_indent();
+    fprintf(outfile, "app_error_code=%s(0x%04x) reason_length=%zu\n",
+            strapperrorcode(fr->application_close.app_error_code).c_str(),
+            fr->application_close.app_error_code,
+            fr->application_close.reasonlen);
     break;
   case NGTCP2_FRAME_MAX_DATA:
     print_indent();

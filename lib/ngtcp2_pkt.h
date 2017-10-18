@@ -222,6 +222,21 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
                                                  size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_application_close_frame decodes APPLICATION_CLOSE
+ * frame from |payload| of length |payloadlen|.  The result is stored
+ * in the object pointed by |dest|.  APPLICATION_CLOSE frame must start
+ * at payload[0].  This function finishes it decodes one
+ * APPLICATION_CLOSE frame, and returns the exact number of bytes read
+ * to decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include APPLICATION_CLOSE frame.
+ */
+ssize_t ngtcp2_pkt_decode_application_close_frame(
+    ngtcp2_application_close *dest, const uint8_t *payload, size_t payloadlen);
+
+/*
  * ngtcp2_pkt_decode_max_data_frame decodes MAX_DATA frame from
  * |payload| of length |payloadlen|.  The result is stored in the
  * object pointed by |dest|.  MAX_DATA frame must start at payload[0].
@@ -420,6 +435,20 @@ ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
 ssize_t
 ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_connection_close *fr);
+
+/*
+ * ngtcp2_pkt_encode_application_close_frame encodes APPLICATION_CLOSE
+ * frame |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t
+ngtcp2_pkt_encode_application_close_frame(uint8_t *out, size_t outlen,
+                                          const ngtcp2_application_close *fr);
 
 /*
  * ngtcp2_pkt_encode_max_data_frame encodes MAX_DATA frame |fr| into

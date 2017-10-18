@@ -739,6 +739,66 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   memset(&nfr, 0, sizeof(nfr));
 }
 
+void test_ngtcp2_pkt_encode_application_close_frame(void) {
+  uint8_t buf[2048];
+  ngtcp2_frame fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+  uint8_t reason[1024];
+
+  memset(reason, 0xfa, sizeof(reason));
+
+  /* no Reason Phrase */
+  fr.type = NGTCP2_FRAME_APPLICATION_CLOSE;
+  fr.application_close.app_error_code = 0xf1f2u;
+  fr.application_close.reasonlen = 0;
+  fr.application_close.reason = NULL;
+
+  framelen = 1 + 2 + 2;
+
+  rv = ngtcp2_pkt_encode_application_close_frame(buf, sizeof(buf),
+                                                 &fr.application_close);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_application_close_frame(&nfr.application_close, buf,
+                                                 framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.application_close.app_error_code ==
+            nfr.application_close.app_error_code);
+  CU_ASSERT(fr.application_close.reasonlen == nfr.application_close.reasonlen);
+  CU_ASSERT(fr.application_close.reason == nfr.application_close.reason);
+
+  memset(&nfr, 0, sizeof(nfr));
+
+  /* 1024 bytes Reason Phrase */
+  fr.type = NGTCP2_FRAME_APPLICATION_CLOSE;
+  fr.application_close.app_error_code = 0xf3f4u;
+  fr.application_close.reasonlen = sizeof(reason);
+  fr.application_close.reason = reason;
+
+  framelen = 1 + 2 + 2 + sizeof(reason);
+
+  rv = ngtcp2_pkt_encode_application_close_frame(buf, sizeof(buf),
+                                                 &fr.application_close);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_application_close_frame(&nfr.application_close, buf,
+                                                 framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.application_close.app_error_code ==
+            nfr.application_close.app_error_code);
+  CU_ASSERT(fr.application_close.reasonlen == nfr.application_close.reasonlen);
+  CU_ASSERT(0 == memcmp(reason, nfr.application_close.reason, sizeof(reason)));
+
+  memset(&nfr, 0, sizeof(nfr));
+}
+
 void test_ngtcp2_pkt_encode_max_data_frame(void) {
   uint8_t buf[16];
   ngtcp2_max_data fr, nfr;

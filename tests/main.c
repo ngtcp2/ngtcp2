@@ -80,6 +80,8 @@ int main() {
                    test_ngtcp2_pkt_encode_rst_stream_frame) ||
       !CU_add_test(pSuite, "pkt_encode_connection_close_frame",
                    test_ngtcp2_pkt_encode_connection_close_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_application_close_frame",
+                   test_ngtcp2_pkt_encode_application_close_frame) ||
       !CU_add_test(pSuite, "pkt_encode_max_data_frame",
                    test_ngtcp2_pkt_encode_max_data_frame) ||
       !CU_add_test(pSuite, "pkt_encode_max_stream_data_frame",
