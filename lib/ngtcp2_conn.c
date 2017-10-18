@@ -967,6 +967,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t spktlen;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_rtb_entry *rtbent;
+  int ack_expired = conn_next_ack_expired(conn, ts);
 
   pfrc = &frc_head;
 
@@ -991,7 +992,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   /* Encode ACK here */
-  if (type != NGTCP2_PKT_CLIENT_INITIAL) {
+  if (type != NGTCP2_PKT_CLIENT_INITIAL && ack_expired) {
     localfr.type = (uint8_t)~NGTCP2_FRAME_ACK;
     /* TODO Should we retransmit ACK frame? */
     conn_create_ack_frame(conn, &localfr.ack, ts);
@@ -1128,6 +1129,11 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_pkt_hd hd;
   ngtcp2_frame fr;
   ngtcp2_crypto_ctx ctx;
+  int ack_expired = conn_next_ack_expired(conn, ts);
+
+  if (!ack_expired) {
+    return 0;
+  }
 
   fr.type = (uint8_t)~NGTCP2_FRAME_ACK;
   conn_create_ack_frame(conn, &fr.ack, ts);
