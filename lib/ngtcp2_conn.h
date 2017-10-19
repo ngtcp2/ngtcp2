@@ -212,21 +212,6 @@ struct ngtcp2_conn {
 };
 
 /*
- * ngtcp2_conn_emit_pending_recv_handshake delivers pending stream
- * data to the application due to packet reordering.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User callback failed
- * NGTCP2_ERR_TLS_HANDSHAKE
- *     TLS handshake failed, and TLS alert was sent.
- */
-int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
-                                            ngtcp2_strm *strm, uint64_t offset);
-
-/*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
  * reception timestamp |ts| in order to send its ACK.
  *

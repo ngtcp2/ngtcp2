@@ -2056,6 +2056,64 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
+static void conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
+                                          size_t datalen) {
+  if (strm->unsent_max_rx_offset <= UINT64_MAX - datalen) {
+    strm->unsent_max_rx_offset += datalen;
+  }
+
+  if (!(strm->flags &
+        (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) &&
+      !strm->fc_pprev && conn_should_send_max_stream_data(conn, strm)) {
+    strm->fc_pprev = &conn->fc_strms;
+    if (conn->fc_strms) {
+      strm->fc_next = conn->fc_strms;
+      conn->fc_strms->fc_pprev = &strm->fc_next;
+    }
+    conn->fc_strms = strm;
+  }
+}
+
+/*
+ * conn_emit_pending_stream0_data delivers pending stream
+ * data to the application due to packet reordering.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User callback failed
+ * NGTCP2_ERR_TLS_HANDSHAKE
+ *     TLS handshake failed, and TLS alert was sent.
+ */
+static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
+                                          uint64_t rx_offset) {
+  size_t datalen;
+  const uint8_t *data;
+  int rv;
+
+  for (;;) {
+    datalen = ngtcp2_rob_data_at(&strm->rob, &data, rx_offset);
+    if (datalen == 0) {
+      assert(rx_offset == ngtcp2_strm_rx_offset(strm));
+      return 0;
+    }
+
+    rx_offset += datalen;
+
+    rv =
+        conn->callbacks.recv_stream0_data(conn, data, datalen, conn->user_data);
+    if (rv != 0) {
+      return rv;
+    }
+
+    strm->unsent_max_rx_offset += datalen;
+    conn_extend_max_stream_offset(conn, strm, datalen);
+
+    ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
+  }
+}
+
 /*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length if |pktlen| during handshake period.
@@ -2282,8 +2340,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       conn->strm0->unsent_max_rx_offset += datalen;
 
       if (!handshake_failed) {
-        rv = ngtcp2_conn_emit_pending_recv_handshake(conn, conn->strm0,
-                                                     rx_offset);
+        rv = conn_emit_pending_stream0_data(conn, conn->strm0, rx_offset);
         if (rv != 0) {
           return rv;
         }
@@ -2577,8 +2634,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     }
 
     if (strm->stream_id == 0) {
-      rv =
-          ngtcp2_conn_emit_pending_recv_handshake(conn, conn->strm0, rx_offset);
+      rv = conn_emit_pending_stream0_data(conn, conn->strm0, rx_offset);
     } else {
       rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
     }
@@ -3244,53 +3300,6 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   }
 
   return rv;
-}
-
-static void conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          size_t datalen) {
-  if (strm->unsent_max_rx_offset <= UINT64_MAX - datalen) {
-    strm->unsent_max_rx_offset += datalen;
-  }
-
-  if (!(strm->flags &
-        (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) &&
-      !strm->fc_pprev && conn_should_send_max_stream_data(conn, strm)) {
-    strm->fc_pprev = &conn->fc_strms;
-    if (conn->fc_strms) {
-      strm->fc_next = conn->fc_strms;
-      conn->fc_strms->fc_pprev = &strm->fc_next;
-    }
-    conn->fc_strms = strm;
-  }
-}
-
-int ngtcp2_conn_emit_pending_recv_handshake(ngtcp2_conn *conn,
-                                            ngtcp2_strm *strm,
-                                            uint64_t rx_offset) {
-  size_t datalen;
-  const uint8_t *data;
-  int rv;
-
-  for (;;) {
-    datalen = ngtcp2_rob_data_at(&strm->rob, &data, rx_offset);
-    if (datalen == 0) {
-      assert(rx_offset == ngtcp2_strm_rx_offset(strm));
-      return 0;
-    }
-
-    rx_offset += datalen;
-
-    rv =
-        conn->callbacks.recv_stream0_data(conn, data, datalen, conn->user_data);
-    if (rv != 0) {
-      return rv;
-    }
-
-    strm->unsent_max_rx_offset += datalen;
-    conn_extend_max_stream_offset(conn, strm, datalen);
-
-    ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
-  }
 }
 
 void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
