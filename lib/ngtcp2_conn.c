@@ -2443,12 +2443,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   uint64_t rx_offset, fr_end_offset;
   int local_stream;
 
-  /* TODO What to do if we get data for stream 0? */
-  if (fr->stream_id == 0) {
-    if (fr->fin) {
-      return NGTCP2_ERR_PROTO;
-    }
-    return 0;
+  if (fr->stream_id == 0 && fr->fin) {
+    return NGTCP2_ERR_PROTO;
   }
 
   if (!fr->fin && fr->datalen == 0) {
@@ -2501,12 +2497,14 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   if (strm->last_rx_offset < fr_end_offset) {
     size_t datalen = fr_end_offset - strm->last_rx_offset;
 
-    if (conn_max_data_violated(conn, datalen)) {
-      return NGTCP2_ERR_FLOW_CONTROL;
-    }
+    if (strm->stream_id != 0) {
+      if (conn_max_data_violated(conn, datalen)) {
+        return NGTCP2_ERR_FLOW_CONTROL;
+      }
 
-    ngtcp2_increment_offset(&conn->rx_offset_high, &conn->rx_offset_low,
-                            datalen);
+      ngtcp2_increment_offset(&conn->rx_offset_high, &conn->rx_offset_low,
+                              datalen);
+    }
   }
 
   if (fr->fin) {
@@ -2578,7 +2576,12 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return rv;
     }
 
-    rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
+    if (strm->stream_id == 0) {
+      rv =
+          ngtcp2_conn_emit_pending_recv_handshake(conn, conn->strm0, rx_offset);
+    } else {
+      rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
+    }
     if (rv != 0) {
       return rv;
     }
