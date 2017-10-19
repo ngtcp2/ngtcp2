@@ -339,14 +339,14 @@ ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
 } // namespace
 
 namespace {
-int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
-                        void *user_data) {
+int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
+                      void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
   c->write_server_handshake(data, datalen);
 
   if (c->tls_handshake() != 0) {
-    return NGTCP2_ERR_TLS_HANDSHAKE;
+    return NGTCP2_ERR_TLS_ALERT;
   }
 
   return 0;
@@ -555,7 +555,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       send_client_cleartext,
       nullptr,
       nullptr,
-      recv_handshake_data,
+      recv_stream0_data,
       config.quiet ? nullptr : debug::send_pkt,
       config.quiet ? nullptr : debug::send_frame,
       config.quiet ? nullptr : debug::recv_pkt,

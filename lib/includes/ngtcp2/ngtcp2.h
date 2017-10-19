@@ -195,7 +195,7 @@ typedef enum {
   NGTCP2_ERR_PKT_TIMEOUT = -212,
   NGTCP2_ERR_STREAM_ID = -213,
   NGTCP2_ERR_FINAL_OFFSET = -214,
-  NGTCP2_ERR_TLS_HANDSHAKE = -215,
+  NGTCP2_ERR_TLS_ALERT = -215,
   NGTCP2_ERR_PKT_NUM_EXHAUSTED = -216,
   NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM = -217,
   NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM = -218,
@@ -720,24 +720,23 @@ typedef ssize_t (*ngtcp2_send_server_cleartext)(ngtcp2_conn *conn,
 /**
  * @functypedef
  *
- * ngtcp2_recv_handshake_data is invoked when cryptographic handshake
- * data are received.  The received handshake data are pointed by
- * |data|, and its length is |datalen|.  |user_data| is the arbitrary
- * pointer passed to `ngtcp2_conn_client_new` or
- * `ngtcp2_conn_server_new`.
+ * ngtcp2_recv_stream0_data is invoked when stream 0 data are
+ * received.  The received data are pointed by |data|, and its length
+ * is |datalen|.  |user_data| is the arbitrary pointer passed to
+ * `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.
  *
  * The callback function must return 0 if it succeeds.  Depending on
- * the TLS backend, handshake is aborted with TLS alert when reading
- * this data.  In this case, return :enum:`NGTCP2_ERR_TLS_HANDSHAKE`.
- * This will ensure that pending data, especially TLS alert, is sent.
- * If application encounters fatal error, return
+ * the TLS backend, TLS connection in stream 0 is aborted with TLS
+ * alert when reading this data.  In this case, return
+ * :enum:`NGTCP2_ERR_TLS_ALERT`.  This will ensure that pending data,
+ * especially TLS alert, is sent at least for TLS handshake.  If
+ * application encounters fatal error, return
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
  * return immediately.  It is undefined when the other value is
  * returned.
  */
-typedef int (*ngtcp2_recv_handshake_data)(ngtcp2_conn *conn,
-                                          const uint8_t *data, size_t datalen,
-                                          void *user_data);
+typedef int (*ngtcp2_recv_stream0_data)(ngtcp2_conn *conn, const uint8_t *data,
+                                        size_t datalen, void *user_data);
 
 /**
  * @functypedef
@@ -883,7 +882,7 @@ typedef struct {
   ngtcp2_send_client_cleartext send_client_cleartext;
   ngtcp2_recv_client_initial recv_client_initial;
   ngtcp2_send_server_cleartext send_server_cleartext;
-  ngtcp2_recv_handshake_data recv_handshake_data;
+  ngtcp2_recv_stream0_data recv_stream0_data;
   ngtcp2_send_pkt send_pkt;
   ngtcp2_send_frame send_frame;
   ngtcp2_recv_pkt recv_pkt;

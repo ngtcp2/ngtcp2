@@ -163,8 +163,8 @@ static ssize_t send_server_cleartext_zero(ngtcp2_conn *conn, uint32_t flags,
   return 0;
 }
 
-static int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data,
-                               size_t datalen, void *user_data) {
+static int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data,
+                             size_t datalen, void *user_data) {
   (void)conn;
   (void)data;
   (void)datalen;
@@ -172,13 +172,13 @@ static int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data,
   return 0;
 }
 
-static int recv_handshake_data_error(ngtcp2_conn *conn, const uint8_t *data,
-                                     size_t datalen, void *user_data) {
+static int recv_stream0_data_error(ngtcp2_conn *conn, const uint8_t *data,
+                                   size_t datalen, void *user_data) {
   (void)conn;
   (void)data;
   (void)datalen;
   (void)user_data;
-  return NGTCP2_ERR_TLS_HANDSHAKE;
+  return NGTCP2_ERR_TLS_ALERT;
 }
 
 static void server_default_settings(ngtcp2_settings *settings) {
@@ -267,7 +267,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   memset(&cb, 0, sizeof(cb));
   cb.recv_client_initial = recv_client_initial;
   cb.send_server_cleartext = send_server_cleartext;
-  cb.recv_handshake_data = recv_handshake_data;
+  cb.recv_stream0_data = recv_stream0_data;
   cb.hs_decrypt = null_decrypt;
   cb.hs_encrypt = null_encrypt;
   server_default_settings(&settings);
@@ -286,7 +286,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
 
   memset(&cb, 0, sizeof(cb));
   cb.send_client_initial = send_client_initial;
-  cb.recv_handshake_data = recv_handshake_data;
+  cb.recv_stream0_data = recv_stream0_data;
   cb.hs_decrypt = null_decrypt;
   cb.hs_encrypt = null_encrypt;
   client_default_settings(&settings);
@@ -1527,7 +1527,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   /* client side */
   setup_handshake_client(&conn);
-  conn->callbacks.recv_handshake_data = recv_handshake_data_error;
+  conn->callbacks.recv_stream0_data = recv_stream0_data_error;
   conn->callbacks.send_client_cleartext = send_client_cleartext_zero;
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
@@ -1550,7 +1550,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_HANDSHAKE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_TLS_ALERT == spktlen);
 
   ngtcp2_conn_del(conn);
 
@@ -1587,7 +1587,7 @@ void test_ngtcp2_conn_handshake_error(void) {
       buf, sizeof(buf), NGTCP2_PKT_CLIENT_CLEARTEXT, conn->conn_id, ++pkt_num,
       conn->version, &fr);
 
-  conn->callbacks.recv_handshake_data = recv_handshake_data_error;
+  conn->callbacks.recv_stream0_data = recv_stream0_data_error;
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
@@ -1595,7 +1595,7 @@ void test_ngtcp2_conn_handshake_error(void) {
   conn->callbacks.send_server_cleartext = send_server_cleartext_zero;
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_HANDSHAKE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_TLS_ALERT == spktlen);
 
   ngtcp2_conn_del(conn);
 }

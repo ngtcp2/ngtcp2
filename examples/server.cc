@@ -683,14 +683,14 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 } // namespace
 
 namespace {
-int recv_handshake_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
-                        void *user_data) {
+int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
+                      void *user_data) {
   auto h = static_cast<Handler *>(user_data);
 
   h->write_client_handshake(data, datalen);
 
   if (h->tls_handshake() != 0) {
-    return NGTCP2_ERR_TLS_HANDSHAKE;
+    return NGTCP2_ERR_TLS_ALERT;
   }
 
   return 0;
@@ -763,7 +763,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr,
       ::recv_client_initial,
       send_server_cleartext,
-      recv_handshake_data,
+      recv_stream0_data,
       config.quiet ? nullptr : debug::send_pkt,
       config.quiet ? nullptr : debug::send_frame,
       config.quiet ? nullptr : debug::recv_pkt,
