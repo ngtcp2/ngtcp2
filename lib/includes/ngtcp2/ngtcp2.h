@@ -1244,8 +1244,6 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *     Out of memory
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  * :enum:`NGTCP2_ERR_STREAM_SHUT_WR`
@@ -1306,8 +1304,6 @@ NGTCP2_EXTERN int ngtcp2_conn_closed(ngtcp2_conn *conn);
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream was not found
  */
