@@ -3747,6 +3747,42 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
+ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
+                                            size_t destlen,
+                                            uint16_t app_error_code) {
+  ssize_t nwrite;
+  ngtcp2_frame fr;
+
+  if (app_error_code == NGTCP2_STOPPING) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  if (conn->last_tx_pkt_num == UINT64_MAX) {
+    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
+  }
+
+  switch (conn->state) {
+  case NGTCP2_CS_POST_HANDSHAKE:
+    break;
+  default:
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  fr.type = NGTCP2_FRAME_APPLICATION_CLOSE;
+  fr.application_close.app_error_code = app_error_code;
+  fr.application_close.reasonlen = 0;
+  fr.application_close.reason = NULL;
+
+  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, &fr);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  conn->state = NGTCP2_CS_CLOSE_WAIT;
+
+  return nwrite;
+}
+
 int ngtcp2_conn_closed(ngtcp2_conn *conn) {
   return conn->state == NGTCP2_CS_CLOSE_WAIT;
 }

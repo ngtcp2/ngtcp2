@@ -1290,6 +1290,33 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_write_application_close` writes a packet which
+ * contains a APPLICATION_CLOSE frame in the buffer pointed by |dest|
+ * whose capacity is |datalen|.
+ *
+ * At the moment, successful call to this function makes connection
+ * close.  We may change this behaviour in the future to allow
+ * graceful shutdown.
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     The current state does not allow sending APPLICATION_CLOSE.
+ * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
+ *     Packet number is exhausted, and cannot send any more packet.
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |app_error_code| == :enum:`NGTCP2_STOPPING`.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_application_close(
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, uint16_t app_error_code);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_closed` returns nonzero if QUIC connection has been
  * closed.
  */
