@@ -466,6 +466,7 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   ssize_t rv;
   size_t framelen;
   size_t i;
+  ngtcp2_ack_blk *blks;
 
   /* 0 Num Blocks */
   fr->type = NGTCP2_FRAME_ACK;
@@ -497,10 +498,11 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   fr->ack.first_ack_blklen = 0xe1e2e3e4llu;
   fr->ack.ack_delay = 0xf1f2;
   fr->ack.num_blks = 2;
-  fr->ack.blks[0].gap = 255;
-  fr->ack.blks[0].blklen = 0xd1d2d3d4llu;
-  fr->ack.blks[1].gap = 1;
-  fr->ack.blks[1].blklen = 0xd1d2d3d4llu;
+  blks = fr->ack.blks;
+  blks[0].gap = 255;
+  blks[0].blklen = 0xd1d2d3d4llu;
+  blks[1].gap = 1;
+  blks[1].blklen = 0xd1d2d3d4llu;
 
   framelen = 1 + 1 + 4 + 2 + 4 + (1 + 4) * 2;
 

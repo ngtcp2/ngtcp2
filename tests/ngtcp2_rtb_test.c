@@ -137,6 +137,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_max_frame mfr;
   ngtcp2_ack *fr = &mfr.ackfr.ack;
+  ngtcp2_ack_blk *blks;
 
   /* no ack block */
   ngtcp2_rtb_init(&rtb, mem);
@@ -164,11 +165,12 @@ void test_ngtcp2_rtb_recv_ack(void) {
   fr->largest_ack = 441;
   fr->first_ack_blklen = 3;
   fr->num_blks = 2;
-  fr->blks[0].gap = 255;
-  fr->blks[0].blklen = 0;
+  blks = fr->blks;
+  blks[0].gap = 255;
+  blks[0].blklen = 0;
   /* 180 */
-  fr->blks[1].gap = 1;
-  fr->blks[1].blklen = 1;
+  blks[1].gap = 1;
+  blks[1].blklen = 1;
 
   ngtcp2_rtb_recv_ack(&rtb, fr, 0, NULL);
 

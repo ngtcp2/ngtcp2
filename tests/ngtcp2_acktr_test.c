@@ -184,6 +184,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   };
   ngtcp2_acktr_entry *ent;
   uint64_t pkt_num;
+  ngtcp2_ack_blk *blks;
 
   ngtcp2_acktr_init(&acktr, mem);
 
@@ -199,12 +200,13 @@ void test_ngtcp2_acktr_recv_ack(void) {
     fr->ack_delay = 0;
     fr->first_ack_blklen = 1;
     fr->num_blks = 3;
-    fr->blks[0].gap = 4;
-    fr->blks[0].blklen = 2;
-    fr->blks[1].gap = 1;
-    fr->blks[1].blklen = 1;
-    fr->blks[2].gap = 3;
-    fr->blks[2].blklen = 1;
+    blks = fr->blks;
+    blks[0].gap = 4;
+    blks[0].blklen = 2;
+    blks[1].gap = 1;
+    blks[1].blklen = 1;
+    blks[2].gap = 3;
+    blks[2].blklen = 1;
 
     ngtcp2_acktr_add_ack(&acktr, pkt_num, fr, 0);
   }
