@@ -174,6 +174,21 @@ else()
     -Wformat-security
     -Wsometimes-uninitialized
   )
+
+  if(ENABLE_ASAN)
+    include(CMakePushCheckState)
+    cmake_push_check_state()
+    set(CMAKE_REQUIRED_LIBRARIES "-fsanitize=address")
+    check_c_compiler_flag(-fsanitize=address C__fsanitize_address_VALID)
+    check_cxx_compiler_flag(-fsanitize=address CXX__fsanitize_address_VALID)
+    cmake_pop_check_state()
+    if(NOT C__fsanitize_address_VALID OR NOT CXX__fsanitize_address_VALID)
+      message(WARNING "ENABLE_ASAN was requested, but not supported!")
+    else()
+      set(CMAKE_C_FLAGS "-fsanitize=address ${CMAKE_C_FLAGS}")
+      set(CMAKE_CXX_FLAGS "-fsanitize=address ${CMAKE_CXX_FLAGS}")
+    endif()
+  endif()
 endif()
 
 if(ENABLE_DEBUG)

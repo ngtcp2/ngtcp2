@@ -70,6 +70,11 @@ if test "x${debug}" = "x${enableval}"; then
   AC_SUBST([DEBUGCFLAGS])
 fi
 
+AC_ARG_ENABLE(asan,
+    AS_HELP_STRING([--enable-asan],
+                   [Enable AddressSanitizer (ASAN)]),
+    [asan=$enableval], [asan=no])
+
 # Checks for programs
 AC_PROG_CC
 AC_PROG_CXX
@@ -249,6 +254,15 @@ CXXFLAGS=$save_CXXFLAGS
 
 AC_SUBST([WARNCFLAGS])
 AC_SUBST([WARNCXXFLAGS])
+
+if test "x$asan" != "xno"; then
+    # Assume both C and C++ compiler either support ASAN or not.
+    LDFLAGS_saved="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -fsanitize=address"
+    AX_CHECK_COMPILE_FLAG([-fsanitize=address],
+                          [CFLAGS="$CFLAGS -fsanitize=address"; CXXFLAGS="$CXXFLAGS -fsanitize=address"],
+                          [LDFLAGS="$LDFLAGS_saved"])
+fi
 
 # extra flags for API function visibility
 EXTRACFLAG=
