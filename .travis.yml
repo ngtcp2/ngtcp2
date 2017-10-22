@@ -42,7 +42,8 @@ before_script:
   - if [ "$CI_BUILD" == "autotools" ]; then autoreconf -i; fi
   - export PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib"
   - if [ "$CI_BUILD" == "autotools" ]; then ./configure --enable-werror --enable-asan; fi
-  - if [ "$CI_BUILD" == "cmake" ]; then cmake -DENABLE_ASAN=1; fi
+  # Set CMAKE_LIBRARY_ARCHITECTURE to workaround failure to parse implicit link information from GCC 5
+  - if [ "$CI_BUILD" == "cmake" ]; then cmake -DENABLE_ASAN=1 -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu; fi
 script:
   # Now build ngtcp2 examples and test
   - make
