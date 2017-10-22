@@ -174,8 +174,10 @@ AC_CHECK_FUNCS([ \
 
 # More compiler flags from nghttp2.
 save_CFLAGS=$CFLAGS
+save_CXXFLAGS=$CXXFLAGS
 
 CFLAGS=
+CXXFLAGS=
 
 if test "x$werror" != "xno"; then
     # For C compiler
@@ -228,13 +230,25 @@ if test "x$werror" != "xno"; then
 
     # This is required because we pass format string as "const char*.
     AX_CHECK_COMPILE_FLAG([-Wno-format-nonliteral], [CFLAGS="$CFLAGS -Wno-format-nonliteral"])
+
+    # For C++ compiler
+    AC_LANG_PUSH(C++)
+    AX_CHECK_COMPILE_FLAG([-Wall], [CXXFLAGS="$CXXFLAGS -Wall"])
+    # TODO separate option for -Werror and warnings?
+    #AX_CHECK_COMPILE_FLAG([-Werror], [CXXFLAGS="$CXXFLAGS -Werror"])
+    AX_CHECK_COMPILE_FLAG([-Wformat-security], [CXXFLAGS="$CXXFLAGS -Wformat-security"])
+    AX_CHECK_COMPILE_FLAG([-Wsometimes-uninitialized], [CXXFLAGS="$CXXFLAGS -Wsometimes-uninitialized"])
+    AC_LANG_POP()
 fi
 
 WARNCFLAGS=$CFLAGS
+WARNCXXFLAGS=$CXXFLAGS
 
 CFLAGS=$save_CFLAGS
+CXXFLAGS=$save_CXXFLAGS
 
 AC_SUBST([WARNCFLAGS])
+AC_SUBST([WARNCXXFLAGS])
 
 # extra flags for API function visibility
 EXTRACFLAG=
@@ -269,12 +283,15 @@ AC_MSG_NOTICE([summary of build options:
       Host:          ${host}
       Target:        ${target}
     Compiler:
-      C compiler:     ${CC}
-      CFLAGS:         ${CFLAGS}
-      LDFLAGS:        ${LDFLAGS}
       C preprocessor: ${CPP}
       CPPFLAGS:       ${CPPFLAGS}
+      C compiler:     ${CC}
+      CFLAGS:         ${CFLAGS}
+      C++ compiler:   ${CXX}
+      CXXFLAGS:       ${CXXFLAGS}
+      LDFLAGS:        ${LDFLAGS}
       WARNCFLAGS:     ${WARNCFLAGS}
+      WARNCXXFLAGS:   ${WARNCXXFLAGS}
       EXTRACFLAG:     ${EXTRACFLAG}
       LIBS:           ${LIBS}
     Library:
