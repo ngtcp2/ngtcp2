@@ -64,7 +64,7 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 
 typedef struct {
-  ngtcp2_ack ack;
+  ngtcp2_ack *ack;
   uint64_t pkt_num;
   uint8_t unprotected;
 } ngtcp2_acktr_ack_entry;
@@ -136,10 +136,11 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
 /*
  * ngtcp2_acktr_add_ack adds the outgoing ACK frame |fr| to |acktr|.
  * |pkt_num| is the packet number which |fr| belongs.  |unprotected|
- * is nonzero if the packet is an unprotected packet.
+ * is nonzero if the packet is an unprotected packet.  This function
+ * transfers the ownership of |fr| to |acktr|.
  */
-void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
-                          const ngtcp2_ack *fr, uint8_t unprotected);
+void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
+                          uint8_t unprotected);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.

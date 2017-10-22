@@ -178,11 +178,12 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_acktr acktr;
   ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
-  ngtcp2_ack fr;
+  ngtcp2_ack *fr, ackfr;
   uint64_t pkt_nums[] = {
       4500, 4499, 4497, 4496, 4494, 4493, 4491, 4490, 4488, 4487,
   };
   ngtcp2_acktr_entry *ent;
+  uint64_t pkt_num;
 
   ngtcp2_acktr_init(&acktr, mem);
 
@@ -191,28 +192,30 @@ void test_ngtcp2_acktr_recv_ack(void) {
     ngtcp2_acktr_add(&acktr, ent, 1);
   }
 
-  fr.type = NGTCP2_FRAME_ACK;
-  fr.largest_ack = 4500;
-  fr.ack_delay = 0;
-  fr.first_ack_blklen = 1;
-  fr.num_blks = 3;
-  fr.blks[0].gap = 4;
-  fr.blks[0].blklen = 2;
-  fr.blks[1].gap = 1;
-  fr.blks[1].blklen = 1;
-  fr.blks[2].gap = 3;
-  fr.blks[2].blklen = 1;
+  for (pkt_num = 998; pkt_num <= 999; ++pkt_num) {
+    fr = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_max_frame));
+    fr->type = NGTCP2_FRAME_ACK;
+    fr->largest_ack = 4500;
+    fr->ack_delay = 0;
+    fr->first_ack_blklen = 1;
+    fr->num_blks = 3;
+    fr->blks[0].gap = 4;
+    fr->blks[0].blklen = 2;
+    fr->blks[1].gap = 1;
+    fr->blks[1].blklen = 1;
+    fr->blks[2].gap = 3;
+    fr->blks[2].blklen = 1;
 
-  ngtcp2_acktr_add_ack(&acktr, 998, &fr, 0);
-  ngtcp2_acktr_add_ack(&acktr, 999, &fr, 0);
+    ngtcp2_acktr_add_ack(&acktr, pkt_num, fr, 0);
+  }
 
-  fr.type = NGTCP2_FRAME_ACK;
-  fr.largest_ack = 999;
-  fr.ack_delay = 0;
-  fr.first_ack_blklen = 0;
-  fr.num_blks = 0;
+  ackfr.type = NGTCP2_FRAME_ACK;
+  ackfr.largest_ack = 999;
+  ackfr.ack_delay = 0;
+  ackfr.first_ack_blklen = 0;
+  ackfr.num_blks = 0;
 
-  ngtcp2_acktr_recv_ack(&acktr, &fr, 0);
+  ngtcp2_acktr_recv_ack(&acktr, &ackfr, 0);
 
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&acktr.acks));
   CU_ASSERT(4 == acktr.nack);

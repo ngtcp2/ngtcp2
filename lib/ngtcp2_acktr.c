@@ -67,11 +67,17 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
 
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
   ngtcp2_acktr_entry *ent, *next;
+  ngtcp2_acktr_ack_entry *ack_ent;
+  size_t i;
 
   if (acktr == NULL) {
     return;
   }
 
+  for (i = 0; i < acktr->acks.len; ++i) {
+    ack_ent = ngtcp2_ringbuf_get(&acktr->acks, i);
+    ngtcp2_mem_free(acktr->mem, ack_ent->ack);
+  }
   ngtcp2_ringbuf_free(&acktr->acks);
 
   for (ent = acktr->ent; ent;) {
@@ -165,12 +171,12 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
   ngtcp2_acktr_entry_del(ent, acktr->mem);
 }
 
-void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
-                          const ngtcp2_ack *fr, uint8_t unprotected) {
+void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
+                          uint8_t unprotected) {
   ngtcp2_acktr_ack_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&acktr->acks);
-  ent->ack = *fr;
+  ent->ack = fr;
   ent->pkt_num = pkt_num;
   ent->unprotected = unprotected;
 }
@@ -200,7 +206,7 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
   size_t i;
 
   ent = ngtcp2_ringbuf_get(&acktr->acks, ack_ent_offset);
-  fr = &ent->ack;
+  fr = ent->ack;
   largest_ack = fr->largest_ack;
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
@@ -250,6 +256,10 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
   }
 
 fin:
+  for (i = ack_ent_offset; i < acktr->acks.len; ++i) {
+    ent = ngtcp2_ringbuf_get(&acktr->acks, i);
+    ngtcp2_mem_free(acktr->mem, ent->ack);
+  }
   ngtcp2_ringbuf_resize(&acktr->acks, ack_ent_offset);
 }
 

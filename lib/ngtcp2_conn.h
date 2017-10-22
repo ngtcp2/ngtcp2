@@ -89,6 +89,18 @@ struct ngtcp2_pkt_chain {
 };
 
 /*
+ * ngtcp2_max_frame is defined so that it covers the largest ACK
+ * frame.
+ */
+typedef union {
+  ngtcp2_frame fr;
+  struct {
+    ngtcp2_ack ack;
+    ngtcp2_ack_blk blks[254];
+  } ackfr;
+} ngtcp2_max_frame;
+
+/*
  * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
  * assigns its pointer to |*ppc|.  The content of buffer pointed by
  * |pkt| of length |pktlen| is copied into |*ppc|.
