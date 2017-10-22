@@ -545,6 +545,41 @@ static void conn_commit_tx_ack(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_ppe_write_frame writes |fr| to |ppe|.  If
+ * |*psend_pkt_cb_called| is zero, conn_call_send_pkt is called, and 1
+ * is assigned to it.  Regardless of the value of
+ * |*psend_pkt_cb_called|, conn_call_send_frame is called.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
+static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
+                                int *psend_pkt_cb_called,
+                                const ngtcp2_pkt_hd *hd, ngtcp2_frame *fr) {
+  int rv;
+
+  rv = ngtcp2_ppe_encode_frame(ppe, fr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (!*psend_pkt_cb_called) {
+    rv = conn_call_send_pkt(conn, hd);
+    if (rv != 0) {
+      return rv;
+    }
+    *psend_pkt_cb_called = 1;
+  }
+
+  return conn_call_send_frame(conn, hd, fr);
+}
+
+/*
  * conn_retransmit_unprotected writes QUIC packet in the buffer
  * pointed by |dest| whose length is |destlen| to retransmit lost
  * unprotected packet.
@@ -595,22 +630,12 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
      ack protected packet here for now. */
 
   for (pfrc = &ent->frc; *pfrc;) {
-    rv = ngtcp2_ppe_encode_frame(&ppe, &(*pfrc)->fr);
+    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
+                              &(*pfrc)->fr);
     if (rv != 0) {
-      assert(NGTCP2_ERR_NOBUF == rv);
-      break;
-    }
-
-    if (!send_pkt_cb_called) {
-      rv = conn_call_send_pkt(conn, &hd);
-      if (rv != 0) {
-        return rv;
+      if (rv == NGTCP2_ERR_NOBUF) {
+        break;
       }
-      send_pkt_cb_called = 1;
-    }
-
-    rv = conn_call_send_frame(conn, &hd, &(*pfrc)->fr);
-    if (rv != 0) {
       return rv;
     }
 
@@ -795,22 +820,12 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       }
       break;
     }
-    rv = ngtcp2_ppe_encode_frame(&ppe, &(*pfrc)->fr);
+    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
+                              &(*pfrc)->fr);
     if (rv != 0) {
-      assert(NGTCP2_ERR_NOBUF == rv);
-      break;
-    }
-
-    if (!send_pkt_cb_called) {
-      rv = conn_call_send_pkt(conn, &hd);
-      if (rv != 0) {
-        return rv;
+      if (rv == NGTCP2_ERR_NOBUF) {
+        break;
       }
-      send_pkt_cb_called = 1;
-    }
-
-    rv = conn_call_send_frame(conn, &hd, &(*pfrc)->fr);
-    if (rv != 0) {
       return rv;
     }
 
@@ -831,30 +846,17 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       return rv;
     }
     if (ackfr) {
-      rv = ngtcp2_ppe_encode_frame(&ppe, ackfr);
-      if (rv == 0) {
-        if (!send_pkt_cb_called) {
-          rv = conn_call_send_pkt(conn, &hd);
-          if (rv != 0) {
-            ngtcp2_mem_free(conn->mem, ackfr);
-            return rv;
-          }
-          send_pkt_cb_called = 1;
-        }
-
-        rv = conn_call_send_frame(conn, &hd, ackfr);
-        if (rv != 0) {
-          ngtcp2_mem_free(conn->mem, ackfr);
+      rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr);
+      if (rv != 0) {
+        ngtcp2_mem_free(conn->mem, ackfr);
+        if (rv != NGTCP2_ERR_NOBUF) {
           return rv;
         }
-
+      } else {
         conn_commit_tx_ack(conn);
         pkt_empty = 0;
 
         ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, 0);
-      } else {
-        assert(NGTCP2_ERR_NOBUF == rv);
-        ngtcp2_mem_free(conn->mem, ackfr);
       }
     }
   }
@@ -1434,38 +1436,6 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   return conn->local_settings.max_data / 2 >=
          conn->max_rx_offset_high - conn->rx_offset_high;
-}
-
-/*
- * conn_ppe_write_frame writes |fr| to |ppe|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_NOBUF
- *     Buffer is too small.
- */
-static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
-                                int *psend_pkt_cb_called,
-                                const ngtcp2_pkt_hd *hd, ngtcp2_frame *fr) {
-  int rv;
-
-  rv = ngtcp2_ppe_encode_frame(ppe, fr);
-  if (rv != 0) {
-    return rv;
-  }
-
-  if (!*psend_pkt_cb_called) {
-    rv = conn_call_send_pkt(conn, hd);
-    if (rv != 0) {
-      return rv;
-    }
-    *psend_pkt_cb_called = 1;
-  }
-
-  return conn_call_send_frame(conn, hd, fr);
 }
 
 /*
