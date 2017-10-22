@@ -833,7 +833,6 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     if (ackfr) {
       rv = ngtcp2_ppe_encode_frame(&ppe, ackfr);
       if (rv == 0) {
-        conn_commit_tx_ack(conn);
         if (!send_pkt_cb_called) {
           rv = conn_call_send_pkt(conn, &hd);
           if (rv != 0) {
@@ -849,6 +848,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
           return rv;
         }
 
+        conn_commit_tx_ack(conn);
         pkt_empty = 0;
 
         ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, 0);
@@ -1086,13 +1086,14 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
         ngtcp2_mem_free(conn->mem, ackfr);
         return rv;
       }
-      conn_commit_tx_ack(conn);
 
       rv = conn_call_send_frame(conn, &hd, ackfr);
       if (rv != 0) {
         ngtcp2_mem_free(conn->mem, ackfr);
         return rv;
       }
+
+      conn_commit_tx_ack(conn);
 
       ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, 1);
     }
@@ -1256,12 +1257,13 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     goto fail;
   }
-  conn_commit_tx_ack(conn);
 
   rv = conn_call_send_frame(conn, &hd, ackfr);
   if (rv != 0) {
     goto fail;
   }
+
+  conn_commit_tx_ack(conn);
 
   ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, 1);
 
