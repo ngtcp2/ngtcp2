@@ -2897,10 +2897,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
 }
 
-static void conn_recv_connection_close(ngtcp2_conn *conn,
-                                       const ngtcp2_connection_close *fr) {
-  (void)fr;
-
+static void conn_recv_connection_close(ngtcp2_conn *conn) {
   conn->state = NGTCP2_CS_CLOSE_WAIT;
 }
 
@@ -3249,7 +3246,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       }
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
-      conn_recv_connection_close(conn, &fr->connection_close);
+    case NGTCP2_FRAME_APPLICATION_CLOSE:
+      conn_recv_connection_close(conn);
       break;
     }
   }
