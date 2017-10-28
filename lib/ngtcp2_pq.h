@@ -69,7 +69,7 @@ void ngtcp2_pq_free(ngtcp2_pq *pq);
 /*
  * Adds |item| to the priority queue |pq|.
  *
- * This function returns 0 if it succeds, or one of the following
+ * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_NOMEM
