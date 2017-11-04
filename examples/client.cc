@@ -1160,8 +1160,6 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 
 int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
                                   size_t datalen) {
-  int rv;
-
   if (stream_id == 0) {
     ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
                             offset + datalen);
@@ -1186,8 +1184,6 @@ void Client::on_stream_close(uint32_t stream_id) {
   if (it == std::end(streams_)) {
     return;
   }
-
-  auto &stream = (*it).second;
 
   if (config.interactive) {
     ev_io_stop(loop_, &stdinrev_);

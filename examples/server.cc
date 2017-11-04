@@ -224,9 +224,9 @@ Stream::Stream(uint32_t stream_id)
       streambuf_idx(0),
       tx_stream_offset(0),
       should_send_fin(false),
+      resp_state(RESP_IDLE),
       http_major(0),
       http_minor(0),
-      resp_state(RESP_IDLE),
       prev_hdr_key(false),
       fd(-1),
       data(nullptr),
@@ -1214,8 +1214,6 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
 }
 
 int Handler::start_drain_period(int liberr) {
-  int rv;
-
   if (!conn_ || ngtcp2_conn_closed(conn_)) {
     return 0;
   }
@@ -1261,8 +1259,6 @@ int Handler::handle_error(int liberr) {
 }
 
 int Handler::send_conn_close() {
-  int rv;
-
   if (!config.quiet) {
     debug::print_timestamp();
     std::cerr << "Draining Period: TX CONNECTION_CLOSE" << std::endl;
