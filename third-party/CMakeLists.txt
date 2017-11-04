@@ -1,6 +1,7 @@
 # ngtcp2
 
 # Copyright (c) 2017 ngtcp2 contributors
+# Copyright (c) 2014 nghttp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -21,36 +22,9 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS)
-AM_CXXFLAGS = $(WARNCXXFLAGS) $(DEBUGCFLAGS)
-AM_CPPFLAGS = \
-	-I$(top_srcdir)/lib/includes \
-	-I$(top_builddir)/lib/includes \
-	-I$(top_srcdir)/third-party \
-	@OPENSSL_CFLAGS@ \
-	@LIBEV_CFLAGS@ \
-	@DEFS@
-AM_LDFLAGS = -no-install
-LDADD = $(top_builddir)/lib/libngtcp2.la \
-	$(top_builddir)/third-party/libhttp-parser.la \
-	@OPENSSL_LIBS@ \
-	@LIBEV_LIBS@
-
-noinst_PROGRAMS = client server
-
-client_SOURCES = client.cc client.h \
-	template.h \
-	debug.cc debug.h \
-	util.cc util.h \
-	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc
-
-server_SOURCES = server.cc server.h \
-	template.h \
-	debug.cc debug.h \
-	util.cc util.h \
-	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc \
-	http.cc http.h
+set(LIBHTTP_PARSER_SOURCES
+  http-parser/http_parser.c
+)
+add_library(http-parser OBJECT ${LIBHTTP_PARSER_SOURCES})
+set_target_properties(http-parser PROPERTIES
+  POSITION_INDEPENDENT_CODE ON)

@@ -70,6 +70,11 @@ if test "x${debug}" = "x${enableval}"; then
   AC_SUBST([DEBUGCFLAGS])
 fi
 
+AC_ARG_ENABLE(asan,
+    AS_HELP_STRING([--enable-asan],
+                   [Enable AddressSanitizer (ASAN)]),
+    [asan=$enableval], [asan=no])
+
 # Checks for programs
 AC_PROG_CC
 AC_PROG_CXX
@@ -174,8 +179,10 @@ AC_CHECK_FUNCS([ \
 
 # More compiler flags from nghttp2.
 save_CFLAGS=$CFLAGS
+save_CXXFLAGS=$CXXFLAGS
 
 CFLAGS=
+CXXFLAGS=
 
 if test "x$werror" != "xno"; then
     # For C compiler
@@ -228,13 +235,34 @@ if test "x$werror" != "xno"; then
 
     # This is required because we pass format string as "const char*.
     AX_CHECK_COMPILE_FLAG([-Wno-format-nonliteral], [CFLAGS="$CFLAGS -Wno-format-nonliteral"])
+
+    # For C++ compiler
+    AC_LANG_PUSH(C++)
+    AX_CHECK_COMPILE_FLAG([-Wall], [CXXFLAGS="$CXXFLAGS -Wall"])
+    # TODO separate option for -Werror and warnings?
+    #AX_CHECK_COMPILE_FLAG([-Werror], [CXXFLAGS="$CXXFLAGS -Werror"])
+    AX_CHECK_COMPILE_FLAG([-Wformat-security], [CXXFLAGS="$CXXFLAGS -Wformat-security"])
+    AX_CHECK_COMPILE_FLAG([-Wsometimes-uninitialized], [CXXFLAGS="$CXXFLAGS -Wsometimes-uninitialized"])
+    AC_LANG_POP()
 fi
 
 WARNCFLAGS=$CFLAGS
+WARNCXXFLAGS=$CXXFLAGS
 
 CFLAGS=$save_CFLAGS
+CXXFLAGS=$save_CXXFLAGS
 
 AC_SUBST([WARNCFLAGS])
+AC_SUBST([WARNCXXFLAGS])
+
+if test "x$asan" != "xno"; then
+    # Assume both C and C++ compiler either support ASAN or not.
+    LDFLAGS_saved="$LDFLAGS"
+    LDFLAGS="$LDFLAGS -fsanitize=address"
+    AX_CHECK_COMPILE_FLAG([-fsanitize=address],
+                          [CFLAGS="$CFLAGS -fsanitize=address"; CXXFLAGS="$CXXFLAGS -fsanitize=address"],
+                          [LDFLAGS="$LDFLAGS_saved"])
+fi
 
 # extra flags for API function visibility
 EXTRACFLAG=
@@ -269,12 +297,15 @@ AC_MSG_NOTICE([summary of build options:
       Host:          ${host}
       Target:        ${target}
     Compiler:
-      C compiler:     ${CC}
-      CFLAGS:         ${CFLAGS}
-      LDFLAGS:        ${LDFLAGS}
       C preprocessor: ${CPP}
       CPPFLAGS:       ${CPPFLAGS}
+      C compiler:     ${CC}
+      CFLAGS:         ${CFLAGS}
+      C++ compiler:   ${CXX}
+      CXXFLAGS:       ${CXXFLAGS}
+      LDFLAGS:        ${LDFLAGS}
       WARNCFLAGS:     ${WARNCFLAGS}
+      WARNCXXFLAGS:   ${WARNCXXFLAGS}
       EXTRACFLAG:     ${EXTRACFLAG}
       LIBS:           ${LIBS}
     Library:

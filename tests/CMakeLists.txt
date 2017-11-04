@@ -1,6 +1,7 @@
 # ngtcp2
 
-# Copyright (c) 2017 ngtcp2 contributors
+# Copyright (c) 2016 ngtcp2 contributors
+# Copyright (c) 2012 nghttp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -21,36 +22,40 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS)
-AM_CXXFLAGS = $(WARNCXXFLAGS) $(DEBUGCFLAGS)
-AM_CPPFLAGS = \
-	-I$(top_srcdir)/lib/includes \
-	-I$(top_builddir)/lib/includes \
-	-I$(top_srcdir)/third-party \
-	@OPENSSL_CFLAGS@ \
-	@LIBEV_CFLAGS@ \
-	@DEFS@
-AM_LDFLAGS = -no-install
-LDADD = $(top_builddir)/lib/libngtcp2.la \
-	$(top_builddir)/third-party/libhttp-parser.la \
-	@OPENSSL_LIBS@ \
-	@LIBEV_LIBS@
+if(HAVE_CUNIT)
+  include_directories(
+    "${CMAKE_SOURCE_DIR}/lib"
+    "${CMAKE_SOURCE_DIR}/lib/includes"
+    "${CMAKE_BINARY_DIR}/lib/includes"
+    ${CUNIT_INCLUDE_DIRS}
+  )
 
-noinst_PROGRAMS = client server
+  set(main_SOURCES
+    main.c
+    ngtcp2_pkt_test.c
+    ngtcp2_upe_test.c
+    ngtcp2_range_test.c
+    ngtcp2_rob_test.c
+    ngtcp2_acktr_test.c
+    ngtcp2_map_test.c
+    ngtcp2_crypto_test.c
+    ngtcp2_rtb_test.c
+    ngtcp2_idtr_test.c
+    ngtcp2_conn_test.c
+    ngtcp2_ringbuf_test.c
+    ngtcp2_test_helper.c
+  )
 
-client_SOURCES = client.cc client.h \
-	template.h \
-	debug.cc debug.h \
-	util.cc util.h \
-	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc
-
-server_SOURCES = server.cc server.h \
-	template.h \
-	debug.cc debug.h \
-	util.cc util.h \
-	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc \
-	http.cc http.h
+  add_executable(main EXCLUDE_FROM_ALL
+    ${main_SOURCES}
+  )
+  target_include_directories(main PRIVATE ${CUNIT_INCLUDE_DIRS})
+  # FIXME enable and fix warnings
+  #set_target_properties(main PROPERTIES COMPILE_FLAGS "${WARNCFLAGS}")
+  target_link_libraries(main
+    ngtcp2_static
+    ${CUNIT_LIBRARIES}
+  )
+  add_test(main main)
+  add_dependencies(check main)
+endif()

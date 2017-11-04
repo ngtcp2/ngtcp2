@@ -1,0 +1,7 @@
+# Features that can be enabled for cmake (see CMakeLists.txt)
+
+option(ENABLE_WERROR    "Make compiler warnings fatal" OFF)
+option(ENABLE_DEBUG     "Turn on debug output")
+option(ENABLE_ASAN      "Enable AddressSanitizer (ASAN)" OFF)
+
+# vim: ft=cmake:
