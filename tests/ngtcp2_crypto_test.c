@@ -146,6 +146,39 @@ void test_ngtcp2_encode_transport_params(void) {
 
   memset(&nparams, 0, sizeof(nparams));
 
+  /* The last param is omit_connection_id */
+  params.initial_max_stream_data = 1000000007;
+  params.initial_max_data = 1000000009;
+  params.initial_max_stream_id = 911;
+  params.idle_timeout = 0xd1d2;
+  params.omit_connection_id = 1;
+  params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  memset(params.stateless_reset_token, 0xf1,
+         sizeof(params.stateless_reset_token));
+
+  nwrite = ngtcp2_encode_transport_params(
+      buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET,
+      &params);
+
+  CU_ASSERT(2 + 8 * 3 + 6 + 4 + 20 == nwrite);
+
+  rv = ngtcp2_decode_transport_params(
+      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET, buf,
+      (size_t)nwrite);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(params.initial_max_stream_data == nparams.initial_max_stream_data);
+  CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
+  CU_ASSERT(params.initial_max_stream_id == nparams.initial_max_stream_id);
+  CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
+  CU_ASSERT(params.omit_connection_id == nparams.omit_connection_id);
+  CU_ASSERT(params.max_packet_size == NGTCP2_MAX_PKT_SIZE);
+  CU_ASSERT(0 == memcmp(params.stateless_reset_token,
+                        nparams.stateless_reset_token,
+                        sizeof(params.stateless_reset_token)));
+
+  memset(&nparams, 0, sizeof(nparams));
+
   /* Data is too short to decode */
   params.v.ch.negotiated_version = 0xf1f2f3f4u;
   params.v.ch.initial_version = 0xe1e2e3e4u;

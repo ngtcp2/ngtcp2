@@ -227,7 +227,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   }
   p += sizeof(uint16_t);
 
-  for (; (size_t)(end - p) > sizeof(uint16_t) * 2;) {
+  for (; (size_t)(end - p) >= sizeof(uint16_t) * 2;) {
     param_type = ngtcp2_get_uint16(p);
     p += sizeof(uint16_t);
     switch (param_type) {
