@@ -757,7 +757,7 @@ void test_ngtcp2_pkt_encode_application_close_frame(void) {
   fr.application_close.reasonlen = 0;
   fr.application_close.reason = NULL;
 
-  framelen = 1 + 2 + 2;
+  framelen = 1 + 2 + 1;
 
   rv = ngtcp2_pkt_encode_application_close_frame(buf, sizeof(buf),
                                                  &fr.application_close);
