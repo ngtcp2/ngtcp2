@@ -62,6 +62,9 @@
 #define NGTCP2_ACK_MM_02_MASK 0x02
 #define NGTCP2_ACK_MM_03_MASK 0x03
 
+/* NGTCP2_MAX_VARINT is the maximum value which can be encoded in
+   variable-length integer encoding */
+#define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.
  */
