@@ -756,7 +756,7 @@ void test_ngtcp2_pkt_encode_max_stream_id_frame(void) {
   uint8_t buf[16];
   ngtcp2_max_stream_id fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4;
+  size_t framelen = 1 + 8;
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
   fr.max_stream_id = 0xf1f2f3f4u;
