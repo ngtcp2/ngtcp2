@@ -40,10 +40,9 @@
 /* NGTCP2_LONG_HEADERLEN is the length of long header */
 #define NGTCP2_LONG_HEADERLEN 17
 
-#define NGTCP2_STREAM_FIN_BIT 0x20
-#define NGTCP2_STREAM_SS_MASK 0x18
-#define NGTCP2_STREAM_OO_MASK 0x06
-#define NGTCP2_STREAM_D_BIT 0x01
+#define NGTCP2_STREAM_FIN_BIT 0x01
+#define NGTCP2_STREAM_LEN_BIT 0x02
+#define NGTCP2_STREAM_OFF_BIT 0x04
 
 /* NGTCP2_STREAM_OVERHEAD is the maximum number of bytes required
    other than payload for STREAM frame.  That is from type field to

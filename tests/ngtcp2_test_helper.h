@@ -52,7 +52,7 @@
 
 /*
  * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with
- * the given parameters.  If NGTCP2_STREAM_D_BIT is set in |flags|,
+ * the given parameters.  If NGTCP2_STREAM_LEN_BIT is set in |flags|,
  * |datalen| is encoded as Data Length, otherwise it is not written.
  * To set FIN bit in wire format, set NGTCP2_STREAM_FIN_BIT in
  * |flags|.  This function expects that |out| has enough length to

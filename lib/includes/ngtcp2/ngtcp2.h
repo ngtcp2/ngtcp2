@@ -245,7 +245,7 @@ typedef enum {
   NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
   NGTCP2_FRAME_STOP_SENDING = 0x0c,
   NGTCP2_FRAME_ACK = 0xa0,
-  NGTCP2_FRAME_STREAM = 0xc0
+  NGTCP2_FRAME_STREAM = 0x10
 } ngtcp2_frame_type;
 
 typedef enum {
