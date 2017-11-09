@@ -699,7 +699,7 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
 
-  framelen = 1 + 2 + 2;
+  framelen = 1 + 2 + 1;
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);
