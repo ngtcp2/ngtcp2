@@ -664,8 +664,9 @@ ssize_t ngtcp2_pkt_decode_application_close_frame(
 ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
                                          const uint8_t *payload,
                                          size_t payloadlen) {
-  size_t len = 1 + 8;
+  size_t len = 1 + 1;
   const uint8_t *p;
+  size_t n;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_FRAME_FORMAT;
@@ -673,9 +674,16 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
 
   p = payload + 1;
 
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
   dest->type = NGTCP2_FRAME_MAX_DATA;
-  dest->max_data = ngtcp2_get_uint64(p);
-  p += 8;
+  dest->max_data = ngtcp2_get_varint(&n, p);
+  p += n;
 
   assert((size_t)(p - payload) == len);
 
@@ -1121,7 +1129,7 @@ ngtcp2_pkt_encode_application_close_frame(uint8_t *out, size_t outlen,
 
 ssize_t ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_max_data *fr) {
-  size_t len = 1 + 8;
+  size_t len = 1 + ngtcp2_put_varint_len(fr->max_data);
   uint8_t *p;
 
   if (outlen < len) {
@@ -1131,7 +1139,7 @@ ssize_t ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
   p = out;
 
   *p++ = NGTCP2_FRAME_MAX_DATA;
-  p = ngtcp2_put_uint64be(p, fr->max_data);
+  p = ngtcp2_put_varint(p, fr->max_data);
 
   assert((size_t)(p - out) == len);
 

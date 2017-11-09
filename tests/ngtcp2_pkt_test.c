@@ -717,7 +717,7 @@ void test_ngtcp2_pkt_encode_max_data_frame(void) {
   size_t framelen = 1 + 8;
 
   fr.type = NGTCP2_FRAME_MAX_DATA;
-  fr.max_data = 0xf1f2f3f4f5f6f7f8llu;
+  fr.max_data = 0x31f2f3f4f5f6f7f8llu;
 
   rv = ngtcp2_pkt_encode_max_data_frame(buf, sizeof(buf), &fr);
 
