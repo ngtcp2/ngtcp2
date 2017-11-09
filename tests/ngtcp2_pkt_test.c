@@ -669,7 +669,7 @@ void test_ngtcp2_pkt_encode_rst_stream_frame(void) {
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.stream_id = 1000000007;
   fr.app_error_code = 0xe1e2;
-  fr.final_offset = 0xf1f2f3f4f5f6f7f8llu;
+  fr.final_offset = 0x31f2f3f4f5f6f7f8llu;
 
   rv = ngtcp2_pkt_encode_rst_stream_frame(buf, sizeof(buf), &fr);
 

@@ -534,8 +534,9 @@ size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
 ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
                                            const uint8_t *payload,
                                            size_t payloadlen) {
-  size_t len = 1 + 4 + 2 + 8;
+  size_t len = 1 + 1 + 2 + 1;
   const uint8_t *p;
+  size_t n;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_FRAME_FORMAT;
@@ -543,13 +544,27 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
 
   p = payload + 1;
 
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+  p += n + 2;
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  p = payload + 1;
+
   dest->type = NGTCP2_FRAME_RST_STREAM;
-  dest->stream_id = ngtcp2_get_uint32(p);
-  p += 4;
+  dest->stream_id = (uint32_t)ngtcp2_get_varint(&n, p);
+  p += n;
   dest->app_error_code = ngtcp2_get_uint16(p);
   p += 2;
-  dest->final_offset = ngtcp2_get_uint64(p);
-  p += 8;
+  dest->final_offset = ngtcp2_get_varint(&n, p);
+  p += n;
 
   assert((size_t)(p - payload) == len);
 
@@ -1066,7 +1081,8 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
 
 ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
                                            const ngtcp2_rst_stream *fr) {
-  size_t len = 1 + 4 + 2 + 8;
+  size_t len = 1 + ngtcp2_put_varint_len(fr->stream_id) + 2 +
+               ngtcp2_put_varint_len(fr->final_offset);
   uint8_t *p;
 
   if (outlen < len) {
@@ -1076,9 +1092,9 @@ ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
   p = out;
 
   *p++ = NGTCP2_FRAME_RST_STREAM;
-  p = ngtcp2_put_uint32be(p, fr->stream_id);
+  p = ngtcp2_put_varint(p, fr->stream_id);
   p = ngtcp2_put_uint16be(p, fr->app_error_code);
-  p = ngtcp2_put_uint64be(p, fr->final_offset);
+  p = ngtcp2_put_varint(p, fr->final_offset);
 
   assert((size_t)(p - out) == len);
 
