@@ -875,7 +875,7 @@ void test_ngtcp2_pkt_encode_stop_sending_frame(void) {
   uint8_t buf[16];
   ngtcp2_stop_sending fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4 + 2;
+  size_t framelen = 1 + 8 + 2;
 
   fr.type = NGTCP2_FRAME_STOP_SENDING;
   fr.stream_id = 0xf1f2f3f4u;
