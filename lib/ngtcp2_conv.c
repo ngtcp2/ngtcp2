@@ -25,6 +25,7 @@
 #include "ngtcp2_conv.h"
 
 #include <string.h>
+#include <assert.h>
 
 #include "ngtcp2_str.h"
 
@@ -58,6 +59,44 @@ uint16_t ngtcp2_get_uint16(const uint8_t *p) {
   return ntohs(n);
 }
 
+/* varintlen_def is an array of required length of variable-length
+   integer encoding.  Use 2 most significant bits as an index to get
+   the length in bytes. */
+static size_t varintlen_def[] = {1, 2, 4, 8};
+
+uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
+  union {
+    char b[8];
+    uint16_t n16;
+    uint32_t n32;
+    uint64_t n64;
+  } n;
+
+  *plen = varintlen_def[*p >> 6];
+
+  switch (*plen) {
+  case 1:
+    return *p;
+  case 2: {
+    memcpy(&n, p, 2);
+    n.b[0] &= 0x3f;
+    return ntohs(n.n16);
+  }
+  case 4: {
+    memcpy(&n, p, 4);
+    n.b[0] &= 0x3f;
+    return ntohl(n.n32);
+  }
+  case 8: {
+    memcpy(&n, p, 8);
+    n.b[0] &= 0x3f;
+    return bswap64(n.n64);
+  }
+  }
+
+  assert(0);
+}
+
 uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n) {
   n = bswap64(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
@@ -81,4 +120,44 @@ uint8_t *ngtcp2_put_uint24be(uint8_t *p, uint32_t n) {
 uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n) {
   n = htons(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
+}
+
+uint8_t *ngtcp2_put_varint(uint8_t *p, uint64_t n) {
+  uint8_t *rv;
+  if (n < 64) {
+    *p++ = (uint8_t)n;
+    return p;
+  }
+  if (n < 16384) {
+    rv = ngtcp2_put_uint16be(p, (uint16_t)n);
+    *p |= 0x40;
+    return rv;
+  }
+  if (n < 1073741824) {
+    rv = ngtcp2_put_uint32be(p, (uint32_t)n);
+    *p |= 0x80;
+    return rv;
+  }
+  assert(n < 4611686018427387904ULL);
+  rv = ngtcp2_put_uint64be(p, n);
+  *p |= 0xc0;
+  return rv;
+}
+
+size_t ngtcp2_get_varint_len(const uint8_t *p) {
+  return varintlen_def[*p >> 6];
+}
+
+size_t ngtcp2_put_varint_len(uint64_t n) {
+  if (n < 64) {
+    return 1;
+  }
+  if (n < 16384) {
+    return 2;
+  }
+  if (n < 1073741824) {
+    return 4;
+  }
+  assert(n < 4611686018427387904ULL);
+  return 8;
 }
