@@ -731,14 +731,14 @@ void test_ngtcp2_pkt_encode_max_data_frame(void) {
 }
 
 void test_ngtcp2_pkt_encode_max_stream_data_frame(void) {
-  uint8_t buf[16];
+  uint8_t buf[17];
   ngtcp2_max_stream_data fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4 + 8;
+  size_t framelen = 1 + 8 + 8;
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
   fr.stream_id = 0xf1f2f3f4u;
-  fr.max_stream_data = 0xf5f6f7f8f9fafbfcllu;
+  fr.max_stream_data = 0x35f6f7f8f9fafbfcllu;
 
   rv = ngtcp2_pkt_encode_max_stream_data_frame(buf, sizeof(buf), &fr);
 
