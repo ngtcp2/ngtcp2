@@ -244,7 +244,7 @@ typedef enum {
   NGTCP2_FRAME_STREAM_ID_BLOCKED = 0x0a,
   NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
   NGTCP2_FRAME_STOP_SENDING = 0x0c,
-  NGTCP2_FRAME_ACK = 0xa0,
+  NGTCP2_FRAME_ACK = 0x0e,
   NGTCP2_FRAME_STREAM = 0x10
 } ngtcp2_frame_type;
 
@@ -297,19 +297,14 @@ typedef struct {
 } ngtcp2_stream;
 
 typedef struct {
+  uint64_t gap;
   uint64_t blklen;
-  uint8_t gap;
 } ngtcp2_ack_blk;
 
 typedef struct {
   uint8_t type;
-  /**
-   * flags of decoded ACK frame.  This gets ignored when encoding ACK
-   * frame.
-   */
-  uint8_t flags;
   uint64_t largest_ack;
-  uint16_t ack_delay;
+  uint64_t ack_delay;
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[1];

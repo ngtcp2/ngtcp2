@@ -257,11 +257,6 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
             (fr->stream.flags >> 3) & 0x3, (fr->stream.flags >> 1) & 0x3,
             fr->stream.flags & 0x1);
     break;
-  case NGTCP2_FRAME_ACK:
-    fprintf(outfile, "(0x%02x) N=0x%02x LL=0x%02x MM=0x%02x\n",
-            fr->type | fr->ack.flags, (fr->ack.flags >> 4) & 0x1,
-            (fr->ack.flags >> 2) & 0x3, fr->ack.flags & 0x3);
-    break;
   default:
     fprintf(outfile, "(0x%02x)\n", fr->type);
   }
@@ -280,7 +275,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_ACK: {
     print_indent();
-    fprintf(outfile, "num_blks=%zu largest_ack=%" PRIu64 " ack_delay=%u\n",
+    fprintf(outfile,
+            "num_blks=%zu largest_ack=%" PRIu64 " ack_delay=%" PRIu64 "\n",
             fr->ack.num_blks, fr->ack.largest_ack, fr->ack.ack_delay);
     print_indent();
     auto largest_ack = fr->ack.largest_ack;
@@ -291,16 +287,16 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     largest_ack = min_ack;
     for (size_t i = 0; i < fr->ack.num_blks; ++i) {
       auto blk = &fr->ack.blks[i];
-      largest_ack -= (uint64_t)blk->gap + 1;
+      largest_ack -= blk->gap + 1;
       if (blk->blklen == 0) {
         print_indent();
-        fprintf(outfile, "gap=%u ack_block_length=%" PRIu64 "\n", blk->gap,
-                blk->blklen);
+        fprintf(outfile, "gap=%" PRIu64 " ack_block_length=%" PRIu64 "\n",
+                blk->gap, blk->blklen);
         continue;
       }
       min_ack = largest_ack - (blk->blklen - 1);
       print_indent();
-      fprintf(outfile, "gap=%u ack_block_length=%" PRIu64 "; [%" PRIu64
+      fprintf(outfile, "gap=%" PRIu64 " ack_block_length=%" PRIu64 "; [%" PRIu64
                        "..%" PRIu64 "]\n",
               blk->gap, blk->blklen, largest_ack, min_ack);
       largest_ack = min_ack;

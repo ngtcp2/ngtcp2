@@ -59,25 +59,25 @@ size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
 }
 
 size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
-                                 uint64_t first_ack_blklen, uint8_t gap,
+                                 uint64_t first_ack_blklen, uint64_t gap,
                                  uint64_t ack_blklen) {
   uint8_t *p = out;
 
   p = out;
 
-  *p++ = 0x1f | NGTCP2_FRAME_ACK;
-  /* Num Blocks */
-  *p++ = 1;
+  *p++ = NGTCP2_FRAME_ACK;
   /* Largest Acknowledged */
-  p = ngtcp2_put_uint64be(p, largest_ack);
+  p = ngtcp2_put_varint(p, largest_ack);
   /* ACK Delay */
-  p = ngtcp2_put_uint16be(p, 0);
-  /* First ACK Block Length */
-  p = ngtcp2_put_uint64be(p, first_ack_blklen);
-  /* Gap 1 */
-  *p++ = gap;
-  /* ACK Block 1 Length */
-  p = ngtcp2_put_uint64be(p, ack_blklen);
+  p = ngtcp2_put_varint(p, 0);
+  /* ACK Block Count */
+  p = ngtcp2_put_varint(p, 1);
+  /* First ACK Block */
+  p = ngtcp2_put_varint(p, first_ack_blklen);
+  /* Gap (1) */
+  p = ngtcp2_put_varint(p, gap);
+  /* Additional ACK Block (1) */
+  p = ngtcp2_put_varint(p, ack_blklen);
 
   return (size_t)(p - out);
 }

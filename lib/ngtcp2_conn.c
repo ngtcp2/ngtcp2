@@ -28,7 +28,6 @@
 #include <assert.h>
 
 #include "ngtcp2_ppe.h"
-#include "ngtcp2_pkt.h"
 #include "ngtcp2_macro.h"
 
 /*

@@ -39,6 +39,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_idtr.h"
 #include "ngtcp2_str.h"
+#include "ngtcp2_pkt.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -96,7 +97,7 @@ typedef union {
   ngtcp2_frame fr;
   struct {
     ngtcp2_ack ack;
-    ngtcp2_ack_blk blks[254];
+    ngtcp2_ack_blk blks[NGTCP2_MAX_ACK_BLKS];
   } ackfr;
 } ngtcp2_max_frame;
 

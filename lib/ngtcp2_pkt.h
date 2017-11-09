@@ -49,21 +49,14 @@
    the beginning of the payload. */
 #define NGTCP2_STREAM_OVERHEAD 15
 
-#define NGTCP2_ACK_N_BIT 0x10
-#define NGTCP2_ACK_LL_MASK 0x0c
-#define NGTCP2_ACK_MM_MASK 0x03
-#define NGTCP2_ACK_LL_00_MASK 0x00
-#define NGTCP2_ACK_LL_01_MASK 0x04
-#define NGTCP2_ACK_LL_02_MASK 0x08
-#define NGTCP2_ACK_LL_03_MASK 0x0c
-#define NGTCP2_ACK_MM_00_MASK 0x00
-#define NGTCP2_ACK_MM_01_MASK 0x01
-#define NGTCP2_ACK_MM_02_MASK 0x02
-#define NGTCP2_ACK_MM_03_MASK 0x03
-
 /* NGTCP2_MAX_VARINT is the maximum value which can be encoded in
    variable-length integer encoding */
 #define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)
+
+/* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
+   blocks which this library can create, or decode. */
+#define NGTCP2_MAX_ACK_BLKS 255
+
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.
  */
