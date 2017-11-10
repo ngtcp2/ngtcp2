@@ -448,9 +448,8 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     return 0;
   }
 
-  fr = ngtcp2_mem_malloc(conn->mem,
-                         sizeof(ngtcp2_ack) +
-                             sizeof(ngtcp2_ack_blk) * (num_blks_max - 1));
+  fr = ngtcp2_mem_malloc(
+      conn->mem, sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_blk) * num_blks_max);
   if (fr == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
@@ -474,7 +473,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     if (initial) {
       initial = 0;
       ack->largest_ack = first_pkt_num;
-      ack->ack_delay = (uint16_t)ack_delay;
+      ack->ack_delay = ack_delay;
       ack->first_ack_blklen = first_pkt_num - last_pkt_num;
     } else {
       blk_idx = ack->num_blks++;
@@ -485,29 +484,21 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
       }
       ack = &fr->ack;
       blk = &ack->blks[blk_idx];
-      blk->gap = (uint8_t)gap;
-      blk->blklen = first_pkt_num - last_pkt_num + 1;
+      blk->gap = gap;
+      blk->blklen = first_pkt_num - last_pkt_num;
     }
 
-    gap = last_pkt_num - (*prpkt)->pkt_num - 1;
-    if (gap > 255) {
-      /* TODO We need to encode next ack in the separate ACK frame or
-         use the trick of 0 length ACK Block Length (not sure it is
-         OK.  Anyway, this implementation will be rewritten soon, so
-         we don't optimize this at the moment. */
-      break;
-    }
-
+    gap = last_pkt_num - (*prpkt)->pkt_num - 2;
     first_pkt_num = last_pkt_num = (*prpkt)->pkt_num;
 
-    if (ack->num_blks == 255) {
+    if (ack->num_blks == NGTCP2_MAX_ACK_BLKS) {
       break;
     }
   }
 
   if (initial) {
     ack->largest_ack = first_pkt_num;
-    ack->ack_delay = (uint16_t)ack_delay;
+    ack->ack_delay = ack_delay;
     ack->first_ack_blklen = first_pkt_num - last_pkt_num;
   } else if (first_pkt_num != last_pkt_num) {
     blk_idx = ack->num_blks++;
@@ -518,8 +509,8 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     }
     ack = &fr->ack;
     blk = &ack->blks[blk_idx];
-    blk->gap = (uint8_t)gap;
-    blk->blklen = first_pkt_num - last_pkt_num + 1;
+    blk->gap = gap;
+    blk->blklen = first_pkt_num - last_pkt_num;
   }
 
   /* TODO Just remove entries which cannot be fit into a single ACK
