@@ -783,9 +783,9 @@ void test_ngtcp2_pkt_validate_ack(void) {
 
   /* gap is too large */
   fr.largest_ack = 250;
-  fr.first_ack_blklen = 0;
+  fr.first_ack_blklen = 1;
   fr.num_blks = 1;
-  fr.blks[0].gap = 251;
+  fr.blks[0].gap = 248;
   fr.blks[0].blklen = 0;
 
   rv = ngtcp2_pkt_validate_ack(&fr);
@@ -796,8 +796,8 @@ void test_ngtcp2_pkt_validate_ack(void) {
   fr.largest_ack = 250;
   fr.first_ack_blklen = 0;
   fr.num_blks = 1;
-  fr.blks[0].gap = 250;
-  fr.blks[0].blklen = 2;
+  fr.blks[0].gap = 248;
+  fr.blks[0].blklen = 1;
 
   rv = ngtcp2_pkt_validate_ack(&fr);
 

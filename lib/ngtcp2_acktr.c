@@ -229,16 +229,9 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
     break;
   }
 
-  largest_ack = min_ack;
-
   for (i = 0; i < fr->num_blks && *pent;) {
-    largest_ack -= (uint64_t)fr->blks[i].gap + 1;
-    if (fr->blks[i].blklen == 0) {
-      ++i;
-      continue;
-    }
-
-    min_ack = largest_ack - (fr->blks[i].blklen - 1);
+    largest_ack = min_ack - fr->blks[i].gap - 2;
+    min_ack = largest_ack - fr->blks[i].blklen;
 
     for (; *pent;) {
       if ((*pent)->pkt_num > largest_ack) {
@@ -251,7 +244,6 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
       acktr_remove(acktr, pent);
     }
 
-    largest_ack = min_ack;
     ++i;
   }
 
@@ -299,16 +291,9 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
     break;
   }
 
-  largest_ack = min_ack;
-
   for (i = 0; i < fr->num_blks && j < nacks;) {
-    largest_ack -= (uint64_t)fr->blks[i].gap + 1;
-    if (fr->blks[i].blklen == 0) {
-      ++i;
-      continue;
-    }
-
-    min_ack = largest_ack - (fr->blks[i].blklen - 1);
+    largest_ack = min_ack - fr->blks[i].gap - 2;
+    min_ack = largest_ack - fr->blks[i].blklen;
 
     for (;;) {
       if (ent->pkt_num > largest_ack) {
@@ -334,7 +319,6 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
       return;
     }
 
-    largest_ack = min_ack;
     ++i;
   }
 }

@@ -1307,33 +1307,20 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
     return NGTCP2_ERR_ACK_FRAME;
   }
 
+  largest_ack -= fr->first_ack_blklen;
+
   for (i = 0; i < fr->num_blks; ++i) {
-    if (fr->blks[i].blklen == 0) {
-      if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
-        /* Edge case */
-        if (largest_ack == fr->blks[i].gap && i == fr->num_blks - 1) {
-          /* Cut the last empty block here, so that we don't have to
-             handle this case later. */
-          --fr->num_blks;
-          break;
-        }
-        return NGTCP2_ERR_ACK_FRAME;
-      }
-      largest_ack -= (uint64_t)fr->blks[i].gap + 1;
-      continue;
-    }
-
-    if (largest_ack < (uint64_t)fr->blks[i].gap + 1) {
+    if (largest_ack < fr->blks[i].gap + 2) {
       return NGTCP2_ERR_ACK_FRAME;
     }
 
-    largest_ack -= (uint64_t)fr->blks[i].gap + 1;
+    largest_ack -= fr->blks[i].gap + 2;
 
-    if (largest_ack < fr->blks[i].blklen - 1) {
+    if (largest_ack < fr->blks[i].blklen) {
       return NGTCP2_ERR_ACK_FRAME;
     }
 
-    largest_ack -= fr->blks[i].blklen - 1;
+    largest_ack -= fr->blks[i].blklen;
   }
 
   return 0;
