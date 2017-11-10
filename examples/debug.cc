@@ -282,24 +282,16 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     auto largest_ack = fr->ack.largest_ack;
     auto min_ack = fr->ack.largest_ack - fr->ack.first_ack_blklen;
     fprintf(outfile,
-            "first_ack_block_length=%" PRIu64 "; [%" PRIu64 "..%" PRIu64 "]\n",
+            "first_ack_block=%" PRIu64 "; [%" PRIu64 "..%" PRIu64 "]\n",
             fr->ack.first_ack_blklen, largest_ack, min_ack);
-    largest_ack = min_ack;
     for (size_t i = 0; i < fr->ack.num_blks; ++i) {
       auto blk = &fr->ack.blks[i];
-      largest_ack -= blk->gap + 1;
-      if (blk->blklen == 0) {
-        print_indent();
-        fprintf(outfile, "gap=%" PRIu64 " ack_block_length=%" PRIu64 "\n",
-                blk->gap, blk->blklen);
-        continue;
-      }
-      min_ack = largest_ack - (blk->blklen - 1);
+      largest_ack = min_ack - blk->gap - 2;
+      min_ack = largest_ack - blk->blklen;
       print_indent();
-      fprintf(outfile, "gap=%" PRIu64 " ack_block_length=%" PRIu64 "; [%" PRIu64
+      fprintf(outfile, "gap=%" PRIu64 " ack_block=%" PRIu64 "; [%" PRIu64
                        "..%" PRIu64 "]\n",
               blk->gap, blk->blklen, largest_ack, min_ack);
-      largest_ack = min_ack;
     }
     break;
   }
