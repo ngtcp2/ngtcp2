@@ -275,14 +275,26 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
-  return conn_new(pconn, conn_id, version, callbacks, settings, user_data, 0);
+  int rv;
+  rv = conn_new(pconn, conn_id, version, callbacks, settings, user_data, 0);
+  if (rv != 0) {
+    return rv;
+  }
+  ngtcp2_idtr_open(&(*pconn)->local_idtr, 0);
+  return 0;
 }
 
 int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
                            uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
-  return conn_new(pconn, conn_id, version, callbacks, settings, user_data, 1);
+  int rv;
+  rv = conn_new(pconn, conn_id, version, callbacks, settings, user_data, 1);
+  if (rv != 0) {
+    return rv;
+  }
+  ngtcp2_idtr_open(&(*pconn)->remote_idtr, 0);
+  return 0;
 }
 
 static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {

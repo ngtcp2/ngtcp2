@@ -30,7 +30,7 @@
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
 
-static uint64_t stream_id_from_id(uint64_t id) { return (id + 1) * 4; }
+static uint64_t stream_id_from_id(uint64_t id) { return id * 4; }
 
 void test_ngtcp2_idtr_open(void) {
   ngtcp2_mem *mem = ngtcp2_mem_default();

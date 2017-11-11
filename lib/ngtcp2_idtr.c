@@ -75,12 +75,7 @@ void ngtcp2_idtr_free(ngtcp2_idtr *idtr) {
  * id_from_stream_id translates |stream_id| to id space used by
  * ngtcp2_idtr.
  */
-static uint64_t id_from_stream_id(uint64_t stream_id) {
-  if (stream_id & 0x03) {
-    return stream_id >> 2;
-  }
-  return (stream_id >> 2) - 1;
-}
+static uint64_t id_from_stream_id(uint64_t stream_id) { return stream_id >> 2; }
 
 int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t stream_id) {
   ngtcp2_idtr_gap *g, **pg;
