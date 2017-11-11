@@ -421,7 +421,7 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr->type == nfr->type);
   CU_ASSERT(fr->ack.largest_ack == nfr->ack.largest_ack);
-  CU_ASSERT(fr->ack.ack_delay = nfr->ack.ack_delay);
+  CU_ASSERT(fr->ack.ack_delay == nfr->ack.ack_delay);
   CU_ASSERT(fr->ack.num_blks == nfr->ack.num_blks);
 
   for (i = 0; i < fr->ack.num_blks; ++i) {
