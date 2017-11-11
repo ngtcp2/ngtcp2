@@ -408,7 +408,8 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
   NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID = 4,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
-  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6
+  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
+  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -418,6 +419,14 @@ typedef enum {
 } ngtcp2_transport_params_type;
 
 #define NGTCP2_MAX_PKT_SIZE 65527
+
+/**
+ * @macro
+ *
+ * NGTCP2_DEFAULT_ACK_DELAY_EXPONENT is a default value of scaling
+ * factor of ACK Delay field in ACK frame.
+ */
+#define NGTCP2_DEFAULT_ACK_DELAY_EXPONENT 3
 
 /**
  * @macro
@@ -445,6 +454,7 @@ typedef struct {
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t ack_delay_exponent;
 } ngtcp2_transport_params;
 
 typedef struct {
@@ -455,6 +465,7 @@ typedef struct {
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t ack_delay_exponent;
 } ngtcp2_settings;
 
 /**

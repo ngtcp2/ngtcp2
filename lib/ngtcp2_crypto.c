@@ -107,6 +107,9 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
     len += 6;
   }
+  if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
+    len += 5;
+  }
 
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -164,6 +167,12 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE);
     p = ngtcp2_put_uint16be(p, 2);
     p = ngtcp2_put_uint16be(p, params->max_packet_size);
+  }
+
+  if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT);
+    p = ngtcp2_put_uint16be(p, 1);
+    *p++ = params->ack_delay_exponent;
   }
 
   assert((size_t)(p - dest) == len);
@@ -309,6 +318,20 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
       p += sizeof(params->stateless_reset_token);
       break;
+    case NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT:
+      flags |= 1u << NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT;
+      if (ngtcp2_get_uint16(p) != 1) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      p += sizeof(uint16_t);
+      if (p == end) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      if (*p > 20) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      params->ack_delay_exponent = *p++;
+      break;
     default:
       /* Ignore unknown parameter */
       valuelen = ngtcp2_get_uint16(p);
@@ -350,6 +373,9 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   }
   if ((flags & (1u << NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE)) == 0) {
     params->max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  }
+  if ((flags & (1u << NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT)) == 0) {
+    params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   }
 
   return 0;

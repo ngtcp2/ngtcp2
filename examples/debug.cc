@@ -463,6 +463,9 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
             util::format_hex(params->stateless_reset_token).c_str());
     break;
   }
+
+  print_indent();
+  fprintf(outfile, "; ack_delay_exponent=%u\n", params->ack_delay_exponent);
 }
 
 void print_stream_data(uint32_t stream_id, const uint8_t *data,

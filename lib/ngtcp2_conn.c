@@ -3526,6 +3526,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   dest->max_packet_size = src->max_packet_size;
   memcpy(dest->stateless_reset_token, src->stateless_reset_token,
          sizeof(dest->stateless_reset_token));
+  dest->ack_delay_exponent = src->ack_delay_exponent;
 }
 
 static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
@@ -3538,6 +3539,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   dest->max_packet_size = src->max_packet_size;
   memcpy(dest->stateless_reset_token, src->stateless_reset_token,
          sizeof(dest->stateless_reset_token));
+  dest->ack_delay_exponent = src->ack_delay_exponent;
 }
 
 int ngtcp2_conn_set_remote_transport_params(
