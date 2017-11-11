@@ -245,7 +245,8 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   (*pconn)->user_data = user_data;
 
   (*pconn)->local_settings = *settings;
-  (*pconn)->max_remote_stream_id = settings->max_stream_id;
+  (*pconn)->unsent_max_remote_stream_id = (*pconn)->max_remote_stream_id =
+      settings->max_stream_id;
   (*pconn)->unsent_max_rx_offset = (*pconn)->max_rx_offset = settings->max_data;
   (*pconn)->server = server;
   (*pconn)->state =
@@ -1500,7 +1501,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   if (!ackfr &&
-      conn->max_remote_stream_id <= conn->local_settings.max_stream_id &&
+      conn->unsent_max_remote_stream_id == conn->max_remote_stream_id &&
       conn->frq == NULL) {
     return 0;
   }
@@ -1571,16 +1572,16 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   /* Write MAX_STREAM_ID after RST_STREAM so that we can extend stream
      ID space in one packet. */
   if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
-      conn->max_remote_stream_id > conn->local_settings.max_stream_id) {
+      conn->unsent_max_remote_stream_id > conn->max_remote_stream_id) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
       return rv;
     }
     nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_ID;
-    nfrc->fr.max_stream_id.max_stream_id = conn->max_remote_stream_id;
+    nfrc->fr.max_stream_id.max_stream_id = conn->unsent_max_remote_stream_id;
     *pfrc = nfrc;
 
-    conn->local_settings.max_stream_id = conn->max_remote_stream_id;
+    conn->max_remote_stream_id = conn->unsent_max_remote_stream_id;
 
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
                               &(*pfrc)->fr);
@@ -2545,7 +2546,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
   local_stream = conn_local_stream(conn, fr->stream_id);
 
-  if (!local_stream && conn->local_settings.max_stream_id < fr->stream_id) {
+  if (!local_stream && conn->max_remote_stream_id < fr->stream_id) {
     return NGTCP2_ERR_STREAM_ID;
   }
 
@@ -3025,8 +3026,8 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
  */
 static int conn_recv_max_stream_id(ngtcp2_conn *conn,
                                    const ngtcp2_max_stream_id *fr) {
-  conn->remote_settings.max_stream_id =
-      ngtcp2_max(conn->remote_settings.max_stream_id, fr->max_stream_id);
+  conn->max_local_stream_id =
+      ngtcp2_max(conn->max_local_stream_id, fr->max_stream_id);
 
   return conn_call_extend_max_stream_id(conn, fr->max_stream_id);
 }
@@ -3251,9 +3252,8 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
     return rv;
   }
 
-  if (conn->remote_settings.max_stream_id > 0) {
-    rv = conn_call_extend_max_stream_id(conn,
-                                        conn->remote_settings.max_stream_id);
+  if (conn->max_local_stream_id > 0) {
+    rv = conn_call_extend_max_stream_id(conn, conn->max_local_stream_id);
     if (rv != 0) {
       return rv;
     }
@@ -3496,7 +3496,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
   dest->initial_max_stream_data = src->max_stream_data;
   dest->initial_max_data = (uint32_t)src->max_data;
-  dest->initial_max_stream_id = (uint32_t)src->max_stream_id;
+  dest->initial_max_stream_id = src->max_stream_id;
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
@@ -3529,6 +3529,7 @@ int ngtcp2_conn_set_remote_transport_params(
 
   settings_copy_from_transport_params(&conn->remote_settings, params);
 
+  conn->max_local_stream_id = conn->remote_settings.max_stream_id;
   conn->max_tx_offset = conn->remote_settings.max_data;
 
   /* TODO Should we check that conn->max_remote_stream_id is larger
@@ -3586,7 +3587,7 @@ int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint64_t stream_id,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (stream_id > conn->remote_settings.max_stream_id) {
+  if (stream_id > conn->max_local_stream_id) {
     return NGTCP2_ERR_STREAM_ID_BLOCKED;
   }
 
@@ -3839,10 +3840,10 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 
   if (!conn_local_stream(conn, strm->stream_id) &&
-      conn->max_remote_stream_id <= NGTCP2_MAX_VARINT - 4 &&
+      conn->unsent_max_remote_stream_id <= NGTCP2_MAX_VARINT - 4 &&
       conn->remote_stream_id_window_start <
           ngtcp2_idtr_first_gap(&conn->remote_idtr)) {
-    conn->max_remote_stream_id += 4;
+    conn->unsent_max_remote_stream_id += 4;
     ++conn->remote_stream_id_window_start;
   }
 

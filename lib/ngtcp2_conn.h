@@ -160,6 +160,10 @@ struct ngtcp2_conn {
      sent last time.*/
   uint64_t last_tx_pkt_num;
   uint64_t max_rx_pkt_num;
+  /* unsent_max_remote_stream_id is the maximum stream ID of peer
+     initiated stream which the local endpoint can accept.  This limit
+     is not yet notified to the remote endpoint. */
+  uint64_t unsent_max_remote_stream_id;
   /* max_remote_stream_id is the maximum stream ID of peer initiated
      stream which the local endpoint can accept. */
   uint64_t max_remote_stream_id;
@@ -172,6 +176,9 @@ struct ngtcp2_conn {
      stream ID window in order to avoid excessive fragmentation in
      ngtcp2_idtr. */
   uint64_t remote_stream_id_window_start;
+  /* max_local_stream_id is the maximum stream ID which the local
+     endpoint can open. */
+  uint64_t max_local_stream_id;
   /* unsent_max_rx_offset is the maximum offset that remote endpoint
      can send without extending MAX_DATA.  This limit is not yet
      notified to the remote endpoint. */
