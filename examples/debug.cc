@@ -252,10 +252,9 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
           strframetype(fr->type).c_str(), ansi_escend());
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
-    fprintf(outfile, "(0x%02x) F=0x%02x SS=0x%02x OO=0x%02x D=0x%02x\n",
-            fr->type | fr->stream.flags, (fr->stream.flags >> 5) & 0x1,
-            (fr->stream.flags >> 3) & 0x3, (fr->stream.flags >> 1) & 0x3,
-            fr->stream.flags & 0x1);
+    fprintf(outfile, "(0x%02x) FIN=%u LEN=%u OFF=%u\n",
+            fr->type | fr->stream.flags, (fr->stream.flags & 0x01) != 0,
+            (fr->stream.flags & 0x02) != 0, (fr->stream.flags & 0x04) != 0);
     break;
   default:
     fprintf(outfile, "(0x%02x)\n", fr->type);
