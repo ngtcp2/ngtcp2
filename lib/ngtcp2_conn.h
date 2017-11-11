@@ -97,7 +97,8 @@ typedef union {
   ngtcp2_frame fr;
   struct {
     ngtcp2_ack ack;
-    ngtcp2_ack_blk blks[NGTCP2_MAX_ACK_BLKS];
+    /* ack includes 1 ngtcp2_ack_blk. */
+    ngtcp2_ack_blk blks[NGTCP2_MAX_ACK_BLKS - 1];
   } ackfr;
 } ngtcp2_max_frame;
 
