@@ -422,7 +422,6 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_tstamp ts) {
   uint64_t first_pkt_num;
-  ngtcp2_tstamp ack_delay;
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
   int initial = 1;
@@ -457,9 +456,11 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ack = &fr->ack;
 
   first_pkt_num = last_pkt_num = (*prpkt)->pkt_num;
-  ack_delay = ts - (*prpkt)->tstamp;
 
   ack->type = NGTCP2_FRAME_ACK;
+  ack->largest_ack = first_pkt_num;
+  ack->ack_delay =
+      (ts - (*prpkt)->tstamp) >> conn->local_settings.ack_delay_exponent;
   ack->num_blks = 0;
 
   prpkt = &(*prpkt)->next;
@@ -472,8 +473,6 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
 
     if (initial) {
       initial = 0;
-      ack->largest_ack = first_pkt_num;
-      ack->ack_delay = ack_delay;
       ack->first_ack_blklen = first_pkt_num - last_pkt_num;
     } else {
       blk_idx = ack->num_blks++;
@@ -497,8 +496,6 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   }
 
   if (initial) {
-    ack->largest_ack = first_pkt_num;
-    ack->ack_delay = ack_delay;
     ack->first_ack_blklen = first_pkt_num - last_pkt_num;
   } else if (first_pkt_num != last_pkt_num) {
     blk_idx = ack->num_blks++;
