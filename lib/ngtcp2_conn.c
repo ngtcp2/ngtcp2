@@ -2548,6 +2548,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   uint64_t rx_offset, fr_end_offset;
   int local_stream;
 
+  /* TODO No unidirectional stream support at the moment */
+  if (fr->stream_id & 0x02) {
+    return NGTCP2_ERR_INTERNAL;
+  }
+
   if (fr->stream_id == 0 && fr->fin) {
     return NGTCP2_ERR_PROTO;
   }
