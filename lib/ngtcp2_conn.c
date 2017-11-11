@@ -2667,7 +2667,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     rx_offset += datalen;
     ngtcp2_rob_remove_prefix(&strm->rob, rx_offset);
 
-    rv = conn_call_recv_stream_data(conn, strm, fr->fin, data, datalen);
+    rv = conn_call_recv_stream_data(conn, strm,
+                                    (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+                                        rx_offset == strm->last_rx_offset,
+                                    data, datalen);
     if (rv != 0) {
       return rv;
     }

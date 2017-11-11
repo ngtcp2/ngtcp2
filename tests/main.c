@@ -167,7 +167,9 @@ int main() {
       !CU_add_test(pSuite, "conn_retransmit_protected",
                    test_ngtcp2_conn_retransmit_protected) ||
       !CU_add_test(pSuite, "conn_send_max_stream_data",
-                   test_ngtcp2_conn_send_max_stream_data)) {
+                   test_ngtcp2_conn_send_max_stream_data) ||
+      !CU_add_test(pSuite, "conn_recv_stream_data",
+                   test_ngtcp2_conn_recv_stream_data)) {
     CU_cleanup_registry();
     return CU_get_error();
   }
