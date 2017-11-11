@@ -2127,7 +2127,7 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
 static void conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                           size_t datalen) {
-  if (strm->unsent_max_rx_offset <= UINT64_MAX - datalen) {
+  if (strm->unsent_max_rx_offset <= NGTCP2_MAX_VARINT - datalen) {
     strm->unsent_max_rx_offset += datalen;
   }
 
@@ -2549,7 +2549,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     return NGTCP2_ERR_STREAM_ID;
   }
 
-  if (UINT64_MAX - fr->datalen < fr->offset) {
+  if (NGTCP2_MAX_VARINT - fr->datalen < fr->offset) {
     return NGTCP2_ERR_PROTO;
   }
 
