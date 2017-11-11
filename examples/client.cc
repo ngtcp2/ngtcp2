@@ -250,7 +250,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       conn_(nullptr),
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      next_stream_id_(1),
+      next_stream_id_(4),
       max_stream_id_(0),
       nstreams_done_(0) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
@@ -1071,7 +1071,7 @@ int Client::start_interactive_input() {
 
   std::cerr << "The stream " << stream_id << " has opened." << std::endl;
 
-  next_stream_id_ += 2;
+  next_stream_id_ += 4;
 
   auto stream = std::make_unique<Stream>(stream_id);
 
@@ -1199,7 +1199,7 @@ int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
   max_stream_id_ = max_stream_id;
 
   if (config.interactive) {
-    if (next_stream_id_ != 1) {
+    if (next_stream_id_ != 4) {
       return 0;
     }
     if (start_interactive_input() != 0) {
@@ -1217,7 +1217,7 @@ int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
       rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
       assert(0 == rv);
 
-      next_stream_id_ += 2;
+      next_stream_id_ += 4;
 
       auto stream = std::make_unique<Stream>(stream_id);
       stream->buffer_file();

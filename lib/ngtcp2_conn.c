@@ -36,9 +36,9 @@
  */
 static int conn_local_stream(ngtcp2_conn *conn, uint32_t stream_id) {
   if (conn->server) {
-    return stream_id % 2 == 0;
+    return stream_id % 2 != 0;
   }
-  return stream_id % 2 != 0;
+  return stream_id % 2 == 0;
 }
 
 static int conn_call_recv_client_initial(ngtcp2_conn *conn) {
@@ -2557,17 +2557,21 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   if (strm == NULL) {
     if (local_stream) {
       rv = ngtcp2_idtr_is_open(&conn->local_idtr, fr->stream_id);
-    } else {
-      rv = ngtcp2_idtr_open(&conn->remote_idtr, fr->stream_id);
-    }
-    if (rv != 0) {
-      if (rv == NGTCP2_ERR_STREAM_IN_USE) {
-        /* TODO The stream has been closed.  This should be responded
-           with RST_STREAM, or simply ignored. */
-        return 0;
+      if (rv != NGTCP2_ERR_STREAM_IN_USE) {
+        return NGTCP2_ERR_PROTO;
       }
-      return rv;
+      /* TODO The stream has been closed.  This should be responded
+         with RST_STREAM, or simply ignored. */
+      return 0;
     }
+
+    rv = ngtcp2_idtr_open(&conn->remote_idtr, fr->stream_id);
+    if (rv == NGTCP2_ERR_STREAM_IN_USE) {
+      /* TODO The stream has been closed.  This should be responded
+         with RST_STREAM, or simply ignored. */
+      return 0;
+    }
+    assert(0 == rv);
 
     strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
     if (strm == NULL) {
@@ -3575,6 +3579,9 @@ int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
   int rv;
   ngtcp2_strm *strm;
 
+  /* TODO No unidirectional stream support at the moment */
+  assert((stream_id & 0x02) == 0);
+
   if (!conn_local_stream(conn, stream_id)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -3832,10 +3839,10 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 
   if (!conn_local_stream(conn, strm->stream_id) &&
-      conn->max_remote_stream_id <= UINT32_MAX - 2 &&
+      conn->max_remote_stream_id <= UINT32_MAX - 4 &&
       conn->remote_stream_id_window_start <
           ngtcp2_idtr_first_gap(&conn->remote_idtr)) {
-    conn->max_remote_stream_id += 2;
+    conn->max_remote_stream_id += 4;
     ++conn->remote_stream_id_window_start;
   }
 
