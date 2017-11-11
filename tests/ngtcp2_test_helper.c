@@ -33,7 +33,7 @@
 #include "ngtcp2_upe.h"
 
 size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
-                                    uint32_t stream_id, uint64_t offset,
+                                    uint64_t stream_id, uint64_t offset,
                                     uint16_t datalen) {
   uint8_t *p = out;
 

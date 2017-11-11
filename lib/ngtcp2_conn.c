@@ -34,7 +34,7 @@
  * conn_local_stream returns nonzero if |stream_id| indicates that it
  * is the stream initiated by local endpoint.
  */
-static int conn_local_stream(ngtcp2_conn *conn, uint32_t stream_id) {
+static int conn_local_stream(ngtcp2_conn *conn, uint64_t stream_id) {
   if (conn->server) {
     return stream_id % 2 != 0;
   }
@@ -169,7 +169,7 @@ static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 static int conn_call_extend_max_stream_id(ngtcp2_conn *conn,
-                                          uint32_t max_stream_id) {
+                                          uint64_t max_stream_id) {
   int rv;
 
   if (!conn->callbacks.extend_max_stream_id) {
@@ -2456,7 +2456,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 }
 
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                            uint32_t stream_id, void *stream_user_data) {
+                            uint64_t stream_id, void *stream_user_data) {
   int rv;
 
   rv = ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE,
@@ -3496,7 +3496,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
   dest->initial_max_stream_data = src->max_stream_data;
   dest->initial_max_data = (uint32_t)src->max_data;
-  dest->initial_max_stream_id = src->max_stream_id;
+  dest->initial_max_stream_id = (uint32_t)src->max_stream_id;
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
@@ -3574,7 +3574,7 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
+int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint64_t stream_id,
                             void *stream_user_data) {
   int rv;
   ngtcp2_strm *strm;
@@ -3613,7 +3613,7 @@ int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
   return 0;
 }
 
-ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id) {
+ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id) {
   ngtcp2_map_entry *me;
 
   me = ngtcp2_map_find(&conn->strms, stream_id);
@@ -3626,7 +3626,7 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id) {
 
 ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
                                  size_t destlen, size_t *pdatalen,
-                                 uint32_t stream_id, uint8_t fin,
+                                 uint64_t stream_id, uint8_t fin,
                                  const uint8_t *data, size_t datalen,
                                  ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
@@ -3839,7 +3839,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 
   if (!conn_local_stream(conn, strm->stream_id) &&
-      conn->max_remote_stream_id <= UINT32_MAX - 4 &&
+      conn->max_remote_stream_id <= NGTCP2_MAX_VARINT - 4 &&
       conn->remote_stream_id_window_start <
           ngtcp2_idtr_first_gap(&conn->remote_idtr)) {
     conn->max_remote_stream_id += 4;
@@ -3904,7 +3904,7 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return conn_stop_sending(conn, strm, app_error_code);
 }
 
-int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint32_t stream_id,
+int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint64_t stream_id,
                                 uint16_t app_error_code) {
   int rv;
   ngtcp2_strm *strm;
@@ -3931,7 +3931,7 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint32_t stream_id,
   return 0;
 }
 
-int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint32_t stream_id,
+int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint64_t stream_id,
                                       uint16_t app_error_code) {
   ngtcp2_strm *strm;
 
@@ -3947,7 +3947,7 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint32_t stream_id,
   return conn_shutdown_stream_write(conn, strm, app_error_code);
 }
 
-int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint32_t stream_id,
+int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint64_t stream_id,
                                      uint16_t app_error_code) {
   ngtcp2_strm *strm;
 
@@ -3963,7 +3963,7 @@ int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint32_t stream_id,
   return conn_shutdown_stream_read(conn, strm, app_error_code);
 }
 
-int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, uint32_t stream_id,
+int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, uint64_t stream_id,
                                          size_t datalen) {
   ngtcp2_strm *strm;
 

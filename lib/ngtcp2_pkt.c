@@ -372,7 +372,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   dest->type = NGTCP2_FRAME_STREAM;
   dest->flags = (uint8_t)(type & ~NGTCP2_FRAME_STREAM);
   dest->fin = (type & NGTCP2_STREAM_FIN_BIT) != 0;
-  dest->stream_id = (uint32_t)ngtcp2_get_varint(&n, p);
+  dest->stream_id = ngtcp2_get_varint(&n, p);
   p += n;
 
   if (type & NGTCP2_STREAM_OFF_BIT) {
@@ -554,7 +554,7 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
   p = payload + 1;
 
   dest->type = NGTCP2_FRAME_RST_STREAM;
-  dest->stream_id = (uint32_t)ngtcp2_get_varint(&n, p);
+  dest->stream_id = ngtcp2_get_varint(&n, p);
   p += n;
   dest->app_error_code = ngtcp2_get_uint16(p);
   p += 2;
@@ -719,7 +719,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
   p = payload + 1;
 
   dest->type = NGTCP2_FRAME_MAX_STREAM_DATA;
-  dest->stream_id = (uint32_t)ngtcp2_get_varint(&n, p);
+  dest->stream_id = ngtcp2_get_varint(&n, p);
   p += n;
   dest->max_stream_data = ngtcp2_get_varint(&n, p);
   p += n;
@@ -750,7 +750,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
   }
 
   dest->type = NGTCP2_FRAME_MAX_STREAM_ID;
-  dest->max_stream_id = (uint32_t)ngtcp2_get_varint(&n, p);
+  dest->max_stream_id = ngtcp2_get_varint(&n, p);
   p += n;
 
   assert((size_t)(p - payload) == len);
@@ -798,7 +798,7 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
   }
 
   dest->type = NGTCP2_FRAME_STREAM_BLOCKED;
-  dest->stream_id = (uint32_t)ngtcp2_get_varint(&n, p);
+  dest->stream_id = ngtcp2_get_varint(&n, p);
   p += n;
 
   assert((size_t)(p - payload) == len);
@@ -869,7 +869,7 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
   }
 
   dest->type = NGTCP2_FRAME_STOP_SENDING;
-  dest->stream_id = (uint32_t)ngtcp2_get_varint(&n, p);
+  dest->stream_id = ngtcp2_get_varint(&n, p);
   p += n;
   dest->app_error_code = ngtcp2_get_uint16(p);
   p += 2;

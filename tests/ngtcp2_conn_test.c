@@ -369,7 +369,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   conn->local_settings.max_stream_id = 12;
 
   for (i = 0; i < 3; ++i) {
-    uint32_t stream_id = (uint32_t)((i + 1) * 4);
+    uint64_t stream_id = (i + 1) * 4;
     fr.type = NGTCP2_FRAME_STREAM;
     fr.stream.flags = 0;
     fr.stream.stream_id = stream_id;
@@ -415,7 +415,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   CU_ASSERT(NULL == conn->fc_strms);
 
   for (i = 0; i < 3; ++i) {
-    uint32_t stream_id = (uint32_t)((i + 1) * 4);
+    uint64_t stream_id = (i + 1) * 4;
     strm = ngtcp2_conn_find_stream(conn, stream_id);
 
     CU_ASSERT(2047 + 1024 == strm->max_rx_offset);

@@ -162,7 +162,7 @@ struct ngtcp2_conn {
   uint64_t max_rx_pkt_num;
   /* max_remote_stream_id is the maximum stream ID of peer initiated
      stream which the local endpoint can accept. */
-  uint32_t max_remote_stream_id;
+  uint64_t max_remote_stream_id;
   /* remote_stream_id_window_start is the left edge of a remote stream
      ID window.  This value is not stream ID.  It is an id space which
      is converted from a stream ID to a continuous integer starting
@@ -171,7 +171,7 @@ struct ngtcp2_conn {
      This value is used to determine when we enlarge the right edge of
      stream ID window in order to avoid excessive fragmentation in
      ngtcp2_idtr. */
-  uint32_t remote_stream_id_window_start;
+  uint64_t remote_stream_id_window_start;
   /* unsent_max_rx_offset is the maximum offset that remote endpoint
      can send without extending MAX_DATA.  This limit is not yet
      notified to the remote endpoint. */
@@ -239,7 +239,7 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
  * |stream_id|.  If no such stream is found, it returns NULL.
  */
-ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id);
+ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id);
 
 /*
  * conn_init_stream initializes |strm|.  Its stream ID is |stream_id|.
@@ -252,7 +252,7 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint32_t stream_id);
  *     Out of memory
  */
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                            uint32_t stream_id, void *stream_user_data);
+                            uint64_t stream_id, void *stream_user_data);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm|.

@@ -219,7 +219,7 @@ auto htp_settings = http_parser_settings{
     nullptr,             // on_chunk_complete
 };
 
-Stream::Stream(uint32_t stream_id)
+Stream::Stream(uint64_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
       tx_stream_offset(0),
@@ -698,7 +698,7 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
+int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
                      const uint8_t *data, size_t datalen, void *user_data,
                      void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -712,7 +712,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
 } // namespace
 
 namespace {
-int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
+int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -724,7 +724,7 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   h->on_stream_close(stream_id);
@@ -1294,7 +1294,7 @@ void Handler::schedule_retransmit() {
   ev_timer_start(loop_, &rttimer_);
 }
 
-int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
+int Handler::recv_stream_data(uint64_t stream_id, uint8_t fin,
                               const uint8_t *data, size_t datalen) {
   int rv;
 
@@ -1353,7 +1353,7 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
-int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                    size_t datalen) {
   int rv;
 
@@ -1380,7 +1380,7 @@ int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
   return 0;
 }
 
-void Handler::on_stream_close(uint32_t stream_id) {
+void Handler::on_stream_close(uint64_t stream_id) {
   if (stream_id == 0) {
     return;
   }

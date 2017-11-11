@@ -73,7 +73,7 @@ Buffer::Buffer(size_t datalen)
     : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
 Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
-Stream::Stream(uint32_t stream_id)
+Stream::Stream(uint64_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
       tx_stream_offset(0),
@@ -354,7 +354,7 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
+int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
                      const uint8_t *data, size_t datalen, void *user_data,
                      void *stream_user_data) {
   if (!config.quiet) {
@@ -367,7 +367,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
 } // namespace
 
 namespace {
-int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
+int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
@@ -401,7 +401,7 @@ int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -412,7 +412,7 @@ int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
 } // namespace
 
 namespace {
-int extend_max_stream_id(ngtcp2_conn *conn, uint32_t max_stream_id,
+int extend_max_stream_id(ngtcp2_conn *conn, uint64_t max_stream_id,
                          void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -823,7 +823,7 @@ int Client::on_write() {
   return 0;
 }
 
-int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
+int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
   size_t ndatalen;
 
   for (;;) {
@@ -1159,7 +1159,7 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
-int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                   size_t datalen) {
   if (stream_id == 0) {
     ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
@@ -1179,7 +1179,7 @@ int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
   return 0;
 }
 
-void Client::on_stream_close(uint32_t stream_id) {
+void Client::on_stream_close(uint64_t stream_id) {
   auto it = streams_.find(stream_id);
 
   if (it == std::end(streams_)) {
@@ -1193,7 +1193,7 @@ void Client::on_stream_close(uint32_t stream_id) {
   streams_.erase(it);
 }
 
-int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
+int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
   int rv;
 
   max_stream_id_ = max_stream_id;

@@ -106,12 +106,12 @@ struct Buffer {
 };
 
 struct Stream {
-  Stream(uint32_t stream_id);
+  Stream(uint64_t stream_id);
   ~Stream();
 
   void buffer_file();
 
-  uint32_t stream_id;
+  uint64_t stream_id;
   std::deque<Buffer> streambuf;
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
@@ -136,7 +136,7 @@ public:
   int tls_handshake();
   int on_read();
   int on_write();
-  int on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data);
+  int on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();
 
@@ -170,10 +170,10 @@ public:
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
-  int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+  int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
-  void on_stream_close(uint32_t stream_id);
-  int on_extend_max_stream_id(uint32_t max_stream_id);
+  void on_stream_close(uint64_t stream_id);
+  int on_extend_max_stream_id(uint64_t max_stream_id);
   int handle_error(int liberr);
 
 private:
@@ -203,10 +203,10 @@ private:
   crypto::Context crypto_ctx_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
-  uint32_t next_stream_id_;
-  uint32_t max_stream_id_;
+  uint64_t next_stream_id_;
+  uint64_t max_stream_id_;
   // nstreams_done_ is the number of streams opened.
-  uint32_t nstreams_done_;
+  uint64_t nstreams_done_;
 };
 
 #endif // CLIENT_H
