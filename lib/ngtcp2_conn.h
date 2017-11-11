@@ -172,26 +172,22 @@ struct ngtcp2_conn {
      stream ID window in order to avoid excessive fragmentation in
      ngtcp2_idtr. */
   uint32_t remote_stream_id_window_start;
-  /* unsent_max_rx_offset_high and unsent_max_rx_offset_low are the
-     maximum offset that remote endpoint can send without extending
-     MAX_DATA.  This limit is not yet notified to the remote
+  /* unsent_max_rx_offset is the maximum offset that remote endpoint
+     can send without extending MAX_DATA.  This limit is not yet
+     notified to the remote endpoint. */
+  uint64_t unsent_max_rx_offset;
+  /* max_rx_offset is the maximum offset that remote endpoint can
+     send. */
+  uint64_t max_rx_offset;
+  /* rx_offset is the cumulative sum of stream data received for this
+     connection. */
+  uint64_t rx_offset;
+  /* tx_offset is the offset the local endpoint has sent to the remote
      endpoint. */
-  uint64_t unsent_max_rx_offset_high;
-  uint32_t unsent_max_rx_offset_low;
-  /* max_rx_offset_high is the maximum offset that remote endpoint can
+  uint64_t tx_offset;
+  /* max_tx_offset is the maximum offset that local endpoint can
      send. */
-  uint64_t max_rx_offset_high;
-  /* rx_offset_high and rx_offset_low are the cumulative sum of stream
-     data received for this connection. */
-  uint64_t rx_offset_high;
-  uint32_t rx_offset_low;
-  /* tx_offset_high and tx_offset_low are the offset the local
-     endpoint has sent to the remote endpoint. */
-  uint64_t tx_offset_high;
-  uint32_t tx_offset_low;
-  /* max_tx_offset_high is the maximum offset that local endpoint can
-     send. */
-  uint64_t max_tx_offset_high;
+  uint64_t max_tx_offset;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
@@ -288,14 +284,5 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                           uint16_t app_error_code);
-
-/*
- * ngtcp2_increment_offset increases offset by |datalen|.  The actual
- * offset passed to this function is (*offset_high) * 1024 +
- * (*offset_low).  If adding datalen results in overflow, this
- * function sets offset to its maximum value.
- */
-void ngtcp2_increment_offset(uint64_t *offset_high, uint32_t *offset_low,
-                             uint64_t datalen);
 
 #endif /* NGTCP2_CONN_H */

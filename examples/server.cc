@@ -782,7 +782,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   ngtcp2_settings settings;
 
   settings.max_stream_data = 256_k;
-  settings.max_data = 1_k;
+  settings.max_data = 1_m;
   settings.max_stream_id = 199;
   settings.idle_timeout = config.timeout;
   settings.omit_connection_id = 0;
