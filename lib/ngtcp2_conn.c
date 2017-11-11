@@ -3495,7 +3495,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
 static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
   dest->initial_max_stream_data = src->max_stream_data;
-  dest->initial_max_data = (uint32_t)src->max_data;
+  dest->initial_max_data = src->max_data;
   dest->initial_max_stream_id = src->max_stream_id;
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
