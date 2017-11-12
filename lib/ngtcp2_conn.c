@@ -1433,8 +1433,8 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
  * be sent.
  */
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
-  return conn->local_settings.max_data / 2 >=
-         conn->max_rx_offset - conn->rx_offset;
+  return conn->local_settings.max_data / 2 <
+         conn->unsent_max_rx_offset - conn->max_rx_offset;
 }
 
 /*
