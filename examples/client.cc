@@ -1041,7 +1041,7 @@ int Client::send_packet() {
     }
   }
 
-  assert(nwrite == sendbuf_.size());
+  assert(static_cast<size_t>(nwrite) == sendbuf_.size());
   sendbuf_.reset();
 
   return NETWORK_ERR_OK;

@@ -1726,7 +1726,7 @@ int Server::send_packet(Address &remote_addr, Buffer &buf) {
     }
   }
 
-  assert(nwrite == buf.size());
+  assert(static_cast<size_t>(nwrite) == buf.size());
   buf.reset();
 
   return NETWORK_ERR_OK;
