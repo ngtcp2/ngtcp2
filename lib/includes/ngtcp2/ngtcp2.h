@@ -175,7 +175,7 @@ typedef struct {
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
 /* NGTCP2_QUIC_V1_SALT is a salt value which is used to derive
-   cleartext secret. */
+   handshake secret. */
 #define NGTCP2_QUIC_V1_SALT                                                    \
   "\xaf\xc8\x24\xec\x5f\xc7\x7e\xca\x1e\x9d\x36\xf3\x7f\xb2\xd4\x65\x18\xc3"   \
   "\x66\x39"

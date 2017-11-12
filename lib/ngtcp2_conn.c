@@ -948,7 +948,7 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       switch (ent->hd.type) {
       case NGTCP2_PKT_INITIAL:
       case NGTCP2_PKT_HANDSHAKE:
-        /* Stop retransmitting cleartext packet after at least one
+        /* Stop retransmitting handshake packet after at least one
            protected packet is received, and decrypted
            successfully. */
         if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {

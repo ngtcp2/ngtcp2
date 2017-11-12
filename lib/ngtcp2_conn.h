@@ -135,7 +135,7 @@ typedef enum {
   NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED = 0x04,
   /* NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT is set when a protected
      packet is received, and decrypted successfully.  This flag is
-     used to stop retransmitting cleartext packets.  It might be
+     used to stop retransmitting handshake packets.  It might be
      replaced with an another mechanism when we implement key
      update. */
   NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT = 0x08,
@@ -208,7 +208,7 @@ struct ngtcp2_conn {
   uint8_t flags;
   int server;
   /* hs_tx_ckm is a cryptographic key, and iv to encrypt handshake
-     cleartext packets. */
+     packets. */
   ngtcp2_crypto_km *hs_tx_ckm;
   /* hs_rx_ckm is a cryptographic key, and iv to decrypt handshake
      packets. */
