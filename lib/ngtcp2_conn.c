@@ -2086,7 +2086,7 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t pktlen) {
 
 /*
  * conn_decrypt_pkt decrypts the data pointed by |pkt| whose length is
- * |pktlen|, and writes cleartext data to the buffer pointed by |dest|
+ * |pktlen|, and writes plaintext data to the buffer pointed by |dest|
  * whose capacity is |destlen|.  The buffer pointed by |ad| is the
  * Additional Data, and its length is |adlen|.  |pkt_num| is used to
  * create a nonce.  |ckm| is the cryptographic key, and iv to use.

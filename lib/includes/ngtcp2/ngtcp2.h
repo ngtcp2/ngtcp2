@@ -894,10 +894,10 @@ typedef struct {
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
   /* hs_encrypt is a callback function which is invoked to encrypt
-     handshake cleartext packets. */
+     handshake packets. */
   ngtcp2_encrypt hs_encrypt;
   /* hs_decrypt is a callback function which is invoked to encrypt
-     handshake cleartext packets. */
+     handshake packets. */
   ngtcp2_decrypt hs_decrypt;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
@@ -1033,8 +1033,8 @@ NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to
- *  encrypt handshake cleartext packets.
+ * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to encrypt
+ *  handshake packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1052,7 +1052,7 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_set_handshake_rx_keys` sets key and iv to decrypt
- * handshake cleartext packets.
+ * handshake packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
