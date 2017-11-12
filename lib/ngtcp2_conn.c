@@ -1311,7 +1311,7 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_write_client_cleartext writes Handshake packet in the buffer
+ * conn_write_client_handshake writes Handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
@@ -1324,14 +1324,14 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_write_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
+static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ngtcp2_tstamp ts) {
   const uint8_t *payload;
   ssize_t payloadlen;
   ngtcp2_buf *tx_buf = &conn->strm0->tx_buf;
 
   if (ngtcp2_buf_len(tx_buf) == 0) {
-    payloadlen = conn->callbacks.send_client_cleartext(
+    payloadlen = conn->callbacks.send_client_handshake(
         conn, NGTCP2_CONN_FLAG_NONE, &payload, conn->user_data);
 
     if (payloadlen < 0) {
@@ -1356,7 +1356,7 @@ static ssize_t conn_write_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_write_server_cleartext writes Handshake packet in the buffer
+ * conn_write_server_handshake writes Handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
@@ -1369,7 +1369,7 @@ static ssize_t conn_write_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
+static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, int initial,
                                            ngtcp2_tstamp ts) {
   uint64_t pkt_num = 0;
@@ -1378,7 +1378,7 @@ static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_buf *tx_buf = &conn->strm0->tx_buf;
 
   if (ngtcp2_buf_len(tx_buf) == 0) {
-    payloadlen = conn->callbacks.send_server_cleartext(
+    payloadlen = conn->callbacks.send_server_handshake(
         conn, NGTCP2_CONN_FLAG_NONE, initial ? &pkt_num : NULL, &payload,
         conn->user_data);
 
@@ -1771,13 +1771,13 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
     break;
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-    nwrite = conn_write_client_cleartext(conn, dest, destlen, ts);
+    nwrite = conn_write_client_handshake(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
     }
     break;
   case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
-    nwrite = conn_write_client_cleartext(conn, dest, destlen, ts);
+    nwrite = conn_write_client_handshake(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
     }
@@ -1789,26 +1789,26 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     break;
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-    nwrite = conn_write_client_cleartext(conn, dest, destlen, ts);
+    nwrite = conn_write_client_handshake(conn, dest, destlen, ts);
     if (nwrite < 0) {
       break;
     }
     break;
   case NGTCP2_CS_SERVER_INITIAL:
-    nwrite = conn_write_server_cleartext(conn, dest, destlen, 1, ts);
+    nwrite = conn_write_server_handshake(conn, dest, destlen, 1, ts);
     if (nwrite < 0) {
       break;
     }
     conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
     break;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    nwrite = conn_write_server_cleartext(conn, dest, destlen, 0, ts);
+    nwrite = conn_write_server_handshake(conn, dest, destlen, 0, ts);
     if (nwrite < 0) {
       break;
     }
     break;
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
-    nwrite = conn_write_server_cleartext(conn, dest, destlen,
+    nwrite = conn_write_server_handshake(conn, dest, destlen,
                                          conn->strm0->tx_offset == 0, ts);
     if (nwrite < 0) {
       break;

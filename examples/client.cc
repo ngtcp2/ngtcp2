@@ -327,7 +327,7 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
 } // namespace
 
 namespace {
-ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
+ssize_t send_client_handshake(ngtcp2_conn *conn, uint32_t flags,
                               const uint8_t **pdest, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -551,7 +551,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
 
   auto callbacks = ngtcp2_conn_callbacks{
       send_client_initial,
-      send_client_cleartext,
+      send_client_handshake,
       nullptr,
       nullptr,
       recv_stream0_data,

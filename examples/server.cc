@@ -572,7 +572,7 @@ int recv_client_initial(ngtcp2_conn *conn, uint64_t conn_id, void *user_data) {
 } // namespace
 
 namespace {
-ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
+ssize_t send_server_handshake(ngtcp2_conn *conn, uint32_t flags,
                               uint64_t *ppkt_num, const uint8_t **pdest,
                               void *user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -762,7 +762,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr,
       nullptr,
       ::recv_client_initial,
-      send_server_cleartext,
+      send_server_handshake,
       recv_stream0_data,
       config.quiet ? nullptr : debug::send_pkt,
       config.quiet ? nullptr : debug::send_frame,

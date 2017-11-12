@@ -692,7 +692,7 @@ typedef ssize_t (*ngtcp2_send_client_initial)(ngtcp2_conn *conn, uint32_t flags,
                                               const uint8_t **pdest,
                                               void *user_data);
 
-typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
+typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 const uint8_t **pdest,
                                                 void *user_data);
@@ -715,7 +715,7 @@ typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
 typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn, uint64_t conn_id,
                                           void *user_data);
 
-typedef ssize_t (*ngtcp2_send_server_cleartext)(ngtcp2_conn *conn,
+typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 uint64_t *ppkt_num,
                                                 const uint8_t **pdest,
@@ -883,9 +883,9 @@ typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
 
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
-  ngtcp2_send_client_cleartext send_client_cleartext;
+  ngtcp2_send_client_handshake send_client_handshake;
   ngtcp2_recv_client_initial recv_client_initial;
-  ngtcp2_send_server_cleartext send_server_cleartext;
+  ngtcp2_send_server_handshake send_server_handshake;
   ngtcp2_recv_stream0_data recv_stream0_data;
   ngtcp2_send_pkt send_pkt;
   ngtcp2_send_frame send_frame;
