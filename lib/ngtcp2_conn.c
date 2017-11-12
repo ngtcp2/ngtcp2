@@ -645,7 +645,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
     ent->hd = hd;
     ngtcp2_rtb_entry_extend_expiry(ent, ts);
 
-    if (hd.type == NGTCP2_PKT_CLIENT_INITIAL) {
+    if (hd.type == NGTCP2_PKT_INITIAL) {
       localfr.type = NGTCP2_FRAME_PADDING;
       localfr.padding.len = ngtcp2_ppe_padding(&ppe);
 
@@ -946,9 +946,8 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
       switch (ent->hd.type) {
-      case NGTCP2_PKT_CLIENT_INITIAL:
-      case NGTCP2_PKT_SERVER_CLEARTEXT:
-      case NGTCP2_PKT_CLIENT_CLEARTEXT:
+      case NGTCP2_PKT_INITIAL:
+      case NGTCP2_PKT_HANDSHAKE:
         /* Stop retransmitting cleartext packet after at least one
            protected packet is received, and decrypted
            successfully. */
@@ -1067,7 +1066,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   /* Encode ACK here */
-  if (type != NGTCP2_PKT_CLIENT_INITIAL && ack_expired) {
+  if (type != NGTCP2_PKT_INITIAL && ack_expired) {
     ackfr = NULL;
     /* TODO Should we retransmit ACK frame? */
     rv = conn_create_ack_frame(conn, &ackfr, ts);
@@ -1101,7 +1100,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   nwrite = ngtcp2_min(ngtcp2_buf_len(tx_buf),
                       ngtcp2_ppe_left(&ppe) - NGTCP2_STREAM_OVERHEAD);
 
-  if (nwrite != ngtcp2_buf_len(tx_buf) && type == NGTCP2_PKT_CLIENT_INITIAL) {
+  if (nwrite != ngtcp2_buf_len(tx_buf) && type == NGTCP2_PKT_INITIAL) {
     rv = NGTCP2_ERR_NOBUF;
     goto fail;
   }
@@ -1140,7 +1139,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     conn->strm0->tx_offset += nwrite;
   }
 
-  if (type == NGTCP2_PKT_CLIENT_INITIAL) {
+  if (type == NGTCP2_PKT_INITIAL) {
     paddingfr.type = NGTCP2_FRAME_PADDING;
     paddingfr.padding.len = ngtcp2_ppe_padding(&ppe);
     if (paddingfr.padding.len > 0) {
@@ -1271,8 +1270,8 @@ fail:
 }
 
 /*
- * conn_write_client_initial writes Client Initial packet in the
- * buffer pointed by |dest| whose length is |destlen|.
+ * conn_write_client_initial writes Initial packet in the buffer
+ * pointed by |dest| whose length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1307,13 +1306,13 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
     conn->last_tx_pkt_num = pkt_num - 1;
   }
 
-  return conn_write_handshake_pkt(conn, dest, destlen,
-                                  NGTCP2_PKT_CLIENT_INITIAL, tx_buf, ts);
+  return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
+                                  tx_buf, ts);
 }
 
 /*
- * conn_write_client_cleartext writes Client Cleartext packet in the
- * buffer pointed by |dest| whose length is |destlen|.
+ * conn_write_client_cleartext writes Handshake packet in the buffer
+ * pointed by |dest| whose length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1345,20 +1344,20 @@ static ssize_t conn_write_client_cleartext(ngtcp2_conn *conn, uint8_t *dest,
       }
 
       return conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                          NGTCP2_PKT_CLIENT_CLEARTEXT, ts);
+                                          NGTCP2_PKT_HANDSHAKE, ts);
     }
 
     ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
     tx_buf->last += payloadlen;
   }
 
-  return conn_write_handshake_pkt(conn, dest, destlen,
-                                  NGTCP2_PKT_CLIENT_CLEARTEXT, tx_buf, ts);
+  return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_HANDSHAKE,
+                                  tx_buf, ts);
 }
 
 /*
- * conn_write_server_cleartext writes Server Cleartext packet in the
- * buffer pointed by |dest| whose length is |destlen|.
+ * conn_write_server_cleartext writes Handshake packet in the buffer
+ * pointed by |dest| whose length is |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1395,7 +1394,7 @@ static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
         return NGTCP2_ERR_TLS_ALERT;
       }
       return conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                          NGTCP2_PKT_SERVER_CLEARTEXT, ts);
+                                          NGTCP2_PKT_HANDSHAKE, ts);
     }
 
     ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
@@ -1407,8 +1406,8 @@ static ssize_t conn_write_server_cleartext(ngtcp2_conn *conn, uint8_t *dest,
     conn->rtb.largest_acked = conn->last_tx_pkt_num;
   }
 
-  return conn_write_handshake_pkt(conn, dest, destlen,
-                                  NGTCP2_PKT_SERVER_CLEARTEXT, tx_buf, ts);
+  return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_HANDSHAKE,
+                                  tx_buf, ts);
 }
 
 /*
@@ -1844,11 +1843,8 @@ ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    nwrite =
-        conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                     conn->server ? NGTCP2_PKT_SERVER_CLEARTEXT
-                                                  : NGTCP2_PKT_CLIENT_CLEARTEXT,
-                                     ts);
+    nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
+                                          NGTCP2_PKT_HANDSHAKE, ts);
     break;
   case NGTCP2_CS_POST_HANDSHAKE:
     nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
@@ -1967,8 +1963,7 @@ static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
  * conn_buffer_protected_pkt buffers a protected packet |pkt| whose
  * length is |pktlen|.  This function is called when a protected
  * packet is received, but the local endpoint has not established
- * cryptographic context (e.g., Client/Server Cleartext packet is
- * lost or delayed).
+ * cryptographic context (e.g., Handshake packet is lost or delayed).
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2257,7 +2252,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   /* TODO What happen if connection ID changes in mid handshake? */
   if (conn->server) {
     switch (hd.type) {
-    case NGTCP2_PKT_CLIENT_INITIAL:
+    case NGTCP2_PKT_INITIAL:
       if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
         conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
         conn->client_conn_id = hd.conn_id;
@@ -2267,14 +2262,14 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         }
       }
       break;
-    case NGTCP2_PKT_CLIENT_CLEARTEXT:
+    case NGTCP2_PKT_HANDSHAKE:
       break;
     default:
       return NGTCP2_ERR_PROTO;
     }
   } else {
     switch (hd.type) {
-    case NGTCP2_PKT_SERVER_CLEARTEXT:
+    case NGTCP2_PKT_HANDSHAKE:
       if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
         if (conn->conn_id != hd.conn_id) {
           return NGTCP2_ERR_PROTO;
@@ -2284,7 +2279,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         conn->conn_id = hd.conn_id;
       }
       break;
-    case NGTCP2_PKT_SERVER_STATELESS_RETRY:
+    case NGTCP2_PKT_RETRY:
       if (conn->strm0->last_rx_offset != 0 || conn->conn_id != hd.conn_id) {
         return NGTCP2_ERR_PROTO;
       }
@@ -2335,8 +2330,8 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
       switch (hd.type) {
-      case NGTCP2_PKT_CLIENT_INITIAL:
-      case NGTCP2_PKT_SERVER_STATELESS_RETRY:
+      case NGTCP2_PKT_INITIAL:
+      case NGTCP2_PKT_RETRY:
         return NGTCP2_ERR_PROTO;
       }
       /* TODO Assume that all packets here are unprotected */
@@ -2346,7 +2341,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       continue;
     case NGTCP2_FRAME_PADDING:
-      if (hd.type == NGTCP2_PKT_SERVER_STATELESS_RETRY) {
+      if (hd.type == NGTCP2_PKT_RETRY) {
         return NGTCP2_ERR_PROTO;
       }
       continue;
@@ -2367,7 +2362,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_FRAME_FORMAT;
     }
 
-    if (hd.type == NGTCP2_PKT_CLIENT_INITIAL && fr->stream.offset != 0) {
+    if (hd.type == NGTCP2_PKT_INITIAL && fr->stream.offset != 0) {
       return NGTCP2_ERR_PROTO;
     }
 
@@ -2430,8 +2425,8 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 
   switch (hd.type) {
-  case NGTCP2_PKT_CLIENT_INITIAL:
-  case NGTCP2_PKT_SERVER_STATELESS_RETRY:
+  case NGTCP2_PKT_INITIAL:
+  case NGTCP2_PKT_RETRY:
     if (ngtcp2_rob_first_gap_offset(&conn->strm0->rob) == 0) {
       return NGTCP2_ERR_PROTO;
     }
@@ -2440,7 +2435,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   conn->max_rx_pkt_num = ngtcp2_max(conn->max_rx_pkt_num, hd.pkt_num);
 
-  if (hd.type == NGTCP2_PKT_SERVER_STATELESS_RETRY) {
+  if (hd.type == NGTCP2_PKT_RETRY) {
     if (handshake_failed) {
       return NGTCP2_ERR_PROTO;
     }
@@ -2925,9 +2920,9 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * conn_recv_delayed_handshake_pkt processes the received handshake
  * packet which is received after handshake completed.  This function
  * does the minimal job, and its purpose is send acknowledgement of
- * this packet to the peer.  We assume that hd->type is one of Client
- * Initial, Client Cleartext, or Server Cleartext.  |ad| and |adlen|
- * is an additional data and its length to decrypt a packet.
+ * this packet to the peer.  We assume that hd->type is one of
+ * Initial, or Handshake.  |ad| and |adlen| is an additional data and
+ * its length to decrypt a packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2955,16 +2950,8 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
   int require_ack = 0;
   ssize_t nwrite;
 
-  if (conn->server) {
-    if (hd->type == NGTCP2_PKT_SERVER_CLEARTEXT) {
-      return NGTCP2_ERR_PROTO;
-    }
-  } else {
-    switch (hd->type) {
-    case NGTCP2_PKT_CLIENT_INITIAL:
-    case NGTCP2_PKT_CLIENT_CLEARTEXT:
-      return NGTCP2_ERR_PROTO;
-    }
+  if (!conn->server && hd->type == NGTCP2_PKT_INITIAL) {
+    return NGTCP2_ERR_PROTO;
   }
 
   rv = conn_ensure_decrypt_buffer(conn, pktlen);
@@ -2998,7 +2985,7 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
 
     switch (fr.type) {
     case NGTCP2_FRAME_ACK:
-      if (hd->type == NGTCP2_PKT_CLIENT_INITIAL) {
+      if (hd->type == NGTCP2_PKT_INITIAL) {
         return NGTCP2_ERR_PROTO;
       }
       rv = conn_recv_ack(conn, &fr.ack, 1);
@@ -3110,9 +3097,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
         return rv;
       }
       return 0;
-    case NGTCP2_PKT_CLIENT_INITIAL:
-    case NGTCP2_PKT_CLIENT_CLEARTEXT:
-    case NGTCP2_PKT_SERVER_CLEARTEXT:
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_HANDSHAKE:
       return conn_recv_delayed_handshake_pkt(conn, &hd, pkt, pktlen, hdpkt,
                                              (size_t)nread, ts);
     default:
@@ -3392,7 +3378,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     return -1;
   }
 
-  if (p->type != NGTCP2_PKT_CLIENT_INITIAL) {
+  if (p->type != NGTCP2_PKT_INITIAL) {
     return -1;
   }
 

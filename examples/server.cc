@@ -584,7 +584,7 @@ ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
 
   auto len = h->read_server_handshake(pdest);
 
-  // If Client Initial does not have complete ClientHello, then drop
+  // If Initial packet does not have complete ClientHello, then drop
   // connection.
   if (ppkt_num && len == 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -1530,7 +1530,7 @@ int Server::on_read() {
       constexpr size_t MIN_PKT_SIZE = 1200;
       if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
         if (!config.quiet) {
-          std::cerr << "Client Initial packet is too short: " << nread << " < "
+          std::cerr << "Initial packet is too short: " << nread << " < "
                     << MIN_PKT_SIZE << std::endl;
         }
         return 0;
@@ -1549,10 +1549,6 @@ int Server::on_read() {
                     << std::endl;
         }
         send_version_negotiation(&hd, &su.sa, addrlen);
-        return 0;
-      }
-
-      if ((buf[0] & 0x7f) != NGTCP2_PKT_CLIENT_INITIAL) {
         return 0;
       }
 

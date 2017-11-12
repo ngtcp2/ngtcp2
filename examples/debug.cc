@@ -75,18 +75,14 @@ std::string strpkttype_long(uint8_t type) {
   switch (type) {
   case NGTCP2_PKT_VERSION_NEGOTIATION:
     return "Version Negotiation";
-  case NGTCP2_PKT_CLIENT_INITIAL:
-    return "Client Initial";
-  case NGTCP2_PKT_SERVER_STATELESS_RETRY:
-    return "Server Stateless Retry";
-  case NGTCP2_PKT_SERVER_CLEARTEXT:
-    return "Server Cleartext";
-  case NGTCP2_PKT_CLIENT_CLEARTEXT:
-    return "Client Cleartext";
+  case NGTCP2_PKT_INITIAL:
+    return "Initial";
+  case NGTCP2_PKT_RETRY:
+    return "Retry";
+  case NGTCP2_PKT_HANDSHAKE:
+    return "Handshake";
   case NGTCP2_PKT_0RTT_PROTECTED:
     return "0-RTT Protected";
-  case NGTCP2_PKT_PUBLIC_RESET:
-    return "Public Reset";
   default:
     return "UNKNOWN";
   }

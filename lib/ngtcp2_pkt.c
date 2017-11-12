@@ -68,12 +68,10 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
   switch (type) {
   case NGTCP2_PKT_VERSION_NEGOTIATION:
-  case NGTCP2_PKT_CLIENT_INITIAL:
-  case NGTCP2_PKT_SERVER_STATELESS_RETRY:
-  case NGTCP2_PKT_SERVER_CLEARTEXT:
-  case NGTCP2_PKT_CLIENT_CLEARTEXT:
+  case NGTCP2_PKT_INITIAL:
+  case NGTCP2_PKT_RETRY:
+  case NGTCP2_PKT_HANDSHAKE:
   case NGTCP2_PKT_0RTT_PROTECTED:
-  case NGTCP2_PKT_PUBLIC_RESET:
     break;
   default:
     return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
