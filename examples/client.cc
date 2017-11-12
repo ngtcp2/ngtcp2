@@ -250,8 +250,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       conn_(nullptr),
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      next_stream_id_(4),
-      max_stream_id_(0),
+      last_stream_id_(0),
       nstreams_done_(0) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
@@ -1057,9 +1056,9 @@ int Client::start_interactive_input() {
   ev_io_set(&stdinrev_, datafd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
-  auto stream_id = next_stream_id_;
+  uint64_t stream_id;
 
-  rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
+  rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1071,7 +1070,7 @@ int Client::start_interactive_input() {
 
   std::cerr << "The stream " << stream_id << " has opened." << std::endl;
 
-  next_stream_id_ += 4;
+  last_stream_id_ = stream_id;
 
   auto stream = std::make_unique<Stream>(stream_id);
 
@@ -1196,10 +1195,8 @@ void Client::on_stream_close(uint64_t stream_id) {
 int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
   int rv;
 
-  max_stream_id_ = max_stream_id;
-
   if (config.interactive) {
-    if (next_stream_id_ != 4) {
+    if (last_stream_id_ != 0) {
       return 0;
     }
     if (start_interactive_input() != 0) {
@@ -1210,14 +1207,16 @@ int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
   }
 
   if (datafd_ != -1) {
-    for (; nstreams_done_ < config.nstreams && next_stream_id_ <= max_stream_id;
-         ++nstreams_done_) {
-      auto stream_id = next_stream_id_;
+    for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
+      uint64_t stream_id;
 
-      rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
-      assert(0 == rv);
+      rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
+      if (rv != 0) {
+        assert(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
+        break;
+      }
 
-      next_stream_id_ += 4;
+      last_stream_id_ = stream_id;
 
       auto stream = std::make_unique<Stream>(stream_id);
       stream->buffer_file();

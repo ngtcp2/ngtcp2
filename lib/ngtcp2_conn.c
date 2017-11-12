@@ -221,11 +221,6 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_strms_insert;
   }
 
-  rv = ngtcp2_idtr_init(&(*pconn)->local_idtr, server, mem);
-  if (rv != 0) {
-    goto fail_local_idtr_init;
-  }
-
   rv = ngtcp2_idtr_init(&(*pconn)->remote_idtr, !server, mem);
   if (rv != 0) {
     goto fail_remote_idtr_init;
@@ -257,8 +252,6 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
 fail_acktr_init:
   ngtcp2_idtr_free(&(*pconn)->remote_idtr);
 fail_remote_idtr_init:
-  ngtcp2_idtr_free(&(*pconn)->local_idtr);
-fail_local_idtr_init:
 fail_strms_insert:
   ngtcp2_map_free(&(*pconn)->strms);
 fail_strms_init:
@@ -280,7 +273,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
   if (rv != 0) {
     return rv;
   }
-  ngtcp2_idtr_open(&(*pconn)->local_idtr, 0);
+  (*pconn)->next_local_stream_id = 4;
   return 0;
 }
 
@@ -294,6 +287,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
     return rv;
   }
   ngtcp2_idtr_open(&(*pconn)->remote_idtr, 0);
+  (*pconn)->next_local_stream_id = 1;
   return 0;
 }
 
@@ -348,7 +342,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_rtb_free(&conn->rtb);
 
   ngtcp2_idtr_free(&conn->remote_idtr);
-  ngtcp2_idtr_free(&conn->local_idtr);
   ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
   ngtcp2_map_free(&conn->strms);
 
@@ -2574,8 +2567,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
-      rv = ngtcp2_idtr_is_open(&conn->local_idtr, fr->stream_id);
-      if (rv != NGTCP2_ERR_STREAM_IN_USE) {
+      if (conn->next_local_stream_id <= fr->stream_id) {
         return NGTCP2_ERR_PROTO;
       }
       /* TODO The stream has been closed.  This should be responded
@@ -2783,9 +2775,7 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
   }
 
   if (local_stream) {
-    /* If RST_STREAM is sent to a stream initiated by local endpoint,
-       conn->local_idtr must indicate that it has opened already, */
-    if (!ngtcp2_idtr_is_open(&conn->local_idtr, fr->stream_id)) {
+    if (conn->next_local_stream_id <= fr->stream_id) {
       return NGTCP2_ERR_PROTO;
     }
   } else if (fr->stream_id > conn->max_remote_stream_id) {
@@ -2840,10 +2830,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   }
 
   if (local_stream) {
-    /* If STOP_SENDING is sent to a stream initiated by local
-       endpoint, conn->local_idtr must indicate that it has opened
-       already, */
-    if (!ngtcp2_idtr_is_open(&conn->local_idtr, fr->stream_id)) {
+    if (conn->next_local_stream_id <= fr->stream_id) {
       return NGTCP2_ERR_PROTO;
     }
   } else if (fr->stream_id > conn->max_remote_stream_id) {
@@ -3595,30 +3582,13 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint64_t stream_id,
+int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint64_t *pstream_id,
                             void *stream_user_data) {
   int rv;
   ngtcp2_strm *strm;
 
-  /* TODO No unidirectional stream support at the moment */
-  assert((stream_id & 0x02) == 0);
-
-  if (!conn_local_stream(conn, stream_id)) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  if (stream_id > conn->max_local_stream_id) {
+  if (conn->next_local_stream_id > conn->max_local_stream_id) {
     return NGTCP2_ERR_STREAM_ID_BLOCKED;
-  }
-
-  strm = ngtcp2_conn_find_stream(conn, stream_id);
-  if (strm != NULL) {
-    return NGTCP2_ERR_STREAM_IN_USE;
-  }
-
-  rv = ngtcp2_idtr_open(&conn->local_idtr, stream_id);
-  if (rv != 0) {
-    return rv;
   }
 
   strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
@@ -3626,10 +3596,14 @@ int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint64_t stream_id,
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = ngtcp2_conn_init_stream(conn, strm, stream_id, stream_user_data);
+  rv = ngtcp2_conn_init_stream(conn, strm, conn->next_local_stream_id,
+                               stream_user_data);
   if (rv != 0) {
     return rv;
   }
+
+  *pstream_id = conn->next_local_stream_id;
+  conn->next_local_stream_id += 4;
 
   return 0;
 }

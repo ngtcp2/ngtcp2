@@ -150,7 +150,6 @@ struct ngtcp2_conn {
   ngtcp2_strm *strm0;
   ngtcp2_map strms;
   ngtcp2_strm *fc_strms;
-  ngtcp2_idtr local_idtr;
   ngtcp2_idtr remote_idtr;
   uint64_t conn_id;
   /* client_conn_id is the connection ID client sent in its Client
@@ -180,6 +179,9 @@ struct ngtcp2_conn {
   /* max_local_stream_id is the maximum stream ID which the local
      endpoint can open. */
   uint64_t max_local_stream_id;
+  /* next_local_stream_id is the stream ID which the local endpoint
+     opens next. */
+  uint64_t next_local_stream_id;
   /* unsent_max_rx_offset is the maximum offset that remote endpoint
      can send without extending MAX_DATA.  This limit is not yet
      notified to the remote endpoint. */

@@ -203,8 +203,7 @@ private:
   crypto::Context crypto_ctx_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
-  uint64_t next_stream_id_;
-  uint64_t max_stream_id_;
+  uint64_t last_stream_id_;
   // nstreams_done_ is the number of streams opened.
   uint64_t nstreams_done_;
 };

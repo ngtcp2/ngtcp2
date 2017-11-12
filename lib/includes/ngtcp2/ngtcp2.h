@@ -1136,8 +1136,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
 /**
  * @function
  *
- * `ngtcp2_conn_open_stream` opens new stream denoted by |stream_id|..
- * The |stream_user_data| is the user data specific to the stream.
+ * `ngtcp2_conn_open_stream` opens new stream.  The |stream_user_data|
+ * is the user data specific to the stream.  The open stream ID is
+ * stored in |*pstream_id|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1146,11 +1147,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
  *     Out of memory
  * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
  *     The remote peer does not allow |stream_id| yet.
- * :enum:`NGTCP2_ERR_STREAM_IN_USE`
- *     The stream has already been opened.
-
  */
-NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint64_t stream_id,
+NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn,
+                                          uint64_t *pstream_id,
                                           void *stream_user_data);
 
 /**
