@@ -67,7 +67,7 @@ int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
   ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
 #endif /* !WORDS_BIGENDIAN */
 
-int derive_cleartext_secret(uint8_t *dest, size_t destlen, uint64_t secret,
+int derive_handshake_secret(uint8_t *dest, size_t destlen, uint64_t secret,
                             const uint8_t *salt, size_t saltlen) {
   Context ctx;
   prf_sha256(ctx);
@@ -76,7 +76,7 @@ int derive_cleartext_secret(uint8_t *dest, size_t destlen, uint64_t secret,
                       sizeof(secret), salt, saltlen, ctx);
 }
 
-int derive_client_cleartext_secret(uint8_t *dest, size_t destlen,
+int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen) {
   static constexpr uint8_t LABEL[] = "QUIC client handshake Secret";
   Context ctx;
@@ -85,7 +85,7 @@ int derive_client_cleartext_secret(uint8_t *dest, size_t destlen,
                                    str_size(LABEL), ctx);
 }
 
-int derive_server_cleartext_secret(uint8_t *dest, size_t destlen,
+int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen) {
   static constexpr uint8_t LABEL[] = "QUIC server handshake Secret";
   Context ctx;

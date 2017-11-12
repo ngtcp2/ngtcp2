@@ -879,25 +879,25 @@ void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
 
 int Handler::recv_client_initial(uint64_t conn_id) {
   int rv;
-  std::array<uint8_t, 32> cleartext_secret, secret;
+  std::array<uint8_t, 32> handshake_secret, secret;
 
-  rv = crypto::derive_cleartext_secret(
-      cleartext_secret.data(), cleartext_secret.size(), conn_id,
+  rv = crypto::derive_handshake_secret(
+      handshake_secret.data(), handshake_secret.size(), conn_id,
       reinterpret_cast<const uint8_t *>(NGTCP2_QUIC_V1_SALT),
       str_size(NGTCP2_QUIC_V1_SALT));
   if (rv != 0) {
-    std::cerr << "crypto::derive_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_handshake_secret() failed" << std::endl;
     return -1;
   }
 
   crypto::prf_sha256(hs_crypto_ctx_);
   crypto::aead_aes_128_gcm(hs_crypto_ctx_);
 
-  rv = crypto::derive_server_cleartext_secret(secret.data(), secret.size(),
-                                              cleartext_secret.data(),
-                                              cleartext_secret.size());
+  rv = crypto::derive_server_handshake_secret(secret.data(), secret.size(),
+                                              handshake_secret.data(),
+                                              handshake_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_server_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_server_handshake_secret() failed" << std::endl;
     return -1;
   }
 
@@ -917,11 +917,11 @@ int Handler::recv_client_initial(uint64_t conn_id) {
   ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
                                     ivlen);
 
-  rv = crypto::derive_client_cleartext_secret(secret.data(), secret.size(),
-                                              cleartext_secret.data(),
-                                              cleartext_secret.size());
+  rv = crypto::derive_client_handshake_secret(secret.data(), secret.size(),
+                                              handshake_secret.data(),
+                                              handshake_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_client_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_client_handshake_secret() failed" << std::endl;
     return -1;
   }
 
