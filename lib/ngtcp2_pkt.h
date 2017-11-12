@@ -283,10 +283,14 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
  * length |payloadlen|.  The result is stored in the object pointed by
  * |dest|.  PING frame must start at payload[0].  This function
  * finishes when it decodes one PING frame, and returns the exact
- * number of bytes read to decode a frame.
+ * number of bytes read to decode a frame if it succeeds, or one of
+ * the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include PING frame.
  */
-size_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
-                                    size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
+                                     size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_blocked_frame decodes BLOCKED frame from

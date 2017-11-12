@@ -1692,6 +1692,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   setup_default_client(&conn);
 
   fr.type = NGTCP2_FRAME_PING;
+  fr.ping.datalen = 0;
+  fr.ping.data = NULL;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
                                   ++pkt_num, &fr);

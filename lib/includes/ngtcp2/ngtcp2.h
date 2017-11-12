@@ -356,7 +356,11 @@ typedef struct {
   uint64_t max_stream_id;
 } ngtcp2_max_stream_id;
 
-typedef struct { uint8_t type; } ngtcp2_ping;
+typedef struct {
+  uint8_t type;
+  size_t datalen;
+  uint8_t *data;
+} ngtcp2_ping;
 
 typedef struct { uint8_t type; } ngtcp2_blocked;
 

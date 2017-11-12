@@ -326,6 +326,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
             fr->max_stream_id.max_stream_id);
     break;
   case NGTCP2_FRAME_PING:
+    print_indent();
+    fprintf(outfile, "length=%zu\n", fr->ping.datalen);
     break;
   case NGTCP2_FRAME_BLOCKED:
     break;
