@@ -225,7 +225,7 @@ typedef enum {
   NGTCP2_PKT_0RTT_PROTECTED = 0x05,
   NGTCP2_PKT_01 = 0x01,
   NGTCP2_PKT_02 = 0x02,
-  NGTCP2_PKT_03 = 0x03,
+  NGTCP2_PKT_03 = 0x03
 } ngtcp2_pkt_type;
 
 typedef enum {
