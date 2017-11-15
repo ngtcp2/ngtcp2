@@ -3047,6 +3047,47 @@ static int conn_recv_pong(ngtcp2_conn *conn, const ngtcp2_pong *fr) {
   return 0;
 }
 
+/*
+ * conn_recv_ping processes the incoming PING frame |fr|.  If |fr| has
+ * non empty data, this function adds PONG frame which contains the
+ * same data to conn->frq.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+static int conn_recv_ping(ngtcp2_conn *conn, const ngtcp2_ping *fr) {
+  void *ptr;
+  uint8_t *p;
+  ngtcp2_frame_chain *frc;
+
+  if (fr->datalen == 0) {
+    return 0;
+  }
+
+  ptr = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_frame_chain) + fr->datalen);
+  if (ptr == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  frc = ptr;
+  ngtcp2_frame_chain_init(frc);
+
+  p = (uint8_t *)ptr + sizeof(ngtcp2_frame_chain);
+  memcpy(p, fr->data, fr->datalen);
+
+  frc->fr.type = NGTCP2_FRAME_PONG;
+  frc->fr.pong.datalen = fr->datalen;
+  frc->fr.pong.data = p;
+
+  frc->next = conn->frq;
+  conn->frq = frc;
+
+  return 0;
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
@@ -3209,6 +3250,12 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       break;
     case NGTCP2_FRAME_MAX_STREAM_ID:
       rv = conn_recv_max_stream_id(conn, &fr->max_stream_id);
+      if (rv != 0) {
+        return rv;
+      }
+      break;
+    case NGTCP2_FRAME_PING:
+      rv = conn_recv_ping(conn, &fr->ping);
       if (rv != 0) {
         return rv;
       }

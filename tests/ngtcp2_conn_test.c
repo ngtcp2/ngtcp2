@@ -2000,3 +2000,58 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_recv_ping(void) {
+  uint8_t buf[1024];
+  ngtcp2_conn *conn;
+  uint64_t pkt_num = 133;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  int rv;
+  uint8_t data[255];
+  size_t i;
+  ngtcp2_frame_chain *frc;
+
+  for (i = 0; i < sizeof(data); ++i) {
+    data[i] = (uint8_t)i;
+  }
+
+  /* Receiving PING frame with non empty data */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+  fr.ping.datalen = 255;
+  fr.ping.data = data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  frc = conn->frq;
+
+  CU_ASSERT(NULL != frc);
+  CU_ASSERT(NGTCP2_FRAME_PONG == frc->fr.type);
+  CU_ASSERT(255 == frc->fr.pong.datalen);
+  CU_ASSERT(0 == memcmp(data, frc->fr.pong.data, 255));
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving PING frame with empty data */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+  fr.ping.datalen = 0;
+  fr.ping.data = NULL;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == conn->frq);
+
+  ngtcp2_conn_del(conn);
+}

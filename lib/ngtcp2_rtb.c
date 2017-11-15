@@ -35,7 +35,7 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
     return NGTCP2_ERR_NOMEM;
   }
 
-  (*pfrc)->next = NULL;
+  ngtcp2_frame_chain_init(*pfrc);
 
   return 0;
 }
@@ -43,6 +43,8 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, frc);
 }
+
+void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) { frc->next = NULL; }
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
