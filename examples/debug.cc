@@ -331,7 +331,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_PING:
     print_indent();
-    fprintf(outfile, "length=%zu\n", fr->ping.datalen);
+    fprintf(outfile, "length=%zu data=%s\n", fr->ping.datalen,
+            util::format_hex(fr->ping.data, fr->ping.datalen).c_str());
     break;
   case NGTCP2_FRAME_BLOCKED:
     break;
@@ -358,7 +359,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_PONG:
     print_indent();
-    fprintf(outfile, "length=%zu\n", fr->pong.datalen);
+    fprintf(outfile, "length=%zu data=%s\n", fr->pong.datalen,
+            util::format_hex(fr->pong.data, fr->pong.datalen).c_str());
     break;
   }
 }
