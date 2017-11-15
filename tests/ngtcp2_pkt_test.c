@@ -792,6 +792,59 @@ void test_ngtcp2_pkt_encode_stop_sending_frame(void) {
   CU_ASSERT(fr.app_error_code == nfr.app_error_code);
 }
 
+void test_ngtcp2_pkt_encode_pong_frame(void) {
+  uint8_t buf[1024];
+  ngtcp2_pong fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+  uint8_t data[255];
+  size_t i;
+
+  for (i = 0; i < sizeof(data); ++i) {
+    data[i] = (uint8_t)i;
+  }
+
+  /* Length == 0 */
+  fr.type = NGTCP2_FRAME_PONG;
+  fr.datalen = 0;
+  fr.data = NULL;
+
+  framelen = 1 + 1;
+
+  rv = ngtcp2_pkt_encode_pong_frame(buf, sizeof(buf), &fr);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_pong_frame(&nfr, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.datalen == nfr.datalen);
+  CU_ASSERT(NULL == nfr.data);
+
+  memset(&nfr, 0, sizeof(nfr));
+
+  /* Nonzero Length */
+  fr.type = NGTCP2_FRAME_PONG;
+  fr.datalen = sizeof(data);
+  fr.data = data;
+
+  framelen = 1 + 1 + sizeof(data);
+
+  rv = ngtcp2_pkt_encode_pong_frame(buf, sizeof(buf), &fr);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_pong_frame(&nfr, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.datalen == nfr.datalen);
+  CU_ASSERT(0 == memcmp(fr.data, nfr.data, fr.datalen));
+
+  memset(&nfr, 0, sizeof(nfr));
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));

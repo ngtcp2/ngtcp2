@@ -3026,6 +3026,27 @@ static int conn_recv_max_stream_id(ngtcp2_conn *conn,
   return conn_call_extend_max_stream_id(conn, fr->max_stream_id);
 }
 
+/*
+ * conn_recv_pong processes the incoming PONG frame |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     PONG frame contains empty data.
+ */
+static int conn_recv_pong(ngtcp2_conn *conn, const ngtcp2_pong *fr) {
+  (void)conn;
+
+  if (fr->datalen == 0) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  /* TODO At the moment, we don't remember the data sent in PING, and
+     no way to validate the returned data. */
+  return 0;
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
@@ -3188,6 +3209,12 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       break;
     case NGTCP2_FRAME_MAX_STREAM_ID:
       rv = conn_recv_max_stream_id(conn, &fr->max_stream_id);
+      if (rv != 0) {
+        return rv;
+      }
+      break;
+    case NGTCP2_FRAME_PONG:
+      rv = conn_recv_pong(conn, &fr->pong);
       if (rv != 0) {
         return rv;
       }

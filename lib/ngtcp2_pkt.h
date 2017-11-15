@@ -362,6 +362,20 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
                                              const uint8_t *payload,
                                              size_t payloadlen);
 /*
+ * ngtcp2_pkt_decode_pong_frame decodes PONG frame from |payload| of
+ * length |payloadlen|.  The result is stored in the object pointed by
+ * |dest|.  PONG frame must start at payload[0].  This function
+ * finishes when it decodes one PONG frame, and returns the exact
+ * number of bytes read to decode a frame if it succeeds, or one of
+ * the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include PONG frame.
+ */
+ssize_t ngtcp2_pkt_decode_pong_frame(ngtcp2_pong *dest, const uint8_t *payload,
+                                     size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -568,6 +582,19 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
  */
 ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
                                              const ngtcp2_stop_sending *fr);
+
+/*
+ * ngtcp2_pkt_encode_pong_frame encodes PONG frame |fr| into the
+ * buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_pong_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_pong *fr);
 
 /*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for

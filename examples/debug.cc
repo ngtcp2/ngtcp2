@@ -133,6 +133,8 @@ std::string strframetype(uint8_t type) {
     return "NEW_CONNECTION_ID";
   case NGTCP2_FRAME_STOP_SENDING:
     return "STOP_SENDING";
+  case NGTCP2_FRAME_PONG:
+    return "PONG";
   case NGTCP2_FRAME_ACK:
     return "ACK";
   case NGTCP2_FRAME_STREAM:
@@ -166,6 +168,8 @@ std::string strerrorcode(uint16_t error_code) {
     return "VERSION_NEGOTIATION_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
+  case NGTCP2_UNSOLICITED_PONG:
+    return "UNSOLICITED_PONG";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "FRAME_ERROR";
@@ -351,6 +355,10 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
             fr->stop_sending.stream_id,
             strapperrorcode(fr->stop_sending.app_error_code).c_str(),
             fr->stop_sending.app_error_code);
+    break;
+  case NGTCP2_FRAME_PONG:
+    print_indent();
+    fprintf(outfile, "length=%zu\n", fr->pong.datalen);
     break;
   }
 }

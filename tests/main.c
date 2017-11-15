@@ -101,6 +101,8 @@ int main() {
                    test_ngtcp2_pkt_encode_new_connection_id_frame) ||
       !CU_add_test(pSuite, "pkt_encode_stop_sending_frame",
                    test_ngtcp2_pkt_encode_stop_sending_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_pong_frame",
+                   test_ngtcp2_pkt_encode_pong_frame) ||
       !CU_add_test(pSuite, "pkt_adjust_pkt_num",
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "pkt_validate_ack", test_ngtcp2_pkt_validate_ack) ||
