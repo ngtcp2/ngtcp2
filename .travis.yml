@@ -15,9 +15,10 @@ addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
+    - llvm-toolchain-trusty-5.0
     packages:
-    - g++-5
-    - clang-3.8
+    - g++-7
+    - clang-5.0
     - autoconf
     - automake
     - autotools-dev
@@ -31,7 +32,7 @@ addons:
     - cmake-data
 before_install:
   - $CC --version
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then  if [ "$CXX" = "g++" ]; then export CXX="g++-5" CC="gcc-5" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++-3.8" CC="clang-3.8"; fi; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then  if [ "$CXX" = "g++" ]; then export CXX="g++-7" CC="gcc-7" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++-5.0" CC="clang-5.0"; fi; fi
   - $CC --version
   - cmake --version
 before_script:
