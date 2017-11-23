@@ -1496,12 +1496,11 @@ Options:
             << config.timeout << R"(
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
-              Default: )"
-            << config.ciphers << R"(
+              Default: )" << config.ciphers << R"(
   --groups=<GROUPS>
               Specify the supported groups.
-              Default: )"
-            << config.groups << R"(
+              Default: )" << config.groups
+            << R"(
   -h, --help  Display this help and exit.
 )";
 }

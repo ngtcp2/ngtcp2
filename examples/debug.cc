@@ -263,8 +263,9 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
     print_indent();
-    fprintf(outfile, "stream_id=0x%016" PRIx64 " fin=%u offset=%" PRIu64
-                     " data_length=%zu\n",
+    fprintf(outfile,
+            "stream_id=0x%016" PRIx64 " fin=%u offset=%" PRIu64
+            " data_length=%zu\n",
             fr->stream.stream_id, fr->stream.fin, fr->stream.offset,
             fr->stream.datalen);
     break;
@@ -288,16 +289,18 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
       largest_ack = min_ack - blk->gap - 2;
       min_ack = largest_ack - blk->blklen;
       print_indent();
-      fprintf(outfile, "gap=%" PRIu64 " ack_block=%" PRIu64 "; [%" PRIu64
-                       "..%" PRIu64 "]\n",
+      fprintf(outfile,
+              "gap=%" PRIu64 " ack_block=%" PRIu64 "; [%" PRIu64 "..%" PRIu64
+              "]\n",
               blk->gap, blk->blklen, largest_ack, min_ack);
     }
     break;
   }
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
-    fprintf(outfile, "stream_id=0x%016" PRIx64
-                     " app_error_code=%s(0x%04x) final_offset=%" PRIu64 "\n",
+    fprintf(outfile,
+            "stream_id=0x%016" PRIx64
+            " app_error_code=%s(0x%04x) final_offset=%" PRIu64 "\n",
             fr->rst_stream.stream_id,
             strapperrorcode(fr->rst_stream.app_error_code).c_str(),
             fr->rst_stream.app_error_code, fr->rst_stream.final_offset);

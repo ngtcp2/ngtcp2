@@ -60,6 +60,6 @@ void hexdump(FILE *out, const uint8_t *src, size_t len);
 
 } // namespace util
 
-} // namespace ngtcp2;
+} // namespace ngtcp2
 
 #endif // UTIL_H

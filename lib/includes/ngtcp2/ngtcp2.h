@@ -364,14 +364,18 @@ typedef struct {
   uint8_t *data;
 } ngtcp2_ping;
 
-typedef struct { uint8_t type; } ngtcp2_blocked;
+typedef struct {
+  uint8_t type;
+} ngtcp2_blocked;
 
 typedef struct {
   uint8_t type;
   uint64_t stream_id;
 } ngtcp2_stream_blocked;
 
-typedef struct { uint8_t type; } ngtcp2_stream_id_blocked;
+typedef struct {
+  uint8_t type;
+} ngtcp2_stream_id_blocked;
 
 typedef struct {
   uint8_t type;

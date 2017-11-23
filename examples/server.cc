@@ -2032,7 +2032,7 @@ void close(Server &s) {
 
   s.close();
 }
-}
+} // namespace
 
 namespace {
 void print_usage() {
@@ -2087,16 +2087,15 @@ Options:
             << config.ciphers << R"(
   --groups=<GROUPS>
               Specify the supported groups.
-              Default: )"
-            << config.groups << R"(
+              Default: )" << config.groups << R"(
   -d, --htdocs=<PATH>
               Specify document root.  If this option is not specified,
               the document root is the current working directory.
   -q, --quiet Suppress debug output.
   --timeout=<T>
               Specify idle timeout in seconds.
-              Default: )"
-            << config.timeout << R"(
+              Default: )" << config.timeout
+            << R"(
   -h, --help  Display this help and exit.
 )";
 }

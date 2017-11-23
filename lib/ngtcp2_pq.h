@@ -39,7 +39,9 @@
 /* "less" function, return nonzero if |lhs| is less than |rhs|. */
 typedef int (*ngtcp2_less)(const void *lhs, const void *rhs);
 
-typedef struct { size_t index; } ngtcp2_pq_entry;
+typedef struct {
+  size_t index;
+} ngtcp2_pq_entry;
 
 typedef struct {
   /* The pointer to the pointer to the item stored */

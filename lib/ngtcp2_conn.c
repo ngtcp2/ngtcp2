@@ -452,8 +452,8 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     return 0;
   }
 
-  fr = ngtcp2_mem_malloc(
-      conn->mem, sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_blk) * num_blks_max);
+  fr = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_ack) +
+                                        sizeof(ngtcp2_ack_blk) * num_blks_max);
   if (fr == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
