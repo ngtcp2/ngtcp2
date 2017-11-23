@@ -40,27 +40,22 @@
 /* NGTCP2_LONG_HEADERLEN is the length of long header */
 #define NGTCP2_LONG_HEADERLEN 17
 
-#define NGTCP2_STREAM_FIN_BIT 0x20
-#define NGTCP2_STREAM_SS_MASK 0x18
-#define NGTCP2_STREAM_OO_MASK 0x06
-#define NGTCP2_STREAM_D_BIT 0x01
+#define NGTCP2_STREAM_FIN_BIT 0x01
+#define NGTCP2_STREAM_LEN_BIT 0x02
+#define NGTCP2_STREAM_OFF_BIT 0x04
 
 /* NGTCP2_STREAM_OVERHEAD is the maximum number of bytes required
    other than payload for STREAM frame.  That is from type field to
    the beginning of the payload. */
 #define NGTCP2_STREAM_OVERHEAD 15
 
-#define NGTCP2_ACK_N_BIT 0x10
-#define NGTCP2_ACK_LL_MASK 0x0c
-#define NGTCP2_ACK_MM_MASK 0x03
-#define NGTCP2_ACK_LL_00_MASK 0x00
-#define NGTCP2_ACK_LL_01_MASK 0x04
-#define NGTCP2_ACK_LL_02_MASK 0x08
-#define NGTCP2_ACK_LL_03_MASK 0x0c
-#define NGTCP2_ACK_MM_00_MASK 0x00
-#define NGTCP2_ACK_MM_01_MASK 0x01
-#define NGTCP2_ACK_MM_02_MASK 0x02
-#define NGTCP2_ACK_MM_03_MASK 0x03
+/* NGTCP2_MAX_VARINT is the maximum value which can be encoded in
+   variable-length integer encoding */
+#define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)
+
+/* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
+   blocks which this library can create, or decode. */
+#define NGTCP2_MAX_ACK_BLKS 255
 
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.
@@ -288,10 +283,14 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
  * length |payloadlen|.  The result is stored in the object pointed by
  * |dest|.  PING frame must start at payload[0].  This function
  * finishes when it decodes one PING frame, and returns the exact
- * number of bytes read to decode a frame.
+ * number of bytes read to decode a frame if it succeeds, or one of
+ * the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include PING frame.
  */
-size_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
-                                    size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
+                                     size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_blocked_frame decodes BLOCKED frame from
@@ -362,6 +361,20 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
                                              const uint8_t *payload,
                                              size_t payloadlen);
+/*
+ * ngtcp2_pkt_decode_pong_frame decodes PONG frame from |payload| of
+ * length |payloadlen|.  The result is stored in the object pointed by
+ * |dest|.  PONG frame must start at payload[0].  This function
+ * finishes when it decodes one PONG frame, and returns the exact
+ * number of bytes read to decode a frame if it succeeds, or one of
+ * the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include PONG frame.
+ */
+ssize_t ngtcp2_pkt_decode_pong_frame(ngtcp2_pong *dest, const uint8_t *payload,
+                                     size_t payloadlen);
+
 /*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
@@ -569,6 +582,19 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
  */
 ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
                                              const ngtcp2_stop_sending *fr);
+
+/*
+ * ngtcp2_pkt_encode_pong_frame encodes PONG frame |fr| into the
+ * buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_pong_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_pong *fr);
 
 /*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for

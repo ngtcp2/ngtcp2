@@ -43,6 +43,7 @@ if(HAVE_CUNIT)
     ngtcp2_idtr_test.c
     ngtcp2_conn_test.c
     ngtcp2_ringbuf_test.c
+    ngtcp2_conv_test.c
     ngtcp2_test_helper.c
   )
 

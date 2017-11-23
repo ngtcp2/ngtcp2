@@ -45,7 +45,7 @@ void test_ngtcp2_upe_encode(void) {
   ssize_t nread;
 
   hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
-  hd.type = NGTCP2_PKT_CLIENT_INITIAL;
+  hd.type = NGTCP2_PKT_INITIAL;
   hd.conn_id = 1000000009;
   hd.pkt_num = 1000000007;
   hd.version = 0xff;

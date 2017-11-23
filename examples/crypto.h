@@ -71,17 +71,17 @@ int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 // for server.  It returns 0 if it succeeds, or -1.
 int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 
-// derive_cleartext_secret dervies cleartext_secret.  |secret| is
+// derive_handshake_secret dervies handshake_secret.  |secret| is
 // client connection ID.
-int derive_cleartext_secret(uint8_t *dest, size_t destlen, uint64_t secret,
+int derive_handshake_secret(uint8_t *dest, size_t destlen, uint64_t secret,
                             const uint8_t *salt, size_t saltlen);
 
-// derive_client_cleartext_secret derives client_cleartext_secret.
-int derive_client_cleartext_secret(uint8_t *dest, size_t destlen,
+// derive_client_handshake_secret derives client_handshake_secret.
+int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen);
 
-// derive_server_cleartext_secret derives server_cleartext_secret.
-int derive_server_cleartext_secret(uint8_t *dest, size_t destlen,
+// derive_server_handshake_secret derives server_handshake_secret.
+int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen);
 
 // hkdf_expand_label derives secret using HDKF-Expand-Label.  It

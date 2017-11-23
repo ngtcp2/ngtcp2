@@ -66,6 +66,11 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem);
  */
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_init initializes |frc|.
+ */
+void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
+
 typedef enum {
   NGTCP2_RTB_FLAG_NONE = 0x00,
   /* NGTCP2_RTB_FLAG_UNPROTECTED indicates that the entry contains

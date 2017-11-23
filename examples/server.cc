@@ -219,7 +219,7 @@ auto htp_settings = http_parser_settings{
     nullptr,             // on_chunk_complete
 };
 
-Stream::Stream(uint32_t stream_id)
+Stream::Stream(uint64_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
       tx_stream_offset(0),
@@ -572,7 +572,7 @@ int recv_client_initial(ngtcp2_conn *conn, uint64_t conn_id, void *user_data) {
 } // namespace
 
 namespace {
-ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
+ssize_t send_server_handshake(ngtcp2_conn *conn, uint32_t flags,
                               uint64_t *ppkt_num, const uint8_t **pdest,
                               void *user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -584,7 +584,7 @@ ssize_t send_server_cleartext(ngtcp2_conn *conn, uint32_t flags,
 
   auto len = h->read_server_handshake(pdest);
 
-  // If Client Initial does not have complete ClientHello, then drop
+  // If Initial packet does not have complete ClientHello, then drop
   // connection.
   if (ppkt_num && len == 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -698,7 +698,7 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
+int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
                      const uint8_t *data, size_t datalen, void *user_data,
                      void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -712,7 +712,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
 } // namespace
 
 namespace {
-int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
+int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -724,7 +724,7 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   h->on_stream_close(stream_id);
@@ -762,7 +762,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr,
       nullptr,
       ::recv_client_initial,
-      send_server_cleartext,
+      send_server_handshake,
       recv_stream0_data,
       config.quiet ? nullptr : debug::send_pkt,
       config.quiet ? nullptr : debug::send_frame,
@@ -782,11 +782,12 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   ngtcp2_settings settings;
 
   settings.max_stream_data = 256_k;
-  settings.max_data = 1_k;
-  settings.max_stream_id = 199;
+  settings.max_data = 1_m;
+  settings.max_stream_id = 400;
   settings.idle_timeout = config.timeout;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(std::begin(settings.stateless_reset_token),
@@ -878,25 +879,25 @@ void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
 
 int Handler::recv_client_initial(uint64_t conn_id) {
   int rv;
-  std::array<uint8_t, 32> cleartext_secret, secret;
+  std::array<uint8_t, 32> handshake_secret, secret;
 
-  rv = crypto::derive_cleartext_secret(
-      cleartext_secret.data(), cleartext_secret.size(), conn_id,
+  rv = crypto::derive_handshake_secret(
+      handshake_secret.data(), handshake_secret.size(), conn_id,
       reinterpret_cast<const uint8_t *>(NGTCP2_QUIC_V1_SALT),
       str_size(NGTCP2_QUIC_V1_SALT));
   if (rv != 0) {
-    std::cerr << "crypto::derive_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_handshake_secret() failed" << std::endl;
     return -1;
   }
 
   crypto::prf_sha256(hs_crypto_ctx_);
   crypto::aead_aes_128_gcm(hs_crypto_ctx_);
 
-  rv = crypto::derive_server_cleartext_secret(secret.data(), secret.size(),
-                                              cleartext_secret.data(),
-                                              cleartext_secret.size());
+  rv = crypto::derive_server_handshake_secret(secret.data(), secret.size(),
+                                              handshake_secret.data(),
+                                              handshake_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_server_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_server_handshake_secret() failed" << std::endl;
     return -1;
   }
 
@@ -916,11 +917,11 @@ int Handler::recv_client_initial(uint64_t conn_id) {
   ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
                                     ivlen);
 
-  rv = crypto::derive_client_cleartext_secret(secret.data(), secret.size(),
-                                              cleartext_secret.data(),
-                                              cleartext_secret.size());
+  rv = crypto::derive_client_handshake_secret(secret.data(), secret.size(),
+                                              handshake_secret.data(),
+                                              handshake_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_client_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_client_handshake_secret() failed" << std::endl;
     return -1;
   }
 
@@ -1293,7 +1294,7 @@ void Handler::schedule_retransmit() {
   ev_timer_start(loop_, &rttimer_);
 }
 
-int Handler::recv_stream_data(uint32_t stream_id, uint8_t fin,
+int Handler::recv_stream_data(uint64_t stream_id, uint8_t fin,
                               const uint8_t *data, size_t datalen) {
   int rv;
 
@@ -1352,7 +1353,7 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
-int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                    size_t datalen) {
   int rv;
 
@@ -1379,7 +1380,7 @@ int Handler::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
   return 0;
 }
 
-void Handler::on_stream_close(uint32_t stream_id) {
+void Handler::on_stream_close(uint64_t stream_id) {
   if (stream_id == 0) {
     return;
   }
@@ -1529,7 +1530,7 @@ int Server::on_read() {
       constexpr size_t MIN_PKT_SIZE = 1200;
       if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
         if (!config.quiet) {
-          std::cerr << "Client Initial packet is too short: " << nread << " < "
+          std::cerr << "Initial packet is too short: " << nread << " < "
                     << MIN_PKT_SIZE << std::endl;
         }
         return 0;
@@ -1548,10 +1549,6 @@ int Server::on_read() {
                     << std::endl;
         }
         send_version_negotiation(&hd, &su.sa, addrlen);
-        return 0;
-      }
-
-      if ((buf[0] & 0x7f) != NGTCP2_PKT_CLIENT_INITIAL) {
         return 0;
       }
 
@@ -1729,7 +1726,7 @@ int Server::send_packet(Address &remote_addr, Buffer &buf) {
     }
   }
 
-  assert(nwrite == buf.size());
+  assert(static_cast<size_t>(nwrite) == buf.size());
   buf.reset();
 
   return NETWORK_ERR_OK;

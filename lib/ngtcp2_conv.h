@@ -78,6 +78,13 @@ uint32_t ngtcp2_get_uint24(const uint8_t *p);
 uint16_t ngtcp2_get_uint16(const uint8_t *p);
 
 /*
+ * ngtcp2_get_varint reads variable-length integer from |p|, and
+ * returns it in host byte order.  The number of bytes read is stored
+ * in |*plen|.
+ */
+uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p);
+
+/*
  * ngtcp2_put_uint64be writes |n| in host byte order in |p| in network
  * byte order.  It returns the one beyond of the last written
  * position.
@@ -111,5 +118,23 @@ uint8_t *ngtcp2_put_uint24be(uint8_t *p, uint32_t n);
  * position.
  */
 uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n);
+
+/*
+ * ngtcp2_put_varint writes |n| in |p| using variable-length integer
+ * encoding.  It returns the one beyond of the last written position.
+ */
+uint8_t *ngtcp2_put_varint(uint8_t *p, uint64_t n);
+
+/*
+ * ngtcp2_get_varint_len returns the required number of bytes to read
+ * variable-length integer starting at |p|.
+ */
+size_t ngtcp2_get_varint_len(const uint8_t *p);
+
+/*
+ * ngtcp2_put_varint_len returns the required number of bytes to
+ * encode |n|.
+ */
+size_t ngtcp2_put_varint_len(uint64_t n);
 
 #endif /* NGTCP2_CONV_H */

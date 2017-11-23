@@ -22,33 +22,15 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CONN_TEST_H
-#define NGTCP2_CONN_TEST_H
+#ifndef NGTCP2_CONV_TEST_H
+#define NGTCP2_CONV_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_conn_stream_open_close(void);
-void test_ngtcp2_conn_stream_rx_flow_control(void);
-void test_ngtcp2_conn_stream_rx_flow_control_error(void);
-void test_ngtcp2_conn_stream_tx_flow_control(void);
-void test_ngtcp2_conn_rx_flow_control(void);
-void test_ngtcp2_conn_rx_flow_control_error(void);
-void test_ngtcp2_conn_tx_flow_control(void);
-void test_ngtcp2_conn_shutdown_stream_write(void);
-void test_ngtcp2_conn_recv_rst_stream(void);
-void test_ngtcp2_conn_recv_stop_sending(void);
-void test_ngtcp2_conn_recv_conn_id_omitted(void);
-void test_ngtcp2_conn_short_pkt_type(void);
-void test_ngtcp2_conn_recv_stateless_reset(void);
-void test_ngtcp2_conn_recv_server_stateless_retry(void);
-void test_ngtcp2_conn_recv_delayed_handshake_pkt(void);
-void test_ngtcp2_conn_recv_max_stream_id(void);
-void test_ngtcp2_conn_handshake_error(void);
-void test_ngtcp2_conn_retransmit_protected(void);
-void test_ngtcp2_conn_send_max_stream_data(void);
-void test_ngtcp2_conn_recv_stream_data(void);
-void test_ngtcp2_conn_recv_ping(void);
+void test_ngtcp2_get_varint(void);
+void test_ngtcp2_get_varint_len(void);
+void test_ngtcp2_put_varint_len(void);
 
-#endif /* NGTCP2_CONN_TEST_H */
+#endif /* NGTCP2_CONV_TEST_H */

@@ -75,18 +75,14 @@ std::string strpkttype_long(uint8_t type) {
   switch (type) {
   case NGTCP2_PKT_VERSION_NEGOTIATION:
     return "Version Negotiation";
-  case NGTCP2_PKT_CLIENT_INITIAL:
-    return "Client Initial";
-  case NGTCP2_PKT_SERVER_STATELESS_RETRY:
-    return "Server Stateless Retry";
-  case NGTCP2_PKT_SERVER_CLEARTEXT:
-    return "Server Cleartext";
-  case NGTCP2_PKT_CLIENT_CLEARTEXT:
-    return "Client Cleartext";
+  case NGTCP2_PKT_INITIAL:
+    return "Initial";
+  case NGTCP2_PKT_RETRY:
+    return "Retry";
+  case NGTCP2_PKT_HANDSHAKE:
+    return "Handshake";
   case NGTCP2_PKT_0RTT_PROTECTED:
     return "0-RTT Protected";
-  case NGTCP2_PKT_PUBLIC_RESET:
-    return "Public Reset";
   default:
     return "UNKNOWN";
   }
@@ -137,6 +133,8 @@ std::string strframetype(uint8_t type) {
     return "NEW_CONNECTION_ID";
   case NGTCP2_FRAME_STOP_SENDING:
     return "STOP_SENDING";
+  case NGTCP2_FRAME_PONG:
+    return "PONG";
   case NGTCP2_FRAME_ACK:
     return "ACK";
   case NGTCP2_FRAME_STREAM:
@@ -170,6 +168,8 @@ std::string strerrorcode(uint16_t error_code) {
     return "VERSION_NEGOTIATION_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
+  case NGTCP2_UNSOLICITED_PONG:
+    return "UNSOLICITED_PONG";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "FRAME_ERROR";
@@ -252,15 +252,9 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
           strframetype(fr->type).c_str(), ansi_escend());
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
-    fprintf(outfile, "(0x%02x) F=0x%02x SS=0x%02x OO=0x%02x D=0x%02x\n",
-            fr->type | fr->stream.flags, (fr->stream.flags >> 5) & 0x1,
-            (fr->stream.flags >> 3) & 0x3, (fr->stream.flags >> 1) & 0x3,
-            fr->stream.flags & 0x1);
-    break;
-  case NGTCP2_FRAME_ACK:
-    fprintf(outfile, "(0x%02x) N=0x%02x LL=0x%02x MM=0x%02x\n",
-            fr->type | fr->ack.flags, (fr->ack.flags >> 4) & 0x1,
-            (fr->ack.flags >> 2) & 0x3, fr->ack.flags & 0x3);
+    fprintf(outfile, "(0x%02x) FIN=%u LEN=%u OFF=%u\n",
+            fr->type | fr->stream.flags, (fr->stream.flags & 0x01) != 0,
+            (fr->stream.flags & 0x02) != 0, (fr->stream.flags & 0x04) != 0);
     break;
   default:
     fprintf(outfile, "(0x%02x)\n", fr->type);
@@ -269,8 +263,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
     print_indent();
-    fprintf(outfile,
-            "stream_id=0x%08x fin=%u offset=%" PRIu64 " data_length=%zu\n",
+    fprintf(outfile, "stream_id=0x%016" PRIx64 " fin=%u offset=%" PRIu64
+                     " data_length=%zu\n",
             fr->stream.stream_id, fr->stream.fin, fr->stream.offset,
             fr->stream.datalen);
     break;
@@ -280,38 +274,30 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_ACK: {
     print_indent();
-    fprintf(outfile, "num_blks=%zu largest_ack=%" PRIu64 " ack_delay=%u\n",
+    fprintf(outfile,
+            "num_blks=%zu largest_ack=%" PRIu64 " ack_delay=%" PRIu64 "\n",
             fr->ack.num_blks, fr->ack.largest_ack, fr->ack.ack_delay);
     print_indent();
     auto largest_ack = fr->ack.largest_ack;
     auto min_ack = fr->ack.largest_ack - fr->ack.first_ack_blklen;
     fprintf(outfile,
-            "first_ack_block_length=%" PRIu64 "; [%" PRIu64 "..%" PRIu64 "]\n",
+            "first_ack_block=%" PRIu64 "; [%" PRIu64 "..%" PRIu64 "]\n",
             fr->ack.first_ack_blklen, largest_ack, min_ack);
-    largest_ack = min_ack;
     for (size_t i = 0; i < fr->ack.num_blks; ++i) {
       auto blk = &fr->ack.blks[i];
-      largest_ack -= (uint64_t)blk->gap + 1;
-      if (blk->blklen == 0) {
-        print_indent();
-        fprintf(outfile, "gap=%u ack_block_length=%" PRIu64 "\n", blk->gap,
-                blk->blklen);
-        continue;
-      }
-      min_ack = largest_ack - (blk->blklen - 1);
+      largest_ack = min_ack - blk->gap - 2;
+      min_ack = largest_ack - blk->blklen;
       print_indent();
-      fprintf(outfile, "gap=%u ack_block_length=%" PRIu64 "; [%" PRIu64
+      fprintf(outfile, "gap=%" PRIu64 " ack_block=%" PRIu64 "; [%" PRIu64
                        "..%" PRIu64 "]\n",
               blk->gap, blk->blklen, largest_ack, min_ack);
-      largest_ack = min_ack;
     }
     break;
   }
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
-    fprintf(outfile,
-            "stream_id=0x%08x app_error_code=%s(0x%04x) final_offset=%" PRIu64
-            "\n",
+    fprintf(outfile, "stream_id=0x%016" PRIx64
+                     " app_error_code=%s(0x%04x) final_offset=%" PRIu64 "\n",
             fr->rst_stream.stream_id,
             strapperrorcode(fr->rst_stream.app_error_code).c_str(),
             fr->rst_stream.app_error_code, fr->rst_stream.final_offset);
@@ -335,20 +321,25 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_MAX_STREAM_DATA:
     print_indent();
-    fprintf(outfile, "stream_id=0x%08x max_stream_data=%" PRIu64 "\n",
+    fprintf(outfile, "stream_id=0x%016" PRIx64 " max_stream_data=%" PRIu64 "\n",
             fr->max_stream_data.stream_id, fr->max_stream_data.max_stream_data);
     break;
   case NGTCP2_FRAME_MAX_STREAM_ID:
     print_indent();
-    fprintf(outfile, "max_stream_id=0x%08x\n", fr->max_stream_id.max_stream_id);
+    fprintf(outfile, "max_stream_id=0x%016" PRIx64 "\n",
+            fr->max_stream_id.max_stream_id);
     break;
   case NGTCP2_FRAME_PING:
+    print_indent();
+    fprintf(outfile, "length=%zu data=%s\n", fr->ping.datalen,
+            util::format_hex(fr->ping.data, fr->ping.datalen).c_str());
     break;
   case NGTCP2_FRAME_BLOCKED:
     break;
   case NGTCP2_FRAME_STREAM_BLOCKED:
     print_indent();
-    fprintf(outfile, "stream_id=0x%08x\n", fr->stream_blocked.stream_id);
+    fprintf(outfile, "stream_id=0x%016" PRIx64 "\n",
+            fr->stream_blocked.stream_id);
     break;
   case NGTCP2_FRAME_STREAM_ID_BLOCKED:
     break;
@@ -361,10 +352,15 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();
-    fprintf(outfile, "stream_id=0x%08x app_error_code=%s(0x%04x)\n",
+    fprintf(outfile, "stream_id=0x%016" PRIx64 " app_error_code=%s(0x%04x)\n",
             fr->stop_sending.stream_id,
             strapperrorcode(fr->stop_sending.app_error_code).c_str(),
             fr->stop_sending.app_error_code);
+    break;
+  case NGTCP2_FRAME_PONG:
+    print_indent();
+    fprintf(outfile, "length=%zu data=%s\n", fr->pong.datalen,
+            util::format_hex(fr->pong.data, fr->pong.datalen).c_str());
     break;
   }
 }
@@ -475,12 +471,16 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
             util::format_hex(params->stateless_reset_token).c_str());
     break;
   }
+
+  print_indent();
+  fprintf(outfile, "; ack_delay_exponent=%u\n", params->ack_delay_exponent);
 }
 
-void print_stream_data(uint32_t stream_id, const uint8_t *data,
+void print_stream_data(uint64_t stream_id, const uint8_t *data,
                        size_t datalen) {
   print_indent();
-  fprintf(outfile, "ordered STREAM data stream_id=0x%08x\n", stream_id);
+  fprintf(outfile, "ordered STREAM data stream_id=0x%016" PRIx64 "\n",
+          stream_id);
   util::hexdump(outfile, data, datalen);
 }
 

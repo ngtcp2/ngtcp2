@@ -41,6 +41,7 @@
 #include "ngtcp2_idtr_test.h"
 #include "ngtcp2_conn_test.h"
 #include "ngtcp2_ringbuf_test.h"
+#include "ngtcp2_conv_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -100,11 +101,16 @@ int main() {
                    test_ngtcp2_pkt_encode_new_connection_id_frame) ||
       !CU_add_test(pSuite, "pkt_encode_stop_sending_frame",
                    test_ngtcp2_pkt_encode_stop_sending_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_pong_frame",
+                   test_ngtcp2_pkt_encode_pong_frame) ||
       !CU_add_test(pSuite, "pkt_adjust_pkt_num",
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "pkt_validate_ack", test_ngtcp2_pkt_validate_ack) ||
       !CU_add_test(pSuite, "pkt_write_stateless_reset",
                    test_ngtcp2_pkt_write_stateless_reset) ||
+      !CU_add_test(pSuite, "get_varint", test_ngtcp2_get_varint) ||
+      !CU_add_test(pSuite, "get_varint_len", test_ngtcp2_get_varint_len) ||
+      !CU_add_test(pSuite, "put_varint_len", test_ngtcp2_put_varint_len) ||
       !CU_add_test(pSuite, "upe_encode", test_ngtcp2_upe_encode) ||
       !CU_add_test(pSuite, "upe_encode_version_negotiation",
                    test_ngtcp2_upe_encode_version_negotiation) ||
@@ -163,7 +169,10 @@ int main() {
       !CU_add_test(pSuite, "conn_retransmit_protected",
                    test_ngtcp2_conn_retransmit_protected) ||
       !CU_add_test(pSuite, "conn_send_max_stream_data",
-                   test_ngtcp2_conn_send_max_stream_data)) {
+                   test_ngtcp2_conn_send_max_stream_data) ||
+      !CU_add_test(pSuite, "conn_recv_stream_data",
+                   test_ngtcp2_conn_recv_stream_data) ||
+      !CU_add_test(pSuite, "conn_recv_ping", test_ngtcp2_conn_recv_ping)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

@@ -73,7 +73,7 @@ Buffer::Buffer(size_t datalen)
     : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
 Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
-Stream::Stream(uint32_t stream_id)
+Stream::Stream(uint64_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
       tx_stream_offset(0),
@@ -250,8 +250,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       conn_(nullptr),
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      next_stream_id_(1),
-      max_stream_id_(0),
+      last_stream_id_(0),
       nstreams_done_(0) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
@@ -328,7 +327,7 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
 } // namespace
 
 namespace {
-ssize_t send_client_cleartext(ngtcp2_conn *conn, uint32_t flags,
+ssize_t send_client_handshake(ngtcp2_conn *conn, uint32_t flags,
                               const uint8_t **pdest, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -354,7 +353,7 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
+int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
                      const uint8_t *data, size_t datalen, void *user_data,
                      void *stream_user_data) {
   if (!config.quiet) {
@@ -367,7 +366,7 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t stream_id, uint8_t fin,
 } // namespace
 
 namespace {
-int acked_stream_data_offset(ngtcp2_conn *conn, uint32_t stream_id,
+int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
@@ -401,7 +400,7 @@ int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -412,7 +411,7 @@ int stream_close(ngtcp2_conn *conn, uint32_t stream_id, uint16_t app_error_code,
 } // namespace
 
 namespace {
-int extend_max_stream_id(ngtcp2_conn *conn, uint32_t max_stream_id,
+int extend_max_stream_id(ngtcp2_conn *conn, uint64_t max_stream_id,
                          void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -552,7 +551,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
 
   auto callbacks = ngtcp2_conn_callbacks{
       send_client_initial,
-      send_client_cleartext,
+      send_client_handshake,
       nullptr,
       nullptr,
       recv_stream0_data,
@@ -579,11 +578,12 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
 
   ngtcp2_settings settings;
   settings.max_stream_data = 256_k;
-  settings.max_data = 1_k;
+  settings.max_data = 1_m;
   settings.max_stream_id = 0;
   settings.idle_timeout = config.timeout;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
 
   rv = ngtcp2_conn_client_new(&conn_, conn_id, version, &callbacks, &settings,
                               this);
@@ -592,24 +592,24 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     return -1;
   }
 
-  std::array<uint8_t, 32> cleartext_secret, secret;
-  rv = crypto::derive_cleartext_secret(
-      cleartext_secret.data(), cleartext_secret.size(), conn_id,
+  std::array<uint8_t, 32> handshake_secret, secret;
+  rv = crypto::derive_handshake_secret(
+      handshake_secret.data(), handshake_secret.size(), conn_id,
       reinterpret_cast<const uint8_t *>(NGTCP2_QUIC_V1_SALT),
       str_size(NGTCP2_QUIC_V1_SALT));
   if (rv != 0) {
-    std::cerr << "crypto::derive_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_handshake_secret() failed" << std::endl;
     return -1;
   }
 
   crypto::prf_sha256(hs_crypto_ctx_);
   crypto::aead_aes_128_gcm(hs_crypto_ctx_);
 
-  rv = crypto::derive_client_cleartext_secret(secret.data(), secret.size(),
-                                              cleartext_secret.data(),
-                                              cleartext_secret.size());
+  rv = crypto::derive_client_handshake_secret(secret.data(), secret.size(),
+                                              handshake_secret.data(),
+                                              handshake_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_client_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_client_handshake_secret() failed" << std::endl;
     return -1;
   }
 
@@ -630,11 +630,11 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
                                     ivlen);
 
-  rv = crypto::derive_server_cleartext_secret(secret.data(), secret.size(),
-                                              cleartext_secret.data(),
-                                              cleartext_secret.size());
+  rv = crypto::derive_server_handshake_secret(secret.data(), secret.size(),
+                                              handshake_secret.data(),
+                                              handshake_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_server_cleartext_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_server_handshake_secret() failed" << std::endl;
     return -1;
   }
 
@@ -822,7 +822,7 @@ int Client::on_write() {
   return 0;
 }
 
-int Client::on_write_stream(uint32_t stream_id, uint8_t fin, Buffer &data) {
+int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
   size_t ndatalen;
 
   for (;;) {
@@ -1041,7 +1041,7 @@ int Client::send_packet() {
     }
   }
 
-  assert(nwrite == sendbuf_.size());
+  assert(static_cast<size_t>(nwrite) == sendbuf_.size());
   sendbuf_.reset();
 
   return NETWORK_ERR_OK;
@@ -1056,9 +1056,9 @@ int Client::start_interactive_input() {
   ev_io_set(&stdinrev_, datafd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
-  auto stream_id = next_stream_id_;
+  uint64_t stream_id;
 
-  rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
+  rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1070,7 +1070,7 @@ int Client::start_interactive_input() {
 
   std::cerr << "The stream " << stream_id << " has opened." << std::endl;
 
-  next_stream_id_ += 2;
+  last_stream_id_ = stream_id;
 
   auto stream = std::make_unique<Stream>(stream_id);
 
@@ -1158,7 +1158,7 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
-int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                   size_t datalen) {
   if (stream_id == 0) {
     ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
@@ -1178,7 +1178,7 @@ int Client::remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
   return 0;
 }
 
-void Client::on_stream_close(uint32_t stream_id) {
+void Client::on_stream_close(uint64_t stream_id) {
   auto it = streams_.find(stream_id);
 
   if (it == std::end(streams_)) {
@@ -1192,13 +1192,11 @@ void Client::on_stream_close(uint32_t stream_id) {
   streams_.erase(it);
 }
 
-int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
+int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
   int rv;
 
-  max_stream_id_ = max_stream_id;
-
   if (config.interactive) {
-    if (next_stream_id_ != 1) {
+    if (last_stream_id_ != 0) {
       return 0;
     }
     if (start_interactive_input() != 0) {
@@ -1209,14 +1207,16 @@ int Client::on_extend_max_stream_id(uint32_t max_stream_id) {
   }
 
   if (datafd_ != -1) {
-    for (; nstreams_done_ < config.nstreams && next_stream_id_ <= max_stream_id;
-         ++nstreams_done_) {
-      auto stream_id = next_stream_id_;
+    for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
+      uint64_t stream_id;
 
-      rv = ngtcp2_conn_open_stream(conn_, stream_id, nullptr);
-      assert(0 == rv);
+      rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
+      if (rv != 0) {
+        assert(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
+        break;
+      }
 
-      next_stream_id_ += 2;
+      last_stream_id_ = stream_id;
 
       auto stream = std::make_unique<Stream>(stream_id);
       stream->buffer_file();

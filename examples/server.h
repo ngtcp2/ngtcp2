@@ -102,7 +102,7 @@ enum {
 };
 
 struct Stream {
-  Stream(uint32_t stream_id);
+  Stream(uint64_t stream_id);
   ~Stream();
 
   int recv_data(uint8_t fin, const uint8_t *data, size_t datalen);
@@ -115,7 +115,7 @@ struct Stream {
   void send_redirect_response(unsigned int status_code,
                               const std::string &path);
 
-  uint32_t stream_id;
+  uint64_t stream_id;
   std::deque<Buffer> streambuf;
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
@@ -195,14 +195,14 @@ public:
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;
-  int recv_stream_data(uint32_t stream_id, uint8_t fin, const uint8_t *data,
+  int recv_stream_data(uint64_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
   uint64_t conn_id() const;
   uint64_t client_conn_id() const;
   uint32_t version() const;
-  int remove_tx_stream_data(uint32_t stream_id, uint64_t offset,
+  int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
-  void on_stream_close(uint32_t stream_id);
+  void on_stream_close(uint64_t stream_id);
   int start_drain_period(int liberror);
   int handle_error(int liberror);
   int send_conn_close();

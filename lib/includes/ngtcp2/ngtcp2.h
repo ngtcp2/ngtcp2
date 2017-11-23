@@ -175,7 +175,7 @@ typedef struct {
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
 /* NGTCP2_QUIC_V1_SALT is a salt value which is used to derive
-   cleartext secret. */
+   handshake secret. */
 #define NGTCP2_QUIC_V1_SALT                                                    \
   "\xaf\xc8\x24\xec\x5f\xc7\x7e\xca\x1e\x9d\x36\xf3\x7f\xb2\xd4\x65\x18\xc3"   \
   "\x66\x39"
@@ -219,15 +219,13 @@ typedef enum {
 
 typedef enum {
   NGTCP2_PKT_VERSION_NEGOTIATION = 0x01,
-  NGTCP2_PKT_CLIENT_INITIAL = 0x02,
-  NGTCP2_PKT_SERVER_STATELESS_RETRY = 0x03,
-  NGTCP2_PKT_SERVER_CLEARTEXT = 0x04,
-  NGTCP2_PKT_CLIENT_CLEARTEXT = 0x05,
-  NGTCP2_PKT_0RTT_PROTECTED = 0x06,
-  NGTCP2_PKT_PUBLIC_RESET = 0x09,
+  NGTCP2_PKT_INITIAL = 0x02,
+  NGTCP2_PKT_RETRY = 0x03,
+  NGTCP2_PKT_HANDSHAKE = 0x04,
+  NGTCP2_PKT_0RTT_PROTECTED = 0x05,
   NGTCP2_PKT_01 = 0x01,
   NGTCP2_PKT_02 = 0x02,
-  NGTCP2_PKT_03 = 0x03,
+  NGTCP2_PKT_03 = 0x03
 } ngtcp2_pkt_type;
 
 typedef enum {
@@ -244,8 +242,9 @@ typedef enum {
   NGTCP2_FRAME_STREAM_ID_BLOCKED = 0x0a,
   NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
   NGTCP2_FRAME_STOP_SENDING = 0x0c,
-  NGTCP2_FRAME_ACK = 0xa0,
-  NGTCP2_FRAME_STREAM = 0xc0
+  NGTCP2_FRAME_PONG = 0x0d,
+  NGTCP2_FRAME_ACK = 0x0e,
+  NGTCP2_FRAME_STREAM = 0x10
 } ngtcp2_frame_type;
 
 typedef enum {
@@ -258,7 +257,8 @@ typedef enum {
   NGTCP2_FRAME_FORMAT_ERROR = 0x7u,
   NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
   NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
-  NGTCP2_PROTOCOL_VIOLATION = 0xau
+  NGTCP2_PROTOCOL_VIOLATION = 0xau,
+  NGTCP2_UNSOLICITED_PONG = 0xb
 } ngtcp2_transport_error;
 
 typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
@@ -290,26 +290,21 @@ typedef struct {
    */
   uint8_t flags;
   uint8_t fin;
-  uint32_t stream_id;
+  uint64_t stream_id;
   uint64_t offset;
   size_t datalen;
   const uint8_t *data;
 } ngtcp2_stream;
 
 typedef struct {
+  uint64_t gap;
   uint64_t blklen;
-  uint8_t gap;
 } ngtcp2_ack_blk;
 
 typedef struct {
   uint8_t type;
-  /**
-   * flags of decoded ACK frame.  This gets ignored when encoding ACK
-   * frame.
-   */
-  uint8_t flags;
   uint64_t largest_ack;
-  uint16_t ack_delay;
+  uint64_t ack_delay;
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[1];
@@ -325,7 +320,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint32_t stream_id;
+  uint64_t stream_id;
   uint16_t app_error_code;
   uint64_t final_offset;
 } ngtcp2_rst_stream;
@@ -354,22 +349,26 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint32_t stream_id;
+  uint64_t stream_id;
   uint64_t max_stream_data;
 } ngtcp2_max_stream_data;
 
 typedef struct {
   uint8_t type;
-  uint32_t max_stream_id;
+  uint64_t max_stream_id;
 } ngtcp2_max_stream_id;
 
-typedef struct { uint8_t type; } ngtcp2_ping;
+typedef struct {
+  uint8_t type;
+  size_t datalen;
+  uint8_t *data;
+} ngtcp2_ping;
 
 typedef struct { uint8_t type; } ngtcp2_blocked;
 
 typedef struct {
   uint8_t type;
-  uint32_t stream_id;
+  uint64_t stream_id;
 } ngtcp2_stream_blocked;
 
 typedef struct { uint8_t type; } ngtcp2_stream_id_blocked;
@@ -383,9 +382,15 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint32_t stream_id;
+  uint64_t stream_id;
   uint16_t app_error_code;
 } ngtcp2_stop_sending;
+
+typedef struct {
+  uint8_t type;
+  size_t datalen;
+  uint8_t *data;
+} ngtcp2_pong;
 
 typedef union {
   uint8_t type;
@@ -404,6 +409,7 @@ typedef union {
   ngtcp2_stream_id_blocked stream_id_blocked;
   ngtcp2_new_connection_id new_connection_id;
   ngtcp2_stop_sending stop_sending;
+  ngtcp2_pong pong;
 } ngtcp2_frame;
 
 typedef enum {
@@ -413,7 +419,8 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
   NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID = 4,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
-  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6
+  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
+  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -423,6 +430,14 @@ typedef enum {
 } ngtcp2_transport_params_type;
 
 #define NGTCP2_MAX_PKT_SIZE 65527
+
+/**
+ * @macro
+ *
+ * NGTCP2_DEFAULT_ACK_DELAY_EXPONENT is a default value of scaling
+ * factor of ACK Delay field in ACK frame.
+ */
+#define NGTCP2_DEFAULT_ACK_DELAY_EXPONENT 3
 
 /**
  * @macro
@@ -450,6 +465,7 @@ typedef struct {
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t ack_delay_exponent;
 } ngtcp2_transport_params;
 
 typedef struct {
@@ -460,6 +476,7 @@ typedef struct {
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t ack_delay_exponent;
 } ngtcp2_settings;
 
 /**
@@ -688,7 +705,7 @@ typedef ssize_t (*ngtcp2_send_client_initial)(ngtcp2_conn *conn, uint32_t flags,
                                               const uint8_t **pdest,
                                               void *user_data);
 
-typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
+typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 const uint8_t **pdest,
                                                 void *user_data);
@@ -711,7 +728,7 @@ typedef ssize_t (*ngtcp2_send_client_cleartext)(ngtcp2_conn *conn,
 typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn, uint64_t conn_id,
                                           void *user_data);
 
-typedef ssize_t (*ngtcp2_send_server_cleartext)(ngtcp2_conn *conn,
+typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
                                                 uint32_t flags,
                                                 uint64_t *ppkt_num,
                                                 const uint8_t **pdest,
@@ -830,12 +847,12 @@ typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
                                   size_t noncelen, const uint8_t *ad,
                                   size_t adlen, void *user_data);
 
-typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t stream_id,
+typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint64_t stream_id,
                                        uint8_t fin, const uint8_t *data,
                                        size_t datalen, void *user_data,
                                        void *stream_user_data);
 
-typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t stream_id,
+typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint64_t stream_id,
                                    uint16_t app_error_code, void *user_data,
                                    void *stream_user_data);
 /*
@@ -851,7 +868,7 @@ typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t stream_id,
  * callback is invoked with 0 passed as |datalen|.
  */
 typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
-                                               uint32_t stream_id,
+                                               uint64_t stream_id,
                                                uint64_t offset, size_t datalen,
                                                void *user_data,
                                                void *stream_user_data);
@@ -874,14 +891,14 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
  * immediately.
  */
 typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
-                                           uint32_t max_stream_id,
+                                           uint64_t max_stream_id,
                                            void *user_data);
 
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
-  ngtcp2_send_client_cleartext send_client_cleartext;
+  ngtcp2_send_client_handshake send_client_handshake;
   ngtcp2_recv_client_initial recv_client_initial;
-  ngtcp2_send_server_cleartext send_server_cleartext;
+  ngtcp2_send_server_handshake send_server_handshake;
   ngtcp2_recv_stream0_data recv_stream0_data;
   ngtcp2_send_pkt send_pkt;
   ngtcp2_send_frame send_frame;
@@ -890,10 +907,10 @@ typedef struct {
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
   /* hs_encrypt is a callback function which is invoked to encrypt
-     handshake cleartext packets. */
+     handshake packets. */
   ngtcp2_encrypt hs_encrypt;
   /* hs_decrypt is a callback function which is invoked to encrypt
-     handshake cleartext packets. */
+     handshake packets. */
   ngtcp2_decrypt hs_decrypt;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
@@ -1029,8 +1046,8 @@ NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to
- *  encrypt handshake cleartext packets.
+ * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to encrypt
+ *  handshake packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1048,7 +1065,7 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_set_handshake_rx_keys` sets key and iv to decrypt
- * handshake cleartext packets.
+ * handshake packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1130,8 +1147,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
 /**
  * @function
  *
- * `ngtcp2_conn_open_stream` opens new stream denoted by |stream_id|..
- * The |stream_user_data| is the user data specific to the stream.
+ * `ngtcp2_conn_open_stream` opens new stream.  The |stream_user_data|
+ * is the user data specific to the stream.  The open stream ID is
+ * stored in |*pstream_id|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1140,11 +1158,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
  *     Out of memory
  * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
  *     The remote peer does not allow |stream_id| yet.
- * :enum:`NGTCP2_ERR_STREAM_IN_USE`
- *     The stream has already been opened.
-
  */
-NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
+NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn,
+                                          uint64_t *pstream_id,
                                           void *stream_user_data);
 
 /**
@@ -1171,7 +1187,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint32_t stream_id,
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
-                                              uint32_t stream_id,
+                                              uint64_t stream_id,
                                               uint16_t app_error_code);
 
 /**
@@ -1196,7 +1212,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
-                                                    uint32_t stream_id,
+                                                    uint64_t stream_id,
                                                     uint16_t app_error_code);
 
 /**
@@ -1220,7 +1236,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
-                                                   uint32_t stream_id,
+                                                   uint64_t stream_id,
                                                    uint16_t app_error_code);
 
 /**
@@ -1255,7 +1271,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
                                                size_t destlen, size_t *pdatalen,
-                                               uint32_t stream_id, uint8_t fin,
+                                               uint64_t stream_id, uint8_t fin,
                                                const uint8_t *data,
                                                size_t datalen,
                                                ngtcp2_tstamp ts);
@@ -1335,7 +1351,7 @@ NGTCP2_EXTERN int ngtcp2_conn_closed(ngtcp2_conn *conn);
  *     Stream was not found
  */
 NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
-                                                       uint32_t stream_id,
+                                                       uint64_t stream_id,
                                                        size_t datalen);
 
 /**

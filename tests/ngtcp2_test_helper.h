@@ -52,7 +52,7 @@
 
 /*
  * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with
- * the given parameters.  If NGTCP2_STREAM_D_BIT is set in |flags|,
+ * the given parameters.  If NGTCP2_STREAM_LEN_BIT is set in |flags|,
  * |datalen| is encoded as Data Length, otherwise it is not written.
  * To set FIN bit in wire format, set NGTCP2_STREAM_FIN_BIT in
  * |flags|.  This function expects that |out| has enough length to
@@ -61,19 +61,18 @@
  * This function returns the number of bytes written to |out|.
  */
 size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
-                                    uint32_t stream_id, uint64_t offset,
+                                    uint64_t stream_id, uint64_t offset,
                                     uint16_t datalen);
 
 /*
  * ngtcp2_t_encode_ack_frame encodes ACK frame into |out| with the
- * given parameters.  Currently, this function encodes |largest_ack|
- * in 64 bits, and 1 ACK Block Section.  NumTS and ACK Delay fields
- * are always 0.
+ * given parameters.  Currently, this function encodes 1 ACK Block
+ * Section.  ACK Delay field is always 0.
  *
  * This function returns the number of bytes written to |out|.
  */
 size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
-                                 uint64_t first_ack_blklen, uint8_t gap,
+                                 uint64_t first_ack_blklen, uint64_t gap,
                                  uint64_t ack_blklen);
 
 /*
