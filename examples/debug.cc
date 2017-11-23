@@ -264,7 +264,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=0x%016" PRIx64 " fin=%u offset=%" PRIu64
+            "stream_id=0x%" PRIx64 " fin=%u offset=%" PRIu64
             " data_length=%zu\n",
             fr->stream.stream_id, fr->stream.fin, fr->stream.offset,
             fr->stream.datalen);
@@ -299,7 +299,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_RST_STREAM:
     print_indent();
     fprintf(outfile,
-            "stream_id=0x%016" PRIx64
+            "stream_id=0x%" PRIx64
             " app_error_code=%s(0x%04x) final_offset=%" PRIu64 "\n",
             fr->rst_stream.stream_id,
             strapperrorcode(fr->rst_stream.app_error_code).c_str(),
@@ -324,12 +324,12 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_MAX_STREAM_DATA:
     print_indent();
-    fprintf(outfile, "stream_id=0x%016" PRIx64 " max_stream_data=%" PRIu64 "\n",
+    fprintf(outfile, "stream_id=0x%" PRIx64 " max_stream_data=%" PRIu64 "\n",
             fr->max_stream_data.stream_id, fr->max_stream_data.max_stream_data);
     break;
   case NGTCP2_FRAME_MAX_STREAM_ID:
     print_indent();
-    fprintf(outfile, "max_stream_id=0x%016" PRIx64 "\n",
+    fprintf(outfile, "max_stream_id=0x%" PRIx64 "\n",
             fr->max_stream_id.max_stream_id);
     break;
   case NGTCP2_FRAME_PING:
@@ -341,8 +341,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STREAM_BLOCKED:
     print_indent();
-    fprintf(outfile, "stream_id=0x%016" PRIx64 "\n",
-            fr->stream_blocked.stream_id);
+    fprintf(outfile, "stream_id=0x%" PRIx64 "\n", fr->stream_blocked.stream_id);
     break;
   case NGTCP2_FRAME_STREAM_ID_BLOCKED:
     break;
@@ -355,7 +354,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     print_indent();
-    fprintf(outfile, "stream_id=0x%016" PRIx64 " app_error_code=%s(0x%04x)\n",
+    fprintf(outfile, "stream_id=0x%" PRIx64 " app_error_code=%s(0x%04x)\n",
             fr->stop_sending.stream_id,
             strapperrorcode(fr->stop_sending.app_error_code).c_str(),
             fr->stop_sending.app_error_code);
@@ -457,7 +456,7 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
   print_indent();
   fprintf(outfile, "; initial_max_data=%u\n", params->initial_max_data);
   print_indent();
-  fprintf(outfile, "; initial_max_stream_id=%u\n",
+  fprintf(outfile, "; initial_max_stream_id=0x%x\n",
           params->initial_max_stream_id);
   print_indent();
   fprintf(outfile, "; idle_timeout=%u\n", params->idle_timeout);
@@ -482,8 +481,7 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
 void print_stream_data(uint64_t stream_id, const uint8_t *data,
                        size_t datalen) {
   print_indent();
-  fprintf(outfile, "ordered STREAM data stream_id=0x%016" PRIx64 "\n",
-          stream_id);
+  fprintf(outfile, "ordered STREAM data stream_id=0x%" PRIx64 "\n", stream_id);
   util::hexdump(outfile, data, datalen);
 }
 
