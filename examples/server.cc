@@ -1661,7 +1661,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   reserved_ver = generate_reserved_vesrion(sa, salen, hd.version);
 
   sv[0] = reserved_ver;
-  sv[1] = NGTCP2_PROTO_VER_D7;
+  sv[1] = NGTCP2_PROTO_VER_D8;
 
   rv = ngtcp2_upe_new(&upe, buf.wpos(), buf.left());
   if (rv != 0) {
@@ -1755,9 +1755,9 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   auto version = ngtcp2_conn_negotiated_version(h->conn());
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D7:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D7);
-    alpnlen = str_size(NGTCP2_ALPN_D7);
+  case NGTCP2_PROTO_VER_D8:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D8);
+    alpnlen = str_size(NGTCP2_ALPN_D8);
     break;
   default:
     if (!config.quiet) {
@@ -1780,7 +1780,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
 
   if (!config.quiet) {
     debug::print_indent();
-    std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN_D7 + 1
+    std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN_D8 + 1
               << std::endl;
   }
 
@@ -1807,7 +1807,7 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
   }
 
   params.v.ee.len = 1;
-  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D7;
+  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D8;
 
   constexpr size_t bufsize = 64;
   auto buf = std::make_unique<uint8_t[]>(bufsize);

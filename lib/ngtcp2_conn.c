@@ -3457,7 +3457,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
   }
 
   switch (p->version) {
-  case NGTCP2_PROTO_VER_D7:
+  case NGTCP2_PROTO_VER_D8:
     break;
   default:
     return 1;
