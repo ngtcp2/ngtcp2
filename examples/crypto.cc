@@ -78,7 +78,7 @@ int derive_handshake_secret(uint8_t *dest, size_t destlen, uint64_t secret,
 
 int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen) {
-  static constexpr uint8_t LABEL[] = "QUIC client handshake Secret";
+  static constexpr uint8_t LABEL[] = "QUIC client handshake secret";
   Context ctx;
   prf_sha256(ctx);
   return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
@@ -87,7 +87,7 @@ int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
 
 int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen) {
-  static constexpr uint8_t LABEL[] = "QUIC server handshake Secret";
+  static constexpr uint8_t LABEL[] = "QUIC server handshake secret";
   Context ctx;
   prf_sha256(ctx);
   return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
