@@ -213,7 +213,7 @@ typedef enum {
 typedef enum {
   NGTCP2_PKT_FLAG_NONE = 0,
   NGTCP2_PKT_FLAG_LONG_FORM = 0x01,
-  NGTCP2_PKT_FLAG_CONN_ID = 0x02,
+  NGTCP2_PKT_FLAG_OMIT_CONN_ID = 0x02,
   NGTCP2_PKT_FLAG_KEY_PHASE = 0x04
 } ngtcp2_pkt_flag;
 

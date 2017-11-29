@@ -1510,7 +1510,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     return 0;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE,
                      conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
                      conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
 
@@ -1656,7 +1656,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE,
                      conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
                      conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
 
@@ -3115,7 +3115,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       return (int)nread;
     }
     if (!conn->local_settings.omit_connection_id &&
-        !(hd.flags & NGTCP2_PKT_FLAG_CONN_ID)) {
+        (hd.flags & NGTCP2_PKT_FLAG_OMIT_CONN_ID)) {
       return NGTCP2_ERR_PROTO;
     }
   }
@@ -3707,7 +3707,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_STREAM_SHUT_WR;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE,
                      conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
                      conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
 

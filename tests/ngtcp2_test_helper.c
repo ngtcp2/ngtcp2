@@ -115,8 +115,8 @@ size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   ctx.ckm = conn->rx_ckm;
   ctx.user_data = conn;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_03, conn_id,
-                     pkt_num, NGTCP2_PROTO_VER_MAX);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, conn_id, pkt_num,
+                     NGTCP2_PROTO_VER_MAX);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -142,8 +142,8 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   ctx.ckm = conn->rx_ckm;
   ctx.user_data = conn;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, 0, pkt_num,
-                     NGTCP2_PROTO_VER_MAX);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_OMIT_CONN_ID, NGTCP2_PKT_03, 0,
+                     pkt_num, NGTCP2_PROTO_VER_MAX);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -163,8 +163,8 @@ size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
   ngtcp2_pkt_hd hd;
   int rv;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM | NGTCP2_PKT_FLAG_CONN_ID,
-                     pkt_type, conn_id, pkt_num, version);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, conn_id, pkt_num,
+                     version);
 
   ngtcp2_upe_init(&upe, out, outlen);
   rv = ngtcp2_upe_encode_hd(&upe, &hd);

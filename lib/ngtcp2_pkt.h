@@ -32,7 +32,7 @@
 #include <ngtcp2/ngtcp2.h>
 
 #define NGTCP2_HEADER_FORM_BIT 0x80
-#define NGTCP2_CONN_ID_BIT 0x40
+#define NGTCP2_OMIT_CONN_ID_BIT 0x40
 #define NGTCP2_KEY_PHASE_BIT 0x20
 #define NGTCP2_LONG_TYPE_MASK 0x7f
 #define NGTCP2_SHORT_TYPE_MASK 0x1f

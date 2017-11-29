@@ -1367,8 +1367,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
     token[i] = (uint8_t)~i;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_CONN_ID, NGTCP2_PKT_01, 0x01, 0xe1,
-                     0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, 0x01, 0xe1, 0);
 
   /* server */
   setup_default_server(&conn);
