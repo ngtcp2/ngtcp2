@@ -2286,7 +2286,8 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
       if (conn->conn_id != hd.conn_id) {
-        return NGTCP2_ERR_PROTO;
+        /* Just discard invalid Version Negotiation packet */
+        return 0;
       }
       rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
       if (rv != 0) {
