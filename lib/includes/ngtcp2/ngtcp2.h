@@ -419,12 +419,13 @@ typedef union {
 typedef enum {
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA = 0,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 1,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID = 2,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID_BIDI = 2,
   NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
   NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID = 4,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
-  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7
+  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID_UNI = 8
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -464,7 +465,8 @@ typedef struct {
   } v;
   uint32_t initial_max_stream_data;
   uint32_t initial_max_data;
-  uint32_t initial_max_stream_id;
+  uint32_t initial_max_stream_id_bidi;
+  uint32_t initial_max_stream_id_uni;
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
   uint16_t max_packet_size;
@@ -475,7 +477,8 @@ typedef struct {
 typedef struct {
   uint32_t max_stream_data;
   uint32_t max_data;
-  uint32_t max_stream_id;
+  uint32_t max_stream_id_bidi;
+  uint32_t max_stream_id_uni;
   uint16_t idle_timeout;
   uint8_t omit_connection_id;
   uint16_t max_packet_size;

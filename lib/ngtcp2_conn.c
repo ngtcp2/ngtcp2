@@ -241,7 +241,7 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
 
   (*pconn)->local_settings = *settings;
   (*pconn)->unsent_max_remote_stream_id = (*pconn)->max_remote_stream_id =
-      settings->max_stream_id;
+      settings->max_stream_id_bidi;
   (*pconn)->unsent_max_rx_offset = (*pconn)->max_rx_offset = settings->max_data;
   (*pconn)->server = server;
   (*pconn)->state =
@@ -3550,7 +3550,8 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
                                     const ngtcp2_transport_params *src) {
   dest->max_stream_data = src->initial_max_stream_data;
   dest->max_data = src->initial_max_data;
-  dest->max_stream_id = src->initial_max_stream_id;
+  dest->max_stream_id_bidi = src->initial_max_stream_id_bidi;
+  dest->max_stream_id_uni = src->initial_max_stream_id_uni;
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
@@ -3563,7 +3564,8 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
   dest->initial_max_stream_data = src->max_stream_data;
   dest->initial_max_data = src->max_data;
-  dest->initial_max_stream_id = src->max_stream_id;
+  dest->initial_max_stream_id_bidi = src->max_stream_id_bidi;
+  dest->initial_max_stream_id_uni = src->max_stream_id_uni;
   dest->idle_timeout = src->idle_timeout;
   dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
@@ -3596,12 +3598,12 @@ int ngtcp2_conn_set_remote_transport_params(
 
   settings_copy_from_transport_params(&conn->remote_settings, params);
 
-  conn->max_local_stream_id = conn->remote_settings.max_stream_id;
+  conn->max_local_stream_id = conn->remote_settings.max_stream_id_bidi;
   conn->max_tx_offset = conn->remote_settings.max_data;
 
   /* TODO Should we check that conn->max_remote_stream_id is larger
-     than conn->remote_settings.max_stream_id here?  What happens for
-     0-RTT stream? */
+     than conn->remote_settings.max_stream_id_bidi here?  What happens
+     for 0-RTT stream? */
 
   conn->strm0->max_tx_offset = conn->remote_settings.max_stream_data;
 

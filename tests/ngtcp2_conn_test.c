@@ -212,7 +212,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
 
   settings->max_stream_data = 65535;
   settings->max_data = 128 * 1024;
-  settings->max_stream_id = 12;
+  settings->max_stream_id_bidi = 12;
   settings->idle_timeout = 60;
   settings->omit_connection_id = 0;
   settings->max_packet_size = 65535;
@@ -224,7 +224,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
 static void client_default_settings(ngtcp2_settings *settings) {
   settings->max_stream_data = 65535;
   settings->max_data = 128 * 1024;
-  settings->max_stream_id = 0;
+  settings->max_stream_id_bidi = 0;
   settings->idle_timeout = 60;
   settings->omit_connection_id = 0;
   settings->max_packet_size = 65535;
@@ -253,9 +253,9 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                              sizeof(null_iv));
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->remote_settings.max_stream_data = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_id = 0;
+  (*pconn)->remote_settings.max_stream_id_bidi = 0;
   (*pconn)->remote_settings.max_data = 64 * 1024;
-  (*pconn)->max_local_stream_id = (*pconn)->remote_settings.max_stream_id;
+  (*pconn)->max_local_stream_id = (*pconn)->remote_settings.max_stream_id_bidi;
   (*pconn)->max_tx_offset = (*pconn)->remote_settings.max_data;
 }
 
@@ -282,9 +282,9 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                              sizeof(null_iv));
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->remote_settings.max_stream_data = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_id = 4;
+  (*pconn)->remote_settings.max_stream_id_bidi = 4;
   (*pconn)->remote_settings.max_data = 64 * 1024;
-  (*pconn)->max_local_stream_id = (*pconn)->remote_settings.max_stream_id;
+  (*pconn)->max_local_stream_id = (*pconn)->remote_settings.max_stream_id_bidi;
   (*pconn)->max_tx_offset = (*pconn)->remote_settings.max_data;
 }
 

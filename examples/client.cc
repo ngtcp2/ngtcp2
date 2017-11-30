@@ -579,7 +579,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   ngtcp2_settings settings;
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;
-  settings.max_stream_id = 0;
+  settings.max_stream_id_bidi = 0;
+  settings.max_stream_id_uni = 0;
   settings.idle_timeout = config.timeout;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;

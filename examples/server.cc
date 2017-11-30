@@ -783,7 +783,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
 
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;
-  settings.max_stream_id = 400;
+  settings.max_stream_id_bidi = 400;
+  settings.max_stream_id_uni = 0;
   settings.idle_timeout = config.timeout;
   settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
@@ -1809,7 +1810,7 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
   params.v.ee.len = 1;
   params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D8;
 
-  constexpr size_t bufsize = 64;
+  constexpr size_t bufsize = 128;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
 
   auto nwrite = ngtcp2_encode_transport_params(

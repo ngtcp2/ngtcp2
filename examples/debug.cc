@@ -456,8 +456,11 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
   print_indent();
   fprintf(outfile, "; initial_max_data=%u\n", params->initial_max_data);
   print_indent();
-  fprintf(outfile, "; initial_max_stream_id=0x%x\n",
-          params->initial_max_stream_id);
+  fprintf(outfile, "; initial_max_stream_id_bidi=0x%x\n",
+          params->initial_max_stream_id_bidi);
+  print_indent();
+  fprintf(outfile, "; initial_max_stream_id_uni=0x%x\n",
+          params->initial_max_stream_id_uni);
   print_indent();
   fprintf(outfile, "; idle_timeout=%u\n", params->idle_timeout);
   print_indent();
