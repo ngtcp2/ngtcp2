@@ -2184,6 +2184,12 @@ static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 }
 
+/* conn_recv_connection_close is called when CONNECTION_CLOSE or
+   APPLICATION_CLOSE frame is received. */
+static void conn_recv_connection_close(ngtcp2_conn *conn) {
+  conn->state = NGTCP2_CS_CLOSE_WAIT;
+}
+
 /*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length if |pktlen| during handshake period.
@@ -2349,6 +2355,13 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     case NGTCP2_FRAME_STREAM:
       require_ack = 1;
       break;
+    case NGTCP2_FRAME_CONNECTION_CLOSE:
+      if (hd.type == NGTCP2_PKT_HANDSHAKE) {
+        require_ack = 1;
+        conn_recv_connection_close(conn);
+        continue;
+      }
+      return NGTCP2_ERR_PROTO;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -2852,10 +2865,6 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_SENT_RST;
 
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
-}
-
-static void conn_recv_connection_close(ngtcp2_conn *conn) {
-  conn->state = NGTCP2_CS_CLOSE_WAIT;
 }
 
 /*
