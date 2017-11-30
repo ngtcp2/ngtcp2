@@ -80,8 +80,8 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   dest->flags = NGTCP2_PKT_FLAG_LONG_FORM;
   dest->type = type;
   dest->conn_id = ngtcp2_get_uint64(&pkt[1]);
-  dest->pkt_num = ngtcp2_get_uint32(&pkt[9]);
-  dest->version = ngtcp2_get_uint32(&pkt[13]);
+  dest->version = ngtcp2_get_uint32(&pkt[9]);
+  dest->pkt_num = ngtcp2_get_uint32(&pkt[13]);
 
   return NGTCP2_LONG_HEADERLEN;
 }
@@ -166,8 +166,8 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   *p++ = NGTCP2_HEADER_FORM_BIT | hd->type;
   p = ngtcp2_put_uint64be(p, hd->conn_id);
-  p = ngtcp2_put_uint32be(p, (uint32_t)hd->pkt_num);
   p = ngtcp2_put_uint32be(p, hd->version);
+  p = ngtcp2_put_uint32be(p, (uint32_t)hd->pkt_num);
 
   assert(p - out == NGTCP2_LONG_HEADERLEN);
 
