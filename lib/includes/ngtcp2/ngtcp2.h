@@ -170,6 +170,10 @@ typedef struct {
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
 
+/* NGTCP2_MAX_INITIAL_PKT_NUM is the maximum packet number a endpoint
+   can choose */
+#define NGTCP2_MAX_INITIAL_PKT_NUM 0xfffffbffu
+
 /* NGTCP2_STATELESS_RESET_TOKENLEN is the length of Stateless Reset
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16

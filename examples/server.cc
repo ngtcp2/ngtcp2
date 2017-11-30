@@ -579,7 +579,7 @@ ssize_t send_server_handshake(ngtcp2_conn *conn, uint32_t flags,
 
   if (ppkt_num) {
     *ppkt_num = std::uniform_int_distribution<uint64_t>(
-        0, std::numeric_limits<int32_t>::max())(randgen);
+        0, NGTCP2_MAX_INITIAL_PKT_NUM)(randgen);
   }
 
   auto len = h->read_server_handshake(pdest);
