@@ -770,8 +770,8 @@ typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED` respectively.  If
  * application encounters fatal error, return
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
- * return immediately.  It is undefined when the other value is
- * returned.
+ * return immediately.  If the other value is returned, it is treated
+ * as :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 typedef int (*ngtcp2_recv_stream0_data)(ngtcp2_conn *conn, const uint8_t *data,
                                         size_t datalen, void *user_data);

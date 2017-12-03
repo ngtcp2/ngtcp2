@@ -190,6 +190,16 @@ static int recv_stream0_handshake_error(ngtcp2_conn *conn, const uint8_t *data,
   return NGTCP2_ERR_TLS_HANDSHAKE;
 }
 
+static int recv_stream0_fatal_alert_generated(ngtcp2_conn *conn,
+                                              const uint8_t *data,
+                                              size_t datalen, void *user_data) {
+  (void)conn;
+  (void)data;
+  (void)datalen;
+  (void)user_data;
+  return NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED;
+}
+
 static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
                             const uint8_t *data, size_t datalen,
                             void *user_data, void *stream_user_data) {
@@ -1996,6 +2006,27 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(4 == ud.stream_data.stream_id);
   CU_ASSERT(1 == ud.stream_data.fin);
   CU_ASSERT(599 == ud.stream_data.datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* DATA on stream 0, and TLS alert is generated. */
+  setup_default_server(&conn);
+  conn->callbacks.recv_stream0_data = recv_stream0_fatal_alert_generated;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 139;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  fprintf(stderr, "rv=%d\n", rv);
+  CU_ASSERT(NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED == rv);
 
   ngtcp2_conn_del(conn);
 }

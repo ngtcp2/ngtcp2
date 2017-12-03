@@ -151,6 +151,23 @@ static int conn_call_recv_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
+static int conn_call_recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data,
+                                       size_t datalen) {
+  int rv;
+
+  rv = conn->callbacks.recv_stream0_data(conn, data, datalen, conn->user_data);
+  switch (rv) {
+  case 0:
+  case NGTCP2_ERR_TLS_HANDSHAKE:
+  case NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED:
+  case NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED:
+  case NGTCP2_ERR_CALLBACK_FAILURE:
+    return rv;
+  default:
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+}
+
 static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                   uint16_t app_error_code) {
   int rv;
@@ -2201,8 +2218,7 @@ static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
     rx_offset += datalen;
 
-    rv =
-        conn->callbacks.recv_stream0_data(conn, data, datalen, conn->user_data);
+    rv = conn_call_recv_stream0_data(conn, data, datalen);
     if (rv != 0) {
       return rv;
     }
@@ -2440,8 +2456,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       rx_offset += datalen;
       ngtcp2_rob_remove_prefix(&conn->strm0->rob, rx_offset);
 
-      rv = conn->callbacks.recv_stream0_data(conn, data, datalen,
-                                             conn->user_data);
+      rv = conn_call_recv_stream0_data(conn, data, datalen);
       switch (rv) {
       case 0:
         break;
@@ -2715,17 +2730,23 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     rx_offset += datalen;
     ngtcp2_rob_remove_prefix(&strm->rob, rx_offset);
 
-    rv = conn_call_recv_stream_data(conn, strm,
-                                    (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-                                        rx_offset == strm->last_rx_offset,
-                                    data, datalen);
-    if (rv != 0) {
-      return rv;
-    }
-
     if (strm->stream_id == 0) {
+      rv = conn_call_recv_stream0_data(conn, data, datalen);
+      if (rv != 0) {
+        return rv;
+      }
+
       rv = conn_emit_pending_stream0_data(conn, conn->strm0, rx_offset);
     } else {
+      rv =
+          conn_call_recv_stream_data(conn, strm,
+                                     (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+                                         rx_offset == strm->last_rx_offset,
+                                     data, datalen);
+      if (rv != 0) {
+        return rv;
+      }
+
       rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
     }
     if (rv != 0) {
