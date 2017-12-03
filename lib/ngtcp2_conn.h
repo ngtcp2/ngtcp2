@@ -150,7 +150,7 @@ struct ngtcp2_conn {
   ngtcp2_strm *strm0;
   ngtcp2_map strms;
   ngtcp2_strm *fc_strms;
-  ngtcp2_idtr remote_idtr;
+  ngtcp2_idtr remote_bidi_idtr;
   uint64_t conn_id;
   /* client_conn_id is the connection ID client sent in its Client
      Initial packet.  This field is only used if ngtcp2_conn is
@@ -160,28 +160,30 @@ struct ngtcp2_conn {
      sent last time.*/
   uint64_t last_tx_pkt_num;
   uint64_t max_rx_pkt_num;
-  /* unsent_max_remote_stream_id is the maximum stream ID of peer
-     initiated stream which the local endpoint can accept.  This limit
-     is not yet notified to the remote endpoint. */
-  uint64_t unsent_max_remote_stream_id;
-  /* max_remote_stream_id is the maximum stream ID of peer initiated
-     stream which the local endpoint can accept. */
-  uint64_t max_remote_stream_id;
-  /* remote_stream_id_window_start is the left edge of a remote stream
-     ID window.  This value is not stream ID.  It is an id space which
-     is converted from a stream ID to a continuous integer starting
-     from 0.  In other words, this is the same id space that
-     ngtcp2_idtr uses internally, and ngtcp2_idtr_first_gap() returns.
-     This value is used to determine when we enlarge the right edge of
-     stream ID window in order to avoid excessive fragmentation in
-     ngtcp2_idtr. */
-  uint64_t remote_stream_id_window_start;
-  /* max_local_stream_id is the maximum stream ID which the local
-     endpoint can open. */
-  uint64_t max_local_stream_id;
-  /* next_local_stream_id is the stream ID which the local endpoint
-     opens next. */
-  uint64_t next_local_stream_id;
+  /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
+     initiated bidirectional stream which the local endpoint can
+     accept.  This limit is not yet notified to the remote
+     endpoint. */
+  uint64_t unsent_max_remote_stream_id_bidi;
+  /* max_remote_stream_id_bidi is the maximum stream ID of peer
+     initiated bidirectional stream which the local endpoint can
+     accept. */
+  uint64_t max_remote_stream_id_bidi;
+  /* remote_stream_id_bidi_window_start is the left edge of a remote
+     bidirectional stream ID window.  This value is not stream ID.  It
+     is an id space which is converted from a stream ID to a
+     continuous integer starting from 0.  In other words, this is the
+     same id space that ngtcp2_idtr uses internally, and
+     ngtcp2_idtr_first_gap() returns.  This value is used to determine
+     when we enlarge the right edge of stream ID window in order to
+     avoid excessive fragmentation in ngtcp2_idtr. */
+  uint64_t remote_stream_id_bidi_window_start;
+  /* max_local_stream_id_bidi is the maximum bidirectional stream ID
+     which the local endpoint can open. */
+  uint64_t max_local_stream_id_bidi;
+  /* next_local_stream_id_bidi is the bidirectional stream ID which
+     the local endpoint opens next. */
+  uint64_t next_local_stream_id_bidi;
   /* unsent_max_rx_offset is the maximum offset that remote endpoint
      can send without extending MAX_DATA.  This limit is not yet
      notified to the remote endpoint. */

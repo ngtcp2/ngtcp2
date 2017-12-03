@@ -265,7 +265,8 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   (*pconn)->remote_settings.max_stream_data = 64 * 1024;
   (*pconn)->remote_settings.max_stream_id_bidi = 0;
   (*pconn)->remote_settings.max_data = 64 * 1024;
-  (*pconn)->max_local_stream_id = (*pconn)->remote_settings.max_stream_id_bidi;
+  (*pconn)->max_local_stream_id_bidi =
+      (*pconn)->remote_settings.max_stream_id_bidi;
   (*pconn)->max_tx_offset = (*pconn)->remote_settings.max_data;
 }
 
@@ -294,7 +295,8 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->remote_settings.max_stream_data = 64 * 1024;
   (*pconn)->remote_settings.max_stream_id_bidi = 4;
   (*pconn)->remote_settings.max_data = 64 * 1024;
-  (*pconn)->max_local_stream_id = (*pconn)->remote_settings.max_stream_id_bidi;
+  (*pconn)->max_local_stream_id_bidi =
+      (*pconn)->remote_settings.max_stream_id_bidi;
   (*pconn)->max_tx_offset = (*pconn)->remote_settings.max_data;
 }
 
@@ -1016,8 +1018,9 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NGTCP2_ERR_STREAM_IN_USE ==
-            ngtcp2_idtr_is_open(&conn->remote_idtr, fr.rst_stream.stream_id));
+  CU_ASSERT(
+      NGTCP2_ERR_STREAM_IN_USE ==
+      ngtcp2_idtr_is_open(&conn->remote_bidi_idtr, fr.rst_stream.stream_id));
 
   ngtcp2_conn_del(conn);
 
@@ -1543,7 +1546,7 @@ void test_ngtcp2_conn_recv_max_stream_id(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(999 == conn->max_local_stream_id);
+  CU_ASSERT(999 == conn->max_local_stream_id_bidi);
 
   ngtcp2_conn_del(conn);
 }
@@ -1668,7 +1671,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   /* Retransmit a packet partially */
   setup_default_client(&conn);
-  conn->max_local_stream_id = 8;
+  conn->max_local_stream_id_bidi = 8;
 
   ngtcp2_conn_open_stream(conn, &stream_id_a, NULL);
   ngtcp2_conn_open_stream(conn, &stream_id_b, NULL);
