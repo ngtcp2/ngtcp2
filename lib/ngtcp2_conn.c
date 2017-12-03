@@ -2181,6 +2181,10 @@ static void conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     User callback failed
  * NGTCP2_ERR_TLS_HANDSHAKE
  *     TLS handshake failed, and TLS alert was sent.
+ * NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED
+ *     After handshake has completed, TLS fatal alert is generated.
+ * NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED
+ *     After handshake has completed, TLS fatal alert is received.
  */
 static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                           uint64_t rx_offset) {
@@ -3443,6 +3447,10 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
 void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED;
+}
+
+int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
+  return (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) > 0;
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,

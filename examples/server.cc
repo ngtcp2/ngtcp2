@@ -689,7 +689,9 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 
   h->write_client_handshake(data, datalen);
 
-  if (h->tls_handshake() != 0) {
+  if (ngtcp2_conn_get_handshake_completed(h->conn())) {
+    return h->read_tls();
+  } else if (h->tls_handshake() != 0) {
     return NGTCP2_ERR_TLS_HANDSHAKE;
   }
 
@@ -851,6 +853,40 @@ int Handler::tls_handshake() {
   }
 
   return 0;
+}
+
+int Handler::read_tls() {
+  ERR_clear_error();
+
+  std::array<uint8_t, 4096> buf;
+  size_t nread;
+
+  for (;;) {
+    auto outidx = shandshake_idx_;
+    auto rv = SSL_read_ex(ssl_, buf.data(), buf.size(), &nread);
+    if (rv == 1) {
+      std::cerr << "Reads " << nread << " bytes from TLS stream 0."
+                << std::endl;
+      continue;
+    }
+    auto err = SSL_get_error(ssl_, 0);
+    switch (err) {
+    case SSL_ERROR_WANT_READ:
+    case SSL_ERROR_WANT_WRITE:
+      return 0;
+    case SSL_ERROR_SSL:
+    case SSL_ERROR_ZERO_RETURN:
+      std::cerr << "TLS read error: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+      if (shandshake_idx_ == outidx) {
+        return NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED;
+      }
+      return NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED;
+    default:
+      std::cerr << "TLS read error: " << err << std::endl;
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
+  }
 }
 
 int Handler::write_server_handshake(const uint8_t *data, size_t datalen) {

@@ -158,6 +158,7 @@ public:
   int init(int fd, const sockaddr *sa, socklen_t salen, uint32_t version);
 
   int tls_handshake();
+  int read_tls();
   int on_read(uint8_t *data, size_t datalen);
   int on_write();
   int on_write_stream(Stream &stream);

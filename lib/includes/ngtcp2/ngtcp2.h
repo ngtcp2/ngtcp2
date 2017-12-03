@@ -208,6 +208,8 @@ typedef enum {
   NGTCP2_ERR_STREAM_SHUT_WR = -221,
   NGTCP2_ERR_STREAM_NOT_FOUND = -222,
   NGTCP2_ERR_VERSION_NEGOTIATION = -223,
+  NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED = -224,
+  NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED = -225,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -759,10 +761,14 @@ typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
  *
  * The callback function must return 0 if it succeeds.  Depending on
  * the TLS backend, TLS connection in stream 0 is aborted with TLS
- * alert when reading this data.  In this case, the callback should
- * return :enum:`NGTCP2_ERR_TLS_HANDSHAKE`.  This will ensure that
- * pending data, especially TLS alert, is sent at least for TLS
- * handshake.  If application encounters fatal error, return
+ * alert when reading this data.  If it happens during handshake, the
+ * callback should return :enum:`NGTCP2_ERR_TLS_HANDSHAKE`.  This will
+ * ensure that pending data, especially TLS alert, is sent at least
+ * for TLS handshake.  After handshake has completed, and TLS alert is
+ * generated, or received, the callback should return
+ * :enum:`NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED`, or
+ * :enum:`NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED` respectively.  If
+ * application encounters fatal error, return
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
  * return immediately.  It is undefined when the other value is
  * returned.
@@ -1057,6 +1063,14 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn,
  * handshake has completed.
  */
 NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_handshake_completed` returns nonzero if handshake
+ * has completed.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
 
 /**
  * @function

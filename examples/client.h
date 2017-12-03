@@ -134,6 +134,7 @@ public:
   void close();
 
   int tls_handshake();
+  int read_tls();
   int on_read();
   int on_write();
   int on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
