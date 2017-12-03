@@ -181,8 +181,8 @@ static int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data,
   return 0;
 }
 
-static int recv_stream0_data_error(ngtcp2_conn *conn, const uint8_t *data,
-                                   size_t datalen, void *user_data) {
+static int recv_stream0_handshake_error(ngtcp2_conn *conn, const uint8_t *data,
+                                        size_t datalen, void *user_data) {
   (void)conn;
   (void)data;
   (void)datalen;
@@ -1549,7 +1549,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   /* client side */
   setup_handshake_client(&conn);
-  conn->callbacks.recv_stream0_data = recv_stream0_data_error;
+  conn->callbacks.recv_stream0_data = recv_stream0_handshake_error;
   conn->callbacks.send_client_handshake = send_client_handshake_zero;
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
@@ -1609,7 +1609,7 @@ void test_ngtcp2_conn_handshake_error(void) {
                                             NGTCP2_PKT_HANDSHAKE, conn->conn_id,
                                             ++pkt_num, conn->version, &fr);
 
-  conn->callbacks.recv_stream0_data = recv_stream0_data_error;
+  conn->callbacks.recv_stream0_data = recv_stream0_handshake_error;
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
