@@ -170,6 +170,12 @@ std::string strerrorcode(uint16_t error_code) {
     return "PROTOCOL_VIOLATION";
   case NGTCP2_UNSOLICITED_PONG:
     return "UNSOLICITED_PONG";
+  case NGTCP2_TLS_HANDSHAKE_FAILED:
+    return "TLS_HANDSHAKE_FAILED";
+  case NGTCP2_TLS_FATAL_ALERT_GENERATED:
+    return "TLS_FATAL_ALERT_GENERATED";
+  case NGTCP2_TLS_FATAL_ALERT_RECEIVED:
+    return "TLS_FATAL_ALERT_RECEIVED";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "FRAME_ERROR";

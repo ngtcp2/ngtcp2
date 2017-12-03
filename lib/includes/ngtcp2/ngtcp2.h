@@ -199,7 +199,7 @@ typedef enum {
   NGTCP2_ERR_PKT_TIMEOUT = -212,
   NGTCP2_ERR_STREAM_ID = -213,
   NGTCP2_ERR_FINAL_OFFSET = -214,
-  NGTCP2_ERR_TLS_ALERT = -215,
+  NGTCP2_ERR_TLS_HANDSHAKE = -215,
   NGTCP2_ERR_PKT_NUM_EXHAUSTED = -216,
   NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM = -217,
   NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM = -218,
@@ -262,7 +262,11 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
   NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
   NGTCP2_PROTOCOL_VIOLATION = 0xau,
-  NGTCP2_UNSOLICITED_PONG = 0xb
+  NGTCP2_UNSOLICITED_PONG = 0xb,
+  /* Defined in quic-tls */
+  NGTCP2_TLS_HANDSHAKE_FAILED = 0x201,
+  NGTCP2_TLS_FATAL_ALERT_GENERATED = 0x202,
+  NGTCP2_TLS_FATAL_ALERT_RECEIVED = 0x203
 } ngtcp2_transport_error;
 
 typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
@@ -755,10 +759,10 @@ typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
  *
  * The callback function must return 0 if it succeeds.  Depending on
  * the TLS backend, TLS connection in stream 0 is aborted with TLS
- * alert when reading this data.  In this case, return
- * :enum:`NGTCP2_ERR_TLS_ALERT`.  This will ensure that pending data,
- * especially TLS alert, is sent at least for TLS handshake.  If
- * application encounters fatal error, return
+ * alert when reading this data.  In this case, the callback should
+ * return :enum:`NGTCP2_ERR_TLS_HANDSHAKE`.  This will ensure that
+ * pending data, especially TLS alert, is sent at least for TLS
+ * handshake.  If application encounters fatal error, return
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
  * return immediately.  It is undefined when the other value is
  * returned.

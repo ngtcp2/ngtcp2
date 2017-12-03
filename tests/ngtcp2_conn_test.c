@@ -187,7 +187,7 @@ static int recv_stream0_data_error(ngtcp2_conn *conn, const uint8_t *data,
   (void)data;
   (void)datalen;
   (void)user_data;
-  return NGTCP2_ERR_TLS_ALERT;
+  return NGTCP2_ERR_TLS_HANDSHAKE;
 }
 
 static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
@@ -1572,7 +1572,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_ALERT == spktlen);
+  CU_ASSERT(NGTCP2_ERR_TLS_HANDSHAKE == spktlen);
 
   ngtcp2_conn_del(conn);
 
@@ -1617,7 +1617,7 @@ void test_ngtcp2_conn_handshake_error(void) {
   conn->callbacks.send_server_handshake = send_server_handshake_zero;
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_ALERT == spktlen);
+  CU_ASSERT(NGTCP2_ERR_TLS_HANDSHAKE == spktlen);
 
   ngtcp2_conn_del(conn);
 }

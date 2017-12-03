@@ -60,8 +60,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_PKT_NUM_EXHAUSTED";
   case NGTCP2_ERR_NOMEM:
     return "ERR_NOMEM";
-  case NGTCP2_ERR_TLS_ALERT:
-    return "ERR_TLS_ALERT";
+  case NGTCP2_ERR_TLS_HANDSHAKE:
+    return "ERR_TLS_HANDSHAKE";
   case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
     return "ERR_REQUIRED_TRANSPORT_PARAM";
   case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:

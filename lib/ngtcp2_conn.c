@@ -1148,6 +1148,32 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
         goto fail;
       }
     }
+  } else if (conn->state == NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED ||
+             conn->state == NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED) {
+    rv = ngtcp2_frame_chain_new(&frc, conn->mem);
+    if (rv != 0) {
+      goto fail;
+    }
+
+    *pfrc = frc;
+    pfrc = &frc->next;
+
+    fr = &frc->fr;
+
+    fr->type = NGTCP2_FRAME_CONNECTION_CLOSE;
+    fr->connection_close.error_code = NGTCP2_TLS_HANDSHAKE_FAILED;
+    fr->connection_close.reasonlen = 0;
+    fr->connection_close.reason = NULL;
+
+    rv = ngtcp2_ppe_encode_frame(&ppe, fr);
+    if (rv != 0) {
+      goto fail;
+    }
+
+    rv = conn_call_send_frame(conn, &hd, fr);
+    if (rv != 0) {
+      goto fail;
+    }
   }
 
   spktlen = ngtcp2_ppe_final(&ppe, NULL);
@@ -1340,7 +1366,7 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     if (payloadlen == 0) {
       if (conn->state == NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED) {
-        return NGTCP2_ERR_TLS_ALERT;
+        return NGTCP2_ERR_TLS_HANDSHAKE;
       }
 
       return conn_write_handshake_ack_pkt(conn, dest, destlen,
@@ -1391,7 +1417,7 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
         return NGTCP2_ERR_CALLBACK_FAILURE;
       }
       if (conn->state == NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED) {
-        return NGTCP2_ERR_TLS_ALERT;
+        return NGTCP2_ERR_TLS_HANDSHAKE;
       }
       return conn_write_handshake_ack_pkt(conn, dest, destlen,
                                           NGTCP2_PKT_HANDSHAKE, ts);
@@ -2209,8 +2235,8 @@ static void conn_recv_connection_close(ngtcp2_conn *conn) {
  *     Generic QUIC protocol error.
  * NGTCP2_ERR_ACK_FRAME
  *     ACK frame is malformed.
- * NGTCP2_ERR_TLS_ALERT
- *     TLS handshake failed, and TLS alert was sent.
+ * NGTCP2_ERR_TLS_HANDSHAKE
+ *     TLS handshake failed, and/or TLS alert was generated.
  * NGTCP2_ERR_FRAME_FORMAT
  *     Frame is badly formatted.
  * NGTCP2_ERR_VERSION_NEGOTIATION
@@ -2415,7 +2441,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       switch (rv) {
       case 0:
         break;
-      case NGTCP2_ERR_TLS_ALERT:
+      case NGTCP2_ERR_TLS_HANDSHAKE:
         handshake_failed = 1;
         break;
       default:
@@ -2467,7 +2493,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return rv;
   }
 
-  return handshake_failed ? NGTCP2_ERR_TLS_ALERT : 0;
+  return handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : 0;
 }
 
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
@@ -3351,7 +3377,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
-      if (rv == NGTCP2_ERR_TLS_ALERT) {
+      if (rv == NGTCP2_ERR_TLS_HANDSHAKE) {
         conn->state = NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED;
         rv = 0;
       }
@@ -3374,7 +3400,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
-      if (rv == NGTCP2_ERR_TLS_ALERT) {
+      if (rv == NGTCP2_ERR_TLS_HANDSHAKE) {
         conn->state = NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED;
         rv = 0;
       }

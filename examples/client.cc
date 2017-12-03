@@ -345,7 +345,7 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
   c->write_server_handshake(data, datalen);
 
   if (c->tls_handshake() != 0) {
-    return NGTCP2_ERR_TLS_ALERT;
+    return NGTCP2_ERR_TLS_HANDSHAKE;
   }
 
   return 0;
