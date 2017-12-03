@@ -1171,7 +1171,8 @@ int Client::handle_error(int liberr) {
   assert(sendbuf_.left() >= max_pktlen_);
 
   auto n = ngtcp2_conn_write_connection_close(
-      conn_, sendbuf_.wpos(), max_pktlen_, infer_quic_error_code(liberr));
+      conn_, sendbuf_.wpos(), max_pktlen_,
+      ngtcp2_err_infer_quic_transport_error_code(liberr));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;

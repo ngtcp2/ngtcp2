@@ -1266,9 +1266,9 @@ int Handler::start_drain_period(int liberr) {
 
   conn_closebuf_ = std::make_unique<Buffer>(NGTCP2_MAX_PKTLEN_IPV4);
 
-  auto n = ngtcp2_conn_write_connection_close(conn_, conn_closebuf_->wpos(),
-                                              max_pktlen_,
-                                              infer_quic_error_code(liberr));
+  auto n = ngtcp2_conn_write_connection_close(
+      conn_, conn_closebuf_->wpos(), max_pktlen_,
+      ngtcp2_err_infer_quic_transport_error_code(liberr));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;

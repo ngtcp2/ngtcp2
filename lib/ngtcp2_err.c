@@ -90,3 +90,31 @@ const char *ngtcp2_strerror(int liberr) {
 }
 
 int ngtcp2_err_fatal(int liberr) { return liberr >= NGTCP2_ERR_FATAL; }
+
+uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
+  switch (liberr) {
+  case 0:
+    return NGTCP2_NO_ERROR;
+  case NGTCP2_ERR_ACK_FRAME:
+  case NGTCP2_ERR_FRAME_FORMAT:
+    return NGTCP2_FRAME_FORMAT_ERROR;
+  case NGTCP2_ERR_FLOW_CONTROL:
+    return NGTCP2_FLOW_CONTROL_ERROR;
+  case NGTCP2_ERR_STREAM_ID:
+    return NGTCP2_STREAM_ID_ERROR;
+  case NGTCP2_ERR_FINAL_OFFSET:
+    return NGTCP2_FINAL_OFFSET_ERROR;
+  case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
+    return NGTCP2_TRANSPORT_PARAMETER_ERROR;
+  case NGTCP2_ERR_INVALID_ARGUMENT:
+    return NGTCP2_INTERNAL_ERROR;
+  case NGTCP2_ERR_TLS_HANDSHAKE:
+    return NGTCP2_TLS_HANDSHAKE_FAILED;
+  case NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED:
+    return NGTCP2_TLS_FATAL_ALERT_GENERATED;
+  case NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED:
+    return NGTCP2_TLS_FATAL_ALERT_RECEIVED;
+  default:
+    return NGTCP2_PROTOCOL_VIOLATION;
+  }
+}

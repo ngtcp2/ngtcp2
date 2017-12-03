@@ -1430,6 +1430,14 @@ NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
  */
 NGTCP2_EXTERN int ngtcp2_err_fatal(int liberr);
 
+/**
+ * @function
+ *
+ * `ngtcp2_err_infer_quic_transport_error_code` returns a QUIC
+ * transport error code which corresponds to |liberr|.
+ */
+NGTCP2_EXTERN uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
+
 #ifdef __cplusplus
 }
 #endif

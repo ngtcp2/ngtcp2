@@ -41,7 +41,6 @@ if(LIBEV_FOUND AND OPENSSL_FOUND)
     client.cc
     debug.cc
     util.cc
-    shared.cc
     crypto_openssl.cc
     crypto.cc
   )
@@ -50,7 +49,6 @@ if(LIBEV_FOUND AND OPENSSL_FOUND)
     server.cc
     debug.cc
     util.cc
-    shared.cc
     crypto_openssl.cc
     crypto.cc
     http.cc

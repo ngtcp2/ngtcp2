@@ -42,7 +42,7 @@ client_SOURCES = client.cc client.h \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
-	shared.cc shared.h \
+	shared.h \
 	crypto_openssl.cc \
 	crypto.cc
 
@@ -50,7 +50,7 @@ server_SOURCES = server.cc server.h \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
-	shared.cc shared.h \
+	shared.h \
 	crypto_openssl.cc \
 	crypto.cc \
 	http.cc http.h
