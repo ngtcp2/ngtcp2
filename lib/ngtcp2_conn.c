@@ -2035,17 +2035,79 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
 /*
  * conn_recv_max_stream_data processes received MAX_STREAM_DATA frame
  * |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_STREAM_STATE
+ *     Stream ID indicates that it is a local stream, and the local
+ *     endpoint has not initiated it.
+ * NGTCP2_ERR_STREAM_ID
+ *     Stream ID exceeds allowed limit.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
-static void conn_recv_max_stream_data(ngtcp2_conn *conn,
-                                      const ngtcp2_max_stream_data *fr) {
+static int conn_recv_max_stream_data(ngtcp2_conn *conn,
+                                     const ngtcp2_max_stream_data *fr) {
   ngtcp2_strm *strm;
+  ngtcp2_idtr *idtr;
+  int local_stream = conn_local_stream(conn, fr->stream_id);
+  int bidi = bidi_stream(fr->stream_id);
+  int rv;
+
+  if (bidi) {
+    if (local_stream) {
+      if (conn->next_local_stream_id_bidi <= fr->stream_id) {
+        return NGTCP2_ERR_STREAM_STATE;
+      }
+    } else if (conn->max_remote_stream_id_bidi < fr->stream_id) {
+      return NGTCP2_ERR_STREAM_ID;
+    }
+
+    idtr = &conn->remote_bidi_idtr;
+  } else {
+    /* TODO Sending MAX_STREAM_DATA to local unidirectional stream is
+       just a waste of bits. */
+    if (local_stream) {
+      if (conn->next_local_stream_id_uni <= fr->stream_id) {
+        return NGTCP2_ERR_STREAM_STATE;
+      }
+    } else if (conn->max_remote_stream_id_uni < fr->stream_id) {
+      return NGTCP2_ERR_STREAM_ID;
+    }
+
+    idtr = &conn->remote_uni_idtr;
+  }
 
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
-    return;
+    if (local_stream) {
+      /* Stream has been closed. */
+      return 0;
+    }
+
+    rv = ngtcp2_idtr_open(idtr, fr->stream_id);
+    if (rv == NGTCP2_ERR_STREAM_IN_USE) {
+      /* Stream has been closed. */
+      return 0;
+    }
+
+    strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+    if (strm == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+    rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
+    if (rv != 0) {
+      return rv;
+    }
+    if (!bidi) {
+      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
+    }
   }
 
   strm->max_tx_offset = ngtcp2_max(strm->max_tx_offset, fr->max_stream_data);
+
+  return 0;
 }
 
 /*
@@ -3415,7 +3477,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       }
       break;
     case NGTCP2_FRAME_MAX_STREAM_DATA:
-      conn_recv_max_stream_data(conn, &fr->max_stream_data);
+      rv = conn_recv_max_stream_data(conn, &fr->max_stream_data);
+      if (rv != 0) {
+        return rv;
+      }
       break;
     case NGTCP2_FRAME_MAX_DATA:
       conn_recv_max_data(conn, &fr->max_data);

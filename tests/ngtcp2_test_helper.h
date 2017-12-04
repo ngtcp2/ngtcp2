@@ -105,4 +105,9 @@ size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
                                         uint64_t pkt_num, uint32_t version,
                                         ngtcp2_frame *fr);
 
+/*
+ * open_stream opens new stream denoted by |stream_id|.
+ */
+ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id);
+
 #endif /* NGTCP2_TEST_HELPER_H */

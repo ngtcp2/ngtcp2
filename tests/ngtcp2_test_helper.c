@@ -173,3 +173,16 @@ size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
   assert(0 == rv);
   return ngtcp2_upe_final(&upe, NULL);
 }
+
+ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id) {
+  ngtcp2_strm *strm;
+  int rv;
+
+  strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+  assert(strm);
+
+  rv = ngtcp2_conn_init_stream(conn, strm, stream_id, NULL);
+  assert(0 == rv);
+
+  return strm;
+}

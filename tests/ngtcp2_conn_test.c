@@ -2291,3 +2291,146 @@ void test_ngtcp2_conn_recv_ping(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_recv_max_stream_data(void) {
+  uint8_t buf[1024];
+  ngtcp2_conn *conn;
+  uint64_t pkt_num = 1000000007;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  int rv;
+  ngtcp2_strm *strm;
+
+  /* Receiving MAX_STREAM_DATA to an uninitiated local bidirectional
+     stream ID is an error */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+  fr.max_stream_data.stream_id = 4;
+  fr.max_stream_data.max_stream_data = 8092;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving MAX_STREAM_DATA to an uninitiated local unidirectional
+     stream ID is an error */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+  fr.max_stream_data.stream_id = 2;
+  fr.max_stream_data.max_stream_data = 8092;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving MAX_STREAM_DATA to a remote bidirectional stream which
+     exceeds limit */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+  fr.max_stream_data.stream_id = 1;
+  fr.max_stream_data.max_stream_data = 1000000009;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving MAX_STREAM_DATA to a remote unidirectional stream which
+     exceeds limit */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+  fr.max_stream_data.stream_id = 11;
+  fr.max_stream_data.max_stream_data = 1000000009;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving MAX_STREAM_DATA to a remote bidirectional stream which
+     the local endpoint has not received yet. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+  fr.max_stream_data.stream_id = 4;
+  fr.max_stream_data.max_stream_data = 1000000009;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 4);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(1000000009 == strm->max_tx_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving MAX_STREAM_DATA to a remote unidirectional stream which
+     the local endpoint has not received yet. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+  fr.max_stream_data.stream_id = 2;
+  fr.max_stream_data.max_stream_data = 1000000009;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 2);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_WR == strm->flags);
+  CU_ASSERT(1000000009 == strm->max_tx_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Receiving MAX_STREAM_DATA to an existing bidirectional stream */
+  setup_default_server(&conn);
+
+  strm = open_stream(conn, 4);
+
+  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
+  fr.max_stream_data.stream_id = 4;
+  fr.max_stream_data.max_stream_data = 1000000009;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1000000009 == strm->max_tx_offset);
+
+  ngtcp2_conn_del(conn);
+}
