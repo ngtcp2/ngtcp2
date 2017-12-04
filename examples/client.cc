@@ -1097,9 +1097,9 @@ int Client::start_interactive_input() {
 
   uint64_t stream_id;
 
-  rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
+  rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
-    std::cerr << "ngtcp2_conn_open_stream: " << ngtcp2_strerror(rv)
+    std::cerr << "ngtcp2_conn_open_bidi_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     if (rv == NGTCP2_ERR_STREAM_ID_BLOCKED) {
       return 0;
@@ -1250,7 +1250,7 @@ int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
     for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
       uint64_t stream_id;
 
-      rv = ngtcp2_conn_open_stream(conn_, &stream_id, nullptr);
+      rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
       if (rv != 0) {
         assert(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
         break;

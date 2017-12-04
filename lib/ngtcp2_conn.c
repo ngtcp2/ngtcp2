@@ -3828,8 +3828,8 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_conn_open_stream(ngtcp2_conn *conn, uint64_t *pstream_id,
-                            void *stream_user_data) {
+int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, uint64_t *pstream_id,
+                                 void *stream_user_data) {
   int rv;
   ngtcp2_strm *strm;
 
