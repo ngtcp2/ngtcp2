@@ -86,10 +86,10 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
-    vlen = sizeof(uint32_t) * 2;
+    vlen = sizeof(uint32_t);
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    vlen = 1 + params->v.ee.len * sizeof(uint32_t);
+    vlen = sizeof(uint32_t) + 1 + params->v.ee.len * sizeof(uint32_t);
     len += 20 /* stateless_reset_token */;
     break;
   default:
@@ -124,10 +124,10 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
-    p = ngtcp2_put_uint32be(p, params->v.ch.negotiated_version);
     p = ngtcp2_put_uint32be(p, params->v.ch.initial_version);
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+    p = ngtcp2_put_uint32be(p, params->v.ee.negotiated_version);
     *p++ = (uint8_t)(params->v.ee.len * sizeof(uint32_t));
     for (i = 0; i < params->v.ee.len; ++i) {
       p = ngtcp2_put_uint32be(p, params->v.ee.supported_versions[i]);
@@ -239,19 +239,19 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
-    if ((size_t)(end - p) < sizeof(uint32_t) * 2) {
+    if ((size_t)(end - p) < sizeof(uint32_t)) {
       return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
     }
-    params->v.ch.negotiated_version = ngtcp2_get_uint32(p);
-    p += sizeof(uint32_t);
     params->v.ch.initial_version = ngtcp2_get_uint32(p);
     p += sizeof(uint32_t);
-    vlen = sizeof(uint32_t) * 2;
+    vlen = sizeof(uint32_t);
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    if (end - p < 1) {
+    if ((size_t)(end - p) < sizeof(uint32_t) + 1) {
       return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
     }
+    params->v.ee.negotiated_version = ngtcp2_get_uint32(p);
+    p += sizeof(uint32_t);
     supported_versionslen = *p++;
     if ((size_t)(end - p) < supported_versionslen ||
         supported_versionslen % sizeof(uint32_t)) {
@@ -263,7 +263,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       params->v.ee.supported_versions[i / sizeof(uint32_t)] =
           ngtcp2_get_uint32(p);
     }
-    vlen = 1 + supported_versionslen;
+    vlen = sizeof(uint32_t) + 1 + supported_versionslen;
     break;
   default:
     vlen = 0;

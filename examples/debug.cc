@@ -441,13 +441,13 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
   switch (type) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     print_indent();
-    fprintf(outfile, "; negotiated_version=0x%08x\n",
-            params->v.ch.negotiated_version);
-    print_indent();
     fprintf(outfile, "; initial_version=0x%08x\n",
             params->v.ch.initial_version);
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+    print_indent();
+    fprintf(outfile, "; negotiated_version=0x%08x\n",
+            params->v.ee.negotiated_version);
     for (size_t i = 0; i < params->v.ee.len; ++i) {
       print_indent();
       fprintf(outfile, "; supported_version[%zu]=0x%08x\n", i,

@@ -466,10 +466,10 @@ typedef enum {
 typedef struct {
   union {
     struct {
-      uint32_t negotiated_version;
       uint32_t initial_version;
     } ch;
     struct {
+      uint32_t negotiated_version;
       uint32_t supported_versions[63];
       size_t len;
     } ee;
@@ -1149,6 +1149,8 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
  *     |conn| is server, and |exttype| is either
  *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`, or
  *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET`
+ * :enum:`NGTCP2_ERR_VERSION_NEGOTIATION`
+ *     Failed to validate version.
  */
 NGTCP2_EXTERN int
 ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,

@@ -3821,19 +3821,55 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   dest->ack_delay_exponent = src->ack_delay_exponent;
 }
 
+/*
+ * conn_client_validate_transport_params validates |params| as client.
+ * |params| must be sent with Encrypted Extensions.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_VERSION_NEGOTIATION
+ *     The negotiated version is invalid.
+ */
+static int
+conn_client_validate_transport_params(ngtcp2_conn *conn,
+                                      const ngtcp2_transport_params *params) {
+  size_t i;
+
+  if (params->v.ee.negotiated_version != conn->version) {
+    return NGTCP2_ERR_VERSION_NEGOTIATION;
+  }
+
+  for (i = 0; i < params->v.ee.len; ++i) {
+    if (params->v.ee.supported_versions[i] == conn->version) {
+      return 0;
+    }
+  }
+
+  return NGTCP2_ERR_VERSION_NEGOTIATION;
+}
+
 int ngtcp2_conn_set_remote_transport_params(
     ngtcp2_conn *conn, uint8_t exttype, const ngtcp2_transport_params *params) {
+  int rv;
+
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     if (!conn->server) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
-    /* TODO More extensive validation is required */
-    if (conn->server && params->v.ch.negotiated_version != conn->version) {
-      return NGTCP2_ERR_PROTO;
-    }
+    /* TODO At the moment, we only support one version, and there is
+       no validation here. */
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+    if (conn->server) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    rv = conn_client_validate_transport_params(conn, params);
+    if (rv != 0) {
+      return rv;
+    }
+    break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     if (conn->server) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -3870,13 +3906,13 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
     }
     /* TODO Fix this; not sure how to handle them correctly */
     params->v.ch.initial_version = conn->version;
-    params->v.ch.negotiated_version = conn->version;
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
     if (!conn->server) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
     /* TODO Fix this; not sure how to handle them correctly */
+    params->v.ee.negotiated_version = conn->version;
     params->v.ee.len = 1;
     params->v.ee.supported_versions[0] = conn->version;
     break;
