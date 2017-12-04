@@ -208,6 +208,8 @@ public:
   int handle_error(int liberror);
   int send_conn_close();
 
+  int send_greeting();
+
 private:
   Address remote_addr_;
   size_t max_pktlen_;

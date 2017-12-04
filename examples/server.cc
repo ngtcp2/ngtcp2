@@ -606,6 +606,8 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
+  h->send_greeting();
+
   return 0;
 }
 } // namespace
@@ -1413,6 +1415,27 @@ int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
       return -1;
     }
   }
+
+  return 0;
+}
+
+int Handler::send_greeting() {
+  int rv;
+  uint64_t stream_id;
+
+  rv = ngtcp2_conn_open_uni_stream(conn_, &stream_id, nullptr);
+  if (rv != 0) {
+    return 0;
+  }
+
+  auto stream = std::make_unique<Stream>(stream_id);
+
+  static constexpr uint8_t hw[] = "Hello World!";
+  stream->streambuf.emplace_back(hw, str_size(hw));
+  stream->should_send_fin = true;
+  stream->resp_state = RESP_COMPLETED;
+
+  streams_.emplace(stream_id, std::move(stream));
 
   return 0;
 }

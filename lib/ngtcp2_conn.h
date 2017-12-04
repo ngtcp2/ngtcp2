@@ -151,6 +151,7 @@ struct ngtcp2_conn {
   ngtcp2_map strms;
   ngtcp2_strm *fc_strms;
   ngtcp2_idtr remote_bidi_idtr;
+  ngtcp2_idtr remote_uni_idtr;
   uint64_t conn_id;
   /* client_conn_id is the connection ID client sent in its Client
      Initial packet.  This field is only used if ngtcp2_conn is
@@ -184,6 +185,21 @@ struct ngtcp2_conn {
   /* next_local_stream_id_bidi is the bidirectional stream ID which
      the local endpoint opens next. */
   uint64_t next_local_stream_id_bidi;
+  /* unsent_max_remote_stream_id_uni is an unidirectional stream
+     version of unsent_max_remote_stream_id_bidi. */
+  uint64_t unsent_max_remote_stream_id_uni;
+  /* max_remote_stream_id_uni is an unidirectional stream version of
+     max_remote_stream_id_bidi. */
+  uint64_t max_remote_stream_id_uni;
+  /* remote_stream_id_uni_window_start is an unidirectional stream
+     version of remote_stream_id_bidi_window_start. */
+  uint64_t remote_stream_id_uni_window_start;
+  /* max_local_stream_id_uni is an unidirectional stream version of
+     max_local_stream_id_bidi. */
+  uint64_t max_local_stream_id_uni;
+  /* next_local_stream_id_uni is an unidirectional stream version of
+     next_local_stream_id_bidi. */
+  uint64_t next_local_stream_id_uni;
   /* unsent_max_rx_offset is the maximum offset that remote endpoint
      can send without extending MAX_DATA.  This limit is not yet
      notified to the remote endpoint. */
