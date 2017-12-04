@@ -80,6 +80,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_TLS_FATAL_ALERT_GENERATED";
   case NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED:
     return "ERR_TLS_FATAL_ALERT_RECEIVED";
+  case NGTCP2_ERR_STREAM_STATE:
+    return "ERR_STREAM_STATE";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:
@@ -114,6 +116,8 @@ uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
     return NGTCP2_TLS_FATAL_ALERT_GENERATED;
   case NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED:
     return NGTCP2_TLS_FATAL_ALERT_RECEIVED;
+  case NGTCP2_ERR_STREAM_STATE:
+    return NGTCP2_STREAM_STATE_ERROR;
   default:
     return NGTCP2_PROTOCOL_VIOLATION;
   }

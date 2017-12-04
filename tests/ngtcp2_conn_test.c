@@ -1026,7 +1026,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -1204,6 +1204,21 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
 
   ngtcp2_conn_del(conn);
+
+  /* RST_STREAM against local stream which has not been initiated. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 3;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.rst_stream.final_offset = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_stop_sending(void) {
@@ -1290,6 +1305,21 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* STOP_SENDING against local bidirectional stream which has not
+     been initiated. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STOP_SENDING;
+  fr.stop_sending.stream_id = 1;
+  fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+
+  ngtcp2_conn_del(conn);
+
   /* Receiving STOP_SENDING for a local unidirectional stream */
   setup_default_server(&conn);
 
@@ -1306,6 +1336,21 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_FRAME_RST_STREAM == conn->frq->fr.type);
+
+  ngtcp2_conn_del(conn);
+
+  /* STOP_SENDING against local unidirectional stream which has not
+     been initiated. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STOP_SENDING;
+  fr.stop_sending.stream_id = 3;
+  fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), 0xc, 1, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
 
   ngtcp2_conn_del(conn);
 }

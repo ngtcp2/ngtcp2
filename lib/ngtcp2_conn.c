@@ -2662,13 +2662,24 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   bidi = bidi_stream(fr->stream_id);
 
   if (bidi) {
-    if (!local_stream && conn->max_remote_stream_id_bidi < fr->stream_id) {
+    if (local_stream) {
+      if (conn->next_local_stream_id_bidi <= fr->stream_id) {
+        return NGTCP2_ERR_STREAM_STATE;
+      }
+    } else if (conn->max_remote_stream_id_bidi < fr->stream_id) {
       return NGTCP2_ERR_STREAM_ID;
     }
 
     idtr = &conn->remote_bidi_idtr;
   } else {
-    if (!local_stream && conn->max_remote_stream_id_uni < fr->stream_id) {
+    if (local_stream) {
+      if (conn->next_local_stream_id_uni <= fr->stream_id) {
+        return NGTCP2_ERR_STREAM_STATE;
+      }
+      if (fr->offset + fr->datalen != 0) {
+        return NGTCP2_ERR_FINAL_OFFSET;
+      }
+    } else if (conn->max_remote_stream_id_uni < fr->stream_id) {
       return NGTCP2_ERR_STREAM_ID;
     }
 
@@ -2682,18 +2693,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
     if (local_stream) {
-      if (bidi) {
-        if (conn->next_local_stream_id_bidi <= fr->stream_id) {
-          return NGTCP2_ERR_PROTO;
-        }
-      } else {
-        if (conn->next_local_stream_id_uni <= fr->stream_id) {
-          return NGTCP2_ERR_PROTO;
-        }
-        if (fr->offset + fr->datalen != 0) {
-          return NGTCP2_ERR_FINAL_OFFSET;
-        }
-      }
       /* TODO The stream has been closed.  This should be responded
          with RST_STREAM, or simply ignored. */
       return 0;
@@ -2912,7 +2911,7 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
   if (bidi) {
     if (local_stream) {
       if (conn->next_local_stream_id_bidi <= fr->stream_id) {
-        return NGTCP2_ERR_PROTO;
+        return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (fr->stream_id > conn->max_remote_stream_id_bidi) {
       return NGTCP2_ERR_STREAM_ID;
@@ -2922,7 +2921,7 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
   } else {
     if (local_stream) {
       if (conn->next_local_stream_id_uni <= fr->stream_id) {
-        return NGTCP2_ERR_PROTO;
+        return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (fr->stream_id > conn->max_remote_stream_id_uni) {
       return NGTCP2_ERR_STREAM_ID;
@@ -2986,7 +2985,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   if (bidi) {
     if (local_stream) {
       if (conn->next_local_stream_id_bidi <= fr->stream_id) {
-        return NGTCP2_ERR_PROTO;
+        return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (fr->stream_id > conn->max_remote_stream_id_bidi) {
       return NGTCP2_ERR_STREAM_ID;
@@ -2996,7 +2995,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   } else {
     if (local_stream) {
       if (conn->next_local_stream_id_uni <= fr->stream_id) {
-        return NGTCP2_ERR_PROTO;
+        return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (fr->stream_id > conn->max_remote_stream_id_uni) {
       return NGTCP2_ERR_STREAM_ID;
