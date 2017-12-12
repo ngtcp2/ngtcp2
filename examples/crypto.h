@@ -71,6 +71,10 @@ int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 // for server.  It returns 0 if it succeeds, or -1.
 int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 
+// export_early_secret exports early secret, client_0rtt_secret, from
+// |ssl|.  It returns 0 if it succeeds, or -1.
+int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl);
+
 // derive_handshake_secret dervies handshake_secret.  |secret| is
 // client connection ID.
 int derive_handshake_secret(uint8_t *dest, size_t destlen, uint64_t secret,

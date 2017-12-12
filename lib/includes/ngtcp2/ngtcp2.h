@@ -211,6 +211,8 @@ typedef enum {
   NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED = -224,
   NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED = -225,
   NGTCP2_ERR_STREAM_STATE = -226,
+  NGTCP2_ERR_NOKEY = -227,
+  NGTCP2_ERR_EARLY_DATA_REJECTED = -228,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -1112,6 +1114,18 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn,
 NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
                                                  size_t aead_overhead);
 
+NGTCP2_EXTERN int ngtcp2_conn_update_early_tx_keys(ngtcp2_conn *conn,
+                                                   const uint8_t *key,
+                                                   size_t keylen,
+                                                   const uint8_t *iv,
+                                                   size_t ivlen);
+
+NGTCP2_EXTERN int ngtcp2_conn_update_early_rx_keys(ngtcp2_conn *conn,
+                                                   const uint8_t *key,
+                                                   size_t keylen,
+                                                   const uint8_t *iv,
+                                                   size_t ivlen);
+
 NGTCP2_EXTERN int ngtcp2_conn_update_tx_keys(ngtcp2_conn *conn,
                                              const uint8_t *key, size_t keylen,
                                              const uint8_t *iv, size_t ivlen);
@@ -1155,6 +1169,31 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
 NGTCP2_EXTERN int
 ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
                                         const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_early_remote_transport_params` sets |params| as
+ * transport parameter previously received from a server.  The
+ * parameters are used to send 0-RTT data.  QUIC requires that client
+ * application should remember transport parameter as well as session
+ * ticket.
+ *
+ * At least following fields must be set:
+ *
+ * * initial_max_stream_id_bidi
+ * * initial_max_stream_id_uni
+ * * initial_max_stream_data
+ * * initial_max_data
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     |conn| is initialized as a server.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 /**
  * @function
@@ -1319,6 +1358,10 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *     Packet number is exhausted, and cannot send any more packet.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
+ * :enum:`NGTCP2_ERR_NOKEY`
+ *     No encryption key is available.
+ * :enum:`NGTCP2_ERR_EARLY_DATA_REJECTED`
+ *     Early data was rejected by server.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
                                                size_t destlen, size_t *pdatalen,
@@ -1437,6 +1480,14 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_negotiated_conn_id(ngtcp2_conn *conn);
  * `ngtcp2_conn_negotiated_version` returns the negotiated version.
  */
 NGTCP2_EXTERN uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_early_data_rejected` tells |conn| that 0-RTT data was
+ * rejected by a server.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
 
 /**
  * @function

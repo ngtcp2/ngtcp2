@@ -48,6 +48,7 @@ struct ngtcp2_acktr_entry {
   ngtcp2_acktr_entry **pprev, *next;
   uint64_t pkt_num;
   ngtcp2_tstamp tstamp;
+  uint8_t unprotected;
 };
 
 /*
@@ -55,7 +56,8 @@ struct ngtcp2_acktr_entry {
  * with the given parameters.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
+                           ngtcp2_tstamp tstamp, uint8_t unprotected,
+                           ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_entry_del deallocates memory allocated for |ent|.  It

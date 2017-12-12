@@ -142,6 +142,9 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_STATELESS_RETRY is set when a client receives
      Server Stateless Retry packet. */
   NGTCP2_CONN_FLAG_STATELESS_RETRY = 0x10,
+  /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
+     rejected by a peer. */
+  NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED = 0x20,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {
@@ -153,9 +156,7 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   uint64_t conn_id;
-  /* client_conn_id is the connection ID client sent in its Client
-     Initial packet.  This field is only used if ngtcp2_conn is
-     initialized for server use. */
+  /* client_conn_id is the connection ID chosen by client. */
   uint64_t client_conn_id;
   /* last_tx_pkt_num is the packet number which the local endpoint
      sent last time.*/
@@ -231,12 +232,15 @@ struct ngtcp2_conn {
   /* hs_rx_ckm is a cryptographic key, and iv to decrypt handshake
      packets. */
   ngtcp2_crypto_km *hs_rx_ckm;
+  ngtcp2_crypto_km *early_tx_ckm;
+  ngtcp2_crypto_km *early_rx_ckm;
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;
   size_t aead_overhead;
   /* buffed_rx_ppkts is buffered protected packets which come before
      handshake completed due to packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
+  ngtcp2_rtb_entry *early_rtb;
   ngtcp2_settings local_settings;
   ngtcp2_settings remote_settings;
   /* next_ack_expiry is the timeout of delayed ack. */
@@ -261,7 +265,7 @@ struct ngtcp2_conn {
  *     Same packet number has already been added.
  */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
-                          ngtcp2_tstamp ts);
+                          ngtcp2_tstamp ts, uint8_t unprotected);
 
 /*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is

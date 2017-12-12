@@ -28,6 +28,7 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
+#include <fstream>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -251,7 +252,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       last_stream_id_(0),
-      nstreams_done_(0) {
+      nstreams_done_(0),
+      resumption_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   ev_io_init(&stdinrev_, stdin_readcb, 0, EV_READ);
@@ -311,9 +313,11 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
                             void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->tls_handshake() != 0) {
+  if (c->tls_handshake(true) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
+
+  c->handle_early_data();
 
   if (ppkt_num) {
     *ppkt_num = std::uniform_int_distribution<uint64_t>(
@@ -553,6 +557,28 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     SSL_set_tlsext_host_name(ssl_, addr);
   }
 
+  if (config.session_file) {
+    auto f = BIO_new_file(config.session_file, "r");
+    if (f == nullptr) {
+      std::cerr << "Could not read TLS session file " << config.session_file
+                << std::endl;
+    } else {
+      auto session = PEM_read_bio_SSL_SESSION(f, nullptr, 0, nullptr);
+      BIO_free(f);
+      if (session == nullptr) {
+        std::cerr << "Could not read TLS session file " << config.session_file
+                  << std::endl;
+      } else {
+        if (!SSL_set_session(ssl_, session)) {
+          std::cerr << "Could not set session" << std::endl;
+        } else {
+          resumption_ = true;
+        }
+        SSL_SESSION_free(session);
+      }
+    }
+  }
+
   auto callbacks = ngtcp2_conn_callbacks{
       send_client_initial,
       send_client_handshake,
@@ -669,10 +695,37 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   return 0;
 }
 
-int Client::tls_handshake() {
+int Client::tls_handshake(bool initial) {
   ERR_clear_error();
 
-  auto rv = SSL_do_handshake(ssl_);
+  int rv;
+  if (initial && resumption_) {
+    size_t nwrite;
+    // OpenSSL returns error if SSL_write_early_data is called when
+    // resumption is not attempted.  Sending empty string is a trick
+    // to just early_data extension.
+    rv = SSL_write_early_data(ssl_, "", 0, &nwrite);
+    if (rv == 0) {
+      auto err = SSL_get_error(ssl_, rv);
+      switch (err) {
+      case SSL_ERROR_SSL:
+        std::cerr << "TLS handshake error: "
+                  << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+        return -1;
+      default:
+        std::cerr << "TLS handshake error: " << err << std::endl;
+        return -1;
+      }
+    }
+  }
+
+  rv = SSL_do_handshake(ssl_);
+  if (!initial && resumption_) {
+    if (SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
+      std::cerr << "Early data was rejected by server" << std::endl;
+      ngtcp2_conn_early_data_rejected(conn_);
+    }
+  }
   if (rv <= 0) {
     auto err = SSL_get_error(ssl_, rv);
     switch (err) {
@@ -874,6 +927,7 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
                                       data.size(), util::timestamp());
     if (n < 0) {
       switch (n) {
+      case NGTCP2_ERR_EARLY_DATA_REJECTED:
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
       case NGTCP2_ERR_STREAM_SHUT_WR:
       case NGTCP2_ERR_STREAM_NOT_FOUND: // This means that stream is
@@ -944,6 +998,51 @@ size_t Client::read_server_handshake(uint8_t *buf, size_t buflen) {
 
 void Client::write_server_handshake(const uint8_t *data, size_t datalen) {
   std::copy_n(data, datalen, std::back_inserter(shandshake_));
+}
+
+int Client::setup_early_crypto_context() {
+  int rv;
+
+  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  auto length = EVP_MD_size(crypto_ctx_.prf);
+
+  crypto_ctx_.secretlen = length;
+
+  rv = crypto::export_early_secret(crypto_ctx_.tx_secret.data(),
+                                   crypto_ctx_.secretlen, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  std::array<uint8_t, 64> key, iv;
+
+  auto keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), crypto_ctx_.tx_secret.data(),
+      crypto_ctx_.secretlen, crypto_ctx_);
+  if (keylen < 0) {
+    return -1;
+  }
+
+  auto ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), crypto_ctx_.tx_secret.data(), crypto_ctx_.secretlen,
+      crypto_ctx_);
+  if (ivlen < 0) {
+    return -1;
+  }
+
+  ngtcp2_conn_update_early_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+
+  ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
+
+  return 0;
 }
 
 int Client::setup_crypto_context() {
@@ -1232,6 +1331,89 @@ void Client::on_stream_close(uint64_t stream_id) {
   streams_.erase(it);
 }
 
+namespace {
+int write_transport_params(const char *path,
+                           const ngtcp2_transport_params *params) {
+  auto f = std::ofstream(path);
+  if (!f) {
+    return -1;
+  }
+
+  f << "initial_max_stream_id_bidi=" << params->initial_max_stream_id_bidi
+    << "\n"
+    << "initial_max_stream_id_uni=" << params->initial_max_stream_id_uni << "\n"
+    << "initial_max_stream_data=" << params->initial_max_stream_data << "\n"
+    << "initial_max_data=" << params->initial_max_data << "\n";
+
+  f.close();
+  if (!f) {
+    return -1;
+  }
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int read_transport_params(const char *path, ngtcp2_transport_params *params) {
+  auto f = std::ifstream(path);
+  if (!f) {
+    return -1;
+  }
+
+  for (std::string line; std::getline(f, line);) {
+    if (util::istarts_with_l(line, "initial_max_stream_id_bidi=")) {
+      params->initial_max_stream_id_bidi = strtoul(
+          line.c_str() + str_size("initial_max_stream_id_bidi="), nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_stream_id_uni=")) {
+      params->initial_max_stream_id_uni = strtoul(
+          line.c_str() + str_size("initial_max_stream_id_uni="), nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_stream_data=")) {
+      params->initial_max_stream_data = strtoul(
+          line.c_str() + str_size("initial_max_stream_data="), nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_data=")) {
+      params->initial_max_data =
+          strtoul(line.c_str() + str_size("initial_max_data="), nullptr, 10);
+    }
+  }
+
+  return 0;
+}
+} // namespace
+
+void Client::handle_early_data() {
+  if (!resumption_ || setup_early_crypto_context() != 0) {
+    return;
+  }
+
+  if (config.tp_file) {
+    ngtcp2_transport_params params;
+    if (read_transport_params(config.tp_file, &params) != 0) {
+      std::cerr << "Could not read transport parameters from " << config.tp_file
+                << std::endl;
+    } else {
+      ngtcp2_conn_set_early_remote_transport_params(conn_, &params);
+    }
+  }
+
+  make_stream_early();
+}
+
+void Client::make_stream_early() {
+  int rv;
+  uint64_t stream_id;
+  rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_open_bidi_stream: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return;
+  }
+
+  auto stream = std::make_unique<Stream>(stream_id);
+  stream->buffer_file();
+  streams_.emplace(stream_id, std::move(stream));
+}
+
 int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
   int rv;
 
@@ -1318,11 +1500,6 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
                               unsigned int context, const unsigned char *in,
                               size_t inlen, X509 *x, size_t chainidx, int *al,
                               void *parse_arg) {
-  if (context != SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS) {
-    // TODO Handle transport parameter in NewSessionTicket.
-    return 1;
-  }
-
   auto c = static_cast<Client *>(SSL_get_app_data(ssl));
   auto conn = c->conn();
 
@@ -1341,20 +1518,51 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
 
   if (!config.quiet) {
     debug::print_indent();
-    std::cerr << "; TransportParameter received in EncryptedExtensions"
+    std::cerr << "; TransportParameter received in "
+              << (context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
+                      ? "EncryptedExtensions"
+                      : "NewSessionTicket")
               << std::endl;
     debug::print_transport_params(
         &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
   }
 
-  rv = ngtcp2_conn_set_remote_transport_params(
-      conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
-  if (rv != 0) {
-    // TODO Set *al
-    return -1;
+  if (context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS) {
+    rv = ngtcp2_conn_set_remote_transport_params(
+        conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+    if (rv != 0) {
+      // TODO Set *al
+      return -1;
+    }
+  } else if (config.tp_file) {
+    if (write_transport_params(config.tp_file, &params) != 0) {
+      std::cerr << "Could not write transport parameters in " << config.tp_file
+                << std::endl;
+    }
   }
 
   return 1;
+}
+} // namespace
+
+namespace {
+int new_session_cb(SSL *ssl, SSL_SESSION *session) {
+  if (SSL_get_max_early_data(ssl) != std::numeric_limits<uint32_t>::max()) {
+    // TODO Find a way to send CONNECTION_CLOSE with
+    // PROTOCOL_VIOLATION in this case.
+    std::cerr << "max_early_data is not 0xffffffff" << std::endl;
+  }
+  auto f = BIO_new_file(config.session_file, "w");
+  if (f == nullptr) {
+    std::cerr << "Could not write TLS session in " << config.session_file
+              << std::endl;
+    return 0;
+  }
+
+  PEM_write_bio_SSL_SESSION(f, session);
+  BIO_free(f);
+
+  return 0;
 }
 } // namespace
 
@@ -1381,13 +1589,19 @@ SSL_CTX *create_ssl_ctx() {
   if (SSL_CTX_add_custom_ext(
           ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
           SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS |
-              SSL_EXT_TLS1_3_NEW_SESSION_TICKET | SSL_EXT_IGNORE_ON_RESUMPTION,
+              SSL_EXT_TLS1_3_NEW_SESSION_TICKET,
           transport_params_add_cb, transport_params_free_cb, nullptr,
           transport_params_parse_cb, nullptr) != 1) {
     std::cerr << "SSL_CTX_add_custom_ext(NGTCP2_TLSEXT_QUIC_TRANSPORT_"
                  "PARAMETERS) failed: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     exit(EXIT_FAILURE);
+  }
+
+  if (config.session_file) {
+    SSL_CTX_set_session_cache_mode(
+        ssl_ctx, SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL_STORE);
+    SSL_CTX_sess_set_new_cb(ssl_ctx, new_session_cb);
   }
 
   return ssl_ctx;
@@ -1541,6 +1755,14 @@ Options:
               Specify the supported groups.
               Default: )" << config.groups
             << R"(
+  --session-file=<PATH>
+              Read/write  TLS session  from/to  <PATH>.   To resume  a
+              session, the previous session must be supplied with this
+              option.
+  --tp-file=<PATH>
+              Read/write QUIC transport parameters from/to <PATH>.  To
+              send 0-RTT data, the  transport parameters received from
+              the previous session must be supplied with this option.
   -h, --help  Display this help and exit.
 )";
 }
@@ -1564,6 +1786,8 @@ int main(int argc, char **argv) {
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {"timeout", required_argument, &flag, 3},
+        {"session-file", required_argument, &flag, 4},
+        {"tp-file", required_argument, &flag, 5},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -1622,6 +1846,14 @@ int main(int argc, char **argv) {
       case 3:
         // --timeout
         config.timeout = strtol(optarg, nullptr, 10);
+        break;
+      case 4:
+        // --session-file
+        config.session_file = optarg;
+        break;
+      case 5:
+        // --tp-file
+        config.tp_file = optarg;
         break;
       }
       break;

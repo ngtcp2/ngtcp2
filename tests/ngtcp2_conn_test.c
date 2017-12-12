@@ -347,6 +347,70 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
                                     sizeof(null_iv));
 }
 
+static void setup_early_server(ngtcp2_conn **pconn) {
+  ngtcp2_conn_callbacks cb;
+  ngtcp2_settings settings;
+
+  memset(&cb, 0, sizeof(cb));
+  cb.recv_client_initial = recv_client_initial;
+  cb.send_server_handshake = send_server_handshake;
+  cb.recv_stream0_data = recv_stream0_data;
+  cb.hs_decrypt = null_decrypt;
+  cb.hs_encrypt = null_encrypt;
+  cb.decrypt = null_decrypt;
+  cb.encrypt = null_encrypt;
+  server_default_settings(&settings);
+
+  ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
+                         NULL);
+  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_update_early_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                   sizeof(null_iv));
+  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_id_bidi = 0;
+  (*pconn)->remote_settings.max_stream_id_uni = 3;
+  (*pconn)->remote_settings.max_data = 64 * 1024;
+  (*pconn)->max_local_stream_id_bidi =
+      (*pconn)->remote_settings.max_stream_id_bidi;
+  (*pconn)->max_local_stream_id_uni =
+      (*pconn)->remote_settings.max_stream_id_uni;
+  (*pconn)->max_tx_offset = (*pconn)->remote_settings.max_data;
+}
+
+static void setup_early_client(ngtcp2_conn **pconn) {
+  ngtcp2_conn_callbacks cb;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+
+  memset(&cb, 0, sizeof(cb));
+  cb.send_client_initial = send_client_initial;
+  cb.recv_stream0_data = recv_stream0_data;
+  cb.hs_decrypt = null_decrypt;
+  cb.hs_encrypt = null_encrypt;
+  cb.decrypt = null_decrypt;
+  cb.encrypt = null_encrypt;
+  client_default_settings(&settings);
+
+  ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
+                         NULL);
+  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                    sizeof(null_iv));
+  ngtcp2_conn_update_early_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                   sizeof(null_iv));
+
+  params.initial_max_stream_data = 64 * 1024;
+  params.initial_max_stream_id_bidi = 4;
+  params.initial_max_stream_id_uni = 2;
+  params.initial_max_data = 64 * 1024;
+
+  ngtcp2_conn_set_early_remote_transport_params(*pconn, &params);
+}
+
 void test_ngtcp2_conn_stream_open_close(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
@@ -2431,6 +2495,79 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1000000009 == strm->max_tx_offset);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_send_early_data(void) {
+  ngtcp2_conn *conn;
+  ssize_t spktlen;
+  size_t datalen;
+  uint8_t buf[1024];
+  uint64_t stream_id;
+  int rv;
+
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
+                                     stream_id, 1, null_data, 911, 1);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(911 == datalen);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_early_data(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_frame fr;
+  uint64_t pkt_num = 1;
+  ngtcp2_tstamp t = 0;
+  int rv;
+  ngtcp2_strm *strm;
+
+  setup_early_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 121;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(buf, sizeof(buf),
+                                            NGTCP2_PKT_INITIAL, 1000000007,
+                                            ++pkt_num, conn->version, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 911;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, 1000000007, ++pkt_num,
+      conn->version, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 4);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(911 == strm->last_rx_offset);
 
   ngtcp2_conn_del(conn);
 }

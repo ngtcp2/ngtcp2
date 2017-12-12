@@ -175,6 +175,7 @@ public:
 
   int recv_client_initial(uint64_t conn_id);
   int setup_crypto_context();
+  int setup_early_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
                           const uint8_t *plaintext, size_t plaintextlen,
                           const uint8_t *key, size_t keylen,
@@ -241,6 +242,11 @@ private:
   // tx_stream0_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream0_offset_;
+  // initial_ is initially true, and used to process first packet from
+  // client specially.  After first packet, it becomes false.
+  bool initial_;
+  // key_generated_ becomes true when 1-RTT key is available.
+  bool key_generated_;
 };
 
 class Server {

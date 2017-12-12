@@ -40,13 +40,13 @@ void test_ngtcp2_acktr_add(void) {
 
   ngtcp2_acktr_init(&acktr, mem);
 
-  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, mem);
-  ngtcp2_acktr_entry_new(&ents[1], 5, 1001, mem);
-  ngtcp2_acktr_entry_new(&ents[2], 7, 1002, mem);
-  ngtcp2_acktr_entry_new(&ents[3], 4, 1003, mem);
-  ngtcp2_acktr_entry_new(&ents[4], 6, 1004, mem);
-  ngtcp2_acktr_entry_new(&ents[5], 2, 1005, mem);
-  ngtcp2_acktr_entry_new(&ents[6], 3, 1006, mem);
+  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, 0, mem);
+  ngtcp2_acktr_entry_new(&ents[1], 5, 1001, 0, mem);
+  ngtcp2_acktr_entry_new(&ents[2], 7, 1002, 0, mem);
+  ngtcp2_acktr_entry_new(&ents[3], 4, 1003, 0, mem);
+  ngtcp2_acktr_entry_new(&ents[4], 6, 1004, 0, mem);
+  ngtcp2_acktr_entry_new(&ents[5], 2, 1005, 0, mem);
+  ngtcp2_acktr_entry_new(&ents[6], 3, 1006, 0, mem);
 
   for (i = 0; i < arraylen(ents); ++i) {
     rv = ngtcp2_acktr_add(&acktr, ents[i], 1);
@@ -74,7 +74,7 @@ void test_ngtcp2_acktr_add(void) {
 
   /* Check duplicates */
   ngtcp2_acktr_init(&acktr, mem);
-  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, mem);
+  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, 0, mem);
 
   rv = ngtcp2_acktr_add(&acktr, ents[0], 1);
 
@@ -97,7 +97,7 @@ void test_ngtcp2_acktr_eviction(void) {
   ngtcp2_acktr_init(&acktr, mem);
 
   for (i = 0; i < NGTCP2_ACKTR_MAX_ENT + extra; ++i) {
-    ngtcp2_acktr_entry_new(&ent, i, 0, mem);
+    ngtcp2_acktr_entry_new(&ent, i, 0, 0, mem);
     ngtcp2_acktr_add(&acktr, ent, 1);
   }
 
@@ -122,7 +122,7 @@ void test_ngtcp2_acktr_eviction(void) {
   ngtcp2_acktr_init(&acktr, mem);
 
   for (i = NGTCP2_ACKTR_MAX_ENT + extra; i > 0; --i) {
-    ngtcp2_acktr_entry_new(&ent, i - 1, 0, mem);
+    ngtcp2_acktr_entry_new(&ent, i - 1, 0, 0, mem);
     ngtcp2_acktr_add(&acktr, ent, 1);
   }
 
@@ -153,7 +153,7 @@ void test_ngtcp2_acktr_forget(void) {
   ngtcp2_acktr_init(&acktr, mem);
 
   for (i = 0; i < 7; ++i) {
-    ngtcp2_acktr_entry_new(&ent, i, 0, mem);
+    ngtcp2_acktr_entry_new(&ent, i, 0, 0, mem);
     ngtcp2_acktr_add(&acktr, ent, 1);
   }
 
@@ -189,7 +189,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_acktr_init(&acktr, mem);
 
   for (i = 0; i < arraylen(pkt_nums); ++i) {
-    ngtcp2_acktr_entry_new(&ent, pkt_nums[i], 1, mem);
+    ngtcp2_acktr_entry_new(&ent, pkt_nums[i], 1, 0, mem);
     ngtcp2_acktr_add(&acktr, ent, 1);
   }
 

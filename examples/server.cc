@@ -534,7 +534,9 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       conn_id_(std::uniform_int_distribution<uint64_t>(
           0, std::numeric_limits<uint64_t>::max())(randgen)),
       client_conn_id_(client_conn_id),
-      tx_stream0_offset_(0) {
+      tx_stream0_offset_(0),
+      initial_(true),
+      key_generated_(false) {
   ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
@@ -600,10 +602,6 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 
   if (!config.quiet) {
     debug::handshake_completed(conn, user_data);
-  }
-
-  if (h->setup_crypto_context() != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   h->send_greeting();
@@ -814,7 +812,49 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
 int Handler::tls_handshake() {
   ERR_clear_error();
 
-  auto rv = SSL_do_handshake(ssl_);
+  int rv;
+
+  if (initial_) {
+    std::array<uint8_t, 8> buf;
+    size_t nread;
+    rv = SSL_read_early_data(ssl_, buf.data(), buf.size(), &nread);
+    initial_ = false;
+    switch (rv) {
+    case SSL_READ_EARLY_DATA_ERROR: {
+      std::cerr << "SSL_READ_EARLY_DATA_ERROR" << std::endl;
+      auto err = SSL_get_error(ssl_, rv);
+      switch (err) {
+      case SSL_ERROR_WANT_READ:
+      case SSL_ERROR_WANT_WRITE: {
+        if (SSL_get_early_data_status(ssl_) == SSL_EARLY_DATA_ACCEPTED &&
+            setup_early_crypto_context() != 0) {
+          return -1;
+        }
+        if (setup_crypto_context() == 0) {
+          key_generated_ = true;
+        }
+        return 0;
+      }
+      case SSL_ERROR_SSL:
+        std::cerr << "TLS handshake error: "
+                  << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+        return -1;
+      default:
+        std::cerr << "TLS handshake error: " << err << std::endl;
+        return -1;
+      }
+      break;
+    }
+    case SSL_READ_EARLY_DATA_SUCCESS:
+      std::cerr << "SSL_READ_EARLY_DATA_SUCCESS" << std::endl;
+      break;
+    case SSL_READ_EARLY_DATA_FINISH:
+      std::cerr << "SSL_READ_EARLY_DATA_FINISH" << std::endl;
+      break;
+    }
+  }
+
+  rv = SSL_do_handshake(ssl_);
   if (rv <= 0) {
     auto err = SSL_get_error(ssl_, rv);
     switch (err) {
@@ -829,6 +869,13 @@ int Handler::tls_handshake() {
       std::cerr << "TLS handshake error: " << err << std::endl;
       return -1;
     }
+  }
+
+  if (!key_generated_) {
+    if (setup_crypto_context() != 0) {
+      return -1;
+    }
+    key_generated_ = true;
   }
 
   // SSL_do_handshake returns 1 if TLS handshake has completed.  With
@@ -853,6 +900,15 @@ int Handler::tls_handshake() {
       std::cerr << std::endl;
     }
   }
+
+  // TODO Create stream 0 to send post-handshake data.  Probably, we
+  // should feed data in recv_stream0_data as well.
+  auto stream = std::make_unique<Stream>(0);
+  if (shandshake_idx_ != shandshake_.size()) {
+    auto &v = shandshake_[shandshake_idx_++];
+    stream->streambuf.emplace_back(v.rpos(), v.size());
+  }
+  streams_.emplace(0, std::move(stream));
 
   return 0;
 }
@@ -978,6 +1034,51 @@ int Handler::recv_client_initial(uint64_t conn_id) {
 
   ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
                                     ivlen);
+
+  return 0;
+}
+
+int Handler::setup_early_crypto_context() {
+  int rv;
+
+  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  auto length = EVP_MD_size(crypto_ctx_.prf);
+
+  crypto_ctx_.secretlen = length;
+
+  rv = crypto::export_early_secret(crypto_ctx_.rx_secret.data(),
+                                   crypto_ctx_.secretlen, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  std::array<uint8_t, 64> key, iv;
+
+  auto keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), crypto_ctx_.rx_secret.data(),
+      crypto_ctx_.secretlen, crypto_ctx_);
+  if (keylen < 0) {
+    return -1;
+  }
+
+  auto ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), crypto_ctx_.rx_secret.data(), crypto_ctx_.secretlen,
+      crypto_ctx_);
+  if (ivlen < 0) {
+    return -1;
+  }
+
+  ngtcp2_conn_update_early_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+
+  ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
 
   return 0;
 }
@@ -1993,7 +2094,7 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   if (SSL_CTX_add_custom_ext(
           ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
           SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS |
-              SSL_EXT_IGNORE_ON_RESUMPTION,
+              SSL_EXT_TLS1_3_NEW_SESSION_TICKET,
           transport_params_add_cb, transport_params_free_cb, nullptr,
           transport_params_parse_cb, nullptr) != 1) {
     std::cerr << "SSL_CTX_add_custom_ext(NGTCP2_TLSEXT_QUIC_TRANSPORT_"
@@ -2001,6 +2102,8 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     goto fail;
   }
+
+  SSL_CTX_set_max_early_data(ssl_ctx, std::numeric_limits<uint32_t>::max());
 
   return ssl_ctx;
 

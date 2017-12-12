@@ -82,6 +82,10 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_TLS_FATAL_ALERT_RECEIVED";
   case NGTCP2_ERR_STREAM_STATE:
     return "ERR_STREAM_STATE";
+  case NGTCP2_ERR_NOKEY:
+    return "ERR_NOKEY";
+  case NGTCP2_ERR_EARLY_DATA_REJECTED:
+    return "ERR_EARLY_DATA_REJECTED";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:

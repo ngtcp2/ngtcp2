@@ -29,7 +29,8 @@
 #include "ngtcp2_macro.h"
 
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem) {
+                           ngtcp2_tstamp tstamp, uint8_t unprotected,
+                           ngtcp2_mem *mem) {
   *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));
   if (*ent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -39,6 +40,7 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
   (*ent)->pprev = NULL;
   (*ent)->pkt_num = pkt_num;
   (*ent)->tstamp = tstamp;
+  (*ent)->unprotected = unprotected;
 
   return 0;
 }

@@ -72,6 +72,11 @@ struct Config {
   bool quiet;
   // timeout is an idle timeout for QUIC connection.
   uint32_t timeout;
+  // session_file is a path to a file to write, and read TLS session.
+  const char *session_file;
+  // tp_file is a path to a fie to write, and read QUIC transport
+  // parameters.
+  const char *tp_file;
 };
 
 struct Buffer {
@@ -133,7 +138,7 @@ public:
   void disconnect(int liberr);
   void close();
 
-  int tls_handshake();
+  int tls_handshake(bool initial = false);
   int read_tls();
   int on_read();
   int on_write();
@@ -148,6 +153,7 @@ public:
   void write_server_handshake(const uint8_t *data, size_t datalen);
 
   int setup_crypto_context();
+  int setup_early_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
                           const uint8_t *plaintext, size_t plaintextlen,
                           const uint8_t *key, size_t keylen,
@@ -176,6 +182,8 @@ public:
   void on_stream_close(uint64_t stream_id);
   int on_extend_max_stream_id(uint64_t max_stream_id);
   int handle_error(int liberr);
+  void make_stream_early();
+  void handle_early_data();
 
 private:
   Address remote_addr_;
@@ -207,6 +215,8 @@ private:
   uint64_t last_stream_id_;
   // nstreams_done_ is the number of streams opened.
   uint64_t nstreams_done_;
+  // resumption_ is true if client attempts to resume session.
+  bool resumption_;
 };
 
 #endif // CLIENT_H
