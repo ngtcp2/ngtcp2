@@ -4181,7 +4181,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_NOKEY;
   }
 
-  ngtcp2_pkt_hd_init(&hd, pkt_flags, pkt_type, conn->conn_id,
+  ngtcp2_pkt_hd_init(&hd, pkt_flags, pkt_type, conn_id,
                      conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.aead_overhead = conn->aead_overhead;
