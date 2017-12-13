@@ -1813,11 +1813,12 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   std::array<uint32_t, 2> sv;
   int rv;
 
+  /* TODO Make hd.type random. */
   hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
   hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
   hd.conn_id = chd->conn_id;
   hd.pkt_num = chd->pkt_num;
-  hd.version = chd->version;
+  hd.version = 0;
 
   reserved_ver = generate_reserved_vesrion(sa, salen, hd.version);
 

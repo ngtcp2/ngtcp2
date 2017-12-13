@@ -56,6 +56,7 @@ ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                   size_t pktlen) {
   uint8_t type;
+  uint32_t version;
 
   if (pktlen < NGTCP2_LONG_HEADERLEN) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -65,22 +66,27 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
+  version = ngtcp2_get_uint32(&pkt[9]);
+
   type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
   switch (type) {
-  case NGTCP2_PKT_VERSION_NEGOTIATION:
   case NGTCP2_PKT_INITIAL:
   case NGTCP2_PKT_RETRY:
   case NGTCP2_PKT_HANDSHAKE:
   case NGTCP2_PKT_0RTT_PROTECTED:
     break;
   default:
+    if (version == 0) {
+      type = NGTCP2_PKT_VERSION_NEGOTIATION;
+      break;
+    }
     return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
   }
 
   dest->flags = NGTCP2_PKT_FLAG_LONG_FORM;
   dest->type = type;
   dest->conn_id = ngtcp2_get_uint64(&pkt[1]);
-  dest->version = ngtcp2_get_uint32(&pkt[9]);
+  dest->version = version;
   dest->pkt_num = ngtcp2_get_uint32(&pkt[13]);
 
   return NGTCP2_LONG_HEADERLEN;

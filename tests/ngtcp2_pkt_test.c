@@ -37,9 +37,11 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   uint8_t buf[256];
   ssize_t rv;
 
+  /* Version Negotiation */
+
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM,
                      NGTCP2_PKT_VERSION_NEGOTIATION, 0xf1f2f3f4f5f6f7f8llu,
-                     0xe1e2e3e4u, 0xd1d2d3d4u);
+                     0xe1e2e3e4u, 0);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 

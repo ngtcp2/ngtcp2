@@ -2490,7 +2490,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
-      if (conn->conn_id != hd.conn_id) {
+      if (conn->client_conn_id != hd.conn_id) {
         /* Just discard invalid Version Negotiation packet */
         return 0;
       }

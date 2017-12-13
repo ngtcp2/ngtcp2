@@ -148,7 +148,7 @@ void test_ngtcp2_upe_encode_version_negotiation(void) {
   hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
   hd.conn_id = 1000000009;
   hd.pkt_num = 1000000007;
-  hd.version = 0xff;
+  hd.version = 0;
 
   rv = ngtcp2_upe_encode_hd(&upe, &hd);
 
