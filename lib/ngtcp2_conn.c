@@ -4259,7 +4259,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     /* Retransmission of 0-RTT packet is postponed until handshake
        completes.  This covers the case that 0-RTT data is rejected by
        the peer.  0-RTT packet is retransmitted as a Short packet. */
-    ent->hd.flags &= ~NGTCP2_PKT_FLAG_LONG_FORM;
+    ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
     ent->hd.type = NGTCP2_PKT_01;
     for (pent = &conn->early_rtb; *pent; pent = &(*pent)->next)
       ;
