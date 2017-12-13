@@ -47,12 +47,15 @@ branch) as crypto backend:
 
 * OpenSSL (https://github.com/openssl/openssl/)
 
+At the moment, the patched OpenSSL is required to compile ngtcp2 to
+enable 0-RTT.  See below.
+
 Build from git
 --------------
 
 .. code-block:: text
 
-   $ git clone --depth 1 https://github.com/openssl/openssl
+   $ git clone --depth 1 -b quic https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build

@@ -2,7 +2,7 @@
 #build last openssl master (for Travis)
 
 cd ..
-git clone --depth 1 https://github.com/openssl/openssl
+git clone --depth 1 -b quic https://github.com/tatsuhiro-t/openssl
 cd openssl
 ./config enable-tls1_3 --prefix=$PWD/build
 make -j$(nproc)
