@@ -3226,6 +3226,10 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     return NGTCP2_ERR_PROTO;
   }
 
+  if (hd->type != NGTCP2_PKT_INITIAL && conn->version != hd->version) {
+    return NGTCP2_ERR_PROTO;
+  }
+
   rv = conn_ensure_decrypt_buffer(conn, pktlen);
   if (rv != 0) {
     return rv;
@@ -3433,6 +3437,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     case NGTCP2_PKT_VERSION_NEGOTIATION:
       /* Parse, and ignore Version Negotiation packet after
          handshake */
+      /* TODO check version here?  It must be 0. */
       rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
       if (rv < 0) {
         return rv;
@@ -3443,8 +3448,11 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       return conn_recv_delayed_handshake_pkt(conn, &hd, pkt, pktlen, hdpkt,
                                              (size_t)nread, ts);
     case NGTCP2_PKT_0RTT_PROTECTED:
-      if (!conn->server || !conn->early_rx_ckm) {
+      if (!conn->server || conn->version != hd.version) {
         return NGTCP2_ERR_PROTO;
+      }
+      if (!conn->early_rx_ckm) {
+        return 0;
       }
       ckm = conn->early_rx_ckm;
       break;
