@@ -2447,7 +2447,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return rv;
   }
 
-  if (conn->version != hd.version) {
+  if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+    if (hd.version != 0) {
+      return NGTCP2_ERR_FRAME_FORMAT;
+    }
+  } else if (conn->version != hd.version) {
     return NGTCP2_ERR_PROTO;
   }
 
