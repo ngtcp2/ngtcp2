@@ -1401,6 +1401,13 @@ void Client::handle_early_data() {
 
 void Client::make_stream_early() {
   int rv;
+
+  if (nstreams_done_ >= config.nstreams) {
+    return;
+  }
+
+  ++nstreams_done_;
+
   uint64_t stream_id;
   rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
