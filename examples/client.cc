@@ -1234,7 +1234,7 @@ int Client::send_interactive_input() {
   // TODO fix this
   assert(!streams_.empty());
 
-  auto &stream = (*std::begin(streams_)).second;
+  auto &stream = streams_[last_stream_id_];
 
   stream->streambuf.emplace_back(buf.data(), nread);
 
@@ -1394,6 +1394,10 @@ void Client::handle_early_data() {
     } else {
       ngtcp2_conn_set_early_remote_transport_params(conn_, &params);
     }
+  }
+
+  if (config.interactive || datafd_ == -1) {
+    return;
   }
 
   make_stream_early();
