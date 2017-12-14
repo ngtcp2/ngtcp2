@@ -1421,10 +1421,18 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_application_close(
 /**
  * @function
  *
- * `ngtcp2_conn_closed` returns nonzero if QUIC connection has been
- * closed.
+ * `ngtcp2_conn_in_closing_period` returns nonzero if |conn| is in
+ * closing period.
  */
-NGTCP2_EXTERN int ngtcp2_conn_closed(ngtcp2_conn *conn);
+NGTCP2_EXTERN int ngtcp2_conn_in_closing_period(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_in_draining_period` returns nonzero if |conn| is in
+ * draining period.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn);
 
 /**
  * @function

@@ -2369,7 +2369,7 @@ static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
 /* conn_recv_connection_close is called when CONNECTION_CLOSE or
    APPLICATION_CLOSE frame is received. */
 static void conn_recv_connection_close(ngtcp2_conn *conn) {
-  conn->state = NGTCP2_CS_CLOSE_WAIT;
+  conn->state = NGTCP2_CS_DRAINING;
 }
 
 static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
@@ -3172,7 +3172,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  conn->state = NGTCP2_CS_CLOSE_WAIT;
+  conn->state = NGTCP2_CS_DRAINING;
 
   if (!conn->callbacks.recv_stateless_reset) {
     return 0;
@@ -4305,7 +4305,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
 
     nwrite = conn_write_single_frame_pkt(conn, dest, destlen, &fr);
     if (nwrite > 0) {
-      conn->state = NGTCP2_CS_CLOSE_WAIT;
+      conn->state = NGTCP2_CS_CLOSING;
     }
     break;
   default:
@@ -4346,13 +4346,17 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
     return nwrite;
   }
 
-  conn->state = NGTCP2_CS_CLOSE_WAIT;
+  conn->state = NGTCP2_CS_CLOSING;
 
   return nwrite;
 }
 
-int ngtcp2_conn_closed(ngtcp2_conn *conn) {
-  return conn->state == NGTCP2_CS_CLOSE_WAIT;
+int ngtcp2_conn_in_closing_period(ngtcp2_conn *conn) {
+  return conn->state == NGTCP2_CS_CLOSING;
+}
+
+int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn) {
+  return conn->state == NGTCP2_CS_DRAINING;
 }
 
 /*

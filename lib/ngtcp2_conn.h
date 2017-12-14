@@ -53,7 +53,8 @@ typedef enum {
   NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED,
   /* Shared by both client and server */
   NGTCP2_CS_POST_HANDSHAKE,
-  NGTCP2_CS_CLOSE_WAIT,
+  NGTCP2_CS_CLOSING,
+  NGTCP2_CS_DRAINING,
 } ngtcp2_conn_state;
 
 /* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in

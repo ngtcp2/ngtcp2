@@ -469,12 +469,19 @@ int Stream::start_response() {
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
-  int rv;
-
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
 
-  if (ngtcp2_conn_closed(h->conn())) {
+  if (ngtcp2_conn_in_closing_period(h->conn())) {
+    if (!config.quiet) {
+      debug::print_timestamp();
+      std::cerr << "Closing Period is over" << std::endl;
+    }
+
+    s->remove(h);
+    return;
+  }
+  if (h->draining()) {
     if (!config.quiet) {
       debug::print_timestamp();
       std::cerr << "Draining Period is over" << std::endl;
@@ -489,10 +496,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
     std::cerr << "Timeout" << std::endl;
   }
 
-  rv = h->start_drain_period(0);
-  if (rv != 0) {
-    s->remove(h);
-  }
+  h->start_draining_period();
 }
 } // namespace
 
@@ -536,7 +540,8 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       client_conn_id_(client_conn_id),
       tx_stream0_offset_(0),
       initial_(true),
-      key_generated_(false) {
+      key_generated_(false),
+      draining_(false) {
   ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
@@ -1198,12 +1203,9 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
       return handle_error(rv);
     }
   }
-  if (ngtcp2_conn_closed(conn_)) {
-    if (!config.quiet) {
-      debug::print_timestamp();
-      std::cerr << "QUIC connection has been closed by peer" << std::endl;
-    }
-    return -1;
+  if (ngtcp2_conn_in_draining_period(conn_)) {
+    start_draining_period();
+    return NETWORK_ERR_CLOSE_WAIT;
   }
 
   return 0;
@@ -1225,7 +1227,7 @@ int Handler::on_read(uint8_t *data, size_t datalen) {
 int Handler::on_write() {
   int rv;
 
-  if (ngtcp2_conn_closed(conn_)) {
+  if (ngtcp2_conn_in_closing_period(conn_)) {
     return 0;
   }
 
@@ -1354,8 +1356,22 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
   return 0;
 }
 
-int Handler::start_drain_period(int liberr) {
-  if (!conn_ || ngtcp2_conn_closed(conn_)) {
+bool Handler::draining() const { return draining_; }
+
+void Handler::start_draining_period() {
+  draining_ = true;
+
+  ev_timer_stop(loop_, &rttimer_);
+
+  timer_.repeat = 15.;
+  ev_timer_again(loop_, &timer_);
+
+  debug::print_timestamp();
+  std::cerr << "Draining period has started" << std::endl;
+}
+
+int Handler::start_closing_period(int liberr) {
+  if (!conn_ || ngtcp2_conn_in_closing_period(conn_)) {
     return 0;
   }
 
@@ -1363,6 +1379,9 @@ int Handler::start_drain_period(int liberr) {
 
   timer_.repeat = 15.;
   ev_timer_again(loop_, &timer_);
+
+  debug::print_timestamp();
+  std::cerr << "Closing period has started" << std::endl;
 
   sendbuf_.reset();
   assert(sendbuf_.left() >= max_pktlen_);
@@ -1386,7 +1405,7 @@ int Handler::start_drain_period(int liberr) {
 int Handler::handle_error(int liberr) {
   int rv;
 
-  rv = start_drain_period(liberr);
+  rv = start_closing_period(liberr);
   if (rv != 0) {
     return -1;
   }
@@ -1402,7 +1421,7 @@ int Handler::handle_error(int liberr) {
 int Handler::send_conn_close() {
   if (!config.quiet) {
     debug::print_timestamp();
-    std::cerr << "Draining Period: TX CONNECTION_CLOSE" << std::endl;
+    std::cerr << "Closing Period: TX CONNECTION_CLOSE" << std::endl;
   }
 
   assert(conn_closebuf_ && conn_closebuf_->size());
@@ -1745,7 +1764,7 @@ int Server::on_read() {
   }
 
   auto h = (*handler_it).second.get();
-  if (ngtcp2_conn_closed(h->conn())) {
+  if (ngtcp2_conn_in_closing_period(h->conn())) {
     // TODO do exponential backoff.
     rv = h->send_conn_close();
     switch (rv) {
@@ -1755,6 +1774,9 @@ int Server::on_read() {
     default:
       remove(handler_it);
     }
+    return 0;
+  }
+  if (h->draining()) {
     return 0;
   }
 

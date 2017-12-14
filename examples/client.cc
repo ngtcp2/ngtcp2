@@ -809,7 +809,7 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
       return -1;
     }
   }
-  if (ngtcp2_conn_closed(conn_)) {
+  if (ngtcp2_conn_in_draining_period(conn_)) {
     if (!config.quiet) {
       debug::print_timestamp();
       std::cerr << "QUIC connection has been closed by peer" << std::endl;
@@ -1262,7 +1262,7 @@ int Client::stop_interactive_input() {
 }
 
 int Client::handle_error(int liberr) {
-  if (!conn_ || ngtcp2_conn_closed(conn_)) {
+  if (!conn_ || ngtcp2_conn_in_closing_period(conn_)) {
     return 0;
   }
 

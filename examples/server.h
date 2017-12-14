@@ -205,7 +205,9 @@ public:
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
-  int start_drain_period(int liberror);
+  void start_draining_period();
+  int start_closing_period(int liberror);
+  bool draining() const;
   int handle_error(int liberror);
   int send_conn_close();
 
@@ -247,6 +249,8 @@ private:
   bool initial_;
   // key_generated_ becomes true when 1-RTT key is available.
   bool key_generated_;
+  // draining_ becomes true when draining period starts.
+  bool draining_;
 };
 
 class Server {
