@@ -1116,17 +1116,9 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn,
 NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
                                                  size_t aead_overhead);
 
-NGTCP2_EXTERN int ngtcp2_conn_update_early_tx_keys(ngtcp2_conn *conn,
-                                                   const uint8_t *key,
-                                                   size_t keylen,
-                                                   const uint8_t *iv,
-                                                   size_t ivlen);
-
-NGTCP2_EXTERN int ngtcp2_conn_update_early_rx_keys(ngtcp2_conn *conn,
-                                                   const uint8_t *key,
-                                                   size_t keylen,
-                                                   const uint8_t *iv,
-                                                   size_t ivlen);
+NGTCP2_EXTERN int
+ngtcp2_conn_update_early_keys(ngtcp2_conn *conn, const uint8_t *key,
+                              size_t keylen, const uint8_t *iv, size_t ivlen);
 
 NGTCP2_EXTERN int ngtcp2_conn_update_tx_keys(ngtcp2_conn *conn,
                                              const uint8_t *key, size_t keylen,

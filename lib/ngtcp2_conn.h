@@ -232,8 +232,7 @@ struct ngtcp2_conn {
   /* hs_rx_ckm is a cryptographic key, and iv to decrypt handshake
      packets. */
   ngtcp2_crypto_km *hs_rx_ckm;
-  ngtcp2_crypto_km *early_tx_ckm;
-  ngtcp2_crypto_km *early_rx_ckm;
+  ngtcp2_crypto_km *early_ckm;
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;
   size_t aead_overhead;

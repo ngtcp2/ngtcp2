@@ -367,8 +367,8 @@ static void setup_early_server(ngtcp2_conn **pconn) {
                                     sizeof(null_iv));
   ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                                     sizeof(null_iv));
-  ngtcp2_conn_update_early_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                   sizeof(null_iv));
+  ngtcp2_conn_update_early_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                sizeof(null_iv));
   (*pconn)->remote_settings.max_stream_data = 64 * 1024;
   (*pconn)->remote_settings.max_stream_id_bidi = 0;
   (*pconn)->remote_settings.max_stream_id_uni = 3;
@@ -400,8 +400,8 @@ static void setup_early_client(ngtcp2_conn **pconn) {
                                     sizeof(null_iv));
   ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                                     sizeof(null_iv));
-  ngtcp2_conn_update_early_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                   sizeof(null_iv));
+  ngtcp2_conn_update_early_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                sizeof(null_iv));
 
   params.initial_max_stream_data = 64 * 1024;
   params.initial_max_stream_id_bidi = 4;

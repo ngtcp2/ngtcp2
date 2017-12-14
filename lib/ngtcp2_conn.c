@@ -379,8 +379,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_crypto_km_del(conn->rx_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->tx_ckm, conn->mem);
 
-  ngtcp2_crypto_km_del(conn->early_rx_ckm, conn->mem);
-  ngtcp2_crypto_km_del(conn->early_tx_ckm, conn->mem);
+  ngtcp2_crypto_km_del(conn->early_ckm, conn->mem);
 
   ngtcp2_crypto_km_del(conn->hs_rx_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->hs_tx_ckm, conn->mem);
@@ -2430,8 +2429,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return (int)nread;
   }
 
-  if (conn->server && conn->early_rx_ckm &&
-      conn->client_conn_id == hd.conn_id &&
+  if (conn->server && conn->early_ckm && conn->client_conn_id == hd.conn_id &&
       hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
     /* TODO Avoid to parse header twice. */
     return conn_recv_pkt(conn, pkt, pktlen, ts);
@@ -3451,10 +3449,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       if (!conn->server || conn->version != hd.version) {
         return NGTCP2_ERR_PROTO;
       }
-      if (!conn->early_rx_ckm) {
+      if (!conn->early_ckm) {
         return 0;
       }
-      ckm = conn->early_rx_ckm;
+      ckm = conn->early_ckm;
       break;
     default:
       /* Ignore unprotected packet after handshake */
@@ -3852,25 +3850,14 @@ int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
                               conn->mem);
 }
 
-int ngtcp2_conn_update_early_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                     size_t keylen, const uint8_t *iv,
-                                     size_t ivlen) {
-  if (conn->early_tx_ckm) {
+int ngtcp2_conn_update_early_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                  size_t keylen, const uint8_t *iv,
+                                  size_t ivlen) {
+  if (conn->early_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  return ngtcp2_crypto_km_new(&conn->early_tx_ckm, key, keylen, iv, ivlen,
-                              conn->mem);
-}
-
-int ngtcp2_conn_update_early_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                     size_t keylen, const uint8_t *iv,
-                                     size_t ivlen) {
-  if (conn->early_rx_ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
-
-  return ngtcp2_crypto_km_new(&conn->early_rx_ckm, key, keylen, iv, ivlen,
+  return ngtcp2_crypto_km_new(&conn->early_ckm, key, keylen, iv, ivlen,
                               conn->mem);
 }
 
@@ -4178,17 +4165,14 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     pkt_type = conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1);
     conn_id = conn->conn_id;
     ctx.ckm = conn->tx_ckm;
-  } else if (conn->early_tx_ckm) {
-    if (conn->server) {
-      return NGTCP2_ERR_NOKEY;
-    }
+  } else if (conn->early_ckm && !conn->server) {
     if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
       return NGTCP2_ERR_EARLY_DATA_REJECTED;
     }
     pkt_flags = NGTCP2_PKT_FLAG_LONG_FORM;
     pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
     conn_id = conn->client_conn_id;
-    ctx.ckm = conn->early_tx_ckm;
+    ctx.ckm = conn->early_ckm;
   } else {
     return NGTCP2_ERR_NOKEY;
   }

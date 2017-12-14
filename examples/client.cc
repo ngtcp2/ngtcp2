@@ -1038,7 +1038,7 @@ int Client::setup_early_crypto_context() {
     return -1;
   }
 
-  ngtcp2_conn_update_early_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+  ngtcp2_conn_update_early_keys(conn_, key.data(), keylen, iv.data(), ivlen);
 
   ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
 
