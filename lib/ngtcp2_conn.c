@@ -1866,9 +1866,53 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return spktlen;
 }
 
+/*
+ * conn_process_early_rtb adds ngtcp2_rtb_entry pointed by
+ * conn->early_rtb, which are 0-RTT packets, to conn->rtb.  If things
+ * go wrong, this function deletes ngtcp2_rtb_entry pointed by
+ * conn->early_rtb excluding the ones which are already added to
+ * conn->rtb.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+static int conn_process_early_rtb(ngtcp2_conn *conn) {
+  int rv;
+  ngtcp2_rtb_entry *ent, *next;
+
+  for (ent = conn->early_rtb; ent;) {
+    next = ent->next;
+    /* If early data was rejected by server, retransmit packet
+       ASAP. */
+    if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
+      ent->expiry = 0;
+    }
+    rv = ngtcp2_rtb_add(&conn->rtb, ent);
+    if (rv != 0) {
+      assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
+      /* Just delete entries left to avoid double free. */
+      ent->next = next;
+      while (ent) {
+        next = ent->next;
+        ngtcp2_rtb_entry_del(ent, conn->mem);
+        ent = next;
+      }
+      conn->early_rtb = NULL;
+      return rv;
+    }
+    ent = next;
+  }
+  conn->early_rtb = NULL;
+  return 0;
+}
+
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               ngtcp2_tstamp ts) {
   ssize_t nwrite = 0;
+  int rv;
 
   if (conn->last_tx_pkt_num == UINT64_MAX) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
@@ -1902,7 +1946,19 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
       if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
         nwrite = NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+        break;
       }
+
+      if (!conn->early_rtb) {
+        break;
+      }
+
+      rv = conn_process_early_rtb(conn);
+      if (rv != 0) {
+        return rv;
+      }
+
+      nwrite = conn_retransmit(conn, dest, destlen, ts);
     }
     break;
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
@@ -3634,49 +3690,6 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
   return 0;
 }
 
-/*
- * conn_process_early_rtb adds ngtcp2_rtb_entry pointed by
- * conn->early_rtb, which are 0-RTT packets, to conn->rtb.  If things
- * go wrong, this function deletes ngtcp2_rtb_entry pointed by
- * conn->early_rtb excluding the ones which are already added to
- * conn->rtb.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static int conn_process_early_rtb(ngtcp2_conn *conn) {
-  int rv;
-  ngtcp2_rtb_entry *ent, *next;
-
-  for (ent = conn->early_rtb; ent;) {
-    next = ent->next;
-    /* If early data was rejected by server, retransmit packet
-       ASAP. */
-    if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
-      ent->expiry = 0;
-    }
-    rv = ngtcp2_rtb_add(&conn->rtb, ent);
-    if (rv != 0) {
-      assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
-      /* Just delete entries left to avoid double free. */
-      ent->next = next;
-      while (ent) {
-        next = ent->next;
-        ngtcp2_rtb_entry_del(ent, conn->mem);
-        ent = next;
-      }
-      conn->early_rtb = NULL;
-      return rv;
-    }
-    ent = next;
-  }
-  conn->early_rtb = NULL;
-  return 0;
-}
-
 int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                      ngtcp2_tstamp ts) {
   int rv = 0;
@@ -3701,11 +3714,6 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
         return rv;
       }
       conn->state = NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED;
-
-      rv = conn_process_early_rtb(conn);
-      if (rv != 0) {
-        return rv;
-      }
 
       rv = conn_process_buffered_protected_pkt(conn, ts);
       if (rv != 0) {
