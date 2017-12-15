@@ -1518,9 +1518,11 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
   int rv;
 
   ngtcp2_transport_params params;
+  int param_type = context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
+                       ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
+                       : NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET;
 
-  rv = ngtcp2_decode_transport_params(
-      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, in, inlen);
+  rv = ngtcp2_decode_transport_params(&params, param_type, in, inlen);
   if (rv != 0) {
     std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1535,13 +1537,11 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
                       ? "EncryptedExtensions"
                       : "NewSessionTicket")
               << std::endl;
-    debug::print_transport_params(
-        &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
+    debug::print_transport_params(&params, param_type);
   }
 
   if (context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS) {
-    rv = ngtcp2_conn_set_remote_transport_params(
-        conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+    rv = ngtcp2_conn_set_remote_transport_params(conn, param_type, &params);
     if (rv != 0) {
       *al = SSL_AD_ILLEGAL_PARAMETER;
       return -1;

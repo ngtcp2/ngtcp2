@@ -1974,7 +1974,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
 
 namespace {
 int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
-                            unsigned int content, const unsigned char **out,
+                            unsigned int context, const unsigned char **out,
                             size_t *outlen, X509 *x, size_t chainidx, int *al,
                             void *add_arg) {
   int rv;
@@ -1982,23 +1982,26 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
   auto conn = h->conn();
 
   ngtcp2_transport_params params;
+  int param_type = context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
+                       ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
+                       : NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET;
 
-  rv = ngtcp2_conn_get_local_transport_params(
-      conn, &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
+  rv = ngtcp2_conn_get_local_transport_params(conn, &params, param_type);
   if (rv != 0) {
     *al = SSL_AD_INTERNAL_ERROR;
     return -1;
   }
 
-  params.v.ee.len = 1;
-  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D8;
+  if (param_type == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
+    params.v.ee.len = 1;
+    params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D8;
+  }
 
   constexpr size_t bufsize = 128;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
 
-  auto nwrite = ngtcp2_encode_transport_params(
-      buf.get(), bufsize, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-      &params);
+  auto nwrite =
+      ngtcp2_encode_transport_params(buf.get(), bufsize, param_type, &params);
   if (nwrite < 0) {
     std::cerr << "ngtcp2_encode_transport_params: "
               << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
