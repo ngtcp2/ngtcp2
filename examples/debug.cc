@@ -253,6 +253,10 @@ void print_pkt(ngtcp2_dir dir, const ngtcp2_pkt_hd *hd) {
 } // namespace
 
 namespace {
+bool is_bidi(uint64_t stream_id) { return (stream_id & 0x2) == 0; }
+} // namespace
+
+namespace {
 void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   fprintf(outfile, "%s%s%s", frame_ansi_esc(dir),
           strframetype(fr->type).c_str(), ansi_escend());
@@ -274,6 +278,8 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
             " data_length=%zu\n",
             fr->stream.stream_id, fr->stream.fin, fr->stream.offset,
             fr->stream.datalen);
+    print_indent();
+    fprintf(outfile, "; %s\n", is_bidi(fr->stream.stream_id) ? "BIDI" : "UNI");
     break;
   case NGTCP2_FRAME_PADDING:
     print_indent();
