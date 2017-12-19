@@ -2469,25 +2469,27 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return conn_recv_pkt(conn, pkt, pktlen, ts);
   }
 
+  if (hd.version == 0) {
+    hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
+    hd.pkt_num = 0;
+
+    nread -= (ssize_t)sizeof(uint32_t);
+  } else {
+    if (conn->version != hd.version) {
+      return 0;
+    }
+    hd.pkt_num =
+        ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, 32);
+  }
+
   pkt += nread;
   pktlen -= (size_t)nread;
-
-  hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, 32);
 
   rv = conn_call_recv_pkt(conn, &hd);
   if (rv != 0) {
     return rv;
   }
 
-  if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
-    if (hd.version != 0) {
-      return NGTCP2_ERR_FRAME_FORMAT;
-    }
-  } else if (conn->version != hd.version) {
-    return NGTCP2_ERR_PROTO;
-  }
-
-  /* TODO What happen if connection ID changes in mid handshake? */
   if (conn->server) {
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
@@ -2501,6 +2503,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       break;
     case NGTCP2_PKT_HANDSHAKE:
+      if (conn->conn_id != hd.conn_id) {
+        return 0;
+      }
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
       /* Discard 0-RTT packet if we don't have a key to decrypt it. */
@@ -2513,7 +2518,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     case NGTCP2_PKT_HANDSHAKE:
       if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
         if (conn->conn_id != hd.conn_id) {
-          return NGTCP2_ERR_PROTO;
+          return 0;
         }
       } else {
         conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
@@ -2521,8 +2526,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       break;
     case NGTCP2_PKT_RETRY:
-      if (conn->strm0->last_rx_offset != 0 || conn->conn_id != hd.conn_id) {
+      if (conn->strm0->last_rx_offset != 0) {
         return NGTCP2_ERR_PROTO;
+      }
+      if (conn->conn_id != hd.conn_id) {
+        return 0;
       }
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
@@ -3254,12 +3262,12 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
   int require_ack = 0;
   ssize_t nwrite;
 
-  if (!conn->server && hd->type == NGTCP2_PKT_INITIAL) {
-    return NGTCP2_ERR_PROTO;
-  }
-
-  if (hd->type != NGTCP2_PKT_INITIAL && conn->version != hd->version) {
-    return NGTCP2_ERR_PROTO;
+  if (hd->type == NGTCP2_PKT_INITIAL) {
+    if (!conn->server || conn->client_conn_id != hd->conn_id) {
+      return 0;
+    }
+  } else if (conn->conn_id != hd->conn_id) {
+    return 0;
   }
 
   rv = conn_ensure_decrypt_buffer(conn, pktlen);
@@ -3420,8 +3428,26 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       return (int)nread;
     }
 
-    if (conn->conn_id != hd.conn_id &&
-        (!conn->server || conn->client_conn_id != hd.conn_id)) {
+    if (hd.version == 0) {
+      if (conn->server || conn->client_conn_id != hd.conn_id) {
+        return 0;
+      }
+      hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
+      hd.pkt_num = 0;
+
+      rv = conn_call_recv_pkt(conn, &hd);
+      if (rv != 0) {
+        return rv;
+      }
+
+      nread -= (ssize_t)sizeof(uint32_t);
+      pkt += nread;
+      pktlen -= (size_t)nread;
+
+      return 0;
+    }
+
+    if (conn->version != hd.version) {
       return 0;
     }
   } else {
@@ -3466,22 +3492,14 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     switch (hd.type) {
-    case NGTCP2_PKT_VERSION_NEGOTIATION:
-      /* Parse, and ignore Version Negotiation packet after
-         handshake */
-      /* TODO check version here?  It must be 0. */
-      rv = conn_on_version_negotiation(conn, &hd, pkt, pktlen);
-      if (rv < 0) {
-        return rv;
-      }
-      return 0;
     case NGTCP2_PKT_INITIAL:
     case NGTCP2_PKT_HANDSHAKE:
       return conn_recv_delayed_handshake_pkt(conn, &hd, pkt, pktlen, hdpkt,
                                              (size_t)nread, ts);
     case NGTCP2_PKT_0RTT_PROTECTED:
-      if (!conn->server || conn->version != hd.version) {
-        return NGTCP2_ERR_PROTO;
+      if (!conn->server || conn->client_conn_id != hd.conn_id ||
+          conn->version != hd.version) {
+        return 0;
       }
       if (!conn->early_ckm) {
         return 0;
@@ -3510,17 +3528,24 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       return (int)nwrite;
     }
 
-    rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
-    if (rv == 0) {
-      return 0;
+    if (!(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
+      rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
+      if (rv == 0) {
+        return 0;
+      }
     }
     return (int)nwrite;
   }
   pkt = conn->decrypt_buf.base;
   pktlen = (size_t)nwrite;
 
-  if ((hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) == 0) {
+  if (!(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
     conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
+
+    if (!(hd.flags & NGTCP2_PKT_FLAG_OMIT_CONN_ID) &&
+        conn->conn_id != hd.conn_id) {
+      return 0;
+    }
   }
 
   for (; pktlen;) {
