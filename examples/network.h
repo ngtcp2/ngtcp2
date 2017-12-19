@@ -44,12 +44,12 @@
 
 namespace ngtcp2 {
 
-enum {
+enum network_error {
   NETWORK_ERR_OK = 0,
   NETWORK_ERR_SEND_FATAL = -10,
   NETWORK_ERR_SEND_NON_FATAL = -11,
   NETWORK_ERR_CLOSE_WAIT = -12,
-} network_error;
+};
 
 union sockaddr_union {
   sockaddr_storage storage;
