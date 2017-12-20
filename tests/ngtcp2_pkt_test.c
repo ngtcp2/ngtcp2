@@ -691,31 +691,34 @@ void test_ngtcp2_pkt_encode_ping_frame(void) {
 }
 
 void test_ngtcp2_pkt_encode_blocked_frame(void) {
-  uint8_t buf[8];
+  uint8_t buf[9];
   ngtcp2_blocked fr, nfr;
   ssize_t rv;
-  size_t framelen = 1, nframelen;
+  size_t framelen = 1 + 8;
 
   fr.type = NGTCP2_FRAME_BLOCKED;
+  fr.offset = 0x31f2f3f4f5f6f7f8llu;
 
   rv = ngtcp2_pkt_encode_blocked_frame(buf, sizeof(buf), &fr);
 
   CU_ASSERT((ssize_t)framelen == rv);
 
-  nframelen = ngtcp2_pkt_decode_blocked_frame(&nfr, buf, framelen);
+  rv = ngtcp2_pkt_decode_blocked_frame(&nfr, buf, framelen);
 
-  CU_ASSERT(framelen == nframelen);
+  CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.offset == nfr.offset);
 }
 
 void test_ngtcp2_pkt_encode_stream_blocked_frame(void) {
-  uint8_t buf[16];
+  uint8_t buf[17];
   ngtcp2_stream_blocked fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 8;
+  size_t framelen = 1 + 8 + 8;
 
   fr.type = NGTCP2_FRAME_STREAM_BLOCKED;
   fr.stream_id = 0xf1f2f3f4u;
+  fr.offset = 0x35f6f7f8f9fafbfcllu;
 
   rv = ngtcp2_pkt_encode_stream_blocked_frame(buf, sizeof(buf), &fr);
 
@@ -726,24 +729,27 @@ void test_ngtcp2_pkt_encode_stream_blocked_frame(void) {
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
   CU_ASSERT(fr.stream_id == nfr.stream_id);
+  CU_ASSERT(fr.offset == nfr.offset);
 }
 
 void test_ngtcp2_pkt_encode_stream_id_blocked_frame(void) {
-  uint8_t buf[8];
+  uint8_t buf[9];
   ngtcp2_stream_id_blocked fr, nfr;
   ssize_t rv;
-  size_t framelen = 1, nframelen;
+  size_t framelen = 1 + 8;
 
   fr.type = NGTCP2_FRAME_STREAM_ID_BLOCKED;
+  fr.stream_id = 0xf1f2f3f4u;
 
   rv = ngtcp2_pkt_encode_stream_id_blocked_frame(buf, sizeof(buf), &fr);
 
   CU_ASSERT((ssize_t)framelen == rv);
 
-  nframelen = ngtcp2_pkt_decode_stream_id_blocked_frame(&nfr, buf, framelen);
+  rv = ngtcp2_pkt_decode_stream_id_blocked_frame(&nfr, buf, framelen);
 
-  CU_ASSERT(framelen == nframelen);
+  CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.stream_id == nfr.stream_id);
 }
 
 void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {

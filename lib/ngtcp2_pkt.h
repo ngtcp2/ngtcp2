@@ -297,11 +297,15 @@ ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
  * |payload| of length |payloadlen|.  The result is stored in the
  * object pointed by |dest|.  BLOCKED frame must start at payload[0].
  * This function finishes when it decodes one BLOCKED frame, and
- * returns the exact number of bytes read to decode a frame.
+ * returns the exact number of bytes read to decode a frame if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include BLOCKED frame.
  */
-size_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
+                                        const uint8_t *payload,
+                                        size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_stream_blocked_frame decodes STREAM_BLOCKED frame
@@ -325,11 +329,14 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
  * in the object pointed by |dest|.  STREAM_ID_BLOCKED frame must
  * start at payload[0].  This function finishes when it decodes one
  * STREAM_ID_BLOCKED frame, and returns the exact number of bytes read
- * to decode a frame.
+ * to decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include STREAM_ID_BLOCKED frame.
  */
-size_t ngtcp2_pkt_decode_stream_id_blocked_frame(ngtcp2_stream_id_blocked *dest,
-                                                 const uint8_t *payload,
-                                                 size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_stream_id_blocked_frame(
+    ngtcp2_stream_id_blocked *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_new_connection_id_frame decodes NEW_CONNECTION_ID
