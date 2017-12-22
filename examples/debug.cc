@@ -350,12 +350,18 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
             util::format_hex(fr->ping.data, fr->ping.datalen).c_str());
     break;
   case NGTCP2_FRAME_BLOCKED:
+    print_indent();
+    fprintf(outfile, "offset=%" PRIu64 "\n", fr->blocked.offset);
     break;
   case NGTCP2_FRAME_STREAM_BLOCKED:
     print_indent();
-    fprintf(outfile, "stream_id=0x%" PRIx64 "\n", fr->stream_blocked.stream_id);
+    fprintf(outfile, "stream_id=0x%" PRIx64 " offset=%" PRIu64 "\n",
+            fr->stream_blocked.stream_id, fr->stream_blocked.offset);
     break;
   case NGTCP2_FRAME_STREAM_ID_BLOCKED:
+    print_indent();
+    fprintf(outfile, "stream_id=0x%" PRIx64 "\n",
+            fr->stream_id_blocked.stream_id);
     break;
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     print_indent();
