@@ -1562,7 +1562,8 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
 
 namespace {
 int new_session_cb(SSL *ssl, SSL_SESSION *session) {
-  if (SSL_get_max_early_data(ssl) != std::numeric_limits<uint32_t>::max()) {
+  if (SSL_SESSION_get_max_early_data(session) !=
+      std::numeric_limits<uint32_t>::max()) {
     // TODO Find a way to send CONNECTION_CLOSE with
     // PROTOCOL_VIOLATION in this case.
     std::cerr << "max_early_data is not 0xffffffff" << std::endl;
