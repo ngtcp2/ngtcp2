@@ -3579,6 +3579,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       }
       break;
     case NGTCP2_FRAME_STREAM:
+      /* Stream 0 STREAM in 0-RTT Protected packet is not allowed. */
+      if (fr->stream.stream_id == 0 && (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
+        return NGTCP2_ERR_PROTO;
+      }
       rv = conn_recv_stream(conn, &fr->stream);
       if (rv != 0) {
         return rv;
