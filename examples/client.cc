@@ -699,7 +699,10 @@ int Client::tls_handshake(bool initial) {
   ERR_clear_error();
 
   int rv;
-  if (initial && resumption_) {
+  /* Note that SSL_SESSION_get_max_early_data() and
+     SSL_get_max_early_data() return completely different value. */
+  if (initial && resumption_ &&
+      SSL_SESSION_get_max_early_data(SSL_get_session(ssl_))) {
     size_t nwrite;
     // OpenSSL returns error if SSL_write_early_data is called when
     // resumption is not attempted.  Sending empty string is a trick
