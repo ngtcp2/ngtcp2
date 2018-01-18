@@ -736,7 +736,7 @@ typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
                                                 void *user_data);
 
 /**
- * @function
+ * @functypedef
  *
  * :type:`ngtcp2_recv_client_initial` is invoked when Client Initial
  * packet is received.  An server application must implement this
