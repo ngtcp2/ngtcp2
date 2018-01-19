@@ -24,13 +24,6 @@ SUBDIRS = lib tests third-party examples
 
 ACLOCAL_AMFLAGS = -I m4
 
-CERTIFICATE_PASS=QUIC
-CERTIFICATE_INFO='/CN=localhost/O=QUIC./C=FR'
-CERTIFICATE_KEY=cert/server.key
-CERTIFICATE_TMP_KEY=$(CERTIFICATE_KEY).tmp
-CERTIFICATE_CSR_FILE=cert/server.csr
-CERTIFICATE_CRT_FILE=cert/server.crt
-
 # Format source files using clang-format.  Don't format source files
 # under third-party directory since we are not responsible for thier
 # coding style.
@@ -39,14 +32,3 @@ clang-format:
 	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
 	$${CLANGFORMAT} -i lib/*.{c,h} lib/includes/ngtcp2/*.h \
 	examples/*.{cc,h}
-
-#generate certificate (ONLY USE FOR DEMO !)
-gen-certificate:
-	mkdir -p cert
-	openssl genrsa -aes256 -passout pass:$(CERTIFICATE_PASS) -out $(CERTIFICATE_KEY) 2048
-	openssl req -passin pass:$(CERTIFICATE_PASS) -new -key $(CERTIFICATE_KEY) -out $(CERTIFICATE_CSR_FILE) -subj $(CERTIFICATE_INFO)
-	cp $(CERTIFICATE_KEY) $(CERTIFICATE_TMP_KEY)
-	openssl rsa -passin pass:$(CERTIFICATE_PASS) -in $(CERTIFICATE_TMP_KEY) -out $(CERTIFICATE_KEY)
-	openssl x509 -req -days 30 -in $(CERTIFICATE_CSR_FILE) -signkey $(CERTIFICATE_KEY) -out $(CERTIFICATE_CRT_FILE)
-	rm $(CERTIFICATE_TMP_KEY)
-
