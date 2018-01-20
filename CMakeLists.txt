@@ -175,6 +175,9 @@ else()
     -Wall
     -Wformat-security
     -Wsometimes-uninitialized
+    # Disable noexcept-type warning of g++-7.  This is not harmful as
+    # long as all source files are compiled with the same compiler.
+    -Wno-noexcept-type
   )
 
   if(ENABLE_ASAN)
