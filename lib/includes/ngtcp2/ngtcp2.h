@@ -619,6 +619,26 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
     uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd,
     uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
 
+/*
+ * @function
+ *
+ * `ngtcp2_pkt_write_version_negotiation` writes Version Negotiation
+ * packet in the buffer pointed by |dest| whose length is |destlen|.
+ * |unused_random| should be generated randomly.  |conn_id| is the
+ * connection ID which appears in a packet sent by client which caused
+ * version negotiation.  |sv| is a list of supported versions, and
+ * |nsv| specifies the number of supported versions included in |sv|.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_version_negotiation(
+    uint8_t *dest, size_t destlen, uint8_t unused_random, uint64_t conn_id,
+    const uint32_t *sv, size_t nsv);
+
 /* Unprotected Packet Encoder: upe */
 struct ngtcp2_upe;
 typedef struct ngtcp2_upe ngtcp2_upe;

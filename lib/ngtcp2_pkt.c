@@ -1406,6 +1406,33 @@ ssize_t ngtcp2_pkt_encode_pong_frame(uint8_t *out, size_t outlen,
   return (ssize_t)len;
 }
 
+ssize_t ngtcp2_pkt_write_version_negotiation(uint8_t *dest, size_t destlen,
+                                             uint8_t unused_random,
+                                             uint64_t conn_id,
+                                             const uint32_t *sv, size_t nsv) {
+  size_t len = 1 + 8 + 4 + nsv * 4;
+  uint8_t *p;
+  size_t i;
+
+  if (destlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = dest;
+
+  *p++ = 0x80 | unused_random;
+  p = ngtcp2_put_uint64be(p, conn_id);
+  p = ngtcp2_put_uint32be(p, 0);
+
+  for (i = 0; i < nsv; ++i) {
+    p = ngtcp2_put_uint32be(p, sv[i]);
+  }
+
+  assert((size_t)(p - dest) == len);
+
+  return (ssize_t)len;
+}
+
 size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
                                              const uint8_t *payload,
                                              size_t payloadlen) {

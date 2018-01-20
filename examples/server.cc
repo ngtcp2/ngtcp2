@@ -1829,46 +1829,23 @@ uint32_t generate_reserved_vesrion(const sockaddr *sa, socklen_t salen,
 int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
                                      const sockaddr *sa, socklen_t salen) {
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
-  ngtcp2_upe *upe;
-  ngtcp2_pkt_hd hd;
-  uint32_t reserved_ver;
   std::array<uint32_t, 2> sv;
-  int rv;
 
-  /* TODO Make hd.type random. */
-  hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
-  hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
-  hd.conn_id = chd->conn_id;
-  hd.pkt_num = chd->pkt_num;
-  hd.version = 0;
-
-  reserved_ver = generate_reserved_vesrion(sa, salen, hd.version);
-
-  sv[0] = reserved_ver;
+  sv[0] = generate_reserved_vesrion(sa, salen, chd->version);
   sv[1] = NGTCP2_PROTO_VER_D8;
 
-  rv = ngtcp2_upe_new(&upe, buf.wpos(), buf.left());
-  if (rv != 0) {
-    std::cerr << "ngtcp2_upe_new: " << ngtcp2_strerror(rv) << std::endl;
+  auto nwrite = ngtcp2_pkt_write_version_negotiation(
+      buf.wpos(), buf.left(),
+      std::uniform_int_distribution<uint8_t>(
+          0, std::numeric_limits<uint8_t>::max())(randgen),
+      chd->conn_id, sv.data(), sv.size());
+  if (nwrite < 0) {
+    std::cerr << "ngtcp2_pkt_write_version_negotiation: "
+              << ngtcp2_strerror(nwrite) << std::endl;
     return -1;
   }
 
-  auto upe_d = defer(ngtcp2_upe_del, upe);
-
-  rv = ngtcp2_upe_encode_hd(upe, &hd);
-  if (rv != 0) {
-    return -1;
-  }
-
-  auto sn =
-      ngtcp2_upe_encode_version_negotiation(upe, nullptr, sv.data(), sv.size());
-  if (sn < 0) {
-    std::cerr << "ngtcp2_upe_encode_version_negotiation: "
-              << ngtcp2_strerror(rv) << std::endl;
-    return -1;
-  }
-
-  buf.push(sn);
+  buf.push(nwrite);
 
   Address remote_addr;
   remote_addr.len = salen;

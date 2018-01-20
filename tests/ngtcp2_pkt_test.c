@@ -990,3 +990,34 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }
+
+void test_ngtcp2_pkt_write_version_negotiation(void) {
+  uint8_t buf[256];
+  ssize_t spktlen;
+  const uint32_t sv[] = {0xf1f2f3f4, 0x1f2f3f4f};
+  uint8_t *p;
+  size_t i;
+
+  spktlen = ngtcp2_pkt_write_version_negotiation(
+      buf, sizeof(buf), 133, 0xf1f2f3f4f5f6f7f8llu, sv, arraylen(sv));
+
+  CU_ASSERT((ssize_t)(1 + 8 + 4 + arraylen(sv) * 4) == spktlen);
+
+  p = buf;
+
+  CU_ASSERT((0x80 | 133) == buf[0]);
+
+  ++p;
+
+  CU_ASSERT(0xf1f2f3f4f5f6f7f8llu == ngtcp2_get_uint64(p));
+
+  p += 8;
+
+  CU_ASSERT(0 == ngtcp2_get_uint32(p));
+
+  p += 4;
+
+  for (i = 0; i < arraylen(sv); ++i, p += 4) {
+    CU_ASSERT(sv[i] == ngtcp2_get_uint32(p));
+  }
+}
