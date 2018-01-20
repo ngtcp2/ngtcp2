@@ -36,13 +36,54 @@
 /*
  * ngtcp2_upe is the Unprotected Packet Encoder.
  */
-struct ngtcp2_upe {
+typedef struct {
   ngtcp2_buf buf;
-};
+} ngtcp2_upe;
 
 /*
  * ngtcp2_upe_init initializes |upe| with the given buffer.
  */
 void ngtcp2_upe_init(ngtcp2_upe *upe, uint8_t *out, size_t outlen);
+
+/*
+ * `ngtcp2_upe_encode_hd` encodes QUIC packet header |hd| in the
+ * buffer.  |hd| is encoded as long header.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer does not have enough capacity to write a header.
+ */
+int ngtcp2_upe_encode_hd(ngtcp2_upe *upe, const ngtcp2_pkt_hd *hd);
+
+/*
+ * `ngtcp2_upe_encode_frame` encodes the frame |fm| in the buffer.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer does not have enough capacity to write a header.
+ */
+int ngtcp2_upe_encode_frame(ngtcp2_upe *upe, ngtcp2_frame *fr);
+
+/*
+ * `ngtcp2_upe_padding` encodes PADDING frames to the end of the
+ * buffer.  This function returns the number of bytes padded.
+ */
+size_t ngtcp2_upe_padding(ngtcp2_upe *upe);
+
+/*
+ * `ngtcp2_upe_final` stores the pointer to the packet into |*pkt| if
+ * |*pkt| is not ``NULL``, and the length of packet is returned.
+ */
+size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
+
+/*
+ * `ngtcp2_upe_left` returns the number of bytes left to write
+ * additional frames.
+ */
+size_t ngtcp2_upe_left(ngtcp2_upe *upe);
 
 #endif /* NGTCP2_UPE_H */

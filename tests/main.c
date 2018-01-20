@@ -114,8 +114,6 @@ int main() {
       !CU_add_test(pSuite, "get_varint_len", test_ngtcp2_get_varint_len) ||
       !CU_add_test(pSuite, "put_varint_len", test_ngtcp2_put_varint_len) ||
       !CU_add_test(pSuite, "upe_encode", test_ngtcp2_upe_encode) ||
-      !CU_add_test(pSuite, "upe_encode_version_negotiation",
-                   test_ngtcp2_upe_encode_version_negotiation) ||
       !CU_add_test(pSuite, "range_intersect", test_ngtcp2_range_intersect) ||
       !CU_add_test(pSuite, "range_cut", test_ngtcp2_range_cut) ||
       !CU_add_test(pSuite, "range_not_after", test_ngtcp2_range_not_after) ||

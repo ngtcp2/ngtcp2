@@ -30,6 +30,5 @@
 #endif /* HAVE_CONFIG_H */
 
 void test_ngtcp2_upe_encode(void);
-void test_ngtcp2_upe_encode_version_negotiation(void);
 
 #endif /* NGTCP2_UPE_TEST_H */
