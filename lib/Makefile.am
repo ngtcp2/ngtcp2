@@ -36,7 +36,6 @@ OBJECTS = \
 	ngtcp2_conv.c \
 	ngtcp2_str.c \
 	ngtcp2_buf.c \
-	ngtcp2_upe.c \
 	ngtcp2_conn.c \
 	ngtcp2_mem.c \
 	ngtcp2_pq.c \
@@ -58,7 +57,6 @@ HFILES = \
 	ngtcp2_conv.h \
 	ngtcp2_str.h \
 	ngtcp2_buf.h \
-	ngtcp2_upe.h \
 	ngtcp2_conn.h \
 	ngtcp2_mem.h \
 	ngtcp2_pq.h \
