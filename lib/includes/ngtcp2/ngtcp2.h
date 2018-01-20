@@ -688,8 +688,7 @@ NGTCP2_EXTERN size_t ngtcp2_upe_padding(ngtcp2_upe *upe);
  * `ngtcp2_upe_encode_version_negotiation` encodes payload of Version
  * Negotiation packet.  Unlike the other functions to encode a frame,
  * this function returns the packet size just like `ngtcp2_upe_final`.
- * You should not call `ngtcp2_upe_final` since Version Negotiation
- * packet does not have an integrity check.
+ * You should not call `ngtcp2_upe_final` if this function is called.
  *
  * This function returns the length of a packet, and assigns the
  * pointer to the packet to |*pkt| if |pkt| is not ``NULL``.  If it
@@ -706,10 +705,8 @@ ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, const uint8_t **ppkt,
 /**
  * @function
  *
- * `ngtcp2_upe_final` calculates checksum of the content in the
- * buffer, and appends it to the end of the buffer.  The pointer to
- * the packet is stored into |*pkt| if |*pkt| is not ``NULL``, and the
- * length of packet is returned.
+ * `ngtcp2_upe_final` stores the pointer to the packet into |*pkt| if
+ * |*pkt| is not ``NULL``, and the length of packet is returned.
  */
 NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
 
@@ -717,7 +714,7 @@ NGTCP2_EXTERN size_t ngtcp2_upe_final(ngtcp2_upe *upe, const uint8_t **ppkt);
  * @function
  *
  * `ngtcp2_upe_left` returns the number of bytes left to write
- * additional frames.  It does not include the checksum bytes.
+ * additional frames.
  */
 NGTCP2_EXTERN size_t ngtcp2_upe_left(ngtcp2_upe *upe);
 
