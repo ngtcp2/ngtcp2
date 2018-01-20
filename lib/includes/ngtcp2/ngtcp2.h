@@ -697,10 +697,8 @@ NGTCP2_EXTERN size_t ngtcp2_upe_padding(ngtcp2_upe *upe);
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer does not have enough capacity to write a payload.
  */
-NGTCP2_EXTERN ssize_t
-ngtcp2_upe_encode_version_negotiation(ngtcp2_upe *upe, const uint8_t **ppkt,
-
-                                      const uint32_t *sv, size_t nsv);
+NGTCP2_EXTERN ssize_t ngtcp2_upe_encode_version_negotiation(
+    ngtcp2_upe *upe, const uint8_t **ppkt, const uint32_t *sv, size_t nsv);
 
 /**
  * @function
