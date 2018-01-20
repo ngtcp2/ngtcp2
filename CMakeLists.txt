@@ -164,6 +164,8 @@ else()
     -Wheader-guard
     -Wsometimes-uninitialized
 
+    # Only work with gcc7 for the moment
+    -Wduplicated-branches
     # This is required because we pass format string as "const char*.
     -Wno-format-nonliteral
   )
