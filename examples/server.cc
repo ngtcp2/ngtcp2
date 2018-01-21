@@ -1804,7 +1804,7 @@ int Server::on_read() {
 }
 
 namespace {
-uint32_t generate_reserved_vesrion(const sockaddr *sa, socklen_t salen,
+uint32_t generate_reserved_version(const sockaddr *sa, socklen_t salen,
                                    uint32_t version) {
   uint32_t h = 0x811C9DC5u;
   const uint8_t *p = (const uint8_t *)sa;
@@ -1831,7 +1831,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
   std::array<uint32_t, 2> sv;
 
-  sv[0] = generate_reserved_vesrion(sa, salen, chd->version);
+  sv[0] = generate_reserved_version(sa, salen, chd->version);
   sv[1] = NGTCP2_PROTO_VER_D8;
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
