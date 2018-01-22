@@ -59,7 +59,7 @@ typedef enum {
 
 /* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in
    microsecond resolution. */
-#define NGTCP2_INITIAL_EXPIRY 400000
+#define NGTCP2_INITIAL_EXPIRY 1000000
 
 /* NGTCP2_PKT_DEADLINE_PERIOD is the period of time when the library
    gives up re-sending packet, and closes connection. */
