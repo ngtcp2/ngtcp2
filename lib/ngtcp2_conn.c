@@ -3232,9 +3232,10 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * conn_recv_delayed_handshake_pkt processes the received handshake
  * packet which is received after handshake completed.  This function
  * does the minimal job, and its purpose is send acknowledgement of
- * this packet to the peer.  We assume that hd->type is one of
- * Initial, or Handshake.  |ad| and |adlen| is an additional data and
- * its length to decrypt a packet.
+ * this packet to the peer, and processing STREAM data sent in stream
+ * 0 which most likely includes NewSessionTicket.  We assume that
+ * hd->type is one of Initial, or Handshake.  |ad| and |adlen| is an
+ * additional data and its length to decrypt a packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3312,6 +3313,10 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     case NGTCP2_FRAME_PADDING:
       break;
     case NGTCP2_FRAME_STREAM:
+      rv = conn_recv_stream(conn, &fr.stream);
+      if (rv != 0) {
+        return rv;
+      }
       require_ack = 1;
       break;
     default:

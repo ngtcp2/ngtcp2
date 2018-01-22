@@ -251,6 +251,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   cb.hs_encrypt = null_encrypt;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
+  cb.recv_stream0_data = recv_stream0_data;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
@@ -284,6 +285,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   cb.hs_encrypt = null_encrypt;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
+  cb.recv_stream0_data = recv_stream0_data;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
