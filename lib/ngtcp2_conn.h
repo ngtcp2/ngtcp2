@@ -237,8 +237,9 @@ struct ngtcp2_conn {
   ngtcp2_crypto_km *tx_ckm;
   ngtcp2_crypto_km *rx_ckm;
   size_t aead_overhead;
-  /* buffed_rx_ppkts is buffered protected packets which come before
-     handshake completed due to packet reordering. */
+  /* buffed_rx_ppkts is buffered (0-RTT) Protected packets which come
+     before (Initial packet for 0-RTT, or) handshake completed due to
+     packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
   ngtcp2_rtb_entry *early_rtb;
   ngtcp2_settings local_settings;

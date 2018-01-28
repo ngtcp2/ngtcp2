@@ -2615,4 +2615,44 @@ void test_ngtcp2_conn_recv_early_data(void) {
   CU_ASSERT(911 == strm->last_rx_offset);
 
   ngtcp2_conn_del(conn);
+
+  /* Re-ordered 0-RTT Protected packet */
+  setup_early_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 119;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, 1000000007, ++pkt_num,
+      conn->version, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 319;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(buf, sizeof(buf),
+                                            NGTCP2_PKT_INITIAL, 1000000007,
+                                            ++pkt_num, conn->version, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 4);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(119 == strm->last_rx_offset);
+
+  ngtcp2_conn_del(conn);
 }

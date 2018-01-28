@@ -2178,6 +2178,12 @@ static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
  * packet is received, but the local endpoint has not established
  * cryptographic context (e.g., Handshake packet is lost or delayed).
  *
+ * This function also buffers 0-RTT Protected packet if it arrives
+ * before Initial packet.
+ *
+ * The processing of 0-RTT Protected and Short packets take place in
+ * their own stage, and we don't buffer them at the same time.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -2455,6 +2461,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ssize_t nwrite;
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
+    if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
+      /* Ignore Short packet unless server's first Handshake packet
+         has been transmitted. */
+      return 0;
+    }
     return conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
   }
 
@@ -2508,6 +2519,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
+      if (!(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
+        /* Buffer re-ordered 0-RTT Protected packet. */
+        return conn_buffer_protected_pkt(conn, pkt - nread,
+                                         pktlen + (size_t)nread, ts);
+      }
       /* Discard 0-RTT packet if we don't have a key to decrypt it. */
       return 0;
     default:
@@ -3668,6 +3684,28 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_process_buffered_0rtt_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_pkt_chain *pc = conn->buffed_rx_ppkts, *next;
+
+  for (; pc; pc = pc->next) {
+    rv = conn_recv_handshake_pkt(conn, pc->pkt, pc->pktlen, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  for (pc = conn->buffed_rx_ppkts; pc;) {
+    next = pc->next;
+    ngtcp2_pkt_chain_del(pc, conn->mem);
+    pc = next;
+  }
+
+  conn->buffed_rx_ppkts = NULL;
+
+  return 0;
+}
+
 /*
  * conn_handshake_completed is called once cryptographic handshake has
  * completed.
@@ -3741,6 +3779,12 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
         conn->state = NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED;
         rv = 0;
       }
+      break;
+    }
+    if (conn->state == NGTCP2_CS_SERVER_INITIAL &&
+        (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
+      /* Process re-ordered 0-RTT Protected packets. */
+      rv = conn_process_buffered_0rtt_pkt(conn, ts);
       break;
     }
     if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
@@ -3830,7 +3874,13 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     return -1;
   }
 
-  if (p->type != NGTCP2_PKT_INITIAL) {
+  switch (p->type) {
+  case NGTCP2_PKT_INITIAL:
+    /* 0-RTT Protected packet may arrive before Initial packet due to
+       re-ordering. */
+  case NGTCP2_PKT_0RTT_PROTECTED:
+    break;
+  default:
     return -1;
   }
 
