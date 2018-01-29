@@ -1521,11 +1521,9 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
   int rv;
 
   ngtcp2_transport_params params;
-  int param_type = context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-                       ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-                       : NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET;
 
-  rv = ngtcp2_decode_transport_params(&params, param_type, in, inlen);
+  rv = ngtcp2_decode_transport_params(
+      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, in, inlen);
   if (rv != 0) {
     std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1535,25 +1533,21 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
 
   if (!config.quiet) {
     debug::print_indent();
-    std::cerr << "; TransportParameter received in "
-              << (context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-                      ? "EncryptedExtensions"
-                      : "NewSessionTicket")
-              << std::endl;
-    debug::print_transport_params(&params, param_type);
+    std::cerr << "; Received quic_transport_parameters extension" << std::endl;
+    debug::print_transport_params(
+        &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
   }
 
-  if (context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS) {
-    rv = ngtcp2_conn_set_remote_transport_params(conn, param_type, &params);
-    if (rv != 0) {
-      *al = SSL_AD_ILLEGAL_PARAMETER;
-      return -1;
-    }
-  } else if (config.tp_file) {
-    if (write_transport_params(config.tp_file, &params) != 0) {
-      std::cerr << "Could not write transport parameters in " << config.tp_file
-                << std::endl;
-    }
+  rv = ngtcp2_conn_set_remote_transport_params(
+      conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+  if (rv != 0) {
+    *al = SSL_AD_ILLEGAL_PARAMETER;
+    return -1;
+  }
+
+  if (config.tp_file && write_transport_params(config.tp_file, &params) != 0) {
+    std::cerr << "Could not write transport parameters in " << config.tp_file
+              << std::endl;
   }
 
   return 1;
@@ -1604,8 +1598,7 @@ SSL_CTX *create_ssl_ctx() {
 
   if (SSL_CTX_add_custom_ext(
           ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
-          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS |
-              SSL_EXT_TLS1_3_NEW_SESSION_TICKET,
+          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS,
           transport_params_add_cb, transport_params_free_cb, nullptr,
           transport_params_parse_cb, nullptr) != 1) {
     std::cerr << "SSL_CTX_add_custom_ext(NGTCP2_TLSEXT_QUIC_TRANSPORT_"

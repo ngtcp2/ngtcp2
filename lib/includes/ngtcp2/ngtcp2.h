@@ -449,7 +449,6 @@ typedef enum {
 typedef enum {
   NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
   NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-  NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET,
 } ngtcp2_transport_params_type;
 
 #define NGTCP2_MAX_PKT_SIZE 65527
@@ -1075,9 +1074,8 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     If |conn| is client, and |exttype| is
  *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
- *     |conn| is server, and |exttype| is either
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`, or
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET`
+ *     |conn| is server, and |exttype| is
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
  * :enum:`NGTCP2_ERR_VERSION_NEGOTIATION`
  *     Failed to validate version.
  */
@@ -1124,8 +1122,7 @@ NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params(
  *     If |conn| is server, and |exttype| is
  *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
  *     |conn| is client, and |exttype| is either
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`, or
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET`
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
     ngtcp2_conn *conn, ngtcp2_transport_params *params, uint8_t exttype);

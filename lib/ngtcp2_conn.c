@@ -4067,11 +4067,6 @@ int ngtcp2_conn_set_remote_transport_params(
       return rv;
     }
     break;
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
-    if (conn->server) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
-    break;
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -4127,11 +4122,6 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
     params->v.ee.negotiated_version = conn->version;
     params->v.ee.len = 1;
     params->v.ee.supported_versions[0] = conn->version;
-    break;
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
-    if (!conn->server) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
     break;
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;

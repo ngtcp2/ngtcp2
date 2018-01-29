@@ -1959,26 +1959,23 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
   auto conn = h->conn();
 
   ngtcp2_transport_params params;
-  int param_type = context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-                       ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-                       : NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET;
 
-  rv = ngtcp2_conn_get_local_transport_params(conn, &params, param_type);
+  rv = ngtcp2_conn_get_local_transport_params(
+      conn, &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
   if (rv != 0) {
     *al = SSL_AD_INTERNAL_ERROR;
     return -1;
   }
 
-  if (param_type == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
-    params.v.ee.len = 1;
-    params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D8;
-  }
+  params.v.ee.len = 1;
+  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D8;
 
   constexpr size_t bufsize = 128;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
 
-  auto nwrite =
-      ngtcp2_encode_transport_params(buf.get(), bufsize, param_type, &params);
+  auto nwrite = ngtcp2_encode_transport_params(
+      buf.get(), bufsize, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+      &params);
   if (nwrite < 0) {
     std::cerr << "ngtcp2_encode_transport_params: "
               << ngtcp2_strerror(static_cast<int>(nwrite)) << std::endl;
@@ -2029,7 +2026,7 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
 
   if (!config.quiet) {
     debug::print_indent();
-    std::cerr << "; TransportParameter received in ClientHello" << std::endl;
+    std::cerr << "; Received quic_transport_parameters extension" << std::endl;
     debug::print_transport_params(&params,
                                   NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
   }
@@ -2096,8 +2093,7 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
 
   if (SSL_CTX_add_custom_ext(
           ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
-          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS |
-              SSL_EXT_TLS1_3_NEW_SESSION_TICKET,
+          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS,
           transport_params_add_cb, transport_params_free_cb, nullptr,
           transport_params_parse_cb, nullptr) != 1) {
     std::cerr << "SSL_CTX_add_custom_ext(NGTCP2_TLSEXT_QUIC_TRANSPORT_"

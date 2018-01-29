@@ -489,7 +489,6 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
 
   switch (type) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     print_indent();
     fprintf(outfile, "; stateless_reset_token=%s\n",
             util::format_hex(params->stateless_reset_token).c_str());
