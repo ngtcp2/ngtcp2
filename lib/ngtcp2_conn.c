@@ -2550,9 +2550,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (conn->strm0->last_rx_offset != 0) {
         return NGTCP2_ERR_PROTO;
       }
-      if (conn->conn_id != hd.conn_id) {
-        return 0;
-      }
+      /* hd.conn_id is a connection ID chosen by server, and client
+         MUST choose it in a subsequent packets. */
+      conn->conn_id = hd.conn_id;
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
       if (conn->client_conn_id != hd.conn_id) {
