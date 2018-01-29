@@ -51,18 +51,18 @@ int export_secret(uint8_t *dest, size_t destlen, SSL *ssl, const uint8_t *label,
 }
 
 int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  static constexpr uint8_t label[] = "EXPORTER-QUIC client 1-RTT Secret";
+  static constexpr uint8_t label[] = "EXPORTER-QUIC client 1rtt";
   return export_secret(dest, destlen, ssl, label, str_size(label));
 }
 
 int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  static constexpr uint8_t label[] = "EXPORTER-QUIC server 1-RTT Secret";
+  static constexpr uint8_t label[] = "EXPORTER-QUIC server 1rtt";
   return export_secret(dest, destlen, ssl, label, str_size(label));
 }
 
 int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
   int rv;
-  static constexpr char label[] = "EXPORTER-QUIC 0-RTT Secret";
+  static constexpr char label[] = "EXPORTER-QUIC 0rtt";
 
   rv = SSL_export_keying_material_early(
       ssl, dest, destlen, label, str_size(label),
@@ -92,7 +92,7 @@ int derive_handshake_secret(uint8_t *dest, size_t destlen, uint64_t secret,
 
 int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen) {
-  static constexpr uint8_t LABEL[] = "QUIC client handshake secret";
+  static constexpr uint8_t LABEL[] = "client hs";
   Context ctx;
   prf_sha256(ctx);
   return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
@@ -101,7 +101,7 @@ int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
 
 int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen) {
-  static constexpr uint8_t LABEL[] = "QUIC server handshake secret";
+  static constexpr uint8_t LABEL[] = "server hs";
   Context ctx;
   prf_sha256(ctx);
   return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
@@ -152,7 +152,7 @@ int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
                       size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
                       const Context &ctx) {
   std::array<uint8_t, 256> info;
-  static constexpr const uint8_t LABEL[] = "tls13 ";
+  static constexpr const uint8_t LABEL[] = "QUIC ";
 
   auto p = std::begin(info);
   *p++ = destlen / 256;
