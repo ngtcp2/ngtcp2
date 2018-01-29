@@ -95,8 +95,8 @@ int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
   static constexpr uint8_t LABEL[] = "client hs";
   Context ctx;
   prf_sha256(ctx);
-  return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
-                                   str_size(LABEL), ctx);
+  return crypto::qhkdf_expand(dest, destlen, secret, secretlen, LABEL,
+                              str_size(LABEL), ctx);
 }
 
 int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
@@ -104,8 +104,8 @@ int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
   static constexpr uint8_t LABEL[] = "server hs";
   Context ctx;
   prf_sha256(ctx);
-  return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
-                                   str_size(LABEL), ctx);
+  return crypto::qhkdf_expand(dest, destlen, secret, secretlen, LABEL,
+                              str_size(LABEL), ctx);
 }
 
 ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
@@ -119,8 +119,8 @@ ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
     return -1;
   }
 
-  rv = crypto::hkdf_expand_label(dest, keylen, secret, secretlen, LABEL_KEY,
-                                 str_size(LABEL_KEY), ctx);
+  rv = crypto::qhkdf_expand(dest, keylen, secret, secretlen, LABEL_KEY,
+                            str_size(LABEL_KEY), ctx);
   if (rv != 0) {
     return -1;
   }
@@ -139,8 +139,8 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
     return -1;
   }
 
-  rv = crypto::hkdf_expand_label(dest, ivlen, secret, secretlen, LABEL_IV,
-                                 str_size(LABEL_IV), ctx);
+  rv = crypto::qhkdf_expand(dest, ivlen, secret, secretlen, LABEL_IV,
+                            str_size(LABEL_IV), ctx);
   if (rv != 0) {
     return -1;
   }
@@ -148,9 +148,9 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
   return ivlen;
 }
 
-int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                      size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                      const Context &ctx) {
+int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
+                 size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
+                 const Context &ctx) {
   std::array<uint8_t, 256> info;
   static constexpr const uint8_t LABEL[] = "QUIC ";
 
