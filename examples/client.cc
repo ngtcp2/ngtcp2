@@ -540,9 +540,9 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   size_t alpnlen;
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D8:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D8);
-    alpnlen = str_size(NGTCP2_ALPN_D8);
+  case NGTCP2_PROTO_VER_D9:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D9);
+    alpnlen = str_size(NGTCP2_ALPN_D9);
     break;
   }
   if (alpn) {
@@ -1718,7 +1718,7 @@ void config_set_default(Config &config) {
   config.nstreams = 1;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_D8;
+  config.version = NGTCP2_PROTO_VER_D9;
   config.timeout = 30;
 }
 } // namespace
