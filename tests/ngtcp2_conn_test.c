@@ -1722,12 +1722,12 @@ void test_ngtcp2_conn_recv_server_stateless_retry(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == conn->last_tx_pkt_num);
+  CU_ASSERT(1 == conn->last_tx_pkt_num);
 
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), 3);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == conn->last_tx_pkt_num);
+  CU_ASSERT(2 == conn->last_tx_pkt_num);
 
   ngtcp2_conn_del(conn);
 }
