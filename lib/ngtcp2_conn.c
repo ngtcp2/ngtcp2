@@ -2252,7 +2252,6 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
     return rv;
   }
 
-  conn->last_tx_pkt_num = 0;
   conn->max_rx_pkt_num = 0;
 
   ngtcp2_rtb_free(&conn->rtb);
