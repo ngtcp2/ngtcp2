@@ -55,7 +55,7 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b quic https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b early-exporter https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
