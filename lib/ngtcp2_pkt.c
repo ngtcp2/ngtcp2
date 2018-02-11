@@ -489,6 +489,8 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   dest->largest_ack = ngtcp2_get_varint(&n, p);
   p += n;
   dest->ack_delay = ngtcp2_get_varint(&n, p);
+  /* This value will be assigned in the upper layer. */
+  dest->ack_delay_unscaled = 0;
   p += n;
   dest->num_blks = max_num_blks;
   p += ngtcp2_get_varint_len(p);

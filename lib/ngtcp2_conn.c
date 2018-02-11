@@ -517,8 +517,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
 
   ack->type = NGTCP2_FRAME_ACK;
   ack->largest_ack = first_pkt_num;
-  ack->ack_delay =
-      (ts - (*prpkt)->tstamp) >> conn->local_settings.ack_delay_exponent;
+  ack->ack_delay_unscaled = ts - (*prpkt)->tstamp;
+  ack->ack_delay = ack->ack_delay_unscaled >>
+                   (unprotected ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
+                                : conn->local_settings.ack_delay_exponent);
   ack->num_blks = 0;
 
   prpkt = &(*prpkt)->next;
@@ -2089,6 +2091,18 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
 }
 
 /*
+ * conn_assign_recved_ack_delay_unscaled assigns
+ * fr->ack_delay_unscaled.
+ */
+static void conn_assign_recved_ack_delay_unscaled(ngtcp2_conn *conn,
+                                                  ngtcp2_ack *fr,
+                                                  uint8_t unprotected) {
+  fr->ack_delay_unscaled =
+      fr->ack_delay << (unprotected ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
+                                    : conn->remote_settings.ack_delay_exponent);
+}
+
+/*
  * conn_recv_max_stream_data processes received MAX_STREAM_DATA frame
  * |fr|.
  *
@@ -2591,6 +2605,10 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     payload += nread;
     payloadlen -= (size_t)nread;
+
+    if (fr->type == NGTCP2_FRAME_ACK) {
+      conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 1);
+    }
 
     rv = conn_call_recv_frame(conn, &hd, fr);
     if (rv != 0) {
@@ -3315,6 +3333,10 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     payload += nread;
     payloadlen -= (size_t)nread;
 
+    if (fr.type == NGTCP2_FRAME_ACK) {
+      conn_assign_recved_ack_delay_unscaled(conn, &fr.ack, 1);
+    }
+
     rv = conn_call_recv_frame(conn, hd, &fr);
     if (rv != 0) {
       return rv;
@@ -3581,6 +3603,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
     payload += nread;
     payloadlen -= (size_t)nread;
+
+    if (fr->type == NGTCP2_FRAME_ACK) {
+      conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 0);
+    }
 
     rv = conn_call_recv_frame(conn, &hd, fr);
     if (rv != 0) {

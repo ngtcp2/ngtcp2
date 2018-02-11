@@ -320,6 +320,11 @@ typedef struct {
   uint8_t type;
   uint64_t largest_ack;
   uint64_t ack_delay;
+  /**
+   * ack_delay_unscaled is an ack_delay multiplied by
+   * ack_delay_component.  The resolution is nanoseconds.
+   */
+  uint64_t ack_delay_unscaled;
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[1];
