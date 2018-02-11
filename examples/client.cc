@@ -403,6 +403,12 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 
 namespace {
 int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
+  // Re-generate handshake secrets here because connection ID might
+  // change.
+  auto c = static_cast<Client *>(user_data);
+
+  c->setup_handshake_crypto_context();
+
   return 0;
 }
 } // namespace
@@ -623,7 +629,27 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     return -1;
   }
 
+  rv = setup_handshake_crypto_context();
+  if (rv != 0) {
+    return -1;
+  }
+
+  ev_io_set(&wev_, fd_, EV_WRITE);
+  ev_io_set(&rev_, fd_, EV_READ);
+
+  ev_io_start(loop_, &rev_);
+  ev_timer_again(loop_, &timer_);
+
+  ev_signal_start(loop_, &sigintev_);
+
+  return 0;
+}
+
+int Client::setup_handshake_crypto_context() {
+  int rv;
+
   std::array<uint8_t, 32> handshake_secret, secret;
+  auto conn_id = ngtcp2_conn_negotiated_conn_id(conn_);
   rv = crypto::derive_handshake_secret(
       handshake_secret.data(), handshake_secret.size(), conn_id,
       reinterpret_cast<const uint8_t *>(NGTCP2_QUIC_V1_SALT),
@@ -683,14 +709,6 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
 
   ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
                                     ivlen);
-
-  ev_io_set(&wev_, fd_, EV_WRITE);
-  ev_io_set(&rev_, fd_, EV_READ);
-
-  ev_io_start(loop_, &rev_);
-  ev_timer_again(loop_, &timer_);
-
-  ev_signal_start(loop_, &sigintev_);
 
   return 0;
 }
@@ -1582,6 +1600,10 @@ SSL_CTX *create_ssl_ctx() {
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
+
+  // This makes OpenSSL client not send CCS after an initial
+  // ClientHello.
+  SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
 
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 

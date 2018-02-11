@@ -152,6 +152,7 @@ public:
   size_t read_server_handshake(uint8_t *buf, size_t buflen);
   void write_server_handshake(const uint8_t *data, size_t datalen);
 
+  int setup_handshake_crypto_context();
   int setup_crypto_context();
   int setup_early_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,

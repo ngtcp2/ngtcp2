@@ -1001,13 +1001,14 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to encrypt
- *  handshake packets.
+ *  handshake packets.  If key and iv have already been set, they are
+ *  overwritten.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     A packet protection key and iv are already set.
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
                                                     const uint8_t *key,
@@ -1019,13 +1020,14 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_set_handshake_rx_keys` sets key and iv to decrypt
- * handshake packets.
+ * handshake packets.  If key and iv have already been set, they are
+ * overwritten.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     A packet protection key and iv are already set.
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn,
                                                     const uint8_t *key,

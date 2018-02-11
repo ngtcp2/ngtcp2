@@ -3906,7 +3906,8 @@ int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
                                       size_t keylen, const uint8_t *iv,
                                       size_t ivlen) {
   if (conn->hs_tx_ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
+    ngtcp2_crypto_km_del(conn->hs_tx_ckm, conn->mem);
+    conn->hs_tx_ckm = NULL;
   }
 
   return ngtcp2_crypto_km_new(&conn->hs_tx_ckm, key, keylen, iv, ivlen,
@@ -3917,7 +3918,8 @@ int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
                                       size_t keylen, const uint8_t *iv,
                                       size_t ivlen) {
   if (conn->hs_rx_ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
+    ngtcp2_crypto_km_del(conn->hs_rx_ckm, conn->mem);
+    conn->hs_rx_ckm = NULL;
   }
 
   return ngtcp2_crypto_km_new(&conn->hs_rx_ckm, key, keylen, iv, ivlen,
