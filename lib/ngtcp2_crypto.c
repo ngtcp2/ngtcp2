@@ -151,7 +151,6 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN);
     p = ngtcp2_put_uint16be(p, sizeof(params->stateless_reset_token));
     p = ngtcp2_cpymem(p, params->stateless_reset_token,
@@ -202,7 +201,6 @@ static int valid_stream_id_bidi(uint32_t n, uint8_t exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     return (n & 0x3) == 0x1;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     return (n & 0x3) == 0x0;
   default:
     assert(0);
@@ -216,7 +214,6 @@ static int valid_stream_id_uni(uint32_t n, uint8_t exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     return (n & 0x3) == 0x3;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     return (n & 0x3) == 0x2;
   default:
     assert(0);
@@ -356,7 +353,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     case NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN:
       switch (exttype) {
       case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-      case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
         break;
       default:
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
@@ -417,7 +413,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     if (!(flags & (1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN))) {
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
     }

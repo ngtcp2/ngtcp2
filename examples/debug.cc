@@ -288,9 +288,10 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_ACK: {
     print_indent();
     fprintf(outfile,
-            "largest_ack=%" PRIu64 " ack_delay=%" PRIu64
-            " ack_block_count=%zu\n",
-            fr->ack.largest_ack, fr->ack.ack_delay, fr->ack.num_blks);
+            "largest_ack=%" PRIu64 " ack_delay=%" PRIu64 "ns(%" PRIu64
+            ") ack_block_count=%zu\n",
+            fr->ack.largest_ack, fr->ack.ack_delay_unscaled, fr->ack.ack_delay,
+            fr->ack.num_blks);
     print_indent();
     auto largest_ack = fr->ack.largest_ack;
     auto min_ack = fr->ack.largest_ack - fr->ack.first_ack_blklen;
@@ -489,7 +490,6 @@ void print_transport_params(const ngtcp2_transport_params *params, int type) {
 
   switch (type) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET:
     print_indent();
     fprintf(outfile, "; stateless_reset_token=%s\n",
             util::format_hex(params->stateless_reset_token).c_str());

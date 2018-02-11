@@ -88,11 +88,11 @@ int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
 int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
                                    const uint8_t *secret, size_t secretlen);
 
-// hkdf_expand_label derives secret using HDKF-Expand-Label.  It
-// returns 0 if it succeeds, or -1.
-int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                      size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                      const Context &ctx);
+// qhkdf_expand derives secret using QHKDF-Expand.  It returns 0 if it
+// succeeds, or -1.
+int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
+                 size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
+                 const Context &ctx);
 
 // derive_packet_protection_key derives and stores the packet
 // protection key in the buffer pointed by |dest| of length |destlen|,

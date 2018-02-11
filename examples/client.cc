@@ -403,6 +403,12 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 
 namespace {
 int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
+  // Re-generate handshake secrets here because connection ID might
+  // change.
+  auto c = static_cast<Client *>(user_data);
+
+  c->setup_handshake_crypto_context();
+
   return 0;
 }
 } // namespace
@@ -540,9 +546,9 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   size_t alpnlen;
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D8:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D8);
-    alpnlen = str_size(NGTCP2_ALPN_D8);
+  case NGTCP2_PROTO_VER_D9:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D9);
+    alpnlen = str_size(NGTCP2_ALPN_D9);
     break;
   }
   if (alpn) {
@@ -623,7 +629,27 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     return -1;
   }
 
+  rv = setup_handshake_crypto_context();
+  if (rv != 0) {
+    return -1;
+  }
+
+  ev_io_set(&wev_, fd_, EV_WRITE);
+  ev_io_set(&rev_, fd_, EV_READ);
+
+  ev_io_start(loop_, &rev_);
+  ev_timer_again(loop_, &timer_);
+
+  ev_signal_start(loop_, &sigintev_);
+
+  return 0;
+}
+
+int Client::setup_handshake_crypto_context() {
+  int rv;
+
   std::array<uint8_t, 32> handshake_secret, secret;
+  auto conn_id = ngtcp2_conn_negotiated_conn_id(conn_);
   rv = crypto::derive_handshake_secret(
       handshake_secret.data(), handshake_secret.size(), conn_id,
       reinterpret_cast<const uint8_t *>(NGTCP2_QUIC_V1_SALT),
@@ -683,14 +709,6 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
 
   ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
                                     ivlen);
-
-  ev_io_set(&wev_, fd_, EV_WRITE);
-  ev_io_set(&rev_, fd_, EV_READ);
-
-  ev_io_start(loop_, &rev_);
-  ev_timer_again(loop_, &timer_);
-
-  ev_signal_start(loop_, &sigintev_);
 
   return 0;
 }
@@ -1521,11 +1539,9 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
   int rv;
 
   ngtcp2_transport_params params;
-  int param_type = context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-                       ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-                       : NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET;
 
-  rv = ngtcp2_decode_transport_params(&params, param_type, in, inlen);
+  rv = ngtcp2_decode_transport_params(
+      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, in, inlen);
   if (rv != 0) {
     std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1535,25 +1551,21 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
 
   if (!config.quiet) {
     debug::print_indent();
-    std::cerr << "; TransportParameter received in "
-              << (context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-                      ? "EncryptedExtensions"
-                      : "NewSessionTicket")
-              << std::endl;
-    debug::print_transport_params(&params, param_type);
+    std::cerr << "; Received quic_transport_parameters extension" << std::endl;
+    debug::print_transport_params(
+        &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS);
   }
 
-  if (context == SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS) {
-    rv = ngtcp2_conn_set_remote_transport_params(conn, param_type, &params);
-    if (rv != 0) {
-      *al = SSL_AD_ILLEGAL_PARAMETER;
-      return -1;
-    }
-  } else if (config.tp_file) {
-    if (write_transport_params(config.tp_file, &params) != 0) {
-      std::cerr << "Could not write transport parameters in " << config.tp_file
-                << std::endl;
-    }
+  rv = ngtcp2_conn_set_remote_transport_params(
+      conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+  if (rv != 0) {
+    *al = SSL_AD_ILLEGAL_PARAMETER;
+    return -1;
+  }
+
+  if (config.tp_file && write_transport_params(config.tp_file, &params) != 0) {
+    std::cerr << "Could not write transport parameters in " << config.tp_file
+              << std::endl;
   }
 
   return 1;
@@ -1589,6 +1601,10 @@ SSL_CTX *create_ssl_ctx() {
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
 
+  // This makes OpenSSL client not send CCS after an initial
+  // ClientHello.
+  SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
+
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 
   if (SSL_CTX_set_cipher_list(ssl_ctx, config.ciphers) != 1) {
@@ -1604,8 +1620,7 @@ SSL_CTX *create_ssl_ctx() {
 
   if (SSL_CTX_add_custom_ext(
           ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
-          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS |
-              SSL_EXT_TLS1_3_NEW_SESSION_TICKET,
+          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS,
           transport_params_add_cb, transport_params_free_cb, nullptr,
           transport_params_parse_cb, nullptr) != 1) {
     std::cerr << "SSL_CTX_add_custom_ext(NGTCP2_TLSEXT_QUIC_TRANSPORT_"
@@ -1725,7 +1740,7 @@ void config_set_default(Config &config) {
   config.nstreams = 1;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_D8;
+  config.version = NGTCP2_PROTO_VER_D9;
   config.timeout = 30;
 }
 } // namespace

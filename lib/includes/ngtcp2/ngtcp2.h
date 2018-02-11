@@ -155,17 +155,17 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER_D8 is the supported QUIC protocol version
-   draft-8. */
-#define NGTCP2_PROTO_VER_D8 0xff000008u
+/* NGTCP2_PROTO_VER_D9 is the supported QUIC protocol version
+   draft-9. */
+#define NGTCP2_PROTO_VER_D9 0xff000009u
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D8
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D9
 
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D8 "\x5hq-08"
+#define NGTCP2_ALPN_D9 "\x5hq-09"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -320,6 +320,11 @@ typedef struct {
   uint8_t type;
   uint64_t largest_ack;
   uint64_t ack_delay;
+  /**
+   * ack_delay_unscaled is an ack_delay multiplied by
+   * ack_delay_component.  The resolution is nanoseconds.
+   */
+  uint64_t ack_delay_unscaled;
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[1];
@@ -449,7 +454,6 @@ typedef enum {
 typedef enum {
   NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
   NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-  NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET,
 } ngtcp2_transport_params_type;
 
 #define NGTCP2_MAX_PKT_SIZE 65527
@@ -1002,13 +1006,14 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to encrypt
- *  handshake packets.
+ *  handshake packets.  If key and iv have already been set, they are
+ *  overwritten.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     A packet protection key and iv are already set.
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
                                                     const uint8_t *key,
@@ -1020,13 +1025,14 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_set_handshake_rx_keys` sets key and iv to decrypt
- * handshake packets.
+ * handshake packets.  If key and iv have already been set, they are
+ * overwritten.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     A packet protection key and iv are already set.
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn,
                                                     const uint8_t *key,
@@ -1075,9 +1081,8 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     If |conn| is client, and |exttype| is
  *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
- *     |conn| is server, and |exttype| is either
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`, or
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET`
+ *     |conn| is server, and |exttype| is
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
  * :enum:`NGTCP2_ERR_VERSION_NEGOTIATION`
  *     Failed to validate version.
  */
@@ -1124,8 +1129,7 @@ NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params(
  *     If |conn| is server, and |exttype| is
  *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
  *     |conn| is client, and |exttype| is either
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`, or
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_NEW_SESSION_TICKET`
+ *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
     ngtcp2_conn *conn, ngtcp2_transport_params *params, uint8_t exttype);
