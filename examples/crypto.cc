@@ -66,7 +66,7 @@ int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
 
   rv = SSL_export_keying_material_early(
       ssl, dest, destlen, label, str_size(label),
-      reinterpret_cast<const uint8_t *>(""), 0, 1);
+      reinterpret_cast<const uint8_t *>(""), 0);
   if (rv != 1) {
     return -1;
   }
