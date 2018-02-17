@@ -990,6 +990,11 @@ int Handler::recv_client_initial(uint64_t conn_id) {
     return -1;
   }
 
+  if (!config.quiet && config.show_secret) {
+    debug::print_handshake_secret(handshake_secret.data(),
+                                  handshake_secret.size());
+  }
+
   crypto::prf_sha256(hs_crypto_ctx_);
   crypto::aead_aes_128_gcm(hs_crypto_ctx_);
 
@@ -1014,6 +1019,12 @@ int Handler::recv_client_initial(uint64_t conn_id) {
     return -1;
   }
 
+  if (!config.quiet && config.show_secret) {
+    debug::print_server_hs_secret(secret.data(), secret.size());
+    debug::print_server_pp_key(key.data(), keylen);
+    debug::print_server_pp_iv(iv.data(), ivlen);
+  }
+
   ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
                                     ivlen);
 
@@ -1035,6 +1046,12 @@ int Handler::recv_client_initial(uint64_t conn_id) {
       iv.data(), iv.size(), secret.data(), secret.size(), hs_crypto_ctx_);
   if (ivlen < 0) {
     return -1;
+  }
+
+  if (!config.quiet && config.show_secret) {
+    debug::print_client_hs_secret(secret.data(), secret.size());
+    debug::print_client_pp_key(key.data(), keylen);
+    debug::print_client_pp_iv(iv.data(), ivlen);
   }
 
   ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
@@ -1079,6 +1096,13 @@ int Handler::setup_early_crypto_context() {
       crypto_ctx_);
   if (ivlen < 0) {
     return -1;
+  }
+
+  if (!config.quiet && config.show_secret) {
+    debug::print_client_0rtt_secret(crypto_ctx_.rx_secret.data(),
+                                    crypto_ctx_.secretlen);
+    debug::print_client_pp_key(key.data(), keylen);
+    debug::print_client_pp_iv(iv.data(), ivlen);
   }
 
   ngtcp2_conn_update_early_keys(conn_, key.data(), keylen, iv.data(), ivlen);
@@ -1126,6 +1150,13 @@ int Handler::setup_crypto_context() {
     return -1;
   }
 
+  if (!config.quiet && config.show_secret) {
+    debug::print_server_1rtt_secret(crypto_ctx_.tx_secret.data(),
+                                    crypto_ctx_.secretlen);
+    debug::print_server_pp_key(key.data(), keylen);
+    debug::print_server_pp_iv(iv.data(), ivlen);
+  }
+
   ngtcp2_conn_update_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
 
   rv = crypto::export_client_secret(crypto_ctx_.rx_secret.data(),
@@ -1146,6 +1177,13 @@ int Handler::setup_crypto_context() {
       crypto_ctx_);
   if (ivlen < 0) {
     return -1;
+  }
+
+  if (!config.quiet && config.show_secret) {
+    debug::print_client_1rtt_secret(crypto_ctx_.rx_secret.data(),
+                                    crypto_ctx_.secretlen);
+    debug::print_client_pp_key(key.data(), keylen);
+    debug::print_client_pp_iv(iv.data(), ivlen);
   }
 
   ngtcp2_conn_update_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
@@ -2254,6 +2292,8 @@ Options:
               Specify document root.  If this option is not specified,
               the document root is the current working directory.
   -q, --quiet Suppress debug output.
+  -s, --show-secret
+              Print out secrets unless --quiet is used.
   --timeout=<T>
               Specify idle timeout in seconds.
               Default: )" << config.timeout
@@ -2274,13 +2314,14 @@ int main(int argc, char **argv) {
         {"rx-loss", required_argument, nullptr, 'r'},
         {"htdocs", required_argument, nullptr, 'd'},
         {"quiet", no_argument, nullptr, 'q'},
+        {"show-secret", no_argument, nullptr, 's'},
         {"ciphers", required_argument, &flag, 1},
         {"groups", required_argument, &flag, 2},
         {"timeout", required_argument, &flag, 3},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
-    auto c = getopt_long(argc, argv, "d:hqr:t:", long_opts, &optidx);
+    auto c = getopt_long(argc, argv, "d:hqr:st:", long_opts, &optidx);
     if (c == -1) {
       break;
     }
@@ -2307,6 +2348,10 @@ int main(int argc, char **argv) {
     case 'r':
       // --rx-loss
       config.rx_loss_prob = strtod(optarg, nullptr);
+      break;
+    case 's':
+      // --show-secret
+      config.show_secret = true;
       break;
     case 't':
       // --tx-loss

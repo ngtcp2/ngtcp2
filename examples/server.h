@@ -65,6 +65,8 @@ struct Config {
   bool quiet;
   // timeout is an idle timeout for QUIC connection.
   uint32_t timeout;
+  // show_secret is true if transport secrets should be printed out.
+  bool show_secret;
 };
 
 struct Buffer {
