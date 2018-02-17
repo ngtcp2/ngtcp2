@@ -507,6 +507,52 @@ void print_stream_data(uint64_t stream_id, const uint8_t *data,
   util::hexdump(outfile, data, datalen);
 }
 
+void print_handshake_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "handshake_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
+void print_client_hs_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "client_hs_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
+void print_server_hs_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "server_hs_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
+void print_client_0rtt_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "client_0rtt_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
+void print_client_1rtt_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "client_1rtt_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
+void print_server_1rtt_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "server_1rtt_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
+void print_client_pp_key(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ client_pp_key=%s\n", util::format_hex(data, len).c_str());
+}
+
+void print_server_pp_key(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ server_pp_key=%s\n", util::format_hex(data, len).c_str());
+}
+
+void print_client_pp_iv(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ client_pp_iv=%s\n", util::format_hex(data, len).c_str());
+}
+
+void print_server_pp_iv(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ server_pp_iv=%s\n", util::format_hex(data, len).c_str());
+}
+
 } // namespace debug
 
 } // namespace ngtcp2

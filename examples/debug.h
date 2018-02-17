@@ -75,6 +75,22 @@ bool packet_lost(double prob);
 
 void print_stream_data(uint64_t stream_id, const uint8_t *data, size_t datalen);
 
+void print_handshake_secret(const uint8_t *data, size_t len);
+
+void print_client_hs_secret(const uint8_t *data, size_t len);
+void print_server_hs_secret(const uint8_t *data, size_t len);
+
+void print_client_0rtt_secret(const uint8_t *data, size_t len);
+
+void print_client_1rtt_secret(const uint8_t *data, size_t len);
+void print_server_1rtt_secret(const uint8_t *data, size_t len);
+
+void print_client_pp_key(const uint8_t *data, size_t len);
+void print_server_pp_key(const uint8_t *data, size_t len);
+
+void print_client_pp_iv(const uint8_t *data, size_t len);
+void print_server_pp_iv(const uint8_t *data, size_t len);
+
 } // namespace debug
 
 } // namespace ngtcp2

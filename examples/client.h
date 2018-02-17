@@ -77,6 +77,8 @@ struct Config {
   // tp_file is a path to a fie to write, and read QUIC transport
   // parameters.
   const char *tp_file;
+  // show_secret is true if transport secrets should be printed out.
+  bool show_secret;
 };
 
 struct Buffer {
