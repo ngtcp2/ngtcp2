@@ -344,6 +344,10 @@ ssize_t send_client_handshake(ngtcp2_conn *conn, uint32_t flags,
 namespace {
 int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
                       void *user_data) {
+  if (!config.quiet) {
+    debug::print_stream_data(0, data, datalen);
+  }
+
   auto c = static_cast<Client *>(user_data);
 
   c->write_server_handshake(data, datalen);

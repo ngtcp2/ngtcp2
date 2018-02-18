@@ -690,6 +690,10 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 namespace {
 int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
                       void *user_data) {
+  if (!config.quiet) {
+    debug::print_stream_data(0, data, datalen);
+  }
+
   auto h = static_cast<Handler *>(user_data);
 
   h->write_client_handshake(data, datalen);
