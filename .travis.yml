@@ -49,6 +49,6 @@ script:
   # Now build ngtcp2 examples and test
   - make
   - make check
-  - make ci/gen-certificate.sh
+  - ./ci/gen-certificate.sh
   - ./examples/server localhost 4433 cert/server.key cert/server.crt &
   - ./examples/client localhost 4433
