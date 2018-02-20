@@ -5,7 +5,7 @@ env:
     - CI_BUILD=autotools
 language: cpp
 os:
-#  - osx
+  - osx
   - linux
 compiler:
   - clang
