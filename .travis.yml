@@ -1,8 +1,4 @@
 dist: trusty
-env:
-  matrix:
-    - CI_BUILD=cmake
-    - CI_BUILD=autotools
 language: cpp
 os:
   - osx
@@ -11,6 +7,14 @@ compiler:
   - clang
   - gcc
 sudo: required
+env:
+    - CI_BUILD=cmake
+    - CI_BUILD=autotools
+matrix:
+  exclude:
+  # Exclude gcc build (Need some work) with osx
+  - os: osx
+    compiler: gcc
 addons:
   apt:
     sources:
