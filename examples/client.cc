@@ -352,15 +352,14 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 
   c->write_server_handshake(data, datalen);
 
-  if (ngtcp2_conn_get_handshake_completed(c->conn())) {
-    return c->read_tls();
-  } else if (c->tls_handshake() != 0) {
+  if (!ngtcp2_conn_get_handshake_completed(c->conn()) &&
+      c->tls_handshake() != 0) {
     return NGTCP2_ERR_TLS_HANDSHAKE;
   }
-  // TODO Should we call c->read_tls if handshake has finished?
-  // OpenSSL has also weird pending state.
 
-  return 0;
+  // SSL_do_handshake() might not consume all data (e.g.,
+  // NewSessionTicket).
+  return c->read_tls();
 }
 } // namespace
 

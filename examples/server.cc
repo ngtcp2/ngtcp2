@@ -698,13 +698,14 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 
   h->write_client_handshake(data, datalen);
 
-  if (ngtcp2_conn_get_handshake_completed(h->conn())) {
-    return h->read_tls();
-  } else if (h->tls_handshake() != 0) {
+  if (!ngtcp2_conn_get_handshake_completed(h->conn()) &&
+      h->tls_handshake() != 0) {
     return NGTCP2_ERR_TLS_HANDSHAKE;
   }
 
-  return 0;
+  // SSL_do_handshake() might not consume all data (e.g.,
+  // NewSessionTicket).
+  return h->read_tls();
 }
 } // namespace
 
