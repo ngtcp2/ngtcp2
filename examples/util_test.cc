@@ -37,8 +37,10 @@ void test_util_format_duration() {
   CU_ASSERT("1.00us" == util::format_duration(1004));
   CU_ASSERT("1.00us" == util::format_duration(1005));
   CU_ASSERT("1.02us" == util::format_duration(1015));
+  CU_ASSERT("2.00us" == util::format_duration(1999));
+  CU_ASSERT("1.00ms" == util::format_duration(999999));
   CU_ASSERT("3.50ms" == util::format_duration(3500111));
-  CU_ASSERT("99.99s" == util::format_duration(99990000000llu));
+  CU_ASSERT("9999.99s" == util::format_duration(9999990000000llu));
 }
 
 } // namespace ngtcp2
