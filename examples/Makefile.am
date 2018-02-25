@@ -54,3 +54,12 @@ server_SOURCES = server.cc server.h \
 	crypto_openssl.cc \
 	crypto.cc \
 	http.cc http.h
+
+if HAVE_CUNIT
+check_PROGRAMS = examplestest
+examplestest_SOURCES = examplestest.cc \
+	util_test.cc util_test.h util.cc util.h
+examplestest_LDADD = ${LDADD} @CUNIT_LIBS@
+
+TESTS = examplestest
+endif # HAVE_CUNIT

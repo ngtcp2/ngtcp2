@@ -47,6 +47,13 @@ template <size_t N> std::string format_hex(const uint8_t (&s)[N]) {
   return format_hex(s, N);
 }
 
+// format_duration formats |ns| in human readable manner.  |ns| must
+// be nanoseconds resolution.  This function uses the largest unit so
+// that the integral part is strictly more than zero, and the
+// precision is at most 2 digits.  For example, 1234 is formatted as
+// "1.23us".  The largest unit is seconds.
+std::string format_duration(uint64_t ns);
+
 std::mt19937 make_mt19937();
 
 ngtcp2_tstamp timestamp();

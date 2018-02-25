@@ -63,6 +63,45 @@ std::string format_hex(const uint8_t *s, size_t len) {
   return res;
 }
 
+namespace {
+// format_fraction2 formats |n| as fraction part of integer.  |n| is
+// considered as fraction, and its precision is 3 digits.  The last
+// digit is used to round the number.  The precision of the resulting
+// fraction is 2 digits.
+std::string format_fraction2(uint32_t n) {
+  auto k = n % 10;
+  if (k == 5) {
+    if ((n / 10) & 1) {
+      n += 10;
+    }
+  } else {
+    n += 5;
+  }
+  n /= 10;
+
+  if (n < 10) {
+    return {'.', '0', static_cast<char>('0' + n)};
+  }
+  return {'.', static_cast<char>('0' + n / 10),
+          static_cast<char>('0' + (n % 10))};
+}
+} // namespace
+
+std::string format_duration(uint64_t ns) {
+  if (ns < 1000) {
+    return std::to_string(ns) + "ns";
+  }
+  if (ns < 1000000) {
+    return std::to_string(ns / 1000) + format_fraction2(ns % 1000) + "us";
+  }
+  if (ns < 1000000000) {
+    return std::to_string(ns / 1000000) +
+           format_fraction2((ns % 1000000) / 1000) + "ms";
+  }
+  return std::to_string(ns / 1000000000) +
+         format_fraction2((ns % 1000000000) / 1000000) + "s";
+}
+
 std::mt19937 make_mt19937() {
   std::random_device rd;
   return std::mt19937(rd());
