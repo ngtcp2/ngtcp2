@@ -1,16 +1,20 @@
 dist: trusty
-env:
-  matrix:
-    - CI_BUILD=cmake
-    - CI_BUILD=autotools
 language: cpp
 os:
-#  - osx
+  - osx
   - linux
 compiler:
   - clang
   - gcc
 sudo: required
+env:
+    - CI_BUILD=cmake
+    - CI_BUILD=autotools
+matrix:
+  exclude:
+  # Exclude gcc build (Need some work) with osx
+  - os: osx
+    compiler: gcc
 addons:
   apt:
     sources:
@@ -32,23 +36,24 @@ addons:
     - cmake-data
 before_install:
   - $CC --version
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then CMAKE_OPTS=" -DENABLE_ASAN=1" AUTOTOOLS_OPTS=" --enable-asan"; fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then  if [ "$CXX" = "g++" ]; then export CXX="g++-7" CC="gcc-7" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++-5.0" CC="clang-5.0"; fi; fi
   - $CC --version
   - cmake --version
 before_script:
   # First build external lib
   - ./ci/build_openssl.sh
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libev; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libev cunit; fi
   # configure ngtcp2
   - if [ "$CI_BUILD" == "autotools" ]; then autoreconf -i; fi
   - export PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
-  - if [ "$CI_BUILD" == "autotools" ]; then ./configure --enable-werror --enable-asan; fi
+  - if [ "$CI_BUILD" == "autotools" ]; then ./configure --enable-werror $AUTOTOOLS_OPTS; fi
   # Set CMAKE_LIBRARY_ARCHITECTURE to workaround failure to parse implicit link information from GCC 5
-  - if [ "$CI_BUILD" == "cmake" ]; then cmake -DENABLE_ASAN=1 -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu; fi
+  - if [ "$CI_BUILD" == "cmake" ]; then cmake $CMAKE_OPTS -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu; fi
 script:
   # Now build ngtcp2 examples and test
   - make
   - make check
-  - make ci/gen-certificate.sh
+  - ./ci/gen-certificate.sh
   - ./examples/server localhost 4433 cert/server.key cert/server.crt &
   - ./examples/client localhost 4433
