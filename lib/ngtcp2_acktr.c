@@ -124,8 +124,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
     tail = acktr->tail;
     *tail->pprev = NULL;
 
-    acktr->tail = ngtcp2_struct_of((ngtcp2_acktr_entry *)tail->pprev,
-                                   ngtcp2_acktr_entry, next);
+    acktr->tail = ngtcp2_struct_of(tail->pprev, ngtcp2_acktr_entry, next);
 
     ngtcp2_acktr_entry_del(tail, acktr->mem);
     --acktr->nack;
@@ -139,8 +138,7 @@ void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
 
   if (ent->pprev != &acktr->ent) {
     *ent->pprev = NULL;
-    acktr->tail = ngtcp2_struct_of((ngtcp2_acktr_entry *)ent->pprev,
-                                   ngtcp2_acktr_entry, next);
+    acktr->tail = ngtcp2_struct_of(ent->pprev, ngtcp2_acktr_entry, next);
   } else {
     acktr->ent = acktr->tail = NULL;
   }
@@ -191,8 +189,7 @@ static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_acktr_entry **pent) {
   if (*pent) {
     (*pent)->pprev = pent;
   } else {
-    acktr->tail =
-        ngtcp2_struct_of((ngtcp2_acktr_entry *)pent, ngtcp2_acktr_entry, next);
+    acktr->tail = ngtcp2_struct_of(pent, ngtcp2_acktr_entry, next);
   }
 
   ngtcp2_acktr_entry_del(ent, acktr->mem);
