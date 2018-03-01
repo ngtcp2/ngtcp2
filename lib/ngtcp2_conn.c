@@ -3491,6 +3491,19 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     if (conn->version != hd.version) {
       return 0;
     }
+
+    switch (hd.type) {
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_HANDSHAKE:
+      /* TODO This is not much useful if client, and server are silent
+         after handshake established.  It might be also potentially
+         bad if peer keeps retransmitting Handshake messages because
+         their ACKs are all lost. */
+      if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
+        return 0;
+      }
+      break;
+    }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen);
     if (nread < 0) {
@@ -3536,13 +3549,6 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
     case NGTCP2_PKT_HANDSHAKE:
-      /* TODO This is not much useful if client, and server are silent
-         after handshake established.  It might be also potentially
-         bad if peer keeps retransmitting Handshake messages because
-         their ACKs are all lost. */
-      if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
-        return 0;
-      }
       return conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen,
                                              hdpkt, hdpktlen, ts);
     case NGTCP2_PKT_0RTT_PROTECTED:
