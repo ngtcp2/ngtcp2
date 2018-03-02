@@ -540,7 +540,6 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       client_conn_id_(client_conn_id),
       tx_stream0_offset_(0),
       initial_(true),
-      key_generated_(false),
       draining_(false) {
   ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
   timer_.data = this;
@@ -840,9 +839,7 @@ int Handler::tls_handshake() {
             setup_early_crypto_context() != 0) {
           return -1;
         }
-        if (setup_crypto_context() == 0) {
-          key_generated_ = true;
-        }
+        setup_crypto_context();
         return 0;
       }
       case SSL_ERROR_SSL:
@@ -862,6 +859,12 @@ int Handler::tls_handshake() {
       std::cerr << "SSL_READ_EARLY_DATA_FINISH" << std::endl;
       break;
     }
+
+    // TODO How to effectively know that TLS stack generated
+    // ServerHello?
+    if (setup_crypto_context() != 0) {
+      return -1;
+    }
   }
 
   rv = SSL_do_handshake(ssl_);
@@ -879,13 +882,6 @@ int Handler::tls_handshake() {
       std::cerr << "TLS handshake error: " << err << std::endl;
       return -1;
     }
-  }
-
-  if (!key_generated_) {
-    if (setup_crypto_context() != 0) {
-      return -1;
-    }
-    key_generated_ = true;
   }
 
   // SSL_do_handshake returns 1 if TLS handshake has completed.  With

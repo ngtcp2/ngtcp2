@@ -249,8 +249,6 @@ private:
   // initial_ is initially true, and used to process first packet from
   // client specially.  After first packet, it becomes false.
   bool initial_;
-  // key_generated_ becomes true when 1-RTT key is available.
-  bool key_generated_;
   // draining_ becomes true when draining period starts.
   bool draining_;
 };
