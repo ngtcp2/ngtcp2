@@ -1447,6 +1447,9 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                   tx_buf, ts);
 }
 
+static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                            size_t destlen, ngtcp2_tstamp ts);
+
 /*
  * conn_write_server_handshake writes Handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.
@@ -1485,8 +1488,8 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
       if (conn->state == NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED) {
         return NGTCP2_ERR_TLS_HANDSHAKE;
       }
-      return conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                          NGTCP2_PKT_HANDSHAKE, ts);
+      assert(conn->tx_ckm);
+      return conn_write_protected_ack_pkt(conn, dest, destlen, ts);
     }
 
     ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
@@ -1966,15 +1969,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
     return nwrite;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    nwrite = conn_write_server_handshake(conn, dest, destlen, 0, ts);
-    if (nwrite != 0) {
-      return nwrite;
-    }
-    assert(conn->tx_ckm);
-    // We have 1-RTT key in this state, and sent all handshake data.
-    // Usually, we don't have any data to send here.  So just send
-    // acks.
-    return conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+    return conn_write_server_handshake(conn, dest, destlen, 0, ts);
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     return conn_write_server_handshake(conn, dest, destlen,
                                        conn->strm0->tx_offset == 0, ts);
