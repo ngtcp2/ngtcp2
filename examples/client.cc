@@ -313,7 +313,7 @@ ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
                             void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->tls_handshake(true) != 0) {
+  if (c->tls_handshake(ppkt_num) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
