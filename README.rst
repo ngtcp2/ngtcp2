@@ -246,6 +246,23 @@ loss.
                error_code=NO_ERROR(0x80000000) reason_length=0
     t=43.386317 Closing QUIC connection
 
+Resumption and 0-RTT
+--------------------
+
+In order to resume a session, a session ticket, and a transport
+parameters must be fetched from server.  First, run examples/client
+with --session-file, and --tp-file options which specify a path to
+session ticket, and transport parameter files respectively to save
+them locally.
+
+Once these files are available, run examples/client with the same
+arguments again.  You will see that session is resumed in your log if
+resumption succeeds.  Resuming session makes server's first Handshake
+packet pretty small because it does not send its certificates.
+
+To send 0-RTT data, after making sure that resumption works, use -d
+option to specify a file which contains data to send.
+
 License
 -------
 
