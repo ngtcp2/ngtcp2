@@ -508,6 +508,13 @@ typedef struct {
   uint8_t ack_delay_exponent;
 } ngtcp2_settings;
 
+typedef struct {
+  uint64_t latest_rtt;
+  uint64_t min_rtt;
+  double smoothed_rtt;
+  double rttvar;
+} ngtcp2_metrics;
+
 /**
  * @function
  *
@@ -1415,6 +1422,15 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn);
  * rejected by a server.
  */
 NGTCP2_EXTERN void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_metrics` stores transport metrics in the object
+ * pointed by |mtr|.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_get_metrics(ngtcp2_conn *conn,
+                                           ngtcp2_metrics *mtr);
 
 /**
  * @function

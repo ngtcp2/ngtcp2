@@ -57,6 +57,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
 
   (*pent)->hd = *hd;
   (*pent)->frc = frc;
+  (*pent)->ts = ts;
   (*pent)->expiry = ts + NGTCP2_INITIAL_EXPIRY;
   (*pent)->deadline = deadline;
   (*pent)->count = 0;
@@ -231,7 +232,8 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
 }
 
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        uint8_t unprotected, ngtcp2_conn *conn) {
+                        uint8_t unprotected, ngtcp2_conn *conn,
+                        ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry **pent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
@@ -255,10 +257,16 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         pent = &(*pent)->next;
         continue;
       }
-      if (conn && conn->callbacks.acked_stream_data_offset) {
-        rv = call_acked_stream_offset(*pent, conn);
-        if (rv != 0) {
-          return rv;
+      if (conn) {
+        if (conn->callbacks.acked_stream_data_offset) {
+          rv = call_acked_stream_offset(*pent, conn);
+          if (rv != 0) {
+            return rv;
+          }
+        }
+        if (fr->largest_ack == (*pent)->hd.pkt_num) {
+          ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts,
+                                 fr->ack_delay_unscaled);
         }
       }
       rtb->largest_acked = ngtcp2_max(rtb->largest_acked, (*pent)->hd.pkt_num);

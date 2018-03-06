@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_macro.h"
@@ -276,6 +277,7 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   (*pconn)->server = server;
   (*pconn)->state =
       server ? NGTCP2_CS_SERVER_INITIAL : NGTCP2_CS_CLIENT_INITIAL;
+  (*pconn)->mtr.min_rtt = UINT64_MAX;
 
   return 0;
 
@@ -2082,8 +2084,8 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */
-static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
-                         uint8_t unprotected) {
+static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr, uint8_t unprotected,
+                         ngtcp2_tstamp ts) {
   int rv;
   rv = ngtcp2_pkt_validate_ack(fr);
   if (rv != 0) {
@@ -2092,7 +2094,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr,
 
   ngtcp2_acktr_recv_ack(&conn->acktr, fr, unprotected);
 
-  return ngtcp2_rtb_recv_ack(&conn->rtb, fr, unprotected, conn);
+  return ngtcp2_rtb_recv_ack(&conn->rtb, fr, unprotected, conn, ts);
 }
 
 /*
@@ -2628,7 +2630,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return NGTCP2_ERR_PROTO;
       }
       /* TODO Assume that all packets here are unprotected */
-      rv = conn_recv_ack(conn, &fr->ack, 1);
+      rv = conn_recv_ack(conn, &fr->ack, 1, ts);
       if (rv != 0) {
         return rv;
       }
@@ -3352,7 +3354,7 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
       if (hd->type == NGTCP2_PKT_INITIAL) {
         return NGTCP2_ERR_PROTO;
       }
-      rv = conn_recv_ack(conn, &fr.ack, 1);
+      rv = conn_recv_ack(conn, &fr.ack, 1, ts);
       if (rv != 0) {
         return rv;
       }
@@ -3642,7 +3644,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
-      rv = conn_recv_ack(conn, &fr->ack, 0);
+      rv = conn_recv_ack(conn, &fr->ack, 0, ts);
       if (rv != 0) {
         return rv;
       }
@@ -4669,4 +4671,26 @@ uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn) {
 
 void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
+}
+
+void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
+                            uint64_t ack_delay) {
+  ngtcp2_metrics *mtr = &conn->mtr;
+
+  mtr->min_rtt = ngtcp2_min(mtr->min_rtt, rtt);
+  if (rtt - mtr->min_rtt > ack_delay) {
+    rtt -= ack_delay;
+  }
+  if (mtr->smoothed_rtt < 1e-9) {
+    mtr->smoothed_rtt = (double)rtt;
+    mtr->rttvar = (double)rtt / 2;
+  } else {
+    double sample = fabs(mtr->smoothed_rtt - (double)rtt);
+    mtr->rttvar = mtr->rttvar * 3 / 4 + sample / 4;
+    mtr->smoothed_rtt = mtr->smoothed_rtt * 7 / 8 + (double)rtt / 8;
+  }
+}
+
+void ngtcp2_conn_get_metrics(ngtcp2_conn *conn, ngtcp2_metrics *mtr) {
+  *mtr = conn->mtr;
 }

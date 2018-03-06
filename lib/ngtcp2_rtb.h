@@ -91,6 +91,9 @@ struct ngtcp2_rtb_entry {
 
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frc;
+  /* ts is the time point when a packet included in this entry is sent
+     to a peer. */
+  ngtcp2_tstamp ts;
   /* expiry is the time point when this entry expires, and the
      retransmission is required. */
   ngtcp2_tstamp expiry;
@@ -196,6 +199,7 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
  *     User callback failed
  */
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        uint8_t unprotected, ngtcp2_conn *conn);
+                        uint8_t unprotected, ngtcp2_conn *conn,
+                        ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_RTB_H */

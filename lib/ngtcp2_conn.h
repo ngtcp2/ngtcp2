@@ -156,6 +156,7 @@ struct ngtcp2_conn {
   ngtcp2_strm *fc_strms;
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
+  ngtcp2_metrics mtr;
   uint64_t conn_id;
   /* client_conn_id is the connection ID chosen by client. */
   uint64_t client_conn_id;
@@ -317,5 +318,15 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                           uint16_t app_error_code);
+
+/*
+ * ngtcp2_conn_update_rtt updates RTT measurements.  |rtt| is a latest
+ * RTT which is not adjusted by ack delay.  |ack_delay| is unscaled
+ * ack_delay included in ACK frame.  |ack_delay| is actually tainted
+ * (sent by peer), so don't assume that |ack_delay| is always smaller
+ * than, or equals to |rtt|.
+ */
+void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
+                            uint64_t ack_delay);
 
 #endif /* NGTCP2_CONN_H */
