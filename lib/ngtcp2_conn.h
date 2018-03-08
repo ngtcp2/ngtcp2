@@ -248,11 +248,6 @@ struct ngtcp2_conn {
   ngtcp2_rtb_entry *early_rtb;
   ngtcp2_settings local_settings;
   ngtcp2_settings remote_settings;
-  /* next_ack_expiry is the timeout of delayed ack. */
-  ngtcp2_tstamp next_ack_expiry;
-  /* immediate_ack becomes nonzero if the next ack should be sent
-     immediately. */
-  uint8_t immediate_ack;
   /* decrypt_buf is a buffer which is used to write decrypted data. */
   ngtcp2_array decrypt_buf;
 };

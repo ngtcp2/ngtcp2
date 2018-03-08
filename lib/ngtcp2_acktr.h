@@ -76,6 +76,21 @@ typedef struct {
   uint8_t ack_only;
 } ngtcp2_acktr_ack_entry;
 
+typedef enum {
+  NGTCP2_ACKTR_FLAG_NONE = 0x00,
+  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED indicates that there are
+     pending unprotected packet to be acknowledged. */
+  NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED = 0x01,
+  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED indicates that there are
+     pending protected packet to be acknowledged. */
+  NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED = 0x02,
+  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK is bitwise OR of
+     NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED and
+     NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED. */
+  NGTCP2_ACKTR_FLAG_ACTIVE_ACK = NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED |
+                                 NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED,
+} ngtcp2_acktr_flag;
+
 /*
  * ngtcp2_acktr tracks received packets which we have to send ack.
  */
@@ -86,8 +101,8 @@ typedef struct {
   ngtcp2_acktr_entry *ent, *tail;
   ngtcp2_mem *mem;
   size_t nack;
-  /* active_ack is nonzero if ACK frame should be sent actively. */
-  int active_ack;
+  /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
+  uint8_t flags;
 } ngtcp2_acktr;
 
 /*
@@ -169,5 +184,19 @@ ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
                           const ngtcp2_ack *fr, uint8_t unprotected,
                           ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_acktr_commit_ack tells |acktr| that ACK frame is generated.
+ * If |unprotected| is nonzero, ACK frame will be sent in an
+ * unprotected packet.
+ */
+void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, uint8_t unprotected);
+
+/*
+ * ngtcp2_acktr_require_active_ack returns nonzero if ACK frame should
+ * be generated actively.  If |unprotected| is nonzero, entries sent
+ * in an unprotected packet are taken into consideration.
+ */
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint8_t unprotected);
 
 #endif /* NGTCP2_ACKTR_H */

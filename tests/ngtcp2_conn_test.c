@@ -1757,7 +1757,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == conn->acktr.nack);
-  CU_ASSERT(1 == conn->acktr.active_ack);
+  CU_ASSERT(conn->acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED);
 
   ngtcp2_conn_del(conn);
 
@@ -1777,7 +1777,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == conn->acktr.nack);
-  CU_ASSERT(0 == conn->acktr.active_ack);
+  CU_ASSERT(!conn->acktr.flags);
 
   ngtcp2_conn_del(conn);
 }

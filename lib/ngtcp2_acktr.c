@@ -63,7 +63,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
   acktr->tail = NULL;
   acktr->mem = mem;
   acktr->nack = 0;
-  acktr->active_ack = 0;
+  acktr->flags = NGTCP2_ACKTR_FLAG_NONE;
 
   return 0;
 }
@@ -116,7 +116,11 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
   *pent = ent;
 
   if (active_ack) {
-    acktr->active_ack = 1;
+    if (ent->unprotected) {
+      acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
+    } else {
+      acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
+    }
   }
 
   if (++acktr->nack > NGTCP2_ACKTR_MAX_ENT) {
@@ -339,4 +343,19 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
   }
 
   return 0;
+}
+
+void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, uint8_t unprotected) {
+  if (unprotected) {
+    acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
+  } else {
+    acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
+  }
+}
+
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint8_t unprotected) {
+  if (unprotected) {
+    return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
+  }
+  return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
 }
