@@ -1139,7 +1139,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   /* Encode ACK here */
   if (type != NGTCP2_PKT_INITIAL && ack_expired) {
     ackfr = NULL;
-    /* TODO Should we retransmit ACK frame? */
     rv = conn_create_ack_frame(conn, &ackfr, ts, 1 /* unprotected */);
     if (rv != 0) {
       return rv;
