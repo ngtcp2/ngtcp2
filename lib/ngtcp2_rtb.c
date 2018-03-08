@@ -268,7 +268,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, uint64_t pkt_num, const ngtcp2_ack *fr,
             largest_ack == (*pent)->hd.pkt_num) {
           conn->last_mtr_pkt_num = pkt_num;
           rv = ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts,
-                                      fr->ack_delay_unscaled);
+                                      fr->ack_delay_unscaled, 0 /* ack_only */);
           if (rv != 0) {
             return rv;
           }

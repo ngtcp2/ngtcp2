@@ -511,6 +511,7 @@ typedef struct {
 typedef struct {
   uint64_t latest_rtt;
   uint64_t min_rtt;
+  uint64_t max_ack_delay;
   double smoothed_rtt;
   double rttvar;
 } ngtcp2_metrics;

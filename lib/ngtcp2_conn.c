@@ -935,7 +935,8 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
         conn_commit_tx_ack(conn);
         pkt_empty = 0;
 
-        ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 0);
+        ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 0,
+                             0 /* ack_only */);
       }
     }
   }
@@ -1129,6 +1130,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_crypto_ctx ctx;
   ngtcp2_rtb_entry *rtbent;
   int ack_expired = conn_next_ack_expired(conn, ts);
+  ngtcp2_acktr_ack_entry *ack_ent = NULL;
 
   pfrc = &frc_head;
 
@@ -1174,7 +1176,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
       conn_commit_tx_ack(conn);
 
-      ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 1);
+      ack_ent = ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts,
+                                     1, 0 /* ack_only */);
     }
 
     if (ngtcp2_ppe_left(&ppe) < NGTCP2_STREAM_OVERHEAD + 1) {
@@ -1282,6 +1285,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_rtb_entry_del(rtbent, conn->mem);
       return rv;
     }
+  } else if (ack_ent) {
+    ack_ent->ack_only = 1;
   }
 
   ++conn->last_tx_pkt_num;
@@ -1370,7 +1375,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   conn_commit_tx_ack(conn);
 
-  ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 1);
+  ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 1,
+                       1 /* ack_only*/);
 
   ++conn->last_tx_pkt_num;
 
@@ -1572,6 +1578,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   int send_pkt_cb_called = 0;
   int pkt_empty = 1;
   int ack_expired = conn_next_ack_expired(conn, ts);
+  ngtcp2_acktr_ack_entry *ack_ent = NULL;
 
   ackfr = NULL;
   if (ack_expired) {
@@ -1651,7 +1658,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn_commit_tx_ack(conn);
     pkt_empty = 0;
 
-    ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 0);
+    ack_ent = ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 0,
+                                   0 /*ack_only*/);
     /* Now ackfr is owned by conn->acktr. */
     ackfr = NULL;
   }
@@ -1766,6 +1774,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       ngtcp2_rtb_entry_del(ent, conn->mem);
       return rv;
     }
+  } else if (ack_ent) {
+    ack_ent->ack_only = 1;
   }
 
   ++conn->last_tx_pkt_num;
@@ -1837,7 +1847,8 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   /* Do this when we are sure that there is no error. */
   if (fr->type == NGTCP2_FRAME_ACK) {
-    ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &fr->ack, ts, 0);
+    ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &fr->ack, ts, 0,
+                         1 /* ack_only */);
   }
 
   ++conn->last_tx_pkt_num;
@@ -4696,13 +4707,16 @@ void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
 }
 
-int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
-                           uint64_t ack_delay) {
+int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
+                           int ack_only) {
   ngtcp2_metrics *mtr = &conn->mtr;
 
   mtr->min_rtt = ngtcp2_min(mtr->min_rtt, rtt);
   if (rtt - mtr->min_rtt > ack_delay) {
     rtt -= ack_delay;
+    if (!ack_only) {
+      mtr->max_ack_delay = ngtcp2_max(mtr->max_ack_delay, ack_delay);
+    }
   }
 
   mtr->latest_rtt = rtt;

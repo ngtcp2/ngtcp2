@@ -450,11 +450,14 @@ int recv_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 int update_metrics(ngtcp2_conn *conn, const ngtcp2_metrics *mtr,
                    void *user_data) {
   print_indent();
-  fprintf(outfile, "; latest_rtt=%s min_rtt=%s smoothed_rtt=%s rttvar=%s\n",
-          util::format_duration(mtr->latest_rtt * 1000).c_str(),
-          util::format_duration(mtr->min_rtt * 1000).c_str(),
-          util::format_duration(mtr->smoothed_rtt * 1000).c_str(),
-          util::format_duration(mtr->rttvar * 1000).c_str());
+  fprintf(
+      outfile,
+      "; latest_rtt=%s min_rtt=%s smoothed_rtt=%s rttvar=%s max_ack_delay=%s\n",
+      util::format_duration(mtr->latest_rtt * 1000).c_str(),
+      util::format_duration(mtr->min_rtt * 1000).c_str(),
+      util::format_duration(mtr->smoothed_rtt * 1000).c_str(),
+      util::format_duration(mtr->rttvar * 1000).c_str(),
+      util::format_duration(mtr->max_ack_delay * 1000).c_str());
   return 0;
 }
 

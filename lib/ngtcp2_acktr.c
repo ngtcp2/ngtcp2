@@ -172,8 +172,9 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
   ngtcp2_acktr_entry_del(ent, acktr->mem);
 }
 
-void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
-                          ngtcp2_tstamp ts, uint8_t unprotected) {
+ngtcp2_acktr_ack_entry *
+ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
+                     ngtcp2_tstamp ts, uint8_t unprotected, uint8_t ack_only) {
   ngtcp2_acktr_ack_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&acktr->acks);
@@ -181,6 +182,9 @@ void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
   ent->pkt_num = pkt_num;
   ent->ts = ts;
   ent->unprotected = unprotected;
+  ent->ack_only = ack_only;
+
+  return ent;
 }
 
 static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_acktr_entry **pent) {
@@ -292,7 +296,8 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
       if (conn && largest_ack == ent->pkt_num &&
           conn->last_mtr_pkt_num != pkt_num) {
         conn->last_mtr_pkt_num = pkt_num;
-        rv = ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
+        rv = ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled,
+                                    ent->ack_only);
         if (rv != 0) {
           return rv;
         }

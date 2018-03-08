@@ -209,7 +209,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
     blks[2].gap = 3;    /* 4486, 4485, 4484, (4483) */
     blks[2].blklen = 1; /* 4482, 4481 */
 
-    ngtcp2_acktr_add_ack(&acktr, pkt_num, fr, 1000000009, 0);
+    ngtcp2_acktr_add_ack(&acktr, pkt_num, fr, 1000000009, 0, 0 /* ack_only */);
   }
 
   ackfr.type = NGTCP2_FRAME_ACK;
