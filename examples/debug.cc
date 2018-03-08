@@ -291,7 +291,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
             "largest_ack=%" PRIu64 " ack_delay=%s(%" PRIu64
             ") ack_block_count=%zu\n",
             fr->ack.largest_ack,
-            util::format_duration(fr->ack.ack_delay_unscaled).c_str(),
+            util::format_duration(fr->ack.ack_delay_unscaled * 1000).c_str(),
             fr->ack.ack_delay, fr->ack.num_blks);
     print_indent();
     auto largest_ack = fr->ack.largest_ack;
