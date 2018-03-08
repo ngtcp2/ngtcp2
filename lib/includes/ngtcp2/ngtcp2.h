@@ -1321,7 +1321,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
                                                          uint8_t *dest,
                                                          size_t destlen,
-                                                         uint16_t error_code);
+                                                         uint16_t error_code,
+                                                         ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -1348,7 +1349,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
  *     |app_error_code| == :enum:`NGTCP2_STOPPING`.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_application_close(
-    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, uint16_t app_error_code);
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, uint16_t app_error_code,
+    ngtcp2_tstamp ts);
 
 /**
  * @function

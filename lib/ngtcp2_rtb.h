@@ -191,6 +191,7 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
+ * |pkt_num| is a packet number which includes |fr|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -198,7 +199,7 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
  */
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, uint64_t pkt_num, const ngtcp2_ack *fr,
                         uint8_t unprotected, ngtcp2_conn *conn,
                         ngtcp2_tstamp ts);
 

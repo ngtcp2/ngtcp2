@@ -26,6 +26,7 @@
 
 #include <assert.h>
 
+#include "ngtcp2_conn.h"
 #include "ngtcp2_macro.h"
 
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
@@ -172,12 +173,13 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
 }
 
 void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
-                          uint8_t unprotected) {
+                          ngtcp2_tstamp ts, uint8_t unprotected) {
   ngtcp2_acktr_ack_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&acktr->acks);
   ent->ack = fr;
   ent->pkt_num = pkt_num;
+  ent->ts = ts;
   ent->unprotected = unprotected;
 }
 
@@ -254,8 +256,9 @@ fin:
   ngtcp2_ringbuf_resize(&acktr->acks, ack_ent_offset);
 }
 
-void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                           uint8_t unprotected) {
+void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
+                           const ngtcp2_ack *fr, uint8_t unprotected,
+                           ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_acktr_ack_entry *ent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i, j;
@@ -285,6 +288,11 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
         continue;
       }
       acktr_on_ack(acktr, j);
+      if (conn && largest_ack == ent->pkt_num &&
+          conn->last_mtr_pkt_num != pkt_num) {
+        conn->last_mtr_pkt_num = pkt_num;
+        ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
+      }
       return;
     }
     break;

@@ -164,6 +164,9 @@ struct ngtcp2_conn {
      sent last time.*/
   uint64_t last_tx_pkt_num;
   uint64_t max_rx_pkt_num;
+  /* last_mtr_pkt_num is the last received packet number which updates
+     mtr. */
+  uint64_t last_mtr_pkt_num;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
      initiated bidirectional stream which the local endpoint can
      accept.  This limit is not yet notified to the remote

@@ -1429,7 +1429,7 @@ int Handler::start_closing_period(int liberr) {
 
   auto n = ngtcp2_conn_write_connection_close(
       conn_, conn_closebuf_->wpos(), max_pktlen_,
-      ngtcp2_err_infer_quic_transport_error_code(liberr));
+      ngtcp2_err_infer_quic_transport_error_code(liberr), util::timestamp());
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;

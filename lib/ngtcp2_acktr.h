@@ -38,6 +38,9 @@
    which ngtcp2_acktr stores. */
 #define NGTCP2_ACKTR_MAX_ENT 1024
 
+struct ngtcp2_conn;
+typedef struct ngtcp2_conn ngtcp2_conn;
+
 struct ngtcp2_acktr_entry;
 typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
 
@@ -68,6 +71,7 @@ void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 typedef struct {
   ngtcp2_ack *ack;
   uint64_t pkt_num;
+  ngtcp2_tstamp ts;
   uint8_t unprotected;
 } ngtcp2_acktr_ack_entry;
 
@@ -142,16 +146,18 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
  * transfers the ownership of |fr| to |acktr|.
  */
 void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
-                          uint8_t unprotected);
+                          ngtcp2_tstamp ts, uint8_t unprotected);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.
- * |unprotected| is nonzero if the packet which |fr| is included is an
- * unprotected packet.  If we receive ACK which acknowledges the ACKs
- * added by ngtcp2_acktr_add_ack, ngtcp2_acktr_entry which the
- * outgoing ACK acknowledges is removed.
+ * |pkt_num| is a packet number which includes |fr|.  |unprotected| is
+ * nonzero if the packet which |fr| is included is an unprotected
+ * packet.  If we receive ACK which acknowledges the ACKs added by
+ * ngtcp2_acktr_add_ack, ngtcp2_acktr_entry which the outgoing ACK
+ * acknowledges is removed.
  */
-void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                           uint8_t unprotected);
+void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
+                           const ngtcp2_ack *fr, uint8_t unprotected,
+                           ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_ACKTR_H */
