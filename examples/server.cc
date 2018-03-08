@@ -788,6 +788,10 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       ::recv_stream_data,
       acked_stream_data_offset,
       stream_close,
+      nullptr, // recv_stateless_reset
+      nullptr, // recv_server_stateless_retry
+      nullptr, // extend_max_stream_id
+      config.quiet ? nullptr : debug::update_metrics,
   };
 
   ngtcp2_settings settings;

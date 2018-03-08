@@ -267,8 +267,11 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, uint64_t pkt_num, const ngtcp2_ack *fr,
         if (conn->last_mtr_pkt_num != pkt_num &&
             largest_ack == (*pent)->hd.pkt_num) {
           conn->last_mtr_pkt_num = pkt_num;
-          ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts,
-                                 fr->ack_delay_unscaled);
+          rv = ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts,
+                                      fr->ack_delay_unscaled);
+          if (rv != 0) {
+            return rv;
+          }
         }
       }
       rtb->largest_acked = ngtcp2_max(rtb->largest_acked, (*pent)->hd.pkt_num);

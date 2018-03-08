@@ -852,6 +852,21 @@ typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
                                            uint64_t max_stream_id,
                                            void *user_data);
 
+/*
+ * @functypedef
+ *
+ * :type:`ngtcp2_update_metrics` is a callback function which is
+ * called when transport metrics are updated.  |mtr| points to an
+ * object which contains an updated metrics.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_update_metrics)(ngtcp2_conn *conn,
+                                     const ngtcp2_metrics *mtr,
+                                     void *user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_handshake send_client_handshake;
@@ -878,6 +893,7 @@ typedef struct {
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
   ngtcp2_extend_max_stream_id extend_max_stream_id;
+  ngtcp2_update_metrics update_metrics;
 } ngtcp2_conn_callbacks;
 
 /*

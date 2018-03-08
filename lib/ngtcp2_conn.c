@@ -209,6 +209,22 @@ static int conn_call_extend_max_stream_id(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_call_update_metrics(ngtcp2_conn *conn) {
+  int rv;
+
+  if (!conn->callbacks.update_metrics) {
+    return 0;
+  }
+
+  rv = conn->callbacks.update_metrics(conn, &conn->mtr, conn->user_data);
+
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
                     const ngtcp2_conn_callbacks *callbacks,
                     const ngtcp2_settings *settings, void *user_data,
@@ -2095,7 +2111,10 @@ static int conn_recv_ack(ngtcp2_conn *conn, uint64_t pkt_num, ngtcp2_ack *fr,
     return rv;
   }
 
-  ngtcp2_acktr_recv_ack(&conn->acktr, pkt_num, fr, unprotected, conn, ts);
+  rv = ngtcp2_acktr_recv_ack(&conn->acktr, pkt_num, fr, unprotected, conn, ts);
+  if (rv != 0) {
+    return rv;
+  }
 
   return ngtcp2_rtb_recv_ack(&conn->rtb, pkt_num, fr, unprotected, conn, ts);
 }
@@ -4677,14 +4696,17 @@ void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
 }
 
-void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
-                            uint64_t ack_delay) {
+int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
+                           uint64_t ack_delay) {
   ngtcp2_metrics *mtr = &conn->mtr;
 
   mtr->min_rtt = ngtcp2_min(mtr->min_rtt, rtt);
   if (rtt - mtr->min_rtt > ack_delay) {
     rtt -= ack_delay;
   }
+
+  mtr->latest_rtt = rtt;
+
   if (mtr->smoothed_rtt < 1e-9) {
     mtr->smoothed_rtt = (double)rtt;
     mtr->rttvar = (double)rtt / 2;
@@ -4693,6 +4715,8 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
     mtr->rttvar = mtr->rttvar * 3 / 4 + sample / 4;
     mtr->smoothed_rtt = mtr->smoothed_rtt * 7 / 8 + (double)rtt / 8;
   }
+
+  return conn_call_update_metrics(conn);
 }
 
 void ngtcp2_conn_get_metrics(ngtcp2_conn *conn, ngtcp2_metrics *mtr) {

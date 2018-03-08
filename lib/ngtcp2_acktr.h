@@ -155,9 +155,15 @@ void ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
  * packet.  If we receive ACK which acknowledges the ACKs added by
  * ngtcp2_acktr_add_ack, ngtcp2_acktr_entry which the outgoing ACK
  * acknowledges is removed.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
  */
-void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
-                           const ngtcp2_ack *fr, uint8_t unprotected,
-                           ngtcp2_conn *conn, ngtcp2_tstamp ts);
+int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
+                          const ngtcp2_ack *fr, uint8_t unprotected,
+                          ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_ACKTR_H */

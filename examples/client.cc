@@ -610,6 +610,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       config.quiet ? nullptr : debug::recv_stateless_reset,
       recv_server_stateless_retry,
       extend_max_stream_id,
+      config.quiet ? nullptr : debug::update_metrics,
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(

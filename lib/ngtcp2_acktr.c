@@ -256,13 +256,14 @@ fin:
   ngtcp2_ringbuf_resize(&acktr->acks, ack_ent_offset);
 }
 
-void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
-                           const ngtcp2_ack *fr, uint8_t unprotected,
-                           ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
+                          const ngtcp2_ack *fr, uint8_t unprotected,
+                          ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_acktr_ack_entry *ent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i, j;
   size_t nacks = ngtcp2_ringbuf_len(&acktr->acks);
+  int rv;
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   for (j = 0; j < nacks; ++j) {
@@ -272,7 +273,7 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
     }
   }
   if (j == nacks) {
-    return;
+    return 0;
   }
 
   min_ack = largest_ack - fr->first_ack_blklen;
@@ -282,7 +283,7 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
       if (unprotected && !ent->unprotected) {
         ++j;
         if (j == nacks) {
-          return;
+          return 0;
         }
         ent = ngtcp2_ringbuf_get(&acktr->acks, j);
         continue;
@@ -291,9 +292,12 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
       if (conn && largest_ack == ent->pkt_num &&
           conn->last_mtr_pkt_num != pkt_num) {
         conn->last_mtr_pkt_num = pkt_num;
-        ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
+        rv = ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
+        if (rv != 0) {
+          return rv;
+        }
       }
-      return;
+      return 0;
     }
     break;
   }
@@ -306,7 +310,7 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
       if (ent->pkt_num > largest_ack) {
         ++j;
         if (j == nacks) {
-          return;
+          return 0;
         }
         ent = ngtcp2_ringbuf_get(&acktr->acks, j);
         continue;
@@ -317,15 +321,17 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
       if (unprotected && !ent->unprotected) {
         ++j;
         if (j == nacks) {
-          return;
+          return 0;
         }
         ent = ngtcp2_ringbuf_get(&acktr->acks, j);
         continue;
       }
       acktr_on_ack(acktr, j);
-      return;
+      return 0;
     }
 
     ++i;
   }
+
+  return 0;
 }
