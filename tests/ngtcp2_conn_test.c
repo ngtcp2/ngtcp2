@@ -2276,6 +2276,49 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* Simulate the case where packet is lost.  We first gets 0 length
+     STREAM frame with FIN bit set.  Then the lost STREAM frame is
+     retransmitted with FIN bit set is received. */
+  setup_default_server(&conn);
+  conn->callbacks.recv_stream_data = recv_stream_data;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 1;
+  fr.stream.offset = 599;
+  fr.stream.datalen = 0;
+  fr.stream.data = NULL;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ud.stream_data.stream_id);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 599;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
+                                  ++pkt_num, &fr);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(4 == ud.stream_data.stream_id);
+  CU_ASSERT(1 == ud.stream_data.fin);
+  CU_ASSERT(599 == ud.stream_data.datalen);
+
+  ngtcp2_conn_del(conn);
+
   /* Receive an unidirectional stream data */
   setup_default_client(&conn);
   conn->callbacks.recv_stream_data = recv_stream_data;

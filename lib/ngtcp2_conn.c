@@ -2961,43 +2961,44 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     }
   }
 
+  rx_offset = ngtcp2_strm_rx_offset(strm);
+
   if (fr->fin) {
     if (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) {
       if (strm->last_rx_offset != fr_end_offset) {
         return NGTCP2_ERR_FINAL_OFFSET;
       }
-      return 0;
     } else if (strm->last_rx_offset > fr_end_offset) {
       return NGTCP2_ERR_FINAL_OFFSET;
-    }
+    } else {
+      strm->last_rx_offset = fr_end_offset;
 
-    strm->last_rx_offset = fr_end_offset;
+      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
 
-    ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
-
-    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-      return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
-                                                   strm->app_error_code);
-    }
-
-    /* Since strm is now in closed (remote), we don't have to send
-       MAX_STREAM_DATA anymore. */
-    if (strm->fc_pprev) {
-      *strm->fc_pprev = strm->fc_next;
-      if (strm->fc_next) {
-        strm->fc_next->fc_pprev = strm->fc_pprev;
+      if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
+                                                     strm->app_error_code);
       }
-      strm->fc_pprev = NULL;
-      strm->fc_next = NULL;
-    }
 
-    rx_offset = ngtcp2_strm_rx_offset(strm);
-    if (fr_end_offset == rx_offset) {
-      rv = conn_call_recv_stream_data(conn, strm, 1, NULL, 0);
-      if (rv != 0) {
-        return rv;
+      /* Since strm is now in closed (remote), we don't have to send
+         MAX_STREAM_DATA anymore. */
+      if (strm->fc_pprev) {
+        *strm->fc_pprev = strm->fc_next;
+        if (strm->fc_next) {
+          strm->fc_next->fc_pprev = strm->fc_pprev;
+        }
+        strm->fc_pprev = NULL;
+        strm->fc_next = NULL;
       }
-      return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
+
+      if (fr_end_offset == rx_offset) {
+        rv = conn_call_recv_stream_data(conn, strm, 1, NULL, 0);
+        if (rv != 0) {
+          return rv;
+        }
+        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
+                                                     NGTCP2_NO_ERROR);
+      }
     }
   } else {
     if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
@@ -3007,7 +3008,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
     strm->last_rx_offset = ngtcp2_max(strm->last_rx_offset, fr_end_offset);
 
-    rx_offset = ngtcp2_strm_rx_offset(strm);
     if (fr_end_offset <= rx_offset) {
       return 0;
     }
