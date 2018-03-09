@@ -1594,7 +1594,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     strm->fc_next = NULL;
     strm->fc_pprev = NULL;
-    strm = strm_next;
   }
 
   if (!ackfr && !send_stream &&
