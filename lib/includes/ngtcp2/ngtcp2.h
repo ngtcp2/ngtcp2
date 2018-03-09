@@ -279,7 +279,7 @@ typedef enum {
 typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
 
 /*
- * ngtcp2_tstamp is a timestamp with microsecond resolution.
+ * ngtcp2_tstamp is a timestamp with nanosecond resolution.
  */
 typedef uint64_t ngtcp2_tstamp;
 
@@ -322,7 +322,7 @@ typedef struct {
   uint64_t ack_delay;
   /**
    * ack_delay_unscaled is an ack_delay multiplied by
-   * ack_delay_component.  The resolution is nanoseconds.
+   * 2**ack_delay_component * 1000.  The resolution is nanoseconds.
    */
   uint64_t ack_delay_unscaled;
   uint64_t first_ack_blklen;

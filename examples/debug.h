@@ -43,7 +43,7 @@ namespace debug {
 
 void reset_timestamp();
 
-std::chrono::microseconds timestamp();
+std::chrono::nanoseconds timestamp();
 
 void set_color_output(bool f);
 

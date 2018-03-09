@@ -512,7 +512,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ack->type = NGTCP2_FRAME_ACK;
   ack->largest_ack = first_pkt_num;
   ack->ack_delay_unscaled = ts - (*prpkt)->tstamp;
-  ack->ack_delay = ack->ack_delay_unscaled >>
+  ack->ack_delay = (ack->ack_delay_unscaled / 1000) >>
                    (unprotected ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
                                 : conn->local_settings.ack_delay_exponent);
   ack->num_blks = 0;
@@ -2092,8 +2092,10 @@ static void conn_assign_recved_ack_delay_unscaled(ngtcp2_conn *conn,
                                                   ngtcp2_ack *fr,
                                                   uint8_t unprotected) {
   fr->ack_delay_unscaled =
-      fr->ack_delay << (unprotected ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
-                                    : conn->remote_settings.ack_delay_exponent);
+      (fr->ack_delay << (unprotected
+                             ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
+                             : conn->remote_settings.ack_delay_exponent)) *
+      1000;
 }
 
 /*

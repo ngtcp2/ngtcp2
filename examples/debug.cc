@@ -42,8 +42,8 @@ std::chrono::steady_clock::time_point ts_base;
 
 void reset_timestamp() { ts_base = std::chrono::steady_clock::now(); }
 
-std::chrono::microseconds timestamp() {
-  return std::chrono::duration_cast<std::chrono::microseconds>(
+std::chrono::nanoseconds timestamp() {
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
       std::chrono::steady_clock::now() - ts_base);
 }
 
@@ -291,7 +291,7 @@ void print_frame(ngtcp2_dir dir, const ngtcp2_frame *fr) {
             "largest_ack=%" PRIu64 " ack_delay=%s(%" PRIu64
             ") ack_block_count=%zu\n",
             fr->ack.largest_ack,
-            util::format_duration(fr->ack.ack_delay_unscaled * 1000).c_str(),
+            util::format_duration(fr->ack.ack_delay_unscaled).c_str(),
             fr->ack.ack_delay, fr->ack.num_blks);
     print_indent();
     auto largest_ack = fr->ack.largest_ack;
@@ -453,11 +453,11 @@ int update_metrics(ngtcp2_conn *conn, const ngtcp2_metrics *mtr,
   fprintf(
       outfile,
       "; latest_rtt=%s min_rtt=%s smoothed_rtt=%s rttvar=%s max_ack_delay=%s\n",
-      util::format_duration(mtr->latest_rtt * 1000).c_str(),
-      util::format_duration(mtr->min_rtt * 1000).c_str(),
-      util::format_duration(mtr->smoothed_rtt * 1000).c_str(),
-      util::format_duration(mtr->rttvar * 1000).c_str(),
-      util::format_duration(mtr->max_ack_delay * 1000).c_str());
+      util::format_duration(mtr->latest_rtt).c_str(),
+      util::format_duration(mtr->min_rtt).c_str(),
+      util::format_duration(mtr->smoothed_rtt).c_str(),
+      util::format_duration(mtr->rttvar).c_str(),
+      util::format_duration(mtr->max_ack_delay).c_str());
   return 0;
 }
 

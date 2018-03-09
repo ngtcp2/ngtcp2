@@ -58,16 +58,16 @@ typedef enum {
 } ngtcp2_conn_state;
 
 /* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in
-   microsecond resolution. */
-#define NGTCP2_INITIAL_EXPIRY 1000000
+   nanosecond resolution. */
+#define NGTCP2_INITIAL_EXPIRY 1000000000
 
 /* NGTCP2_PKT_DEADLINE_PERIOD is the period of time when the library
    gives up re-sending packet, and closes connection. */
 #define NGTCP2_PKT_DEADLINE_PERIOD 5000000
 
-/* NGTCP2_DELAYED_ACK_TIMEOUT is the delayed ACK timeout in
-   microsecond resolution. */
-#define NGTCP2_DELAYED_ACK_TIMEOUT 25000
+/* NGTCP2_DELAYED_ACK_TIMEOUT is the delayed ACK timeout in nanosecond
+   resolution. */
+#define NGTCP2_DELAYED_ACK_TIMEOUT 25000000
 
 /* NGTCP2_MAX_NUM_BUFFED_RX_PPKTS is the maximum number of protected
    packets buffered which arrive before handshake completes. */
