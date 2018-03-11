@@ -1010,7 +1010,7 @@ void Client::schedule_retransmit() {
   if (now >= expiry) {
     t = 0.;
   } else {
-    t = static_cast<ev_tstamp>(expiry - now) / 1000000;
+    t = static_cast<ev_tstamp>(expiry - now) / 1000000000;
   }
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_set(&rttimer_, t, 0.);
