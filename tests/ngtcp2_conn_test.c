@@ -1742,6 +1742,8 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   /* STREAM frame */
   setup_default_client(&conn);
 
+  conn->strm0->tx_offset = 999;
+
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
   fr.stream.stream_id = 0;
@@ -1763,6 +1765,8 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
 
   /* ACK frame only */
   setup_default_client(&conn);
+
+  conn->strm0->tx_offset = 1000000007;
 
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 1000000007;
