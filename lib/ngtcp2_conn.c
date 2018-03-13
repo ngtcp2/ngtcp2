@@ -36,10 +36,7 @@
  * is the stream initiated by local endpoint.
  */
 static int conn_local_stream(ngtcp2_conn *conn, uint64_t stream_id) {
-  if (conn->server) {
-    return stream_id % 2 != 0;
-  }
-  return stream_id % 2 == 0;
+  return (uint8_t)(stream_id & 1) == conn->server;
 }
 
 /*
