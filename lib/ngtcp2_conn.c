@@ -3496,11 +3496,10 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
     case NGTCP2_PKT_HANDSHAKE:
-      /* TODO This is not much useful if client, and server are silent
-         after handshake established.  It might be also potentially
-         bad if peer keeps retransmitting Handshake messages because
-         their ACKs are all lost. */
-      if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
+      /* Ignore incoming unprotected packet after we get all
+         acknowledgements to unprotected packet we sent so far. */
+      if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) ==
+          conn->strm0->tx_offset) {
         return 0;
       }
       break;
