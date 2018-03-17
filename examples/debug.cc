@@ -199,8 +199,8 @@ std::string strapperrorcode(uint16_t app_error_code) {
 void print_timestamp() {
   auto t = timestamp().count();
   fprintf(outfile, "%st=%d.%06d%s ", ansi_esc("\033[33m"),
-          static_cast<int32_t>(t / 1000000), static_cast<int32_t>(t % 1000000),
-          ansi_escend());
+          static_cast<int32_t>(t / 1000000000),
+          static_cast<int32_t>(t % 1000000000), ansi_escend());
 }
 
 namespace {
