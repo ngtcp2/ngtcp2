@@ -162,7 +162,7 @@ public:
   int tls_handshake();
   int read_tls();
   int on_read(uint8_t *data, size_t datalen);
-  int on_write();
+  int on_write(bool retransmit = false);
   int on_write_stream(Stream &stream);
   int write_stream_data(Stream &stream, int fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);

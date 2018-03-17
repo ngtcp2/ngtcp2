@@ -143,7 +143,7 @@ public:
   int tls_handshake(bool initial = false);
   int read_tls();
   int on_read();
-  int on_write();
+  int on_write(bool retransmit = false);
   int on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);
   void schedule_retransmit();

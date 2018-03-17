@@ -226,7 +226,7 @@ namespace {
 void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
-  if (c->on_write() != 0) {
+  if (c->on_write(true) != 0) {
     c->disconnect();
   }
 }
@@ -893,7 +893,7 @@ int Client::on_read() {
   return 0;
 }
 
-int Client::on_write() {
+int Client::on_write(bool retransmit) {
   if (sendbuf_.size() > 0) {
     auto rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
@@ -902,6 +902,32 @@ int Client::on_write() {
   }
 
   assert(sendbuf_.left() >= max_pktlen_);
+
+  if (!retransmit) {
+    for (auto &p : streams_) {
+      auto &stream = p.second;
+      auto &streambuf = stream->streambuf;
+      auto &streambuf_idx = stream->streambuf_idx;
+
+      for (auto it = std::begin(streambuf) + streambuf_idx;
+           it != std::end(streambuf); ++it) {
+        auto &v = *it;
+        auto fin = stream->should_send_fin && it + 1 == std::end(streambuf);
+        auto rv = on_write_stream(stream->stream_id, fin, v);
+        if (rv != 0) {
+          if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+            schedule_retransmit();
+            return 0;
+          }
+          return rv;
+        }
+        if (v.size() > 0) {
+          break;
+        }
+        ++streambuf_idx;
+      }
+    }
+  }
 
   for (;;) {
     ssize_t n;
@@ -929,26 +955,6 @@ int Client::on_write() {
     }
     if (rv != NETWORK_ERR_OK) {
       return rv;
-    }
-  }
-
-  for (auto &p : streams_) {
-    auto &stream = p.second;
-    auto &streambuf = stream->streambuf;
-    auto &streambuf_idx = stream->streambuf_idx;
-
-    for (auto it = std::begin(streambuf) + streambuf_idx;
-         it != std::end(streambuf); ++it) {
-      auto &v = *it;
-      auto fin = stream->should_send_fin && it + 1 == std::end(streambuf);
-      auto rv = on_write_stream(stream->stream_id, fin, v);
-      if (rv != 0) {
-        return rv;
-      }
-      if (v.size() > 0) {
-        break;
-      }
-      ++streambuf_idx;
     }
   }
 

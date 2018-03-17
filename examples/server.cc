@@ -507,7 +507,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
 
-  rv = h->on_write();
+  rv = h->on_write(true);
   switch (rv) {
   case 0:
   case NETWORK_ERR_CLOSE_WAIT:
@@ -1267,7 +1267,7 @@ int Handler::on_read(uint8_t *data, size_t datalen) {
   return 0;
 }
 
-int Handler::on_write() {
+int Handler::on_write(bool retransmit) {
   int rv;
 
   if (ngtcp2_conn_in_closing_period(conn_)) {
@@ -1283,15 +1283,17 @@ int Handler::on_write() {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
-  for (auto &p : streams_) {
-    auto &stream = p.second;
-    rv = on_write_stream(*stream);
-    if (rv != 0) {
-      if (rv == NETWORK_ERR_SEND_NON_FATAL) {
-        schedule_retransmit();
-        return 0;
+  if (!retransmit) {
+    for (auto &p : streams_) {
+      auto &stream = p.second;
+      rv = on_write_stream(*stream);
+      if (rv != 0) {
+        if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+          schedule_retransmit();
+          return 0;
+        }
+        return rv;
       }
-      return rv;
     }
   }
 
