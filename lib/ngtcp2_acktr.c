@@ -63,6 +63,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
   acktr->tail = NULL;
   acktr->mem = mem;
   acktr->nack = 0;
+  acktr->last_hs_ack_pkt_num = UINT64_MAX;
   acktr->flags = NGTCP2_ACKTR_FLAG_NONE;
 
   return 0;
@@ -207,7 +208,8 @@ static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_acktr_entry **pent) {
   --acktr->nack;
 }
 
-static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
+static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset,
+                         ngtcp2_conn *conn) {
   ngtcp2_acktr_ack_entry *ent;
   ngtcp2_ack *fr;
   ngtcp2_acktr_entry **pent;
@@ -217,6 +219,11 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
   ent = ngtcp2_ringbuf_get(&acktr->acks, ack_ent_offset);
   fr = ent->ack;
   largest_ack = fr->largest_ack;
+
+  if (conn && ent->pkt_num >= acktr->last_hs_ack_pkt_num) {
+    conn->flags |= NGTCP2_CONN_FLAG_ACK_FINISHED_ACK;
+    acktr->last_hs_ack_pkt_num = UINT64_MAX;
+  }
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   for (pent = &acktr->ent; *pent; pent = &(*pent)->next) {
@@ -296,7 +303,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
         ent = ngtcp2_ringbuf_get(&acktr->acks, j);
         continue;
       }
-      acktr_on_ack(acktr, j);
+      acktr_on_ack(acktr, j, conn);
       if (conn && largest_ack == ent->pkt_num &&
           conn->last_mtr_pkt_num != pkt_num) {
         conn->last_mtr_pkt_num = pkt_num;
@@ -335,7 +342,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
         ent = ngtcp2_ringbuf_get(&acktr->acks, j);
         continue;
       }
-      acktr_on_ack(acktr, j);
+      acktr_on_ack(acktr, j, conn);
       return 0;
     }
 

@@ -101,6 +101,17 @@ typedef struct {
   ngtcp2_acktr_entry *ent, *tail;
   ngtcp2_mem *mem;
   size_t nack;
+  /* last_hs_ack_pkt_num is the earliest outgoing packet number which
+     contains an acknowledgement for a last handshake packet.  This
+     field is effectively used by server, and a last handshake packet
+     contains client Finished message.  The current implementation
+     does not remove ngtcp2_ack_entry unless it is acknowledged, or
+     evicted due to the limitation of capacity.  When a local endpoint
+     received an acknowledgement to this packet or later, unless
+     ngtcp2_ack_entry is evicted, we are sure that peer knows that the
+     local endpoint acknowledged peer's last handshake packet.  Then
+     the local endpoint can start rejecting unprotected packet.*/
+  uint64_t last_hs_ack_pkt_num;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint8_t flags;
 } ngtcp2_acktr;

@@ -1614,6 +1614,22 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn_commit_tx_ack(conn, 0 /* unprotected */);
     pkt_empty = 0;
 
+    if (conn->flags & NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK) {
+      conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
+      conn->acktr.last_hs_ack_pkt_num = hd.pkt_num;
+      /* TODO We don't have to send PING if we send a frame other than
+         ACK. */
+      rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+      if (rv != 0) {
+        goto fail;
+      }
+      nfrc->fr.type = NGTCP2_FRAME_PING;
+      nfrc->fr.ping.datalen = 0;
+      nfrc->fr.ping.data = NULL;
+      nfrc->next = conn->frq;
+      conn->frq = nfrc;
+    }
+
     ack_ent = ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 0,
                                    0 /*ack_only*/);
     /* Now ackfr is owned by conn->acktr. */
@@ -3496,7 +3512,9 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       /* Ignore incoming unprotected packet after we get all
          acknowledgements to unprotected packet we sent so far. */
       if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) ==
-          conn->strm0->tx_offset) {
+              conn->strm0->tx_offset &&
+          (!conn->server ||
+           (conn->flags & NGTCP2_CONN_FLAG_ACK_FINISHED_ACK))) {
         return 0;
       }
       break;
@@ -3837,6 +3855,8 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       if (rv != 0) {
         return rv;
       }
+
+      conn->flags |= NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
     }
     break;
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
