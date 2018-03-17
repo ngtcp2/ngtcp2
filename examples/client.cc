@@ -903,29 +903,10 @@ int Client::on_write(bool retransmit) {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
-  if (!retransmit) {
-    for (auto &p : streams_) {
-      auto &stream = p.second;
-      auto &streambuf = stream->streambuf;
-      auto &streambuf_idx = stream->streambuf_idx;
-
-      for (auto it = std::begin(streambuf) + streambuf_idx;
-           it != std::end(streambuf); ++it) {
-        auto &v = *it;
-        auto fin = stream->should_send_fin && it + 1 == std::end(streambuf);
-        auto rv = on_write_stream(stream->stream_id, fin, v);
-        if (rv != 0) {
-          if (rv == NETWORK_ERR_SEND_NON_FATAL) {
-            schedule_retransmit();
-            return 0;
-          }
-          return rv;
-        }
-        if (v.size() > 0) {
-          break;
-        }
-        ++streambuf_idx;
-      }
+  if (!retransmit && ngtcp2_conn_get_handshake_completed(conn_)) {
+    auto rv = write_streams();
+    if (rv != 0) {
+      return rv;
     }
   }
 
@@ -958,7 +939,44 @@ int Client::on_write(bool retransmit) {
     }
   }
 
+  // Packet write for 0-RTT packet must be done after initial
+  // ngtcp2_conn_write_pkt call.
+  if (!retransmit && !ngtcp2_conn_get_handshake_completed(conn_)) {
+    auto rv = write_streams();
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
   schedule_retransmit();
+  return 0;
+}
+
+int Client::write_streams() {
+  for (auto &p : streams_) {
+    auto &stream = p.second;
+    auto &streambuf = stream->streambuf;
+    auto &streambuf_idx = stream->streambuf_idx;
+
+    for (auto it = std::begin(streambuf) + streambuf_idx;
+         it != std::end(streambuf); ++it) {
+      auto &v = *it;
+      auto fin = stream->should_send_fin && it + 1 == std::end(streambuf);
+      auto rv = on_write_stream(stream->stream_id, fin, v);
+      if (rv != 0) {
+        if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+          schedule_retransmit();
+          return 0;
+        }
+        return rv;
+      }
+      if (v.size() > 0) {
+        break;
+      }
+      ++streambuf_idx;
+    }
+  }
+
   return 0;
 }
 
