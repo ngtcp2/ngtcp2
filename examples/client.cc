@@ -903,13 +903,6 @@ int Client::on_write(bool retransmit) {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
-  if (!retransmit && ngtcp2_conn_get_handshake_completed(conn_)) {
-    auto rv = write_streams();
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
   for (;;) {
     ssize_t n;
     if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
@@ -939,9 +932,7 @@ int Client::on_write(bool retransmit) {
     }
   }
 
-  // Packet write for 0-RTT packet must be done after initial
-  // ngtcp2_conn_write_pkt call.
-  if (!retransmit && !ngtcp2_conn_get_handshake_completed(conn_)) {
+  if (!retransmit) {
     auto rv = write_streams();
     if (rv != 0) {
       return rv;
