@@ -1926,13 +1926,13 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  ent = ngtcp2_rtb_top(&conn->rtb);
+  ent = ngtcp2_rtb_head(&conn->rtb);
+  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->mtr, 1000000007, 1000000007,
+                             ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ent == ngtcp2_rtb_top(&conn->rtb));
-  CU_ASSERT(1 == ent->count);
-  CU_ASSERT(t + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ent->count) == ent->expiry);
+  CU_ASSERT(ent == ngtcp2_rtb_head(&conn->rtb));
 
   ngtcp2_conn_del(conn);
 
@@ -1953,17 +1953,15 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  ent = ngtcp2_rtb_top(&conn->rtb);
+  ent = ngtcp2_rtb_head(&conn->rtb);
+  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->mtr, 1000000007, 1000000007,
+                             ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, (size_t)(spktlen - 1), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ent == ngtcp2_rtb_top(&conn->rtb));
-  CU_ASSERT(0 == ent->count);
-
-  ent = ent->next;
-
-  CU_ASSERT(1 == ent->count);
-  CU_ASSERT(t + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ent->count) == ent->expiry);
+  CU_ASSERT(ent == ngtcp2_rtb_head(&conn->rtb));
+  CU_ASSERT(NULL == ent->next);
+  CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_head(&conn->rtb)));
 
   ngtcp2_conn_del(conn);
 
@@ -1990,13 +1988,15 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  ent = ngtcp2_rtb_top(&conn->rtb);
+  ent = ngtcp2_rtb_head(&conn->rtb);
+  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->mtr, 1000000007, 1000000007,
+                             ++t);
 
   /* This should not send ACK only packet */
   spktlen = ngtcp2_conn_write_pkt(conn, buf, 999, ++t);
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == (int)spktlen);
-  CU_ASSERT(ent == ngtcp2_rtb_top(&conn->rtb));
+  CU_ASSERT(ent == ngtcp2_rtb_lost_head(&conn->rtb));
 
   ngtcp2_conn_del(conn);
 }

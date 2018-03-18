@@ -508,12 +508,20 @@ typedef struct {
   uint8_t ack_delay_exponent;
 } ngtcp2_settings;
 
+/* Everything is nanoseconds resolution. */
 typedef struct {
   uint64_t latest_rtt;
   uint64_t min_rtt;
   uint64_t max_ack_delay;
   double smoothed_rtt;
   double rttvar;
+  uint64_t loss_time;
+  uint64_t reordering_threshold;
+  size_t tlp_count;
+  size_t rto_count;
+  size_t handshake_count;
+  uint64_t loss_detection_alarm;
+  uint64_t largest_sent_before_rto;
 } ngtcp2_metrics;
 
 /**
@@ -1458,6 +1466,11 @@ NGTCP2_EXTERN void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
  */
 NGTCP2_EXTERN void ngtcp2_conn_get_metrics(ngtcp2_conn *conn,
                                            ngtcp2_metrics *mtr);
+
+NGTCP2_EXTERN ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
+                                                          uint8_t *dest,
+                                                          size_t destlen,
+                                                          ngtcp2_tstamp ts);
 
 /**
  * @function

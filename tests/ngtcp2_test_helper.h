@@ -110,4 +110,10 @@ size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
  */
 ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id);
 
+/*
+ * rtb_entry_length returns the length of elements pointed by |ent|
+ * list.
+ */
+size_t rtb_entry_length(const ngtcp2_rtb_entry *ent);
+
 #endif /* NGTCP2_TEST_HELPER_H */

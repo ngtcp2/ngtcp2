@@ -186,3 +186,13 @@ ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id) {
 
   return strm;
 }
+
+size_t rtb_entry_length(const ngtcp2_rtb_entry *ent) {
+  size_t len = 0;
+
+  for (; ent; ent = ent->next) {
+    ++len;
+  }
+
+  return len;
+}

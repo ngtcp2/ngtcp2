@@ -903,6 +903,28 @@ int Client::on_write(bool retransmit) {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
+  if (retransmit) {
+    auto n = ngtcp2_conn_on_loss_detection_alarm(
+        conn_, sendbuf_.wpos(), max_pktlen_, util::timestamp());
+    if (n < 0) {
+      std::cerr << "ngtcp2_conn_on_loss_detection_alarm: " << ngtcp2_strerror(n)
+                << std::endl;
+      disconnect(n);
+      return -1;
+    }
+    if (n > 0) {
+      sendbuf_.push(n);
+      auto rv = send_packet();
+      if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+        schedule_retransmit();
+        return rv;
+      }
+      if (rv != NETWORK_ERR_OK) {
+        return rv;
+      }
+    }
+  }
+
   for (;;) {
     ssize_t n;
     if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
@@ -925,7 +947,8 @@ int Client::on_write(bool retransmit) {
 
     auto rv = send_packet();
     if (rv == NETWORK_ERR_SEND_NON_FATAL) {
-      break;
+      schedule_retransmit();
+      return rv;
     }
     if (rv != NETWORK_ERR_OK) {
       return rv;
@@ -1017,6 +1040,7 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
 void Client::schedule_retransmit() {
   auto expiry = ngtcp2_conn_earliest_expiry(conn_);
   if (expiry == 0) {
+    ev_timer_stop(loop_, &rttimer_);
     return;
   }
 

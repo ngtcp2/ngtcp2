@@ -192,9 +192,9 @@ ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, uint64_t pkt_num,
-                          const ngtcp2_ack *fr, uint8_t unprotected,
-                          ngtcp2_conn *conn, ngtcp2_tstamp ts);
+int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
+                          uint8_t unprotected, ngtcp2_conn *conn,
+                          ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_commit_ack tells |acktr| that ACK frame is generated.

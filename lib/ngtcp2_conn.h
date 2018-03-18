@@ -64,7 +64,7 @@ typedef enum {
 /* NGTCP2_PKT_DEADLINE_PERIOD is the period of time with nanoseconds
    resolution when the library gives up re-sending packet, and closes
    connection. */
-#define NGTCP2_PKT_DEADLINE_PERIOD 5000000000
+#define NGTCP2_PKT_DEADLINE_PERIOD 60000000000
 
 /* NGTCP2_DELAYED_ACK_TIMEOUT is the delayed ACK timeout in nanosecond
    resolution. */
@@ -77,6 +77,15 @@ typedef enum {
 /* NGTCP2_STRM0_MAX_STREAM_DATA is the maximum stream offset that an
    endpoint can send initially. */
 #define NGTCP2_STRM0_MAX_STREAM_DATA 65535
+
+/* NGTCP2_REORDERING_THRESHOLD is kReorderingThreshold described in
+   draft-ietf-quic-recovery-10. */
+#define NGTCP2_REORDERING_THRESHOLD 3
+
+#define NGTCP2_DEFAULT_INITIAL_RTT 100000000
+#define NGTCP2_MIN_TLP_TIMEOUT 10000000
+#define NGTCP2_MIN_RTO_TIMEOUT 200000000
+#define NGTCP2_MAX_TLP_COUNT 2
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -172,9 +181,6 @@ struct ngtcp2_conn {
      sent last time.*/
   uint64_t last_tx_pkt_num;
   uint64_t max_rx_pkt_num;
-  /* last_mtr_pkt_num is the last received packet number which updates
-     mtr. */
-  uint64_t last_mtr_pkt_num;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
      initiated bidirectional stream which the local endpoint can
      accept.  This limit is not yet notified to the remote
@@ -344,5 +350,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
                            int ack_only);
+
+void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn);
 
 #endif /* NGTCP2_CONN_H */

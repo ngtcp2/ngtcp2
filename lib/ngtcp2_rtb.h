@@ -31,9 +31,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-#include "ngtcp2_pq.h"
-#include "ngtcp2_map.h"
-
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
@@ -86,7 +83,8 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
  * to the one packet which is waiting for its ACK.
  */
 struct ngtcp2_rtb_entry {
-  ngtcp2_pq_entry pe;
+  /* TODO probably we don't need pprev.  It is required if we have to
+     remove entry using ngtcp2_rtb_entry*. */
   ngtcp2_rtb_entry **pprev, *next;
 
   ngtcp2_pkt_hd hd;
@@ -141,17 +139,24 @@ void ngtcp2_rtb_entry_extend_expiry(ngtcp2_rtb_entry *ent, ngtcp2_tstamp ts);
  * retransmission.
  */
 typedef struct {
-  /* pq is a priority queue, and sorted by lesser timeout */
-  ngtcp2_pq pq;
   /* head points to the singly linked list of ngtcp2_rtb_entry, sorted
      by decreasing order of packet number. */
   ngtcp2_rtb_entry *head;
+  /* lost_head is like head, but it only includes entries which are
+     considered to be lost. */
+  ngtcp2_rtb_entry *lost_head;
   ngtcp2_mem *mem;
   /* bytes_in_flight is the sum of packet length linked from head. */
   size_t bytes_in_flight;
   /* largest_acked is the largest packet number acknowledged by the
-     peer. */
-  uint64_t largest_acked;
+     peer.  TODO This should be renamed to
+     largest_acked_tx_pkt_num. */
+  int64_t largest_acked;
+  /* largest_ack is the largest ack in received ACK packet. */
+  int64_t largest_ack;
+  /* num_unprotected is the number of unprotected (handshake) packets
+     in-flight. */
+  size_t num_unprotected;
 } ngtcp2_rtb;
 
 /*
@@ -166,28 +171,22 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_add adds |ent| to |rtb|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     The same packet number has already been added.
  */
-int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
 /*
- * ngtcp2_rtb_top returns the entry which has the least expiry value.
- * It returns NULL if there is no entry.
+ * ngtcp2_rtb_head returns the entry which has the largest packet
+ * number.  It returns NULL if there is no entry.
  */
-ngtcp2_rtb_entry *ngtcp2_rtb_top(ngtcp2_rtb *rtb);
+ngtcp2_rtb_entry *ngtcp2_rtb_head(ngtcp2_rtb *rtb);
+
+ngtcp2_rtb_entry *ngtcp2_rtb_lost_head(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_pop removes the entry which has the least expiry value.
- * It does nothing if there is no entry.
+ * ngtcp2_rtb_lost_pop removes the first entry of lost packet.  It
+ * does nothing if there is no entry.
  */
-void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
+void ngtcp2_rtb_lost_pop(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
@@ -199,8 +198,16 @@ void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
  */
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, uint64_t pkt_num, const ngtcp2_ack *fr,
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                         uint8_t unprotected, ngtcp2_conn *conn,
                         ngtcp2_tstamp ts);
+
+void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_metrics *mtr,
+                                uint64_t largest_ack, uint64_t last_tx_pkt_num,
+                                ngtcp2_tstamp ts);
+
+void ngtcp2_rtb_mark_unprotected_lost(ngtcp2_rtb *rtb);
+
+void ngtcp2_rtb_lost_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
 #endif /* NGTCP2_RTB_H */

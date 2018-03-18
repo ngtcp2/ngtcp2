@@ -1284,14 +1284,33 @@ int Handler::on_write(bool retransmit) {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
-  if (!retransmit) {
+  if (retransmit) {
+    auto n = ngtcp2_conn_on_loss_detection_alarm(
+        conn_, sendbuf_.wpos(), max_pktlen_, util::timestamp());
+    if (n < 0) {
+      std::cerr << "ngtcp2_conn_on_loss_detection_alarm: " << ngtcp2_strerror(n)
+                << std::endl;
+      return handle_error(n);
+    }
+    if (n > 0) {
+      sendbuf_.push(n);
+      auto rv = server_->send_packet(remote_addr_, sendbuf_);
+      if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+        schedule_retransmit();
+        return rv;
+      }
+      if (rv != NETWORK_ERR_OK) {
+        return rv;
+      }
+    }
+  } else {
     for (auto &p : streams_) {
       auto &stream = p.second;
       rv = on_write_stream(*stream);
       if (rv != 0) {
         if (rv == NETWORK_ERR_SEND_NON_FATAL) {
           schedule_retransmit();
-          return 0;
+          return rv;
         }
         return rv;
       }
@@ -1319,7 +1338,8 @@ int Handler::on_write(bool retransmit) {
 
     auto rv = server_->send_packet(remote_addr_, sendbuf_);
     if (rv == NETWORK_ERR_SEND_NON_FATAL) {
-      break;
+      schedule_retransmit();
+      return rv;
     }
     if (rv != NETWORK_ERR_OK) {
       return rv;
@@ -1488,6 +1508,7 @@ int Handler::send_conn_close() {
 void Handler::schedule_retransmit() {
   auto expiry = ngtcp2_conn_earliest_expiry(conn_);
   if (expiry == 0) {
+    ev_timer_stop(loop_, &rttimer_);
     return;
   }
 
