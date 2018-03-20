@@ -1554,7 +1554,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (data_strm->stream_id) {
       ndatalen = ngtcp2_min(ndatalen, conn->max_tx_offset - conn->tx_offset);
     }
-    if (ndatalen || fin) {
+    if (ndatalen || (datalen == 0 && fin)) {
       send_stream = 1;
     }
   }
