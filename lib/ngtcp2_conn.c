@@ -616,11 +616,9 @@ static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
   return conn_call_send_frame(conn, hd, fr);
 }
 
-static int conn_rtb_add(ngtcp2_conn *conn, ngtcp2_rtb_entry *ent) {
+static void conn_rtb_add(ngtcp2_conn *conn, ngtcp2_rtb_entry *ent) {
   ngtcp2_rtb_add(&conn->rtb, ent);
   ngtcp2_conn_set_loss_detection_alarm(conn);
-
-  return 0;
 }
 
 /*
@@ -999,7 +997,6 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ssize_t nwrite;
-  int rv;
 
   /* TODO We should not retransmit packets after we are in closing, or
      draining state */
@@ -1079,12 +1076,7 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     ent->pktlen = (size_t)nwrite;
     ent->ts = ts;
-    rv = conn_rtb_add(conn, ent);
-    if (rv != 0) {
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      assert(ngtcp2_err_fatal(rv));
-      return rv;
-    }
+    conn_rtb_add(conn, ent);
 
     return nwrite;
   }
@@ -1267,12 +1259,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       goto fail;
     }
 
-    rv = conn_rtb_add(conn, rtbent);
-    if (rv != 0) {
-      assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
-      ngtcp2_rtb_entry_del(rtbent, conn->mem);
-      return rv;
-    }
+    conn_rtb_add(conn, rtbent);
   } else if (ack_ent) {
     ack_ent->ack_only = 1;
   }
@@ -1817,12 +1804,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->frq = *pfrc;
     *pfrc = NULL;
 
-    rv = conn_rtb_add(conn, ent);
-    if (rv != 0) {
-      assert(NGTCP2_ERR_INVALID_ARGUMENT != rv);
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      return rv;
-    }
+    conn_rtb_add(conn, ent);
 
     if (send_stream) {
       data_strm->tx_offset += ndatalen;
@@ -1976,7 +1958,6 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
  *     Out of memory.
  */
 static int conn_process_early_rtb(ngtcp2_conn *conn) {
-  int rv;
   ngtcp2_rtb_entry *ent, *next;
   ngtcp2_frame_chain *frc;
 
@@ -1996,19 +1977,9 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
   } else {
     for (ent = conn->early_rtb; ent;) {
       next = ent->next;
-      rv = conn_rtb_add(conn, ent);
-      if (rv != 0) {
-        assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
-        /* Just delete entries left to avoid double free. */
-        ent->next = next;
-        while (ent) {
-          next = ent->next;
-          ngtcp2_rtb_entry_del(ent, conn->mem);
-          ent = next;
-        }
-        conn->early_rtb = NULL;
-        return rv;
-      }
+      /* TODO We don't nullify ent->next here.  This is OK because we
+         always assign it in ngtcp2_rtb_add(). */
+      conn_rtb_add(conn, ent);
       ent = next;
     }
   }
