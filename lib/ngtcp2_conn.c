@@ -1023,6 +1023,13 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
       switch (ent->hd.type) {
       case NGTCP2_PKT_INITIAL:
+        /* If we have received stream 0 data from server, we don't
+           have to send Initial anymore */
+        if (conn->strm0->last_rx_offset > 0) {
+          nwrite = 0;
+          break;
+        }
+        /* fall through */
       case NGTCP2_PKT_HANDSHAKE:
         /* Stop retransmitting handshake packet after at least one
            protected packet is received, and decrypted
