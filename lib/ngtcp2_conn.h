@@ -230,6 +230,9 @@ struct ngtcp2_conn {
   /* max_tx_offset is the maximum offset that local endpoint can
      send. */
   uint64_t max_tx_offset;
+  /* final_hs_tx_offset is the offset in stream 0 when handshake
+     completed. */
+  uint64_t final_hs_tx_offset;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;

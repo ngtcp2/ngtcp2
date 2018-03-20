@@ -2011,6 +2011,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
+    conn->final_hs_tx_offset = conn->strm0->tx_offset;
     if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
     }
@@ -3578,8 +3579,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     case NGTCP2_PKT_HANDSHAKE:
       /* Ignore incoming unprotected packet after we get all
          acknowledgements to unprotected packet we sent so far. */
-      if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) ==
-              conn->strm0->tx_offset &&
+      if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) >=
+              conn->final_hs_tx_offset &&
           (!conn->server ||
            (conn->flags & NGTCP2_CONN_FLAG_ACK_FINISHED_ACK))) {
         return 0;
@@ -3913,7 +3914,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
         return rv;
       }
       conn->state = NGTCP2_CS_POST_HANDSHAKE;
-
+      conn->final_hs_tx_offset = conn->strm0->tx_offset;
       if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
         return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
       }
