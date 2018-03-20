@@ -652,6 +652,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   int send_pkt_cb_called = 0;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
+  ngtcp2_frame *ackfr;
 
   /* This is required because ent->hd may have old client version. */
   hd.version = conn->version;
@@ -689,6 +690,30 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
 
   if (pkt_empty) {
     return rv;
+  }
+
+  if (hd.type != NGTCP2_PKT_INITIAL) {
+    /* ACK is added last so that we don't send ACK only frame here. */
+    ackfr = NULL;
+    rv = conn_create_ack_frame(conn, &ackfr, ts, 1 /* unprotected */);
+    if (rv != 0) {
+      return rv;
+    }
+
+    if (ackfr) {
+      rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr);
+      if (rv != 0) {
+        ngtcp2_mem_free(conn->mem, ackfr);
+        if (rv != NGTCP2_ERR_NOBUF) {
+          return rv;
+        }
+      } else {
+        conn_commit_tx_ack(conn, 1 /* unprotected */);
+
+        ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 0,
+                             0 /* ack_only */);
+      }
+    }
   }
 
   if (*pfrc == NULL) {
