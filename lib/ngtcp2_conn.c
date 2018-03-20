@@ -1978,30 +1978,39 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 static int conn_process_early_rtb(ngtcp2_conn *conn) {
   int rv;
   ngtcp2_rtb_entry *ent, *next;
+  ngtcp2_frame_chain *frc;
 
-  for (ent = conn->early_rtb; ent;) {
-    next = ent->next;
-    /* If early data was rejected by server, retransmit packet
-       ASAP. */
-    /* TODO This does not work anymore with quic recovery.  Probably
-       we should handle early_rtb specially in conn_retransmit(). */
-    if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
-      ent->expiry = 0;
+  if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
+    for (ent = conn->early_rtb; ent;) {
+      next = ent->next;
+      frc = ent->frc;
+      ent->frc = NULL;
+      ngtcp2_rtb_entry_del(ent, conn->mem);
+
+      assert(frc->next == NULL);
+      frc->next = conn->frq;
+      conn->frq = frc;
+
+      ent = next;
     }
-    rv = conn_rtb_add(conn, ent);
-    if (rv != 0) {
-      assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
-      /* Just delete entries left to avoid double free. */
-      ent->next = next;
-      while (ent) {
-        next = ent->next;
-        ngtcp2_rtb_entry_del(ent, conn->mem);
-        ent = next;
+  } else {
+    for (ent = conn->early_rtb; ent;) {
+      next = ent->next;
+      rv = conn_rtb_add(conn, ent);
+      if (rv != 0) {
+        assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
+        /* Just delete entries left to avoid double free. */
+        ent->next = next;
+        while (ent) {
+          next = ent->next;
+          ngtcp2_rtb_entry_del(ent, conn->mem);
+          ent = next;
+        }
+        conn->early_rtb = NULL;
+        return rv;
       }
-      conn->early_rtb = NULL;
-      return rv;
+      ent = next;
     }
-    ent = next;
   }
   conn->early_rtb = NULL;
   return 0;
