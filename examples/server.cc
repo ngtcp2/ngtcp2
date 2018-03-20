@@ -27,6 +27,7 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
+#include <fstream>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -2246,6 +2247,15 @@ void close(Server &s) {
 } // namespace
 
 namespace {
+    std::ofstream keylog_file;
+    void keylog_callback(const SSL *ssl, const char *line) {
+        keylog_file.write(line, strlen(line));
+        keylog_file.put('\n');
+        keylog_file.flush();
+    }
+} // namespace
+
+namespace {
 void print_usage() {
   std::cerr << "Usage: server [OPTIONS] <ADDR> <PORT> <PRIVATE_KEY_FILE> "
                "<CERTIFICATE_FILE>"
@@ -2429,6 +2439,14 @@ int main(int argc, char **argv) {
 
   if (isatty(STDOUT_FILENO)) {
     debug::set_color_output(true);
+  }
+
+  auto keylog_filename = getenv("SSLKEYLOGFILE");
+  if (keylog_filename) {
+      keylog_file.open(keylog_filename, std::ios_base::app);
+      if (keylog_file) {
+          SSL_CTX_set_keylog_callback(ssl_ctx, keylog_callback);
+      }
   }
 
   auto ready = false;
