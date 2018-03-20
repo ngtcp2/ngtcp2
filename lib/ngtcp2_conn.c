@@ -924,15 +924,10 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       }
     } else {
       conn_commit_tx_ack(conn, 0 /* unprotected */);
-      pkt_empty = 0;
 
       ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts, 0,
                            0 /* ack_only */);
     }
-  }
-
-  if (pkt_empty) {
-    return rv;
   }
 
   if (*pfrc == NULL) {
