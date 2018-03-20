@@ -771,7 +771,8 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
  * next packet number |pkt_num|.
  */
 static uint8_t conn_select_pkt_type(ngtcp2_conn *conn, uint64_t pkt_num) {
-  uint64_t n = (uint64_t)((int64_t)pkt_num - conn->rtb.largest_acked);
+  uint64_t n =
+      (uint64_t)((int64_t)pkt_num - conn->rtb.largest_acked_tx_pkt_num);
   if (UINT64_MAX / 2 <= pkt_num) {
     return NGTCP2_PKT_03;
   }
@@ -1404,7 +1405,7 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_STATELESS_RETRY)) {
     conn->last_tx_pkt_num = pkt_num - 1;
-    conn->rtb.largest_acked = (int64_t)conn->last_tx_pkt_num;
+    conn->rtb.largest_acked_tx_pkt_num = (int64_t)conn->last_tx_pkt_num;
   }
 
   return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
@@ -1507,7 +1508,7 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   if (initial) {
     conn->last_tx_pkt_num = pkt_num - 1;
-    conn->rtb.largest_acked = (int64_t)conn->last_tx_pkt_num;
+    conn->rtb.largest_acked_tx_pkt_num = (int64_t)conn->last_tx_pkt_num;
   }
 
   return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_HANDSHAKE,

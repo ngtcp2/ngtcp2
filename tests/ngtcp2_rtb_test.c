@@ -162,7 +162,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_recv_ack(&rtb, fr, 0, NULL, 1000000009);
 
   CU_ASSERT(63 == rtb_entry_length(rtb.head));
-  CU_ASSERT(441 == rtb.largest_acked);
+  CU_ASSERT(441 == rtb.largest_acked_tx_pkt_num);
   assert_rtb_entry_not_found(&rtb, 441);
   assert_rtb_entry_not_found(&rtb, 440);
   assert_rtb_entry_not_found(&rtb, 183);

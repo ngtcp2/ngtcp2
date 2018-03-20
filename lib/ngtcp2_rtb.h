@@ -148,10 +148,9 @@ typedef struct {
   ngtcp2_mem *mem;
   /* bytes_in_flight is the sum of packet length linked from head. */
   size_t bytes_in_flight;
-  /* largest_acked is the largest packet number acknowledged by the
-     peer.  TODO This should be renamed to
-     largest_acked_tx_pkt_num. */
-  int64_t largest_acked;
+  /* largest_acked_tx_pkt_num is the largest packet number
+     acknowledged by the peer. */
+  int64_t largest_acked_tx_pkt_num;
   /* largest_ack is the largest ack in received ACK packet. */
   int64_t largest_ack;
   /* num_unprotected is the number of unprotected (handshake) packets

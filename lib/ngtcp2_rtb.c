@@ -93,7 +93,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
   rtb->head = rtb->lost_head = NULL;
   rtb->mem = mem;
   rtb->bytes_in_flight = 0;
-  rtb->largest_acked = -1;
+  rtb->largest_acked_tx_pkt_num = -1;
   rtb->largest_ack = -1;
   rtb->num_unprotected = 0;
 }
@@ -268,8 +268,8 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         }
         on_pkt_acked(&conn->mtr);
       }
-      rtb->largest_acked =
-          ngtcp2_max(rtb->largest_acked, (int64_t)(*pent)->hd.pkt_num);
+      rtb->largest_acked_tx_pkt_num = ngtcp2_max(rtb->largest_acked_tx_pkt_num,
+                                                 (int64_t)(*pent)->hd.pkt_num);
       rtb_remove(rtb, pent);
       continue;
     }
@@ -303,8 +303,8 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
         on_pkt_acked(&conn->mtr);
       }
-      rtb->largest_acked =
-          ngtcp2_max(rtb->largest_acked, (int64_t)(*pent)->hd.pkt_num);
+      rtb->largest_acked_tx_pkt_num = ngtcp2_max(rtb->largest_acked_tx_pkt_num,
+                                                 (int64_t)(*pent)->hd.pkt_num);
       rtb_remove(rtb, pent);
     }
 

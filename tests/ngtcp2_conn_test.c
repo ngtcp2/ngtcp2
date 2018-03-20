@@ -1522,7 +1522,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 2 octet pkt num */
   setup_default_client(&conn);
-  conn->rtb.largest_acked = 0x6afa2f;
+  conn->rtb.largest_acked_tx_pkt_num = 0x6afa2f;
   conn->last_tx_pkt_num = 0x6b4263;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -1536,7 +1536,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 3 octet pkt num */
   setup_default_client(&conn);
-  conn->rtb.largest_acked = 0x6afa2f;
+  conn->rtb.largest_acked_tx_pkt_num = 0x6afa2f;
   conn->last_tx_pkt_num = 0x6bc106;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -1550,7 +1550,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 1 octet pkt num (largest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked = 1;
+  conn->rtb.largest_acked_tx_pkt_num = 1;
   conn->last_tx_pkt_num = 127;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -1564,7 +1564,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 2 octet pkt num (shortest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked = 1;
+  conn->rtb.largest_acked_tx_pkt_num = 1;
   conn->last_tx_pkt_num = 128;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -1578,7 +1578,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 2 octet pkt num (largest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked = 1;
+  conn->rtb.largest_acked_tx_pkt_num = 1;
   conn->last_tx_pkt_num = 32767;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -1592,7 +1592,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 3 octet pkt num (shortest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked = 1;
+  conn->rtb.largest_acked_tx_pkt_num = 1;
   conn->last_tx_pkt_num = 32768;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -1606,7 +1606,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* Overflow */
   setup_default_client(&conn);
-  conn->rtb.largest_acked = 1;
+  conn->rtb.largest_acked_tx_pkt_num = 1;
   conn->last_tx_pkt_num = 0x8000000000000000llu;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
