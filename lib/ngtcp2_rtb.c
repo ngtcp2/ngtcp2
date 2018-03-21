@@ -86,7 +86,6 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
   rtb->mem = mem;
   rtb->bytes_in_flight = 0;
   rtb->largest_acked_tx_pkt_num = -1;
-  rtb->largest_ack = -1;
   rtb->num_unprotected = 0;
 }
 

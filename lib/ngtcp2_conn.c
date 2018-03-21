@@ -280,6 +280,7 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   (*pconn)->version = version;
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
+  (*pconn)->largest_ack = -1;
 
   (*pconn)->local_settings = *settings;
   (*pconn)->unsent_max_remote_stream_id_bidi =
@@ -2164,8 +2165,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr, uint8_t unprotected,
     return rv;
   }
 
-  conn->rtb.largest_ack =
-      ngtcp2_max(conn->rtb.largest_ack, (int64_t)fr->largest_ack);
+  conn->largest_ack = ngtcp2_max(conn->largest_ack, (int64_t)fr->largest_ack);
 
   ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->mtr, fr->largest_ack,
                              conn->last_tx_pkt_num, ts);
@@ -4833,8 +4833,7 @@ ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_rtb_mark_unprotected_lost(&conn->rtb);
     ++mtr->handshake_count;
   } else if (mtr->loss_time) {
-    /* TODO largest_ack does not need to be in rtb */
-    ngtcp2_rtb_detect_lost_pkt(&conn->rtb, mtr, (uint64_t)conn->rtb.largest_ack,
+    ngtcp2_rtb_detect_lost_pkt(&conn->rtb, mtr, (uint64_t)conn->largest_ack,
                                conn->last_tx_pkt_num, ts);
   } else if (mtr->tlp_count < NGTCP2_MAX_TLP_COUNT) {
     nwrite = conn_retransmit(conn, dest, destlen, ts);

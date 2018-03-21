@@ -239,6 +239,8 @@ struct ngtcp2_conn {
   /* final_hs_tx_offset is the offset in stream 0 when handshake
      completed. */
   uint64_t final_hs_tx_offset;
+  /* largest_ack is the largest ack in received ACK packet. */
+  int64_t largest_ack;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
