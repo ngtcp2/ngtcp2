@@ -2063,12 +2063,10 @@ ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
   case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
   case NGTCP2_CS_SERVER_INITIAL:
+  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
                                           NGTCP2_PKT_HANDSHAKE, ts);
     break;
-  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    assert(conn->tx_ckm);
-    // We have 1-RTT key in this state.
   case NGTCP2_CS_POST_HANDSHAKE:
     nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
     break;
