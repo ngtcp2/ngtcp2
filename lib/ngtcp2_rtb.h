@@ -83,9 +83,7 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
  * to the one packet which is waiting for its ACK.
  */
 struct ngtcp2_rtb_entry {
-  /* TODO probably we don't need pprev.  It is required if we have to
-     remove entry using ngtcp2_rtb_entry*. */
-  ngtcp2_rtb_entry **pprev, *next;
+  ngtcp2_rtb_entry *next;
 
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frc;

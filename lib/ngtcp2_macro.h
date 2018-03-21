@@ -39,4 +39,24 @@
 #define ngtcp2_struct_of(ptr, type, member)                                    \
   ((type *)(void *)((char *)(ptr)-offsetof(type, member)))
 
+/* ngtcp2_list_insert inserts |T| before |*PD|.  The contract is that
+   this is singly linked list, and the next element is pointed by next
+   field of the previous element.  |PD| must be a pointer to the
+   pointer to the next field of the previous element of |*PD|: if C is
+   the previous element of |PD|, PD = &C->next. */
+#define ngtcp2_list_insert(T, PD)                                              \
+  do {                                                                         \
+    (T)->next = *(PD);                                                         \
+    *(PD) = (T);                                                               \
+  } while (0)
+
+/* ngtcp2_list_remove removes |*PT| from singly linked list.  The
+   contract is the same as ngtcp2_list_insert.  |PT| must be a pointer
+   to the pointer to the next field of the previous element of |*PT|.
+   Please be aware that |*PT|->next is not modified by this macro. */
+#define ngtcp2_list_remove(PT)                                                 \
+  do {                                                                         \
+    *(PT) = (*(PT))->next;                                                     \
+  } while (0)
+
 #endif /* NGTCP2_MACRO_H */
