@@ -37,6 +37,9 @@ typedef struct ngtcp2_conn ngtcp2_conn;
 struct ngtcp2_frame_chain;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
+struct ngtcp2_log;
+typedef struct ngtcp2_log ngtcp2_log;
+
 /*
  * ngtcp2_frame_chain chains frames in a single packet.
  */
@@ -128,6 +131,7 @@ typedef struct {
   /* lost_head is like head, but it only includes entries which are
      considered to be lost. */
   ngtcp2_rtb_entry *lost_head;
+  ngtcp2_log *log;
   ngtcp2_mem *mem;
   /* bytes_in_flight is the sum of packet length linked from head. */
   size_t bytes_in_flight;
@@ -142,7 +146,7 @@ typedef struct {
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem);
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_log *log, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.

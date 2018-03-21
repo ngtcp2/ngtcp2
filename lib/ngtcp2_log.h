@@ -31,24 +31,46 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-typedef struct {
+typedef enum {
+  NGTCP2_LOG_EVENT_NONE,
+  /* packet realted event */
+  NGTCP2_LOG_EVENT_PKT,
+  /* recovery related event */
+  NGTCP2_LOG_EVENT_RCV,
+  /* TLS related event */
+  NGTCP2_LOG_EVENT_TLS,
+} ngtcp2_log_event;
+
+struct ngtcp2_log {
+  /* conn_id points to the object where connection ID is stored. */
+  uint64_t *conn_id;
   /* fd is the file to which log is written.  If it is -1, log will be
      suppressed. */
   int fd;
   /* ts is the time point used to write time delta in the log. */
   ngtcp2_tstamp ts;
-} ngtcp2_log;
+  /* last_ts is the most recent time point that this object is
+     told. */
+  ngtcp2_tstamp last_ts;
+};
 
-void ngtcp2_log_init(ngtcp2_log *log, int fd, ngtcp2_tstamp ts);
+typedef struct ngtcp2_log ngtcp2_log;
 
-void ngtcp2_log_rx_pkt(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                       ngtcp2_tstamp ts);
-void ngtcp2_log_tx_pkt(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                       ngtcp2_tstamp ts);
+void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
+                     ngtcp2_tstamp ts);
+
+void ngtcp2_log_rx_pkt(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
+void ngtcp2_log_tx_pkt(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 
 void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                      const ngtcp2_frame *fr, ngtcp2_tstamp ts);
+                      const ngtcp2_frame *fr);
 void ngtcp2_log_tx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                      const ngtcp2_frame *fr, ngtcp2_tstamp ts);
+                      const ngtcp2_frame *fr);
+
+void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
+                     ...);
+
+void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                         ngtcp2_tstamp sent_ts, int unprotected);
 
 #endif /* NGTCP2_LOG_H */

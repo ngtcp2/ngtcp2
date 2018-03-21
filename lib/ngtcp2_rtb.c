@@ -28,6 +28,7 @@
 
 #include "ngtcp2_macro.h"
 #include "ngtcp2_conn.h"
+#include "ngtcp2_log.h"
 
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
@@ -81,8 +82,9 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, ent);
 }
 
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_log *log, ngtcp2_mem *mem) {
   rtb->head = rtb->lost_head = NULL;
+  rtb->log = log;
   rtb->mem = mem;
   rtb->bytes_in_flight = 0;
   rtb->largest_acked_tx_pkt_num = -1;
@@ -345,11 +347,17 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
         if (tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
           --rtb->num_unprotected;
         }
+
+        ngtcp2_log_pkt_lost(rtb->log, &tail->hd, tail->ts,
+                            tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED);
       }
       rtb->bytes_in_flight -= tail->pktlen;
       if (tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
         --rtb->num_unprotected;
       }
+
+      ngtcp2_log_pkt_lost(rtb->log, &tail->hd, tail->ts,
+                          tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED);
 
       tail->next = rtb->lost_head;
       rtb->lost_head = ent;
@@ -369,6 +377,11 @@ void ngtcp2_rtb_mark_unprotected_lost(ngtcp2_rtb *rtb) {
     }
 
     ent = *pent;
+
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                    "retransmit unprotected packet %" PRIu64
+                    " sent_ts=%" PRIu64,
+                    ent->hd.pkt_num, ent->ts);
 
     --rtb->num_unprotected;
     rtb->bytes_in_flight -= ent->pktlen;

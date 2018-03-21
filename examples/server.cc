@@ -776,10 +776,10 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       ::recv_client_initial,
       send_server_handshake,
       recv_stream0_data,
-      config.quiet ? nullptr : debug::send_pkt,
-      config.quiet ? nullptr : debug::send_frame,
-      config.quiet ? nullptr : debug::recv_pkt,
-      config.quiet ? nullptr : debug::recv_frame,
+      nullptr, // send_pkt
+      nullptr, // send_frame
+      nullptr, // recv_pkt
+      nullptr, // recv_frame
       handshake_completed,
       nullptr,
       do_hs_encrypt,
@@ -792,7 +792,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr, // recv_stateless_reset
       nullptr, // recv_server_stateless_retry
       nullptr, // extend_max_stream_id
-      config.quiet ? nullptr : debug::update_rcvry_stat,
+      nullptr, // update_rcvry_stat
   };
 
   ngtcp2_settings settings;
