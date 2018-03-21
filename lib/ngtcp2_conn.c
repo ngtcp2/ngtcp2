@@ -3374,7 +3374,8 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
                                            size_t payloadlen, const uint8_t *ad,
                                            size_t adlen, ngtcp2_tstamp ts) {
   ssize_t nread;
-  ngtcp2_frame fr;
+  ngtcp2_max_frame mfr;
+  ngtcp2_frame *fr = &mfr.fr;
   int rv;
   int require_ack = 0;
   ssize_t nwrite;
@@ -3403,7 +3404,7 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
   payloadlen = (size_t)nwrite;
 
   for (; payloadlen;) {
-    nread = ngtcp2_pkt_decode_frame(&fr, payload, payloadlen);
+    nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
     if (nread < 0) {
       return (int)nread;
     }
@@ -3411,21 +3412,21 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     payload += nread;
     payloadlen -= (size_t)nread;
 
-    if (fr.type == NGTCP2_FRAME_ACK) {
-      conn_assign_recved_ack_delay_unscaled(conn, &fr.ack, 1);
+    if (fr->type == NGTCP2_FRAME_ACK) {
+      conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 1);
     }
 
-    rv = conn_call_recv_frame(conn, hd, &fr);
+    rv = conn_call_recv_frame(conn, hd, fr);
     if (rv != 0) {
       return rv;
     }
 
-    switch (fr.type) {
+    switch (fr->type) {
     case NGTCP2_FRAME_ACK:
       if (hd->type == NGTCP2_PKT_INITIAL) {
         return NGTCP2_ERR_PROTO;
       }
-      rv = conn_recv_ack(conn, &fr.ack, 1, ts);
+      rv = conn_recv_ack(conn, &fr->ack, 1, ts);
       if (rv != 0) {
         return rv;
       }
@@ -3433,7 +3434,7 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     case NGTCP2_FRAME_PADDING:
       break;
     case NGTCP2_FRAME_STREAM:
-      rv = conn_recv_stream(conn, &fr.stream);
+      rv = conn_recv_stream(conn, &fr->stream);
       if (rv != 0) {
         return rv;
       }
