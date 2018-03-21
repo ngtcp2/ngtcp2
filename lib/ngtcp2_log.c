@@ -100,6 +100,7 @@ void ngtcp2_log_init(ngtcp2_log *log, int fd, ngtcp2_tstamp ts) {
 
 #define NGTCP2_LOG_BUFLEN 4096
 
+/* TODO Split second and remaining fraction with comma */
 #define NGTCP2_LOG_HD "I%016" PRIu64 " 0x%016" PRIx64 " %s"
 #define NGTCP2_LOG_LONG_PKT NGTCP2_LOG_HD " 0x%08x %10" PRIu64 " %s %s(0x%02x)"
 
@@ -233,6 +234,7 @@ static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint64_t largest_ack, min_ack;
   size_t i;
 
+  /* TODO show ack_delay with units (e.g., 120.02ms) */
   log_printf(log,
              (NGTCP2_LOG_LONG_PKT " ACK(0x%02x) largest_ack=%" PRIu64
                                   " ack_delay=%" PRIu64 "(%" PRIu64
