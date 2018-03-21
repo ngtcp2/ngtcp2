@@ -1474,23 +1474,36 @@ NGTCP2_EXTERN void ngtcp2_conn_get_metrics(ngtcp2_conn *conn,
                                            ngtcp2_metrics *mtr);
 
 /**
+ * @struct
+ *
+ * ngtcp2_iovec is a struct compatible to standard struct iovec.
+ */
+typedef struct {
+  void *iov_base;
+  size_t iov_len;
+} ngtcp2_iovec;
+
+/**
  * @function
  *
  * `ngtcp2_conn_on_loss_detection_alarm` should be called when a timer
  * returned from `ngtcp2_conn_earliest_expiry` fires.  This function
- * performs loss detection, and may write a packet in a buffer pointed
- * by |dest| of length |destlen| for TLP or RTO probe packet.  If
- * return value is strictly greater than zero, the function has
- * written a packet data.
+ * performs loss detection, and may write a packet in buffers provided
+ * by |iov| for TLP, or RTO probe packet.  |iovcnt| specifies the
+ * number of buffers pointed by |iov|.  |iovcnt| should be at least 1
+ * for TLP, and 2 for RTO.  Since caller does not know how many
+ * packets this function writes, so it is recommended to always pass 2
+ * ngtcp2_iovec structs.
  *
- * In general, negative return value means failure.
- *
- * TODO we should provide at least 2 buffers because RTO may send 2
- * probe packets.
+ * In general, negative return value means failure.  Return value 0
+ * means that the function succeeds, and no packet is written.  The
+ * positive return value indicates the number of packets written.  The
+ * iov_len field of each element in |iov| up to the returned value is
+ * updated to the number of bytes written to the buffer.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
-                                                          uint8_t *dest,
-                                                          size_t destlen,
+                                                          ngtcp2_iovec *iov,
+                                                          size_t iovcnt,
                                                           ngtcp2_tstamp ts);
 
 /**

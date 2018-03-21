@@ -4815,10 +4815,13 @@ static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return conn_write_single_frame_pkt(conn, dest, destlen, &fr, ts);
 }
 
-ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, ngtcp2_tstamp ts) {
+ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
+                                            ngtcp2_iovec *iov, size_t iovcnt,
+                                            ngtcp2_tstamp ts) {
   ngtcp2_metrics *mtr = &conn->mtr;
-  ssize_t nwrite = 0;
+  ssize_t nwrite;
+  size_t i;
+  size_t niovcnt = 0;
 
   if (conn->rtb.num_unprotected) {
     ngtcp2_rtb_mark_unprotected_lost(&conn->rtb);
@@ -4827,36 +4830,36 @@ ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_rtb_detect_lost_pkt(&conn->rtb, mtr, (uint64_t)conn->largest_ack,
                                conn->last_tx_pkt_num, ts);
   } else if (mtr->tlp_count < NGTCP2_MAX_TLP_COUNT) {
-    nwrite = conn_retransmit(conn, dest, destlen, ts);
+    if (iovcnt < 1) {
+      return NGTCP2_ERR_NOBUF;
+    }
+    nwrite = conn_write_probe_pkt(conn, iov[0].iov_base, iov[0].iov_len, ts);
     if (nwrite < 0) {
       return nwrite;
     }
-    if (nwrite == 0) {
-      nwrite = conn_write_probe_pkt(conn, dest, destlen, ts);
-      if (nwrite < 0) {
-        return nwrite;
-      }
-    }
+    iov[0].iov_len = (size_t)nwrite;
+    niovcnt = 1;
     ++mtr->tlp_count;
   } else {
+    if (iovcnt < 2) {
+      return NGTCP2_ERR_NOBUF;
+    }
     if (mtr->rto_count == 0) {
       mtr->largest_sent_before_rto = conn->last_tx_pkt_num;
     }
-    /* TODO Send 2 packets */
-    nwrite = conn_retransmit(conn, dest, destlen, ts);
-    if (nwrite < 0) {
-      return nwrite;
-    }
-    if (nwrite == 0) {
-      nwrite = conn_write_probe_pkt(conn, dest, destlen, ts);
+    for (i = 0; i < 2; ++i) {
+      nwrite = conn_write_probe_pkt(conn, iov[i].iov_base, iov[i].iov_len, ts);
       if (nwrite < 0) {
         return nwrite;
       }
+      assert(nwrite > 0);
+      iov[i].iov_len = (size_t)nwrite;
     }
+    niovcnt = 2;
     ++mtr->rto_count;
   }
 
   ngtcp2_conn_set_loss_detection_alarm(conn);
 
-  return nwrite;
+  return (ssize_t)niovcnt;
 }
