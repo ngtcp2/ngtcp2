@@ -37,8 +37,10 @@ void test_ngtcp2_rtb_add(void) {
   int rv;
   ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_pkt_hd hd;
+  ngtcp2_log log;
 
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_rtb_init(&rtb, &log, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, 1000000009,
                      1000000007, NGTCP2_PROTO_VER_MAX);
@@ -126,9 +128,12 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_max_frame mfr;
   ngtcp2_ack *fr = &mfr.ackfr.ack;
   ngtcp2_ack_blk *blks;
+  ngtcp2_log log;
+
+  ngtcp2_log_init(&log, NULL, -1, 0);
 
   /* no ack block */
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_rtb_init(&rtb, &log, mem);
   setup_rtb_fixture(&rtb, mem);
 
   CU_ASSERT(67 == rtb_entry_length(rtb.head));
@@ -146,7 +151,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_free(&rtb);
 
   /* with ack block */
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_rtb_init(&rtb, &log, mem);
   setup_rtb_fixture(&rtb, mem);
 
   fr->largest_ack = 441;
@@ -170,7 +175,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_free(&rtb);
 
   /* gap+blklen points to pkt_num 0 */
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_rtb_init(&rtb, &log, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 250;
@@ -186,7 +191,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_free(&rtb);
 
   /* pkt_num = 0 (first ack block) */
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_rtb_init(&rtb, &log, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 0;
@@ -200,7 +205,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_free(&rtb);
 
   /* pkt_num = 0 */
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_rtb_init(&rtb, &log, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 2;
@@ -216,7 +221,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_free(&rtb);
 
   /* unprotected ack cannot ack protected packet */
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_rtb_init(&rtb, &log, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 0;
@@ -230,7 +235,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_free(&rtb);
 
   /* unprotected ack cannot ack protected packet with blks */
-  ngtcp2_rtb_init(&rtb, mem);
+  ngtcp2_rtb_init(&rtb, &log, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 3;

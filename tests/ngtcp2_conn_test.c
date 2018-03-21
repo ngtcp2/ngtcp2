@@ -220,6 +220,8 @@ static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
 static void server_default_settings(ngtcp2_settings *settings) {
   size_t i;
 
+  settings->log_fd = -1;
+  settings->initial_ts = 0;
   settings->max_stream_data = 65535;
   settings->max_data = 128 * 1024;
   settings->max_stream_id_bidi = 12;
@@ -233,6 +235,8 @@ static void server_default_settings(ngtcp2_settings *settings) {
 }
 
 static void client_default_settings(ngtcp2_settings *settings) {
+  settings->log_fd = -1;
+  settings->initial_ts = 0;
   settings->max_stream_data = 65535;
   settings->max_data = 128 * 1024;
   settings->max_stream_id_bidi = 0;
