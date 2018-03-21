@@ -617,6 +617,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       0, std::numeric_limits<uint64_t>::max())(randgen);
 
   ngtcp2_settings settings;
+  settings.log_fd = fileno(stderr);
+  settings.initial_ts = util::timestamp();
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;
   settings.max_stream_id_bidi = 1;

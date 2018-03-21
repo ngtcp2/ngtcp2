@@ -30,6 +30,7 @@
 
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_macro.h"
+#include "ngtcp2_log.h"
 
 /*
  * conn_local_stream returns nonzero if |stream_id| indicates that it
@@ -274,6 +275,7 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   }
 
   ngtcp2_rtb_init(&(*pconn)->rtb, mem);
+  ngtcp2_log_init(&(*pconn)->log, settings->log_fd, settings->initial_ts);
 
   (*pconn)->callbacks = *callbacks;
   (*pconn)->conn_id = conn_id;
@@ -598,7 +600,8 @@ static void conn_commit_tx_ack(ngtcp2_conn *conn, uint8_t unprotected) {
  */
 static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
                                 int *psend_pkt_cb_called,
-                                const ngtcp2_pkt_hd *hd, ngtcp2_frame *fr) {
+                                const ngtcp2_pkt_hd *hd, ngtcp2_frame *fr,
+                                ngtcp2_tstamp ts) {
   int rv;
 
   rv = ngtcp2_ppe_encode_frame(ppe, fr);
@@ -613,6 +616,8 @@ static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
     }
     *psend_pkt_cb_called = 1;
   }
+
+  ngtcp2_log_tx_fr(&conn->log, hd, fr, ts);
 
   return conn_call_send_frame(conn, hd, fr);
 }
@@ -681,7 +686,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
 
   for (pfrc = &ent->frc; *pfrc;) {
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
-                              &(*pfrc)->fr);
+                              &(*pfrc)->fr, ts);
     if (rv != 0) {
       if (rv == NGTCP2_ERR_NOBUF) {
         break;
@@ -706,7 +711,8 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     if (ackfr) {
-      rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr);
+      rv =
+          conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr, ts);
       if (rv != 0) {
         ngtcp2_mem_free(conn->mem, ackfr);
         if (rv != NGTCP2_ERR_NOBUF) {
@@ -734,6 +740,8 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
       if (rv != 0) {
         return rv;
       }
+
+      ngtcp2_log_tx_fr(&conn->log, &hd, &localfr, ts);
     }
 
     ++conn->last_tx_pkt_num;
@@ -893,7 +901,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       break;
     }
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
-                              &(*pfrc)->fr);
+                              &(*pfrc)->fr, ts);
     if (rv != 0) {
       if (rv == NGTCP2_ERR_NOBUF) {
         break;
@@ -917,7 +925,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
   if (ackfr) {
-    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr);
+    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr, ts);
     if (rv != 0) {
       ngtcp2_mem_free(conn->mem, ackfr);
       if (rv != NGTCP2_ERR_NOBUF) {
@@ -1147,6 +1155,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
         return rv;
       }
 
+      ngtcp2_log_tx_fr(&conn->log, &hd, ackfr, ts);
+
       conn_commit_tx_ack(conn, 1 /* unprotected */);
 
       ack_ent = ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts,
@@ -1197,6 +1207,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       goto fail;
     }
 
+    ngtcp2_log_tx_fr(&conn->log, &hd, fr, ts);
+
     tx_buf->pos += nwrite;
     conn->strm0->tx_offset += nwrite;
   }
@@ -1209,6 +1221,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       if (rv != 0) {
         goto fail;
       }
+      ngtcp2_log_tx_fr(&conn->log, &hd, &paddingfr, ts);
     }
   } else if (conn->state == NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED ||
              conn->state == NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED) {
@@ -1236,6 +1249,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (rv != 0) {
       goto fail;
     }
+
+    ngtcp2_log_tx_fr(&conn->log, &hd, fr, ts);
   }
 
   spktlen = ngtcp2_ppe_final(&ppe, NULL);
@@ -1334,6 +1349,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     goto fail;
   }
+
+  ngtcp2_log_tx_fr(&conn->log, &hd, ackfr, ts);
 
   conn_commit_tx_ack(conn, 1 /* unprotected */);
 
@@ -1625,7 +1642,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   if (ackfr) {
-    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr);
+    rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, ackfr, ts);
     if (rv != 0) {
       goto fail;
     }
@@ -1678,7 +1695,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
-                              &(*pfrc)->fr);
+                              &(*pfrc)->fr, ts);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
       break;
@@ -1705,7 +1722,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->max_remote_stream_id_bidi = conn->unsent_max_remote_stream_id_bidi;
 
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
-                              &(*pfrc)->fr);
+                              &(*pfrc)->fr, ts);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
     } else {
@@ -1728,7 +1745,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->max_remote_stream_id_uni = conn->unsent_max_remote_stream_id_uni;
 
     rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd,
-                              &(*pfrc)->fr);
+                              &(*pfrc)->fr, ts);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
     } else {
@@ -1762,8 +1779,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       *pfrc = nfrc;
       pfrc = &(*pfrc)->next;
 
-      rv =
-          conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, &nfrc->fr);
+      rv = conn_ppe_write_frame(conn, &ppe, &send_pkt_cb_called, &hd, &nfrc->fr,
+                                ts);
       if (rv != 0) {
         assert(NGTCP2_ERR_NOBUF == rv);
         assert(0);
@@ -1876,6 +1893,8 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     return rv;
   }
+
+  ngtcp2_log_tx_fr(&conn->log, &hd, fr, ts);
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
   if (nwrite < 0) {
@@ -2693,6 +2712,8 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return rv;
     }
 
+    ngtcp2_log_rx_fr(&conn->log, &hd, fr, ts);
+
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
       switch (hd.type) {
@@ -3421,6 +3442,8 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
       return rv;
     }
 
+    ngtcp2_log_rx_fr(&conn->log, hd, fr, ts);
+
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
       if (hd->type == NGTCP2_PKT_INITIAL) {
@@ -3705,6 +3728,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     if (rv != 0) {
       return rv;
     }
+
+    ngtcp2_log_rx_fr(&conn->log, &hd, fr, ts);
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
@@ -4419,6 +4444,8 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_frame_chain_del(frc, conn->mem);
     return rv;
   }
+
+  ngtcp2_log_tx_fr(&conn->log, &hd, &frc->fr, ts);
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
   if (nwrite < 0) {

@@ -40,6 +40,7 @@
 #include "ngtcp2_idtr.h"
 #include "ngtcp2_str.h"
 #include "ngtcp2_pkt.h"
+#include "ngtcp2_log.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -174,6 +175,7 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
+  ngtcp2_log log;
   uint64_t conn_id;
   /* client_conn_id is the connection ID chosen by client. */
   uint64_t client_conn_id;

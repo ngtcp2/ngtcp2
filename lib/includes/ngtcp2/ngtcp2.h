@@ -497,6 +497,8 @@ typedef struct {
 } ngtcp2_transport_params;
 
 typedef struct {
+  ngtcp2_tstamp initial_ts;
+  int log_fd;
   uint32_t max_stream_data;
   uint32_t max_data;
   uint32_t max_stream_id_bidi;
