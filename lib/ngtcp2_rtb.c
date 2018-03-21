@@ -48,8 +48,7 @@ void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) { frc->next = NULL; }
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
-                         ngtcp2_tstamp deadline, size_t pktlen, uint8_t flags,
-                         ngtcp2_mem *mem) {
+                         size_t pktlen, uint8_t flags, ngtcp2_mem *mem) {
   (*pent) = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_rtb_entry));
   if (*pent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -58,9 +57,6 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->hd = *hd;
   (*pent)->frc = frc;
   (*pent)->ts = ts;
-  (*pent)->expiry = ts + NGTCP2_INITIAL_EXPIRY;
-  (*pent)->deadline = deadline;
-  (*pent)->count = 0;
   (*pent)->pktlen = pktlen;
   (*pent)->flags = flags;
 
@@ -83,10 +79,6 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
   }
 
   ngtcp2_mem_free(mem, ent);
-}
-
-void ngtcp2_rtb_entry_extend_expiry(ngtcp2_rtb_entry *ent, ngtcp2_tstamp ts) {
-  ent->expiry = ts + ((uint64_t)NGTCP2_INITIAL_EXPIRY << ++ent->count);
 }
 
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
