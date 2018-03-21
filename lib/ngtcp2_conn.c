@@ -4779,6 +4779,7 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
 
     alarm_duration =
         ngtcp2_max(alarm_duration + rcs->max_ack_delay, NGTCP2_MIN_TLP_TIMEOUT);
+    alarm_duration *= 1 << rcs->handshake_count;
 
     rcs->loss_detection_alarm = rcs->last_hs_tx_pkt_ts + alarm_duration;
     return;
