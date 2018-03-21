@@ -2053,11 +2053,6 @@ ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
-  nwrite = conn_retransmit(conn, dest, destlen, ts);
-  if (nwrite != 0) {
-    return nwrite;
-  }
-
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
