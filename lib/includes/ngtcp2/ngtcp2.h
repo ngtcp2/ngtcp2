@@ -1473,6 +1473,21 @@ NGTCP2_EXTERN void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
 NGTCP2_EXTERN void ngtcp2_conn_get_metrics(ngtcp2_conn *conn,
                                            ngtcp2_metrics *mtr);
 
+/**
+ * @function
+ *
+ * `ngtcp2_conn_on_loss_detection_alarm` should be called when a timer
+ * returned from `ngtcp2_conn_earliest_expiry` fires.  This function
+ * performs loss detection, and may write a packet in a buffer pointed
+ * by |dest| of length |destlen| for TLP or RTO probe packet.  If
+ * return value is strictly greater than zero, the function has
+ * written a packet data.
+ *
+ * In general, negative return value means failure.
+ *
+ * TODO we should provide at least 2 buffers because RTO may send 2
+ * probe packets.
+ */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
                                                           uint8_t *dest,
                                                           size_t destlen,
