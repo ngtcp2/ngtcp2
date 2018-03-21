@@ -508,7 +508,14 @@ typedef struct {
   uint8_t ack_delay_exponent;
 } ngtcp2_settings;
 
-/* Everything is nanoseconds resolution. */
+/**
+ * @struct
+ *
+ * ngtcp2_rcvry_stat holds various statistics, and computed data for
+ * recovery from packet loss.
+ *
+ * Everything is nanoseconds resolution.
+ */
 typedef struct {
   uint64_t latest_rtt;
   uint64_t min_rtt;
@@ -528,7 +535,7 @@ typedef struct {
   /* last_hs_tx_pkt_ts corresponds to
      time_of_last_sent_handshake_packet. */
   ngtcp2_tstamp last_hs_tx_pkt_ts;
-} ngtcp2_metrics;
+} ngtcp2_rcvry_stat;
 
 /**
  * @function
@@ -870,17 +877,17 @@ typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
 /*
  * @functypedef
  *
- * :type:`ngtcp2_update_metrics` is a callback function which is
- * called when transport metrics are updated.  |mtr| points to an
- * object which contains an updated metrics.
+ * :type:`ngtcp2_update_rcvry_stat` is a callback function which is
+ * called when RTTs in recovery statistics are updated.  |rcs| points
+ * to an object which contains updated RTTs.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_update_metrics)(ngtcp2_conn *conn,
-                                     const ngtcp2_metrics *mtr,
-                                     void *user_data);
+typedef int (*ngtcp2_update_rcvry_stat)(ngtcp2_conn *conn,
+                                        const ngtcp2_rcvry_stat *rcs,
+                                        void *user_data);
 
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
@@ -908,7 +915,7 @@ typedef struct {
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
   ngtcp2_extend_max_stream_id extend_max_stream_id;
-  ngtcp2_update_metrics update_metrics;
+  ngtcp2_update_rcvry_stat update_rcvry_stat;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -1467,11 +1474,11 @@ NGTCP2_EXTERN void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_metrics` stores transport metrics in the object
- * pointed by |mtr|.
+ * `ngtcp2_conn_get_rcvry_stat` stores recovery information in the
+ * object pointed by |rcs|.
  */
-NGTCP2_EXTERN void ngtcp2_conn_get_metrics(ngtcp2_conn *conn,
-                                           ngtcp2_metrics *mtr);
+NGTCP2_EXTERN void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn,
+                                              ngtcp2_rcvry_stat *rcs);
 
 /**
  * @struct

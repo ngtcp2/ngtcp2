@@ -173,7 +173,7 @@ struct ngtcp2_conn {
   ngtcp2_strm *fc_strms;
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
-  ngtcp2_metrics mtr;
+  ngtcp2_rcvry_stat rcs;
   uint64_t conn_id;
   /* client_conn_id is the connection ID chosen by client. */
   uint64_t client_conn_id;

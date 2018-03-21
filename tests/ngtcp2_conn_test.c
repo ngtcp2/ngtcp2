@@ -1927,7 +1927,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   t += 1000000000;
 
   ent = ngtcp2_rtb_head(&conn->rtb);
-  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->mtr, 1000000007, 1000000007,
+  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
                              ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
@@ -1954,7 +1954,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   t += 1000000000;
 
   ent = ngtcp2_rtb_head(&conn->rtb);
-  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->mtr, 1000000007, 1000000007,
+  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
                              ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, (size_t)(spktlen - 1), ++t);
 
@@ -1989,7 +1989,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   t += 1000000000;
 
   ent = ngtcp2_rtb_head(&conn->rtb);
-  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->mtr, 1000000007, 1000000007,
+  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
                              ++t);
 
   /* This should not send ACK only packet */

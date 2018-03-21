@@ -447,17 +447,17 @@ int recv_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
-int update_metrics(ngtcp2_conn *conn, const ngtcp2_metrics *mtr,
-                   void *user_data) {
+int update_rcvry_stat(ngtcp2_conn *conn, const ngtcp2_rcvry_stat *rcs,
+                      void *user_data) {
   print_indent();
   fprintf(
       outfile,
       "; latest_rtt=%s min_rtt=%s smoothed_rtt=%s rttvar=%s max_ack_delay=%s\n",
-      util::format_duration(mtr->latest_rtt).c_str(),
-      util::format_duration(mtr->min_rtt).c_str(),
-      util::format_duration(mtr->smoothed_rtt).c_str(),
-      util::format_duration(mtr->rttvar).c_str(),
-      util::format_duration(mtr->max_ack_delay).c_str());
+      util::format_duration(rcs->latest_rtt).c_str(),
+      util::format_duration(rcs->min_rtt).c_str(),
+      util::format_duration(rcs->smoothed_rtt).c_str(),
+      util::format_duration(rcs->rttvar).c_str(),
+      util::format_duration(rcs->max_ack_delay).c_str());
   return 0;
 }
 

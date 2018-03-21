@@ -194,11 +194,11 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   return 0;
 }
 
-static void on_pkt_acked(ngtcp2_metrics *mtr) {
+static void on_pkt_acked(ngtcp2_rcvry_stat *rcs) {
   /* TODO Do OnRetransmissionTimeoutVerified() */
-  mtr->handshake_count = 0;
-  mtr->tlp_count = 0;
-  mtr->rto_count = 0;
+  rcs->handshake_count = 0;
+  rcs->tlp_count = 0;
+  rcs->rto_count = 0;
 }
 
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
@@ -241,7 +241,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
             return rv;
           }
         }
-        on_pkt_acked(&conn->mtr);
+        on_pkt_acked(&conn->rcs);
       }
       rtb->largest_acked_tx_pkt_num = ngtcp2_max(rtb->largest_acked_tx_pkt_num,
                                                  (int64_t)(*pent)->hd.pkt_num);
@@ -276,7 +276,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           }
         }
 
-        on_pkt_acked(&conn->mtr);
+        on_pkt_acked(&conn->rcs);
       }
       rtb->largest_acked_tx_pkt_num = ngtcp2_max(rtb->largest_acked_tx_pkt_num,
                                                  (int64_t)(*pent)->hd.pkt_num);
@@ -289,18 +289,18 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   return 0;
 }
 
-static int pkt_lost(ngtcp2_metrics *mtr, const ngtcp2_rtb_entry *ent,
+static int pkt_lost(ngtcp2_rcvry_stat *rcs, const ngtcp2_rtb_entry *ent,
                     uint64_t delay_until_lost, uint64_t largest_ack,
                     ngtcp2_tstamp ts) {
   uint64_t time_since_sent = ts - ent->ts;
   uint64_t delta = largest_ack - ent->hd.pkt_num;
 
-  if (time_since_sent > delay_until_lost || delta > mtr->reordering_threshold) {
+  if (time_since_sent > delay_until_lost || delta > rcs->reordering_threshold) {
     return 1;
   }
 
-  if (mtr->loss_time == 0 && delay_until_lost != UINT64_MAX) {
-    mtr->loss_time = ts + delay_until_lost - time_since_sent;
+  if (rcs->loss_time == 0 && delay_until_lost != UINT64_MAX) {
+    rcs->loss_time = ts + delay_until_lost - time_since_sent;
   }
 
   return 0;
@@ -310,32 +310,32 @@ static int pkt_lost(ngtcp2_metrics *mtr, const ngtcp2_rtb_entry *ent,
  * rtb_compute_pkt_loss_delay computes delay until packet is
  * considered lost in nanoseconds resolution.
  */
-static uint64_t compute_pkt_loss_delay(const ngtcp2_metrics *mtr,
+static uint64_t compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs,
                                        uint64_t largest_ack,
                                        uint64_t last_tx_pkt_num) {
   /* TODO Implement time loss detection */
   if (largest_ack == last_tx_pkt_num) {
-    return (uint64_t)(ngtcp2_max(mtr->latest_rtt, mtr->smoothed_rtt) * 5 / 4);
+    return (uint64_t)(ngtcp2_max(rcs->latest_rtt, rcs->smoothed_rtt) * 5 / 4);
   }
 
   return UINT64_MAX;
 }
 
-void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_metrics *mtr,
+void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                                 uint64_t largest_ack, uint64_t last_tx_pkt_num,
                                 ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry **pent, *ent, *tail;
   uint64_t delay_until_lost;
 
-  mtr->loss_time = 0;
-  delay_until_lost = compute_pkt_loss_delay(mtr, largest_ack, last_tx_pkt_num);
+  rcs->loss_time = 0;
+  delay_until_lost = compute_pkt_loss_delay(rcs, largest_ack, last_tx_pkt_num);
 
   for (pent = &rtb->head; *pent && (*pent)->hd.pkt_num >= largest_ack;
        pent = &(*pent)->next)
     ;
 
   for (; *pent; pent = &(*pent)->next) {
-    if (pkt_lost(mtr, *pent, delay_until_lost, largest_ack, ts)) {
+    if (pkt_lost(rcs, *pent, delay_until_lost, largest_ack, ts)) {
       /* All entries from *pent are considered to be lost. */
       ent = *pent;
       *pent = NULL;

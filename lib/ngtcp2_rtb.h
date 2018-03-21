@@ -182,7 +182,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                         uint8_t unprotected, ngtcp2_conn *conn,
                         ngtcp2_tstamp ts);
 
-void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_metrics *mtr,
+void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                                 uint64_t largest_ack, uint64_t last_tx_pkt_num,
                                 ngtcp2_tstamp ts);
 

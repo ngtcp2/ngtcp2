@@ -69,8 +69,8 @@ int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 int recv_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                          const ngtcp2_pkt_stateless_reset *sr, void *user_data);
 
-int update_metrics(ngtcp2_conn *conn, const ngtcp2_metrics *mtr,
-                   void *user_data);
+int update_rcvry_stat(ngtcp2_conn *conn, const ngtcp2_rcvry_stat *rcs,
+                      void *user_data);
 
 void print_transport_params(const ngtcp2_transport_params *params, int type);
 
