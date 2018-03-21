@@ -2014,16 +2014,14 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
     }
 
-    if (!conn->early_rtb) {
-      return 0;
+    if (conn->early_rtb) {
+      rv = conn_process_early_rtb(conn);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
-    rv = conn_process_early_rtb(conn);
-    if (rv != 0) {
-      return rv;
-    }
-
-    return conn_retransmit(conn, dest, destlen, ts);
+    return conn_write_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
     return conn_write_client_handshake(conn, dest, destlen, ts);
   case NGTCP2_CS_SERVER_INITIAL:
