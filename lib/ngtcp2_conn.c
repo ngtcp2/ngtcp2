@@ -616,8 +616,14 @@ static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
   return conn_call_send_frame(conn, hd, fr);
 }
 
-static void conn_rtb_add(ngtcp2_conn *conn, ngtcp2_rtb_entry *ent) {
+static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb_entry *ent) {
+  /* This function implements OnPacketSent, but it handles only
+     retransmittable packet (non-ACK only packet). */
   ngtcp2_rtb_add(&conn->rtb, ent);
+  if (ent->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
+    conn->mtr.last_hs_tx_pkt_ts = ent->ts;
+  }
+  conn->mtr.last_tx_pkt_ts = ent->ts;
   ngtcp2_conn_set_loss_detection_alarm(conn);
 }
 
@@ -1062,7 +1068,7 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     ent->pktlen = (size_t)nwrite;
     ent->ts = ts;
-    conn_rtb_add(conn, ent);
+    conn_on_pkt_sent(conn, ent);
 
     return nwrite;
   }
@@ -1244,7 +1250,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       goto fail;
     }
 
-    conn_rtb_add(conn, rtbent);
+    conn_on_pkt_sent(conn, rtbent);
   } else if (ack_ent) {
     ack_ent->ack_only = 1;
   }
@@ -1788,7 +1794,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->frq = *pfrc;
     *pfrc = NULL;
 
-    conn_rtb_add(conn, ent);
+    conn_on_pkt_sent(conn, ent);
 
     if (send_stream) {
       data_strm->tx_offset += ndatalen;
@@ -1963,7 +1969,7 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
       next = ent->next;
       /* TODO We don't nullify ent->next here.  This is OK because we
          always assign it in ngtcp2_rtb_add(). */
-      conn_rtb_add(conn, ent);
+      conn_on_pkt_sent(conn, ent);
       ent = next;
     }
   }
@@ -4782,21 +4788,29 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
 
     alarm_duration =
         ngtcp2_max(alarm_duration + mtr->max_ack_delay, NGTCP2_MIN_TLP_TIMEOUT);
-  } else if (mtr->loss_time) {
+
+    mtr->loss_detection_alarm = mtr->last_hs_tx_pkt_ts + alarm_duration;
+    return;
+  }
+
+  if (mtr->loss_time) {
     assert(mtr->loss_time >= ent->ts);
-    alarm_duration = mtr->loss_time - ent->ts;
-  } else if (mtr->tlp_count < NGTCP2_MAX_TLP_COUNT) {
-    alarm_duration =
-        ngtcp2_max((uint64_t)(1.5 * mtr->smoothed_rtt + mtr->max_ack_delay),
-                   NGTCP2_MIN_TLP_TIMEOUT);
+    alarm_duration = mtr->loss_time - mtr->last_tx_pkt_ts;
   } else {
     alarm_duration =
         (uint64_t)(mtr->smoothed_rtt + 4 * mtr->rttvar + mtr->max_ack_delay);
     alarm_duration = ngtcp2_max(alarm_duration, NGTCP2_MIN_RTO_TIMEOUT);
     alarm_duration *= 1 << mtr->rto_count;
+
+    if (mtr->tlp_count < NGTCP2_MAX_TLP_COUNT) {
+      uint64_t tlp_alarm_duration =
+          ngtcp2_max((uint64_t)(1.5 * mtr->smoothed_rtt + mtr->max_ack_delay),
+                     NGTCP2_MIN_TLP_TIMEOUT);
+      alarm_duration = ngtcp2_min(alarm_duration, tlp_alarm_duration);
+    }
   }
 
-  mtr->loss_detection_alarm = ent->ts + alarm_duration;
+  mtr->loss_detection_alarm = mtr->last_tx_pkt_ts + alarm_duration;
 }
 
 static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,

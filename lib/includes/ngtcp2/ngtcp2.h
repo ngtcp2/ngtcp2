@@ -522,6 +522,12 @@ typedef struct {
   size_t handshake_count;
   uint64_t loss_detection_alarm;
   uint64_t largest_sent_before_rto;
+  /* last_tx_pkt_ts corresponds to
+     time_of_last_sent_retransmittable_packet. */
+  ngtcp2_tstamp last_tx_pkt_ts;
+  /* last_hs_tx_pkt_ts corresponds to
+     time_of_last_sent_handshake_packet. */
+  ngtcp2_tstamp last_hs_tx_pkt_ts;
 } ngtcp2_metrics;
 
 /**

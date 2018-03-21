@@ -311,11 +311,11 @@ static int pkt_lost(ngtcp2_metrics *mtr, const ngtcp2_rtb_entry *ent,
  * rtb_compute_pkt_loss_delay computes delay until packet is
  * considered lost in nanoseconds resolution.
  */
-static uint64_t rtb_compute_pkt_loss_delay(ngtcp2_rtb *rtb,
-                                           const ngtcp2_metrics *mtr,
-                                           uint64_t last_tx_pkt_num) {
+static uint64_t compute_pkt_loss_delay(const ngtcp2_metrics *mtr,
+                                       uint64_t largest_ack,
+                                       uint64_t last_tx_pkt_num) {
   /* TODO Implement time loss detection */
-  if ((uint64_t)rtb->largest_ack == last_tx_pkt_num) {
+  if (largest_ack == last_tx_pkt_num) {
     return (uint64_t)(ngtcp2_max(mtr->latest_rtt, mtr->smoothed_rtt) * 5 / 4);
   }
 
@@ -329,7 +329,7 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_metrics *mtr,
   uint64_t delay_until_lost;
 
   mtr->loss_time = 0;
-  delay_until_lost = rtb_compute_pkt_loss_delay(rtb, mtr, last_tx_pkt_num);
+  delay_until_lost = compute_pkt_loss_delay(mtr, largest_ack, last_tx_pkt_num);
 
   for (pent = &rtb->head; *pent && (*pent)->hd.pkt_num >= largest_ack;
        pent = &(*pent)->next)
