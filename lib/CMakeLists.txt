@@ -51,6 +51,7 @@ set(ngtcp2_SOURCES
   ngtcp2_idtr.c
   ngtcp2_gaptr.c
   ngtcp2_ringbuf.c
+  ngtcp2_log.c
 )
 
 # Public shared library
