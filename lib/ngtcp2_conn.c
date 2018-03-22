@@ -3356,6 +3356,8 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   conn->state = NGTCP2_CS_DRAINING;
 
+  ngtcp2_log_rx_sr(&conn->log, hd, &sr);
+
   if (!conn->callbacks.recv_stateless_reset) {
     return 0;
   }

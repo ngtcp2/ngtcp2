@@ -469,6 +469,17 @@ void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   }
 }
 
+void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                      const ngtcp2_pkt_stateless_reset *sr) {
+  char buf[NGTCP2_STATELESS_RESET_TOKENLEN + 1];
+
+  log_printf(log, (NGTCP2_LOG_PKT " token=%s randlen=%zu\n"),
+             NGTCP2_LOG_PKT_HD_FIELDS("rx"),
+             ngtcp2_encode_hex(buf, sr->stateless_reset_token,
+                               sizeof(sr->stateless_reset_token)),
+             sr->randlen);
+}
+
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                          ngtcp2_tstamp sent_ts, int unprotected) {
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_RCV,

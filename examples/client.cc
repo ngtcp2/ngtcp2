@@ -606,7 +606,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       recv_stream_data,
       acked_stream_data_offset,
       stream_close,
-      config.quiet ? nullptr : debug::recv_stateless_reset,
+      nullptr, // recv_stateless_reset,
       recv_server_stateless_retry,
       extend_max_stream_id,
       nullptr, // update_rcvry_stat
