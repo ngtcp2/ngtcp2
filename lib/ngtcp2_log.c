@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "ngtcp2_str.h"
 
@@ -208,7 +209,8 @@ static void log_printf(ngtcp2_log *log, const char *fmt, ...) {
     return;
   }
 
-  (void)write(log->fd, buf, (size_t)n);
+  while (write(log->fd, buf, (size_t)n) == -1 && errno == EINTR)
+    ;
 }
 
 static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
