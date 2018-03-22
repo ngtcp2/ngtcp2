@@ -208,7 +208,7 @@ static void log_printf(ngtcp2_log *log, const char *fmt, ...) {
     return;
   }
 
-  write(log->fd, buf, (size_t)n);
+  (void)write(log->fd, buf, (size_t)n);
 }
 
 static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
