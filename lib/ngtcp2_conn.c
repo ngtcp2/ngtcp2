@@ -4833,7 +4833,7 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
 
     alarm_duration =
         ngtcp2_max(alarm_duration + rcs->max_ack_delay, NGTCP2_MIN_TLP_TIMEOUT);
-    alarm_duration *= 1 << rcs->handshake_count;
+    alarm_duration *= 1ull << rcs->handshake_count;
 
     rcs->loss_detection_alarm = rcs->last_hs_tx_pkt_ts + alarm_duration;
 
@@ -4849,15 +4849,15 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
     assert(rcs->loss_time >= ent->ts);
     alarm_duration = rcs->loss_time - rcs->last_tx_pkt_ts;
   } else {
-    alarm_duration =
-        (uint64_t)(rcs->smoothed_rtt + 4 * rcs->rttvar + rcs->max_ack_delay);
+    alarm_duration = (uint64_t)(rcs->smoothed_rtt + 4 * rcs->rttvar +
+                                (double)rcs->max_ack_delay);
     alarm_duration = ngtcp2_max(alarm_duration, NGTCP2_MIN_RTO_TIMEOUT);
-    alarm_duration *= 1 << rcs->rto_count;
+    alarm_duration *= 1ull << rcs->rto_count;
 
     if (rcs->tlp_count < NGTCP2_MAX_TLP_COUNT) {
-      uint64_t tlp_alarm_duration =
-          ngtcp2_max((uint64_t)(1.5 * rcs->smoothed_rtt + rcs->max_ack_delay),
-                     NGTCP2_MIN_TLP_TIMEOUT);
+      uint64_t tlp_alarm_duration = ngtcp2_max(
+          (uint64_t)(1.5 * rcs->smoothed_rtt + (double)rcs->max_ack_delay),
+          NGTCP2_MIN_TLP_TIMEOUT);
       alarm_duration = ngtcp2_min(alarm_duration, tlp_alarm_duration);
     }
   }

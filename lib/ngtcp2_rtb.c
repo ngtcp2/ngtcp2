@@ -317,7 +317,8 @@ static uint64_t compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs,
                                        uint64_t last_tx_pkt_num) {
   /* TODO Implement time loss detection */
   if (largest_ack == last_tx_pkt_num) {
-    return (uint64_t)(ngtcp2_max(rcs->latest_rtt, rcs->smoothed_rtt) * 5 / 4);
+    return (uint64_t)(ngtcp2_max((double)rcs->latest_rtt, rcs->smoothed_rtt) *
+                      5 / 4);
   }
 
   return UINT64_MAX;
