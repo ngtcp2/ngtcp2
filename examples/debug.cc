@@ -418,7 +418,6 @@ int recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 }
 
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
-  print_timestamp();
   fprintf(outfile, "QUIC handshake has completed\n");
   return 0;
 }

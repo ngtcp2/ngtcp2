@@ -475,7 +475,6 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
   if (ngtcp2_conn_in_closing_period(h->conn())) {
     if (!config.quiet) {
-      debug::print_timestamp();
       std::cerr << "Closing Period is over" << std::endl;
     }
 
@@ -484,7 +483,6 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
   if (h->draining()) {
     if (!config.quiet) {
-      debug::print_timestamp();
       std::cerr << "Draining Period is over" << std::endl;
     }
 
@@ -493,7 +491,6 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
 
   if (!config.quiet) {
-    debug::print_timestamp();
     std::cerr << "Timeout" << std::endl;
   }
 
@@ -550,7 +547,6 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
 
 Handler::~Handler() {
   if (!config.quiet) {
-    debug::print_timestamp();
     std::cerr << "Closing QUIC connection" << std::endl;
   }
 
@@ -1446,7 +1442,6 @@ void Handler::start_draining_period() {
   timer_.repeat = 15.;
   ev_timer_again(loop_, &timer_);
 
-  debug::print_timestamp();
   std::cerr << "Draining period has started" << std::endl;
 }
 
@@ -1460,7 +1455,6 @@ int Handler::start_closing_period(int liberr) {
   timer_.repeat = 15.;
   ev_timer_again(loop_, &timer_);
 
-  debug::print_timestamp();
   std::cerr << "Closing period has started" << std::endl;
 
   sendbuf_.reset();
@@ -1500,7 +1494,6 @@ int Handler::handle_error(int liberr) {
 
 int Handler::send_conn_close() {
   if (!config.quiet) {
-    debug::print_timestamp();
     std::cerr << "Closing Period: TX CONNECTION_CLOSE" << std::endl;
   }
 
@@ -1836,7 +1829,6 @@ int Server::on_read() {
       return 0;
     }
     if (!config.quiet) {
-      debug::print_timestamp();
       fprintf(stderr, "Forward CID=%016" PRIx64 " to CID=%016" PRIx64 "\n",
               (*ctos_it).first, (*ctos_it).second);
     }

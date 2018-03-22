@@ -214,7 +214,6 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
   if (!config.quiet) {
-    debug::print_timestamp();
     std::cerr << "Timeout" << std::endl;
   }
 
@@ -855,7 +854,6 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
   }
   if (ngtcp2_conn_in_draining_period(conn_)) {
     if (!config.quiet) {
-      debug::print_timestamp();
       std::cerr << "QUIC connection has been closed by peer" << std::endl;
     }
     return -1;
