@@ -33,12 +33,16 @@
 
 typedef enum {
   NGTCP2_LOG_EVENT_NONE,
-  /* packet realted event */
+  /* packet event */
   NGTCP2_LOG_EVENT_PKT,
-  /* recovery related event */
+  /* frame event */
+  NGTCP2_LOG_EVENT_FRM,
+  /* recovery event */
   NGTCP2_LOG_EVENT_RCV,
-  /* TLS related event */
-  NGTCP2_LOG_EVENT_TLS,
+  /* crypto event */
+  NGTCP2_LOG_EVENT_CRY,
+  /* connection (catch-all) event */
+  NGTCP2_LOG_EVENT_CON,
 } ngtcp2_log_event;
 
 struct ngtcp2_log {
@@ -58,9 +62,6 @@ typedef struct ngtcp2_log ngtcp2_log;
 
 void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
                      ngtcp2_tstamp ts);
-
-void ngtcp2_log_rx_pkt(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
-void ngtcp2_log_tx_pkt(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 
 void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr);

@@ -3897,7 +3897,7 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
   conn->log.last_ts = ts;
 
-  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT, "recv packet len=%zu",
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
                   pktlen);
 
   if (pktlen == 0) {
