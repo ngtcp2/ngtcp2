@@ -89,6 +89,10 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
   log->last_ts - log->ts, hd->conn_id, "frm", hd->pkt_num, dir,                \
       strpkttype(hd), hd->type
 
+#define NGTCP2_LOG_PKT_HD_FIELDS                                               \
+  log->last_ts - log->ts, hd->conn_id, "pkt", hd->pkt_num, dir,                \
+      strpkttype(hd), hd->type
+
 static const char *strerrorcode(uint16_t error_code) {
   switch (error_code) {
   case NGTCP2_NO_ERROR:
@@ -453,6 +457,17 @@ void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 void ngtcp2_log_tx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr) {
   log_fr(log, hd, fr, "tx");
+}
+
+void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                      const uint32_t *sv, size_t nsv) {
+  static const char *dir = "rx";
+  size_t i;
+
+  for (i = 0; i < nsv; ++i) {
+    log_printf(log, (NGTCP2_LOG_PKT " v=0x%08x\n"), NGTCP2_LOG_PKT_HD_FIELDS,
+               sv[i]);
+  }
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

@@ -2112,15 +2112,11 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
                                        size_t payloadlen) {
   uint32_t sv[16];
   uint32_t *p;
-  int rv;
+  int rv = 0;
   size_t nsv;
 
   if (payloadlen % sizeof(uint32_t)) {
     return NGTCP2_ERR_PROTO;
-  }
-
-  if (!conn->callbacks.recv_version_negotiation) {
-    return 0;
   }
 
   if (payloadlen > sizeof(sv)) {
@@ -2134,8 +2130,12 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 
   nsv = ngtcp2_pkt_decode_version_negotiation(p, payload, payloadlen);
 
-  rv = conn->callbacks.recv_version_negotiation(conn, hd, sv, nsv,
-                                                conn->user_data);
+  ngtcp2_log_rx_vn(&conn->log, hd, sv, nsv);
+
+  if (conn->callbacks.recv_version_negotiation) {
+    rv = conn->callbacks.recv_version_negotiation(conn, hd, sv, nsv,
+                                                  conn->user_data);
+  }
 
   if (p != sv) {
     ngtcp2_mem_free(conn->mem, p);

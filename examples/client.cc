@@ -598,7 +598,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       nullptr, // recv_pkt
       nullptr, // recv_frame
       handshake_completed,
-      config.quiet ? nullptr : debug::recv_version_negotiation,
+      nullptr, // recv_version_negotiation
       do_hs_encrypt,
       do_hs_decrypt,
       do_encrypt,
