@@ -237,11 +237,8 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           }
         }
         if (largest_ack == (*pent)->hd.pkt_num) {
-          rv = ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts,
-                                      fr->ack_delay_unscaled, 0 /* ack_only */);
-          if (rv != 0) {
-            return rv;
-          }
+          ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts, fr->ack_delay_unscaled,
+                                 0 /* ack_only */);
         }
         on_pkt_acked(&conn->rcs);
       }

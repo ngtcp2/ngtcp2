@@ -609,7 +609,6 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       nullptr, // recv_stateless_reset,
       recv_server_stateless_retry,
       extend_max_stream_id,
-      nullptr, // update_rcvry_stat
   };
 
   auto conn_id = std::uniform_int_distribution<uint64_t>(

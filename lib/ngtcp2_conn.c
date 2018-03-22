@@ -207,22 +207,6 @@ static int conn_call_extend_max_stream_id(ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_call_update_rcvry_stat(ngtcp2_conn *conn) {
-  int rv;
-
-  if (!conn->callbacks.update_rcvry_stat) {
-    return 0;
-  }
-
-  rv = conn->callbacks.update_rcvry_stat(conn, &conn->rcs, conn->user_data);
-
-  if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
-}
-
 static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
                     const ngtcp2_conn_callbacks *callbacks,
                     const ngtcp2_settings *settings, void *user_data,
@@ -4772,8 +4756,8 @@ void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
 }
 
-int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
-                           int ack_only) {
+void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
+                            int ack_only) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
 
   rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
@@ -4800,8 +4784,6 @@ int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
                   " smoothed_rtt=%.3f rttvar=%.3f max_ack_delay=%" PRIu64,
                   rcs->latest_rtt, rcs->min_rtt, rcs->smoothed_rtt, rcs->rttvar,
                   rcs->max_ack_delay);
-
-  return conn_call_update_rcvry_stat(conn);
 }
 
 void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
