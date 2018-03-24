@@ -394,10 +394,6 @@ static void log_fr_pong(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
-  if (log->fd == -1) {
-    return;
-  }
-
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
     log_fr_stream(log, hd, &fr->stream, dir);
@@ -454,17 +450,29 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr) {
+  if (log->fd == -1) {
+    return;
+  }
+
   log_fr(log, hd, fr, "rx");
 }
 
 void ngtcp2_log_tx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr) {
+  if (log->fd == -1) {
+    return;
+  }
+
   log_fr(log, hd, fr, "tx");
 }
 
 void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const uint32_t *sv, size_t nsv) {
   size_t i;
+
+  if (log->fd == -1) {
+    return;
+  }
 
   for (i = 0; i < nsv; ++i) {
     log_printf(log, (NGTCP2_LOG_PKT " v=0x%08x\n"),
@@ -476,6 +484,10 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_pkt_stateless_reset *sr) {
   char buf[NGTCP2_STATELESS_RESET_TOKENLEN + 1];
 
+  if (log->fd == -1) {
+    return;
+  }
+
   log_printf(log, (NGTCP2_LOG_PKT " token=%s randlen=%zu\n"),
              NGTCP2_LOG_PKT_HD_FIELDS("rx"),
              ngtcp2_encode_hex(buf, sr->stateless_reset_token,
@@ -485,6 +497,10 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                          ngtcp2_tstamp sent_ts, int unprotected) {
+  if (log->fd == -1) {
+    return;
+  }
+
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_RCV,
                   "packet lost %" PRIu64 " sent_ts=%" PRIu64 " unprotected=%d",
                   hd->pkt_num, sent_ts, unprotected != 0);
