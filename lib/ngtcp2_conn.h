@@ -46,7 +46,6 @@ typedef enum {
   /* Client specific handshake states */
   NGTCP2_CS_CLIENT_INITIAL,
   NGTCP2_CS_CLIENT_WAIT_HANDSHAKE,
-  NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED,
   NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED,
   /* Server specific handshake states */
   NGTCP2_CS_SERVER_INITIAL,

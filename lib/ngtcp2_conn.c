@@ -1983,7 +1983,6 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               ngtcp2_tstamp ts) {
   ssize_t nwrite;
-  int rv;
 
   conn->log.last_ts = ts;
 
@@ -1998,48 +1997,12 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
-    nwrite = conn_write_client_initial(conn, dest, destlen, ts);
-    if (nwrite < 0) {
-      return nwrite;
-    }
-    conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
-    return nwrite;
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-    return conn_write_client_handshake(conn, dest, destlen, ts);
-  case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
-    nwrite = conn_write_client_handshake(conn, dest, destlen, ts);
-    if (nwrite != 0) {
-      return nwrite;
-    }
-
-    conn->state = NGTCP2_CS_POST_HANDSHAKE;
-    conn->final_hs_tx_offset = conn->strm0->tx_offset;
-    if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
-      return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
-    }
-
-    if (conn->early_rtb) {
-      rv = conn_process_early_rtb(conn);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-
-    return conn_write_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-    return conn_write_client_handshake(conn, dest, destlen, ts);
   case NGTCP2_CS_SERVER_INITIAL:
-    nwrite = conn_write_server_handshake(conn, dest, destlen, 1, ts);
-    if (nwrite < 0) {
-      return nwrite;
-    }
-    conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
-    return nwrite;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    return conn_write_server_handshake(conn, dest, destlen, 0, ts);
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
-    return conn_write_server_handshake(conn, dest, destlen,
-                                       conn->strm0->tx_offset == 0, ts);
+    return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_POST_HANDSHAKE:
     return conn_write_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
   default:
@@ -2060,12 +2023,11 @@ ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-  case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
+  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                          NGTCP2_PKT_HANDSHAKE, ts);
-    break;
+  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+    return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_POST_HANDSHAKE:
     nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
     break;
@@ -2561,6 +2523,10 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   const uint8_t *payload;
   size_t payloadlen;
   ssize_t nwrite;
+
+  if (pktlen == 0) {
+    return 0;
+  }
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
     if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
@@ -3891,71 +3857,13 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   }
 
   switch (conn->state) {
+  case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
-    if (rv < 0) {
-      if (rv == NGTCP2_ERR_TLS_HANDSHAKE) {
-        conn->state = NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED;
-        rv = 0;
-      }
-      break;
-    }
-    if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
-      rv = conn_handshake_completed(conn);
-      if (rv != 0) {
-        return rv;
-      }
-      conn->state = NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED;
-
-      rv = conn_process_buffered_protected_pkt(conn, ts);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-    break;
+  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
-    if (rv < 0) {
-      if (rv == NGTCP2_ERR_TLS_HANDSHAKE) {
-        conn->state = NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED;
-        rv = 0;
-      }
-      break;
-    }
-    if (conn->state == NGTCP2_CS_SERVER_INITIAL &&
-        (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
-      /* Process re-ordered 0-RTT Protected packets. */
-      rv = conn_process_buffered_0rtt_pkt(conn, ts);
-      break;
-    }
-    if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
-      rv = conn_handshake_completed(conn);
-      if (rv != 0) {
-        return rv;
-      }
-      conn->state = NGTCP2_CS_POST_HANDSHAKE;
-      conn->final_hs_tx_offset = conn->strm0->tx_offset;
-      if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
-        return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
-      }
-
-      rv = conn_process_buffered_protected_pkt(conn, ts);
-      if (rv != 0) {
-        return rv;
-      }
-
-      conn->flags |= NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
-    }
-    break;
-  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
-    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
-    if (rv < 0) {
-      break;
-    }
-    break;
-  case NGTCP2_CS_CLIENT_HANDSHAKE_ALMOST_FINISHED:
+    return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_POST_HANDSHAKE:
     rv = conn_recv_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
@@ -3965,6 +3873,168 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   }
 
   return rv;
+}
+
+ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                              const uint8_t *pkt, size_t pktlen,
+                              ngtcp2_tstamp ts) {
+  int rv;
+  ssize_t nwrite;
+
+  conn->log.last_ts = ts;
+
+  if (pktlen > 0) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
+                    pktlen);
+  }
+
+  if (conn->last_tx_pkt_num == UINT64_MAX) {
+    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
+  }
+
+  nwrite = conn_retransmit(conn, dest, destlen, ts);
+  if (nwrite != 0) {
+    return nwrite;
+  }
+
+  switch (conn->state) {
+  case NGTCP2_CS_CLIENT_INITIAL:
+    if (pktlen > 0) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    nwrite = conn_write_client_initial(conn, dest, destlen, ts);
+    if (nwrite < 0) {
+      return nwrite;
+    }
+    conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
+
+    return nwrite;
+  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
+    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    if (rv < 0) {
+      if (rv != NGTCP2_ERR_TLS_HANDSHAKE) {
+        return (ssize_t)rv;
+      }
+      conn->state = NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED;
+      rv = 0;
+      return conn_write_client_handshake(conn, dest, destlen, ts);
+    }
+
+    /* Retry packet has received */
+    if (conn->state == NGTCP2_CS_CLIENT_INITIAL) {
+      nwrite = conn_write_client_initial(conn, dest, destlen, ts);
+      if (nwrite < 0) {
+        return nwrite;
+      }
+      conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
+
+      return nwrite;
+    }
+
+    nwrite = conn_write_client_handshake(conn, dest, destlen, ts);
+    if (nwrite < 0) {
+      return nwrite;
+    }
+
+    if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+      return nwrite;
+    }
+
+    if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
+      return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+    }
+
+    rv = conn_handshake_completed(conn);
+    if (rv != 0) {
+      return (ssize_t)rv;
+    }
+
+    conn->state = NGTCP2_CS_POST_HANDSHAKE;
+    conn->final_hs_tx_offset = conn->strm0->tx_offset;
+
+    rv = conn_process_buffered_protected_pkt(conn, ts);
+    if (rv != 0) {
+      return (ssize_t)rv;
+    }
+
+    if (conn->early_rtb) {
+      rv = conn_process_early_rtb(conn);
+      if (rv != 0) {
+        return (ssize_t)rv;
+      }
+    }
+
+    return nwrite;
+  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
+    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    if (rv != 0) {
+      return (ssize_t)rv;
+    }
+    return conn_write_client_handshake(conn, dest, destlen, ts);
+  case NGTCP2_CS_SERVER_INITIAL:
+  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
+    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    if (rv < 0) {
+      if (rv != NGTCP2_ERR_TLS_HANDSHAKE) {
+        return (ssize_t)rv;
+      }
+
+      conn->state = NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED;
+
+      return conn_write_server_handshake(conn, dest, destlen,
+                                         conn->strm0->tx_offset == 0, ts);
+    }
+
+    if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
+      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+        conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
+
+        /* Process re-ordered 0-RTT Protected packets which were
+           arrived before Initial packet. */
+        rv = conn_process_buffered_0rtt_pkt(conn, ts);
+        if (rv != 0) {
+          /* TODO Probably better to write a Handshake packet containing
+             CONNECTION_CLOSE frame */
+          return (ssize_t)rv;
+        }
+      }
+
+      return conn_write_server_handshake(conn, dest, destlen, 1, ts);
+    }
+
+    if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+      return conn_write_server_handshake(conn, dest, destlen,
+                                         conn->strm0->tx_offset == 0, ts);
+    }
+
+    if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
+      return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+    }
+
+    rv = conn_handshake_completed(conn);
+    if (rv != 0) {
+      return (ssize_t)rv;
+    }
+    conn->state = NGTCP2_CS_POST_HANDSHAKE;
+    conn->final_hs_tx_offset = conn->strm0->tx_offset;
+
+    rv = conn_process_buffered_protected_pkt(conn, ts);
+    if (rv != 0) {
+      return (ssize_t)rv;
+    }
+
+    conn->flags |= NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
+
+    return 0;
+  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    if (rv != 0) {
+      return (ssize_t)rv;
+    }
+    return conn_write_server_handshake(conn, dest, destlen, 0, ts);
+  default:
+    return 0;
+  }
 }
 
 void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {

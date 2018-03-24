@@ -147,6 +147,8 @@ public:
   int write_streams();
   int on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);
+  int do_handshake(const uint8_t *data, size_t datalen);
+  ssize_t do_handshake_once(const uint8_t *data, size_t datalen);
   void schedule_retransmit();
 
   int write_client_handshake(const uint8_t *data, size_t datalen);

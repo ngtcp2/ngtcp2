@@ -971,6 +971,31 @@ NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
  */
 NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 
+/*
+ * @function
+ *
+ * `ngtcp2_conn_handshake` performs QUIC cryptographic handshake.  If
+ * |pktlen| is nonzero, the function reads a packet pointed by |pkt|.
+ * It may write a packet in the given buffer pointed by |dest| whose
+ * capacity is given as |destlen|.  Application must ensure that the
+ * buffer pointed by |dest| is not empty.
+ *
+ * Application should call this function until
+ * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
+ * completion of handshake, `ngtcp2_conn_recv` and
+ * `ngtcp2_conn_write_pkt` should be called instead.
+ *
+ * During handshake, application can send 0-RTT data (or its response)
+ * using `ngtcp2_conn_write_stream`.
+ *
+ * This function returns the number of bytes written to the buffer
+ * pointed by |dest| if it succeeds, or one of the following negative
+ * error codes: (TBD).
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
+                                            size_t destlen, const uint8_t *pkt,
+                                            size_t pktlen, ngtcp2_tstamp ts);
+
 NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts);
 

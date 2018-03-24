@@ -1234,16 +1234,80 @@ ssize_t Handler::decrypt_data(uint8_t *dest, size_t destlen,
                          key, keylen, nonce, noncelen, ad, adlen);
 }
 
+ssize_t Handler::do_handshake_once(const uint8_t *data, size_t datalen) {
+  auto nwrite = ngtcp2_conn_handshake(conn_, sendbuf_.wpos(), max_pktlen_, data,
+                                      datalen, util::timestamp());
+  if (nwrite < 0) {
+    std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
+              << std::endl;
+    return -1;
+  }
+
+  if (nwrite == 0) {
+    return 0;
+  }
+
+  sendbuf_.push(nwrite);
+
+  auto rv = server_->send_packet(remote_addr_, sendbuf_);
+  if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+    schedule_retransmit();
+    return rv;
+  }
+  if (rv != NETWORK_ERR_OK) {
+    return rv;
+  }
+
+  return nwrite;
+}
+
+int Handler::do_handshake(const uint8_t *data, size_t datalen) {
+  ssize_t nwrite;
+
+  if (sendbuf_.size() > 0) {
+    auto rv = server_->send_packet(remote_addr_, sendbuf_);
+    if (rv != NETWORK_ERR_OK) {
+      return rv;
+    }
+  }
+
+  nwrite = do_handshake_once(data, datalen);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+  if (nwrite == 0) {
+    return 0;
+  }
+
+  for (;;) {
+    nwrite = do_handshake_once(nullptr, 0);
+    if (nwrite < 0) {
+      return nwrite;
+    }
+    if (nwrite == 0) {
+      return 0;
+    }
+  }
+}
+
 int Handler::feed_data(uint8_t *data, size_t datalen) {
   int rv;
 
-  rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
-    if (rv != NGTCP2_ERR_TLS_DECRYPT) {
+  if (ngtcp2_conn_get_handshake_completed(conn_)) {
+    rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
+      if (rv != NGTCP2_ERR_TLS_DECRYPT) {
+        return handle_error(rv);
+      }
+    }
+  } else {
+    rv = do_handshake(data, datalen);
+    if (rv != 0) {
       return handle_error(rv);
     }
   }
+
   if (ngtcp2_conn_in_draining_period(conn_)) {
     start_draining_period();
     return NETWORK_ERR_CLOSE_WAIT;
@@ -1309,6 +1373,16 @@ int Handler::on_write(bool retransmit) {
       }
     }
   } else {
+    if (!ngtcp2_conn_get_handshake_completed(conn_)) {
+      rv = do_handshake(nullptr, 0);
+      if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+        schedule_retransmit();
+      }
+      if (rv != NETWORK_ERR_OK) {
+        return rv;
+      }
+    }
+
     for (auto &p : streams_) {
       auto &stream = p.second;
       rv = on_write_stream(*stream);
@@ -1319,6 +1393,11 @@ int Handler::on_write(bool retransmit) {
         }
         return rv;
       }
+    }
+
+    if (!ngtcp2_conn_get_handshake_completed(conn_)) {
+      schedule_retransmit();
+      return 0;
     }
   }
 
