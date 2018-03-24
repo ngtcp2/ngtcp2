@@ -740,59 +740,6 @@ typedef int (*ngtcp2_recv_stream0_data)(ngtcp2_conn *conn, const uint8_t *data,
 /**
  * @functypedef
  *
- * :type:`ngtcp2_send_pkt` is invoked when outgoing packet header |hd|
- * is being encoded.
- *
- * The callback function must return 0 if it succeeds.  Returning
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
- * immediately.
- */
-typedef int (*ngtcp2_send_pkt)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                               void *user_data);
-
-/**
- * @functypedef
- *
- * :type:`ngtcp2_send_frame` is invoked when outgoing frame |fr| is
- * being encoded.  The packet header is the object pointed by |hd|.
- *
- * The callback function must return 0 if it succeeds.  Returning
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
- * immediately.
- */
-typedef int (*ngtcp2_send_frame)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                                 const ngtcp2_frame *fr, void *user_data);
-
-/**
- * @functypedef
- *
- * :type:`ngtcp2_revc_pkt` is invoked when incoming packet header |hd|
- * is successfully decoded.
- *
- * The callback function must return 0 if it succeeds.  Returning
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
- * immediately.
- */
-typedef int (*ngtcp2_recv_pkt)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                               void *user_data);
-
-/**
- * @functypedef
- *
- * :type:`ngtcp2_recv_frame` is invoked when incoming frame |fr| is
- * successfully decoded.  The packet header is the object pointed by
- * |hd|.
- *
- * The callback function must return 0 if it succeeds.  Returning
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
- * immediately.
- */
-typedef int (*ngtcp2_recv_frame)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                                 const ngtcp2_frame *fr, void *user_data);
-
-/**
- * @functypedef
- *
  * :type:`ngtcp2_handshake_completed` is invoked when QUIC
  * cryptographic handshake has completed.
  *
@@ -882,10 +829,6 @@ typedef struct {
   ngtcp2_recv_client_initial recv_client_initial;
   ngtcp2_send_server_handshake send_server_handshake;
   ngtcp2_recv_stream0_data recv_stream0_data;
-  ngtcp2_send_pkt send_pkt;
-  ngtcp2_send_frame send_frame;
-  ngtcp2_recv_pkt recv_pkt;
-  ngtcp2_recv_frame recv_frame;
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
   /* hs_encrypt is a callback function which is invoked to encrypt

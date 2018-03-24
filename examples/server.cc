@@ -772,10 +772,6 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       ::recv_client_initial,
       send_server_handshake,
       recv_stream0_data,
-      nullptr, // send_pkt
-      nullptr, // send_frame
-      nullptr, // recv_pkt
-      nullptr, // recv_frame
       handshake_completed,
       nullptr,
       do_hs_encrypt,

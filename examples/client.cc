@@ -593,10 +593,6 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       nullptr,
       nullptr,
       recv_stream0_data,
-      nullptr, // send_pkt
-      nullptr, // send_frame
-      nullptr, // recv_pkt
-      nullptr, // recv_frame
       handshake_completed,
       nullptr, // recv_version_negotiation
       do_hs_encrypt,
