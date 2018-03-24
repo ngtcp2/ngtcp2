@@ -506,8 +506,6 @@ void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   hd->pkt_num, sent_ts, unprotected != 0);
 }
 
-/* void ngtcp2_log_rcvry_stat() {} */
-
 void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
                      ...) {
   va_list ap;
