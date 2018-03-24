@@ -889,8 +889,7 @@ int Handler::tls_handshake() {
   ngtcp2_conn_handshake_completed(conn_);
 
   if (!config.quiet) {
-    debug::print_indent();
-    std::cerr << "; Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
+    std::cerr << "Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
               << std::endl;
 
     const unsigned char *alpn = nullptr;
@@ -898,8 +897,7 @@ int Handler::tls_handshake() {
 
     SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
     if (alpn) {
-      debug::print_indent();
-      std::cerr << "; Negotiated ALPN is ";
+      std::cerr << "Negotiated ALPN is ";
       std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
       std::cerr << std::endl;
     }
@@ -2087,8 +2085,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   *outlen = alpn[0];
 
   if (!config.quiet) {
-    debug::print_indent();
-    std::cerr << "; Client did not present ALPN " << NGTCP2_ALPN_D9 + 1
+    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D9 + 1
               << std::endl;
   }
 

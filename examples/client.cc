@@ -783,8 +783,7 @@ int Client::tls_handshake(bool initial) {
   ngtcp2_conn_handshake_completed(conn_);
 
   if (!config.quiet) {
-    debug::print_indent();
-    std::cerr << "; Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
+    std::cerr << "Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
               << std::endl;
 
     const unsigned char *alpn = nullptr;
@@ -792,8 +791,7 @@ int Client::tls_handshake(bool initial) {
 
     SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
     if (alpn) {
-      debug::print_indent();
-      std::cerr << "; Negotiated ALPN is ";
+      std::cerr << "Negotiated ALPN is ";
       std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
       std::cerr << std::endl;
     }
