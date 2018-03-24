@@ -47,32 +47,7 @@ std::chrono::nanoseconds timestamp();
 
 void set_color_output(bool f);
 
-void print_timestamp();
-
-void print_indent();
-
-int send_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
-
-int send_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-               const ngtcp2_frame *fr, void *user_data);
-
-int recv_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd, void *user_data);
-
-int recv_frame(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-               const ngtcp2_frame *fr, void *user_data);
-
 int handshake_completed(ngtcp2_conn *conn, void *user_data);
-
-int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                             const uint32_t *sv, size_t nsv, void *user_data);
-
-int recv_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                         const ngtcp2_pkt_stateless_reset *sr, void *user_data);
-
-int update_rcvry_stat(ngtcp2_conn *conn, const ngtcp2_rcvry_stat *rcs,
-                      void *user_data);
-
-void print_transport_params(const ngtcp2_transport_params *params, int type);
 
 bool packet_lost(double prob);
 
