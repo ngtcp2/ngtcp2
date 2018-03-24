@@ -4833,8 +4833,8 @@ ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
   }
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                  "tlp_count=%zu rto_count=%zu", rcs->tlp_count,
-                  rcs->rto_count);
+                  "handshake_count=%zu tlp_count=%zu rto_count=%zu",
+                  rcs->handshake_count, rcs->tlp_count, rcs->rto_count);
 
   ngtcp2_conn_set_loss_detection_alarm(conn);
 
