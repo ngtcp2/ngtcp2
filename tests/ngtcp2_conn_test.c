@@ -172,18 +172,22 @@ static ssize_t send_server_handshake_zero(ngtcp2_conn *conn, uint32_t flags,
   return 0;
 }
 
-static int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data,
-                             size_t datalen, void *user_data) {
+static int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset,
+                             const uint8_t *data, size_t datalen,
+                             void *user_data) {
   (void)conn;
+  (void)offset;
   (void)data;
   (void)datalen;
   (void)user_data;
   return 0;
 }
 
-static int recv_stream0_handshake_error(ngtcp2_conn *conn, const uint8_t *data,
-                                        size_t datalen, void *user_data) {
+static int recv_stream0_handshake_error(ngtcp2_conn *conn, uint64_t offset,
+                                        const uint8_t *data, size_t datalen,
+                                        void *user_data) {
   (void)conn;
+  (void)offset;
   (void)data;
   (void)datalen;
   (void)user_data;
@@ -191,9 +195,11 @@ static int recv_stream0_handshake_error(ngtcp2_conn *conn, const uint8_t *data,
 }
 
 static int recv_stream0_fatal_alert_generated(ngtcp2_conn *conn,
+                                              uint64_t offset,
                                               const uint8_t *data,
                                               size_t datalen, void *user_data) {
   (void)conn;
+  (void)offset;
   (void)data;
   (void)datalen;
   (void)user_data;
@@ -201,10 +207,12 @@ static int recv_stream0_fatal_alert_generated(ngtcp2_conn *conn,
 }
 
 static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
-                            const uint8_t *data, size_t datalen,
-                            void *user_data, void *stream_user_data) {
+                            uint64_t offset, const uint8_t *data,
+                            size_t datalen, void *user_data,
+                            void *stream_user_data) {
   my_user_data *ud = user_data;
   (void)conn;
+  (void)offset;
   (void)data;
   (void)stream_user_data;
 

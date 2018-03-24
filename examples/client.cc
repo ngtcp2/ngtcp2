@@ -341,8 +341,8 @@ ssize_t send_client_handshake(ngtcp2_conn *conn, uint32_t flags,
 } // namespace
 
 namespace {
-int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
-                      void *user_data) {
+int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
+                      size_t datalen, void *user_data) {
   if (!config.quiet) {
     debug::print_stream_data(0, data, datalen);
   }
@@ -364,8 +364,8 @@ int recv_stream0_data(ngtcp2_conn *conn, const uint8_t *data, size_t datalen,
 
 namespace {
 int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
-                     const uint8_t *data, size_t datalen, void *user_data,
-                     void *stream_user_data) {
+                     uint64_t offset, const uint8_t *data, size_t datalen,
+                     void *user_data, void *stream_user_data) {
   if (!config.quiet) {
     debug::print_stream_data(stream_id, data, datalen);
   }
