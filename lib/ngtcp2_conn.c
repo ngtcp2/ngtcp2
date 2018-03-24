@@ -4097,6 +4097,8 @@ int ngtcp2_conn_set_remote_transport_params(
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
+  ngtcp2_log_remote_tp(&conn->log, exttype, params);
+
   settings_copy_from_transport_params(&conn->remote_settings, params);
 
   conn->max_local_stream_id_bidi = conn->remote_settings.max_stream_id_bidi;

@@ -77,6 +77,9 @@ void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_pkt_stateless_reset *sr);
 
+void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
+                          const ngtcp2_transport_params *params);
+
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                          ngtcp2_tstamp sent_ts, int unprotected);
 

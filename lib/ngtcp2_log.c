@@ -85,6 +85,7 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
 /* TODO Split second and remaining fraction with comma */
 #define NGTCP2_LOG_HD "I%016" PRIu64 " 0x%016" PRIx64 " %s"
 #define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %" PRIu64 " %s %s(0x%02x)"
+#define NGTCP2_LOG_TP NGTCP2_LOG_HD " remote transport_parameters"
 
 #define NGTCP2_LOG_FRM_HD_FIELDS(DIR)                                          \
   log->last_ts - log->ts, hd->conn_id, "frm", hd->pkt_num, (DIR),              \
@@ -93,6 +94,8 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
 #define NGTCP2_LOG_PKT_HD_FIELDS(DIR)                                          \
   log->last_ts - log->ts, hd->conn_id, "pkt", hd->pkt_num, (DIR),              \
       strpkttype(hd), hd->type
+
+#define NGTCP2_LOG_TP_HD_FIELDS log->last_ts - log->ts, *log->conn_id, "cry"
 
 static const char *strerrorcode(uint16_t error_code) {
   switch (error_code) {
@@ -493,6 +496,60 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
              ngtcp2_encode_hex(buf, sr->stateless_reset_token,
                                sizeof(sr->stateless_reset_token)),
              sr->randlen);
+}
+
+void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
+                          const ngtcp2_transport_params *params) {
+  size_t i;
+  char buf[sizeof(params->stateless_reset_token) * 2 + 1];
+
+  if (log->fd == -1) {
+    return;
+  }
+
+  switch (exttype) {
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
+    log_printf(log, (NGTCP2_LOG_TP " initial_version=0x%08x\n"),
+               NGTCP2_LOG_TP_HD_FIELDS, params->v.ch.initial_version);
+    break;
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+    log_printf(log, (NGTCP2_LOG_TP " negotiated_version=0x%08x\n"),
+               NGTCP2_LOG_TP_HD_FIELDS, params->v.ee.negotiated_version);
+    for (i = 0; i < params->v.ee.len; ++i) {
+      log_printf(log, (NGTCP2_LOG_TP " supported_version[%zu]=0x%08x\n"),
+                 NGTCP2_LOG_TP_HD_FIELDS, i,
+                 params->v.ee.supported_versions[i]);
+    }
+    break;
+  }
+
+  log_printf(log, (NGTCP2_LOG_TP " initial_max_stream_data=%u\n"),
+             NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data);
+
+  log_printf(log, (NGTCP2_LOG_TP " initial_max_data=%u\n"),
+             NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_data);
+  log_printf(log, (NGTCP2_LOG_TP " initial_max_stream_id_bidi=0x%x\n"),
+             NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_id_bidi);
+  log_printf(log, (NGTCP2_LOG_TP " initial_max_stream_id_uni=0x%x\n"),
+             NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_id_uni);
+  log_printf(log, (NGTCP2_LOG_TP " idle_timeout=%u\n"), NGTCP2_LOG_TP_HD_FIELDS,
+             params->idle_timeout);
+  log_printf(log, (NGTCP2_LOG_TP " omit_connection_id=%u\n"),
+             NGTCP2_LOG_TP_HD_FIELDS, params->omit_connection_id);
+  log_printf(log, (NGTCP2_LOG_TP " max_packet_size=%u\n"),
+             NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
+
+  switch (exttype) {
+  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+    log_printf(log, (NGTCP2_LOG_TP " stateless_reset_token=%s\n"),
+               NGTCP2_LOG_TP_HD_FIELDS,
+               ngtcp2_encode_hex(buf, params->stateless_reset_token,
+                                 sizeof(params->stateless_reset_token)));
+    break;
+  }
+
+  log_printf(log, (NGTCP2_LOG_TP " ack_delay_exponent=%u\n"),
+             NGTCP2_LOG_TP_HD_FIELDS, params->ack_delay_exponent);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

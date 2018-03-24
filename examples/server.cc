@@ -2171,13 +2171,6 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
     return -1;
   }
 
-  if (!config.quiet) {
-    debug::print_indent();
-    std::cerr << "; Received quic_transport_parameters extension" << std::endl;
-    debug::print_transport_params(&params,
-                                  NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
-  }
-
   rv = ngtcp2_conn_set_remote_transport_params(
       conn, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
   if (rv != 0) {
