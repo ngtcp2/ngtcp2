@@ -59,10 +59,6 @@ namespace {
 Config config{};
 } // namespace
 
-namespace {
-constexpr size_t MAX_BYTES_IN_FLIGHT = 1460 * 10;
-} // namespace
-
 Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen},
       begin(buf.data()),
@@ -998,14 +994,8 @@ int Client::on_write(bool retransmit) {
   }
 
   for (;;) {
-    ssize_t n;
-    if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
-      n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
-                                util::timestamp());
-    } else {
-      n = ngtcp2_conn_write_ack_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
-                                    util::timestamp());
-    }
+    auto n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
+                                   util::timestamp());
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
       disconnect(n);
@@ -1070,10 +1060,6 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
   size_t ndatalen;
 
   for (;;) {
-    if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
-      break;
-    }
-
     auto n = ngtcp2_conn_write_stream(conn_, sendbuf_.wpos(), max_pktlen_,
                                       &ndatalen, stream_id, fin, data.rpos(),
                                       data.size(), util::timestamp());
@@ -1090,6 +1076,10 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
                 << std::endl;
       disconnect(n);
       return -1;
+    }
+
+    if (n == 0) {
+      return 0;
     }
 
     data.seek(ndatalen);

@@ -87,6 +87,8 @@ typedef enum {
 #define NGTCP2_MIN_RTO_TIMEOUT 200000000
 #define NGTCP2_MAX_TLP_COUNT 2
 
+#define NGTCP2_CWND (1460 * 10)
+
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
 

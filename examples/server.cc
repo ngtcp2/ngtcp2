@@ -59,10 +59,6 @@ namespace {
 Config config{};
 } // namespace
 
-namespace {
-constexpr size_t MAX_BYTES_IN_FLIGHT = 1460 * 10;
-} // namespace
-
 Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen},
       begin(buf.data()),
@@ -1396,14 +1392,8 @@ int Handler::on_write(bool retransmit) {
   }
 
   for (;;) {
-    ssize_t n;
-    if (ngtcp2_conn_bytes_in_flight(conn_) < MAX_BYTES_IN_FLIGHT) {
-      n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
-                                util::timestamp());
-    } else {
-      n = ngtcp2_conn_write_ack_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
-                                    util::timestamp());
-    }
+    auto n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
+                                   util::timestamp());
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
       return handle_error(n);
@@ -1431,11 +1421,6 @@ int Handler::on_write(bool retransmit) {
 int Handler::on_write_stream(Stream &stream) {
   if (stream.streambuf_idx == stream.streambuf.size()) {
     if (stream.should_send_fin) {
-      if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
-        return 0;
-      }
-
-      stream.should_send_fin = false;
       auto v = Buffer{};
       if (write_stream_data(stream, 1, v) != 0) {
         return -1;
@@ -1457,9 +1442,6 @@ int Handler::on_write_stream(Stream &stream) {
       break;
     }
     ++stream.streambuf_idx;
-    if (fin) {
-      stream.should_send_fin = false;
-    }
   }
 
   return 0;
@@ -1469,10 +1451,6 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
   size_t ndatalen;
 
   for (;;) {
-    if (ngtcp2_conn_bytes_in_flight(conn_) >= MAX_BYTES_IN_FLIGHT) {
-      break;
-    }
-
     auto n = ngtcp2_conn_write_stream(
         conn_, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream.stream_id, fin,
         data.rpos(), data.size(), util::timestamp());
@@ -1485,6 +1463,14 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
                 << std::endl;
       return handle_error(n);
+    }
+
+    if (n == 0) {
+      return 0;
+    }
+
+    if (fin && ndatalen == data.size()) {
+      stream.should_send_fin = false;
     }
 
     data.seek(ndatalen);
