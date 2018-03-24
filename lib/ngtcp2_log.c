@@ -326,7 +326,7 @@ static void log_fr_ping(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                         const ngtcp2_ping *fr, const char *dir) {
   /* The maximum length of PONG data is 255, and +1 for terminal
      NULL. */
-  char buf[256];
+  char buf[255 * 2 + 1];
 
   log_printf(log, (NGTCP2_LOG_PKT " PING(0x%02x) len=%" PRIu64 " data=%s\n"),
              NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->datalen,
@@ -385,7 +385,7 @@ static void log_fr_pong(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                         const ngtcp2_pong *fr, const char *dir) {
   /* The maximum length of PONG data is 255, and +1 for terminal
      NULL. */
-  char buf[256];
+  char buf[255 * 2 + 1];
 
   log_printf(log, (NGTCP2_LOG_PKT " PONG(0x%02x) len=%" PRIu64 " data=%s\n"),
              NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->datalen,
@@ -482,7 +482,7 @@ void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_pkt_stateless_reset *sr) {
-  char buf[NGTCP2_STATELESS_RESET_TOKENLEN + 1];
+  char buf[sizeof(sr->stateless_reset_token) * 2 + 1];
 
   if (log->fd == -1) {
     return;
