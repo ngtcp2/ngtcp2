@@ -234,13 +234,12 @@ static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint64_t largest_ack, min_ack;
   size_t i;
 
-  /* TODO show ack_delay with units (e.g., 120.02ms) */
   log_printf(log,
              (NGTCP2_LOG_PKT " ACK(0x%02x) largest_ack=%" PRIu64
                              " ack_delay=%" PRIu64 "(%" PRIu64
                              ") ack_block_count=%zu\n"),
              NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->largest_ack,
-             fr->ack_delay_unscaled, fr->ack_delay, fr->num_blks);
+             fr->ack_delay_unscaled / 1000000, fr->ack_delay, fr->num_blks);
 
   largest_ack = fr->largest_ack;
   min_ack = fr->largest_ack - fr->first_ack_blklen;

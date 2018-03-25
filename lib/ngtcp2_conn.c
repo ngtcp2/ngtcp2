@@ -4701,8 +4701,9 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
                   " smoothed_rtt=%.3f rttvar=%.3f max_ack_delay=%" PRIu64,
-                  rcs->latest_rtt, rcs->min_rtt, rcs->smoothed_rtt, rcs->rttvar,
-                  rcs->max_ack_delay);
+                  rcs->latest_rtt / 1000000, rcs->min_rtt / 1000000,
+                  rcs->smoothed_rtt / 1000000, rcs->rttvar / 1000000,
+                  rcs->max_ack_delay / 1000000);
 }
 
 void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
@@ -4742,7 +4743,7 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
                     "loss_detection_alarm=%" PRIu64
                     " last_hs_tx_pkt_ts=%" PRIu64 " alarm_duration=%" PRIu64,
                     rcs->loss_detection_alarm, rcs->last_hs_tx_pkt_ts,
-                    alarm_duration);
+                    alarm_duration / 1000000);
     return;
   }
 
