@@ -47,7 +47,7 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
    *   Log level.  I=Info, W=Warning, E=Error
    *
    * <TIMESTAMP>:
-   *   Timestamp relative to ngtcp2_log.ts field in nanoseconds
+   *   Timestamp relative to ngtcp2_log.ts field in milliseconds
    *   resolution.
    *
    * <CID>:
@@ -83,19 +83,20 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
 #define NGTCP2_LOG_BUFLEN 4096
 
 /* TODO Split second and remaining fraction with comma */
-#define NGTCP2_LOG_HD "I%016" PRIu64 " 0x%016" PRIx64 " %s"
+#define NGTCP2_LOG_HD "I%08" PRIu64 " 0x%016" PRIx64 " %s"
 #define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %" PRIu64 " %s %s(0x%02x)"
 #define NGTCP2_LOG_TP NGTCP2_LOG_HD " remote transport_parameters"
 
 #define NGTCP2_LOG_FRM_HD_FIELDS(DIR)                                          \
-  log->last_ts - log->ts, hd->conn_id, "frm", hd->pkt_num, (DIR),              \
-      strpkttype(hd), hd->type
+  timestamp_cast(log->last_ts - log->ts), hd->conn_id, "frm", hd->pkt_num,     \
+      (DIR), strpkttype(hd), hd->type
 
 #define NGTCP2_LOG_PKT_HD_FIELDS(DIR)                                          \
-  log->last_ts - log->ts, hd->conn_id, "pkt", hd->pkt_num, (DIR),              \
-      strpkttype(hd), hd->type
+  timestamp_cast(log->last_ts - log->ts), hd->conn_id, "pkt", hd->pkt_num,     \
+      (DIR), strpkttype(hd), hd->type
 
-#define NGTCP2_LOG_TP_HD_FIELDS log->last_ts - log->ts, *log->conn_id, "cry"
+#define NGTCP2_LOG_TP_HD_FIELDS                                                \
+  timestamp_cast(log->last_ts - log->ts), *log->conn_id, "cry"
 
 static const char *strerrorcode(uint16_t error_code) {
   switch (error_code) {
@@ -198,6 +199,8 @@ static const char *strevent(ngtcp2_log_event ev) {
     return "non";
   }
 }
+
+static uint64_t timestamp_cast(uint64_t ns) { return ns / 1000000; }
 
 static void log_printf(ngtcp2_log *log, const char *fmt, ...) {
   va_list ap;
@@ -581,6 +584,7 @@ void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
     return;
   }
 
-  log_printf(log, (NGTCP2_LOG_HD " %s\n"), log->last_ts - log->ts,
-             *log->conn_id, strevent(ev), buf);
+  log_printf(log, (NGTCP2_LOG_HD " %s\n"),
+             timestamp_cast(log->last_ts - log->ts), *log->conn_id,
+             strevent(ev), buf);
 }
