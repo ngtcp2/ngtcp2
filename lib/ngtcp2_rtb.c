@@ -110,13 +110,56 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
   rtb_entry_list_free(rtb->lost_head, rtb->mem);
 }
 
-void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
-  ngtcp2_list_insert(ent, &rtb->head);
-
+static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   rtb->bytes_in_flight += ent->pktlen;
 
   if (ent->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
     ++rtb->num_unprotected;
+  }
+}
+
+static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+  if (ent->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
+    assert(rtb->num_unprotected > 0);
+    --rtb->num_unprotected;
+  }
+
+  assert(rtb->bytes_in_flight >= ent->pktlen);
+  rtb->bytes_in_flight -= ent->pktlen;
+}
+
+void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+  ngtcp2_list_insert(ent, &rtb->head);
+  rtb_on_add(rtb, ent);
+}
+
+void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head) {
+  ngtcp2_rtb_entry **pent, *ent;
+
+  for (pent = &rtb->head; *pent && head; pent = &(*pent)->next) {
+    if ((*pent)->hd.pkt_num > head->hd.pkt_num) {
+      continue;
+    }
+
+    assert((*pent)->hd.pkt_num < head->hd.pkt_num);
+
+    ent = head;
+    head = head->next;
+
+    ngtcp2_list_insert(ent, pent);
+    rtb_on_add(rtb, ent);
+  }
+
+  if (!head) {
+    return;
+  }
+
+  assert(!(*pent));
+
+  *pent = head;
+
+  for (ent = head; ent; ent = ent->next) {
+    rtb_on_add(rtb, ent);
   }
 }
 
@@ -141,16 +184,7 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry **pent) {
   ngtcp2_rtb_entry *ent = *pent;
 
   ngtcp2_list_remove(pent);
-
-  assert(rtb->bytes_in_flight >= ent->pktlen);
-
-  rtb->bytes_in_flight -= ent->pktlen;
-
-  if (ent->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
-    assert(rtb->num_unprotected > 0);
-    --rtb->num_unprotected;
-  }
-
+  rtb_on_remove(rtb, ent);
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 }
 
@@ -341,19 +375,12 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
       *pent = NULL;
 
       for (tail = ent; tail->next; tail = tail->next) {
-        rtb->bytes_in_flight -= tail->pktlen;
-        if (tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
-          --rtb->num_unprotected;
-        }
-
+        rtb_on_remove(rtb, tail);
         ngtcp2_log_pkt_lost(rtb->log, &tail->hd, tail->ts,
                             tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED);
       }
-      rtb->bytes_in_flight -= tail->pktlen;
-      if (tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
-        --rtb->num_unprotected;
-      }
 
+      rtb_on_remove(rtb, tail);
       ngtcp2_log_pkt_lost(rtb->log, &tail->hd, tail->ts,
                           tail->flags & NGTCP2_RTB_FLAG_UNPROTECTED);
 
@@ -381,8 +408,7 @@ void ngtcp2_rtb_mark_unprotected_lost(ngtcp2_rtb *rtb) {
                     " sent_ts=%" PRIu64,
                     ent->hd.pkt_num, ent->ts);
 
-    --rtb->num_unprotected;
-    rtb->bytes_in_flight -= ent->pktlen;
+    rtb_on_remove(rtb, ent);
 
     ngtcp2_list_remove(pent);
     ngtcp2_list_insert(ent, pdest);

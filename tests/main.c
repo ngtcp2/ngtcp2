@@ -129,6 +129,7 @@ int main() {
                    test_ngtcp2_encode_transport_params) ||
       !CU_add_test(pSuite, "rtb_add", test_ngtcp2_rtb_add) ||
       !CU_add_test(pSuite, "rtb_recv_ack", test_ngtcp2_rtb_recv_ack) ||
+      !CU_add_test(pSuite, "rtb_insert_range", test_ngtcp2_rtb_insert_range) ||
       !CU_add_test(pSuite, "idtr_open", test_ngtcp2_idtr_open) ||
       !CU_add_test(pSuite, "ringbuf_push_front",
                    test_ngtcp2_ringbuf_push_front) ||

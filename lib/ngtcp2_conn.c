@@ -1831,13 +1831,7 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
       ent = next;
     }
   } else {
-    for (ent = conn->early_rtb; ent;) {
-      next = ent->next;
-      /* TODO We don't nullify ent->next here.  This is OK because we
-         always assign it in ngtcp2_rtb_add(). */
-      conn_on_pkt_sent(conn, ent);
-      ent = next;
-    }
+    ngtcp2_rtb_insert_range(&conn->rtb, conn->early_rtb);
   }
   conn->early_rtb = NULL;
   return 0;
@@ -1956,6 +1950,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr, uint8_t unprotected,
                          ngtcp2_tstamp ts) {
   int rv;
+
   rv = ngtcp2_pkt_validate_ack(fr);
   if (rv != 0) {
     return rv;
@@ -3786,16 +3781,16 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
 
-    rv = conn_process_buffered_protected_pkt(conn, ts);
-    if (rv != 0) {
-      return (ssize_t)rv;
-    }
-
     if (conn->early_rtb) {
       rv = conn_process_early_rtb(conn);
       if (rv != 0) {
         return (ssize_t)rv;
       }
+    }
+
+    rv = conn_process_buffered_protected_pkt(conn, ts);
+    if (rv != 0) {
+      return (ssize_t)rv;
     }
 
     return nwrite;
@@ -4258,7 +4253,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_pkt_hd hd;
   ngtcp2_ppe ppe;
   ngtcp2_crypto_ctx ctx;
-  ngtcp2_rtb_entry *ent, **pent;
+  ngtcp2_rtb_entry *ent;
   int rv;
   size_t ndatalen, left;
   ssize_t nwrite;
@@ -4386,9 +4381,8 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
      the peer.  0-RTT packet is retransmitted as a Short packet. */
   ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
   ent->hd.type = NGTCP2_PKT_01;
-  for (pent = &conn->early_rtb; *pent; pent = &(*pent)->next)
-    ;
-  *pent = ent;
+
+  ngtcp2_list_insert(ent, &conn->early_rtb);
 
   strm->tx_offset += ndatalen;
   conn->tx_offset += ndatalen;

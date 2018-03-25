@@ -267,6 +267,8 @@ struct ngtcp2_conn {
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
+  /* early_rtb is a linked list of 0-RTT packets sorted by decreasing
+     order of packet number. */
   ngtcp2_rtb_entry *early_rtb;
   ngtcp2_settings local_settings;
   ngtcp2_settings remote_settings;
