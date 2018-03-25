@@ -2343,7 +2343,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
  *     TLS handshake failed, and/or TLS alert was generated.
  * NGTCP2_ERR_FRAME_FORMAT
  *     Frame is badly formatted.
- * NGTCP2_ERR_VERSION_NEGOTIATION
+ * NGTCP2_ERR_RECV_VERSION_NEGOTIATION
  *     Version Negotiation packet is received.
  * NGTCP2_ERR_TLS_DECRYPT
  *     Could not decrypt a packet.
@@ -2465,7 +2465,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (rv != 0) {
         return rv;
       }
-      return NGTCP2_ERR_VERSION_NEGOTIATION;
+      return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
     default:
       return NGTCP2_ERR_PROTO;
     }
