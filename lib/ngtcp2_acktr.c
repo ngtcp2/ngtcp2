@@ -180,7 +180,7 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              uint64_t pkt_num, ngtcp2_ack *fr,
                                              ngtcp2_tstamp ts, int unprotected,
-                                             uint8_t ack_only) {
+                                             int ack_only) {
   ngtcp2_acktr_ack_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&acktr->acks);
@@ -188,7 +188,7 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
   ent->pkt_num = pkt_num;
   ent->ts = ts;
   ent->unprotected = (uint8_t)unprotected;
-  ent->ack_only = ack_only;
+  ent->ack_only = (uint8_t)ack_only;
 
   return ent;
 }

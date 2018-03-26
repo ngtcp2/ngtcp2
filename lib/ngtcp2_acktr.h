@@ -177,7 +177,7 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              uint64_t pkt_num, ngtcp2_ack *fr,
                                              ngtcp2_tstamp ts, int unprotected,
-                                             uint8_t ack_only);
+                                             int ack_only);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.
