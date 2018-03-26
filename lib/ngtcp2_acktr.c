@@ -359,5 +359,5 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected) {
   if (unprotected) {
     return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   }
-  return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
+  return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
 }
