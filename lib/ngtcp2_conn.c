@@ -1338,6 +1338,7 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
   const uint8_t *payload;
   ssize_t payloadlen;
   ngtcp2_buf *tx_buf = &conn->strm0->tx_buf;
+  ssize_t nwrite;
 
   if (ngtcp2_buf_len(tx_buf) == 0) {
     payloadlen = conn->callbacks.send_server_handshake(
@@ -1355,8 +1356,17 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
       if (conn->state == NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED) {
         return NGTCP2_ERR_TLS_HANDSHAKE;
       }
-      assert(conn->tx_ckm);
-      return conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+
+      if (conn->early_ckm) {
+        assert(conn->tx_ckm);
+
+        nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+        if (nwrite != 0) {
+          return nwrite;
+        }
+      }
+
+      return conn_write_handshake_ack_pkt(conn, dest, destlen, ts);
     }
 
     ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
