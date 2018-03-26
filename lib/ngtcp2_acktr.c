@@ -350,7 +350,7 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, uint8_t unprotected) {
   if (unprotected) {
     acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   } else {
-    acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
+    acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
   }
 }
 
@@ -358,5 +358,5 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint8_t unprotected) {
   if (unprotected) {
     return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   }
-  return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
+  return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
 }
