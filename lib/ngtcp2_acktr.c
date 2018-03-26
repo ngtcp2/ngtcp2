@@ -30,7 +30,7 @@
 #include "ngtcp2_macro.h"
 
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, uint8_t unprotected,
+                           ngtcp2_tstamp tstamp, int unprotected,
                            ngtcp2_mem *mem) {
   *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));
   if (*ent == NULL) {
@@ -41,7 +41,7 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
   (*ent)->pprev = NULL;
   (*ent)->pkt_num = pkt_num;
   (*ent)->tstamp = tstamp;
-  (*ent)->unprotected = unprotected;
+  (*ent)->unprotected = (uint8_t)unprotected;
 
   return 0;
 }
@@ -177,16 +177,17 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
   ngtcp2_acktr_entry_del(ent, acktr->mem);
 }
 
-ngtcp2_acktr_ack_entry *
-ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
-                     ngtcp2_tstamp ts, uint8_t unprotected, uint8_t ack_only) {
+ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
+                                             uint64_t pkt_num, ngtcp2_ack *fr,
+                                             ngtcp2_tstamp ts, int unprotected,
+                                             uint8_t ack_only) {
   ngtcp2_acktr_ack_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&acktr->acks);
   ent->ack = fr;
   ent->pkt_num = pkt_num;
   ent->ts = ts;
-  ent->unprotected = unprotected;
+  ent->unprotected = (uint8_t)unprotected;
   ent->ack_only = ack_only;
 
   return ent;
@@ -272,7 +273,7 @@ fin:
 }
 
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                          uint8_t unprotected, ngtcp2_conn *conn,
+                          int unprotected, ngtcp2_conn *conn,
                           ngtcp2_tstamp ts) {
   ngtcp2_acktr_ack_entry *ent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
@@ -346,7 +347,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
   return 0;
 }
 
-void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, uint8_t unprotected) {
+void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected) {
   if (unprotected) {
     acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   } else {
@@ -354,7 +355,7 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, uint8_t unprotected) {
   }
 }
 
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint8_t unprotected) {
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected) {
   if (unprotected) {
     return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   }

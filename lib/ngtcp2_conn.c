@@ -393,7 +393,7 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
  *     Out of memory.
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
-                                 ngtcp2_tstamp ts, uint8_t unprotected) {
+                                 ngtcp2_tstamp ts, int unprotected) {
   uint64_t first_pkt_num;
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
@@ -504,7 +504,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
  * conn_commit_tx_ack should be called when creating ACK is
  * successful, and it is serialized in a packet.
  */
-static void conn_commit_tx_ack(ngtcp2_conn *conn, uint8_t unprotected) {
+static void conn_commit_tx_ack(ngtcp2_conn *conn, int unprotected) {
   ngtcp2_acktr_commit_ack(&conn->acktr, unprotected);
 }
 
@@ -1957,7 +1957,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */
-static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr, uint8_t unprotected,
+static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr, int unprotected,
                          ngtcp2_tstamp ts) {
   int rv;
 
@@ -1992,7 +1992,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr, uint8_t unprotected,
  */
 static void conn_assign_recved_ack_delay_unscaled(ngtcp2_conn *conn,
                                                   ngtcp2_ack *fr,
-                                                  uint8_t unprotected) {
+                                                  int unprotected) {
   fr->ack_delay_unscaled =
       (fr->ack_delay << (unprotected
                              ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
@@ -3907,7 +3907,7 @@ int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
-                          ngtcp2_tstamp ts, uint8_t unprotected) {
+                          ngtcp2_tstamp ts, int unprotected) {
   ngtcp2_acktr_entry *rpkt;
   int rv;
 

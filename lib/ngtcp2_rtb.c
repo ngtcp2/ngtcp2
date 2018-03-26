@@ -237,9 +237,8 @@ static void on_pkt_acked(ngtcp2_rcvry_stat *rcs) {
   rcs->rto_count = 0;
 }
 
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        uint8_t unprotected, ngtcp2_conn *conn,
-                        ngtcp2_tstamp ts) {
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr, int unprotected,
+                        ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry **pent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;

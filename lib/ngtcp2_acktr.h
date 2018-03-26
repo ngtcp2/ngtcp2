@@ -59,7 +59,7 @@ struct ngtcp2_acktr_entry {
  * with the given parameters.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, uint8_t unprotected,
+                           ngtcp2_tstamp tstamp, int unprotected,
                            ngtcp2_mem *mem);
 
 /*
@@ -174,9 +174,10 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
  * if the packet contains an ACK frame only.  This function returns a
  * pointer to the object it adds.
  */
-ngtcp2_acktr_ack_entry *
-ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
-                     ngtcp2_tstamp ts, uint8_t unprotected, uint8_t ack_only);
+ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
+                                             uint64_t pkt_num, ngtcp2_ack *fr,
+                                             ngtcp2_tstamp ts, int unprotected,
+                                             uint8_t ack_only);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.
@@ -193,21 +194,20 @@ ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, uint64_t pkt_num, ngtcp2_ack *fr,
  *     User-defined callback function failed.
  */
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                          uint8_t unprotected, ngtcp2_conn *conn,
-                          ngtcp2_tstamp ts);
+                          int unprotected, ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_commit_ack tells |acktr| that ACK frame is generated.
  * If |unprotected| is nonzero, ACK frame will be sent in an
  * unprotected packet.
  */
-void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, uint8_t unprotected);
+void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected);
 
 /*
  * ngtcp2_acktr_require_active_ack returns nonzero if ACK frame should
  * be generated actively.  If |unprotected| is nonzero, entries sent
  * in an unprotected packet are taken into consideration.
  */
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint8_t unprotected);
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected);
 
 #endif /* NGTCP2_ACKTR_H */
