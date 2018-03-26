@@ -331,11 +331,11 @@ static void log_fr_ping(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                         const ngtcp2_ping *fr, const char *dir) {
   /* The maximum length of PONG data is 255, and +1 for terminal
      NULL. */
-  char buf[255 * 2 + 1];
+  uint8_t buf[255 * 2 + 1];
 
   log_printf(log, (NGTCP2_LOG_PKT " PING(0x%02x) len=%" PRIu64 " data=%s\n"),
              NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->datalen,
-             ngtcp2_encode_hex(buf, fr->data, fr->datalen));
+             (const char *)ngtcp2_encode_hex(buf, fr->data, fr->datalen));
 }
 
 static void log_fr_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -365,15 +365,15 @@ static void log_fr_stream_id_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                      const ngtcp2_new_connection_id *fr,
                                      const char *dir) {
-  char buf[sizeof(fr->stateless_reset_token) * 2 + 1];
+  uint8_t buf[sizeof(fr->stateless_reset_token) * 2 + 1];
 
-  log_printf(log,
-             (NGTCP2_LOG_PKT
-              " NEW_CONNECTION_ID(0x%02x) seq=%u conn_id=0x%016" PRIx64
-              " stateless_reset_token=%s\n"),
-             NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq, fr->conn_id,
-             ngtcp2_encode_hex(buf, fr->stateless_reset_token,
-                               sizeof(fr->stateless_reset_token)));
+  log_printf(
+      log,
+      (NGTCP2_LOG_PKT " NEW_CONNECTION_ID(0x%02x) seq=%u conn_id=0x%016" PRIx64
+                      " stateless_reset_token=%s\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq, fr->conn_id,
+      (const char *)ngtcp2_encode_hex(buf, fr->stateless_reset_token,
+                                      sizeof(fr->stateless_reset_token)));
 }
 
 static void log_fr_stop_sending(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -390,11 +390,11 @@ static void log_fr_pong(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                         const ngtcp2_pong *fr, const char *dir) {
   /* The maximum length of PONG data is 255, and +1 for terminal
      NULL. */
-  char buf[255 * 2 + 1];
+  uint8_t buf[255 * 2 + 1];
 
   log_printf(log, (NGTCP2_LOG_PKT " PONG(0x%02x) len=%" PRIu64 " data=%s\n"),
              NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->datalen,
-             ngtcp2_encode_hex(buf, fr->data, fr->datalen));
+             (const char *)ngtcp2_encode_hex(buf, fr->data, fr->datalen));
 }
 
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -487,7 +487,7 @@ void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_pkt_stateless_reset *sr) {
-  char buf[sizeof(sr->stateless_reset_token) * 2 + 1];
+  uint8_t buf[sizeof(sr->stateless_reset_token) * 2 + 1];
 
   if (log->fd == -1) {
     return;
@@ -495,15 +495,15 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
   log_printf(log, (NGTCP2_LOG_PKT " token=%s randlen=%zu\n"),
              NGTCP2_LOG_PKT_HD_FIELDS("rx"),
-             ngtcp2_encode_hex(buf, sr->stateless_reset_token,
-                               sizeof(sr->stateless_reset_token)),
+             (const char *)ngtcp2_encode_hex(buf, sr->stateless_reset_token,
+                                             sizeof(sr->stateless_reset_token)),
              sr->randlen);
 }
 
 void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                           const ngtcp2_transport_params *params) {
   size_t i;
-  char buf[sizeof(params->stateless_reset_token) * 2 + 1];
+  uint8_t buf[sizeof(params->stateless_reset_token) * 2 + 1];
 
   if (log->fd == -1) {
     return;
@@ -543,10 +543,11 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    log_printf(log, (NGTCP2_LOG_TP " stateless_reset_token=%s\n"),
-               NGTCP2_LOG_TP_HD_FIELDS,
-               ngtcp2_encode_hex(buf, params->stateless_reset_token,
-                                 sizeof(params->stateless_reset_token)));
+    log_printf(
+        log, (NGTCP2_LOG_TP " stateless_reset_token=%s\n"),
+        NGTCP2_LOG_TP_HD_FIELDS,
+        (const char *)ngtcp2_encode_hex(buf, params->stateless_reset_token,
+                                        sizeof(params->stateless_reset_token)));
     break;
   }
 

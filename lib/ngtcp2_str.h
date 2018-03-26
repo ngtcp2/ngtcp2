@@ -47,6 +47,6 @@ uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
  * pointed by |dest| must have at least |len| * 2 + 1 bytes space.
  * This function returns |dest|.
  */
-char *ngtcp2_encode_hex(char *dest, const uint8_t *data, size_t len);
+uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
 
 #endif /* NGTCP2_STR_H */

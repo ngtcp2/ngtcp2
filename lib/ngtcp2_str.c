@@ -33,13 +33,13 @@ uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n) {
 
 #define LOWER_XDIGITS "0123456789abcdef"
 
-char *ngtcp2_encode_hex(char *dest, const uint8_t *data, size_t len) {
+uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
   size_t i;
-  char *p = dest;
+  uint8_t *p = dest;
 
   for (i = 0; i < len; ++i) {
-    *p++ = LOWER_XDIGITS[data[i] >> 4];
-    *p++ = LOWER_XDIGITS[data[i] & 0xf];
+    *p++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
+    *p++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
   }
 
   *p = '\0';
