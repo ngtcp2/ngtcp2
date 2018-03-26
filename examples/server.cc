@@ -1362,33 +1362,33 @@ int Handler::on_write(bool retransmit) {
         return rv;
       }
     }
-  } else {
-    if (!ngtcp2_conn_get_handshake_completed(conn_)) {
-      rv = do_handshake(nullptr, 0);
+  }
+
+  if (!ngtcp2_conn_get_handshake_completed(conn_)) {
+    rv = do_handshake(nullptr, 0);
+    if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+      schedule_retransmit();
+    }
+    if (rv != NETWORK_ERR_OK) {
+      return rv;
+    }
+  }
+
+  for (auto &p : streams_) {
+    auto &stream = p.second;
+    rv = on_write_stream(*stream);
+    if (rv != 0) {
       if (rv == NETWORK_ERR_SEND_NON_FATAL) {
         schedule_retransmit();
-      }
-      if (rv != NETWORK_ERR_OK) {
         return rv;
       }
+      return rv;
     }
+  }
 
-    for (auto &p : streams_) {
-      auto &stream = p.second;
-      rv = on_write_stream(*stream);
-      if (rv != 0) {
-        if (rv == NETWORK_ERR_SEND_NON_FATAL) {
-          schedule_retransmit();
-          return rv;
-        }
-        return rv;
-      }
-    }
-
-    if (!ngtcp2_conn_get_handshake_completed(conn_)) {
-      schedule_retransmit();
-      return 0;
-    }
+  if (!ngtcp2_conn_get_handshake_completed(conn_)) {
+    schedule_retransmit();
+    return 0;
   }
 
   for (;;) {
