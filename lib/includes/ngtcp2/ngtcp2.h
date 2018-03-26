@@ -984,16 +984,6 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts);
 
-/*
- * @function
- *
- * `ngtcp2_conn_write_ack_pkt` is just like `ngtcp2_conn_write_pkt`,
- * but only sends ACK only packet, or lost packet.
- */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_ack_pkt(ngtcp2_conn *conn,
-                                                uint8_t *dest, size_t destlen,
-                                                ngtcp2_tstamp ts);
-
 /**
  * @function
  *
