@@ -118,7 +118,8 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
 
   if (active_ack) {
     if (ent->unprotected) {
-      acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
+      /* Should be sent in both protected and unprotected ACK */
+      acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
     } else {
       acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
     }
@@ -359,5 +360,5 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected) {
   if (unprotected) {
     return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   }
-  return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
+  return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
 }
