@@ -934,6 +934,9 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * During handshake, application can send 0-RTT data (or its response)
  * using `ngtcp2_conn_write_stream`.
  *
+ * This function must not be called from inside the callback
+ * functions.
+ *
  * This function returns the number of bytes written to the buffer
  * pointed by |dest| if it succeeds, or one of the following negative
  * error codes: (TBD).
@@ -953,6 +956,9 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
  * current time.
  *
  * If there is no packet to send, this function returns 0.
+ *
+ * This function must not be called from inside the callback
+ * functions.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1268,6 +1274,9 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
  * if it is not NULL.
  *
+ * This function must not be called from inside the callback
+ * functions.
+ *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
  *
@@ -1306,6 +1315,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
  * a CONNECTION_CLOSE frame in the buffer pointed by |dest| whose
  * capacity is |datalen|.
  *
+ * This function must not be called from inside the callback
+ * functions.
+ *
  * At the moment, successful call to this function makes connection
  * close.  We may change this behaviour in the future to allow
  * graceful shutdown.
@@ -1333,6 +1345,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
  * `ngtcp2_conn_write_application_close` writes a packet which
  * contains a APPLICATION_CLOSE frame in the buffer pointed by |dest|
  * whose capacity is |datalen|.
+ *
+ * This function must not be called from inside the callback
+ * functions.
  *
  * At the moment, successful call to this function makes connection
  * close.  We may change this behaviour in the future to allow
@@ -1464,6 +1479,9 @@ typedef struct {
  * positive return value indicates the number of packets written.  The
  * iov_len field of each element in |iov| up to the returned value is
  * updated to the number of bytes written to the buffer.
+ *
+ * This function must not be called from inside the callback
+ * functions.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
                                                           ngtcp2_iovec *iov,
