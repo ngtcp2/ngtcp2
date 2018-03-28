@@ -407,8 +407,15 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
+  uint64_t max_ack_delay = NGTCP2_DEFAULT_ACK_DELAY;
 
-  if (!ngtcp2_acktr_require_active_ack(&conn->acktr, unprotected)) {
+  if (conn->rcs.min_rtt) {
+    max_ack_delay =
+        ngtcp2_min(max_ack_delay, (uint64_t)(conn->rcs.smoothed_rtt / 4));
+  }
+
+  if (!ngtcp2_acktr_require_active_ack(&conn->acktr, unprotected, max_ack_delay,
+                                       ts)) {
     return 0;
   }
 
@@ -418,6 +425,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
       ;
   }
   if (*prpkt == NULL) {
+    conn->acktr.last_unprotected_added = 0;
+    if (!unprotected) {
+      conn->acktr.last_added = 0;
+    }
     return 0;
   }
 
@@ -1520,7 +1531,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     pkt_empty = 0;
 
     if (conn->flags & NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK) {
-      conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
+      conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
       conn->acktr.last_hs_ack_pkt_num = hd.pkt_num;
       /* TODO We don't have to send PING if we send a frame other than
          ACK. */
@@ -2178,7 +2189,7 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
   ngtcp2_rtb_init(&conn->rtb, &conn->log, conn->mem);
   ngtcp2_map_insert(&conn->strms, &conn->strm0->me);
 
-  conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
+  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
   conn->state = NGTCP2_CS_CLIENT_INITIAL;
 
   return 0;
@@ -3790,6 +3801,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
+    conn->flags |= NGTCP2_CONN_FLAG_QUIC_HANDSHAKE_COMPLETED;
 
     if (conn->early_rtb) {
       rv = conn_process_early_rtb(conn);
@@ -3873,6 +3885,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
+    conn->flags |= NGTCP2_CONN_FLAG_QUIC_HANDSHAKE_COMPLETED;
 
     rv = conn_process_buffered_protected_pkt(conn, ts);
     if (rv != 0) {
@@ -3903,7 +3916,7 @@ void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
-  return (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) > 0;
+  return (conn->flags & NGTCP2_CONN_FLAG_QUIC_HANDSHAKE_COMPLETED) != 0;
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
@@ -3916,7 +3929,7 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
     return rv;
   }
 
-  rv = ngtcp2_acktr_add(&conn->acktr, rpkt, active_ack);
+  rv = ngtcp2_acktr_add(&conn->acktr, rpkt, active_ack, ts);
   if (rv != 0) {
     ngtcp2_acktr_entry_del(rpkt, conn->mem);
     return rv;
@@ -4023,6 +4036,30 @@ int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
 
 ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn) {
   return conn->rcs.loss_detection_alarm;
+}
+
+ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
+  if (ngtcp2_conn_get_handshake_completed(conn)) {
+    if (!conn->acktr.last_added) {
+      return 0;
+    }
+    return conn->acktr.last_added + NGTCP2_DEFAULT_ACK_DELAY;
+  }
+
+  if (!conn->acktr.last_added) {
+    if (!conn->acktr.last_unprotected_added) {
+      return 0;
+    }
+    return conn->acktr.last_unprotected_added + NGTCP2_DEFAULT_ACK_DELAY;
+  }
+
+  if (!conn->acktr.last_unprotected_added) {
+    return conn->acktr.last_added + NGTCP2_DEFAULT_ACK_DELAY;
+  }
+
+  return ngtcp2_min(conn->acktr.last_added,
+                    conn->acktr.last_unprotected_added) +
+         NGTCP2_DEFAULT_ACK_DELAY;
 }
 
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
@@ -4797,6 +4834,10 @@ ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
   size_t niovcnt = 0;
 
   conn->log.last_ts = ts;
+
+  if (!rcs->loss_detection_alarm) {
+    return 0;
+  }
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "loss detection alarm fired");

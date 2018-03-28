@@ -228,6 +228,16 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 } // namespace
 
 namespace {
+void ackcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  auto c = static_cast<Client *>(w->data);
+
+  if (c->on_write() != 0) {
+    c->disconnect();
+  }
+}
+} // namespace
+
+namespace {
 void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
   ev_break(loop, EVBREAK_ALL);
 }
@@ -259,6 +269,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
+  ev_timer_init(&acktimer_, ackcb, 0., 0.);
+  acktimer_.data = this;
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
@@ -272,6 +284,7 @@ void Client::disconnect() { disconnect(0); }
 void Client::disconnect(int liberr) {
   config.tx_loss_prob = 0;
 
+  ev_timer_stop(loop_, &acktimer_);
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
 
@@ -1100,22 +1113,36 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
 }
 
 void Client::schedule_retransmit() {
-  auto expiry = ngtcp2_conn_earliest_expiry(conn_);
-  if (expiry == 0) {
-    ev_timer_stop(loop_, &rttimer_);
-    return;
-  }
-
   ev_tstamp t;
   auto now = util::timestamp();
-  if (now >= expiry) {
-    t = 0.;
-  } else {
-    t = static_cast<ev_tstamp>(expiry - now) / 1000000000;
+
+  auto expiry = ngtcp2_conn_earliest_expiry(conn_);
+  if (expiry) {
+    ev_timer_stop(loop_, &rttimer_);
+
+    if (now >= expiry) {
+      t = 0.;
+    } else {
+      t = static_cast<ev_tstamp>(expiry - now) / 1000000000;
+    }
+    ev_timer_stop(loop_, &rttimer_);
+    ev_timer_set(&rttimer_, t, 0.);
+    ev_timer_start(loop_, &rttimer_);
   }
-  ev_timer_stop(loop_, &rttimer_);
-  ev_timer_set(&rttimer_, t, 0.);
-  ev_timer_start(loop_, &rttimer_);
+
+  expiry = ngtcp2_conn_ack_delay_expiry(conn_);
+  if (expiry) {
+    ev_timer_stop(loop_, &acktimer_);
+
+    if (now >= expiry) {
+      t = 0.;
+    } else {
+      t = static_cast<ev_tstamp>(expiry - now) / 1000000000;
+    }
+    ev_timer_stop(loop_, &acktimer_);
+    ev_timer_set(&acktimer_, t, 0.);
+    ev_timer_start(loop_, &acktimer_);
+  }
 }
 
 int Client::write_client_handshake(const uint8_t *data, size_t datalen) {

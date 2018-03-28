@@ -38,6 +38,9 @@
    which ngtcp2_acktr stores. */
 #define NGTCP2_ACKTR_MAX_ENT 1024
 
+/* ns */
+#define NGTCP2_DEFAULT_ACK_DELAY 25000000
+
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
@@ -114,6 +117,15 @@ typedef struct {
   uint64_t last_hs_ack_pkt_num;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint8_t flags;
+  /* last_unprotected_added is timestamp when unprotected
+     ngtcp2_acktr_entry is added first time after the last outgoing
+     ACK frame. */
+  /* TODO This should be first_unprotected_unacked_ts */
+  ngtcp2_tstamp last_unprotected_added;
+  /* last_added is timestamp when ngtcp2_acktr_entry is added first
+     time after the last outgoing ACK frame. */
+  /* TODO This should be first_unacked_ts */
+  ngtcp2_tstamp last_added;
 } ngtcp2_acktr;
 
 /*
@@ -144,7 +156,7 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
  *     Same packet number has already been included in |acktr|.
  */
 int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
-                     int active_ack);
+                     int active_ack, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_forget removes all entries from |ent| to the end of
@@ -208,6 +220,7 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected);
  * be generated actively.  If |unprotected| is nonzero, entries sent
  * in an unprotected packet are taken into consideration.
  */
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected);
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
+                                    uint64_t max_ack_delay, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_ACKTR_H */
