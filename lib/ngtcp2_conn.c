@@ -3725,6 +3725,9 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     if (rv < 0) {
       break;
     }
+    if (conn->state == NGTCP2_CS_DRAINING) {
+      return NGTCP2_ERR_DRAINING;
+    }
     break;
   }
 
