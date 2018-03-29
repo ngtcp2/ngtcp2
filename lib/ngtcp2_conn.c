@@ -1476,7 +1476,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       conn->unsent_max_rx_offset > conn->max_rx_offset) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
-      goto fail;
+      return rv;
     }
     nfrc->fr.type = NGTCP2_FRAME_MAX_DATA;
     nfrc->fr.max_data.max_data = conn->unsent_max_rx_offset;
@@ -1490,7 +1490,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     strm = conn->fc_strms;
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
-      goto fail;
+      return rv;
     }
     nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
     nfrc->fr.max_stream_data.stream_id = strm->stream_id;
