@@ -1112,27 +1112,16 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
 }
 
 void Client::schedule_retransmit() {
-  ev_tstamp t;
-  auto now = util::timestamp();
-
   auto expiry = std::min(ngtcp2_conn_earliest_expiry(conn_),
                          ngtcp2_conn_ack_delay_expiry(conn_));
 
-  if (expiry == UINT64_MAX) {
-    ev_timer_stop(loop_, &rttimer_);
-    return;
+  auto now = util::timestamp();
+  auto t = static_cast<ev_tstamp>(expiry - now) / 1000000000;
+  if (t < 1e-6) {
+    t = 1e-6;
   }
-
-  ev_timer_stop(loop_, &rttimer_);
-
-  if (now >= expiry) {
-    t = 0.;
-  } else {
-    t = static_cast<ev_tstamp>(expiry - now) / 1000000000;
-  }
-  ev_timer_stop(loop_, &rttimer_);
-  ev_timer_set(&rttimer_, t, 0.);
-  ev_timer_start(loop_, &rttimer_);
+  rttimer_.repeat = t;
+  ev_timer_again(loop_, &rttimer_);
 }
 
 int Client::write_client_handshake(const uint8_t *data, size_t datalen) {
