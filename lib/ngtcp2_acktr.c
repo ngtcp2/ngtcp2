@@ -50,7 +50,7 @@ void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, ent);
 }
 
-int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
+int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem) {
   int rv;
 
   rv = ngtcp2_ringbuf_init(&acktr->acks, 128, sizeof(ngtcp2_acktr_ack_entry),
@@ -61,6 +61,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
 
   acktr->ent = NULL;
   acktr->tail = NULL;
+  acktr->log = log;
   acktr->mem = mem;
   acktr->nack = 0;
   acktr->last_hs_ack_pkt_num = UINT64_MAX;
@@ -230,6 +231,9 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
   if (ent->pkt_num >= acktr->last_hs_ack_pkt_num) {
     acktr->flags |= NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK;
     acktr->last_hs_ack_pkt_num = UINT64_MAX;
+
+    ngtcp2_log_info(acktr->log, NGTCP2_LOG_EVENT_CON,
+                    "packet after last handshake packet was acknowledged");
   }
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */

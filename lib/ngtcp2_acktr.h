@@ -47,6 +47,9 @@ typedef struct ngtcp2_conn ngtcp2_conn;
 struct ngtcp2_acktr_entry;
 typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
 
+struct ngtcp2_log;
+typedef struct ngtcp2_log ngtcp2_log;
+
 /*
  * ngtcp2_acktr_entry is a single packet which needs to be acked.
  */
@@ -110,6 +113,7 @@ typedef struct {
   /* ent points to the head of list which is ordered by the decreasing
      order of packet number. */
   ngtcp2_acktr_entry *ent, *tail;
+  ngtcp2_log *log;
   ngtcp2_mem *mem;
   size_t nack;
   /* last_hs_ack_pkt_num is the earliest outgoing packet number which
@@ -139,7 +143,7 @@ typedef struct {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem);
+int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees

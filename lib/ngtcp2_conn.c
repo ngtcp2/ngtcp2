@@ -192,13 +192,14 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_remote_uni_idtr_init;
   }
 
-  rv = ngtcp2_acktr_init(&(*pconn)->acktr, mem);
+  ngtcp2_log_init(&(*pconn)->log, &(*pconn)->conn_id, settings->log_fd,
+                  settings->initial_ts);
+
+  rv = ngtcp2_acktr_init(&(*pconn)->acktr, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_acktr_init;
   }
 
-  ngtcp2_log_init(&(*pconn)->log, &(*pconn)->conn_id, settings->log_fd,
-                  settings->initial_ts);
   ngtcp2_rtb_init(&(*pconn)->rtb, &(*pconn)->log, mem);
 
   (*pconn)->callbacks = *callbacks;
@@ -2195,7 +2196,7 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
 
   conn->strm0 = strm0;
 
-  ngtcp2_acktr_init(&conn->acktr, conn->mem);
+  ngtcp2_acktr_init(&conn->acktr, &conn->log, conn->mem);
   ngtcp2_rtb_init(&conn->rtb, &conn->log, conn->mem);
   ngtcp2_map_insert(&conn->strms, &conn->strm0->me);
 
