@@ -173,7 +173,13 @@ void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
   auto rv = c->on_write();
-  if (rv == NETWORK_ERR_SEND_FATAL) {
+  switch (rv) {
+  case 0:
+    return;
+  case NETWORK_ERR_SEND_NON_FATAL:
+    c->start_wev();
+    return;
+  default:
     c->disconnect();
     return;
   }
@@ -189,8 +195,15 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
     return;
   }
   auto rv = c->on_write();
-  if (rv == NETWORK_ERR_SEND_FATAL) {
+  switch (rv) {
+  case 0:
+    return;
+  case NETWORK_ERR_SEND_NON_FATAL:
+    c->start_wev();
+    return;
+  default:
     c->disconnect();
+    return;
   }
 }
 } // namespace
@@ -219,19 +232,35 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
 namespace {
 void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  int rv;
   auto c = static_cast<Client *>(w->data);
   auto conn = c->conn();
   auto now = util::timestamp();
 
-  if (ngtcp2_conn_loss_detection_expiry(conn) < now + 1000000 &&
-      c->on_write(true) != 0) {
-    c->disconnect();
-    return;
+  if (ngtcp2_conn_loss_detection_expiry(conn) < now + 1000000) {
+    rv = c->on_write(true);
+    if (rv != 0) {
+      goto fail;
+    }
   }
 
-  if (ngtcp2_conn_ack_delay_expiry(conn) < now + 1000000 &&
-      c->on_write() != 0) {
+  if (ngtcp2_conn_ack_delay_expiry(conn) < now + 1000000) {
+    rv = c->on_write();
+    if (rv != 0) {
+      goto fail;
+    }
+  }
+
+  return;
+
+fail:
+  switch (rv) {
+  case NETWORK_ERR_SEND_NON_FATAL:
+    c->start_wev();
+    return;
+  default:
     c->disconnect();
+    return;
   }
 }
 } // namespace
@@ -1631,6 +1660,8 @@ int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
 
   return 0;
 }
+
+void Client::start_wev() { ev_io_start(loop_, &wev_); }
 
 namespace {
 int transport_params_add_cb(SSL *ssl, unsigned int ext_type,

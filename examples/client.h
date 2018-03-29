@@ -140,6 +140,8 @@ public:
   void disconnect(int liberr);
   void close();
 
+  void start_wev();
+
   int tls_handshake(bool initial = false);
   int read_tls();
   int on_read();
