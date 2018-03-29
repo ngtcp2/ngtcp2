@@ -117,15 +117,9 @@ typedef struct {
   uint64_t last_hs_ack_pkt_num;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint8_t flags;
-  /* last_unprotected_added is timestamp when unprotected
-     ngtcp2_acktr_entry is added first time after the last outgoing
-     ACK frame. */
-  /* TODO This should be first_unprotected_unacked_ts */
-  ngtcp2_tstamp last_unprotected_added;
-  /* last_added is timestamp when ngtcp2_acktr_entry is added first
-     time after the last outgoing ACK frame. */
-  /* TODO This should be first_unacked_ts */
-  ngtcp2_tstamp last_added;
+  /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
+     first time after the last outgoing protected ACK frame. */
+  ngtcp2_tstamp first_unacked_ts;
 } ngtcp2_acktr;
 
 /*

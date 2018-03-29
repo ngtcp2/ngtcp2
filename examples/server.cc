@@ -500,17 +500,37 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
+  auto conn = h->conn();
+  auto now = util::timestamp();
 
-  rv = h->on_write(true);
-  switch (rv) {
-  case 0:
-  case NETWORK_ERR_CLOSE_WAIT:
-    break;
-  case NETWORK_ERR_SEND_NON_FATAL:
-    s->start_wev();
-    break;
-  default:
-    s->remove(h);
+  if (ngtcp2_conn_earliest_expiry(conn) < now + 1000000) {
+    rv = h->on_write(true);
+    switch (rv) {
+    case 0:
+    case NETWORK_ERR_CLOSE_WAIT:
+      return;
+    case NETWORK_ERR_SEND_NON_FATAL:
+      s->start_wev();
+      return;
+    default:
+      s->remove(h);
+      return;
+    }
+  }
+
+  if (ngtcp2_conn_ack_delay_expiry(conn) < now + 1000000) {
+    rv = h->on_write();
+    switch (rv) {
+    case 0:
+    case NETWORK_ERR_CLOSE_WAIT:
+      return;
+    case NETWORK_ERR_SEND_NON_FATAL:
+      s->start_wev();
+      return;
+    default:
+      s->remove(h);
+      return;
+    }
   }
 }
 } // namespace
@@ -1362,6 +1382,9 @@ int Handler::on_write(bool retransmit) {
         return rv;
       }
     }
+
+    schedule_retransmit();
+    return 0;
   }
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
@@ -1567,8 +1590,9 @@ int Handler::send_conn_close() {
 }
 
 void Handler::schedule_retransmit() {
-  auto expiry = ngtcp2_conn_earliest_expiry(conn_);
-  if (expiry == 0) {
+  auto expiry = std::min(ngtcp2_conn_earliest_expiry(conn_),
+                         ngtcp2_conn_ack_delay_expiry(conn_));
+  if (expiry == UINT64_MAX) {
     ev_timer_stop(loop_, &rttimer_);
     return;
   }

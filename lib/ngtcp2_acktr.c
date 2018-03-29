@@ -66,8 +66,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
   acktr->nack = 0;
   acktr->last_hs_ack_pkt_num = UINT64_MAX;
   acktr->flags = NGTCP2_ACKTR_FLAG_NONE;
-  acktr->last_unprotected_added = 0;
-  acktr->last_added = 0;
+  acktr->first_unacked_ts = 0;
 
   return 0;
 }
@@ -123,17 +122,11 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
     if (ent->unprotected) {
       /* Should be sent in both protected and unprotected ACK */
       acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
-      if (!acktr->last_unprotected_added) {
-        acktr->last_unprotected_added = ts;
-      }
-      if (!acktr->last_added) {
-        acktr->last_added = ts;
-      }
     } else {
       acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
-      if (!acktr->last_added) {
-        acktr->last_added = ts;
-      }
+    }
+    if (acktr->first_unacked_ts == UINT64_MAX) {
+      acktr->first_unacked_ts = ts;
     }
   }
 
@@ -363,20 +356,17 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
 void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected) {
   if (unprotected) {
     acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
-    acktr->last_unprotected_added = 0;
   } else {
     acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
-    acktr->last_added = 0;
+    acktr->first_unacked_ts = UINT64_MAX;
   }
 }
 
 int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
                                     uint64_t max_ack_delay, ngtcp2_tstamp ts) {
   if (unprotected) {
-    return (acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED) &&
-           acktr->last_unprotected_added &&
-           acktr->last_unprotected_added + max_ack_delay <= ts;
+    return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   }
   return (acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED) &&
-         acktr->last_added && acktr->last_added + max_ack_delay <= ts;
+         acktr->first_unacked_ts <= ts - max_ack_delay;
 }

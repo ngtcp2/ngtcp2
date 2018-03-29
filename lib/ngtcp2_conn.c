@@ -374,6 +374,22 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
 }
 
 /*
+ * conn_compute_ack_delay computes ACK delay for outgoing protected
+ * ACK.
+ */
+static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
+  uint64_t ack_delay;
+
+  if (conn->rcs.min_rtt == 0) {
+    return NGTCP2_DEFAULT_ACK_DELAY;
+  }
+
+  ack_delay = (uint64_t)(conn->rcs.smoothed_rtt / 4);
+
+  return ngtcp2_min(NGTCP2_DEFAULT_ACK_DELAY, ack_delay);
+}
+
+/*
  * conn_create_ack_frame creates ACK frame, and assigns its pointer to
  * |*pfr| if there are any received packets to acknowledge.  If there
  * are no packets to acknowledge, this function returns 0, and |*pfr|
@@ -407,12 +423,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
-  uint64_t max_ack_delay = NGTCP2_DEFAULT_ACK_DELAY;
-
-  if (conn->rcs.min_rtt) {
-    max_ack_delay =
-        ngtcp2_min(max_ack_delay, (uint64_t)(conn->rcs.smoothed_rtt / 4));
-  }
+  uint64_t max_ack_delay = conn_compute_ack_delay(conn);
 
   if (!ngtcp2_acktr_require_active_ack(&conn->acktr, unprotected, max_ack_delay,
                                        ts)) {
@@ -425,9 +436,8 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
       ;
   }
   if (*prpkt == NULL) {
-    conn->acktr.last_unprotected_added = 0;
     if (!unprotected) {
-      conn->acktr.last_added = 0;
+      conn->acktr.first_unacked_ts = UINT64_MAX;
     }
     return 0;
   }
@@ -4035,31 +4045,17 @@ int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
 }
 
 ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn) {
-  return conn->rcs.loss_detection_alarm;
+  if (conn->rcs.loss_detection_alarm) {
+    return conn->rcs.loss_detection_alarm;
+  }
+  return UINT64_MAX;
 }
 
 ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
-  if (ngtcp2_conn_get_handshake_completed(conn)) {
-    if (!conn->acktr.last_added) {
-      return 0;
-    }
-    return conn->acktr.last_added + NGTCP2_DEFAULT_ACK_DELAY;
+  if (conn->acktr.first_unacked_ts == UINT64_MAX) {
+    return UINT64_MAX;
   }
-
-  if (!conn->acktr.last_added) {
-    if (!conn->acktr.last_unprotected_added) {
-      return 0;
-    }
-    return conn->acktr.last_unprotected_added + NGTCP2_DEFAULT_ACK_DELAY;
-  }
-
-  if (!conn->acktr.last_unprotected_added) {
-    return conn->acktr.last_added + NGTCP2_DEFAULT_ACK_DELAY;
-  }
-
-  return ngtcp2_min(conn->acktr.last_added,
-                    conn->acktr.last_unprotected_added) +
-         NGTCP2_DEFAULT_ACK_DELAY;
+  return conn->acktr.first_unacked_ts + conn_compute_ack_delay(conn);
 }
 
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
