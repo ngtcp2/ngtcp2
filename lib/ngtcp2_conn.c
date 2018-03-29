@@ -611,9 +611,6 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  /* TODO Don't include ACK in this unprotected packet in order not to
-     ack protected packet here for now. */
-
   for (pfrc = &ent->frc; *pfrc;) {
     rv = conn_ppe_write_frame(conn, &ppe, &hd, &(*pfrc)->fr);
     if (rv != 0) {
