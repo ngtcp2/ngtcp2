@@ -216,8 +216,7 @@ static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_acktr_entry **pent) {
   --acktr->nack;
 }
 
-static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset,
-                         ngtcp2_conn *conn) {
+static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
   ngtcp2_acktr_ack_entry *ent;
   ngtcp2_ack *fr;
   ngtcp2_acktr_entry **pent;
@@ -228,8 +227,8 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset,
   fr = ent->ack;
   largest_ack = fr->largest_ack;
 
-  if (conn && ent->pkt_num >= acktr->last_hs_ack_pkt_num) {
-    conn->flags |= NGTCP2_CONN_FLAG_ACK_FINISHED_ACK;
+  if (ent->pkt_num >= acktr->last_hs_ack_pkt_num) {
+    acktr->flags |= NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK;
     acktr->last_hs_ack_pkt_num = UINT64_MAX;
   }
 
@@ -310,7 +309,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
         ent = ngtcp2_ringbuf_get(&acktr->acks, j);
         continue;
       }
-      acktr_on_ack(acktr, j, conn);
+      acktr_on_ack(acktr, j);
       if (conn && largest_ack == ent->pkt_num && ent->ack_only) {
         ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled,
                                ent->ack_only);
@@ -344,7 +343,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
         ent = ngtcp2_ringbuf_get(&acktr->acks, j);
         continue;
       }
-      acktr_on_ack(acktr, j, conn);
+      acktr_on_ack(acktr, j);
       return 0;
     }
 

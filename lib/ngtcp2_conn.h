@@ -158,13 +158,6 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
      rejected by a peer. */
   NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED = 0x20,
-  /* NGTCP2_CONN_FLAG_PENDING_ACK_FINISHED is set when server received
-     TLSv1.3 Finished message, and its acknowledgement is pending. */
-  NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK = 0x40,
-  /* NGTCP2_CONN_FLAG_ACK_FINISHED_ACK is set when server received
-     acknowledgement for ACK which acknowledges the last handshake
-     packet from client (which contains TLSv1.3 Finished message). */
-  NGTCP2_CONN_FLAG_ACK_FINISHED_ACK = 0x80,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {

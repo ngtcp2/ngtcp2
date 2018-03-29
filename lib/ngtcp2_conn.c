@@ -1540,8 +1540,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn_commit_tx_ack(conn, 0 /* unprotected */);
     pkt_empty = 0;
 
-    if (conn->flags & NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK) {
-      conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
+    if (conn->acktr.flags & NGTCP2_ACKTR_FLAG_PENDING_FINISHED_ACK) {
+      conn->acktr.flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_PENDING_FINISHED_ACK;
       conn->acktr.last_hs_ack_pkt_num = hd.pkt_num;
       /* TODO We don't have to send PING if we send a frame other than
          ACK. */
@@ -3416,7 +3416,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) >=
               conn->final_hs_tx_offset &&
           (!conn->server ||
-           (conn->flags & NGTCP2_CONN_FLAG_ACK_FINISHED_ACK))) {
+           (conn->acktr.flags & NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK))) {
         return 0;
       }
       break;
@@ -3900,7 +3900,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return (ssize_t)rv;
     }
 
-    conn->flags |= NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
+    conn->acktr.flags |= NGTCP2_ACKTR_FLAG_PENDING_FINISHED_ACK;
 
     return 0;
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
