@@ -381,7 +381,7 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
 static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
   uint64_t ack_delay;
 
-  if (conn->rcs.min_rtt == 0) {
+  if (conn->rcs.min_rtt == UINT64_MAX) {
     return NGTCP2_DEFAULT_ACK_DELAY;
   }
 
