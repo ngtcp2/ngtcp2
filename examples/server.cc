@@ -1307,6 +1307,10 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
     rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
+      if (rv == NGTCP2_ERR_DRAINING) {
+        start_draining_period();
+        return NETWORK_ERR_CLOSE_WAIT;
+      }
       if (rv != NGTCP2_ERR_TLS_DECRYPT) {
         return handle_error(rv);
       }
@@ -1316,11 +1320,6 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
     if (rv != 0) {
       return handle_error(rv);
     }
-  }
-
-  if (ngtcp2_conn_in_draining_period(conn_)) {
-    start_draining_period();
-    return NETWORK_ERR_CLOSE_WAIT;
   }
 
   return 0;

@@ -88,6 +88,10 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_EARLY_DATA_REJECTED";
   case NGTCP2_ERR_RECV_VERSION_NEGOTIATION:
     return "ERR_RECV_VERSION_NEGOTIATION";
+  case NGTCP2_ERR_CLOSING:
+    return "ERR_CLOSING";
+  case NGTCP2_ERR_DRAINING:
+    return "ERR_DRAINING";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:

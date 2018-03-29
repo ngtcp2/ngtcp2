@@ -1879,6 +1879,13 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   conn->log.last_ts = ts;
 
+  switch (conn->state) {
+  case NGTCP2_CS_CLOSING:
+    return NGTCP2_ERR_CLOSING;
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_DRAINING;
+  }
+
   if (conn->last_tx_pkt_num == UINT64_MAX) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
@@ -3709,6 +3716,10 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     return NGTCP2_ERR_INVALID_STATE;
+  case NGTCP2_CS_CLOSING:
+    return NGTCP2_ERR_CLOSING;
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_DRAINING;
   case NGTCP2_CS_POST_HANDSHAKE:
     rv = conn_recv_pkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
@@ -3731,6 +3742,13 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   if (pktlen > 0) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
                     pktlen);
+  }
+
+  switch (conn->state) {
+  case NGTCP2_CS_CLOSING:
+    return NGTCP2_ERR_CLOSING;
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_DRAINING;
   }
 
   if (conn->last_tx_pkt_num == UINT64_MAX) {
@@ -4304,6 +4322,13 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   uint64_t conn_id;
 
   conn->log.last_ts = ts;
+
+  switch (conn->state) {
+  case NGTCP2_CS_CLOSING:
+    return NGTCP2_ERR_CLOSING;
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_DRAINING;
+  }
 
   if (conn->last_tx_pkt_num == UINT64_MAX) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
