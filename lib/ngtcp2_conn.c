@@ -3425,6 +3425,12 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
               conn->final_hs_tx_offset &&
           (!conn->server ||
            (conn->acktr.flags & NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK))) {
+        ngtcp2_log_info(
+            &conn->log, NGTCP2_LOG_EVENT_CON,
+            "unprotected packet %" PRIu64
+            " is ignored because handshake has finished",
+            ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, 32));
+
         return 0;
       }
       break;
