@@ -947,6 +947,18 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, const uint8_t *pkt,
                                             size_t pktlen, ngtcp2_tstamp ts);
 
+/*
+ * @function
+ *
+ * `ngtcp2_conn_recv` decrypts QUIC packet given in |pkt| of length
+ * |pktlen| and processes it.  This function must be called after QUIC
+ * handshake has finished successfully.
+ *
+ * This function must not be called from inside the callback
+ * functions.
+ *
+ * This function returns 0 if it succeeds, or negative error codes.
+ */
 NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts);
 
