@@ -223,7 +223,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto conn = c->conn();
   auto now = util::timestamp();
 
-  if (ngtcp2_conn_earliest_expiry(conn) < now + 1000000 &&
+  if (ngtcp2_conn_loss_detection_expiry(conn) < now + 1000000 &&
       c->on_write(true) != 0) {
     c->disconnect();
     return;
@@ -1112,7 +1112,7 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
 }
 
 void Client::schedule_retransmit() {
-  auto expiry = std::min(ngtcp2_conn_earliest_expiry(conn_),
+  auto expiry = std::min(ngtcp2_conn_loss_detection_expiry(conn_),
                          ngtcp2_conn_ack_delay_expiry(conn_));
 
   auto now = util::timestamp();

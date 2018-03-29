@@ -4042,7 +4042,7 @@ int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
   return ngtcp2_crypto_km_new(&conn->rx_ckm, key, keylen, iv, ivlen, conn->mem);
 }
 
-ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn) {
+ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
   if (conn->rcs.loss_detection_alarm) {
     return conn->rcs.loss_detection_alarm;
   }

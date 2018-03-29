@@ -1056,12 +1056,13 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_earliest_expiry` returns the expiry time point of loss
- * detection alarm.  Application should call
+ * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
+ * of loss detection alarm.  Application should call
  * `ngtcp2_conn_on_loss_detection_alarm` when it expires.  It returns
  * UINT64_MAX if loss detection alarm is not armed.
  */
-NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_earliest_expiry(ngtcp2_conn *conn);
+NGTCP2_EXTERN ngtcp2_tstamp
+ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
 
 /**
  * @function
