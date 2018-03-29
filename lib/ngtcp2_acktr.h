@@ -78,7 +78,6 @@ typedef struct {
   ngtcp2_ack *ack;
   uint64_t pkt_num;
   ngtcp2_tstamp ts;
-  uint8_t unprotected;
   uint8_t ack_only;
 } ngtcp2_acktr_ack_entry;
 
