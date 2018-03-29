@@ -59,6 +59,12 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem) {
     return rv;
   }
 
+  rv = ngtcp2_ringbuf_init(&acktr->hs_acks, 32, sizeof(ngtcp2_acktr_ack_entry),
+                           mem);
+  if (rv != 0) {
+    return rv;
+  }
+
   acktr->ent = NULL;
   acktr->tail = NULL;
   acktr->log = log;
@@ -81,6 +87,12 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
   if (acktr == NULL) {
     return;
   }
+
+  for (i = 0; i < acktr->hs_acks.len; ++i) {
+    ack_ent = ngtcp2_ringbuf_get(&acktr->hs_acks, i);
+    ngtcp2_mem_free(acktr->mem, ack_ent->ack);
+  }
+  ngtcp2_ringbuf_free(&acktr->hs_acks);
 
   for (i = 0; i < acktr->acks.len; ++i) {
     ack_ent = ngtcp2_ringbuf_get(&acktr->acks, i);
@@ -191,7 +203,11 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              int ack_only) {
   ngtcp2_acktr_ack_entry *ent;
 
-  ent = ngtcp2_ringbuf_push_front(&acktr->acks);
+  if (unprotected) {
+    ent = ngtcp2_ringbuf_push_front(&acktr->hs_acks);
+  } else {
+    ent = ngtcp2_ringbuf_push_front(&acktr->acks);
+  }
   ent->ack = fr;
   ent->pkt_num = pkt_num;
   ent->ts = ts;
@@ -217,14 +233,15 @@ static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_acktr_entry **pent) {
   --acktr->nack;
 }
 
-static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
+static void acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
+                         size_t ack_ent_offset) {
   ngtcp2_acktr_ack_entry *ent;
   ngtcp2_ack *fr;
   ngtcp2_acktr_entry **pent;
   uint64_t largest_ack, min_ack;
   size_t i;
 
-  ent = ngtcp2_ringbuf_get(&acktr->acks, ack_ent_offset);
+  ent = ngtcp2_ringbuf_get(rb, ack_ent_offset);
   fr = ent->ack;
   largest_ack = fr->largest_ack;
 
@@ -275,11 +292,11 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, size_t ack_ent_offset) {
   }
 
 fin:
-  for (i = ack_ent_offset; i < acktr->acks.len; ++i) {
-    ent = ngtcp2_ringbuf_get(&acktr->acks, i);
+  for (i = ack_ent_offset; i < rb->len; ++i) {
+    ent = ngtcp2_ringbuf_get(rb, i);
     ngtcp2_mem_free(acktr->mem, ent->ack);
   }
-  ngtcp2_ringbuf_resize(&acktr->acks, ack_ent_offset);
+  ngtcp2_ringbuf_resize(rb, ack_ent_offset);
 }
 
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
@@ -288,11 +305,12 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
   ngtcp2_acktr_ack_entry *ent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i, j;
-  size_t nacks = ngtcp2_ringbuf_len(&acktr->acks);
+  ngtcp2_ringbuf *rb = unprotected ? &acktr->hs_acks : &acktr->acks;
+  size_t nacks = ngtcp2_ringbuf_len(rb);
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   for (j = 0; j < nacks; ++j) {
-    ent = ngtcp2_ringbuf_get(&acktr->acks, j);
+    ent = ngtcp2_ringbuf_get(rb, j);
     if (largest_ack >= ent->pkt_num) {
       break;
     }
@@ -310,10 +328,10 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
         if (j == nacks) {
           return 0;
         }
-        ent = ngtcp2_ringbuf_get(&acktr->acks, j);
+        ent = ngtcp2_ringbuf_get(rb, j);
         continue;
       }
-      acktr_on_ack(acktr, j);
+      acktr_on_ack(acktr, rb, j);
       if (conn && largest_ack == ent->pkt_num && ent->ack_only) {
         ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled,
                                ent->ack_only);
@@ -333,7 +351,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
         if (j == nacks) {
           return 0;
         }
-        ent = ngtcp2_ringbuf_get(&acktr->acks, j);
+        ent = ngtcp2_ringbuf_get(rb, j);
         continue;
       }
       if (ent->pkt_num < min_ack) {
@@ -344,10 +362,10 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
         if (j == nacks) {
           return 0;
         }
-        ent = ngtcp2_ringbuf_get(&acktr->acks, j);
+        ent = ngtcp2_ringbuf_get(rb, j);
         continue;
       }
-      acktr_on_ack(acktr, j);
+      acktr_on_ack(acktr, rb, j);
       return 0;
     }
 

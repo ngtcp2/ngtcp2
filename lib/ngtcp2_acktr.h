@@ -110,6 +110,7 @@ typedef enum {
  */
 typedef struct {
   ngtcp2_ringbuf acks;
+  ngtcp2_ringbuf hs_acks;
   /* ent points to the head of list which is ordered by the decreasing
      order of packet number. */
   ngtcp2_acktr_entry *ent, *tail;
