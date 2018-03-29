@@ -396,6 +396,8 @@ static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
  * are no packets to acknowledge, this function returns 0, and |*pfr|
  * is untouched.  The caller is advised to set |*pfr| to NULL before
  * calling this function, and check it after this function returns.
+ * If |nodelay| is nonzero, delayed ACK timer is ignored.  If
+ * |unprotected| is nonzero, delayed ACK timer is always ignored.
  *
  * The memory for ACK frame is dynamically allocated by this function.
  * A caller is responsible to free it.
@@ -410,7 +412,8 @@ static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
  *     Out of memory.
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
-                                 ngtcp2_tstamp ts, int unprotected) {
+                                 ngtcp2_tstamp ts, int nodelay,
+                                 int unprotected) {
   uint64_t first_pkt_num;
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
@@ -424,7 +427,8 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
-  uint64_t max_ack_delay = conn_compute_ack_delay(conn);
+  uint64_t max_ack_delay =
+      (nodelay || unprotected) ? 0 : conn_compute_ack_delay(conn);
 
   if (!ngtcp2_acktr_require_active_ack(&conn->acktr, unprotected, max_ack_delay,
                                        ts)) {
@@ -631,7 +635,8 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   if (hd.type != NGTCP2_PKT_INITIAL) {
     /* ACK is added last so that we don't send ACK only frame here. */
     ackfr = NULL;
-    rv = conn_create_ack_frame(conn, &ackfr, ts, 1 /* unprotected */);
+    rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* nodelay */,
+                               1 /* unprotected */);
     if (rv != 0) {
       return rv;
     }
@@ -838,7 +843,8 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   /* ACK is added last so that we don't send ACK only frame here. */
   ackfr = NULL;
   /* TODO Is it better to check the remaining space in packet? */
-  rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* unprotected */);
+  rv = conn_create_ack_frame(conn, &ackfr, ts, 1 /* nodelay */,
+                             0 /* unprotected */);
   if (rv != 0) {
     return rv;
   }
@@ -1051,7 +1057,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   /* Encode ACK here */
   if (type != NGTCP2_PKT_INITIAL) {
     ackfr = NULL;
-    rv = conn_create_ack_frame(conn, &ackfr, ts, 1 /* unprotected */);
+    rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* nodelay */,
+                               1 /* unprotected */);
     if (rv != 0) {
       return rv;
     }
@@ -1203,7 +1210,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_crypto_ctx ctx;
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, ts, 1 /* unprotected */);
+  rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* nodelay */,
+                             1 /* unprotected */);
   if (rv != 0) {
     return rv;
   }
@@ -1451,12 +1459,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_acktr_ack_entry *ack_ent = NULL;
   size_t ndatalen = 0;
   int send_stream = 0;
-
-  ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* unprotected */);
-  if (rv != 0) {
-    return rv;
-  }
+  int ack_only;
 
   if (data_strm) {
     ndatalen =
@@ -1469,7 +1472,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
   }
 
-  if ((ackfr || conn->frq || send_stream || conn_should_send_max_data(conn)) &&
+  if ((conn->frq || send_stream || conn_should_send_max_data(conn)) &&
       conn->unsent_max_rx_offset > conn->max_rx_offset) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
@@ -1506,11 +1509,21 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     strm->fc_pprev = NULL;
   }
 
-  if (!ackfr && !send_stream &&
+  ack_only =
+      !send_stream &&
       conn->unsent_max_remote_stream_id_bidi ==
           conn->max_remote_stream_id_bidi &&
       conn->unsent_max_remote_stream_id_uni == conn->max_remote_stream_id_uni &&
-      conn->frq == NULL) {
+      conn->frq == NULL;
+
+  ackfr = NULL;
+  rv = conn_create_ack_frame(conn, &ackfr, ts, !ack_only /* nodelay */,
+                             0 /* unprotected */);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (ackfr == NULL && ack_only) {
     return 0;
   }
 
@@ -1809,7 +1822,8 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_frame *ackfr;
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* unprotected */);
+  rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* nodelay */,
+                             0 /* unprotected */);
   if (rv != 0) {
     return rv;
   }
