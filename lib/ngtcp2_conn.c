@@ -1541,7 +1541,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     pkt_empty = 0;
 
     if (conn->flags & NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK) {
-      conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
+      conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_PENDING_FINISHED_ACK;
       conn->acktr.last_hs_ack_pkt_num = hd.pkt_num;
       /* TODO We don't have to send PING if we send a frame other than
          ACK. */
@@ -2199,7 +2199,7 @@ static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
   ngtcp2_rtb_init(&conn->rtb, &conn->log, conn->mem);
   ngtcp2_map_insert(&conn->strms, &conn->strm0->me);
 
-  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
+  conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
   conn->state = NGTCP2_CS_CLIENT_INITIAL;
 
   return 0;
@@ -3811,7 +3811,6 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
-    conn->flags |= NGTCP2_CONN_FLAG_QUIC_HANDSHAKE_COMPLETED;
 
     if (conn->early_rtb) {
       rv = conn_process_early_rtb(conn);
@@ -3895,7 +3894,6 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
-    conn->flags |= NGTCP2_CONN_FLAG_QUIC_HANDSHAKE_COMPLETED;
 
     rv = conn_process_buffered_protected_pkt(conn, ts);
     if (rv != 0) {
@@ -3926,7 +3924,7 @@ void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
-  return (conn->flags & NGTCP2_CONN_FLAG_QUIC_HANDSHAKE_COMPLETED) != 0;
+  return (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) > 0;
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,

@@ -165,7 +165,6 @@ typedef enum {
      acknowledgement for ACK which acknowledges the last handshake
      packet from client (which contains TLSv1.3 Finished message). */
   NGTCP2_CONN_FLAG_ACK_FINISHED_ACK = 0x80,
-  NGTCP2_CONN_FLAG_QUIC_HANDSHAKE_COMPLETED = 0x100,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {
@@ -252,7 +251,7 @@ struct ngtcp2_conn {
   ngtcp2_rtb rtb;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
-  uint16_t flags;
+  uint8_t flags;
   int server;
   /* hs_tx_ckm is a cryptographic key, and iv to encrypt handshake
      packets. */

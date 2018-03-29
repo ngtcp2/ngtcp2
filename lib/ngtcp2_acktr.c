@@ -25,7 +25,6 @@
 #include "ngtcp2_acktr.h"
 
 #include <assert.h>
-#include <stdio.h>
 
 #include "ngtcp2_conn.h"
 #include "ngtcp2_macro.h"
@@ -66,6 +65,8 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_mem *mem) {
   acktr->nack = 0;
   acktr->last_hs_ack_pkt_num = UINT64_MAX;
   acktr->flags = NGTCP2_ACKTR_FLAG_NONE;
+  /* Initialize it to 0 so that we can send first ACK without a
+     delay. */
   acktr->first_unacked_ts = 0;
 
   return 0;
