@@ -392,3 +392,15 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
   return (acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED) &&
          acktr->first_unacked_ts <= ts - max_ack_delay;
 }
+
+int ngtcp2_acktr_include_protected_pkt(ngtcp2_acktr *acktr) {
+  ngtcp2_acktr_entry *ent;
+
+  for (ent = acktr->ent; ent; ent = ent->next) {
+    if (!ent->unprotected) {
+      return 1;
+    }
+  }
+
+  return 0;
+}

@@ -230,4 +230,10 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected);
 int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
                                     uint64_t max_ack_delay, ngtcp2_tstamp ts);
 
+/*
+ * ngtcp2_acktr_include_protected_pkt returns nonzero if |acktr|
+ * includes protected packet to ack.
+ */
+int ngtcp2_acktr_include_protected_pkt(ngtcp2_acktr *acktr);
+
 #endif /* NGTCP2_ACKTR_H */

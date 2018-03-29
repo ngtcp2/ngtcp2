@@ -1379,7 +1379,7 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
         return NGTCP2_ERR_TLS_HANDSHAKE;
       }
 
-      if (conn->early_ckm) {
+      if (conn->early_ckm && ngtcp2_acktr_include_protected_pkt(&conn->acktr)) {
         assert(conn->tx_ckm);
 
         nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
