@@ -37,17 +37,6 @@ auto randgen = util::make_mt19937();
 } // namespace
 
 namespace {
-std::chrono::steady_clock::time_point ts_base;
-} // namespace
-
-void reset_timestamp() { ts_base = std::chrono::steady_clock::now(); }
-
-std::chrono::nanoseconds timestamp() {
-  return std::chrono::duration_cast<std::chrono::nanoseconds>(
-      std::chrono::steady_clock::now() - ts_base);
-}
-
-namespace {
 auto color_output = false;
 } // namespace
 

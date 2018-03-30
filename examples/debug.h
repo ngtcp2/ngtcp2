@@ -41,10 +41,6 @@ namespace ngtcp2 {
 
 namespace debug {
 
-void reset_timestamp();
-
-std::chrono::nanoseconds timestamp();
-
 void set_color_output(bool f);
 
 int handshake_completed(ngtcp2_conn *conn, void *user_data);

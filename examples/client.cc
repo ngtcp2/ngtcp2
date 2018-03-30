@@ -2118,8 +2118,6 @@ int main(int argc, char **argv) {
 
   auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);
 
-  debug::reset_timestamp();
-
   if (isatty(STDOUT_FILENO)) {
     debug::set_color_output(true);
   }
