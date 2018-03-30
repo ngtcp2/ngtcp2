@@ -928,6 +928,9 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * capacity is given as |destlen|.  Application must ensure that the
  * buffer pointed by |dest| is not empty.
  *
+ * Application should keep calling this function repeatedly until it
+ * returns zero, or negative error code.
+ *
  * Application should call this function until
  * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
  * completion of handshake, `ngtcp2_conn_recv` and
@@ -970,6 +973,9 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
  * current time.
  *
  * If there is no packet to send, this function returns 0.
+ *
+ * Application should keep calling this function repeatedly until it
+ * returns zero, or negative error code.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -1072,8 +1078,10 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
  * of loss detection alarm.  Application should call
- * `ngtcp2_conn_on_loss_detection_alarm` when it expires.  It returns
- * UINT64_MAX if loss detection alarm is not armed.
+ * `ngtcp2_conn_on_loss_detection_alarm` and `ngtcp2_conn_recv` (or
+ * `ngtcp2_conn_handshake` if handshake has not finished yet) when it
+ * expires.  It returns UINT64_MAX if loss detection alarm is not
+ * armed.
  */
 NGTCP2_EXTERN ngtcp2_tstamp
 ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
@@ -1084,7 +1092,7 @@ ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
  * `ngtcp2_conn_ack_delay_expiry` returns the expiry time point of
  * delayed protected ACK.  Application should call
  * `ngtcp2_conn_write_pkt` (or `ngtcp2_conn_handshake` if handshake
- * does not finished yet) when it expires.  It returns UINT64_MAX if
+ * has not finished yet) when it expires.  It returns UINT64_MAX if
  * there is no expiry.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn);
