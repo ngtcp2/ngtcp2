@@ -35,6 +35,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include <ev.h>
+
 namespace ngtcp2 {
 
 namespace util {
@@ -57,6 +59,8 @@ std::string format_duration(uint64_t ns);
 std::mt19937 make_mt19937();
 
 ngtcp2_tstamp timestamp();
+
+ngtcp2_tstamp timestamp(struct ev_loop *loop);
 
 bool numeric_host(const char *hostname);
 

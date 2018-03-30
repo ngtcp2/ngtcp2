@@ -235,16 +235,16 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   int rv;
   auto c = static_cast<Client *>(w->data);
   auto conn = c->conn();
-  auto now = util::timestamp();
+  auto now = util::timestamp(loop);
 
-  if (ngtcp2_conn_loss_detection_expiry(conn) < now + 1000000) {
+  if (ngtcp2_conn_loss_detection_expiry(conn) <= now) {
     rv = c->on_write(true);
     if (rv != 0) {
       goto fail;
     }
   }
 
-  if (ngtcp2_conn_ack_delay_expiry(conn) < now + 1000000) {
+  if (ngtcp2_conn_ack_delay_expiry(conn) <= now) {
     rv = c->on_write();
     if (rv != 0) {
       goto fail;
@@ -646,7 +646,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
 
   ngtcp2_settings settings;
   settings.log_fd = fileno(stderr);
-  settings.initial_ts = util::timestamp();
+  settings.initial_ts = util::timestamp(loop_);
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;
   settings.max_stream_id_bidi = 1;
@@ -872,7 +872,7 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
   int rv;
 
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp());
+    rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp(loop_));
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
       if (rv != NGTCP2_ERR_TLS_DECRYPT) {
@@ -889,7 +889,7 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
 
 ssize_t Client::do_handshake_once(const uint8_t *data, size_t datalen) {
   auto nwrite = ngtcp2_conn_handshake(conn_, sendbuf_.wpos(), max_pktlen_, data,
-                                      datalen, util::timestamp());
+                                      datalen, util::timestamp(loop_));
   if (nwrite < 0) {
     if (nwrite == NGTCP2_ERR_TLS_DECRYPT) {
       return 0;
@@ -1001,8 +1001,8 @@ int Client::on_write(bool retransmit) {
         {&buf[0], max_pktlen_},
         {&buf[1], max_pktlen_},
     };
-    auto cnt =
-        ngtcp2_conn_on_loss_detection_alarm(conn_, iov, 2, util::timestamp());
+    auto cnt = ngtcp2_conn_on_loss_detection_alarm(conn_, iov, 2,
+                                                   util::timestamp(loop_));
     if (cnt < 0) {
       std::cerr << "ngtcp2_conn_on_loss_detection_alarm: "
                 << ngtcp2_strerror(cnt) << std::endl;
@@ -1023,9 +1023,6 @@ int Client::on_write(bool retransmit) {
         return rv;
       }
     }
-
-    schedule_retransmit();
-    return 0;
   }
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
@@ -1036,7 +1033,7 @@ int Client::on_write(bool retransmit) {
 
   for (;;) {
     auto n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
-                                   util::timestamp());
+                                   util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
       disconnect(n);
@@ -1103,7 +1100,7 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
   for (;;) {
     auto n = ngtcp2_conn_write_stream(conn_, sendbuf_.wpos(), max_pktlen_,
                                       &ndatalen, stream_id, fin, data.rpos(),
-                                      data.size(), util::timestamp());
+                                      data.size(), util::timestamp(loop_));
     if (n < 0) {
       switch (n) {
       case NGTCP2_ERR_EARLY_DATA_REJECTED:
@@ -1144,11 +1141,9 @@ void Client::schedule_retransmit() {
   auto expiry = std::min(ngtcp2_conn_loss_detection_expiry(conn_),
                          ngtcp2_conn_ack_delay_expiry(conn_));
 
-  auto now = util::timestamp();
-  auto t = static_cast<ev_tstamp>(expiry - now) / 1000000000;
-  if (t < 1e-6) {
-    t = 1e-6;
-  }
+  auto now = util::timestamp(loop_);
+  auto t =
+      expiry < now ? 1e-9 : static_cast<ev_tstamp>(expiry - now) / 1000000000;
   rttimer_.repeat = t;
   ev_timer_again(loop_, &rttimer_);
 }
@@ -1470,7 +1465,8 @@ int Client::handle_error(int liberr) {
 
   auto n = ngtcp2_conn_write_connection_close(
       conn_, sendbuf_.wpos(), max_pktlen_,
-      ngtcp2_err_infer_quic_transport_error_code(liberr), util::timestamp());
+      ngtcp2_err_infer_quic_transport_error_code(liberr),
+      util::timestamp(loop_));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;

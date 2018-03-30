@@ -131,6 +131,10 @@ ngtcp2_tstamp timestamp() {
       .count();
 }
 
+ngtcp2_tstamp timestamp(struct ev_loop *loop) {
+  return ev_now(loop) * 1000000000;
+}
+
 bool numeric_host(const char *hostname) {
   return numeric_host(hostname, AF_INET) || numeric_host(hostname, AF_INET6);
 }
