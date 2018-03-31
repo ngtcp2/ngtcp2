@@ -370,6 +370,22 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
                                              size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_path_challenge_frame decodes PATH_CHALLENGE frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  PATH_CHALLENGE frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * PATH_CHALLENGE frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include PATH_CHALLENGE frame.
+ */
+ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
+                                               const uint8_t *payload,
+                                               size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -576,6 +592,19 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
  */
 ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
                                              const ngtcp2_stop_sending *fr);
+
+/*
+ * ngtcp2_pkt_encode_path_challenge_frame encodes PATH_CHALLENGE frame
+ * |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
+                                               const ngtcp2_path_challenge *fr);
 
 /*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for

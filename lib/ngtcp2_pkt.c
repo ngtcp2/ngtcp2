@@ -300,6 +300,9 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                                 payloadlen);
   case NGTCP2_FRAME_ACK:
     return ngtcp2_pkt_decode_ack_frame(&dest->ack, payload, payloadlen);
+  case NGTCP2_FRAME_PATH_CHALLENGE:
+    return ngtcp2_pkt_decode_path_challenge_frame(&dest->path_challenge,
+                                                  payload, payloadlen);
   default:
     return NGTCP2_ERR_FRAME_FORMAT;
   }
@@ -932,6 +935,27 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
   return (ssize_t)len;
 }
 
+ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
+                                               const uint8_t *payload,
+                                               size_t payloadlen) {
+  size_t len = 1 + 8;
+  const uint8_t *p;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  p = payload + 1;
+
+  dest->type = NGTCP2_FRAME_PATH_CHALLENGE;
+  ngtcp2_cpymem(dest->data, p, sizeof(dest->data));
+  p += sizeof(dest->data);
+
+  assert((size_t)(p - payload) == len);
+
+  return (ssize_t)len;
+}
+
 ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
@@ -971,6 +995,9 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
                                                      &fr->new_connection_id);
   case NGTCP2_FRAME_STOP_SENDING:
     return ngtcp2_pkt_encode_stop_sending_frame(out, outlen, &fr->stop_sending);
+  case NGTCP2_FRAME_PATH_CHALLENGE:
+    return ngtcp2_pkt_encode_path_challenge_frame(out, outlen,
+                                                  &fr->path_challenge);
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -1314,6 +1341,26 @@ ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
   *p++ = NGTCP2_FRAME_STOP_SENDING;
   p = ngtcp2_put_varint(p, fr->stream_id);
   p = ngtcp2_put_uint16be(p, fr->app_error_code);
+
+  assert((size_t)(p - out) == len);
+
+  return (ssize_t)len;
+}
+
+ssize_t
+ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_path_challenge *fr) {
+  size_t len = 1 + 8;
+  uint8_t *p;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = out;
+
+  *p++ = NGTCP2_FRAME_PATH_CHALLENGE;
+  p = ngtcp2_cpymem(p, fr->data, sizeof(fr->data));
 
   assert((size_t)(p - out) == len);
 
