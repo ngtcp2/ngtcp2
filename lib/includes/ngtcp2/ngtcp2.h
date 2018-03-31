@@ -256,8 +256,7 @@ typedef enum {
   NGTCP2_FRAME_STREAM_ID_BLOCKED = 0x0a,
   NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
   NGTCP2_FRAME_STOP_SENDING = 0x0c,
-  NGTCP2_FRAME_PONG = 0x0d,
-  NGTCP2_FRAME_ACK = 0x0e,
+  NGTCP2_FRAME_ACK = 0x0d,
   NGTCP2_FRAME_STREAM = 0x10
 } ngtcp2_frame_type;
 
@@ -272,7 +271,6 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
   NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
   NGTCP2_PROTOCOL_VIOLATION = 0xau,
-  NGTCP2_UNSOLICITED_PONG = 0xb,
   /* Defined in quic-tls */
   NGTCP2_TLS_HANDSHAKE_FAILED = 0x201,
   NGTCP2_TLS_FATAL_ALERT_GENERATED = 0x202,
@@ -383,8 +381,6 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  size_t datalen;
-  uint8_t *data;
 } ngtcp2_ping;
 
 typedef struct {
@@ -416,12 +412,6 @@ typedef struct {
   uint16_t app_error_code;
 } ngtcp2_stop_sending;
 
-typedef struct {
-  uint8_t type;
-  size_t datalen;
-  uint8_t *data;
-} ngtcp2_pong;
-
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
@@ -439,7 +429,6 @@ typedef union {
   ngtcp2_stream_id_blocked stream_id_blocked;
   ngtcp2_new_connection_id new_connection_id;
   ngtcp2_stop_sending stop_sending;
-  ngtcp2_pong pong;
 } ngtcp2_frame;
 
 typedef enum {

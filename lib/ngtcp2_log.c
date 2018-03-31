@@ -122,8 +122,6 @@ static const char *strerrorcode(uint16_t error_code) {
     return "VERSION_NEGOTIATION_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
-  case NGTCP2_UNSOLICITED_PONG:
-    return "UNSOLICITED_PONG";
   case NGTCP2_TLS_HANDSHAKE_FAILED:
     return "TLS_HANDSHAKE_FAILED";
   case NGTCP2_TLS_FATAL_ALERT_GENERATED:
@@ -317,14 +315,8 @@ static void log_fr_max_stream_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr_ping(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                         const ngtcp2_ping *fr, const char *dir) {
-  /* The maximum length of PONG data is 255, and +1 for terminal
-     NULL. */
-  uint8_t buf[255 * 2 + 1];
-
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " PING(0x%02x) len=%" PRIu64 " data=%s\n"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->datalen,
-                  (const char *)ngtcp2_encode_hex(buf, fr->data, fr->datalen));
+  log->log_printf(log->user_data, (NGTCP2_LOG_PKT " PING(0x%02x)\n"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type);
 }
 
 static void log_fr_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -376,18 +368,6 @@ static void log_fr_stop_sending(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   strapperrorcode(fr->app_error_code), fr->app_error_code);
 }
 
-static void log_fr_pong(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                        const ngtcp2_pong *fr, const char *dir) {
-  /* The maximum length of PONG data is 255, and +1 for terminal
-     NULL. */
-  uint8_t buf[255 * 2 + 1];
-
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " PONG(0x%02x) len=%" PRIu64 " data=%s\n"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->datalen,
-                  (const char *)ngtcp2_encode_hex(buf, fr->data, fr->datalen));
-}
-
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
   switch (fr->type) {
@@ -435,9 +415,6 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     log_fr_stop_sending(log, hd, &fr->stop_sending, dir);
-    break;
-  case NGTCP2_FRAME_PONG:
-    log_fr_pong(log, hd, &fr->pong, dir);
     break;
   default:
     assert(0);
