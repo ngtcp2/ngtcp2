@@ -462,6 +462,11 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
 } ngtcp2_transport_params_type;
 
+typedef enum {
+  NGTCP2_RAND_CTX_NONE,
+  NGTCP2_RAND_CTX_PATH_CHALLENGE
+} ngtcp2_rand_ctx;
+
 #define NGTCP2_MAX_PKT_SIZE 65527
 
 /**
@@ -838,6 +843,9 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
 typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
                                            uint64_t max_stream_id,
                                            void *user_data);
+
+typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t dest, size_t destlen,
+                           ngtcp2_rand_ctx ctx, void *user_data);
 
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;

@@ -192,6 +192,12 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_remote_uni_idtr_init;
   }
 
+  rv = ngtcp2_ringbuf_init(&(*pconn)->rx_path_challenge, 4,
+                           sizeof(ngtcp2_path_challenge_entry), mem);
+  if (rv != 0) {
+    goto fail_rx_path_challenge_init;
+  }
+
   ngtcp2_log_init(&(*pconn)->log, &(*pconn)->conn_id, settings->log_printf,
                   settings->initial_ts, user_data);
 
@@ -224,6 +230,8 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   return 0;
 
 fail_acktr_init:
+  ngtcp2_ringbuf_free(&(*pconn)->rx_path_challenge);
+fail_rx_path_challenge_init:
   ngtcp2_idtr_free(&(*pconn)->remote_uni_idtr);
 fail_remote_uni_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->remote_bidi_idtr);
@@ -332,6 +340,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   delete_early_rtb(conn->early_rtb, conn->mem);
   ngtcp2_rtb_free(&conn->rtb);
+
+  ngtcp2_ringbuf_free(&conn->rx_path_challenge);
 
   ngtcp2_idtr_free(&conn->remote_uni_idtr);
   ngtcp2_idtr_free(&conn->remote_bidi_idtr);
@@ -2510,6 +2520,17 @@ static void conn_recv_connection_close(ngtcp2_conn *conn) {
   conn->state = NGTCP2_CS_DRAINING;
 }
 
+static void conn_recv_path_challenge(ngtcp2_conn *conn,
+                                     ngtcp2_path_challenge *fr,
+                                     ngtcp2_tstamp ts) {
+  ngtcp2_path_challenge_entry *ent;
+
+  ent = ngtcp2_ringbuf_push_front(&conn->rx_path_challenge);
+  ent->ts = ts;
+  assert(sizeof(ent->data) == sizeof(fr->data));
+  ngtcp2_cpymem(ent->data, fr->data, sizeof(ent->data));
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts);
 
@@ -2722,6 +2743,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         continue;
       }
       return NGTCP2_ERR_PROTO;
+    case NGTCP2_FRAME_PATH_CHALLENGE:
+      conn_recv_path_challenge(conn, &fr->path_challenge, ts);
+      continue;
     default:
       return NGTCP2_ERR_PROTO;
     }

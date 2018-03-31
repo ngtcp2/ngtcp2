@@ -120,6 +120,11 @@ typedef union {
   } ackfr;
 } ngtcp2_max_frame;
 
+typedef struct {
+  ngtcp2_tstamp ts;
+  uint8_t data[8];
+} ngtcp2_path_challenge_entry;
+
 /*
  * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
  * assigns its pointer to |*ppc|.  The content of buffer pointed by
@@ -174,6 +179,7 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
+  ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
   uint64_t conn_id;
   /* client_conn_id is the connection ID chosen by client. */
