@@ -789,6 +789,29 @@ void test_ngtcp2_pkt_encode_path_challenge_frame(void) {
   CU_ASSERT(0 == memcmp(fr.data, nfr.data, sizeof(fr.data)));
 }
 
+void test_ngtcp2_pkt_encode_path_response_frame(void) {
+  uint8_t buf[9];
+  ngtcp2_path_response fr, nfr;
+  ssize_t rv;
+  size_t framelen = 1 + 8;
+  size_t i;
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  for (i = 0; i < sizeof(fr.data); ++i) {
+    fr.data[i] = (uint8_t)(i + 1);
+  }
+
+  rv = ngtcp2_pkt_encode_path_response_frame(buf, sizeof(buf), &fr);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_path_response_frame(&nfr, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(0 == memcmp(fr.data, nfr.data, sizeof(fr.data)));
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
