@@ -155,17 +155,17 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER_D9 is the supported QUIC protocol version
-   draft-9. */
-#define NGTCP2_PROTO_VER_D9 0xff000009u
+/* NGTCP2_PROTO_VER_D10 is the supported QUIC protocol version
+   draft-10. */
+#define NGTCP2_PROTO_VER_D10 0xff00000au
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D9
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D10
 
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D9 "\x5hq-09"
+#define NGTCP2_ALPN_D10 "\x5hq-10"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -178,11 +178,11 @@ typedef struct {
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
-/* NGTCP2_QUIC_V1_SALT is a salt value which is used to derive
+/* NGTCP2_HANDSHAKE_SALT is a salt value which is used to derive
    handshake secret. */
-#define NGTCP2_QUIC_V1_SALT                                                    \
-  "\xaf\xc8\x24\xec\x5f\xc7\x7e\xca\x1e\x9d\x36\xf3\x7f\xb2\xd4\x65\x18\xc3"   \
-  "\x66\x39"
+#define NGTCP2_HANDSHAKE_SALT                                                  \
+  "\x9c\x10\x8f\x98\x52\x0a\x5c\x5c\x32\x96\x8e\x95\x0e\x8a\x2c\x5f\xe0\x6d"   \
+  "\x6c\x38"
 
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,

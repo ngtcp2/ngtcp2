@@ -160,7 +160,6 @@ int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
   *p++ = str_size(LABEL) + qlabellen;
   p = std::copy_n(LABEL, str_size(LABEL), p);
   p = std::copy_n(qlabel, qlabellen, p);
-  *p++ = 0;
 
   return hkdf_expand(dest, destlen, secret, secretlen, info.data(),
                      p - std::begin(info), ctx);

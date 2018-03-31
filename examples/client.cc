@@ -582,9 +582,9 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   size_t alpnlen;
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D9:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D9);
-    alpnlen = str_size(NGTCP2_ALPN_D9);
+  case NGTCP2_PROTO_VER_D10:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D10);
+    alpnlen = str_size(NGTCP2_ALPN_D10);
     break;
   }
   if (alpn) {
@@ -686,8 +686,8 @@ int Client::setup_handshake_crypto_context() {
   auto conn_id = ngtcp2_conn_negotiated_conn_id(conn_);
   rv = crypto::derive_handshake_secret(
       handshake_secret.data(), handshake_secret.size(), conn_id,
-      reinterpret_cast<const uint8_t *>(NGTCP2_QUIC_V1_SALT),
-      str_size(NGTCP2_QUIC_V1_SALT));
+      reinterpret_cast<const uint8_t *>(NGTCP2_HANDSHAKE_SALT),
+      str_size(NGTCP2_HANDSHAKE_SALT));
   if (rv != 0) {
     std::cerr << "crypto::derive_handshake_secret() failed" << std::endl;
     return -1;
@@ -1898,7 +1898,7 @@ void config_set_default(Config &config) {
   config.nstreams = 1;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_D9;
+  config.version = NGTCP2_PROTO_VER_D10;
   config.timeout = 30;
 }
 } // namespace
