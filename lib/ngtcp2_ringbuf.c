@@ -40,7 +40,7 @@ int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
   rb->mem = mem;
   rb->nmemb = nmemb;
   rb->size = size;
-  rb->first = size - 1;
+  rb->first = 0;
   rb->len = 0;
 
   return 0;
