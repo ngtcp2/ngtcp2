@@ -5037,6 +5037,10 @@ ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
   if (conn->rtb.num_unprotected) {
     ngtcp2_rtb_mark_unprotected_lost(&conn->rtb);
     ++rcs->handshake_count;
+  } else if (!ngtcp2_conn_get_handshake_completed(conn)) {
+    assert(0);
+    /* No TLP or RTO in handshake period.  Handshake packets are
+       retransmitted in the above block. */
   } else if (rcs->loss_time) {
     ngtcp2_rtb_detect_lost_pkt(&conn->rtb, rcs, (uint64_t)conn->largest_ack,
                                conn->last_tx_pkt_num, ts);
