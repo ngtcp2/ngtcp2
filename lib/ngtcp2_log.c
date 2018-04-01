@@ -132,7 +132,7 @@ static const char *strerrorcode(uint16_t error_code) {
     if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "FRAME_ERROR";
     }
-    return "UNKNOWN";
+    return "(unknown)";
   }
 }
 
@@ -141,7 +141,7 @@ static const char *strapperrorcode(uint16_t app_error_code) {
   case NGTCP2_STOPPING:
     return "STOPPING";
   default:
-    return "UNKNOWN";
+    return "(unknown)";
   }
 }
 
@@ -158,7 +158,7 @@ static const char *strpkttype_long(uint8_t type) {
   case NGTCP2_PKT_0RTT_PROTECTED:
     return "0RTT";
   default:
-    return "UNKNOWN";
+    return "(unknown)";
   }
 }
 
@@ -171,7 +171,7 @@ static const char *strpkttype_short(uint8_t type) {
   case NGTCP2_PKT_03:
     return "S03";
   default:
-    return "UNKNOWN";
+    return "(unknown)";
   }
 }
 
