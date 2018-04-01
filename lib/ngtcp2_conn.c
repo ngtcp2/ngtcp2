@@ -747,6 +747,13 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
       nwrite = conn_retransmit_unprotected_once(conn, dest, destlen, ent, ts);
       break;
     case NGTCP2_PKT_HANDSHAKE:
+      /* Stop retransmitting handshake packet after at least one
+         protected packet is received, and decrypted successfully. */
+      if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
+        nwrite = 0;
+        break;
+      }
+
       if (conn->server) {
         if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
           nwrite = 0;
