@@ -62,3 +62,30 @@ void test_ngtcp2_ringbuf_push_front(void) {
 
   ngtcp2_ringbuf_free(&rb);
 }
+
+void test_ngtcp2_ringbuf_pop_front(void) {
+  ngtcp2_ringbuf rb;
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  size_t i;
+
+  ngtcp2_ringbuf_init(&rb, 4, sizeof(ints), mem);
+
+  for (i = 0; i < 5; ++i) {
+    ints *p = ngtcp2_ringbuf_push_front(&rb);
+    p->a = (int32_t)i;
+  }
+
+  CU_ASSERT(4 == ngtcp2_ringbuf_len(&rb));
+
+  for (i = 4; i >= 1; --i) {
+    ints *p = ngtcp2_ringbuf_get(&rb, 0);
+
+    CU_ASSERT((int32_t)i == p->a);
+
+    ngtcp2_ringbuf_pop_front(&rb);
+  }
+
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&rb));
+
+  ngtcp2_ringbuf_free(&rb);
+}

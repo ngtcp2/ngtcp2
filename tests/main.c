@@ -135,6 +135,8 @@ int main() {
       !CU_add_test(pSuite, "idtr_open", test_ngtcp2_idtr_open) ||
       !CU_add_test(pSuite, "ringbuf_push_front",
                    test_ngtcp2_ringbuf_push_front) ||
+      !CU_add_test(pSuite, "ringbuf_pop_front",
+                   test_ngtcp2_ringbuf_pop_front) ||
       !CU_add_test(pSuite, "conn_stream_open_close",
                    test_ngtcp2_conn_stream_open_close) ||
       !CU_add_test(pSuite, "conn_stream_rx_flow_control",

@@ -1144,12 +1144,15 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frc = NULL, **pfrc, *frc_head = NULL, *frc_next;
-  ngtcp2_frame *fr, *ackfr, paddingfr;
+  ngtcp2_frame *fr, *ackfr, lfr;
   size_t nwrite;
   ssize_t spktlen;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_rtb_entry *rtbent;
   ngtcp2_acktr_ack_entry *ack_ent = NULL;
+  size_t pclen;
+  int pr_encoded = 0;
+  ngtcp2_path_challenge_entry *pc;
 
   pfrc = &frc_head;
 
@@ -1189,11 +1192,50 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
       ack_ent = ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &ackfr->ack, ts,
                                      1, 0 /* ack_only */);
+    }
 
-      if (ngtcp2_ppe_left(&ppe) < NGTCP2_STREAM_OVERHEAD + 1) {
-        ++conn->last_tx_pkt_num;
-        return ngtcp2_ppe_final(&ppe, NULL);
+    pclen = ngtcp2_ringbuf_len(&conn->rx_path_challenge);
+    while (ngtcp2_ringbuf_len(&conn->rx_path_challenge)) {
+      pc = ngtcp2_ringbuf_get(&conn->rx_path_challenge, 0);
+
+      lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
+      ngtcp2_cpymem(lfr.path_challenge.data, pc->data,
+                    sizeof(lfr.path_challenge));
+
+      rv = ngtcp2_ppe_encode_frame(&ppe, &lfr);
+      if (rv != 0) {
+        if (rv == NGTCP2_ERR_NOBUF) {
+          break;
+        }
+        return rv;
       }
+
+      ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+
+      ngtcp2_ringbuf_pop_front(&conn->rx_path_challenge);
+    }
+
+    pr_encoded = (pclen != ngtcp2_ringbuf_len(&conn->rx_path_challenge));
+
+    if (ngtcp2_ppe_left(&ppe) < NGTCP2_STREAM_OVERHEAD + 1) {
+      spktlen = ngtcp2_ppe_final(&ppe, NULL);
+      if (spktlen < 0) {
+        return (int)spktlen;
+      }
+
+      if (pr_encoded) {
+        rv = ngtcp2_rtb_entry_new(&rtbent, &hd, NULL, ts, (size_t)spktlen,
+                                  NGTCP2_RTB_FLAG_UNPROTECTED, conn->mem);
+        if (rv != 0) {
+          return rv;
+        }
+
+        conn_on_pkt_sent(conn, rtbent);
+      }
+
+      ++conn->last_tx_pkt_num;
+
+      return spktlen;
     }
   }
 
@@ -1237,10 +1279,10 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (type == NGTCP2_PKT_INITIAL) {
-    paddingfr.type = NGTCP2_FRAME_PADDING;
-    paddingfr.padding.len = ngtcp2_ppe_padding(&ppe);
-    if (paddingfr.padding.len > 0) {
-      ngtcp2_log_tx_fr(&conn->log, &hd, &paddingfr);
+    lfr.type = NGTCP2_FRAME_PADDING;
+    lfr.padding.len = ngtcp2_ppe_padding(&ppe);
+    if (lfr.padding.len > 0) {
+      ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
     }
   } else if (conn->state == NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED ||
              conn->state == NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED) {
@@ -1273,7 +1315,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     goto fail;
   }
 
-  if (frc_head) {
+  if (frc_head || pr_encoded) {
     rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frc_head, ts, (size_t)spktlen,
                               NGTCP2_RTB_FLAG_UNPROTECTED, conn->mem);
     if (rv != 0) {
