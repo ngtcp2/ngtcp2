@@ -4452,6 +4452,11 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_STREAM_SHUT_WR;
   }
 
+  nwrite = conn_retransmit(conn, dest, destlen, ts);
+  if (nwrite != 0) {
+    return nwrite;
+  }
+
   if (!conn_tx_pkt_allowed(conn)) {
     if (pdatalen) {
       *pdatalen = 0;
