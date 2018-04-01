@@ -1088,7 +1088,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 static int conn_tx_pkt_allowed(ngtcp2_conn *conn) {
-  return conn->rtb.bytes_in_flight < NGTCP2_CWND;
+  return conn->rtb.bytes_in_flight < conn->rtb.ccs.cwnd;
 }
 
 /*

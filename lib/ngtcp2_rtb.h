@@ -120,11 +120,19 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
  */
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem);
 
+typedef struct {
+  uint64_t cwnd;
+  uint64_t ssthresh;
+  /* eor_pkt_num is "end_of_recovery" */
+  uint64_t eor_pkt_num;
+} ngtcp2_cc_stat;
+
 /*
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for
  * retransmission.
  */
 typedef struct {
+  ngtcp2_cc_stat ccs;
   /* head points to the singly linked list of ngtcp2_rtb_entry, sorted
      by decreasing order of packet number. */
   ngtcp2_rtb_entry *head;

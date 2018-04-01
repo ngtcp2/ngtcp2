@@ -83,6 +83,9 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
 }
 
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_log *log, ngtcp2_mem *mem) {
+  rtb->ccs.cwnd = NGTCP2_INITIAL_CWND;
+  rtb->ccs.eor_pkt_num = 0;
+  rtb->ccs.ssthresh = UINT64_MAX;
   rtb->head = rtb->lost_unprotected_head = rtb->lost_protected_head = NULL;
   rtb->log = log;
   rtb->mem = mem;
@@ -246,8 +249,41 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   return 0;
 }
 
-static void on_pkt_acked(ngtcp2_rcvry_stat *rcs) {
-  /* TODO Do OnRetransmissionTimeoutVerified() */
+static int rtb_in_rcvry(ngtcp2_rtb *rtb, uint64_t pkt_num) {
+  return pkt_num <= rtb->ccs.eor_pkt_num;
+}
+
+static void rtb_on_retransmission_timeout_verified(ngtcp2_rtb *rtb) {
+  rtb->ccs.cwnd = NGTCP2_MIN_CWND;
+  ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                  "retransmission timeout verified cwnd=%lu", rtb->ccs.cwnd);
+}
+
+static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+  /* bytes_in_flight is reduced in rtb_on_remove */
+  if (rtb_in_rcvry(rtb, ent->hd.pkt_num)) {
+    return;
+  }
+
+  if (rtb->ccs.cwnd < rtb->ccs.ssthresh) {
+    rtb->ccs.cwnd += ent->pktlen;
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV, "slow start cwnd=%lu",
+                    rtb->ccs.cwnd);
+    return;
+  }
+
+  rtb->ccs.cwnd += NGTCP2_DEFAULT_MSS * ent->pktlen / rtb->ccs.cwnd;
+
+  ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV, "packet acked cwnd=%lu",
+                  rtb->ccs.cwnd);
+}
+
+static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
+                             ngtcp2_rtb_entry *ent) {
+  rtb_on_pkt_acked_cc(rtb, ent);
+  if (rcs->rto_count && ent->hd.pkt_num > rcs->largest_sent_before_rto) {
+    rtb_on_retransmission_timeout_verified(rtb);
+  }
   rcs->handshake_count = 0;
   rcs->tlp_count = 0;
   rcs->rto_count = 0;
@@ -289,7 +325,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr, int unprotected,
           ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts, fr->ack_delay_unscaled,
                                  0 /* ack_only */);
         }
-        on_pkt_acked(&conn->rcs);
+        rtb_on_pkt_acked(rtb, &conn->rcs, *pent);
       }
       rtb->largest_acked_tx_pkt_num = ngtcp2_max(rtb->largest_acked_tx_pkt_num,
                                                  (int64_t)(*pent)->hd.pkt_num);
@@ -324,7 +360,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr, int unprotected,
           }
         }
 
-        on_pkt_acked(&conn->rcs);
+        rtb_on_pkt_acked(rtb, &conn->rcs, *pent);
       }
       rtb->largest_acked_tx_pkt_num = ngtcp2_max(rtb->largest_acked_tx_pkt_num,
                                                  (int64_t)(*pent)->hd.pkt_num);
@@ -376,6 +412,7 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
   ngtcp2_rtb_entry **pent, **pdest_protected, **pdest_unprotected, *ent, *next;
   uint64_t delay_until_lost;
   int unprotected;
+  ngtcp2_cc_stat *ccs = &rtb->ccs;
 
   rcs->loss_time = 0;
   delay_until_lost = compute_pkt_loss_delay(rcs, largest_ack, last_tx_pkt_num);
@@ -391,6 +428,20 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
       /* All entries from *pent are considered to be lost. */
       ent = *pent;
       *pent = NULL;
+
+      /* OnPacketsLost in recovery draft */
+      /* TODO I'm not sure we should do this for handshake packets. */
+      if (!rtb_in_rcvry(rtb, ent->hd.pkt_num)) {
+        ccs->eor_pkt_num = ent->hd.pkt_num;
+        ccs->cwnd =
+            (uint64_t)((double)ccs->cwnd * NGTCP2_LOSS_REDUCTION_FACTOR);
+        ccs->cwnd = ngtcp2_max(rtb->ccs.cwnd, NGTCP2_MIN_CWND);
+        ccs->ssthresh = ccs->cwnd;
+
+        ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                        "reduce cwnd because of packet loss cwnd=%lu",
+                        rtb->ccs.cwnd);
+      }
 
       for (; ent;) {
         next = ent->next;
