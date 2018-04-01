@@ -192,8 +192,8 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_remote_uni_idtr_init;
   }
 
-  ngtcp2_log_init(&(*pconn)->log, &(*pconn)->conn_id, settings->log_fd,
-                  settings->initial_ts);
+  ngtcp2_log_init(&(*pconn)->log, &(*pconn)->conn_id, settings->log_printf,
+                  settings->initial_ts, user_data);
 
   rv = ngtcp2_acktr_init(&(*pconn)->acktr, &(*pconn)->log, mem);
   if (rv != 0) {

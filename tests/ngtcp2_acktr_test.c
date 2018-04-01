@@ -39,7 +39,7 @@ void test_ngtcp2_acktr_add(void) {
   ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_log log;
 
-  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_acktr_init(&acktr, &log, mem);
 
   ngtcp2_acktr_entry_new(&ents[0], 1, 1000, 0, mem);
@@ -97,7 +97,7 @@ void test_ngtcp2_acktr_eviction(void) {
   const size_t extra = 17;
   ngtcp2_log log;
 
-  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_acktr_init(&acktr, &log, mem);
 
   for (i = 0; i < NGTCP2_ACKTR_MAX_ENT + extra; ++i) {
@@ -155,7 +155,7 @@ void test_ngtcp2_acktr_forget(void) {
   ngtcp2_acktr_entry *ent;
   ngtcp2_log log;
 
-  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_acktr_init(&acktr, &log, mem);
 
   for (i = 0; i < 7; ++i) {
@@ -193,7 +193,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_ack_blk *blks;
   ngtcp2_log log;
 
-  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_acktr_init(&acktr, &log, mem);
 
   for (i = 0; i < arraylen(rpkt_nums); ++i) {

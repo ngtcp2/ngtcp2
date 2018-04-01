@@ -804,7 +804,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
 
   ngtcp2_settings settings;
 
-  settings.log_fd = fileno(stderr);
+  settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;

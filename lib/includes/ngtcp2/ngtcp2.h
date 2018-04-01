@@ -499,9 +499,15 @@ typedef struct {
   uint8_t ack_delay_exponent;
 } ngtcp2_transport_params;
 
+/* user_data is the same object passed to ngtcp2_conn_client_new or
+   ngtcp2_conn_server_new. */
+typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
+
 typedef struct {
   ngtcp2_tstamp initial_ts;
-  int log_fd;
+  /* log_printf is a function that the library uses to write logs.
+     NULL means no logging output. */
+  ngtcp2_printf log_printf;
   uint32_t max_stream_data;
   uint32_t max_data;
   uint32_t max_stream_id_bidi;

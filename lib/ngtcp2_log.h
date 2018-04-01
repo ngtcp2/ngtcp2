@@ -48,20 +48,24 @@ typedef enum {
 struct ngtcp2_log {
   /* conn_id points to the object where connection ID is stored. */
   uint64_t *conn_id;
-  /* fd is the file to which log is written.  If it is -1, log will be
-     suppressed. */
-  int fd;
+  /* log_printf is a sink to write log.  NULL means no logging
+     output. */
+  ngtcp2_printf log_printf;
   /* ts is the time point used to write time delta in the log. */
   ngtcp2_tstamp ts;
   /* last_ts is the most recent time point that this object is
      told. */
   ngtcp2_tstamp last_ts;
+  /* user_data is user-defined opaque data which is passed to
+     log_pritnf. */
+  void *user_data;
 };
 
 typedef struct ngtcp2_log ngtcp2_log;
 
-void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id, int fd,
-                     ngtcp2_tstamp ts);
+void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id,
+                     ngtcp2_printf log_printf, ngtcp2_tstamp ts,
+                     void *user_data);
 
 void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr);

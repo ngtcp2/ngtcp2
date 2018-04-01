@@ -39,7 +39,7 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_pkt_hd hd;
   ngtcp2_log log;
 
-  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_rtb_init(&rtb, &log, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, 1000000009,
@@ -128,7 +128,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_ack_blk *blks;
   ngtcp2_log log;
 
-  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   /* no ack block */
   ngtcp2_rtb_init(&rtb, &log, mem);
@@ -256,7 +256,7 @@ void test_ngtcp2_rtb_insert_range(void) {
   ngtcp2_rtb_entry *head, *ent1, *ent2, *ent3, *ent4, *ent5, *ent;
   ngtcp2_pkt_hd hd;
 
-  ngtcp2_log_init(&log, NULL, -1, 0);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   ngtcp2_rtb_init(&rtb, &log, mem);
 
