@@ -128,9 +128,14 @@ typedef struct {
   /* head points to the singly linked list of ngtcp2_rtb_entry, sorted
      by decreasing order of packet number. */
   ngtcp2_rtb_entry *head;
-  /* lost_head is like head, but it only includes entries which are
-     considered to be lost. */
-  ngtcp2_rtb_entry *lost_head;
+  /* lost_unprotected_head is like head, but it only includes
+     unprotected packet entries which are considered to be lost.
+     Currently, this list is not listed in the particular order. */
+  ngtcp2_rtb_entry *lost_unprotected_head;
+  /* lost_protected_head is like head, but it only includes protected
+     packet entries which are considered to be lost.  Currently, this
+     list is not listed in the particular order. */
+  ngtcp2_rtb_entry *lost_protected_head;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
   /* bytes_in_flight is the sum of packet length linked from head. */
@@ -173,13 +178,29 @@ void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head);
  */
 ngtcp2_rtb_entry *ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
-ngtcp2_rtb_entry *ngtcp2_rtb_lost_head(ngtcp2_rtb *rtb);
+/*
+ * ngtcp2_rtb_lost_protected_head returns the first element of lost
+ * protected packet.
+ */
+ngtcp2_rtb_entry *ngtcp2_rtb_lost_protected_head(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_lost_pop removes the first entry of lost packet.  It
- * does nothing if there is no entry.
+ * ngtcp2_rtb_lost_protected_pop removes the first entry of lost
+ * protected packet.  It does nothing if there is no entry.
  */
-void ngtcp2_rtb_lost_pop(ngtcp2_rtb *rtb);
+void ngtcp2_rtb_lost_protected_pop(ngtcp2_rtb *rtb);
+
+/*
+ * ngtcp2_rtb_lost_unprotected_head returns the first element of lost
+ * unprotected packet.
+ */
+ngtcp2_rtb_entry *ngtcp2_rtb_lost_unprotected_head(ngtcp2_rtb *rtb);
+
+/*
+ * ngtcp2_rtb_lost_unprotected_pop removes the first entry of lost
+ * unprotected packet.  It does nothing if there is no entry.
+ */
+void ngtcp2_rtb_lost_unprotected_pop(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
@@ -200,6 +221,16 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
 
 void ngtcp2_rtb_mark_unprotected_lost(ngtcp2_rtb *rtb);
 
-void ngtcp2_rtb_lost_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+/*
+ * ngtcp2_rtb_lost_protected_add insert |ent| to the head of lost
+ * protected packets list.
+ */
+void ngtcp2_rtb_lost_protected_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+
+/*
+ * ngtcp2_rtb_lost_unprotected_add insert |ent| to the head of lost
+ * unprotected packets list.
+ */
+void ngtcp2_rtb_lost_unprotected_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
 #endif /* NGTCP2_RTB_H */

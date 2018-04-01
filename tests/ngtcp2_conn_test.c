@@ -1954,7 +1954,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(ent == ngtcp2_rtb_head(&conn->rtb));
   CU_ASSERT(NULL == ent->next);
-  CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_head(&conn->rtb)));
+  CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_protected_head(&conn->rtb)));
 
   ngtcp2_conn_del(conn);
 
@@ -1989,7 +1989,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, buf, 999, ++t);
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == (int)spktlen);
-  CU_ASSERT(ent == ngtcp2_rtb_lost_head(&conn->rtb));
+  CU_ASSERT(ent == ngtcp2_rtb_lost_protected_head(&conn->rtb));
 
   ngtcp2_conn_del(conn);
 }
