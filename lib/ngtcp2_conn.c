@@ -744,12 +744,17 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
         nwrite = 0;
         break;
       }
-      /* fall through */
+      nwrite = conn_retransmit_unprotected_once(conn, dest, destlen, ent, ts);
+      break;
     case NGTCP2_PKT_HANDSHAKE:
-      /* Stop retransmitting handshake packet after at least one
-         protected packet is received, and decrypted
-         successfully. */
-      if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
+      if (conn->server) {
+        if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+          nwrite = 0;
+          break;
+        }
+      } else if (conn->final_hs_tx_offset &&
+                 ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) >=
+                     conn->final_hs_tx_offset) {
         nwrite = 0;
         break;
       }
@@ -3523,7 +3528,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     case NGTCP2_PKT_HANDSHAKE:
       /* Ignore incoming unprotected packet after we get all
          acknowledgements to unprotected packet we sent so far. */
-      if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) >=
+      if (conn->final_hs_tx_offset &&
+          ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) >=
               conn->final_hs_tx_offset &&
           (!conn->server ||
            (conn->acktr.flags & NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK))) {
