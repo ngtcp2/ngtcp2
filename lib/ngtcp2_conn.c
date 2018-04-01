@@ -4963,13 +4963,58 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
 
 static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                     size_t destlen, ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_ppe ppe;
+  ngtcp2_pkt_hd hd;
+  ssize_t nwrite;
+  ngtcp2_crypto_ctx ctx;
   ngtcp2_frame fr;
+  ngtcp2_rtb_entry *ent;
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE,
+                     conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
+                     conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
+
+  ctx.ckm = conn->tx_ckm;
+  ctx.aead_overhead = conn->aead_overhead;
+  ctx.encrypt = conn->callbacks.encrypt;
+  ctx.user_data = conn;
+
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    return rv;
+  }
 
   fr.type = NGTCP2_FRAME_PING;
   fr.ping.datalen = 0;
   fr.ping.data = NULL;
 
-  return conn_write_single_frame_pkt(conn, dest, destlen, &fr, ts);
+  rv = ngtcp2_ppe_encode_frame(&ppe, &fr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  ngtcp2_log_tx_fr(&conn->log, &hd, &fr);
+
+  nwrite = ngtcp2_ppe_final(&ppe, NULL);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, ts, (size_t)nwrite,
+                            NGTCP2_RTB_FLAG_NONE, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  ngtcp2_rtb_add(&conn->rtb, ent);
+  conn->rcs.last_tx_pkt_ts = ts;
+
+  ++conn->last_tx_pkt_num;
+
+  return nwrite;
 }
 
 ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
