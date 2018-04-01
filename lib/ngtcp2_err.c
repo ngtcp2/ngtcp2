@@ -97,7 +97,7 @@ const char *ngtcp2_strerror(int liberr) {
   case NGTCP2_ERR_INTERNAL:
     return "ERR_INTERNAL";
   default:
-    return "UNKNOWN";
+    return "(unknown)";
   }
 }
 
