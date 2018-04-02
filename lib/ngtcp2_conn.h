@@ -92,6 +92,8 @@ typedef enum {
 #define NGTCP2_MIN_CWND (2 * NGTCP2_DEFAULT_MSS)
 #define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
 
+#define NGTCP2_MIN_PKTLEN 1
+
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
 

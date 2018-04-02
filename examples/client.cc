@@ -891,7 +891,9 @@ ssize_t Client::do_handshake_once(const uint8_t *data, size_t datalen) {
   auto nwrite = ngtcp2_conn_handshake(conn_, sendbuf_.wpos(), max_pktlen_, data,
                                       datalen, util::timestamp(loop_));
   if (nwrite < 0) {
-    if (nwrite == NGTCP2_ERR_TLS_DECRYPT) {
+    switch (nwrite) {
+    case NGTCP2_ERR_TLS_DECRYPT:
+    case NGTCP2_ERR_NOBUF:
       return 0;
     }
 
@@ -1035,6 +1037,9 @@ int Client::on_write(bool retransmit) {
     auto n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
                                    util::timestamp(loop_));
     if (n < 0) {
+      if (n == NGTCP2_ERR_NOBUF) {
+        break;
+      }
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
       disconnect(n);
       return -1;
@@ -1108,6 +1113,7 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
       case NGTCP2_ERR_STREAM_SHUT_WR:
       case NGTCP2_ERR_STREAM_NOT_FOUND: // This means that stream is
                                         // closed.
+      case NGTCP2_ERR_NOBUF:
         return 0;
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
