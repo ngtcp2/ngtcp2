@@ -1830,23 +1830,23 @@ int Server::on_read() {
       }
       return 0;
     }
-  
+
     if (debug::packet_lost(config.rx_loss_prob)) {
       if (!config.quiet) {
         std::cerr << "** Simulated incoming packet loss **" << std::endl;
       }
       return 0;
     }
-  
+
     rv = ngtcp2_pkt_decode_hd(&hd, buf.data(), nread);
     if (rv < 0) {
-      std::cerr << "Could not decode QUIC packet header: " << ngtcp2_strerror(rv)
-                << std::endl;
+      std::cerr << "Could not decode QUIC packet header: "
+                << ngtcp2_strerror(rv) << std::endl;
       return 0;
     }
-  
+
     auto conn_id = hd.conn_id;
-  
+
     auto handler_it = handlers_.find(conn_id);
     if (handler_it == std::end(handlers_)) {
       auto ctos_it = ctos_.find(conn_id);
@@ -1860,7 +1860,7 @@ int Server::on_read() {
           }
           return 0;
         }
-  
+
         rv = ngtcp2_accept(&hd, buf.data(), nread);
         if (rv == -1) {
           if (!config.quiet) {
@@ -1876,10 +1876,11 @@ int Server::on_read() {
           send_version_negotiation(&hd, &su.sa, addrlen);
           return 0;
         }
-  
-        auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, client_conn_id);
+
+        auto h =
+            std::make_unique<Handler>(loop_, ssl_ctx_, this, client_conn_id);
         h->init(fd_, &su.sa, addrlen, hd.version);
-  
+
         if (h->on_read(buf.data(), nread) != 0) {
           return 0;
         }
@@ -1893,7 +1894,7 @@ int Server::on_read() {
         default:
           return 0;
         }
-  
+
         conn_id = h->conn_id();
         handlers_.emplace(conn_id, std::move(h));
         ctos_.emplace(client_conn_id, conn_id);
@@ -1906,7 +1907,7 @@ int Server::on_read() {
       handler_it = handlers_.find((*ctos_it).second);
       assert(handler_it != std::end(handlers_));
     }
-  
+
     auto h = (*handler_it).second.get();
     if (ngtcp2_conn_in_closing_period(h->conn())) {
       // TODO do exponential backoff.
@@ -1923,7 +1924,7 @@ int Server::on_read() {
     if (h->draining()) {
       return 0;
     }
-  
+
     rv = h->on_read(buf.data(), nread);
     if (rv != 0) {
       if (rv != NETWORK_ERR_CLOSE_WAIT) {
@@ -1931,7 +1932,7 @@ int Server::on_read() {
       }
       return 0;
     }
-  
+
     rv = h->on_write();
     switch (rv) {
     case 0:
