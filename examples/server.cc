@@ -1821,127 +1821,129 @@ int Server::on_read() {
   int rv;
   ngtcp2_pkt_hd hd;
 
-  auto nread =
-      recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
-  if (nread == -1) {
-    std::cerr << "recvfrom: " << strerror(errno) << std::endl;
-    // TODO Handle running out of fd
-    return 0;
-  }
-
-  if (debug::packet_lost(config.rx_loss_prob)) {
-    if (!config.quiet) {
-      std::cerr << "** Simulated incoming packet loss **" << std::endl;
-    }
-    return 0;
-  }
-
-  rv = ngtcp2_pkt_decode_hd(&hd, buf.data(), nread);
-  if (rv < 0) {
-    std::cerr << "Could not decode QUIC packet header: " << ngtcp2_strerror(rv)
-              << std::endl;
-    return 0;
-  }
-
-  auto conn_id = hd.conn_id;
-
-  auto handler_it = handlers_.find(conn_id);
-  if (handler_it == std::end(handlers_)) {
-    auto ctos_it = ctos_.find(conn_id);
-    if (ctos_it == std::end(ctos_)) {
-      auto client_conn_id = conn_id;
-      constexpr size_t MIN_PKT_SIZE = 1200;
-      if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
-        if (!config.quiet) {
-          std::cerr << "Initial packet is too short: " << nread << " < "
-                    << MIN_PKT_SIZE << std::endl;
-        }
-        return 0;
+  while (true) {
+    auto nread =
+        recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
+    if (nread == -1) {
+      if (!(errno == EAGAIN || errno == ENOTCONN)) {
+        std::cerr << "recvfrom: " << strerror(errno) << std::endl;
       }
-
-      rv = ngtcp2_accept(&hd, buf.data(), nread);
-      if (rv == -1) {
-        if (!config.quiet) {
-          std::cerr << "Unexpected packet received" << std::endl;
-        }
-        return 0;
-      }
-      if (rv == 1) {
-        if (!config.quiet) {
-          std::cerr << "Unsupported version: Send Version Negotiation"
-                    << std::endl;
-        }
-        send_version_negotiation(&hd, &su.sa, addrlen);
-        return 0;
-      }
-
-      auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, client_conn_id);
-      h->init(fd_, &su.sa, addrlen, hd.version);
-
-      if (h->on_read(buf.data(), nread) != 0) {
-        return 0;
-      }
-      rv = h->on_write();
-      switch (rv) {
-      case 0:
-        break;
-      case NETWORK_ERR_SEND_NON_FATAL:
-        start_wev();
-        break;
-      default:
-        return 0;
-      }
-
-      conn_id = h->conn_id();
-      handlers_.emplace(conn_id, std::move(h));
-      ctos_.emplace(client_conn_id, conn_id);
       return 0;
     }
-    if (!config.quiet) {
-      fprintf(stderr, "Forward CID=%016" PRIx64 " to CID=%016" PRIx64 "\n",
-              (*ctos_it).first, (*ctos_it).second);
+  
+    if (debug::packet_lost(config.rx_loss_prob)) {
+      if (!config.quiet) {
+        std::cerr << "** Simulated incoming packet loss **" << std::endl;
+      }
+      return 0;
     }
-    handler_it = handlers_.find((*ctos_it).second);
-    assert(handler_it != std::end(handlers_));
-  }
-
-  auto h = (*handler_it).second.get();
-  if (ngtcp2_conn_in_closing_period(h->conn())) {
-    // TODO do exponential backoff.
-    rv = h->send_conn_close();
+  
+    rv = ngtcp2_pkt_decode_hd(&hd, buf.data(), nread);
+    if (rv < 0) {
+      std::cerr << "Could not decode QUIC packet header: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return 0;
+    }
+  
+    auto conn_id = hd.conn_id;
+  
+    auto handler_it = handlers_.find(conn_id);
+    if (handler_it == std::end(handlers_)) {
+      auto ctos_it = ctos_.find(conn_id);
+      if (ctos_it == std::end(ctos_)) {
+        auto client_conn_id = conn_id;
+        constexpr size_t MIN_PKT_SIZE = 1200;
+        if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
+          if (!config.quiet) {
+            std::cerr << "Initial packet is too short: " << nread << " < "
+                      << MIN_PKT_SIZE << std::endl;
+          }
+          return 0;
+        }
+  
+        rv = ngtcp2_accept(&hd, buf.data(), nread);
+        if (rv == -1) {
+          if (!config.quiet) {
+            std::cerr << "Unexpected packet received" << std::endl;
+          }
+          return 0;
+        }
+        if (rv == 1) {
+          if (!config.quiet) {
+            std::cerr << "Unsupported version: Send Version Negotiation"
+                      << std::endl;
+          }
+          send_version_negotiation(&hd, &su.sa, addrlen);
+          return 0;
+        }
+  
+        auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, client_conn_id);
+        h->init(fd_, &su.sa, addrlen, hd.version);
+  
+        if (h->on_read(buf.data(), nread) != 0) {
+          return 0;
+        }
+        rv = h->on_write();
+        switch (rv) {
+        case 0:
+          break;
+        case NETWORK_ERR_SEND_NON_FATAL:
+          start_wev();
+          break;
+        default:
+          return 0;
+        }
+  
+        conn_id = h->conn_id();
+        handlers_.emplace(conn_id, std::move(h));
+        ctos_.emplace(client_conn_id, conn_id);
+        return 0;
+      }
+      if (!config.quiet) {
+        fprintf(stderr, "Forward CID=%016" PRIx64 " to CID=%016" PRIx64 "\n",
+                (*ctos_it).first, (*ctos_it).second);
+      }
+      handler_it = handlers_.find((*ctos_it).second);
+      assert(handler_it != std::end(handlers_));
+    }
+  
+    auto h = (*handler_it).second.get();
+    if (ngtcp2_conn_in_closing_period(h->conn())) {
+      // TODO do exponential backoff.
+      rv = h->send_conn_close();
+      switch (rv) {
+      case 0:
+      case NETWORK_ERR_SEND_NON_FATAL:
+        break;
+      default:
+        remove(handler_it);
+      }
+      return 0;
+    }
+    if (h->draining()) {
+      return 0;
+    }
+  
+    rv = h->on_read(buf.data(), nread);
+    if (rv != 0) {
+      if (rv != NETWORK_ERR_CLOSE_WAIT) {
+        remove(handler_it);
+      }
+      return 0;
+    }
+  
+    rv = h->on_write();
     switch (rv) {
     case 0:
+    case NETWORK_ERR_CLOSE_WAIT:
+      break;
     case NETWORK_ERR_SEND_NON_FATAL:
+      start_wev();
       break;
     default:
       remove(handler_it);
     }
-    return 0;
   }
-  if (h->draining()) {
-    return 0;
-  }
-
-  rv = h->on_read(buf.data(), nread);
-  if (rv != 0) {
-    if (rv != NETWORK_ERR_CLOSE_WAIT) {
-      remove(handler_it);
-    }
-    return 0;
-  }
-
-  rv = h->on_write();
-  switch (rv) {
-  case 0:
-  case NETWORK_ERR_CLOSE_WAIT:
-    break;
-  case NETWORK_ERR_SEND_NON_FATAL:
-    start_wev();
-    break;
-  default:
-    remove(handler_it);
-  }
-
   return 0;
 }
 
