@@ -168,6 +168,9 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
      rejected by a peer. */
   NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED = 0x20,
+  /* NGTCP2_CONN_FLAG_SADDR_VERIFIED is set when source address is
+     verified. */
+  NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {
@@ -179,6 +182,7 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
+  ngtcp2_ringbuf tx_path_challenge;
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
   uint64_t conn_id;

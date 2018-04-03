@@ -756,6 +756,15 @@ int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
 }
 } // namespace
 
+namespace {
+int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx,
+         void *user_data) {
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
+  return 0;
+}
+} // namespace
+
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
                   uint32_t version) {
   int rv;
@@ -800,6 +809,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr, // recv_stateless_reset
       nullptr, // recv_server_stateless_retry
       nullptr, // extend_max_stream_id
+      rand,
   };
 
   ngtcp2_settings settings;

@@ -844,7 +844,19 @@ typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
                                            uint64_t max_stream_id,
                                            void *user_data);
 
-typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t dest, size_t destlen,
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_rand` is a callback function to get randomized byte
+ * string from application.  Application must fill random |destlen|
+ * bytes to the buffer pointed by |dest|.  |ctx| provides the context
+ * how the provided random byte string is used.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                            ngtcp2_rand_ctx ctx, void *user_data);
 
 typedef struct {
@@ -869,6 +881,7 @@ typedef struct {
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
   ngtcp2_extend_max_stream_id extend_max_stream_id;
+  ngtcp2_rand rand;
 } ngtcp2_conn_callbacks;
 
 /*

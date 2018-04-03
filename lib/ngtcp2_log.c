@@ -368,6 +368,28 @@ static void log_fr_stop_sending(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   strapperrorcode(fr->app_error_code), fr->app_error_code);
 }
 
+static void log_fr_path_challenge(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                  const ngtcp2_path_challenge *fr,
+                                  const char *dir) {
+  uint8_t buf[sizeof(fr->data) * 2 + 1];
+
+  log->log_printf(
+      log->user_data, (NGTCP2_LOG_PKT " PATH_CHALLENGE(0x%02x) data=%s\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
+      (const char *)ngtcp2_encode_hex(buf, fr->data, sizeof(fr->data)));
+}
+
+static void log_fr_path_response(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                 const ngtcp2_path_response *fr,
+                                 const char *dir) {
+  uint8_t buf[sizeof(fr->data) * 2 + 1];
+
+  log->log_printf(
+      log->user_data, (NGTCP2_LOG_PKT " PATH_RESPONSE(0x%02x) data=%s\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
+      (const char *)ngtcp2_encode_hex(buf, fr->data, sizeof(fr->data)));
+}
+
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
   switch (fr->type) {
@@ -415,6 +437,12 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     break;
   case NGTCP2_FRAME_STOP_SENDING:
     log_fr_stop_sending(log, hd, &fr->stop_sending, dir);
+    break;
+  case NGTCP2_FRAME_PATH_CHALLENGE:
+    log_fr_path_challenge(log, hd, &fr->path_challenge, dir);
+    break;
+  case NGTCP2_FRAME_PATH_RESPONSE:
+    log_fr_path_response(log, hd, &fr->path_response, dir);
     break;
   default:
     assert(0);

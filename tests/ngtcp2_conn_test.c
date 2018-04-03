@@ -225,6 +225,17 @@ static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
   return 0;
 }
 
+static int genrand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                   ngtcp2_rand_ctx ctx, void *user_data) {
+  (void)conn;
+  (void)ctx;
+  (void)user_data;
+
+  memset(dest, 0, destlen);
+
+  return 0;
+}
+
 static void server_default_settings(ngtcp2_settings *settings) {
   size_t i;
 
@@ -332,6 +343,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   cb.recv_stream0_data = recv_stream0_data;
   cb.hs_decrypt = null_decrypt;
   cb.hs_encrypt = null_encrypt;
+  cb.rand = genrand;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
@@ -373,6 +385,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   cb.hs_encrypt = null_encrypt;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
+  cb.rand = genrand;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,

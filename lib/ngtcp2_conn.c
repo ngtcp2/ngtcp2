@@ -146,6 +146,18 @@ static int conn_call_extend_max_stream_id(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_call_rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                          ngtcp2_rand_ctx ctx) {
+  int rv;
+
+  rv = conn->callbacks.rand(conn, dest, destlen, ctx, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
                     const ngtcp2_conn_callbacks *callbacks,
                     const ngtcp2_settings *settings, void *user_data,
@@ -192,6 +204,12 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_remote_uni_idtr_init;
   }
 
+  rv = ngtcp2_ringbuf_init(&(*pconn)->tx_path_challenge, 4,
+                           sizeof(ngtcp2_path_challenge_entry), mem);
+  if (rv != 0) {
+    goto fail_tx_path_challenge_init;
+  }
+
   rv = ngtcp2_ringbuf_init(&(*pconn)->rx_path_challenge, 4,
                            sizeof(ngtcp2_path_challenge_entry), mem);
   if (rv != 0) {
@@ -232,6 +250,8 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
 fail_acktr_init:
   ngtcp2_ringbuf_free(&(*pconn)->rx_path_challenge);
 fail_rx_path_challenge_init:
+  ngtcp2_ringbuf_free(&(*pconn)->tx_path_challenge);
+fail_tx_path_challenge_init:
   ngtcp2_idtr_free(&(*pconn)->remote_uni_idtr);
 fail_remote_uni_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->remote_bidi_idtr);
@@ -342,6 +362,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_rtb_free(&conn->rtb);
 
   ngtcp2_ringbuf_free(&conn->rx_path_challenge);
+  ngtcp2_ringbuf_free(&conn->tx_path_challenge);
 
   ngtcp2_idtr_free(&conn->remote_uni_idtr);
   ngtcp2_idtr_free(&conn->remote_bidi_idtr);
@@ -1194,28 +1215,55 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                      1, 0 /* ack_only */);
     }
 
-    pclen = ngtcp2_ringbuf_len(&conn->rx_path_challenge);
-    while (ngtcp2_ringbuf_len(&conn->rx_path_challenge)) {
-      pc = ngtcp2_ringbuf_get(&conn->rx_path_challenge, 0);
+    if (conn->server) {
+      if (!(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED)) {
+        lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
 
-      lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
-      ngtcp2_cpymem(lfr.path_challenge.data, pc->data,
-                    sizeof(lfr.path_challenge));
-
-      rv = ngtcp2_ppe_encode_frame(&ppe, &lfr);
-      if (rv != 0) {
-        if (rv == NGTCP2_ERR_NOBUF) {
-          break;
+        rv = conn_call_rand(conn, lfr.path_challenge.data,
+                            sizeof(lfr.path_challenge.data),
+                            NGTCP2_RAND_CTX_PATH_CHALLENGE);
+        if (rv != 0) {
+          return rv;
         }
-        return rv;
+
+        rv = ngtcp2_ppe_encode_frame(&ppe, &lfr);
+        if (rv != 0) {
+          if (rv != NGTCP2_ERR_NOBUF) {
+            return rv;
+          }
+        } else {
+          pr_encoded = 1;
+
+          ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+
+          pc = ngtcp2_ringbuf_push_front(&conn->tx_path_challenge);
+          ngtcp2_cpymem(pc->data, lfr.path_challenge.data, sizeof(pc->data));
+        }
+      }
+    } else {
+      pclen = ngtcp2_ringbuf_len(&conn->rx_path_challenge);
+      while (ngtcp2_ringbuf_len(&conn->rx_path_challenge)) {
+        pc = ngtcp2_ringbuf_get(&conn->rx_path_challenge, 0);
+
+        lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
+        ngtcp2_cpymem(lfr.path_challenge.data, pc->data,
+                      sizeof(lfr.path_challenge.data));
+
+        rv = ngtcp2_ppe_encode_frame(&ppe, &lfr);
+        if (rv != 0) {
+          if (rv == NGTCP2_ERR_NOBUF) {
+            break;
+          }
+          return rv;
+        }
+
+        ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+
+        ngtcp2_ringbuf_pop_front(&conn->rx_path_challenge);
       }
 
-      ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
-
-      ngtcp2_ringbuf_pop_front(&conn->rx_path_challenge);
+      pr_encoded = (pclen != ngtcp2_ringbuf_len(&conn->rx_path_challenge));
     }
-
-    pr_encoded = (pclen != ngtcp2_ringbuf_len(&conn->rx_path_challenge));
 
     if (ngtcp2_ppe_left(&ppe) < NGTCP2_STREAM_OVERHEAD + 1) {
       spktlen = ngtcp2_ppe_final(&ppe, NULL);
@@ -1307,6 +1355,10 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     ngtcp2_log_tx_fr(&conn->log, &hd, fr);
+  }
+
+  if (!frc_head && !pr_encoded && !ack_ent) {
+    return 0;
   }
 
   spktlen = ngtcp2_ppe_final(&ppe, NULL);
@@ -1486,7 +1538,8 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
         return NGTCP2_ERR_TLS_HANDSHAKE;
       }
 
-      return conn_write_handshake_ack_pkt(conn, dest, destlen, ts);
+      return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_HANDSHAKE,
+                                      tx_buf, ts);
     }
 
     ngtcp2_buf_init(tx_buf, (uint8_t *)payload, (size_t)payloadlen);
@@ -2573,6 +2626,24 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn,
   ngtcp2_cpymem(ent->data, fr->data, sizeof(ent->data));
 }
 
+static void conn_recv_path_response(ngtcp2_conn *conn,
+                                    ngtcp2_path_response *fr) {
+  size_t len = ngtcp2_ringbuf_len(&conn->tx_path_challenge);
+  size_t i;
+  ngtcp2_path_challenge_entry *ent;
+
+  for (i = 0; i < len; ++i) {
+    ent = ngtcp2_ringbuf_get(&conn->tx_path_challenge, i);
+    if (memcmp(ent->data, fr->data, sizeof(ent->data)) == 0) {
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                      "source address validated");
+      conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
+      ngtcp2_ringbuf_resize(&conn->tx_path_challenge, 0);
+      return;
+    }
+  }
+}
+
 static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                          ngtcp2_tstamp ts);
 
@@ -2787,6 +2858,9 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     case NGTCP2_FRAME_PATH_CHALLENGE:
       conn_recv_path_challenge(conn, &fr->path_challenge, ts);
+      continue;
+    case NGTCP2_FRAME_PATH_RESPONSE:
+      conn_recv_path_response(conn, &fr->path_response);
       continue;
     default:
       return NGTCP2_ERR_PROTO;
@@ -4070,6 +4144,9 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
+    /* The receipt of the final cryptographic message from the client
+       verifies source address. */
+    conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
 
     rv = conn_process_buffered_protected_pkt(conn, ts);
     if (rv != 0) {
