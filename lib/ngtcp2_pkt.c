@@ -103,6 +103,10 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
+  if ((pkt[0] & (NGTCP2_FOURTH_BIT | NGTCP2_GQUIC_BIT)) != 0x10) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
   if (pkt[0] & NGTCP2_OMIT_CONN_ID_BIT) {
     flags |= NGTCP2_PKT_FLAG_OMIT_CONN_ID;
   } else {
@@ -211,7 +215,7 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p = hd->type;
+  *p = NGTCP2_FOURTH_BIT | hd->type;
   if (!need_conn_id) {
     *p |= NGTCP2_OMIT_CONN_ID_BIT;
   }

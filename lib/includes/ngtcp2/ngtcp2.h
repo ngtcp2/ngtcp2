@@ -237,9 +237,9 @@ typedef enum {
   NGTCP2_PKT_RETRY = 0x7E,
   NGTCP2_PKT_HANDSHAKE = 0x7D,
   NGTCP2_PKT_0RTT_PROTECTED = 0x7C,
-  NGTCP2_PKT_01 = 0x1F,
-  NGTCP2_PKT_02 = 0x1E,
-  NGTCP2_PKT_03 = 0x1D
+  NGTCP2_PKT_01 = 0x00,
+  NGTCP2_PKT_02 = 0x01,
+  NGTCP2_PKT_03 = 0x02
 } ngtcp2_pkt_type;
 
 typedef enum {

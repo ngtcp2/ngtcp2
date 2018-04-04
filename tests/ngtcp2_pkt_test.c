@@ -885,7 +885,7 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   p = buf;
 
   CU_ASSERT(256 == spktlen);
-  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_01) == *p);
+  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_FOURTH_BIT | NGTCP2_PKT_01) == *p);
 
   ++p;
 
@@ -915,8 +915,8 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   p = buf;
 
   CU_ASSERT(256 == spktlen);
-  CU_ASSERT((NGTCP2_OMIT_CONN_ID_BIT | NGTCP2_KEY_PHASE_BIT | NGTCP2_PKT_02) ==
-            *p);
+  CU_ASSERT((NGTCP2_OMIT_CONN_ID_BIT | NGTCP2_KEY_PHASE_BIT |
+             NGTCP2_FOURTH_BIT | NGTCP2_PKT_02) == *p);
 
   p += 1 + 2;
 
