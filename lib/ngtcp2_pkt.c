@@ -260,10 +260,6 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
   }
 
-  if (has_mask(type, NGTCP2_FRAME_ACK)) {
-    return ngtcp2_pkt_decode_ack_frame(&dest->ack, payload, payloadlen);
-  }
-
   switch (type) {
   case NGTCP2_FRAME_PADDING:
     return (ssize_t)ngtcp2_pkt_decode_padding_frame(&dest->padding, payload,
@@ -304,6 +300,8 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                                 payloadlen);
   case NGTCP2_FRAME_PONG:
     return ngtcp2_pkt_decode_pong_frame(&dest->pong, payload, payloadlen);
+  case NGTCP2_FRAME_ACK:
+    return ngtcp2_pkt_decode_ack_frame(&dest->ack, payload, payloadlen);
   default:
     return NGTCP2_ERR_FRAME_FORMAT;
   }
