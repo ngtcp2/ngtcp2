@@ -1929,7 +1929,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Retransmit a packet partially */
+  /* Partially retransmiting a packet is not possible at the
+     moment. */
   setup_default_client(&conn);
   conn->max_local_stream_id_bidi = 8;
 
@@ -1951,9 +1952,9 @@ void test_ngtcp2_conn_retransmit_protected(void) {
                              ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, (size_t)(spktlen - 1), ++t);
 
-  CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ent == ngtcp2_rtb_head(&conn->rtb));
-  CU_ASSERT(NULL == ent->next);
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(NULL == ngtcp2_rtb_head(&conn->rtb));
+  CU_ASSERT(ent == conn->rtb.lost_protected_head);
   CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_protected_head(&conn->rtb)));
 
   ngtcp2_conn_del(conn);
@@ -1988,7 +1989,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* This should not send ACK only packet */
   spktlen = ngtcp2_conn_write_pkt(conn, buf, 999, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_NOBUF == (int)spktlen);
+  CU_ASSERT(0 == spktlen);
   CU_ASSERT(ent == ngtcp2_rtb_lost_protected_head(&conn->rtb));
 
   ngtcp2_conn_del(conn);

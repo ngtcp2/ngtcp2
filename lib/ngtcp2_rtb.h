@@ -187,6 +187,12 @@ void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head);
 ngtcp2_rtb_entry *ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
 /*
+ * ngtcp2_rtb_pop removes the last unacknowledged entry in |rtb|.  It
+ * does nothing if there is no entry.
+ */
+void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
+
+/*
  * ngtcp2_rtb_lost_protected_head returns the first element of lost
  * protected packet.
  */
@@ -240,5 +246,11 @@ void ngtcp2_rtb_lost_protected_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
  * unprotected packets list.
  */
 void ngtcp2_rtb_lost_unprotected_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+
+/*
+ * ngtcp2_rtb_has_lost_pkt returns nonzero if |rtb| has at least one
+ * lost packet to retransmit.
+ */
+int ngtcp2_rtb_has_lost_pkt(ngtcp2_rtb *rtb);
 
 #endif /* NGTCP2_RTB_H */

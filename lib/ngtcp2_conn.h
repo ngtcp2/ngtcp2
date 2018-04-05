@@ -92,7 +92,7 @@ typedef enum {
 #define NGTCP2_MIN_CWND (2 * NGTCP2_DEFAULT_MSS)
 #define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
 
-#define NGTCP2_MIN_PKTLEN 1
+#define NGTCP2_MIN_PKTLEN NGTCP2_DEFAULT_MSS
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -242,6 +242,7 @@ struct ngtcp2_conn {
   uint64_t final_hs_tx_offset;
   /* largest_ack is the largest ack in received ACK packet. */
   int64_t largest_ack;
+  size_t probe_pkt_left;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;

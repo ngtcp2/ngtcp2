@@ -538,6 +538,8 @@ typedef struct {
   size_t tlp_count;
   size_t rto_count;
   size_t handshake_count;
+  /* probe_pkt_left is the number of probe packet to sent */
+  size_t probe_pkt_left;
   uint64_t loss_detection_alarm;
   uint64_t largest_sent_before_rto;
   /* last_tx_pkt_ts corresponds to
@@ -1497,27 +1499,18 @@ typedef struct {
  * @function
  *
  * `ngtcp2_conn_on_loss_detection_alarm` should be called when a timer
- * returned from `ngtcp2_conn_earliest_expiry` fires.  This function
- * performs loss detection, and may write a packet in buffers provided
- * by |iov| for TLP, or RTO probe packet.  |iovcnt| specifies the
- * number of buffers pointed by |iov|.  |iovcnt| should be at least 1
- * for TLP, and 2 for RTO.  Since caller does not know how many
- * packets this function writes, so it is recommended to always pass 2
- * ngtcp2_iovec structs.
+ * returned from `ngtcp2_conn_earliest_expiry` fires.
  *
- * In general, negative return value means failure.  Return value 0
- * means that the function succeeds, and no packet is written.  The
- * positive return value indicates the number of packets written.  The
- * iov_len field of each element in |iov| up to the returned value is
- * updated to the number of bytes written to the buffer.
+ * Application should call `ngtcp2_conn_handshake` if handshake has
+ * not completed, otherwise `ngtcp2_conn_write_pkt` (or
+ * `ngtcp2_conn_write_stream` if it has data to send) to send TLP/RTO
+ * probe packets.
  *
  * This function must not be called from inside the callback
  * functions.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
-                                                          ngtcp2_iovec *iov,
-                                                          size_t iovcnt,
-                                                          ngtcp2_tstamp ts);
+NGTCP2_EXTERN void ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
+                                                       ngtcp2_tstamp ts);
 
 /**
  * @function

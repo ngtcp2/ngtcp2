@@ -998,33 +998,7 @@ int Client::on_write(bool retransmit) {
   assert(sendbuf_.left() >= max_pktlen_);
 
   if (retransmit) {
-    uint8_t buf[2][NGTCP2_MAX_PKTLEN_IPV4];
-    ngtcp2_iovec iov[] = {
-        {&buf[0], max_pktlen_},
-        {&buf[1], max_pktlen_},
-    };
-    auto cnt = ngtcp2_conn_on_loss_detection_alarm(conn_, iov, 2,
-                                                   util::timestamp(loop_));
-    if (cnt < 0) {
-      std::cerr << "ngtcp2_conn_on_loss_detection_alarm: "
-                << ngtcp2_strerror(cnt) << std::endl;
-      disconnect(cnt);
-      return -1;
-    }
-    for (size_t i = 0; i < static_cast<size_t>(cnt); ++i) {
-      memcpy(sendbuf_.wpos(), iov[i].iov_base, iov[i].iov_len);
-      sendbuf_.push(iov[i].iov_len);
-      auto rv = send_packet();
-      if (rv == NETWORK_ERR_SEND_NON_FATAL) {
-        /* TODO We will lose the second packet if it exists, and i ==
-           0. */
-        schedule_retransmit();
-        return rv;
-      }
-      if (rv != NETWORK_ERR_OK) {
-        return rv;
-      }
-    }
+    ngtcp2_conn_on_loss_detection_alarm(conn_, util::timestamp(loop_));
   }
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
