@@ -1065,43 +1065,50 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  */
 static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts) {
-  ngtcp2_rtb_entry *ent;
+  ngtcp2_rtb_entry *ent = ngtcp2_rtb_head(&conn->rtb);
   ssize_t nwrite;
+  ngtcp2_frame_chain *nfrc;
+  ngtcp2_rtb_entry *nent;
+  int rv;
 
-  for (;;) {
-    ent = ngtcp2_rtb_head(&conn->rtb);
-    if (ent == NULL) {
-      return 0;
-    }
-
-    ngtcp2_rtb_pop(&conn->rtb);
-
-    /* TODO Packet number of retransmitted unacknowledged packet is
-       overwritten by new packet number.  It means that the packet is
-       treated as lost.  This might contradict the draft saying "Since
-       a TLP alarm is used to send a probe into the network prior to
-       establishing any packet loss, prior unacknowledged packets
-       SHOULD NOT be marked as lost when a TLP alarm fires."
-
-       And for RTO events, we send 2 packets, and the 2nd one quickly
-       marks the first one as being lost.
-    */
-    nwrite = conn_retransmit_protected_once(conn, dest, destlen, ent, ts);
-    if (nwrite < 0) {
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      return nwrite;
-    }
-    if (nwrite == 0) {
-      ngtcp2_rtb_entry_del(ent, conn->mem);
+  for (; ent; ent = ent->next) {
+    if (!ent->frc) {
       continue;
     }
 
-    ent->pktlen = (size_t)nwrite;
-    ent->ts = ts;
-    conn_on_pkt_sent(conn, ent);
+    /* TODO It would be better to avoid copy here.*/
+    nfrc = ngtcp2_frame_chain_list_copy(ent->frc, conn->mem);
+    if (!nfrc) {
+      return NGTCP2_ERR_NOMEM;
+    }
+
+    rv = ngtcp2_rtb_entry_new(&nent, &ent->hd, nfrc, ts, 0,
+                              NGTCP2_RTB_FLAG_PROBE, conn->mem);
+    if (rv != 0) {
+      ngtcp2_frame_chain_list_del(nfrc, conn->mem);
+      return rv;
+    }
+
+    nent->src_pkt_num = (int64_t)ent->hd.pkt_num;
+
+    nwrite = conn_retransmit_protected_once(conn, dest, destlen, nent, ts);
+    if (nwrite < 0) {
+      ngtcp2_rtb_entry_del(nent, conn->mem);
+      return nwrite;
+    }
+    if (nwrite == 0) {
+      ngtcp2_rtb_entry_del(nent, conn->mem);
+      continue;
+    }
+
+    nent->pktlen = (size_t)nwrite;
+    nent->ts = ts;
+    conn_on_pkt_sent(conn, nent);
 
     return nwrite;
   }
+
+  return 0;
 }
 
 /*

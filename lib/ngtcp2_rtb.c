@@ -25,6 +25,7 @@
 #include "ngtcp2_rtb.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_macro.h"
 #include "ngtcp2_conn.h"
@@ -47,6 +48,39 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
 
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) { frc->next = NULL; }
 
+ngtcp2_frame_chain *ngtcp2_frame_chain_list_copy(ngtcp2_frame_chain *frc,
+                                                 ngtcp2_mem *mem) {
+  ngtcp2_frame_chain *nfrc = NULL, **pfrc = &nfrc;
+  int rv;
+
+  for (; frc; frc = frc->next) {
+    rv = ngtcp2_frame_chain_new(pfrc, mem);
+    if (rv != 0) {
+      *pfrc = NULL;
+      ngtcp2_frame_chain_del(nfrc, mem);
+      return NULL;
+    }
+
+    memcpy(&(*pfrc)->fr, &frc->fr, sizeof((*pfrc)->fr));
+
+    pfrc = &(*pfrc)->next;
+  }
+
+  *pfrc = NULL;
+
+  return nfrc;
+}
+
+void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
+  ngtcp2_frame_chain *next;
+
+  for (; frc;) {
+    next = frc->next;
+    ngtcp2_mem_free(mem, frc);
+    frc = next;
+  }
+}
+
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
                          size_t pktlen, uint8_t flags, ngtcp2_mem *mem) {
@@ -59,6 +93,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->frc = frc;
   (*pent)->ts = ts;
   (*pent)->pktlen = pktlen;
+  (*pent)->src_pkt_num = -1;
   (*pent)->flags = flags;
 
   return 0;
@@ -289,8 +324,32 @@ static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
                   rtb->ccs.cwnd);
 }
 
+/*
+ * rtb_remove_src_ent removes ngtcp2_rtb_entry whose packet number is
+ * dupent->src_pkt_num.  probe_ent is supposed to be TLP/RTO probe
+ * packet.  We assume that src_pkt_num < probe_ent->src_pkt_num,
+ * because probe packet is duplicate of unacknowledged packet.
+ */
+static void rtb_remove_src_ent(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *probe_ent) {
+  ngtcp2_rtb_entry **pent;
+
+  for (pent = &probe_ent->next; *pent; pent = &(*pent)->next) {
+    if ((*pent)->hd.pkt_num > (uint64_t)probe_ent->src_pkt_num) {
+      continue;
+    }
+    if ((*pent)->hd.pkt_num < (uint64_t)probe_ent->src_pkt_num) {
+      return;
+    }
+    rtb_remove(rtb, pent);
+    return;
+  }
+}
+
 static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                              ngtcp2_rtb_entry *ent) {
+  if (ent->flags & NGTCP2_RTB_FLAG_PROBE) {
+    rtb_remove_src_ent(rtb, ent);
+  }
   rtb_on_pkt_acked_cc(rtb, ent);
   if (rcs->rto_count && ent->hd.pkt_num > rcs->largest_sent_before_rto) {
     rtb_on_retransmission_timeout_verified(rtb);
@@ -459,14 +518,20 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
         next = ent->next;
         unprotected = ent->flags & NGTCP2_RTB_FLAG_UNPROTECTED;
         rtb_on_remove(rtb, ent);
-        ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts, unprotected);
 
-        /* TODO Reconsider the order of conn->lost_unprotected_head
-           and conn->lost_protected_head */
-        if (unprotected) {
-          ngtcp2_list_insert(ent, pdest_unprotected);
+        if (ent->flags & NGTCP2_RTB_FLAG_PROBE) {
+          /* We don't care if probe packet is lost. */
+          ngtcp2_rtb_entry_del(ent, rtb->mem);
         } else {
-          ngtcp2_list_insert(ent, pdest_protected);
+          ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts, unprotected);
+
+          /* TODO Reconsider the order of conn->lost_unprotected_head
+             and conn->lost_protected_head */
+          if (unprotected) {
+            ngtcp2_list_insert(ent, pdest_unprotected);
+          } else {
+            ngtcp2_list_insert(ent, pdest_protected);
+          }
         }
 
         ent = next;

@@ -71,11 +71,31 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
  */
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
 
+/*
+ * ngtcp2_frame_chain_list_copy creates a copy of |frc| following next
+ * field.  It makes copy of each ngtcp2_frame_chain object pointed by
+ * next field.
+ *
+ * This function returns the head of copied list if it succeeds, or
+ * NULL.
+ */
+ngtcp2_frame_chain *ngtcp2_frame_chain_list_copy(ngtcp2_frame_chain *frc,
+                                                 ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_frame_chain_list_del deletes |frc|, and all objects
+ * connected by next field.
+ */
+void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
+
 typedef enum {
   NGTCP2_RTB_FLAG_NONE = 0x00,
   /* NGTCP2_RTB_FLAG_UNPROTECTED indicates that the entry contains
      frames which were sent in an unprotected packet. */
   NGTCP2_RTB_FLAG_UNPROTECTED = 0x1,
+  /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
+     packet. */
+  NGTCP2_RTB_FLAG_PROBE = 0x2,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -95,6 +115,9 @@ struct ngtcp2_rtb_entry {
   ngtcp2_tstamp ts;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
+  /* src_pkt_num is a packet number of a original packet if this entry
+     includes a probe packet duplicating original. */
+  int64_t src_pkt_num;
   /* flags is bitwise-OR of zero or more of ngtcp2_rtb_flag. */
   uint8_t flags;
 };
