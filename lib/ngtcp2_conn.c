@@ -1983,6 +1983,31 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
   return 0;
 }
 
+static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                    size_t destlen, size_t *pdatalen,
+                                    ngtcp2_strm *strm, uint8_t fin,
+                                    const uint8_t *data, size_t datalen,
+                                    ngtcp2_tstamp ts) {
+  ssize_t nwrite;
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                  "transmit probe pkt left=%zu", conn->rcs.probe_pkt_left);
+
+  /* a probe packet is not blocked by cwnd. */
+  nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, data,
+                          datalen, ts);
+  if (nwrite == 0) {
+    nwrite = conn_retransmit_unacked(conn, dest, destlen, ts);
+  }
+  if (nwrite > 0) {
+    --conn->rcs.probe_pkt_left;
+
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%zd",
+                    nwrite);
+  }
+  return nwrite;
+}
+
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               ngtcp2_tstamp ts) {
   ssize_t nwrite;
@@ -2010,21 +2035,8 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     if (conn->rcs.probe_pkt_left) {
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                      "transmit probe pkt left=%zu", conn->rcs.probe_pkt_left);
-
-      /* a probe packet is not blocked by cwnd. */
-      nwrite = conn_write_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
-      if (nwrite == 0) {
-        nwrite = conn_retransmit_unacked(conn, dest, destlen, ts);
-      }
-      if (nwrite > 0) {
-        --conn->rcs.probe_pkt_left;
-
-        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%zd",
-                        nwrite);
-      }
-      return nwrite;
+      return conn_write_probe_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0,
+                                  ts);
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
@@ -4503,23 +4515,9 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return nwrite;
   }
 
-  if (conn->rcs.probe_pkt_left && conn->tx_ckm) {
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                    "transmit probe pkt left=%zu", conn->rcs.probe_pkt_left);
-
-    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, data,
-                            datalen, ts);
-    /* TODO How to handle NGTCP2_ERR_STREAM_DATA_BLOCKED? */
-    if (nwrite == 0) {
-      nwrite = conn_retransmit_unacked(conn, dest, destlen, ts);
-    }
-    if (nwrite > 0) {
-      --conn->rcs.probe_pkt_left;
-
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%zd",
-                      nwrite);
-    }
-    return nwrite;
+  if (conn->tx_ckm && conn->rcs.probe_pkt_left) {
+    return conn_write_probe_pkt(conn, dest, destlen, pdatalen, strm, fin, data,
+                                datalen, ts);
   }
 
   if (cwnd < NGTCP2_MIN_PKTLEN) {
