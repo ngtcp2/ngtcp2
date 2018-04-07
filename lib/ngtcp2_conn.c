@@ -2863,7 +2863,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     assert(fr->type == NGTCP2_FRAME_STREAM);
 
     if (fr->stream.stream_id != 0) {
-      continue;
+      return NGTCP2_ERR_PROTO;
     }
 
     if (fr->stream.datalen == 0) {
@@ -2886,15 +2886,6 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     conn->strm0->last_rx_offset =
         ngtcp2_max(conn->strm0->last_rx_offset, fr_end_offset);
-
-    /* Although there is no way to send MAX_STREAM_DATA frame during a
-       handshake, stream 0 is subject to stream-level flow control, so
-       we have to verify it here.  The current consensus is that the
-       initial max stream data should be sufficient for a
-       handshake. */
-    if (conn->strm0->max_rx_offset < fr_end_offset) {
-      return NGTCP2_ERR_FLOW_CONTROL;
-    }
 
     if (fr->stream.offset <= rx_offset) {
       size_t ncut = (rx_offset - fr->stream.offset);
@@ -3479,10 +3470,9 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * conn_recv_delayed_handshake_pkt processes the received handshake
  * packet which is received after handshake completed.  This function
  * does the minimal job, and its purpose is send acknowledgement of
- * this packet to the peer, and processing STREAM data sent in stream
- * 0 which most likely includes NewSessionTicket.  We assume that
- * hd->type is one of Initial, or Handshake.  |ad| and |adlen| is an
- * additional data and its length to decrypt a packet.
+ * this packet to the peer.  We assume that hd->type is one of
+ * Initial, or Handshake.  |ad| and |adlen| is an additional data and
+ * its length to decrypt a packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3562,9 +3552,16 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     case NGTCP2_FRAME_PADDING:
       break;
     case NGTCP2_FRAME_STREAM:
-      rv = conn_recv_stream(conn, &fr->stream);
-      if (rv != 0) {
-        return rv;
+      /* STREAM frame for stream 0 never be 0 length because it never
+         have fin bit set. */
+      if (fr->stream.stream_id != 0 || fr->stream.fin ||
+          fr->stream.datalen == 0) {
+        return NGTCP2_ERR_PROTO;
+      }
+      /* Handshake has completed.  Delayed STREAM frame should not
+         advance offset which finished handshake. */
+      if (fr->stream.offset + fr->stream.datalen > conn->final_hs_rx_offset) {
+        return NGTCP2_ERR_PROTO;
       }
       require_ack = 1;
       break;
@@ -4040,6 +4037,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
+    conn->final_hs_rx_offset = ngtcp2_rob_first_gap_offset(&conn->strm0->rob);
 
     if (conn->early_rtb) {
       rv = conn_process_early_rtb(conn);
@@ -4128,6 +4126,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
     conn->final_hs_tx_offset = conn->strm0->tx_offset;
+    conn->final_hs_rx_offset = ngtcp2_rob_first_gap_offset(&conn->strm0->rob);
     /* The receipt of the final cryptographic message from the client
        verifies source address. */
     conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
