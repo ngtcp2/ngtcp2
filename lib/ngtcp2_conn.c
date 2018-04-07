@@ -3388,12 +3388,11 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
 
     idtr = &conn->remote_bidi_idtr;
   } else {
-    if (local_stream) {
-      if (conn->next_local_stream_id_uni <= fr->stream_id) {
-        return NGTCP2_ERR_STREAM_STATE;
-      }
-    } else if (fr->stream_id > conn->max_remote_stream_id_uni) {
-      return NGTCP2_ERR_STREAM_ID;
+    if (!local_stream) {
+      return NGTCP2_ERR_PROTO;
+    }
+    if (conn->next_local_stream_id_uni <= fr->stream_id) {
+      return NGTCP2_ERR_STREAM_STATE;
     }
 
     idtr = &conn->remote_uni_idtr;
