@@ -3326,10 +3326,9 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
     idtr = &conn->remote_bidi_idtr;
   } else {
     if (local_stream) {
-      if (conn->next_local_stream_id_uni <= fr->stream_id) {
-        return NGTCP2_ERR_STREAM_STATE;
-      }
-    } else if (fr->stream_id > conn->max_remote_stream_id_uni) {
+      return NGTCP2_ERR_PROTO;
+    }
+    if (fr->stream_id > conn->max_remote_stream_id_uni) {
       return NGTCP2_ERR_STREAM_ID;
     }
 
@@ -3338,11 +3337,7 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
 
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
   if (strm == NULL) {
-    if (local_stream) {
-      if (!bidi && fr->final_offset != 0) {
-        return NGTCP2_ERR_FINAL_OFFSET;
-      }
-    } else if (!ngtcp2_idtr_is_open(idtr, fr->stream_id)) {
+    if (!local_stream && !ngtcp2_idtr_is_open(idtr, fr->stream_id)) {
       /* Stream is reset before we create ngtcp2_strm object. */
       if (conn->local_settings.max_stream_data < fr->final_offset ||
           conn_max_data_violated(conn, fr->final_offset)) {

@@ -1288,8 +1288,8 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Receiving RST_STREAM for a local unidirectional stream with
-     final_offset == 0 */
+  /* Receiving RST_STREAM for a local unidirectional stream is a
+     protocol violation. */
   setup_default_server(&conn);
 
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
@@ -1305,44 +1305,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
       write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id, 1, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
-  CU_ASSERT(0 == rv);
-
-  ngtcp2_conn_del(conn);
-
-  /* Receiving RST_STREAM for a local unidirectional stream with
-     final_offset > 0 is an error */
-  setup_default_server(&conn);
-
-  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
-
-  CU_ASSERT(0 == rv);
-
-  fr.type = NGTCP2_FRAME_RST_STREAM;
-  fr.rst_stream.stream_id = stream_id;
-  fr.rst_stream.app_error_code = NGTCP2_APP_ERR02;
-  fr.rst_stream.final_offset = 1;
-
-  pktlen =
-      write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
-
-  CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
-
-  ngtcp2_conn_del(conn);
-
-  /* RST_STREAM against local stream which has not been initiated. */
-  setup_default_server(&conn);
-
-  fr.type = NGTCP2_FRAME_RST_STREAM;
-  fr.rst_stream.stream_id = 3;
-  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
-  fr.rst_stream.final_offset = 0;
-
-  pktlen =
-      write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
-
-  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 }
