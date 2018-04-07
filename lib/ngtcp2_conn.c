@@ -2322,14 +2322,11 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
 
     idtr = &conn->remote_bidi_idtr;
   } else {
-    /* TODO Sending MAX_STREAM_DATA to local unidirectional stream is
-       just a waste of bits. */
-    if (local_stream) {
-      if (conn->next_local_stream_id_uni <= fr->stream_id) {
-        return NGTCP2_ERR_STREAM_STATE;
-      }
-    } else if (conn->max_remote_stream_id_uni < fr->stream_id) {
-      return NGTCP2_ERR_STREAM_ID;
+    if (!local_stream) {
+      return NGTCP2_ERR_PROTO;
+    }
+    if (conn->next_local_stream_id_uni <= fr->stream_id) {
+      return NGTCP2_ERR_PROTO;
     }
 
     idtr = &conn->remote_uni_idtr;
@@ -2355,9 +2352,6 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
       return rv;
-    }
-    if (!bidi) {
-      ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
     }
   }
 

@@ -2447,7 +2447,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -2457,23 +2457,6 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
   fr.max_stream_data.stream_id = 1;
-  fr.max_stream_data.max_stream_data = 1000000009;
-
-  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
-                                  ++pkt_num, &fr);
-
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
-
-  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
-
-  ngtcp2_conn_del(conn);
-
-  /* Receiving MAX_STREAM_DATA to a remote unidirectional stream which
-     exceeds limit */
-  setup_default_client(&conn);
-
-  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
-  fr.max_stream_data.stream_id = 11;
   fr.max_stream_data.max_stream_data = 1000000009;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
@@ -2507,8 +2490,8 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Receiving MAX_STREAM_DATA to a remote unidirectional stream which
-     the local endpoint has not received yet. */
+  /* Receiving MAX_STREAM_DATA to a idle remote unidirectional stream
+     is a protocol violation. */
   setup_default_server(&conn);
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
@@ -2520,13 +2503,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(0 == rv);
-
-  strm = ngtcp2_conn_find_stream(conn, 2);
-
-  CU_ASSERT(NULL != strm);
-  CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_WR == strm->flags);
-  CU_ASSERT(1000000009 == strm->max_tx_offset);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 
