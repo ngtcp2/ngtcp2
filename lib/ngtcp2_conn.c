@@ -3072,13 +3072,9 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     idtr = &conn->remote_bidi_idtr;
   } else {
     if (local_stream) {
-      if (conn->next_local_stream_id_uni <= fr->stream_id) {
-        return NGTCP2_ERR_STREAM_STATE;
-      }
-      if (fr->offset + fr->datalen != 0) {
-        return NGTCP2_ERR_FINAL_OFFSET;
-      }
-    } else if (conn->max_remote_stream_id_uni < fr->stream_id) {
+      return NGTCP2_ERR_PROTO;
+    }
+    if (conn->max_remote_stream_id_uni < fr->stream_id) {
       return NGTCP2_ERR_STREAM_ID;
     }
 

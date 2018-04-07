@@ -2339,8 +2339,8 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Receiving nonzero payload in an local unidirectional stream is an
-     error */
+  /* Receiving nonzero payload to an local unidirectional stream is a
+     protocol violation. */
   setup_default_client(&conn);
 
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
@@ -2359,7 +2359,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 
