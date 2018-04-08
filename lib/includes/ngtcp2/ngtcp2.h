@@ -463,8 +463,17 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
 } ngtcp2_transport_params_type;
 
+/**
+ * @enum
+ *
+ * ngtcp2_rand_ctx is a context where generated random value is used.
+ */
 typedef enum {
   NGTCP2_RAND_CTX_NONE,
+  /**
+   * NGTCP2_RAND_CTX_PATH_CHALLENGE indicates that random value is
+   * used for PATH_CHALLENGE.
+   */
   NGTCP2_RAND_CTX_PATH_CHALLENGE
 } ngtcp2_rand_ctx;
 
