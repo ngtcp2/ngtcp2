@@ -756,6 +756,15 @@ int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
 }
 } // namespace
 
+namespace {
+int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx,
+         void *user_data) {
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
+  return 0;
+}
+} // namespace
+
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
                   uint32_t version) {
   int rv;
@@ -800,6 +809,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr, // recv_stateless_reset
       nullptr, // recv_server_stateless_retry
       nullptr, // extend_max_stream_id
+      rand,
   };
 
   ngtcp2_settings settings;
@@ -996,8 +1006,8 @@ int Handler::recv_client_initial(uint64_t conn_id) {
 
   rv = crypto::derive_handshake_secret(
       handshake_secret.data(), handshake_secret.size(), conn_id,
-      reinterpret_cast<const uint8_t *>(NGTCP2_QUIC_V1_SALT),
-      str_size(NGTCP2_QUIC_V1_SALT));
+      reinterpret_cast<const uint8_t *>(NGTCP2_HANDSHAKE_SALT),
+      str_size(NGTCP2_HANDSHAKE_SALT));
   if (rv != 0) {
     std::cerr << "crypto::derive_handshake_secret() failed" << std::endl;
     return -1;
@@ -1961,7 +1971,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   std::array<uint32_t, 2> sv;
 
   sv[0] = generate_reserved_version(sa, salen, chd->version);
-  sv[1] = NGTCP2_PROTO_VER_D9;
+  sv[1] = NGTCP2_PROTO_VER_D10;
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
@@ -2045,9 +2055,9 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   auto version = ngtcp2_conn_negotiated_version(h->conn());
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D9:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D9);
-    alpnlen = str_size(NGTCP2_ALPN_D9);
+  case NGTCP2_PROTO_VER_D10:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D10);
+    alpnlen = str_size(NGTCP2_ALPN_D10);
     break;
   default:
     if (!config.quiet) {
@@ -2069,7 +2079,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   *outlen = alpn[0];
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D9 + 1
+    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D10 + 1
               << std::endl;
   }
 
@@ -2096,7 +2106,7 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
   }
 
   params.v.ee.len = 1;
-  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D9;
+  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D10;
 
   constexpr size_t bufsize = 128;
   auto buf = std::make_unique<uint8_t[]>(bufsize);

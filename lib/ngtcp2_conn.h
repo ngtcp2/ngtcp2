@@ -120,6 +120,11 @@ typedef union {
   } ackfr;
 } ngtcp2_max_frame;
 
+typedef struct {
+  ngtcp2_tstamp ts;
+  uint8_t data[8];
+} ngtcp2_path_challenge_entry;
+
 /*
  * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
  * assigns its pointer to |*ppc|.  The content of buffer pointed by
@@ -163,6 +168,9 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
      rejected by a peer. */
   NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED = 0x20,
+  /* NGTCP2_CONN_FLAG_SADDR_VERIFIED is set when source address is
+     verified. */
+  NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
 } ngtcp2_conn_flag;
 
 struct ngtcp2_conn {
@@ -174,6 +182,8 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
+  ngtcp2_ringbuf tx_path_challenge;
+  ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
   uint64_t conn_id;
   /* client_conn_id is the connection ID chosen by client. */
@@ -240,6 +250,9 @@ struct ngtcp2_conn {
   /* final_hs_tx_offset is the offset in stream 0 when handshake
      completed. */
   uint64_t final_hs_tx_offset;
+  /* final_hs_rx_offset is the receiver offset in stream 0 which
+     handshake completed. */
+  uint64_t final_hs_rx_offset;
   /* largest_ack is the largest ack in received ACK packet. */
   int64_t largest_ack;
   size_t probe_pkt_left;

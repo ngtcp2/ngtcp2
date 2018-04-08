@@ -34,8 +34,10 @@
 #define NGTCP2_HEADER_FORM_BIT 0x80
 #define NGTCP2_OMIT_CONN_ID_BIT 0x40
 #define NGTCP2_KEY_PHASE_BIT 0x20
+#define NGTCP2_FOURTH_BIT 0x10
+#define NGTCP2_GQUIC_BIT 0x08
 #define NGTCP2_LONG_TYPE_MASK 0x7f
-#define NGTCP2_SHORT_TYPE_MASK 0x1f
+#define NGTCP2_SHORT_TYPE_MASK 0x07
 
 /* NGTCP2_LONG_HEADERLEN is the length of long header */
 #define NGTCP2_LONG_HEADERLEN 17
@@ -368,19 +370,38 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
                                              const uint8_t *payload,
                                              size_t payloadlen);
+
 /*
- * ngtcp2_pkt_decode_pong_frame decodes PONG frame from |payload| of
- * length |payloadlen|.  The result is stored in the object pointed by
- * |dest|.  PONG frame must start at payload[0].  This function
- * finishes when it decodes one PONG frame, and returns the exact
- * number of bytes read to decode a frame if it succeeds, or one of
- * the following negative error codes:
+ * ngtcp2_pkt_decode_path_challenge_frame decodes PATH_CHALLENGE frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  PATH_CHALLENGE frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * PATH_CHALLENGE frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_FRAME_FORMAT
- *     Payload is too short to include PONG frame.
+ *     Payload is too short to include PATH_CHALLENGE frame.
  */
-ssize_t ngtcp2_pkt_decode_pong_frame(ngtcp2_pong *dest, const uint8_t *payload,
-                                     size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
+                                               const uint8_t *payload,
+                                               size_t payloadlen);
+
+/*
+ * ngtcp2_pkt_decode_path_response_frame decodes PATH_RESPONSE frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  PATH_RESPONSE frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * PATH_RESPONSE frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Payload is too short to include PATH_RESPONSE frame.
+ */
+ssize_t ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
+                                              const uint8_t *payload,
+                                              size_t payloadlen);
 
 /*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
@@ -591,8 +612,8 @@ ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
                                              const ngtcp2_stop_sending *fr);
 
 /*
- * ngtcp2_pkt_encode_pong_frame encodes PONG frame |fr| into the
- * buffer pointed by |out| of length |outlen|.
+ * ngtcp2_pkt_encode_path_challenge_frame encodes PATH_CHALLENGE frame
+ * |fr| into the buffer pointed by |out| of length |outlen|.
  *
  * This function returns the number of bytes written if it succeeds,
  * or one of the following negative error codes:
@@ -600,8 +621,21 @@ ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_pong_frame(uint8_t *out, size_t outlen,
-                                     const ngtcp2_pong *fr);
+ssize_t ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
+                                               const ngtcp2_path_challenge *fr);
+
+/*
+ * ngtcp2_pkt_encode_path_response_frame encodes PATH_RESPONSE frame
+ * |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
+                                              const ngtcp2_path_response *fr);
 
 /*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for

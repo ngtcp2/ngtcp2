@@ -225,6 +225,17 @@ static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
   return 0;
 }
 
+static int genrand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                   ngtcp2_rand_ctx ctx, void *user_data) {
+  (void)conn;
+  (void)ctx;
+  (void)user_data;
+
+  memset(dest, 0, destlen);
+
+  return 0;
+}
+
 static void server_default_settings(ngtcp2_settings *settings) {
   size_t i;
 
@@ -332,6 +343,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   cb.recv_stream0_data = recv_stream0_data;
   cb.hs_decrypt = null_decrypt;
   cb.hs_encrypt = null_encrypt;
+  cb.rand = genrand;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
@@ -373,6 +385,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   cb.hs_encrypt = null_encrypt;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
+  cb.rand = genrand;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, 0x1, NGTCP2_PROTO_VER_MAX, &cb, &settings,
@@ -1275,8 +1288,8 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Receiving RST_STREAM for a local unidirectional stream with
-     final_offset == 0 */
+  /* Receiving RST_STREAM for a local unidirectional stream is a
+     protocol violation. */
   setup_default_server(&conn);
 
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
@@ -1292,44 +1305,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
       write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id, 1, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
-  CU_ASSERT(0 == rv);
-
-  ngtcp2_conn_del(conn);
-
-  /* Receiving RST_STREAM for a local unidirectional stream with
-     final_offset > 0 is an error */
-  setup_default_server(&conn);
-
-  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
-
-  CU_ASSERT(0 == rv);
-
-  fr.type = NGTCP2_FRAME_RST_STREAM;
-  fr.rst_stream.stream_id = stream_id;
-  fr.rst_stream.app_error_code = NGTCP2_APP_ERR02;
-  fr.rst_stream.final_offset = 1;
-
-  pktlen =
-      write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
-
-  CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
-
-  ngtcp2_conn_del(conn);
-
-  /* RST_STREAM against local stream which has not been initiated. */
-  setup_default_server(&conn);
-
-  fr.type = NGTCP2_FRAME_RST_STREAM;
-  fr.rst_stream.stream_id = 3;
-  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
-  fr.rst_stream.final_offset = 0;
-
-  pktlen =
-      write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
-
-  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 }
@@ -1745,10 +1721,11 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   ngtcp2_frame fr;
   int rv;
 
-  /* STREAM frame */
+  /* STREAM frame within final_hs_rx_offset */
   setup_default_client(&conn);
 
   conn->final_hs_tx_offset = 999;
+  conn->final_hs_rx_offset = 567;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -1766,6 +1743,29 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == conn->acktr.nack);
   CU_ASSERT(conn->acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED);
+
+  ngtcp2_conn_del(conn);
+
+  /* STREAM frame beyond final_hs_rx_offset */
+  setup_default_client(&conn);
+
+  conn->final_hs_tx_offset = 999;
+  conn->final_hs_rx_offset = 100;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 567;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(buf, sizeof(buf),
+                                            NGTCP2_PKT_HANDSHAKE, conn->conn_id,
+                                            1, NGTCP2_PROTO_VER_MAX, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -1820,6 +1820,49 @@ void test_ngtcp2_conn_recv_max_stream_id(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(997 == conn->max_local_stream_id_bidi);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_handshake(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ssize_t spktlen;
+  ngtcp2_frame fr;
+  uint64_t pkt_num = 12345689, t = 0;
+
+  /* server recognize PATH_RESPONSE from client. */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 45;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(buf, sizeof(buf),
+                                            NGTCP2_PKT_INITIAL, conn->conn_id,
+                                            ++pkt_num, conn->version, &fr);
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->tx_path_challenge));
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response));
+
+  pktlen = write_single_frame_handshake_pkt(buf, sizeof(buf),
+                                            NGTCP2_PKT_HANDSHAKE, conn->conn_id,
+                                            ++pkt_num, conn->version, &fr);
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->tx_path_challenge));
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED);
 
   ngtcp2_conn_del(conn);
 }
@@ -1963,8 +2006,6 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   setup_default_client(&conn);
 
   fr.type = NGTCP2_FRAME_PING;
-  fr.ping.datalen = 0;
-  fr.ping.data = NULL;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
                                   ++pkt_num, &fr);
@@ -2365,8 +2406,8 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Receiving nonzero payload in an local unidirectional stream is an
-     error */
+  /* Receiving nonzero payload to an local unidirectional stream is a
+     protocol violation. */
   setup_default_client(&conn);
 
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
@@ -2385,7 +2426,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -2418,42 +2459,10 @@ void test_ngtcp2_conn_recv_ping(void) {
   ngtcp2_frame fr;
   size_t pktlen;
   int rv;
-  uint8_t data[255];
-  size_t i;
-  ngtcp2_frame_chain *frc;
 
-  for (i = 0; i < sizeof(data); ++i) {
-    data[i] = (uint8_t)i;
-  }
-
-  /* Receiving PING frame with non empty data */
-  setup_default_server(&conn);
-
-  fr.type = NGTCP2_FRAME_PING;
-  fr.ping.datalen = 255;
-  fr.ping.data = data;
-
-  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
-                                  ++pkt_num, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
-
-  CU_ASSERT(0 == rv);
-
-  frc = conn->frq;
-
-  CU_ASSERT(NULL != frc);
-  CU_ASSERT(NGTCP2_FRAME_PONG == frc->fr.type);
-  CU_ASSERT(255 == frc->fr.pong.datalen);
-  CU_ASSERT(0 == memcmp(data, frc->fr.pong.data, 255));
-
-  ngtcp2_conn_del(conn);
-
-  /* Receiving PING frame with empty data */
   setup_default_client(&conn);
 
   fr.type = NGTCP2_FRAME_PING;
-  fr.ping.datalen = 0;
-  fr.ping.data = NULL;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
                                   ++pkt_num, &fr);
@@ -2505,7 +2514,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -2515,23 +2524,6 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
   fr.max_stream_data.stream_id = 1;
-  fr.max_stream_data.max_stream_data = 1000000009;
-
-  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
-                                  ++pkt_num, &fr);
-
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
-
-  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
-
-  ngtcp2_conn_del(conn);
-
-  /* Receiving MAX_STREAM_DATA to a remote unidirectional stream which
-     exceeds limit */
-  setup_default_client(&conn);
-
-  fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
-  fr.max_stream_data.stream_id = 11;
   fr.max_stream_data.max_stream_data = 1000000009;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), conn->conn_id,
@@ -2565,8 +2557,8 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Receiving MAX_STREAM_DATA to a remote unidirectional stream which
-     the local endpoint has not received yet. */
+  /* Receiving MAX_STREAM_DATA to a idle remote unidirectional stream
+     is a protocol violation. */
   setup_default_server(&conn);
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
@@ -2578,13 +2570,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(0 == rv);
-
-  strm = ngtcp2_conn_find_stream(conn, 2);
-
-  CU_ASSERT(NULL != strm);
-  CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_WR == strm->flags);
-  CU_ASSERT(1000000009 == strm->max_tx_offset);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 

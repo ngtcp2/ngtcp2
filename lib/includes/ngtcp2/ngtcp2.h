@@ -155,17 +155,17 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER_D9 is the supported QUIC protocol version
-   draft-9. */
-#define NGTCP2_PROTO_VER_D9 0xff000009u
+/* NGTCP2_PROTO_VER_D10 is the supported QUIC protocol version
+   draft-10. */
+#define NGTCP2_PROTO_VER_D10 0xff00000au
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D9
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D10
 
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D9 "\x5hq-09"
+#define NGTCP2_ALPN_D10 "\x5hq-10"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -178,11 +178,11 @@ typedef struct {
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
-/* NGTCP2_QUIC_V1_SALT is a salt value which is used to derive
+/* NGTCP2_HANDSHAKE_SALT is a salt value which is used to derive
    handshake secret. */
-#define NGTCP2_QUIC_V1_SALT                                                    \
-  "\xaf\xc8\x24\xec\x5f\xc7\x7e\xca\x1e\x9d\x36\xf3\x7f\xb2\xd4\x65\x18\xc3"   \
-  "\x66\x39"
+#define NGTCP2_HANDSHAKE_SALT                                                  \
+  "\x9c\x10\x8f\x98\x52\x0a\x5c\x5c\x32\x96\x8e\x95\x0e\x8a\x2c\x5f\xe0\x6d"   \
+  "\x6c\x38"
 
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
@@ -237,9 +237,9 @@ typedef enum {
   NGTCP2_PKT_RETRY = 0x7E,
   NGTCP2_PKT_HANDSHAKE = 0x7D,
   NGTCP2_PKT_0RTT_PROTECTED = 0x7C,
-  NGTCP2_PKT_01 = 0x1F,
-  NGTCP2_PKT_02 = 0x1E,
-  NGTCP2_PKT_03 = 0x1D
+  NGTCP2_PKT_01 = 0x00,
+  NGTCP2_PKT_02 = 0x01,
+  NGTCP2_PKT_03 = 0x02
 } ngtcp2_pkt_type;
 
 typedef enum {
@@ -256,8 +256,9 @@ typedef enum {
   NGTCP2_FRAME_STREAM_ID_BLOCKED = 0x0a,
   NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
   NGTCP2_FRAME_STOP_SENDING = 0x0c,
-  NGTCP2_FRAME_PONG = 0x0d,
-  NGTCP2_FRAME_ACK = 0x0e,
+  NGTCP2_FRAME_ACK = 0x0d,
+  NGTCP2_FRAME_PATH_CHALLENGE = 0x0e,
+  NGTCP2_FRAME_PATH_RESPONSE = 0x0f,
   NGTCP2_FRAME_STREAM = 0x10
 } ngtcp2_frame_type;
 
@@ -272,7 +273,7 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
   NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
   NGTCP2_PROTOCOL_VIOLATION = 0xau,
-  NGTCP2_UNSOLICITED_PONG = 0xb,
+  NGTCP2_UNSOLICITED_PATH_RESPONSE = 0xbu,
   /* Defined in quic-tls */
   NGTCP2_TLS_HANDSHAKE_FAILED = 0x201,
   NGTCP2_TLS_FATAL_ALERT_GENERATED = 0x202,
@@ -383,8 +384,6 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  size_t datalen;
-  uint8_t *data;
 } ngtcp2_ping;
 
 typedef struct {
@@ -418,9 +417,13 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  size_t datalen;
-  uint8_t *data;
-} ngtcp2_pong;
+  uint8_t data[8];
+} ngtcp2_path_challenge;
+
+typedef struct {
+  uint8_t type;
+  uint8_t data[8];
+} ngtcp2_path_response;
 
 typedef union {
   uint8_t type;
@@ -439,7 +442,8 @@ typedef union {
   ngtcp2_stream_id_blocked stream_id_blocked;
   ngtcp2_new_connection_id new_connection_id;
   ngtcp2_stop_sending stop_sending;
-  ngtcp2_pong pong;
+  ngtcp2_path_challenge path_challenge;
+  ngtcp2_path_response path_response;
 } ngtcp2_frame;
 
 typedef enum {
@@ -458,6 +462,20 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
   NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
 } ngtcp2_transport_params_type;
+
+/**
+ * @enum
+ *
+ * ngtcp2_rand_ctx is a context where generated random value is used.
+ */
+typedef enum {
+  NGTCP2_RAND_CTX_NONE,
+  /**
+   * NGTCP2_RAND_CTX_PATH_CHALLENGE indicates that random value is
+   * used for PATH_CHALLENGE.
+   */
+  NGTCP2_RAND_CTX_PATH_CHALLENGE
+} ngtcp2_rand_ctx;
 
 #define NGTCP2_MAX_PKT_SIZE 65527
 
@@ -836,6 +854,21 @@ typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
                                            uint64_t max_stream_id,
                                            void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_rand` is a callback function to get randomized byte
+ * string from application.  Application must fill random |destlen|
+ * bytes to the buffer pointed by |dest|.  |ctx| provides the context
+ * how the provided random byte string is used.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                           ngtcp2_rand_ctx ctx, void *user_data);
+
 typedef struct {
   ngtcp2_send_client_initial send_client_initial;
   ngtcp2_send_client_handshake send_client_handshake;
@@ -858,6 +891,7 @@ typedef struct {
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
   ngtcp2_extend_max_stream_id extend_max_stream_id;
+  ngtcp2_rand rand;
 } ngtcp2_conn_callbacks;
 
 /*

@@ -101,8 +101,10 @@ int main() {
                    test_ngtcp2_pkt_encode_new_connection_id_frame) ||
       !CU_add_test(pSuite, "pkt_encode_stop_sending_frame",
                    test_ngtcp2_pkt_encode_stop_sending_frame) ||
-      !CU_add_test(pSuite, "pkt_encode_pong_frame",
-                   test_ngtcp2_pkt_encode_pong_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_path_challenge_frame",
+                   test_ngtcp2_pkt_encode_path_challenge_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_path_response_frame",
+                   test_ngtcp2_pkt_encode_path_response_frame) ||
       !CU_add_test(pSuite, "pkt_adjust_pkt_num",
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "pkt_validate_ack", test_ngtcp2_pkt_validate_ack) ||
@@ -133,6 +135,8 @@ int main() {
       !CU_add_test(pSuite, "idtr_open", test_ngtcp2_idtr_open) ||
       !CU_add_test(pSuite, "ringbuf_push_front",
                    test_ngtcp2_ringbuf_push_front) ||
+      !CU_add_test(pSuite, "ringbuf_pop_front",
+                   test_ngtcp2_ringbuf_pop_front) ||
       !CU_add_test(pSuite, "conn_stream_open_close",
                    test_ngtcp2_conn_stream_open_close) ||
       !CU_add_test(pSuite, "conn_stream_rx_flow_control",
@@ -165,6 +169,7 @@ int main() {
                    test_ngtcp2_conn_recv_delayed_handshake_pkt) ||
       !CU_add_test(pSuite, "conn_recv_max_stream_id",
                    test_ngtcp2_conn_recv_max_stream_id) ||
+      !CU_add_test(pSuite, "conn_handshake", test_ngtcp2_conn_handshake) ||
       !CU_add_test(pSuite, "conn_handshake_error",
                    test_ngtcp2_conn_handshake_error) ||
       !CU_add_test(pSuite, "conn_retransmit_protected",
