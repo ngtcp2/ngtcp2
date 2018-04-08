@@ -2887,6 +2887,15 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     conn->strm0->last_rx_offset =
         ngtcp2_max(conn->strm0->last_rx_offset, fr_end_offset);
 
+    /* Although stream 0 is exempted from flow contorl during
+       handshake, peer can send data on any offset, and forces
+       receiver to buffer unlimited data.  In order to avoid that
+       situation, we have a fixed limit for handshake which is
+       supposed to be large enough for handshake. */
+    if (NGTCP2_MAX_HS_STREAM0_OFFSET < fr_end_offset) {
+      return NGTCP2_ERR_PROTO;
+    }
+
     if (fr->stream.offset <= rx_offset) {
       size_t ncut = (rx_offset - fr->stream.offset);
       const uint8_t *data = fr->stream.data + ncut;

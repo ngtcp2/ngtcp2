@@ -94,6 +94,11 @@ typedef enum {
 
 #define NGTCP2_MIN_PKTLEN NGTCP2_DEFAULT_MSS
 
+/* NGTCP2_MAX_HS_STREAM0_OFFSET is the maximum offset of stream 0
+   during handshake.  This is required because stream 0 is exempted
+   from flow control during handshake. */
+#define NGTCP2_MAX_HS_STREAM0_OFFSET 65536
+
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
 
