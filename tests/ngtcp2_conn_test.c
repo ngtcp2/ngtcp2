@@ -1824,6 +1824,49 @@ void test_ngtcp2_conn_recv_max_stream_id(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_handshake(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ssize_t spktlen;
+  ngtcp2_frame fr;
+  uint64_t pkt_num = 12345689, t = 0;
+
+  /* server recognize PATH_RESPONSE from client. */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 45;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(buf, sizeof(buf),
+                                            NGTCP2_PKT_INITIAL, conn->conn_id,
+                                            ++pkt_num, conn->version, &fr);
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->tx_path_challenge));
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response));
+
+  pktlen = write_single_frame_handshake_pkt(buf, sizeof(buf),
+                                            NGTCP2_PKT_HANDSHAKE, conn->conn_id,
+                                            ++pkt_num, conn->version, &fr);
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->tx_path_challenge));
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_conn_handshake_error(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
