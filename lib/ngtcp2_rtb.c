@@ -313,14 +313,16 @@ static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
 
   if (rtb->ccs.cwnd < rtb->ccs.ssthresh) {
     rtb->ccs.cwnd += ent->pktlen;
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV, "slow start cwnd=%lu",
-                    rtb->ccs.cwnd);
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                    "packet %" PRIu64 " acked, slow start cwnd=%lu",
+                    ent->hd.pkt_num, rtb->ccs.cwnd);
     return;
   }
 
   rtb->ccs.cwnd += NGTCP2_DEFAULT_MSS * ent->pktlen / rtb->ccs.cwnd;
 
-  ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV, "packet acked cwnd=%lu",
+  ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                  "packet %" PRIu64 " acked, cwnd=%lu", ent->hd.pkt_num,
                   rtb->ccs.cwnd);
 }
 
