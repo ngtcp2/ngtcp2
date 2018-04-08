@@ -683,7 +683,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
     uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd,
     uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
 
-/*
+/**
  * @function
  *
  * `ngtcp2_pkt_write_version_negotiation` writes Version Negotiation
@@ -815,7 +815,7 @@ typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint64_t stream_id,
 typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint64_t stream_id,
                                    uint16_t app_error_code, void *user_data,
                                    void *stream_user_data);
-/*
+/**
  * @functypedef
  *
  * :type:`ngtcp2_acked_stream_data_offset` is a callback function
@@ -838,7 +838,7 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_stateless_reset *sr,
                                            void *user_data);
 
-/*
+/**
  * @functypedef
  *
  * :type:`ngtcp2_extend_max_stream_id` is a callback function which is
@@ -909,7 +909,7 @@ typedef struct {
 NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                 size_t pktlen);
 
-/*
+/**
  * @function
  *
  * `ngtcp2_conn_client_new` creates new :type:`ngtcp2_conn`, and
@@ -931,7 +931,7 @@ NGTCP2_EXTERN int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
                                          const ngtcp2_settings *settings,
                                          void *user_data);
 
-/*
+/**
  * @function
  *
  * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
@@ -953,7 +953,7 @@ NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
                                          const ngtcp2_settings *settings,
                                          void *user_data);
 
-/*
+/**
  * @function
  *
  * `ngtcp2_conn_del` frees resources allocated for |conn|.  It also
@@ -961,7 +961,7 @@ NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
  */
 NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 
-/*
+/**
  * @function
  *
  * `ngtcp2_conn_handshake` performs QUIC cryptographic handshake.  If
@@ -992,7 +992,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, const uint8_t *pkt,
                                             size_t pktlen, ngtcp2_tstamp ts);
 
-/*
+/**
  * @function
  *
  * `ngtcp2_conn_recv` decrypts QUIC packet given in |pkt| of length
@@ -1007,7 +1007,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
 NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts);
 
-/*
+/**
  * @function
  *
  * `ngtcp2_conn_write_pkt` writes a QUIC packet in the buffer pointed
