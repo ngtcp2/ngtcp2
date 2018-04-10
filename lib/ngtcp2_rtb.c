@@ -505,7 +505,7 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
       /* OnPacketsLost in recovery draft */
       /* TODO I'm not sure we should do this for handshake packets. */
       if (!rtb_in_rcvry(rtb, ent->hd.pkt_num)) {
-        ccs->eor_pkt_num = ent->hd.pkt_num;
+        ccs->eor_pkt_num = last_tx_pkt_num;
         ccs->cwnd =
             (uint64_t)((double)ccs->cwnd * NGTCP2_LOSS_REDUCTION_FACTOR);
         ccs->cwnd = ngtcp2_max(rtb->ccs.cwnd, NGTCP2_MIN_CWND);
