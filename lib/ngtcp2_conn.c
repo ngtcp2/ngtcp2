@@ -4554,6 +4554,10 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 
   conn->log.last_ts = ts;
 
+  if (pdatalen) {
+    *pdatalen = 0;
+  }
+
   switch (conn->state) {
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
@@ -4587,10 +4591,6 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (cwnd < NGTCP2_MIN_PKTLEN) {
-    if (pdatalen) {
-      *pdatalen = 0;
-    }
-
     return 0;
   }
 
