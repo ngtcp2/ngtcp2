@@ -260,6 +260,14 @@ struct ngtcp2_conn {
   uint64_t final_hs_rx_offset;
   /* largest_ack is the largest ack in received ACK packet. */
   int64_t largest_ack;
+  /* first_rx_bw_ts is a timestamp when bandwidth measurement is
+     started. */
+  ngtcp2_tstamp first_rx_bw_ts;
+  /* rx_bw_datalen is the length of STREAM data received for bandwidth
+     measurement. */
+  uint64_t rx_bw_datalen;
+  /* rx_bw is receiver side bandwidth. */
+  double rx_bw;
   size_t probe_pkt_left;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;

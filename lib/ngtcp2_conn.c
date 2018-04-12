@@ -1625,7 +1625,9 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
 static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
   return conn->local_settings.max_stream_data / 2 <
-         (strm->unsent_max_rx_offset - strm->max_rx_offset);
+             (strm->unsent_max_rx_offset - strm->max_rx_offset) ||
+         2 * conn->rx_bw * conn->rcs.smoothed_rtt >=
+             strm->max_rx_offset - strm->last_rx_offset;
 }
 
 /*
@@ -1634,7 +1636,9 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
  */
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   return conn->local_settings.max_data / 2 <
-         conn->unsent_max_rx_offset - conn->max_rx_offset;
+             conn->unsent_max_rx_offset - conn->max_rx_offset ||
+         2 * conn->rx_bw * conn->rcs.smoothed_rtt >=
+             conn->max_rx_offset - conn->rx_offset;
 }
 
 /*
@@ -2635,6 +2639,27 @@ static void conn_recv_path_response(ngtcp2_conn *conn,
       ngtcp2_ringbuf_resize(&conn->tx_path_challenge, 0);
       return;
     }
+  }
+}
+
+/* conn_update_rx_bw updates rx bandwidth. */
+static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
+                              ngtcp2_tstamp ts) {
+  /* Reset bandwidth measurement after 1 second idle time. */
+  if (ts - conn->first_rx_bw_ts > 1000000000) {
+    conn->first_rx_bw_ts = ts;
+    conn->rx_bw_datalen = datalen;
+    conn->rx_bw = 0.;
+    return;
+  }
+
+  conn->rx_bw_datalen += datalen;
+
+  if (ts - conn->first_rx_bw_ts >= 25000000) {
+    conn->rx_bw = (double)conn->rx_bw_datalen / (ts - conn->first_rx_bw_ts);
+
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "rx_bw=%.02fBs",
+                    conn->rx_bw * 1000000000);
   }
 }
 
@@ -3792,6 +3817,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       if (rv != 0) {
         return rv;
       }
+      conn_update_rx_bw(conn, fr->stream.datalen, ts);
       break;
     case NGTCP2_FRAME_RST_STREAM:
       rv = conn_recv_rst_stream(conn, &fr->rst_stream);
