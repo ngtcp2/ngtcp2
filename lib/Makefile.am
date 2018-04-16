@@ -51,7 +51,8 @@ OBJECTS = \
 	ngtcp2_idtr.c \
 	ngtcp2_gaptr.c \
 	ngtcp2_ringbuf.c \
-	ngtcp2_log.c
+	ngtcp2_log.c \
+	ngtcp2_cid.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -74,6 +75,7 @@ HFILES = \
 	ngtcp2_gaptr.h \
 	ngtcp2_ringbuf.h \
 	ngtcp2_log.h \
+	ngtcp2_cid.h \
 	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)

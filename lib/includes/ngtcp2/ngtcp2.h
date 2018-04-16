@@ -287,6 +287,31 @@ typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
  */
 typedef uint64_t ngtcp2_tstamp;
 
+/* NGTCP2_MAX_CIDLEN is the maximum length of Connection ID. */
+#define NGTCP2_MAX_CIDLEN 18
+/* NGTCP2_MIN_CIDLEN is the minimum length of Connection ID. */
+#define NGTCP2_MIN_CIDLEN 4
+
+/**
+ * @struct
+ *
+ * ngtcp2_cid holds a Connection ID.
+ */
+typedef struct {
+  size_t datalen;
+  uint8_t data[NGTCP2_MAX_CIDLEN];
+} ngtcp2_cid;
+
+/**
+ * @function
+ *
+ * `ngtcp2_cid_init` initializes Connection ID |cid| with the byte
+ * string pointed by |data| and its length is |datalen|.  |datalen|
+ * must be at least :enum:`NGTCP2_MIN_CDLEN`, and at most
+ * :enum:`NGTCP2_MAX_CDLEN`.
+ */
+void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data, size_t datalen);
+
 typedef struct {
   uint8_t flags;
   uint8_t type;
