@@ -2656,7 +2656,8 @@ static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
   conn->rx_bw_datalen += datalen;
 
   if (ts - conn->first_rx_bw_ts >= 25000000) {
-    conn->rx_bw = (double)conn->rx_bw_datalen / (ts - conn->first_rx_bw_ts);
+    conn->rx_bw =
+        (double)conn->rx_bw_datalen / (double)(ts - conn->first_rx_bw_ts);
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "rx_bw=%.02fBs",
                     conn->rx_bw * 1000000000);
