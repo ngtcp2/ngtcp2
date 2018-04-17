@@ -31,4 +31,10 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+/*
+ * ngtcp2_cid_eq returns nonzero if |cid| and |other| share the same
+ * connection ID.
+ */
+int ngtcp2_cid_eq(const ngtcp2_cid *cid, const ngtcp2_cid *other);
+
 #endif /* NGTCP2_CID_H */

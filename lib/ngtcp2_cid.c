@@ -25,6 +25,7 @@
 #include "ngtcp2_cid.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "ngtcp2_str.h"
 
@@ -33,4 +34,9 @@ void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data, size_t datalen) {
   assert(datalen <= NGTCP2_MAX_CIDLEN);
 
   ngtcp2_cpymem(cid->data, data, datalen);
+}
+
+int ngtcp2_cid_eq(const ngtcp2_cid *cid, const ngtcp2_cid *other) {
+  return cid->datalen == other->datalen &&
+         memcmp(cid->data, other->data, cid->datalen);
 }
