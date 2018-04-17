@@ -181,6 +181,13 @@ typedef enum {
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
+  ngtcp2_cid dcid;
+  ngtcp2_cid scid;
+  /* rcid is a connection ID present in Initial or 0-RTT protected
+     packet as destination connection ID.  Server uses this field to
+     check that duplicated Initial or 0-RTT packet are indeed sent to
+     this connection. */
+  ngtcp2_cid rcid;
   ngtcp2_strm *strm0;
   ngtcp2_map strms;
   ngtcp2_strm *fc_strms;
@@ -190,9 +197,6 @@ struct ngtcp2_conn {
   ngtcp2_ringbuf tx_path_challenge;
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
-  uint64_t conn_id;
-  /* client_conn_id is the connection ID chosen by client. */
-  uint64_t client_conn_id;
   /* last_tx_pkt_num is the packet number which the local endpoint
      sent last time.*/
   uint64_t last_tx_pkt_num;

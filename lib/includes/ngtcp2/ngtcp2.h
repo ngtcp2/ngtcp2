@@ -313,11 +313,12 @@ typedef struct {
 void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data, size_t datalen);
 
 typedef struct {
-  uint8_t flags;
-  uint8_t type;
-  uint64_t conn_id;
+  ngtcp2_cid dcid;
+  ngtcp2_cid scid;
   uint64_t pkt_num;
   uint32_t version;
+  uint8_t type;
+  uint8_t flags;
 } ngtcp2_pkt_hd;
 
 typedef struct {
@@ -713,10 +714,13 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
  *
  * `ngtcp2_pkt_write_version_negotiation` writes Version Negotiation
  * packet in the buffer pointed by |dest| whose length is |destlen|.
- * |unused_random| should be generated randomly.  |conn_id| is the
- * connection ID which appears in a packet sent by client which caused
- * version negotiation.  |sv| is a list of supported versions, and
- * |nsv| specifies the number of supported versions included in |sv|.
+ * |unused_random| should be generated randomly.  |dcid| is the
+ * destination connection ID which appears in a packet as a source
+ * connection ID sent by client which caused version negotiation.
+ * Similarly, |scid| is the source connection ID which appears in a
+ * packet as a destination connection ID sent by client.  |sv| is a
+ * list of supported versions, and |nsv| specifies the number of
+ * supported versions included in |sv|.
  *
  * This function returns the number of bytes written to the buffer, or
  * one of the following negative error codes:
@@ -725,8 +729,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
  *     Buffer is too small.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_version_negotiation(
-    uint8_t *dest, size_t destlen, uint8_t unused_random, uint64_t conn_id,
-    const uint32_t *sv, size_t nsv);
+    uint8_t *dest, size_t destlen, uint8_t unused_random,
+    const ngtcp2_cid *dcid, const ngtcp2_cid *scid, const uint32_t *sv,
+    size_t nsv);
 
 struct ngtcp2_conn;
 
@@ -757,7 +762,8 @@ typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
  * library call return immediately.
  *
  */
-typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn, uint64_t conn_id,
+typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
+                                          const ngtcp2_cid *dcid,
                                           void *user_data);
 
 typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
@@ -938,11 +944,12 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * @function
  *
  * `ngtcp2_conn_client_new` creates new :type:`ngtcp2_conn`, and
- * initializes it as client.  |conn_id| is client-chosen connection
- * ID.  |version| is a QUIC version to use.  |callbacks|, and
- * |settings| must not be NULL, and the function make a copy of each
- * of them.  |user_data| is the arbitrary pointer which is passed to
- * the user-defined callback functions.
+ * initializes it as client.  |dcid| is randomized destination
+ * connection ID.  |scid| is source connection ID.  |version| is a
+ * QUIC version to use.  |callbacks|, and |settings| must not be NULL,
+ * and the function make a copy of each of them.  |user_data| is the
+ * arbitrary pointer which is passed to the user-defined callback
+ * functions.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -950,21 +957,21 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
-                                         uint32_t version,
-                                         const ngtcp2_conn_callbacks *callbacks,
-                                         const ngtcp2_settings *settings,
-                                         void *user_data);
+NGTCP2_EXTERN int
+ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
+                       const ngtcp2_cid *scid, uint32_t version,
+                       const ngtcp2_conn_callbacks *callbacks,
+                       const ngtcp2_settings *settings, void *user_data);
 
 /**
  * @function
  *
  * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
- * initializes it as client.  |conn_id| is server-chosen connection
- * ID.  |version| is a QUIC version to use.  |callbacks|, and
- * |settings| must not be NULL, and the function make a copy of each
- * of them.  |user_data| is the arbitrary pointer which is passed to
- * the user-defined callback functions.
+ * initializes it as server.  |dcid| is a destination connection ID.
+ * |scid| is a source connection ID.  |version| is a QUIC version to
+ * use.  |callbacks|, and |settings| must not be NULL, and the
+ * function make a copy of each of them.  |user_data| is the arbitrary
+ * pointer which is passed to the user-defined callback functions.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -972,11 +979,11 @@ NGTCP2_EXTERN int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
-                                         uint32_t version,
-                                         const ngtcp2_conn_callbacks *callbacks,
-                                         const ngtcp2_settings *settings,
-                                         void *user_data);
+NGTCP2_EXTERN int
+ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
+                       const ngtcp2_cid *scid, uint32_t version,
+                       const ngtcp2_conn_callbacks *callbacks,
+                       const ngtcp2_settings *settings, void *user_data);
 
 /**
  * @function
@@ -1515,10 +1522,11 @@ NGTCP2_EXTERN size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_negotiated_conn_id` returns the negotiated connection
- * ID.
+ * `ngtcp2_conn_get_dcid` returns the non-NULL pointer to destination
+ * connection ID.  If no destination connection ID is present, the
+ * return value is not ``NULL``, and its datalen field is 0.
  */
-NGTCP2_EXTERN uint64_t ngtcp2_conn_negotiated_conn_id(ngtcp2_conn *conn);
+NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn);
 
 /**
  * @function

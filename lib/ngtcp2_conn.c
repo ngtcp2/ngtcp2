@@ -158,7 +158,8 @@ static int conn_call_rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   return 0;
 }
 
-static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
+static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
+                    const ngtcp2_cid *scid, uint32_t version,
                     const ngtcp2_conn_callbacks *callbacks,
                     const ngtcp2_settings *settings, void *user_data,
                     int server) {
@@ -216,7 +217,10 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
     goto fail_rx_path_challenge_init;
   }
 
-  ngtcp2_log_init(&(*pconn)->log, &(*pconn)->conn_id, settings->log_printf,
+  (*pconn)->scid = scid;
+  (*pconn)->dcid = dcid;
+
+  ngtcp2_log_init(&(*pconn)->log, &(*pconn)->scid, settings->log_printf,
                   settings->initial_ts, user_data);
 
   rv = ngtcp2_acktr_init(&(*pconn)->acktr, &(*pconn)->log, mem);
@@ -227,7 +231,6 @@ static int conn_new(ngtcp2_conn **pconn, uint64_t conn_id, uint32_t version,
   ngtcp2_rtb_init(&(*pconn)->rtb, &(*pconn)->log, mem);
 
   (*pconn)->callbacks = *callbacks;
-  (*pconn)->conn_id = conn_id;
   (*pconn)->version = version;
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
@@ -268,27 +271,27 @@ fail_conn:
   return rv;
 }
 
-int ngtcp2_conn_client_new(ngtcp2_conn **pconn, uint64_t conn_id,
-                           uint32_t version,
+int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
+                           const ngtcp2_cid *scid, uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
   int rv;
-  rv = conn_new(pconn, conn_id, version, callbacks, settings, user_data, 0);
+  rv = conn_new(pconn, dcid, scid, version, callbacks, settings, user_data, 0);
   if (rv != 0) {
     return rv;
   }
-  (*pconn)->client_conn_id = conn_id;
+  (*pconn)->rcid = dcid;
   (*pconn)->next_local_stream_id_bidi = 4;
   (*pconn)->next_local_stream_id_uni = 2;
   return 0;
 }
 
-int ngtcp2_conn_server_new(ngtcp2_conn **pconn, uint64_t conn_id,
-                           uint32_t version,
+int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
+                           const ngtcp2_cid *scid, uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
   int rv;
-  rv = conn_new(pconn, conn_id, version, callbacks, settings, user_data, 1);
+  rv = conn_new(pconn, dcid, scid, version, callbacks, settings, user_data, 1);
   if (rv != 0) {
     return rv;
   }
@@ -627,7 +630,10 @@ static ssize_t conn_retransmit_unprotected_once(ngtcp2_conn *conn,
 
   /* This is required because ent->hd may have old client version. */
   hd.version = conn->version;
-  hd.conn_id = conn->conn_id;
+  /* Initial packet should keep using randomized connection ID. */
+  if (hd.type != NGTCP2_PKT_INITIAL) {
+    hd.dcid = conn->dcid;
+  }
   hd.pkt_num = conn->last_tx_pkt_num + 1;
 
   ctx.ckm = conn->hs_tx_ckm;
@@ -860,7 +866,7 @@ static ssize_t conn_retransmit_protected_once(ngtcp2_conn *conn, uint8_t *dest,
 
   /* This is required because ent->hd may have old client version. */
   hd.version = conn->version;
-  hd.conn_id = conn->conn_id;
+  hd.dcid = conn->dcid;
   hd.pkt_num = conn->last_tx_pkt_num + 1;
   hd.type = conn_select_pkt_type(conn, hd.pkt_num);
 
@@ -1177,8 +1183,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   pfrc = &frc_head;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, conn->conn_id,
-                     conn->last_tx_pkt_num + 1, conn->version);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid,
+                     &conn->scid, conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.ckm = conn->hs_tx_ckm;
   ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
@@ -1428,7 +1434,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
-                     conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
+                     &conn->dcid, &conn->scid, conn->last_tx_pkt_num + 1,
+                     conn->version);
 
   ctx.ckm = conn->hs_tx_ckm;
   ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
@@ -1748,7 +1755,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE,
                      conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
-                     conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
+                     &conn->dcid, &conn->scid, conn->last_tx_pkt_num + 1,
+                     conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -1980,7 +1988,8 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE,
                      conn_select_pkt_type(conn, conn->last_tx_pkt_num + 1),
-                     conn->conn_id, conn->last_tx_pkt_num + 1, conn->version);
+                     &conn->dcid, &conn->scid, conn->last_tx_pkt_num + 1,
+                     conn->version);
 
   ctx.ckm = conn->tx_ckm;
   ctx.aead_overhead = conn->aead_overhead;
@@ -2733,7 +2742,8 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return (int)nread;
   }
 
-  if (conn->server && conn->early_ckm && conn->client_conn_id == hd.conn_id &&
+  if (conn->server && conn->early_ckm &&
+      ngtcp2_cid_eq(&conn->rcid, &conn->hd.dcid) &&
       hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
     /* TODO Avoid to parse header twice. */
     return conn_recv_pkt(conn, pkt, pktlen, ts);
@@ -2756,12 +2766,17 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   payload = pkt + hdpktlen;
   payloadlen = pktlen - hdpktlen;
 
+  /* TODO Is this required? */
+  if (!ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
+    return 0;
+  }
+
   if (conn->server) {
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
       if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
         conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-        conn->client_conn_id = hd.conn_id;
+        conn->rcid = hd.dcid;
         rv = conn_call_recv_client_initial(conn);
         if (rv != 0) {
           return rv;
@@ -2769,7 +2784,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       break;
     case NGTCP2_PKT_HANDSHAKE:
-      if (conn->conn_id != hd.conn_id) {
+      if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
         return 0;
       }
       break;
@@ -2786,25 +2801,39 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   } else {
     switch (hd.type) {
     case NGTCP2_PKT_HANDSHAKE:
-      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-        if (conn->conn_id != hd.conn_id) {
-          return 0;
-        }
-      } else {
+      if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
+        return 0;
+      }
+      if (!(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
         conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-        conn->conn_id = hd.conn_id;
+        conn->dcid = hd.scid;
       }
       break;
     case NGTCP2_PKT_RETRY:
+      /* Receiving Retry packet after getting Handshake packet from
+         server is invalid. */
+      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+        return 0;
+      }
+      /* DCID in Retry packet might be 0 length. */
+      if (hd.scid.datalen && !ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
+        return 0;
+      }
       if (conn->strm0->last_rx_offset != 0) {
         return NGTCP2_ERR_PROTO;
       }
-      /* hd.conn_id is a connection ID chosen by server, and client
-         MUST choose it in a subsequent packets. */
-      conn->conn_id = hd.conn_id;
+      /* hd.scid is a connection ID chosen by server, and client MUST
+         use it as DCID in a subsequent packets. */
+      conn->dcid = hd.scid;
       break;
     case NGTCP2_PKT_VERSION_NEGOTIATION:
-      if (conn->client_conn_id != hd.conn_id) {
+      /* Receiving Version Negotiation packet after getting Handshake
+         packet from server is invalid. */
+      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+        return 0;
+      }
+      if (!ngtcp2_cid_eq(&conn->scid, hd.dcid) ||
+          !ngtcp2_cid_eq(&conn->dcid, hd.scid)) {
         /* Just discard invalid Version Negotiation packet */
         return 0;
       }
@@ -3537,10 +3566,10 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
   ssize_t nwrite;
 
   if (hd->type == NGTCP2_PKT_INITIAL) {
-    if (!conn->server || conn->client_conn_id != hd->conn_id) {
+    if (!conn->server || !ngtcp2_cid_eq(&conn->rcid, hd->dcid)) {
       return 0;
     }
-  } else if (conn->conn_id != hd->conn_id) {
+  } else if (!ngtcp2_cid_eq(&conn->scid, hd->dcid)) {
     return 0;
   }
 
@@ -3727,7 +3756,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       return conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen,
                                              hdpkt, hdpktlen, ts);
     case NGTCP2_PKT_0RTT_PROTECTED:
-      if (!conn->server || conn->client_conn_id != hd.conn_id ||
+      if (!conn->server || !ngtcp2_cid_eq(&conn->rcid, &hd.dcid) ||
           conn->version != hd.version) {
         return 0;
       }
@@ -3773,7 +3802,7 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
     conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
 
     if (!(hd.flags & NGTCP2_PKT_FLAG_OMIT_CONN_ID) &&
-        conn->conn_id != hd.conn_id) {
+        !ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
       return 0;
     }
   }
@@ -4576,7 +4605,6 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t nwrite;
   uint8_t pkt_flags;
   uint8_t pkt_type;
-  uint64_t conn_id;
   uint64_t cwnd;
 
   conn->log.last_ts = ts;
@@ -4647,10 +4675,9 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 
   pkt_flags = NGTCP2_PKT_FLAG_LONG_FORM;
   pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
-  conn_id = conn->client_conn_id;
   ctx.ckm = conn->early_ckm;
 
-  ngtcp2_pkt_hd_init(&hd, pkt_flags, pkt_type, conn_id,
+  ngtcp2_pkt_hd_init(&hd, pkt_flags, pkt_type, &conn->rcid, &conn->scid,
                      conn->last_tx_pkt_num + 1, conn->version);
 
   ctx.aead_overhead = conn->aead_overhead;
@@ -5002,8 +5029,8 @@ size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn) {
   return conn->rtb.bytes_in_flight;
 }
 
-uint64_t ngtcp2_conn_negotiated_conn_id(ngtcp2_conn *conn) {
-  return conn->conn_id;
+const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn) {
+  return &conn->dcid;
 }
 
 uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn) {

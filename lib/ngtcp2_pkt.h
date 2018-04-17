@@ -63,7 +63,8 @@
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
-                        uint64_t conn_id, uint64_t pkt_num, uint32_t version);
+                        const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+                        uint64_t pkt_num, uint32_t version);
 
 /*
  * ngtcp2_pkt_decode_hd_long decodes QUIC long packet header in |pkt|
