@@ -52,7 +52,7 @@ static int conn_call_recv_client_initial(ngtcp2_conn *conn) {
 
   assert(conn->callbacks.recv_client_initial);
 
-  rv = conn->callbacks.recv_client_initial(conn, &conn->dcid, conn->user_data);
+  rv = conn->callbacks.recv_client_initial(conn, &conn->rcid, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -2766,11 +2766,6 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   payload = pkt + hdpktlen;
   payloadlen = pktlen - hdpktlen;
 
-  /* TODO Is this required? */
-  if (!ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
-    return 0;
-  }
-
   if (conn->server) {
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
@@ -4140,17 +4135,19 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
-      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-        conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
+      if (conn->strm0->last_rx_offset == 0) {
+        return 0;
+      }
 
-        /* Process re-ordered 0-RTT Protected packets which were
-           arrived before Initial packet. */
-        rv = conn_process_buffered_0rtt_pkt(conn, ts);
-        if (rv != 0) {
-          /* TODO Probably better to write a Handshake packet containing
-             CONNECTION_CLOSE frame */
-          return (ssize_t)rv;
-        }
+      conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
+
+      /* Process re-ordered 0-RTT Protected packets which were
+         arrived before Initial packet. */
+      rv = conn_process_buffered_0rtt_pkt(conn, ts);
+      if (rv != 0) {
+        /* TODO Probably better to write a Handshake packet containing
+           CONNECTION_CLOSE frame */
+        return (ssize_t)rv;
       }
 
       if (cwnd < NGTCP2_MIN_PKTLEN) {

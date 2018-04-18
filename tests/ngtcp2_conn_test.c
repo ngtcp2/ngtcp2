@@ -2685,7 +2685,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(0 == spktlen);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 0;
