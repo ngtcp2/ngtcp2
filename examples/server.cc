@@ -811,7 +811,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       rand,
   };
 
-  ngtcp2_settings settings;
+  ngtcp2_settings settings{};
 
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
@@ -822,6 +822,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   settings.idle_timeout = config.timeout;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+  settings.stateless_reset_token_present = 1;
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(std::begin(settings.stateless_reset_token),

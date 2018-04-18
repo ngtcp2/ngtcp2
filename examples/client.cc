@@ -652,7 +652,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   std::generate(std::begin(dcid.data), std::begin(dcid.data) + dcid.datalen,
                 [&dis]() { return dis(randgen); });
 
-  ngtcp2_settings settings;
+  ngtcp2_settings settings{};
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.max_stream_data = 256_k;

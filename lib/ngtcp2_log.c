@@ -546,14 +546,13 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
 
-  switch (exttype) {
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+  if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS &&
+      params->stateless_reset_token_present) {
     log->log_printf(
         log->user_data, (NGTCP2_LOG_TP " stateless_reset_token=%s\n"),
         NGTCP2_LOG_TP_HD_FIELDS,
         (const char *)ngtcp2_encode_hex(buf, params->stateless_reset_token,
                                         sizeof(params->stateless_reset_token)));
-    break;
   }
 
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u\n"),

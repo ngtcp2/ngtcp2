@@ -90,12 +90,12 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
     vlen = sizeof(uint32_t) + 1 + params->v.ee.len * sizeof(uint32_t);
-    len += 20 /* stateless_reset_token */;
+    if (params->stateless_reset_token_present) {
+      len += 20;
+    }
     break;
   default:
-    vlen = 0;
-    len += 20 /* stateless_reset_token */;
-    break;
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   len += vlen;
@@ -146,13 +146,12 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   p = ngtcp2_put_uint16be(p, 2);
   p = ngtcp2_put_uint16be(p, params->idle_timeout);
 
-  switch (exttype) {
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+  if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS &&
+      params->stateless_reset_token_present) {
     p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN);
     p = ngtcp2_put_uint16be(p, sizeof(params->stateless_reset_token));
     p = ngtcp2_cpymem(p, params->stateless_reset_token,
                       sizeof(params->stateless_reset_token));
-    break;
   }
 
   if (params->initial_max_stream_id_bidi) {
@@ -255,8 +254,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     vlen = sizeof(uint32_t) + 1 + supported_versionslen;
     break;
   default:
-    vlen = 0;
-    break;
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   if ((size_t)(end - p) < sizeof(uint16_t)) {
@@ -335,10 +333,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       p += sizeof(uint16_t);
       break;
     case NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN:
-      switch (exttype) {
-      case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-        break;
-      default:
+      if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       flags |= 1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN;
@@ -352,6 +347,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
       memcpy(params->stateless_reset_token, p,
              sizeof(params->stateless_reset_token));
+      params->stateless_reset_token_present = 1;
 
       p += sizeof(params->stateless_reset_token);
       break;
@@ -395,14 +391,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
   }
 
-  switch (exttype) {
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    if (!(flags & (1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN))) {
-      return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
-    }
-    break;
-  }
-
   if (!(flags & (1u << NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID_BIDI))) {
     params->initial_max_stream_id_bidi = 0;
   }
@@ -414,6 +402,9 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   }
   if ((flags & (1u << NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT)) == 0) {
     params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+  }
+  if ((flags & (1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN)) == 0) {
+    params->stateless_reset_token_present = 0;
   }
 
   return 0;

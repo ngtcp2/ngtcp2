@@ -248,6 +248,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
   settings->max_stream_id_uni = 6;
   settings->idle_timeout = 60;
   settings->max_packet_size = 65535;
+  settings->stateless_reset_token_present = 1;
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
     settings->stateless_reset_token[i] = (uint8_t)i;
   }
@@ -262,6 +263,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
   settings->max_stream_id_uni = 7;
   settings->idle_timeout = 60;
   settings->max_packet_size = 65535;
+  settings->stateless_reset_token_present = 0;
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
@@ -1638,6 +1640,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   setup_default_client(&conn);
   conn->callbacks.decrypt = fail_decrypt;
   conn->max_rx_pkt_num = 3255454;
+  conn->remote_settings.stateless_reset_token_present = 1;
   memcpy(conn->remote_settings.stateless_reset_token, token,
          NGTCP2_STATELESS_RESET_TOKENLEN);
 

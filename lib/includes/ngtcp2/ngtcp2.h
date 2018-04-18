@@ -538,6 +538,7 @@ typedef struct {
   uint16_t idle_timeout;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t stateless_reset_token_present;
   uint8_t ack_delay_exponent;
 } ngtcp2_transport_params;
 
@@ -557,6 +558,7 @@ typedef struct {
   uint16_t idle_timeout;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t stateless_reset_token_present;
   uint8_t ack_delay_exponent;
 } ngtcp2_settings;
 
@@ -602,6 +604,8 @@ typedef struct {
  *
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`:
+ *     |exttype| is invalid.
  */
 NGTCP2_EXTERN ssize_t
 ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen, uint8_t exttype,
@@ -624,6 +628,8 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen, uint8_t exttype,
  *     The required parameter is missing.
  * :enum:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
  *     The input is malformed.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`:
+ *     |exttype| is invalid.
  */
 NGTCP2_EXTERN int
 ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,

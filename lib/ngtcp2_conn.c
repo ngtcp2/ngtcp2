@@ -3501,6 +3501,10 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return rv;
   }
 
+  if (!conn->remote_settings.stateless_reset_token_present) {
+    return NGTCP2_ERR_PROTO;
+  }
+
   token = conn->remote_settings.stateless_reset_token;
 
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
@@ -4384,8 +4388,13 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   dest->max_stream_id_uni = src->initial_max_stream_id_uni;
   dest->idle_timeout = src->idle_timeout;
   dest->max_packet_size = src->max_packet_size;
-  memcpy(dest->stateless_reset_token, src->stateless_reset_token,
-         sizeof(dest->stateless_reset_token));
+  dest->stateless_reset_token_present = src->stateless_reset_token_present;
+  if (src->stateless_reset_token_present) {
+    memcpy(dest->stateless_reset_token, src->stateless_reset_token,
+           sizeof(dest->stateless_reset_token));
+  } else {
+    memset(dest->stateless_reset_token, 0, sizeof(dest->stateless_reset_token));
+  }
   dest->ack_delay_exponent = src->ack_delay_exponent;
 }
 
@@ -4397,8 +4406,13 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   dest->initial_max_stream_id_uni = src->max_stream_id_uni;
   dest->idle_timeout = src->idle_timeout;
   dest->max_packet_size = src->max_packet_size;
-  memcpy(dest->stateless_reset_token, src->stateless_reset_token,
-         sizeof(dest->stateless_reset_token));
+  dest->stateless_reset_token_present = src->stateless_reset_token_present;
+  if (src->stateless_reset_token_present) {
+    memcpy(dest->stateless_reset_token, src->stateless_reset_token,
+           sizeof(dest->stateless_reset_token));
+  } else {
+    memset(dest->stateless_reset_token, 0, sizeof(dest->stateless_reset_token));
+  }
   dest->ack_delay_exponent = src->ack_delay_exponent;
 }
 
