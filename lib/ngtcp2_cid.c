@@ -29,14 +29,21 @@
 
 #include "ngtcp2_str.h"
 
+void ngtcp2_cid_zero(ngtcp2_cid *cid) { cid->datalen = 0; }
+
 void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data, size_t datalen) {
   assert(datalen >= NGTCP2_MIN_CIDLEN);
   assert(datalen <= NGTCP2_MAX_CIDLEN);
 
-  ngtcp2_cpymem(cid->data, data, datalen);
+  cid->datalen = datalen;
+  if (datalen) {
+    ngtcp2_cpymem(cid->data, data, datalen);
+  }
 }
 
 int ngtcp2_cid_eq(const ngtcp2_cid *cid, const ngtcp2_cid *other) {
   return cid->datalen == other->datalen &&
-         memcmp(cid->data, other->data, cid->datalen);
+         0 == memcmp(cid->data, other->data, cid->datalen);
 }
+
+int ngtcp2_cid_empty(const ngtcp2_cid *cid) { return cid->datalen == 0; }

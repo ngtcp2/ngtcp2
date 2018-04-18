@@ -81,7 +81,7 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
  * the number of bytes written.
  */
 size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
-                              uint64_t conn_id, uint64_t pkt_num,
+                              const ngtcp2_cid *dcid, uint64_t pkt_num,
                               ngtcp2_frame *fr);
 
 /*
@@ -101,7 +101,9 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
  * written.
  */
 size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
-                                        uint8_t pkt_type, uint64_t conn_id,
+                                        uint8_t pkt_type,
+                                        const ngtcp2_cid *dcid,
+                                        const ngtcp2_cid *scid,
                                         uint64_t pkt_num, uint32_t version,
                                         ngtcp2_frame *fr);
 
@@ -115,5 +117,9 @@ ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id);
  * list.
  */
 size_t rtb_entry_length(const ngtcp2_rtb_entry *ent);
+
+void scid_init(ngtcp2_cid *cid);
+void dcid_init(ngtcp2_cid *cid);
+void rcid_init(ngtcp2_cid *cid);
 
 #endif /* NGTCP2_TEST_HELPER_H */

@@ -32,15 +32,23 @@
 #include <ngtcp2/ngtcp2.h>
 
 #define NGTCP2_HEADER_FORM_BIT 0x80
-#define NGTCP2_OMIT_CONN_ID_BIT 0x40
-#define NGTCP2_KEY_PHASE_BIT 0x20
+#define NGTCP2_KEY_PHASE_BIT 0x40
+#define NGTCP2_THIRD_BIT 0x20
 #define NGTCP2_FOURTH_BIT 0x10
 #define NGTCP2_GQUIC_BIT 0x08
 #define NGTCP2_LONG_TYPE_MASK 0x7f
-#define NGTCP2_SHORT_TYPE_MASK 0x07
+#define NGTCP2_SHORT_TYPE_MASK 0x03
+
+/* NGTCP2_SR_TYPE is a Type field of Stateless Reset. */
+#define NGTCP2_SR_TYPE 0x1f
 
 /* NGTCP2_LONG_HEADERLEN is the length of long header */
 #define NGTCP2_LONG_HEADERLEN 17
+
+/* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
+   That is (1|TYPE)<1> + VERSION<4> + (DCIL|SCIL)<1> + PAYLOADLEN<1> +
+   PKN<4> */
+#define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 4)
 
 #define NGTCP2_STREAM_FIN_BIT 0x01
 #define NGTCP2_STREAM_LEN_BIT 0x02
@@ -60,40 +68,13 @@
 #define NGTCP2_MAX_ACK_BLKS 255
 
 /*
- * ngtcp2_pkt_hd_init initializes |hd| with the given values.
+ * ngtcp2_pkt_hd_init initializes |hd| with the given values.  If
+ * |dcid| and/or |scid| is NULL, DCID and SCID of |hd| is empty
+ * respectively.
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                        uint64_t pkt_num, uint32_t version);
-
-/*
- * ngtcp2_pkt_decode_hd_long decodes QUIC long packet header in |pkt|
- * of length |pktlen|.  It stores the result in the object pointed by
- * |dest|, and returns the number of bytes decoded to read the packet
- * header if it succeeds, or one of the following error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Packet is too short; or it is not a long header
- * NGTCP2_ERR_UNKNOWN_PKT_TYPE
- *     Packet type is unknown
- */
-ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                  size_t pktlen);
-
-/*
- * ngtcp2_pkt_decode_hd_short decodes QUIC short packet header in
- * |pkt| of length |pktlen|.  It stores the result in the object
- * pointed by |dest|, and returns the number of bytes decoded to read
- * the packet header if it succeeds, or one of the following error
- * codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Packet is too short; or it is not a short header
- * NGTCP2_ERR_UNKNOWN_PKT_TYPE
- *     Packet type is unknown
- */
-ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                   size_t pktlen);
+                        uint64_t pkt_num, uint32_t version, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_encode_hd_long encodes |hd| as QUIC long header into

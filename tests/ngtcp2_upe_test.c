@@ -31,6 +31,7 @@
 #include "ngtcp2_upe.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_conv.h"
+#include "ngtcp2_cid.h"
 #include "ngtcp2_test_helper.h"
 
 void test_ngtcp2_upe_encode(void) {
@@ -46,9 +47,11 @@ void test_ngtcp2_upe_encode(void) {
 
   hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
   hd.type = NGTCP2_PKT_INITIAL;
-  hd.conn_id = 1000000009;
+  dcid_init(&hd.dcid);
+  scid_init(&hd.scid);
   hd.pkt_num = 1000000007;
   hd.version = 0xff;
+  hd.payloadlen = 16383;
 
   s1.type = NGTCP2_FRAME_STREAM;
   s1.stream.fin = 0;
@@ -87,10 +90,12 @@ void test_ngtcp2_upe_encode(void) {
   /* Let's decode packet */
   nread = ngtcp2_pkt_decode_hd_long(&nhd, out, pktlen);
 
-  CU_ASSERT(NGTCP2_LONG_HEADERLEN == nread);
+  CU_ASSERT((ssize_t)(1 + 4 + 1 + hd.dcid.datalen + hd.scid.datalen + 2 + 4) ==
+            nread);
   CU_ASSERT(hd.flags == nhd.flags);
   CU_ASSERT(hd.type == nhd.type);
-  CU_ASSERT(hd.conn_id == nhd.conn_id);
+  CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
+  CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
   CU_ASSERT(hd.version == nhd.version);
 

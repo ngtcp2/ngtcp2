@@ -154,10 +154,11 @@ class Server;
 class Handler {
 public:
   Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
-          uint64_t client_conn_id);
+          const ngtcp2_cid *dcid);
   ~Handler();
 
-  int init(int fd, const sockaddr *sa, socklen_t salen, uint32_t version);
+  int init(int fd, const sockaddr *sa, socklen_t salen, const ngtcp2_cid *dcid,
+           uint32_t version);
 
   int tls_handshake();
   int read_tls();
@@ -177,7 +178,7 @@ public:
   size_t read_client_handshake(uint8_t *buf, size_t buflen);
   void write_client_handshake(const uint8_t *data, size_t datalen);
 
-  int recv_client_initial(uint64_t conn_id);
+  int recv_client_initial(const ngtcp2_cid *dcid);
   int setup_crypto_context();
   int setup_early_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
@@ -203,8 +204,8 @@ public:
   ngtcp2_conn *conn() const;
   int recv_stream_data(uint64_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
-  uint64_t conn_id() const;
-  uint64_t client_conn_id() const;
+  const ngtcp2_cid *scid() const;
+  const ngtcp2_cid *rcid() const;
   uint32_t version() const;
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
@@ -234,6 +235,7 @@ private:
   // buffer to read next.
   size_t shandshake_idx_;
   ngtcp2_conn *conn_;
+  ngtcp2_cid rcid_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
   std::map<uint32_t, std::unique_ptr<Stream>> streams_;
@@ -243,8 +245,6 @@ private:
   // This packet is repeatedly sent as a response to the incoming
   // packet in draining period.
   std::unique_ptr<Buffer> conn_closebuf_;
-  uint64_t conn_id_;
-  uint64_t client_conn_id_;
   // tx_stream0_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_stream0_offset_;
@@ -271,15 +271,15 @@ public:
                                socklen_t salen);
   int send_packet(Address &remote_addr, Buffer &buf);
   void remove(const Handler *h);
-  std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator
-  remove(std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator it);
+  std::map<std::string, std::unique_ptr<Handler>>::const_iterator
+  remove(std::map<std::string, std::unique_ptr<Handler>>::const_iterator it);
   void start_wev();
 
 private:
-  std::map<uint64_t, std::unique_ptr<Handler>> handlers_;
-  // ctos_ is a mapping between client's initial connection ID, and
-  // server chosen connection ID.
-  std::map<uint64_t, uint64_t> ctos_;
+  std::map<std::string, std::unique_ptr<Handler>> handlers_;
+  // ctos_ is a mapping between client's initial destination
+  // connection ID, and server source connection ID.
+  std::map<std::string, std::string> ctos_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   int fd_;

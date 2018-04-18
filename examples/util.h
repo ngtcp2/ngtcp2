@@ -45,6 +45,8 @@ std::string format_hex(uint8_t c);
 
 std::string format_hex(const uint8_t *s, size_t len);
 
+std::string format_hex(const std::string &s);
+
 template <size_t N> std::string format_hex(const uint8_t (&s)[N]) {
   return format_hex(s, N);
 }
@@ -114,6 +116,9 @@ template <typename T, typename CharT, size_t N>
 bool istarts_with_l(const T &a, const CharT (&b)[N]) {
   return istarts_with(a.begin(), a.end(), b, b + N - 1);
 }
+
+// make_cid_key returns the key for |cid|.
+std::string make_cid_key(const ngtcp2_cid *cid);
 
 } // namespace util
 

@@ -641,8 +641,16 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       extend_max_stream_id,
   };
 
-  auto conn_id = std::uniform_int_distribution<uint64_t>(
-      0, std::numeric_limits<uint64_t>::max())(randgen);
+  auto dis = std::uniform_int_distribution<uint8_t>(
+      0, std::numeric_limits<uint8_t>::max());
+
+  ngtcp2_cid scid, dcid;
+  scid.datalen = 8;
+  std::generate(std::begin(scid.data), std::begin(scid.data) + scid.datalen,
+                [&dis]() { return dis(randgen); });
+  dcid.datalen = 8;
+  std::generate(std::begin(dcid.data), std::begin(dcid.data) + dcid.datalen,
+                [&dis]() { return dis(randgen); });
 
   ngtcp2_settings settings;
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
@@ -656,8 +664,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
 
-  rv = ngtcp2_conn_client_new(&conn_, conn_id, version, &callbacks, &settings,
-                              this);
+  rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, version, &callbacks,
+                              &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
@@ -683,9 +691,9 @@ int Client::setup_handshake_crypto_context() {
   int rv;
 
   std::array<uint8_t, 32> handshake_secret, secret;
-  auto conn_id = ngtcp2_conn_negotiated_conn_id(conn_);
+  auto dcid = ngtcp2_conn_get_dcid(conn_);
   rv = crypto::derive_handshake_secret(
-      handshake_secret.data(), handshake_secret.size(), conn_id,
+      handshake_secret.data(), handshake_secret.size(), dcid,
       reinterpret_cast<const uint8_t *>(NGTCP2_HANDSHAKE_SALT),
       str_size(NGTCP2_HANDSHAKE_SALT));
   if (rv != 0) {

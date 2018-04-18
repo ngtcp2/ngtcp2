@@ -536,7 +536,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 } // namespace
 
 Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
-                 uint64_t client_conn_id)
+                 const ngtcp2_cid *rcid)
     : remote_addr_{},
       max_pktlen_(0),
       loop_(loop),
@@ -547,11 +547,9 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       ncread_(0),
       shandshake_idx_(0),
       conn_(nullptr),
+      rcid_(*rcid),
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      conn_id_(std::uniform_int_distribution<uint64_t>(
-          0, std::numeric_limits<uint64_t>::max())(randgen)),
-      client_conn_id_(client_conn_id),
       tx_stream0_offset_(0),
       initial_(true),
       draining_(false) {
@@ -579,10 +577,11 @@ Handler::~Handler() {
 }
 
 namespace {
-int recv_client_initial(ngtcp2_conn *conn, uint64_t conn_id, void *user_data) {
+int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
+                        void *user_data) {
   auto h = static_cast<Handler *>(user_data);
 
-  if (h->recv_client_initial(conn_id) != 0) {
+  if (h->recv_client_initial(dcid) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -766,7 +765,7 @@ int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx,
 } // namespace
 
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
-                  uint32_t version) {
+                  const ngtcp2_cid *dcid, uint32_t version) {
   int rv;
 
   remote_addr_.len = salen;
@@ -830,8 +829,13 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
                 std::end(settings.stateless_reset_token),
                 [&dis]() { return dis(randgen); });
 
-  rv = ngtcp2_conn_server_new(&conn_, conn_id_, version, &callbacks, &settings,
-                              this);
+  ngtcp2_cid scid;
+  scid.datalen = 8;
+  std::generate(scid.data, scid.data + scid.datalen,
+                [&dis]() { return dis(randgen); });
+
+  rv = ngtcp2_conn_server_new(&conn_, dcid, &scid, version, &callbacks,
+                              &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
@@ -1000,12 +1004,12 @@ void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
   std::copy_n(data, datalen, std::back_inserter(chandshake_));
 }
 
-int Handler::recv_client_initial(uint64_t conn_id) {
+int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   int rv;
   std::array<uint8_t, 32> handshake_secret, secret;
 
   rv = crypto::derive_handshake_secret(
-      handshake_secret.data(), handshake_secret.size(), conn_id,
+      handshake_secret.data(), handshake_secret.size(), dcid,
       reinterpret_cast<const uint8_t *>(NGTCP2_HANDSHAKE_SALT),
       str_size(NGTCP2_HANDSHAKE_SALT));
   if (rv != 0) {
@@ -1624,9 +1628,9 @@ int Handler::recv_stream_data(uint64_t stream_id, uint8_t fin,
   return 0;
 }
 
-uint64_t Handler::conn_id() const { return conn_id_; }
+const ngtcp2_cid *Handler::scid() const { return ngtcp2_conn_get_scid(conn_); }
 
-uint64_t Handler::client_conn_id() const { return client_conn_id_; }
+const ngtcp2_cid *Handler::rcid() const { return &rcid_; }
 
 Server *Handler::server() const { return server_; }
 
@@ -1832,20 +1836,28 @@ int Server::on_read() {
       return 0;
     }
 
-    rv = ngtcp2_pkt_decode_hd(&hd, buf.data(), nread);
+    if (nread == 0) {
+      continue;
+    }
+
+    if (buf[0] & 0x80) {
+      rv = ngtcp2_pkt_decode_hd_long(&hd, buf.data(), nread);
+    } else {
+      // TODO For Short packet, we just need DCID.
+      rv = ngtcp2_pkt_decode_hd_short(&hd, buf.data(), nread, 8);
+    }
     if (rv < 0) {
       std::cerr << "Could not decode QUIC packet header: "
                 << ngtcp2_strerror(rv) << std::endl;
       return 0;
     }
 
-    auto conn_id = hd.conn_id;
+    auto dcid_key = util::make_cid_key(&hd.dcid);
 
-    auto handler_it = handlers_.find(conn_id);
+    auto handler_it = handlers_.find(dcid_key);
     if (handler_it == std::end(handlers_)) {
-      auto ctos_it = ctos_.find(conn_id);
+      auto ctos_it = ctos_.find(dcid_key);
       if (ctos_it == std::end(ctos_)) {
-        auto client_conn_id = conn_id;
         constexpr size_t MIN_PKT_SIZE = 1200;
         if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
           if (!config.quiet) {
@@ -1871,9 +1883,8 @@ int Server::on_read() {
           return 0;
         }
 
-        auto h =
-            std::make_unique<Handler>(loop_, ssl_ctx_, this, client_conn_id);
-        h->init(fd_, &su.sa, addrlen, hd.version);
+        auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
+        h->init(fd_, &su.sa, addrlen, &hd.scid, hd.version);
 
         if (h->on_read(buf.data(), nread) != 0) {
           return 0;
@@ -1889,14 +1900,16 @@ int Server::on_read() {
           return 0;
         }
 
-        conn_id = h->conn_id();
-        handlers_.emplace(conn_id, std::move(h));
-        ctos_.emplace(client_conn_id, conn_id);
+        auto scid = h->scid();
+        auto scid_key = util::make_cid_key(scid);
+        handlers_.emplace(scid_key, std::move(h));
+        ctos_.emplace(dcid_key, scid_key);
         return 0;
       }
       if (!config.quiet) {
-        fprintf(stderr, "Forward CID=%016" PRIx64 " to CID=%016" PRIx64 "\n",
-                (*ctos_it).first, (*ctos_it).second);
+        std::cerr << "Forward CID=" << util::format_hex((*ctos_it).first)
+                  << " to CID=" << util::format_hex((*ctos_it).second)
+                  << std::endl;
       }
       handler_it = handlers_.find((*ctos_it).second);
       assert(handler_it != std::end(handlers_));
@@ -1977,7 +1990,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
       buf.wpos(), buf.left(),
       std::uniform_int_distribution<uint8_t>(
           0, std::numeric_limits<uint8_t>::max())(randgen),
-      chd->conn_id, sv.data(), sv.size());
+      &chd->scid, &chd->dcid, sv.data(), sv.size());
   if (nwrite < 0) {
     std::cerr << "ngtcp2_pkt_write_version_negotiation: "
               << ngtcp2_strerror(nwrite) << std::endl;
@@ -2033,13 +2046,13 @@ int Server::send_packet(Address &remote_addr, Buffer &buf) {
 }
 
 void Server::remove(const Handler *h) {
-  ctos_.erase(h->client_conn_id());
-  handlers_.erase(h->conn_id());
+  ctos_.erase(util::make_cid_key(h->rcid()));
+  handlers_.erase(util::make_cid_key(h->scid()));
 }
 
-std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator Server::remove(
-    std::map<uint64_t, std::unique_ptr<Handler>>::const_iterator it) {
-  ctos_.erase((*it).second->client_conn_id());
+std::map<std::string, std::unique_ptr<Handler>>::const_iterator Server::remove(
+    std::map<std::string, std::unique_ptr<Handler>>::const_iterator it) {
+  ctos_.erase(util::make_cid_key((*it).second->rcid()));
   return handlers_.erase(it);
 }
 

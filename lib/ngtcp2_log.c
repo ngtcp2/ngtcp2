@@ -31,10 +31,14 @@
 
 #include "ngtcp2_str.h"
 
-void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id,
+void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
                      void *user_data) {
-  log->conn_id = conn_id;
+  if (scid) {
+    ngtcp2_encode_hex(log->scid, scid->data, scid->datalen);
+  } else {
+    log->scid[0] = '\0';
+  }
   log->log_printf = log_printf;
   log->ts = log->last_ts = ts;
   log->user_data = user_data;
@@ -43,7 +47,7 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id,
   /*
    * # Log header
    *
-   * <LEVEL><TIMESTAMP> <CID> <EVENT>
+   * <LEVEL><TIMESTAMP> <SCID> <EVENT>
    *
    * <LEVEL>:
    *   Log level.  I=Info, W=Warning, E=Error
@@ -52,8 +56,8 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id,
    *   Timestamp relative to ngtcp2_log.ts field in milliseconds
    *   resolution.
    *
-   * <CID>:
-   *   Connection ID in hex string.
+   * <SCID>:
+   *   Source Connection ID in hex string.
    *
    * <EVENT>:
    *   Event.  pkt=packet, frm=frame, rcv=recovery, cry=crypto,
@@ -85,20 +89,20 @@ void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id,
 #define NGTCP2_LOG_BUFLEN 4096
 
 /* TODO Split second and remaining fraction with comma */
-#define NGTCP2_LOG_HD "I%08" PRIu64 " 0x%016" PRIx64 " %s"
+#define NGTCP2_LOG_HD "I%08" PRIu64 " 0x%s %s"
 #define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %" PRIu64 " %s %s(0x%02x)"
 #define NGTCP2_LOG_TP NGTCP2_LOG_HD " remote transport_parameters"
 
 #define NGTCP2_LOG_FRM_HD_FIELDS(DIR)                                          \
-  timestamp_cast(log->last_ts - log->ts), hd->conn_id, "frm", hd->pkt_num,     \
-      (DIR), strpkttype(hd), hd->type
+  timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "frm",      \
+      hd->pkt_num, (DIR), strpkttype(hd), hd->type
 
 #define NGTCP2_LOG_PKT_HD_FIELDS(DIR)                                          \
-  timestamp_cast(log->last_ts - log->ts), hd->conn_id, "pkt", hd->pkt_num,     \
-      (DIR), strpkttype(hd), hd->type
+  timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "pkt",      \
+      hd->pkt_num, (DIR), strpkttype(hd), hd->type
 
 #define NGTCP2_LOG_TP_HD_FIELDS                                                \
-  timestamp_cast(log->last_ts - log->ts), *log->conn_id, "cry"
+  timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "cry"
 
 static const char *strerrorcode(uint16_t error_code) {
   switch (error_code) {
@@ -588,6 +592,6 @@ void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
   }
 
   log->log_printf(log->user_data, (NGTCP2_LOG_HD " %s\n"),
-                  timestamp_cast(log->last_ts - log->ts), *log->conn_id,
+                  timestamp_cast(log->last_ts - log->ts), log->scid,
                   strevent(ev), buf);
 }

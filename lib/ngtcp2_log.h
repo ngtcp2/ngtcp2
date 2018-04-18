@@ -46,8 +46,6 @@ typedef enum {
 } ngtcp2_log_event;
 
 struct ngtcp2_log {
-  /* conn_id points to the object where connection ID is stored. */
-  uint64_t *conn_id;
   /* log_printf is a sink to write log.  NULL means no logging
      output. */
   ngtcp2_printf log_printf;
@@ -59,11 +57,13 @@ struct ngtcp2_log {
   /* user_data is user-defined opaque data which is passed to
      log_pritnf. */
   void *user_data;
+  /* scid is SCID encoded as NULL-terminated hex string. */
+  uint8_t scid[NGTCP2_MAX_CIDLEN * 2 + 1];
 };
 
 typedef struct ngtcp2_log ngtcp2_log;
 
-void ngtcp2_log_init(ngtcp2_log *log, uint64_t *conn_id,
+void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
                      void *user_data);
 

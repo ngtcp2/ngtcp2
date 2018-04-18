@@ -75,10 +75,11 @@ int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 // |ssl|.  It returns 0 if it succeeds, or -1.
 int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 
-// derive_handshake_secret dervies handshake_secret.  |secret| is
-// client connection ID.
-int derive_handshake_secret(uint8_t *dest, size_t destlen, uint64_t secret,
-                            const uint8_t *salt, size_t saltlen);
+// derive_handshake_secret derives handshake_secret.  |secret| is
+// connection ID generated randomly by client.
+int derive_handshake_secret(uint8_t *dest, size_t destlen,
+                            const ngtcp2_cid *secret, const uint8_t *salt,
+                            size_t saltlen);
 
 // derive_client_handshake_secret derives client_handshake_secret.
 int derive_client_handshake_secret(uint8_t *dest, size_t destlen,

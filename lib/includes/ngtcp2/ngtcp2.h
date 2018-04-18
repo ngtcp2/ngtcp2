@@ -316,6 +316,7 @@ typedef struct {
   ngtcp2_cid dcid;
   ngtcp2_cid scid;
   uint64_t pkt_num;
+  size_t payloadlen;
   uint32_t version;
   uint8_t type;
   uint8_t flags;
@@ -635,23 +636,45 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,
 /**
  * @function
  *
- * `ngtcp2_pkt_decode_hd` decodes QUIC packet header included in |pkt|
- * of length |pktlen|, and sotres the result in the object pointed by
- * |dest|.  This function can decode both long and short packet
- * header.  On success, if ``dest->flags & NGTCP2_PKT_FLAG_LONG_FORM``
- * is nonzero, the packet header has long form.
+ * `ngtcp2_pkt_decode_hd_long` decodes QUIC long packet header in
+ * |pkt| of length |pktlen|.
  *
- * This function returns the exact number of bytes to be read in order
- * to decode packet header, or one of the following negative error
- * codes:
+ * This function does not verify that payload length is correct.  In
+ * other words, this function succeeds even if payload length >
+ * |pktlen|.
+ *
+ * It stores the result in the object pointed by |dest|, and returns
+ * the number of bytes decoded to read the packet header if it
+ * succeeds, or one of the following error codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     Packet is too short
+ *     Packet is too short; or it is not a long header
  * :enum:`NGTCP2_ERR_UNKNOWN_PKT_TYPE`
  *     Packet type is unknown
  */
-NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd(ngtcp2_pkt_hd *dest,
-                                           const uint8_t *pkt, size_t pktlen);
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
+                                                const uint8_t *pkt,
+                                                size_t pktlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_decode_hd_short` decodes QUIC short packet header in
+ * |pkt| of length |pktlen|.  |dcidlen| is the length of DCID in
+ * packet header.  Short packet does not encode the length of
+ * connection ID, thus we need the input from the outside.  It stores
+ * the result in the object pointed by |dest|, and returns the number
+ * of bytes decoded to read the packet header if it succeeds, or one
+ * of the following error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     Packet is too short; or it is not a short header
+ * :enum:`NGTCP2_ERR_UNKNOWN_PKT_TYPE`
+ *     Packet type is unknown
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
+                                                 const uint8_t *pkt,
+                                                 size_t pktlen, size_t dcidlen);
 
 /**
  * @function
@@ -755,7 +778,9 @@ typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
  * callback, and generate handshake key, and iv.  Then call
  * `ngtcp2_conn_set_handshake_tx_keys` and
  * `ngtcp2_conn_set_handshake_rx_keys` to inform |conn| of the packet
- * protection keys and ivs.
+ * protection keys and ivs.  |dcid| is the destination connection ID
+ * which client generated randomly.  It is used to derive handshake
+ * packet protection keys.
  *
  * The callback function must return 0 if it succeeds.  If an error
  * occurs, return :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the
@@ -1527,6 +1552,14 @@ NGTCP2_EXTERN size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn);
  * return value is not ``NULL``, and its datalen field is 0.
  */
 NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_scid` returns the non-NULL pointer to destination
+ * connection ID.
+ */
+NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_scid(ngtcp2_conn *conn);
 
 /**
  * @function

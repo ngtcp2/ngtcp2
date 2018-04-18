@@ -63,6 +63,10 @@ std::string format_hex(const uint8_t *s, size_t len) {
   return res;
 }
 
+std::string format_hex(const std::string &s) {
+  return format_hex(reinterpret_cast<const uint8_t *>(s.data()), s.size());
+}
+
 namespace {
 // format_fraction2 formats |n| as fraction part of integer.  |n| is
 // considered as fraction, and its precision is 3 digits.  The last
@@ -203,6 +207,10 @@ void hexdump(FILE *out, const uint8_t *src, size_t len) {
     }
     fputs("|\n", out);
   }
+}
+
+std::string make_cid_key(const ngtcp2_cid *cid) {
+  return std::string(cid->data, cid->data + cid->datalen);
 }
 
 } // namespace util

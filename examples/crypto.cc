@@ -81,13 +81,13 @@ int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
   ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
 #endif /* !WORDS_BIGENDIAN */
 
-int derive_handshake_secret(uint8_t *dest, size_t destlen, uint64_t secret,
-                            const uint8_t *salt, size_t saltlen) {
+int derive_handshake_secret(uint8_t *dest, size_t destlen,
+                            const ngtcp2_cid *secret, const uint8_t *salt,
+                            size_t saltlen) {
   Context ctx;
   prf_sha256(ctx);
-  secret = bswap64(secret);
-  return hkdf_extract(dest, destlen, reinterpret_cast<uint8_t *>(&secret),
-                      sizeof(secret), salt, saltlen, ctx);
+  return hkdf_extract(dest, destlen, secret->data, secret->datalen, salt,
+                      saltlen, ctx);
 }
 
 int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
