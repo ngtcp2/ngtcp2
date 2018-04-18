@@ -106,9 +106,6 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->initial_max_stream_id_uni) {
     len += 8;
   }
-  if (params->omit_connection_id) {
-    len += 4;
-  }
   if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
     len += 6;
   }
@@ -170,11 +167,6 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                             NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID_UNI);
     p = ngtcp2_put_uint16be(p, 4);
     p = ngtcp2_put_uint32be(p, params->initial_max_stream_id_uni);
-  }
-
-  if (params->omit_connection_id) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID);
-    p = ngtcp2_put_uint16be(p, 0);
   }
 
   if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
@@ -330,14 +322,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       params->idle_timeout = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
       break;
-    case NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID:
-      flags |= 1u << NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID;
-      if (ngtcp2_get_uint16(p) != 0) {
-        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
-      }
-      p += sizeof(uint16_t);
-      params->omit_connection_id = 1;
-      break;
     case NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE:
       flags |= 1u << NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE;
       if (ngtcp2_get_uint16(p) != sizeof(uint16_t)) {
@@ -424,9 +408,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   }
   if (!(flags & (1u << NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_ID_UNI))) {
     params->initial_max_stream_id_uni = 0;
-  }
-  if ((flags & (1u << NGTCP2_TRANSPORT_PARAM_OMIT_CONNECTION_ID)) == 0) {
-    params->omit_connection_id = 0;
   }
   if ((flags & (1u << NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE)) == 0) {
     params->max_packet_size = NGTCP2_MAX_PKT_SIZE;

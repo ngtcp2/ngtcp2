@@ -660,7 +660,6 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.max_stream_id_bidi = 1;
   settings.max_stream_id_uni = 3;
   settings.idle_timeout = config.timeout;
-  settings.omit_connection_id = 0;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
 

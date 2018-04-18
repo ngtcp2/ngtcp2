@@ -141,8 +141,8 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   ctx.ckm = conn->rx_ckm;
   ctx.user_data = conn;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_OMIT_CONN_ID, NGTCP2_PKT_03, NULL,
-                     NULL, pkt_num, NGTCP2_PROTO_VER_MAX, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, NULL, NULL,
+                     pkt_num, NGTCP2_PROTO_VER_MAX, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);

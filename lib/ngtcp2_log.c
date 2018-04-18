@@ -543,8 +543,6 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_id_uni);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " idle_timeout=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->idle_timeout);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " omit_connection_id=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->omit_connection_id);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
 

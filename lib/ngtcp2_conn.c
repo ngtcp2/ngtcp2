@@ -4383,7 +4383,6 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   dest->max_stream_id_bidi = src->initial_max_stream_id_bidi;
   dest->max_stream_id_uni = src->initial_max_stream_id_uni;
   dest->idle_timeout = src->idle_timeout;
-  dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
   memcpy(dest->stateless_reset_token, src->stateless_reset_token,
          sizeof(dest->stateless_reset_token));
@@ -4397,7 +4396,6 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   dest->initial_max_stream_id_bidi = src->max_stream_id_bidi;
   dest->initial_max_stream_id_uni = src->max_stream_id_uni;
   dest->idle_timeout = src->idle_timeout;
-  dest->omit_connection_id = src->omit_connection_id;
   dest->max_packet_size = src->max_packet_size;
   memcpy(dest->stateless_reset_token, src->stateless_reset_token,
          sizeof(dest->stateless_reset_token));

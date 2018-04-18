@@ -45,7 +45,6 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_id_bidi = 0;
   params.initial_max_stream_id_uni = 0;
   params.idle_timeout = 0xd1d2;
-  params.omit_connection_id = 0;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
 
@@ -64,7 +63,6 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.initial_max_stream_id_bidi ==
             nparams.initial_max_stream_id_bidi);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
-  CU_ASSERT(params.omit_connection_id == nparams.omit_connection_id);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
 
@@ -81,7 +79,6 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_id_bidi = 0;
   params.initial_max_stream_id_uni = 0;
   params.idle_timeout = 0xd1d2;
-  params.omit_connection_id = 0;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   memset(params.stateless_reset_token, 0xf1,
          sizeof(params.stateless_reset_token));
@@ -112,7 +109,6 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.initial_max_stream_id_bidi ==
             nparams.initial_max_stream_id_bidi);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
-  CU_ASSERT(params.omit_connection_id == nparams.omit_connection_id);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(0 == memcmp(params.stateless_reset_token,
                         nparams.stateless_reset_token,
@@ -128,14 +124,13 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_id_bidi = 909;
   params.initial_max_stream_id_uni = 911;
   params.idle_timeout = 0xd1d2;
-  params.omit_connection_id = 1;
   params.max_packet_size = 1400;
   params.ack_delay_exponent = 20;
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(4 /* initial_version */ + 2 + 8 * 4 + 6 + 4 + 6 + 5 == nwrite);
+  CU_ASSERT(4 /* initial_version */ + 2 + 8 * 4 + 6 + 6 + 5 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -148,7 +143,6 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.initial_max_stream_id_uni ==
             nparams.initial_max_stream_id_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
-  CU_ASSERT(params.omit_connection_id == nparams.omit_connection_id);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
 
@@ -161,7 +155,6 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_id_bidi = 909;
   params.initial_max_stream_id_uni = 0;
   params.idle_timeout = 0xd1d2;
-  params.omit_connection_id = 1;
   params.max_packet_size = 1200;
   params.ack_delay_exponent = 20;
 
@@ -184,11 +177,10 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_id_bidi = 909;
   params.initial_max_stream_id_uni = 0;
   params.idle_timeout = 0xd1d2;
-  params.omit_connection_id = 1;
   params.max_packet_size = 1200;
   params.ack_delay_exponent = 20;
 
-  for (i = 0; i < 4 /* initial_version */ + 2 + 8 * 3 + 6 + 4 + 6 + 5; ++i) {
+  for (i = 0; i < 4 /* initial_version */ + 2 + 8 * 3 + 6 + 6 + 5; ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
@@ -210,7 +202,6 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_id_bidi = 908;
   params.initial_max_stream_id_uni = 0;
   params.idle_timeout = 0xd1d2;
-  params.omit_connection_id = 1;
   params.max_packet_size = 1200;
   memset(params.stateless_reset_token, 0xf1,
          sizeof(params.stateless_reset_token));
@@ -218,7 +209,7 @@ void test_ngtcp2_encode_transport_params(void) {
 
   for (i = 0; i < 4 /* negotiated_version */ + 1 +
                       4 * 3 /* supported_versions and its length */ + 2 +
-                      8 * 3 + 6 + 4 + 6 + 20 + 5;
+                      8 * 3 + 6 + 6 + 20 + 5;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
