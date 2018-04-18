@@ -1184,8 +1184,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   pfrc = &frc_head;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid,
-                     &conn->scid, conn->last_tx_pkt_num + 1, conn->version,
-                     /* TODO */ 256);
+                     &conn->scid, conn->last_tx_pkt_num + 1, conn->version, 0);
 
   ctx.ckm = conn->hs_tx_ckm;
   ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
@@ -1436,7 +1435,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
                      &conn->dcid, &conn->scid, conn->last_tx_pkt_num + 1,
-                     conn->version, /* TODO */ 256);
+                     conn->version, 0);
 
   ctx.ckm = conn->hs_tx_ckm;
   ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
@@ -2741,6 +2740,10 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
   if (nread < 0) {
     return (int)nread;
+  }
+  /* TODO support compound packet */
+  if (pktlen != (size_t)nread + hd.payloadlen) {
+    return NGTCP2_ERR_PROTO;
   }
 
   if (conn->server && conn->early_ckm && ngtcp2_cid_eq(&conn->rcid, &hd.dcid) &&
@@ -4668,7 +4671,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   ctx.ckm = conn->early_ckm;
 
   ngtcp2_pkt_hd_init(&hd, pkt_flags, pkt_type, &conn->rcid, &conn->scid,
-                     conn->last_tx_pkt_num + 1, conn->version, /* TODO */ 256);
+                     conn->last_tx_pkt_num + 1, conn->version, 0);
 
   ctx.aead_overhead = conn->aead_overhead;
   ctx.encrypt = conn->callbacks.encrypt;

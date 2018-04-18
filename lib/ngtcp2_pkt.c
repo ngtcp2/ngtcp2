@@ -122,7 +122,6 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   p += scil;
 
   dest->payloadlen = ngtcp2_get_varint(&n, p);
-
   p += n;
 
   dest->pkt_num = ngtcp2_get_uint32(p);
@@ -211,7 +210,8 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
                                   const ngtcp2_pkt_hd *hd) {
   uint8_t *p;
   size_t len = NGTCP2_MIN_LONG_HEADERLEN + hd->dcid.datalen + hd->scid.datalen +
-               ngtcp2_put_varint_len(hd->payloadlen) - 1;
+               2 - 1 /* NGTCP2_MIN_LONG_HEADERLEN includes 1 byte for
+                        payloadlen */;
 
   if (outlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -237,7 +237,7 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   if (hd->scid.datalen) {
     p = ngtcp2_cpymem(p, hd->scid.data, hd->scid.datalen);
   }
-  p = ngtcp2_put_varint(p, hd->payloadlen);
+  p = ngtcp2_put_varint14(p, (uint16_t)hd->payloadlen);
   p = ngtcp2_put_uint32be(p, (uint32_t)hd->pkt_num);
 
   assert((size_t)(p - out) == len);

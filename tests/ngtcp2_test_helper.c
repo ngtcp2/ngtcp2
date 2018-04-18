@@ -30,7 +30,6 @@
 #include "ngtcp2_conv.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_ppe.h"
-#include "ngtcp2_upe.h"
 
 size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
                                     uint64_t stream_id, uint64_t offset,
@@ -155,25 +154,34 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   return (size_t)n;
 }
 
-size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
-                                        uint8_t pkt_type,
+size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
+                                        size_t outlen, uint8_t pkt_type,
                                         const ngtcp2_cid *dcid,
                                         const ngtcp2_cid *scid,
                                         uint64_t pkt_num, uint32_t version,
                                         ngtcp2_frame *fr) {
-  ngtcp2_upe upe;
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   int rv;
+  ssize_t n;
+
+  memset(&ctx, 0, sizeof(ctx));
+  ctx.encrypt = null_encrypt;
+  ctx.ckm = conn->hs_rx_ckm;
+  ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid,
                      pkt_num, version, 0);
 
-  ngtcp2_upe_init(&upe, out, outlen);
-  rv = ngtcp2_upe_encode_hd(&upe, &hd);
+  ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
-  rv = ngtcp2_upe_encode_frame(&upe, fr);
+  rv = ngtcp2_ppe_encode_frame(&ppe, fr);
   assert(0 == rv);
-  return ngtcp2_upe_final(&upe, NULL);
+  n = ngtcp2_ppe_final(&ppe, NULL);
+  assert(n > 0);
+  return (size_t)n;
 }
 
 ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id) {

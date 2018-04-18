@@ -100,8 +100,8 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
  * capacity is |outlen|.  This function returns the number of bytes
  * written.
  */
-size_t write_single_frame_handshake_pkt(uint8_t *out, size_t outlen,
-                                        uint8_t pkt_type,
+size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
+                                        size_t outlen, uint8_t pkt_type,
                                         const ngtcp2_cid *dcid,
                                         const ngtcp2_cid *scid,
                                         uint64_t pkt_num, uint32_t version,

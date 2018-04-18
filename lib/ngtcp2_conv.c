@@ -144,6 +144,17 @@ uint8_t *ngtcp2_put_varint(uint8_t *p, uint64_t n) {
   return rv;
 }
 
+uint8_t *ngtcp2_put_varint14(uint8_t *p, uint16_t n) {
+  uint8_t *rv;
+
+  assert(n < 16384);
+
+  rv = ngtcp2_put_uint16be(p, n);
+  *p |= 0x40;
+
+  return rv;
+}
+
 size_t ngtcp2_get_varint_len(const uint8_t *p) {
   return varintlen_def[*p >> 6];
 }

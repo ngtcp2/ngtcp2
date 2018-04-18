@@ -1699,7 +1699,7 @@ void test_ngtcp2_conn_recv_server_stateless_retry(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_RETRY, &conn->scid, &conn->dcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_RETRY, &conn->scid, &conn->dcid,
       conn->last_tx_pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, 2);
@@ -1732,7 +1732,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
       NGTCP2_PROTO_VER_MAX, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
@@ -1757,7 +1757,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
       NGTCP2_PROTO_VER_MAX, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
@@ -1777,7 +1777,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   fr.ack.num_blks = 0;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
       NGTCP2_PROTO_VER_MAX, &fr);
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
@@ -1840,7 +1840,7 @@ void test_ngtcp2_conn_handshake(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
       conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -1852,7 +1852,7 @@ void test_ngtcp2_conn_handshake(void) {
   memset(fr.path_response.data, 0, sizeof(fr.path_response));
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
       ++pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -1891,7 +1891,7 @@ void test_ngtcp2_conn_handshake_error(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
       ++pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -1911,7 +1911,7 @@ void test_ngtcp2_conn_handshake_error(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
       conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -1926,7 +1926,7 @@ void test_ngtcp2_conn_handshake_error(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
       ++pkt_num, conn->version, &fr);
 
   conn->callbacks.recv_stream0_data = recv_stream0_handshake_error;
@@ -2640,7 +2640,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
       conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -2655,7 +2655,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, &rcid, &conn->dcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, &rcid, &conn->dcid,
       ++pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -2680,7 +2680,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, &rcid, &conn->dcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, &rcid, &conn->dcid,
       ++pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -2695,7 +2695,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
       conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
