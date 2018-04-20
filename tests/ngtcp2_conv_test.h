@@ -32,5 +32,9 @@
 void test_ngtcp2_get_varint(void);
 void test_ngtcp2_get_varint_len(void);
 void test_ngtcp2_put_varint_len(void);
+void test_ngtcp2_nth_server_bidi_id(void);
+void test_ngtcp2_nth_server_uni_id(void);
+void test_ngtcp2_nth_client_bidi_id(void);
+void test_ngtcp2_nth_client_uni_id(void);
 
 #endif /* NGTCP2_CONV_TEST_H */

@@ -115,6 +115,14 @@ int main() {
       !CU_add_test(pSuite, "get_varint", test_ngtcp2_get_varint) ||
       !CU_add_test(pSuite, "get_varint_len", test_ngtcp2_get_varint_len) ||
       !CU_add_test(pSuite, "put_varint_len", test_ngtcp2_put_varint_len) ||
+      !CU_add_test(pSuite, "nth_server_bidi_id",
+                   test_ngtcp2_nth_server_bidi_id) ||
+      !CU_add_test(pSuite, "nth_server_uni_id",
+                   test_ngtcp2_nth_server_uni_id) ||
+      !CU_add_test(pSuite, "nth_client_bidi_id",
+                   test_ngtcp2_nth_client_bidi_id) ||
+      !CU_add_test(pSuite, "nth_client_uni_id",
+                   test_ngtcp2_nth_client_uni_id) ||
       !CU_add_test(pSuite, "upe_encode", test_ngtcp2_upe_encode) ||
       !CU_add_test(pSuite, "range_intersect", test_ngtcp2_range_intersect) ||
       !CU_add_test(pSuite, "range_cut", test_ngtcp2_range_cut) ||

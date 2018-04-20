@@ -145,4 +145,28 @@ size_t ngtcp2_get_varint_len(const uint8_t *p);
  */
 size_t ngtcp2_put_varint_len(uint64_t n);
 
+/*
+ * ngtcp2_nth_server_bidi_id returns |n|-th server bidirectional stream
+ * ID.  If |n| is 0, it returns 0.
+ */
+uint64_t ngtcp2_nth_server_bidi_id(uint16_t n);
+
+/*
+ * ngtcp2_nth_client_bidi_id returns |n|-th client bidirectional
+ * stream ID.  If |n| is 0, it returns 0.
+ */
+uint64_t ngtcp2_nth_client_bidi_id(uint16_t n);
+
+/*
+ * ngtcp2_nth_server_uni_id returns |n|-th server unidirectional stream
+ * ID.  If |n| is 0, it returns 0.
+ */
+uint64_t ngtcp2_nth_server_uni_id(uint16_t n);
+
+/*
+ * ngtcp2_nth_client_uni_id returns |n|-th client unidirectional
+ * stream ID.  If |n| is 0, it returns 0.
+ */
+uint64_t ngtcp2_nth_client_uni_id(uint16_t n);
+
 #endif /* NGTCP2_CONV_H */

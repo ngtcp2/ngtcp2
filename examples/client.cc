@@ -657,8 +657,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.initial_ts = util::timestamp(loop_);
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;
-  settings.max_stream_id_bidi = 1;
-  settings.max_stream_id_uni = 3;
+  settings.max_streams_bidi = 1;
+  settings.max_streams_uni = 1;
   settings.idle_timeout = config.timeout;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
@@ -1521,9 +1521,8 @@ int write_transport_params(const char *path,
     return -1;
   }
 
-  f << "initial_max_stream_id_bidi=" << params->initial_max_stream_id_bidi
-    << "\n"
-    << "initial_max_stream_id_uni=" << params->initial_max_stream_id_uni << "\n"
+  f << "initial_max_streams_bidi=" << params->initial_max_streams_bidi << "\n"
+    << "initial_max_streams_uni=" << params->initial_max_streams_uni << "\n"
     << "initial_max_stream_data=" << params->initial_max_stream_data << "\n"
     << "initial_max_data=" << params->initial_max_data << "\n";
 
@@ -1544,12 +1543,12 @@ int read_transport_params(const char *path, ngtcp2_transport_params *params) {
   }
 
   for (std::string line; std::getline(f, line);) {
-    if (util::istarts_with_l(line, "initial_max_stream_id_bidi=")) {
-      params->initial_max_stream_id_bidi = strtoul(
-          line.c_str() + str_size("initial_max_stream_id_bidi="), nullptr, 10);
-    } else if (util::istarts_with_l(line, "initial_max_stream_id_uni=")) {
-      params->initial_max_stream_id_uni = strtoul(
-          line.c_str() + str_size("initial_max_stream_id_uni="), nullptr, 10);
+    if (util::istarts_with_l(line, "initial_max_streams_bidi=")) {
+      params->initial_max_streams_bidi = strtoul(
+          line.c_str() + str_size("initial_max_streams_bidi="), nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_streams_uni=")) {
+      params->initial_max_streams_uni = strtoul(
+          line.c_str() + str_size("initial_max_streams_uni="), nullptr, 10);
     } else if (util::istarts_with_l(line, "initial_max_stream_data=")) {
       params->initial_max_stream_data = strtoul(
           line.c_str() + str_size("initial_max_stream_data="), nullptr, 10);

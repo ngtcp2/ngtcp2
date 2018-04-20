@@ -32,6 +32,7 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_log.h"
 #include "ngtcp2_cid.h"
+#include "ngtcp2_conv.h"
 
 /*
  * conn_local_stream returns nonzero if |stream_id| indicates that it
@@ -237,14 +238,32 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->largest_ack = -1;
 
   (*pconn)->local_settings = *settings;
-  (*pconn)->unsent_max_remote_stream_id_bidi =
-      (*pconn)->max_remote_stream_id_bidi = settings->max_stream_id_bidi;
-  (*pconn)->unsent_max_remote_stream_id_uni =
-      (*pconn)->max_remote_stream_id_uni = settings->max_stream_id_uni;
+
+  /* TODO better to put this into individual init functions */
+  if (server) {
+    (*pconn)->unsent_max_remote_stream_id_bidi =
+        (*pconn)->max_remote_stream_id_bidi =
+            ngtcp2_nth_client_bidi_id(settings->max_streams_bidi);
+
+    (*pconn)->unsent_max_remote_stream_id_uni =
+        (*pconn)->max_remote_stream_id_uni =
+            ngtcp2_nth_client_uni_id(settings->max_streams_uni);
+
+    (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
+  } else {
+    (*pconn)->unsent_max_remote_stream_id_bidi =
+        (*pconn)->max_remote_stream_id_bidi =
+            ngtcp2_nth_server_bidi_id(settings->max_streams_bidi);
+
+    (*pconn)->unsent_max_remote_stream_id_uni =
+        (*pconn)->max_remote_stream_id_uni =
+            ngtcp2_nth_server_uni_id(settings->max_streams_uni);
+
+    (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
+  }
+
   (*pconn)->unsent_max_rx_offset = (*pconn)->max_rx_offset = settings->max_data;
   (*pconn)->server = server;
-  (*pconn)->state =
-      server ? NGTCP2_CS_SERVER_INITIAL : NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->rcs.min_rtt = UINT64_MAX;
   (*pconn)->rcs.reordering_threshold = NGTCP2_REORDERING_THRESHOLD;
 
@@ -4384,8 +4403,8 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
                                     const ngtcp2_transport_params *src) {
   dest->max_stream_data = src->initial_max_stream_data;
   dest->max_data = src->initial_max_data;
-  dest->max_stream_id_bidi = src->initial_max_stream_id_bidi;
-  dest->max_stream_id_uni = src->initial_max_stream_id_uni;
+  dest->max_streams_bidi = src->initial_max_streams_bidi;
+  dest->max_streams_uni = src->initial_max_streams_uni;
   dest->idle_timeout = src->idle_timeout;
   dest->max_packet_size = src->max_packet_size;
   dest->stateless_reset_token_present = src->stateless_reset_token_present;
@@ -4402,8 +4421,8 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
   dest->initial_max_stream_data = src->max_stream_data;
   dest->initial_max_data = src->max_data;
-  dest->initial_max_stream_id_bidi = src->max_stream_id_bidi;
-  dest->initial_max_stream_id_uni = src->max_stream_id_uni;
+  dest->initial_max_streams_bidi = src->max_streams_bidi;
+  dest->initial_max_streams_uni = src->max_streams_uni;
   dest->idle_timeout = src->idle_timeout;
   dest->max_packet_size = src->max_packet_size;
   dest->stateless_reset_token_present = src->stateless_reset_token_present;
@@ -4473,13 +4492,19 @@ int ngtcp2_conn_set_remote_transport_params(
 
   settings_copy_from_transport_params(&conn->remote_settings, params);
 
-  conn->max_local_stream_id_bidi = conn->remote_settings.max_stream_id_bidi;
-  conn->max_local_stream_id_uni = conn->remote_settings.max_stream_id_uni;
-  conn->max_tx_offset = conn->remote_settings.max_data;
+  if (conn->server) {
+    conn->max_local_stream_id_bidi =
+        ngtcp2_nth_server_bidi_id(conn->remote_settings.max_streams_bidi);
+    conn->max_local_stream_id_uni =
+        ngtcp2_nth_server_uni_id(conn->remote_settings.max_streams_uni);
+  } else {
+    conn->max_local_stream_id_bidi =
+        ngtcp2_nth_client_bidi_id(conn->remote_settings.max_streams_bidi);
+    conn->max_local_stream_id_uni =
+        ngtcp2_nth_client_uni_id(conn->remote_settings.max_streams_uni);
+  }
 
-  /* TODO Should we check that conn->max_remote_stream_id_bidi is larger
-     than conn->remote_settings.max_stream_id_bidi here?  What happens
-     for 0-RTT stream? */
+  conn->max_tx_offset = conn->remote_settings.max_data;
 
   conn->strm0->max_tx_offset = conn->remote_settings.max_stream_data;
 
@@ -4496,8 +4521,18 @@ int ngtcp2_conn_set_early_remote_transport_params(
 
   settings_copy_from_transport_params(&conn->remote_settings, params);
 
-  conn->max_local_stream_id_bidi = conn->remote_settings.max_stream_id_bidi;
-  conn->max_local_stream_id_uni = conn->remote_settings.max_stream_id_uni;
+  if (conn->server) {
+    conn->max_local_stream_id_bidi =
+        ngtcp2_nth_server_bidi_id(conn->remote_settings.max_streams_bidi);
+    conn->max_local_stream_id_uni =
+        ngtcp2_nth_server_uni_id(conn->remote_settings.max_streams_uni);
+  } else {
+    conn->max_local_stream_id_bidi =
+        ngtcp2_nth_client_bidi_id(conn->remote_settings.max_streams_bidi);
+    conn->max_local_stream_id_uni =
+        ngtcp2_nth_client_uni_id(conn->remote_settings.max_streams_uni);
+  }
+
   conn->max_tx_offset = conn->remote_settings.max_data;
 
   return 0;
