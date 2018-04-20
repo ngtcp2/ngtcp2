@@ -236,34 +236,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
   (*pconn)->largest_ack = -1;
-
   (*pconn)->local_settings = *settings;
-
-  /* TODO better to put this into individual init functions */
-  if (server) {
-    (*pconn)->unsent_max_remote_stream_id_bidi =
-        (*pconn)->max_remote_stream_id_bidi =
-            ngtcp2_nth_client_bidi_id(settings->max_streams_bidi);
-
-    (*pconn)->unsent_max_remote_stream_id_uni =
-        (*pconn)->max_remote_stream_id_uni =
-            ngtcp2_nth_client_uni_id(settings->max_streams_uni);
-
-    (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
-  } else {
-    (*pconn)->unsent_max_remote_stream_id_bidi =
-        (*pconn)->max_remote_stream_id_bidi =
-            ngtcp2_nth_server_bidi_id(settings->max_streams_bidi);
-
-    (*pconn)->unsent_max_remote_stream_id_uni =
-        (*pconn)->max_remote_stream_id_uni =
-            ngtcp2_nth_server_uni_id(settings->max_streams_uni);
-
-    (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
-  }
-
   (*pconn)->unsent_max_rx_offset = (*pconn)->max_rx_offset = settings->max_data;
-  (*pconn)->server = server;
   (*pconn)->rcs.min_rtt = UINT64_MAX;
   (*pconn)->rcs.reordering_threshold = NGTCP2_REORDERING_THRESHOLD;
 
@@ -299,6 +273,15 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if (rv != 0) {
     return rv;
   }
+  (*pconn)->unsent_max_remote_stream_id_bidi =
+      (*pconn)->max_remote_stream_id_bidi =
+          ngtcp2_nth_server_bidi_id(settings->max_streams_bidi);
+
+  (*pconn)->unsent_max_remote_stream_id_uni =
+      (*pconn)->max_remote_stream_id_uni =
+          ngtcp2_nth_server_uni_id(settings->max_streams_uni);
+
+  (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->rcid = *dcid;
   (*pconn)->next_local_stream_id_bidi = 4;
   (*pconn)->next_local_stream_id_uni = 2;
@@ -314,6 +297,16 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if (rv != 0) {
     return rv;
   }
+  (*pconn)->server = 1;
+  (*pconn)->unsent_max_remote_stream_id_bidi =
+      (*pconn)->max_remote_stream_id_bidi =
+          ngtcp2_nth_client_bidi_id(settings->max_streams_bidi);
+
+  (*pconn)->unsent_max_remote_stream_id_uni =
+      (*pconn)->max_remote_stream_id_uni =
+          ngtcp2_nth_client_uni_id(settings->max_streams_uni);
+
+  (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   ngtcp2_idtr_open(&(*pconn)->remote_bidi_idtr, 0);
   (*pconn)->next_local_stream_id_bidi = 1;
   (*pconn)->next_local_stream_id_uni = 3;
