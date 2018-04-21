@@ -1734,6 +1734,7 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
     // TODO Find a way to send CONNECTION_CLOSE with
     // PROTOCOL_VIOLATION in this case.
     std::cerr << "max_early_data is not 0xffffffff" << std::endl;
+    return 0;
   }
   auto f = BIO_new_file(config.session_file, "w");
   if (f == nullptr) {
@@ -1745,7 +1746,7 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
   PEM_write_bio_SSL_SESSION(f, session);
   BIO_free(f);
 
-  return 0;
+  return 1;
 }
 } // namespace
 
