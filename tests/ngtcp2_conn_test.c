@@ -2710,4 +2710,40 @@ void test_ngtcp2_conn_recv_early_data(void) {
   CU_ASSERT(119 == strm->last_rx_offset);
 
   ngtcp2_conn_del(conn);
+
+  /* Compound packet */
+  setup_early_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 111;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
+      conn->version, &fr);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 999;
+  fr.stream.data = null_data;
+
+  pktlen += write_single_frame_handshake_pkt(
+      conn, buf + pktlen, sizeof(buf) - pktlen, NGTCP2_PKT_0RTT_PROTECTED,
+      &rcid, &conn->dcid, ++pkt_num, conn->version, &fr);
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  strm = ngtcp2_conn_find_stream(conn, 4);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(999 == strm->last_rx_offset);
+
+  ngtcp2_conn_del(conn);
 }

@@ -2690,10 +2690,12 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
 
 /*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
- * length if |pktlen| during handshake period.
+ * length if |pktlen| during handshake period.  The buffer pointed by
+ * |pkt| might contain multiple packets.  This function only processes
+ * one packet.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the number of bytes it reads if it succeeds,
+ * or one of the following negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
@@ -2719,8 +2721,8 @@ static int conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
  * In addition to the above error codes, error codes returned from
  * conn_recv_pkt are also returned.
  */
-static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
-                                   size_t pktlen, ngtcp2_tstamp ts) {
+static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
+                                       size_t pktlen, ngtcp2_tstamp ts) {
   ssize_t nread;
   ngtcp2_pkt_hd hd;
   ngtcp2_max_frame mfr;
@@ -2744,24 +2746,34 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
       /* Ignore Short packet unless server's first Handshake packet
          has been transmitted. */
-      return 0;
+      return (ssize_t)pktlen;
     }
-    return conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
+    rv = conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
+    if (rv != 0) {
+      return rv;
+    }
+    return (ssize_t)pktlen;
   }
 
   nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
   if (nread < 0) {
     return (int)nread;
   }
-  /* TODO support compound packet */
-  if (pktlen != (size_t)nread + hd.payloadlen) {
+
+  if (pktlen < (size_t)nread + hd.payloadlen) {
     return NGTCP2_ERR_PROTO;
   }
+
+  pktlen = (size_t)nread + hd.payloadlen;
 
   if (conn->server && conn->early_ckm && ngtcp2_cid_eq(&conn->rcid, &hd.dcid) &&
       hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
     /* TODO Avoid to parse header twice. */
-    return conn_recv_pkt(conn, pkt, pktlen, ts);
+    rv = conn_recv_pkt(conn, pkt, pktlen, ts);
+    if (rv != 0) {
+      return rv;
+    }
+    return (ssize_t)pktlen;
   }
 
   if (hd.version == 0) {
@@ -2771,7 +2783,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     hdpktlen = (size_t)nread - sizeof(uint32_t);
   } else {
     if (conn->version != hd.version) {
-      return 0;
+      return (ssize_t)pktlen;
     }
     hd.pkt_num =
         ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, 32);
@@ -2796,16 +2808,20 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       break;
     case NGTCP2_PKT_HANDSHAKE:
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
-        return 0;
+        return (ssize_t)pktlen;
       }
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
       if (!(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
         /* Buffer re-ordered 0-RTT Protected packet. */
-        return conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
+        rv = conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
+        if (rv != 0) {
+          return rv;
+        }
+        return (ssize_t)pktlen;
       }
       /* Discard 0-RTT packet if we don't have a key to decrypt it. */
-      return 0;
+      return (ssize_t)pktlen;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -2813,7 +2829,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     switch (hd.type) {
     case NGTCP2_PKT_HANDSHAKE:
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
-        return 0;
+        return (ssize_t)pktlen;
       }
       if (!(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
         conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
@@ -2824,11 +2840,11 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       /* Receiving Retry packet after getting Handshake packet from
          server is invalid. */
       if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-        return 0;
+        return (ssize_t)pktlen;
       }
       /* DCID in Retry packet might be 0 length. */
       if (hd.scid.datalen && !ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
-        return 0;
+        return (ssize_t)pktlen;
       }
       if (conn->strm0->last_rx_offset != 0) {
         return NGTCP2_ERR_PROTO;
@@ -2841,12 +2857,12 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       /* Receiving Version Negotiation packet after getting Handshake
          packet from server is invalid. */
       if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-        return 0;
+        return (ssize_t)pktlen;
       }
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid) ||
           !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
         /* Just discard invalid Version Negotiation packet */
-        return 0;
+        return (ssize_t)pktlen;
       }
       rv = conn_on_version_negotiation(conn, &hd, payload, payloadlen);
       if (rv != 0) {
@@ -3019,7 +3035,7 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return rv;
     }
 
-    return 0;
+    return (ssize_t)pktlen;
   }
 
   rv = ngtcp2_conn_sched_ack(conn, hd.pkt_num, require_ack, ts,
@@ -3028,7 +3044,33 @@ static int conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return rv;
   }
 
-  return handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : 0;
+  return handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : (ssize_t)pktlen;
+}
+
+/*
+ * conn_recv_cpkt processes compound packet.  The buffer pointed by
+ * |pkt| might contain multiple packets.  The Short packet must be the
+ * last one because it does not have payload length field.
+ */
+static int conn_recv_cpkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
+                          ngtcp2_tstamp ts) {
+  ssize_t nread;
+
+  while (pktlen) {
+    nread = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    if (nread < 0) {
+      return (int)nread;
+    }
+
+    assert(pktlen >= (size_t)nread);
+    pkt += nread;
+    pktlen -= (size_t)nread;
+
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "read packet %zd left %zu", nread, pktlen);
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
@@ -3924,7 +3966,7 @@ static int conn_process_buffered_0rtt_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_pkt_chain *pc = conn->buffed_rx_ppkts, *next;
 
   for (; pc; pc = pc->next) {
-    rv = conn_recv_handshake_pkt(conn, pc->pkt, pc->pktlen, ts);
+    rv = conn_recv_pkt(conn, pc->pkt, pc->pktlen, ts);
     if (rv != 0) {
       return rv;
     }
@@ -4052,7 +4094,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     return nwrite;
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    rv = conn_recv_cpkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
       if (rv != NGTCP2_ERR_TLS_HANDSHAKE) {
         return (ssize_t)rv;
@@ -4125,7 +4167,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     return nwrite;
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    rv = conn_recv_cpkt(conn, pkt, pktlen, ts);
     if (rv != 0) {
       return (ssize_t)rv;
     }
@@ -4137,7 +4179,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     return conn_write_client_handshake(conn, dest, destlen, ts);
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    rv = conn_recv_cpkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
       if (rv != NGTCP2_ERR_TLS_HANDSHAKE) {
         return (ssize_t)rv;
@@ -4214,7 +4256,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     return 0;
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
-    rv = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
+    rv = conn_recv_cpkt(conn, pkt, pktlen, ts);
     if (rv != 0) {
       return (ssize_t)rv;
     }
