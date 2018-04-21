@@ -37,6 +37,9 @@
    QUIC uses AEAD_AES_128_GCM, the overhead is 16 bytes. */
 #define NGTCP2_HANDSHAKE_AEAD_OVERHEAD 16
 
+/* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
+#define NGTCP2_MAX_AEAD_OVERHEAD 16
+
 typedef struct {
   const uint8_t *key;
   size_t keylen;

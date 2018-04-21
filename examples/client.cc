@@ -947,7 +947,7 @@ int Client::do_handshake(const uint8_t *data, size_t datalen) {
   }
 
   // For 0-RTT
-  auto rv = write_streams();
+  auto rv = write_0rtt_streams();
   if (rv != 0) {
     return rv;
   }
@@ -1098,6 +1098,79 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
         return 0;
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
+                << std::endl;
+      disconnect(n);
+      return -1;
+    }
+
+    if (n == 0) {
+      return 0;
+    }
+
+    data.seek(ndatalen);
+
+    sendbuf_.push(n);
+
+    auto rv = send_packet();
+    if (rv != NETWORK_ERR_OK) {
+      return rv;
+    }
+
+    if (data.size() == 0) {
+      break;
+    }
+  }
+
+  return 0;
+}
+
+int Client::write_0rtt_streams() {
+  for (auto &p : streams_) {
+    auto &stream = p.second;
+    auto &streambuf = stream->streambuf;
+    auto &streambuf_idx = stream->streambuf_idx;
+
+    for (auto it = std::begin(streambuf) + streambuf_idx;
+         it != std::end(streambuf); ++it) {
+      auto &v = *it;
+      auto fin = stream->should_send_fin && it + 1 == std::end(streambuf);
+      auto rv = on_write_0rtt_stream(stream->stream_id, fin, v);
+      if (rv != 0) {
+        if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+          schedule_retransmit();
+          return 0;
+        }
+        return rv;
+      }
+      if (v.size() > 0) {
+        break;
+      }
+      ++streambuf_idx;
+    }
+  }
+
+  return 0;
+}
+
+int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
+                                 Buffer &data) {
+  size_t ndatalen;
+
+  for (;;) {
+    auto n = ngtcp2_conn_client_handshake(
+        conn_, sendbuf_.wpos(), max_pktlen_, &ndatalen, nullptr, 0, stream_id,
+        fin, data.rpos(), data.size(), util::timestamp(loop_));
+    if (n < 0) {
+      switch (n) {
+      case NGTCP2_ERR_EARLY_DATA_REJECTED:
+      case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+      case NGTCP2_ERR_STREAM_SHUT_WR:
+      case NGTCP2_ERR_STREAM_NOT_FOUND: // This means that stream is
+                                        // closed.
+      case NGTCP2_ERR_NOBUF:
+        return 0;
+      }
+      std::cerr << "ngtcp2_conn_client_handshake: " << ngtcp2_strerror(n)
                 << std::endl;
       disconnect(n);
       return -1;
@@ -1566,26 +1639,14 @@ void Client::handle_early_data() {
   if (!resumption_ || setup_early_crypto_context() != 0) {
     return;
   }
-
-  if (config.tp_file) {
-    ngtcp2_transport_params params;
-    if (read_transport_params(config.tp_file, &params) != 0) {
-      std::cerr << "Could not read transport parameters from " << config.tp_file
-                << std::endl;
-    } else {
-      ngtcp2_conn_set_early_remote_transport_params(conn_, &params);
-    }
-  }
-
-  if (config.interactive || datafd_ == -1) {
-    return;
-  }
-
-  make_stream_early();
 }
 
 void Client::make_stream_early() {
   int rv;
+
+  if (config.interactive || datafd_ == -1) {
+    return;
+  }
 
   if (nstreams_done_ >= config.nstreams) {
     return;
@@ -1746,7 +1807,7 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
   PEM_write_bio_SSL_SESSION(f, session);
   BIO_free(f);
 
-  return 1;
+  return 0;
 }
 } // namespace
 
@@ -1852,6 +1913,7 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
 namespace {
 int run(Client &c, const char *addr, const char *port) {
   Address remote_addr;
+  ssize_t nwrite;
 
   auto fd = create_sock(remote_addr, addr, port);
   if (fd == -1) {
@@ -1862,7 +1924,27 @@ int run(Client &c, const char *addr, const char *port) {
     return -1;
   }
 
-  c.on_write();
+  if (config.tp_file) {
+    ngtcp2_transport_params params;
+    if (read_transport_params(config.tp_file, &params) != 0) {
+      std::cerr << "Could not read transport parameters from " << config.tp_file
+                << std::endl;
+    } else {
+      ngtcp2_conn_set_early_remote_transport_params(c.conn(), &params);
+      c.make_stream_early();
+    }
+  }
+
+  // For 0-RTT
+  auto rv = c.write_0rtt_streams();
+  if (rv != 0) {
+    return rv;
+  }
+
+  nwrite = c.do_handshake_once(nullptr, 0);
+  if (nwrite < 0) {
+    return nwrite;
+  }
 
   ev_run(EV_DEFAULT, 0);
 

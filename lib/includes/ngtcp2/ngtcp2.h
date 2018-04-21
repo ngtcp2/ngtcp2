@@ -1038,7 +1038,9 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * `ngtcp2_conn_write_pkt` should be called instead.
  *
  * During handshake, application can send 0-RTT data (or its response)
- * using `ngtcp2_conn_write_stream`.
+ * using `ngtcp2_conn_write_stream`.  `ngtcp2_conn_client_handshake`
+ * might be efficient because it can coalesce Handshake packet and
+ * 0-RTT protected packet into one UDP packet.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -1050,6 +1052,25 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, const uint8_t *pkt,
                                             size_t pktlen, ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_client_handshake` is just like
+ * `ngtcp2_conn_handshake`, but it is for client only, and can accept
+ * 0-RTT data.  This function can coalesce Handshake packet and 0-RTT
+ * Protected packet into single UDP packet, thus it could be more
+ * efficient than `ngtcp2_conn_handshake`.
+ *
+ * |stream_id|, |fin|, |data|, and |datalen| are stream identifier to
+ * which 0-RTT data is sent, whether it is a last data chunk in this
+ * stream, a pointer to 0-RTT data, and its length respectively.
+ * Passing 0 to |stream_id| is disabling 0-RTT data.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_conn_client_handshake(
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, size_t *pdatalen,
+    const uint8_t *pkt, size_t pktlen, uint64_t stream_id, uint8_t fin,
+    const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
 /**
  * @function

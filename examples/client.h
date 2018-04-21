@@ -148,6 +148,8 @@ public:
   int on_write(bool retransmit = false);
   int write_streams();
   int on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
+  int write_0rtt_streams();
+  int on_write_0rtt_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);
   int do_handshake(const uint8_t *data, size_t datalen);
   ssize_t do_handshake_once(const uint8_t *data, size_t datalen);
