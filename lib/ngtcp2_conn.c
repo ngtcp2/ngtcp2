@@ -3983,28 +3983,6 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_process_buffered_0rtt_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  ssize_t rv;
-  ngtcp2_pkt_chain *pc = conn->buffed_rx_ppkts, *next;
-
-  for (; pc; pc = pc->next) {
-    rv = conn_recv_pkt(conn, pc->pkt, pc->pktlen, ts);
-    if (rv < 0) {
-      return (int)rv;
-    }
-  }
-
-  for (pc = conn->buffed_rx_ppkts; pc;) {
-    next = pc->next;
-    ngtcp2_pkt_chain_del(pc, conn->mem);
-    pc = next;
-  }
-
-  conn->buffed_rx_ppkts = NULL;
-
-  return 0;
-}
-
 /*
  * conn_handshake_completed is called once cryptographic handshake has
  * completed.
@@ -4255,7 +4233,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
       /* Process re-ordered 0-RTT Protected packets which were
          arrived before Initial packet. */
-      rv = conn_process_buffered_0rtt_pkt(conn, ts);
+      rv = conn_process_buffered_protected_pkt(conn, ts);
       if (rv != 0) {
         /* TODO Probably better to write a Handshake packet containing
            CONNECTION_CLOSE frame */
