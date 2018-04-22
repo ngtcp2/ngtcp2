@@ -27,7 +27,6 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_macro.h"
