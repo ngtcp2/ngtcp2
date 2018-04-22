@@ -87,4 +87,6 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                          ngtcp2_tstamp sent_ts, int unprotected);
 
+void ngtcp2_log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
+
 #endif /* NGTCP2_LOG_H */

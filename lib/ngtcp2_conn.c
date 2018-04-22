@@ -2769,6 +2769,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return (int)nread;
   }
 
+  ngtcp2_log_pkt_hd(&conn->log, &hd);
+
   if (pktlen < (size_t)nread + hd.payloadlen) {
     return NGTCP2_ERR_PROTO;
   }
@@ -3754,6 +3756,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return nread;
     }
 
+    ngtcp2_log_pkt_hd(&conn->log, &hd);
+
     if (hd.version == 0) {
       /* Ignore late VN. */
       return (ssize_t)pktlen;
@@ -3790,6 +3794,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     if (nread < 0) {
       return (int)nread;
     }
+
+    ngtcp2_log_pkt_hd(&conn->log, &hd);
   }
 
   hdpktlen = (size_t)nread;
