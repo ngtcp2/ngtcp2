@@ -52,6 +52,10 @@
 using namespace ngtcp2;
 
 namespace {
+constexpr size_t NGTCP2_SV_SCIDLEN = 18;
+} // namespace
+
+namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
@@ -830,7 +834,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
                 [&dis]() { return dis(randgen); });
 
   ngtcp2_cid scid;
-  scid.datalen = 8;
+  scid.datalen = NGTCP2_SV_SCIDLEN;
   std::generate(scid.data, scid.data + scid.datalen,
                 [&dis]() { return dis(randgen); });
 
@@ -1846,7 +1850,8 @@ int Server::on_read() {
       rv = ngtcp2_pkt_decode_hd_long(&hd, buf.data(), nread);
     } else {
       // TODO For Short packet, we just need DCID.
-      rv = ngtcp2_pkt_decode_hd_short(&hd, buf.data(), nread, 8);
+      rv =
+          ngtcp2_pkt_decode_hd_short(&hd, buf.data(), nread, NGTCP2_SV_SCIDLEN);
     }
     if (rv < 0) {
       std::cerr << "Could not decode QUIC packet header: "

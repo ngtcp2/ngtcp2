@@ -645,10 +645,10 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       0, std::numeric_limits<uint8_t>::max());
 
   ngtcp2_cid scid, dcid;
-  scid.datalen = 8;
+  scid.datalen = 17;
   std::generate(std::begin(scid.data), std::begin(scid.data) + scid.datalen,
                 [&dis]() { return dis(randgen); });
-  dcid.datalen = 8;
+  dcid.datalen = 18;
   std::generate(std::begin(dcid.data), std::begin(dcid.data) + dcid.datalen,
                 [&dis]() { return dis(randgen); });
 
