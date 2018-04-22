@@ -2919,7 +2919,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     case NGTCP2_FRAME_ACK:
       switch (hd.type) {
       case NGTCP2_PKT_INITIAL:
-      case NGTCP2_PKT_RETRY:
         return NGTCP2_ERR_PROTO;
       }
       /* TODO Assume that all packets here are unprotected */
@@ -2929,9 +2928,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       continue;
     case NGTCP2_FRAME_PADDING:
-      if (hd.type == NGTCP2_PKT_RETRY) {
-        return NGTCP2_ERR_PROTO;
-      }
       continue;
     case NGTCP2_FRAME_STREAM:
       require_ack = 1;
@@ -3039,6 +3035,14 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   if (hd.type == NGTCP2_PKT_RETRY) {
     if (handshake_failed) {
       return NGTCP2_ERR_PROTO;
+    }
+
+    /* Check that Initial packet is acknowledged.  We will increase
+       handshake packet timeout, so we eventually gets ACK from
+       peer. */
+    if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) !=
+        conn->strm0->tx_offset) {
+      return 0;
     }
 
     rv = conn_recv_server_stateless_retry(conn);

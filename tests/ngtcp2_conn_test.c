@@ -1682,7 +1682,8 @@ void test_ngtcp2_conn_recv_server_stateless_retry(void) {
   uint8_t buf[2048];
   ssize_t spktlen;
   size_t pktlen;
-  ngtcp2_frame fr;
+  ngtcp2_frame fra[2];
+  ngtcp2_frame *fr;
 
   memset(&ud, 0, sizeof(ud));
   ud.pkt_num = 0;
@@ -1693,17 +1694,25 @@ void test_ngtcp2_conn_recv_server_stateless_retry(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.flags = 0;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 333;
-  fr.stream.data = null_data;
+  fr = &fra[0];
+  fr->type = NGTCP2_FRAME_STREAM;
+  fr->stream.flags = 0;
+  fr->stream.stream_id = 0;
+  fr->stream.fin = 0;
+  fr->stream.offset = 0;
+  fr->stream.datalen = 333;
+  fr->stream.data = null_data;
 
-  pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_RETRY, &conn->scid, &conn->dcid,
-      conn->last_tx_pkt_num, conn->version, &fr);
+  fr = &fra[1];
+  fr->type = NGTCP2_FRAME_ACK;
+  fr->ack.largest_ack = conn->last_tx_pkt_num;
+  fr->ack.ack_delay = 0;
+  fr->ack.first_ack_blklen = 0;
+  fr->ack.num_blks = 0;
+
+  pktlen = write_handshake_pkt(conn, buf, sizeof(buf), NGTCP2_PKT_RETRY,
+                               &conn->scid, &conn->dcid, conn->last_tx_pkt_num,
+                               conn->version, fra, arraylen(fra));
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, 2);
 

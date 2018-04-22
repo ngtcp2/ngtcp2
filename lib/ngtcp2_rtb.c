@@ -274,17 +274,20 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
     if (rv != 0) {
       return rv;
     }
-    stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
-    datalen = stream_offset - prev_stream_offset;
-    if (datalen == 0 && !frc->fr.stream.fin) {
-      continue;
-    }
 
-    rv = conn->callbacks.acked_stream_data_offset(
-        conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
-        strm->stream_user_data);
-    if (rv != 0) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
+    if (conn->callbacks.acked_stream_data_offset) {
+      stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
+      datalen = stream_offset - prev_stream_offset;
+      if (datalen == 0 && !frc->fr.stream.fin) {
+        continue;
+      }
+
+      rv = conn->callbacks.acked_stream_data_offset(
+          conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
+          strm->stream_user_data);
+      if (rv != 0) {
+        return NGTCP2_ERR_CALLBACK_FAILURE;
+      }
     }
 
     rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
@@ -388,11 +391,9 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr, int unprotected,
         continue;
       }
       if (conn) {
-        if (conn->callbacks.acked_stream_data_offset) {
-          rv = call_acked_stream_offset(*pent, conn);
-          if (rv != 0) {
-            return rv;
-          }
+        rv = call_acked_stream_offset(*pent, conn);
+        if (rv != 0) {
+          return rv;
         }
         if (largest_ack == (*pent)->hd.pkt_num) {
           ngtcp2_conn_update_rtt(conn, ts - (*pent)->ts, fr->ack_delay_unscaled,

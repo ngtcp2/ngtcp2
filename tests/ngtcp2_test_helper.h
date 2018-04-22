@@ -108,6 +108,16 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
                                         ngtcp2_frame *fr);
 
 /*
+ * write_handshake_pkt writes an unprotected QUIC handshake packet
+ * containing |frlen| frames pointed by|fra| in |out| whose capacity
+ * is |outlen|.  This function returns the number of bytes written.
+ */
+size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
+                           uint8_t pkt_type, const ngtcp2_cid *dcid,
+                           const ngtcp2_cid *scid, uint64_t pkt_num,
+                           uint32_t version, ngtcp2_frame *fra, size_t frlen);
+
+/*
  * open_stream opens new stream denoted by |stream_id|.
  */
 ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id);
