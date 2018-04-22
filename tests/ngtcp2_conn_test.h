@@ -47,6 +47,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void);
 void test_ngtcp2_conn_recv_max_stream_id(void);
 void test_ngtcp2_conn_handshake(void);
 void test_ngtcp2_conn_handshake_error(void);
+void test_ngtcp2_conn_client_handshake(void);
 void test_ngtcp2_conn_retransmit_protected(void);
 void test_ngtcp2_conn_send_max_stream_data(void);
 void test_ngtcp2_conn_recv_stream_data(void);

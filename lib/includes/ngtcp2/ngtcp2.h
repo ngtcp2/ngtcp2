@@ -1068,7 +1068,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
  * Passing 0 to |stream_id| is disabling 0-RTT data.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_client_handshake(
-    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, size_t *pdatalen,
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,
     const uint8_t *pkt, size_t pktlen, uint64_t stream_id, uint8_t fin,
     const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
@@ -1416,7 +1416,10 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *
  * This packet may contain frames other than STREAM frame.  The packet
  * might not contain STREAM frame if other frames occupy the packet.
- * In that case, |*pdatalen| would be 0 if |pdatalen| is not NULL.
+ * In that case, |*pdatalen| would be -1 if |pdatalen| is not NULL.
+ *
+ * If |fin| is nonzero, and 0 length STREAM frame is successfully
+ * serialized, |*pdatalen| would be 0.
  *
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
  * if it is not NULL.
@@ -1448,12 +1451,10 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Stream 0 data cannot be sent in 0-RTT packet.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
-                                               size_t destlen, size_t *pdatalen,
-                                               uint64_t stream_id, uint8_t fin,
-                                               const uint8_t *data,
-                                               size_t datalen,
-                                               ngtcp2_tstamp ts);
+NGTCP2_EXTERN ssize_t
+ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                         ssize_t *pdatalen, uint64_t stream_id, uint8_t fin,
+                         const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
 /**
  * @function

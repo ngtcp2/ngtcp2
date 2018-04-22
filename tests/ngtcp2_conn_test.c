@@ -656,7 +656,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
   int rv;
   ngtcp2_frame fr;
   ngtcp2_strm *strm;
-  size_t nwrite;
+  ssize_t nwrite;
   uint64_t stream_id;
 
   setup_default_client(&conn);
@@ -802,7 +802,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
   ssize_t spktlen;
   int rv;
   ngtcp2_frame fr;
-  size_t nwrite;
+  ssize_t nwrite;
   uint64_t stream_id;
 
   setup_default_client(&conn);
@@ -839,6 +839,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
                                      0, null_data, 1024, 4);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(-1 == nwrite);
 
   fr.type = NGTCP2_FRAME_MAX_DATA;
   fr.max_data.max_data = 3072;
@@ -1940,6 +1941,65 @@ void test_ngtcp2_conn_handshake_error(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_client_handshake(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1240];
+  ssize_t spktlen;
+  ngtcp2_tstamp t = 0;
+  uint64_t stream_id;
+  int rv;
+  ssize_t datalen;
+
+  /* Verify that Handshake packet and 0-RTT Protected packet are
+     coalesced into one UDP packet. */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
+                                         0, stream_id, 0, null_data, 199, +t);
+
+  CU_ASSERT(sizeof(buf) == spktlen);
+  CU_ASSERT(199 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0 length 0-RTT packet with FIN bit set */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
+                                         0, stream_id, 1, null_data, 0, +t);
+
+  CU_ASSERT(sizeof(buf) == spktlen);
+  CU_ASSERT(0 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Could not send 0-RTT data because buffer is too small. */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_client_handshake(
+      conn, buf,
+      NGTCP2_MIN_LONG_HEADERLEN + 1 + conn->dcid.datalen + conn->scid.datalen +
+          300,
+      &datalen, NULL, 0, stream_id, 1, null_data, 0, +t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(-1 == datalen);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
@@ -2599,7 +2659,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 void test_ngtcp2_conn_send_early_data(void) {
   ngtcp2_conn *conn;
   ssize_t spktlen;
-  size_t datalen;
+  ssize_t datalen;
   uint8_t buf[1024];
   uint64_t stream_id;
   int rv;

@@ -1464,7 +1464,7 @@ int Handler::on_write_stream(Stream &stream) {
 }
 
 int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
-  size_t ndatalen;
+  ssize_t ndatalen;
 
   for (;;) {
     auto n = ngtcp2_conn_write_stream(
@@ -1486,11 +1486,13 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
       return 0;
     }
 
-    if (fin && ndatalen == data.size()) {
-      stream.should_send_fin = false;
-    }
+    if (ndatalen >= 0) {
+      if (fin && static_cast<size_t>(ndatalen) == data.size()) {
+        stream.should_send_fin = false;
+      }
 
-    data.seek(ndatalen);
+      data.seek(ndatalen);
+    }
 
     sendbuf_.push(n);
 

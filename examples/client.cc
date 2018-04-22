@@ -1081,7 +1081,7 @@ int Client::write_streams() {
 }
 
 int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
-  size_t ndatalen;
+  ssize_t ndatalen;
 
   for (;;) {
     auto n = ngtcp2_conn_write_stream(conn_, sendbuf_.wpos(), max_pktlen_,
@@ -1107,7 +1107,9 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
       return 0;
     }
 
-    data.seek(ndatalen);
+    if (ndatalen > 0) {
+      data.seek(ndatalen);
+    }
 
     sendbuf_.push(n);
 
@@ -1154,7 +1156,7 @@ int Client::write_0rtt_streams() {
 
 int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
                                  Buffer &data) {
-  size_t ndatalen;
+  ssize_t ndatalen;
 
   for (;;) {
     auto n = ngtcp2_conn_client_handshake(
@@ -1180,7 +1182,9 @@ int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
       return 0;
     }
 
-    data.seek(ndatalen);
+    if (ndatalen > 0) {
+      data.seek(ndatalen);
+    }
 
     sendbuf_.push(n);
 

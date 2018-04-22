@@ -1685,7 +1685,7 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
  *     Buffer is too small.
  */
 static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                              size_t *pdatalen, ngtcp2_strm *data_strm,
+                              ssize_t *pdatalen, ngtcp2_strm *data_strm,
                               uint8_t fin, const uint8_t *data, size_t datalen,
                               ngtcp2_tstamp ts) {
   int rv;
@@ -1974,7 +1974,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   if (pdatalen) {
-    *pdatalen = ndatalen;
+    *pdatalen = (ssize_t)ndatalen;
   }
 
   ++conn->last_tx_pkt_num;
@@ -2129,7 +2129,7 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
 }
 
 static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                    size_t destlen, size_t *pdatalen,
+                                    size_t destlen, ssize_t *pdatalen,
                                     ngtcp2_strm *strm, uint8_t fin,
                                     const uint8_t *data, size_t datalen,
                                     ngtcp2_tstamp ts) {
@@ -4333,7 +4333,7 @@ ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 
 static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
-                                       size_t destlen, size_t *pdatalen,
+                                       size_t destlen, ssize_t *pdatalen,
                                        ngtcp2_strm *strm, uint8_t fin,
                                        const uint8_t *data, size_t datalen,
                                        int require_padding, ngtcp2_tstamp ts) {
@@ -4442,7 +4442,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   ++conn->last_tx_pkt_num;
 
   if (pdatalen) {
-    *pdatalen = ndatalen;
+    *pdatalen = (ssize_t)ndatalen;
   }
 
   if (fin) {
@@ -4453,7 +4453,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                     size_t destlen, size_t *pdatalen,
+                                     size_t destlen, ssize_t *pdatalen,
                                      const uint8_t *pkt, size_t pktlen,
                                      uint64_t stream_id, uint8_t fin,
                                      const uint8_t *data, size_t datalen,
@@ -4465,7 +4465,11 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
   int require_padding;
 
   if (pdatalen) {
-    *pdatalen = 0;
+    *pdatalen = -1;
+  }
+
+  if (conn->server) {
+    return NGTCP2_ERR_INVALID_STATE;
   }
 
   /* conn->early_ckm might be created in the first call of
@@ -4911,7 +4915,7 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id) {
 }
 
 ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
-                                 size_t destlen, size_t *pdatalen,
+                                 size_t destlen, ssize_t *pdatalen,
                                  uint64_t stream_id, uint8_t fin,
                                  const uint8_t *data, size_t datalen,
                                  ngtcp2_tstamp ts) {
@@ -4922,7 +4926,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   conn->log.last_ts = ts;
 
   if (pdatalen) {
-    *pdatalen = 0;
+    *pdatalen = -1;
   }
 
   switch (conn->state) {
