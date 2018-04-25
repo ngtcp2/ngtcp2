@@ -32,7 +32,6 @@
 #include <CUnit/Basic.h>
 /* include test cases' include files here */
 #include "ngtcp2_pkt_test.h"
-#include "ngtcp2_upe_test.h"
 #include "ngtcp2_range_test.h"
 #include "ngtcp2_rob_test.h"
 #include "ngtcp2_rtb_test.h"
@@ -123,7 +122,6 @@ int main() {
                    test_ngtcp2_nth_client_bidi_id) ||
       !CU_add_test(pSuite, "nth_client_uni_id",
                    test_ngtcp2_nth_client_uni_id) ||
-      !CU_add_test(pSuite, "upe_encode", test_ngtcp2_upe_encode) ||
       !CU_add_test(pSuite, "range_intersect", test_ngtcp2_range_intersect) ||
       !CU_add_test(pSuite, "range_cut", test_ngtcp2_range_cut) ||
       !CU_add_test(pSuite, "range_not_after", test_ngtcp2_range_not_after) ||

@@ -33,7 +33,6 @@ if(HAVE_CUNIT)
   set(main_SOURCES
     main.c
     ngtcp2_pkt_test.c
-    ngtcp2_upe_test.c
     ngtcp2_range_test.c
     ngtcp2_rob_test.c
     ngtcp2_acktr_test.c
@@ -45,7 +44,6 @@ if(HAVE_CUNIT)
     ngtcp2_ringbuf_test.c
     ngtcp2_conv_test.c
     ngtcp2_test_helper.c
-    ngtcp2_upe.c
   )
 
   add_executable(main EXCLUDE_FROM_ALL
