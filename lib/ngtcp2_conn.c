@@ -2771,11 +2771,42 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   ngtcp2_log_pkt_hd(&conn->log, &hd);
 
-  if (pktlen < (size_t)nread + hd.payloadlen) {
-    return NGTCP2_ERR_PROTO;
+  hdpktlen = (size_t)nread;
+
+  if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+    if (conn->server) {
+      return NGTCP2_ERR_PROTO;
+    }
+
+    /* Receiving Version Negotiation packet after getting Handshake
+       packet from server is invalid. */
+    if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+      return (ssize_t)pktlen;
+    }
+    if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid) ||
+        !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
+      /* Just discard invalid Version Negotiation packet */
+      return (ssize_t)pktlen;
+    }
+    rv = conn_on_version_negotiation(conn, &hd, pkt + hdpktlen,
+                                     pktlen - hdpktlen);
+    if (rv != 0) {
+      return rv;
+    }
+    return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
   }
 
-  pktlen = (size_t)nread + hd.payloadlen;
+  if (conn->version != hd.version) {
+    return (ssize_t)pktlen;
+  }
+
+  if (pktlen < hdpktlen + hd.payloadlen) {
+    return (ssize_t)pktlen;
+  }
+
+  payload = pkt + hdpktlen;
+  pktlen = hdpktlen + hd.payloadlen;
+  payloadlen = hd.payloadlen;
 
   if (conn->server && conn->early_ckm && ngtcp2_cid_eq(&conn->rcid, &hd.dcid) &&
       hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
@@ -2788,22 +2819,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return (ssize_t)pktlen;
   }
 
-  if (hd.version == 0) {
-    hd.type = NGTCP2_PKT_VERSION_NEGOTIATION;
-    hd.pkt_num = 0;
-
-    hdpktlen = (size_t)nread - sizeof(uint32_t);
-  } else {
-    if (conn->version != hd.version) {
-      return (ssize_t)pktlen;
-    }
-    hd.pkt_num =
-        ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, 32);
-    hdpktlen = (size_t)nread;
-  }
-
-  payload = pkt + hdpktlen;
-  payloadlen = pktlen - hdpktlen;
+  hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(conn->max_rx_pkt_num, hd.pkt_num, 32);
 
   if (conn->server) {
     switch (hd.type) {
@@ -2865,22 +2881,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
          use it as DCID in a subsequent packets. */
       conn->dcid = hd.scid;
       break;
-    case NGTCP2_PKT_VERSION_NEGOTIATION:
-      /* Receiving Version Negotiation packet after getting Handshake
-         packet from server is invalid. */
-      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-        return (ssize_t)pktlen;
-      }
-      if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid) ||
-          !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
-        /* Just discard invalid Version Negotiation packet */
-        return (ssize_t)pktlen;
-      }
-      rv = conn_on_version_negotiation(conn, &hd, payload, payloadlen);
-      if (rv != 0) {
-        return rv;
-      }
-      return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -3758,8 +3758,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     ngtcp2_log_pkt_hd(&conn->log, &hd);
 
-    if (hd.version == 0) {
+    if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
       /* Ignore late VN. */
+      return (ssize_t)pktlen;
+    }
+
+    if (pktlen < (size_t)nread + hd.payloadlen) {
       return (ssize_t)pktlen;
     }
 

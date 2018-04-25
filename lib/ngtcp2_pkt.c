@@ -58,10 +58,10 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   uint32_t version;
   size_t dcil, scil;
   const uint8_t *p;
-  size_t len = NGTCP2_MIN_LONG_HEADERLEN;
+  size_t len;
   size_t n;
 
-  if (pktlen < len) {
+  if (pktlen < 5) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -70,6 +70,18 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   }
 
   version = ngtcp2_get_uint32(&pkt[1]);
+
+  if (version == 0) {
+    /* This must be Version Negotiation packet which lacks packet
+       number and payload length fields. */
+    len = 5 + 1;
+  } else {
+    len = NGTCP2_MIN_LONG_HEADERLEN;
+  }
+
+  if (pktlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
 
   type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
   switch (type) {
@@ -102,9 +114,11 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  p = &pkt[6 + dcil + scil];
+  if (type != NGTCP2_PKT_VERSION_NEGOTIATION) {
+    p = &pkt[6 + dcil + scil];
 
-  len += ngtcp2_get_varint_len(p) - 1;
+    len += ngtcp2_get_varint_len(p) - 1;
+  }
 
   if (pktlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -121,12 +135,17 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   ngtcp2_cid_init(&dest->scid, p, scil);
   p += scil;
 
-  dest->payloadlen = ngtcp2_get_varint(&n, p);
-  p += n;
+  if (type != NGTCP2_PKT_VERSION_NEGOTIATION) {
+    dest->payloadlen = ngtcp2_get_varint(&n, p);
+    p += n;
 
-  dest->pkt_num = ngtcp2_get_uint32(p);
+    dest->pkt_num = ngtcp2_get_uint32(p);
 
-  p += sizeof(uint32_t);
+    p += sizeof(uint32_t);
+  } else {
+    dest->payloadlen = 0;
+    dest->pkt_num = 0;
+  }
 
   assert((size_t)(p - pkt) == len);
 
