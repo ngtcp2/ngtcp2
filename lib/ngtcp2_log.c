@@ -65,13 +65,13 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
    *
    * # Frame event
    *
-   * <PKN> <DIR> <PKTNAME>(<PKTTYPE>) <FRAMENAME>(<FRAMETYPE>)
-   *
-   * <PKN>:
-   *   Packet number.
+   * <DIR> <PKN> <PKTNAME>(<PKTTYPE>) <FRAMENAME>(<FRAMETYPE>)
    *
    * <DIR>:
    *   Flow direction.  tx=transmission, rx=reception
+   *
+   * <PKN>:
+   *   Packet number.
    *
    * <PKTNAME>:
    *   Packet name.  (e.g., Initial, Handshake, S01)
@@ -90,16 +90,16 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
 
 /* TODO Split second and remaining fraction with comma */
 #define NGTCP2_LOG_HD "I%08" PRIu64 " 0x%s %s"
-#define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %" PRIu64 " %s %s(0x%02x)"
+#define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %s %" PRIu64 " %s(0x%02x)"
 #define NGTCP2_LOG_TP NGTCP2_LOG_HD " remote transport_parameters"
 
 #define NGTCP2_LOG_FRM_HD_FIELDS(DIR)                                          \
   timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "frm",      \
-      hd->pkt_num, (DIR), strpkttype(hd), hd->type
+      (DIR), hd->pkt_num, strpkttype(hd), hd->type
 
 #define NGTCP2_LOG_PKT_HD_FIELDS(DIR)                                          \
   timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "pkt",      \
-      hd->pkt_num, (DIR), strpkttype(hd), hd->type
+      (DIR), hd->pkt_num, strpkttype(hd), hd->type
 
 #define NGTCP2_LOG_TP_HD_FIELDS                                                \
   timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "cry"
