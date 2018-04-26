@@ -1950,6 +1950,8 @@ int run(Client &c, const char *addr, const char *port) {
     return nwrite;
   }
 
+  c.schedule_retransmit();
+
   ev_run(EV_DEFAULT, 0);
 
   return 0;
