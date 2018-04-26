@@ -705,6 +705,8 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 namespace {
 int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
                       size_t datalen, void *user_data) {
+  int rv;
+
   if (!config.quiet) {
     debug::print_stream_data(0, data, datalen);
   }
@@ -713,9 +715,11 @@ int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
 
   h->write_client_handshake(data, datalen);
 
-  if (!ngtcp2_conn_get_handshake_completed(h->conn()) &&
-      h->tls_handshake() != 0) {
-    return NGTCP2_ERR_TLS_HANDSHAKE;
+  if (!ngtcp2_conn_get_handshake_completed(h->conn())) {
+    rv = h->tls_handshake();
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   // SSL_do_handshake() might not consume all data (e.g.,
@@ -869,7 +873,7 @@ int Handler::tls_handshake() {
       case SSL_ERROR_WANT_WRITE: {
         if (SSL_get_early_data_status(ssl_) == SSL_EARLY_DATA_ACCEPTED &&
             setup_early_crypto_context() != 0) {
-          return -1;
+          return NGTCP2_ERR_INTERNAL;
         }
         setup_crypto_context();
         return 0;
@@ -877,15 +881,19 @@ int Handler::tls_handshake() {
       case SSL_ERROR_SSL:
         std::cerr << "TLS handshake error: "
                   << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-        return -1;
+        return NGTCP2_ERR_TLS_HANDSHAKE;
       default:
         std::cerr << "TLS handshake error: " << err << std::endl;
-        return -1;
+        return NGTCP2_ERR_TLS_HANDSHAKE;
       }
       break;
     }
     case SSL_READ_EARLY_DATA_SUCCESS:
       std::cerr << "SSL_READ_EARLY_DATA_SUCCESS" << std::endl;
+      // Reading 0-RTT data in TLS stream is a protocol violation.
+      if (nread > 0) {
+        return NGTCP2_ERR_PROTO;
+      }
       break;
     case SSL_READ_EARLY_DATA_FINISH:
       std::cerr << "SSL_READ_EARLY_DATA_FINISH" << std::endl;
@@ -895,7 +903,7 @@ int Handler::tls_handshake() {
     // TODO How to effectively know that TLS stack generated
     // ServerHello?
     if (setup_crypto_context() != 0) {
-      return -1;
+      return NGTCP2_ERR_INTERNAL;
     }
   }
 
@@ -909,10 +917,10 @@ int Handler::tls_handshake() {
     case SSL_ERROR_SSL:
       std::cerr << "TLS handshake error: "
                 << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      return -1;
+      return NGTCP2_ERR_TLS_HANDSHAKE;
     default:
       std::cerr << "TLS handshake error: " << err << std::endl;
-      return -1;
+      return NGTCP2_ERR_TLS_HANDSHAKE;
     }
   }
 
@@ -961,7 +969,7 @@ int Handler::read_tls() {
     if (rv == 1) {
       std::cerr << "Reads " << nread << " bytes from TLS stream 0."
                 << std::endl;
-      continue;
+      return NGTCP2_ERR_PROTO;
     }
     auto err = SSL_get_error(ssl_, 0);
     switch (err) {

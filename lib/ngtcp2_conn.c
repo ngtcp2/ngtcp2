@@ -106,6 +106,8 @@ static int conn_call_recv_stream0_data(ngtcp2_conn *conn, uint64_t offset,
   case NGTCP2_ERR_TLS_HANDSHAKE:
   case NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED:
   case NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED:
+  case NGTCP2_ERR_PROTO:
+  case NGTCP2_ERR_INTERNAL:
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return rv;
   default:
@@ -2046,6 +2048,69 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
+ * conn_write_single_frame_pkt writes a unprotected packet which
+ * contains |fr| frame only in the buffer pointed by |dest| whose
+ * length if |destlen|.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOBUF
+ *     Buffer is too small.
+ */
+static ssize_t conn_write_single_frame_handshake_pkt(ngtcp2_conn *conn,
+                                                     uint8_t *dest,
+                                                     size_t destlen,
+                                                     ngtcp2_frame *fr,
+                                                     ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_ppe ppe;
+  ngtcp2_pkt_hd hd;
+  ssize_t nwrite;
+  ngtcp2_crypto_ctx ctx;
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
+                     &conn->dcid, &conn->scid, conn->last_tx_pkt_num + 1,
+                     conn->version, 0);
+
+  ctx.ckm = conn->hs_tx_ckm;
+  ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
+  ctx.encrypt = conn->callbacks.hs_encrypt;
+  ctx.user_data = conn;
+
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = ngtcp2_ppe_encode_frame(&ppe, fr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  ngtcp2_log_tx_fr(&conn->log, &hd, fr);
+
+  nwrite = ngtcp2_ppe_final(&ppe, NULL);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  /* Do this when we are sure that there is no error. */
+  if (fr->type == NGTCP2_FRAME_ACK) {
+    ngtcp2_acktr_add_ack(&conn->acktr, hd.pkt_num, &fr->ack, ts,
+                         1 /* unprotected */, 1 /* ack_only */);
+  }
+
+  ++conn->last_tx_pkt_num;
+
+  return nwrite;
+}
+
+/*
  * conn_write_protected_ack_pkt writes a protected QUIC packet which
  * only includes ACK frame in the buffer pointed by |dest| whose
  * length is |destlen|.
@@ -2933,7 +2998,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
       if (hd.type == NGTCP2_PKT_HANDSHAKE) {
-        require_ack = 1;
         conn_recv_connection_close(conn);
         continue;
       }
@@ -3058,7 +3122,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return rv;
   }
 
-  return handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : (ssize_t)pktlen;
+  return conn->state == NGTCP2_CS_DRAINING
+             ? NGTCP2_ERR_DRAINING
+             : handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : (ssize_t)pktlen;
 }
 
 /*
@@ -5018,19 +5084,30 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   switch (conn->state) {
-  case NGTCP2_CS_POST_HANDSHAKE:
-    fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
-    fr.connection_close.error_code = error_code;
-    fr.connection_close.reasonlen = 0;
-    fr.connection_close.reason = NULL;
-
-    nwrite = conn_write_single_frame_pkt(conn, dest, destlen, &fr, ts);
-    if (nwrite > 0) {
-      conn->state = NGTCP2_CS_CLOSING;
-    }
-    break;
-  default:
+  case NGTCP2_CS_CLIENT_INITIAL:
+  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
+  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+  case NGTCP2_CS_CLOSING:
+  case NGTCP2_CS_DRAINING:
     return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
+  fr.connection_close.error_code = error_code;
+  fr.connection_close.reasonlen = 0;
+  fr.connection_close.reason = NULL;
+
+  if (conn->state == NGTCP2_CS_POST_HANDSHAKE) {
+    nwrite = conn_write_single_frame_pkt(conn, dest, destlen, &fr, ts);
+  } else if (conn->hs_tx_ckm) {
+    nwrite =
+        conn_write_single_frame_handshake_pkt(conn, dest, destlen, &fr, ts);
+  } else {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  if (nwrite > 0) {
+    conn->state = NGTCP2_CS_CLOSING;
   }
 
   return nwrite;
