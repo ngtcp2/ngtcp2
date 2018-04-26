@@ -259,3 +259,18 @@ void rcid_init(ngtcp2_cid *cid) {
                               "\xaa\xaa\xaa\xaa\xaa\xdd";
   ngtcp2_cid_init(cid, id, sizeof(id) - 1);
 }
+
+uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
+                             const ngtcp2_cid *scid) {
+  size_t nread;
+
+  return ngtcp2_get_varint(&nread,
+                           &pkt[1 + 4 + 1 + dcid->datalen + scid->datalen]);
+}
+
+void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
+                          const ngtcp2_cid *scid, uint64_t payloadlen) {
+  assert(payloadlen < 16384);
+  ngtcp2_put_varint14(&pkt[1 + 4 + 1 + dcid->datalen + scid->datalen],
+                      (uint16_t)payloadlen);
+}

@@ -55,5 +55,7 @@ void test_ngtcp2_conn_recv_ping(void);
 void test_ngtcp2_conn_recv_max_stream_data(void);
 void test_ngtcp2_conn_send_early_data(void);
 void test_ngtcp2_conn_recv_early_data(void);
+void test_ngtcp2_conn_recv_compound_pkt(void);
+void test_ngtcp2_conn_pkt_payloadlen(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

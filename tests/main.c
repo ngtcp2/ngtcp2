@@ -192,7 +192,11 @@ int main() {
       !CU_add_test(pSuite, "conn_send_early_data",
                    test_ngtcp2_conn_send_early_data) ||
       !CU_add_test(pSuite, "conn_recv_early_data",
-                   test_ngtcp2_conn_recv_early_data)) {
+                   test_ngtcp2_conn_recv_early_data) ||
+      !CU_add_test(pSuite, "conn_recv_compound_pkt",
+                   test_ngtcp2_conn_recv_compound_pkt) ||
+      !CU_add_test(pSuite, "conn_pkt_payloadlen",
+                   test_ngtcp2_conn_pkt_payloadlen)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

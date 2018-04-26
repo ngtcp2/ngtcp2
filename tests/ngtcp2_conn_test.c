@@ -2816,3 +2816,116 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_recv_compound_pkt(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ssize_t spktlen;
+  ngtcp2_frame fr;
+  uint64_t pkt_num = 1;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_acktr_entry *ackent;
+  int rv;
+
+  /* 2 QUIC long packets in one UDP packet */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 131;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->scid, &conn->dcid,
+      ++pkt_num, conn->version, &fr);
+
+  pktlen += write_single_frame_handshake_pkt(
+      conn, buf + pktlen, sizeof(buf) - pktlen, NGTCP2_PKT_INITIAL, &conn->scid,
+      &conn->scid, ++pkt_num, conn->version, &fr);
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ackent = conn->acktr.ent;
+
+  CU_ASSERT(ackent->pkt_num == pkt_num);
+
+  ackent = ackent->next;
+
+  CU_ASSERT(ackent->pkt_num == pkt_num - 1);
+
+  ngtcp2_conn_del(conn);
+
+  /* 1 long packet and 1 short packet in one UDP packet */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PADDING;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
+      ++pkt_num, conn->version, &fr);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 426;
+  fr.stream.data = null_data;
+
+  pktlen += write_single_frame_pkt(conn, buf + pktlen, sizeof(buf) - pktlen,
+                                   &conn->scid, ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ackent = conn->acktr.ent;
+
+  CU_ASSERT(ackent->pkt_num == pkt_num);
+
+  ackent = ackent->next;
+
+  CU_ASSERT(ackent->pkt_num == pkt_num - 1);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_pkt_payloadlen(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ssize_t spktlen;
+  ngtcp2_frame fr;
+  uint64_t pkt_num = 1;
+  ngtcp2_tstamp t = 0;
+  uint64_t payloadlen;
+
+  /* Payload length is invalid */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 131;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->scid, &conn->dcid,
+      ++pkt_num, conn->version, &fr);
+
+  payloadlen = read_pkt_payloadlen(buf, &conn->dcid, &conn->scid);
+  write_pkt_payloadlen(buf, &conn->dcid, &conn->scid, payloadlen + 1);
+
+  /* The incoming packet should be ignored */
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
+
+  CU_ASSERT(spktlen == 0);
+  CU_ASSERT(NULL == conn->acktr.ent);
+
+  ngtcp2_conn_del(conn);
+}

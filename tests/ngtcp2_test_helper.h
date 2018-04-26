@@ -132,4 +132,18 @@ void scid_init(ngtcp2_cid *cid);
 void dcid_init(ngtcp2_cid *cid);
 void rcid_init(ngtcp2_cid *cid);
 
+/*
+ * read_pkt_payloadlen reads long header payload length field from
+ * |pkt|.
+ */
+uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
+                             const ngtcp2_cid *scid);
+
+/*
+ * write_pkt_payloadlen writes long header payload length field into
+ * |pkt|.
+ */
+void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
+                          const ngtcp2_cid *scid, uint64_t payloadlen);
+
 #endif /* NGTCP2_TEST_HELPER_H */
