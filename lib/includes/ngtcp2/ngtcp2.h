@@ -646,6 +646,14 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,
  * other words, this function succeeds even if payload length >
  * |pktlen|.
  *
+ * This function handles Version Negotiation specially.  If version
+ * field is 0, |pkt| must contain Version Negotiation packet.  Version
+ * Negotiation packet has random type in wire format.  For
+ * convenience, this function sets
+ * :enum:`NGTCP2_PKT_VERSION_NEGOTIATION` to dest->type, and set
+ * dest->payloadlen and dest->pkt_num to 0.  Version Negotiation
+ * packet occupies a single packet.
+ *
  * It stores the result in the object pointed by |dest|, and returns
  * the number of bytes decoded to read the packet header if it
  * succeeds, or one of the following error codes:

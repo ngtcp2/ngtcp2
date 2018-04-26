@@ -66,8 +66,8 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   /* VN */
   /* Set random packet type */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, 0x11, &dcid, &scid, 0, 0,
-                     0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
+                     &dcid, &scid, 0, 0, 0);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 

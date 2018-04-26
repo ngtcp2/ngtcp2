@@ -72,30 +72,26 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   version = ngtcp2_get_uint32(&pkt[1]);
 
   if (version == 0) {
+    type = NGTCP2_PKT_VERSION_NEGOTIATION;
     /* This must be Version Negotiation packet which lacks packet
        number and payload length fields. */
     len = 5 + 1;
   } else {
+    type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
+    switch (type) {
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_RETRY:
+    case NGTCP2_PKT_HANDSHAKE:
+    case NGTCP2_PKT_0RTT_PROTECTED:
+      break;
+    default:
+      return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
+    }
     len = NGTCP2_MIN_LONG_HEADERLEN;
   }
 
   if (pktlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
-  switch (type) {
-  case NGTCP2_PKT_INITIAL:
-  case NGTCP2_PKT_RETRY:
-  case NGTCP2_PKT_HANDSHAKE:
-  case NGTCP2_PKT_0RTT_PROTECTED:
-    break;
-  default:
-    if (version == 0) {
-      type = NGTCP2_PKT_VERSION_NEGOTIATION;
-      break;
-    }
-    return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
   }
 
   dcil = pkt[5] >> 4;
@@ -118,10 +114,10 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     p = &pkt[6 + dcil + scil];
 
     len += ngtcp2_get_varint_len(p) - 1;
-  }
 
-  if (pktlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+    if (pktlen < len) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
   }
 
   dest->flags = NGTCP2_PKT_FLAG_LONG_FORM;
