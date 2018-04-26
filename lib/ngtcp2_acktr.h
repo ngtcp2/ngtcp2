@@ -102,6 +102,9 @@ typedef enum {
      acknowledgement for ACK which acknowledges the last handshake
      packet from client (which contains TLSv1.3 Finished message). */
   NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK = 0x80,
+  /* NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED is set when delayed ACK
+     timer is expired. */
+  NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED = 0x0100,
 } ngtcp2_acktr_flag;
 
 /*
@@ -128,7 +131,7 @@ typedef struct {
      the local endpoint can start rejecting unprotected packet.*/
   uint64_t last_hs_ack_pkt_num;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
-  uint8_t flags;
+  uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
      first time after the last outgoing protected ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
@@ -228,6 +231,13 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected);
  */
 int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
                                     uint64_t max_ack_delay, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_acktr_expire_delayed_ack expires delayed ACK timer.  This
+ * function sets NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED so that we know
+ * that the timer has expired.
+ */
+void ngtcp2_acktr_expire_delayed_ack(ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_include_protected_pkt returns nonzero if |acktr|

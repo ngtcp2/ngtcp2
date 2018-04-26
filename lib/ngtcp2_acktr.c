@@ -358,9 +358,10 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
 
 void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected) {
   if (unprotected) {
-    acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
+    acktr->flags &= (uint16_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   } else {
-    acktr->flags &= (uint8_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
+    acktr->flags &= (uint16_t) ~(NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED |
+                                 NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED);
     acktr->first_unacked_ts = UINT64_MAX;
   }
 }
@@ -371,7 +372,13 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
     return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
   }
   return (acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED) &&
-         acktr->first_unacked_ts <= ts - max_ack_delay;
+         ((acktr->flags & NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED) ||
+          acktr->first_unacked_ts <= ts - max_ack_delay);
+}
+
+void ngtcp2_acktr_expire_delayed_ack(ngtcp2_acktr *acktr) {
+  acktr->flags |= NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED;
+  acktr->first_unacked_ts = UINT64_MAX;
 }
 
 int ngtcp2_acktr_include_protected_pkt(ngtcp2_acktr *acktr) {

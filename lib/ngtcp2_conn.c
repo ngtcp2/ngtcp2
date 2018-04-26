@@ -487,9 +487,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
       ;
   }
   if (*prpkt == NULL) {
-    if (!unprotected) {
-      conn->acktr.first_unacked_ts = UINT64_MAX;
-    }
+    ngtcp2_acktr_commit_ack(&conn->acktr, unprotected);
     return 0;
   }
 
@@ -4096,6 +4094,27 @@ int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   return rv;
 }
 
+/*
+ * conn_handle_delayed_ack_expiry handles expired delayed ACK timer
+ * during handshake.  The delayed ACK timer is only used for ACK frame
+ * in protected packet, but it starts during handshake.  Application
+ * may be awakened by this timer and attempt to send ACK, but this is
+ * ACK for protected packet.  We have no key so we cannot send any
+ * protected packet.  Timer keeps firing and it could become busy loop
+ * until handshake finishes.  We can disable it during handshake, but
+ * 0-RTT stuff complicates this.  This function checks that delayed
+ * ACK timer has expired, and if so disarm timer.  We have internal
+ * flag which shows that timer has expired.
+ */
+static void conn_handle_delayed_ack_expiry(ngtcp2_conn *conn,
+                                           ngtcp2_tstamp ts) {
+  if (ngtcp2_conn_ack_delay_expiry(conn) > ts) {
+    return;
+  }
+
+  ngtcp2_acktr_expire_delayed_ack(&conn->acktr);
+}
+
 static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               const uint8_t *pkt, size_t pktlen,
                               int require_padding, ngtcp2_tstamp ts) {
@@ -4110,6 +4129,8 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
                     pktlen);
   }
+
+  conn_handle_delayed_ack_expiry(conn, ts);
 
   if (conn->last_tx_pkt_num == UINT64_MAX) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
