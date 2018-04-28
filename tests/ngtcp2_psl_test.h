@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2018 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,16 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_ROB_TEST_H
-#define NGTCP2_ROB_TEST_H
+#ifndef NGTCP2_PSL_TEST_H
+#define NGTCP2_PSL_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_rob_push(void);
-void test_ngtcp2_rob_push_random(void);
-void test_ngtcp2_rob_data_at(void);
-void test_ngtcp2_rob_remove_prefix(void);
+void test_ngtcp2_psl_insert(void);
 
-#endif /* NGTCP2_ROB_TEST_H */
+#endif /* NGTCP2_PSL_TEST_H */

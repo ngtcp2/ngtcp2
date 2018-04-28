@@ -33,6 +33,7 @@
 
 #include "ngtcp2_mem.h"
 #include "ngtcp2_range.h"
+#include "ngtcp2_psl.h"
 
 struct ngtcp2_rob_gap;
 typedef struct ngtcp2_rob_gap ngtcp2_rob_gap;
@@ -42,10 +43,6 @@ typedef struct ngtcp2_rob_gap ngtcp2_rob_gap;
  * data that is not received yet.
  */
 struct ngtcp2_rob_gap {
-  /* next points to the next gap.  This singly linked list is ordered
-     by range.begin in the increasing order, and they never
-     overlap. */
-  ngtcp2_rob_gap *next;
   /* range is the range of this gap. */
   ngtcp2_range range;
 };
@@ -79,15 +76,12 @@ typedef struct ngtcp2_rob_data ngtcp2_rob_data;
  * ngtcp2_rob_data holds the buffered stream data.
  */
 struct ngtcp2_rob_data {
-  /* next points to the next data.  This singly linked list is ordered
-     by offset in the increasing order, and they never overlap. */
-  ngtcp2_rob_data *next;
+  /* range is the range of this gap. */
+  ngtcp2_range range;
   /* begin points to the buffer. */
   uint8_t *begin;
   /* end points to the one beyond of the last byte of the buffer */
   uint8_t *end;
-  /* offset is a stream offset of begin. */
-  uint64_t offset;
 };
 
 /*
@@ -119,12 +113,12 @@ void ngtcp2_rob_data_del(ngtcp2_rob_data *d, ngtcp2_mem *mem);
  * received in out of order.
  */
 typedef struct {
-  /* gap maintains the range of offset which is not received
+  /* gappsl maintains the range of offset which is not received
      yet. Initially, its range is [0, UINT64_MAX). */
-  ngtcp2_rob_gap *gap;
-  /* data maintains the list of buffers which store received data
+  ngtcp2_psl gappsl;
+  /* datapsl maintains the list of buffers which store received data
      ordered by stream offset. */
-  ngtcp2_rob_data *data;
+  ngtcp2_psl datapsl;
   /* mem is custom memory allocator */
   ngtcp2_mem *mem;
   /* chunk is the size of each buffer in data field */
