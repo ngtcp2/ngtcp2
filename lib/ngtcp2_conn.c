@@ -1121,7 +1121,7 @@ static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
   int rv;
 
   for (; ent; ent = ent->next) {
-    if (!ent->frc) {
+    if (!ent->frc || (ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
       continue;
     }
 
