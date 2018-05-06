@@ -47,7 +47,7 @@ void test_ngtcp2_psl_insert(void) {
     ngtcp2_psl_insert(&psl, NULL, &keys[i], NULL);
     it = ngtcp2_psl_lower_bound(&psl, &keys[i]);
 
-    CU_ASSERT(ngtcp2_range_equal(&keys[i], ngtcp2_psl_it_range(&it)));
+    CU_ASSERT(ngtcp2_range_eq(&keys[i], ngtcp2_psl_it_range(&it)));
   }
 
   for (i = 0; i < arraylen(keys); ++i) {

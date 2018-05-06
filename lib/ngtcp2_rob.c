@@ -178,7 +178,7 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
     if (!ngtcp2_range_len(&m)) {
       break;
     }
-    if (ngtcp2_range_equal(&g->range, &m)) {
+    if (ngtcp2_range_eq(&g->range, &m)) {
       it = ngtcp2_psl_remove(&rob->gappsl, &g->range);
       ngtcp2_rob_gap_del(g, rob->mem);
       rv = rob_write_data(rob, m.begin, data + (m.begin - offset),

@@ -355,7 +355,7 @@ ngtcp2_psl_it ngtcp2_psl_remove(ngtcp2_psl *psl, const ngtcp2_range *range) {
       return it;
     }
 
-    if (ngtcp2_range_equal(&node->range, range)) {
+    if (ngtcp2_range_eq(&node->range, range)) {
       i = psl_relocate_node(psl, blk, i);
       node = &blk->nodes[i];
     }
@@ -416,12 +416,12 @@ void ngtcp2_psl_update_range(ngtcp2_psl *psl, const ngtcp2_range *old_range,
       ;
 
     if (blk->leaf) {
-      assert(ngtcp2_range_equal(&node->range, old_range));
+      assert(ngtcp2_range_eq(&node->range, old_range));
       node->range = *new_range;
       return;
     }
 
-    if (ngtcp2_range_equal(&node->range, old_range)) {
+    if (ngtcp2_range_eq(&node->range, old_range)) {
       node->range = *new_range;
     } else {
       assert(!range_intersect(&node->range, old_range));
@@ -486,7 +486,7 @@ void ngtcp2_psl_it_next(ngtcp2_psl_it *it) {
 
 int ngtcp2_psl_it_end(const ngtcp2_psl_it *it) {
   ngtcp2_range end = {UINT64_MAX, UINT64_MAX};
-  return ngtcp2_range_equal(&end, &it->blk->nodes[it->i].range);
+  return ngtcp2_range_eq(&end, &it->blk->nodes[it->i].range);
 }
 
 const ngtcp2_range *ngtcp2_psl_it_range(const ngtcp2_psl_it *it) {

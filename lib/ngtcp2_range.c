@@ -43,7 +43,7 @@ ngtcp2_range ngtcp2_range_intersect(const ngtcp2_range *a,
 
 uint64_t ngtcp2_range_len(const ngtcp2_range *r) { return r->end - r->begin; }
 
-int ngtcp2_range_equal(const ngtcp2_range *a, const ngtcp2_range *b) {
+int ngtcp2_range_eq(const ngtcp2_range *a, const ngtcp2_range *b) {
   return a->begin == b->begin && a->end == b->end;
 }
 

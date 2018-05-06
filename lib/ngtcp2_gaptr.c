@@ -92,7 +92,7 @@ int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen) {
   for (pg = &gaptr->gap; *pg;) {
     m = ngtcp2_range_intersect(&q, &(*pg)->range);
     if (ngtcp2_range_len(&m)) {
-      if (ngtcp2_range_equal(&(*pg)->range, &m)) {
+      if (ngtcp2_range_eq(&(*pg)->range, &m)) {
         remove_gap(pg, gaptr->mem);
         continue;
       }
