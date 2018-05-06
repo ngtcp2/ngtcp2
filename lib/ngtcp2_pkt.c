@@ -191,12 +191,8 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   dest->type = type;
 
-  if (dcidlen) {
-    ngtcp2_cid_init(&dest->dcid, p, dcidlen);
-    p += dcidlen;
-  } else {
-    ngtcp2_cid_zero(&dest->dcid);
-  }
+  ngtcp2_cid_init(&dest->dcid, p, dcidlen);
+  p += dcidlen;
 
   /* Set 0 to SCID so that we don't accidentally reference it and gets
      garbage. */
