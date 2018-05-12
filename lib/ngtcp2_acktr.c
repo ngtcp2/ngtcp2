@@ -202,8 +202,18 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
   ngtcp2_acktr_ack_entry *ent;
 
   if (unprotected) {
+    if (ngtcp2_ringbuf_full(&acktr->hs_acks)) {
+      ent = ngtcp2_ringbuf_get(&acktr->hs_acks,
+                               ngtcp2_ringbuf_len(&acktr->hs_acks) - 1);
+      ngtcp2_mem_free(acktr->mem, ent->ack);
+    }
     ent = ngtcp2_ringbuf_push_front(&acktr->hs_acks);
   } else {
+    if (ngtcp2_ringbuf_full(&acktr->acks)) {
+      ent = ngtcp2_ringbuf_get(&acktr->acks,
+                               ngtcp2_ringbuf_len(&acktr->acks) - 1);
+      ngtcp2_mem_free(acktr->mem, ent->ack);
+    }
     ent = ngtcp2_ringbuf_push_front(&acktr->acks);
   }
   ent->ack = fr;
