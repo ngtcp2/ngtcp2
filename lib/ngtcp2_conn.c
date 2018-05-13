@@ -2226,7 +2226,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   conn->log.last_ts = ts;
 
-  if (conn->last_tx_pkt_num == UINT64_MAX) {
+  if (conn->last_tx_pkt_num == NGTCP2_MAX_PKT_NUM) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
@@ -4202,7 +4202,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   conn_handle_delayed_ack_expiry(conn, ts);
 
-  if (conn->last_tx_pkt_num == UINT64_MAX) {
+  if (conn->last_tx_pkt_num == NGTCP2_MAX_PKT_NUM) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
@@ -5018,7 +5018,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_DRAINING;
   }
 
-  if (conn->last_tx_pkt_num == UINT64_MAX) {
+  if (conn->last_tx_pkt_num == NGTCP2_MAX_PKT_NUM) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
@@ -5083,7 +5083,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
 
   conn->log.last_ts = ts;
 
-  if (conn->last_tx_pkt_num == UINT64_MAX) {
+  if (conn->last_tx_pkt_num == NGTCP2_MAX_PKT_NUM) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
@@ -5130,7 +5130,7 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (conn->last_tx_pkt_num == UINT64_MAX) {
+  if (conn->last_tx_pkt_num == NGTCP2_MAX_PKT_NUM) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
