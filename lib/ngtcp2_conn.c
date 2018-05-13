@@ -1114,13 +1114,17 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  */
 static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ngtcp2_tstamp ts) {
-  ngtcp2_rtb_entry *ent = ngtcp2_rtb_head(&conn->rtb);
+  ngtcp2_rtb_entry *ent;
   ssize_t nwrite;
   ngtcp2_frame_chain *nfrc;
   ngtcp2_rtb_entry *nent;
   int rv;
+  ngtcp2_ksl_it it;
 
-  for (; ent; ent = ent->next) {
+  it = ngtcp2_rtb_head(&conn->rtb);
+
+  for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
+    ent = ngtcp2_ksl_it_get(&it);
     if (!ent->frc || (ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
       continue;
     }
@@ -5400,10 +5404,9 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
   uint64_t alarm_duration;
   ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it = ngtcp2_rtb_head(&conn->rtb);
 
-  ent = ngtcp2_rtb_head(&conn->rtb);
-
-  if (!ent) {
+  if (ngtcp2_ksl_it_end(&it)) {
     if (rcs->loss_detection_alarm) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                       "loss detection alarm canceled");
@@ -5434,6 +5437,7 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   }
 
   if (rcs->loss_time) {
+    ent = ngtcp2_ksl_it_get(&it);
     assert(rcs->loss_time >= ent->ts);
     alarm_duration = rcs->loss_time - rcs->last_tx_pkt_ts;
   } else {

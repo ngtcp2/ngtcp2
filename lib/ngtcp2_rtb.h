@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_ksl.h"
+
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
@@ -156,9 +158,9 @@ typedef struct {
  */
 typedef struct {
   ngtcp2_cc_stat ccs;
-  /* head points to the singly linked list of ngtcp2_rtb_entry, sorted
-     by decreasing order of packet number. */
-  ngtcp2_rtb_entry *head;
+  /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
+     packet number. */
+  ngtcp2_ksl ents;
   /* lost_unprotected_head is like head, but it only includes
      unprotected packet entries which are considered to be lost.
      Currently, this list is not listed in the particular order. */
@@ -204,16 +206,11 @@ void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head);
 
 /*
- * ngtcp2_rtb_head returns the entry which has the largest packet
- * number.  It returns NULL if there is no entry.
+ * ngtcp2_rtb_head returns the iterator which points to the entry
+ * which has the largest packet number.  If there is no entry,
+ * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
-ngtcp2_rtb_entry *ngtcp2_rtb_head(ngtcp2_rtb *rtb);
-
-/*
- * ngtcp2_rtb_pop removes the last unacknowledged entry in |rtb|.  It
- * does nothing if there is no entry.
- */
-void ngtcp2_rtb_pop(ngtcp2_rtb *rtb);
+ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_lost_protected_head returns the first element of lost

@@ -1590,7 +1590,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   /* Overflow */
   setup_default_client(&conn);
   conn->rtb.largest_acked_tx_pkt_num = 1;
-  conn->last_tx_pkt_num = 0x8000000000000000llu;
+  conn->last_tx_pkt_num = NGTCP2_MAX_PKT_NUM - 1;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -2020,6 +2020,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_frame fr;
   ngtcp2_rtb_entry *ent;
   uint64_t stream_id, stream_id_a, stream_id_b;
+  ngtcp2_ksl_it it;
 
   /* Retransmit a packet completely */
   setup_default_client(&conn);
@@ -2033,13 +2034,17 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  ent = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->rtb);
+  ent = ngtcp2_ksl_it_get(&it);
   ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
                              ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ent == ngtcp2_rtb_head(&conn->rtb));
+
+  it = ngtcp2_rtb_head(&conn->rtb);
+
+  CU_ASSERT(ent == ngtcp2_ksl_it_get(&it));
 
   ngtcp2_conn_del(conn);
 
@@ -2061,13 +2066,17 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  ent = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->rtb);
+  ent = ngtcp2_ksl_it_get(&it);
   ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
                              ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, (size_t)(spktlen - 1), ++t);
 
   CU_ASSERT(0 == spktlen);
-  CU_ASSERT(NULL == ngtcp2_rtb_head(&conn->rtb));
+
+  it = ngtcp2_rtb_head(&conn->rtb);
+
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
   CU_ASSERT(ent == conn->rtb.lost_protected_head);
   CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_protected_head(&conn->rtb)));
 
@@ -2094,7 +2103,8 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  ent = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->rtb);
+  ent = ngtcp2_ksl_it_get(&it);
   ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
                              ++t);
 
