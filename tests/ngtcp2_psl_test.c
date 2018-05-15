@@ -84,8 +84,8 @@ void test_ngtcp2_psl_insert(void) {
 
   pr = &psl.head->nodes[0].range;
 
-  CU_ASSERT(6 == pr->begin);
-  CU_ASSERT(7 == pr->end);
+  CU_ASSERT(8 == pr->begin);
+  CU_ASSERT(9 == pr->end);
 
   ngtcp2_psl_free(&psl);
 

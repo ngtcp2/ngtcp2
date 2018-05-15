@@ -120,7 +120,7 @@ static ngtcp2_psl_blk *psl_split_blk(ngtcp2_psl *psl, ngtcp2_psl_blk *blk) {
 static int psl_split_node(ngtcp2_psl *psl, ngtcp2_psl_blk *blk, size_t i) {
   ngtcp2_psl_blk *lblk = blk->nodes[i].blk, *rblk;
 
-  assert(blk->n < NGTCP2_PSL_NBLK);
+  assert(blk->n <= NGTCP2_PSL_NBLK);
 
   rblk = psl_split_blk(psl, lblk);
   if (rblk == NULL) {
@@ -212,7 +212,7 @@ int ngtcp2_psl_insert(ngtcp2_psl *psl, ngtcp2_psl_it *it,
   size_t i;
   int rv;
 
-  if (blk->n + 1 == NGTCP2_PSL_NBLK) {
+  if (blk->n + 1 >= NGTCP2_PSL_NBLK) {
     rv = psl_split_head(psl);
     if (rv != 0) {
       return rv;
@@ -235,7 +235,7 @@ int ngtcp2_psl_insert(ngtcp2_psl *psl, ngtcp2_psl_it *it,
       return 0;
     }
 
-    if (node->blk->n + 1 == NGTCP2_PSL_NBLK) {
+    if (node->blk->n + 1 >= NGTCP2_PSL_NBLK) {
       rv = psl_split_node(psl, blk, i);
       if (rv != 0) {
         return rv;
@@ -305,27 +305,30 @@ static ngtcp2_psl_blk *psl_merge_node(ngtcp2_psl *psl, ngtcp2_psl_blk *blk,
  *
  * It returns the index of the block in |blk| where the node is moved.
  */
-static size_t psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk *blk,
+static size_t psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
                                 size_t i) {
+  ngtcp2_psl_blk *blk = *pblk;
   ngtcp2_psl_node *node = &blk->nodes[i];
   ngtcp2_psl_node *rnode = &blk->nodes[i + 1];
 
   assert(blk->n > i + 1);
+  assert(node->blk->n < NGTCP2_PSL_NBLK || rnode->blk->n < NGTCP2_PSL_NBLK);
 
-  if (node->blk->n == 1) {
-    memcpy(&node->blk->nodes[1], &rnode->blk->nodes[0],
-           sizeof(ngtcp2_psl_node) * rnode->blk->n);
+  if (node->blk->n + rnode->blk->n < NGTCP2_PSL_NBLK) {
+    blk = psl_merge_node(psl, blk, i);
+    if (blk == psl->head) {
+      *pblk = blk;
+    }
+    return i;
+  }
 
-    node->blk->n += rnode->blk->n;
-    node->blk->next = rnode->blk->next;
-    node->range = rnode->range;
-
-    ngtcp2_mem_free(psl->mem, rnode->blk);
-
-    memmove(&blk->nodes[i + 1], &blk->nodes[i + 2],
-            sizeof(ngtcp2_psl_node) * (blk->n - (i + 2)));
-
-    --blk->n;
+  if (node->blk->n < rnode->blk->n) {
+    node->blk->nodes[node->blk->n] = rnode->blk->nodes[0];
+    memmove(&rnode->blk->nodes[0], &rnode->blk->nodes[1],
+            sizeof(ngtcp2_psl_node) * (rnode->blk->n - 1));
+    --rnode->blk->n;
+    ++node->blk->n;
+    node->range = node->blk->nodes[node->blk->n - 1].range;
     return i;
   }
 
@@ -365,7 +368,7 @@ ngtcp2_psl_it ngtcp2_psl_remove(ngtcp2_psl *psl, const ngtcp2_range *range) {
     }
 
     if (ngtcp2_range_eq(&node->range, range)) {
-      i = psl_relocate_node(psl, blk, i);
+      i = psl_relocate_node(psl, &blk, i);
       node = &blk->nodes[i];
     }
 

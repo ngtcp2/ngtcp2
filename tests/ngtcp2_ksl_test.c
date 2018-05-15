@@ -74,7 +74,7 @@ void test_ngtcp2_ksl_insert(void) {
   it = ngtcp2_ksl_lower_bound(&ksl, 8);
 
   CU_ASSERT(8 == ngtcp2_ksl_it_key(&it));
-  CU_ASSERT(6 == ksl.head->nodes[0].key);
+  CU_ASSERT(8 == ksl.head->nodes[0].key);
 
   ngtcp2_ksl_free(&ksl);
 
