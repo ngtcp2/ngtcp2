@@ -2314,6 +2314,10 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
     p = sv;
   }
 
+  /* TODO Just move to the terminal state for now in order not to send
+     CONNECTION_CLOSE frame. */
+  conn->state = NGTCP2_CS_DRAINING;
+
   nsv = ngtcp2_pkt_decode_version_negotiation(p, payload, payloadlen);
 
   ngtcp2_log_rx_vn(&conn->log, hd, sv, nsv);

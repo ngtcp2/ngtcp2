@@ -179,9 +179,6 @@ void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   case NETWORK_ERR_SEND_NON_FATAL:
     c->start_wev();
     return;
-  default:
-    c->disconnect();
-    return;
   }
 }
 } // namespace
@@ -191,7 +188,6 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
   auto c = static_cast<Client *>(w->data);
 
   if (c->on_read() != 0) {
-    c->disconnect();
     return;
   }
   auto rv = c->on_write();
@@ -200,9 +196,6 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
     return;
   case NETWORK_ERR_SEND_NON_FATAL:
     c->start_wev();
-    return;
-  default:
-    c->disconnect();
     return;
   }
 }
@@ -998,6 +991,9 @@ int Client::on_write(bool retransmit) {
   if (sendbuf_.size() > 0) {
     auto rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
+      if (rv != NETWORK_ERR_SEND_NON_FATAL) {
+        disconnect(NGTCP2_ERR_INTERNAL);
+      }
       return rv;
     }
   }
@@ -1527,6 +1523,10 @@ int Client::handle_error(int liberr) {
   sendbuf_.reset();
   assert(sendbuf_.left() >= max_pktlen_);
 
+  if (liberr == NGTCP2_ERR_RECV_VERSION_NEGOTIATION) {
+    return 0;
+  }
+
   auto n = ngtcp2_conn_write_connection_close(
       conn_, sendbuf_.wpos(), max_pktlen_,
       ngtcp2_err_infer_quic_transport_error_code(liberr),
@@ -1959,14 +1959,6 @@ int run(Client &c, const char *addr, const char *port) {
 } // namespace
 
 namespace {
-void close(Client &c) {
-  c.disconnect();
-
-  c.close();
-}
-} // namespace
-
-namespace {
 std::ofstream keylog_file;
 void keylog_callback(const SSL *ssl, const char *line) {
   keylog_file.write(line, strlen(line));
@@ -2210,8 +2202,6 @@ int main(int argc, char **argv) {
   if (run(c, addr, port) != 0) {
     exit(EXIT_FAILURE);
   }
-
-  close(c);
 
   return EXIT_SUCCESS;
 }
