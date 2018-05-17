@@ -2769,6 +2769,60 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                              size_t pktlen, ngtcp2_tstamp ts);
 
 /*
+ * conn_ensure_retry_ack_initial checks that |payload| of length
+ * |payloadlen| contains an ACK frame which acknowledges Initial
+ * packet.
+ *
+ * This function returns 0 if it succeeds, or 1 if there is no error
+ * but Initial packet is not acked, otherwise the following negative
+ * error codes:
+ *
+ * TBD
+ */
+static int conn_ensure_retry_ack_initial(ngtcp2_conn *conn,
+                                         const ngtcp2_pkt_hd *hd,
+                                         const uint8_t *payload,
+                                         size_t payloadlen, ngtcp2_tstamp ts) {
+  ssize_t nread;
+  ngtcp2_max_frame mfr;
+  ngtcp2_frame *fr = &mfr.fr;
+  int rv;
+
+  for (; payloadlen;) {
+    nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
+    if (nread < 0) {
+      return (int)nread;
+    }
+
+    payload += nread;
+    payloadlen -= (size_t)nread;
+
+    if (fr->type != NGTCP2_FRAME_ACK) {
+      continue;
+    }
+
+    conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 1);
+
+    ngtcp2_log_rx_fr(&conn->log, hd, fr);
+
+    /* TODO Assume that all packets here are unprotected */
+    rv = conn_recv_ack(conn, &fr->ack, 1, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+  /* Check that Initial packet is acknowledged.  We will increase
+     handshake packet timeout, so we eventually gets ACK from
+     peer. */
+  if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) !=
+      conn->strm0->tx_offset) {
+    return 1;
+  }
+
+  return 0;
+}
+
+/*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length if |pktlen| during handshake period.  The buffer pointed by
  * |pkt| might contain multiple packets.  This function only processes
@@ -2945,8 +2999,10 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (hd.scid.datalen && !ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
         return (ssize_t)pktlen;
       }
+      /* If we retransmit Initial we might get more than 1 Retry
+         packets.  Just ignore those late Retry packets. */
       if (conn->strm0->last_rx_offset != 0) {
-        return NGTCP2_ERR_PROTO;
+        return (ssize_t)pktlen;
       }
       /* hd.scid is a connection ID chosen by server, and client MUST
          use it as DCID in a subsequent packets. */
@@ -2972,6 +3028,25 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   payload = conn->decrypt_buf.base;
   payloadlen = (size_t)nwrite;
 
+  /* Make sure that Retry packet acknowledges our Initial packet */
+  if (hd.type == NGTCP2_PKT_RETRY) {
+    rv = conn_ensure_retry_ack_initial(conn, &hd, payload, payloadlen, ts);
+    if (rv != 0) {
+      if (rv < 0) {
+        return (ssize_t)rv;
+      }
+
+      assert(1 == rv);
+
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "packet %" PRIu64
+                      " does not acknowledge latest Initial packet",
+                      hd.pkt_num);
+
+      return (ssize_t)pktlen;
+    }
+  }
+
   for (; payloadlen;) {
     nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
     if (nread < 0) {
@@ -2982,6 +3057,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     payloadlen -= (size_t)nread;
 
     if (fr->type == NGTCP2_FRAME_ACK) {
+      if (hd.type == NGTCP2_PKT_RETRY) {
+        continue;
+      }
       conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 1);
     }
 
@@ -3106,14 +3184,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   if (hd.type == NGTCP2_PKT_RETRY) {
     if (handshake_failed) {
       return NGTCP2_ERR_PROTO;
-    }
-
-    /* Check that Initial packet is acknowledged.  We will increase
-       handshake packet timeout, so we eventually gets ACK from
-       peer. */
-    if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) !=
-        conn->strm0->tx_offset) {
-      return 0;
     }
 
     rv = conn_recv_server_stateless_retry(conn);
