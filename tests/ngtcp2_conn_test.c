@@ -1729,10 +1729,11 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   ngtcp2_frame fr;
   int rv;
 
-  /* STREAM frame */
+  /* STREAM frame within final_hs_rx_offset */
   setup_default_client(&conn);
 
   conn->final_hs_tx_offset = 999;
+  conn->final_hs_rx_offset = 567;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -1750,6 +1751,29 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == conn->acktr.nack);
   CU_ASSERT(conn->acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED);
+
+  ngtcp2_conn_del(conn);
+
+  /* STREAM frame beyond final_hs_rx_offset */
+  setup_default_client(&conn);
+
+  conn->final_hs_tx_offset = 999;
+  conn->final_hs_rx_offset = 100;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 567;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
+      NGTCP2_PROTO_VER_MAX, &fr);
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 
