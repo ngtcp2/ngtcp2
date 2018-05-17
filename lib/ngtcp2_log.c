@@ -356,12 +356,14 @@ static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                      const ngtcp2_new_connection_id *fr,
                                      const char *dir) {
   uint8_t buf[sizeof(fr->stateless_reset_token) * 2 + 1];
+  uint8_t cid[sizeof(fr->cid.data) * 2 + 1];
 
   log->log_printf(
       log->user_data,
-      (NGTCP2_LOG_PKT " NEW_CONNECTION_ID(0x%02x) seq=%u conn_id=0x%016" PRIx64
-                      " stateless_reset_token=%s\n"),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq, fr->conn_id,
+      (NGTCP2_LOG_PKT
+       " NEW_CONNECTION_ID(0x%02x) seq=%u cid=0x%s stateless_reset_token=%s\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq,
+      (const char *)ngtcp2_encode_hex(cid, fr->cid.data, fr->cid.datalen),
       (const char *)ngtcp2_encode_hex(buf, fr->stateless_reset_token,
                                       sizeof(fr->stateless_reset_token)));
 }

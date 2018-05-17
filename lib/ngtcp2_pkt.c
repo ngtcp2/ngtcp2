@@ -943,9 +943,10 @@ ssize_t ngtcp2_pkt_decode_stream_id_blocked_frame(
 
 ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
     ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen) {
-  size_t len = 1 + 1 + 8 + 16;
+  size_t len = 1 + 1 + 1 + 16;
   const uint8_t *p;
   size_t n;
+  size_t cil;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_FRAME_FORMAT;
@@ -960,11 +961,24 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
     return NGTCP2_ERR_FRAME_FORMAT;
   }
 
+  p += n;
+  cil = *p;
+  if (cil < 4 || cil > 18) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  len += cil;
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  p = payload + 1;
+
   dest->type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   dest->seq = (uint16_t)ngtcp2_get_varint(&n, p);
-  p += n;
-  dest->conn_id = ngtcp2_get_uint64(p);
-  p += 8;
+  p += n + 1;
+  ngtcp2_cid_init(&dest->cid, p, cil);
+  p += cil;
   memcpy(dest->stateless_reset_token, p, NGTCP2_STATELESS_RESET_TOKENLEN);
   p += NGTCP2_STATELESS_RESET_TOKENLEN;
 
@@ -1399,8 +1413,8 @@ ngtcp2_pkt_encode_stream_id_blocked_frame(uint8_t *out, size_t outlen,
 ssize_t
 ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
                                           const ngtcp2_new_connection_id *fr) {
-  size_t len =
-      1 + ngtcp2_put_varint_len(fr->seq) + 8 + NGTCP2_STATELESS_RESET_TOKENLEN;
+  size_t len = 1 + ngtcp2_put_varint_len(fr->seq) + 1 + fr->cid.datalen +
+               NGTCP2_STATELESS_RESET_TOKENLEN;
   uint8_t *p;
 
   if (outlen < len) {
@@ -1411,7 +1425,8 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
 
   *p++ = NGTCP2_FRAME_NEW_CONNECTION_ID;
   p = ngtcp2_put_varint(p, fr->seq);
-  p = ngtcp2_put_uint64be(p, fr->conn_id);
+  *p++ = (uint8_t)fr->cid.datalen;
+  p = ngtcp2_cpymem(p, fr->cid.data, fr->cid.datalen);
   p = ngtcp2_cpymem(p, fr->stateless_reset_token,
                     NGTCP2_STATELESS_RESET_TOKENLEN);
 
