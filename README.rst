@@ -12,8 +12,8 @@ Development status
 Second Implementation Draft
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We are focusing on implementing `4th Implementation Draft
-<https://github.com/quicwg/base-drafts/wiki/4th-Implementation-Draft>`_.
+We are focusing on implementing `5th Implementation Draft
+<https://github.com/quicwg/base-drafts/wiki/5th-Implementation-Draft>`_.
 
 * https://quicwg.github.io/base-drafts/draft-ietf-quic-transport.html
 * https://quicwg.github.io/base-drafts/draft-ietf-quic-tls.html
