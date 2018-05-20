@@ -948,8 +948,8 @@ int Handler::tls_handshake() {
   // TODO Create stream 0 to send post-handshake data.  Probably, we
   // should feed data in recv_stream0_data as well.
   auto stream = std::make_unique<Stream>(0);
-  if (shandshake_idx_ != shandshake_.size()) {
-    auto &v = shandshake_[shandshake_idx_++];
+  for (; shandshake_idx_ != shandshake_.size(); ++shandshake_idx_) {
+    auto &v = shandshake_[shandshake_idx_];
     stream->streambuf.emplace_back(v.rpos(), v.size());
   }
   streams_.emplace(0, std::move(stream));
