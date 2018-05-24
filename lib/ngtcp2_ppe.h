@@ -42,8 +42,16 @@ typedef struct {
   ngtcp2_crypto_ctx *ctx;
   /* hdlen is the number of bytes for packet header written in buf. */
   size_t hdlen;
-  /* payloadlen_offset is the offset to payload length field. */
-  size_t payloadlen_offset;
+  /* len_offset is the offset to Length field. */
+  size_t len_offset;
+  /* pkt_num_offset is the offset to packet number field. */
+  size_t pkt_num_offset;
+  /* pkt_numlen is the number of bytes used to encode a packet
+     number */
+  size_t pkt_numlen;
+  /* sample_offset is the offset to sample for packet number
+     encryption. */
+  size_t sample_offset;
   /* pkt_num is the packet number written in buf. */
   uint64_t pkt_num;
   /* nonce is the buffer to store nonce.  It should be equal or longer

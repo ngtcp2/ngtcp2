@@ -108,6 +108,14 @@ void print_server_pp_iv(const uint8_t *data, size_t len) {
   fprintf(outfile, "+ server_pp_iv=%s\n", util::format_hex(data, len).c_str());
 }
 
+void print_client_pp_pn(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ client_pp_pn=%s\n", util::format_hex(data, len).c_str());
+}
+
+void print_server_pp_pn(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ server_pp_pn=%s\n", util::format_hex(data, len).c_str());
+}
+
 void log_printf(void *user_data, const char *fmt, ...) {
   va_list ap;
 

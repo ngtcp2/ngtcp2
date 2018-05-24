@@ -236,9 +236,8 @@ typedef enum {
   NGTCP2_PKT_RETRY = 0x7E,
   NGTCP2_PKT_HANDSHAKE = 0x7D,
   NGTCP2_PKT_0RTT_PROTECTED = 0x7C,
-  NGTCP2_PKT_01 = 0x00,
-  NGTCP2_PKT_02 = 0x01,
-  NGTCP2_PKT_03 = 0x02
+  /* NGTCP2_PKT_SHORT is defined by libngtcp2 for convenience. */
+  NGTCP2_PKT_SHORT = 0x00
 } ngtcp2_pkt_type;
 
 typedef enum {
@@ -316,7 +315,15 @@ typedef struct {
   ngtcp2_cid dcid;
   ngtcp2_cid scid;
   uint64_t pkt_num;
-  size_t payloadlen;
+  /**
+   * pkt_numlen is the number of bytes spent to encode pkt_num.
+   */
+  size_t pkt_numlen;
+  /**
+   * len is the sum of pkt_numlen and the length of QUIC packet
+   * payload.
+   */
+  size_t len;
   uint32_t version;
   uint8_t type;
   uint8_t flags;
@@ -640,11 +647,11 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,
  * @function
  *
  * `ngtcp2_pkt_decode_hd_long` decodes QUIC long packet header in
- * |pkt| of length |pktlen|.
+ * |pkt| of length |pktlen|.  This function only parses the input just
+ * before packet number field.
  *
- * This function does not verify that payload length is correct.  In
- * other words, this function succeeds even if payload length >
- * |pktlen|.
+ * This function does not verify that length field is correct.  In
+ * other words, this function succeeds even if length > |pktlen|.
  *
  * This function handles Version Negotiation specially.  If version
  * field is 0, |pkt| must contain Version Negotiation packet.  Version
@@ -673,10 +680,11 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
  * `ngtcp2_pkt_decode_hd_short` decodes QUIC short packet header in
  * |pkt| of length |pktlen|.  |dcidlen| is the length of DCID in
  * packet header.  Short packet does not encode the length of
- * connection ID, thus we need the input from the outside.  It stores
- * the result in the object pointed by |dest|, and returns the number
- * of bytes decoded to read the packet header if it succeeds, or one
- * of the following error codes:
+ * connection ID, thus we need the input from the outside.  This
+ * function only parses the input just before packet number field.  It
+ * stores the result in the object pointed by |dest|, and returns the
+ * number of bytes decoded to read the packet header if it succeeds,
+ * or one of the following error codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Packet is too short; or it is not a short header
@@ -772,9 +780,8 @@ struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
 typedef ssize_t (*ngtcp2_send_client_initial)(ngtcp2_conn *conn, uint32_t flags,
-                                              uint64_t *ppkt_num,
                                               const uint8_t **pdest,
-                                              void *user_data);
+                                              int initial, void *user_data);
 
 typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
                                                 uint32_t flags,
@@ -804,9 +811,8 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
 
 typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
                                                 uint32_t flags,
-                                                uint64_t *ppkt_num,
                                                 const uint8_t **pdest,
-                                                void *user_data);
+                                                int initial, void *user_data);
 
 /**
  * @functypedef
@@ -873,6 +879,12 @@ typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
                                   size_t keylen, const uint8_t *nonce,
                                   size_t noncelen, const uint8_t *ad,
                                   size_t adlen, void *user_data);
+
+typedef ssize_t (*ngtcp2_encrypt_pn)(ngtcp2_conn *conn, uint8_t *dest,
+                                     size_t destlen, const uint8_t *plaintext,
+                                     size_t plaintextlen, const uint8_t *key,
+                                     size_t keylen, const uint8_t *nonce,
+                                     size_t noncelen, void *user_data);
 
 typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint64_t stream_id,
                                        uint8_t fin, uint64_t offset,
@@ -952,6 +964,8 @@ typedef struct {
   ngtcp2_decrypt hs_decrypt;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
+  ngtcp2_encrypt_pn hs_encrypt_pn;
+  ngtcp2_encrypt_pn encrypt_pn;
   ngtcp2_recv_stream_data recv_stream_data;
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
   ngtcp2_stream_close stream_close;
@@ -1154,8 +1168,8 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_set_handshake_tx_keys` sets key and iv to encrypt
- *  handshake packets.  If key and iv have already been set, they are
+ * `ngtcp2_conn_set_handshake_tx_keys` sets key, iv, and pn to encrypt
+ *  handshake packets.  If they have already been set, they are
  *  overwritten.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -1164,17 +1178,15 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
-                                                    const uint8_t *key,
-                                                    size_t keylen,
-                                                    const uint8_t *iv,
-                                                    size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(
+    ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
+    size_t ivlen, const uint8_t *pn, size_t pnlen);
 
 /**
  * @function
  *
- * `ngtcp2_conn_set_handshake_rx_keys` sets key and iv to decrypt
- * handshake packets.  If key and iv have already been set, they are
+ * `ngtcp2_conn_set_handshake_rx_keys` sets key, iv and pn to decrypt
+ * handshake packets.  If they have already been set, they are
  * overwritten.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -1183,26 +1195,27 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn,
-                                                    const uint8_t *key,
-                                                    size_t keylen,
-                                                    const uint8_t *iv,
-                                                    size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(
+    ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
+    size_t ivlen, const uint8_t *pn, size_t pnlen);
 
 NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
                                                  size_t aead_overhead);
 
 NGTCP2_EXTERN int
 ngtcp2_conn_update_early_keys(ngtcp2_conn *conn, const uint8_t *key,
-                              size_t keylen, const uint8_t *iv, size_t ivlen);
+                              size_t keylen, const uint8_t *iv, size_t ivlen,
+                              const uint8_t *pn, size_t pnlen);
 
 NGTCP2_EXTERN int ngtcp2_conn_update_tx_keys(ngtcp2_conn *conn,
                                              const uint8_t *key, size_t keylen,
-                                             const uint8_t *iv, size_t ivlen);
+                                             const uint8_t *iv, size_t ivlen,
+                                             const uint8_t *pn, size_t pnlen);
 
 NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
                                              const uint8_t *key, size_t keylen,
-                                             const uint8_t *iv, size_t ivlen);
+                                             const uint8_t *iv, size_t ivlen,
+                                             const uint8_t *pn, size_t pnlen);
 
 /**
  * @function

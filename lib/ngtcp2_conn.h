@@ -99,9 +99,6 @@ typedef enum {
    from flow control during handshake. */
 #define NGTCP2_MAX_HS_STREAM0_OFFSET 65536
 
-/* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
-#define NGTCP2_MAX_PKT_NUM ((1llu << 62) - 1)
-
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
 

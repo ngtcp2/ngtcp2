@@ -148,6 +148,27 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
   return ivlen;
 }
 
+ssize_t derive_pkt_num_protection_key(uint8_t *dest, size_t destlen,
+                                      const uint8_t *secret, size_t secretlen,
+                                      const Context &ctx) {
+  int rv;
+  static constexpr uint8_t LABEL_PKNKEY[] = "pn";
+
+  auto keylen = aead_key_length(ctx);
+  if (keylen > destlen) {
+    return -1;
+  }
+
+  rv = crypto::qhkdf_expand(dest, keylen, secret, secretlen, LABEL_PKNKEY,
+                            str_size(LABEL_PKNKEY), ctx);
+
+  if (rv != 0) {
+    return -1;
+  }
+
+  return keylen;
+}
+
 int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
                  size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
                  const Context &ctx) {

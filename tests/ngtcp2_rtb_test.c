@@ -45,8 +45,8 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_rtb_init(&rtb, &log, mem);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, &dcid, NULL,
-                     1000000007, NGTCP2_PROTO_VER_MAX, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     1000000007, 1, NGTCP2_PROTO_VER_MAX, 0);
 
   rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 10, 0, NGTCP2_RTB_FLAG_NONE, mem);
 
@@ -54,8 +54,8 @@ void test_ngtcp2_rtb_add(void) {
 
   ngtcp2_rtb_add(&rtb, ent);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_02, &dcid, NULL,
-                     1000000008, NGTCP2_PROTO_VER_MAX, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     1000000008, 2, NGTCP2_PROTO_VER_MAX, 0);
 
   rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 9, 0, NGTCP2_RTB_FLAG_NONE, mem);
 
@@ -63,8 +63,8 @@ void test_ngtcp2_rtb_add(void) {
 
   ngtcp2_rtb_add(&rtb, ent);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, &dcid, NULL,
-                     1000000009, NGTCP2_PROTO_VER_MAX, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     1000000009, 4, NGTCP2_PROTO_VER_MAX, 0);
 
   rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 11, 0, NGTCP2_RTB_FLAG_NONE, mem);
 
@@ -105,8 +105,8 @@ static void add_rtb_entry_range(ngtcp2_rtb *rtb, uint64_t base_pkt_num,
   dcid_init(&dcid);
 
   for (i = base_pkt_num; i < base_pkt_num + len; ++i) {
-    ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, &dcid, NULL, i,
-                       NGTCP2_PROTO_VER_MAX, 0);
+    ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                       i, 1, NGTCP2_PROTO_VER_MAX, 0);
     ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 0, NGTCP2_RTB_FLAG_NONE, mem);
     ngtcp2_rtb_add(rtb, ent);
   }
@@ -276,23 +276,23 @@ void test_ngtcp2_rtb_insert_range(void) {
   ngtcp2_rtb_init(&rtb, &log, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 900, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 900, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent1, &hd, NULL, 0, 1, NGTCP2_RTB_FLAG_NONE, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 898, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 898, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent2, &hd, NULL, 0, 2, NGTCP2_RTB_FLAG_NONE, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 897, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 897, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent3, &hd, NULL, 0, 4, NGTCP2_RTB_FLAG_NONE, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 790, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 790, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent4, &hd, NULL, 0, 8, NGTCP2_RTB_FLAG_NONE, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 788, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 788, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent5, &hd, NULL, 0, 16, NGTCP2_RTB_FLAG_NONE, mem);
 
   head = ent1;
@@ -302,17 +302,17 @@ void test_ngtcp2_rtb_insert_range(void) {
   ent4->next = ent5;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 896, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 896, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 0, NGTCP2_RTB_FLAG_NONE, mem);
   ngtcp2_rtb_add(&rtb, ent);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 899, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 899, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 0, NGTCP2_RTB_FLAG_NONE, mem);
   ngtcp2_rtb_add(&rtb, ent);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_HANDSHAKE, &dcid,
-                     &scid, 901, NGTCP2_PROTO_VER_MAX, 0);
+                     &scid, 901, 4, NGTCP2_PROTO_VER_MAX, 0);
   ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 0, NGTCP2_RTB_FLAG_NONE, mem);
   ngtcp2_rtb_add(&rtb, ent);
 

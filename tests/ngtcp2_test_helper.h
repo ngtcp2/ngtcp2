@@ -51,6 +51,14 @@
 #define NGTCP2_APP_ERR02 0xff02u
 
 /*
+ * NGTCP2_FAKE_AEAD_OVERHEAD is AEAD overhead used in unit tests.
+ * Because we use the same encryption/decryption function for both
+ * handshake and post handshake packets, we have to use AEAD overhead
+ * used in handshake packets.
+ */
+#define NGTCP2_FAKE_AEAD_OVERHEAD NGTCP2_HANDSHAKE_AEAD_OVERHEAD
+
+/*
  * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with
  * the given parameters.  If NGTCP2_STREAM_LEN_BIT is set in |flags|,
  * |datalen| is encoded as Data Length, otherwise it is not written.
@@ -145,5 +153,21 @@ uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
  */
 void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
                           const ngtcp2_cid *scid, uint64_t payloadlen);
+
+/*
+ * pkt_decode_hd_long decodes long packet header from |pkt| of length
+ * |pktlen|.  This function assumes that packte number field has been
+ * decrypted.
+ */
+ssize_t pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                           size_t pktlen);
+
+/*
+ * pkt_decode_hd_short decodes long packet header from |pkt| of length
+ * |pktlen|.  This function assumes that packte number field has been
+ * decrypted.
+ */
+ssize_t pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                            size_t pktlen, size_t dcidlen);
 
 #endif /* NGTCP2_TEST_HELPER_H */

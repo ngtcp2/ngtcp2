@@ -45,7 +45,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   /* Handshake */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
-                     &dcid, &scid, 0xe1e2e3e4u, 0x000000ff, 16383);
+                     &dcid, &scid, 0xe1e2e3e4u, 4, 0x000000ff, 16383);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
@@ -53,21 +53,21 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   CU_ASSERT((ssize_t)len == rv);
 
-  rv = ngtcp2_pkt_decode_hd_long(&nhd, buf, len);
+  rv = pkt_decode_hd_long(&nhd, buf, len);
 
   CU_ASSERT((ssize_t)len == rv);
   CU_ASSERT(hd.type == nhd.type);
   CU_ASSERT(hd.flags == nhd.flags);
   CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
-  CU_ASSERT(hd.pkt_num == nhd.pkt_num);
+  CU_ASSERT((hd.pkt_num & 0x3fffffffu) == nhd.pkt_num);
   CU_ASSERT(hd.version == nhd.version);
-  CU_ASSERT(hd.payloadlen == nhd.payloadlen);
+  CU_ASSERT(hd.len == nhd.len);
 
   /* VN */
   /* Set random packet type */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
-                     &dcid, &scid, 0, 0, 0);
+                     &dcid, &scid, 0, 4, 0, 0);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
@@ -75,7 +75,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   CU_ASSERT((ssize_t)len == rv - 2 /* payloadlen */ - 4 /* pkt_num */);
 
-  rv = ngtcp2_pkt_decode_hd_long(&nhd, buf, len);
+  rv = pkt_decode_hd_long(&nhd, buf, len);
 
   CU_ASSERT((ssize_t)len == rv);
   CU_ASSERT(NGTCP2_PKT_VERSION_NEGOTIATION == nhd.type);
@@ -84,7 +84,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
   CU_ASSERT(hd.version == nhd.version);
-  CU_ASSERT(hd.payloadlen == nhd.payloadlen);
+  CU_ASSERT(hd.len == nhd.len);
 }
 
 void test_ngtcp2_pkt_decode_hd_short(void) {
@@ -97,9 +97,9 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   dcid_init(&dcid);
   ngtcp2_cid_zero(&zcid);
 
-  /* NGTCP2_PKT_03 */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, &dcid, NULL,
-                     0xe1e2e3e4u, 0xd1d2d3d4u, 0);
+  /* 4 bytes packet number */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
 
   expectedlen = 1 + dcid.datalen + 4;
 
@@ -107,20 +107,21 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
 
-  rv = ngtcp2_pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
+  rv = pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
-  CU_ASSERT(NGTCP2_PKT_03 == nhd.type);
+  CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT(hd.pkt_num == nhd.pkt_num);
+  CU_ASSERT((hd.pkt_num & 0x3fffffffu) == nhd.pkt_num);
+  CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
-  CU_ASSERT(0 == nhd.payloadlen);
+  CU_ASSERT(0 == nhd.len);
 
-  /* NGTCP2_PKT_02 */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_02, &dcid, NULL,
-                     0xe1e2e3e4u, 0xd1d2d3d4u, 0);
+  /* 2 bytes packet number */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     0xe1e2e3e4u, 2, 0xd1d2d3d4u, 0);
 
   expectedlen = 1 + dcid.datalen + 2;
 
@@ -128,20 +129,21 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
 
-  rv = ngtcp2_pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
+  rv = pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
-  CU_ASSERT(NGTCP2_PKT_02 == nhd.type);
+  CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0xffff) == nhd.pkt_num);
+  CU_ASSERT((hd.pkt_num & 0x3fff) == nhd.pkt_num);
+  CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
-  CU_ASSERT(0 == nhd.payloadlen);
+  CU_ASSERT(0 == nhd.len);
 
-  /* NGTCP2_PKT_01 */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_01, &dcid, NULL,
-                     0xe1e2e3e4u, 0xd1d2d3d4u, 0);
+  /* 1 byte packet number */
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     0xe1e2e3e4u, 1, 0xd1d2d3d4u, 0);
 
   expectedlen = 1 + dcid.datalen + 1;
 
@@ -149,20 +151,21 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
 
-  rv = ngtcp2_pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
+  rv = pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
-  CU_ASSERT(NGTCP2_PKT_01 == nhd.type);
+  CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0xff) == nhd.pkt_num);
+  CU_ASSERT((hd.pkt_num & 0x7f) == nhd.pkt_num);
+  CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
-  CU_ASSERT(0 == nhd.payloadlen);
+  CU_ASSERT(0 == nhd.len);
 
   /* With Key Phase */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_03, &dcid, NULL,
-                     0xe1e2e3e4u, 0xd1d2d3d4u, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_SHORT, &dcid,
+                     NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
 
   expectedlen = 1 + dcid.datalen + 4;
 
@@ -170,20 +173,21 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
 
-  rv = ngtcp2_pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
+  rv = pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
-  CU_ASSERT(NGTCP2_PKT_03 == nhd.type);
+  CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT(hd.pkt_num == nhd.pkt_num);
+  CU_ASSERT((hd.pkt_num & 0x3fffffff) == nhd.pkt_num);
+  CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
-  CU_ASSERT(0 == nhd.payloadlen);
+  CU_ASSERT(0 == nhd.len);
 
   /* With empty DCID */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, NULL, NULL,
-                     0xe1e2e3e4u, 0xd1d2d3d4u, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL,
+                     0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
 
   expectedlen = 1 + 4;
 
@@ -191,16 +195,17 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
 
   CU_ASSERT((ssize_t)expectedlen == rv);
 
-  rv = ngtcp2_pkt_decode_hd_short(&nhd, buf, expectedlen, 0);
+  rv = pkt_decode_hd_short(&nhd, buf, expectedlen, 0);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
   CU_ASSERT(hd.flags == nhd.flags);
-  CU_ASSERT(NGTCP2_PKT_03 == nhd.type);
+  CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_empty(&nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT(hd.pkt_num == nhd.pkt_num);
+  CU_ASSERT((hd.pkt_num & 0x3fffffff) == nhd.pkt_num);
+  CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
-  CU_ASSERT(0 == nhd.payloadlen);
+  CU_ASSERT(0 == nhd.len);
 
 }
 
@@ -884,8 +889,8 @@ void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 8));
   CU_ASSERT(0x02ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 8));
 
-  CU_ASSERT(0xffffffffffffffabllu ==
-            ngtcp2_pkt_adjust_pkt_num(0xffffffffffffffffllu, 0xab, 8));
+  CU_ASSERT(0x3fffffffffffffabllu ==
+            ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0xab, 8));
 }
 
 void test_ngtcp2_pkt_validate_ack(void) {
@@ -945,16 +950,16 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
     token[i] = (uint8_t)(i + 1);
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_01, &dcid, NULL,
-                     0xf1, 0, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_SHORT, &dcid,
+                     NULL, 0xf1, 1, 0, 0);
   spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token, rand,
                                              sizeof(rand));
 
   p = buf;
 
   CU_ASSERT(256 == spktlen);
-  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_THIRD_BIT | NGTCP2_FOURTH_BIT |
-             NGTCP2_PKT_01) == *p);
+  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_THIRD_BIT | NGTCP2_FOURTH_BIT) ==
+            *p);
 
   ++p;
 
@@ -962,7 +967,7 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
 
   p += dcid.datalen;
 
-  CU_ASSERT(0xf1 == *p);
+  CU_ASSERT((0xf1 & 0x7f) == *p);
 
   ++p;
 
@@ -979,8 +984,8 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   CU_ASSERT(spktlen == p - buf);
 
   /* Not enough buffer */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_02, &dcid, NULL,
-                     0xf1, 0, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     0xf1, 2, 0, 0);
   spktlen = ngtcp2_pkt_write_stateless_reset(
       buf, 1 + dcid.datalen + 2 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, &hd,
       token, rand, sizeof(rand));

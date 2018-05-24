@@ -65,6 +65,9 @@ void print_server_pp_key(const uint8_t *data, size_t len);
 void print_client_pp_iv(const uint8_t *data, size_t len);
 void print_server_pp_iv(const uint8_t *data, size_t len);
 
+void print_client_pp_pn(const uint8_t *data, size_t len);
+void print_server_pp_pn(const uint8_t *data, size_t len);
+
 void log_printf(void *user_data, const char *fmt, ...);
 
 } // namespace debug

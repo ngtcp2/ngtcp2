@@ -170,24 +170,11 @@ static const char *strpkttype_long(uint8_t type) {
   }
 }
 
-static const char *strpkttype_short(uint8_t type) {
-  switch (type) {
-  case NGTCP2_PKT_01:
-    return "S01";
-  case NGTCP2_PKT_02:
-    return "S02";
-  case NGTCP2_PKT_03:
-    return "S03";
-  default:
-    return "(unknown)";
-  }
-}
-
 static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     return strpkttype_long(hd->type);
   }
-  return strpkttype_short(hd->type);
+  return "Short";
 }
 
 static const char *strevent(ngtcp2_log_event ev) {
@@ -584,12 +571,13 @@ void ngtcp2_log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
 
   ngtcp2_log_info(
       log, NGTCP2_LOG_EVENT_PKT,
-      "rx pkt dcid=0x%s scid=0x%s type=%s(0x%02x) payloadlen=%zu",
+      "rx pkt %" PRIu64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu",
+      hd->pkt_num,
       (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
       (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
       (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) ? strpkttype_long(hd->type)
-                                              : strpkttype_short(hd->type),
-      hd->type, hd->payloadlen);
+                                              : "Short",
+      hd->type, hd->len);
 }
 
 void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
