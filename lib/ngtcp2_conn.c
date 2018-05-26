@@ -5478,8 +5478,15 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
   uint64_t alarm_duration;
   ngtcp2_rtb_entry *ent;
-  ngtcp2_ksl_it it = ngtcp2_rtb_head(&conn->rtb);
+  ngtcp2_ksl_it it;
 
+  for (it = ngtcp2_rtb_head(&conn->rtb); !ngtcp2_ksl_it_end(&it);
+       ngtcp2_ksl_it_next(&it)) {
+    ent = ngtcp2_ksl_it_get(&it);
+    if (ent->frc && !(ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
+      break;
+    }
+  }
   if (ngtcp2_ksl_it_end(&it)) {
     if (rcs->loss_detection_alarm) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
@@ -5511,6 +5518,7 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   }
 
   if (rcs->loss_time) {
+    it = ngtcp2_rtb_head(&conn->rtb);
     ent = ngtcp2_ksl_it_get(&it);
     assert(rcs->loss_time >= ent->ts);
     alarm_duration = rcs->loss_time - rcs->last_tx_pkt_ts;
