@@ -101,7 +101,7 @@ void test_ngtcp2_psl_insert(void) {
   ngtcp2_range_init(&r, 6, 7);
   ngtcp2_psl_remove(&psl, &r);
 
-  ngtcp2_range_init(&r, 5, 6);
+  ngtcp2_range_init(&r, 7, 8);
   ngtcp2_psl_remove(&psl, &r);
 
   CU_ASSERT(14 == psl.head->n);

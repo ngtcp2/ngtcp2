@@ -306,14 +306,17 @@ static size_t ksl_relocate_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk **pblk,
   ngtcp2_ksl_blk *blk = *pblk;
   ngtcp2_ksl_node *node = &blk->nodes[i];
   ngtcp2_ksl_node *rnode = &blk->nodes[i + 1];
+  size_t j;
 
   assert(blk->n > i + 1);
   assert(node->blk->n < NGTCP2_KSL_NBLK || rnode->blk->n < NGTCP2_KSL_NBLK);
 
   if (node->blk->n + rnode->blk->n < NGTCP2_KSL_NBLK) {
+    j = node->blk->n - 1;
     blk = ksl_merge_node(ksl, blk, i);
     if (blk == ksl->head) {
       *pblk = blk;
+      return j;
     }
     return i;
   }
@@ -351,6 +354,11 @@ ngtcp2_ksl_it ngtcp2_ksl_remove(ngtcp2_ksl *ksl, int64_t key) {
     for (i = 0, node = &blk->nodes[i]; ksl->compar(node->key, key); ++i, ++node)
       ;
 
+    if (!blk->leaf && node->key == key) {
+      i = ksl_relocate_node(ksl, &blk, i);
+      node = &blk->nodes[i];
+    }
+
     if (blk->leaf) {
       assert(i < blk->n);
       remove_node(blk, i);
@@ -361,11 +369,6 @@ ngtcp2_ksl_it ngtcp2_ksl_remove(ngtcp2_ksl *ksl, int64_t key) {
         ngtcp2_ksl_it_init(&it, blk, i, ksl->inf_key);
       }
       return it;
-    }
-
-    if (node->key == key) {
-      i = ksl_relocate_node(ksl, &blk, i);
-      node = &blk->nodes[i];
     }
 
     if (blk->n >= 2 && blk->n < NGTCP2_KSL_NBLK / 2) {
@@ -416,7 +419,7 @@ static void ksl_print(ngtcp2_ksl *ksl, const ngtcp2_ksl_blk *blk,
 
   if (blk->leaf) {
     for (i = 0; i < blk->n; ++i) {
-      fprintf(stderr, " %" PRIu64, blk->nodes[i].key);
+      fprintf(stderr, " %" PRId64, blk->nodes[i].key);
     }
     fprintf(stderr, "\n");
     return;

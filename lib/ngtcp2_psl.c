@@ -310,14 +310,17 @@ static size_t psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
   ngtcp2_psl_blk *blk = *pblk;
   ngtcp2_psl_node *node = &blk->nodes[i];
   ngtcp2_psl_node *rnode = &blk->nodes[i + 1];
+  size_t j;
 
   assert(blk->n > i + 1);
   assert(node->blk->n < NGTCP2_PSL_NBLK || rnode->blk->n < NGTCP2_PSL_NBLK);
 
   if (node->blk->n + rnode->blk->n < NGTCP2_PSL_NBLK) {
+    j = node->blk->n - 1;
     blk = psl_merge_node(psl, blk, i);
     if (blk == psl->head) {
       *pblk = blk;
+      return j;
     }
     return i;
   }
@@ -356,6 +359,11 @@ ngtcp2_psl_it ngtcp2_psl_remove(ngtcp2_psl *psl, const ngtcp2_range *range) {
          ++i, ++node)
       ;
 
+    if (!blk->leaf && ngtcp2_range_eq(&node->range, range)) {
+      i = psl_relocate_node(psl, &blk, i);
+      node = &blk->nodes[i];
+    }
+
     if (blk->leaf) {
       assert(i < blk->n);
       remove_node(blk, i);
@@ -365,11 +373,6 @@ ngtcp2_psl_it ngtcp2_psl_remove(ngtcp2_psl *psl, const ngtcp2_range *range) {
         ngtcp2_psl_it_init(&it, blk, i);
       }
       return it;
-    }
-
-    if (ngtcp2_range_eq(&node->range, range)) {
-      i = psl_relocate_node(psl, &blk, i);
-      node = &blk->nodes[i];
     }
 
     if (blk->n >= 2 && blk->n < NGTCP2_PSL_NBLK / 2) {

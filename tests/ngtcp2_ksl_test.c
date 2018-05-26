@@ -87,7 +87,7 @@ void test_ngtcp2_ksl_insert(void) {
 
   /* Removing these 2 nodes kicks merging 2 nodes under head */
   ngtcp2_ksl_remove(&ksl, 6);
-  ngtcp2_ksl_remove(&ksl, 5);
+  ngtcp2_ksl_remove(&ksl, 7);
 
   CU_ASSERT(14 == ksl.head->n);
 
