@@ -3173,10 +3173,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
 
-    if (fr->stream.datalen == 0) {
-      return NGTCP2_ERR_FRAME_FORMAT;
-    }
-
     if (hd.type == NGTCP2_PKT_INITIAL && fr->stream.offset != 0) {
       return NGTCP2_ERR_PROTO;
     }
@@ -3191,9 +3187,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       continue;
     }
 
-    conn->strm0->last_rx_offset =
-        ngtcp2_max(conn->strm0->last_rx_offset, fr_end_offset);
-
     /* Although stream 0 is exempted from flow contorl during
        handshake, peer can send data on any offset, and forces
        receiver to buffer unlimited data.  In order to avoid that
@@ -3201,6 +3194,13 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
        supposed to be large enough for handshake. */
     if (NGTCP2_MAX_HS_STREAM0_OFFSET < fr_end_offset) {
       return NGTCP2_ERR_PROTO;
+    }
+
+    conn->strm0->last_rx_offset =
+        ngtcp2_max(conn->strm0->last_rx_offset, fr_end_offset);
+
+    if (fr->stream.datalen == 0) {
+      continue;
     }
 
     if (fr->stream.offset <= rx_offset) {
@@ -3387,10 +3387,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
   if (fr->stream_id == 0 && fr->fin) {
     return NGTCP2_ERR_PROTO;
-  }
-
-  if (!fr->fin && fr->datalen == 0) {
-    return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   local_stream = conn_local_stream(conn, fr->stream_id);

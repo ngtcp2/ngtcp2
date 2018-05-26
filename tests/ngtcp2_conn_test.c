@@ -2571,6 +2571,26 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED == rv);
 
   ngtcp2_conn_del(conn);
+
+  /* 0 length STREAM frame is allowed */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datalen = 0;
+  fr.stream.data = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_ping(void) {
