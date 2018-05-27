@@ -360,8 +360,8 @@ static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
   log->log_printf(
       log->user_data,
-      (NGTCP2_LOG_PKT
-       " NEW_CONNECTION_ID(0x%02x) seq=%u cid=0x%s stateless_reset_token=%s\n"),
+      (NGTCP2_LOG_PKT " NEW_CONNECTION_ID(0x%02x) seq=%u cid=0x%s "
+                      "stateless_reset_token=0x%s\n"),
       NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq,
       (const char *)ngtcp2_encode_hex(cid, fr->cid.data, fr->cid.datalen),
       (const char *)ngtcp2_encode_hex(buf, fr->stateless_reset_token,
@@ -384,7 +384,7 @@ static void log_fr_path_challenge(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint8_t buf[sizeof(fr->data) * 2 + 1];
 
   log->log_printf(
-      log->user_data, (NGTCP2_LOG_PKT " PATH_CHALLENGE(0x%02x) data=%s\n"),
+      log->user_data, (NGTCP2_LOG_PKT " PATH_CHALLENGE(0x%02x) data=0x%s\n"),
       NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
       (const char *)ngtcp2_encode_hex(buf, fr->data, sizeof(fr->data)));
 }
@@ -395,7 +395,7 @@ static void log_fr_path_response(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint8_t buf[sizeof(fr->data) * 2 + 1];
 
   log->log_printf(
-      log->user_data, (NGTCP2_LOG_PKT " PATH_RESPONSE(0x%02x) data=%s\n"),
+      log->user_data, (NGTCP2_LOG_PKT " PATH_RESPONSE(0x%02x) data=0x%s\n"),
       NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
       (const char *)ngtcp2_encode_hex(buf, fr->data, sizeof(fr->data)));
 }
@@ -500,7 +500,7 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   }
 
   log->log_printf(
-      log->user_data, (NGTCP2_LOG_PKT " token=%s randlen=%zu\n"),
+      log->user_data, (NGTCP2_LOG_PKT " token=0x%s randlen=%zu\n"),
       NGTCP2_LOG_PKT_HD_FIELDS("rx"),
       (const char *)ngtcp2_encode_hex(buf, sr->stateless_reset_token,
                                       sizeof(sr->stateless_reset_token)),
@@ -553,7 +553,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS &&
       params->stateless_reset_token_present) {
     log->log_printf(
-        log->user_data, (NGTCP2_LOG_TP " stateless_reset_token=%s\n"),
+        log->user_data, (NGTCP2_LOG_TP " stateless_reset_token=0x%s\n"),
         NGTCP2_LOG_TP_HD_FIELDS,
         (const char *)ngtcp2_encode_hex(buf, params->stateless_reset_token,
                                         sizeof(params->stateless_reset_token)));
