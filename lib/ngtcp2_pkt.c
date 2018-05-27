@@ -963,7 +963,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 
   p += n;
   cil = *p;
-  if (cil < 4 || cil > 18) {
+  if (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN) {
     return NGTCP2_ERR_PROTO;
   }
 
