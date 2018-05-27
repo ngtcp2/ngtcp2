@@ -29,14 +29,18 @@
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_crypto.h"
+#include "ngtcp2_cid.h"
 #include "ngtcp2_test_helper.h"
 
 void test_ngtcp2_encode_transport_params(void) {
   ngtcp2_transport_params params, nparams;
-  uint8_t buf[256];
+  uint8_t buf[512];
   ssize_t nwrite;
   int rv;
   size_t i;
+
+  memset(&params, 0, sizeof(params));
+  memset(&nparams, 0, sizeof(nparams));
 
   /* CH, required parameters only */
   params.v.ch.initial_version = 0xe1e2e3e4u;
@@ -70,6 +74,7 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.stateless_reset_token_present ==
             nparams.stateless_reset_token_present);
 
+  memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
 
   /* EE, required parameters only */
@@ -118,6 +123,7 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.stateless_reset_token_present);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
 
+  memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
 
   /* CH, all parameters */
@@ -149,6 +155,7 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
 
+  memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
 
   /* CH, Data is too short to decode */
@@ -172,6 +179,7 @@ void test_ngtcp2_encode_transport_params(void) {
     CU_ASSERT(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM == rv);
   }
 
+  memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
 
   /* CH, Buffer is too short to encode */
@@ -197,6 +205,9 @@ void test_ngtcp2_encode_transport_params(void) {
 
   CU_ASSERT((ssize_t)i == nwrite);
 
+  memset(&params, 0, sizeof(params));
+  memset(&nparams, 0, sizeof(nparams));
+
   /* EE, Buffer is too short to encode */
   params.v.ee.negotiated_version = 0xf1f2f3f4u;
   params.v.ee.supported_versions[0] = 0xd1d2d3d4u;
@@ -206,17 +217,28 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_data = 1000000007;
   params.initial_max_data = 1000000009;
   params.initial_max_bidi_streams = 908;
-  params.initial_max_uni_streams = 0;
+  params.initial_max_uni_streams = 16384;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = 1200;
   params.stateless_reset_token_present = 1;
   memset(params.stateless_reset_token, 0xf1,
          sizeof(params.stateless_reset_token));
   params.ack_delay_exponent = 20;
+  params.preferred_address.ip_version = NGTCP2_IP_VERSION_6;
+  params.preferred_address.ip_addresslen = 255;
+  memset(params.preferred_address.ip_address, 0xe1,
+         params.preferred_address.ip_addresslen);
+  params.preferred_address.port = 63111;
+  scid_init(&params.preferred_address.cid);
+  memset(params.preferred_address.stateless_reset_token, 0xd1,
+         sizeof(params.preferred_address.stateless_reset_token));
 
-  for (i = 0; i < 4 /* negotiated_version */ + 1 +
-                      4 * 3 /* supported_versions and its length */ + 2 +
-                      8 * 2 + 6 * 2 + 6 + 6 + 20 + 5;
+  for (i = 0;
+       i < 4 /* negotiated_version */ + 1 +
+               4 * 3 /* supported_versions and its length */ + 2 + 8 * 2 +
+               6 * 2 + 6 + 6 + 20 + 5 +
+               (4 + 1 + 1 + 255 + 2 + 1 + params.preferred_address.cid.datalen +
+                NGTCP2_STATELESS_RESET_TOKENLEN);
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -227,4 +249,35 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
 
   CU_ASSERT((ssize_t)i == nwrite);
+
+  rv = ngtcp2_decode_transport_params(
+      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
+      (size_t)nwrite);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(params.initial_max_stream_data == nparams.initial_max_stream_data);
+  CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
+  CU_ASSERT(params.initial_max_bidi_streams ==
+            nparams.initial_max_bidi_streams);
+  CU_ASSERT(params.initial_max_uni_streams == nparams.initial_max_uni_streams);
+  CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
+  CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
+  CU_ASSERT(0 == memcmp(params.stateless_reset_token,
+                        nparams.stateless_reset_token,
+                        sizeof(params.stateless_reset_token)));
+  CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
+  CU_ASSERT(params.preferred_address.ip_version ==
+            nparams.preferred_address.ip_version);
+  CU_ASSERT(params.preferred_address.ip_addresslen ==
+            nparams.preferred_address.ip_addresslen);
+  CU_ASSERT(0 == memcmp(params.preferred_address.ip_address,
+                        nparams.preferred_address.ip_address,
+                        params.preferred_address.ip_addresslen));
+  CU_ASSERT(params.preferred_address.port == nparams.preferred_address.port);
+  CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid,
+                          &nparams.preferred_address.cid));
+  CU_ASSERT(0 ==
+            memcmp(params.preferred_address.stateless_reset_token,
+                   nparams.preferred_address.stateless_reset_token,
+                   sizeof(params.preferred_address.stateless_reset_token)));
 }

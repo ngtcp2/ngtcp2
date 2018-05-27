@@ -485,6 +485,7 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 1,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS = 2,
   NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
+  NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 4,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
   NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7,
@@ -528,6 +529,26 @@ typedef enum {
  */
 #define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS 26
 
+typedef enum {
+  NGTCP2_IP_VERSION_NONE = 0,
+  NGTCP2_IP_VERSION_4 = 4,
+  NGTCP2_IP_VERSION_6 = 6
+} ngtcp2_ip_version;
+
+typedef struct {
+  ngtcp2_cid cid;
+  /* ip_addresslen is the length of ip_address. */
+  size_t ip_addresslen;
+  uint16_t port;
+  /* ip_version is the version of IP address.  It should be one of the
+     defined values in :type:`ngtcp2_ip_version`.
+     :enum:`NGTCP2_IP_VERSION_NONE` indicates that no preferred
+     address is set and the other fields are ignored. */
+  uint8_t ip_version;
+  uint8_t ip_address[255];
+  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+} ngtcp2_preferred_addr;
+
 typedef struct {
   union {
     struct {
@@ -539,6 +560,7 @@ typedef struct {
       size_t len;
     } ee;
   } v;
+  ngtcp2_preferred_addr preferred_address;
   uint32_t initial_max_stream_data;
   uint32_t initial_max_data;
   uint16_t initial_max_bidi_streams;
@@ -555,6 +577,7 @@ typedef struct {
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
 typedef struct {
+  ngtcp2_preferred_addr preferred_address;
   ngtcp2_tstamp initial_ts;
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */

@@ -497,7 +497,7 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                           const ngtcp2_transport_params *params) {
   size_t i;
-  uint8_t buf[sizeof(params->stateless_reset_token) * 2 + 1];
+  uint8_t buf[sizeof(params->preferred_address.ip_address) * 2 + 1];
 
   if (!log->log_printf) {
     return;
@@ -537,13 +537,43 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
 
-  if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS &&
-      params->stateless_reset_token_present) {
-    log->log_printf(
-        log->user_data, (NGTCP2_LOG_TP " stateless_reset_token=0x%s\n"),
-        NGTCP2_LOG_TP_HD_FIELDS,
-        (const char *)ngtcp2_encode_hex(buf, params->stateless_reset_token,
-                                        sizeof(params->stateless_reset_token)));
+  if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
+    if (params->stateless_reset_token_present) {
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " stateless_reset_token=0x%s\n"),
+                      NGTCP2_LOG_TP_HD_FIELDS,
+                      (const char *)ngtcp2_encode_hex(
+                          buf, params->stateless_reset_token,
+                          sizeof(params->stateless_reset_token)));
+    }
+
+    if (params->preferred_address.ip_version != NGTCP2_IP_VERSION_NONE) {
+      log->log_printf(
+          log->user_data, (NGTCP2_LOG_TP " preferred_address.ip_version=%u\n"),
+          NGTCP2_LOG_TP_HD_FIELDS, params->preferred_address.ip_version);
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " preferred_address.ip_address=0x%s\n"),
+                      NGTCP2_LOG_TP_HD_FIELDS,
+                      (const char *)ngtcp2_encode_hex(
+                          buf, params->preferred_address.ip_address,
+                          params->preferred_address.ip_addresslen));
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " preferred_address.port=%u\n"),
+                      NGTCP2_LOG_TP_HD_FIELDS, params->preferred_address.port);
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " preferred_address.cid=0x%s\n"),
+                      NGTCP2_LOG_TP_HD_FIELDS,
+                      (const char *)ngtcp2_encode_hex(
+                          buf, params->preferred_address.cid.data,
+                          params->preferred_address.cid.datalen));
+      log->log_printf(
+          log->user_data,
+          (NGTCP2_LOG_TP " preferred_address.stateless_reset_token=0x%s\n"),
+          NGTCP2_LOG_TP_HD_FIELDS,
+          (const char *)ngtcp2_encode_hex(
+              buf, params->preferred_address.stateless_reset_token,
+              sizeof(params->preferred_address.stateless_reset_token)));
+    }
   }
 
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u\n"),
