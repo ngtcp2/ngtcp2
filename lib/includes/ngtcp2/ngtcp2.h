@@ -488,7 +488,7 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
   NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI = 8
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS = 8
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -542,7 +542,7 @@ typedef struct {
   uint32_t initial_max_stream_data;
   uint32_t initial_max_data;
   uint16_t initial_max_bidi_streams;
-  uint16_t initial_max_streams_uni;
+  uint16_t initial_max_uni_streams;
   uint16_t idle_timeout;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
@@ -562,7 +562,7 @@ typedef struct {
   uint32_t max_stream_data;
   uint32_t max_data;
   uint16_t max_bidi_streams;
-  uint16_t max_streams_uni;
+  uint16_t max_uni_streams;
   uint16_t idle_timeout;
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];

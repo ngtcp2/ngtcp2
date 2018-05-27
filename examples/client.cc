@@ -683,7 +683,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;
   settings.max_bidi_streams = 1;
-  settings.max_streams_uni = 1;
+  settings.max_uni_streams = 1;
   settings.idle_timeout = config.timeout;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
@@ -1690,7 +1690,7 @@ int write_transport_params(const char *path,
   }
 
   f << "initial_max_bidi_streams=" << params->initial_max_bidi_streams << "\n"
-    << "initial_max_streams_uni=" << params->initial_max_streams_uni << "\n"
+    << "initial_max_uni_streams=" << params->initial_max_uni_streams << "\n"
     << "initial_max_stream_data=" << params->initial_max_stream_data << "\n"
     << "initial_max_data=" << params->initial_max_data << "\n";
 
@@ -1714,9 +1714,9 @@ int read_transport_params(const char *path, ngtcp2_transport_params *params) {
     if (util::istarts_with_l(line, "initial_max_bidi_streams=")) {
       params->initial_max_bidi_streams = strtoul(
           line.c_str() + str_size("initial_max_bidi_streams="), nullptr, 10);
-    } else if (util::istarts_with_l(line, "initial_max_streams_uni=")) {
-      params->initial_max_streams_uni = strtoul(
-          line.c_str() + str_size("initial_max_streams_uni="), nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_uni_streams=")) {
+      params->initial_max_uni_streams = strtoul(
+          line.c_str() + str_size("initial_max_uni_streams="), nullptr, 10);
     } else if (util::istarts_with_l(line, "initial_max_stream_data=")) {
       params->initial_max_stream_data = strtoul(
           line.c_str() + str_size("initial_max_stream_data="), nullptr, 10);

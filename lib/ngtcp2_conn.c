@@ -282,7 +282,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   (*pconn)->unsent_max_remote_stream_id_uni =
       (*pconn)->max_remote_stream_id_uni =
-          ngtcp2_nth_server_uni_id(settings->max_streams_uni);
+          ngtcp2_nth_server_uni_id(settings->max_uni_streams);
 
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->rcid = *dcid;
@@ -307,7 +307,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   (*pconn)->unsent_max_remote_stream_id_uni =
       (*pconn)->max_remote_stream_id_uni =
-          ngtcp2_nth_client_uni_id(settings->max_streams_uni);
+          ngtcp2_nth_client_uni_id(settings->max_uni_streams);
 
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   ngtcp2_idtr_open(&(*pconn)->remote_bidi_idtr, 0);
@@ -4921,7 +4921,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   dest->max_stream_data = src->initial_max_stream_data;
   dest->max_data = src->initial_max_data;
   dest->max_bidi_streams = src->initial_max_bidi_streams;
-  dest->max_streams_uni = src->initial_max_streams_uni;
+  dest->max_uni_streams = src->initial_max_uni_streams;
   dest->idle_timeout = src->idle_timeout;
   dest->max_packet_size = src->max_packet_size;
   dest->stateless_reset_token_present = src->stateless_reset_token_present;
@@ -4939,7 +4939,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   dest->initial_max_stream_data = src->max_stream_data;
   dest->initial_max_data = src->max_data;
   dest->initial_max_bidi_streams = src->max_bidi_streams;
-  dest->initial_max_streams_uni = src->max_streams_uni;
+  dest->initial_max_uni_streams = src->max_uni_streams;
   dest->idle_timeout = src->idle_timeout;
   dest->max_packet_size = src->max_packet_size;
   dest->stateless_reset_token_present = src->stateless_reset_token_present;
@@ -5013,12 +5013,12 @@ int ngtcp2_conn_set_remote_transport_params(
     conn->max_local_stream_id_bidi =
         ngtcp2_nth_server_bidi_id(conn->remote_settings.max_bidi_streams);
     conn->max_local_stream_id_uni =
-        ngtcp2_nth_server_uni_id(conn->remote_settings.max_streams_uni);
+        ngtcp2_nth_server_uni_id(conn->remote_settings.max_uni_streams);
   } else {
     conn->max_local_stream_id_bidi =
         ngtcp2_nth_client_bidi_id(conn->remote_settings.max_bidi_streams);
     conn->max_local_stream_id_uni =
-        ngtcp2_nth_client_uni_id(conn->remote_settings.max_streams_uni);
+        ngtcp2_nth_client_uni_id(conn->remote_settings.max_uni_streams);
   }
 
   conn->max_tx_offset = conn->remote_settings.max_data;
@@ -5042,12 +5042,12 @@ int ngtcp2_conn_set_early_remote_transport_params(
     conn->max_local_stream_id_bidi =
         ngtcp2_nth_server_bidi_id(conn->remote_settings.max_bidi_streams);
     conn->max_local_stream_id_uni =
-        ngtcp2_nth_server_uni_id(conn->remote_settings.max_streams_uni);
+        ngtcp2_nth_server_uni_id(conn->remote_settings.max_uni_streams);
   } else {
     conn->max_local_stream_id_bidi =
         ngtcp2_nth_client_bidi_id(conn->remote_settings.max_bidi_streams);
     conn->max_local_stream_id_uni =
-        ngtcp2_nth_client_uni_id(conn->remote_settings.max_streams_uni);
+        ngtcp2_nth_client_uni_id(conn->remote_settings.max_uni_streams);
   }
 
   conn->max_tx_offset = conn->remote_settings.max_data;
