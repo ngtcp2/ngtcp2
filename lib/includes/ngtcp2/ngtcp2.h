@@ -156,16 +156,16 @@ typedef struct {
 } ngtcp2_mem;
 
 /* NGTCP2_PROTO_VER_D11 is the supported QUIC protocol version
-   draft-11. */
-#define NGTCP2_PROTO_VER_D11 0xff00000bu
+   draft-12. */
+#define NGTCP2_PROTO_VER_D12 0xff00000cu
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D11
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D12
 
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D11 "\x5hq-11"
+#define NGTCP2_ALPN_D12 "\x5hq-12"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
