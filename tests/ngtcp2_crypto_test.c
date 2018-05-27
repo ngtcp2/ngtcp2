@@ -42,7 +42,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.v.ch.initial_version = 0xe1e2e3e4u;
   params.initial_max_stream_data = 1000000007;
   params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 0;
+  params.initial_max_bidi_streams = 0;
   params.initial_max_streams_uni = 0;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
@@ -61,8 +61,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.v.ch.initial_version == nparams.v.ch.initial_version);
   CU_ASSERT(params.initial_max_stream_data == nparams.initial_max_stream_data);
   CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_streams_bidi ==
-            nparams.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_bidi_streams ==
+            nparams.initial_max_bidi_streams);
   CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
@@ -80,7 +80,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.v.ee.len = 3;
   params.initial_max_stream_data = 1000000007;
   params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 0;
+  params.initial_max_bidi_streams = 0;
   params.initial_max_streams_uni = 0;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
@@ -109,8 +109,8 @@ void test_ngtcp2_encode_transport_params(void) {
   }
   CU_ASSERT(params.initial_max_stream_data == nparams.initial_max_stream_data);
   CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_streams_bidi ==
-            nparams.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_bidi_streams ==
+            nparams.initial_max_bidi_streams);
   CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
@@ -124,7 +124,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.v.ch.initial_version = 0xe1e2e3e4u;
   params.initial_max_stream_data = 1000000007;
   params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 909;
+  params.initial_max_bidi_streams = 909;
   params.initial_max_streams_uni = 911;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = 1400;
@@ -142,8 +142,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(params.initial_max_stream_data == nparams.initial_max_stream_data);
   CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_streams_bidi ==
-            nparams.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_bidi_streams ==
+            nparams.initial_max_bidi_streams);
   CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
@@ -155,7 +155,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.v.ch.initial_version = 0xe1e2e3e4u;
   params.initial_max_stream_data = 1000000007;
   params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 909;
+  params.initial_max_bidi_streams = 909;
   params.initial_max_streams_uni = 0;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = 1200;
@@ -178,7 +178,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.v.ch.initial_version = 0xe1e2e3e4u;
   params.initial_max_stream_data = 1000000007;
   params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 909;
+  params.initial_max_bidi_streams = 909;
   params.initial_max_streams_uni = 0;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = 1200;
@@ -205,7 +205,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.v.ee.len = 3;
   params.initial_max_stream_data = 1000000007;
   params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 908;
+  params.initial_max_bidi_streams = 908;
   params.initial_max_streams_uni = 0;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = 1200;

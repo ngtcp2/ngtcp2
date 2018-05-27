@@ -483,7 +483,7 @@ typedef union {
 typedef enum {
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA = 0,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 1,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI = 2,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS = 2,
   NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
@@ -541,7 +541,7 @@ typedef struct {
   } v;
   uint32_t initial_max_stream_data;
   uint32_t initial_max_data;
-  uint16_t initial_max_streams_bidi;
+  uint16_t initial_max_bidi_streams;
   uint16_t initial_max_streams_uni;
   uint16_t idle_timeout;
   uint16_t max_packet_size;
@@ -561,7 +561,7 @@ typedef struct {
   ngtcp2_printf log_printf;
   uint32_t max_stream_data;
   uint32_t max_data;
-  uint16_t max_streams_bidi;
+  uint16_t max_bidi_streams;
   uint16_t max_streams_uni;
   uint16_t idle_timeout;
   uint16_t max_packet_size;
