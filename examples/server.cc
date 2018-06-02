@@ -75,19 +75,58 @@ Buffer::Buffer(size_t datalen)
 Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
 namespace {
-int bio_write(BIO *b, const char *buf, int len) {
-  int rv;
-
-  BIO_clear_retry_flags(b);
-
-  auto h = static_cast<Handler *>(BIO_get_data(b));
-
-  rv = h->write_server_handshake(reinterpret_cast<const uint8_t *>(buf), len);
-  if (rv != 0) {
-    return -1;
+void key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
+            const unsigned char *key, size_t keylen, const unsigned char *iv,
+            size_t ivlen, void *arg) {
+  switch (name) {
+  case SSL_KEY_CLIENT_EARLY_TRAFFIC:
+    std::cerr << "client_early_traffic" << std::endl;
+    break;
+  case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
+    std::cerr << "client_handshake_traffic" << std::endl;
+    break;
+  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+    std::cerr << "client_application_traffic" << std::endl;
+    break;
+  case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
+    std::cerr << "server_handshake_traffic" << std::endl;
+    break;
+  case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
+    std::cerr << "server_application_traffic" << std::endl;
+    break;
+  default:
+    return;
   }
 
-  return len;
+  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+            << "+ key=" << util::format_hex(key, keylen) << "\n"
+            << "+ iv=" << util::format_hex(iv, ivlen) << std::endl;
+}
+} // namespace
+
+namespace {
+void msg_cb(int write_p, int version, int content_type, const void *buf,
+            size_t len, SSL *ssl, void *arg) {
+  int rv;
+
+  std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
+            << " content_type=" << content_type << " len=" << len << std::endl;
+  if (!write_p) {
+    return;
+  }
+
+  auto h = static_cast<Handler *>(arg);
+
+  rv = h->write_server_handshake(reinterpret_cast<const uint8_t *>(buf), len);
+
+  assert(0 == rv);
+}
+} // namespace
+
+namespace {
+int bio_write(BIO *b, const char *buf, int len) {
+  assert(0);
+  return -1;
 }
 } // namespace
 
@@ -827,6 +866,9 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   SSL_set_bio(ssl_, bio, bio);
   SSL_set_app_data(ssl_, this);
   SSL_set_accept_state(ssl_);
+  SSL_set_msg_callback(ssl_, msg_cb);
+  SSL_set_msg_callback_arg(ssl_, this);
+  SSL_set_key_callback(ssl_, key_cb, this);
 
   auto callbacks = ngtcp2_conn_callbacks{
       nullptr,
@@ -2306,6 +2348,7 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
                             SSL_OP_CIPHER_SERVER_PREFERENCE;
 
   SSL_CTX_set_options(ssl_ctx, ssl_opts);
+  SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
 
   if (SSL_CTX_set_cipher_list(ssl_ctx, config.ciphers) != 1) {
     std::cerr << "SSL_CTX_set_cipher_list: "
@@ -2318,7 +2361,7 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
     goto fail;
   }
 
-  SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
+  SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS | SSL_MODE_QUIC_HACK);
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);

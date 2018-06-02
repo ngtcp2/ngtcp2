@@ -84,19 +84,28 @@ void Stream::buffer_file() {
 }
 
 namespace {
-int bio_write(BIO *b, const char *buf, int len) {
+void msg_cb(int write_p, int version, int content_type, const void *buf,
+            size_t len, SSL *ssl, void *arg) {
   int rv;
 
-  BIO_clear_retry_flags(b);
-
-  auto c = static_cast<Client *>(BIO_get_data(b));
-
-  rv = c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
-  if (rv != 0) {
-    return -1;
+  std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
+            << " content_type=" << content_type << " len=" << len << std::endl;
+  if (!write_p) {
+    return;
   }
 
-  return len;
+  auto c = static_cast<Client *>(arg);
+
+  rv = c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
+
+  assert(0 == rv);
+}
+} // namespace
+
+namespace {
+int bio_write(BIO *b, const char *buf, int len) {
+  assert(0);
+  return -1;
 }
 } // namespace
 
@@ -600,6 +609,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   SSL_set_bio(ssl_, bio, bio);
   SSL_set_app_data(ssl_, this);
   SSL_set_connect_state(ssl_);
+  SSL_set_msg_callback(ssl_, msg_cb);
+  SSL_set_msg_callback_arg(ssl_, this);
 
   const uint8_t *alpn = nullptr;
   size_t alpnlen;
@@ -1264,7 +1275,18 @@ void Client::schedule_retransmit() {
 }
 
 int Client::write_client_handshake(const uint8_t *data, size_t datalen) {
-  chandshake_.emplace_back(data, datalen);
+  if (chandshake_.empty() || chandshake_idx_ == chandshake_.size()) {
+    chandshake_.emplace_back(data, datalen);
+    return 0;
+  }
+
+  auto &last = chandshake_.back();
+
+  last.buf.insert(std::end(last.buf), data, data + datalen);
+  last.begin = last.buf.data();
+  last.head = last.begin;
+  last.tail = last.begin + last.buf.size();
+
   return 0;
 }
 
@@ -1920,6 +1942,8 @@ SSL_CTX *create_ssl_ctx() {
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
 
+  SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
+
   // This makes OpenSSL client not send CCS after an initial
   // ClientHello.
   SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
@@ -1936,6 +1960,8 @@ SSL_CTX *create_ssl_ctx() {
     std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
     exit(EXIT_FAILURE);
   }
+
+  SSL_CTX_set_mode(ssl_ctx, SSL_MODE_QUIC_HACK);
 
   if (SSL_CTX_add_custom_ext(
           ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
