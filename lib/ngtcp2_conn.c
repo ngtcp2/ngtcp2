@@ -3946,7 +3946,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                              size_t pktlen, ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
   int rv = 0;
-  const uint8_t *hdpkt = pkt;
   size_t hdpktlen;
   const uint8_t *payload;
   size_t payloadlen;
@@ -4040,7 +4039,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
 
       rv = conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen,
-                                           hdpkt, hdpktlen, ts);
+                                           plain_hdpkt, hdpktlen, ts);
       if (rv != 0) {
         return rv;
       }
