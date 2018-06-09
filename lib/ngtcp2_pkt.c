@@ -199,8 +199,8 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   uint8_t *p;
   size_t len = NGTCP2_MIN_LONG_HEADERLEN + hd->dcid.datalen + hd->scid.datalen +
                2 + hd->pkt_numlen -
-               2 /* NGTCP2_MIN_LONG_HEADERLEN includes 1 byte for len
-                        and 1 byte for packet number. */;
+               2; /* NGTCP2_MIN_LONG_HEADERLEN includes 1 byte for len
+                                   and 1 byte for packet number. */
 
   if (outlen < len) {
     return NGTCP2_ERR_NOBUF;

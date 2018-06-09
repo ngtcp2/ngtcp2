@@ -44,47 +44,47 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
   log->user_data = user_data;
 }
 
-  /*
-   * # Log header
-   *
-   * <LEVEL><TIMESTAMP> <SCID> <EVENT>
-   *
-   * <LEVEL>:
-   *   Log level.  I=Info, W=Warning, E=Error
-   *
-   * <TIMESTAMP>:
-   *   Timestamp relative to ngtcp2_log.ts field in milliseconds
-   *   resolution.
-   *
-   * <SCID>:
-   *   Source Connection ID in hex string.
-   *
-   * <EVENT>:
-   *   Event.  pkt=packet, frm=frame, rcv=recovery, cry=crypto,
-   *   con=connection(catch all)
-   *
-   * # Frame event
-   *
-   * <DIR> <PKN> <PKTNAME>(<PKTTYPE>) <FRAMENAME>(<FRAMETYPE>)
-   *
-   * <DIR>:
-   *   Flow direction.  tx=transmission, rx=reception
-   *
-   * <PKN>:
-   *   Packet number.
-   *
-   * <PKTNAME>:
-   *   Packet name.  (e.g., Initial, Handshake, S01)
-   *
-   * <PKTTYPE>:
-   *   Packet type in hex string.
-   *
-   * <FRAMENAME>:
-   *   Frame name.  (e.g., STREAM, ACK, PING)
-   *
-   * <FRAMETYPE>:
-   *   Frame type in hex string.
-   */
+/*
+ * # Log header
+ *
+ * <LEVEL><TIMESTAMP> <SCID> <EVENT>
+ *
+ * <LEVEL>:
+ *   Log level.  I=Info, W=Warning, E=Error
+ *
+ * <TIMESTAMP>:
+ *   Timestamp relative to ngtcp2_log.ts field in milliseconds
+ *   resolution.
+ *
+ * <SCID>:
+ *   Source Connection ID in hex string.
+ *
+ * <EVENT>:
+ *   Event.  pkt=packet, frm=frame, rcv=recovery, cry=crypto,
+ *   con=connection(catch all)
+ *
+ * # Frame event
+ *
+ * <DIR> <PKN> <PKTNAME>(<PKTTYPE>) <FRAMENAME>(<FRAMETYPE>)
+ *
+ * <DIR>:
+ *   Flow direction.  tx=transmission, rx=reception
+ *
+ * <PKN>:
+ *   Packet number.
+ *
+ * <PKTNAME>:
+ *   Packet name.  (e.g., Initial, Handshake, S01)
+ *
+ * <PKTTYPE>:
+ *   Packet type in hex string.
+ *
+ * <FRAMENAME>:
+ *   Frame name.  (e.g., STREAM, ACK, PING)
+ *
+ * <FRAMETYPE>:
+ *   Frame type in hex string.
+ */
 
 #define NGTCP2_LOG_BUFLEN 4096
 

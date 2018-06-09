@@ -2508,7 +2508,8 @@ Options:
             << config.ciphers << R"(
   --groups=<GROUPS>
               Specify the supported groups.
-              Default: )" << config.groups << R"(
+              Default: )"
+            << config.groups << R"(
   -d, --htdocs=<PATH>
               Specify document root.  If this option is not specified,
               the document root is the current working directory.
@@ -2517,8 +2518,8 @@ Options:
               Print out secrets unless --quiet is used.
   --timeout=<T>
               Specify idle timeout in seconds.
-              Default: )" << config.timeout
-            << R"(
+              Default: )"
+            << config.timeout << R"(
   -h, --help  Display this help and exit.
 )";
 }
