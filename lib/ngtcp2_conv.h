@@ -26,20 +26,20 @@
 #define NGTCP2_CONV_H
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
+#  include <arpa/inet.h>
 #endif /* HAVE_ARPA_INET_H */
 
 #include <ngtcp2/ngtcp2.h>
 
 #ifdef WORDS_BIGENDIAN
-#define bswap64(N) (N)
+#  define bswap64(N) (N)
 #else /* !WORDS_BIGENDIAN */
-#define bswap64(N)                                                             \
-  ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
+#  define bswap64(N)                                                           \
+    ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
 #endif /* !WORDS_BIGENDIAN */
 
 /*

@@ -29,7 +29,7 @@
 /* Define WIN32 when build target is Win32 API (borrowed from
    libcurl) */
 #if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#define WIN32
+#  define WIN32
 #endif
 
 #ifdef __cplusplus
@@ -41,9 +41,9 @@ extern "C" {
 /* MSVC < 2013 does not have inttypes.h because it is not C99
    compliant.  See compiler macros and version number in
    https://sourceforge.net/p/predef/wiki/Compilers/ */
-#include <stdint.h>
+#  include <stdint.h>
 #else /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
-#include <inttypes.h>
+#  include <inttypes.h>
 #endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
 #include <sys/types.h>
 #include <stdarg.h>
@@ -51,20 +51,20 @@ extern "C" {
 #include <ngtcp2/version.h>
 
 #ifdef NGTCP2_STATICLIB
-#define NGTCP2_EXTERN
+#  define NGTCP2_EXTERN
 #elif defined(WIN32)
-#ifdef BUILDING_NGTCP2
-#define NGTCP2_EXTERN __declspec(dllexport)
-#else /* !BUILDING_NGTCP2 */
-#define NGTCP2_EXTERN __declspec(dllimport)
-#endif /* !BUILDING_NGTCP2 */
-#else  /* !defined(WIN32) */
-#ifdef BUILDING_NGTCP2
-#define NGTCP2_EXTERN __attribute__((visibility("default")))
-#else /* !BUILDING_NGTCP2 */
-#define NGTCP2_EXTERN
-#endif /* !BUILDING_NGTCP2 */
-#endif /* !defined(WIN32) */
+#  ifdef BUILDING_NGTCP2
+#    define NGTCP2_EXTERN __declspec(dllexport)
+#  else /* !BUILDING_NGTCP2 */
+#    define NGTCP2_EXTERN __declspec(dllimport)
+#  endif /* !BUILDING_NGTCP2 */
+#else    /* !defined(WIN32) */
+#  ifdef BUILDING_NGTCP2
+#    define NGTCP2_EXTERN __attribute__((visibility("default")))
+#  else /* !BUILDING_NGTCP2 */
+#    define NGTCP2_EXTERN
+#  endif /* !BUILDING_NGTCP2 */
+#endif   /* !defined(WIN32) */
 
 /**
  * @functypedef

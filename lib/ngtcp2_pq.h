@@ -27,7 +27,7 @@
 #define NGTCP2_PQ_H
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
 #include <ngtcp2/ngtcp2.h>

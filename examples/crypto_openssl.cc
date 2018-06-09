@@ -26,12 +26,12 @@
 
 #if !defined(OPENSSL_IS_BORINGSSL)
 
-#include <cassert>
+#  include <cassert>
 
-#include <openssl/evp.h>
-#include <openssl/kdf.h>
+#  include <openssl/evp.h>
+#  include <openssl/kdf.h>
 
-#include "template.h"
+#  include "template.h"
 
 namespace ngtcp2 {
 

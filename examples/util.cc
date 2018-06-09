@@ -26,7 +26,7 @@
 #include "util.h"
 
 #ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
+#  include <arpa/inet.h>
 #endif // HAVE_ARPA_INET_H
 
 #include <chrono>
