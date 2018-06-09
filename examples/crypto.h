@@ -45,6 +45,7 @@ struct Context {
 #else  // !OPENSSL_IS_BORINGSSL
   const EVP_CIPHER *aead;
 #endif // !OPENSSL_IS_BORINGSSL
+  const EVP_CIPHER *pn;
   const EVP_MD *prf;
   std::array<uint8_t, 64> tx_secret, rx_secret;
   size_t secretlen;
@@ -110,6 +111,14 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const Context &ctx);
 
+// derive_pkt_num_protection_key derives and stores the packet number
+// protection key in the buffer pointed by |dest| of length |destlen|,
+// and the key size is returned.  This function returns the key length
+// if it succeeds, or -1.
+ssize_t derive_pkt_num_protection_key(uint8_t *dest, size_t destlen,
+                                      const uint8_t *secret, size_t secretlen,
+                                      const Context &ctx);
+
 // encrypt encrypts |plaintext| of length |plaintextlen| and writes
 // the encrypted data in the buffer pointed by |dest| of length
 // |destlen|.  This function can encrypt data in-place.  In other
@@ -138,6 +147,18 @@ size_t aead_key_length(const Context &ctx);
 
 // aead_nonce_length returns the nonce size of ctx.aead.
 size_t aead_nonce_length(const Context &ctx);
+
+// encrypt_pn encrypts |plaintext| of length |plaintextlen| and writes
+// the encrypted data in the buffer pointed by |dest| of length
+// |destlen|.  This function can encrypt data in-place.  In other
+// words, |dest| == |plaintext| is allowed.  This function returns the
+// number of bytes written if it succeeds, or -1.
+//
+// Use this function to decrypt ciphertext.  Just pass ciphertext as
+// |plaintext|.
+ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
+                   size_t plaintextlen, const Context &ctx, const uint8_t *key,
+                   size_t keylen, const uint8_t *nonce, size_t noncelen);
 
 // hkdf_expand performs HKDF-expand.  This function returns 0 if it
 // succeeds, or -1.

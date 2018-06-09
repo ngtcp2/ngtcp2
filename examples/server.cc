@@ -595,20 +595,15 @@ int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
 
 namespace {
 ssize_t send_server_handshake(ngtcp2_conn *conn, uint32_t flags,
-                              uint64_t *ppkt_num, const uint8_t **pdest,
+                              const uint8_t **pdest, int initial,
                               void *user_data) {
   auto h = static_cast<Handler *>(user_data);
-
-  if (ppkt_num) {
-    *ppkt_num = std::uniform_int_distribution<uint64_t>(
-        0, NGTCP2_MAX_INITIAL_PKT_NUM)(randgen);
-  }
 
   auto len = h->read_server_handshake(pdest);
 
   // If Initial packet does not have complete ClientHello, then drop
   // connection.
-  if (ppkt_num && len == 0) {
+  if (initial && len == 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -696,6 +691,41 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                 keylen, nonce, noncelen, ad, adlen);
   if (nwrite < 0) {
     return NGTCP2_ERR_TLS_DECRYPT;
+  }
+
+  return nwrite;
+}
+} // namespace
+
+namespace {
+ssize_t do_hs_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                         const uint8_t *plaintext, size_t plaintextlen,
+                         const uint8_t *key, size_t keylen,
+                         const uint8_t *nonce, size_t noncelen,
+                         void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  auto nwrite = h->hs_encrypt_pn(dest, destlen, plaintext, plaintextlen, key,
+                                 keylen, nonce, noncelen);
+  if (nwrite < 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return nwrite;
+}
+} // namespace
+
+namespace {
+ssize_t do_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                      const uint8_t *plaintext, size_t plaintextlen,
+                      const uint8_t *key, size_t keylen, const uint8_t *nonce,
+                      size_t noncelen, void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+
+  auto nwrite = h->encrypt_pn(dest, destlen, plaintext, plaintextlen, key,
+                              keylen, nonce, noncelen);
+  if (nwrite < 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   return nwrite;
@@ -810,6 +840,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       do_hs_decrypt,
       do_encrypt,
       do_decrypt,
+      do_hs_encrypt_pn,
+      do_encrypt_pn,
       ::recv_stream_data,
       acked_stream_data_offset,
       stream_close,
@@ -825,8 +857,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   settings.initial_ts = util::timestamp(loop_);
   settings.max_stream_data = 256_k;
   settings.max_data = 1_m;
-  settings.max_streams_bidi = 100;
-  settings.max_streams_uni = 0;
+  settings.max_bidi_streams = 100;
+  settings.max_uni_streams = 0;
   settings.idle_timeout = config.timeout;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
@@ -1045,7 +1077,7 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     return -1;
   }
 
-  std::array<uint8_t, 16> key, iv;
+  std::array<uint8_t, 16> key, iv, pn;
   auto keylen = crypto::derive_packet_protection_key(
       key.data(), key.size(), secret.data(), secret.size(), hs_crypto_ctx_);
   if (keylen < 0) {
@@ -1058,14 +1090,21 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     return -1;
   }
 
+  auto pnlen = crypto::derive_pkt_num_protection_key(
+      pn.data(), pn.size(), secret.data(), secret.size(), hs_crypto_ctx_);
+  if (pnlen < 0) {
+    return -1;
+  }
+
   if (!config.quiet && config.show_secret) {
     debug::print_server_hs_secret(secret.data(), secret.size());
     debug::print_server_pp_key(key.data(), keylen);
     debug::print_server_pp_iv(iv.data(), ivlen);
+    debug::print_server_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
-                                    ivlen);
+  ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                    pn.data(), pnlen);
 
   rv = crypto::derive_client_handshake_secret(secret.data(), secret.size(),
                                               handshake_secret.data(),
@@ -1087,14 +1126,21 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     return -1;
   }
 
+  pnlen = crypto::derive_pkt_num_protection_key(
+      pn.data(), pn.size(), secret.data(), secret.size(), hs_crypto_ctx_);
+  if (pnlen < 0) {
+    return -1;
+  }
+
   if (!config.quiet && config.show_secret) {
     debug::print_client_hs_secret(secret.data(), secret.size());
     debug::print_client_pp_key(key.data(), keylen);
     debug::print_client_pp_iv(iv.data(), ivlen);
+    debug::print_client_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
-                                    ivlen);
+  ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                    pn.data(), pnlen);
 
   return 0;
 }
@@ -1121,7 +1167,7 @@ int Handler::setup_early_crypto_context() {
     return -1;
   }
 
-  std::array<uint8_t, 64> key, iv;
+  std::array<uint8_t, 64> key, iv, pn;
 
   auto keylen = crypto::derive_packet_protection_key(
       key.data(), key.size(), crypto_ctx_.rx_secret.data(),
@@ -1137,14 +1183,23 @@ int Handler::setup_early_crypto_context() {
     return -1;
   }
 
+  auto pnlen = crypto::derive_pkt_num_protection_key(
+      pn.data(), pn.size(), crypto_ctx_.rx_secret.data(), crypto_ctx_.secretlen,
+      crypto_ctx_);
+  if (pnlen < 0) {
+    return -1;
+  }
+
   if (!config.quiet && config.show_secret) {
     debug::print_client_0rtt_secret(crypto_ctx_.rx_secret.data(),
                                     crypto_ctx_.secretlen);
     debug::print_client_pp_key(key.data(), keylen);
     debug::print_client_pp_iv(iv.data(), ivlen);
+    debug::print_client_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_update_early_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+  ngtcp2_conn_update_early_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                pn.data(), pnlen);
 
   ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
 
@@ -1173,7 +1228,7 @@ int Handler::setup_crypto_context() {
     return -1;
   }
 
-  std::array<uint8_t, 64> key{}, iv{};
+  std::array<uint8_t, 64> key, iv, pn;
 
   auto keylen = crypto::derive_packet_protection_key(
       key.data(), key.size(), crypto_ctx_.tx_secret.data(),
@@ -1189,14 +1244,23 @@ int Handler::setup_crypto_context() {
     return -1;
   }
 
+  auto pnlen = crypto::derive_pkt_num_protection_key(
+      pn.data(), pn.size(), crypto_ctx_.tx_secret.data(), crypto_ctx_.secretlen,
+      crypto_ctx_);
+  if (pnlen < 0) {
+    return -1;
+  }
+
   if (!config.quiet && config.show_secret) {
     debug::print_server_1rtt_secret(crypto_ctx_.tx_secret.data(),
                                     crypto_ctx_.secretlen);
     debug::print_server_pp_key(key.data(), keylen);
     debug::print_server_pp_iv(iv.data(), ivlen);
+    debug::print_server_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_update_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+  ngtcp2_conn_update_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                             pn.data(), pnlen);
 
   rv = crypto::export_client_secret(crypto_ctx_.rx_secret.data(),
                                     crypto_ctx_.secretlen, ssl_);
@@ -1218,14 +1282,23 @@ int Handler::setup_crypto_context() {
     return -1;
   }
 
+  pnlen = crypto::derive_pkt_num_protection_key(
+      pn.data(), pn.size(), crypto_ctx_.rx_secret.data(), crypto_ctx_.secretlen,
+      crypto_ctx_);
+  if (pnlen < 0) {
+    return -1;
+  }
+
   if (!config.quiet && config.show_secret) {
     debug::print_client_1rtt_secret(crypto_ctx_.rx_secret.data(),
                                     crypto_ctx_.secretlen);
     debug::print_client_pp_key(key.data(), keylen);
     debug::print_client_pp_iv(iv.data(), ivlen);
+    debug::print_client_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_update_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen);
+  ngtcp2_conn_update_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                             pn.data(), pnlen);
 
   ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
 
@@ -1270,12 +1343,30 @@ ssize_t Handler::decrypt_data(uint8_t *dest, size_t destlen,
                          key, keylen, nonce, noncelen, ad, adlen);
 }
 
+ssize_t Handler::hs_encrypt_pn(uint8_t *dest, size_t destlen,
+                               const uint8_t *ciphertext, size_t ciphertextlen,
+                               const uint8_t *key, size_t keylen,
+                               const uint8_t *nonce, size_t noncelen) {
+  return crypto::encrypt_pn(dest, destlen, ciphertext, ciphertextlen,
+                            hs_crypto_ctx_, key, keylen, nonce, noncelen);
+}
+
+ssize_t Handler::encrypt_pn(uint8_t *dest, size_t destlen,
+                            const uint8_t *ciphertext, size_t ciphertextlen,
+                            const uint8_t *key, size_t keylen,
+                            const uint8_t *nonce, size_t noncelen) {
+  return crypto::encrypt_pn(dest, destlen, ciphertext, ciphertextlen,
+                            crypto_ctx_, key, keylen, nonce, noncelen);
+}
+
 ssize_t Handler::do_handshake_once(const uint8_t *data, size_t datalen) {
   auto nwrite = ngtcp2_conn_handshake(conn_, sendbuf_.wpos(), max_pktlen_, data,
                                       datalen, util::timestamp(loop_));
   if (nwrite < 0) {
     switch (nwrite) {
     case NGTCP2_ERR_TLS_DECRYPT:
+      std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
+                << std::endl;
     case NGTCP2_ERR_NOBUF:
       return 0;
     }
@@ -1999,7 +2090,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   std::array<uint32_t, 2> sv;
 
   sv[0] = generate_reserved_version(sa, salen, chd->version);
-  sv[1] = NGTCP2_PROTO_VER_D11;
+  sv[1] = NGTCP2_PROTO_VER_D12;
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
@@ -2083,9 +2174,9 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   auto version = ngtcp2_conn_negotiated_version(h->conn());
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D11:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D11);
-    alpnlen = str_size(NGTCP2_ALPN_D11);
+  case NGTCP2_PROTO_VER_D12:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D12);
+    alpnlen = str_size(NGTCP2_ALPN_D12);
     break;
   default:
     if (!config.quiet) {
@@ -2107,7 +2198,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   *outlen = alpn[0];
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D11 + 1
+    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D12 + 1
               << std::endl;
   }
 
@@ -2134,9 +2225,9 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
   }
 
   params.v.ee.len = 1;
-  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D11;
+  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D12;
 
-  constexpr size_t bufsize = 128;
+  constexpr size_t bufsize = 512;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
 
   auto nwrite = ngtcp2_encode_transport_params(

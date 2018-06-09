@@ -37,18 +37,14 @@
 #define NGTCP2_FOURTH_BIT 0x10
 #define NGTCP2_GQUIC_BIT 0x08
 #define NGTCP2_LONG_TYPE_MASK 0x7f
-#define NGTCP2_SHORT_TYPE_MASK 0x03
 
 /* NGTCP2_SR_TYPE is a Type field of Stateless Reset. */
 #define NGTCP2_SR_TYPE 0x1f
 
-/* NGTCP2_LONG_HEADERLEN is the length of long header */
-#define NGTCP2_LONG_HEADERLEN 17
-
 /* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
    That is (1|TYPE)<1> + VERSION<4> + (DCIL|SCIL)<1> + PAYLOADLEN<1> +
-   PKN<4> */
-#define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 4)
+   PKN<1> */
+#define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 1)
 
 #define NGTCP2_STREAM_FIN_BIT 0x01
 #define NGTCP2_STREAM_LEN_BIT 0x02
@@ -67,14 +63,19 @@
    blocks which this library can create, or decode. */
 #define NGTCP2_MAX_ACK_BLKS 255
 
+/* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
+#define NGTCP2_MAX_PKT_NUM ((1llu << 62) - 1)
+
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.  If
  * |dcid| and/or |scid| is NULL, DCID and SCID of |hd| is empty
- * respectively.
+ * respectively.  |pkt_numlen| is the number of bytes used to encode
+ * |pkt_num| and either 1, 2, or 4.
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                        uint64_t pkt_num, uint32_t version, size_t payloadlen);
+                        uint64_t pkt_num, size_t pkt_numlen, uint32_t version,
+                        size_t len);
 
 /*
  * ngtcp2_pkt_encode_hd_long encodes |hd| as QUIC long header into

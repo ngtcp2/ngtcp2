@@ -97,6 +97,23 @@ static ssize_t null_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   (void)ad;
   (void)adlen;
   (void)user_data;
+  return (ssize_t)plaintextlen + NGTCP2_FAKE_AEAD_OVERHEAD;
+}
+
+static ssize_t null_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                               const uint8_t *plaintext, size_t plaintextlen,
+                               const uint8_t *key, size_t keylen,
+                               const uint8_t *nonce, size_t noncelen,
+                               void *user_data) {
+  (void)conn;
+  (void)dest;
+  (void)destlen;
+  (void)plaintext;
+  (void)key;
+  (void)keylen;
+  (void)nonce;
+  (void)noncelen;
+  (void)user_data;
   return (ssize_t)plaintextlen;
 }
 
@@ -111,11 +128,13 @@ size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
 
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
+  ctx.encrypt_pn = null_encrypt_pn;
   ctx.ckm = conn->rx_ckm;
+  ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, dcid, NULL,
-                     pkt_num, NGTCP2_PROTO_VER_MAX, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, dcid, NULL,
+                     pkt_num, 4, NGTCP2_PROTO_VER_MAX, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -138,11 +157,13 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
 
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
+  ctx.encrypt_pn = null_encrypt_pn;
   ctx.ckm = conn->rx_ckm;
+  ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_03, NULL, NULL,
-                     pkt_num, NGTCP2_PROTO_VER_MAX, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL,
+                     pkt_num, 4, NGTCP2_PROTO_VER_MAX, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -168,11 +189,13 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
 
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
+  ctx.encrypt_pn = null_encrypt_pn;
   ctx.ckm = conn->hs_rx_ckm;
+  ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid,
-                     pkt_num, version, 0);
+                     pkt_num, 4, version, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -198,11 +221,13 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
 
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
+  ctx.encrypt_pn = null_encrypt_pn;
   ctx.ckm = conn->hs_rx_ckm;
+  ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid,
-                     pkt_num, version, 0);
+                     pkt_num, 4, version, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &ctx);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -273,4 +298,58 @@ void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
   assert(payloadlen < 16384);
   ngtcp2_put_varint14(&pkt[1 + 4 + 1 + dcid->datalen + scid->datalen],
                       (uint16_t)payloadlen);
+}
+
+ssize_t pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                           size_t pktlen) {
+  const uint8_t *p;
+  size_t n;
+  ssize_t nread;
+
+  nread = ngtcp2_pkt_decode_hd_long(dest, pkt, pktlen);
+  if (nread < 0 || dest->type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+    return nread;
+  }
+
+  if ((size_t)nread == pktlen) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = pkt + nread;
+
+  n = ngtcp2_get_pkt_num_len(p);
+  if (pktlen < (size_t)nread + n) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  dest->pkt_num = ngtcp2_get_pkt_num(&dest->pkt_numlen, p);
+
+  return nread + (ssize_t)n;
+}
+
+ssize_t pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                            size_t pktlen, size_t dcidlen) {
+  const uint8_t *p;
+  size_t n;
+  ssize_t nread;
+
+  nread = ngtcp2_pkt_decode_hd_short(dest, pkt, pktlen, dcidlen);
+  if (nread < 0) {
+    return nread;
+  }
+
+  if ((size_t)nread == pktlen) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = pkt + nread;
+
+  n = ngtcp2_get_pkt_num_len(p);
+  if (pktlen < (size_t)nread + n) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  dest->pkt_num = ngtcp2_get_pkt_num(&dest->pkt_numlen, p);
+
+  return nread + (ssize_t)n;
 }

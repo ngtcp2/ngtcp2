@@ -31,14 +31,18 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_conn.h"
+#include "ngtcp2_macro.h"
 
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
                      ngtcp2_crypto_ctx *cctx) {
   ngtcp2_buf_init(&ppe->buf, out, outlen);
 
   ppe->hdlen = 0;
-  ppe->payloadlen_offset = 0;
+  ppe->len_offset = 0;
+  ppe->pkt_num_offset = 0;
+  ppe->pkt_numlen = 0;
   ppe->pkt_num = 0;
+  ppe->sample_offset = 0;
   ppe->ctx = cctx;
 }
 
@@ -52,10 +56,15 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
   }
 
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    ppe->payloadlen_offset = 1 + 4 + 1 + hd->dcid.datalen + hd->scid.datalen;
+    ppe->len_offset = 1 + 4 + 1 + hd->dcid.datalen + hd->scid.datalen;
+    ppe->pkt_num_offset = ppe->len_offset + 2;
+    ppe->sample_offset =
+        1 + 4 + 1 + hd->dcid.datalen + hd->scid.datalen + 2 + 4;
     rv = ngtcp2_pkt_encode_hd_long(
         buf->last, ngtcp2_buf_left(buf) - ctx->aead_overhead, hd);
   } else {
+    ppe->pkt_num_offset = 1 + hd->dcid.datalen;
+    ppe->sample_offset = 1 + hd->dcid.datalen + 4;
     rv = ngtcp2_pkt_encode_hd_short(
         buf->last, ngtcp2_buf_left(buf) - ctx->aead_overhead, hd);
   }
@@ -65,6 +74,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
 
   buf->last += rv;
 
+  ppe->pkt_numlen = hd->pkt_numlen;
   ppe->hdlen = (size_t)rv;
 
   ppe->pkt_num = hd->pkt_num;
@@ -93,7 +103,7 @@ int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr) {
 }
 
 ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
-  ssize_t rv;
+  ssize_t nwrite;
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_ctx *ctx = ppe->ctx;
   ngtcp2_conn *conn = ctx->user_data;
@@ -101,23 +111,40 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   size_t payloadlen = ngtcp2_buf_len(buf) - ppe->hdlen;
   size_t destlen = (size_t)(buf->end - buf->begin) - ppe->hdlen;
 
-  if (ppe->payloadlen_offset) {
-    ngtcp2_put_varint14(buf->begin + ppe->payloadlen_offset,
-                        (uint16_t)(payloadlen + ctx->aead_overhead));
+  assert(ppe->ctx->encrypt);
+  assert(ppe->ctx->encrypt_pn);
+
+  if (ppe->len_offset) {
+    ngtcp2_put_varint14(
+        buf->begin + ppe->len_offset,
+        (uint16_t)(payloadlen + ppe->pkt_numlen + ctx->aead_overhead));
   }
 
   ngtcp2_crypto_create_nonce(ppe->nonce, ctx->ckm->iv, ctx->ckm->ivlen,
                              ppe->pkt_num);
 
-  rv = ppe->ctx->encrypt(conn, payload, destlen, payload, payloadlen,
-                         ctx->ckm->key, ctx->ckm->keylen, ppe->nonce,
-                         ctx->ckm->ivlen, buf->begin, ppe->hdlen,
-                         conn->user_data);
-  if (rv < 0) {
+  nwrite = ppe->ctx->encrypt(conn, payload, destlen, payload, payloadlen,
+                             ctx->ckm->key, ctx->ckm->keylen, ppe->nonce,
+                             ctx->ckm->ivlen, buf->begin, ppe->hdlen,
+                             conn->user_data);
+  if (nwrite < 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  buf->last = payload + rv;
+  buf->last = payload + nwrite;
+
+  ppe->sample_offset =
+      ngtcp2_min(ppe->sample_offset, ngtcp2_buf_len(buf) - ctx->aead_overhead);
+
+  nwrite = ppe->ctx->encrypt_pn(
+      conn, buf->begin + ppe->pkt_num_offset, ppe->pkt_numlen,
+      buf->begin + ppe->pkt_num_offset, ppe->pkt_numlen, ctx->ckm->pn,
+      ctx->ckm->pnlen, buf->begin + ppe->sample_offset, NGTCP2_PN_SAMPLELEN,
+      conn->user_data);
+
+  if (nwrite < 0) {
+    return nwrite;
+  }
 
   if (ppkt != NULL) {
     *ppkt = buf->begin;

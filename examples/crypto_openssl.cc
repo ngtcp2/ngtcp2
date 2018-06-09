@@ -55,12 +55,15 @@ int negotiated_aead(Context &ctx, SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case 0x03001301u: // TLS_AES_128_GCM_SHA256
     ctx.aead = EVP_aes_128_gcm();
+    ctx.pn = EVP_aes_128_ctr();
     return 0;
   case 0x03001302u: // TLS_AES_256_GCM_SHA384
     ctx.aead = EVP_aes_256_gcm();
+    ctx.pn = EVP_aes_256_ctr();
     return 0;
   case 0x03001303u: // TLS_CHACHA20_POLY1305_SHA256
     ctx.aead = EVP_chacha20_poly1305();
+    ctx.pn = EVP_chacha20();
     return 0;
   default:
     return -1;
@@ -208,6 +211,42 @@ size_t aead_nonce_length(const Context &ctx) {
   return EVP_CIPHER_iv_length(ctx.aead);
 }
 
+ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
+                   size_t plaintextlen, const Context &ctx, const uint8_t *key,
+                   size_t keylen, const uint8_t *nonce, size_t noncelen) {
+  auto actx = EVP_CIPHER_CTX_new();
+  if (actx == nullptr) {
+    return -1;
+  }
+
+  auto actx_d = defer(EVP_CIPHER_CTX_free, actx);
+
+  if (EVP_EncryptInit_ex(actx, ctx.pn, nullptr, key, nonce) != 1) {
+    return -1;
+  }
+
+  size_t outlen = 0;
+  int len;
+
+  if (EVP_EncryptUpdate(actx, dest, &len, plaintext, plaintextlen) != 1) {
+    return -1;
+  }
+
+  assert(len > 0);
+
+  outlen = len;
+
+  if (EVP_EncryptFinal_ex(actx, dest + outlen, &len) != 1) {
+    return -1;
+  }
+
+  assert(len == 0);
+
+  /* outlen += len; */
+
+  return outlen;
+}
+
 int hkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
                 size_t secretlen, const uint8_t *info, size_t infolen,
                 const Context &ctx) {
@@ -288,7 +327,10 @@ int hkdf_extract(uint8_t *dest, size_t destlen, const uint8_t *secret,
 
 void prf_sha256(Context &ctx) { ctx.prf = EVP_sha256(); }
 
-void aead_aes_128_gcm(Context &ctx) { ctx.aead = EVP_aes_128_gcm(); }
+void aead_aes_128_gcm(Context &ctx) {
+  ctx.aead = EVP_aes_128_gcm();
+  ctx.pn = EVP_aes_128_ctr();
+}
 
 } // namespace crypto
 
