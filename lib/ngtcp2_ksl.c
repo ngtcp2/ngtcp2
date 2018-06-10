@@ -40,6 +40,7 @@ int ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, int64_t inf_key,
   if (!ksl->head) {
     return NGTCP2_ERR_NOMEM;
   }
+  ksl->front = ksl->back = ksl->head;
   ksl->compar = compar;
   ksl->inf_key = inf_key;
   ksl->n = 0;
@@ -99,6 +100,8 @@ static ngtcp2_ksl_blk *ksl_split_blk(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
   blk->next = rblk;
   if (rblk->next) {
     rblk->next->prev = rblk;
+  } else if (ksl->back == blk) {
+    ksl->back = rblk;
   }
   rblk->prev = blk;
   rblk->leaf = blk->leaf;
@@ -287,6 +290,8 @@ static ngtcp2_ksl_blk *ksl_merge_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
   lblk->next = rblk->next;
   if (lblk->next) {
     lblk->next->prev = lblk;
+  } else if (ksl->back == rblk) {
+    ksl->back = lblk;
   }
 
   ngtcp2_mem_free(ksl->mem, rblk);
@@ -448,29 +453,15 @@ size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl) { return ksl->n; }
 void ngtcp2_ksl_print(ngtcp2_ksl *ksl) { ksl_print(ksl, ksl->head, 0); }
 
 ngtcp2_ksl_it ngtcp2_ksl_begin(const ngtcp2_ksl *ksl) {
-  const ngtcp2_ksl_blk *blk = ksl->head;
-
-  for (;;) {
-    if (blk->leaf) {
-      ngtcp2_ksl_it it;
-      ngtcp2_ksl_it_init(&it, blk, 0, ksl->inf_key);
-      return it;
-    }
-    blk = blk->nodes[0].blk;
-  }
+  ngtcp2_ksl_it it;
+  ngtcp2_ksl_it_init(&it, ksl->front, 0, ksl->inf_key);
+  return it;
 }
 
 ngtcp2_ksl_it ngtcp2_ksl_end(const ngtcp2_ksl *ksl) {
-  const ngtcp2_ksl_blk *blk = ksl->head;
-
-  for (;;) {
-    if (blk->leaf) {
-      ngtcp2_ksl_it it;
-      ngtcp2_ksl_it_init(&it, blk, blk->n - 1, ksl->inf_key);
-      return it;
-    }
-    blk = blk->nodes[blk->n - 1].blk;
-  }
+  ngtcp2_ksl_it it;
+  ngtcp2_ksl_it_init(&it, ksl->back, ksl->back->n - 1, ksl->inf_key);
+  return it;
 }
 
 void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, const ngtcp2_ksl_blk *blk, size_t i,

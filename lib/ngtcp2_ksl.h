@@ -105,6 +105,10 @@ typedef int (*ngtcp2_ksl_compar)(int64_t lhs, int64_t rhs);
 struct ngtcp2_ksl {
   /* head points to the root block. */
   ngtcp2_ksl_blk *head;
+  /* front points to the first leaf block. */
+  ngtcp2_ksl_blk *front;
+  /* back points to the last leaf block. */
+  ngtcp2_ksl_blk *back;
   ngtcp2_ksl_compar compar;
   int64_t inf_key;
   size_t n;
