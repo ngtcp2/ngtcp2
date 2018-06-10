@@ -320,9 +320,15 @@ static size_t psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
     blk = psl_merge_node(psl, blk, i);
     if (blk == psl->head) {
       *pblk = blk;
-      return j;
+      i = j;
+      if (blk->leaf) {
+        return i;
+      }
+      node = &blk->nodes[i];
+      rnode = &blk->nodes[i + 1];
+    } else {
+      return i;
     }
-    return i;
   }
 
   if (node->blk->n < rnode->blk->n) {

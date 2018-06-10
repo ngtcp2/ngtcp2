@@ -89,6 +89,30 @@ void test_ngtcp2_psl_insert(void) {
 
   ngtcp2_psl_free(&psl);
 
+  /* Check the case that the relocation merges 2 nodes into 1 node
+     which is head, but not a leaf. */
+  ngtcp2_psl_init(&psl, mem);
+
+  for (i = 0; i < 120; ++i) {
+    ngtcp2_range_init(&r, i, i + 1);
+    ngtcp2_psl_insert(&psl, NULL, &r, NULL);
+  }
+
+  ngtcp2_range_init(&r, 63, 64);
+  it = ngtcp2_psl_remove(&psl, &r);
+  pr = ngtcp2_psl_it_range(&it);
+
+  CU_ASSERT(64 == pr->begin);
+  CU_ASSERT(65 == pr->end);
+
+  it = ngtcp2_psl_lower_bound(&psl, &r);
+  pr = ngtcp2_psl_it_range(&it);
+
+  CU_ASSERT(64 == pr->begin);
+  CU_ASSERT(65 == pr->end);
+
+  ngtcp2_psl_free(&psl);
+
   /* check merge node (head) */
   ngtcp2_psl_init(&psl, mem);
 
