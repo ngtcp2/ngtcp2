@@ -47,7 +47,7 @@ int ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, int64_t inf_key,
 
   head = ksl->head;
 
-  head->next = NULL;
+  head->next = head->prev = NULL;
   head->n = 1;
   head->leaf = 1;
   head->nodes[0].key = inf_key;
@@ -97,6 +97,10 @@ static ngtcp2_ksl_blk *ksl_split_blk(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
 
   rblk->next = blk->next;
   blk->next = rblk;
+  if (rblk->next) {
+    rblk->next->prev = rblk;
+  }
+  rblk->prev = blk;
   rblk->leaf = blk->leaf;
 
   rblk->n = blk->n / 2;
@@ -168,7 +172,7 @@ static int ksl_split_head(ngtcp2_ksl *ksl) {
     ngtcp2_mem_free(ksl->mem, rblk);
     return NGTCP2_ERR_NOMEM;
   }
-  nhead->next = NULL;
+  nhead->next = nhead->prev = NULL;
   nhead->n = 2;
   nhead->leaf = 0;
 
@@ -281,6 +285,9 @@ static ngtcp2_ksl_blk *ksl_merge_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
 
   lblk->n += rblk->n;
   lblk->next = rblk->next;
+  if (lblk->next) {
+    lblk->next->prev = lblk;
+  }
 
   ngtcp2_mem_free(ksl->mem, rblk);
 
@@ -453,6 +460,19 @@ ngtcp2_ksl_it ngtcp2_ksl_begin(const ngtcp2_ksl *ksl) {
   }
 }
 
+ngtcp2_ksl_it ngtcp2_ksl_end(const ngtcp2_ksl *ksl) {
+  const ngtcp2_ksl_blk *blk = ksl->head;
+
+  for (;;) {
+    if (blk->leaf) {
+      ngtcp2_ksl_it it;
+      ngtcp2_ksl_it_init(&it, blk, blk->n - 1, ksl->inf_key);
+      return it;
+    }
+    blk = blk->nodes[blk->n - 1].blk;
+  }
+}
+
 void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, const ngtcp2_ksl_blk *blk, size_t i,
                         int64_t inf_key) {
   it->blk = blk;
@@ -473,8 +493,23 @@ void ngtcp2_ksl_it_next(ngtcp2_ksl_it *it) {
   }
 }
 
+void ngtcp2_ksl_it_prev(ngtcp2_ksl_it *it) {
+  assert(!ngtcp2_ksl_it_begin(it));
+
+  if (it->i == 0) {
+    it->blk = it->blk->prev;
+    it->i = it->blk->n - 1;
+  } else {
+    --it->i;
+  }
+}
+
 int ngtcp2_ksl_it_end(const ngtcp2_ksl_it *it) {
   return it->blk->nodes[it->i].key == it->inf_key;
+}
+
+int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it) {
+  return it->i == 0 && it->blk->prev == NULL;
 }
 
 int64_t ngtcp2_ksl_it_key(const ngtcp2_ksl_it *it) {

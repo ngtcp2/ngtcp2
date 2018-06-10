@@ -128,4 +128,38 @@ void test_ngtcp2_ksl_insert(void) {
   CU_ASSERT(8 == ksl.head->nodes[1].blk->n);
 
   ngtcp2_ksl_free(&ksl);
+
+  /* Iterate backwards */
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  /* split nodes */
+  for (i = 0; i < 100; ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  /* merge nodes */
+  for (i = 0; i < 50; ++i) {
+    ngtcp2_ksl_remove(&ksl, (int64_t)i);
+  }
+
+  i = 99;
+  for (it = ngtcp2_ksl_end(&ksl); !ngtcp2_ksl_it_begin(&it);) {
+    ngtcp2_ksl_it_prev(&it);
+
+    CU_ASSERT((int64_t)i-- == ngtcp2_ksl_it_key(&it));
+  }
+
+  /* head only */
+  for (i = 50; i < 88; ++i) {
+    ngtcp2_ksl_remove(&ksl, (int64_t)i);
+  }
+
+  i = 99;
+  for (it = ngtcp2_ksl_end(&ksl); !ngtcp2_ksl_it_begin(&it);) {
+    ngtcp2_ksl_it_prev(&it);
+
+    CU_ASSERT((int64_t)i-- == ngtcp2_ksl_it_key(&it));
+  }
+
+  ngtcp2_ksl_free(&ksl);
 }

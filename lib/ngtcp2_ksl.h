@@ -69,6 +69,8 @@ struct ngtcp2_ksl_node {
 struct ngtcp2_ksl_blk {
   /* next points to the next block if leaf field is nonzero. */
   ngtcp2_ksl_blk *next;
+  /* prev points to the previous block if leaf field is nonzero. */
+  ngtcp2_ksl_blk *prev;
   /* n is the number of nodes this object contains in nodes. */
   size_t n;
   /* leaf is nonzero if this block contains leaf nodes. */
@@ -171,6 +173,14 @@ ngtcp2_ksl_it ngtcp2_ksl_lower_bound(ngtcp2_ksl *ksl, int64_t key);
 ngtcp2_ksl_it ngtcp2_ksl_begin(const ngtcp2_ksl *ksl);
 
 /*
+ * ngtcp2_ksl_end returns the iterator which points to the node
+ * following the last node.  The returned object satisfies
+ * ngtcp2_ksl_it_end().  If there is no node in |ksl|, it returns the
+ * iterator which satisfies ngtcp2_ksl_it_begin(it) != 0.
+ */
+ngtcp2_ksl_it ngtcp2_ksl_end(const ngtcp2_ksl *ksl);
+
+/*
  * ngtcp2_ksl_len returns the number of elements stored in |ksl|.
  */
 size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl);
@@ -202,10 +212,24 @@ void *ngtcp2_ksl_it_get(const ngtcp2_ksl_it *it);
 void ngtcp2_ksl_it_next(ngtcp2_ksl_it *it);
 
 /*
+ * ngtcp2_ksl_it_prev moves backward the iterator by one.  It is
+ * undefined if this function is called when ngtcp2_ksl_it_begin(it)
+ * returns nonzero.
+ */
+void ngtcp2_ksl_it_prev(ngtcp2_ksl_it *it);
+
+/*
  * ngtcp2_ksl_it_end returns nonzero if |it| points to the beyond the
  * last node.
  */
 int ngtcp2_ksl_it_end(const ngtcp2_ksl_it *it);
+
+/*
+ * ngtcp2_ksl_it_begin returns nonzero if |it| points to the first
+ * node.  |it| might satisfy both ngtcp2_ksl_it_begin(&it) and
+ * ngtcp2_ksl_it_end(&it) if the skip list has no node.
+ */
+int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it);
 
 /*
  * ngtcp2_ksl_key returns the key of the node which |it| points to.
