@@ -66,7 +66,8 @@ void test_ngtcp2_ksl_insert(void) {
     ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
   }
 
-  /* Removing 7 requires relocation */
+  /* Removing 7 requires relocation.  It merges 2 nodes into 1 node
+     which becomes new head and a leaf. */
   it = ngtcp2_ksl_remove(&ksl, 7);
 
   CU_ASSERT(8 == ngtcp2_ksl_it_key(&it));
@@ -75,6 +76,24 @@ void test_ngtcp2_ksl_insert(void) {
 
   CU_ASSERT(8 == ngtcp2_ksl_it_key(&it));
   CU_ASSERT(8 == ksl.head->nodes[0].key);
+
+  ngtcp2_ksl_free(&ksl);
+
+  /* Check the case that the relocation merges 2 nodes into 1 node
+     which is head, but not a leaf. */
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  for (i = 0; i < 120; ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  it = ngtcp2_ksl_remove(&ksl, 63);
+
+  CU_ASSERT(64 == ngtcp2_ksl_it_key(&it));
+
+  it = ngtcp2_ksl_lower_bound(&ksl, 63);
+
+  CU_ASSERT(64 == ngtcp2_ksl_it_key(&it));
 
   ngtcp2_ksl_free(&ksl);
 

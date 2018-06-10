@@ -316,9 +316,15 @@ static size_t ksl_relocate_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk **pblk,
     blk = ksl_merge_node(ksl, blk, i);
     if (blk == ksl->head) {
       *pblk = blk;
-      return j;
+      i = j;
+      if (blk->leaf) {
+        return i;
+      }
+      node = &blk->nodes[i];
+      rnode = &blk->nodes[i + 1];
+    } else {
+      return i;
     }
-    return i;
   }
 
   if (node->blk->n < rnode->blk->n) {
