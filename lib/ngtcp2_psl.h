@@ -104,6 +104,8 @@ typedef struct ngtcp2_psl ngtcp2_psl;
 struct ngtcp2_psl {
   /* head points to the root block. */
   ngtcp2_psl_blk *head;
+  /* front points to the first leaf block. */
+  ngtcp2_psl_blk *front;
   ngtcp2_mem *mem;
 };
 

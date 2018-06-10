@@ -40,6 +40,7 @@ int ngtcp2_psl_init(ngtcp2_psl *psl, ngtcp2_mem *mem) {
   if (!psl->head) {
     return NGTCP2_ERR_NOMEM;
   }
+  psl->front = psl->head;
 
   head = psl->head;
 
@@ -475,15 +476,8 @@ static void psl_print(ngtcp2_psl *psl, const ngtcp2_psl_blk *blk,
 void ngtcp2_psl_print(ngtcp2_psl *psl) { psl_print(psl, psl->head, 0); }
 
 ngtcp2_psl_it ngtcp2_psl_begin(const ngtcp2_psl *psl) {
-  const ngtcp2_psl_blk *blk = psl->head;
-
-  for (;;) {
-    if (blk->leaf) {
-      ngtcp2_psl_it it = {blk, 0};
-      return it;
-    }
-    blk = blk->nodes[0].blk;
-  }
+  ngtcp2_psl_it it = {psl->front, 0};
+  return it;
 }
 
 void ngtcp2_psl_it_init(ngtcp2_psl_it *it, const ngtcp2_psl_blk *blk,
