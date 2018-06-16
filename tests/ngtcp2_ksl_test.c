@@ -50,7 +50,7 @@ void test_ngtcp2_ksl_insert(void) {
   }
 
   for (i = 0; i < arraylen(keys); ++i) {
-    ngtcp2_ksl_remove(&ksl, keys[i]);
+    ngtcp2_ksl_remove(&ksl, NULL, keys[i]);
     it = ngtcp2_ksl_lower_bound(&ksl, keys[i]);
     key = ngtcp2_ksl_it_key(&it);
 
@@ -68,7 +68,7 @@ void test_ngtcp2_ksl_insert(void) {
 
   /* Removing 7 requires relocation.  It merges 2 nodes into 1 node
      which becomes new head and a leaf. */
-  it = ngtcp2_ksl_remove(&ksl, 7);
+  ngtcp2_ksl_remove(&ksl, &it, 7);
 
   CU_ASSERT(8 == ngtcp2_ksl_it_key(&it));
 
@@ -87,7 +87,7 @@ void test_ngtcp2_ksl_insert(void) {
     ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
   }
 
-  it = ngtcp2_ksl_remove(&ksl, 63);
+  ngtcp2_ksl_remove(&ksl, &it, 63);
 
   CU_ASSERT(64 == ngtcp2_ksl_it_key(&it));
 
@@ -104,11 +104,12 @@ void test_ngtcp2_ksl_insert(void) {
     ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
   }
 
-  /* Removing these 2 nodes kicks merging 2 nodes under head */
-  ngtcp2_ksl_remove(&ksl, 6);
-  ngtcp2_ksl_remove(&ksl, 7);
+  /* Removing these 3 nodes kicks merging 2 nodes under head */
+  ngtcp2_ksl_remove(&ksl, NULL, 6);
+  ngtcp2_ksl_remove(&ksl, NULL, 7);
+  ngtcp2_ksl_remove(&ksl, NULL, 8);
 
-  CU_ASSERT(14 == ksl.head->n);
+  CU_ASSERT(13 == ksl.head->n);
 
   ngtcp2_ksl_free(&ksl);
 
@@ -119,12 +120,13 @@ void test_ngtcp2_ksl_insert(void) {
     ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
   }
 
-  /* Removing these 2 nodes kicks merging 2 nodes */
-  ngtcp2_ksl_remove(&ksl, 6);
-  ngtcp2_ksl_remove(&ksl, 5);
+  /* Removing these 3 nodes kicks merging 2 nodes */
+  ngtcp2_ksl_remove(&ksl, NULL, 6);
+  ngtcp2_ksl_remove(&ksl, NULL, 5);
+  ngtcp2_ksl_remove(&ksl, NULL, 8);
 
   CU_ASSERT(2 == ksl.head->n);
-  CU_ASSERT(14 == ksl.head->nodes[0].blk->n);
+  CU_ASSERT(13 == ksl.head->nodes[0].blk->n);
   CU_ASSERT(8 == ksl.head->nodes[1].blk->n);
 
   ngtcp2_ksl_free(&ksl);
@@ -139,7 +141,7 @@ void test_ngtcp2_ksl_insert(void) {
 
   /* merge nodes */
   for (i = 0; i < 50; ++i) {
-    ngtcp2_ksl_remove(&ksl, (int64_t)i);
+    ngtcp2_ksl_remove(&ksl, NULL, (int64_t)i);
   }
 
   i = 99;
@@ -151,7 +153,7 @@ void test_ngtcp2_ksl_insert(void) {
 
   /* head only */
   for (i = 50; i < 88; ++i) {
-    ngtcp2_ksl_remove(&ksl, (int64_t)i);
+    ngtcp2_ksl_remove(&ksl, NULL, (int64_t)i);
   }
 
   i = 99;
@@ -160,6 +162,82 @@ void test_ngtcp2_ksl_insert(void) {
 
     CU_ASSERT((int64_t)i-- == ngtcp2_ksl_it_key(&it));
   }
+
+  ngtcp2_ksl_free(&ksl);
+
+  /* Split head on removal */
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  for (i = 0; i < 7609; ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  ngtcp2_ksl_remove(&ksl, NULL, 999);
+
+  CU_ASSERT(2 == ksl.head->n);
+
+  ngtcp2_ksl_free(&ksl);
+
+  /* Split block which is not head on removal */
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  for (i = 0; i < 22; ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  CU_ASSERT(2 == ksl.head->n);
+
+  ngtcp2_ksl_remove(&ksl, NULL, 21);
+
+  CU_ASSERT(3 == ksl.head->n);
+
+  ngtcp2_ksl_free(&ksl);
+
+  /* shift_right */
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  for (i = 1; i < 1500; i += 100) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  ngtcp2_ksl_remove(&ksl, NULL, 1401);
+  ngtcp2_ksl_remove(&ksl, NULL, 1301);
+
+  CU_ASSERT(701 == ksl.head->nodes[1].blk->nodes[0].key);
+
+  ngtcp2_ksl_free(&ksl);
+
+  /* shift_left */
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  for (i = 0; i < 15; ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  ngtcp2_ksl_remove(&ksl, NULL, 6);
+  ngtcp2_ksl_remove(&ksl, NULL, 5);
+
+  CU_ASSERT(8 ==
+            ksl.head->nodes[0].blk->nodes[ksl.head->nodes[0].blk->n - 1].key);
+
+  ngtcp2_ksl_free(&ksl);
+
+  /* Merge 2 nodes into head which is not a leaf on relocation */
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  for (i = 0; i < 130; ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  for (i = 116; i <= 129; ++i) {
+    ngtcp2_ksl_remove(&ksl, NULL, (int64_t)i);
+  }
+
+  CU_ASSERT(2 == ksl.head->n);
+
+  ngtcp2_ksl_remove(&ksl, NULL, 55);
+
+  CU_ASSERT(14 == ksl.head->n);
 
   ngtcp2_ksl_free(&ksl);
 }

@@ -2339,6 +2339,8 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  * NGTCP2_ERR_ACK_FRAME
  *     ACK frame is malformed.
  * NGTCP2_ERR_CALLBACK_FAILURE
@@ -2365,8 +2367,11 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_ack *fr, int unprotected,
 
   conn->largest_ack = ngtcp2_max(conn->largest_ack, (int64_t)fr->largest_ack);
 
-  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, fr->largest_ack,
-                             conn->last_tx_pkt_num, ts);
+  rv = ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, fr->largest_ack,
+                                  conn->last_tx_pkt_num, ts);
+  if (rv != 0) {
+    return rv;
+  }
 
   ngtcp2_conn_set_loss_detection_alarm(conn);
 
@@ -5616,28 +5621,36 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   rcs->loss_detection_alarm = rcs->last_tx_pkt_ts + alarm_duration;
 }
 
-void ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
+  int rv;
 
   conn->log.last_ts = ts;
 
   if (!rcs->loss_detection_alarm) {
-    return;
+    return 0;
   }
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "loss detection alarm fired");
 
   if (conn->rtb.num_unprotected) {
-    ngtcp2_rtb_mark_unprotected_lost(&conn->rtb);
+    rv = ngtcp2_rtb_mark_unprotected_lost(&conn->rtb);
+    if (rv != 0) {
+      return rv;
+    }
     ++rcs->handshake_count;
   } else if (!ngtcp2_conn_get_handshake_completed(conn)) {
     assert(0);
     /* No TLP or RTO in handshake period.  Handshake packets are
        retransmitted in the above block. */
   } else if (rcs->loss_time) {
-    ngtcp2_rtb_detect_lost_pkt(&conn->rtb, rcs, (uint64_t)conn->largest_ack,
-                               conn->last_tx_pkt_num, ts);
+    rv =
+        ngtcp2_rtb_detect_lost_pkt(&conn->rtb, rcs, (uint64_t)conn->largest_ack,
+                                   conn->last_tx_pkt_num, ts);
+    if (rv != 0) {
+      return rv;
+    }
   } else if (rcs->tlp_count < NGTCP2_MAX_TLP_COUNT) {
     rcs->probe_pkt_left = 1;
     ++rcs->tlp_count;
@@ -5654,4 +5667,6 @@ void ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                   rcs->handshake_count, rcs->tlp_count, rcs->rto_count);
 
   ngtcp2_conn_set_loss_detection_alarm(conn);
+
+  return 0;
 }

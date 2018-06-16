@@ -37,10 +37,13 @@
  * Skip List using single key instead of range.
  */
 
-/* NGTCP2_KSL_NBLK is the maximum number of nodes which a single block
-   can contain.  It contains normally one less nodes because we have
-   to allocate one empty slot when deleting the last node. */
-#define NGTCP2_KSL_NBLK 16
+#define NGTCP2_KSL_DEGR 8
+/* NGTCP2_KSL_MAX_NBLK is the maximum number of nodes which a single
+   block can contain. */
+#define NGTCP2_KSL_MAX_NBLK (2 * NGTCP2_KSL_DEGR - 1)
+/* NGTCP2_KSL_MIN_NBLK is the minimum number of nodes which a single
+   block other than root must contains. */
+#define NGTCP2_KSL_MIN_NBLK (NGTCP2_KSL_DEGR - 1)
 
 struct ngtcp2_ksl_node;
 typedef struct ngtcp2_ksl_node ngtcp2_ksl_node;
@@ -75,7 +78,7 @@ struct ngtcp2_ksl_blk {
   size_t n;
   /* leaf is nonzero if this block contains leaf nodes. */
   int leaf;
-  ngtcp2_ksl_node nodes[NGTCP2_KSL_NBLK];
+  ngtcp2_ksl_node nodes[NGTCP2_KSL_MAX_NBLK];
 };
 
 struct ngtcp2_ksl_it;
@@ -155,10 +158,17 @@ int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it, int64_t key,
  * ngtcp2_ksl_remove removes the |key| from |ksl|.  It assumes such
  * the key is included in |ksl|.
  *
- * This function returns the iterator which points to the node which
- * is located at the right next of the removed node.
+ * This function assigns the iterator to |*it|, which points to the
+ * node which is located at the right next of the removed node if |it|
+ * is not NULL.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *   Out of memory.
  */
-ngtcp2_ksl_it ngtcp2_ksl_remove(ngtcp2_ksl *ksl, int64_t key);
+int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it, int64_t key);
 
 /*
  * ngtcp2_ksl_lower_bound returns the iterator which points to the

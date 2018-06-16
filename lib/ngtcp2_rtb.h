@@ -249,11 +249,11 @@ void ngtcp2_rtb_lost_unprotected_pop(ngtcp2_rtb *rtb);
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr, int unprotected,
                         ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
-void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
-                                uint64_t largest_ack, uint64_t last_tx_pkt_num,
-                                ngtcp2_tstamp ts);
+int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
+                               uint64_t largest_ack, uint64_t last_tx_pkt_num,
+                               ngtcp2_tstamp ts);
 
-void ngtcp2_rtb_mark_unprotected_lost(ngtcp2_rtb *rtb);
+int ngtcp2_rtb_mark_unprotected_lost(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_lost_protected_add insert |ent| to the head of lost

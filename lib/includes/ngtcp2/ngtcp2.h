@@ -1677,9 +1677,15 @@ typedef struct {
  *
  * This function must not be called from inside the callback
  * functions.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
  */
-NGTCP2_EXTERN void ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
-                                                       ngtcp2_tstamp ts);
+NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
+                                                      ngtcp2_tstamp ts);
 
 /**
  * @function
