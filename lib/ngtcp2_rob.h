@@ -158,8 +158,14 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
 /*
  * ngtcp2_rob_remove_prefix removes gap up to |offset|, exclusive.  It
  * also removes data buffer if it is completely included in |offset|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
-void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset);
+int ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset);
 
 /*
  * ngtcp2_rob_data_at stores the pointer to the buffer of stream
@@ -180,8 +186,15 @@ size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
  *
  * Caller should call this function from offset 0 in non-decreasing
  * order.
+ *
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
-void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len);
+int ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len);
 
 /*
  * ngtcp2_rob_first_gap_offset returns the offset to the first gap.

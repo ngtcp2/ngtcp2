@@ -38,17 +38,15 @@
 /*
  * Skip List implementation inspired by
  * https://github.com/jabr/olio/blob/master/skiplist.c
- *
- * Removed rebalancing because it destroys the invariant that the
- * range of node must be the same as the range of its last direct
- * descendant.  It seems that the original code also fails to maintain
- * it when deleting a node.  This implementation fixes these issues.
  */
 
-/* NGTCP2_PSL_NBLK is the maximum number of nodes which a single block
-   can contain.  It contains normally one less nodes because we have
-   to allocate one empty slot when deleting the last node. */
-#define NGTCP2_PSL_NBLK 16
+#define NGTCP2_PSL_DEGR 8
+/* NGTCP2_PSL_MAX_NBLK is the maximum number of nodes which a single
+   block can contain. */
+#define NGTCP2_PSL_MAX_NBLK (2 * NGTCP2_PSL_DEGR - 1)
+/* NGTCP2_PSL_MIN_NBLK is the minimum number of nodes which a single
+   block other than root must contains. */
+#define NGTCP2_PSL_MIN_NBLK (NGTCP2_PSL_DEGR - 1)
 
 struct ngtcp2_psl_node;
 typedef struct ngtcp2_psl_node ngtcp2_psl_node;
@@ -81,7 +79,7 @@ struct ngtcp2_psl_blk {
   size_t n;
   /* leaf is nonzero if this block contains leaf nodes. */
   int leaf;
-  ngtcp2_psl_node nodes[NGTCP2_PSL_NBLK];
+  ngtcp2_psl_node nodes[NGTCP2_PSL_MAX_NBLK];
 };
 
 struct ngtcp2_psl_it;
@@ -148,10 +146,18 @@ int ngtcp2_psl_insert(ngtcp2_psl *psl, ngtcp2_psl_it *it,
  * ngtcp2_psl_remove removes the |range| from |psl|.  It assumes such
  * the range is included in |psl|.
  *
- * This function returns the iterator which points to the node which
- * is located at the right next of the removed node.
+ * This function assigns the iterator to |*it|, which points to the
+ * node which is located at the right next of the removed node if |it|
+ * is not NULL.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *   Out of memory.
  */
-ngtcp2_psl_it ngtcp2_psl_remove(ngtcp2_psl *psl, const ngtcp2_range *range);
+int ngtcp2_psl_remove(ngtcp2_psl *psl, ngtcp2_psl_it *it,
+                      const ngtcp2_range *range);
 
 /*
  * ngtcp2_psl_update_range replaces the range of nodes which has

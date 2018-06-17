@@ -179,7 +179,10 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
       break;
     }
     if (ngtcp2_range_eq(&g->range, &m)) {
-      it = ngtcp2_psl_remove(&rob->gappsl, &g->range);
+      rv = ngtcp2_psl_remove(&rob->gappsl, &it, &g->range);
+      if (rv != 0) {
+        return rv;
+      }
       ngtcp2_rob_gap_del(g, rob->mem);
       rv = rob_write_data(rob, m.begin, data + (m.begin - offset),
                           ngtcp2_range_len(&m));
@@ -220,10 +223,11 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
   return 0;
 }
 
-void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset) {
+int ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset) {
   ngtcp2_rob_gap *g;
   ngtcp2_rob_data *d;
   ngtcp2_psl_it it;
+  int rv;
 
   it = ngtcp2_psl_begin(&rob->gappsl);
 
@@ -238,7 +242,10 @@ void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset) {
       g->range.begin = offset;
       break;
     }
-    it = ngtcp2_psl_remove(&rob->gappsl, &g->range);
+    rv = ngtcp2_psl_remove(&rob->gappsl, &it, &g->range);
+    if (rv != 0) {
+      return rv;
+    }
     ngtcp2_rob_gap_del(g, rob->mem);
   }
 
@@ -247,11 +254,16 @@ void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset) {
   for (; !ngtcp2_psl_it_end(&it);) {
     d = ngtcp2_psl_it_get(&it);
     if (offset < d->range.begin + rob->chunk) {
-      return;
+      return 0;
     }
-    it = ngtcp2_psl_remove(&rob->datapsl, &d->range);
+    rv = ngtcp2_psl_remove(&rob->datapsl, &it, &d->range);
+    if (rv != 0) {
+      return rv;
+    }
     ngtcp2_rob_data_del(d, rob->mem);
   }
+
+  return 0;
 }
 
 size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
@@ -283,9 +295,10 @@ size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
   return ngtcp2_min(g->range.begin, d->range.begin + rob->chunk) - offset;
 }
 
-void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len) {
+int ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len) {
   ngtcp2_psl_it it;
   ngtcp2_rob_data *d;
+  int rv;
 
   it = ngtcp2_psl_begin(&rob->datapsl);
   d = ngtcp2_psl_it_get(&it);
@@ -293,11 +306,16 @@ void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len) {
   assert(d);
 
   if (offset + len < d->range.begin + rob->chunk) {
-    return;
+    return 0;
   }
 
-  ngtcp2_psl_remove(&rob->datapsl, &d->range);
+  rv = ngtcp2_psl_remove(&rob->datapsl, NULL, &d->range);
+  if (rv != 0) {
+    return rv;
+  }
   ngtcp2_rob_data_del(d, rob->mem);
+
+  return 0;
 }
 
 uint64_t ngtcp2_rob_first_gap_offset(ngtcp2_rob *rob) {

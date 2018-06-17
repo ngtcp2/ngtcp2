@@ -104,6 +104,9 @@ static ngtcp2_psl_blk *psl_split_blk(ngtcp2_psl *psl, ngtcp2_psl_blk *blk) {
 
   blk->n -= rblk->n;
 
+  assert(blk->n >= NGTCP2_PSL_MIN_NBLK);
+  assert(rblk->n >= NGTCP2_PSL_MIN_NBLK);
+
   return rblk;
 }
 
@@ -120,8 +123,6 @@ static ngtcp2_psl_blk *psl_split_blk(ngtcp2_psl *psl, ngtcp2_psl_blk *blk) {
  */
 static int psl_split_node(ngtcp2_psl *psl, ngtcp2_psl_blk *blk, size_t i) {
   ngtcp2_psl_blk *lblk = blk->nodes[i].blk, *rblk;
-
-  assert(blk->n <= NGTCP2_PSL_NBLK);
 
   rblk = psl_split_blk(psl, lblk);
   if (rblk == NULL) {
@@ -184,13 +185,13 @@ static int psl_split_head(ngtcp2_psl *psl) {
  * insert_node inserts a node whose range is |range| with the
  * associated |data| at the index of |i|.  This function assumes that
  * the number of nodes contained by |blk| is strictly less than
- * NGTCP2_PSL_NBLK.
+ * NGTCP2_PSL_MAX_NBLK.
  */
 static void insert_node(ngtcp2_psl_blk *blk, size_t i,
                         const ngtcp2_range *range, void *data) {
   ngtcp2_psl_node *node;
 
-  assert(blk->n < NGTCP2_PSL_NBLK);
+  assert(blk->n < NGTCP2_PSL_MAX_NBLK);
 
   memmove(&blk->nodes[i + 1], &blk->nodes[i],
           sizeof(ngtcp2_psl_node) * (blk->n - i));
@@ -213,7 +214,7 @@ int ngtcp2_psl_insert(ngtcp2_psl *psl, ngtcp2_psl_it *it,
   size_t i;
   int rv;
 
-  if (blk->n + 1 >= NGTCP2_PSL_NBLK) {
+  if (blk->n == NGTCP2_PSL_MAX_NBLK) {
     rv = psl_split_head(psl);
     if (rv != 0) {
       return rv;
@@ -236,7 +237,7 @@ int ngtcp2_psl_insert(ngtcp2_psl *psl, ngtcp2_psl_it *it,
       return 0;
     }
 
-    if (node->blk->n + 1 >= NGTCP2_PSL_NBLK) {
+    if (node->blk->n == NGTCP2_PSL_MAX_NBLK) {
       rv = psl_split_node(psl, blk, i);
       if (rv != 0) {
         return rv;
@@ -279,7 +280,7 @@ static ngtcp2_psl_blk *psl_merge_node(ngtcp2_psl *psl, ngtcp2_psl_blk *blk,
   lblk = blk->nodes[i].blk;
   rblk = blk->nodes[i + 1].blk;
 
-  assert(lblk->n + rblk->n < NGTCP2_PSL_NBLK);
+  assert(lblk->n + rblk->n < NGTCP2_PSL_MAX_NBLK);
 
   memcpy(&lblk->nodes[lblk->n], &rblk->nodes[0],
          sizeof(ngtcp2_psl_node) * rblk->n);
@@ -301,35 +302,47 @@ static ngtcp2_psl_blk *psl_merge_node(ngtcp2_psl *psl, ngtcp2_psl_blk *blk,
 }
 
 /*
- * psl_relocate_node moves the node located at the index of |i| in
- * |blk| to the next block.
+ * psl_relocate_node replaces the key at the index |*pi| in
+ * *pblk->nodes with something other without violating contract.  It
+ * might involve merging 2 nodes or moving a node to left or right.
  *
- * It returns the index of the block in |blk| where the node is moved.
+ * It assigns the index of the block in |*pblk| where the node is
+ * moved to |*pi|.  If merging 2 nodes occurs and it becomes new head,
+ * the new head is assigned to |*pblk| and it still contains the key.
+ * The caller should handle this situation.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
-static size_t psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
-                                size_t i) {
+static int psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
+                             size_t *pi) {
   ngtcp2_psl_blk *blk = *pblk;
+  size_t i = *pi;
   ngtcp2_psl_node *node = &blk->nodes[i];
   ngtcp2_psl_node *rnode = &blk->nodes[i + 1];
   size_t j;
+  int rv;
 
-  assert(blk->n > i + 1);
-  assert(node->blk->n < NGTCP2_PSL_NBLK || rnode->blk->n < NGTCP2_PSL_NBLK);
+  assert(i + 1 < blk->n);
 
-  if (node->blk->n + rnode->blk->n < NGTCP2_PSL_NBLK) {
+  if (node->blk->n == NGTCP2_PSL_MIN_NBLK &&
+      node->blk->n + rnode->blk->n < NGTCP2_PSL_MAX_NBLK) {
     j = node->blk->n - 1;
     blk = psl_merge_node(psl, blk, i);
-    if (blk == psl->head) {
-      *pblk = blk;
-      i = j;
-      if (blk->leaf) {
-        return i;
-      }
-      node = &blk->nodes[i];
-      rnode = &blk->nodes[i + 1];
-    } else {
-      return i;
+    if (blk != psl->head) {
+      return 0;
     }
+    *pblk = blk;
+    i = j;
+    if (blk->leaf) {
+      *pi = i;
+      return 0;
+    }
+    node = &blk->nodes[i];
+    rnode = &blk->nodes[i + 1];
   }
 
   if (node->blk->n < rnode->blk->n) {
@@ -339,7 +352,15 @@ static size_t psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
     --rnode->blk->n;
     ++node->blk->n;
     node->range = node->blk->nodes[node->blk->n - 1].range;
-    return i;
+    *pi = i;
+    return 0;
+  }
+
+  if (rnode->blk->n == NGTCP2_PSL_MAX_NBLK) {
+    rv = psl_split_node(psl, blk, i + 1);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   memmove(&rnode->blk->nodes[1], &rnode->blk->nodes[0],
@@ -352,48 +373,125 @@ static size_t psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
 
   node->range = node->blk->nodes[node->blk->n - 1].range;
 
-  return i + 1;
+  *pi = i + 1;
+  return 0;
 }
 
-ngtcp2_psl_it ngtcp2_psl_remove(ngtcp2_psl *psl, const ngtcp2_range *range) {
+/*
+ * shift_left moves the first node in blk->nodes[i]->blk->nodes to
+ * blk->nodes[i - 1]->blk->nodes.
+ */
+static void shift_left(ngtcp2_psl_blk *blk, size_t i) {
+  ngtcp2_psl_node *lnode, *rnode;
+
+  assert(i > 0);
+
+  lnode = &blk->nodes[i - 1];
+  rnode = &blk->nodes[i];
+
+  assert(lnode->blk->n < NGTCP2_PSL_MAX_NBLK);
+  assert(rnode->blk->n > NGTCP2_PSL_MIN_NBLK);
+
+  lnode->blk->nodes[lnode->blk->n] = rnode->blk->nodes[0];
+  lnode->range = lnode->blk->nodes[lnode->blk->n].range;
+  ++lnode->blk->n;
+
+  --rnode->blk->n;
+  memmove(&rnode->blk->nodes[0], &rnode->blk->nodes[1],
+          sizeof(ngtcp2_psl_node) * rnode->blk->n);
+}
+
+/*
+ * shift_right moves the last node in blk->nodes[i]->blk->nodes to
+ * blk->nodes[i + 1]->blk->nodes.
+ */
+static void shift_right(ngtcp2_psl_blk *blk, size_t i) {
+  ngtcp2_psl_node *lnode, *rnode;
+
+  assert(i < blk->n - 1);
+
+  lnode = &blk->nodes[i];
+  rnode = &blk->nodes[i + 1];
+
+  assert(lnode->blk->n > NGTCP2_PSL_MIN_NBLK);
+  assert(rnode->blk->n < NGTCP2_PSL_MAX_NBLK);
+
+  memmove(&rnode->blk->nodes[1], &rnode->blk->nodes[0],
+          sizeof(ngtcp2_psl_node) * rnode->blk->n);
+  ++rnode->blk->n;
+  rnode->blk->nodes[0] = lnode->blk->nodes[lnode->blk->n - 1];
+
+  --lnode->blk->n;
+  lnode->range = lnode->blk->nodes[lnode->blk->n - 1].range;
+}
+
+int ngtcp2_psl_remove(ngtcp2_psl *psl, ngtcp2_psl_it *it,
+                      const ngtcp2_range *range) {
   ngtcp2_psl_blk *blk = psl->head, *lblk, *rblk;
   ngtcp2_psl_node *node;
   size_t i, j;
-  ngtcp2_psl_it it;
+  int rv;
+
+  if (!blk->leaf && blk->n == NGTCP2_PSL_MAX_NBLK) {
+    rv = psl_split_head(psl);
+    if (rv != 0) {
+      return rv;
+    }
+    blk = psl->head;
+  }
 
   for (;;) {
     for (i = 0, node = &blk->nodes[i]; node->range.begin < range->begin;
          ++i, ++node)
       ;
 
-    if (!blk->leaf && ngtcp2_range_eq(&node->range, range)) {
-      i = psl_relocate_node(psl, &blk, i);
-      node = &blk->nodes[i];
-    }
-
     if (blk->leaf) {
       assert(i < blk->n);
       remove_node(blk, i);
-      if (blk->n == i) {
-        ngtcp2_psl_it_init(&it, blk->next, 0);
-      } else {
-        ngtcp2_psl_it_init(&it, blk, i);
+      if (it) {
+        if (blk->n == i) {
+          ngtcp2_psl_it_init(it, blk->next, 0);
+        } else {
+          ngtcp2_psl_it_init(it, blk, i);
+        }
       }
-      return it;
+      return 0;
     }
 
-    if (blk->n >= 2 && blk->n < NGTCP2_PSL_NBLK / 2) {
+    if (node->blk->n == NGTCP2_PSL_MAX_NBLK) {
+      rv = psl_split_node(psl, blk, i);
+      if (rv != 0) {
+        return rv;
+      }
+      if (node->range.begin < range->begin) {
+        ++i;
+        node = &blk->nodes[i];
+      }
+    }
+
+    if (ngtcp2_range_eq(&node->range, range)) {
+      rv = psl_relocate_node(psl, &blk, &i);
+      if (rv != 0) {
+        return rv;
+      }
+      if (!blk->leaf) {
+        node = &blk->nodes[i];
+        blk = node->blk;
+      }
+    } else if (node->blk->n == NGTCP2_PSL_MIN_NBLK) {
       j = i == 0 ? 0 : i - 1;
 
       lblk = blk->nodes[j].blk;
       rblk = blk->nodes[j + 1].blk;
 
-      assert(lblk->n);
-      assert(rblk->n);
-
-      if (lblk->n + rblk->n < NGTCP2_PSL_NBLK) {
+      if (lblk->n + rblk->n < NGTCP2_PSL_MAX_NBLK) {
         blk = psl_merge_node(psl, blk, j);
       } else {
+        if (i == j) {
+          shift_left(blk, j + 1);
+        } else {
+          shift_right(blk, j);
+        }
         blk = node->blk;
       }
     } else {

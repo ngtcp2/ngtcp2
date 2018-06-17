@@ -2742,7 +2742,10 @@ static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     strm->unsent_max_rx_offset += datalen;
     conn_extend_max_stream_offset(conn, strm, datalen);
 
-    ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
+    rv = ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
+    if (rv != 0) {
+      return rv;
+    }
   }
 }
 
@@ -3215,7 +3218,10 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       uint64_t offset = rx_offset;
 
       rx_offset += datalen;
-      ngtcp2_rob_remove_prefix(&conn->strm0->rob, rx_offset);
+      rv = ngtcp2_rob_remove_prefix(&conn->strm0->rob, rx_offset);
+      if (rv != 0) {
+        return rv;
+      }
 
       rv = conn_call_recv_stream0_data(conn, offset, data, datalen);
       switch (rv) {
@@ -3370,7 +3376,10 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       return rv;
     }
 
-    ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
+    rv = ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
+    if (rv != 0) {
+      return rv;
+    }
   }
 }
 
@@ -3533,7 +3542,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     uint64_t offset = rx_offset;
 
     rx_offset += datalen;
-    ngtcp2_rob_remove_prefix(&strm->rob, rx_offset);
+    rv = ngtcp2_rob_remove_prefix(&strm->rob, rx_offset);
+    if (rv != 0) {
+      return rv;
+    }
 
     if (strm->stream_id == 0) {
       rv = conn_call_recv_stream0_data(conn, offset, data, datalen);
