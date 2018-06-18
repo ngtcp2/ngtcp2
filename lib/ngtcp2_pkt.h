@@ -61,7 +61,7 @@
 
 /* NGTCP2_MAX_VARINT is the maximum value which can be encoded in
    variable-length integer encoding */
-#define NGTCP2_MAX_VARINT ((1UL << 31) - 1)
+#define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)
 
 /* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
    blocks which this library can create, or decode. */
