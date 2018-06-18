@@ -5504,7 +5504,7 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, uint64_t stream_id,
 }
 
 void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, size_t datalen) {
-  if (NGTCP2_MAX_VARINT < datalen ||
+  if (NGTCP2_MAX_VARINT < (uint64_t)datalen ||
       conn->unsent_max_rx_offset > NGTCP2_MAX_VARINT - datalen) {
     conn->unsent_max_rx_offset = NGTCP2_MAX_VARINT;
     return;
