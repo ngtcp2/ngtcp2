@@ -257,7 +257,8 @@ typedef enum {
   NGTCP2_FRAME_ACK = 0x0d,
   NGTCP2_FRAME_PATH_CHALLENGE = 0x0e,
   NGTCP2_FRAME_PATH_RESPONSE = 0x0f,
-  NGTCP2_FRAME_STREAM = 0x10
+  NGTCP2_FRAME_STREAM = 0x10,
+  NGTCP2_FRAME_CRYPTO = 0x18
 } ngtcp2_frame_type;
 
 typedef enum {
@@ -459,6 +460,13 @@ typedef struct {
   uint8_t data[8];
 } ngtcp2_path_response;
 
+typedef struct {
+  uint8_t type;
+  uint64_t offset;
+  size_t datalen;
+  const uint8_t *data;
+} ngtcp2_crypto;
+
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
@@ -478,6 +486,7 @@ typedef union {
   ngtcp2_stop_sending stop_sending;
   ngtcp2_path_challenge path_challenge;
   ngtcp2_path_response path_response;
+  ngtcp2_crypto crypto;
 } ngtcp2_frame;
 
 typedef enum {

@@ -321,6 +321,8 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   case NGTCP2_FRAME_PATH_RESPONSE:
     return ngtcp2_pkt_decode_path_response_frame(&dest->path_response, payload,
                                                  payloadlen);
+  case NGTCP2_FRAME_CRYPTO:
+    return ngtcp2_pkt_decode_crypto_frame(&dest->crypto, payload, payloadlen);
   default:
     if (has_mask(type, NGTCP2_FRAME_STREAM)) {
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
@@ -1012,6 +1014,58 @@ ssize_t ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
   return (ssize_t)len;
 }
 
+ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
+                                       const uint8_t *payload,
+                                       size_t payloadlen) {
+  size_t len = 1 + 1 + 1;
+  const uint8_t *p;
+  size_t datalen;
+  size_t n;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  p = payload + 1;
+
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  p += n;
+
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  datalen = ngtcp2_get_varint(&n, p);
+  len += datalen;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  p = payload + 1;
+
+  dest->type = NGTCP2_FRAME_CRYPTO;
+  dest->offset = ngtcp2_get_varint(&n, p);
+  p += n;
+  dest->datalen = ngtcp2_get_varint(&n, p);
+  p += n;
+  dest->data = p;
+  p += dest->datalen;
+
+  assert((size_t)(p - payload) == len);
+
+  return (ssize_t)len;
+}
+
 ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
@@ -1057,6 +1111,8 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
   case NGTCP2_FRAME_PATH_RESPONSE:
     return ngtcp2_pkt_encode_path_response_frame(out, outlen,
                                                  &fr->path_response);
+  case NGTCP2_FRAME_CRYPTO:
+    return ngtcp2_pkt_encode_crypto_frame(out, outlen, &fr->crypto);
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -1440,6 +1496,35 @@ ssize_t ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
 
   *p++ = NGTCP2_FRAME_PATH_RESPONSE;
   p = ngtcp2_cpymem(p, fr->data, sizeof(fr->data));
+
+  assert((size_t)(p - out) == len);
+
+  return (ssize_t)len;
+}
+
+ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_crypto *fr) {
+  size_t len = 1;
+  uint8_t *p;
+
+  len += ngtcp2_put_varint_len(fr->offset);
+  len += ngtcp2_put_varint_len(fr->datalen);
+  len += fr->datalen;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = out;
+
+  *p++ = NGTCP2_FRAME_CRYPTO;
+
+  p = ngtcp2_put_varint(p, fr->offset);
+  p = ngtcp2_put_varint(p, fr->datalen);
+
+  if (fr->datalen) {
+    p = ngtcp2_cpymem(p, fr->data, fr->datalen);
+  }
 
   assert((size_t)(p - out) == len);
 

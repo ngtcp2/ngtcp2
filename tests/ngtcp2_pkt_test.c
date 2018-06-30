@@ -882,6 +882,33 @@ void test_ngtcp2_pkt_encode_path_response_frame(void) {
   CU_ASSERT(0 == memcmp(fr.data, nfr.data, sizeof(fr.data)));
 }
 
+void test_ngtcp2_pkt_encode_crypto_frame(void) {
+  const uint8_t data[] = "0123456789abcdef1";
+  uint8_t buf[256];
+  ngtcp2_frame fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0x31f2f3f4f5f6f7f8llu;
+  fr.crypto.datalen = strsize(data);
+  fr.crypto.data = data;
+
+  framelen = 1 + 8 + 1 + 17;
+
+  rv = ngtcp2_pkt_encode_crypto_frame(buf, sizeof(buf), &fr.crypto);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_crypto_frame(&nfr.crypto, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.crypto.offset == nfr.crypto.offset);
+  CU_ASSERT(fr.crypto.datalen == nfr.crypto.datalen);
+  CU_ASSERT(0 == memcmp(fr.crypto.data, nfr.crypto.data, fr.crypto.datalen));
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
