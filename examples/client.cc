@@ -440,7 +440,7 @@ int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
   // change.
   auto c = static_cast<Client *>(user_data);
 
-  c->setup_handshake_crypto_context();
+  c->setup_initial_crypto_context();
 
   return 0;
 }
@@ -706,7 +706,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     return -1;
   }
 
-  rv = setup_handshake_crypto_context();
+  rv = setup_initial_crypto_context();
   if (rv != 0) {
     return -1;
   }
@@ -722,33 +722,32 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   return 0;
 }
 
-int Client::setup_handshake_crypto_context() {
+int Client::setup_initial_crypto_context() {
   int rv;
 
-  std::array<uint8_t, 32> handshake_secret, secret;
+  std::array<uint8_t, 32> initial_secret, secret;
   auto dcid = ngtcp2_conn_get_dcid(conn_);
-  rv = crypto::derive_handshake_secret(
-      handshake_secret.data(), handshake_secret.size(), dcid,
-      reinterpret_cast<const uint8_t *>(NGTCP2_HANDSHAKE_SALT),
-      str_size(NGTCP2_HANDSHAKE_SALT));
+  rv = crypto::derive_initial_secret(
+      initial_secret.data(), initial_secret.size(), dcid,
+      reinterpret_cast<const uint8_t *>(NGTCP2_INITIAL_SALT),
+      str_size(NGTCP2_INITIAL_SALT));
   if (rv != 0) {
-    std::cerr << "crypto::derive_handshake_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_initial_secret() failed" << std::endl;
     return -1;
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_handshake_secret(handshake_secret.data(),
-                                  handshake_secret.size());
+    debug::print_initial_secret(initial_secret.data(), initial_secret.size());
   }
 
   crypto::prf_sha256(hs_crypto_ctx_);
   crypto::aead_aes_128_gcm(hs_crypto_ctx_);
 
-  rv = crypto::derive_client_handshake_secret(secret.data(), secret.size(),
-                                              handshake_secret.data(),
-                                              handshake_secret.size());
+  rv = crypto::derive_client_initial_secret(secret.data(), secret.size(),
+                                            initial_secret.data(),
+                                            initial_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_client_handshake_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_client_initial_secret() failed" << std::endl;
     return -1;
   }
 
@@ -773,7 +772,7 @@ int Client::setup_handshake_crypto_context() {
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_client_hs_secret(secret.data(), secret.size());
+    debug::print_client_in_secret(secret.data(), secret.size());
     debug::print_client_pp_key(key.data(), keylen);
     debug::print_client_pp_iv(iv.data(), ivlen);
     debug::print_client_pp_pn(pn.data(), pnlen);
@@ -782,11 +781,11 @@ int Client::setup_handshake_crypto_context() {
   ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
                                     pn.data(), pnlen);
 
-  rv = crypto::derive_server_handshake_secret(secret.data(), secret.size(),
-                                              handshake_secret.data(),
-                                              handshake_secret.size());
+  rv = crypto::derive_server_initial_secret(secret.data(), secret.size(),
+                                            initial_secret.data(),
+                                            initial_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_server_handshake_secret() failed" << std::endl;
+    std::cerr << "crypto::derive_server_initial_secret() failed" << std::endl;
     return -1;
   }
 
@@ -809,7 +808,7 @@ int Client::setup_handshake_crypto_context() {
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_server_hs_secret(secret.data(), secret.size());
+    debug::print_server_in_secret(secret.data(), secret.size());
     debug::print_server_pp_key(key.data(), keylen);
     debug::print_server_pp_iv(iv.data(), ivlen);
     debug::print_server_pp_pn(pn.data(), pnlen);

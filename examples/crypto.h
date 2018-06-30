@@ -76,22 +76,22 @@ int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 // |ssl|.  It returns 0 if it succeeds, or -1.
 int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl);
 
-// derive_handshake_secret derives handshake_secret.  |secret| is
+// derive_initial_secret derives initial_secret.  |secret| is
 // connection ID generated randomly by client.
-int derive_handshake_secret(uint8_t *dest, size_t destlen,
-                            const ngtcp2_cid *secret, const uint8_t *salt,
-                            size_t saltlen);
+int derive_initial_secret(uint8_t *dest, size_t destlen,
+                          const ngtcp2_cid *secret, const uint8_t *salt,
+                          size_t saltlen);
 
-// derive_client_handshake_secret derives client_handshake_secret.
-int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
-                                   const uint8_t *secret, size_t secretlen);
+// derive_client_initial_secret derives client_initial_secret.
+int derive_client_initial_secret(uint8_t *dest, size_t destlen,
+                                 const uint8_t *secret, size_t secretlen);
 
-// derive_server_handshake_secret derives server_handshake_secret.
-int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
-                                   const uint8_t *secret, size_t secretlen);
+// derive_server_initial_secret derives server_initial_secret.
+int derive_server_initial_secret(uint8_t *dest, size_t destlen,
+                                 const uint8_t *secret, size_t secretlen);
 
-// qhkdf_expand derives secret using QHKDF-Expand.  It returns 0 if it
-// succeeds, or -1.
+// qhkdf_expand derives secret using HKDF-Expand-Label with label
+// prefix "quic".  It returns 0 if it succeeds, or -1.
 int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
                  size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
                  const Context &ctx);

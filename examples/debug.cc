@@ -62,6 +62,20 @@ void print_stream_data(uint64_t stream_id, const uint8_t *data,
   util::hexdump(outfile, data, datalen);
 }
 
+void print_initial_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "initial_secret=%s\n", util::format_hex(data, len).c_str());
+}
+
+void print_client_in_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "client_in_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
+void print_server_in_secret(const uint8_t *data, size_t len) {
+  fprintf(outfile, "server_in_secret=%s\n",
+          util::format_hex(data, len).c_str());
+}
+
 void print_handshake_secret(const uint8_t *data, size_t len) {
   fprintf(outfile, "handshake_secret=%s\n",
           util::format_hex(data, len).c_str());

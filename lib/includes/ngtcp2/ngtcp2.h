@@ -178,9 +178,9 @@ typedef struct {
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
-/* NGTCP2_HANDSHAKE_SALT is a salt value which is used to derive
-   handshake secret. */
-#define NGTCP2_HANDSHAKE_SALT                                                  \
+/* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
+   secret. */
+#define NGTCP2_INITIAL_SALT                                                    \
   "\x9c\x10\x8f\x98\x52\x0a\x5c\x5c\x32\x96\x8e\x95\x0e\x8a\x2c\x5f\xe0\x6d"   \
   "\x6c\x38"
 

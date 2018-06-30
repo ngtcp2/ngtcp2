@@ -81,27 +81,27 @@ int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
     ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
 #endif /* !WORDS_BIGENDIAN */
 
-int derive_handshake_secret(uint8_t *dest, size_t destlen,
-                            const ngtcp2_cid *secret, const uint8_t *salt,
-                            size_t saltlen) {
+int derive_initial_secret(uint8_t *dest, size_t destlen,
+                          const ngtcp2_cid *secret, const uint8_t *salt,
+                          size_t saltlen) {
   Context ctx;
   prf_sha256(ctx);
   return hkdf_extract(dest, destlen, secret->data, secret->datalen, salt,
                       saltlen, ctx);
 }
 
-int derive_client_handshake_secret(uint8_t *dest, size_t destlen,
-                                   const uint8_t *secret, size_t secretlen) {
-  static constexpr uint8_t LABEL[] = "client hs";
+int derive_client_initial_secret(uint8_t *dest, size_t destlen,
+                                 const uint8_t *secret, size_t secretlen) {
+  static constexpr uint8_t LABEL[] = "client in";
   Context ctx;
   prf_sha256(ctx);
   return crypto::qhkdf_expand(dest, destlen, secret, secretlen, LABEL,
                               str_size(LABEL), ctx);
 }
 
-int derive_server_handshake_secret(uint8_t *dest, size_t destlen,
-                                   const uint8_t *secret, size_t secretlen) {
-  static constexpr uint8_t LABEL[] = "server hs";
+int derive_server_initial_secret(uint8_t *dest, size_t destlen,
+                                 const uint8_t *secret, size_t secretlen) {
+  static constexpr uint8_t LABEL[] = "server in";
   Context ctx;
   prf_sha256(ctx);
   return crypto::qhkdf_expand(dest, destlen, secret, secretlen, LABEL,
@@ -173,7 +173,7 @@ int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
                  size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
                  const Context &ctx) {
   std::array<uint8_t, 256> info;
-  static constexpr const uint8_t LABEL[] = "QUIC ";
+  static constexpr const uint8_t LABEL[] = "quic ";
 
   auto p = std::begin(info);
   *p++ = destlen / 256;
@@ -181,6 +181,7 @@ int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
   *p++ = str_size(LABEL) + qlabellen;
   p = std::copy_n(LABEL, str_size(LABEL), p);
   p = std::copy_n(qlabel, qlabellen, p);
+  *p++ = 0;
 
   return hkdf_expand(dest, destlen, secret, secretlen, info.data(),
                      p - std::begin(info), ctx);
