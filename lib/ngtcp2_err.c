@@ -92,6 +92,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_CLOSING";
   case NGTCP2_ERR_DRAINING:
     return "ERR_DRAINING";
+  case NGTCP2_ERR_PKT_ENCODING:
+    return "ERR_PKT_ENCODING";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:

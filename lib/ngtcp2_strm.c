@@ -83,8 +83,9 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
   return ngtcp2_rob_first_gap_offset(&strm->rob);
 }
 
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const ngtcp2_stream *fr) {
-  return ngtcp2_rob_push(&strm->rob, fr->offset, fr->data, fr->datalen);
+int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
+                                size_t datalen, uint64_t offset) {
+  return ngtcp2_rob_push(&strm->rob, offset, data, datalen);
 }
 
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {

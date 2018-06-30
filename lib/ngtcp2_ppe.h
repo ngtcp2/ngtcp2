@@ -77,6 +77,18 @@ void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
 int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd);
 
 /*
+ * ngtcp2_ppe_encode_token encodes |token| of length |tokenlen|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     The buffer is too small.
+ */
+int ngtcp2_ppe_encode_token(ngtcp2_ppe *ppe, const uint8_t *token,
+                            size_t tokenlen);
+
+/*
  * ngtcp2_ppe_encode_frame encodes |fr|.
  *
  * This function returns 0 if it succeeds, or one of the following

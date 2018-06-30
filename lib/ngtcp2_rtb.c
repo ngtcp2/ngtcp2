@@ -255,38 +255,64 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   size_t datalen;
 
   for (frc = ent->frc; frc; frc = frc->next) {
-    if (frc->fr.type != NGTCP2_FRAME_STREAM) {
-      continue;
-    }
-    strm = ngtcp2_conn_find_stream(conn, frc->fr.stream.stream_id);
-    if (strm == NULL) {
-      continue;
-    }
-    prev_stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
-    rv = ngtcp2_gaptr_push(&strm->acked_tx_offset, frc->fr.stream.offset,
-                           frc->fr.stream.datalen);
-    if (rv != 0) {
-      return rv;
-    }
-
-    if (conn->callbacks.acked_stream_data_offset) {
-      stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
-      datalen = stream_offset - prev_stream_offset;
-      if (datalen == 0 && !frc->fr.stream.fin) {
+    if (frc->fr.type == NGTCP2_FRAME_STREAM) {
+      strm = ngtcp2_conn_find_stream(conn, frc->fr.stream.stream_id);
+      if (strm == NULL) {
         continue;
       }
-
-      rv = conn->callbacks.acked_stream_data_offset(
-          conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
-          strm->stream_user_data);
+      prev_stream_offset =
+          ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
+      rv = ngtcp2_gaptr_push(&strm->acked_tx_offset, frc->fr.stream.offset,
+                             frc->fr.stream.datalen);
       if (rv != 0) {
-        return NGTCP2_ERR_CALLBACK_FAILURE;
+        return rv;
       }
-    }
 
-    rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
-    if (rv != 0) {
-      return rv;
+      if (conn->callbacks.acked_stream_data_offset) {
+        stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
+        datalen = stream_offset - prev_stream_offset;
+        if (datalen == 0 && !frc->fr.stream.fin) {
+          continue;
+        }
+
+        rv = conn->callbacks.acked_stream_data_offset(
+            conn, strm->stream_id, prev_stream_offset, datalen, conn->user_data,
+            strm->stream_user_data);
+        if (rv != 0) {
+          return NGTCP2_ERR_CALLBACK_FAILURE;
+        }
+      }
+
+      rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
+      if (rv != 0) {
+        return rv;
+      }
+      continue;
+    }
+    if (frc->fr.type == NGTCP2_FRAME_CRYPTO) {
+      strm = conn->strm0;
+      prev_stream_offset =
+          ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
+      rv = ngtcp2_gaptr_push(&strm->acked_tx_offset, frc->fr.crypto.offset,
+                             frc->fr.crypto.datalen);
+      if (rv != 0) {
+        return rv;
+      }
+
+      if (conn->callbacks.acked_crypto_offset) {
+        stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
+        datalen = stream_offset - prev_stream_offset;
+        if (datalen == 0) {
+          continue;
+        }
+
+        rv = conn->callbacks.acked_crypto_offset(conn, prev_stream_offset,
+                                                 datalen, conn->user_data);
+        if (rv != 0) {
+          return NGTCP2_ERR_CALLBACK_FAILURE;
+        }
+      }
+      continue;
     }
   }
   return 0;

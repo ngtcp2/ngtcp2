@@ -194,6 +194,7 @@ public:
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
+  void remove_tx_crypto_data(uint64_t offset, size_t datalen);
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
@@ -201,6 +202,10 @@ public:
   int handle_error(int liberr);
   void make_stream_early();
   void handle_early_data();
+
+  int on_key(int name, const uint8_t *secret, size_t secretlen,
+             const uint8_t *key, size_t keylen, const uint8_t *iv,
+             size_t ivlen);
 
 private:
   Address remote_addr_;

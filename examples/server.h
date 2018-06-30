@@ -214,6 +214,7 @@ public:
   const ngtcp2_cid *scid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
+  void remove_tx_crypto_data(uint64_t offset, size_t datalen);
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
@@ -224,6 +225,10 @@ public:
   int send_conn_close();
 
   int send_greeting();
+
+  int on_key(int name, const uint8_t *secret, size_t secretlen,
+             const uint8_t *key, size_t keylen, const uint8_t *iv,
+             size_t ivlen);
 
 private:
   Address remote_addr_;

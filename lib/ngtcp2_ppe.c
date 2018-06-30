@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_str.h"
@@ -98,6 +99,24 @@ int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr) {
   }
 
   buf->last += rv;
+
+  return 0;
+}
+
+int ngtcp2_ppe_encode_token(ngtcp2_ppe *ppe, const uint8_t *token,
+                            size_t tokenlen) {
+  ngtcp2_buf *buf = &ppe->buf;
+  ngtcp2_crypto_ctx *ctx = ppe->ctx;
+
+  if (ngtcp2_buf_left(buf) <
+      ctx->aead_overhead + ngtcp2_put_varint_len(tokenlen) + tokenlen) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  buf->last = ngtcp2_put_varint(buf->last, tokenlen);
+  if (tokenlen) {
+    buf->last = ngtcp2_cpymem(buf->last, token, tokenlen);
+  }
 
   return 0;
 }

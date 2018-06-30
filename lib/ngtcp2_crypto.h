@@ -33,9 +33,10 @@
 
 #include "ngtcp2_mem.h"
 
-/* NGTCP2_HANDSHAKE_AEAD_OVERHEAD is an overhead of AEAD.  Because
-   QUIC uses AEAD_AES_128_GCM, the overhead is 16 bytes. */
-#define NGTCP2_HANDSHAKE_AEAD_OVERHEAD 16
+/* NGTCP2_INITIAL_AEAD_OVERHEAD is an overhead of AEAD used by Initial
+   packets.  Because QUIC uses AEAD_AES_128_GCM, the overhead is 16
+   bytes. */
+#define NGTCP2_INITIAL_AEAD_OVERHEAD 16
 
 /* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
 #define NGTCP2_MAX_AEAD_OVERHEAD 16

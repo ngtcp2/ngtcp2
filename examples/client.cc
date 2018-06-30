@@ -84,6 +84,84 @@ void Stream::buffer_file() {
 }
 
 namespace {
+void key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
+            const unsigned char *key, size_t keylen, const unsigned char *iv,
+            size_t ivlen, void *arg) {
+  auto c = static_cast<Client *>(arg);
+
+  // TODO We have to handle the return code from on_key.  Perhaps,
+  // make return type to int?
+  c->on_key(name, secret, secretlen, key, keylen, iv, ivlen);
+}
+} // namespace
+
+int Client::on_key(int name, const uint8_t *secret, size_t secretlen,
+                   const uint8_t *key, size_t keylen, const uint8_t *iv,
+                   size_t ivlen) {
+  int rv;
+
+  switch (name) {
+  case SSL_KEY_CLIENT_EARLY_TRAFFIC:
+  case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
+  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+  case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
+  case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
+    break;
+  default:
+    return 0;
+  }
+
+  // TODO We don't have to call this everytime we get key generated.
+  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  std::array<uint8_t, 64> pn;
+  auto pnlen = crypto::derive_pkt_num_protection_key(
+      pn.data(), pn.size(), secret, secretlen, crypto_ctx_);
+  if (pnlen < 0) {
+    return -1;
+  }
+
+  // TODO Just call this once.
+  ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
+
+  switch (name) {
+  case SSL_KEY_CLIENT_EARLY_TRAFFIC:
+    std::cerr << "client_early_traffic" << std::endl;
+    break;
+  case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
+    std::cerr << "client_handshake_traffic" << std::endl;
+    ngtcp2_conn_set_handshake_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                      pnlen);
+    break;
+  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+    std::cerr << "client_application_traffic" << std::endl;
+    break;
+  case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
+    std::cerr << "server_handshake_traffic" << std::endl;
+    ngtcp2_conn_set_handshake_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                      pnlen);
+    break;
+  case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
+    std::cerr << "server_application_traffic" << std::endl;
+    break;
+  }
+
+  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+            << "+ key=" << util::format_hex(key, keylen) << "\n"
+            << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
+            << "+ pn=" << util::format_hex(pn.data(), pnlen) << std::endl;
+
+  return 0;
+}
+
+namespace {
 void msg_cb(int write_p, int version, int content_type, const void *buf,
             size_t len, SSL *ssl, void *arg) {
   int rv;
@@ -343,31 +421,16 @@ void Client::close() {
 }
 
 namespace {
-ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
-                            const uint8_t **pdest, int initial,
-                            void *user_data) {
+int client_initial(ngtcp2_conn *conn, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->tls_handshake(initial) != 0) {
+  if (c->tls_handshake(true) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   c->handle_early_data();
 
-  auto len = c->read_client_handshake(pdest);
-
-  return len;
-}
-} // namespace
-
-namespace {
-ssize_t send_client_handshake(ngtcp2_conn *conn, uint32_t flags,
-                              const uint8_t **pdest, void *user_data) {
-  auto c = static_cast<Client *>(user_data);
-
-  auto len = c->read_client_handshake(pdest);
-
-  return len;
+  return 0;
 }
 } // namespace
 
@@ -402,6 +465,15 @@ int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
   }
   ngtcp2_conn_extend_max_stream_offset(conn, stream_id, datalen);
   ngtcp2_conn_extend_max_offset(conn, datalen);
+  return 0;
+}
+} // namespace
+
+namespace {
+int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
+                        void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+  c->remove_tx_crypto_data(offset, datalen);
   return 0;
 }
 } // namespace
@@ -611,6 +683,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   SSL_set_connect_state(ssl_);
   SSL_set_msg_callback(ssl_, msg_cb);
   SSL_set_msg_callback_arg(ssl_, this);
+  SSL_set_key_callback(ssl_, key_cb, this);
 
   const uint8_t *alpn = nullptr;
   size_t alpnlen;
@@ -656,10 +729,8 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   }
 
   auto callbacks = ngtcp2_conn_callbacks{
-      send_client_initial,
-      send_client_handshake,
-      nullptr,
-      nullptr,
+      client_initial,
+      nullptr, // recv_client_initial
       recv_stream0_data,
       handshake_completed,
       nullptr, // recv_version_negotiation
@@ -670,6 +741,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       do_hs_encrypt_pn,
       do_encrypt_pn,
       recv_stream_data,
+      acked_crypto_offset,
       acked_stream_data_offset,
       stream_close,
       nullptr, // recv_stateless_reset,
@@ -778,8 +850,8 @@ int Client::setup_initial_crypto_context() {
     debug::print_client_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                    pn.data(), pnlen);
+  ngtcp2_conn_set_initial_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                  pn.data(), pnlen);
 
   rv = crypto::derive_server_initial_secret(secret.data(), secret.size(),
                                             initial_secret.data(),
@@ -814,8 +886,8 @@ int Client::setup_initial_crypto_context() {
     debug::print_server_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                    pn.data(), pnlen);
+  ngtcp2_conn_set_initial_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                  pn.data(), pnlen);
 
   return 0;
 }
@@ -1274,17 +1346,12 @@ void Client::schedule_retransmit() {
 }
 
 int Client::write_client_handshake(const uint8_t *data, size_t datalen) {
-  if (chandshake_.empty() || chandshake_idx_ == chandshake_.size()) {
-    chandshake_.emplace_back(data, datalen);
-    return 0;
-  }
+  chandshake_.emplace_back(data, datalen);
+  ++chandshake_idx_;
 
-  auto &last = chandshake_.back();
+  auto &buf = chandshake_.back();
 
-  last.buf.insert(std::end(last.buf), data, data + datalen);
-  last.begin = last.buf.data();
-  last.head = last.begin;
-  last.tail = last.begin + last.buf.size();
+  ngtcp2_conn_submit_crypto_data(conn_, buf.rpos(), buf.size());
 
   return 0;
 }
@@ -1675,14 +1742,14 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
+void Client::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
+  ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
+                          offset + datalen);
+}
+
 int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                   size_t datalen) {
-  if (stream_id == 0) {
-    ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_stream0_offset_,
-                            offset + datalen);
-    return 0;
-  }
-
+  assert(stream_id);
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
     std::cerr << "Stream " << stream_id << "not found" << std::endl;

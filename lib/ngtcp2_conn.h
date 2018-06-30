@@ -94,10 +94,10 @@ typedef enum {
 
 #define NGTCP2_MIN_PKTLEN NGTCP2_DEFAULT_MSS
 
-/* NGTCP2_MAX_HS_STREAM0_OFFSET is the maximum offset of stream 0
-   during handshake.  This is required because stream 0 is exempted
-   from flow control during handshake. */
-#define NGTCP2_MAX_HS_STREAM0_OFFSET 65536
+/* NGTCP2_MAX_CRYPTO_OFFSET is the maximum offset of crypto stream.
+   We set this hard limit here because crypto stream is exempted from
+   flow control. */
+#define NGTCP2_MAX_CRYPTO_OFFSET 65536
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -178,6 +178,17 @@ typedef enum {
   NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
 } ngtcp2_conn_flag;
 
+typedef enum {
+  NGTCP2_CRYPTO_LEVEL_INITIAL,
+  NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+  NGTCP2_CRYPTO_LEVEL_1RTT,
+} ngtcp2_crypto_level;
+
+typedef struct {
+  ngtcp2_buf buf;
+  int level;
+} ngtcp2_crypto_data;
+
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
@@ -196,6 +207,7 @@ struct ngtcp2_conn {
   ngtcp2_rcvry_stat rcs;
   ngtcp2_ringbuf tx_path_challenge;
   ngtcp2_ringbuf rx_path_challenge;
+  ngtcp2_ringbuf tx_crypto_data;
   ngtcp2_log log;
   /* last_tx_pkt_num is the packet number which the local endpoint
      sent last time.*/
@@ -278,10 +290,18 @@ struct ngtcp2_conn {
   void *user_data;
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
+  /* in_tx_buf references data which is sent in Initial packet. */
+  ngtcp2_buf in_tx_buf;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint8_t flags;
   int server;
+  /* in_tx_ckm is a cryptographic key, and iv to encrypt Initial
+     packets. */
+  ngtcp2_crypto_km *in_tx_ckm;
+  /* in_rx_ckm is a cryptographic key, and iv to decrypt Initial
+     packets. */
+  ngtcp2_crypto_km *in_rx_ckm;
   /* hs_tx_ckm is a cryptographic key, and iv to encrypt handshake
      packets. */
   ngtcp2_crypto_km *hs_tx_ckm;

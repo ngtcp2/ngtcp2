@@ -61,6 +61,18 @@ void *ngtcp2_ringbuf_push_front(ngtcp2_ringbuf *rb) {
   return (void *)&rb->buf[rb->first * rb->size];
 }
 
+void *ngtcp2_ringbuf_push_back(ngtcp2_ringbuf *rb) {
+  size_t offset = (rb->first + rb->len) & (rb->nmemb - 1);
+
+  if (rb->len == rb->nmemb) {
+    rb->first = (rb->first + 1) & (rb->nmemb - 1);
+  } else {
+    ++rb->len;
+  }
+
+  return (void *)&rb->buf[offset * rb->size];
+}
+
 void ngtcp2_ringbuf_pop_front(ngtcp2_ringbuf *rb) {
   rb->first = (rb->first + 1) & (rb->nmemb - 1);
   --rb->len;

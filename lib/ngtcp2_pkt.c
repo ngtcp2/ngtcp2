@@ -1677,3 +1677,29 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
 
   return p - dest;
 }
+
+ssize_t ngtcp2_pkt_skip_token(const uint8_t *payload, size_t payloadlen) {
+  size_t len = 1;
+  size_t n;
+  size_t tokenlen;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_PKT_ENCODING;
+  }
+
+  n = ngtcp2_get_varint_len(payload);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_PKT_ENCODING;
+  }
+
+  tokenlen = ngtcp2_get_varint(&n, payload);
+  len += tokenlen;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_PKT_ENCODING;
+  }
+
+  return (ssize_t)len;
+}

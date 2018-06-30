@@ -69,11 +69,19 @@ int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
 void ngtcp2_ringbuf_free(ngtcp2_ringbuf *rb);
 
 /* ngtcp2_ringbuf_push_front moves the offset to the first element in
+   the buffer backward, and returns the pointer to the element.
+   Caller can store data to the buffer pointed by the returned
+   pointer.  If this action exceeds the capacity of the ring buffer,
+   the last element is silently overwritten, and rb->len remains
+   unchanged. */
+void *ngtcp2_ringbuf_push_front(ngtcp2_ringbuf *rb);
+
+/* ngtcp2_ringbuf_push_back moves the offset to the last element in
    the buffer forward, and returns the pointer to the element.  Caller
    can store data to the buffer pointed by the returned pointer.  If
-   this action exceeds the capacity of the ring buffer, the last
+   this action exceeds the capacity of the ring buffer, the first
    element is silently overwritten, and rb->len remains unchanged. */
-void *ngtcp2_ringbuf_push_front(ngtcp2_ringbuf *rb);
+void *ngtcp2_ringbuf_push_back(ngtcp2_ringbuf *rb);
 
 /*
  * ngtcp2_ringbuf_pop_front removes first element in |rb|.

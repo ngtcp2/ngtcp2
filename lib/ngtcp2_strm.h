@@ -120,7 +120,7 @@ void ngtcp2_strm_free(ngtcp2_strm *strm);
 uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
 
 /*
- * ngtcp2_strm_recv_reordering handles reordered STREAM frame |fr|.
+ * ngtcp2_strm_recv_reordering handles reordered data.
  *
  * It returns 0 if it succeeds, or one of the following negative error
  * codes:
@@ -128,7 +128,8 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const ngtcp2_stream *fr);
+int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
+                                size_t datalen, uint64_t offset);
 
 /*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be

@@ -53,7 +53,12 @@
 /* NGTCP2_STREAM_OVERHEAD is the maximum number of bytes required
    other than payload for STREAM frame.  That is from type field to
    the beginning of the payload. */
-#define NGTCP2_STREAM_OVERHEAD 15
+#define NGTCP2_STREAM_OVERHEAD (1 + 8 + 8 + 8)
+
+/* NGTCP2_CRYPTO_OVERHEAD is the maximum number of bytes required
+   other than payload for CRYPTO frame.  That is from type field to
+   the beginning of the payload. */
+#define NGTCP2_CRYPTO_OVERHEAD (1 + 8 + 8)
 
 /* NGTCP2_MAX_VARINT is the maximum value which can be encoded in
    variable-length integer encoding */
@@ -675,5 +680,17 @@ void ngtcp2_pkt_adjust_ack_pkt_num(ngtcp2_ack *ack, uint64_t max_pkt_num);
  *     ACK frame is malformed
  */
 int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
+
+/*
+ * ngtcp2_pkt_skip_token skips token length and token which is present
+ * at the start of |payload|.  |payload| is |payloadlen| bytes long.
+ *
+ * This function returns the number bytes read to skip token length
+ * and token, or one of the following negative error_codes:
+ *
+ * NGTCP2_ERR_PKT_ENCODING
+ *     The packet is badly encoded.
+ */
+ssize_t ngtcp2_pkt_skip_token(const uint8_t *payload, size_t payloadlen);
 
 #endif /* NGTCP2_PKT_H */

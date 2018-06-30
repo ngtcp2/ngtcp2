@@ -216,6 +216,7 @@ typedef enum {
   NGTCP2_ERR_RECV_VERSION_NEGOTIATION = -229,
   NGTCP2_ERR_CLOSING = -230,
   NGTCP2_ERR_DRAINING = -231,
+  NGTCP2_ERR_PKT_ENCODING = -232,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -811,14 +812,14 @@ struct ngtcp2_conn;
 
 typedef struct ngtcp2_conn ngtcp2_conn;
 
-typedef ssize_t (*ngtcp2_send_client_initial)(ngtcp2_conn *conn, uint32_t flags,
-                                              const uint8_t **pdest,
-                                              int initial, void *user_data);
-
-typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
-                                                uint32_t flags,
-                                                const uint8_t **pdest,
-                                                void *user_data);
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_client_initial` is invoked when application requires
+ * TLS stack to produce first TLS cryptographic handshake data from
+ * client session.
+ */
+typedef int (*ngtcp2_client_initial)(ngtcp2_conn *conn, void *user_data);
 
 /**
  * @functypedef
@@ -840,11 +841,6 @@ typedef ssize_t (*ngtcp2_send_client_handshake)(ngtcp2_conn *conn,
 typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
                                           const ngtcp2_cid *dcid,
                                           void *user_data);
-
-typedef ssize_t (*ngtcp2_send_server_handshake)(ngtcp2_conn *conn,
-                                                uint32_t flags,
-                                                const uint8_t **pdest,
-                                                int initial, void *user_data);
 
 /**
  * @functypedef
@@ -944,6 +940,19 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
                                                void *user_data,
                                                void *stream_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_acked_crypto_offset` is a callback function which is
+ * called when crypto stream data is acknowledged, and application can
+ * free the data.  This works like
+ * :type:`ngtcp2_acked_stream_data_offset` but crypto stream has no
+ * stream_id and stream_user_data, and |datalen| never become 0.
+ *
+ */
+typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn, uint64_t offset,
+                                          size_t datalen, void *user_data);
+
 typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_hd *hd,
                                            const ngtcp2_pkt_stateless_reset *sr,
@@ -981,24 +990,23 @@ typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                            ngtcp2_rand_ctx ctx, void *user_data);
 
 typedef struct {
-  ngtcp2_send_client_initial send_client_initial;
-  ngtcp2_send_client_handshake send_client_handshake;
+  ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
-  ngtcp2_send_server_handshake send_server_handshake;
   ngtcp2_recv_stream0_data recv_stream0_data;
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
-  /* hs_encrypt is a callback function which is invoked to encrypt
-     handshake packets. */
-  ngtcp2_encrypt hs_encrypt;
-  /* hs_decrypt is a callback function which is invoked to encrypt
-     handshake packets. */
-  ngtcp2_decrypt hs_decrypt;
+  /* in_encrypt is a callback function which is invoked to encrypt
+     Initial packets. */
+  ngtcp2_encrypt in_encrypt;
+  /* in_decrypt is a callback function which is invoked to encrypt
+     Initial packets. */
+  ngtcp2_decrypt in_decrypt;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
-  ngtcp2_encrypt_pn hs_encrypt_pn;
+  ngtcp2_encrypt_pn in_encrypt_pn;
   ngtcp2_encrypt_pn encrypt_pn;
   ngtcp2_recv_stream_data recv_stream_data;
+  ngtcp2_acked_crypto_offset acked_crypto_offset;
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
@@ -1196,6 +1204,42 @@ NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
  * has completed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_initial_tx_keys` sets key, iv, and pn to encrypt
+ *  Initial packets.  If they have already been set, they are
+ *  overwritten.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_set_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                size_t keylen, const uint8_t *iv, size_t ivlen,
+                                const uint8_t *pn, size_t pnlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_initial_rx_keys` sets key, iv and pn to decrypt
+ * Initial packets.  If they have already been set, they are
+ * overwritten.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_set_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                size_t keylen, const uint8_t *iv, size_t ivlen,
+                                const uint8_t *pn, size_t pnlen);
 
 /**
  * @function
@@ -1695,6 +1739,24 @@ typedef struct {
  */
 NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
                                                       ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_submit_crypto_data` submits crypto stream data |data|
+ * of length |datalen| to the library for transmission.  The
+ * encryption level is automatically determined by the installed keys.
+ *
+ * TODO we might have an issue when submitting OEOD, but will see it
+ * later.
+ *
+ * Application should keep the buffer pointed by |data| alive until
+ * the data is acknowledged.  The acknowledgement is notified by
+ * :type:`ngtcp2_acked_crypto_offset` callback.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
+                                                 const uint8_t *data,
+                                                 const size_t datalen);
 
 /**
  * @function

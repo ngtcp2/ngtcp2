@@ -78,31 +78,79 @@ namespace {
 void key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
             const unsigned char *key, size_t keylen, const unsigned char *iv,
             size_t ivlen, void *arg) {
+  auto h = static_cast<Handler *>(arg);
+
+  // TODO We have to handle the return code from on_key.  Perhaps,
+  // make return type to int?
+  h->on_key(name, secret, secretlen, key, keylen, iv, ivlen);
+}
+} // namespace
+
+int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
+                    const uint8_t *key, size_t keylen, const uint8_t *iv,
+                    size_t ivlen) {
+  int rv;
+
+  switch (name) {
+  case SSL_KEY_CLIENT_EARLY_TRAFFIC:
+  case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
+  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+  case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
+  case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
+    break;
+  default:
+    return 0;
+  }
+
+  // TODO We don't have to call this everytime we get key generated.
+  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
+  if (rv != 0) {
+    return -1;
+  }
+
+  std::array<uint8_t, 64> pn;
+  auto pnlen = crypto::derive_pkt_num_protection_key(
+      pn.data(), pn.size(), secret, secretlen, crypto_ctx_);
+  if (pnlen < 0) {
+    return -1;
+  }
+
+  // TODO Just call this once.
+  ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
+
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
     std::cerr << "client_early_traffic" << std::endl;
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
     std::cerr << "client_handshake_traffic" << std::endl;
+    ngtcp2_conn_set_handshake_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                      pnlen);
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
     std::cerr << "client_application_traffic" << std::endl;
     break;
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
     std::cerr << "server_handshake_traffic" << std::endl;
+    ngtcp2_conn_set_handshake_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                      pnlen);
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
     std::cerr << "server_application_traffic" << std::endl;
     break;
-  default:
-    return;
   }
 
   std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
             << "+ key=" << util::format_hex(key, keylen) << "\n"
-            << "+ iv=" << util::format_hex(iv, ivlen) << std::endl;
+            << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
+            << "+ pn=" << util::format_hex(pn.data(), pnlen) << std::endl;
+
+  return 0;
 }
-} // namespace
 
 namespace {
 void msg_cb(int write_p, int version, int content_type, const void *buf,
@@ -633,24 +681,6 @@ int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
 } // namespace
 
 namespace {
-ssize_t send_server_handshake(ngtcp2_conn *conn, uint32_t flags,
-                              const uint8_t **pdest, int initial,
-                              void *user_data) {
-  auto h = static_cast<Handler *>(user_data);
-
-  auto len = h->read_server_handshake(pdest);
-
-  // If Initial packet does not have complete ClientHello, then drop
-  // connection.
-  if (initial && len == 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return len;
-}
-} // namespace
-
-namespace {
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   auto h = static_cast<Handler *>(user_data);
 
@@ -812,6 +842,15 @@ int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
 } // namespace
 
 namespace {
+int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
+                        void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  h->remove_tx_crypto_data(offset, datalen);
+  return 0;
+}
+} // namespace
+
+namespace {
 int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
@@ -872,9 +911,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
 
   auto callbacks = ngtcp2_conn_callbacks{
       nullptr,
-      nullptr,
       ::recv_client_initial,
-      send_server_handshake,
       recv_stream0_data,
       handshake_completed,
       nullptr,
@@ -885,6 +922,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       do_hs_encrypt_pn,
       do_encrypt_pn,
       ::recv_stream_data,
+      acked_crypto_offset,
       acked_stream_data_offset,
       stream_close,
       nullptr, // recv_stateless_reset
@@ -1067,6 +1105,12 @@ int Handler::read_tls() {
 
 int Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
   shandshake_.emplace_back(data, datalen);
+  ++shandshake_idx_;
+
+  auto &buf = shandshake_.back();
+
+  ngtcp2_conn_submit_crypto_data(conn_, buf.rpos(), buf.size());
+
   return 0;
 }
 
@@ -1144,8 +1188,8 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     debug::print_server_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_handshake_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                    pn.data(), pnlen);
+  ngtcp2_conn_set_initial_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                  pn.data(), pnlen);
 
   rv = crypto::derive_client_initial_secret(secret.data(), secret.size(),
                                             initial_secret.data(),
@@ -1180,8 +1224,8 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     debug::print_client_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_handshake_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                    pn.data(), pnlen);
+  ngtcp2_conn_set_initial_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                  pn.data(), pnlen);
 
   return 0;
 }
@@ -1804,15 +1848,17 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
+void Handler::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
+  ::remove_tx_stream_data(shandshake_, shandshake_idx_, tx_stream0_offset_,
+                          offset + datalen);
+}
+
 int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                    size_t datalen) {
   int rv;
 
-  if (stream_id == 0) {
-    ::remove_tx_stream_data(shandshake_, shandshake_idx_, tx_stream0_offset_,
-                            offset + datalen);
-    return 0;
-  }
+  assert(stream_id);
+
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
