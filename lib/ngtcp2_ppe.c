@@ -26,7 +26,6 @@
 
 #include <string.h>
 #include <assert.h>
-#include <stdio.h>
 
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_str.h"
@@ -58,20 +57,22 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
 
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     ppe->len_offset = 1 + 4 + 1 + hd->dcid.datalen + hd->scid.datalen;
+    if (hd->type == NGTCP2_PKT_INITIAL) {
+      ppe->len_offset += ngtcp2_put_varint_len(hd->tokenlen) + hd->tokenlen;
+    }
     ppe->pkt_num_offset = ppe->len_offset + 2;
-    ppe->sample_offset =
-        1 + 4 + 1 + hd->dcid.datalen + hd->scid.datalen + 2 + 4;
     rv = ngtcp2_pkt_encode_hd_long(
         buf->last, ngtcp2_buf_left(buf) - ctx->aead_overhead, hd);
   } else {
     ppe->pkt_num_offset = 1 + hd->dcid.datalen;
-    ppe->sample_offset = 1 + hd->dcid.datalen + 4;
     rv = ngtcp2_pkt_encode_hd_short(
         buf->last, ngtcp2_buf_left(buf) - ctx->aead_overhead, hd);
   }
   if (rv < 0) {
     return (int)rv;
   }
+
+  ppe->sample_offset = ppe->pkt_num_offset + 4;
 
   buf->last += rv;
 
@@ -99,24 +100,6 @@ int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr) {
   }
 
   buf->last += rv;
-
-  return 0;
-}
-
-int ngtcp2_ppe_encode_token(ngtcp2_ppe *ppe, const uint8_t *token,
-                            size_t tokenlen) {
-  ngtcp2_buf *buf = &ppe->buf;
-  ngtcp2_crypto_ctx *ctx = ppe->ctx;
-
-  if (ngtcp2_buf_left(buf) <
-      ctx->aead_overhead + ngtcp2_put_varint_len(tokenlen) + tokenlen) {
-    return NGTCP2_ERR_NOBUF;
-  }
-
-  buf->last = ngtcp2_put_varint(buf->last, tokenlen);
-  if (tokenlen) {
-    buf->last = ngtcp2_cpymem(buf->last, token, tokenlen);
-  }
 
   return 0;
 }

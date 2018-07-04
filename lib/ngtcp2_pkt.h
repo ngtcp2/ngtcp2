@@ -42,7 +42,7 @@
 #define NGTCP2_SR_TYPE 0x1f
 
 /* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
-   That is (1|TYPE)<1> + VERSION<4> + (DCIL|SCIL)<1> + PAYLOADLEN<1> +
+   That is (1|TYPE)<1> + VERSION<4> + (DCIL|SCIL)<1> + LENGTH<1> +
    PKN<1> */
 #define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 1)
 
@@ -680,17 +680,5 @@ void ngtcp2_pkt_adjust_ack_pkt_num(ngtcp2_ack *ack, uint64_t max_pkt_num);
  *     ACK frame is malformed
  */
 int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
-
-/*
- * ngtcp2_pkt_skip_token skips token length and token which is present
- * at the start of |payload|.  |payload| is |payloadlen| bytes long.
- *
- * This function returns the number bytes read to skip token length
- * and token, or one of the following negative error_codes:
- *
- * NGTCP2_ERR_PKT_ENCODING
- *     The packet is badly encoded.
- */
-ssize_t ngtcp2_pkt_skip_token(const uint8_t *payload, size_t payloadlen);
 
 #endif /* NGTCP2_PKT_H */

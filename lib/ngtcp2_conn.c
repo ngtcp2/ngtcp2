@@ -1252,13 +1252,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  if (type == NGTCP2_PKT_INITIAL) {
-    rv = ngtcp2_ppe_encode_token(&ppe, NULL, 0);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
   if (conn->server || type != NGTCP2_PKT_INITIAL) {
     ackfr = NULL;
     rv = conn_create_ack_frame(conn, &ackfr, ts, 0 /* nodelay */,
@@ -3072,14 +3065,18 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
-  if (conn->server && hd.type == NGTCP2_PKT_INITIAL &&
-      (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
-    conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-    conn->rcid = hd.dcid;
+  if (conn->server && hd.type == NGTCP2_PKT_INITIAL) {
+    if (hd.tokenlen != 0) {
+      return (ssize_t)pktlen;
+    }
+    if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
+      conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
+      conn->rcid = hd.dcid;
 
-    rv = conn_call_recv_client_initial(conn);
-    if (rv != 0) {
-      return rv;
+      rv = conn_call_recv_client_initial(conn);
+      if (rv != 0) {
+        return rv;
+      }
     }
   }
 
@@ -3181,20 +3178,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   payload = conn->decrypt_buf.base;
   payloadlen = (size_t)nwrite;
 
-  switch (hd.type) {
-  case NGTCP2_PKT_INITIAL:
-    nread = ngtcp2_pkt_skip_token(payload, payloadlen);
-    if (nread < 0) {
-      return nread;
-    }
-    if (!conn->server && nread != 1) {
-      /* Initial packet from server must have 0 length token. */
-      return (ssize_t)pktlen;
-    }
-    payload += nread;
-    payloadlen -= (size_t)nread;
-    break;
-  case NGTCP2_PKT_RETRY:
+  if (hd.type == NGTCP2_PKT_RETRY) {
     /* Make sure that Retry packet acknowledges our Initial packet */
     rv = conn_ensure_retry_ack_initial(conn, &hd, payload, payloadlen, ts);
     if (rv != 0) {
@@ -3211,7 +3195,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
       return (ssize_t)pktlen;
     }
-    break;
   }
 
   for (; payloadlen;) {

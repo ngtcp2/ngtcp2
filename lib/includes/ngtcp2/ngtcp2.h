@@ -317,6 +317,8 @@ typedef struct {
   ngtcp2_cid dcid;
   ngtcp2_cid scid;
   uint64_t pkt_num;
+  uint8_t *token;
+  size_t tokenlen;
   /**
    * pkt_numlen is the number of bytes spent to encode pkt_num.
    */
