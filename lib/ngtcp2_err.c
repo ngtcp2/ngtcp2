@@ -96,6 +96,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:
     return "ERR_INTERNAL";
+  case NGTCP2_ERR_CALLBACK_RETRY:
+    return "ERR_CALLBACK_RETRY";
   default:
     return "(unknown)";
   }

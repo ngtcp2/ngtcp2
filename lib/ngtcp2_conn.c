@@ -109,6 +109,7 @@ static int conn_call_recv_stream0_data(ngtcp2_conn *conn, uint64_t offset,
   case NGTCP2_ERR_PROTO:
   case NGTCP2_ERR_INTERNAL:
   case NGTCP2_ERR_CALLBACK_FAILURE:
+  case NGTCP2_ERR_CALLBACK_RETRY:
     return rv;
   default:
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -1609,7 +1610,7 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
         conn, NGTCP2_CONN_FLAG_NONE, &payload, initial, conn->user_data);
 
     if (payloadlen < 0) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
+      return payloadlen;
     }
 
     if (payloadlen == 0) {
