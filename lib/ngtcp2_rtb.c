@@ -625,3 +625,7 @@ void ngtcp2_rtb_lost_unprotected_insert(ngtcp2_rtb *rtb,
 int ngtcp2_rtb_has_lost_pkt(ngtcp2_rtb *rtb) {
   return rtb->lost_unprotected_head || rtb->lost_protected_head;
 }
+
+int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
+  return ngtcp2_ksl_len(&rtb->ents) == 0;
+}

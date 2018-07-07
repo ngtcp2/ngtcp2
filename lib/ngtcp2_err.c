@@ -103,7 +103,7 @@ const char *ngtcp2_strerror(int liberr) {
   }
 }
 
-int ngtcp2_err_fatal(int liberr) { return liberr >= NGTCP2_ERR_FATAL; }
+int ngtcp2_err_fatal(int liberr) { return liberr < NGTCP2_ERR_FATAL; }
 
 uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
   switch (liberr) {

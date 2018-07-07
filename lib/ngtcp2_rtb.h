@@ -273,4 +273,10 @@ void ngtcp2_rtb_lost_unprotected_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
  */
 int ngtcp2_rtb_has_lost_pkt(ngtcp2_rtb *rtb);
 
+/*
+ * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.  It does
+ * not consider lost packets.
+ */
+int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
+
 #endif /* NGTCP2_RTB_H */

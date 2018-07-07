@@ -189,6 +189,21 @@ typedef struct {
   int level;
 } ngtcp2_crypto_data;
 
+typedef struct {
+  /* last_tx_pkt_num is the packet number which the local endpoint
+     sent last time.*/
+  uint64_t last_tx_pkt_num;
+  uint64_t max_rx_pkt_num;
+  ngtcp2_acktr acktr;
+  ngtcp2_rtb rtb;
+  /* tx_ckm is a cryptographic key, and iv to encrypt outgoing
+     packets. */
+  ngtcp2_crypto_km *tx_ckm;
+  /* rx_ckm is a cryptographic key, and iv to decrypt incoming
+     packets. */
+  ngtcp2_crypto_km *rx_ckm;
+} ngtcp2_pktns;
+
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
@@ -199,6 +214,9 @@ struct ngtcp2_conn {
      check that duplicated Initial or 0-RTT packet are indeed sent to
      this connection. */
   ngtcp2_cid rcid;
+  ngtcp2_pktns in_pktns;
+  ngtcp2_pktns hs_pktns;
+  ngtcp2_pktns pktns;
   ngtcp2_strm *strm0;
   ngtcp2_map strms;
   ngtcp2_strm *fc_strms;
@@ -209,10 +227,6 @@ struct ngtcp2_conn {
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_ringbuf tx_crypto_data;
   ngtcp2_log log;
-  /* last_tx_pkt_num is the packet number which the local endpoint
-     sent last time.*/
-  uint64_t last_tx_pkt_num;
-  uint64_t max_rx_pkt_num;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
      initiated bidirectional stream which the local endpoint can
      accept.  This limit is not yet notified to the remote
@@ -288,29 +302,11 @@ struct ngtcp2_conn {
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
-  ngtcp2_acktr acktr;
-  ngtcp2_rtb rtb;
-  /* in_tx_buf references data which is sent in Initial packet. */
-  ngtcp2_buf in_tx_buf;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint8_t flags;
   int server;
-  /* in_tx_ckm is a cryptographic key, and iv to encrypt Initial
-     packets. */
-  ngtcp2_crypto_km *in_tx_ckm;
-  /* in_rx_ckm is a cryptographic key, and iv to decrypt Initial
-     packets. */
-  ngtcp2_crypto_km *in_rx_ckm;
-  /* hs_tx_ckm is a cryptographic key, and iv to encrypt handshake
-     packets. */
-  ngtcp2_crypto_km *hs_tx_ckm;
-  /* hs_rx_ckm is a cryptographic key, and iv to decrypt handshake
-     packets. */
-  ngtcp2_crypto_km *hs_rx_ckm;
   ngtcp2_crypto_km *early_ckm;
-  ngtcp2_crypto_km *tx_ckm;
-  ngtcp2_crypto_km *rx_ckm;
   size_t aead_overhead;
   /* buffed_rx_ppkts is buffered (0-RTT) Protected packets which come
      before (Initial packet for 0-RTT, or) handshake completed due to
@@ -337,8 +333,9 @@ struct ngtcp2_conn {
  * NGTCP2_ERR_PROTO
  *     Same packet number has already been added.
  */
-int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, uint64_t pkt_num, int active_ack,
-                          ngtcp2_tstamp ts, int unprotected);
+int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
+                          uint64_t pkt_num, int active_ack, ngtcp2_tstamp ts,
+                          int unprotected);
 
 /*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
