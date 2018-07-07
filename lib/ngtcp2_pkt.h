@@ -681,4 +681,10 @@ void ngtcp2_pkt_adjust_ack_pkt_num(ngtcp2_ack *ack, uint64_t max_pkt_num);
  */
 int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
 
+/*
+ * ngtcp2_pkt_hd returns nonzero if |hd| indicates Initial or
+ * Handshake packet.
+ */
+int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
+
 #endif /* NGTCP2_PKT_H */

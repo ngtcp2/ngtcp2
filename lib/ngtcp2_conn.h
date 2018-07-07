@@ -189,6 +189,15 @@ typedef struct {
   int level;
 } ngtcp2_crypto_data;
 
+struct ngtcp2_cc_stat {
+  uint64_t cwnd;
+  uint64_t ssthresh;
+  /* eor_pkt_num is "end_of_recovery" */
+  uint64_t eor_pkt_num;
+};
+
+typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
+
 typedef struct {
   /* last_tx_pkt_num is the packet number which the local endpoint
      sent last time.*/
@@ -223,6 +232,7 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
+  ngtcp2_cc_stat ccs;
   ngtcp2_ringbuf tx_path_challenge;
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_ringbuf tx_crypto_data;

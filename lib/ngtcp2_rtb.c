@@ -119,12 +119,11 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
 
 static int greater(int64_t lhs, int64_t rhs) { return lhs > rhs; }
 
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_log *log, ngtcp2_mem *mem) {
-  rtb->ccs.cwnd = NGTCP2_INITIAL_CWND;
-  rtb->ccs.eor_pkt_num = 0;
-  rtb->ccs.ssthresh = UINT64_MAX;
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
+                     ngtcp2_mem *mem) {
   ngtcp2_ksl_init(&rtb->ents, greater, -1, mem);
   rtb->lost = NULL;
+  rtb->ccs = ccs;
   rtb->log = log;
   rtb->mem = mem;
   rtb->bytes_in_flight = 0;
@@ -290,34 +289,39 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
 }
 
 static int rtb_in_rcvry(ngtcp2_rtb *rtb, uint64_t pkt_num) {
-  return pkt_num <= rtb->ccs.eor_pkt_num;
+  return pkt_num <= rtb->ccs->eor_pkt_num;
 }
 
 static void rtb_on_retransmission_timeout_verified(ngtcp2_rtb *rtb) {
-  rtb->ccs.cwnd = NGTCP2_MIN_CWND;
+  ngtcp2_cc_stat *ccs = rtb->ccs;
+
+  ccs->cwnd = NGTCP2_MIN_CWND;
   ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                  "retransmission timeout verified cwnd=%lu", rtb->ccs.cwnd);
+                  "retransmission timeout verified cwnd=%lu", ccs->cwnd);
 }
 
 static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+  ngtcp2_cc_stat *ccs = rtb->ccs;
+
   /* bytes_in_flight is reduced in rtb_on_remove */
-  if (rtb_in_rcvry(rtb, ent->hd.pkt_num)) {
+  if (!ngtcp2_pkt_handshake_pkt(&ent->hd) &&
+      rtb_in_rcvry(rtb, ent->hd.pkt_num)) {
     return;
   }
 
-  if (rtb->ccs.cwnd < rtb->ccs.ssthresh) {
-    rtb->ccs.cwnd += ent->pktlen;
+  if (ccs->cwnd < rtb->ccs->ssthresh) {
+    ccs->cwnd += ent->pktlen;
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                     "packet %" PRIu64 " acked, slow start cwnd=%lu",
-                    ent->hd.pkt_num, rtb->ccs.cwnd);
+                    ent->hd.pkt_num, ccs->cwnd);
     return;
   }
 
-  rtb->ccs.cwnd += NGTCP2_DEFAULT_MSS * ent->pktlen / rtb->ccs.cwnd;
+  ccs->cwnd += NGTCP2_DEFAULT_MSS * ent->pktlen / ccs->cwnd;
 
   ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                   "packet %" PRIu64 " acked, cwnd=%lu", ent->hd.pkt_num,
-                  rtb->ccs.cwnd);
+                  ccs->cwnd);
 }
 
 /*
@@ -348,13 +352,16 @@ static int rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
     }
   }
   rtb_on_pkt_acked_cc(rtb, ent);
-  if (rcs->rto_count && ent->hd.pkt_num > rcs->largest_sent_before_rto) {
-    rtb_on_retransmission_timeout_verified(rtb);
+  if (ngtcp2_pkt_handshake_pkt(&ent->hd)) {
+    rcs->handshake_count = 0;
+  } else {
+    if (rcs->rto_count && ent->hd.pkt_num > rcs->largest_sent_before_rto) {
+      rtb_on_retransmission_timeout_verified(rtb);
+    }
+    rcs->tlp_count = 0;
+    rcs->rto_count = 0;
+    rcs->probe_pkt_left = 0;
   }
-  rcs->handshake_count = 0;
-  rcs->tlp_count = 0;
-  rcs->rto_count = 0;
-  rcs->probe_pkt_left = 0;
 
   return 0;
 }
@@ -487,7 +494,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                                ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry **pdest, *ent;
   uint64_t delay_until_lost;
-  ngtcp2_cc_stat *ccs = &rtb->ccs;
+  ngtcp2_cc_stat *ccs = rtb->ccs;
   ngtcp2_ksl_it it;
   int rv;
 
@@ -507,12 +514,12 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
         ccs->eor_pkt_num = last_tx_pkt_num;
         ccs->cwnd =
             (uint64_t)((double)ccs->cwnd * NGTCP2_LOSS_REDUCTION_FACTOR);
-        ccs->cwnd = ngtcp2_max(rtb->ccs.cwnd, NGTCP2_MIN_CWND);
+        ccs->cwnd = ngtcp2_max(ccs->cwnd, NGTCP2_MIN_CWND);
         ccs->ssthresh = ccs->cwnd;
 
         ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                         "reduce cwnd because of packet loss cwnd=%lu",
-                        rtb->ccs.cwnd);
+                        ccs->cwnd);
       }
 
       for (; !ngtcp2_ksl_it_end(&it);) {

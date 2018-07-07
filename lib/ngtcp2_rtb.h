@@ -33,6 +33,9 @@
 
 #include "ngtcp2_ksl.h"
 
+struct ngtcp2_cc_stat;
+typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
+
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
@@ -142,25 +145,18 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
  */
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem);
 
-typedef struct {
-  uint64_t cwnd;
-  uint64_t ssthresh;
-  /* eor_pkt_num is "end_of_recovery" */
-  uint64_t eor_pkt_num;
-} ngtcp2_cc_stat;
-
 /*
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for
  * retransmission.
  */
 typedef struct {
-  ngtcp2_cc_stat ccs;
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
   /* lost includes packet entries which are considered to be lost.
      Currently, this list is not listed in the particular order. */
   ngtcp2_rtb_entry *lost;
+  ngtcp2_cc_stat *ccs;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
   /* bytes_in_flight is the sum of packet length linked from head. */
@@ -173,7 +169,8 @@ typedef struct {
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_log *log, ngtcp2_mem *mem);
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
+                     ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.

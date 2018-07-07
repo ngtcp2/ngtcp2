@@ -162,8 +162,8 @@ static int conn_call_rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   return 0;
 }
 
-static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_log *log,
-                      ngtcp2_mem *mem) {
+static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_cc_stat *ccs,
+                      ngtcp2_log *log, ngtcp2_mem *mem) {
   int rv;
 
   pktns->last_tx_pkt_num = (uint64_t)-1;
@@ -173,7 +173,7 @@ static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_log *log,
     return rv;
   }
 
-  ngtcp2_rtb_init(&pktns->rtb, log, mem);
+  ngtcp2_rtb_init(&pktns->rtb, ccs, log, mem);
 
   return 0;
 }
@@ -258,19 +258,20 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_log_init(&(*pconn)->log, &(*pconn)->scid, settings->log_printf,
                   settings->initial_ts, user_data);
 
-  rv =
-      pktns_init(&(*pconn)->in_pktns, 0 /* delayed_ack */, &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->in_pktns, 0 /* delayed_ack */, &(*pconn)->ccs,
+                  &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
 
-  rv =
-      pktns_init(&(*pconn)->hs_pktns, 0 /* delayed_ack */, &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->hs_pktns, 0 /* delayed_ack */, &(*pconn)->ccs,
+                  &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->pktns, 1 /* delayed_ack */, &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->pktns, 1 /* delayed_ack */, &(*pconn)->ccs,
+                  &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
@@ -284,6 +285,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->unsent_max_rx_offset = (*pconn)->max_rx_offset = settings->max_data;
   (*pconn)->rcs.min_rtt = UINT64_MAX;
   (*pconn)->rcs.reordering_threshold = NGTCP2_REORDERING_THRESHOLD;
+  (*pconn)->ccs.cwnd = NGTCP2_INITIAL_CWND;
+  (*pconn)->ccs.eor_pkt_num = 0;
+  (*pconn)->ccs.ssthresh = UINT64_MAX;
 
   return 0;
 
@@ -1119,16 +1123,14 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
  * sent at this time.
  */
 static uint64_t conn_cwnd_left(ngtcp2_conn *conn) {
-  ngtcp2_pktns *pktns = &conn->pktns;
   uint64_t bytes_in_flight = ngtcp2_conn_bytes_in_flight(conn);
 
   /* We might send more than bytes_in_flight if TLP/RTO packets are
      involved. */
-  /* TODO Move ccs from rtb to conn. */
-  if (bytes_in_flight >= pktns->rtb.ccs.cwnd) {
+  if (bytes_in_flight >= conn->ccs.cwnd) {
     return 0;
   }
-  return pktns->rtb.ccs.cwnd - bytes_in_flight;
+  return conn->ccs.cwnd - bytes_in_flight;
 }
 
 /*
@@ -2460,7 +2462,8 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */
-static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
+static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                         const ngtcp2_pkt_hd *hd, ngtcp2_ack *fr,
                          ngtcp2_tstamp ts) {
   int rv;
 
@@ -2479,12 +2482,14 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return rv;
   }
 
-  conn->largest_ack = ngtcp2_max(conn->largest_ack, (int64_t)fr->largest_ack);
+  if (!ngtcp2_pkt_handshake_pkt(hd)) {
+    conn->largest_ack = ngtcp2_max(conn->largest_ack, (int64_t)fr->largest_ack);
 
-  rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, &conn->rcs, fr->largest_ack,
-                                  pktns->last_tx_pkt_num, ts);
-  if (rv != 0) {
-    return rv;
+    rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, &conn->rcs, fr->largest_ack,
+                                    pktns->last_tx_pkt_num, ts);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   ngtcp2_conn_set_loss_detection_alarm(conn);
@@ -2931,7 +2936,7 @@ static int conn_ensure_retry_ack_initial(ngtcp2_conn *conn,
 
     ngtcp2_log_rx_fr(&conn->log, hd, fr);
 
-    rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
+    rv = conn_recv_ack(conn, pktns, hd, &fr->ack, ts);
     if (rv != 0) {
       return rv;
     }
@@ -3260,7 +3265,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
-      rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
+      rv = conn_recv_ack(conn, pktns, &hd, &fr->ack, ts);
       if (rv != 0) {
         return rv;
       }
@@ -4016,7 +4021,7 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
       if (hd->type == NGTCP2_PKT_INITIAL) {
         return NGTCP2_ERR_PROTO;
       }
-      rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
+      rv = conn_recv_ack(conn, pktns, hd, &fr->ack, ts);
       if (rv != 0) {
         return rv;
       }
@@ -4262,7 +4267,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
-      rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
+      rv = conn_recv_ack(conn, pktns, &hd, &fr->ack, ts);
       if (rv != 0) {
         return rv;
       }
