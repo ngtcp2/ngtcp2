@@ -162,12 +162,13 @@ static int conn_call_rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   return 0;
 }
 
-static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_log *log, ngtcp2_mem *mem) {
+static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_log *log,
+                      ngtcp2_mem *mem) {
   int rv;
 
   pktns->last_tx_pkt_num = (uint64_t)-1;
 
-  rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
+  rv = ngtcp2_acktr_init(&pktns->acktr, delayed_ack, log, mem);
   if (rv != 0) {
     return rv;
   }
@@ -257,17 +258,19 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_log_init(&(*pconn)->log, &(*pconn)->scid, settings->log_printf,
                   settings->initial_ts, user_data);
 
-  rv = pktns_init(&(*pconn)->in_pktns, &(*pconn)->log, mem);
+  rv =
+      pktns_init(&(*pconn)->in_pktns, 0 /* delayed_ack */, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->hs_pktns, &(*pconn)->log, mem);
+  rv =
+      pktns_init(&(*pconn)->hs_pktns, 0 /* delayed_ack */, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->pktns, &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->pktns, 1 /* delayed_ack */, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
@@ -486,8 +489,7 @@ static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
  * are no packets to acknowledge, this function returns 0, and |*pfr|
  * is untouched.  The caller is advised to set |*pfr| to NULL before
  * calling this function, and check it after this function returns.
- * If |nodelay| is nonzero, delayed ACK timer is ignored.  If
- * |unprotected| is nonzero, delayed ACK timer is always ignored.
+ * If |nodelay| is nonzero, delayed ACK timer is ignored.
  *
  * The memory for ACK frame is dynamically allocated by this function.
  * A caller is responsible to free it.
@@ -503,7 +505,7 @@ static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, ngtcp2_tstamp ts,
-                                 int nodelay, int unprotected) {
+                                 int nodelay, uint8_t ack_delay_exponent) {
   uint64_t first_pkt_num;
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
@@ -517,8 +519,9 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
-  uint64_t max_ack_delay =
-      (nodelay || unprotected) ? 0 : conn_compute_ack_delay(conn);
+  uint64_t max_ack_delay = (nodelay || !ngtcp2_acktr_delayed_ack(acktr))
+                               ? 0
+                               : conn_compute_ack_delay(conn);
 
   if (!ngtcp2_acktr_require_active_ack(acktr, max_ack_delay, ts)) {
     return 0;
@@ -543,9 +546,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ack->type = NGTCP2_FRAME_ACK;
   ack->largest_ack = first_pkt_num;
   ack->ack_delay_unscaled = ts - (*prpkt)->tstamp;
-  ack->ack_delay = (ack->ack_delay_unscaled / 1000) >>
-                   (unprotected ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
-                                : conn->local_settings.ack_delay_exponent);
+  ack->ack_delay = (ack->ack_delay_unscaled / 1000) >> ack_delay_exponent;
   ack->num_blks = 0;
 
   prpkt = &(*prpkt)->next;
@@ -723,7 +724,7 @@ static ssize_t conn_retransmit_unprotected_once(ngtcp2_conn *conn,
     /* ACK is added last so that we don't send ACK only frame here. */
     ackfr = NULL;
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
-                               1 /* unprotected */);
+                               NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     if (rv != 0) {
       return rv;
     }
@@ -1010,7 +1011,7 @@ static ssize_t conn_retransmit_protected_once(ngtcp2_conn *conn, uint8_t *dest,
   ackfr = NULL;
   /* TODO Is it better to check the remaining space in packet? */
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 1 /* nodelay */,
-                             0 /* unprotected */);
+                             conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     return rv;
   }
@@ -1287,7 +1288,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (conn->server || type != NGTCP2_PKT_INITIAL) {
     ackfr = NULL;
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
-                               1 /* unprotected */);
+                               NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     if (rv != 0) {
       return rv;
     }
@@ -1500,7 +1501,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
-                             1 /* unprotected */);
+                             NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
     return rv;
   }
@@ -1878,7 +1879,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
-                             !ack_only /* nodelay */, 0 /* unprotected */);
+                             !ack_only /* nodelay */,
+                             conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     return rv;
   }
@@ -2242,7 +2244,7 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, acktr, ts, 0 /* nodelay */,
-                             0 /* unprotected */);
+                             conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     return rv;
   }
@@ -2446,8 +2448,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 }
 
 /*
- * conn_recv_ack processes received ACK frame |fr|.  |unprotected| is
- * nonzero if |fr| is received in an unprotected packet.
+ * conn_recv_ack processes received ACK frame |fr|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2495,14 +2496,9 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
  * conn_assign_recved_ack_delay_unscaled assigns
  * fr->ack_delay_unscaled.
  */
-static void conn_assign_recved_ack_delay_unscaled(ngtcp2_conn *conn,
-                                                  ngtcp2_ack *fr,
-                                                  int unprotected) {
-  fr->ack_delay_unscaled =
-      (fr->ack_delay << (unprotected
-                             ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
-                             : conn->remote_settings.ack_delay_exponent)) *
-      1000;
+static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
+                                             uint8_t ack_delay_exponent) {
+  fr->ack_delay_unscaled = (fr->ack_delay << ack_delay_exponent) * 1000;
 }
 
 /*
@@ -2930,7 +2926,8 @@ static int conn_ensure_retry_ack_initial(ngtcp2_conn *conn,
       continue;
     }
 
-    conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 1);
+    assign_recved_ack_delay_unscaled(&fr->ack,
+                                     NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
 
     ngtcp2_log_rx_fr(&conn->log, hd, fr);
 
@@ -3255,7 +3252,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (hd.type == NGTCP2_PKT_RETRY) {
         continue;
       }
-      conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 1);
+      assign_recved_ack_delay_unscaled(&fr->ack,
+                                       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
@@ -4007,7 +4005,8 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     payloadlen -= (size_t)nread;
 
     if (fr->type == NGTCP2_FRAME_ACK) {
-      conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 1);
+      assign_recved_ack_delay_unscaled(&fr->ack,
+                                       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     }
 
     ngtcp2_log_rx_fr(&conn->log, hd, fr);
@@ -4240,8 +4239,14 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     payload += nread;
     payloadlen -= (size_t)nread;
 
-    if (fr->type == NGTCP2_FRAME_ACK) {
-      conn_assign_recved_ack_delay_unscaled(conn, &fr->ack, 0);
+    if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+      if (fr->type == NGTCP2_FRAME_ACK) {
+        assign_recved_ack_delay_unscaled(&fr->ack,
+                                         NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+      }
+    } else {
+      assign_recved_ack_delay_unscaled(
+          &fr->ack, conn->remote_settings.ack_delay_exponent);
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
