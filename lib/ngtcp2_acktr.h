@@ -57,7 +57,6 @@ struct ngtcp2_acktr_entry {
   ngtcp2_acktr_entry **pprev, *next;
   uint64_t pkt_num;
   ngtcp2_tstamp tstamp;
-  uint8_t unprotected;
 };
 
 /*
@@ -65,8 +64,7 @@ struct ngtcp2_acktr_entry {
  * with the given parameters.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, int unprotected,
-                           ngtcp2_mem *mem);
+                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_entry_del deallocates memory allocated for |ent|.  It
@@ -83,17 +81,9 @@ typedef struct {
 
 typedef enum {
   NGTCP2_ACKTR_FLAG_NONE = 0x00,
-  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED indicates that there are
-     pending unprotected packet to be acknowledged. */
-  NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED = 0x01,
-  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED indicates that there are
+  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are
      pending protected packet to be acknowledged. */
-  NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED = 0x02,
-  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK is bitwise OR of
-     NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED and
-     NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED. */
-  NGTCP2_ACKTR_FLAG_ACTIVE_ACK = NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED |
-                                 NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED,
+  NGTCP2_ACKTR_FLAG_ACTIVE_ACK = 0x02,
   /* NGTCP2_ACKTR_FLAG_PENDING_ACK_FINISHED is set when server
      received TLSv1.3 Finished message, and its acknowledgement is
      pending. */
@@ -112,24 +102,12 @@ typedef enum {
  */
 typedef struct {
   ngtcp2_ringbuf acks;
-  ngtcp2_ringbuf hs_acks;
   /* ent points to the head of list which is ordered by the decreasing
      order of packet number. */
   ngtcp2_acktr_entry *ent, *tail;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
   size_t nack;
-  /* last_hs_ack_pkt_num is the earliest outgoing packet number which
-     contains an acknowledgement for a last handshake packet.  This
-     field is effectively used by server, and a last handshake packet
-     contains client Finished message.  The current implementation
-     does not remove ngtcp2_ack_entry unless it is acknowledged, or
-     evicted due to the limitation of capacity.  When a local endpoint
-     received an acknowledgement to this packet or later, unless
-     ngtcp2_ack_entry is evicted, we are sure that peer knows that the
-     local endpoint acknowledged peer's last handshake packet.  Then
-     the local endpoint can start rejecting unprotected packet.*/
-  uint64_t last_hs_ack_pkt_num;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
@@ -175,9 +153,9 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
 void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 
 /*
- * ngtcp2_acktr_get returns the pointer to the entry which has the
- * largest packet number to be acked.  If there is no entry, this
- * function returns NULL.
+ * ngtcp2_acktr_get returns the pointer to pointer to the entry which
+ * has the largest packet number to be acked.  If there is no entry,
+ * this function returns a pointer which includes NULL on dereference.
  */
 ngtcp2_acktr_entry **ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
@@ -189,24 +167,20 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_add_ack adds the outgoing ACK frame |fr| to |acktr|.
- * |pkt_num| is the packet number which |fr| belongs.  |unprotected|
- * is nonzero if the packet is an unprotected packet.  This function
+ * |pkt_num| is the packet number which |fr| belongs.  This function
  * transfers the ownership of |fr| to |acktr|.  |ack_only| is nonzero
  * if the packet contains an ACK frame only.  This function returns a
  * pointer to the object it adds.
  */
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              uint64_t pkt_num, ngtcp2_ack *fr,
-                                             ngtcp2_tstamp ts, int unprotected,
-                                             int ack_only);
+                                             ngtcp2_tstamp ts, int ack_only);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.
- * |pkt_num| is a packet number which includes |fr|.  |unprotected| is
- * nonzero if the packet which |fr| is included is an unprotected
- * packet.  If we receive ACK which acknowledges the ACKs added by
- * ngtcp2_acktr_add_ack, ngtcp2_acktr_entry which the outgoing ACK
- * acknowledges is removed.
+ * |pkt_num| is a packet number which includes |fr|.  If we receive
+ * ACK which acknowledges the ACKs added by ngtcp2_acktr_add_ack,
+ * ngtcp2_acktr_entry which the outgoing ACK acknowledges is removed.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -215,22 +189,19 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
  *     User-defined callback function failed.
  */
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                          int unprotected, ngtcp2_conn *conn, ngtcp2_tstamp ts);
+                          ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_commit_ack tells |acktr| that ACK frame is generated.
- * If |unprotected| is nonzero, ACK frame will be sent in an
- * unprotected packet.
  */
-void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected);
+void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_require_active_ack returns nonzero if ACK frame should
- * be generated actively.  If |unprotected| is nonzero, entries sent
- * in an unprotected packet are taken into consideration.
+ * be generated actively.
  */
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
-                                    uint64_t max_ack_delay, ngtcp2_tstamp ts);
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint64_t max_ack_delay,
+                                    ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_expire_delayed_ack expires delayed ACK timer.  This
@@ -238,11 +209,5 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
  * that the timer has expired.
  */
 void ngtcp2_acktr_expire_delayed_ack(ngtcp2_acktr *acktr);
-
-/*
- * ngtcp2_acktr_include_protected_pkt returns nonzero if |acktr|
- * includes protected packet to ack.
- */
-int ngtcp2_acktr_include_protected_pkt(ngtcp2_acktr *acktr);
 
 #endif /* NGTCP2_ACKTR_H */

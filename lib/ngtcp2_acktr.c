@@ -30,8 +30,7 @@
 #include "ngtcp2_macro.h"
 
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
-                           ngtcp2_tstamp tstamp, int unprotected,
-                           ngtcp2_mem *mem) {
+                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem) {
   *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));
   if (*ent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -41,7 +40,6 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
   (*ent)->pprev = NULL;
   (*ent)->pkt_num = pkt_num;
   (*ent)->tstamp = tstamp;
-  (*ent)->unprotected = (uint8_t)unprotected;
 
   return 0;
 }
@@ -59,18 +57,11 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem) {
     return rv;
   }
 
-  rv = ngtcp2_ringbuf_init(&acktr->hs_acks, 32, sizeof(ngtcp2_acktr_ack_entry),
-                           mem);
-  if (rv != 0) {
-    return rv;
-  }
-
   acktr->ent = NULL;
   acktr->tail = NULL;
   acktr->log = log;
   acktr->mem = mem;
   acktr->nack = 0;
-  acktr->last_hs_ack_pkt_num = UINT64_MAX;
   acktr->flags = NGTCP2_ACKTR_FLAG_NONE;
   acktr->first_unacked_ts = UINT64_MAX;
 
@@ -85,12 +76,6 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
   if (acktr == NULL) {
     return;
   }
-
-  for (i = 0; i < acktr->hs_acks.len; ++i) {
-    ack_ent = ngtcp2_ringbuf_get(&acktr->hs_acks, i);
-    ngtcp2_mem_free(acktr->mem, ack_ent->ack);
-  }
-  ngtcp2_ringbuf_free(&acktr->hs_acks);
 
   for (i = 0; i < acktr->acks.len; ++i) {
     ack_ent = ngtcp2_ringbuf_get(&acktr->acks, i);
@@ -131,12 +116,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
   *pent = ent;
 
   if (active_ack) {
-    if (ent->unprotected) {
-      /* Should be sent in both protected and unprotected ACK */
-      acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
-    } else {
-      acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED;
-    }
+    acktr->flags |= NGTCP2_ACKTR_FLAG_ACTIVE_ACK;
     if (acktr->first_unacked_ts == UINT64_MAX) {
       acktr->first_unacked_ts = ts;
     }
@@ -197,25 +177,16 @@ void ngtcp2_acktr_pop(ngtcp2_acktr *acktr) {
 
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              uint64_t pkt_num, ngtcp2_ack *fr,
-                                             ngtcp2_tstamp ts, int unprotected,
-                                             int ack_only) {
+                                             ngtcp2_tstamp ts, int ack_only) {
   ngtcp2_acktr_ack_entry *ent;
 
-  if (unprotected) {
-    if (ngtcp2_ringbuf_full(&acktr->hs_acks)) {
-      ent = ngtcp2_ringbuf_get(&acktr->hs_acks,
-                               ngtcp2_ringbuf_len(&acktr->hs_acks) - 1);
-      ngtcp2_mem_free(acktr->mem, ent->ack);
-    }
-    ent = ngtcp2_ringbuf_push_front(&acktr->hs_acks);
-  } else {
-    if (ngtcp2_ringbuf_full(&acktr->acks)) {
-      ent = ngtcp2_ringbuf_get(&acktr->acks,
-                               ngtcp2_ringbuf_len(&acktr->acks) - 1);
-      ngtcp2_mem_free(acktr->mem, ent->ack);
-    }
-    ent = ngtcp2_ringbuf_push_front(&acktr->acks);
+  if (ngtcp2_ringbuf_full(&acktr->acks)) {
+    ent =
+        ngtcp2_ringbuf_get(&acktr->acks, ngtcp2_ringbuf_len(&acktr->acks) - 1);
+    ngtcp2_mem_free(acktr->mem, ent->ack);
   }
+  ent = ngtcp2_ringbuf_push_front(&acktr->acks);
+
   ent->ack = fr;
   ent->pkt_num = pkt_num;
   ent->ts = ts;
@@ -251,14 +222,6 @@ static void acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
   ent = ngtcp2_ringbuf_get(rb, ack_ent_offset);
   fr = ent->ack;
   largest_ack = fr->largest_ack;
-
-  if (ent->pkt_num >= acktr->last_hs_ack_pkt_num) {
-    acktr->flags |= NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK;
-    acktr->last_hs_ack_pkt_num = UINT64_MAX;
-
-    ngtcp2_log_info(acktr->log, NGTCP2_LOG_EVENT_CON,
-                    "packet after last handshake packet was acknowledged");
-  }
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   for (pent = &acktr->ent; *pent; pent = &(*pent)->next) {
@@ -307,12 +270,11 @@ fin:
 }
 
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                          int unprotected, ngtcp2_conn *conn,
-                          ngtcp2_tstamp ts) {
+                          ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_acktr_ack_entry *ent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i, j;
-  ngtcp2_ringbuf *rb = unprotected ? &acktr->hs_acks : &acktr->acks;
+  ngtcp2_ringbuf *rb = &acktr->acks;
   size_t nacks = ngtcp2_ringbuf_len(rb);
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
@@ -366,22 +328,15 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
   return 0;
 }
 
-void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr, int unprotected) {
-  if (unprotected) {
-    acktr->flags &= (uint16_t)~NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
-  } else {
-    acktr->flags &= (uint16_t) ~(NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED |
-                                 NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED);
-    acktr->first_unacked_ts = UINT64_MAX;
-  }
+void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr) {
+  acktr->flags &= (uint16_t) ~(NGTCP2_ACKTR_FLAG_ACTIVE_ACK |
+                               NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED);
+  acktr->first_unacked_ts = UINT64_MAX;
 }
 
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
-                                    uint64_t max_ack_delay, ngtcp2_tstamp ts) {
-  if (unprotected) {
-    return acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED;
-  }
-  return (acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_PROTECTED) &&
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint64_t max_ack_delay,
+                                    ngtcp2_tstamp ts) {
+  return (acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK) &&
          ((acktr->flags & NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED) ||
           acktr->first_unacked_ts <= ts - max_ack_delay);
 }
@@ -389,16 +344,4 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, int unprotected,
 void ngtcp2_acktr_expire_delayed_ack(ngtcp2_acktr *acktr) {
   acktr->flags |= NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED;
   acktr->first_unacked_ts = UINT64_MAX;
-}
-
-int ngtcp2_acktr_include_protected_pkt(ngtcp2_acktr *acktr) {
-  ngtcp2_acktr_entry *ent;
-
-  for (ent = acktr->ent; ent; ent = ent->next) {
-    if (!ent->unprotected) {
-      return 1;
-    }
-  }
-
-  return 0;
 }

@@ -334,8 +334,7 @@ struct ngtcp2_conn {
  *     Same packet number has already been added.
  */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
-                          uint64_t pkt_num, int active_ack, ngtcp2_tstamp ts,
-                          int unprotected);
+                          uint64_t pkt_num, int active_ack, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
