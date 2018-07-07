@@ -92,12 +92,9 @@ void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
 
 typedef enum {
   NGTCP2_RTB_FLAG_NONE = 0x00,
-  /* NGTCP2_RTB_FLAG_UNPROTECTED indicates that the entry contains
-     frames which were sent in an unprotected packet. */
-  NGTCP2_RTB_FLAG_UNPROTECTED = 0x1,
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
-  NGTCP2_RTB_FLAG_PROBE = 0x2,
+  NGTCP2_RTB_FLAG_PROBE = 0x1,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -161,14 +158,9 @@ typedef struct {
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
-  /* lost_unprotected_head is like head, but it only includes
-     unprotected packet entries which are considered to be lost.
+  /* lost includes packet entries which are considered to be lost.
      Currently, this list is not listed in the particular order. */
-  ngtcp2_rtb_entry *lost_unprotected_head;
-  /* lost_protected_head is like head, but it only includes protected
-     packet entries which are considered to be lost.  Currently, this
-     list is not listed in the particular order. */
-  ngtcp2_rtb_entry *lost_protected_head;
+  ngtcp2_rtb_entry *lost;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
   /* bytes_in_flight is the sum of packet length linked from head. */
@@ -176,9 +168,6 @@ typedef struct {
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
-  /* num_unprotected is the number of unprotected (handshake) packets
-     in-flight. */
-  size_t num_unprotected;
 } ngtcp2_rtb;
 
 /*
@@ -213,28 +202,15 @@ void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head);
 ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_lost_protected_head returns the first element of lost
- * protected packet.
+ * ngtcp2_rtb_lost returns the first element of lost packet.
  */
-ngtcp2_rtb_entry *ngtcp2_rtb_lost_protected_head(ngtcp2_rtb *rtb);
+ngtcp2_rtb_entry *ngtcp2_rtb_lost_head(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_lost_protected_pop removes the first entry of lost
- * protected packet.  It does nothing if there is no entry.
+ * ngtcp2_rtb_lost_pop removes the first entry of lost packet.  It
+ * does nothing if there is no entry.
  */
-void ngtcp2_rtb_lost_protected_pop(ngtcp2_rtb *rtb);
-
-/*
- * ngtcp2_rtb_lost_unprotected_head returns the first element of lost
- * unprotected packet.
- */
-ngtcp2_rtb_entry *ngtcp2_rtb_lost_unprotected_head(ngtcp2_rtb *rtb);
-
-/*
- * ngtcp2_rtb_lost_unprotected_pop removes the first entry of lost
- * unprotected packet.  It does nothing if there is no entry.
- */
-void ngtcp2_rtb_lost_unprotected_pop(ngtcp2_rtb *rtb);
+void ngtcp2_rtb_lost_pop(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
@@ -246,32 +222,19 @@ void ngtcp2_rtb_lost_unprotected_pop(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
  */
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr, int unprotected,
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                         ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                                uint64_t largest_ack, uint64_t last_tx_pkt_num,
                                ngtcp2_tstamp ts);
 
-int ngtcp2_rtb_mark_unprotected_lost(ngtcp2_rtb *rtb);
+int ngtcp2_rtb_mark_pkt_lost(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_lost_protected_add insert |ent| to the head of lost
- * protected packets list.
+ * ngtcp2_rtb_lost_add insert |ent| to the head of lost packets list.
  */
-void ngtcp2_rtb_lost_protected_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
-
-/*
- * ngtcp2_rtb_lost_unprotected_add insert |ent| to the head of lost
- * unprotected packets list.
- */
-void ngtcp2_rtb_lost_unprotected_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
-
-/*
- * ngtcp2_rtb_has_lost_pkt returns nonzero if |rtb| has at least one
- * lost packet to retransmit.
- */
-int ngtcp2_rtb_has_lost_pkt(ngtcp2_rtb *rtb);
+void ngtcp2_rtb_lost_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.  It does

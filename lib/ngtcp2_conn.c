@@ -641,8 +641,14 @@ static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
   /* This function implements OnPacketSent, but it handles only
      retransmittable packet (non-ACK only packet). */
   ngtcp2_rtb_add(rtb, ent);
-  if (ent->flags & NGTCP2_RTB_FLAG_UNPROTECTED) {
-    conn->rcs.last_hs_tx_pkt_ts = ent->ts;
+
+  if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+    switch (ent->hd.type) {
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_HANDSHAKE:
+      conn->rcs.last_hs_tx_pkt_ts = ent->ts;
+      break;
+    }
   }
   conn->rcs.last_tx_pkt_ts = ent->ts;
   ngtcp2_conn_set_loss_detection_alarm(conn);
@@ -787,12 +793,12 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
   /* TODO We should not retransmit packets after we are in closing, or
      draining state */
   for (;;) {
-    ent = ngtcp2_rtb_lost_unprotected_head(&pktns->rtb);
+    ent = ngtcp2_rtb_lost_head(&pktns->rtb);
     if (ent == NULL) {
       return 0;
     }
 
-    ngtcp2_rtb_lost_unprotected_pop(&pktns->rtb);
+    ngtcp2_rtb_lost_pop(&pktns->rtb);
 
     assert(ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM);
 
@@ -843,7 +849,7 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
       if (nwrite == NGTCP2_ERR_NOBUF) {
         /* TODO we might stack here if the same insufficiently small
            buffer size is specified repeatedly. */
-        ngtcp2_rtb_lost_unprotected_insert(&pktns->rtb, ent);
+        ngtcp2_rtb_lost_insert(&pktns->rtb, ent);
         return nwrite;
       }
 
@@ -1072,12 +1078,12 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
   /* TODO We should not retransmit packets after we are in closing, or
      draining state */
   for (;;) {
-    ent = ngtcp2_rtb_lost_protected_head(&pktns->rtb);
+    ent = ngtcp2_rtb_lost_head(&pktns->rtb);
     if (ent == NULL) {
       return 0;
     }
 
-    ngtcp2_rtb_lost_protected_pop(&pktns->rtb);
+    ngtcp2_rtb_lost_pop(&pktns->rtb);
 
     assert(!(ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM));
     assert(ent->hd.type == NGTCP2_PKT_SHORT);
@@ -1092,7 +1098,7 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
       if (nwrite == NGTCP2_ERR_NOBUF) {
         /* TODO we might stack here if the same insufficiently small
            buffer size is specified repeatedly. */
-        ngtcp2_rtb_lost_protected_insert(&pktns->rtb, ent);
+        ngtcp2_rtb_lost_insert(&pktns->rtb, ent);
         return nwrite;
       }
 
@@ -1367,7 +1373,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
       if (pr_encoded) {
         rv = ngtcp2_rtb_entry_new(&rtbent, &hd, NULL, ts, (size_t)spktlen,
-                                  NGTCP2_RTB_FLAG_UNPROTECTED, conn->mem);
+                                  NGTCP2_RTB_FLAG_NONE, conn->mem);
         if (rv != 0) {
           return rv;
         }
@@ -1449,7 +1455,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (frc_head || pr_encoded) {
     rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frc_head, ts, (size_t)spktlen,
-                              NGTCP2_RTB_FLAG_UNPROTECTED, conn->mem);
+                              NGTCP2_RTB_FLAG_NONE, conn->mem);
     if (rv != 0) {
       goto fail;
     }
@@ -2363,7 +2369,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return conn_write_protected_ack_pkt(conn, dest, destlen, ts);
     }
 
-    if (ngtcp2_rtb_has_lost_pkt(&pktns->rtb)) {
+    if (ngtcp2_rtb_lost_head(&pktns->rtb)) {
       /*
        * Failed to retransmit a packet because provided buffer is too
        * small, or congestion limited.  In this case, just return 0 so
@@ -2475,7 +2481,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return rv;
   }
 
-  rv = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, unprotected, conn, ts);
+  rv = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, conn, ts);
   if (rv != 0) {
     return rv;
   }
@@ -5831,11 +5837,11 @@ int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                   "loss detection alarm fired");
 
   if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb)) {
-    rv = ngtcp2_rtb_mark_unprotected_lost(&in_pktns->rtb);
+    rv = ngtcp2_rtb_mark_pkt_lost(&in_pktns->rtb);
     if (rv != 0) {
       return rv;
     }
-    rv = ngtcp2_rtb_mark_unprotected_lost(&hs_pktns->rtb);
+    rv = ngtcp2_rtb_mark_pkt_lost(&hs_pktns->rtb);
     if (rv != 0) {
       return rv;
     }

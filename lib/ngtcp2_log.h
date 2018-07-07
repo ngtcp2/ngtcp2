@@ -85,7 +85,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                           const ngtcp2_transport_params *params);
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                         ngtcp2_tstamp sent_ts, int unprotected);
+                         ngtcp2_tstamp sent_ts);
 
 void ngtcp2_log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd);
 

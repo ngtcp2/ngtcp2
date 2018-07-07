@@ -592,14 +592,17 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                         ngtcp2_tstamp sent_ts, int unprotected) {
+                         ngtcp2_tstamp sent_ts) {
   if (!log->log_printf) {
     return;
   }
 
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_RCV,
-                  "packet lost %" PRIu64 " sent_ts=%" PRIu64 " unprotected=%d",
-                  hd->pkt_num, sent_ts, unprotected != 0);
+                  "packet lost type=%s(0x02x) %" PRIu64 " sent_ts=%" PRIu64,
+                  (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM)
+                      ? strpkttype_long(hd->type)
+                      : "Short",
+                  hd->type, hd->pkt_num, sent_ts);
 }
 
 void ngtcp2_log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
