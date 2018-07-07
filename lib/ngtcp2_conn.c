@@ -2715,14 +2715,10 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
   /* TODO nonce is limited to 64 bytes. */
   uint8_t nonce[64];
   ssize_t nwrite;
-  uint8_t debug[1024];
 
   assert(sizeof(nonce) >= ckm->ivlen);
 
   ngtcp2_crypto_create_nonce(nonce, ckm->iv, ckm->ivlen, pkt_num);
-
-  fprintf(stderr, "pkt_num=%lu nonce=%s\n", pkt_num,
-          ngtcp2_encode_hex(debug, nonce, ckm->ivlen));
 
   nwrite = decrypt(conn, dest, destlen, payload, payloadlen, ckm->key,
                    ckm->keylen, nonce, ckm->ivlen, ad, adlen, conn->user_data);
