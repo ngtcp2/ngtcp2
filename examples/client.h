@@ -196,8 +196,8 @@ public:
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
-  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
-                             size_t datalen);
+  void remove_tx_crypto_data(ngtcp2_encryption_level encryption_level,
+                             uint64_t offset, size_t datalen);
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
@@ -248,7 +248,7 @@ private:
   uint64_t nstreams_done_;
   // resumption_ is true if client attempts to resume session.
   bool resumption_;
-  ngtcp2_crypto_level crypto_level_;
+  ngtcp2_encryption_level encryption_level_;
 };
 
 #endif // CLIENT_H

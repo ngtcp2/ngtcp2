@@ -216,8 +216,8 @@ public:
   const ngtcp2_cid *scid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
-  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
-                             size_t datalen);
+  void remove_tx_crypto_data(ngtcp2_encryption_level encryption_level,
+                             uint64_t offset, size_t datalen);
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
@@ -274,7 +274,7 @@ private:
   bool initial_;
   // draining_ becomes true when draining period starts.
   bool draining_;
-  ngtcp2_crypto_level crypto_level_;
+  ngtcp2_encryption_level encryption_level_;
 };
 
 class Server {

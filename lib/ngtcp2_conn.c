@@ -1634,7 +1634,7 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   cdata = ngtcp2_ringbuf_get(rb, 0);
-  if (cdata->level != NGTCP2_CRYPTO_LEVEL_INITIAL) {
+  if (cdata->level != NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
     return NGTCP2_ERR_INTERNAL;
   }
 
@@ -1680,10 +1680,10 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
   cdata = ngtcp2_ringbuf_get(rb, 0);
 
   switch (cdata->level) {
-  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
     pkt_type = NGTCP2_PKT_INITIAL;
     break;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     pkt_type = NGTCP2_PKT_HANDSHAKE;
     require_padding = 0;
     break;
@@ -1745,10 +1745,10 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
   cdata = ngtcp2_ringbuf_get(rb, 0);
 
   switch (cdata->level) {
-  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
     pkt_type = NGTCP2_PKT_INITIAL;
     break;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     pkt_type = NGTCP2_PKT_HANDSHAKE;
     break;
   default:
@@ -5869,12 +5869,12 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
   assert(!ngtcp2_ringbuf_full(rb));
 
   if (pktns->tx_ckm) {
-    level = NGTCP2_CRYPTO_LEVEL_1RTT;
+    level = NGTCP2_ENCRYPTION_LEVEL_1RTT;
   } else if (hs_pktns->tx_ckm) {
-    level = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+    level = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
   } else {
     assert(in_pktns->tx_ckm);
-    level = NGTCP2_CRYPTO_LEVEL_INITIAL;
+    level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
   }
 
   len = ngtcp2_ringbuf_len(rb);
