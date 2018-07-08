@@ -52,7 +52,7 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 https://github.com/openssl/openssl
+   $ git clone --depth 1 -b quic-draft-13 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
