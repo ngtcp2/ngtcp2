@@ -200,27 +200,27 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_conn;
   }
 
-  (*pconn)->strm0 = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_strm));
-  if ((*pconn)->strm0 == NULL) {
-    rv = NGTCP2_ERR_NOMEM;
-    goto fail_strm0_malloc;
-  }
-  /* TODO Initial max_stream_data for stream 0? */
-  rv = ngtcp2_strm_init((*pconn)->strm0, 0, NGTCP2_STRM_FLAG_NONE,
-                        settings->max_stream_data, NGTCP2_STRM0_MAX_STREAM_DATA,
-                        NULL, mem);
+  rv = ngtcp2_strm_init(&(*pconn)->in_crypto, 0, NGTCP2_STRM_FLAG_NONE,
+                        NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA, 0, NULL, mem);
   if (rv != 0) {
-    goto fail_strm0_init;
+    goto fail_in_crypto_init;
+  }
+
+  rv = ngtcp2_strm_init(&(*pconn)->hs_crypto, 0, NGTCP2_STRM_FLAG_NONE,
+                        NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA, 0, NULL, mem);
+  if (rv != 0) {
+    goto fail_hs_crypto_init;
+  }
+
+  rv = ngtcp2_strm_init(&(*pconn)->crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL,
+                        mem);
+  if (rv != 0) {
+    goto fail_crypto_init;
   }
 
   rv = ngtcp2_map_init(&(*pconn)->strms, mem);
   if (rv != 0) {
     goto fail_strms_init;
-  }
-
-  rv = ngtcp2_map_insert(&(*pconn)->strms, &(*pconn)->strm0->me);
-  if (rv != 0) {
-    goto fail_strms_insert;
   }
 
   rv = ngtcp2_idtr_init(&(*pconn)->remote_bidi_idtr, !server, mem);
@@ -306,13 +306,14 @@ fail_tx_path_challenge_init:
 fail_remote_uni_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->remote_bidi_idtr);
 fail_remote_bidi_idtr_init:
-fail_strms_insert:
   ngtcp2_map_free(&(*pconn)->strms);
 fail_strms_init:
-  ngtcp2_strm_free((*pconn)->strm0);
-fail_strm0_init:
-  ngtcp2_mem_free(mem, (*pconn)->strm0);
-fail_strm0_malloc:
+  ngtcp2_strm_free(&(*pconn)->crypto);
+fail_crypto_init:
+  ngtcp2_strm_free(&(*pconn)->hs_crypto);
+fail_hs_crypto_init:
+  ngtcp2_strm_free(&(*pconn)->in_crypto);
+fail_in_crypto_init:
   ngtcp2_mem_free(mem, *pconn);
 fail_conn:
   return rv;
@@ -434,6 +435,10 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_idtr_free(&conn->remote_bidi_idtr);
   ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
   ngtcp2_map_free(&conn->strms);
+
+  ngtcp2_strm_free(&conn->crypto);
+  ngtcp2_strm_free(&conn->hs_crypto);
+  ngtcp2_strm_free(&conn->in_crypto);
 
   ngtcp2_mem_free(conn->mem, conn);
 }
@@ -815,20 +820,20 @@ static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
         break;
       }
 
-      if (conn->server) {
-        if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+      if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+        if (conn->server) {
+          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
+                          "no need to retransmit Handshake packet");
+          nwrite = 0;
+          break;
+        } else if (ngtcp2_gaptr_first_gap_offset(
+                       &conn->hs_crypto.acked_tx_offset) >=
+                   conn->hs_crypto.tx_offset) {
           ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                           "no need to retransmit Handshake packet");
           nwrite = 0;
           break;
         }
-      } else if (conn->final_hs_tx_offset &&
-                 ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) >=
-                     conn->final_hs_tx_offset) {
-        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                        "no need to retransmit Handshake packet");
-        nwrite = 0;
-        break;
       }
       nwrite =
           conn_retransmit_unprotected_once(conn, dest, destlen, pktns, ent, ts);
@@ -1247,6 +1252,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int pr_encoded = 0;
   ngtcp2_path_challenge_entry *pc;
   ngtcp2_pktns *pktns;
+  ngtcp2_strm *crypto;
 
   pfrc = &frc_head;
 
@@ -1254,6 +1260,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   case NGTCP2_PKT_INITIAL:
     assert(conn->in_pktns.tx_ckm);
     pktns = &conn->in_pktns;
+    crypto = &conn->in_crypto;
     ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     ctx.encrypt = conn->callbacks.in_encrypt;
     ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
@@ -1261,6 +1268,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   case NGTCP2_PKT_HANDSHAKE:
     assert(conn->hs_pktns.tx_ckm);
     pktns = &conn->hs_pktns;
+    crypto = &conn->hs_crypto;
     ctx.aead_overhead = conn->aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.encrypt_pn = conn->callbacks.encrypt_pn;
@@ -1408,7 +1416,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     fr = &frc->fr;
 
     fr->type = NGTCP2_FRAME_CRYPTO;
-    fr->crypto.offset = conn->strm0->tx_offset;
+    fr->crypto.offset = crypto->tx_offset;
     fr->crypto.datalen = nwrite;
     fr->crypto.data = tx_buf->pos;
 
@@ -1420,7 +1428,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_log_tx_fr(&conn->log, &hd, fr);
 
     tx_buf->pos += nwrite;
-    conn->strm0->tx_offset += nwrite;
+    crypto->tx_offset += nwrite;
   }
 
   /* If we cannot write another packet, then we need to add padding to
@@ -2913,6 +2921,7 @@ static int conn_ensure_retry_ack_initial(ngtcp2_conn *conn,
   ngtcp2_frame *fr = &mfr.fr;
   int rv;
   ngtcp2_pktns *pktns = &conn->in_pktns;
+  ngtcp2_strm *crypto = &conn->in_crypto;
 
   for (; payloadlen;) {
     nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
@@ -2940,8 +2949,8 @@ static int conn_ensure_retry_ack_initial(ngtcp2_conn *conn,
   /* Check that Initial packet is acknowledged.  We will increase
      handshake packet timeout, so we eventually gets ACK from
      peer. */
-  if (ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) !=
-      conn->strm0->tx_offset) {
+  if (ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset) !=
+      crypto->tx_offset) {
     return 1;
   }
 
@@ -3019,6 +3028,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ngtcp2_decrypt decrypt;
   size_t aead_overhead;
   ngtcp2_pktns *pktns;
+  ngtcp2_strm *crypto;
 
   if (pktlen == 0) {
     return 0;
@@ -3106,6 +3116,11 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
+  /* TODO Ignore Retry packet for now.  It is broken in draft-13. */
+  if (hd.type == NGTCP2_PKT_RETRY) {
+    return (ssize_t)pktlen;
+  }
+
   if (conn->server && hd.type == NGTCP2_PKT_INITIAL) {
     if (hd.tokenlen != 0) {
       return (ssize_t)pktlen;
@@ -3121,16 +3136,23 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
-  if (hd.type == NGTCP2_PKT_INITIAL) {
+  switch (hd.type) {
+  case NGTCP2_PKT_INITIAL:
     pktns = &conn->in_pktns;
+    crypto = &conn->in_crypto;
     encrypt_pn = conn->callbacks.in_encrypt_pn;
     decrypt = conn->callbacks.in_decrypt;
     aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
-  } else {
+    break;
+  case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
+    crypto = &conn->hs_crypto;
     encrypt_pn = conn->callbacks.encrypt_pn;
     decrypt = conn->callbacks.decrypt;
     aead_overhead = conn->aead_overhead;
+    break;
+  default:
+    return (ssize_t)pktlen;
   }
 
   ckm = pktns->rx_ckm;
@@ -3194,7 +3216,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       /* If we retransmit Initial we might get more than 1 Retry
          packets.  Just ignore those late Retry packets. */
-      if (conn->strm0->last_rx_offset != 0) {
+      /* TODO Probably this is not right. */
+      if (conn->in_crypto.last_rx_offset != 0) {
         return (ssize_t)pktlen;
       }
       /* hd.scid is a connection ID chosen by server, and client MUST
@@ -3295,21 +3318,20 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     fr_end_offset = fr->crypto.offset + fr->crypto.datalen;
-    rx_offset = ngtcp2_strm_rx_offset(conn->strm0);
+    rx_offset = ngtcp2_strm_rx_offset(crypto);
     if (rx_offset >= fr_end_offset) {
       continue;
     }
 
-    /* Although cyprot stream is exempted from flow contorl, peer can
+    /* Although crypto stream is exempted from flow contorl, peer can
        send data on any offset, and forces receiver to buffer
        unlimited data.  In order to avoid that situation, we have a
        fixed limit. */
-    if (NGTCP2_MAX_CRYPTO_OFFSET < fr_end_offset) {
+    if (crypto->max_rx_offset && crypto->max_rx_offset < fr_end_offset) {
       return NGTCP2_ERR_PROTO;
     }
 
-    conn->strm0->last_rx_offset =
-        ngtcp2_max(conn->strm0->last_rx_offset, fr_end_offset);
+    crypto->last_rx_offset = ngtcp2_max(crypto->last_rx_offset, fr_end_offset);
 
     if (fr->crypto.datalen == 0) {
       continue;
@@ -3322,7 +3344,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       uint64_t offset = rx_offset;
 
       rx_offset += datalen;
-      rv = ngtcp2_rob_remove_prefix(&conn->strm0->rob, rx_offset);
+      rv = ngtcp2_rob_remove_prefix(&crypto->rob, rx_offset);
       if (rv != 0) {
         return rv;
       }
@@ -3338,16 +3360,16 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
 
-      conn->strm0->unsent_max_rx_offset += datalen;
+      crypto->unsent_max_rx_offset += datalen;
 
       if (!handshake_failed) {
-        rv = conn_emit_pending_stream0_data(conn, conn->strm0, rx_offset);
+        rv = conn_emit_pending_stream0_data(conn, crypto, rx_offset);
         if (rv != 0) {
           return rv;
         }
       }
     } else if (!handshake_failed) {
-      rv = ngtcp2_strm_recv_reordering(conn->strm0, fr->crypto.data,
+      rv = ngtcp2_strm_recv_reordering(crypto, fr->crypto.data,
                                        fr->crypto.datalen, fr->crypto.offset);
       if (rv != 0) {
         return rv;
@@ -3358,7 +3380,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   switch (hd.type) {
   case NGTCP2_PKT_INITIAL:
   case NGTCP2_PKT_RETRY:
-    if (ngtcp2_rob_first_gap_offset(&conn->strm0->rob) == 0) {
+    if (ngtcp2_rob_first_gap_offset(&crypto->rob) == 0) {
       return NGTCP2_ERR_PROTO;
     }
     break;
@@ -4059,6 +4081,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ngtcp2_encrypt_pn encrypt_pn;
   size_t aead_overhead;
   ngtcp2_pktns *pktns;
+  ngtcp2_strm *crypto = NULL;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -4086,18 +4109,21 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
       pktns = &conn->in_pktns;
+      crypto = &conn->in_crypto;
       ckm = pktns->rx_ckm;
       encrypt_pn = conn->callbacks.in_encrypt_pn;
       aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
       break;
     case NGTCP2_PKT_HANDSHAKE:
       pktns = &conn->hs_pktns;
+      crypto = &conn->hs_crypto;
       ckm = pktns->rx_ckm;
       encrypt_pn = conn->callbacks.encrypt_pn;
       aead_overhead = conn->aead_overhead;
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
       pktns = &conn->pktns;
+      crypto = &conn->crypto;
       if (!conn->early_ckm) {
         return (ssize_t)pktlen;
       }
@@ -4139,9 +4165,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     case NGTCP2_PKT_HANDSHAKE:
       /* Ignore incoming unprotected packet after we get all
          acknowledgements to unprotected packet we sent so far. */
-      if (conn->final_hs_tx_offset &&
-          ngtcp2_gaptr_first_gap_offset(&conn->strm0->acked_tx_offset) >=
-              conn->final_hs_tx_offset &&
+      if (ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset) >=
+              crypto->tx_offset &&
           (!conn->server ||
            (pktns->acktr.flags & NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK))) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
@@ -4533,8 +4558,6 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
-    conn->final_hs_tx_offset = conn->strm0->tx_offset;
-    conn->final_hs_rx_offset = ngtcp2_rob_first_gap_offset(&conn->strm0->rob);
 
     if (conn->early_rtb) {
       rv = conn_process_early_rtb(conn);
@@ -4557,7 +4580,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return NGTCP2_ERR_PROTO;
     }
 
-    if (conn->strm0->last_rx_offset == 0) {
+    if (conn->in_crypto.last_rx_offset == 0) {
       return 0;
     }
 
@@ -4637,8 +4660,6 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return (ssize_t)rv;
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
-    conn->final_hs_tx_offset = conn->strm0->tx_offset;
-    conn->final_hs_rx_offset = ngtcp2_rob_first_gap_offset(&conn->strm0->rob);
     /* The receipt of the final cryptographic message from the client
        verifies source address. */
     conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
@@ -5178,8 +5199,6 @@ int ngtcp2_conn_set_remote_transport_params(
   }
 
   conn->max_tx_offset = conn->remote_settings.max_data;
-
-  conn->strm0->max_tx_offset = conn->remote_settings.max_stream_data;
 
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 

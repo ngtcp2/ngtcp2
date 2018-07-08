@@ -173,6 +173,8 @@ public:
   void signal_write();
 
   int write_server_handshake(const uint8_t *data, size_t datalen);
+  void write_server_handshake(std::deque<Buffer> &dest, size_t &idx,
+                              const uint8_t *data, size_t datalen);
   size_t read_server_handshake(const uint8_t **pdest);
 
   size_t read_client_handshake(uint8_t *buf, size_t buflen);
@@ -214,7 +216,8 @@ public:
   const ngtcp2_cid *scid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
-  void remove_tx_crypto_data(uint64_t offset, size_t datalen);
+  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
+                             size_t datalen);
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
@@ -242,9 +245,13 @@ private:
   ev_timer rttimer_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
+  std::deque<Buffer> in_shandshake_;
+  std::deque<Buffer> hs_shandshake_;
   std::deque<Buffer> shandshake_;
-  // shandshake_idx_ is the index in shandshake_, which points to the
-  // buffer to read next.
+  // *shandshake_idx_ is the index in *shandshake_, which points to
+  // the buffer to read next.
+  size_t in_shandshake_idx_;
+  size_t hs_shandshake_idx_;
   size_t shandshake_idx_;
   ngtcp2_conn *conn_;
   ngtcp2_cid rcid_;
@@ -257,14 +264,17 @@ private:
   // This packet is repeatedly sent as a response to the incoming
   // packet in draining period.
   std::unique_ptr<Buffer> conn_closebuf_;
-  // tx_stream0_offset_ is the offset where all data before offset is
+  // *tx_crypto_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
-  uint64_t tx_stream0_offset_;
+  uint64_t in_tx_crypto_offset_;
+  uint64_t hs_tx_crypto_offset_;
+  uint64_t tx_crypto_offset_;
   // initial_ is initially true, and used to process first packet from
   // client specially.  After first packet, it becomes false.
   bool initial_;
   // draining_ becomes true when draining period starts.
   bool draining_;
+  ngtcp2_crypto_level crypto_level_;
 };
 
 class Server {

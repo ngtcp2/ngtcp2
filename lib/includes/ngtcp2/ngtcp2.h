@@ -942,6 +942,12 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
                                                void *user_data,
                                                void *stream_user_data);
 
+typedef enum {
+  NGTCP2_CRYPTO_LEVEL_INITIAL,
+  NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+  NGTCP2_CRYPTO_LEVEL_1RTT,
+} ngtcp2_crypto_level;
+
 /**
  * @functypedef
  *
@@ -951,9 +957,12 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  * :type:`ngtcp2_acked_stream_data_offset` but crypto stream has no
  * stream_id and stream_user_data, and |datalen| never become 0.
  *
+ * |crypto_level| dictates encryption level.
  */
-typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn, uint64_t offset,
-                                          size_t datalen, void *user_data);
+typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn,
+                                          ngtcp2_crypto_level crypto_level,
+                                          uint64_t offset, size_t datalen,
+                                          void *user_data);
 
 typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_hd *hd,

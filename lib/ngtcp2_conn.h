@@ -94,10 +94,14 @@ typedef enum {
 
 #define NGTCP2_MIN_PKTLEN NGTCP2_DEFAULT_MSS
 
-/* NGTCP2_MAX_CRYPTO_OFFSET is the maximum offset of crypto stream.
-   We set this hard limit here because crypto stream is exempted from
-   flow control. */
-#define NGTCP2_MAX_CRYPTO_OFFSET 65536
+/* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
+   crypto stream in Initial packet.  We set this hard limit here
+   because crypto stream is unbounded. */
+#define NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA 65536
+/* NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA is the maximum offset of
+   received crypto stream in Handshake packet.  We set this hard limit
+   here because crypto stream is unbounded. */
+#define NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA 65536
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -178,12 +182,6 @@ typedef enum {
   NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
 } ngtcp2_conn_flag;
 
-typedef enum {
-  NGTCP2_CRYPTO_LEVEL_INITIAL,
-  NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
-  NGTCP2_CRYPTO_LEVEL_1RTT,
-} ngtcp2_crypto_level;
-
 typedef struct {
   ngtcp2_buf buf;
   int level;
@@ -226,7 +224,9 @@ struct ngtcp2_conn {
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
-  ngtcp2_strm *strm0;
+  ngtcp2_strm in_crypto;
+  ngtcp2_strm hs_crypto;
+  ngtcp2_strm crypto;
   ngtcp2_map strms;
   ngtcp2_strm *fc_strms;
   ngtcp2_idtr remote_bidi_idtr;
