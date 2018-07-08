@@ -241,7 +241,12 @@ uint64_t ngtcp2_nth_server_bidi_id(uint16_t n) {
   return ((uint64_t)n << 2) - 3;
 }
 
-uint64_t ngtcp2_nth_client_bidi_id(uint16_t n) { return (uint64_t)n << 2; }
+uint64_t ngtcp2_nth_client_bidi_id(uint16_t n) {
+  if (n == 0) {
+    return 0;
+  }
+  return (uint64_t)(n - 1) << 2;
+}
 
 uint64_t ngtcp2_nth_server_uni_id(uint16_t n) {
   if (n == 0) {

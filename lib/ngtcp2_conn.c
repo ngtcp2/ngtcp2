@@ -337,7 +337,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->rcid = *dcid;
-  (*pconn)->next_local_stream_id_bidi = 4;
+  (*pconn)->next_local_stream_id_bidi = 0;
   (*pconn)->next_local_stream_id_uni = 2;
   return 0;
 }
@@ -1821,9 +1821,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   if (data_strm) {
     ndatalen =
         ngtcp2_min(datalen, data_strm->max_tx_offset - data_strm->tx_offset);
-    if (data_strm->stream_id) {
-      ndatalen = ngtcp2_min(ndatalen, conn->max_tx_offset - conn->tx_offset);
-    }
+    ndatalen = ngtcp2_min(ndatalen, conn->max_tx_offset - conn->tx_offset);
     if (ndatalen || (datalen == 0 && fin)) {
       send_stream = 1;
     }
@@ -2065,9 +2063,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     if (send_stream) {
       data_strm->tx_offset += ndatalen;
-      if (data_strm->stream_id != 0) {
-        conn->tx_offset += ndatalen;
-      }
+      conn->tx_offset += ndatalen;
 
       if (fin) {
         ngtcp2_strm_shutdown(data_strm, NGTCP2_STRM_FLAG_SHUT_WR);
@@ -3507,10 +3503,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   int local_stream;
   int bidi;
 
-  if (fr->stream_id == 0 && fr->fin) {
-    return NGTCP2_ERR_PROTO;
-  }
-
   local_stream = conn_local_stream(conn, fr->stream_id);
   bidi = bidi_stream(fr->stream_id);
 
@@ -3578,13 +3570,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   if (strm->last_rx_offset < fr_end_offset) {
     size_t datalen = fr_end_offset - strm->last_rx_offset;
 
-    if (strm->stream_id != 0) {
-      if (conn_max_data_violated(conn, datalen)) {
-        return NGTCP2_ERR_FLOW_CONTROL;
-      }
-
-      conn->rx_offset += datalen;
+    if (conn_max_data_violated(conn, datalen)) {
+      return NGTCP2_ERR_FLOW_CONTROL;
     }
+
+    conn->rx_offset += datalen;
   }
 
   rx_offset = ngtcp2_strm_rx_offset(strm);
@@ -3655,25 +3645,15 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return rv;
     }
 
-    if (strm->stream_id == 0) {
-      rv = conn_call_recv_stream0_data(conn, offset, data, datalen);
-      if (rv != 0) {
-        return rv;
-      }
-
-      rv = conn_emit_pending_stream0_data(conn, conn->strm0, rx_offset);
-    } else {
-      rv =
-          conn_call_recv_stream_data(conn, strm,
-                                     (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-                                         rx_offset == strm->last_rx_offset,
-                                     offset, data, datalen);
-      if (rv != 0) {
-        return rv;
-      }
-
-      rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
+    rv = conn_call_recv_stream_data(conn, strm,
+                                    (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+                                        rx_offset == strm->last_rx_offset,
+                                    offset, data, datalen);
+    if (rv != 0) {
+      return rv;
     }
+
+    rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
     if (rv != 0) {
       return rv;
     }
@@ -3757,10 +3737,6 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
   uint64_t datalen;
   ngtcp2_idtr *idtr;
 
-  if (fr->stream_id == 0) {
-    return NGTCP2_ERR_PROTO;
-  }
-
   if (bidi) {
     if (local_stream) {
       if (conn->next_local_stream_id_bidi <= fr->stream_id) {
@@ -3825,10 +3801,6 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   ngtcp2_idtr *idtr;
   int local_stream = conn_local_stream(conn, fr->stream_id);
   int bidi = bidi_stream(fr->stream_id);
-
-  if (fr->stream_id == 0) {
-    return NGTCP2_ERR_PROTO;
-  }
 
   if (bidi) {
     if (local_stream) {
@@ -4028,13 +4000,8 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
       continue;
     case NGTCP2_FRAME_PADDING:
       break;
-    case NGTCP2_FRAME_STREAM:
-      /* STREAM frame for stream 0 never be 0 length because it never
-         have fin bit set. */
-      if (fr->stream.stream_id != 0 || fr->stream.fin ||
-          fr->stream.datalen == 0) {
-        return NGTCP2_ERR_PROTO;
-      }
+    case NGTCP2_FRAME_CRYPTO:
+      /* TODO Not sure 0 length CRYPTO stream is allowed */
       /* Handshake has completed.  Delayed STREAM frame should not
          advance offset which finished handshake. */
       if (fr->stream.offset + fr->stream.datalen > conn->final_hs_rx_offset) {
@@ -4273,10 +4240,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       break;
     case NGTCP2_FRAME_STREAM:
-      /* Stream 0 STREAM in 0-RTT Protected packet is not allowed. */
-      if (fr->stream.stream_id == 0 && (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
-        return NGTCP2_ERR_PROTO;
-      }
       rv = conn_recv_stream(conn, &fr->stream);
       if (rv != 0) {
         return rv;
@@ -4831,7 +4794,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
 ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                      size_t destlen, ssize_t *pdatalen,
                                      const uint8_t *pkt, size_t pktlen,
-                                     uint64_t stream_id, uint8_t fin,
+                                     int64_t stream_id, uint8_t fin,
                                      const uint8_t *data, size_t datalen,
                                      ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
@@ -4850,8 +4813,8 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   /* conn->early_ckm might be created in the first call of
      conn_handshake().  Check it later. */
-  if (stream_id && !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
-    strm = ngtcp2_conn_find_stream(conn, stream_id);
+  if (stream_id >= 0 && !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
+    strm = ngtcp2_conn_find_stream(conn, (uint64_t)stream_id);
     if (strm == NULL) {
       return NGTCP2_ERR_STREAM_NOT_FOUND;
     }
@@ -5407,10 +5370,6 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_NOKEY;
   }
 
-  if (stream_id == 0) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
   if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
     return NGTCP2_ERR_EARLY_DATA_REJECTED;
   }
@@ -5611,7 +5570,7 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint64_t stream_id,
   int rv;
   ngtcp2_strm *strm;
 
-  if (stream_id == 0 || app_error_code == NGTCP2_STOPPING) {
+  if (app_error_code == NGTCP2_STOPPING) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -5637,7 +5596,7 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint64_t stream_id,
                                       uint16_t app_error_code) {
   ngtcp2_strm *strm;
 
-  if (stream_id == 0 || app_error_code == NGTCP2_STOPPING) {
+  if (app_error_code == NGTCP2_STOPPING) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -5653,7 +5612,7 @@ int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint64_t stream_id,
                                      uint16_t app_error_code) {
   ngtcp2_strm *strm;
 
-  if (stream_id == 0 || app_error_code == NGTCP2_STOPPING) {
+  if (app_error_code == NGTCP2_STOPPING) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
