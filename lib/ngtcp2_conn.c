@@ -27,7 +27,6 @@
 #include <string.h>
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_macro.h"
@@ -1835,7 +1834,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
   }
 
-  if ((conn->frq || send_stream || conn_should_send_max_data(conn)) &&
+  if ((conn->frq || send_stream || conn_should_send_max_data(conn) ||
+       ngtcp2_ringbuf_len(&conn->tx_crypto_data)) &&
       conn->unsent_max_rx_offset > conn->max_rx_offset) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
@@ -1873,7 +1873,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   ack_only =
-      !send_stream &&
+      !send_stream && ngtcp2_ringbuf_len(&conn->tx_crypto_data) == 0 &&
       conn->unsent_max_remote_stream_id_bidi ==
           conn->max_remote_stream_id_bidi &&
       conn->unsent_max_remote_stream_id_uni == conn->max_remote_stream_id_uni &&
@@ -2032,18 +2032,67 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       nfrc->fr.stream.offset = data_strm->tx_offset;
       nfrc->fr.stream.datalen = ndatalen;
       nfrc->fr.stream.data = data;
-      *pfrc = nfrc;
-      pfrc = &(*pfrc)->next;
 
       rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
       if (rv != 0) {
         assert(NGTCP2_ERR_NOBUF == rv);
-        assert(0);
-      }
+        ngtcp2_frame_chain_del(nfrc, conn->mem);
+        send_stream = 0;
+      } else {
+        *pfrc = nfrc;
+        pfrc = &(*pfrc)->next;
 
-      pkt_empty = 0;
+        pkt_empty = 0;
+      }
     } else {
       send_stream = 0;
+    }
+  }
+
+  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL) {
+    for (; ngtcp2_ringbuf_len(&conn->tx_crypto_data);) {
+      ngtcp2_crypto_data *cdata;
+      size_t left = ngtcp2_ppe_left(&ppe);
+      size_t n;
+
+      if (left < NGTCP2_CRYPTO_OVERHEAD) {
+        break;
+      }
+
+      left -= NGTCP2_CRYPTO_OVERHEAD;
+
+      cdata = ngtcp2_ringbuf_get(&conn->tx_crypto_data, 0);
+      assert(cdata->level == NGTCP2_ENCRYPTION_LEVEL_1RTT);
+
+      n = ngtcp2_min(left, ngtcp2_buf_len(&cdata->buf));
+
+      rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      nfrc->fr.type = NGTCP2_FRAME_CRYPTO;
+      nfrc->fr.crypto.offset = conn->crypto.tx_offset;
+      nfrc->fr.crypto.datalen = n;
+      nfrc->fr.crypto.data = cdata->buf.pos;
+
+      rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
+      if (rv != 0) {
+        assert(NGTCP2_ERR_NOBUF == rv);
+        break;
+      }
+
+      *pfrc = nfrc;
+      pfrc = &(*pfrc)->next;
+
+      conn->crypto.tx_offset += n;
+
+      if (ngtcp2_buf_len(&cdata->buf) > n) {
+        cdata->buf.pos += n;
+        break;
+      }
+
+      ngtcp2_ringbuf_pop_front(&conn->tx_crypto_data);
     }
   }
 
@@ -2831,9 +2880,6 @@ static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       return rv;
     }
 
-    strm->unsent_max_rx_offset += datalen;
-    conn_extend_max_stream_offset(conn, strm, datalen);
-
     rv = ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
     if (rv != 0) {
       return rv;
@@ -3360,8 +3406,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
 
-      crypto->unsent_max_rx_offset += datalen;
-
       if (!handshake_failed) {
         rv = conn_emit_pending_stream0_data(conn, crypto, rx_offset);
         if (rv != 0) {
@@ -3507,6 +3551,64 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       return rv;
     }
   }
+}
+
+static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_strm *crypto,
+                            const ngtcp2_crypto *fr) {
+  uint64_t fr_end_offset = fr->offset + fr->datalen;
+  uint64_t rx_offset;
+  int rv;
+
+  if (crypto->max_rx_offset && crypto->max_rx_offset < fr_end_offset) {
+    return NGTCP2_ERR_INTERNAL;
+  }
+
+  if (crypto->last_rx_offset < fr_end_offset) {
+    conn->rx_offset += fr_end_offset - crypto->last_rx_offset;
+  }
+
+  rx_offset = ngtcp2_strm_rx_offset(crypto);
+
+  crypto->last_rx_offset = ngtcp2_max(crypto->last_rx_offset, fr_end_offset);
+
+  if (fr_end_offset <= rx_offset) {
+    return 0;
+  }
+
+  /* TODO Before dispatching incoming data to TLS stack, make sure
+     that previous data in previous encryption level has been
+     completely sent to TLS stack.  Usually, if data is left, it is an
+     error because key is generated after consuming all data in the
+     previous encryption level. */
+  if (fr->offset <= rx_offset) {
+    size_t ncut = rx_offset - fr->offset;
+    const uint8_t *data = fr->data + ncut;
+    size_t datalen = fr->datalen - ncut;
+    uint64_t offset = rx_offset;
+
+    rx_offset += datalen;
+    rv = ngtcp2_rob_remove_prefix(&crypto->rob, rx_offset);
+    if (rv != 0) {
+      return rv;
+    }
+
+    rv = conn_call_recv_stream0_data(conn, offset, data, datalen);
+    if (rv != 0) {
+      return rv;
+    }
+
+    rv = conn_emit_pending_stream0_data(conn, crypto, rx_offset);
+    if (rv != 0) {
+      return rv;
+    }
+  } else {
+    rv = ngtcp2_strm_recv_reordering(crypto, fr->data, fr->datalen, fr->offset);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  return 0;
 }
 
 /*
@@ -4139,6 +4241,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     pktns = &conn->pktns;
+    crypto = &conn->crypto;
     ckm = pktns->rx_ckm;
     encrypt_pn = conn->callbacks.encrypt_pn;
     aead_overhead = conn->aead_overhead;
@@ -4236,14 +4339,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     payload += nread;
     payloadlen -= (size_t)nread;
 
-    if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-      if (fr->type == NGTCP2_FRAME_ACK) {
-        assign_recved_ack_delay_unscaled(&fr->ack,
-                                         NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
-      }
-    } else {
+    if (fr->type == NGTCP2_FRAME_ACK) {
       assign_recved_ack_delay_unscaled(
-          &fr->ack, conn->remote_settings.ack_delay_exponent);
+          &fr->ack, (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)
+                        ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
+                        : conn->remote_settings.ack_delay_exponent);
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
@@ -4270,6 +4370,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
       conn_update_rx_bw(conn, fr->stream.datalen, ts);
+      break;
+    case NGTCP2_FRAME_CRYPTO:
+      rv = conn_recv_crypto(conn, crypto, &fr->crypto);
+      if (rv != 0) {
+        return rv;
+      }
       break;
     case NGTCP2_FRAME_RST_STREAM:
       rv = conn_recv_rst_stream(conn, &fr->rst_stream);
