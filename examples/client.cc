@@ -1791,7 +1791,6 @@ void Client::remove_tx_crypto_data(ngtcp2_encryption_level encryption_level,
 
 int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                   size_t datalen) {
-  assert(stream_id);
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
     std::cerr << "Stream " << stream_id << "not found" << std::endl;
