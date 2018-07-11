@@ -127,6 +127,9 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
     std::cerr << "client_early_traffic" << std::endl;
+    ngtcp2_conn_update_early_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                  pnlen);
+    encryption_level_ = NGTCP2_ENCRYPTION_LEVEL_1RTT;
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
     std::cerr << "client_handshake_traffic" << std::endl;
@@ -1255,66 +1258,7 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   return 0;
 }
 
-int Handler::setup_early_crypto_context() {
-  int rv;
-
-  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
-  if (rv != 0) {
-    return -1;
-  }
-  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
-  if (rv != 0) {
-    return -1;
-  }
-
-  auto length = EVP_MD_size(crypto_ctx_.prf);
-
-  crypto_ctx_.secretlen = length;
-
-  rv = crypto::export_early_secret(crypto_ctx_.rx_secret.data(),
-                                   crypto_ctx_.secretlen, ssl_);
-  if (rv != 0) {
-    return -1;
-  }
-
-  std::array<uint8_t, 64> key, iv, pn;
-
-  auto keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), crypto_ctx_.rx_secret.data(),
-      crypto_ctx_.secretlen, crypto_ctx_);
-  if (keylen < 0) {
-    return -1;
-  }
-
-  auto ivlen = crypto::derive_packet_protection_iv(
-      iv.data(), iv.size(), crypto_ctx_.rx_secret.data(), crypto_ctx_.secretlen,
-      crypto_ctx_);
-  if (ivlen < 0) {
-    return -1;
-  }
-
-  auto pnlen = crypto::derive_pkt_num_protection_key(
-      pn.data(), pn.size(), crypto_ctx_.rx_secret.data(), crypto_ctx_.secretlen,
-      crypto_ctx_);
-  if (pnlen < 0) {
-    return -1;
-  }
-
-  if (!config.quiet && config.show_secret) {
-    debug::print_client_0rtt_secret(crypto_ctx_.rx_secret.data(),
-                                    crypto_ctx_.secretlen);
-    debug::print_client_pp_key(key.data(), keylen);
-    debug::print_client_pp_iv(iv.data(), ivlen);
-    debug::print_client_pp_pn(pn.data(), pnlen);
-  }
-
-  ngtcp2_conn_update_early_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                pn.data(), pnlen);
-
-  ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
-
-  return 0;
-}
+int Handler::setup_early_crypto_context() { return 0; }
 
 int Handler::setup_crypto_context() {
   int rv;

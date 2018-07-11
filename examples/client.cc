@@ -136,6 +136,9 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen,
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
     std::cerr << "client_early_traffic" << std::endl;
+    ngtcp2_conn_update_early_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                  pnlen);
+    encryption_level_ = NGTCP2_ENCRYPTION_LEVEL_1RTT;
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
     std::cerr << "client_handshake_traffic" << std::endl;

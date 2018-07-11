@@ -1260,6 +1260,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     assert(conn->in_pktns.tx_ckm);
     pktns = &conn->in_pktns;
     crypto = &conn->in_crypto;
+    ctx.ckm = pktns->tx_ckm;
     ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     ctx.encrypt = conn->callbacks.in_encrypt;
     ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
@@ -1268,6 +1269,17 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     assert(conn->hs_pktns.tx_ckm);
     pktns = &conn->hs_pktns;
     crypto = &conn->hs_crypto;
+    ctx.ckm = pktns->tx_ckm;
+    ctx.aead_overhead = conn->aead_overhead;
+    ctx.encrypt = conn->callbacks.encrypt;
+    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+    ctx.user_data = conn;
+    break;
+  case NGTCP2_PKT_0RTT_PROTECTED:
+    assert(conn->early_ckm);
+    pktns = &conn->pktns;
+    crypto = &conn->crypto;
+    ctx.ckm = conn->early_ckm;
     ctx.aead_overhead = conn->aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.encrypt_pn = conn->callbacks.encrypt_pn;
@@ -1276,8 +1288,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   default:
     assert(0);
   }
-
-  ctx.ckm = pktns->tx_ckm;
 
   ngtcp2_pkt_hd_init(
       &hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid, &conn->scid,
@@ -1294,7 +1304,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  if (conn->server || type != NGTCP2_PKT_INITIAL) {
+  if (type != NGTCP2_PKT_0RTT_PROTECTED &&
+      (conn->server || type != NGTCP2_PKT_INITIAL)) {
     ackfr = NULL;
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
                                NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
@@ -1317,7 +1328,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  if (type != NGTCP2_PKT_INITIAL) {
+  if (type != NGTCP2_PKT_INITIAL && type != NGTCP2_PKT_0RTT_PROTECTED) {
     if (conn->server) {
       if (!(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED)) {
         lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
@@ -1684,6 +1695,10 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
     break;
   case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
     pkt_type = NGTCP2_PKT_HANDSHAKE;
+    require_padding = 0;
+    break;
+  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
+    pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
     require_padding = 0;
     break;
   default:
@@ -4650,7 +4665,8 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       res += nwrite;
     }
 
-    if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+    if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
+        ngtcp2_ringbuf_len(&conn->tx_crypto_data)) {
       return res;
     }
 
@@ -5978,6 +5994,8 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
     level = NGTCP2_ENCRYPTION_LEVEL_1RTT;
   } else if (hs_pktns->tx_ckm) {
     level = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
+  } else if (!conn->server && conn->early_ckm) {
+    level = NGTCP2_ENCRYPTION_LEVEL_1RTT;
   } else {
     assert(in_pktns->tx_ckm);
     level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
