@@ -223,23 +223,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   ngtcp2_strm *strm;
   int rv;
   size_t datalen;
-  ngtcp2_strm *crypto = NULL;
-  ngtcp2_encryption_level encryption_level;
-
-  switch (ent->hd.type) {
-  case NGTCP2_PKT_INITIAL:
-    crypto = &conn->in_crypto;
-    encryption_level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
-    break;
-  case NGTCP2_PKT_HANDSHAKE:
-    crypto = &conn->hs_crypto;
-    encryption_level = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
-    break;
-  default:
-    crypto = &conn->crypto;
-    encryption_level = NGTCP2_ENCRYPTION_LEVEL_1RTT;
-    break;
-  }
+  ngtcp2_strm *crypto = &conn->crypto;
 
   for (frc = ent->frc; frc; frc = frc->next) {
     if (frc->fr.type == NGTCP2_FRAME_STREAM) {
@@ -279,7 +263,8 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
     if (frc->fr.type == NGTCP2_FRAME_CRYPTO) {
       prev_stream_offset =
           ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset);
-      rv = ngtcp2_gaptr_push(&crypto->acked_tx_offset, frc->fr.crypto.offset,
+      rv = ngtcp2_gaptr_push(&crypto->acked_tx_offset,
+                             frc->fr.crypto.ordered_offset,
                              frc->fr.crypto.datalen);
       if (rv != 0) {
         return rv;
@@ -292,9 +277,8 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
           continue;
         }
 
-        rv = conn->callbacks.acked_crypto_offset(conn, encryption_level,
-                                                 prev_stream_offset, datalen,
-                                                 conn->user_data);
+        rv = conn->callbacks.acked_crypto_offset(conn, prev_stream_offset,
+                                                 datalen, conn->user_data);
         if (rv != 0) {
           return NGTCP2_ERR_CALLBACK_FAILURE;
         }

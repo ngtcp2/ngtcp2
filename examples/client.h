@@ -196,8 +196,7 @@ public:
   int start_interactive_input();
   int send_interactive_input();
   int stop_interactive_input();
-  void remove_tx_crypto_data(ngtcp2_encryption_level encryption_level,
-                             uint64_t offset, size_t datalen);
+  void remove_tx_crypto_data(uint64_t offset, size_t datalen);
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
@@ -225,16 +224,10 @@ private:
   int fd_;
   int datafd_;
   std::map<uint32_t, std::unique_ptr<Stream>> streams_;
-  std::deque<Buffer> in_chandshake_;
-  std::deque<Buffer> hs_chandshake_;
   std::deque<Buffer> chandshake_;
   // *chandshake_idx_ is the index in *chandshake_, which points to
   // the buffer to read next.
-  size_t in_chandshake_idx_;
-  size_t hs_chandshake_idx_;
   size_t chandshake_idx_;
-  uint64_t in_tx_crypto_offset_;
-  uint64_t hs_tx_crypto_offset_;
   uint64_t tx_crypto_offset_;
   std::vector<uint8_t> shandshake_;
   size_t nsread_;
@@ -248,7 +241,6 @@ private:
   uint64_t nstreams_done_;
   // resumption_ is true if client attempts to resume session.
   bool resumption_;
-  ngtcp2_encryption_level encryption_level_;
 };
 
 #endif // CLIENT_H

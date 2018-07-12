@@ -201,6 +201,13 @@ typedef struct {
      sent last time.*/
   uint64_t last_tx_pkt_num;
   uint64_t max_rx_pkt_num;
+  /* crypto_tx_offset is the offset of crypto stream in this packet
+     number space. */
+  uint64_t crypto_tx_offset;
+  /* crypto_rx_offset_base is the offset of crypto stream in the
+     global TLS stream and it specifies the offset where this local
+     crypto stream starts. */
+  uint64_t crypto_rx_offset_base;
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
   /* tx_ckm is a cryptographic key, and iv to encrypt outgoing
@@ -224,8 +231,6 @@ struct ngtcp2_conn {
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
-  ngtcp2_strm in_crypto;
-  ngtcp2_strm hs_crypto;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
   ngtcp2_strm *fc_strms;
@@ -298,6 +303,10 @@ struct ngtcp2_conn {
   /* final_hs_rx_offset is the receiver offset in stream 0 which
      handshake completed. */
   uint64_t final_hs_rx_offset;
+  /* early_crypto_rx_offset_base is just like
+     ngtcp2_pktns.crypto_rx_offset_base, but it is dedicated for
+     CRYPTO frame received in 0-RTT packet. */
+  uint64_t early_crypto_rx_offset_base;
   /* largest_ack is the largest ack in received ACK packet. */
   int64_t largest_ack;
   /* first_rx_bw_ts is a timestamp when bandwidth measurement is

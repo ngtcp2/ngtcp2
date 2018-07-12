@@ -465,6 +465,13 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
+  /* ordered_offset is an offset in global TLS stream which combines
+     Initial, Handshake, 0/1-RTT packet number space.  Although
+     packets can be acknowledged in the random order, they must be fed
+     into TLS stack as they are generated, so their offset in TLS
+     stream must be ordered and distinct.  This field is not sent on
+     wire, and currently used for outgoing frame only. */
+  uint64_t ordered_offset;
   uint64_t offset;
   size_t datalen;
   const uint8_t *data;
@@ -956,12 +963,9 @@ typedef enum {
  * free the data.  This works like
  * :type:`ngtcp2_acked_stream_data_offset` but crypto stream has no
  * stream_id and stream_user_data, and |datalen| never become 0.
- *
- * |encryption_level| dictates encryption level.
  */
-typedef int (*ngtcp2_acked_crypto_offset)(
-    ngtcp2_conn *conn, ngtcp2_encryption_level encryption_level,
-    uint64_t offset, size_t datalen, void *user_data);
+typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn, uint64_t offset,
+                                          size_t datalen, void *user_data);
 
 typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_hd *hd,

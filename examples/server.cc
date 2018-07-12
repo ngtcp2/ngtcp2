@@ -129,17 +129,14 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
     std::cerr << "client_early_traffic" << std::endl;
     ngtcp2_conn_update_early_keys(conn_, key, keylen, iv, ivlen, pn.data(),
                                   pnlen);
-    encryption_level_ = NGTCP2_ENCRYPTION_LEVEL_1RTT;
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
     std::cerr << "client_handshake_traffic" << std::endl;
     ngtcp2_conn_set_handshake_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
                                       pnlen);
-    encryption_level_ = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
     std::cerr << "client_application_traffic" << std::endl;
-    encryption_level_ = NGTCP2_ENCRYPTION_LEVEL_1RTT;
     break;
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
     std::cerr << "server_handshake_traffic" << std::endl;
@@ -643,19 +640,14 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       server_(server),
       fd_(-1),
       ncread_(0),
-      in_shandshake_idx_(0),
-      hs_shandshake_idx_(0),
       shandshake_idx_(0),
       conn_(nullptr),
       rcid_(*rcid),
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      in_tx_crypto_offset_(0),
-      hs_tx_crypto_offset_(0),
       tx_crypto_offset_(0),
       initial_(true),
-      draining_(false),
-      encryption_level_(NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
+      draining_(false) {
   ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
@@ -854,11 +846,10 @@ int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
 } // namespace
 
 namespace {
-int acked_crypto_offset(ngtcp2_conn *conn,
-                        ngtcp2_encryption_level encryption_level,
-                        uint64_t offset, size_t datalen, void *user_data) {
+int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
+                        void *user_data) {
   auto h = static_cast<Handler *>(user_data);
-  h->remove_tx_crypto_data(encryption_level, offset, datalen);
+  h->remove_tx_crypto_data(offset, datalen);
   return 0;
 }
 } // namespace
@@ -1117,17 +1108,7 @@ int Handler::read_tls() {
 }
 
 int Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
-  switch (encryption_level_) {
-  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
-    write_server_handshake(in_shandshake_, in_shandshake_idx_, data, datalen);
-    break;
-  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
-    write_server_handshake(hs_shandshake_, hs_shandshake_idx_, data, datalen);
-    break;
-  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
-    write_server_handshake(shandshake_, shandshake_idx_, data, datalen);
-    break;
-  }
+  write_server_handshake(shandshake_, shandshake_idx_, data, datalen);
 
   return 0;
 }
@@ -1817,22 +1798,9 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
-void Handler::remove_tx_crypto_data(ngtcp2_encryption_level encryption_level,
-                                    uint64_t offset, size_t datalen) {
-  switch (encryption_level) {
-  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
-    ::remove_tx_stream_data(in_shandshake_, in_shandshake_idx_,
-                            in_tx_crypto_offset_, offset + datalen);
-    break;
-  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
-    ::remove_tx_stream_data(hs_shandshake_, hs_shandshake_idx_,
-                            hs_tx_crypto_offset_, offset + datalen);
-    break;
-  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
-    ::remove_tx_stream_data(shandshake_, shandshake_idx_, tx_crypto_offset_,
-                            offset + datalen);
-    break;
-  }
+void Handler::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
+  ::remove_tx_stream_data(shandshake_, shandshake_idx_, tx_crypto_offset_,
+                          offset + datalen);
 }
 
 int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
