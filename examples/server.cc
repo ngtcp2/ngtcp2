@@ -1807,8 +1807,6 @@ int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                                    size_t datalen) {
   int rv;
 
-  assert(stream_id);
-
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
@@ -1849,9 +1847,6 @@ int Handler::send_greeting() {
 }
 
 void Handler::on_stream_close(uint64_t stream_id) {
-  if (stream_id == 0) {
-    return;
-  }
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   streams_.erase(it);

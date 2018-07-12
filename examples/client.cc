@@ -926,12 +926,6 @@ int Client::tls_handshake(bool initial) {
   }
 
   rv = SSL_do_handshake(ssl_);
-  if (!initial && resumption_) {
-    if (SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
-      std::cerr << "Early data was rejected by server" << std::endl;
-      ngtcp2_conn_early_data_rejected(conn_);
-    }
-  }
   if (rv <= 0) {
     auto err = SSL_get_error(ssl_, rv);
     switch (err) {
@@ -946,6 +940,13 @@ int Client::tls_handshake(bool initial) {
       std::cerr << "TLS handshake error: " << err << std::endl;
       return -1;
     }
+  }
+
+  // SSL_get_early_data_status works after handshake completes.
+  if (resumption_ &&
+      SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
+    std::cerr << "Early data was rejected by server" << std::endl;
+    ngtcp2_conn_early_data_rejected(conn_);
   }
 
   ngtcp2_conn_handshake_completed(conn_);

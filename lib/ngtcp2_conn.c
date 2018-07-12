@@ -345,7 +345,6 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
           ngtcp2_nth_client_uni_id(settings->max_uni_streams);
 
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
-  ngtcp2_idtr_open(&(*pconn)->remote_bidi_idtr, 0);
   (*pconn)->next_local_stream_id_bidi = 1;
   (*pconn)->next_local_stream_id_uni = 3;
   return 0;
@@ -1268,8 +1267,10 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ngtcp2_pkt_hd_init(
-      &hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid, &conn->scid,
-      pktns->last_tx_pkt_num + 1,
+      &hd, NGTCP2_PKT_FLAG_LONG_FORM, type,
+      (conn->server || type == NGTCP2_PKT_HANDSHAKE) ? &conn->dcid
+                                                     : &conn->rcid,
+      &conn->scid, pktns->last_tx_pkt_num + 1,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);
 
