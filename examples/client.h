@@ -164,8 +164,6 @@ public:
   void write_server_handshake(const uint8_t *data, size_t datalen);
 
   int setup_initial_crypto_context();
-  int setup_crypto_context();
-  int setup_early_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
                           const uint8_t *plaintext, size_t plaintextlen,
                           const uint8_t *key, size_t keylen,
@@ -203,7 +201,6 @@ public:
   int on_extend_max_stream_id(uint64_t max_stream_id);
   int handle_error(int liberr);
   void make_stream_early();
-  void handle_early_data();
 
   int on_key(int name, const uint8_t *secret, size_t secretlen,
              const uint8_t *key, size_t keylen, const uint8_t *iv,

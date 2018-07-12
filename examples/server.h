@@ -181,8 +181,6 @@ public:
   void write_client_handshake(const uint8_t *data, size_t datalen);
 
   int recv_client_initial(const ngtcp2_cid *dcid);
-  int setup_crypto_context();
-  int setup_early_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
                           const uint8_t *plaintext, size_t plaintextlen,
                           const uint8_t *key, size_t keylen,
