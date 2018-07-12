@@ -70,9 +70,9 @@ typedef enum {
    resolution. */
 #define NGTCP2_DELAYED_ACK_TIMEOUT 25000000
 
-/* NGTCP2_MAX_NUM_BUFFED_RX_PPKTS is the maximum number of protected
-   packets buffered which arrive before handshake completes. */
-#define NGTCP2_MAX_NUM_BUFFED_RX_PPKTS 16
+/* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
+   reordered packets. */
+#define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 16
 
 /* NGTCP2_STRM0_MAX_STREAM_DATA is the maximum stream offset that an
    endpoint can send initially. */
@@ -327,6 +327,9 @@ struct ngtcp2_conn {
   int server;
   ngtcp2_crypto_km *early_ckm;
   size_t aead_overhead;
+  /* buffed_rx_hs_pkts is buffered Handshake packets which come before
+     Initial packet. */
+  ngtcp2_pkt_chain *buffed_rx_hs_pkts;
   /* buffed_rx_ppkts is buffered (0-RTT) Protected packets which come
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */

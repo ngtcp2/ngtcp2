@@ -353,16 +353,15 @@ static int rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
     }
   }
   rtb_on_pkt_acked_cc(rtb, ent);
-  if (ngtcp2_pkt_handshake_pkt(&ent->hd)) {
-    rcs->handshake_count = 0;
-  } else {
-    if (rcs->rto_count && ent->hd.pkt_num > rcs->largest_sent_before_rto) {
-      rtb_on_retransmission_timeout_verified(rtb);
-    }
-    rcs->tlp_count = 0;
-    rcs->rto_count = 0;
-    rcs->probe_pkt_left = 0;
+  if (!ngtcp2_pkt_handshake_pkt(&ent->hd) && rcs->rto_count &&
+      ent->hd.pkt_num > rcs->largest_sent_before_rto) {
+    rtb_on_retransmission_timeout_verified(rtb);
   }
+
+  rcs->handshake_count = 0;
+  rcs->tlp_count = 0;
+  rcs->rto_count = 0;
+  rcs->probe_pkt_left = 0;
 
   return 0;
 }
