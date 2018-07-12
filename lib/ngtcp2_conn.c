@@ -638,223 +638,6 @@ static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
 }
 
 /*
- * conn_retransmit_unprotected_once writes QUIC packet in the buffer
- * pointed by |dest| whose length is |destlen| to retransmit lost
- * unprotected packet.
- *
- * This function returns the number of bytes written into |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed
- */
-static ssize_t conn_retransmit_unprotected_once(ngtcp2_conn *conn,
-                                                uint8_t *dest, size_t destlen,
-                                                ngtcp2_pktns *pktns,
-                                                ngtcp2_rtb_entry *ent,
-                                                ngtcp2_tstamp ts) {
-  int rv;
-  ngtcp2_ppe ppe;
-  ngtcp2_pkt_hd hd = ent->hd;
-  ngtcp2_frame_chain **pfrc;
-  ngtcp2_frame localfr;
-  int pkt_empty = 1;
-  ngtcp2_crypto_ctx ctx;
-  ngtcp2_frame *ackfr;
-
-  /* This is required because ent->hd may have old client version. */
-  hd.version = conn->version;
-  switch (hd.type) {
-  case NGTCP2_PKT_INITIAL:
-    /* Initial packet should keep using randomized connection ID. */
-    ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
-    ctx.encrypt = conn->callbacks.in_encrypt;
-    ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
-    break;
-  case NGTCP2_PKT_HANDSHAKE:
-    hd.dcid = conn->dcid;
-    ctx.aead_overhead = conn->aead_overhead;
-    ctx.encrypt = conn->callbacks.encrypt;
-    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
-    break;
-  default:
-    assert(0);
-  }
-
-  ctx.ckm = pktns->tx_ckm;
-  hd.pkt_num = pktns->last_tx_pkt_num + 1;
-
-  ctx.user_data = conn;
-
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
-
-  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
-  if (rv != 0) {
-    return rv;
-  }
-
-  for (pfrc = &ent->frc; *pfrc;) {
-    rv = conn_ppe_write_frame(conn, &ppe, &hd, &(*pfrc)->fr);
-    if (rv != 0) {
-      return rv;
-    }
-
-    pkt_empty = 0;
-    pfrc = &(*pfrc)->next;
-  }
-
-  if (pkt_empty) {
-    return rv;
-  }
-
-  if (hd.type != NGTCP2_PKT_INITIAL) {
-    /* ACK is added last so that we don't send ACK only frame here. */
-    ackfr = NULL;
-    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
-                               NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
-    if (rv != 0) {
-      return rv;
-    }
-
-    if (ackfr) {
-      rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
-      if (rv != 0) {
-        ngtcp2_mem_free(conn->mem, ackfr);
-        if (rv != NGTCP2_ERR_NOBUF) {
-          return rv;
-        }
-      } else {
-        ngtcp2_acktr_commit_ack(&pktns->acktr);
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
-                             0 /* ack_only */);
-      }
-    }
-  }
-
-  assert(!*pfrc);
-
-  ent->hd = hd;
-
-  if (hd.type == NGTCP2_PKT_INITIAL) {
-    localfr.type = NGTCP2_FRAME_PADDING;
-    localfr.padding.len = ngtcp2_ppe_padding(&ppe);
-
-    ngtcp2_log_tx_fr(&conn->log, &hd, &localfr);
-  }
-
-  ++pktns->last_tx_pkt_num;
-
-  return ngtcp2_ppe_final(&ppe, NULL);
-}
-
-/*
- * conn_retransmit_unprotected writes QUIC packet in the buffer
- * pointed by |dest| whose length is |destlen| to retransmit lost
- * unprotected packet.
- *
- * This function returns the number of bytes written in |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_PKT_TIMEOUT
- *     Give up the retransmission of lost packet because of timeout.
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Packet type is unexpected.  TODO: This will be removed in the
- *     future.
- */
-static ssize_t conn_retransmit_unprotected(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ngtcp2_pktns *pktns,
-                                           ngtcp2_tstamp ts) {
-  ngtcp2_rtb_entry *ent;
-  ssize_t nwrite;
-
-  /* TODO We should not retransmit packets after we are in closing, or
-     draining state */
-  for (;;) {
-    ent = ngtcp2_rtb_lost_head(&pktns->rtb);
-    if (ent == NULL) {
-      return 0;
-    }
-
-    ngtcp2_rtb_lost_pop(&pktns->rtb);
-
-    assert(ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM);
-
-    switch (ent->hd.type) {
-    case NGTCP2_PKT_INITIAL:
-      nwrite =
-          conn_retransmit_unprotected_once(conn, dest, destlen, pktns, ent, ts);
-      break;
-    case NGTCP2_PKT_HANDSHAKE:
-      /* Stop retransmitting handshake packet after at least one
-         protected packet is received, and decrypted successfully. */
-      if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
-        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                        "no need to retransmit Handshake packet");
-        nwrite = 0;
-        break;
-      }
-
-      if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
-        if (conn->server) {
-          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                          "no need to retransmit Handshake packet");
-          nwrite = 0;
-          break;
-        } else if (ngtcp2_gaptr_first_gap_offset(
-                       &conn->crypto.acked_tx_offset) >=
-                   conn->crypto.tx_offset) {
-          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                          "no need to retransmit Handshake packet");
-          nwrite = 0;
-          break;
-        }
-      }
-      nwrite =
-          conn_retransmit_unprotected_once(conn, dest, destlen, pktns, ent, ts);
-      break;
-    default:
-      /* TODO fix this */
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
-
-    if (nwrite <= 0) {
-      if (nwrite == 0) {
-        ngtcp2_rtb_entry_del(ent, conn->mem);
-        continue;
-      }
-      if (nwrite == NGTCP2_ERR_NOBUF) {
-        /* TODO we might stack here if the same insufficiently small
-           buffer size is specified repeatedly. */
-        ngtcp2_rtb_lost_insert(&pktns->rtb, ent);
-        return nwrite;
-      }
-
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      return nwrite;
-    }
-
-    /* No retransmittable frame was written, and now ent is empty. */
-    if (ent->frc == NULL) {
-      ngtcp2_rtb_entry_del(ent, conn->mem);
-      return nwrite;
-    }
-
-    ent->pktlen = (size_t)nwrite;
-    ent->ts = ts;
-    conn_on_pkt_sent(conn, &pktns->rtb, ent);
-
-    return nwrite;
-  }
-}
-
-/*
  * conn_select_pkt_numlen selects shortest packet number encoding
  * based on the next packet number |pkt_num| and the largest
  * acknowledged packet number.  It returns the number of bytes to
@@ -878,9 +661,8 @@ static size_t rtb_select_pkt_numlen(ngtcp2_rtb *rtb, uint64_t pkt_num) {
 }
 
 /*
- * conn_retransmit_protected_once writes QUIC packet in the buffer
- * pointed by |dest| whose length is |destlen| to retransmit lost
- * protected packet.
+ * conn_retransmit_pkt writes QUIC packet in the buffer pointed by
+ * |dest| whose length is |destlen| to retransmit lost packet.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -892,33 +674,50 @@ static size_t rtb_select_pkt_numlen(ngtcp2_rtb *rtb, uint64_t pkt_num) {
  * NGTCP2_ERR_NOBUF
  *     Buffer is too small.
  */
-static ssize_t conn_retransmit_protected_once(ngtcp2_conn *conn, uint8_t *dest,
-                                              size_t destlen,
-                                              ngtcp2_rtb_entry *ent,
-                                              ngtcp2_tstamp ts) {
+static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                   size_t destlen, ngtcp2_pktns *pktns,
+                                   ngtcp2_rtb_entry *ent, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd = ent->hd;
   ngtcp2_frame_chain **pfrc, *frc;
   ngtcp2_frame *ackfr;
+  ngtcp2_frame localfr;
   int pkt_empty = 1;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_strm *strm;
-  ngtcp2_pktns *pktns = &conn->pktns;
 
   /* This is required because ent->hd may have old client version. */
   hd.version = conn->version;
-  hd.dcid = conn->dcid;
-  hd.pkt_num = pktns->last_tx_pkt_num + 1;
-  hd.pkt_numlen = rtb_select_pkt_numlen(&pktns->rtb, hd.pkt_num);
-  hd.type = NGTCP2_PKT_SHORT;
+  if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+    switch (hd.type) {
+    case NGTCP2_PKT_INITIAL:
+      ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+      ctx.encrypt = conn->callbacks.in_encrypt;
+      ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
+      break;
+    case NGTCP2_PKT_HANDSHAKE:
+      ctx.aead_overhead = conn->aead_overhead;
+      ctx.encrypt = conn->callbacks.encrypt;
+      ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+      break;
+    default:
+      assert(0);
+    }
+  } else {
+    assert(hd.type == NGTCP2_PKT_SHORT);
+
+    ctx.aead_overhead = conn->aead_overhead;
+    ctx.encrypt = conn->callbacks.encrypt;
+    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+  }
 
   ctx.ckm = pktns->tx_ckm;
-  ctx.aead_overhead = conn->aead_overhead;
-  ctx.encrypt = conn->callbacks.encrypt;
-  ctx.encrypt_pn = conn->callbacks.encrypt_pn;
   ctx.user_data = conn;
+
+  hd.pkt_num = pktns->last_tx_pkt_num + 1;
+  hd.pkt_numlen = rtb_select_pkt_numlen(&pktns->rtb, hd.pkt_num);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
@@ -1022,6 +821,13 @@ static ssize_t conn_retransmit_protected_once(ngtcp2_conn *conn, uint8_t *dest,
 
   ent->hd = hd;
 
+  if (!conn->server && hd.type == NGTCP2_PKT_INITIAL) {
+    localfr.type = NGTCP2_FRAME_PADDING;
+    localfr.padding.len = ngtcp2_ppe_padding(&ppe);
+
+    ngtcp2_log_tx_fr(&conn->log, &hd, &localfr);
+  }
+
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
   if (nwrite < 0) {
     return nwrite;
@@ -1033,9 +839,8 @@ static ssize_t conn_retransmit_protected_once(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_retransmit_protected writes QUIC packet in the buffer pointed
- * by |dest| whose length is |destlen| to retransmit lost protected
- * packet.
+ * conn_retransmit_pktns writes QUIC packet in the buffer pointed by
+ * |dest| whose length is |destlen| to retransmit lost packet.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1052,11 +857,11 @@ static ssize_t conn_retransmit_protected_once(ngtcp2_conn *conn, uint8_t *dest,
  *     Packet type is unexpected.  TODO: This will be removed in the
  *     future.
  */
-static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, ngtcp2_tstamp ts) {
+static ssize_t conn_retransmit_pktns(ngtcp2_conn *conn, uint8_t *dest,
+                                     size_t destlen, ngtcp2_pktns *pktns,
+                                     ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ssize_t nwrite;
-  ngtcp2_pktns *pktns = &conn->pktns;
 
   /* TODO We should not retransmit packets after we are in closing, or
      draining state */
@@ -1068,10 +873,36 @@ static ssize_t conn_retransmit_protected(ngtcp2_conn *conn, uint8_t *dest,
 
     ngtcp2_rtb_lost_pop(&pktns->rtb);
 
-    assert(!(ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM));
-    assert(ent->hd.type == NGTCP2_PKT_SHORT);
+    if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+      switch (ent->hd.type) {
+      case NGTCP2_PKT_INITIAL:
+      case NGTCP2_PKT_0RTT_PROTECTED:
+      case NGTCP2_PKT_HANDSHAKE:
+        /* Stop retransmitting handshake packet after at least one
+           protected packet is received, and decrypted successfully. */
+        if (conn->flags & NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT) {
+          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
+                          "no need to retransmit Handshake packet");
+          nwrite = 0;
+          break;
+        }
 
-    nwrite = conn_retransmit_protected_once(conn, dest, destlen, ent, ts);
+        if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+          if (conn->server) {
+            ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
+                            "no need to retransmit Handshake packet");
+            nwrite = 0;
+            break;
+          }
+        }
+        nwrite = conn_retransmit_pkt(conn, dest, destlen, pktns, ent, ts);
+        break;
+      default:
+        assert(0);
+      }
+    } else {
+      nwrite = conn_retransmit_pkt(conn, dest, destlen, pktns, ent, ts);
+    }
 
     if (nwrite <= 0) {
       if (nwrite == 0) {
@@ -1119,26 +950,24 @@ static uint64_t conn_cwnd_left(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_retransmit performs retransmission for both protected and
- * unprotected packets.
+ * conn_retransmit performs retransmission.  It covers both handshake
+ * and regular packets.
  */
 static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                ngtcp2_tstamp ts) {
   ssize_t nwrite;
 
-  nwrite =
-      conn_retransmit_unprotected(conn, dest, destlen, &conn->in_pktns, ts);
+  nwrite = conn_retransmit_pktns(conn, dest, destlen, &conn->in_pktns, ts);
   if (nwrite) {
     return nwrite;
   }
 
-  nwrite =
-      conn_retransmit_unprotected(conn, dest, destlen, &conn->hs_pktns, ts);
+  nwrite = conn_retransmit_pktns(conn, dest, destlen, &conn->hs_pktns, ts);
   if (nwrite) {
     return nwrite;
   }
 
-  return conn_retransmit_protected(conn, dest, destlen, ts);
+  return conn_retransmit_pktns(conn, dest, destlen, &conn->pktns, ts);
 }
 
 /*
@@ -1178,7 +1007,7 @@ static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
 
     nent->src_pkt_num = (int64_t)ent->hd.pkt_num;
 
-    nwrite = conn_retransmit_protected_once(conn, dest, destlen, nent, ts);
+    nwrite = conn_retransmit_pkt(conn, dest, destlen, &conn->pktns, nent, ts);
     if (nwrite < 0) {
       ngtcp2_rtb_entry_del(nent, conn->mem);
       return nwrite;
