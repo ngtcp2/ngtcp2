@@ -598,7 +598,7 @@ void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   }
 
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_RCV,
-                  "packet lost type=%s(0x02x) %" PRIu64 " sent_ts=%" PRIu64,
+                  "packet lost type=%s(0x%02x) %" PRIu64 " sent_ts=%" PRIu64,
                   (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM)
                       ? strpkttype_long(hd->type)
                       : "Short",

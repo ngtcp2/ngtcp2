@@ -697,11 +697,19 @@ static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
       ctx.encrypt = conn->callbacks.in_encrypt;
       ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
+      ctx.ckm = pktns->tx_ckm;
       break;
     case NGTCP2_PKT_HANDSHAKE:
       ctx.aead_overhead = conn->aead_overhead;
       ctx.encrypt = conn->callbacks.encrypt;
       ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+      ctx.ckm = pktns->tx_ckm;
+      break;
+    case NGTCP2_PKT_0RTT_PROTECTED:
+      ctx.aead_overhead = conn->aead_overhead;
+      ctx.encrypt = conn->callbacks.encrypt;
+      ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+      ctx.ckm = conn->early_ckm;
       break;
     default:
       assert(0);
@@ -712,9 +720,9 @@ static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ctx.aead_overhead = conn->aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+    ctx.ckm = pktns->tx_ckm;
   }
 
-  ctx.ckm = pktns->tx_ckm;
   ctx.user_data = conn;
 
   hd.pkt_num = pktns->last_tx_pkt_num + 1;
@@ -2163,6 +2171,11 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
       ent = next;
     }
   } else {
+    /* 0-RTT packet has initial random DCID */
+    for (ent = conn->early_rtb; ent; ent = ent->next) {
+      ent->hd.dcid = conn->dcid;
+    }
+
     ngtcp2_rtb_insert_range(rtb, conn->early_rtb);
   }
   conn->early_rtb = NULL;
@@ -5838,12 +5851,17 @@ int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "loss detection alarm fired");
 
-  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb)) {
+  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb) ||
+      pktns->rtb.nearly_pkt) {
     rv = ngtcp2_rtb_mark_pkt_lost(&in_pktns->rtb);
     if (rv != 0) {
       return rv;
     }
     rv = ngtcp2_rtb_mark_pkt_lost(&hs_pktns->rtb);
+    if (rv != 0) {
+      return rv;
+    }
+    rv = ngtcp2_rtb_mark_0rtt_pkt_lost(&pktns->rtb);
     if (rv != 0) {
       return rv;
     }

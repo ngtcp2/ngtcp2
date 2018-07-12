@@ -164,6 +164,8 @@ typedef struct {
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
+  /* nearly_pkt is the number of 0-RTT Protected packet in ents. */
+  size_t nearly_pkt;
 } ngtcp2_rtb;
 
 /*
@@ -227,6 +229,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                                ngtcp2_tstamp ts);
 
 int ngtcp2_rtb_mark_pkt_lost(ngtcp2_rtb *rtb);
+
+int ngtcp2_rtb_mark_0rtt_pkt_lost(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_lost_add insert |ent| to the head of lost packets list.
