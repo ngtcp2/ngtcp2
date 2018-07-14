@@ -2303,7 +2303,8 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         return nwrite;
       }
       return res;
-    } else if (nwrite) {
+    }
+    if (nwrite) {
       return res + nwrite;
     }
 
@@ -2318,9 +2319,9 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
           return nwrite;
         }
         return res;
-      } else {
-        return res + nwrite;
       }
+
+      return res + nwrite;
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
@@ -2333,9 +2334,9 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
           return nwrite;
         }
         return res;
-      } else {
-        return res + nwrite;
       }
+
+      return res + nwrite;
     }
 
     if (ngtcp2_rtb_lost_head(&pktns->rtb)) {
@@ -2359,9 +2360,9 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         return nwrite;
       }
       return res;
-    } else {
-      return res + nwrite;
     }
+
+    return res + nwrite;
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
