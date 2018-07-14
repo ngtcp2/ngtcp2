@@ -973,7 +973,7 @@ int Client::read_tls() {
     auto outidx = chandshake_idx_;
     auto rv = SSL_read_ex(ssl_, buf.data(), buf.size(), &nread);
     if (rv == 1) {
-      std::cerr << "Reads " << nread << " bytes from TLS stream 0."
+      std::cerr << "Read " << nread << " bytes from TLS crypto stream"
                 << std::endl;
       continue;
     }
