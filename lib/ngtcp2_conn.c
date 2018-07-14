@@ -1595,32 +1595,59 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
   ngtcp2_crypto_data *cdata;
   ssize_t nwrite;
+  ssize_t res = 0;
 
-  if (ngtcp2_ringbuf_len(rb) == 0) {
-    if (conn->early_ckm && *ngtcp2_acktr_get(&conn->pktns.acktr)) {
-      assert(conn->pktns.tx_ckm);
+  for (;;) {
+    if (ngtcp2_ringbuf_len(rb) == 0) {
+      if (conn->early_ckm && *ngtcp2_acktr_get(&conn->pktns.acktr)) {
+        assert(conn->pktns.tx_ckm);
 
-      nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
-      if (nwrite != 0) {
-        return nwrite;
+        nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+        if (nwrite < 0) {
+          if (nwrite != NGTCP2_ERR_NOBUF) {
+            return nwrite;
+          }
+          if (res) {
+            return res;
+          }
+          return NGTCP2_ERR_NOBUF;
+        }
+
+        res += nwrite;
       }
+
+      return res;
     }
 
-    return 0;
+    cdata = ngtcp2_ringbuf_get(rb, 0);
+
+    switch (cdata->pkt_type) {
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_HANDSHAKE:
+      break;
+    default:
+      assert(0);
+    }
+
+    nwrite = conn_write_handshake_pkt(conn, dest, destlen, cdata->pkt_type,
+                                      0 /* require_padding */, ts);
+    if (nwrite < 0) {
+      if (nwrite != NGTCP2_ERR_NOBUF) {
+        return nwrite;
+      }
+      if (res) {
+        return res;
+      }
+      return NGTCP2_ERR_NOBUF;
+    }
+    if (nwrite == 0) {
+      return res;
+    }
+
+    res += nwrite;
+    dest += nwrite;
+    destlen -= (size_t)nwrite;
   }
-
-  cdata = ngtcp2_ringbuf_get(rb, 0);
-
-  switch (cdata->pkt_type) {
-  case NGTCP2_PKT_INITIAL:
-  case NGTCP2_PKT_HANDSHAKE:
-    break;
-  default:
-    assert(0);
-  }
-
-  return conn_write_handshake_pkt(conn, dest, destlen, cdata->pkt_type,
-                                  0 /* require_padding */, ts);
 }
 
 /*
