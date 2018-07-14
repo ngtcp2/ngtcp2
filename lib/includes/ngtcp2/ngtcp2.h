@@ -872,9 +872,9 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
 /**
  * @functypedef
  *
- * ngtcp2_recv_stream0_data is invoked when stream 0 data are
- * received.  The received data are pointed by |data|, and its length
- * is |datalen|.  The |offset| specifies the offset where |data| is
+ * ngtcp2_recv_crypto_data is invoked when stream 0 data are received.
+ * The received data are pointed by |data|, and its length is
+ * |datalen|.  The |offset| specifies the offset where |data| is
  * positioned.  |user_data| is the arbitrary pointer passed to
  * `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.
  *
@@ -892,9 +892,9 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
  * return immediately.  If the other value is returned, it is treated
  * as :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
-typedef int (*ngtcp2_recv_stream0_data)(ngtcp2_conn *conn, uint64_t offset,
-                                        const uint8_t *data, size_t datalen,
-                                        void *user_data);
+typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn, uint64_t offset,
+                                       const uint8_t *data, size_t datalen,
+                                       void *user_data);
 
 /**
  * @functypedef
@@ -1018,7 +1018,7 @@ typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 typedef struct {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
-  ngtcp2_recv_stream0_data recv_stream0_data;
+  ngtcp2_recv_crypto_data recv_crypto_data;
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
   /* in_encrypt is a callback function which is invoked to encrypt

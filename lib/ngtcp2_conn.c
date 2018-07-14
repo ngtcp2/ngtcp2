@@ -95,12 +95,12 @@ static int conn_call_recv_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
-static int conn_call_recv_stream0_data(ngtcp2_conn *conn, uint64_t offset,
-                                       const uint8_t *data, size_t datalen) {
+static int conn_call_recv_crypto_data(ngtcp2_conn *conn, uint64_t offset,
+                                      const uint8_t *data, size_t datalen) {
   int rv;
 
-  rv = conn->callbacks.recv_stream0_data(conn, offset, data, datalen,
-                                         conn->user_data);
+  rv = conn->callbacks.recv_crypto_data(conn, offset, data, datalen,
+                                        conn->user_data);
   switch (rv) {
   case 0:
   case NGTCP2_ERR_TLS_HANDSHAKE:
@@ -2800,8 +2800,8 @@ static void conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 /*
- * conn_emit_pending_stream0_data delivers pending stream
- * data to the application due to packet reordering.
+ * conn_emit_pending_crypto_data delivers pending stream data to the
+ * application due to packet reordering.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2815,8 +2815,8 @@ static void conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED
  *     After handshake has completed, TLS fatal alert is received.
  */
-static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          uint64_t rx_offset) {
+static int conn_emit_pending_crypto_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
+                                         uint64_t rx_offset) {
   size_t datalen;
   const uint8_t *data;
   int rv;
@@ -2832,7 +2832,7 @@ static int conn_emit_pending_stream0_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     offset = rx_offset;
     rx_offset += datalen;
 
-    rv = conn_call_recv_stream0_data(conn, offset, data, datalen);
+    rv = conn_call_recv_crypto_data(conn, offset, data, datalen);
     if (rv != 0) {
       return rv;
     }
@@ -3367,7 +3367,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return rv;
       }
 
-      rv = conn_call_recv_stream0_data(conn, offset, data, datalen);
+      rv = conn_call_recv_crypto_data(conn, offset, data, datalen);
       switch (rv) {
       case 0:
         break;
@@ -3379,7 +3379,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
 
       if (!handshake_failed) {
-        rv = conn_emit_pending_stream0_data(conn, crypto, rx_offset);
+        rv = conn_emit_pending_crypto_data(conn, crypto, rx_offset);
         if (rv != 0) {
           return rv;
         }
@@ -3564,12 +3564,12 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
       return rv;
     }
 
-    rv = conn_call_recv_stream0_data(conn, offset, data, datalen);
+    rv = conn_call_recv_crypto_data(conn, offset, data, datalen);
     if (rv != 0) {
       return rv;
     }
 
-    rv = conn_emit_pending_stream0_data(conn, crypto, rx_offset);
+    rv = conn_emit_pending_crypto_data(conn, crypto, rx_offset);
     if (rv != 0) {
       return rv;
     }

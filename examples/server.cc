@@ -808,8 +808,8 @@ ssize_t do_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 } // namespace
 
 namespace {
-int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
-                      size_t datalen, void *user_data) {
+int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
+                     size_t datalen, void *user_data) {
   int rv;
 
   if (!config.quiet) {
@@ -918,7 +918,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   auto callbacks = ngtcp2_conn_callbacks{
       nullptr,
       ::recv_client_initial,
-      recv_stream0_data,
+      recv_crypto_data,
       handshake_completed,
       nullptr,
       do_hs_encrypt,
@@ -1051,15 +1051,6 @@ int Handler::tls_handshake() {
       std::cerr << std::endl;
     }
   }
-
-  // TODO Create stream 0 to send post-handshake data.  Probably, we
-  // should feed data in recv_stream0_data as well.
-  auto stream = std::make_unique<Stream>(0);
-  for (; shandshake_idx_ != shandshake_.size(); ++shandshake_idx_) {
-    auto &v = shandshake_[shandshake_idx_];
-    stream->streambuf.emplace_back(v.rpos(), v.size());
-  }
-  streams_.emplace(0, std::move(stream));
 
   return 0;
 }

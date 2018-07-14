@@ -440,8 +440,8 @@ int client_initial(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
-                      size_t datalen, void *user_data) {
+int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
+                     size_t datalen, void *user_data) {
   if (!config.quiet) {
     debug::print_stream_data(0, data, datalen);
   }
@@ -731,7 +731,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   auto callbacks = ngtcp2_conn_callbacks{
       client_initial,
       nullptr, // recv_client_initial
-      recv_stream0_data,
+      recv_crypto_data,
       handshake_completed,
       nullptr, // recv_version_negotiation
       do_hs_encrypt,
