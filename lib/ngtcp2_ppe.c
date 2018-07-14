@@ -57,9 +57,11 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
 
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     ppe->len_offset = 1 + 4 + 1 + hd->dcid.datalen + hd->scid.datalen;
+#ifndef DRAFT13INTEROP
     if (hd->type == NGTCP2_PKT_INITIAL) {
       ppe->len_offset += ngtcp2_put_varint_len(hd->tokenlen) + hd->tokenlen;
     }
+#endif /* !DRAFT13INTEROP */
     ppe->pkt_num_offset = ppe->len_offset + 2;
     rv = ngtcp2_pkt_encode_hd_long(
         buf->last, ngtcp2_buf_left(buf) - ctx->aead_overhead, hd);
@@ -117,9 +119,17 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   assert(ppe->ctx->encrypt_pn);
 
   if (ppe->len_offset) {
+#ifndef DRAFT13INTEROP
     ngtcp2_put_varint14(
         buf->begin + ppe->len_offset,
         (uint16_t)(payloadlen + ppe->pkt_numlen + ctx->aead_overhead));
+#else  /* DRAFT13INTEROP */
+    ngtcp2_put_varint14(
+        buf->begin + ppe->len_offset,
+        (uint16_t)(payloadlen + ppe->pkt_numlen +
+                   ((buf->begin[0] & 0x7f) == NGTCP2_PKT_INITIAL ? 1 : 0) +
+                   ctx->aead_overhead));
+#endif /* DRAFT13INTEROP */
   }
 
   ngtcp2_crypto_create_nonce(ppe->nonce, ctx->ckm->iv, ctx->ckm->ivlen,

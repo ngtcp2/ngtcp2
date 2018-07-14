@@ -3182,6 +3182,17 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   ngtcp2_log_pkt_hd(&conn->log, &hd);
 
+#ifdef DRAFT13INTEROP
+  if (hd.type == NGTCP2_PKT_INITIAL) {
+    if (payloadlen == 0) {
+      return (ssize_t)pktlen;
+    }
+    plain_hdpkt[hdpktlen++] = 0;
+    ++payload;
+    --payloadlen;
+  }
+#endif /* DRAFT13INTEROP */
+
   /* Do this after decryption succeeded */
   if (conn->server) {
     switch (hd.type) {
@@ -4218,6 +4229,14 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
+#ifdef DRAFT13INTEROP
+      if (payloadlen == 0) {
+        return (ssize_t)pktlen;
+      }
+      plain_hdpkt[hdpktlen++] = 0;
+      ++payload;
+      --payloadlen;
+#endif /* DRAFT13INTEROP */
     case NGTCP2_PKT_HANDSHAKE:
       /* TODO find a way when to ignore incoming handshake packet */
       rv = conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen,
