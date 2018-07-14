@@ -1101,10 +1101,16 @@ ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
   dest->type = NGTCP2_FRAME_CRYPTO;
   dest->offset = ngtcp2_get_varint(&n, p);
   p += n;
-  dest->datalen = ngtcp2_get_varint(&n, p);
+  dest->data[0].len = ngtcp2_get_varint(&n, p);
   p += n;
-  dest->data = p;
-  p += dest->datalen;
+  if (dest->data[0].len) {
+    dest->data[0].base = (uint8_t *)p;
+    p += dest->data[0].len;
+    dest->datacnt = 1;
+  } else {
+    dest->data[0].base = NULL;
+    dest->datacnt = 0;
+  }
 
   assert((size_t)(p - payload) == len);
 
@@ -1551,10 +1557,17 @@ ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
                                        const ngtcp2_crypto *fr) {
   size_t len = 1;
   uint8_t *p;
+  size_t i;
+  size_t datalen = 0;
 
   len += ngtcp2_put_varint_len(fr->offset);
-  len += ngtcp2_put_varint_len(fr->datalen);
-  len += fr->datalen;
+
+  for (i = 0; i < fr->datacnt; ++i) {
+    datalen += fr->data[i].len;
+  }
+
+  len += ngtcp2_put_varint_len(datalen);
+  len += datalen;
 
   if (outlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -1565,10 +1578,11 @@ ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
   *p++ = NGTCP2_FRAME_CRYPTO;
 
   p = ngtcp2_put_varint(p, fr->offset);
-  p = ngtcp2_put_varint(p, fr->datalen);
+  p = ngtcp2_put_varint(p, datalen);
 
-  if (fr->datalen) {
-    p = ngtcp2_cpymem(p, fr->data, fr->datalen);
+  for (i = 0; i < fr->datacnt; ++i) {
+    assert(fr->data[i].base);
+    p = ngtcp2_cpymem(p, fr->data[i].base, fr->data[i].len);
   }
 
   assert((size_t)(p - out) == len);

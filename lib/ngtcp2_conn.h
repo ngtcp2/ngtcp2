@@ -184,7 +184,10 @@ typedef enum {
 
 typedef struct {
   ngtcp2_buf buf;
-  int level;
+  /* pkt_type is the type of packet to send data in buf.  If it is 0,
+     it must be sent in Short packet.  Otherwise, it is sent the long
+     packet type denoted by pkt_type. */
+  uint8_t pkt_type;
 } ngtcp2_crypto_data;
 
 struct ngtcp2_cc_stat {

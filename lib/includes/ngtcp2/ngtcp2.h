@@ -304,6 +304,20 @@ typedef struct {
 } ngtcp2_cid;
 
 /**
+ * @struct
+ *
+ * ngtcp2_vec is struct iovec compatible structure to reference
+ * arbitrary array of bytes.
+ */
+typedef struct {
+  /* base points to the data. */
+  uint8_t *base;
+  /* len is the number of bytes which the buffer pointed by base
+     contains. */
+  size_t len;
+} ngtcp2_vec;
+
+/**
  * @function
  *
  * `ngtcp2_cid_init` initializes Connection ID |cid| with the byte
@@ -473,8 +487,12 @@ typedef struct {
      wire, and currently used for outgoing frame only. */
   uint64_t ordered_offset;
   uint64_t offset;
-  size_t datalen;
-  const uint8_t *data;
+  /* datacnt is the number of elements that data contains.  Although
+     the length of data is 1 in this definition, the library may
+     allocate extra bytes to hold more elements. */
+  size_t datacnt;
+  /* data is the array of ngtcp2_vec which references data. */
+  ngtcp2_vec data[1];
 } ngtcp2_crypto;
 
 typedef union {
@@ -948,12 +966,6 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
                                                uint64_t offset, size_t datalen,
                                                void *user_data,
                                                void *stream_user_data);
-
-typedef enum {
-  NGTCP2_ENCRYPTION_LEVEL_INITIAL,
-  NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
-  NGTCP2_ENCRYPTION_LEVEL_1RTT,
-} ngtcp2_encryption_level;
 
 /**
  * @functypedef

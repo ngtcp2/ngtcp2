@@ -42,6 +42,18 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
   return 0;
 }
 
+int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
+                                    ngtcp2_mem *mem) {
+  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain) + extralen);
+  if (*pfrc == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  ngtcp2_frame_chain_init(*pfrc);
+
+  return 0;
+}
+
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, frc);
 }
@@ -277,7 +289,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
           ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset);
       rv = ngtcp2_gaptr_push(&crypto->acked_tx_offset,
                              frc->fr.crypto.ordered_offset,
-                             frc->fr.crypto.datalen);
+                             frc->fr.crypto.data[0].len);
       if (rv != 0) {
         return rv;
       }

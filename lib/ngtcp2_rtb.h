@@ -66,6 +66,14 @@ struct ngtcp2_frame_chain {
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem);
 
 /*
+ * ngtcp2_frame_chain_extralen_new works like ngtcp2_frame_chain_new,
+ * but it allocates extra memory |extralen| in order to extend
+ * ngtcp2_frame.
+ */
+int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
+                                    ngtcp2_mem *mem);
+
+/*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
  * memory pointed by |frc|.
  */

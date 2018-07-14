@@ -1021,10 +1021,99 @@ static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
+ * conn_create_crypto_frame creates CRYPTO frame.  CRYPTO frame is
+ * allocated along with ngtcp2_frame_chain with possibly extra memory
+ * to hold the scattered data.  |pkt| is the type of packet.  If |pkt|
+ * is 0, Short packet is used.  Otherwise it indicates the type of
+ * long packet.  |left| is the number of bytes left to write data.
+ * The sum of CRYPTO stream data and any overhead of CRYPTO stream
+ * must be less than or equal to |left|.
+ *
+ * This function returns the number of CRYPTO stream data consumed by
+ * the created CRYPTO frame, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+static ssize_t conn_create_crypto_frame(ngtcp2_conn *conn,
+                                        ngtcp2_frame_chain **pfrc,
+                                        ngtcp2_pktns *pktns, uint8_t type,
+                                        size_t left) {
+  size_t i;
+  size_t datacnt = 0;
+  ngtcp2_crypto_data *cdata;
+  int rv;
+  ngtcp2_crypto *fr;
+  ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
+  size_t origleft = left;
+  ssize_t nwrite = 0;
+  size_t datalen;
+
+  for (i = 0; left && i < ngtcp2_ringbuf_len(rb) &&
+              datacnt < NGTCP2_MAX_CRYPTO_DATACNT;
+       ++i, ++datacnt) {
+    cdata = ngtcp2_ringbuf_get(rb, i);
+    if (cdata->pkt_type != type) {
+      break;
+    }
+    datalen = ngtcp2_buf_len(&cdata->buf);
+    if (datalen < left) {
+      nwrite += datalen;
+      left -= datalen;
+    } else {
+      nwrite += left;
+      left = 0;
+    }
+  }
+
+  if (nwrite == 0) {
+    return 0;
+  }
+
+  rv = ngtcp2_frame_chain_extralen_new(pfrc, sizeof(ngtcp2_vec) * (datacnt - 1),
+                                       conn->mem);
+  if (rv != 0) {
+    return (ssize_t)rv;
+  }
+
+  fr = &(*pfrc)->fr.crypto;
+
+  fr->type = NGTCP2_FRAME_CRYPTO;
+  fr->ordered_offset = conn->crypto.tx_offset;
+  fr->offset = pktns->crypto_tx_offset;
+  fr->datacnt = datacnt;
+
+  left = origleft;
+
+  for (i = 0; i < datacnt; ++i) {
+    cdata = ngtcp2_ringbuf_get(rb, 0);
+    assert(cdata->pkt_type == type);
+
+    datalen = ngtcp2_buf_len(&cdata->buf);
+    fr->data[i].base = cdata->buf.pos;
+
+    if (datalen <= left) {
+      fr->data[i].len = datalen;
+      left -= datalen;
+
+      ngtcp2_ringbuf_pop_front(rb);
+    } else {
+      fr->data[i].len = left;
+      cdata->buf.pos += left;
+
+      assert(i == datacnt - 1);
+      assert(ngtcp2_buf_len(&cdata->buf));
+    }
+  }
+
+  return nwrite;
+}
+
+/*
  * conn_write_handshake_pkt writes handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.  |type| specifies long
- * packet type.  |tx_buf| contains cryptographic handshake data to
- * send.
+ * packet type.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1038,14 +1127,13 @@ static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
  */
 static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                         size_t destlen, uint8_t type,
-                                        ngtcp2_buf *tx_buf, int require_padding,
-                                        ngtcp2_tstamp ts) {
+                                        int require_padding, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frc = NULL, **pfrc, *frc_head = NULL, *frc_next;
-  ngtcp2_frame *fr, *ackfr, lfr;
-  size_t nwrite;
+  ngtcp2_frame *ackfr, lfr;
+  ssize_t nwrite;
   ssize_t spktlen;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_rtb_entry *rtbent;
@@ -1054,6 +1142,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int pr_encoded = 0;
   ngtcp2_path_challenge_entry *pc;
   ngtcp2_pktns *pktns;
+  size_t left;
+  ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
+
+  if (ngtcp2_ringbuf_len(rb) == 0) {
+    return 0;
+  }
 
   pfrc = &frc_head;
 
@@ -1203,45 +1297,29 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (ngtcp2_ppe_left(&ppe) < NGTCP2_CRYPTO_OVERHEAD) {
-    nwrite = 0;
+    left = 0;
   } else {
-    nwrite = ngtcp2_min(ngtcp2_buf_len(tx_buf),
-                        ngtcp2_ppe_left(&ppe) - NGTCP2_CRYPTO_OVERHEAD);
-  }
+    left = ngtcp2_ppe_left(&ppe) - NGTCP2_CRYPTO_OVERHEAD;
 
-  if (!conn->server && type == NGTCP2_PKT_INITIAL &&
-      nwrite != ngtcp2_buf_len(tx_buf)) {
-    rv = NGTCP2_ERR_NOBUF;
-    goto fail;
-  }
-
-  if (nwrite > 0) {
-    rv = ngtcp2_frame_chain_new(&frc, conn->mem);
-    if (rv != 0) {
+    nwrite = conn_create_crypto_frame(conn, &frc, pktns, type, left);
+    if (nwrite < 0) {
       goto fail;
     }
 
-    *pfrc = frc;
-    pfrc = &frc->next;
+    if (nwrite) {
+      conn->crypto.tx_offset += (size_t)nwrite;
+      pktns->crypto_tx_offset += (size_t)nwrite;
 
-    fr = &frc->fr;
+      *pfrc = frc;
+      pfrc = &frc->next;
 
-    fr->type = NGTCP2_FRAME_CRYPTO;
-    fr->crypto.ordered_offset = conn->crypto.tx_offset;
-    fr->crypto.offset = pktns->crypto_tx_offset;
-    fr->crypto.datalen = nwrite;
-    fr->crypto.data = tx_buf->pos;
+      rv = ngtcp2_ppe_encode_frame(&ppe, &frc->fr);
+      if (rv != 0) {
+        assert(rv == NGTCP2_ERR_NOBUF);
+      }
 
-    rv = ngtcp2_ppe_encode_frame(&ppe, fr);
-    if (rv != 0) {
-      goto fail;
+      ngtcp2_log_tx_fr(&conn->log, &hd, &frc->fr);
     }
-
-    ngtcp2_log_tx_fr(&conn->log, &hd, fr);
-
-    tx_buf->pos += nwrite;
-    conn->crypto.tx_offset += nwrite;
-    pktns->crypto_tx_offset += nwrite;
   }
 
   /* If we cannot write another packet, then we need to add padding to
@@ -1435,7 +1513,6 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
   ngtcp2_crypto_data *cdata;
   int rv;
-  ssize_t nwrite;
 
   rv = conn->callbacks.client_initial(conn, conn->user_data);
   if (rv != 0) {
@@ -1447,21 +1524,12 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   cdata = ngtcp2_ringbuf_get(rb, 0);
-  if (cdata->level != NGTCP2_ENCRYPTION_LEVEL_INITIAL) {
+  if (cdata->pkt_type != NGTCP2_PKT_INITIAL) {
     return NGTCP2_ERR_INTERNAL;
   }
 
-  nwrite = conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
-                                    &cdata->buf, require_padding, ts);
-  if (nwrite < 0) {
-    return nwrite;
-  }
-
-  assert(ngtcp2_buf_len(&cdata->buf) == 0);
-
-  ngtcp2_ringbuf_pop_front(rb);
-
-  return nwrite;
+  return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
+                                  require_padding, ts);
 }
 
 /*
@@ -1483,8 +1551,6 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            ngtcp2_tstamp ts) {
   ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
   ngtcp2_crypto_data *cdata;
-  uint8_t pkt_type;
-  ssize_t nwrite;
 
   if (ngtcp2_ringbuf_len(rb) == 0) {
     return 0;
@@ -1492,34 +1558,19 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   cdata = ngtcp2_ringbuf_get(rb, 0);
 
-  switch (cdata->level) {
-  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
-    pkt_type = NGTCP2_PKT_INITIAL;
+  switch (cdata->pkt_type) {
+  case NGTCP2_PKT_INITIAL:
     break;
-  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
-    pkt_type = NGTCP2_PKT_HANDSHAKE;
-    require_padding = 0;
-    break;
-  case NGTCP2_ENCRYPTION_LEVEL_1RTT:
-    pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
+  case NGTCP2_PKT_HANDSHAKE:
+  case NGTCP2_PKT_0RTT_PROTECTED:
     require_padding = 0;
     break;
   default:
     assert(0);
-    abort();
   }
 
-  nwrite = conn_write_handshake_pkt(conn, dest, destlen, pkt_type, &cdata->buf,
-                                    require_padding, ts);
-  if (nwrite < 0) {
-    return nwrite;
-  }
-
-  if (ngtcp2_buf_len(&cdata->buf) == 0) {
-    ngtcp2_ringbuf_pop_front(rb);
-  }
-
-  return nwrite;
+  return conn_write_handshake_pkt(conn, dest, destlen, cdata->pkt_type,
+                                  require_padding, ts);
 }
 
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
@@ -1543,7 +1594,6 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ngtcp2_tstamp ts) {
   ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
   ngtcp2_crypto_data *cdata;
-  uint8_t pkt_type;
   ssize_t nwrite;
 
   if (ngtcp2_ringbuf_len(rb) == 0) {
@@ -1561,29 +1611,16 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   cdata = ngtcp2_ringbuf_get(rb, 0);
 
-  switch (cdata->level) {
-  case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
-    pkt_type = NGTCP2_PKT_INITIAL;
-    break;
-  case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
-    pkt_type = NGTCP2_PKT_HANDSHAKE;
+  switch (cdata->pkt_type) {
+  case NGTCP2_PKT_INITIAL:
+  case NGTCP2_PKT_HANDSHAKE:
     break;
   default:
     assert(0);
-    abort();
   }
 
-  nwrite = conn_write_handshake_pkt(conn, dest, destlen, pkt_type, &cdata->buf,
-                                    0 /* require_padding */, ts);
-  if (nwrite < 0) {
-    return nwrite;
-  }
-
-  if (ngtcp2_buf_len(&cdata->buf) == 0) {
-    ngtcp2_ringbuf_pop_front(rb);
-  }
-
-  return nwrite;
+  return conn_write_handshake_pkt(conn, dest, destlen, cdata->pkt_type,
+                                  0 /* require_padding */, ts);
 }
 
 /*
@@ -1642,6 +1679,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   int send_stream = 0;
   int ack_only;
   ngtcp2_pktns *pktns = &conn->pktns;
+  size_t left;
 
   if (data_strm) {
     ndatalen =
@@ -1828,91 +1866,72 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
   }
 
-  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL && send_stream) {
-    size_t left = ngtcp2_ppe_left(&ppe);
+  left = ngtcp2_ppe_left(&ppe);
 
-    if (left > NGTCP2_STREAM_OVERHEAD) {
-      left -= NGTCP2_STREAM_OVERHEAD;
+  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL && send_stream &&
+      left > NGTCP2_STREAM_OVERHEAD) {
+    left -= NGTCP2_STREAM_OVERHEAD;
 
-      ndatalen = ngtcp2_min(ndatalen, left);
+    ndatalen = ngtcp2_min(ndatalen, left);
 
-      fin = fin && ndatalen == datalen;
+    fin = fin && ndatalen == datalen;
 
-      rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
-      if (rv != 0) {
-        return rv;
-      }
-
-      nfrc->fr.type = NGTCP2_FRAME_STREAM;
-      nfrc->fr.stream.flags = 0;
-      nfrc->fr.stream.fin = fin;
-      nfrc->fr.stream.stream_id = data_strm->stream_id;
-      nfrc->fr.stream.offset = data_strm->tx_offset;
-      nfrc->fr.stream.datalen = ndatalen;
-      nfrc->fr.stream.data = data;
-
-      rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
-      if (rv != 0) {
-        assert(NGTCP2_ERR_NOBUF == rv);
-        ngtcp2_frame_chain_del(nfrc, conn->mem);
-        send_stream = 0;
-      } else {
-        *pfrc = nfrc;
-        pfrc = &(*pfrc)->next;
-
-        pkt_empty = 0;
-      }
-    } else {
-      send_stream = 0;
+    rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+    if (rv != 0) {
+      return rv;
     }
+
+    nfrc->fr.type = NGTCP2_FRAME_STREAM;
+    nfrc->fr.stream.flags = 0;
+    nfrc->fr.stream.fin = fin;
+    nfrc->fr.stream.stream_id = data_strm->stream_id;
+    nfrc->fr.stream.offset = data_strm->tx_offset;
+    nfrc->fr.stream.datalen = ndatalen;
+    nfrc->fr.stream.data = data;
+
+    rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
+    if (rv != 0) {
+      assert(NGTCP2_ERR_NOBUF == rv);
+      ngtcp2_frame_chain_del(nfrc, conn->mem);
+      send_stream = 0;
+    } else {
+      *pfrc = nfrc;
+      pfrc = &(*pfrc)->next;
+
+      pkt_empty = 0;
+    }
+  } else {
+    send_stream = 0;
   }
 
-  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL) {
-    for (; ngtcp2_ringbuf_len(&conn->tx_crypto_data);) {
-      ngtcp2_crypto_data *cdata;
-      size_t left = ngtcp2_ppe_left(&ppe);
-      size_t n;
+  left = ngtcp2_ppe_left(&ppe);
 
-      if (left < NGTCP2_CRYPTO_OVERHEAD) {
-        break;
-      }
+  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
+      left > NGTCP2_CRYPTO_OVERHEAD) {
+    left -= NGTCP2_CRYPTO_OVERHEAD;
 
-      left -= NGTCP2_CRYPTO_OVERHEAD;
+    nwrite = conn_create_crypto_frame(conn, &nfrc, pktns, 0 /* Short packet */
+                                      ,
+                                      left);
+    if (nwrite < 0) {
+      return nwrite;
+    }
 
-      cdata = ngtcp2_ringbuf_get(&conn->tx_crypto_data, 0);
-      assert(cdata->level == NGTCP2_ENCRYPTION_LEVEL_1RTT);
-
-      n = ngtcp2_min(left, ngtcp2_buf_len(&cdata->buf));
-
-      rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
-      if (rv != 0) {
-        return rv;
-      }
-
-      nfrc->fr.type = NGTCP2_FRAME_CRYPTO;
-      nfrc->fr.crypto.ordered_offset = conn->crypto.tx_offset;
-      nfrc->fr.crypto.offset = pktns->crypto_tx_offset;
-      nfrc->fr.crypto.datalen = n;
-      nfrc->fr.crypto.data = cdata->buf.pos;
-
-      rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
-      if (rv != 0) {
-        assert(NGTCP2_ERR_NOBUF == rv);
-        break;
-      }
+    if (nwrite) {
+      conn->crypto.tx_offset += (size_t)nwrite;
+      pktns->crypto_tx_offset += (size_t)nwrite;
 
       *pfrc = nfrc;
       pfrc = &(*pfrc)->next;
 
-      conn->crypto.tx_offset += n;
-      pktns->crypto_tx_offset += n;
-
-      if (ngtcp2_buf_len(&cdata->buf) > n) {
-        cdata->buf.pos += n;
-        break;
+      rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
+      if (rv != 0) {
+        assert(rv == NGTCP2_ERR_NOBUF);
       }
 
-      ngtcp2_ringbuf_pop_front(&conn->tx_crypto_data);
+      pkt_empty = 0;
+
+      ngtcp2_log_tx_fr(&conn->log, &hd, &nfrc->fr);
     }
   }
 
@@ -3273,8 +3292,15 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_PROTO;
     }
 
-    fr_end_offset =
-        pktns->crypto_rx_offset_base + fr->crypto.offset + fr->crypto.datalen;
+    if (fr->crypto.datacnt == 0) {
+      continue;
+    }
+
+    assert(fr->crypto.datacnt == 1);
+    assert(fr->crypto.data[0].len > 0);
+
+    fr_end_offset = pktns->crypto_rx_offset_base + fr->crypto.offset +
+                    fr->crypto.data[0].len;
     rx_offset = ngtcp2_strm_rx_offset(crypto);
     if (rx_offset >= fr_end_offset) {
       continue;
@@ -3290,15 +3316,11 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     crypto->last_rx_offset = ngtcp2_max(crypto->last_rx_offset, fr_end_offset);
 
-    if (fr->crypto.datalen == 0) {
-      continue;
-    }
-
     if (pktns->crypto_rx_offset_base + fr->crypto.offset <= rx_offset) {
       size_t ncut =
           rx_offset - fr->crypto.offset - pktns->crypto_rx_offset_base;
-      const uint8_t *data = fr->crypto.data + ncut;
-      size_t datalen = fr->crypto.datalen - ncut;
+      const uint8_t *data = fr->crypto.data[0].base + ncut;
+      size_t datalen = fr->crypto.data[0].len - ncut;
       uint64_t offset = rx_offset;
 
       rx_offset += datalen;
@@ -3326,7 +3348,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
     } else if (!handshake_failed) {
       rv = ngtcp2_strm_recv_reordering(
-          crypto, fr->crypto.data, fr->crypto.datalen,
+          crypto, fr->crypto.data[0].base, fr->crypto.data[0].len,
           pktns->crypto_rx_offset_base + fr->crypto.offset);
       if (rv != 0) {
         return rv;
@@ -3465,9 +3487,15 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
 static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
                             const ngtcp2_crypto *fr) {
   ngtcp2_strm *crypto = &conn->crypto;
-  uint64_t fr_end_offset = rx_offset_base + fr->offset + fr->datalen;
+  uint64_t fr_end_offset;
   uint64_t rx_offset;
   int rv;
+
+  if (fr->datacnt == 0) {
+    return 0;
+  }
+
+  fr_end_offset = rx_offset_base + fr->offset + fr->data[0].len;
 
   if (crypto->max_rx_offset && crypto->max_rx_offset < fr_end_offset) {
     return NGTCP2_ERR_INTERNAL;
@@ -3488,8 +3516,8 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
      previous encryption level. */
   if (rx_offset_base + fr->offset <= rx_offset) {
     size_t ncut = rx_offset - fr->offset - rx_offset_base;
-    const uint8_t *data = fr->data + ncut;
-    size_t datalen = fr->datalen - ncut;
+    const uint8_t *data = fr->data[0].base + ncut;
+    size_t datalen = fr->data[0].len - ncut;
     uint64_t offset = rx_offset;
 
     rx_offset += datalen;
@@ -3508,7 +3536,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
       return rv;
     }
   } else {
-    rv = ngtcp2_strm_recv_reordering(crypto, fr->data, fr->datalen,
+    rv = ngtcp2_strm_recv_reordering(crypto, fr->data[0].base, fr->data[0].len,
                                      rx_offset_base + fr->offset);
     if (rv != 0) {
       return rv;
@@ -5776,7 +5804,8 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
   ngtcp2_pktns *pktns = &conn->pktns;
 
-  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb)) {
+  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb) ||
+      pktns->rtb.nearly_pkt) {
     if (rcs->smoothed_rtt < 1e-09) {
       alarm_duration = 2 * NGTCP2_DEFAULT_INITIAL_RTT;
     } else {
@@ -5866,10 +5895,6 @@ int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       return rv;
     }
     ++rcs->handshake_count;
-  } else if (!ngtcp2_conn_get_handshake_completed(conn)) {
-    assert(0);
-    /* No TLP or RTO in handshake period.  Handshake packets are
-       retransmitted in the above block. */
   } else if (rcs->loss_time) {
     rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, rcs,
                                     (uint64_t)conn->largest_ack,
@@ -5899,7 +5924,7 @@ int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
 int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
                                    const size_t datalen) {
-  int level;
+  uint8_t pkt_type;
   ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
   ngtcp2_crypto_data *cdata;
   size_t len;
@@ -5914,20 +5939,20 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
   assert(!ngtcp2_ringbuf_full(rb));
 
   if (pktns->tx_ckm) {
-    level = NGTCP2_ENCRYPTION_LEVEL_1RTT;
+    pkt_type = 0; /* Short packet */
   } else if (hs_pktns->tx_ckm) {
-    level = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE;
+    pkt_type = NGTCP2_PKT_HANDSHAKE;
   } else if (!conn->server && conn->early_ckm) {
-    level = NGTCP2_ENCRYPTION_LEVEL_1RTT;
+    pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
   } else {
     assert(in_pktns->tx_ckm);
-    level = NGTCP2_ENCRYPTION_LEVEL_INITIAL;
+    pkt_type = NGTCP2_PKT_INITIAL;
   }
 
   len = ngtcp2_ringbuf_len(rb);
   if (len) {
     cdata = ngtcp2_ringbuf_get(rb, len - 1);
-    if (cdata->level == level && cdata->buf.last == data) {
+    if (cdata->pkt_type == pkt_type && cdata->buf.last == data) {
       cdata->buf.last += datalen;
       return 0;
     }
@@ -5936,7 +5961,7 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
   cdata = ngtcp2_ringbuf_push_back(rb);
   ngtcp2_buf_init(&cdata->buf, (uint8_t *)data, datalen);
   cdata->buf.last += datalen;
-  cdata->level = level;
+  cdata->pkt_type = pkt_type;
 
   return 0;
 }

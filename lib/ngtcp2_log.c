@@ -389,10 +389,17 @@ static void log_fr_path_response(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr_crypto(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                           const ngtcp2_crypto *fr, const char *dir) {
+  size_t datalen = 0;
+  size_t i;
+
+  for (i = 0; i < fr->datacnt; ++i) {
+    datalen += fr->data[i].len;
+  }
+
   log->log_printf(
       log->user_data,
       (NGTCP2_LOG_PKT " CRYPTO(0x%02x) offset=%" PRIu64 " len=%" PRIu64 "\n"),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->offset, fr->datalen);
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->offset, datalen);
 }
 
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
