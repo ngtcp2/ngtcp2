@@ -4540,7 +4540,6 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ssize_t res = 0, nwrite;
   uint64_t cwnd;
   size_t origlen = destlen;
-  ngtcp2_pktns *in_pktns = &conn->in_pktns;
   ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
 
   conn->log.last_ts = ts;
@@ -4702,7 +4701,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         return conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
       }
 
-      nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen, in_pktns, ts);
+      nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
       if (nwrite < 0) {
         if (nwrite != NGTCP2_ERR_NOBUF) {
           return nwrite;
@@ -4713,7 +4712,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         destlen -= (size_t)nwrite;
       }
 
-      nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
+      nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
       if (nwrite < 0) {
         if (nwrite != NGTCP2_ERR_NOBUF) {
           return nwrite;
