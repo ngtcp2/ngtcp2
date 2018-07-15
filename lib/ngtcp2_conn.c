@@ -2638,37 +2638,6 @@ static int conn_buffer_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 }
 
 /*
- * conn_recv_server_stateless_retry resets connection state.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User callback failed.
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static int conn_recv_server_stateless_retry(ngtcp2_conn *conn) {
-  int rv;
-
-  conn->flags |= NGTCP2_CONN_FLAG_STATELESS_RETRY;
-
-  if (conn->callbacks.recv_server_stateless_retry) {
-    rv = conn->callbacks.recv_server_stateless_retry(conn, conn->user_data);
-    if (rv != 0) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-  }
-
-  /* TODO Implement Retry */
-
-  conn->flags &= (uint8_t)~NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-  conn->state = NGTCP2_CS_CLIENT_INITIAL;
-
-  return 0;
-}
-
-/*
  * conn_ensure_decrypt_buffer ensures that conn->decrypt_buf has at
  * least |n| bytes space.
  *
@@ -2905,61 +2874,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                              size_t pktlen, ngtcp2_tstamp ts);
 
 /*
- * conn_ensure_retry_ack_initial checks that |payload| of length
- * |payloadlen| contains an ACK frame which acknowledges Initial
- * packet.
- *
- * This function returns 0 if it succeeds, or 1 if there is no error
- * but Initial packet is not acked, otherwise the following negative
- * error codes:
- *
- * TBD
- */
-static int conn_ensure_retry_ack_initial(ngtcp2_conn *conn,
-                                         const ngtcp2_pkt_hd *hd,
-                                         const uint8_t *payload,
-                                         size_t payloadlen, ngtcp2_tstamp ts) {
-  ssize_t nread;
-  ngtcp2_max_frame mfr;
-  ngtcp2_frame *fr = &mfr.fr;
-  int rv;
-  ngtcp2_pktns *pktns = &conn->in_pktns;
-
-  for (; payloadlen;) {
-    nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
-    if (nread < 0) {
-      return (int)nread;
-    }
-
-    payload += nread;
-    payloadlen -= (size_t)nread;
-
-    if (fr->type != NGTCP2_FRAME_ACK) {
-      continue;
-    }
-
-    assign_recved_ack_delay_unscaled(&fr->ack,
-                                     NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
-
-    ngtcp2_log_rx_fr(&conn->log, hd, fr);
-
-    rv = conn_recv_ack(conn, pktns, hd, &fr->ack, ts);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-  /* Check that Initial packet is acknowledged.  We will increase
-     handshake packet timeout, so we eventually gets ACK from
-     peer. */
-  if (ngtcp2_gaptr_first_gap_offset(&conn->crypto.acked_tx_offset) !=
-      conn->crypto.tx_offset) {
-    return 1;
-  }
-
-  return 0;
-}
-
-/*
  * pkt_num_bits returns the number of bits available when packet
  * number is encoded in |pkt_numlen| bytes.
  */
@@ -3117,9 +3031,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return rv;
     }
     return (ssize_t)pktlen;
-  case NGTCP2_PKT_RETRY:
-    /* TODO Ignore Retry packet for now.  It is broken in draft-13. */
-    return (ssize_t)pktlen;
   case NGTCP2_PKT_INITIAL:
     if (conn->server) {
       if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
@@ -3158,6 +3069,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     break;
   default:
     /* unknown packet type */
+    /* TODO Retry */
     return (ssize_t)pktlen;
   }
 
@@ -3222,26 +3134,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return (ssize_t)pktlen;
       }
       break;
-    case NGTCP2_PKT_RETRY:
-      /* Receiving Retry packet after getting Handshake packet from
-         server is invalid. */
-      if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-        return (ssize_t)pktlen;
-      }
-      /* DCID in Retry packet might be 0 length. */
-      if (hd.scid.datalen && !ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
-        return (ssize_t)pktlen;
-      }
-      /* If we retransmit Initial we might get more than 1 Retry
-         packets.  Just ignore those late Retry packets. */
-      /* TODO Probably this is definitely not right. */
-      if (conn->crypto.last_rx_offset != 0) {
-        return (ssize_t)pktlen;
-      }
-      /* hd.scid is a connection ID chosen by server, and client MUST
-         use it as DCID in a subsequent packets. */
-      conn->dcid = hd.scid;
-      break;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -3262,25 +3154,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   payload = conn->decrypt_buf.base;
   payloadlen = (size_t)nwrite;
 
-  if (hd.type == NGTCP2_PKT_RETRY) {
-    /* Make sure that Retry packet acknowledges our Initial packet */
-    rv = conn_ensure_retry_ack_initial(conn, &hd, payload, payloadlen, ts);
-    if (rv != 0) {
-      if (rv < 0) {
-        return (ssize_t)rv;
-      }
-
-      assert(1 == rv);
-
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                      "packet %" PRIu64
-                      " does not acknowledge latest Initial packet",
-                      hd.pkt_num);
-
-      return (ssize_t)pktlen;
-    }
-  }
-
   for (; payloadlen;) {
     nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
     if (nread < 0) {
@@ -3291,9 +3164,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     payloadlen -= (size_t)nread;
 
     if (fr->type == NGTCP2_FRAME_ACK) {
-      if (hd.type == NGTCP2_PKT_RETRY) {
-        continue;
-      }
       assign_recved_ack_delay_unscaled(&fr->ack,
                                        NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     }
@@ -3400,19 +3270,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
-
-  if (hd.type == NGTCP2_PKT_RETRY) {
-    if (handshake_failed) {
-      return NGTCP2_ERR_PROTO;
-    }
-
-    rv = conn_recv_server_stateless_retry(conn);
-    if (rv != 0) {
-      return rv;
-    }
-
-    return (ssize_t)pktlen;
-  }
 
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack, ts);
   if (rv != 0) {
