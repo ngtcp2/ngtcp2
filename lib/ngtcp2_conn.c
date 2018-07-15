@@ -149,18 +149,6 @@ static int conn_call_extend_max_stream_id(ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_call_rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                          ngtcp2_rand_ctx ctx) {
-  int rv;
-
-  rv = conn->callbacks.rand(conn, dest, destlen, ctx, conn->user_data);
-  if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
-}
-
 static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_cc_stat *ccs,
                       ngtcp2_log *log, ngtcp2_mem *mem) {
   int rv;
@@ -1224,32 +1212,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (type != NGTCP2_PKT_INITIAL && type != NGTCP2_PKT_0RTT_PROTECTED) {
-    if (conn->server) {
-      if (!(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED)) {
-        lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
-
-        rv = conn_call_rand(conn, lfr.path_challenge.data,
-                            sizeof(lfr.path_challenge.data),
-                            NGTCP2_RAND_CTX_PATH_CHALLENGE);
-        if (rv != 0) {
-          return rv;
-        }
-
-        rv = ngtcp2_ppe_encode_frame(&ppe, &lfr);
-        if (rv != 0) {
-          if (rv != NGTCP2_ERR_NOBUF) {
-            return rv;
-          }
-        } else {
-          pr_encoded = 1;
-
-          ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
-
-          pc = ngtcp2_ringbuf_push_front(&conn->tx_path_challenge);
-          ngtcp2_cpymem(pc->data, lfr.path_challenge.data, sizeof(pc->data));
-        }
-      }
-    } else {
+    if (!conn->server) {
       pclen = ngtcp2_ringbuf_len(&conn->rx_path_challenge);
       while (ngtcp2_ringbuf_len(&conn->rx_path_challenge)) {
         pc = ngtcp2_ringbuf_get(&conn->rx_path_challenge, 0);

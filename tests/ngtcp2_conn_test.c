@@ -1897,7 +1897,6 @@ void test_ngtcp2_conn_handshake(void) {
 
   rcid_init(&rcid);
 
-  /* server recognize PATH_RESPONSE from client. */
   setup_handshake_server(&conn);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
@@ -1913,20 +1912,8 @@ void test_ngtcp2_conn_handshake(void) {
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->tx_path_challenge));
-
-  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memset(fr.path_response.data, 0, sizeof(fr.path_response));
-
-  pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
-      ++pkt_num, conn->version, &fr);
-
-  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
-
-  CU_ASSERT(spktlen > 0);
+  /* No path challenge at the moment. */
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->tx_path_challenge));
-  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED);
 
   ngtcp2_conn_del(conn);
 }
