@@ -60,6 +60,9 @@
    the beginning of the payload. */
 #define NGTCP2_CRYPTO_OVERHEAD (1 + 8 + 8)
 
+/* NGTCP2_MIN_FRAME_PAYLOADLEN is the minimum frame payload length. */
+#define NGTCP2_MIN_FRAME_PAYLOADLEN 16
+
 /* NGTCP2_MAX_VARINT is the maximum value which can be encoded in
    variable-length integer encoding */
 #define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)

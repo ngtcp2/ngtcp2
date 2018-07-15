@@ -1274,7 +1274,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       pr_encoded = (pclen != ngtcp2_ringbuf_len(&conn->rx_path_challenge));
     }
 
-    if (ngtcp2_ppe_left(&ppe) < NGTCP2_CRYPTO_OVERHEAD + 1) {
+    if (ngtcp2_ppe_left(&ppe) <
+        NGTCP2_CRYPTO_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
       spktlen = ngtcp2_ppe_final(&ppe, NULL);
       if (spktlen < 0) {
         return (int)spktlen;
@@ -1296,7 +1297,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  if (ngtcp2_ppe_left(&ppe) < NGTCP2_CRYPTO_OVERHEAD) {
+  if (ngtcp2_ppe_left(&ppe) <
+      NGTCP2_CRYPTO_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
     left = 0;
   } else {
     left = ngtcp2_ppe_left(&ppe) - NGTCP2_CRYPTO_OVERHEAD;
@@ -1900,7 +1902,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   left = ngtcp2_ppe_left(&ppe);
 
   if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL && send_stream &&
-      left > NGTCP2_STREAM_OVERHEAD) {
+      left >= NGTCP2_STREAM_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
     left -= NGTCP2_STREAM_OVERHEAD;
 
     ndatalen = ngtcp2_min(ndatalen, left);
@@ -1938,7 +1940,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   left = ngtcp2_ppe_left(&ppe);
 
   if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
-      left > NGTCP2_CRYPTO_OVERHEAD) {
+      left >= NGTCP2_CRYPTO_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
     left -= NGTCP2_CRYPTO_OVERHEAD;
 
     nwrite = conn_create_crypto_frame(conn, &nfrc, pktns, 0 /* Short packet */
@@ -4690,7 +4692,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   left = ngtcp2_ppe_left(&ppe);
-  if (left <= NGTCP2_STREAM_OVERHEAD) {
+  if (left < NGTCP2_STREAM_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
     return NGTCP2_ERR_NOBUF;
   }
 
