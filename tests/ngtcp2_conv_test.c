@@ -173,9 +173,9 @@ void test_ngtcp2_nth_server_uni_id(void) {
 
 void test_ngtcp2_nth_client_bidi_id(void) {
   CU_ASSERT(0 == ngtcp2_nth_client_bidi_id(0));
-  CU_ASSERT(4 == ngtcp2_nth_client_bidi_id(1));
-  CU_ASSERT(8 == ngtcp2_nth_client_bidi_id(2));
-  CU_ASSERT(12 == ngtcp2_nth_client_bidi_id(3));
+  CU_ASSERT(0 == ngtcp2_nth_client_bidi_id(1));
+  CU_ASSERT(4 == ngtcp2_nth_client_bidi_id(2));
+  CU_ASSERT(8 == ngtcp2_nth_client_bidi_id(3));
 }
 
 void test_ngtcp2_nth_client_uni_id(void) {

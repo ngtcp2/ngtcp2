@@ -56,7 +56,7 @@
  * handshake and post handshake packets, we have to use AEAD overhead
  * used in handshake packets.
  */
-#define NGTCP2_FAKE_AEAD_OVERHEAD NGTCP2_HANDSHAKE_AEAD_OVERHEAD
+#define NGTCP2_FAKE_AEAD_OVERHEAD NGTCP2_INITIAL_AEAD_OVERHEAD
 
 /*
  * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with

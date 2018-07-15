@@ -4670,7 +4670,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     if (rv < 0) {
       /* TODO Draft says nothing about how to notify the peer that TLS
          stack failed before getting handshake key */
-      return NGTCP2_ERR_PROTO;
+      return rv;
     }
 
     if (ngtcp2_rob_first_gap_offset(&conn->crypto.rob) == 0) {

@@ -129,7 +129,7 @@ size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
   ctx.encrypt_pn = null_encrypt_pn;
-  ctx.ckm = conn->rx_ckm;
+  ctx.ckm = conn->pktns.rx_ckm;
   ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
@@ -158,7 +158,7 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
   ctx.encrypt_pn = null_encrypt_pn;
-  ctx.ckm = conn->rx_ckm;
+  ctx.ckm = conn->pktns.rx_ckm;
   ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
@@ -190,8 +190,22 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
   ctx.encrypt_pn = null_encrypt_pn;
-  ctx.ckm = conn->hs_rx_ckm;
-  ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
+  switch (pkt_type) {
+  case NGTCP2_PKT_INITIAL:
+    ctx.ckm = conn->in_pktns.rx_ckm;
+    ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+    break;
+  case NGTCP2_PKT_HANDSHAKE:
+    ctx.ckm = conn->hs_pktns.rx_ckm;
+    ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+    break;
+  case NGTCP2_PKT_0RTT_PROTECTED:
+    ctx.ckm = conn->early_ckm;
+    ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+    break;
+  default:
+    assert(0);
+  }
   ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid,
@@ -222,8 +236,22 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   memset(&ctx, 0, sizeof(ctx));
   ctx.encrypt = null_encrypt;
   ctx.encrypt_pn = null_encrypt_pn;
-  ctx.ckm = conn->hs_rx_ckm;
-  ctx.aead_overhead = NGTCP2_HANDSHAKE_AEAD_OVERHEAD;
+  switch (pkt_type) {
+  case NGTCP2_PKT_INITIAL:
+    ctx.ckm = conn->in_pktns.rx_ckm;
+    ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+    break;
+  case NGTCP2_PKT_HANDSHAKE:
+    ctx.ckm = conn->hs_pktns.rx_ckm;
+    ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+    break;
+  case NGTCP2_PKT_0RTT_PROTECTED:
+    ctx.ckm = conn->early_ckm;
+    ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+    break;
+  default:
+    assert(0);
+  }
   ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid,

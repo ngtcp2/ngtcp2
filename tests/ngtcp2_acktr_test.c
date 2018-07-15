@@ -40,15 +40,15 @@ void test_ngtcp2_acktr_add(void) {
   ngtcp2_log log;
 
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_acktr_init(&acktr, &log, mem);
+  ngtcp2_acktr_init(&acktr, 0 /* delayed_ack */, &log, mem);
 
-  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, 0, mem);
-  ngtcp2_acktr_entry_new(&ents[1], 5, 1001, 0, mem);
-  ngtcp2_acktr_entry_new(&ents[2], 7, 1002, 0, mem);
-  ngtcp2_acktr_entry_new(&ents[3], 4, 1003, 0, mem);
-  ngtcp2_acktr_entry_new(&ents[4], 6, 1004, 0, mem);
-  ngtcp2_acktr_entry_new(&ents[5], 2, 1005, 0, mem);
-  ngtcp2_acktr_entry_new(&ents[6], 3, 1006, 0, mem);
+  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, mem);
+  ngtcp2_acktr_entry_new(&ents[1], 5, 1001, mem);
+  ngtcp2_acktr_entry_new(&ents[2], 7, 1002, mem);
+  ngtcp2_acktr_entry_new(&ents[3], 4, 1003, mem);
+  ngtcp2_acktr_entry_new(&ents[4], 6, 1004, mem);
+  ngtcp2_acktr_entry_new(&ents[5], 2, 1005, mem);
+  ngtcp2_acktr_entry_new(&ents[6], 3, 1006, mem);
 
   for (i = 0; i < arraylen(ents); ++i) {
     rv = ngtcp2_acktr_add(&acktr, ents[i], 1, 999);
@@ -75,8 +75,8 @@ void test_ngtcp2_acktr_add(void) {
   ngtcp2_acktr_free(&acktr);
 
   /* Check duplicates */
-  ngtcp2_acktr_init(&acktr, &log, mem);
-  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, 0, mem);
+  ngtcp2_acktr_init(&acktr, 0 /* delayed_ack */, &log, mem);
+  ngtcp2_acktr_entry_new(&ents[0], 1, 1000, mem);
 
   rv = ngtcp2_acktr_add(&acktr, ents[0], 1, 999);
 
@@ -98,10 +98,10 @@ void test_ngtcp2_acktr_eviction(void) {
   ngtcp2_log log;
 
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_acktr_init(&acktr, &log, mem);
+  ngtcp2_acktr_init(&acktr, 0 /* delayed_ack */, &log, mem);
 
   for (i = 0; i < NGTCP2_ACKTR_MAX_ENT + extra; ++i) {
-    ngtcp2_acktr_entry_new(&ent, i, 0, 0, mem);
+    ngtcp2_acktr_entry_new(&ent, i, 0, mem);
     ngtcp2_acktr_add(&acktr, ent, 1, 999 + i);
   }
 
@@ -123,10 +123,10 @@ void test_ngtcp2_acktr_eviction(void) {
   ngtcp2_acktr_free(&acktr);
 
   /* Invert insertion order */
-  ngtcp2_acktr_init(&acktr, &log, mem);
+  ngtcp2_acktr_init(&acktr, 0 /* delayed_ack */, &log, mem);
 
   for (i = NGTCP2_ACKTR_MAX_ENT + extra; i > 0; --i) {
-    ngtcp2_acktr_entry_new(&ent, i - 1, 0, 0, mem);
+    ngtcp2_acktr_entry_new(&ent, i - 1, 0, mem);
     ngtcp2_acktr_add(&acktr, ent, 1, 999 + i);
   }
 
@@ -156,10 +156,10 @@ void test_ngtcp2_acktr_forget(void) {
   ngtcp2_log log;
 
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_acktr_init(&acktr, &log, mem);
+  ngtcp2_acktr_init(&acktr, 0 /* delayed_ack */, &log, mem);
 
   for (i = 0; i < 7; ++i) {
-    ngtcp2_acktr_entry_new(&ent, i, 0, 0, mem);
+    ngtcp2_acktr_entry_new(&ent, i, 0, mem);
     ngtcp2_acktr_add(&acktr, ent, 1, 999 + i);
   }
 
@@ -194,10 +194,10 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_log log;
 
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_acktr_init(&acktr, &log, mem);
+  ngtcp2_acktr_init(&acktr, 0 /* delayed_ack */, &log, mem);
 
   for (i = 0; i < arraylen(rpkt_nums); ++i) {
-    ngtcp2_acktr_entry_new(&ent, rpkt_nums[i], 1, 0, mem);
+    ngtcp2_acktr_entry_new(&ent, rpkt_nums[i], 1, mem);
     ngtcp2_acktr_add(&acktr, ent, 1, 999 + i);
   }
 
@@ -216,7 +216,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
     blks[2].gap = 3;    /* 4486, 4485, 4484, (4483) */
     blks[2].blklen = 1; /* 4482, 4481 */
 
-    ngtcp2_acktr_add_ack(&acktr, pkt_num, fr, 1000000009, 0, 0 /* ack_only */);
+    ngtcp2_acktr_add_ack(&acktr, pkt_num, fr, 1000000009, 0 /* ack_only */);
   }
 
   ackfr.type = NGTCP2_FRAME_ACK;
@@ -225,7 +225,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ackfr.first_ack_blklen = 0;
   ackfr.num_blks = 0;
 
-  ngtcp2_acktr_recv_ack(&acktr, &ackfr, 0, NULL, 1000000009);
+  ngtcp2_acktr_recv_ack(&acktr, &ackfr, NULL, 1000000009);
 
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&acktr.acks));
   CU_ASSERT(5 == acktr.nack);

@@ -131,25 +131,22 @@ typedef struct {
   } stream_data;
 } my_user_data;
 
-static ssize_t send_client_initial(ngtcp2_conn *conn, uint32_t flags,
-                                   const uint8_t **pdest, int initial,
-                                   void *user_data) {
-  (void)conn;
-  (void)flags;
-  (void)initial;
+static int client_initial(ngtcp2_conn *conn, void *user_data) {
   (void)user_data;
-  *pdest = null_data;
 
-  return 217;
+  ngtcp2_conn_submit_crypto_data(conn, null_data, 217);
+
+  return 0;
 }
 
-static ssize_t send_client_handshake_zero(ngtcp2_conn *conn, uint32_t flags,
-                                          const uint8_t **pdest,
-                                          void *user_data) {
-  (void)conn;
-  (void)flags;
-  (void)pdest;
+static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
   (void)user_data;
+
+  ngtcp2_conn_submit_crypto_data(conn, null_data, 217);
+
+  ngtcp2_conn_update_early_keys(conn, null_key, sizeof(null_key), null_iv,
+                                sizeof(null_iv), null_pn, sizeof(null_pn));
+
   return 0;
 }
 
@@ -161,32 +158,9 @@ static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
   return 0;
 }
 
-static ssize_t send_server_handshake(ngtcp2_conn *conn, uint32_t flags,
-                                     const uint8_t **pdest, int initial,
-                                     void *user_data) {
-  (void)conn;
-  (void)flags;
-  (void)initial;
-  (void)user_data;
-  *pdest = null_data;
-
-  return 218;
-}
-
-static ssize_t send_server_handshake_zero(ngtcp2_conn *conn, uint32_t flags,
-                                          const uint8_t **pdest, int initial,
-                                          void *user_data) {
-  (void)conn;
-  (void)flags;
-  (void)pdest;
-  (void)initial;
-  (void)user_data;
-  return 0;
-}
-
-static int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset,
-                             const uint8_t *data, size_t datalen,
-                             void *user_data) {
+static int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset,
+                            const uint8_t *data, size_t datalen,
+                            void *user_data) {
   (void)conn;
   (void)offset;
   (void)data;
@@ -195,9 +169,32 @@ static int recv_stream0_data(ngtcp2_conn *conn, uint64_t offset,
   return 0;
 }
 
-static int recv_stream0_handshake_error(ngtcp2_conn *conn, uint64_t offset,
-                                        const uint8_t *data, size_t datalen,
-                                        void *user_data) {
+static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
+                                              uint64_t offset,
+                                              const uint8_t *data,
+                                              size_t datalen, void *user_data) {
+  (void)offset;
+  (void)data;
+  (void)datalen;
+  (void)user_data;
+
+  assert(conn->server);
+
+  ngtcp2_conn_submit_crypto_data(conn, null_data, 179);
+
+  ngtcp2_conn_update_tx_keys(conn, null_key, sizeof(null_key), null_iv,
+                             sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_update_rx_keys(conn, null_key, sizeof(null_key), null_iv,
+                             sizeof(null_iv), null_pn, sizeof(null_pn));
+
+  conn->callbacks.recv_crypto_data = recv_crypto_data;
+
+  return 0;
+}
+
+static int recv_crypto_handshake_error(ngtcp2_conn *conn, uint64_t offset,
+                                       const uint8_t *data, size_t datalen,
+                                       void *user_data) {
   (void)conn;
   (void)offset;
   (void)data;
@@ -206,16 +203,28 @@ static int recv_stream0_handshake_error(ngtcp2_conn *conn, uint64_t offset,
   return NGTCP2_ERR_TLS_HANDSHAKE;
 }
 
-static int recv_stream0_fatal_alert_generated(ngtcp2_conn *conn,
-                                              uint64_t offset,
-                                              const uint8_t *data,
-                                              size_t datalen, void *user_data) {
+static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn, uint64_t offset,
+                                             const uint8_t *data,
+                                             size_t datalen, void *user_data) {
   (void)conn;
   (void)offset;
   (void)data;
   (void)datalen;
   (void)user_data;
   return NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED;
+}
+
+static int recv_crypto_data_server(ngtcp2_conn *conn, uint64_t offset,
+                                   const uint8_t *data, size_t datalen,
+                                   void *user_data) {
+  (void)offset;
+  (void)data;
+  (void)datalen;
+  (void)user_data;
+
+  ngtcp2_conn_submit_crypto_data(conn, null_data, 218);
+
+  return 0;
 }
 
 static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
@@ -286,13 +295,13 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   scid_init(&scid);
 
   memset(&cb, 0, sizeof(cb));
-  cb.hs_decrypt = null_decrypt;
-  cb.hs_encrypt = null_encrypt;
-  cb.hs_encrypt_pn = null_encrypt_pn;
+  cb.in_decrypt = null_decrypt;
+  cb.in_encrypt = null_encrypt;
+  cb.in_encrypt_pn = null_encrypt_pn;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.encrypt_pn = null_encrypt_pn;
-  cb.recv_stream0_data = recv_stream0_data;
+  cb.recv_crypto_data = recv_crypto_data;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, NGTCP2_PROTO_VER_MAX, &cb,
@@ -327,13 +336,13 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   scid_init(&scid);
 
   memset(&cb, 0, sizeof(cb));
-  cb.hs_decrypt = null_decrypt;
-  cb.hs_encrypt = null_encrypt;
-  cb.hs_encrypt_pn = null_encrypt_pn;
+  cb.in_decrypt = null_decrypt;
+  cb.in_encrypt = null_encrypt;
+  cb.in_encrypt_pn = null_encrypt_pn;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.encrypt_pn = null_encrypt_pn;
-  cb.recv_stream0_data = recv_stream0_data;
+  cb.recv_crypto_data = recv_crypto_data;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, NGTCP2_PROTO_VER_MAX, &cb,
@@ -369,20 +378,27 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
 
   memset(&cb, 0, sizeof(cb));
   cb.recv_client_initial = recv_client_initial;
-  cb.send_server_handshake = send_server_handshake;
-  cb.recv_stream0_data = recv_stream0_data;
-  cb.hs_decrypt = null_decrypt;
-  cb.hs_encrypt = null_encrypt;
-  cb.hs_encrypt_pn = null_encrypt_pn;
+  cb.recv_crypto_data = recv_crypto_data_server;
+  cb.in_decrypt = null_decrypt;
+  cb.in_encrypt = null_encrypt;
+  cb.in_encrypt_pn = null_encrypt_pn;
+  cb.decrypt = null_decrypt;
+  cb.encrypt = null_encrypt;
+  cb.encrypt_pn = null_encrypt_pn;
   cb.rand = genrand;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, NGTCP2_PROTO_VER_MAX, &cb,
                          &settings, NULL);
+  ngtcp2_conn_set_initial_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_initial_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                                     sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
                                     sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 }
 
 static void setup_handshake_client(ngtcp2_conn **pconn) {
@@ -394,19 +410,19 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   scid_init(&scid);
 
   memset(&cb, 0, sizeof(cb));
-  cb.send_client_initial = send_client_initial;
-  cb.recv_stream0_data = recv_stream0_data;
-  cb.hs_decrypt = null_decrypt;
-  cb.hs_encrypt = null_encrypt;
-  cb.hs_encrypt_pn = null_encrypt_pn;
+  cb.client_initial = client_initial;
+  cb.recv_crypto_data = recv_crypto_data;
+  cb.in_decrypt = null_decrypt;
+  cb.in_encrypt = null_encrypt;
+  cb.in_encrypt_pn = null_encrypt_pn;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, NGTCP2_PROTO_VER_MAX, &cb,
                          &settings, NULL);
-  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                    sizeof(null_iv), null_pn, sizeof(null_pn));
-  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                    sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_initial_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_initial_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
 }
 
 static void setup_early_server(ngtcp2_conn **pconn) {
@@ -419,11 +435,10 @@ static void setup_early_server(ngtcp2_conn **pconn) {
 
   memset(&cb, 0, sizeof(cb));
   cb.recv_client_initial = recv_client_initial;
-  cb.send_server_handshake = send_server_handshake;
-  cb.recv_stream0_data = recv_stream0_data;
-  cb.hs_decrypt = null_decrypt;
-  cb.hs_encrypt = null_encrypt;
-  cb.hs_encrypt_pn = null_encrypt_pn;
+  cb.recv_crypto_data = recv_crypto_data_server_early_data;
+  cb.in_decrypt = null_decrypt;
+  cb.in_encrypt = null_encrypt;
+  cb.in_encrypt_pn = null_encrypt_pn;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.encrypt_pn = null_encrypt_pn;
@@ -432,10 +447,10 @@ static void setup_early_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, NGTCP2_PROTO_VER_MAX, &cb,
                          &settings, NULL);
-  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                    sizeof(null_iv), null_pn, sizeof(null_pn));
-  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                    sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_initial_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_initial_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_update_early_keys(*pconn, null_key, sizeof(null_key), null_iv,
                                 sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
@@ -460,11 +475,11 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   scid_init(&scid);
 
   memset(&cb, 0, sizeof(cb));
-  cb.send_client_initial = send_client_initial;
-  cb.recv_stream0_data = recv_stream0_data;
-  cb.hs_decrypt = null_decrypt;
-  cb.hs_encrypt = null_encrypt;
-  cb.hs_encrypt_pn = null_encrypt_pn;
+  cb.client_initial = client_initial_early_data;
+  cb.recv_crypto_data = recv_crypto_data;
+  cb.in_decrypt = null_decrypt;
+  cb.in_encrypt = null_encrypt;
+  cb.in_encrypt_pn = null_encrypt_pn;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.encrypt_pn = null_encrypt_pn;
@@ -472,12 +487,10 @@ static void setup_early_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, NGTCP2_PROTO_VER_MAX, &cb,
                          &settings, NULL);
-  ngtcp2_conn_set_handshake_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                    sizeof(null_iv), null_pn, sizeof(null_pn));
-  ngtcp2_conn_set_handshake_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                    sizeof(null_iv), null_pn, sizeof(null_pn));
-  ngtcp2_conn_update_early_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_initial_tx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
+  ngtcp2_conn_set_initial_rx_keys(*pconn, null_key, sizeof(null_key), null_iv,
+                                  sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   params.initial_max_stream_data = 64 * 1024;
@@ -589,7 +602,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   conn->local_settings.max_stream_data = 2047;
 
   for (i = 0; i < 3; ++i) {
-    uint64_t stream_id = (i + 1) * 4;
+    uint64_t stream_id = i * 4;
     fr.type = NGTCP2_FRAME_STREAM;
     fr.stream.flags = 0;
     fr.stream.stream_id = stream_id;
@@ -616,15 +629,15 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
 
   strm = conn->fc_strms;
 
-  CU_ASSERT(12 == strm->stream_id);
-
-  strm = strm->fc_next;
-
   CU_ASSERT(8 == strm->stream_id);
 
   strm = strm->fc_next;
 
   CU_ASSERT(4 == strm->stream_id);
+
+  strm = strm->fc_next;
+
+  CU_ASSERT(0 == strm->stream_id);
 
   strm = strm->fc_next;
 
@@ -636,7 +649,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   CU_ASSERT(NULL == conn->fc_strms);
 
   for (i = 0; i < 3; ++i) {
-    uint64_t stream_id = (i + 1) * 4;
+    uint64_t stream_id = i * 4;
     strm = ngtcp2_conn_find_stream(conn, stream_id);
 
     CU_ASSERT(2047 + 1024 == strm->max_rx_offset);
@@ -1532,8 +1545,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 2 octets pkt num */
   setup_default_client(&conn);
-  conn->rtb.largest_acked_tx_pkt_num = 0x6afa2f;
-  conn->last_tx_pkt_num = 0x6afd78;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 0x6afa2f;
+  conn->pktns.last_tx_pkt_num = 0x6afd78;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -1548,8 +1561,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 4 octets pkt num */
   setup_default_client(&conn);
-  conn->rtb.largest_acked_tx_pkt_num = 0x6afa2f;
-  conn->last_tx_pkt_num = 0x6bc106;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 0x6afa2f;
+  conn->pktns.last_tx_pkt_num = 0x6bc106;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -1564,8 +1577,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 1 octet pkt num (largest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked_tx_pkt_num = 1;
-  conn->last_tx_pkt_num = 63;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
+  conn->pktns.last_tx_pkt_num = 63;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -1580,8 +1593,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 2 octet pkt num (shortest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked_tx_pkt_num = 1;
-  conn->last_tx_pkt_num = 64;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
+  conn->pktns.last_tx_pkt_num = 64;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -1596,8 +1609,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 2 octet pkt num (largest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked_tx_pkt_num = 1;
-  conn->last_tx_pkt_num = 8191;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
+  conn->pktns.last_tx_pkt_num = 8191;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -1612,8 +1625,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* 4 octet pkt num (shortest)*/
   setup_default_client(&conn);
-  conn->rtb.largest_acked_tx_pkt_num = 1;
-  conn->last_tx_pkt_num = 8192;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
+  conn->pktns.last_tx_pkt_num = 8192;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -1628,8 +1641,8 @@ void test_ngtcp2_conn_short_pkt_type(void) {
 
   /* Overflow */
   setup_default_client(&conn);
-  conn->rtb.largest_acked_tx_pkt_num = 1;
-  conn->last_tx_pkt_num = NGTCP2_MAX_PKT_NUM - 1;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
+  conn->pktns.last_tx_pkt_num = NGTCP2_MAX_PKT_NUM - 1;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
@@ -1665,7 +1678,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   /* server: Just ignore SR */
   setup_default_server(&conn);
   conn->callbacks.decrypt = fail_decrypt;
-  conn->max_rx_pkt_num = 24324325;
+  conn->pktns.max_rx_pkt_num = 24324325;
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
       buf, sizeof(buf), &hd, conn->local_settings.stateless_reset_token,
@@ -1682,7 +1695,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   /* client */
   setup_default_client(&conn);
   conn->callbacks.decrypt = fail_decrypt;
-  conn->max_rx_pkt_num = 3255454;
+  conn->pktns.max_rx_pkt_num = 3255454;
   conn->remote_settings.stateless_reset_token_present = 1;
   memcpy(conn->remote_settings.stateless_reset_token, token,
          NGTCP2_STATELESS_RESET_TOKENLEN);
@@ -1702,7 +1715,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   /* token does not match */
   setup_default_client(&conn);
   conn->callbacks.decrypt = fail_decrypt;
-  conn->max_rx_pkt_num = 24324325;
+  conn->pktns.max_rx_pkt_num = 24324325;
 
   spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token,
                                              null_data, 17);
@@ -1718,49 +1731,50 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 }
 
 void test_ngtcp2_conn_recv_server_stateless_retry(void) {
-  ngtcp2_conn *conn;
-  my_user_data ud;
-  uint8_t buf[2048];
-  ssize_t spktlen;
-  size_t pktlen;
-  ngtcp2_frame fra[2];
-  ngtcp2_frame *fr;
+  /* TODO Retry packet handling is TBD */
+  /* ngtcp2_conn *conn; */
+  /* my_user_data ud; */
+  /* uint8_t buf[2048]; */
+  /* ssize_t spktlen; */
+  /* size_t pktlen; */
+  /* ngtcp2_frame fra[2]; */
+  /* ngtcp2_frame *fr; */
 
-  memset(&ud, 0, sizeof(ud));
-  ud.pkt_num = 0;
-  setup_handshake_client(&conn);
-  conn->user_data = &ud;
+  /* memset(&ud, 0, sizeof(ud)); */
+  /* ud.pkt_num = 0; */
+  /* setup_handshake_client(&conn); */
+  /* conn->user_data = &ud; */
 
-  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, 1);
+  /* spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, 1); */
 
-  CU_ASSERT(spktlen > 0);
+  /* CU_ASSERT(spktlen > 0); */
 
-  fr = &fra[0];
-  fr->type = NGTCP2_FRAME_STREAM;
-  fr->stream.flags = 0;
-  fr->stream.stream_id = 0;
-  fr->stream.fin = 0;
-  fr->stream.offset = 0;
-  fr->stream.datalen = 333;
-  fr->stream.data = null_data;
+  /* fr = &fra[0]; */
+  /* fr->type = NGTCP2_FRAME_STREAM; */
+  /* fr->stream.flags = 0; */
+  /* fr->stream.stream_id = 0; */
+  /* fr->stream.fin = 0; */
+  /* fr->stream.offset = 0; */
+  /* fr->stream.datalen = 333; */
+  /* fr->stream.data = null_data; */
 
-  fr = &fra[1];
-  fr->type = NGTCP2_FRAME_ACK;
-  fr->ack.largest_ack = conn->last_tx_pkt_num;
-  fr->ack.ack_delay = 0;
-  fr->ack.first_ack_blklen = 0;
-  fr->ack.num_blks = 0;
+  /* fr = &fra[1]; */
+  /* fr->type = NGTCP2_FRAME_ACK; */
+  /* fr->ack.largest_ack = conn->in_pktns.last_tx_pkt_num; */
+  /* fr->ack.ack_delay = 0; */
+  /* fr->ack.first_ack_blklen = 0; */
+  /* fr->ack.num_blks = 0; */
 
-  pktlen = write_handshake_pkt(conn, buf, sizeof(buf), NGTCP2_PKT_RETRY,
-                               &conn->scid, &conn->dcid, conn->last_tx_pkt_num,
-                               conn->version, fra, arraylen(fra));
+  /* pktlen = write_handshake_pkt( */
+  /*     conn, buf, sizeof(buf), NGTCP2_PKT_RETRY, &conn->scid, &conn->dcid, */
+  /*     conn->in_pktns.last_tx_pkt_num, conn->version, fra, arraylen(fra)); */
 
-  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, 2);
+  /* spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, 2); */
 
-  CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == conn->last_tx_pkt_num);
+  /* CU_ASSERT(spktlen > 0); */
+  /* CU_ASSERT(1 == conn->in_pktns.last_tx_pkt_num); */
 
-  ngtcp2_conn_del(conn);
+  /* ngtcp2_conn_del(conn); */
 }
 
 void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
@@ -1790,33 +1804,34 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == conn->acktr.nack);
-  CU_ASSERT(conn->acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK_UNPROTECTED);
+  CU_ASSERT(1 == conn->hs_pktns.acktr.nack);
+  CU_ASSERT(conn->hs_pktns.acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK);
 
   ngtcp2_conn_del(conn);
 
   /* STREAM frame beyond final_hs_rx_offset */
-  setup_default_client(&conn);
+  /* TODO This is not implemented yet */
+  /* setup_default_client(&conn); */
 
-  conn->final_hs_tx_offset = 999;
-  conn->final_hs_rx_offset = 100;
+  /* conn->final_hs_tx_offset = 999; */
+  /* conn->final_hs_rx_offset = 100; */
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.flags = 0;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 567;
-  fr.stream.data = null_data;
+  /* fr.type = NGTCP2_FRAME_STREAM; */
+  /* fr.stream.flags = 0; */
+  /* fr.stream.stream_id = 0; */
+  /* fr.stream.fin = 0; */
+  /* fr.stream.offset = 0; */
+  /* fr.stream.datalen = 567; */
+  /* fr.stream.data = null_data; */
 
-  pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
-      NGTCP2_PROTO_VER_MAX, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  /* pktlen = write_single_frame_handshake_pkt( */
+  /*     conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1, */
+  /*     NGTCP2_PROTO_VER_MAX, &fr); */
+  /* rv = ngtcp2_conn_recv(conn, buf, pktlen, 1); */
 
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  /* CU_ASSERT(NGTCP2_ERR_PROTO == rv); */
 
-  ngtcp2_conn_del(conn);
+  /* ngtcp2_conn_del(conn); */
 
   /* ACK frame only */
   setup_default_client(&conn);
@@ -1835,8 +1850,8 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == conn->acktr.nack);
-  CU_ASSERT(!conn->acktr.flags);
+  CU_ASSERT(1 == conn->hs_pktns.acktr.nack);
+  CU_ASSERT(!conn->hs_pktns.acktr.flags);
 
   ngtcp2_conn_del(conn);
 }
@@ -1885,12 +1900,11 @@ void test_ngtcp2_conn_handshake(void) {
   /* server recognize PATH_RESPONSE from client. */
   setup_handshake_server(&conn);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 45;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 45;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
@@ -1930,21 +1944,19 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   /* client side */
   setup_handshake_client(&conn);
-  conn->callbacks.recv_stream0_data = recv_stream0_handshake_error;
-  conn->callbacks.send_client_handshake = send_client_handshake_zero;
+  conn->callbacks.recv_crypto_data = recv_crypto_handshake_error;
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, ++t);
 
   CU_ASSERT(spktlen > 0);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 333;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 333;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->scid, &conn->dcid,
       ++pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
@@ -1955,35 +1967,18 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   /* server side */
   setup_handshake_server(&conn);
+  conn->callbacks.recv_crypto_data = recv_crypto_handshake_error;
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 551;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 551;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
       conn->version, &fr);
 
-  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
-
-  CU_ASSERT(spktlen > 0);
-
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 551;
-  fr.stream.datalen = 87;
-  fr.stream.data = null_data;
-
-  pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
-      ++pkt_num, conn->version, &fr);
-
-  conn->callbacks.recv_stream0_data = recv_stream0_handshake_error;
-  conn->callbacks.send_server_handshake = send_server_handshake_zero;
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_TLS_HANDSHAKE == spktlen);
@@ -2008,8 +2003,9 @@ void test_ngtcp2_conn_client_handshake(void) {
 
   CU_ASSERT(0 == rv);
 
-  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
-                                         0, stream_id, 0, null_data, 199, +t);
+  spktlen =
+      ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL, 0,
+                                   (int64_t)stream_id, 0, null_data, 199, ++t);
 
   CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(199 == datalen);
@@ -2023,8 +2019,9 @@ void test_ngtcp2_conn_client_handshake(void) {
 
   CU_ASSERT(0 == rv);
 
-  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
-                                         0, stream_id, 1, null_data, 0, +t);
+  spktlen =
+      ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL, 0,
+                                   (int64_t)stream_id, 1, null_data, 0, +t);
 
   CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(0 == datalen);
@@ -2042,7 +2039,7 @@ void test_ngtcp2_conn_client_handshake(void) {
       conn, buf,
       NGTCP2_MIN_LONG_HEADERLEN + 1 + conn->dcid.datalen + conn->scid.datalen +
           300,
-      &datalen, NULL, 0, stream_id, 1, null_data, 0, +t);
+      &datalen, NULL, 0, (int64_t)stream_id, 1, null_data, 0, +t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(-1 == datalen);
@@ -2075,15 +2072,15 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  it = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ent = ngtcp2_ksl_it_get(&it);
-  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
-                             ++t);
+  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->rcs, 1000000007,
+                             1000000007, ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
 
-  it = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
 
   CU_ASSERT(ent == ngtcp2_ksl_it_get(&it));
 
@@ -2107,19 +2104,19 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  it = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ent = ngtcp2_ksl_it_get(&it);
-  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
-                             ++t);
+  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->rcs, 1000000007,
+                             1000000007, ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, (size_t)(spktlen - 1), ++t);
 
-  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 
-  it = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
 
   CU_ASSERT(ngtcp2_ksl_it_end(&it));
-  CU_ASSERT(ent == conn->rtb.lost_protected_head);
-  CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_protected_head(&conn->rtb)));
+  CU_ASSERT(ent == conn->pktns.rtb.lost);
+  CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_head(&conn->pktns.rtb)));
 
   ngtcp2_conn_del(conn);
 
@@ -2144,16 +2141,16 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += 1000000000;
 
-  it = ngtcp2_rtb_head(&conn->rtb);
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ent = ngtcp2_ksl_it_get(&it);
-  ngtcp2_rtb_detect_lost_pkt(&conn->rtb, &conn->rcs, 1000000007, 1000000007,
-                             ++t);
+  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->rcs, 1000000007,
+                             1000000007, ++t);
 
   /* This should not send ACK only packet */
   spktlen = ngtcp2_conn_write_pkt(conn, buf, 999, ++t);
 
-  CU_ASSERT(0 == spktlen);
-  CU_ASSERT(ent == ngtcp2_rtb_lost_protected_head(&conn->rtb));
+  CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
+  CU_ASSERT(ent == ngtcp2_rtb_lost_head(&conn->pktns.rtb));
 
   ngtcp2_conn_del(conn);
 }
@@ -2552,16 +2549,15 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* DATA on stream 0, and TLS alert is generated. */
+  /* DATA on crypto stream, and TLS alert is generated. */
   setup_default_server(&conn);
-  conn->callbacks.recv_stream0_data = recv_stream0_fatal_alert_generated;
+  conn->callbacks.recv_crypto_data = recv_crypto_fatal_alert_generated;
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 139;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 139;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
@@ -2750,6 +2746,10 @@ void test_ngtcp2_conn_send_early_data(void) {
 
   CU_ASSERT(0 == rv);
 
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, 1);
+
+  CU_ASSERT(spktlen > 0);
+
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
                                      stream_id, 1, null_data, 911, 1);
 
@@ -2774,12 +2774,11 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   setup_early_server(&conn);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 121;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 121;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
@@ -2829,12 +2828,11 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   CU_ASSERT(0 == spktlen);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 319;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 319;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
@@ -2854,12 +2852,11 @@ void test_ngtcp2_conn_recv_early_data(void) {
   /* Compound packet */
   setup_early_server(&conn);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 111;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 111;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, &conn->dcid, ++pkt_num,
@@ -2902,12 +2899,11 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   /* 2 QUIC long packets in one UDP packet */
   setup_handshake_server(&conn);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 131;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 131;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->scid, &conn->dcid,
@@ -2921,7 +2917,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  ackent = conn->acktr.ent;
+  ackent = conn->in_pktns.acktr.ent;
 
   CU_ASSERT(ackent->pkt_num == pkt_num);
 
@@ -2935,6 +2931,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   setup_default_server(&conn);
 
   fr.type = NGTCP2_FRAME_PADDING;
+  fr.padding.len = 1;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
@@ -2954,11 +2951,11 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   CU_ASSERT(0 == rv);
 
-  ackent = conn->acktr.ent;
+  ackent = conn->pktns.acktr.ent;
 
   CU_ASSERT(ackent->pkt_num == pkt_num);
 
-  ackent = ackent->next;
+  ackent = conn->hs_pktns.acktr.ent;
 
   CU_ASSERT(ackent->pkt_num == pkt_num - 1);
 
@@ -2996,7 +2993,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
   CU_ASSERT(spktlen == 0);
-  CU_ASSERT(NULL == conn->acktr.ent);
+  CU_ASSERT(NULL == conn->in_pktns.acktr.ent);
 
   ngtcp2_conn_del(conn);
 }

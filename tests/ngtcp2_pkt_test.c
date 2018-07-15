@@ -206,7 +206,6 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
-
 }
 
 void test_ngtcp2_pkt_decode_stream_frame(void) {
@@ -891,8 +890,9 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.crypto.datalen = strsize(data);
-  fr.crypto.data = data;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = strsize(data);
+  fr.crypto.data[0].base = (uint8_t *)data;
 
   framelen = 1 + 8 + 1 + 17;
 
@@ -905,8 +905,10 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
   CU_ASSERT(fr.crypto.offset == nfr.crypto.offset);
-  CU_ASSERT(fr.crypto.datalen == nfr.crypto.datalen);
-  CU_ASSERT(0 == memcmp(fr.crypto.data, nfr.crypto.data, fr.crypto.datalen));
+  CU_ASSERT(fr.crypto.datacnt == nfr.crypto.datacnt);
+  CU_ASSERT(fr.crypto.data[0].len == nfr.crypto.data[0].len);
+  CU_ASSERT(0 == memcmp(fr.crypto.data[0].base, nfr.crypto.data[0].base,
+                        fr.crypto.data[0].len));
 }
 
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
