@@ -2936,7 +2936,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
     hdpktlen = (size_t)nread;
 
-    ngtcp2_log_pkt_hd(&conn->log, &hd);
+    ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
     if (conn->server) {
       return NGTCP2_ERR_PROTO;
@@ -3057,7 +3057,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->max_rx_pkt_num, hd.pkt_num,
                                          pkt_num_bits(hd.pkt_numlen));
 
-  ngtcp2_log_pkt_hd(&conn->log, &hd);
+  ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
 #ifdef DRAFT13INTEROP
   if (hd.type == NGTCP2_PKT_INITIAL) {
@@ -3978,7 +3978,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
-      ngtcp2_log_pkt_hd(&conn->log, &hd);
+      ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
       /* Ignore late VN. */
       return (ssize_t)pktlen;
@@ -4048,7 +4048,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->max_rx_pkt_num, hd.pkt_num,
                                          pkt_num_bits(hd.pkt_numlen));
 
-  ngtcp2_log_pkt_hd(&conn->log, &hd);
+  ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     switch (hd.type) {

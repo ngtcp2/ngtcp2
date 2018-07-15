@@ -612,7 +612,7 @@ void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   hd->type, hd->pkt_num, sent_ts);
 }
 
-void ngtcp2_log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
+void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
   uint8_t dcid[sizeof(hd->dcid.data) * 2 + 1];
   uint8_t scid[sizeof(hd->scid.data) * 2 + 1];
 
