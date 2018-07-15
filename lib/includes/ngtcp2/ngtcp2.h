@@ -564,7 +564,7 @@ typedef enum {
  * NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS is TLS extension type of
  * quic_transport_parameters.
  */
-#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS 26
+#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS 0xffa5u
 
 typedef enum {
   NGTCP2_IP_VERSION_NONE = 0,
