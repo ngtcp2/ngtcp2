@@ -165,7 +165,7 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
 
   std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
             << " content_type=" << content_type << " len=" << len << std::endl;
-  if (!write_p) {
+  if (!write_p || content_type != SSL3_RT_HANDSHAKE) {
     return;
   }
 
