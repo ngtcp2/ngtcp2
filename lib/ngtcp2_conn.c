@@ -1047,7 +1047,7 @@ static ssize_t conn_create_crypto_frame(ngtcp2_conn *conn,
   ngtcp2_crypto *fr;
   ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
   size_t origleft = left;
-  ssize_t nwrite = 0;
+  size_t nwrite = 0;
   size_t datalen;
 
   for (i = 0; left && i < ngtcp2_ringbuf_len(rb) &&
@@ -1107,7 +1107,7 @@ static ssize_t conn_create_crypto_frame(ngtcp2_conn *conn,
     }
   }
 
-  return nwrite;
+  return (ssize_t)nwrite;
 }
 
 /*
@@ -4197,6 +4197,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       aead_overhead = conn->aead_overhead;
       crypto_rx_offset_base = conn->early_crypto_rx_offset_base;
       break;
+    default:
+      return (ssize_t)pktlen;
     }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen, conn->scid.datalen);
