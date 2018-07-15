@@ -300,12 +300,6 @@ struct ngtcp2_conn {
   /* max_tx_offset is the maximum offset that local endpoint can
      send. */
   uint64_t max_tx_offset;
-  /* final_hs_tx_offset is the offset in stream 0 when handshake
-     completed. */
-  uint64_t final_hs_tx_offset;
-  /* final_hs_rx_offset is the receiver offset in stream 0 which
-     handshake completed. */
-  uint64_t final_hs_rx_offset;
   /* early_crypto_rx_offset_base is just like
      ngtcp2_pktns.crypto_rx_offset_base, but it is dedicated for
      CRYPTO frame received in 0-RTT packet. */
