@@ -1864,6 +1864,37 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   left = ngtcp2_ppe_left(&ppe);
 
+  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
+      left >= NGTCP2_CRYPTO_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
+    left -= NGTCP2_CRYPTO_OVERHEAD;
+
+    nwrite = conn_create_crypto_frame(conn, &nfrc, pktns, 0 /* Short packet */
+                                      ,
+                                      left);
+    if (nwrite < 0) {
+      return nwrite;
+    }
+
+    if (nwrite) {
+      conn->crypto.tx_offset += (size_t)nwrite;
+      pktns->crypto_tx_offset += (size_t)nwrite;
+
+      *pfrc = nfrc;
+      pfrc = &(*pfrc)->next;
+
+      rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
+      if (rv != 0) {
+        assert(rv == NGTCP2_ERR_NOBUF);
+      }
+
+      pkt_empty = 0;
+
+      ngtcp2_log_tx_fr(&conn->log, &hd, &nfrc->fr);
+    }
+  }
+
+  left = ngtcp2_ppe_left(&ppe);
+
   if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL && send_stream &&
       left >= NGTCP2_STREAM_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
     left -= NGTCP2_STREAM_OVERHEAD;
@@ -1898,37 +1929,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
   } else {
     send_stream = 0;
-  }
-
-  left = ngtcp2_ppe_left(&ppe);
-
-  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
-      left >= NGTCP2_CRYPTO_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
-    left -= NGTCP2_CRYPTO_OVERHEAD;
-
-    nwrite = conn_create_crypto_frame(conn, &nfrc, pktns, 0 /* Short packet */
-                                      ,
-                                      left);
-    if (nwrite < 0) {
-      return nwrite;
-    }
-
-    if (nwrite) {
-      conn->crypto.tx_offset += (size_t)nwrite;
-      pktns->crypto_tx_offset += (size_t)nwrite;
-
-      *pfrc = nfrc;
-      pfrc = &(*pfrc)->next;
-
-      rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
-      if (rv != 0) {
-        assert(rv == NGTCP2_ERR_NOBUF);
-      }
-
-      pkt_empty = 0;
-
-      ngtcp2_log_tx_fr(&conn->log, &hd, &nfrc->fr);
-    }
   }
 
   if (pkt_empty) {
