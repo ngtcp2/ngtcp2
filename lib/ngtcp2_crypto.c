@@ -126,6 +126,9 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
     len += 5;
   }
+  if (params->disable_migration) {
+    len += 4;
+  }
 
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -206,6 +209,11 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     *p++ = params->ack_delay_exponent;
   }
 
+  if (params->disable_migration) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION);
+    p = ngtcp2_put_uint16be(p, 0);
+  }
+
   assert((size_t)(p - dest) == len);
 
   return (ssize_t)len;
@@ -274,6 +282,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params->stateless_reset_token_present = 0;
   params->preferred_address.ip_version = NGTCP2_IP_VERSION_NONE;
+  params->disable_migration = 0;
 
   for (; (size_t)(end - p) >= sizeof(uint16_t) * 2;) {
     param_type = ngtcp2_get_uint16(p);
@@ -437,6 +446,14 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       memcpy(params->preferred_address.stateless_reset_token, p,
              sizeof(params->preferred_address.stateless_reset_token));
       p += sizeof(params->preferred_address.stateless_reset_token);
+      break;
+    case NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION:
+      flags |= 1u << NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION;
+      if (ngtcp2_get_uint16(p) != 0) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      p += sizeof(uint16_t);
+      params->disable_migration = 1;
       break;
     default:
       /* Ignore unknown parameter */

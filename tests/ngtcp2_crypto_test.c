@@ -136,11 +136,13 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = 1400;
   params.ack_delay_exponent = 20;
   params.stateless_reset_token_present = 0;
+  params.disable_migration = 1;
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(4 /* initial_version */ + 2 + 8 * 2 + 6 * 2 + 6 + 6 + 5 == nwrite);
+  CU_ASSERT(4 /* initial_version */ + 2 + 8 * 2 + 6 * 2 + 6 + 6 + 5 + 4 ==
+            nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -154,6 +156,7 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
+  CU_ASSERT(params.disable_migration == nparams.disable_migration);
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -168,6 +171,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = 1200;
   params.ack_delay_exponent = 20;
   params.stateless_reset_token_present = 0;
+  params.disable_migration = 1;
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
@@ -178,6 +182,11 @@ void test_ngtcp2_encode_transport_params(void) {
 
     CU_ASSERT(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM == rv);
   }
+
+  rv = ngtcp2_decode_transport_params(
+      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, i);
+
+  CU_ASSERT(0 == rv);
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -192,8 +201,9 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = 1200;
   params.ack_delay_exponent = 20;
   params.stateless_reset_token_present = 0;
+  params.disable_migration = 1;
 
-  for (i = 0; i < 4 /* initial_version */ + 2 + 8 * 2 + 6 * 2 + 6 + 6 + 5;
+  for (i = 0; i < 4 /* initial_version */ + 2 + 8 * 2 + 6 * 2 + 6 + 6 + 5 + 4;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
@@ -232,13 +242,15 @@ void test_ngtcp2_encode_transport_params(void) {
   scid_init(&params.preferred_address.cid);
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
+  params.disable_migration = 1;
 
   for (i = 0;
        i < 4 /* negotiated_version */ + 1 +
                4 * 3 /* supported_versions and its length */ + 2 + 8 * 2 +
                6 * 2 + 6 + 6 + 20 + 5 +
                (4 + 1 + 1 + 255 + 2 + 1 + params.preferred_address.cid.datalen +
-                NGTCP2_STATELESS_RESET_TOKENLEN);
+                NGTCP2_STATELESS_RESET_TOKENLEN) +
+               4;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -280,4 +292,5 @@ void test_ngtcp2_encode_transport_params(void) {
             memcmp(params.preferred_address.stateless_reset_token,
                    nparams.preferred_address.stateless_reset_token,
                    sizeof(params.preferred_address.stateless_reset_token)));
+  CU_ASSERT(params.disable_migration == nparams.disable_migration);
 }
