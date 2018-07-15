@@ -1154,11 +1154,11 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
  * |stream_id|, |fin|, |data|, and |datalen| are stream identifier to
  * which 0-RTT data is sent, whether it is a last data chunk in this
  * stream, a pointer to 0-RTT data, and its length respectively.
- * Passing negative integer to |stream_id| is disabling 0-RTT data.
+ * Passing negative integer to |stream_id| disables 0-RTT data.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_client_handshake(
     ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,
-    const uint8_t *pkt, size_t pktlen, int64_t stream_id, uint8_t fin,
+    const uint8_t *pkt, size_t pktlen, uint64_t stream_id, uint8_t fin,
     const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
 /**

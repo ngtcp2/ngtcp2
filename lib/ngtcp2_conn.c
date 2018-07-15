@@ -4915,7 +4915,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
 ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                      size_t destlen, ssize_t *pdatalen,
                                      const uint8_t *pkt, size_t pktlen,
-                                     int64_t stream_id, uint8_t fin,
+                                     uint64_t stream_id, uint8_t fin,
                                      const uint8_t *data, size_t datalen,
                                      ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
@@ -4934,8 +4934,9 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   /* conn->early_ckm might be created in the first call of
      conn_handshake().  Check it later. */
-  if (stream_id >= 0 && !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
-    strm = ngtcp2_conn_find_stream(conn, (uint64_t)stream_id);
+  if (stream_id != (uint64_t)-1 &&
+      !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
+    strm = ngtcp2_conn_find_stream(conn, stream_id);
     if (strm == NULL) {
       return NGTCP2_ERR_STREAM_NOT_FOUND;
     }
