@@ -2815,6 +2815,9 @@ static size_t pkt_num_bits(size_t pkt_numlen) {
   }
 }
 
+static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
+                            const ngtcp2_crypto *fr);
+
 /*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length if |pktlen| during handshake period.  The buffer pointed by
@@ -2856,9 +2859,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ngtcp2_frame *fr = &mfr.fr;
   int rv;
   int require_ack = 0;
-  uint64_t rx_offset;
-  int handshake_failed = 0;
-  uint64_t fr_end_offset;
   size_t hdpktlen;
   const uint8_t *payload;
   size_t payloadlen;
@@ -3098,91 +3098,32 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (rv != 0) {
         return rv;
       }
-      continue;
+      break;
     case NGTCP2_FRAME_PADDING:
-      continue;
+      break;
     case NGTCP2_FRAME_CRYPTO:
+      rv = conn_recv_crypto(conn, pktns->crypto_rx_offset_base, &fr->crypto);
+      if (rv != 0) {
+        return rv;
+      }
       require_ack = 1;
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
       if (hd.type == NGTCP2_PKT_HANDSHAKE) {
         conn_recv_connection_close(conn);
-        continue;
+        break;
       }
       return NGTCP2_ERR_PROTO;
     case NGTCP2_FRAME_PATH_CHALLENGE:
       conn_recv_path_challenge(conn, &fr->path_challenge, ts);
-      continue;
+      require_ack = 1;
+      break;
     case NGTCP2_FRAME_PATH_RESPONSE:
       conn_recv_path_response(conn, &fr->path_response);
-      continue;
+      require_ack = 1;
+      break;
     default:
       return NGTCP2_ERR_PROTO;
-    }
-
-    assert(fr->type == NGTCP2_FRAME_CRYPTO);
-
-    if (fr->crypto.datacnt == 0) {
-      continue;
-    }
-
-    assert(fr->crypto.datacnt == 1);
-    assert(fr->crypto.data[0].len > 0);
-
-    fr_end_offset = pktns->crypto_rx_offset_base + fr->crypto.offset +
-                    fr->crypto.data[0].len;
-    rx_offset = ngtcp2_strm_rx_offset(crypto);
-    if (rx_offset >= fr_end_offset) {
-      continue;
-    }
-
-    /* Although crypto stream is exempted from flow contorl, peer can
-       send data on any offset, and forces receiver to buffer
-       unlimited data.  In order to avoid that situation, we have a
-       fixed limit. */
-    if (crypto->max_rx_offset && crypto->max_rx_offset < fr_end_offset) {
-      return NGTCP2_ERR_PROTO;
-    }
-
-    crypto->last_rx_offset = ngtcp2_max(crypto->last_rx_offset, fr_end_offset);
-
-    if (pktns->crypto_rx_offset_base + fr->crypto.offset <= rx_offset) {
-      size_t ncut =
-          rx_offset - fr->crypto.offset - pktns->crypto_rx_offset_base;
-      const uint8_t *data = fr->crypto.data[0].base + ncut;
-      size_t datalen = fr->crypto.data[0].len - ncut;
-      uint64_t offset = rx_offset;
-
-      rx_offset += datalen;
-      rv = ngtcp2_rob_remove_prefix(&crypto->rob, rx_offset);
-      if (rv != 0) {
-        return rv;
-      }
-
-      rv = conn_call_recv_crypto_data(conn, offset, data, datalen);
-      switch (rv) {
-      case 0:
-        break;
-      case NGTCP2_ERR_TLS_HANDSHAKE:
-        handshake_failed = 1;
-        break;
-      default:
-        return rv;
-      }
-
-      if (!handshake_failed) {
-        rv = conn_emit_pending_crypto_data(conn, crypto, rx_offset);
-        if (rv != 0) {
-          return rv;
-        }
-      }
-    } else if (!handshake_failed) {
-      rv = ngtcp2_strm_recv_reordering(
-          crypto, fr->crypto.data[0].base, fr->crypto.data[0].len,
-          pktns->crypto_rx_offset_base + fr->crypto.offset);
-      if (rv != 0) {
-        return rv;
-      }
     }
   }
 
@@ -3198,9 +3139,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return rv;
   }
 
-  return conn->state == NGTCP2_CS_DRAINING
-             ? NGTCP2_ERR_DRAINING
-             : handshake_failed ? NGTCP2_ERR_TLS_HANDSHAKE : (ssize_t)pktlen;
+  return conn->state == NGTCP2_CS_DRAINING ? NGTCP2_ERR_DRAINING
+                                           : (ssize_t)pktlen;
 }
 
 /*
@@ -3320,11 +3260,11 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
 
   rx_offset = ngtcp2_strm_rx_offset(crypto);
 
-  crypto->last_rx_offset = ngtcp2_max(crypto->last_rx_offset, fr_end_offset);
-
   if (fr_end_offset <= rx_offset) {
     return 0;
   }
+
+  crypto->last_rx_offset = ngtcp2_max(crypto->last_rx_offset, fr_end_offset);
 
   /* TODO Before dispatching incoming data to TLS stack, make sure
      that previous data in previous encryption level has been
