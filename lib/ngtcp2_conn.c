@@ -4831,7 +4831,12 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
   rv = ngtcp2_acktr_add(acktr, rpkt, active_ack, ts);
   if (rv != 0) {
     ngtcp2_acktr_entry_del(rpkt, conn->mem);
-    return rv;
+    /* NGTCP2_ERR_INVALID_ARGUMENT means duplicated packet number.
+       Just ignore it for now. */
+    if (rv != NGTCP2_ERR_INVALID_ARGUMENT) {
+      return rv;
+    }
+    return 0;
   }
 
   return 0;

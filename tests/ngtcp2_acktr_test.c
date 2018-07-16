@@ -84,7 +84,7 @@ void test_ngtcp2_acktr_add(void) {
 
   rv = ngtcp2_acktr_add(&acktr, ents[0], 1, 1003);
 
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 
   ngtcp2_acktr_free(&acktr);
 }
