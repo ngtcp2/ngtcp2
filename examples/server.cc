@@ -813,7 +813,7 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
   int rv;
 
   if (!config.quiet) {
-    debug::print_stream_data(0, data, datalen);
+    debug::print_crypto_data(data, datalen);
   }
 
   auto h = static_cast<Handler *>(user_data);
