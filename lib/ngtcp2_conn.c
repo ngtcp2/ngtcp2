@@ -2970,6 +2970,14 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return (ssize_t)pktlen;
   }
 
+  /* Quoted from spec: Once a client has received an Initial packet
+     from the server, it MUST discard any packet it receives with a
+     different Source Connection ID. */
+  if (!conn->server && (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) &&
+      !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
+    return (ssize_t)pktlen;
+  }
+
   switch (hd.type) {
   case NGTCP2_PKT_0RTT_PROTECTED:
     if (!conn->server) {
@@ -3991,6 +3999,13 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     pktlen = (size_t)nread + hd.len;
 
     if (conn->version != hd.version) {
+      return (ssize_t)pktlen;
+    }
+
+    /* Quoted from spec: Once a client has received an Initial packet
+       from the server, it MUST discard any packet it receives with a
+       different Source Connection ID. */
+    if (!conn->server && !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
       return (ssize_t)pktlen;
     }
 
