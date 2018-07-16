@@ -1979,9 +1979,10 @@ fail:
 }
 
 /*
- * conn_write_single_frame_pkt writes a protected packet which
- * contains |fr| frame only in the buffer pointed by |dest| whose
- * length if |destlen|.
+ * conn_write_single_frame_pkt writes a packet which contains |fr|
+ * frame only in the buffer pointed by |dest| whose length if
+ * |destlen|.  |type| is a long packet type to send.  If |type| is 0,
+ * Short packet is used.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1992,93 +1993,51 @@ fail:
  *     Buffer is too small.
  */
 static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ngtcp2_frame *fr,
-                                           ngtcp2_tstamp ts) {
+                                           size_t destlen, uint8_t type,
+                                           ngtcp2_frame *fr, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
-  ngtcp2_pktns *pktns = &conn->pktns;
+  ngtcp2_pktns *pktns;
+  uint8_t flags;
 
-  ngtcp2_pkt_hd_init(
-      &hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &conn->dcid, &conn->scid,
-      pktns->last_tx_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
-      conn->version, 0);
+  switch (type) {
+  case NGTCP2_PKT_INITIAL:
+    pktns = &conn->in_pktns;
+    ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+    ctx.encrypt = conn->callbacks.in_encrypt;
+    ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
+    flags = NGTCP2_PKT_FLAG_LONG_FORM;
+    break;
+  case NGTCP2_PKT_HANDSHAKE:
+    pktns = &conn->hs_pktns;
+    ctx.aead_overhead = conn->aead_overhead;
+    ctx.encrypt = conn->callbacks.encrypt;
+    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+    flags = NGTCP2_PKT_FLAG_LONG_FORM;
+    break;
+  case 0:
+    /* 0 means Short packet. */
+    pktns = &conn->pktns;
+    ctx.aead_overhead = conn->aead_overhead;
+    ctx.encrypt = conn->callbacks.encrypt;
+    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+    flags = NGTCP2_PKT_FLAG_NONE;
+    break;
+  default:
+    /* We don't support 0-RTT Protected packet in this function. */
+    assert(0);
+  }
 
   ctx.ckm = pktns->tx_ckm;
-  ctx.aead_overhead = conn->aead_overhead;
-  ctx.encrypt = conn->callbacks.encrypt;
-  ctx.encrypt_pn = conn->callbacks.encrypt_pn;
   ctx.user_data = conn;
-
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
-
-  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
-  if (rv != 0) {
-    return rv;
-  }
-
-  rv = ngtcp2_ppe_encode_frame(&ppe, fr);
-  if (rv != 0) {
-    return rv;
-  }
-
-  ngtcp2_log_tx_fr(&conn->log, &hd, fr);
-
-  nwrite = ngtcp2_ppe_final(&ppe, NULL);
-  if (nwrite < 0) {
-    return nwrite;
-  }
-
-  /* Do this when we are sure that there is no error. */
-  if (fr->type == NGTCP2_FRAME_ACK) {
-    ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &fr->ack, ts,
-                         1 /* ack_only */);
-  }
-
-  ++pktns->last_tx_pkt_num;
-
-  return nwrite;
-}
-
-/*
- * conn_write_single_frame_pkt writes a unprotected packet which
- * contains |fr| frame only in the buffer pointed by |dest| whose
- * length if |destlen|.
- *
- * This function returns the number of bytes written in |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_NOBUF
- *     Buffer is too small.
- */
-static ssize_t conn_write_single_frame_handshake_pkt(ngtcp2_conn *conn,
-                                                     uint8_t *dest,
-                                                     size_t destlen,
-                                                     ngtcp2_frame *fr,
-                                                     ngtcp2_tstamp ts) {
-  int rv;
-  ngtcp2_ppe ppe;
-  ngtcp2_pkt_hd hd;
-  ssize_t nwrite;
-  ngtcp2_crypto_ctx ctx;
-  ngtcp2_pktns *pktns = &conn->hs_pktns;
 
   ngtcp2_pkt_hd_init(
-      &hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE, &conn->dcid,
-      &conn->scid, pktns->last_tx_pkt_num + 1,
+      &hd, flags, type, &conn->dcid, &conn->scid, pktns->last_tx_pkt_num + 1,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);
-
-  ctx.ckm = pktns->tx_ckm;
-  ctx.aead_overhead = conn->aead_overhead;
-  ctx.encrypt = conn->callbacks.encrypt;
-  ctx.encrypt_pn = conn->callbacks.encrypt_pn;
-  ctx.user_data = conn;
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
@@ -2143,7 +2102,8 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  spktlen = conn_write_single_frame_pkt(conn, dest, destlen, ackfr, ts);
+  spktlen = conn_write_single_frame_pkt(conn, dest, destlen, 0 /* Short */,
+                                        ackfr, ts);
   if (spktlen < 0) {
     ngtcp2_mem_free(conn->mem, ackfr);
     return spktlen;
@@ -5339,6 +5299,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
                                            ngtcp2_tstamp ts) {
   ssize_t nwrite;
   ngtcp2_frame fr;
+  uint8_t pkt_type;
 
   conn->log.last_ts = ts;
 
@@ -5361,13 +5322,14 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   fr.connection_close.reason = NULL;
 
   if (conn->state == NGTCP2_CS_POST_HANDSHAKE) {
-    nwrite = conn_write_single_frame_pkt(conn, dest, destlen, &fr, ts);
+    pkt_type = 0;
   } else if (conn->hs_pktns.tx_ckm) {
-    nwrite =
-        conn_write_single_frame_handshake_pkt(conn, dest, destlen, &fr, ts);
+    pkt_type = NGTCP2_PKT_HANDSHAKE;
   } else {
     return NGTCP2_ERR_INVALID_STATE;
   }
+
+  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, pkt_type, &fr, ts);
 
   if (nwrite > 0) {
     conn->state = NGTCP2_CS_CLOSING;
@@ -5405,7 +5367,8 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
   fr.application_close.reasonlen = 0;
   fr.application_close.reason = NULL;
 
-  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, &fr, ts);
+  nwrite =
+      conn_write_single_frame_pkt(conn, dest, destlen, 0 /* Short */, &fr, ts);
   if (nwrite < 0) {
     return nwrite;
   }
