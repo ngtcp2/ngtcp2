@@ -87,9 +87,7 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
     switch (type) {
     case NGTCP2_PKT_INITIAL:
-#ifndef DRAFT13INTEROP
       len = 1;
-#endif /* !DRAFT13INTEROP */
       break;
     case NGTCP2_PKT_RETRY:
     case NGTCP2_PKT_HANDSHAKE:
@@ -123,11 +121,6 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   p = &pkt[6 + dcil + scil];
 
-#ifdef DRAFT13INTEROP
-  ntokenlen = 0;
-  tokenlen = 0;
-  token = NULL;
-#else  /* !DRAFT13INTEROP */
   if (type == NGTCP2_PKT_INITIAL) {
     /* Token Length */
     ntokenlen = ngtcp2_get_varint_len(p);
@@ -150,7 +143,6 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
     p += tokenlen;
   }
-#endif /* !DRAFT13INTEROP */
 
   if (type != NGTCP2_PKT_VERSION_NEGOTIATION) {
     /* Length */
@@ -273,22 +265,14 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
     p = ngtcp2_cpymem(p, hd->scid.data, hd->scid.datalen);
   }
 
-#ifndef DRAFT13INTEROP
   if (hd->type == NGTCP2_PKT_INITIAL) {
     p = ngtcp2_put_varint(p, hd->tokenlen);
     if (hd->tokenlen) {
       p = ngtcp2_cpymem(p, hd->token, hd->tokenlen);
     }
   }
-#endif /* !DRAFT13INTEROP */
   p = ngtcp2_put_varint14(p, (uint16_t)hd->len);
   p = ngtcp2_put_pkt_num(p, hd->pkt_num, hd->pkt_numlen);
-
-#ifdef DRAFT13INTEROP
-  if (hd->type == NGTCP2_PKT_INITIAL) {
-    *p++ = 0;
-  }
-#endif /* DRAFT13INTEROP */
 
   assert((size_t)(p - out) == len);
 
