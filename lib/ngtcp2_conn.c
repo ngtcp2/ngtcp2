@@ -5670,7 +5670,7 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   if (rcs->loss_time) {
     it = ngtcp2_rtb_head(&pktns->rtb);
     ent = ngtcp2_ksl_it_get(&it);
-    assert(rcs->loss_time >= ent->ts);
+    assert(rcs->loss_time >= rcs->last_tx_pkt_ts);
     alarm_duration = rcs->loss_time - rcs->last_tx_pkt_ts;
   } else {
     alarm_duration = (uint64_t)(rcs->smoothed_rtt + 4 * rcs->rttvar +
