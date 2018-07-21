@@ -2207,18 +2207,11 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
     if (nwrite < 0) {
-      if (nwrite != NGTCP2_ERR_NOMEM) {
+      if (nwrite != NGTCP2_ERR_NOBUF) {
         return nwrite;
       }
-      nwrite = 0;
     } else {
-      if ((size_t)nwrite > cwnd) {
-        return nwrite;
-      }
-
       res += nwrite;
-      cwnd -= (size_t)nwrite;
-
       dest += nwrite;
       destlen -= (size_t)nwrite;
     }
@@ -2228,12 +2221,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       if (nwrite != NGTCP2_ERR_NOBUF) {
         return nwrite;
       }
-      if (res == 0) {
-        return nwrite;
-      }
-      return res;
-    }
-    if (nwrite) {
+    } else if (nwrite) {
       return res + nwrite;
     }
 
@@ -2249,7 +2237,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         }
         return res;
       }
-
+      assert(nwrite);
       return res + nwrite;
     }
 
