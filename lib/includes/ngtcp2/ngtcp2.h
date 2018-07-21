@@ -217,6 +217,7 @@ typedef enum {
   NGTCP2_ERR_CLOSING = -230,
   NGTCP2_ERR_DRAINING = -231,
   NGTCP2_ERR_PKT_ENCODING = -232,
+  NGTCP2_ERR_CONGESTION = -233,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -1576,6 +1577,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *     Stream is blocked because of flow control.
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Stream 0 data cannot be sent in 0-RTT packet.
+ * :enum:`NGTCP2_ERR_CONGESTION`
+ *     Could not write any data because of congestion control.
  */
 NGTCP2_EXTERN ssize_t
 ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,

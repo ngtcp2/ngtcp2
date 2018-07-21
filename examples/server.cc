@@ -1284,6 +1284,7 @@ ssize_t Handler::do_handshake_once(const uint8_t *data, size_t datalen) {
       std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
                 << std::endl;
     case NGTCP2_ERR_NOBUF:
+    case NGTCP2_ERR_CONGESTION:
       return 0;
     }
     std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
@@ -1432,7 +1433,7 @@ int Handler::on_write(bool retransmit) {
     auto n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
                                    util::timestamp(loop_));
     if (n < 0) {
-      if (n == NGTCP2_ERR_NOBUF) {
+      if (n == NGTCP2_ERR_NOBUF || n == NGTCP2_ERR_CONGESTION) {
         break;
       }
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
@@ -1499,6 +1500,7 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
       case NGTCP2_ERR_STREAM_SHUT_WR:
       case NGTCP2_ERR_NOBUF:
+      case NGTCP2_ERR_CONGESTION:
         return 0;
       }
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(n)
