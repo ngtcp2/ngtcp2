@@ -2184,7 +2184,7 @@ static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               ngtcp2_tstamp ts) {
-  ssize_t nwrite, res = 0;
+  ssize_t nwrite;
   uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
 
@@ -2203,85 +2203,44 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_POST_HANDSHAKE:
-    cwnd = conn_cwnd_left(conn);
-
     nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
-    if (nwrite < 0) {
-      if (nwrite != NGTCP2_ERR_NOBUF) {
-        return nwrite;
-      }
-    } else {
-      res += nwrite;
-      dest += nwrite;
-      destlen -= (size_t)nwrite;
+    if (nwrite) {
+      return nwrite;
     }
 
-    nwrite = conn_retransmit(conn, dest, ngtcp2_min(destlen, cwnd), ts);
-    if (nwrite < 0) {
-      if (nwrite != NGTCP2_ERR_NOBUF) {
+    cwnd = conn_cwnd_left(conn);
+
+    if (cwnd >= NGTCP2_MIN_PKTLEN) {
+      nwrite = conn_retransmit(conn, dest, ngtcp2_min(destlen, cwnd), ts);
+      if (nwrite) {
         return nwrite;
       }
-    } else if (nwrite) {
-      return res + nwrite;
     }
 
     if (conn->rcs.probe_pkt_left) {
-      nwrite =
-          conn_write_probe_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
-      if (nwrite < 0) {
-        if (nwrite != NGTCP2_ERR_NOBUF) {
-          return nwrite;
-        }
-        if (res == 0) {
-          return nwrite;
-        }
-        return res;
-      }
-      assert(nwrite);
-      return res + nwrite;
+      return conn_write_probe_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0,
+                                  ts);
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
       nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
-      if (nwrite < 0) {
-        if (nwrite != NGTCP2_ERR_NOBUF) {
-          return nwrite;
-        }
-        if (res == 0) {
-          return nwrite;
-        }
-        return res;
+      if (nwrite) {
+        return nwrite;
       }
-      if (res == 0 && nwrite == 0) {
-        return NGTCP2_ERR_CONGESTION;
-      }
-      return res + nwrite;
+      return NGTCP2_ERR_CONGESTION;
     }
 
     if (ngtcp2_rtb_lost_head(&pktns->rtb)) {
       /*
-       * Failed to retransmit a packet because provided buffer is too
-       * small, or congestion limited.  In this case, just return res
-       * so far so that we don't add extra bytes_in_flight by sending
-       * new packet.
+       * Failed to retransmit a packet because of congestion.  In this
+       * case, just return NGTCP2_ERR_CONGESTION so that we don't add
+       * extra bytes_in_flight by sending new packet.
        */
-      return res;
+      return NGTCP2_ERR_CONGESTION;
     }
 
-    destlen = ngtcp2_min(destlen, cwnd);
-
-    nwrite = conn_write_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
-    if (nwrite < 0) {
-      if (nwrite != NGTCP2_ERR_NOBUF) {
-        return nwrite;
-      }
-      if (res == 0) {
-        return nwrite;
-      }
-      return res;
-    }
-
-    return res + nwrite;
+    return conn_write_pkt(conn, dest, ngtcp2_min(destlen, cwnd), NULL, NULL, 0,
+                          NULL, 0, ts);
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
@@ -4316,11 +4275,6 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       }
     }
 
-    nwrite = conn_retransmit(conn, dest, destlen, ts);
-    if (nwrite != 0 && nwrite != NGTCP2_ERR_NOBUF) {
-      return nwrite;
-    }
-
     if (cwnd < NGTCP2_MIN_PKTLEN) {
       nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
       if (nwrite == 0) {
@@ -4329,17 +4283,20 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return nwrite;
     }
 
+    nwrite = conn_retransmit(conn, dest, destlen, ts);
+    if (nwrite) {
+      return nwrite;
+    }
+
     nwrite =
         conn_write_client_handshake(conn, dest, destlen, require_padding, ts);
     if (nwrite < 0) {
-      if (nwrite != NGTCP2_ERR_NOBUF) {
-        return nwrite;
-      }
-    } else {
-      res += nwrite;
-      dest += nwrite;
-      destlen -= (size_t)nwrite;
+      return nwrite;
     }
+
+    res += nwrite;
+    dest += nwrite;
+    destlen -= (size_t)nwrite;
 
     nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
     if (nwrite < 0) {
@@ -4429,7 +4386,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     nwrite = conn_retransmit(conn, dest, destlen, ts);
-    if (nwrite != 0 && nwrite != NGTCP2_ERR_NOBUF) {
+    if (nwrite) {
       return nwrite;
     }
 
@@ -4444,14 +4401,12 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
       nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
       if (nwrite < 0) {
-        if (nwrite != NGTCP2_ERR_NOBUF) {
-          return nwrite;
-        }
-      } else {
-        res += nwrite;
-        dest += nwrite;
-        destlen -= (size_t)nwrite;
+        return nwrite;
       }
+
+      res += nwrite;
+      dest += nwrite;
+      destlen -= (size_t)nwrite;
 
       nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
       if (nwrite < 0) {
@@ -5166,7 +5121,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
                                  const uint8_t *data, size_t datalen,
                                  ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
-  ssize_t nwrite, res = 0;
+  ssize_t nwrite;
   uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
 
@@ -5196,83 +5151,43 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_STREAM_SHUT_WR;
   }
 
-  cwnd = conn_cwnd_left(conn);
-
   nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
-  if (nwrite < 0) {
-    if (nwrite != NGTCP2_ERR_NOBUF) {
-      return nwrite;
-    }
-  } else {
-    res += nwrite;
-    dest += nwrite;
-    destlen -= (size_t)nwrite;
+  if (nwrite) {
+    return nwrite;
   }
 
-  nwrite = conn_retransmit(conn, dest, ngtcp2_min(destlen, cwnd), ts);
-  if (nwrite < 0) {
-    if (nwrite != NGTCP2_ERR_NOBUF) {
+  cwnd = conn_cwnd_left(conn);
+
+  if (cwnd >= NGTCP2_MIN_PKTLEN) {
+    nwrite = conn_retransmit(conn, dest, ngtcp2_min(destlen, cwnd), ts);
+    if (nwrite) {
       return nwrite;
     }
-  } else if (nwrite) {
-    return res + nwrite;
   }
 
   if (pktns->tx_ckm) {
     if (conn->rcs.probe_pkt_left) {
-      nwrite = conn_write_probe_pkt(conn, dest, destlen, pdatalen, strm, fin,
-                                    data, datalen, ts);
-      if (nwrite < 0) {
-        if (nwrite != NGTCP2_ERR_NOBUF) {
-          return nwrite;
-        }
-        if (res == 0) {
-          return nwrite;
-        }
-        return res;
-      }
-      assert(nwrite);
-      return res + nwrite;
+      return conn_write_probe_pkt(conn, dest, destlen, pdatalen, strm, fin,
+                                  data, datalen, ts);
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
       nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
-      if (nwrite < 0) {
-        if (nwrite != NGTCP2_ERR_NOBUF) {
-          return nwrite;
-        }
-        if (res == 0) {
-          return nwrite;
-        }
-        return res;
-      }
-      if (res == 0 && nwrite == 0) {
-        return NGTCP2_ERR_CONGESTION;
-      }
-
-      return res + nwrite;
-    }
-
-    destlen = ngtcp2_min(destlen, cwnd);
-
-    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, data,
-                            datalen, ts);
-    if (nwrite < 0) {
-      if (nwrite != NGTCP2_ERR_NOBUF) {
+      if (nwrite) {
         return nwrite;
       }
-      if (res == 0) {
-        return nwrite;
-      }
-      return res;
+      return NGTCP2_ERR_CONGESTION;
     }
-    if (nwrite == 0 && datalen > 0) {
-      if (res == 0) {
-        return NGTCP2_ERR_STREAM_DATA_BLOCKED;
-      }
-      return res;
+
+    nwrite = conn_write_pkt(conn, dest, destlen = ngtcp2_min(destlen, cwnd),
+                            pdatalen, strm, fin, data, datalen, ts);
+    if (nwrite) {
+      return nwrite;
     }
-    return res + nwrite;
+    if (datalen) {
+      return NGTCP2_ERR_STREAM_DATA_BLOCKED;
+    }
+    return 0;
   }
 
   /* Send STREAM frame in 0-RTT packet. */
@@ -5285,26 +5200,12 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (cwnd < NGTCP2_MIN_PKTLEN) {
-    if (res == 0) {
-      return NGTCP2_ERR_CONGESTION;
-    }
-    return res;
+    return NGTCP2_ERR_CONGESTION;
   }
 
-  destlen = ngtcp2_min(destlen, cwnd);
-
-  nwrite = conn_write_stream_early(conn, dest, destlen, pdatalen, strm, fin,
-                                   data, datalen, 0 /* require_padding */, ts);
-  if (nwrite < 0) {
-    if (nwrite != NGTCP2_ERR_NOBUF) {
-      return nwrite;
-    }
-    if (res == 0) {
-      return nwrite;
-    }
-    return res;
-  }
-  return res + nwrite;
+  return conn_write_stream_early(conn, dest, ngtcp2_min(destlen, cwnd),
+                                 pdatalen, strm, fin, data, datalen,
+                                 0 /* require_padding */, ts);
 }
 
 ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
