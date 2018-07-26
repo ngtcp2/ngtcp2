@@ -1799,9 +1799,9 @@ NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
 /**
  * @function
  *
- * `ngtcp2_err_fatal` returns nonzero if |liberr| is a fatal error.
+ * `ngtcp2_err_is_fatal` returns nonzero if |liberr| is a fatal error.
  */
-NGTCP2_EXTERN int ngtcp2_err_fatal(int liberr);
+NGTCP2_EXTERN int ngtcp2_err_is_fatal(int liberr);
 
 /**
  * @function

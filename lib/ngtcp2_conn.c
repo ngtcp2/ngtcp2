@@ -1450,7 +1450,7 @@ static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
   hs_nwrite =
       conn_write_handshake_ack_pkt(conn, dest, destlen, &conn->hs_pktns, ts);
   if (hs_nwrite < 0) {
-    if (ngtcp2_err_fatal((int)hs_nwrite)) {
+    if (ngtcp2_err_is_fatal((int)hs_nwrite)) {
       return hs_nwrite;
     }
     if (in_nwrite) {
