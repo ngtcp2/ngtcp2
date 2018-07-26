@@ -993,10 +993,10 @@ int Handler::tls_handshake() {
       case SSL_ERROR_SSL:
         std::cerr << "TLS handshake error: "
                   << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-        return NGTCP2_ERR_TLS_HANDSHAKE;
+        return NGTCP2_ERR_CRYPTO;
       default:
         std::cerr << "TLS handshake error: " << err << std::endl;
-        return NGTCP2_ERR_TLS_HANDSHAKE;
+        return NGTCP2_ERR_CRYPTO;
       }
       break;
     }
@@ -1023,10 +1023,10 @@ int Handler::tls_handshake() {
     case SSL_ERROR_SSL:
       std::cerr << "TLS handshake error: "
                 << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      return NGTCP2_ERR_TLS_HANDSHAKE;
+      return NGTCP2_ERR_CRYPTO;
     default:
       std::cerr << "TLS handshake error: " << err << std::endl;
-      return NGTCP2_ERR_TLS_HANDSHAKE;
+      return NGTCP2_ERR_CRYPTO;
     }
   }
 
@@ -1061,7 +1061,6 @@ int Handler::read_tls() {
   size_t nread;
 
   for (;;) {
-    auto outidx = shandshake_idx_;
     auto rv = SSL_read_ex(ssl_, buf.data(), buf.size(), &nread);
     if (rv == 1) {
       std::cerr << "Read " << nread << " bytes from TLS crypto stream"
@@ -1077,13 +1076,10 @@ int Handler::read_tls() {
     case SSL_ERROR_ZERO_RETURN:
       std::cerr << "TLS read error: "
                 << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      if (shandshake_idx_ == outidx) {
-        return NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED;
-      }
-      return NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED;
+      return NGTCP2_ERR_CRYPTO;
     default:
       std::cerr << "TLS read error: " << err << std::endl;
-      return NGTCP2_ERR_CALLBACK_FAILURE;
+      return NGTCP2_ERR_CRYPTO;
     }
   }
 }

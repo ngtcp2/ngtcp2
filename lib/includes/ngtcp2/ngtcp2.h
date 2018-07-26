@@ -199,7 +199,7 @@ typedef enum {
   NGTCP2_ERR_PKT_TIMEOUT = -212,
   NGTCP2_ERR_STREAM_ID = -213,
   NGTCP2_ERR_FINAL_OFFSET = -214,
-  NGTCP2_ERR_TLS_HANDSHAKE = -215,
+  NGTCP2_ERR_CRYPTO = -215,
   NGTCP2_ERR_PKT_NUM_EXHAUSTED = -216,
   NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM = -217,
   NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM = -218,
@@ -208,8 +208,6 @@ typedef enum {
   NGTCP2_ERR_STREAM_SHUT_WR = -221,
   NGTCP2_ERR_STREAM_NOT_FOUND = -222,
   NGTCP2_ERR_VERSION_NEGOTIATION = -223,
-  NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED = -224,
-  NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED = -225,
   NGTCP2_ERR_STREAM_STATE = -226,
   NGTCP2_ERR_NOKEY = -227,
   NGTCP2_ERR_EARLY_DATA_REJECTED = -228,
@@ -271,15 +269,12 @@ typedef enum {
   NGTCP2_STREAM_ID_ERROR = 0x4u,
   NGTCP2_STREAM_STATE_ERROR = 0x5u,
   NGTCP2_FINAL_OFFSET_ERROR = 0x6u,
-  NGTCP2_FRAME_FORMAT_ERROR = 0x7u,
+  NGTCP2_FRAME_ENCODING_ERROR = 0x7u,
   NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
   NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
   NGTCP2_PROTOCOL_VIOLATION = 0xau,
   NGTCP2_UNSOLICITED_PATH_RESPONSE = 0xbu,
-  /* Defined in quic-tls */
-  NGTCP2_TLS_HANDSHAKE_FAILED = 0x201,
-  NGTCP2_TLS_FATAL_ALERT_GENERATED = 0x202,
-  NGTCP2_TLS_FATAL_ALERT_RECEIVED = 0x203
+  NGTCP2_INVALID_MIGRATION = 0xcu
 } ngtcp2_transport_error;
 
 typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
@@ -882,19 +877,12 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
  * positioned.  |user_data| is the arbitrary pointer passed to
  * `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.
  *
- * The callback function must return 0 if it succeeds.  Depending on
- * the TLS backend, TLS connection in stream 0 is aborted with TLS
- * alert when reading this data.  If it happens during handshake, the
- * callback should return :enum:`NGTCP2_ERR_TLS_HANDSHAKE`.  This will
- * ensure that pending data, especially TLS alert, is sent at least
- * for TLS handshake.  After handshake has completed, and TLS alert is
- * generated, or received, the callback should return
- * :enum:`NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED`, or
- * :enum:`NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED` respectively.  If
- * application encounters fatal error, return
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
- * return immediately.  If the other value is returned, it is treated
- * as :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ * The callback function must return 0 if it succeeds.  If TLS backend
+ * reported error, return :enum:`NGTCP2_ERR_CRYPTO`.  If application
+ * encounters fatal error, return :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
+ * which makes the library call return immediately.  If the other
+ * value is returned, it is treated as
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn, uint64_t offset,
                                        const uint8_t *data, size_t datalen,
@@ -1212,9 +1200,8 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
  * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
  *     The packet number has reached at the maximum value, therefore
  *     the function cannot make new packet on this connection.
- * :enum:`NGTCP2_ERR_TLS_HANDSHAKE`
- *     QUIC cryptographic handshake failed.  Application should just
- *     discard state, and delete |conn|.
+ * :enum:`NGTCP2_ERR_CRYPTO`
+ *     TLS backend reported error
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts);

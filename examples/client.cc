@@ -451,7 +451,7 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
 
   if (!ngtcp2_conn_get_handshake_completed(c->conn()) &&
       c->tls_handshake() != 0) {
-    return NGTCP2_ERR_TLS_HANDSHAKE;
+    return NGTCP2_ERR_CRYPTO;
   }
 
   // SSL_do_handshake() might not consume all data (e.g.,
@@ -969,7 +969,6 @@ int Client::read_tls() {
   size_t nread;
 
   for (;;) {
-    auto outidx = chandshake_idx_;
     auto rv = SSL_read_ex(ssl_, buf.data(), buf.size(), &nread);
     if (rv == 1) {
       std::cerr << "Read " << nread << " bytes from TLS crypto stream"
@@ -985,13 +984,10 @@ int Client::read_tls() {
     case SSL_ERROR_ZERO_RETURN:
       std::cerr << "TLS read error: "
                 << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      if (chandshake_idx_ == outidx) {
-        return NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED;
-      }
-      return NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED;
+      return NGTCP2_ERR_CRYPTO;
     default:
       std::cerr << "TLS read error: " << err << std::endl;
-      return NGTCP2_ERR_CALLBACK_FAILURE;
+      return NGTCP2_ERR_CRYPTO;
     }
   }
 }

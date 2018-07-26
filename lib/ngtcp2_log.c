@@ -120,8 +120,8 @@ static const char *strerrorcode(uint16_t error_code) {
     return "STREAM_STATE_ERROR";
   case NGTCP2_FINAL_OFFSET_ERROR:
     return "FINAL_OFFSET_ERROR";
-  case NGTCP2_FRAME_FORMAT_ERROR:
-    return "FRAME_FORMAT_ERROR";
+  case NGTCP2_FRAME_ENCODING_ERROR:
+    return "FRAME_ENCODING_ERROR";
   case NGTCP2_TRANSPORT_PARAMETER_ERROR:
     return "TRANSPORT_PARAMETER_ERROR";
   case NGTCP2_VERSION_NEGOTIATION_ERROR:
@@ -130,12 +130,8 @@ static const char *strerrorcode(uint16_t error_code) {
     return "PROTOCOL_VIOLATION";
   case NGTCP2_UNSOLICITED_PATH_RESPONSE:
     return "UNSOLICITED_PATH_RESPONSE";
-  case NGTCP2_TLS_HANDSHAKE_FAILED:
-    return "TLS_HANDSHAKE_FAILED";
-  case NGTCP2_TLS_FATAL_ALERT_GENERATED:
-    return "TLS_FATAL_ALERT_GENERATED";
-  case NGTCP2_TLS_FATAL_ALERT_RECEIVED:
-    return "TLS_FATAL_ALERT_RECEIVED";
+  case NGTCP2_INVALID_MIGRATION:
+    return "INVALID_MIGRATION";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "FRAME_ERROR";

@@ -103,9 +103,7 @@ static int conn_call_recv_crypto_data(ngtcp2_conn *conn, uint64_t offset,
                                         conn->user_data);
   switch (rv) {
   case 0:
-  case NGTCP2_ERR_TLS_HANDSHAKE:
-  case NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED:
-  case NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED:
+  case NGTCP2_ERR_CRYPTO:
   case NGTCP2_ERR_PROTO:
   case NGTCP2_ERR_INTERNAL:
   case NGTCP2_ERR_CALLBACK_FAILURE:
@@ -2671,12 +2669,8 @@ static void conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
- * NGTCP2_ERR_TLS_HANDSHAKE
- *     TLS handshake failed, and TLS alert was sent.
- * NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED
- *     After handshake has completed, TLS fatal alert is generated.
- * NGTCP2_ERR_TLS_FATAL_ALERT_RECEIVED
- *     After handshake has completed, TLS fatal alert is received.
+ * NGTCP2_ERR_CRYPTO
+ *     TLS backend reported error
  */
 static int conn_emit_pending_crypto_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                          uint64_t rx_offset) {

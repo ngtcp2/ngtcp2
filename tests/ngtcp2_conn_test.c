@@ -200,7 +200,7 @@ static int recv_crypto_handshake_error(ngtcp2_conn *conn, uint64_t offset,
   (void)data;
   (void)datalen;
   (void)user_data;
-  return NGTCP2_ERR_TLS_HANDSHAKE;
+  return NGTCP2_ERR_CRYPTO;
 }
 
 static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn, uint64_t offset,
@@ -211,7 +211,7 @@ static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn, uint64_t offset,
   (void)data;
   (void)datalen;
   (void)user_data;
-  return NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED;
+  return NGTCP2_ERR_CRYPTO;
 }
 
 static int recv_crypto_data_server(ngtcp2_conn *conn, uint64_t offset,
@@ -1943,7 +1943,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_HANDSHAKE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_CRYPTO == spktlen);
 
   ngtcp2_conn_del(conn);
 
@@ -1963,7 +1963,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_HANDSHAKE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_CRYPTO == spktlen);
 
   ngtcp2_conn_del(conn);
 }
@@ -2544,7 +2544,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_FATAL_ALERT_GENERATED == rv);
+  CU_ASSERT(NGTCP2_ERR_CRYPTO == rv);
 
   ngtcp2_conn_del(conn);
 
