@@ -372,7 +372,7 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     if (has_mask(type, NGTCP2_FRAME_STREAM)) {
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
     }
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 }
 
@@ -387,7 +387,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   type = payload[0];
@@ -398,7 +398,7 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -406,14 +406,14 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   if (type & NGTCP2_STREAM_OFF_BIT) {
     ++len;
     if (payloadlen < len) {
-      return NGTCP2_ERR_FRAME_FORMAT;
+      return NGTCP2_ERR_FRAME_ENCODING;
     }
 
     n = ngtcp2_get_varint_len(p);
     len += n - 1;
 
     if (payloadlen < len) {
-      return NGTCP2_ERR_FRAME_FORMAT;
+      return NGTCP2_ERR_FRAME_ENCODING;
     }
 
     p += n;
@@ -422,21 +422,21 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
   if (type & NGTCP2_STREAM_LEN_BIT) {
     ++len;
     if (payloadlen < len) {
-      return NGTCP2_ERR_FRAME_FORMAT;
+      return NGTCP2_ERR_FRAME_ENCODING;
     }
 
     ndatalen = ngtcp2_get_varint_len(p);
     len += ndatalen - 1;
 
     if (payloadlen < len) {
-      return NGTCP2_ERR_FRAME_FORMAT;
+      return NGTCP2_ERR_FRAME_ENCODING;
     }
 
     datalen = ngtcp2_get_varint(&ndatalen, p);
     len += datalen;
 
     if (payloadlen < len) {
-      return NGTCP2_ERR_FRAME_FORMAT;
+      return NGTCP2_ERR_FRAME_ENCODING;
     }
   }
 
@@ -483,7 +483,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -493,7 +493,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -503,7 +503,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -513,14 +513,14 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   len += nnum_blks - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   num_blks = ngtcp2_get_varint(&nnum_blks, p);
   len += num_blks * (1 + 1);
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += nnum_blks;
@@ -530,7 +530,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -542,7 +542,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
       len += n - 1;
 
       if (payloadlen < len) {
-        return NGTCP2_ERR_FRAME_FORMAT;
+        return NGTCP2_ERR_FRAME_ENCODING;
       }
 
       p += n;
@@ -610,7 +610,7 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -618,13 +618,13 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
   n = ngtcp2_get_varint_len(p);
   len += n - 1;
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
   p += n + 2;
   n = ngtcp2_get_varint_len(p);
   len += n - 1;
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -653,7 +653,7 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1 + 2;
@@ -661,7 +661,7 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   n = ngtcp2_get_varint_len(p);
   len += n - 1;
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -669,14 +669,14 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   nreasonlen = ngtcp2_get_varint_len(p);
   len += nreasonlen - 1;
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   reasonlen = ngtcp2_get_varint(&nreasonlen, p);
   len += reasonlen;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -714,7 +714,7 @@ ssize_t ngtcp2_pkt_decode_application_close_frame(
   size_t nreasonlen;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1 + 2;
@@ -723,14 +723,14 @@ ssize_t ngtcp2_pkt_decode_application_close_frame(
   len += nreasonlen - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   reasonlen = ngtcp2_get_varint(&nreasonlen, p);
   len += reasonlen;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -760,7 +760,7 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -769,7 +769,7 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   dest->type = NGTCP2_FRAME_MAX_DATA;
@@ -789,7 +789,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -798,7 +798,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -807,7 +807,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -831,7 +831,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -840,7 +840,7 @@ ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   dest->type = NGTCP2_FRAME_MAX_STREAM_ID;
@@ -869,7 +869,7 @@ ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -878,7 +878,7 @@ ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   dest->type = NGTCP2_FRAME_BLOCKED;
@@ -898,7 +898,7 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -907,7 +907,7 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -916,7 +916,7 @@ ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -939,7 +939,7 @@ ssize_t ngtcp2_pkt_decode_stream_id_blocked_frame(
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -948,7 +948,7 @@ ssize_t ngtcp2_pkt_decode_stream_id_blocked_frame(
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   dest->type = NGTCP2_FRAME_STREAM_ID_BLOCKED;
@@ -968,7 +968,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
   size_t cil;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -977,7 +977,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -988,7 +988,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 
   len += cil;
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -1014,7 +1014,7 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -1023,7 +1023,7 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   dest->type = NGTCP2_FRAME_STOP_SENDING;
@@ -1044,7 +1044,7 @@ ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -1065,7 +1065,7 @@ ssize_t ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
   const uint8_t *p;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -1089,7 +1089,7 @@ ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
   size_t n;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;
@@ -1098,7 +1098,7 @@ ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
   len += n - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p += n;
@@ -1107,14 +1107,14 @@ ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
   len += ndatalen - 1;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   datalen = ngtcp2_get_varint(&ndatalen, p);
   len += datalen;
 
   if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_FORMAT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   p = payload + 1;

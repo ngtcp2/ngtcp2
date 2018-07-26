@@ -2804,7 +2804,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
  *     ACK frame is malformed.
  * NGTCP2_ERR_TLS_HANDSHAKE
  *     TLS handshake failed, and/or TLS alert was generated.
- * NGTCP2_ERR_FRAME_FORMAT
+ * NGTCP2_ERR_FRAME_ENCODING
  *     Frame is badly formatted.
  * NGTCP2_ERR_RECV_VERSION_NEGOTIATION
  *     Version Negotiation packet is received.
@@ -3724,7 +3724,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  *     been added.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
- * NGTCP2_ERR_FRAME_FORMAT
+ * NGTCP2_ERR_FRAME_ENCODING
  *     Frame is badly formatted; or frame type is unknown.
  * NGTCP2_ERR_NOMEM
  *     Out of memory

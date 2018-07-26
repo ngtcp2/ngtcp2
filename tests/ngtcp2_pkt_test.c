@@ -235,7 +235,7 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
      error */
   rv = ngtcp2_pkt_decode_stream_frame(&fr.stream, buf, buflen - 1);
 
-  CU_ASSERT(NGTCP2_ERR_FRAME_FORMAT == rv);
+  CU_ASSERT(NGTCP2_ERR_FRAME_ENCODING == rv);
 
   memset(&fr, 0, sizeof(fr));
 
@@ -259,7 +259,7 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
      error */
   rv = ngtcp2_pkt_decode_stream_frame(&fr.stream, buf, buflen - 1);
 
-  CU_ASSERT(NGTCP2_ERR_FRAME_FORMAT == rv);
+  CU_ASSERT(NGTCP2_ERR_FRAME_ENCODING == rv);
 
   memset(&fr, 0, sizeof(fr));
 
@@ -416,7 +416,7 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   for (i = 1; i < framelen; ++i) {
     rv = ngtcp2_pkt_decode_stream_frame(&nfr.stream, buf, i);
 
-    CU_ASSERT(NGTCP2_ERR_FRAME_FORMAT == rv);
+    CU_ASSERT(NGTCP2_ERR_FRAME_ENCODING == rv);
   }
 
   memset(&nfr, 0, sizeof(nfr));

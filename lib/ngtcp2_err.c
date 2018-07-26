@@ -66,8 +66,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_REQUIRED_TRANSPORT_PARAM";
   case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
     return "ERR_MALFORMED_TRANSPORT_PARAM";
-  case NGTCP2_ERR_FRAME_FORMAT:
-    return "ERR_FRAME_FORMAT";
+  case NGTCP2_ERR_FRAME_ENCODING:
+    return "ERR_FRAME_ENCODING";
   case NGTCP2_ERR_TLS_DECRYPT:
     return "ERR_TLS_DECRYPT";
   case NGTCP2_ERR_STREAM_SHUT_WR:
@@ -108,7 +108,7 @@ uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
   case 0:
     return NGTCP2_NO_ERROR;
   case NGTCP2_ERR_ACK_FRAME:
-  case NGTCP2_ERR_FRAME_FORMAT:
+  case NGTCP2_ERR_FRAME_ENCODING:
     return NGTCP2_FRAME_ENCODING_ERROR;
   case NGTCP2_ERR_FLOW_CONTROL:
     return NGTCP2_FLOW_CONTROL_ERROR;
