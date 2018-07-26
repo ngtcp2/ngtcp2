@@ -5284,6 +5284,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
 
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
   fr.connection_close.error_code = error_code;
+  fr.connection_close.frame_type = 0;
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
 

@@ -262,12 +262,12 @@ static void log_fr_rst_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                     const ngtcp2_connection_close *fr,
                                     const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT
-                   " CONNECTION_CLOSE(0x%02x) error_code=%s(%" PRIu64 ") "
-                   "reason_len=%" PRIu64 "\n"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
-                  strerrorcode(fr->error_code), fr->error_code, fr->reasonlen);
+  log->log_printf(
+      log->user_data,
+      (NGTCP2_LOG_PKT " CONNECTION_CLOSE(0x%02x) error_code=%s(%" PRIu64
+                      ") frame_type=%u reason_len=%" PRIu64 "\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, strerrorcode(fr->error_code),
+      fr->error_code, fr->frame_type, fr->reasonlen);
 }
 
 static void log_fr_application_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

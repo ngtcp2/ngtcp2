@@ -538,10 +538,11 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   /* no Reason Phrase */
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
   fr.connection_close.error_code = 0xf1f2u;
+  fr.connection_close.frame_type = 255;
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
 
-  framelen = 1 + 2 + 1;
+  framelen = 1 + 2 + 2 + 1;
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);
@@ -562,10 +563,11 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   /* 1024 bytes Reason Phrase */
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
   fr.connection_close.error_code = 0xf3f4u;
+  fr.connection_close.frame_type = 0;
   fr.connection_close.reasonlen = sizeof(reason);
   fr.connection_close.reason = reason;
 
-  framelen = 1 + 2 + 2 + sizeof(reason);
+  framelen = 1 + 2 + 1 + 2 + sizeof(reason);
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);

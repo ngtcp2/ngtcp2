@@ -645,16 +645,26 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
 ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
                                                  const uint8_t *payload,
                                                  size_t payloadlen) {
-  size_t len = 1 + 2 + 1;
+  size_t len = 1 + 2 + 1 + 1;
   const uint8_t *p;
   size_t reasonlen;
   size_t nreasonlen;
+  uint64_t frame_type;
+  size_t n;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_FRAME_FORMAT;
   }
 
   p = payload + 1 + 2;
+
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_FORMAT;
+  }
+
+  p += n;
 
   nreasonlen = ngtcp2_get_varint_len(p);
   len += nreasonlen - 1;
@@ -674,6 +684,14 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   dest->type = NGTCP2_FRAME_CONNECTION_CLOSE;
   dest->error_code = ngtcp2_get_uint16(p);
   p += 2;
+  frame_type = ngtcp2_get_varint(&n, p);
+  /* TODO Ignore large frame type for now */
+  if (frame_type > 255) {
+    dest->frame_type = 0;
+  } else {
+    dest->frame_type = (uint8_t)frame_type;
+  }
+  p += n;
   dest->reasonlen = reasonlen;
   p += nreasonlen;
   if (reasonlen == 0) {
@@ -1293,7 +1311,8 @@ ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
 ssize_t
 ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_connection_close *fr) {
-  size_t len = 1 + 2 + ngtcp2_put_varint_len(fr->reasonlen) + fr->reasonlen;
+  size_t len = 1 + 2 + ngtcp2_put_varint_len(fr->frame_type) +
+               ngtcp2_put_varint_len(fr->reasonlen) + fr->reasonlen;
   uint8_t *p;
 
   if (outlen < len) {
@@ -1304,6 +1323,7 @@ ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
 
   *p++ = NGTCP2_FRAME_CONNECTION_CLOSE;
   p = ngtcp2_put_uint16be(p, fr->error_code);
+  p = ngtcp2_put_varint(p, fr->frame_type);
   p = ngtcp2_put_varint(p, fr->reasonlen);
   if (fr->reasonlen) {
     p = ngtcp2_cpymem(p, fr->reason, fr->reasonlen);
