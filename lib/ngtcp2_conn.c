@@ -920,7 +920,7 @@ static ssize_t conn_retransmit_pktns(ngtcp2_conn *conn, uint8_t *dest,
  * sent at this time.
  */
 static uint64_t conn_cwnd_left(ngtcp2_conn *conn) {
-  uint64_t bytes_in_flight = ngtcp2_conn_bytes_in_flight(conn);
+  uint64_t bytes_in_flight = ngtcp2_conn_get_bytes_in_flight(conn);
 
   /* We might send more than bytes_in_flight if TLP/RTO packets are
      involved. */
@@ -5534,7 +5534,7 @@ void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, size_t datalen) {
   conn->unsent_max_rx_offset += datalen;
 }
 
-size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn) {
+size_t ngtcp2_conn_get_bytes_in_flight(ngtcp2_conn *conn) {
   ngtcp2_pktns *in_pktns = &conn->in_pktns;
   ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
   ngtcp2_pktns *pktns = &conn->pktns;

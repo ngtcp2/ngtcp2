@@ -1691,11 +1691,11 @@ NGTCP2_EXTERN void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_bytes_in_flight` returns the number of bytes which is
- * the sum of outgoing QUIC packet length in flight.  This does not
+ * `ngtcp2_conn_get_bytes_in_flight` returns the number of bytes which
+ * is the sum of outgoing QUIC packet length in flight.  This does not
  * include a packet which only includes ACK frames.
  */
-NGTCP2_EXTERN size_t ngtcp2_conn_bytes_in_flight(ngtcp2_conn *conn);
+NGTCP2_EXTERN size_t ngtcp2_conn_get_bytes_in_flight(ngtcp2_conn *conn);
 
 /**
  * @function
