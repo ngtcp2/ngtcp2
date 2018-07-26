@@ -4854,10 +4854,9 @@ int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
                               conn->mem);
 }
 
-int ngtcp2_conn_update_early_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                  size_t keylen, const uint8_t *iv,
-                                  size_t ivlen, const uint8_t *pn,
-                                  size_t pnlen) {
+int ngtcp2_conn_set_early_keys(ngtcp2_conn *conn, const uint8_t *key,
+                               size_t keylen, const uint8_t *iv, size_t ivlen,
+                               const uint8_t *pn, size_t pnlen) {
   if (conn->early_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }

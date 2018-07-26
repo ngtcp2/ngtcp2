@@ -127,8 +127,7 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
     std::cerr << "client_early_traffic" << std::endl;
-    ngtcp2_conn_update_early_keys(conn_, key, keylen, iv, ivlen, pn.data(),
-                                  pnlen);
+    ngtcp2_conn_set_early_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
     std::cerr << "client_handshake_traffic" << std::endl;
