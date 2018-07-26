@@ -1550,7 +1550,7 @@ int Client::stop_interactive_input() {
 }
 
 int Client::handle_error(int liberr) {
-  if (!conn_ || ngtcp2_conn_in_closing_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_)) {
     return 0;
   }
 

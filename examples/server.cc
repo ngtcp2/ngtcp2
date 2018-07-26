@@ -565,7 +565,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
 
-  if (ngtcp2_conn_in_closing_period(h->conn())) {
+  if (ngtcp2_conn_is_in_closing_period(h->conn())) {
     if (!config.quiet) {
       std::cerr << "Closing Period is over" << std::endl;
     }
@@ -1379,7 +1379,7 @@ int Handler::on_read(uint8_t *data, size_t datalen) {
 int Handler::on_write(bool retransmit) {
   int rv;
 
-  if (ngtcp2_conn_in_closing_period(conn_)) {
+  if (ngtcp2_conn_is_in_closing_period(conn_)) {
     return 0;
   }
 
@@ -1548,7 +1548,7 @@ void Handler::start_draining_period() {
 }
 
 int Handler::start_closing_period(int liberr) {
-  if (!conn_ || ngtcp2_conn_in_closing_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_)) {
     return 0;
   }
 
@@ -1941,7 +1941,7 @@ int Server::on_read() {
     }
 
     auto h = (*handler_it).second.get();
-    if (ngtcp2_conn_in_closing_period(h->conn())) {
+    if (ngtcp2_conn_is_in_closing_period(h->conn())) {
       // TODO do exponential backoff.
       rv = h->send_conn_close();
       switch (rv) {
