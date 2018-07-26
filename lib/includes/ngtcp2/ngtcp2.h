@@ -1717,9 +1717,9 @@ NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_scid(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_negotiated_version` returns the negotiated version.
+ * `ngtcp2_conn_get_negotiated_version` returns the negotiated version.
  */
-NGTCP2_EXTERN uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn);
+NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
 
 /**
  * @function

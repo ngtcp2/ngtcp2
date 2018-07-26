@@ -2090,7 +2090,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
   const uint8_t *alpn;
   size_t alpnlen;
-  auto version = ngtcp2_conn_negotiated_version(h->conn());
+  auto version = ngtcp2_conn_get_negotiated_version(h->conn());
 
   switch (version) {
   case NGTCP2_PROTO_VER_D13:

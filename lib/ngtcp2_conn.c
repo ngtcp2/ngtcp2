@@ -5551,7 +5551,7 @@ const ngtcp2_cid *ngtcp2_conn_get_scid(ngtcp2_conn *conn) {
   return &conn->scid;
 }
 
-uint32_t ngtcp2_conn_negotiated_version(ngtcp2_conn *conn) {
+uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn) {
   return conn->version;
 }
 
