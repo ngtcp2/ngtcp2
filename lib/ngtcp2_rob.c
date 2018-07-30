@@ -46,6 +46,21 @@ void ngtcp2_rob_gap_del(ngtcp2_rob_gap *g, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, g);
 }
 
+static int ngtcp2_rob_data_new_nul(ngtcp2_rob_data **pd, uint64_t offset,
+                                   size_t chunk, ngtcp2_mem *mem) {
+  *pd = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_rob_data));
+  if (*pd == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  (*pd)->begin = NULL;
+  (*pd)->end = (uint8_t*)chunk;
+  (*pd)->offset = offset;
+  (*pd)->next = NULL;
+
+  return 0;
+}
+
 int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, uint64_t offset, size_t chunk,
                         ngtcp2_mem *mem) {
   *pd = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_rob_data) + chunk);
@@ -226,6 +241,120 @@ void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset) {
   }
 }
 
+void ngtcp2_rob_remove_gap(ngtcp2_rob *rob, uint64_t offset, size_t datalen) {
+  ngtcp2_rob_gap **pg;
+  ngtcp2_rob_data **pd;
+  int rv;
+
+  for (pg = &rob->gap; *pg;) {
+    if (offset + datalen <= (*pg)->range.begin) {
+      break;
+    }
+    if (offset > (*pg)->range.end) {
+      pg = &(*pg)->next;
+      continue;
+    }
+    if (offset <= (*pg)->range.begin && offset + datalen >= (*pg)->range.end) {
+      // pg is completely within [offset, offset+datalen), just delete
+      remove_gap(pg, rob->mem);
+      continue;
+    }
+    if (offset <= (*pg)->range.begin) {
+      // [offset, offset+datalen) overlaps the start of pg, trim pg
+      (*pg)->range.begin = offset + datalen;
+    } else if (offset + datalen >= (*pg)->range.end) {
+      // [offset, offset+datalen) overlaps the end of pg, trim pg
+      (*pg)->range.end = offset;
+    } else {
+      // [offset, offset+datalen) is in the middle of pg, split pg
+      ngtcp2_rob_gap *new_pg;
+      rv = ngtcp2_rob_gap_new (&new_pg, offset + datalen, (*pg)->range.end,
+                          rob->mem);
+      if (rv != 0) {
+        return;
+      }
+      (*pg)->range.end = offset;
+      insert_gap (pg, new_pg);
+      pg = &(*pg)->next;
+    }
+    pg = &(*pg)->next;
+  }
+
+  // Find insert/append point for nul data
+  for (pd = &rob->data; *pd; pd = &(*pd)->next) {
+    if (offset < (*pd)->offset) {
+      break;
+    }
+    if (offset >= (*pd)->offset &&
+        offset < (*pd)->offset + ((*pd)->end - (*pd)->begin)) {
+      break;
+    }
+  }
+
+  if (!*pd || offset < (*pd)->offset) {
+    // insert new nul data
+    size_t new_datalen = datalen;
+    ngtcp2_rob_data *new_data;
+
+    if (*pd && datalen > (*pd)->offset - offset) {
+      new_datalen = (*pd)->offset - offset;
+    }
+
+    rv = ngtcp2_rob_data_new_nul (&new_data, offset, new_datalen, rob->mem);
+    if (rv != 0) {
+      return;
+    }
+
+    new_data->next = *pd;
+    (*pd) = new_data;
+
+  } else if (!(*pd)->begin) {
+    // extend current entry if needed
+    if ((*pd)->end < offset + (uint8_t*)datalen - (*pd)->offset) {
+      (*pd)->end = offset + (uint8_t*)datalen - (*pd)->offset;
+    }
+  } else {
+    // fit new nul data entry around existing non-nul data
+    if ((*pd)->offset + ((*pd)->end - (*pd)->begin) < offset + datalen) {
+      size_t new_datalen = datalen;
+      ngtcp2_rob_data *new_data;
+
+      if ((*pd)->offset + ((*pd)->end - (*pd)->begin) > offset) {
+        new_datalen -= (*pd)->offset + ((*pd)->end - (*pd)->begin) - offset;
+        offset = (*pd)->offset + ((*pd)->end - (*pd)->begin);
+      }
+
+      rv = ngtcp2_rob_data_new_nul (&new_data, offset, new_datalen, rob->mem);
+      if (rv != 0) {
+        return;
+      }
+
+      new_data->next = (*pd)->next;
+      (*pd)->next = new_data;
+      pd = &(*pd)->next;
+    }
+  }
+
+  // merge with or trim by next entry if adjacent or overlapping
+  if ((*pd)->next &&
+      (*pd)->offset + ((*pd)->end - (*pd)->begin) >= (*pd)->next->offset) {
+    ngtcp2_rob_data *next_data = (*pd)->next;
+    if (!(*pd)->next->begin) {
+      // merge
+      if ((*pd)->offset + (*pd)->end < next_data->offset + next_data->end) {
+        (*pd)->end = next_data->offset + next_data->end - (*pd)->offset;
+      }
+      (*pd)->next = next_data->next;
+      ngtcp2_rob_data_del (next_data, rob->mem);
+    } else {
+      // trim
+      if ((*pd)->offset + (*pd)->end > (uint8_t*)(next_data->offset)) {
+        (*pd)->end = (uint8_t*)(next_data->offset) - (*pd)->offset;
+      }
+    }
+  }
+}
+
 size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
                           uint64_t offset) {
   ngtcp2_rob_gap *g = rob->gap;
@@ -239,7 +368,11 @@ size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
   assert(d->offset <= offset);
   assert(offset < d->offset + rob->chunk);
 
-  *pdest = d->begin + (offset - d->offset);
+  if (d->begin) {
+    *pdest = d->begin + (offset - d->offset);
+  } else {
+    *pdest = NULL;
+  }
 
   return ngtcp2_min(g->range.begin, d->offset + rob->chunk) - offset;
 }

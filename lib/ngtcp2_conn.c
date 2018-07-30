@@ -2837,7 +2837,11 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                             uint64_t stream_id, void *stream_user_data) {
   int rv;
 
-  rv = ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE,
+  uint32_t strm_flags = NGTCP2_STRM_FLAG_NONE;
+  if (conn->local_settings.flags & NGTCP2_SETTINGS_FLAG_UNORDERED_DATA) {
+    strm_flags |= NGTCP2_STRM_FLAG_UNORDERED_DATA;
+  }
+  rv = ngtcp2_strm_init(strm, stream_id, strm_flags,
                         conn->local_settings.max_stream_data,
                         conn->remote_settings.max_stream_data, stream_user_data,
                         conn->mem);
@@ -2889,12 +2893,14 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     offset = rx_offset;
     rx_offset += datalen;
 
-    rv = conn_call_recv_stream_data(conn, strm,
+    if (data) {
+      rv = conn_call_recv_stream_data(conn, strm,
                                     (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
                                         rx_offset == strm->last_rx_offset,
                                     offset, data, datalen);
-    if (rv != 0) {
-      return rv;
+      if (rv != 0) {
+        return rv;
+      }
     }
 
     ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
@@ -3089,6 +3095,30 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
       rv = conn_emit_pending_stream_data(conn, strm, rx_offset);
     }
+    if (rv != 0) {
+      return rv;
+    }
+  } else if (strm->stream_id != 0 &&
+             strm->flags & NGTCP2_STRM_FLAG_UNORDERED_DATA) {
+    size_t ncut = 0;
+    const uint8_t *data;
+    size_t datalen;
+    uint64_t offset = (fr->offset > rx_offset)?fr->offset:rx_offset;
+
+    if (fr->offset < rx_offset) {
+      ncut = rx_offset - fr->offset;
+    }
+
+    data = fr->data + ncut;
+    datalen = fr->datalen - ncut;
+    rx_offset += datalen;
+
+    ngtcp2_rob_remove_gap (&strm->rob, offset, datalen);
+
+    rv = conn_call_recv_stream_data(conn, strm,
+                                    (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+                                        rx_offset == strm->last_rx_offset,
+                                    offset, data, datalen);
     if (rv != 0) {
       return rv;
     }

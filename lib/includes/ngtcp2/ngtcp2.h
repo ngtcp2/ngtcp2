@@ -503,6 +503,10 @@ typedef struct {
    ngtcp2_conn_server_new. */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
+typedef enum {
+  NGTCP2_SETTINGS_FLAG_UNORDERED_DATA = 0x1u
+} ngtcp2_settings_flags;
+
 typedef struct {
   ngtcp2_tstamp initial_ts;
   /* log_printf is a function that the library uses to write logs.
@@ -517,6 +521,7 @@ typedef struct {
   uint16_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t ack_delay_exponent;
+  ngtcp2_settings_flags flags;
 } ngtcp2_settings;
 
 /**

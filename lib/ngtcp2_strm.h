@@ -57,6 +57,10 @@ typedef enum {
   /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
      from the local endpoint. */
   NGTCP2_STRM_FLAG_STOP_SENDING = 0x10,
+  /* NGTCP2_STRM_FLAG_UNORDERED_DATA indicates that stream data should be
+   * returned to the application as soon as it is available, without reordering
+   * the data into sequence. */
+  NGTCP2_STRM_FLAG_UNORDERED_DATA = 0x20,
 } ngtcp2_strm_flags;
 
 struct ngtcp2_strm;
