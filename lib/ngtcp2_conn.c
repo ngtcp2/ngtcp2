@@ -4022,10 +4022,13 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     payloadlen -= (size_t)nread;
 
     if (fr->type == NGTCP2_FRAME_ACK) {
+      /* It probably illegal to send ACK in 0RTT protected packet. */
+      if ((hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
+          hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
+        return (ssize_t)pktlen;
+      }
       assign_recved_ack_delay_unscaled(
-          &fr->ack, (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)
-                        ? NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
-                        : conn->remote_settings.ack_delay_exponent);
+          &fr->ack, conn->remote_settings.ack_delay_exponent);
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
