@@ -1762,5 +1762,6 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
 
 int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd) {
   return (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
-         (hd->type == NGTCP2_PKT_INITIAL || hd->type == NGTCP2_PKT_HANDSHAKE);
+         (hd->type == NGTCP2_PKT_INITIAL || hd->type == NGTCP2_PKT_HANDSHAKE ||
+          hd->type == NGTCP2_PKT_0RTT_PROTECTED);
 }

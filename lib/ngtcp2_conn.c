@@ -618,15 +618,11 @@ static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
      retransmittable packet (non-ACK only packet). */
   ngtcp2_rtb_add(rtb, ent);
 
-  if (ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    switch (ent->hd.type) {
-    case NGTCP2_PKT_INITIAL:
-    case NGTCP2_PKT_HANDSHAKE:
-      conn->rcs.last_hs_tx_pkt_ts = ent->ts;
-      break;
-    }
+  if (ngtcp2_pkt_handshake_pkt(&ent->hd)) {
+    conn->rcs.last_hs_tx_pkt_ts = ent->ts;
+  } else {
+    conn->rcs.last_tx_pkt_ts = ent->ts;
   }
-  conn->rcs.last_tx_pkt_ts = ent->ts;
   ngtcp2_conn_set_loss_detection_alarm(conn);
 }
 
