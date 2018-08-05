@@ -1801,7 +1801,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == conn->hs_pktns.acktr.nack);
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ent));
   CU_ASSERT(conn->hs_pktns.acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK);
 
   ngtcp2_conn_del(conn);
@@ -1845,7 +1845,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == conn->hs_pktns.acktr.nack);
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ent));
   CU_ASSERT(!conn->hs_pktns.acktr.flags);
 
   ngtcp2_conn_del(conn);
@@ -2875,6 +2875,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_acktr_entry *ackent;
   int rv;
+  ngtcp2_ksl_it it;
 
   /* 2 QUIC long packets in one UDP packet */
   setup_handshake_server(&conn);
@@ -2897,11 +2898,13 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  ackent = conn->in_pktns.acktr.ent;
+  it = ngtcp2_acktr_get(&conn->in_pktns.acktr);
+  ackent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(ackent->pkt_num == pkt_num);
 
-  ackent = ackent->next;
+  ngtcp2_ksl_it_next(&it);
+  ackent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(ackent->pkt_num == pkt_num - 1);
 
@@ -2931,11 +2934,13 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   CU_ASSERT(0 == rv);
 
-  ackent = conn->pktns.acktr.ent;
+  it = ngtcp2_acktr_get(&conn->pktns.acktr);
+  ackent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(ackent->pkt_num == pkt_num);
 
-  ackent = conn->hs_pktns.acktr.ent;
+  it = ngtcp2_acktr_get(&conn->hs_pktns.acktr);
+  ackent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(ackent->pkt_num == pkt_num - 1);
 
@@ -2973,7 +2978,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
   CU_ASSERT(spktlen == 0);
-  CU_ASSERT(NULL == conn->in_pktns.acktr.ent);
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns.acktr.ent));
 
   ngtcp2_conn_del(conn);
 }

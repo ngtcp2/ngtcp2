@@ -33,6 +33,7 @@
 
 #include "ngtcp2_mem.h"
 #include "ngtcp2_ringbuf.h"
+#include "ngtcp2_ksl.h"
 
 /* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
    which ngtcp2_acktr stores. */
@@ -54,7 +55,6 @@ typedef struct ngtcp2_log ngtcp2_log;
  * ngtcp2_acktr_entry is a single packet which needs to be acked.
  */
 struct ngtcp2_acktr_entry {
-  ngtcp2_acktr_entry **pprev, *next;
   uint64_t pkt_num;
   ngtcp2_tstamp tstamp;
 };
@@ -105,12 +105,11 @@ typedef enum {
  */
 typedef struct {
   ngtcp2_ringbuf acks;
-  /* ent points to the head of list which is ordered by the decreasing
-     order of packet number. */
-  ngtcp2_acktr_entry *ent, *tail;
+  /* ent includes ngtcp2_acktr_entry sorted by decreasing order of
+     packet number. */
+  ngtcp2_ksl ent;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
-  size_t nack;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
@@ -151,24 +150,24 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
                      int active_ack, ngtcp2_tstamp ts);
 
 /*
- * ngtcp2_acktr_forget removes all entries from |ent| to the end of
- * the list.  This function assumes that |ent| is linked directly, or
- * indirectly from acktr->ent.
+ * ngtcp2_acktr_forget removes all entries which have the packet
+ * number that is equal to or less than ent->pkt_num.  This function
+ * assumes that |acktr| includes |ent|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
-void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
+int ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 
 /*
  * ngtcp2_acktr_get returns the pointer to pointer to the entry which
  * has the largest packet number to be acked.  If there is no entry,
- * this function returns a pointer which includes NULL on dereference.
+ * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
-ngtcp2_acktr_entry **ngtcp2_acktr_get(ngtcp2_acktr *acktr);
-
-/*
- * ngtcp2_acktr_removes and frees the head of entries, which has the
- * largest packet number.
- */
-void ngtcp2_acktr_pop(ngtcp2_acktr *acktr);
+ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_add_ack adds the outgoing ACK frame |fr| to |acktr|.
