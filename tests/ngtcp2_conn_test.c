@@ -1801,7 +1801,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ent));
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ents));
   CU_ASSERT(conn->hs_pktns.acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK);
 
   ngtcp2_conn_del(conn);
@@ -1845,7 +1845,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ent));
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ents));
   CU_ASSERT(!conn->hs_pktns.acktr.flags);
 
   ngtcp2_conn_del(conn);
@@ -2978,7 +2978,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
   CU_ASSERT(spktlen == 0);
-  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns.acktr.ent));
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns.acktr.ents));
 
   ngtcp2_conn_del(conn);
 }

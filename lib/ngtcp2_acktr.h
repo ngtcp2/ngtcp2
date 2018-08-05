@@ -105,9 +105,9 @@ typedef enum {
  */
 typedef struct {
   ngtcp2_ringbuf acks;
-  /* ent includes ngtcp2_acktr_entry sorted by decreasing order of
+  /* ents includes ngtcp2_acktr_entry sorted by decreasing order of
      packet number. */
-  ngtcp2_ksl ent;
+  ngtcp2_ksl ents;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
@@ -132,8 +132,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, int delayed_ack, ngtcp2_log *log,
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees
- * any ngtcp2_acktr_entry directly or indirectly pointed by
- * acktr->ent.
+ * any ngtcp2_acktr_entry added to |acktr|.
  */
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
 

@@ -65,7 +65,7 @@ void test_ngtcp2_acktr_add(void) {
   for (i = 0; i < arraylen(ents); ++i) {
     it = ngtcp2_acktr_get(&acktr);
     ent = ngtcp2_ksl_it_get(&it);
-    ngtcp2_ksl_remove(&acktr.ent, NULL, (int64_t)ent->pkt_num);
+    ngtcp2_ksl_remove(&acktr.ents, NULL, (int64_t)ent->pkt_num);
     ngtcp2_acktr_entry_del(ent, mem);
 
     it = ngtcp2_acktr_get(&acktr);
@@ -113,7 +113,7 @@ void test_ngtcp2_acktr_eviction(void) {
     ngtcp2_acktr_add(&acktr, ent, 1, 999 + i);
   }
 
-  CU_ASSERT(NGTCP2_ACKTR_MAX_ENT == ngtcp2_ksl_len(&acktr.ent));
+  CU_ASSERT(NGTCP2_ACKTR_MAX_ENT == ngtcp2_ksl_len(&acktr.ents));
 
   for (i = 0, it = ngtcp2_acktr_get(&acktr); !ngtcp2_ksl_it_end(&it);
        ++i, ngtcp2_ksl_it_next(&it)) {
@@ -132,7 +132,7 @@ void test_ngtcp2_acktr_eviction(void) {
     ngtcp2_acktr_add(&acktr, ent, 1, 999 + i);
   }
 
-  CU_ASSERT(NGTCP2_ACKTR_MAX_ENT == ngtcp2_ksl_len(&acktr.ent));
+  CU_ASSERT(NGTCP2_ACKTR_MAX_ENT == ngtcp2_ksl_len(&acktr.ents));
 
   for (i = 0, it = ngtcp2_acktr_get(&acktr); !ngtcp2_ksl_it_end(&it);
        ++i, ngtcp2_ksl_it_next(&it)) {
@@ -160,7 +160,7 @@ void test_ngtcp2_acktr_forget(void) {
     ngtcp2_acktr_add(&acktr, ent, 1, 999 + i);
   }
 
-  CU_ASSERT(7 == ngtcp2_ksl_len(&acktr.ent));
+  CU_ASSERT(7 == ngtcp2_ksl_len(&acktr.ents));
 
   it = ngtcp2_acktr_get(&acktr);
   ngtcp2_ksl_it_next(&it);
@@ -169,7 +169,7 @@ void test_ngtcp2_acktr_forget(void) {
   ent = ngtcp2_ksl_it_get(&it);
   ngtcp2_acktr_forget(&acktr, ent);
 
-  CU_ASSERT(3 == ngtcp2_ksl_len(&acktr.ent));
+  CU_ASSERT(3 == ngtcp2_ksl_len(&acktr.ents));
 
   it = ngtcp2_acktr_get(&acktr);
   ent = ngtcp2_ksl_it_get(&it);
@@ -191,7 +191,7 @@ void test_ngtcp2_acktr_forget(void) {
 
   ngtcp2_acktr_forget(&acktr, ent);
 
-  CU_ASSERT(0 == ngtcp2_ksl_len(&acktr.ent));
+  CU_ASSERT(0 == ngtcp2_ksl_len(&acktr.ents));
 
   ngtcp2_acktr_free(&acktr);
 }
@@ -245,7 +245,7 @@ void test_ngtcp2_acktr_recv_ack(void) {
   ngtcp2_acktr_recv_ack(&acktr, &ackfr, NULL, 1000000009);
 
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&acktr.acks));
-  CU_ASSERT(5 == ngtcp2_ksl_len(&acktr.ent));
+  CU_ASSERT(5 == ngtcp2_ksl_len(&acktr.ents));
 
   it = ngtcp2_acktr_get(&acktr);
   ent = ngtcp2_ksl_it_get(&it);
