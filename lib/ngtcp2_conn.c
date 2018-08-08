@@ -4704,6 +4704,10 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
   destlen -= (size_t)spktlen;
   destlen = ngtcp2_min(destlen, cwnd);
 
+  if (conn->pktns.tx_ckm) {
+    return spktlen;
+  }
+
   early_spktlen =
       conn_write_stream_early(conn, dest, destlen, pdatalen, strm, fin, data,
                               datalen, require_padding, ts);
