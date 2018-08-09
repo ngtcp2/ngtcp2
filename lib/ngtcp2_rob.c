@@ -282,11 +282,10 @@ void ngtcp2_rob_remove_gap(ngtcp2_rob *rob, uint64_t offset, size_t datalen) {
 
   // Find insert/append point for nul data
   for (pd = &rob->data; *pd; pd = &(*pd)->next) {
-    if (offset < (*pd)->offset) {
-      break;
-    }
-    if (offset >= (*pd)->offset &&
-        offset < (*pd)->offset + ((*pd)->end - (*pd)->begin)) {
+    uintptr_t pd_dlen = (uintptr_t)((*pd)->end) - (uintptr_t)((*pd)->begin);
+    if (offset < (*pd)->offset ||
+        (offset >= (*pd)->offset &&
+         offset < (*pd)->offset + pd_dlen)) { 
       break;
     }
   }
@@ -314,14 +313,15 @@ void ngtcp2_rob_remove_gap(ngtcp2_rob *rob, uint64_t offset, size_t datalen) {
       (*pd)->end = offset + (uint8_t*)datalen - (*pd)->offset;
     }
   } else {
+    uintptr_t pd_dlen = (uintptr_t)((*pd)->end) - (uintptr_t)((*pd)->begin);
     // fit new nul data entry around existing non-nul data
-    if ((*pd)->offset + ((*pd)->end - (*pd)->begin) < offset + datalen) {
+    if ((*pd)->offset + pd_dlen < offset + datalen) {
       size_t new_datalen = datalen;
       ngtcp2_rob_data *new_data;
 
-      if ((*pd)->offset + ((*pd)->end - (*pd)->begin) > offset) {
-        new_datalen -= (*pd)->offset + ((*pd)->end - (*pd)->begin) - offset;
-        offset = (*pd)->offset + ((*pd)->end - (*pd)->begin);
+      if ((*pd)->offset + pd_dlen > offset) {
+        new_datalen -= (*pd)->offset + pd_dlen - offset;
+        offset = (*pd)->offset + pd_dlen;
       }
 
       rv = ngtcp2_rob_data_new_nul (&new_data, offset, new_datalen, rob->mem);
@@ -337,12 +337,13 @@ void ngtcp2_rob_remove_gap(ngtcp2_rob *rob, uint64_t offset, size_t datalen) {
 
   // merge with or trim by next entry if adjacent or overlapping
   if ((*pd)->next &&
-      (*pd)->offset + ((*pd)->end - (*pd)->begin) >= (*pd)->next->offset) {
+      (*pd)->offset + ((uintptr_t)(*pd)->end - (uintptr_t)(*pd)->begin) >=
+            (*pd)->next->offset) {
     ngtcp2_rob_data *next_data = (*pd)->next;
     if (!(*pd)->next->begin) {
       // merge
       if ((*pd)->offset + (*pd)->end < next_data->offset + next_data->end) {
-        (*pd)->end = next_data->offset + next_data->end - (*pd)->offset;
+        (*pd)->end = next_data->end + next_data->offset - (*pd)->offset;
       }
       (*pd)->next = next_data->next;
       ngtcp2_rob_data_del (next_data, rob->mem);
