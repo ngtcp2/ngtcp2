@@ -504,6 +504,7 @@ typedef struct {
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
 typedef enum {
+  NGTCP2_SETTINGS_FLAG_NONE = 0x0u,
   NGTCP2_SETTINGS_FLAG_UNORDERED_DATA = 0x1u
 } ngtcp2_settings_flags;
 
