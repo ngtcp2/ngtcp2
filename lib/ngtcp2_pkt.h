@@ -415,6 +415,21 @@ ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
                                        size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_new_token_frame decodes NEW_TOKEN frame from
+ * |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  NEW_TOKEN frame must start at
+ * payload[0].  This function finishes when it decodes one NEW_TOKEN
+ * frame, and returns the exact number of bytes read to decode a frame
+ * if it succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include NEW_TOKEN frame.
+ */
+ssize_t ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
+                                          const uint8_t *payload,
+                                          size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -660,6 +675,19 @@ ssize_t ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
  */
 ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
                                        const ngtcp2_crypto *fr);
+
+/*
+ * ngtcp2_pkt_encode_new_token_frame encodes NEW_TOKEN frame |fr| into
+ * the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
+                                          const ngtcp2_new_token *fr);
 
 /*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for

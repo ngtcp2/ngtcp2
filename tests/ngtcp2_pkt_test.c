@@ -913,6 +913,32 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
                         fr.crypto.data[0].len));
 }
 
+void test_ngtcp2_pkt_encode_new_token_frame(void) {
+  const uint8_t token[] = "0123456789abcdef2";
+  uint8_t buf[256];
+  ngtcp2_frame fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+
+  fr.type = NGTCP2_FRAME_NEW_TOKEN;
+  fr.new_token.tokenlen = strsize(token);
+  fr.new_token.token = token;
+
+  framelen = 1 + 1 + strsize(token);
+
+  rv = ngtcp2_pkt_encode_new_token_frame(buf, sizeof(buf), &fr.new_token);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_new_token_frame(&nfr.new_token, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.new_token.tokenlen == nfr.new_token.tokenlen);
+  CU_ASSERT(0 == memcmp(fr.new_token.token, nfr.new_token.token,
+                        fr.new_token.tokenlen));
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));

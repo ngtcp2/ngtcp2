@@ -108,6 +108,8 @@ int main() {
                    test_ngtcp2_pkt_encode_path_response_frame) ||
       !CU_add_test(pSuite, "pkt_encode_crypto_frame",
                    test_ngtcp2_pkt_encode_crypto_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_new_token_frame",
+                   test_ngtcp2_pkt_encode_new_token_frame) ||
       !CU_add_test(pSuite, "pkt_adjust_pkt_num",
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "pkt_validate_ack", test_ngtcp2_pkt_validate_ack) ||
