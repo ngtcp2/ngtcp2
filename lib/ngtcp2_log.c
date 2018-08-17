@@ -398,6 +398,26 @@ static void log_fr_crypto(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
       NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->offset, datalen);
 }
 
+static void log_fr_new_token(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                             const ngtcp2_new_token *fr, const char *dir) {
+  /* Show at most first 64 bytes of token.  If token is longer than 64
+     bytes, log first 64 bytes and then append "*" */
+  uint8_t buf[128 + 1 + 1];
+  uint8_t *p;
+
+  if (fr->tokenlen > 64) {
+    p = ngtcp2_encode_hex(buf, fr->token, 64);
+    p[128] = '*';
+    p[129] = '\0';
+  } else {
+    p = ngtcp2_encode_hex(buf, fr->token, fr->tokenlen);
+  }
+  log->log_printf(
+      log->user_data,
+      (NGTCP2_LOG_PKT " NEW_TOKEN(0x%02x) token=0x%s token_len=%zu\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, (const char *)p, fr->tokenlen);
+}
+
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
   switch (fr->type) {
@@ -454,6 +474,9 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     break;
   case NGTCP2_FRAME_CRYPTO:
     log_fr_crypto(log, hd, &fr->crypto, dir);
+    break;
+  case NGTCP2_FRAME_NEW_TOKEN:
+    log_fr_new_token(log, hd, &fr->new_token, dir);
     break;
   default:
     assert(0);
