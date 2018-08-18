@@ -140,11 +140,24 @@ void test_ngtcp2_encode_transport_params(void) {
   params.ack_delay_exponent = 20;
   params.disable_migration = 1;
 
-  nwrite = ngtcp2_encode_transport_params(
-      buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
+  for (i = 0; i < 4 /* initial_version */ + 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4;
+       ++i) {
+    nwrite = ngtcp2_encode_transport_params(
+        buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(4 /* initial_version */ + 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 ==
-            nwrite);
+    CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
+  }
+  nwrite = ngtcp2_encode_transport_params(
+      buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
+
+  CU_ASSERT((ssize_t)i == nwrite);
+
+  for (i = 0; (ssize_t)i < nwrite; ++i) {
+    rv = ngtcp2_decode_transport_params(
+        &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, i);
+
+    CU_ASSERT(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM == rv);
+  }
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -168,64 +181,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
 
-  /* CH, Data is too short to decode */
-  params.v.ch.initial_version = 0xe1e2e3e4u;
-  params.initial_max_stream_data_bidi_local = 1000000007;
-  params.initial_max_stream_data_bidi_remote = 961748941;
-  params.initial_max_stream_data_uni = 982451653;
-  params.initial_max_data = 1000000009;
-  params.initial_max_bidi_streams = 909;
-  params.idle_timeout = 0xd1d2;
-  params.max_packet_size = 1200;
-  params.ack_delay_exponent = 20;
-  params.disable_migration = 1;
-
-  nwrite = ngtcp2_encode_transport_params(
-      buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
-
-  for (i = 0; i < (size_t)nwrite; ++i) {
-    rv = ngtcp2_decode_transport_params(
-        &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, i);
-
-    CU_ASSERT(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM == rv);
-  }
-
-  rv = ngtcp2_decode_transport_params(
-      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, i);
-
-  CU_ASSERT(0 == rv);
-
-  memset(&params, 0, sizeof(params));
-  memset(&nparams, 0, sizeof(nparams));
-
-  /* CH, Buffer is too short to encode */
-  params.v.ch.initial_version = 0xe1e2e3e4u;
-  params.initial_max_stream_data_bidi_local = 1000000007;
-  params.initial_max_stream_data_bidi_remote = 961748941;
-  params.initial_max_stream_data_uni = 982451653;
-  params.initial_max_data = 1000000009;
-  params.initial_max_bidi_streams = 909;
-  params.idle_timeout = 0xd1d2;
-  params.max_packet_size = 1200;
-  params.ack_delay_exponent = 20;
-  params.disable_migration = 1;
-
-  for (i = 0; i < 4 /* initial_version */ + 2 + 8 * 4 + 6 + 6 + 6 + 5 + 4;
-       ++i) {
-    nwrite = ngtcp2_encode_transport_params(
-        buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
-
-    CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
-  }
-  nwrite = ngtcp2_encode_transport_params(
-      buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
-
-  CU_ASSERT((ssize_t)i == nwrite);
-
-  memset(&params, 0, sizeof(params));
-  memset(&nparams, 0, sizeof(nparams));
-
-  /* EE, Buffer is too short to encode */
+  /* EE, all parameters */
   params.v.ee.negotiated_version = 0xf1f2f3f4u;
   params.v.ee.supported_versions[0] = 0xd1d2d3d4u;
   params.v.ee.supported_versions[1] = 0xe1e2e3e4u;
@@ -270,6 +226,13 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
 
   CU_ASSERT((ssize_t)i == nwrite);
+
+  for (i = 0; (ssize_t)i < nwrite; ++i) {
+    rv = ngtcp2_decode_transport_params(
+        &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, i);
+
+    CU_ASSERT(rv == NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM);
+  }
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
