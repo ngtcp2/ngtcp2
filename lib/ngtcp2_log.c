@@ -128,8 +128,6 @@ static const char *strerrorcode(uint16_t error_code) {
     return "VERSION_NEGOTIATION_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
-  case NGTCP2_UNSOLICITED_PATH_RESPONSE:
-    return "UNSOLICITED_PATH_RESPONSE";
   case NGTCP2_INVALID_MIGRATION:
     return "INVALID_MIGRATION";
   default:
