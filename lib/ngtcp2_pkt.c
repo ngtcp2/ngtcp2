@@ -87,16 +87,19 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
     switch (type) {
     case NGTCP2_PKT_INITIAL:
-      len = 1;
+      len = 1 + NGTCP2_MIN_LONG_HEADERLEN - 1; /* Cut packet number field */
       break;
     case NGTCP2_PKT_RETRY:
+      /* Retry packet does not have packet number and length fields */
+      len = 5 + 1;
+      break;
     case NGTCP2_PKT_HANDSHAKE:
     case NGTCP2_PKT_0RTT_PROTECTED:
+      len = NGTCP2_MIN_LONG_HEADERLEN - 1; /* Cut packet number field */
       break;
     default:
       return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
     }
-    len += NGTCP2_MIN_LONG_HEADERLEN - 1; /* Cut packet number field */
   }
 
   if (pktlen < len) {
@@ -139,12 +142,18 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
     p += ntokenlen;
 
-    token = p;
+    if (tokenlen) {
+      token = p;
+    }
 
     p += tokenlen;
   }
 
-  if (type != NGTCP2_PKT_VERSION_NEGOTIATION) {
+  switch (type) {
+  case NGTCP2_PKT_VERSION_NEGOTIATION:
+  case NGTCP2_PKT_RETRY:
+    break;
+  default:
     /* Length */
     n = ngtcp2_get_varint_len(p);
     len += n - 1;
@@ -171,9 +180,12 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   dest->tokenlen = tokenlen;
   p += ntokenlen + tokenlen;
 
-  if (type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+  switch (type) {
+  case NGTCP2_PKT_VERSION_NEGOTIATION:
+  case NGTCP2_PKT_RETRY:
     dest->len = 0;
-  } else {
+    break;
+  default:
     dest->len = ngtcp2_get_varint(&n, p);
     p += n;
   }
@@ -231,10 +243,13 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
                                   const ngtcp2_pkt_hd *hd) {
   uint8_t *p;
-  size_t len = NGTCP2_MIN_LONG_HEADERLEN + hd->dcid.datalen + hd->scid.datalen +
-               2 /* Length */ + hd->pkt_numlen -
-               2; /* NGTCP2_MIN_LONG_HEADERLEN includes 1 byte for len
-                                   and 1 byte for packet number. */
+  size_t len = NGTCP2_MIN_LONG_HEADERLEN + hd->dcid.datalen + hd->scid.datalen -
+               2; /* NGTCP2_MIN_LONG_HEADERLEN includes 1 byte for
+                     len and 1 byte for packet number. */
+
+  if (hd->type != NGTCP2_PKT_RETRY) {
+    len += 2 /* Length */ + hd->pkt_numlen;
+  }
 
   if (hd->type == NGTCP2_PKT_INITIAL) {
     len += ngtcp2_put_varint_len(hd->tokenlen) + hd->tokenlen;
@@ -271,8 +286,11 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
       p = ngtcp2_cpymem(p, hd->token, hd->tokenlen);
     }
   }
-  p = ngtcp2_put_varint14(p, (uint16_t)hd->len);
-  p = ngtcp2_put_pkt_num(p, hd->pkt_num, hd->pkt_numlen);
+
+  if (hd->type != NGTCP2_PKT_RETRY) {
+    p = ngtcp2_put_varint14(p, (uint16_t)hd->len);
+    p = ngtcp2_put_pkt_num(p, hd->pkt_num, hd->pkt_numlen);
+  }
 
   assert((size_t)(p - out) == len);
 
@@ -1754,6 +1772,41 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
   return 0;
 }
 
+int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
+                            size_t payloadlen) {
+  size_t len = 1;
+  const uint8_t *p = payload;
+  size_t odcil;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  odcil = *p & 0xf;
+  if (odcil) {
+    odcil += 3;
+  }
+  len += odcil;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  ++p;
+
+  ngtcp2_cid_init(&dest->odcid, p, odcil);
+  p += odcil;
+
+  dest->tokenlen = (size_t)(payload + payloadlen - p);
+  if (dest->tokenlen) {
+    dest->token = p;
+  } else {
+    dest->token = NULL;
+  }
+
+  return 0;
+}
+
 uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
                                    size_t n) {
   uint64_t k =
@@ -1823,6 +1876,43 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
 
   p = ngtcp2_cpymem(p, rand, randlen);
   p = ngtcp2_cpymem(p, stateless_reset_token, NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  return p - dest;
+}
+
+ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
+                               const ngtcp2_pkt_hd *hd, const ngtcp2_cid *odcid,
+                               const uint8_t *token, size_t tokenlen) {
+  uint8_t *p;
+  ssize_t nwrite;
+
+  assert(hd->flags & NGTCP2_PKT_FLAG_LONG_FORM);
+  assert(hd->type == NGTCP2_PKT_RETRY);
+  /* The specification requires that the initial random connection ID
+     from client must be at least 8 octets.  But after first Retry,
+     server might choose 0 length connection ID for client. */
+  assert(odcid->datalen == 0 || odcid->datalen > 3);
+  assert(tokenlen > 0);
+
+  nwrite = ngtcp2_pkt_encode_hd_long(dest, destlen, hd);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  if (destlen < (size_t)nwrite + 1 + odcid->datalen + tokenlen) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = dest + nwrite;
+
+  if (odcid->datalen == 0) {
+    *p++ = 0;
+  } else {
+    *p++ = (uint8_t)(odcid->datalen - 3);
+    p = ngtcp2_cpymem(p, odcid->data, odcid->datalen);
+  }
+
+  p = ngtcp2_cpymem(p, token, tokenlen);
 
   return p - dest;
 }

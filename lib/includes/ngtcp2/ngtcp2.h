@@ -350,6 +350,12 @@ typedef struct {
 } ngtcp2_pkt_stateless_reset;
 
 typedef struct {
+  ngtcp2_cid odcid;
+  const uint8_t *token;
+  size_t tokenlen;
+} ngtcp2_pkt_retry;
+
+typedef struct {
   uint8_t type;
   /**
    * flags of decoded STREAM frame.  This gets ignored when encoding
@@ -822,6 +828,27 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
     uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd,
     uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_write_retry` writes Retry packet in the buffer pointed
+ * by |dest| whose length is |destlen|.  |hd| must be long packet
+ * header, and its type must be :enum:`NGTCP2_PKT_RETRY`.  |odcid|
+ * specifies Original Destination Connection ID.  |token| specifies
+ * Retry Token, and |tokenlen| specifies its length.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
+                                             const ngtcp2_pkt_hd *hd,
+                                             const ngtcp2_cid *odcid,
+                                             const uint8_t *token,
+                                             size_t tokenlen);
 
 /**
  * @function

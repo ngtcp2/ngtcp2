@@ -140,6 +140,19 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
                                       size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_retry decodes Retry packet payload |payload| of
+ * length |payloadlen|.  The |payload| must start with ODCIL field.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Payloadlen is too short.
+ */
+int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
+                            size_t payloadlen);
+
+/*
  * ngtcp2_pkt_decode_stream_frame decodes STREAM frame from |payload|
  * of length |payloadlen|.  The result is stored in the object pointed
  * by |dest|.  STREAM frame must start at payload[0].  This function
