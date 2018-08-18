@@ -558,9 +558,16 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   }
 
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_stream_data=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data);
-
+                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_local=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS,
+                  params->initial_max_stream_data_bidi_local);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_remote=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS,
+                  params->initial_max_stream_data_bidi_remote);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_stream_data_uni=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_uni);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_data=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_data);
   log->log_printf(log->user_data,

@@ -1642,12 +1642,34 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
+ * conn_initial_stream_rx_offset returns the initial maximum offset of
+ * data for a stream denoted by |stream_id|.
+ */
+static uint64_t conn_initial_stream_rx_offset(ngtcp2_conn *conn,
+                                              uint64_t stream_id) {
+  int local_stream = conn_local_stream(conn, stream_id);
+
+  if (bidi_stream(stream_id)) {
+    if (local_stream) {
+      return conn->local_settings.max_stream_data_bidi_local;
+    }
+    return conn->local_settings.max_stream_data_bidi_remote;
+  }
+
+  if (local_stream) {
+    return 0;
+  }
+  return conn->local_settings.max_stream_data_uni;
+}
+
+/*
  * conn_should_send_max_stream_data returns nonzero if MAX_STREAM_DATA
  * frame should be send for |strm|.
  */
 static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
-  return conn->local_settings.max_stream_data / 2 <
+
+  return conn_initial_stream_rx_offset(conn, strm->stream_id) / 2 <
              (strm->unsent_max_rx_offset - strm->max_rx_offset) ||
          2 * conn->rx_bw * conn->rcs.smoothed_rtt >=
              strm->max_rx_offset - strm->last_rx_offset;
@@ -3147,11 +3169,28 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const uint8_t *pkt,
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                             uint64_t stream_id, void *stream_user_data) {
   int rv;
+  uint64_t max_rx_offset;
+  uint64_t max_tx_offset;
+  int local_stream = conn_local_stream(conn, stream_id);
 
-  rv = ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE,
-                        conn->local_settings.max_stream_data,
-                        conn->remote_settings.max_stream_data, stream_user_data,
-                        conn->mem);
+  if (bidi_stream(stream_id)) {
+    if (local_stream) {
+      max_rx_offset = conn->local_settings.max_stream_data_bidi_local;
+      max_tx_offset = conn->remote_settings.max_stream_data_bidi_remote;
+    } else {
+      max_rx_offset = conn->local_settings.max_stream_data_bidi_remote;
+      max_tx_offset = conn->remote_settings.max_stream_data_bidi_local;
+    }
+  } else if (local_stream) {
+    max_rx_offset = 0;
+    max_tx_offset = conn->remote_settings.max_stream_data_uni;
+  } else {
+    max_rx_offset = conn->local_settings.max_stream_data_uni;
+    max_tx_offset = 0;
+  }
+
+  rv = ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE, max_rx_offset,
+                        max_tx_offset, stream_user_data, conn->mem);
   if (rv != 0) {
     ngtcp2_mem_free(conn->mem, strm);
     return rv;
@@ -3568,7 +3607,8 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
   if (strm == NULL) {
     if (!local_stream && !ngtcp2_idtr_is_open(idtr, fr->stream_id)) {
       /* Stream is reset before we create ngtcp2_strm object. */
-      if (conn->local_settings.max_stream_data < fr->final_offset ||
+      if (conn_initial_stream_rx_offset(conn, fr->stream_id) <
+              fr->final_offset ||
           conn_max_data_violated(conn, fr->final_offset)) {
         return NGTCP2_ERR_FLOW_CONTROL;
       }
@@ -4944,7 +4984,9 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
 static void
 settings_copy_from_transport_params(ngtcp2_settings *dest,
                                     const ngtcp2_transport_params *src) {
-  dest->max_stream_data = src->initial_max_stream_data;
+  dest->max_stream_data_bidi_local = src->initial_max_stream_data_bidi_local;
+  dest->max_stream_data_bidi_remote = src->initial_max_stream_data_bidi_remote;
+  dest->max_stream_data_uni = src->initial_max_stream_data_uni;
   dest->max_data = src->initial_max_data;
   dest->max_bidi_streams = src->initial_max_bidi_streams;
   dest->max_uni_streams = src->initial_max_uni_streams;
@@ -4963,7 +5005,9 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
 
 static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
-  dest->initial_max_stream_data = src->max_stream_data;
+  dest->initial_max_stream_data_bidi_local = src->max_stream_data_bidi_local;
+  dest->initial_max_stream_data_bidi_remote = src->max_stream_data_bidi_remote;
+  dest->initial_max_stream_data_uni = src->max_stream_data_uni;
   dest->initial_max_data = src->max_data;
   dest->initial_max_bidi_streams = src->max_bidi_streams;
   dest->initial_max_uni_streams = src->max_uni_streams;

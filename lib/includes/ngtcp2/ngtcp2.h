@@ -523,16 +523,18 @@ typedef union {
 } ngtcp2_frame;
 
 typedef enum {
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA = 0,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 1,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS = 2,
-  NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
-  NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 4,
-  NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
-  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
-  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS = 8,
-  NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 9
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL = 0x00,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 0x01,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS = 0x02,
+  NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 0x03,
+  NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 0x04,
+  NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 0x05,
+  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 0x06,
+  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 0x07,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS = 0x08,
+  NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 0x09,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0a,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI = 0x0b
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -604,7 +606,9 @@ typedef struct {
     } ee;
   } v;
   ngtcp2_preferred_addr preferred_address;
-  uint32_t initial_max_stream_data;
+  uint32_t initial_max_stream_data_bidi_local;
+  uint32_t initial_max_stream_data_bidi_remote;
+  uint32_t initial_max_stream_data_uni;
   uint32_t initial_max_data;
   uint16_t initial_max_bidi_streams;
   uint16_t initial_max_uni_streams;
@@ -626,7 +630,9 @@ typedef struct {
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
-  uint32_t max_stream_data;
+  uint32_t max_stream_data_bidi_local;
+  uint32_t max_stream_data_bidi_remote;
+  uint32_t max_stream_data_uni;
   uint32_t max_data;
   uint16_t max_bidi_streams;
   uint16_t max_uni_streams;
@@ -1381,7 +1387,9 @@ ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
  *
  * * initial_max_stream_id_bidi
  * * initial_max_stream_id_uni
- * * initial_max_stream_data
+ * * initial_max_stream_data_bidi_local
+ * * initial_max_stream_data_bidi_remote
+ * * initial_max_stream_data_uni
  * * initial_max_data
  *
  * This function returns 0 if it succeeds, or one of the following

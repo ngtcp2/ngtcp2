@@ -940,7 +940,9 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
 
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
-  settings.max_stream_data = 256_k;
+  settings.max_stream_data_bidi_local = 256_k;
+  settings.max_stream_data_bidi_remote = 256_k;
+  settings.max_stream_data_uni = 256_k;
   settings.max_data = 1_m;
   settings.max_bidi_streams = 100;
   settings.max_uni_streams = 0;

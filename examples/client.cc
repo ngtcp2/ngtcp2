@@ -762,7 +762,9 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   ngtcp2_settings settings{};
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
-  settings.max_stream_data = 256_k;
+  settings.max_stream_data_bidi_local = 256_k;
+  settings.max_stream_data_bidi_remote = 256_k;
+  settings.max_stream_data_uni = 256_k;
   settings.max_data = 1_m;
   settings.max_bidi_streams = 1;
   settings.max_uni_streams = 1;
@@ -1630,7 +1632,12 @@ int write_transport_params(const char *path,
 
   f << "initial_max_bidi_streams=" << params->initial_max_bidi_streams << "\n"
     << "initial_max_uni_streams=" << params->initial_max_uni_streams << "\n"
-    << "initial_max_stream_data=" << params->initial_max_stream_data << "\n"
+    << "initial_max_stream_data_bidi_local="
+    << params->initial_max_stream_data_bidi_local << "\n"
+    << "initial_max_stream_data_bidi_remote="
+    << params->initial_max_stream_data_bidi_remote << "\n"
+    << "initial_max_stream_data_uni=" << params->initial_max_stream_data_uni
+    << "\n"
     << "initial_max_data=" << params->initial_max_data << "\n";
 
   f.close();
@@ -1656,9 +1663,19 @@ int read_transport_params(const char *path, ngtcp2_transport_params *params) {
     } else if (util::istarts_with_l(line, "initial_max_uni_streams=")) {
       params->initial_max_uni_streams = strtoul(
           line.c_str() + str_size("initial_max_uni_streams="), nullptr, 10);
-    } else if (util::istarts_with_l(line, "initial_max_stream_data=")) {
-      params->initial_max_stream_data = strtoul(
-          line.c_str() + str_size("initial_max_stream_data="), nullptr, 10);
+    } else if (util::istarts_with_l(line,
+                                    "initial_max_stream_data_bidi_local=")) {
+      params->initial_max_stream_data_bidi_local = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_bidi_local="),
+          nullptr, 10);
+    } else if (util::istarts_with_l(line,
+                                    "initial_max_stream_data_bidi_remote=")) {
+      params->initial_max_stream_data_bidi_remote = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_bidi_remote="),
+          nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_stream_data_uni=")) {
+      params->initial_max_stream_data_uni = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_uni="), nullptr, 10);
     } else if (util::istarts_with_l(line, "initial_max_data=")) {
       params->initial_max_data =
           strtoul(line.c_str() + str_size("initial_max_data="), nullptr, 10);
