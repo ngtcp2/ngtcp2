@@ -865,11 +865,11 @@ typedef int (*ngtcp2_client_initial)(ngtcp2_conn *conn, void *user_data);
  *
  * :type:`ngtcp2_recv_client_initial` is invoked when Client Initial
  * packet is received.  An server application must implement this
- * callback, and generate handshake key, and iv.  Then call
- * `ngtcp2_conn_set_handshake_tx_keys` and
- * `ngtcp2_conn_set_handshake_rx_keys` to inform |conn| of the packet
+ * callback, and generate initial key, and iv.  Then call
+ * `ngtcp2_conn_set_initial_tx_keys` and
+ * `ngtcp2_conn_set_initial_rx_keys` to inform |conn| of the packet
  * protection keys and ivs.  |dcid| is the destination connection ID
- * which client generated randomly.  It is used to derive handshake
+ * which client generated randomly.  It is used to derive initial
  * packet protection keys.
  *
  * The callback function must return 0 if it succeeds.  If an error
