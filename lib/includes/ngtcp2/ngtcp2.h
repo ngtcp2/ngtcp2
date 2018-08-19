@@ -216,6 +216,7 @@ typedef enum {
   NGTCP2_ERR_DRAINING = -231,
   NGTCP2_ERR_PKT_ENCODING = -232,
   NGTCP2_ERR_CONGESTION = -233,
+  NGTCP2_ERR_TOO_MANY_RETRIES = -234,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -950,8 +951,26 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
                                                const uint32_t *sv, size_t nsv,
                                                void *user_data);
 
-typedef int (*ngtcp2_recv_server_stateless_retry)(ngtcp2_conn *conn,
-                                                  void *user_data);
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_retry` is invoked when Retry packet is received.
+ * This callback is client only.
+ *
+ * Application must perform necessary step to make TLS stack to
+ * produce a fresh cryptographic handshake message.
+ *
+ * 0-RTT data must be sent from scratch.  Application must assume that
+ * 0-RTT data which have been sent before receiving Retry packet are
+ * lost.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                 const ngtcp2_pkt_retry *retry,
+                                 void *user_data);
 
 typedef ssize_t (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
                                   size_t destlen, const uint8_t *plaintext,
@@ -1068,7 +1087,7 @@ typedef struct {
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
-  ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
+  ngtcp2_recv_retry recv_retry;
   ngtcp2_extend_max_stream_id extend_max_stream_id;
   ngtcp2_rand rand;
 } ngtcp2_conn_callbacks;

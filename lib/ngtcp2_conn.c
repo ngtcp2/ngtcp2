@@ -380,7 +380,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
     return;
   }
 
-  free(conn->decrypt_buf.base);
+  ngtcp2_mem_free(conn->mem, conn->token.begin);
+  ngtcp2_mem_free(conn->mem, conn->decrypt_buf.base);
 
   delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
   delete_buffed_pkts(conn->buffed_rx_hs_pkts, conn->mem);
@@ -1177,6 +1178,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       &conn->scid, pktns->last_tx_pkt_num + 1,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);
+
+  if (type == NGTCP2_PKT_INITIAL && ngtcp2_buf_len(&conn->token) &&
+      conn->state == NGTCP2_CS_CLIENT_INITIAL) {
+    hd.token = conn->token.pos;
+    hd.tokenlen = ngtcp2_buf_len(&conn->token);
+  }
 
   ctx.user_data = conn;
 
@@ -2357,6 +2364,97 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 }
 
 /*
+ * conn_on_retry is called when Retry packet is received.  The
+ * function decodes the data in the buffer pointed by |payload| whose
+ * length is |payloadlen| as Retry packet payload.  The packet header
+ * is given in |hd|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Packet payload is badly formatted.
+ * NGTCP2_ERR_PROTO
+ *     ODCID does not match; or Token is empty.
+ * NGTCP2_ERR_TOO_MANY_RETRIES
+ *     The endpoint cannot process another Retry packet.
+ */
+static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                         const uint8_t *payload, size_t payloadlen) {
+  int rv;
+  ngtcp2_pkt_retry retry;
+  uint8_t *p;
+
+  if (conn->nretry >= NGTCP2_MAX_RETRIES) {
+    return NGTCP2_ERR_TOO_MANY_RETRIES;
+  }
+
+  rv = ngtcp2_pkt_decode_retry(&retry, payload, payloadlen);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (!ngtcp2_cid_eq(&conn->rcid, &retry.odcid) || retry.tokenlen == 0) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  /* DCID must be updated before invoking callback because client
+     generates new initial keys there. */
+  conn->rcid = hd->scid;
+  conn->dcid = hd->scid;
+
+  ++conn->nretry;
+
+  assert(conn->callbacks.recv_retry);
+
+  rv = conn->callbacks.recv_retry(conn, hd, &retry, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  conn->state = NGTCP2_CS_CLIENT_INITIAL;
+
+  /* Just freeing memory is dangerous because we might free twice. */
+
+  ngtcp2_crypto_km_del(conn->early_ckm, conn->mem);
+  conn->early_ckm = NULL;
+
+  conn->pktns.last_tx_pkt_num = (uint64_t)-1;
+  conn->pktns.crypto_tx_offset = 0;
+  ngtcp2_rtb_clear(&conn->pktns.rtb);
+
+  conn->in_pktns.last_tx_pkt_num = (uint64_t)-1;
+  conn->in_pktns.crypto_tx_offset = 0;
+  ngtcp2_rtb_clear(&conn->in_pktns.rtb);
+
+  delete_early_rtb(conn->early_rtb, conn->mem);
+  ngtcp2_ringbuf_resize(&conn->tx_crypto_data, 0);
+  ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
+  ngtcp2_map_clear(&conn->strms);
+  conn->crypto.tx_offset = 0;
+
+  if (ngtcp2_buf_cap(&conn->token) < retry.tokenlen) {
+    ngtcp2_mem_free(conn->mem, conn->token.begin);
+    ngtcp2_buf_init(&conn->token, NULL, 0);
+    p = ngtcp2_mem_malloc(conn->mem, retry.tokenlen);
+    if (p == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+    ngtcp2_buf_init(&conn->token, p, retry.tokenlen);
+  }
+
+  ngtcp2_cpymem(conn->token.begin, retry.token, retry.tokenlen);
+  conn->token.pos = conn->token.begin;
+  conn->token.last = conn->token.pos + retry.tokenlen;
+
+  return 0;
+}
+
+/*
  * conn_recv_ack processes received ACK frame |fr|.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -2883,7 +2981,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     return (int)nread;
   }
 
-  if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+  switch (hd.type) {
+  case NGTCP2_PKT_VERSION_NEGOTIATION:
     hdpktlen = (size_t)nread;
 
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -2908,6 +3007,31 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return rv;
     }
     return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
+  case NGTCP2_PKT_RETRY:
+    hdpktlen = (size_t)nread;
+
+    ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
+
+    if (conn->server) {
+      return NGTCP2_ERR_PROTO;
+    }
+
+    /* Receiving Retry packet after getting Initial packet from server
+       is invalid. */
+    if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
+      return (ssize_t)pktlen;
+    }
+
+    rv = conn_on_retry(conn, &hd, pkt + hdpktlen, pktlen - hdpktlen);
+    if (rv != 0) {
+      if (rv == NGTCP2_ERR_TOO_MANY_RETRIES) {
+        return rv;
+      }
+      if (ngtcp2_err_is_fatal(rv)) {
+        return rv;
+      }
+    }
+    return (ssize_t)pktlen;
   }
 
   if (pktlen < (size_t)nread + hd.len) {
@@ -4360,6 +4484,17 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     rv = conn_recv_handshake_cpkt(conn, pkt, pktlen, ts);
     if (rv < 0) {
       return rv;
+    }
+
+    if (conn->state == NGTCP2_CS_CLIENT_INITIAL) {
+      nwrite =
+          conn_write_client_initial(conn, dest, destlen, require_padding, ts);
+      if (nwrite < 0) {
+        return nwrite;
+      }
+      conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
+
+      return nwrite;
     }
 
     if (hs_pktns->rx_ckm) {

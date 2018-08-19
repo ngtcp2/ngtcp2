@@ -631,3 +631,21 @@ void ngtcp2_rtb_lost_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }
+
+void ngtcp2_rtb_clear(ngtcp2_rtb *rtb) {
+  ngtcp2_ksl_it it;
+
+  rtb_entry_list_free(rtb->lost, rtb->mem);
+  rtb->lost = NULL;
+
+  it = ngtcp2_ksl_begin(&rtb->ents);
+
+  for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
+    ngtcp2_rtb_entry_del(ngtcp2_ksl_it_get(&it), rtb->mem);
+  }
+  ngtcp2_ksl_clear(&rtb->ents);
+
+  rtb->bytes_in_flight = 0;
+  rtb->largest_acked_tx_pkt_num = -1;
+  rtb->nearly_pkt = 0;
+}

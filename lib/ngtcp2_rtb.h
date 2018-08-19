@@ -251,4 +251,11 @@ void ngtcp2_rtb_lost_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
  */
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 
+/*
+ * ngtcp2_rtb_clear removes all ngtcp2_rtb_entry objects including
+ * lost ones.  bytes_in_flight and largest_acked_tx_pkt_num are also
+ * reset to their initial value.
+ */
+void ngtcp2_rtb_clear(ngtcp2_rtb *rtb);
+
 #endif /* NGTCP2_RTB_H */

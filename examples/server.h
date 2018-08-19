@@ -67,6 +67,8 @@ struct Config {
   uint32_t timeout;
   // show_secret is true if transport secrets should be printed out.
   bool show_secret;
+  // validate_addr is true if server requires address validation.
+  bool validate_addr;
 };
 
 struct Buffer {
@@ -269,6 +271,9 @@ private:
   bool draining_;
 };
 
+constexpr size_t TOKEN_KEYLEN = 16;
+constexpr size_t TOKEN_NONCELEN = 12;
+
 class Server {
 public:
   Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
@@ -283,6 +288,11 @@ public:
   int on_read();
   int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                                socklen_t salen);
+  int send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa, socklen_t salen);
+  int generate_token(uint8_t *token, size_t *ptokenlen, const sockaddr *sa,
+                     socklen_t salen);
+  int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
+                   socklen_t salen);
   int send_packet(Address &remote_addr, Buffer &buf);
   void remove(const Handler *h);
   std::map<std::string, std::unique_ptr<Handler>>::const_iterator
@@ -296,6 +306,9 @@ private:
   std::map<std::string, std::string> ctos_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
+  crypto::Context token_crypto_ctx_;
+  std::array<uint8_t, TOKEN_KEYLEN> token_key_;
+  BIGNUM *token_nonce_;
   int fd_;
   ev_io wev_;
   ev_io rev_;

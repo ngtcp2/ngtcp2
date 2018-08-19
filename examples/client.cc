@@ -368,10 +368,12 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       tx_crypto_offset_(0),
       nsread_(0),
       conn_(nullptr),
+      addr_(nullptr),
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       last_stream_id_(0),
       nstreams_done_(0),
+      version_(0),
       resumption_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
@@ -506,11 +508,13 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
+int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+               const ngtcp2_pkt_retry *retry, void *user_data) {
   // Re-generate handshake secrets here because connection ID might
   // change.
   auto c = static_cast<Client *>(user_data);
 
+  c->init_ssl();
   c->setup_initial_crypto_context();
 
   return 0;
@@ -649,29 +653,9 @@ ssize_t do_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 } // namespace
 
-int Client::init(int fd, const Address &remote_addr, const char *addr,
-                 int datafd, uint32_t version) {
-  int rv;
-
-  remote_addr_ = remote_addr;
-
-  switch (remote_addr_.su.storage.ss_family) {
-  case AF_INET:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
-    break;
-  case AF_INET6:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
-    break;
-  default:
-    return -1;
-  }
-
-  fd_ = fd;
-  datafd_ = datafd;
-
-  if (-1 == connect(fd_, &remote_addr_.su.sa, remote_addr_.len)) {
-    std::cerr << "connect: " << strerror(errno) << std::endl;
-    return -1;
+int Client::init_ssl() {
+  if (ssl_) {
+    SSL_free(ssl_);
   }
 
   ssl_ = SSL_new(ssl_ctx_);
@@ -687,7 +671,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   const uint8_t *alpn = nullptr;
   size_t alpnlen;
 
-  switch (version) {
+  switch (version_) {
   case NGTCP2_PROTO_VER_D14:
     alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D14);
     alpnlen = str_size(NGTCP2_ALPN_D14);
@@ -697,12 +681,12 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     SSL_set_alpn_protos(ssl_, alpn, alpnlen);
   }
 
-  if (util::numeric_host(addr)) {
+  if (util::numeric_host(addr_)) {
     // If remote host is numeric address, just send "localhost" as SNI
     // for now.
     SSL_set_tlsext_host_name(ssl_, "localhost");
   } else {
-    SSL_set_tlsext_host_name(ssl_, addr);
+    SSL_set_tlsext_host_name(ssl_, addr_);
   }
 
   if (config.session_file) {
@@ -727,25 +711,51 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     }
   }
 
+  return 0;
+}
+
+int Client::init(int fd, const Address &remote_addr, const char *addr,
+                 int datafd, uint32_t version) {
+  int rv;
+
+  remote_addr_ = remote_addr;
+
+  switch (remote_addr_.su.storage.ss_family) {
+  case AF_INET:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
+    break;
+  case AF_INET6:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
+    break;
+  default:
+    return -1;
+  }
+
+  fd_ = fd;
+  datafd_ = datafd;
+  addr_ = addr;
+  version_ = version;
+
+  if (-1 == connect(fd_, &remote_addr_.su.sa, remote_addr_.len)) {
+    std::cerr << "connect: " << strerror(errno) << std::endl;
+    return -1;
+  }
+
+  if (init_ssl() != 0) {
+    return -1;
+  }
+
   auto callbacks = ngtcp2_conn_callbacks{
       client_initial,
       nullptr, // recv_client_initial
-      recv_crypto_data,
-      handshake_completed,
+      recv_crypto_data, handshake_completed,
       nullptr, // recv_version_negotiation
-      do_hs_encrypt,
-      do_hs_decrypt,
-      do_encrypt,
-      do_decrypt,
-      do_hs_encrypt_pn,
-      do_encrypt_pn,
-      recv_stream_data,
-      acked_crypto_offset,
-      acked_stream_data_offset,
+      do_hs_encrypt,    do_hs_decrypt,        do_encrypt,
+      do_decrypt,       do_hs_encrypt_pn,     do_encrypt_pn,
+      recv_stream_data, acked_crypto_offset,  acked_stream_data_offset,
       stream_close,
-      nullptr, // recv_stateless_reset,
-      recv_server_stateless_retry,
-      extend_max_stream_id,
+      nullptr, // recv_stateless_reset
+      recv_retry,       extend_max_stream_id,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(

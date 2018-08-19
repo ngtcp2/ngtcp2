@@ -548,6 +548,28 @@ static void ksl_print(ngtcp2_ksl *ksl, const ngtcp2_ksl_blk *blk,
 
 size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl) { return ksl->n; }
 
+void ngtcp2_ksl_clear(ngtcp2_ksl *ksl) {
+  size_t i;
+  ngtcp2_ksl_blk *head;
+
+  if (!ksl->head->leaf) {
+    for (i = 0; i < ksl->head->n; ++i) {
+      free_blk(ksl->head->nodes[i].blk, ksl->mem);
+    }
+  }
+
+  ksl->front = ksl->back = ksl->head;
+  ksl->n = 0;
+
+  head = ksl->head;
+
+  head->next = head->prev = NULL;
+  head->n = 1;
+  head->leaf = 1;
+  head->nodes[0].key = ksl->inf_key;
+  head->nodes[0].data = NULL;
+}
+
 void ngtcp2_ksl_print(ngtcp2_ksl *ksl) { ksl_print(ksl, ksl->head, 0); }
 
 ngtcp2_ksl_it ngtcp2_ksl_begin(const ngtcp2_ksl *ksl) {

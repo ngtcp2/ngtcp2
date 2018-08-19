@@ -246,6 +246,15 @@ static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
   return 0;
 }
 
+static int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                      const ngtcp2_pkt_retry *retry, void *user_data) {
+  (void)conn;
+  (void)hd;
+  (void)retry;
+  (void)user_data;
+  return 0;
+}
+
 static int genrand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                    ngtcp2_rand_ctx ctx, void *user_data) {
   (void)conn;
@@ -1742,51 +1751,70 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   ngtcp2_conn_del(conn);
 }
 
-void test_ngtcp2_conn_recv_server_stateless_retry(void) {
-  /* TODO Retry packet handling is TBD */
-  /* ngtcp2_conn *conn; */
-  /* my_user_data ud; */
-  /* uint8_t buf[2048]; */
-  /* ssize_t spktlen; */
-  /* size_t pktlen; */
-  /* ngtcp2_frame fra[2]; */
-  /* ngtcp2_frame *fr; */
+void test_ngtcp2_conn_recv_retry(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ssize_t spktlen;
+  ngtcp2_pkt_hd hd;
+  uint64_t t = 0;
+  ngtcp2_cid dcid;
+  const uint8_t token[] = "address-validation-token";
+  size_t i;
 
-  /* memset(&ud, 0, sizeof(ud)); */
-  /* ud.pkt_num = 0; */
-  /* setup_handshake_client(&conn); */
-  /* conn->user_data = &ud; */
+  dcid_init(&dcid);
+  setup_handshake_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
 
-  /* spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, 1); */
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, ++t);
 
-  /* CU_ASSERT(spktlen > 0); */
+  CU_ASSERT(spktlen > 0);
 
-  /* fr = &fra[0]; */
-  /* fr->type = NGTCP2_FRAME_STREAM; */
-  /* fr->stream.flags = 0; */
-  /* fr->stream.stream_id = 0; */
-  /* fr->stream.fin = 0; */
-  /* fr->stream.offset = 0; */
-  /* fr->stream.datalen = 333; */
-  /* fr->stream.data = null_data; */
+  for (i = 0; i < NGTCP2_MAX_RETRIES + 1; ++i) {
+    ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
+                       &conn->scid, &dcid, 0, 0, conn->version, 0);
 
-  /* fr = &fra[1]; */
-  /* fr->type = NGTCP2_FRAME_ACK; */
-  /* fr->ack.largest_ack = conn->in_pktns.last_tx_pkt_num; */
-  /* fr->ack.ack_delay = 0; */
-  /* fr->ack.first_ack_blklen = 0; */
-  /* fr->ack.num_blks = 0; */
+    spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &conn->dcid, token,
+                                     strsize(token));
 
-  /* pktlen = write_handshake_pkt( */
-  /*     conn, buf, sizeof(buf), NGTCP2_PKT_RETRY, &conn->scid, &conn->dcid, */
-  /*     conn->in_pktns.last_tx_pkt_num, conn->version, fra, arraylen(fra)); */
+    CU_ASSERT(spktlen > 0);
 
-  /* spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, 2); */
+    spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf,
+                                    (size_t)spktlen, ++t);
 
-  /* CU_ASSERT(spktlen > 0); */
-  /* CU_ASSERT(1 == conn->in_pktns.last_tx_pkt_num); */
+    if (i == NGTCP2_MAX_RETRIES) {
+      CU_ASSERT(NGTCP2_ERR_TOO_MANY_RETRIES == spktlen);
+    } else {
+      CU_ASSERT(spktlen > 0);
+      CU_ASSERT(0 == conn->in_pktns.last_tx_pkt_num);
+      CU_ASSERT(ngtcp2_cid_eq(&dcid, &conn->dcid));
+      CU_ASSERT(ngtcp2_cid_eq(&dcid, &conn->rcid));
+    }
+  }
 
-  /* ngtcp2_conn_del(conn); */
+  ngtcp2_conn_del(conn);
+
+  /* Retry with wrong ODCID is rejected */
+  setup_handshake_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
+                     &conn->scid, &dcid, 0, 0, conn->version, 0);
+
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &dcid, token,
+                                   strsize(token));
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen =
+      ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, (size_t)spktlen, ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {

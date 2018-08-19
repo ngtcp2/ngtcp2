@@ -116,6 +116,11 @@ ngtcp2_map_entry *ngtcp2_map_find(ngtcp2_map *map, key_type key);
 int ngtcp2_map_remove(ngtcp2_map *map, key_type key);
 
 /*
+ * Removes all entries from |map|.
+ */
+void ngtcp2_map_clear(ngtcp2_map *map);
+
+/*
  * Returns the number of items stored in the map |map|.
  */
 size_t ngtcp2_map_size(ngtcp2_map *map);

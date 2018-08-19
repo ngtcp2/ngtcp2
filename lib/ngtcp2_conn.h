@@ -103,6 +103,10 @@ typedef enum {
    here because crypto stream is unbounded. */
 #define NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA 65536
 
+/* NGTCP2_MAX_RETRIES is the number of Retry packet which client can
+   accept. */
+#define NGTCP2_MAX_RETRIES 3
+
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
 
@@ -245,6 +249,8 @@ struct ngtcp2_conn {
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_ringbuf tx_crypto_data;
   ngtcp2_log log;
+  /* token is an address validation token received from server. */
+  ngtcp2_buf token;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
      initiated bidirectional stream which the local endpoint can
      accept.  This limit is not yet notified to the remote
@@ -315,6 +321,8 @@ struct ngtcp2_conn {
   /* rx_bw is receiver side bandwidth. */
   double rx_bw;
   size_t probe_pkt_left;
+  /* nretry is the number of Retry packet this client has received. */
+  size_t nretry;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;

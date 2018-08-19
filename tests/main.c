@@ -43,6 +43,7 @@
 #include "ngtcp2_conv_test.h"
 #include "ngtcp2_psl_test.h"
 #include "ngtcp2_ksl_test.h"
+#include "ngtcp2_map_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -134,6 +135,7 @@ int main() {
       !CU_add_test(pSuite, "range_not_after", test_ngtcp2_range_not_after) ||
       !CU_add_test(pSuite, "psl_insert", test_ngtcp2_psl_insert) ||
       !CU_add_test(pSuite, "ksl_insert", test_ngtcp2_ksl_insert) ||
+      !CU_add_test(pSuite, "ksl_clear", test_ngtcp2_ksl_clear) ||
       !CU_add_test(pSuite, "rob_push", test_ngtcp2_rob_push) ||
       !CU_add_test(pSuite, "rob_push_random", test_ngtcp2_rob_push_random) ||
       !CU_add_test(pSuite, "rob_data_at", test_ngtcp2_rob_data_at) ||
@@ -148,6 +150,7 @@ int main() {
       !CU_add_test(pSuite, "rtb_add", test_ngtcp2_rtb_add) ||
       !CU_add_test(pSuite, "rtb_recv_ack", test_ngtcp2_rtb_recv_ack) ||
       !CU_add_test(pSuite, "rtb_insert_range", test_ngtcp2_rtb_insert_range) ||
+      !CU_add_test(pSuite, "rtb_clear", test_ngtcp2_rtb_clear) ||
       !CU_add_test(pSuite, "idtr_open", test_ngtcp2_idtr_open) ||
       !CU_add_test(pSuite, "ringbuf_push_front",
                    test_ngtcp2_ringbuf_push_front) ||
@@ -179,8 +182,7 @@ int main() {
                    test_ngtcp2_conn_short_pkt_type) ||
       !CU_add_test(pSuite, "conn_recv_stateless_reset",
                    test_ngtcp2_conn_recv_stateless_reset) ||
-      !CU_add_test(pSuite, "conn_recv_server_stateless_retry",
-                   test_ngtcp2_conn_recv_server_stateless_retry) ||
+      !CU_add_test(pSuite, "conn_recv_retry", test_ngtcp2_conn_recv_retry) ||
       !CU_add_test(pSuite, "conn_recv_delayed_handshake_pkt",
                    test_ngtcp2_conn_recv_delayed_handshake_pkt) ||
       !CU_add_test(pSuite, "conn_recv_max_stream_id",
@@ -206,7 +208,11 @@ int main() {
       !CU_add_test(pSuite, "conn_recv_compound_pkt",
                    test_ngtcp2_conn_recv_compound_pkt) ||
       !CU_add_test(pSuite, "conn_pkt_payloadlen",
-                   test_ngtcp2_conn_pkt_payloadlen)) {
+                   test_ngtcp2_conn_pkt_payloadlen) ||
+      !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
+      !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
+      !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||
+      !CU_add_test(pSuite, "map_clear", test_ngtcp2_map_clear)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }

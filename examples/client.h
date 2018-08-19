@@ -136,6 +136,7 @@ public:
 
   int init(int fd, const Address &remote_addr, const char *addr, int datafd,
            uint32_t version);
+  int init_ssl();
   void disconnect();
   void disconnect(int liberr);
   void close();
@@ -229,6 +230,8 @@ private:
   std::vector<uint8_t> shandshake_;
   size_t nsread_;
   ngtcp2_conn *conn_;
+  // addr_ is the server host address.
+  const char *addr_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
   // common buffer used to store packet data before sending
@@ -236,6 +239,7 @@ private:
   uint64_t last_stream_id_;
   // nstreams_done_ is the number of streams opened.
   uint64_t nstreams_done_;
+  uint32_t version_;
   // resumption_ is true if client attempts to resume session.
   bool resumption_;
 };

@@ -32,5 +32,6 @@
 void test_ngtcp2_rtb_add(void);
 void test_ngtcp2_rtb_recv_ack(void);
 void test_ngtcp2_rtb_insert_range(void);
+void test_ngtcp2_rtb_clear(void);
 
 #endif /* NGTCP2_RTB_TEST_H */

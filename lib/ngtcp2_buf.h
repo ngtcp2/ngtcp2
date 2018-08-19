@@ -64,4 +64,10 @@ size_t ngtcp2_buf_left(ngtcp2_buf *buf);
  */
 size_t ngtcp2_buf_len(ngtcp2_buf *buf);
 
+/*
+ * ngtcp2_buf_cap returns the capacity of the buffer.  In other words,
+ * it returns buf->end - buf->begin.
+ */
+size_t ngtcp2_buf_cap(ngtcp2_buf *buf);
+
 #endif /* NGTCP2_BUF_H */
