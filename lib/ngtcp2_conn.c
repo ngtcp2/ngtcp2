@@ -2730,11 +2730,12 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
 /*
  * conn_decrypt_pn decryptes packet number which starts at |pkt| +
  * |pkt_num_offset|.  The entire plaintext QUIC packer header will be
- * written to the buffer pointed by |dest|.  This function assumes
- * that |dest| has enough capacity to store the entire packet header.
+ * written to the buffer pointed by |dest| whose capacity is
+ * |destlen|.
  */
 static ssize_t conn_decrypt_pn(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
-                               uint8_t *dest, const uint8_t *pkt, size_t pktlen,
+                               uint8_t *dest, size_t destlen,
+                               const uint8_t *pkt, size_t pktlen,
                                size_t pkt_num_offset, ngtcp2_crypto_km *ckm,
                                ngtcp2_encrypt_pn enc, size_t aead_overhead) {
   ssize_t nwrite;
@@ -2747,6 +2748,10 @@ static ssize_t conn_decrypt_pn(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
 
   if (pkt_num_offset + 1 + aead_overhead > pktlen) {
     return NGTCP2_ERR_PROTO;
+  }
+
+  if (destlen < pkt_num_offset + 4) {
+    return NGTCP2_ERR_INTERNAL;
   }
 
   p = ngtcp2_cpymem(p, pkt, pkt_num_offset);
@@ -2950,7 +2955,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   const uint8_t *payload;
   size_t payloadlen;
   ssize_t nwrite;
-  uint8_t plain_hdpkt[256];
+  uint8_t plain_hdpkt[1500];
   ngtcp2_crypto_km *ckm;
   ngtcp2_encrypt_pn encrypt_pn;
   ngtcp2_decrypt decrypt;
@@ -3132,8 +3137,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   assert(encrypt_pn);
   assert(decrypt);
 
-  nwrite = conn_decrypt_pn(conn, &hd, plain_hdpkt, pkt, pktlen, (size_t)nread,
-                           ckm, encrypt_pn, aead_overhead);
+  nwrite =
+      conn_decrypt_pn(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), pkt, pktlen,
+                      (size_t)nread, ckm, encrypt_pn, aead_overhead);
   if (nwrite < 0) {
     return (ssize_t)nwrite;
   }
@@ -4016,7 +4022,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ngtcp2_frame *fr = &mfr.fr;
   int require_ack = 0;
   ngtcp2_crypto_km *ckm;
-  uint8_t plain_hdpkt[256];
+  uint8_t plain_hdpkt[1500];
   ngtcp2_encrypt_pn encrypt_pn;
   size_t aead_overhead;
   ngtcp2_pktns *pktns;
@@ -4102,8 +4108,9 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     max_crypto_rx_offset = 0;
   }
 
-  nwrite = conn_decrypt_pn(conn, &hd, plain_hdpkt, pkt, pktlen, (size_t)nread,
-                           ckm, encrypt_pn, aead_overhead);
+  nwrite =
+      conn_decrypt_pn(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), pkt, pktlen,
+                      (size_t)nread, ckm, encrypt_pn, aead_overhead);
   if (nwrite < 0) {
     return (ssize_t)nwrite;
   }
