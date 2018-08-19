@@ -2432,6 +2432,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_rtb_clear(&conn->in_pktns.rtb);
 
   delete_early_rtb(conn->early_rtb, conn->mem);
+  conn->early_rtb = NULL;
   ngtcp2_ringbuf_resize(&conn->tx_crypto_data, 0);
   ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
   ngtcp2_map_clear(&conn->strms);
