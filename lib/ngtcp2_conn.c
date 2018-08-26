@@ -4942,7 +4942,7 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                      uint64_t stream_id, uint8_t fin,
                                      const uint8_t *data, size_t datalen,
                                      ngtcp2_tstamp ts) {
-  ngtcp2_strm *strm;
+  ngtcp2_strm *strm = NULL;
   int send_stream = 0;
   ssize_t spktlen, early_spktlen;
   uint64_t cwnd;
