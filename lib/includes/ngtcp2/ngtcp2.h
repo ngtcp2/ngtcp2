@@ -178,6 +178,10 @@ typedef struct {
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
+/* NGTCP2_MIN_STATELESS_RETRY_RANDLEN is the minimum length of random
+   bytes in Stateless Retry packet */
+#define NGTCP2_MIN_STATELESS_RETRY_RANDLEN 20
+
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
 #define NGTCP2_INITIAL_SALT                                                    \
@@ -809,13 +813,14 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  * @function
  *
  * `ngtcp2_pkt_write_stateless_reset` writes Stateless Reset packet in
- * the buffer pointed by |dest| whose length is |destlen|.  |hd| is a
- * short packet header.  This function assumes that
- * :enum:`NGTCP2_PKT_FLAG_LONG_FORM` is not set in hd->type.
- * |stateless_reset_token| is a pointer to the Stateless Reset Token,
- * and its length must be :macro:`NGTCP2_STATELESS_RESET_TOKENLEN`
- * bytes long.  |rand| specifies the random octets following Stateless
- * Reset Token.  The length of |rand| is specified by |randlen|.
+ * the buffer pointed by |dest| whose length is |destlen|.
+ * |key_phase| specifies KEY_PHASE bit in the first byte of short
+ * packet header.  |stateless_reset_token| is a pointer to the
+ * Stateless Reset Token, and its length must be
+ * :macro:`NGTCP2_STATELESS_RESET_TOKENLEN` bytes long.  |rand|
+ * specifies the random octets preceding Stateless Reset Token.  The
+ * length of |rand| is specified by |randlen| which must be at least
+ * :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN` bytes long.
  *
  * If |randlen| is too long to write them all in the buffer, |rand| is
  * written to the buffer as much as possible, and is truncated.
@@ -825,9 +830,12 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  *
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |randlen| is strictly less than
+ *     :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN`.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
-    uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd,
+    uint8_t *dest, size_t destlen, int key_phase,
     uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
 
 /**

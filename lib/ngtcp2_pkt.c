@@ -1760,7 +1760,8 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
                                       size_t payloadlen) {
   const uint8_t *p = payload;
 
-  if (payloadlen < NGTCP2_STATELESS_RESET_TOKENLEN) {
+  if (payloadlen <
+      NGTCP2_MIN_STATELESS_RETRY_RANDLEN + NGTCP2_STATELESS_RESET_TOKENLEN) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -1851,28 +1852,26 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
 }
 
 ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
-                                         const ngtcp2_pkt_hd *hd,
+                                         int key_phase,
                                          uint8_t *stateless_reset_token,
                                          uint8_t *rand, size_t randlen) {
   uint8_t *p;
-  ssize_t nwrite;
-  size_t left;
 
-  p = dest;
-
-  nwrite = ngtcp2_pkt_encode_hd_short(p, destlen, hd);
-  if (nwrite < 0) {
-    return nwrite;
-  }
-
-  p += nwrite;
-
-  left = destlen - (size_t)(p - dest);
-  if (left < NGTCP2_STATELESS_RESET_TOKENLEN) {
+  if (destlen < 1 + NGTCP2_MIN_STATELESS_RETRY_RANDLEN +
+                    NGTCP2_STATELESS_RESET_TOKENLEN) {
     return NGTCP2_ERR_NOBUF;
   }
 
-  randlen = ngtcp2_min(left - NGTCP2_STATELESS_RESET_TOKENLEN, randlen);
+  if (randlen < NGTCP2_MIN_STATELESS_RETRY_RANDLEN) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p = dest;
+
+  *p++ = 0x30 | (uint8_t)(key_phase << 6);
+
+  randlen = ngtcp2_min(
+      destlen - (size_t)(p - dest) - NGTCP2_STATELESS_RESET_TOKENLEN, randlen);
 
   p = ngtcp2_cpymem(p, rand, randlen);
   p = ngtcp2_cpymem(p, stateless_reset_token, NGTCP2_STATELESS_RESET_TOKENLEN);

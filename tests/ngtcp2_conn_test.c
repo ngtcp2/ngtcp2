@@ -1684,26 +1684,19 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   int rv;
   size_t i;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  ngtcp2_pkt_hd hd;
-  ngtcp2_cid dcid;
-
-  dcid_init(&dcid);
 
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
     token[i] = (uint8_t)~i;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
-                     0xe1, 1, 0, 0);
-
-  /* server: Just ignore SR */
+  /* server: Just ignore SR for now*/
   setup_default_server(&conn);
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 24324325;
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
-      buf, sizeof(buf), &hd, conn->local_settings.stateless_reset_token,
-      null_data, 17);
+      buf, sizeof(buf), 0 /* key_phase */,
+      conn->local_settings.stateless_reset_token, null_data, 20);
 
   CU_ASSERT(spktlen > 0);
 
@@ -1721,8 +1714,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   memcpy(conn->remote_settings.stateless_reset_token, token,
          NGTCP2_STATELESS_RESET_TOKENLEN);
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token,
-                                             null_data, 19);
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), 0 /* key_phase */, token, null_data, 23);
 
   CU_ASSERT(spktlen > 0);
 
@@ -1738,8 +1731,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 24324325;
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token,
-                                             null_data, 17);
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), 0 /* key_phase */, token, null_data, 29);
 
   CU_ASSERT(spktlen > 0);
 

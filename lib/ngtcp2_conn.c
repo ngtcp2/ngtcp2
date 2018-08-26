@@ -3924,9 +3924,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
 /*
  * conn_on_stateless_reset decodes Stateless Reset from the buffer
  * pointed by |payload| whose length is |payloadlen|.  |payload|
- * should start after Packet Number.  The short packet header,
- * optional connection ID, and Packet number are already parsed and
- * removed from the buffer.
+ * should start after first byte of packet.
  *
  * If Stateless Reset is decoded, and the Stateless Reset Token is
  * validated, the connection is closed.
@@ -4264,7 +4262,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     if (!conn->server && !(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
-      rv = conn_on_stateless_reset(conn, &hd, payload, payloadlen);
+      rv = conn_on_stateless_reset(conn, &hd, pkt + 1, pktlen - 1);
       if (rv == 0) {
         return (ssize_t)pktlen;
       }
