@@ -1911,7 +1911,8 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   /* fr.stream.data = null_data; */
 
   /* pktlen = write_single_frame_handshake_pkt( */
-  /*     conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1, */
+  /*     conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
+   * 1, */
   /*     NGTCP2_PROTO_VER_MAX, &fr); */
   /* rv = ngtcp2_conn_recv(conn, buf, pktlen, 1); */
 
