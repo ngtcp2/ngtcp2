@@ -626,7 +626,7 @@ static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
   } else {
     conn->rcs.last_tx_pkt_ts = ent->ts;
   }
-  ngtcp2_conn_set_loss_detection_alarm(conn);
+  ngtcp2_conn_set_loss_detection_timer(conn);
 }
 
 /*
@@ -2604,7 +2604,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     }
   }
 
-  ngtcp2_conn_set_loss_detection_alarm(conn);
+  ngtcp2_conn_set_loss_detection_timer(conn);
 
   return 0;
 }
@@ -5200,8 +5200,8 @@ int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
 }
 
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
-  if (conn->rcs.loss_detection_alarm) {
-    return conn->rcs.loss_detection_alarm;
+  if (conn->rcs.loss_detection_timer) {
+    return conn->rcs.loss_detection_timer;
   }
   return UINT64_MAX;
 }
@@ -5904,9 +5904,9 @@ void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
   *rcs = conn->rcs;
 }
 
-void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
+void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
-  uint64_t alarm_duration;
+  uint64_t timeout;
   ngtcp2_ksl_it it;
   ngtcp2_pktns *in_pktns = &conn->in_pktns;
   ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
@@ -5915,31 +5915,30 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb) ||
       pktns->rtb.nearly_pkt) {
     if (rcs->smoothed_rtt < 1e-09) {
-      alarm_duration = 2 * NGTCP2_DEFAULT_INITIAL_RTT;
+      timeout = 2 * NGTCP2_DEFAULT_INITIAL_RTT;
     } else {
-      alarm_duration = (uint64_t)(2 * rcs->smoothed_rtt);
+      timeout = (uint64_t)(2 * rcs->smoothed_rtt);
     }
 
-    alarm_duration =
-        ngtcp2_max(alarm_duration + rcs->max_ack_delay, NGTCP2_MIN_TLP_TIMEOUT);
-    alarm_duration *= 1ull << rcs->handshake_count;
+    timeout = ngtcp2_max(timeout + rcs->max_ack_delay, NGTCP2_MIN_TLP_TIMEOUT);
+    timeout *= 1ull << rcs->handshake_count;
 
-    rcs->loss_detection_alarm = rcs->last_hs_tx_pkt_ts + alarm_duration;
+    rcs->loss_detection_timer = rcs->last_hs_tx_pkt_ts + timeout;
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                    "loss_detection_alarm=%" PRIu64
-                    " last_hs_tx_pkt_ts=%" PRIu64 " alarm_duration=%" PRIu64,
-                    rcs->loss_detection_alarm, rcs->last_hs_tx_pkt_ts,
-                    alarm_duration / 1000000);
+                    "loss_detection_timer=%" PRIu64
+                    " last_hs_tx_pkt_ts=%" PRIu64 " timeout=%" PRIu64,
+                    rcs->loss_detection_timer, rcs->last_hs_tx_pkt_ts,
+                    timeout / 1000000);
     return;
   }
 
   it = ngtcp2_rtb_head(&pktns->rtb);
   if (ngtcp2_ksl_it_end(&it)) {
-    if (rcs->loss_detection_alarm) {
+    if (rcs->loss_detection_timer) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                      "loss detection alarm canceled");
-      rcs->loss_detection_alarm = 0;
+                      "loss detection timer canceled");
+      rcs->loss_detection_timer = 0;
     }
     return;
   }
@@ -5954,25 +5953,25 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   }
 
   if (rcs->loss_time && rcs->loss_time >= rcs->last_tx_pkt_ts) {
-    alarm_duration = rcs->loss_time - rcs->last_tx_pkt_ts;
+    timeout = rcs->loss_time - rcs->last_tx_pkt_ts;
   } else {
-    alarm_duration = (uint64_t)(rcs->smoothed_rtt + 4 * rcs->rttvar +
-                                (double)rcs->max_ack_delay);
-    alarm_duration = ngtcp2_max(alarm_duration, NGTCP2_MIN_RTO_TIMEOUT);
-    alarm_duration *= 1ull << rcs->rto_count;
+    timeout = (uint64_t)(rcs->smoothed_rtt + 4 * rcs->rttvar +
+                         (double)rcs->max_ack_delay);
+    timeout = ngtcp2_max(timeout, NGTCP2_MIN_RTO_TIMEOUT);
+    timeout *= 1ull << rcs->rto_count;
 
     if (rcs->tlp_count < NGTCP2_MAX_TLP_COUNT) {
-      uint64_t tlp_alarm_duration = ngtcp2_max(
+      uint64_t tlp_timeout = ngtcp2_max(
           (uint64_t)(1.5 * rcs->smoothed_rtt + (double)rcs->max_ack_delay),
           NGTCP2_MIN_TLP_TIMEOUT);
-      alarm_duration = ngtcp2_min(alarm_duration, tlp_alarm_duration);
+      timeout = ngtcp2_min(timeout, tlp_timeout);
     }
   }
 
-  rcs->loss_detection_alarm = rcs->last_tx_pkt_ts + alarm_duration;
+  rcs->loss_detection_timer = rcs->last_tx_pkt_ts + timeout;
 }
 
-int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
   int rv;
   ngtcp2_pktns *in_pktns = &conn->in_pktns;
@@ -5981,12 +5980,12 @@ int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   conn->log.last_ts = ts;
 
-  if (!rcs->loss_detection_alarm) {
+  if (!rcs->loss_detection_timer) {
     return 0;
   }
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                  "loss detection alarm fired");
+                  "loss detection timer fired");
 
   if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb) ||
       pktns->rtb.nearly_pkt) {
@@ -6025,7 +6024,7 @@ int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                   "handshake_count=%zu tlp_count=%zu rto_count=%zu",
                   rcs->handshake_count, rcs->tlp_count, rcs->rto_count);
 
-  ngtcp2_conn_set_loss_detection_alarm(conn);
+  ngtcp2_conn_set_loss_detection_timer(conn);
 
   return 0;
 }

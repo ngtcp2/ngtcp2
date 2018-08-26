@@ -1141,9 +1141,9 @@ int Client::on_write(bool retransmit) {
 
   if (retransmit) {
     auto rv =
-        ngtcp2_conn_on_loss_detection_alarm(conn_, util::timestamp(loop_));
+        ngtcp2_conn_on_loss_detection_timer(conn_, util::timestamp(loop_));
     if (rv != 0) {
-      std::cerr << "ngtcp2_conn_on_loss_detection_alarm: "
+      std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
                 << ngtcp2_strerror(rv) << std::endl;
       disconnect(NGTCP2_ERR_INTERNAL);
       return -1;

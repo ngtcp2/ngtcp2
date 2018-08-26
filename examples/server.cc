@@ -1392,9 +1392,9 @@ int Handler::on_write(bool retransmit) {
   assert(sendbuf_.left() >= max_pktlen_);
 
   if (retransmit) {
-    rv = ngtcp2_conn_on_loss_detection_alarm(conn_, util::timestamp(loop_));
+    rv = ngtcp2_conn_on_loss_detection_timer(conn_, util::timestamp(loop_));
     if (rv != 0) {
-      std::cerr << "ngtcp2_conn_on_loss_detection_alarm: "
+      std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
                 << ngtcp2_strerror(rv) << std::endl;
       return -1;
     }

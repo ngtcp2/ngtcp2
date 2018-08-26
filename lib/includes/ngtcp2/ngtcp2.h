@@ -674,7 +674,7 @@ typedef struct {
   size_t handshake_count;
   /* probe_pkt_left is the number of probe packet to sent */
   size_t probe_pkt_left;
-  uint64_t loss_detection_alarm;
+  uint64_t loss_detection_timer;
   uint64_t largest_sent_before_rto;
   /* last_tx_pkt_ts corresponds to
      time_of_last_sent_retransmittable_packet. */
@@ -1381,10 +1381,10 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
- * of loss detection alarm.  Application should call
- * `ngtcp2_conn_on_loss_detection_alarm` and `ngtcp2_conn_recv` (or
+ * of loss detection timer.  Application should call
+ * `ngtcp2_conn_on_loss_detection_timer` and `ngtcp2_conn_recv` (or
  * `ngtcp2_conn_handshake` if handshake has not finished yet) when it
- * expires.  It returns UINT64_MAX if loss detection alarm is not
+ * expires.  It returns UINT64_MAX if loss detection timer is not
  * armed.
  */
 NGTCP2_EXTERN ngtcp2_tstamp
@@ -1808,7 +1808,7 @@ typedef struct {
 /**
  * @function
  *
- * `ngtcp2_conn_on_loss_detection_alarm` should be called when a timer
+ * `ngtcp2_conn_on_loss_detection_timer` should be called when a timer
  * returned from `ngtcp2_conn_earliest_expiry` fires.
  *
  * Application should call `ngtcp2_conn_handshake` if handshake has
@@ -1825,7 +1825,7 @@ typedef struct {
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  */
-NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
+NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
                                                       ngtcp2_tstamp ts);
 
 /**
