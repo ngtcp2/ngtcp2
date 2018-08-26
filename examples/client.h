@@ -202,6 +202,7 @@ public:
   int on_extend_max_stream_id(uint64_t max_stream_id);
   int handle_error(int liberr);
   void make_stream_early();
+  void on_recv_retry();
 
   int on_key(int name, const uint8_t *secret, size_t secretlen,
              const uint8_t *key, size_t keylen, const uint8_t *iv,

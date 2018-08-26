@@ -514,8 +514,7 @@ int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   // change.
   auto c = static_cast<Client *>(user_data);
 
-  c->init_ssl();
-  c->setup_initial_crypto_context();
+  c->on_recv_retry();
 
   return 0;
 }
@@ -1274,7 +1273,6 @@ int Client::write_0rtt_streams() {
     auto &stream = p.second;
     auto &streambuf = stream->streambuf;
     auto &streambuf_idx = stream->streambuf_idx;
-
     for (auto it = std::begin(streambuf) + streambuf_idx;
          it != std::end(streambuf); ++it) {
       auto &v = *it;
@@ -1443,6 +1441,11 @@ ssize_t Client::encrypt_pn(uint8_t *dest, size_t destlen,
                            const uint8_t *nonce, size_t noncelen) {
   return crypto::encrypt_pn(dest, destlen, ciphertext, ciphertextlen,
                             crypto_ctx_, key, keylen, nonce, noncelen);
+}
+
+void Client::on_recv_retry() {
+  init_ssl();
+  setup_initial_crypto_context();
 }
 
 ngtcp2_conn *Client::conn() const { return conn_; }

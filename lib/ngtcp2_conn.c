@@ -394,6 +394,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   pktns_free(&conn->hs_pktns, conn->mem);
   pktns_free(&conn->in_pktns, conn->mem);
 
+  delete_early_rtb(conn->retry_early_rtb, conn->mem);
   delete_early_rtb(conn->early_rtb, conn->mem);
 
   ngtcp2_ringbuf_free(&conn->tx_crypto_data);
@@ -929,6 +930,49 @@ static uint64_t conn_cwnd_left(ngtcp2_conn *conn) {
     return 0;
   }
   return conn->ccs.cwnd - bytes_in_flight;
+}
+
+/*
+ * conn_retransmit_retry_early retransmits 0RTT Protected packet after
+ * Retry is received from server.
+ */
+static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen, ngtcp2_tstamp ts) {
+  ngtcp2_rtb_entry *ent;
+  ssize_t nwrite;
+
+  if (!conn->early_ckm) {
+    return 0;
+  }
+
+  for (;;) {
+    ent = conn->retry_early_rtb;
+    if (!ent) {
+      return 0;
+    }
+    conn->retry_early_rtb = ent->next;
+
+    /* DCID might be changed on Retry */
+    ent->hd.dcid = conn->rcid;
+
+    nwrite = conn_retransmit_pkt(conn, dest, destlen, &conn->pktns, ent, ts);
+    if (nwrite != 0) {
+      if (nwrite < 0) {
+        if (ngtcp2_err_is_fatal((int)nwrite)) {
+          ngtcp2_rtb_entry_del(ent, conn->mem);
+
+          return nwrite;
+        }
+      } else {
+        ent->pktlen = (size_t)nwrite;
+        ent->ts = ts;
+      }
+
+      ngtcp2_list_insert(ent, &conn->early_rtb);
+
+      return nwrite;
+    }
+  }
 }
 
 /*
@@ -2166,6 +2210,26 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
+ * rtb_entry_reverse_remove_copy appends entries pointed by |*psrc| to
+ * |*pdest| in the reversed order.  |*psrc| will be NULL after this
+ * function returns.
+ */
+static void rtb_entry_reverse_remove_copy(ngtcp2_rtb_entry **pdest,
+                                          ngtcp2_rtb_entry **psrc) {
+  ngtcp2_rtb_entry *next;
+
+  for (; *pdest; pdest = &(*pdest)->next)
+    ;
+
+  for (; *psrc;) {
+    next = (*psrc)->next;
+    (*psrc)->next = *pdest;
+    *pdest = *psrc;
+    *psrc = next;
+  }
+}
+
+/*
  * conn_process_early_rtb adds ngtcp2_rtb_entry pointed by
  * conn->early_rtb, which are 0-RTT packets, to conn->rtb.  If things
  * go wrong, this function deletes ngtcp2_rtb_entry pointed by
@@ -2182,6 +2246,8 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
   ngtcp2_rtb_entry *ent, *next;
   ngtcp2_frame_chain *frc;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
+
+  rtb_entry_reverse_remove_copy(&conn->early_rtb, &conn->retry_early_rtb);
 
   if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
     for (ent = conn->early_rtb; ent;) {
@@ -2200,6 +2266,10 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
     /* 0-RTT packet has initial random DCID */
     for (ent = conn->early_rtb; ent; ent = ent->next) {
       ent->hd.dcid = conn->dcid;
+
+      /*  0-RTT packet is retransmitted as a Short packet. */
+      ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
+      ent->hd.type = NGTCP2_PKT_SHORT;
     }
 
     ngtcp2_rtb_insert_range(rtb, conn->early_rtb);
@@ -2431,11 +2501,9 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   conn->in_pktns.crypto_tx_offset = 0;
   ngtcp2_rtb_clear(&conn->in_pktns.rtb);
 
-  delete_early_rtb(conn->early_rtb, conn->mem);
-  conn->early_rtb = NULL;
+  rtb_entry_reverse_remove_copy(&conn->retry_early_rtb, &conn->early_rtb);
+
   ngtcp2_ringbuf_resize(&conn->tx_crypto_data, 0);
-  ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
-  ngtcp2_map_clear(&conn->strms);
   conn->crypto.tx_offset = 0;
 
   if (ngtcp2_buf_cap(&conn->token) < retry.tokenlen) {
@@ -4520,6 +4588,13 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return nwrite;
     }
 
+    /* At the moment, early data is not counted toward congestion
+       window. */
+    nwrite = conn_retransmit_retry_early(conn, dest, destlen, ts);
+    if (nwrite) {
+      return nwrite;
+    }
+
     nwrite = conn_retransmit(conn, dest, destlen, ts);
     if (nwrite) {
       return nwrite;
@@ -4801,12 +4876,6 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_frame_chain_del(frc, conn->mem);
     return rv;
   }
-
-  /* Retransmission of 0-RTT packet is postponed until handshake
-     completes.  This covers the case that 0-RTT data is rejected by
-     the peer.  0-RTT packet is retransmitted as a Short packet. */
-  ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
-  ent->hd.type = NGTCP2_PKT_SHORT;
 
   ngtcp2_list_insert(ent, &conn->early_rtb);
 
@@ -5445,6 +5514,12 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
 
   if (cwnd < NGTCP2_MIN_PKTLEN) {
     return NGTCP2_ERR_CONGESTION;
+  }
+
+  nwrite =
+      conn_retransmit_retry_early(conn, dest, ngtcp2_min(destlen, cwnd), ts);
+  if (nwrite) {
+    return nwrite;
   }
 
   return conn_write_stream_early(conn, dest, ngtcp2_min(destlen, cwnd),
