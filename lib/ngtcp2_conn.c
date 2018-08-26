@@ -1019,7 +1019,7 @@ static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
 
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
-    if (!ent->frc || (ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
+    if (!ent->frc) {
       continue;
     }
 
@@ -1036,7 +1036,11 @@ static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
       return rv;
     }
 
-    nent->src_pkt_num = (int64_t)ent->hd.pkt_num;
+    if (ent->flags & NGTCP2_RTB_FLAG_PROBE) {
+      nent->src_pkt_num = ent->src_pkt_num;
+    } else {
+      nent->src_pkt_num = (int64_t)ent->hd.pkt_num;
+    }
 
     nwrite = conn_retransmit_pkt(conn, dest, destlen, &conn->pktns, nent,
                                  0 /* require_padding */, ts);
@@ -5902,7 +5906,6 @@ void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
 void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
   uint64_t alarm_duration;
-  ngtcp2_rtb_entry *ent;
   ngtcp2_ksl_it it;
   ngtcp2_pktns *in_pktns = &conn->in_pktns;
   ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
@@ -5930,13 +5933,7 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
     return;
   }
 
-  for (it = ngtcp2_rtb_head(&pktns->rtb); !ngtcp2_ksl_it_end(&it);
-       ngtcp2_ksl_it_next(&it)) {
-    ent = ngtcp2_ksl_it_get(&it);
-    if (ent->frc && !(ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
-      break;
-    }
-  }
+  it = ngtcp2_rtb_head(&pktns->rtb);
   if (ngtcp2_ksl_it_end(&it)) {
     if (rcs->loss_detection_alarm) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
@@ -5947,8 +5944,6 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
   }
 
   if (rcs->loss_time) {
-    it = ngtcp2_rtb_head(&pktns->rtb);
-    ent = ngtcp2_ksl_it_get(&it);
     assert(rcs->loss_time >= rcs->last_tx_pkt_ts);
     alarm_duration = rcs->loss_time - rcs->last_tx_pkt_ts;
   } else {
