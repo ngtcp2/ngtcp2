@@ -5944,8 +5944,16 @@ void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn) {
     return;
   }
 
-  if (rcs->loss_time) {
-    assert(rcs->loss_time >= rcs->last_tx_pkt_ts);
+  /* We rarely gets assertion failure: assert(rcs->loss_time >=
+     rcs->last_tx_pkt_ts).  So check the condition. */
+  if (rcs->loss_time && rcs->loss_time < rcs->last_tx_pkt_ts) {
+    ngtcp2_log_info(
+        &conn->log, NGTCP2_LOG_EVENT_RCV,
+        "assertion loss_time >= last_tx_pkt_ts failed: loss_time=%" PRIu64
+        " last_tx_pkt_ts=%" PRIu64);
+  }
+
+  if (rcs->loss_time && rcs->loss_time >= rcs->last_tx_pkt_ts) {
     alarm_duration = rcs->loss_time - rcs->last_tx_pkt_ts;
   } else {
     alarm_duration = (uint64_t)(rcs->smoothed_rtt + 4 * rcs->rttvar +
