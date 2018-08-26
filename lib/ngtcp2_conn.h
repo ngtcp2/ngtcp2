@@ -91,7 +91,7 @@ typedef enum {
 #define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
 #define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
 
-#define NGTCP2_MIN_PKTLEN NGTCP2_MAX_DGRAM_SIZE
+#define NGTCP2_MIN_PKTLEN 1460
 
 /* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
    crypto stream in Initial packet.  We set this hard limit here
