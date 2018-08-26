@@ -258,7 +258,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->unsent_max_rx_offset = (*pconn)->max_rx_offset = settings->max_data;
   (*pconn)->rcs.min_rtt = UINT64_MAX;
   (*pconn)->rcs.reordering_threshold = NGTCP2_REORDERING_THRESHOLD;
-  (*pconn)->ccs.cwnd = NGTCP2_INITIAL_CWND;
+  (*pconn)->ccs.cwnd = ngtcp2_min(10 * NGTCP2_MAX_DGRAM_SIZE,
+                                  ngtcp2_max(2 * NGTCP2_MAX_DGRAM_SIZE, 14600));
   (*pconn)->ccs.eor_pkt_num = 0;
   (*pconn)->ccs.ssthresh = UINT64_MAX;
 
