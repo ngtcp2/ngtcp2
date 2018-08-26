@@ -224,8 +224,8 @@ private:
   int datafd_;
   std::map<uint32_t, std::unique_ptr<Stream>> streams_;
   std::deque<Buffer> chandshake_;
-  // *chandshake_idx_ is the index in *chandshake_, which points to
-  // the buffer to read next.
+  // chandshake_idx_ is the index in *chandshake_, which points to the
+  // buffer to read next.
   size_t chandshake_idx_;
   uint64_t tx_crypto_offset_;
   std::vector<uint8_t> shandshake_;
