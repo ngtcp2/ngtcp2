@@ -259,10 +259,8 @@ private:
   // This packet is repeatedly sent as a response to the incoming
   // packet in draining period.
   std::unique_ptr<Buffer> conn_closebuf_;
-  // *tx_crypto_offset_ is the offset where all data before offset is
+  // tx_crypto_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
-  uint64_t in_tx_crypto_offset_;
-  uint64_t hs_tx_crypto_offset_;
   uint64_t tx_crypto_offset_;
   // initial_ is initially true, and used to process first packet from
   // client specially.  After first packet, it becomes false.
