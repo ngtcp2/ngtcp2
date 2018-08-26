@@ -1760,6 +1760,9 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_cid dcid;
   const uint8_t token[] = "address-validation-token";
   size_t i;
+  uint64_t stream_id;
+  ssize_t datalen;
+  int rv;
 
   dcid_init(&dcid);
   setup_handshake_client(&conn);
@@ -1813,6 +1816,52 @@ void test_ngtcp2_conn_recv_retry(void) {
       ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, (size_t)spktlen, ++t);
 
   CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Make sure that 0RTT packets are retransmitted */
+  setup_early_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
+                                         0, stream_id, 0, null_data, 219, ++t);
+
+  CU_ASSERT(sizeof(buf) == spktlen);
+  CU_ASSERT(219 == datalen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
+                                     stream_id, 0, null_data, 119, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(119 == datalen);
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
+                     &conn->scid, &dcid, 0, 0, conn->version, 0);
+
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &conn->dcid, token,
+                                   strsize(token));
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen =
+      ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, (size_t)spktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(0 == conn->pktns.last_tx_pkt_num);
+
+  /* ngtcp2_conn_write_stream resends second 0RTT packet */
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
+                                     stream_id, 0, null_data, 120, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == conn->pktns.last_tx_pkt_num);
+  CU_ASSERT(-1 == datalen);
+  CU_ASSERT(NULL == conn->retry_early_rtb);
+  CU_ASSERT(conn->early_rtb != NULL);
 
   ngtcp2_conn_del(conn);
 }
