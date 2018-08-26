@@ -369,6 +369,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       nsread_(0),
       conn_(nullptr),
       addr_(nullptr),
+      hs_crypto_ctx_{},
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       last_stream_id_(0),
