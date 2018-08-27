@@ -3342,11 +3342,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       require_ack = 1;
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
-      if (hd.type == NGTCP2_PKT_HANDSHAKE) {
-        conn_recv_connection_close(conn);
-        break;
-      }
-      return NGTCP2_ERR_PROTO;
+      conn_recv_connection_close(conn);
+      break;
     case NGTCP2_FRAME_PATH_CHALLENGE:
       conn_recv_path_challenge(conn, &fr->path_challenge, ts);
       require_ack = 1;
