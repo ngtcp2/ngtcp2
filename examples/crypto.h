@@ -59,23 +59,6 @@ int negotiated_prf(Context &ctx, SSL *ssl);
 // function returns 0 if it succeeds, or -1.
 int negotiated_aead(Context &ctx, SSL *ssl);
 
-// export_secret exports secret with given label.  It returns 0 if it
-// succeeds, or -1.
-int export_secret(uint8_t *dest, size_t destlen, SSL *ssl, const uint8_t *label,
-                  size_t labellen);
-
-// export_client_secret exports secret, client_pp_secret_0, from |ssl|
-// for client.  It returns 0 if it succeeds, or -1.
-int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl);
-
-// export_server_secret exports secret, server_pp_secret_0, from |ssl|
-// for server.  It returns 0 if it succeeds, or -1.
-int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl);
-
-// export_early_secret exports early secret, client_0rtt_secret, from
-// |ssl|.  It returns 0 if it succeeds, or -1.
-int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl);
-
 // derive_initial_secret derives initial_secret.  |secret| is
 // connection ID generated randomly by client.
 int derive_initial_secret(uint8_t *dest, size_t destlen,
