@@ -5252,6 +5252,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
     memset(dest->stateless_reset_token, 0, sizeof(dest->stateless_reset_token));
   }
   dest->ack_delay_exponent = src->ack_delay_exponent;
+  dest->disable_migration = src->disable_migration;
   dest->preferred_address = src->preferred_address;
 }
 
@@ -5273,6 +5274,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
     memset(dest->stateless_reset_token, 0, sizeof(dest->stateless_reset_token));
   }
   dest->ack_delay_exponent = src->ack_delay_exponent;
+  dest->disable_migration = src->disable_migration;
   dest->preferred_address = src->preferred_address;
 }
 

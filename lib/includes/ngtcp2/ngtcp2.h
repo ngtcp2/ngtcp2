@@ -651,6 +651,7 @@ typedef struct {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
   uint8_t ack_delay_exponent;
+  uint8_t disable_migration;
 } ngtcp2_settings;
 
 /**
