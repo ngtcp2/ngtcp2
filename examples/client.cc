@@ -173,11 +173,26 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
 
   std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
             << " content_type=" << content_type << " len=" << len << std::endl;
-  if (!write_p || content_type != SSL3_RT_HANDSHAKE) {
+  if (!write_p) {
     return;
   }
 
   auto c = static_cast<Client *>(arg);
+  auto msg = reinterpret_cast<const uint8_t *>(buf);
+
+  switch (content_type) {
+  case SSL3_RT_HANDSHAKE:
+    break;
+  case SSL3_RT_ALERT:
+    assert(len == 2);
+    if (msg[0] != 2 /* FATAL */) {
+      return;
+    }
+    c->set_tls_alert(msg[1]);
+    return;
+  default:
+    return;
+  }
 
   rv = c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
 
@@ -375,6 +390,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       last_stream_id_(0),
       nstreams_done_(0),
       version_(0),
+      tls_alert_(0),
       resumption_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
@@ -1573,10 +1589,15 @@ int Client::handle_error(int liberr) {
     return 0;
   }
 
+  uint16_t err_code;
+  if (tls_alert_) {
+    err_code = NGTCP2_CRYPTO_ERROR | tls_alert_;
+  } else {
+    err_code = ngtcp2_err_infer_quic_transport_error_code(liberr);
+  }
+
   auto n = ngtcp2_conn_write_connection_close(
-      conn_, sendbuf_.wpos(), max_pktlen_,
-      ngtcp2_err_infer_quic_transport_error_code(liberr),
-      util::timestamp(loop_));
+      conn_, sendbuf_.wpos(), max_pktlen_, err_code, util::timestamp(loop_));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
@@ -1764,6 +1785,8 @@ int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
 }
 
 void Client::start_wev() { ev_io_start(loop_, &wev_); }
+
+void Client::set_tls_alert(uint8_t alert) { tls_alert_ = alert; }
 
 namespace {
 int transport_params_add_cb(SSL *ssl, unsigned int ext_type,

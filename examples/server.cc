@@ -164,11 +164,27 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
 
   std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
             << " content_type=" << content_type << " len=" << len << std::endl;
-  if (!write_p || content_type != SSL3_RT_HANDSHAKE) {
+
+  if (!write_p) {
     return;
   }
 
   auto h = static_cast<Handler *>(arg);
+  auto msg = reinterpret_cast<const uint8_t *>(buf);
+
+  switch (content_type) {
+  case SSL3_RT_HANDSHAKE:
+    break;
+  case SSL3_RT_ALERT:
+    assert(len == 2);
+    if (msg[0] != 2 /* FATAL */) {
+      return;
+    }
+    h->set_tls_alert(msg[1]);
+    return;
+  default:
+    return;
+  }
 
   rv = h->write_server_handshake(reinterpret_cast<const uint8_t *>(buf), len);
 
@@ -648,6 +664,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       tx_crypto_offset_(0),
+      tls_alert_(0),
       initial_(true),
       draining_(false) {
   ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
@@ -1563,10 +1580,16 @@ int Handler::start_closing_period(int liberr) {
 
   conn_closebuf_ = std::make_unique<Buffer>(NGTCP2_MAX_PKTLEN_IPV4);
 
-  auto n = ngtcp2_conn_write_connection_close(
-      conn_, conn_closebuf_->wpos(), max_pktlen_,
-      ngtcp2_err_infer_quic_transport_error_code(liberr),
-      util::timestamp(loop_));
+  uint16_t err_code;
+  if (tls_alert_) {
+    err_code = NGTCP2_CRYPTO_ERROR | tls_alert_;
+  } else {
+    err_code = ngtcp2_err_infer_quic_transport_error_code(liberr);
+  }
+
+  auto n = ngtcp2_conn_write_connection_close(conn_, conn_closebuf_->wpos(),
+                                              max_pktlen_, err_code,
+                                              util::timestamp(loop_));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
@@ -1732,6 +1755,8 @@ void Handler::on_stream_close(uint64_t stream_id) {
   assert(it != std::end(streams_));
   streams_.erase(it);
 }
+
+void Handler::set_tls_alert(uint8_t alert) { tls_alert_ = alert; }
 
 namespace {
 void swritecb(struct ev_loop *loop, ev_io *w, int revents) {
