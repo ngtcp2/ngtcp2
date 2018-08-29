@@ -5611,9 +5611,6 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   switch (conn->state) {
-  case NGTCP2_CS_CLIENT_INITIAL:
-  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
     return NGTCP2_ERR_INVALID_STATE;
@@ -5630,7 +5627,8 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   } else if (conn->hs_pktns.tx_ckm) {
     pkt_type = NGTCP2_PKT_HANDSHAKE;
   } else {
-    return NGTCP2_ERR_INVALID_STATE;
+    assert(conn->in_pktns.tx_ckm);
+    pkt_type = NGTCP2_PKT_INITIAL;
   }
 
   nwrite = conn_write_single_frame_pkt(conn, dest, destlen, pkt_type, &fr, ts);
