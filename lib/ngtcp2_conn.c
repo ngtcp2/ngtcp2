@@ -3344,12 +3344,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     case NGTCP2_FRAME_CONNECTION_CLOSE:
       conn_recv_connection_close(conn);
       break;
-    case NGTCP2_FRAME_PATH_CHALLENGE:
-      conn_recv_path_challenge(conn, &fr->path_challenge, ts);
-      require_ack = 1;
-      break;
-    case NGTCP2_FRAME_PATH_RESPONSE:
-      conn_recv_path_response(conn, &fr->path_response);
+    case NGTCP2_FRAME_PING:
       require_ack = 1;
       break;
     default:
@@ -4077,9 +4072,16 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
       break;
     case NGTCP2_FRAME_PADDING:
       break;
-    default:
+    case NGTCP2_FRAME_CONNECTION_CLOSE:
+      /* TODO What should I do if we get this in delayed
+         Initial/Handshake? */
+      break;
+    case NGTCP2_FRAME_CRYPTO:
+    case NGTCP2_FRAME_PING:
       require_ack = 1;
       break;
+    default:
+      return NGTCP2_ERR_PROTO;
     }
   }
 
@@ -4233,7 +4235,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       /* TODO find a way when to ignore incoming handshake packet */
       rv = conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen,
                                            plain_hdpkt, hdpktlen, ts);
-      if (rv != 0) {
+      if (ngtcp2_err_is_fatal(rv)) {
         return rv;
       }
       return (ssize_t)pktlen;
@@ -4302,6 +4304,18 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
 
+    if (hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
+      switch (fr->type) {
+      case NGTCP2_FRAME_CRYPTO:
+      case NGTCP2_FRAME_PADDING:
+      case NGTCP2_FRAME_PING:
+      case NGTCP2_FRAME_STREAM:
+        break;
+      default:
+        return NGTCP2_ERR_PROTO;
+      }
+    }
+
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_PADDING:
@@ -4362,6 +4376,20 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     case NGTCP2_FRAME_CONNECTION_CLOSE:
     case NGTCP2_FRAME_APPLICATION_CLOSE:
       conn_recv_connection_close(conn);
+      break;
+    case NGTCP2_FRAME_PING:
+      break;
+    case NGTCP2_FRAME_PATH_CHALLENGE:
+      conn_recv_path_challenge(conn, &fr->path_challenge, ts);
+      break;
+    case NGTCP2_FRAME_PATH_RESPONSE:
+      conn_recv_path_response(conn, &fr->path_response);
+      break;
+    case NGTCP2_FRAME_BLOCKED:
+    case NGTCP2_FRAME_STREAM_ID_BLOCKED:
+    case NGTCP2_FRAME_NEW_CONNECTION_ID:
+    case NGTCP2_FRAME_NEW_TOKEN:
+      /* TODO Not implemented yet */
       break;
     }
   }

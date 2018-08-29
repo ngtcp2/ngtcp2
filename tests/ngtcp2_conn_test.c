@@ -1869,13 +1869,11 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   /* STREAM frame within final_hs_rx_offset */
   setup_default_client(&conn);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.flags = 0;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 567;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 567;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
