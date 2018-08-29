@@ -132,7 +132,7 @@ static const char *strerrorcode(uint16_t error_code) {
     return "INVALID_MIGRATION";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
-      return "FRAME_ERROR";
+      return "CRYPTO_ERROR";
     }
     return "(unknown)";
   }
