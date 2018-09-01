@@ -135,33 +135,45 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen,
 
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
-    std::cerr << "client_early_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "client_early_traffic" << std::endl;
+    }
     ngtcp2_conn_set_early_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
-    std::cerr << "client_handshake_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "client_handshake_traffic" << std::endl;
+    }
     ngtcp2_conn_set_handshake_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
                                       pnlen);
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
-    std::cerr << "client_application_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "client_application_traffic" << std::endl;
+    }
     ngtcp2_conn_update_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
     break;
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
-    std::cerr << "server_handshake_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "server_handshake_traffic" << std::endl;
+    }
     ngtcp2_conn_set_handshake_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
                                       pnlen);
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
-    std::cerr << "server_application_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "server_application_traffic" << std::endl;
+    }
     ngtcp2_conn_update_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
     break;
   }
 
-  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
-            << "+ key=" << util::format_hex(key, keylen) << "\n"
-            << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
-            << "+ pn=" << util::format_hex(pn.data(), pnlen) << std::endl;
+  if (!config.quiet) {
+    std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+              << "+ key=" << util::format_hex(key, keylen) << "\n"
+              << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
+              << "+ pn=" << util::format_hex(pn.data(), pnlen) << std::endl;
+  }
 
   return 0;
 }
@@ -171,8 +183,12 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
             size_t len, SSL *ssl, void *arg) {
   int rv;
 
-  std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
-            << " content_type=" << content_type << " len=" << len << std::endl;
+  if (!config.quiet) {
+    std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
+              << " content_type=" << content_type << " len=" << len
+              << std::endl;
+  }
+
   if (!write_p) {
     return;
   }
@@ -999,8 +1015,10 @@ int Client::read_tls() {
   for (;;) {
     auto rv = SSL_read_ex(ssl_, buf.data(), buf.size(), &nread);
     if (rv == 1) {
-      std::cerr << "Read " << nread << " bytes from TLS crypto stream"
-                << std::endl;
+      if (!config.quiet) {
+        std::cerr << "Read " << nread << " bytes from TLS crypto stream"
+                  << std::endl;
+      }
       continue;
     }
     auto err = SSL_get_error(ssl_, 0);
