@@ -373,7 +373,7 @@ static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
     return;
   }
 
-  if (ccs->cwnd < rtb->ccs->ssthresh) {
+  if (ccs->cwnd < ccs->ssthresh) {
     ccs->cwnd += ent->pktlen;
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                     "packet %" PRIu64 " acked, slow start cwnd=%lu",
