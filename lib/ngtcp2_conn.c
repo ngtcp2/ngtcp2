@@ -3081,6 +3081,10 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
          has been transmitted. */
       return (ssize_t)pktlen;
     }
+
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                    "buffering Short packet len=%zu", pktlen);
+
     rv = conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
     if (rv != 0) {
       return rv;
@@ -3185,6 +3189,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     /* Buffer re-ordered 0-RTT Protected packet. */
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                    "buffering 0-RTT Protected packet len=%zu", pktlen);
+
     rv = conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
     if (rv != 0) {
       return rv;
