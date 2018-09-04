@@ -722,6 +722,8 @@ static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
+
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     return rv;
@@ -1268,6 +1270,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
+
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     return rv;
@@ -1491,6 +1495,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ctx.user_data = conn;
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -1896,6 +1902,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
+
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     goto fail;
@@ -2173,6 +2181,8 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
       conn->version, 0);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
@@ -3165,6 +3175,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
      different Source Connection ID. */
   if (!conn->server && (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) &&
       !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
+    ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet was ignored because of mismatched SCID");
     return (ssize_t)pktlen;
   }
 
@@ -3225,6 +3238,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     break;
   case NGTCP2_PKT_HANDSHAKE:
     if (!conn->hs_pktns.rx_ckm) {
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                      "buffering Handshake packet len=%zu", pktlen);
+
       rv = conn_buffer_handshake_pkt(conn, pkt, pktlen, ts);
       if (rv != 0) {
         return rv;
@@ -3288,6 +3304,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       break;
     case NGTCP2_PKT_HANDSHAKE:
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "packet was ignored because of mismatched DCID");
         return (ssize_t)pktlen;
       }
       break;
@@ -3298,6 +3316,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "packet was ignored because of mismatched DCID");
         return (ssize_t)pktlen;
       }
       if (!(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
@@ -3307,6 +3327,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       break;
     case NGTCP2_PKT_HANDSHAKE:
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "packet was ignored because of mismatched DCID");
         return (ssize_t)pktlen;
       }
       break;
@@ -4167,6 +4189,9 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
        from the server, it MUST discard any packet it receives with a
        different Source Connection ID. */
     if (!conn->server && !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
+      ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "packet was ignored because of mismatched SCID");
       return (ssize_t)pktlen;
     }
 
@@ -4247,8 +4272,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       return (ssize_t)pktlen;
     case NGTCP2_PKT_0RTT_PROTECTED:
-      if (!conn->server || !ngtcp2_cid_eq(&conn->rcid, &hd.dcid) ||
-          conn->version != hd.version) {
+      if (!conn->server || conn->version != hd.version) {
+        return (ssize_t)pktlen;
+      }
+      if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "packet was ignored because of mismatched DCID");
         return (ssize_t)pktlen;
       }
       break;
@@ -4891,6 +4920,8 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   ctx.user_data = conn;
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {

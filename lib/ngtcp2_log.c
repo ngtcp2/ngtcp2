@@ -636,7 +636,8 @@ void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   hd->type, hd->pkt_num, sent_ts);
 }
 
-void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
+static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                       const char *dir) {
   uint8_t dcid[sizeof(hd->dcid.data) * 2 + 1];
   uint8_t scid[sizeof(hd->scid.data) * 2 + 1];
 
@@ -646,13 +647,21 @@ void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
 
   ngtcp2_log_info(
       log, NGTCP2_LOG_EVENT_PKT,
-      "rx pkt %" PRIu64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu",
+      "%s pkt %" PRIu64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu", dir,
       hd->pkt_num,
       (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
       (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
       (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) ? strpkttype_long(hd->type)
                                               : "Short",
       hd->type, hd->len);
+}
+
+void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
+  log_pkt_hd(log, hd, "rx");
+}
+
+void ngtcp2_log_tx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
+  log_pkt_hd(log, hd, "tx");
 }
 
 void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
