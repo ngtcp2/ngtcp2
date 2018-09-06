@@ -307,7 +307,6 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
           ngtcp2_nth_server_uni_id(settings->max_uni_streams);
 
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
-  (*pconn)->rcid = *dcid;
   (*pconn)->next_local_stream_id_bidi = 0;
   (*pconn)->next_local_stream_id_uni = 2;
   return 0;
@@ -690,6 +689,10 @@ static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ctx.encrypt = conn->callbacks.in_encrypt;
       ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
       ctx.ckm = pktns->tx_ckm;
+      /* TODO On client side, we might have client chosen random DCID
+         here.  Not sure we have to change it to server chosen DCID
+         after client learned it.  It might be better to cancel
+         retransmission if we know it. */
       break;
     case NGTCP2_PKT_HANDSHAKE:
       ctx.aead_overhead = conn->aead_overhead;
@@ -702,6 +705,8 @@ static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ctx.encrypt = conn->callbacks.encrypt;
       ctx.encrypt_pn = conn->callbacks.encrypt_pn;
       ctx.ckm = conn->early_ckm;
+      /* We might have client chosen random DCID. */
+      hd.dcid = conn->dcid;
       break;
     default:
       assert(0);
@@ -960,7 +965,7 @@ static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
     conn->retry_early_rtb = ent->next;
 
     /* DCID might be changed on Retry */
-    ent->hd.dcid = conn->rcid;
+    ent->hd.dcid = conn->dcid;
 
     nwrite = conn_retransmit_pkt(conn, dest, destlen, &conn->pktns, ent,
                                  require_padding, ts);
@@ -1253,10 +1258,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ngtcp2_pkt_hd_init(
-      &hd, NGTCP2_PKT_FLAG_LONG_FORM, type,
-      (conn->server || type == NGTCP2_PKT_HANDSHAKE) ? &conn->dcid
-                                                     : &conn->rcid,
-      &conn->scid, pktns->last_tx_pkt_num + 1,
+      &hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid, &conn->scid,
+      pktns->last_tx_pkt_num + 1,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);
 
@@ -1385,7 +1388,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (!conn->early_ckm || require_padding ||
         ngtcp2_ppe_left(&ppe) <
             /* TODO Assuming that pkt_num is encoded in 1 byte. */
-            NGTCP2_MIN_LONG_HEADERLEN + conn->rcid.datalen +
+            NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.datalen +
                 conn->scid.datalen + 1 /* payloadlen bytes - 1 */ +
                 min_payloadlen + NGTCP2_MAX_AEAD_OVERHEAD) {
       lfr.type = NGTCP2_FRAME_PADDING;
@@ -2516,13 +2519,12 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return rv;
   }
 
-  if (!ngtcp2_cid_eq(&conn->rcid, &retry.odcid) || retry.tokenlen == 0) {
+  if (!ngtcp2_cid_eq(&conn->dcid, &retry.odcid) || retry.tokenlen == 0) {
     return NGTCP2_ERR_PROTO;
   }
 
   /* DCID must be updated before invoking callback because client
      generates new initial keys there. */
-  conn->rcid = hd->scid;
   conn->dcid = hd->scid;
 
   ++conn->nretry;
@@ -4275,7 +4277,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (!conn->server || conn->version != hd.version) {
         return (ssize_t)pktlen;
       }
-      if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
+      if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid) &&
+          !ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "packet was ignored because of mismatched DCID");
         return (ssize_t)pktlen;
@@ -4909,7 +4912,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   ctx.ckm = conn->early_ckm;
 
   ngtcp2_pkt_hd_init(
-      &hd, pkt_flags, pkt_type, &conn->rcid, &conn->scid,
+      &hd, pkt_flags, pkt_type, &conn->dcid, &conn->scid,
       pktns->last_tx_pkt_num + 1,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);

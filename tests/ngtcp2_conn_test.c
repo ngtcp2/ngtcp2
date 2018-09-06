@@ -1783,7 +1783,6 @@ void test_ngtcp2_conn_recv_retry(void) {
       CU_ASSERT(spktlen > 0);
       CU_ASSERT(0 == conn->in_pktns.last_tx_pkt_num);
       CU_ASSERT(ngtcp2_cid_eq(&dcid, &conn->dcid));
-      CU_ASSERT(ngtcp2_cid_eq(&dcid, &conn->rcid));
     }
   }
 

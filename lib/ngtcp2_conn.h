@@ -230,9 +230,10 @@ struct ngtcp2_conn {
   ngtcp2_cid dcid;
   ngtcp2_cid scid;
   /* rcid is a connection ID present in Initial or 0-RTT protected
-     packet as destination connection ID.  Server uses this field to
-     check that duplicated Initial or 0-RTT packet are indeed sent to
-     this connection. */
+     packet from client as destination connection ID.  Server uses
+     this field to check that duplicated Initial or 0-RTT packet are
+     indeed sent to this connection.  This field is not used by
+     client. */
   ngtcp2_cid rcid;
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
