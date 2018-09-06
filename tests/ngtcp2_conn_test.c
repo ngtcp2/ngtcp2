@@ -2972,7 +2972,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   pktlen += write_single_frame_handshake_pkt(
       conn, buf + pktlen, sizeof(buf) - pktlen, NGTCP2_PKT_INITIAL, &conn->scid,
-      &conn->scid, ++pkt_num, conn->version, &fr);
+      &conn->dcid, ++pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 
