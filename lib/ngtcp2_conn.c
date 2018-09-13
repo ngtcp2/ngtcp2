@@ -4150,13 +4150,27 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
     if (nread < 0) {
-      return nread;
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "could not decode long header");
+      return (ssize_t)pktlen;
     }
 
     if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
       ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
       /* Ignore late VN. */
+      return (ssize_t)pktlen;
+    }
+
+    switch (hd.type) {
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_HANDSHAKE:
+    case NGTCP2_PKT_0RTT_PROTECTED:
+      break;
+    default:
+      ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "packet type 0x%02x was ignored", hd.type);
       return (ssize_t)pktlen;
     }
 
@@ -4234,13 +4248,13 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       crypto_rx_offset_base = conn->early_crypto_rx_offset_base;
       max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
       break;
-    default:
-      return (ssize_t)pktlen;
     }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen, conn->scid.datalen);
     if (nread < 0) {
-      return (int)nread;
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "could not decode short header");
+      return (ssize_t)pktlen;
     }
 
     /* TODO If we check DCID here, we drop Stateless Reset packet. */
