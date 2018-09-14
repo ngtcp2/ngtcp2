@@ -4241,6 +4241,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       crypto_rx_offset_base = conn->early_crypto_rx_offset_base;
       max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
       break;
+    default:
+      assert(0);
     }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen, conn->scid.datalen);
