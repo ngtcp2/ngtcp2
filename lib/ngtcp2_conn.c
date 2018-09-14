@@ -4155,13 +4155,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return (ssize_t)pktlen;
     }
 
-    if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
-      ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
-
-      /* Ignore late VN. */
-      return (ssize_t)pktlen;
-    }
-
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
     case NGTCP2_PKT_HANDSHAKE:
