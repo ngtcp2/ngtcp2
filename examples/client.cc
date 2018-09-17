@@ -48,6 +48,7 @@
 #include "util.h"
 #include "crypto.h"
 #include "shared.h"
+#include "keylog.h"
 
 using namespace ngtcp2;
 
@@ -92,6 +93,8 @@ int key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
   if (c->on_key(name, secret, secretlen, key, keylen, iv, ivlen) != 0) {
     return 0;
   }
+
+  keylog::log_secret(ssl, name, secret, secretlen);
 
   return 1;
 }
