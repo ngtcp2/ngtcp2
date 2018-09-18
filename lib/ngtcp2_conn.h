@@ -339,9 +339,6 @@ struct ngtcp2_conn {
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
-  /* early_rtb is a linked list of 0-RTT packets sorted by decreasing
-     order of packet number. */
-  ngtcp2_rtb_entry *early_rtb;
   /* retry_early_rtb is a linked list of 0-RTT packets sorted by
      ascending order of packet number.  This field is used when Retry
      packet is received from server and points to the entries which

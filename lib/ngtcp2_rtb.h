@@ -106,6 +106,9 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
   NGTCP2_RTB_FLAG_PROBE = 0x1,
+  /* NGTCP2_RTB_FLAG_0RTT indicates that the entry incldues 0RTT
+     Protected packet which includes EOED in its CRYPTO frame. */
+  NGTCP2_RTB_FLAG_0RTT = 0x2,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -191,6 +194,9 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
  * ngtcp2_rtb_add adds |ent| to |rtb|.
  */
 void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+
+int ngtcp2_rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
+                      ngtcp2_rtb_entry *ent);
 
 /*
  * ngtcp2_rtb_insert_range inserts linked list pointed by |head| to

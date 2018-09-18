@@ -1853,7 +1853,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   CU_ASSERT(1 == conn->pktns.last_tx_pkt_num);
   CU_ASSERT(-1 == datalen);
   CU_ASSERT(NULL == conn->retry_early_rtb);
-  CU_ASSERT(conn->early_rtb != NULL);
+  CU_ASSERT(!ngtcp2_rtb_empty(&conn->pktns.rtb));
 
   ngtcp2_conn_del(conn);
 }

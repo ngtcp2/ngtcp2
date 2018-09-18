@@ -174,15 +174,13 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   rtb->bytes_in_flight += ent->pktlen;
 
-  if ((ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
-      ent->hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
+  if (ent->flags & NGTCP2_RTB_FLAG_0RTT) {
     ++rtb->nearly_pkt;
   }
 }
 
 static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
-  if ((ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
-      ent->hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
+  if (ent->flags & NGTCP2_RTB_FLAG_0RTT) {
     assert(rtb->nearly_pkt);
     --rtb->nearly_pkt;
   }
@@ -223,6 +221,20 @@ void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head) {
     ngtcp2_ksl_insert(&rtb->ents, NULL, (int64_t)ent->hd.pkt_num, ent);
     rtb_on_add(rtb, ent);
   }
+}
+
+int ngtcp2_rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
+                      ngtcp2_rtb_entry *ent) {
+  int rv;
+
+  rv = ngtcp2_ksl_remove(&rtb->ents, it, (int64_t)ent->hd.pkt_num);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rtb_on_remove(rtb, ent);
+
+  return 0;
 }
 
 ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb) {
@@ -639,8 +651,7 @@ int ngtcp2_rtb_mark_0rtt_pkt_lost(ngtcp2_rtb *rtb) {
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);
 
-    if (!(ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) ||
-        ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED) {
+    if (!(ent->flags & NGTCP2_RTB_FLAG_0RTT)) {
       ngtcp2_ksl_it_next(&it);
       continue;
     }
