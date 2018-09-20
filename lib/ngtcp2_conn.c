@@ -6065,7 +6065,8 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
   }
 
   it = ngtcp2_rtb_head(&pktns->rtb);
-  if (ngtcp2_ksl_it_end(&it)) {
+  if (ngtcp2_ksl_it_end(&it) ||
+      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
     if (rcs->loss_detection_timer) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                       "loss detection timer canceled");
