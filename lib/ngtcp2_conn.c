@@ -619,8 +619,9 @@ static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
      retransmittable packet (non-ACK only packet). */
   ngtcp2_rtb_add(rtb, ent);
 
-  /* TODO What to do 0RTT packet containing STREAM? */
-  if (ngtcp2_pkt_handshake_pkt(&ent->hd)) {
+  if (ngtcp2_pkt_handshake_pkt(&ent->hd) &&
+      (ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED ||
+       (ent->flags & NGTCP2_RTB_FLAG_0RTT))) {
     conn->rcs.last_hs_tx_pkt_ts = ent->ts;
   } else {
     conn->rcs.last_tx_pkt_ts = ent->ts;
@@ -2305,7 +2306,8 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
     ent = ngtcp2_ksl_it_get(&it);
 
     if ((ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) == 0 ||
-        ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED) {
+        ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED ||
+        (ent->flags & NGTCP2_RTB_FLAG_0RTT)) {
       continue;
     }
 
@@ -2502,6 +2504,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
+  uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
 
   if (conn->nretry >= NGTCP2_MAX_RETRIES) {
     return NGTCP2_ERR_TOO_MANY_RETRIES;
@@ -2511,6 +2514,10 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   if (rv != 0) {
     return rv;
   }
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT, "odcid=0x%s",
+                  (const char *)ngtcp2_encode_hex(cidbuf, retry.odcid.data,
+                                                  retry.odcid.datalen));
 
   if (!ngtcp2_cid_eq(&conn->dcid, &retry.odcid) || retry.tokenlen == 0) {
     return NGTCP2_ERR_PROTO;
