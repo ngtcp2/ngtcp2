@@ -1139,6 +1139,10 @@ void Handler::write_server_handshake(std::deque<Buffer> &dest, size_t &idx,
   auto &buf = dest.back();
 
   ngtcp2_conn_submit_crypto_data(conn_, buf.rpos(), buf.size());
+
+  if (!config.quiet) {
+    debug::print_crypto_data(buf.rpos(), buf.size());
+  }
 }
 
 size_t Handler::read_server_handshake(const uint8_t **pdest) {
@@ -1549,6 +1553,10 @@ int Handler::write_stream_data(Stream &stream, int fin, Buffer &data) {
     }
 
     if (ndatalen >= 0) {
+      if (!config.quiet) {
+        debug::print_stream_data(stream.stream_id, data.rpos(), ndatalen);
+      }
+
       if (fin && static_cast<size_t>(ndatalen) == data.size()) {
         stream.should_send_fin = false;
       }

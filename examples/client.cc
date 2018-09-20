@@ -1285,6 +1285,10 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
     }
 
     if (ndatalen > 0) {
+      if (!config.quiet) {
+        debug::print_stream_data(stream_id, data.rpos(), ndatalen);
+      }
+
       data.seek(ndatalen);
     }
 
@@ -1360,6 +1364,10 @@ int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
     }
 
     if (ndatalen > 0) {
+      if (!config.quiet) {
+        debug::print_stream_data(stream_id, data.rpos(), ndatalen);
+      }
+
       data.seek(ndatalen);
     }
 
@@ -1403,6 +1411,10 @@ void Client::write_client_handshake(std::deque<Buffer> &dest, size_t &idx,
   auto &buf = dest.back();
 
   ngtcp2_conn_submit_crypto_data(conn_, buf.rpos(), buf.size());
+
+  if (!config.quiet) {
+    debug::print_crypto_data(buf.rpos(), buf.size());
+  }
 }
 
 size_t Client::read_client_handshake(const uint8_t **pdest) {
