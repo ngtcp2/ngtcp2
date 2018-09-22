@@ -801,6 +801,7 @@ static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (pkt_empty) {
+    ngtcp2_log_tx_cancel(&conn->log, &hd);
     return rv;
   }
 
@@ -2021,6 +2022,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   if (pkt_empty) {
+    ngtcp2_log_tx_cancel(&conn->log, &hd);
     return rv;
   }
 
