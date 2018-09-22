@@ -6223,7 +6223,13 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
     pkt_type = 0; /* Short packet */
   } else if (hs_pktns->tx_ckm) {
     pkt_type = NGTCP2_PKT_HANDSHAKE;
-  } else if (!conn->server && conn->early_ckm) {
+  } else if (!conn->server && conn->early_ckm && datalen == 4) {
+    /* TODO datalen == 4 is quite hackish.  When client sends Initial
+       along with 0RTT, and server sends back HRR, without this
+       condition client sends CH in 0RTT packet.  For TLSv1.3, the
+       only data submitted by this function for 0RTT is EOED which is
+       just 4 bytes long.  If the given data is not 4 bytes, assume
+       that it is CH in response to HRR. */
     pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
   } else {
     assert(in_pktns->tx_ckm);
