@@ -831,7 +831,7 @@ static ssize_t conn_retransmit_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ent->hd = hd;
 
-  if (require_padding || (!conn->server && hd.type == NGTCP2_PKT_INITIAL)) {
+  if (require_padding || (ent->flags & NGTCP2_RTB_FLAG_CLIENT_INITIAL)) {
     localfr.type = NGTCP2_FRAME_PADDING;
     localfr.padding.len = ngtcp2_ppe_padding(&ppe);
 
@@ -1159,6 +1159,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   size_t left;
   ngtcp2_ringbuf *rb = &conn->tx_crypto_data;
   size_t min_payloadlen;
+  uint8_t flags = NGTCP2_RTB_FLAG_NONE;
 
   if (ngtcp2_ringbuf_len(rb) == 0) {
     return 0;
@@ -1192,6 +1193,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.encrypt_pn = conn->callbacks.encrypt_pn;
     ctx.user_data = conn;
+    flags = NGTCP2_RTB_FLAG_0RTT;
     break;
   default:
     assert(0);
@@ -1203,10 +1205,13 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);
 
-  if (type == NGTCP2_PKT_INITIAL && ngtcp2_buf_len(&conn->token) &&
-      conn->state == NGTCP2_CS_CLIENT_INITIAL) {
-    hd.token = conn->token.pos;
-    hd.tokenlen = ngtcp2_buf_len(&conn->token);
+  if (type == NGTCP2_PKT_INITIAL && conn->state == NGTCP2_CS_CLIENT_INITIAL) {
+    flags |= NGTCP2_RTB_FLAG_CLIENT_INITIAL;
+
+    if (ngtcp2_buf_len(&conn->token)) {
+      hd.token = conn->token.pos;
+      hd.tokenlen = ngtcp2_buf_len(&conn->token);
+    }
   }
 
   ctx.user_data = conn;
@@ -1221,7 +1226,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (type != NGTCP2_PKT_0RTT_PROTECTED &&
-      (conn->server || type != NGTCP2_PKT_INITIAL)) {
+      conn->state != NGTCP2_CS_CLIENT_INITIAL) {
     ackfr = NULL;
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
                                NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
@@ -1279,10 +1284,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
       if (pr_encoded) {
         rv = ngtcp2_rtb_entry_new(&rtbent, &hd, NULL, ts, (size_t)spktlen,
-                                  hd.type == NGTCP2_PKT_0RTT_PROTECTED
-                                      ? NGTCP2_RTB_FLAG_0RTT
-                                      : NGTCP2_RTB_FLAG_NONE,
-                                  conn->mem);
+                                  flags, conn->mem);
         if (rv != 0) {
           return rv;
         }
@@ -1325,7 +1327,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   /* If we cannot write another packet, then we need to add padding to
      Initial here. */
-  if (!conn->server && type == NGTCP2_PKT_INITIAL) {
+  if (conn->state == NGTCP2_CS_CLIENT_INITIAL) {
     min_payloadlen = ngtcp2_max(conn_retry_early_payloadlen(conn), 128);
 
     if (!conn->early_ckm || require_padding ||
@@ -1354,10 +1356,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (frc_head || pr_encoded) {
     rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frc_head, ts, (size_t)spktlen,
-                              hd.type == NGTCP2_PKT_0RTT_PROTECTED
-                                  ? NGTCP2_RTB_FLAG_0RTT
-                                  : NGTCP2_RTB_FLAG_NONE,
-                              conn->mem);
+                              flags, conn->mem);
     if (rv != 0) {
       goto fail;
     }
@@ -5089,6 +5088,7 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t spktlen, early_spktlen;
   uint64_t cwnd;
   int require_padding;
+  int was_client_initial;
 
   if (pdatalen) {
     *pdatalen = -1;
@@ -5117,6 +5117,7 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
                     (conn->max_tx_offset - conn->tx_offset)));
   }
 
+  was_client_initial = conn->state == NGTCP2_CS_CLIENT_INITIAL;
   spktlen = conn_handshake(conn, dest, destlen, pkt, pktlen, !send_stream, ts);
 
   if (spktlen < 0) {
@@ -5131,8 +5132,7 @@ ssize_t ngtcp2_conn_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
      packet is written, we have to pad bytes to 0-RTT Protected
      packet. */
 
-  require_padding =
-      spktlen && (dest[0] & NGTCP2_LONG_TYPE_MASK) == NGTCP2_PKT_INITIAL;
+  require_padding = spktlen && was_client_initial;
 
   cwnd = conn_cwnd_left(conn);
 

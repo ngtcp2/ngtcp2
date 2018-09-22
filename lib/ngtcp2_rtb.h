@@ -109,6 +109,9 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_0RTT indicates that the entry incldues 0RTT
      Protected packet which includes EOED in its CRYPTO frame. */
   NGTCP2_RTB_FLAG_0RTT = 0x2,
+  /* NGTCP2_RTB_FLAG_CLIENT_INITIAL indicates that entry includes
+     client very first Initial packet. */
+  NGTCP2_RTB_FLAG_CLIENT_INITIAL = 0x4,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
