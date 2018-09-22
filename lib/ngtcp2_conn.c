@@ -2151,6 +2151,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   /* Do this when we are sure that there is no error. */
   if (fr->type == NGTCP2_FRAME_ACK) {
+    ngtcp2_acktr_commit_ack(&pktns->acktr);
     ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &fr->ack, ts,
                          1 /* ack_only */);
   }
@@ -2199,8 +2200,6 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_mem_free(conn->mem, ackfr);
     return spktlen;
   }
-
-  ngtcp2_acktr_commit_ack(acktr);
 
   return spktlen;
 }
