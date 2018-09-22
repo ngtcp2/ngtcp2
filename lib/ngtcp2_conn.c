@@ -1011,68 +1011,6 @@ static ssize_t conn_retransmit(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 
 /*
- * conn_retransmit_unacked retransmits unacknowledged protected packet
- * as a TLP/RTO probe packet.
- */
-static ssize_t conn_retransmit_unacked(ngtcp2_conn *conn, uint8_t *dest,
-                                       size_t destlen, ngtcp2_tstamp ts) {
-  ngtcp2_rtb_entry *ent;
-  ssize_t nwrite;
-  ngtcp2_frame_chain *nfrc;
-  ngtcp2_rtb_entry *nent;
-  int rv;
-  ngtcp2_ksl_it it;
-  ngtcp2_rtb *rtb = &conn->pktns.rtb;
-
-  it = ngtcp2_rtb_head(rtb);
-
-  for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
-    ent = ngtcp2_ksl_it_get(&it);
-    if (!ent->frc) {
-      continue;
-    }
-
-    /* TODO It would be better to avoid copy here.*/
-    nfrc = ngtcp2_frame_chain_list_copy(ent->frc, conn->mem);
-    if (!nfrc) {
-      return NGTCP2_ERR_NOMEM;
-    }
-
-    rv = ngtcp2_rtb_entry_new(&nent, &ent->hd, nfrc, ts, 0,
-                              NGTCP2_RTB_FLAG_PROBE, conn->mem);
-    if (rv != 0) {
-      ngtcp2_frame_chain_list_del(nfrc, conn->mem);
-      return rv;
-    }
-
-    if (ent->flags & NGTCP2_RTB_FLAG_PROBE) {
-      nent->src_pkt_num = ent->src_pkt_num;
-    } else {
-      nent->src_pkt_num = (int64_t)ent->hd.pkt_num;
-    }
-
-    nwrite = conn_retransmit_pkt(conn, dest, destlen, &conn->pktns, nent,
-                                 0 /* require_padding */, ts);
-    if (nwrite < 0) {
-      ngtcp2_rtb_entry_del(nent, conn->mem);
-      return nwrite;
-    }
-    if (nwrite == 0) {
-      ngtcp2_rtb_entry_del(nent, conn->mem);
-      continue;
-    }
-
-    nent->pktlen = (size_t)nwrite;
-    nent->ts = ts;
-    conn_on_pkt_sent(conn, rtb, nent);
-
-    return nwrite;
-  }
-
-  return 0;
-}
-
-/*
  * conn_create_crypto_frame creates CRYPTO frame.  CRYPTO frame is
  * allocated along with ngtcp2_frame_chain with possibly extra memory
  * to hold the scattered data.  |pkt| is the type of packet.  If |pkt|
@@ -2321,6 +2259,104 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
   return 0;
 }
 
+/*
+ * conn_write_probe_ping writes probe packet containing PING frame
+ * (and optionally ACK frame).
+ */
+static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
+                                     size_t destlen, ngtcp2_tstamp ts) {
+  ngtcp2_ppe ppe;
+  ngtcp2_pkt_hd hd;
+  ngtcp2_pktns *pktns = &conn->pktns;
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_frame_chain *frc = NULL;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_frame *ackfr = NULL;
+  int rv;
+  ssize_t nwrite;
+
+  assert(pktns->tx_ckm);
+
+  ctx.aead_overhead = conn->aead_overhead;
+  ctx.encrypt = conn->callbacks.encrypt;
+  ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+  ctx.ckm = pktns->tx_ckm;
+  ctx.user_data = conn;
+
+  ngtcp2_pkt_hd_init(
+      &hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &conn->dcid, &conn->scid,
+      pktns->last_tx_pkt_num + 1,
+      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
+      conn->version, 0);
+
+  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = ngtcp2_frame_chain_new(&frc, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  frc->fr.type = NGTCP2_FRAME_PING;
+
+  rv = ngtcp2_ppe_encode_frame(&ppe, &frc->fr);
+  if (rv != 0) {
+    goto fail;
+  }
+
+  ngtcp2_log_tx_fr(&conn->log, &hd, &frc->fr);
+
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 1 /* nodelay */,
+                             conn->local_settings.ack_delay_exponent);
+  if (rv != 0) {
+    goto fail;
+  }
+
+  if (ackfr) {
+    rv = ngtcp2_ppe_encode_frame(&ppe, ackfr);
+    if (rv != 0) {
+      ngtcp2_mem_free(conn->mem, ackfr);
+      if (rv != NGTCP2_ERR_NOMEM) {
+        return rv;
+      }
+    } else {
+      ngtcp2_log_tx_fr(&conn->log, &hd, ackfr);
+      ngtcp2_acktr_commit_ack(&pktns->acktr);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
+                           0 /* ack_only */);
+    }
+  }
+
+  nwrite = ngtcp2_ppe_final(&ppe, NULL);
+  if (nwrite < 0) {
+    rv = (int)nwrite;
+    goto fail;
+  }
+
+  rv = ngtcp2_rtb_entry_new(&ent, &hd, frc, ts, (size_t)nwrite,
+                            NGTCP2_RTB_FLAG_PROBE, conn->mem);
+  if (rv != 0) {
+    goto fail;
+  }
+
+  conn_on_pkt_sent(conn, &pktns->rtb, ent);
+
+  ++pktns->last_tx_pkt_num;
+
+  return nwrite;
+
+fail:
+  ngtcp2_frame_chain_del(frc, conn->mem);
+
+  return rv;
+}
+
 static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                     size_t destlen, ssize_t *pdatalen,
                                     ngtcp2_strm *strm, uint8_t fin,
@@ -2335,14 +2371,19 @@ static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
   nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, data,
                           datalen, ts);
   if (nwrite == 0) {
-    nwrite = conn_retransmit_unacked(conn, dest, destlen, ts);
+    nwrite = conn_write_probe_ping(conn, dest, destlen, ts);
   }
-  if (nwrite > 0) {
-    --conn->rcs.probe_pkt_left;
+  if (nwrite < 0) {
+    return nwrite;
+  }
 
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%zd",
-                    nwrite);
-  }
+  assert(nwrite);
+
+  --conn->rcs.probe_pkt_left;
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%zd",
+                  nwrite);
+
   return nwrite;
 }
 

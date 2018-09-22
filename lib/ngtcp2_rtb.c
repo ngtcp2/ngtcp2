@@ -105,7 +105,6 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   (*pent)->frc = frc;
   (*pent)->ts = ts;
   (*pent)->pktlen = pktlen;
-  (*pent)->src_pkt_num = -1;
   (*pent)->flags = flags;
 
   return 0;
@@ -400,33 +399,10 @@ static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
                   ccs->cwnd);
 }
 
-/*
- * rtb_remove_src_ent removes ngtcp2_rtb_entry whose packet number is
- * dupent->src_pkt_num.  probe_ent is supposed to be TLP/RTO probe
- * packet.  We assume that src_pkt_num < probe_ent->src_pkt_num,
- * because probe packet is duplicate of unacknowledged packet.
- */
-static int rtb_remove_src_ent(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *probe_ent) {
-  ngtcp2_ksl_it it = ngtcp2_ksl_lower_bound(&rtb->ents, probe_ent->src_pkt_num);
-
-  if (ngtcp2_ksl_it_end(&it) ||
-      ngtcp2_ksl_it_key(&it) != probe_ent->src_pkt_num) {
-    return 0;
-  }
-
-  return rtb_remove(rtb, NULL, ngtcp2_ksl_it_get(&it));
-}
-
 static int rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                             ngtcp2_rtb_entry *ent) {
   int rv;
 
-  if (ent->flags & NGTCP2_RTB_FLAG_PROBE) {
-    rv = rtb_remove_src_ent(rtb, ent);
-    if (rv != 0) {
-      return rv;
-    }
-  }
   rtb_on_pkt_acked_cc(rtb, ent);
   if (!ngtcp2_pkt_handshake_pkt(&ent->hd) && rcs->rto_count &&
       ent->hd.pkt_num > rcs->largest_sent_before_rto) {

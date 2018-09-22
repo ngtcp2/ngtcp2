@@ -128,9 +128,6 @@ struct ngtcp2_rtb_entry {
   ngtcp2_tstamp ts;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
-  /* src_pkt_num is a packet number of a original packet if this entry
-     includes a probe packet duplicating original. */
-  int64_t src_pkt_num;
   /* flags is bitwise-OR of zero or more of ngtcp2_rtb_flag. */
   uint8_t flags;
 };
