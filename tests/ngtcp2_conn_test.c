@@ -246,6 +246,15 @@ static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
   return 0;
 }
 
+static int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                      const ngtcp2_pkt_retry *retry, void *user_data) {
+  (void)conn;
+  (void)hd;
+  (void)retry;
+  (void)user_data;
+  return 0;
+}
+
 static int genrand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                    ngtcp2_rand_ctx ctx, void *user_data) {
   (void)conn;
@@ -262,7 +271,9 @@ static void server_default_settings(ngtcp2_settings *settings) {
 
   settings->log_printf = NULL;
   settings->initial_ts = 0;
-  settings->max_stream_data = 65535;
+  settings->max_stream_data_bidi_local = 65535;
+  settings->max_stream_data_bidi_remote = 65535;
+  settings->max_stream_data_uni = 65535;
   settings->max_data = 128 * 1024;
   settings->max_bidi_streams = 3;
   settings->max_uni_streams = 2;
@@ -277,7 +288,9 @@ static void server_default_settings(ngtcp2_settings *settings) {
 static void client_default_settings(ngtcp2_settings *settings) {
   settings->log_printf = NULL;
   settings->initial_ts = 0;
-  settings->max_stream_data = 65535;
+  settings->max_stream_data_bidi_local = 65535;
+  settings->max_stream_data_bidi_remote = 65535;
+  settings->max_stream_data_uni = 65535;
   settings->max_data = 128 * 1024;
   settings->max_bidi_streams = 0;
   settings->max_uni_streams = 2;
@@ -316,7 +329,9 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                              sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
-  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;
   (*pconn)->remote_settings.max_bidi_streams = 0;
   (*pconn)->remote_settings.max_uni_streams = 1;
   (*pconn)->remote_settings.max_data = 64 * 1024;
@@ -357,7 +372,9 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                              sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
-  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;
   (*pconn)->remote_settings.max_bidi_streams = 1;
   (*pconn)->remote_settings.max_uni_streams = 1;
   (*pconn)->remote_settings.max_data = 64 * 1024;
@@ -454,7 +471,9 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_set_early_keys(*pconn, null_key, sizeof(null_key), null_iv,
                              sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
-  (*pconn)->remote_settings.max_stream_data = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
+  (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;
   (*pconn)->remote_settings.max_bidi_streams = 0;
   (*pconn)->remote_settings.max_uni_streams = 1;
   (*pconn)->remote_settings.max_data = 64 * 1024;
@@ -493,7 +512,9 @@ static void setup_early_client(ngtcp2_conn **pconn) {
                                   sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
-  params.initial_max_stream_data = 64 * 1024;
+  params.initial_max_stream_data_bidi_local = 64 * 1024;
+  params.initial_max_stream_data_bidi_remote = 64 * 1024;
+  params.initial_max_stream_data_uni = 64 * 1024;
   params.initial_max_bidi_streams = 1;
   params.initial_max_uni_streams = 1;
   params.initial_max_data = 64 * 1024;
@@ -599,7 +620,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
 
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data = 2047;
+  conn->local_settings.max_stream_data_bidi_remote = 2047;
 
   for (i = 0; i < 3; ++i) {
     uint64_t stream_id = i * 4;
@@ -667,7 +688,7 @@ void test_ngtcp2_conn_stream_rx_flow_control_error(void) {
 
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data = 1023;
+  conn->local_settings.max_stream_data_bidi_remote = 1023;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -698,7 +719,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   setup_default_client(&conn);
 
-  conn->remote_settings.max_stream_data = 2047;
+  conn->remote_settings.max_stream_data_bidi_remote = 2047;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -1226,7 +1247,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
      connection-level flow control. */
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data = 1 << 21;
+  conn->local_settings.max_stream_data_bidi_remote = 1 << 21;
 
   fr.type = NGTCP2_FRAME_RST_STREAM;
   fr.rst_stream.stream_id = 4;
@@ -1263,7 +1284,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
      control */
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data = 1 << 21;
+  conn->local_settings.max_stream_data_bidi_remote = 1 << 21;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -1663,26 +1684,19 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   int rv;
   size_t i;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  ngtcp2_pkt_hd hd;
-  ngtcp2_cid dcid;
-
-  dcid_init(&dcid);
 
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
     token[i] = (uint8_t)~i;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
-                     0xe1, 1, 0, 0);
-
-  /* server: Just ignore SR */
+  /* server: Just ignore SR for now*/
   setup_default_server(&conn);
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 24324325;
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
-      buf, sizeof(buf), &hd, conn->local_settings.stateless_reset_token,
-      null_data, 17);
+      buf, sizeof(buf), 0 /* key_phase */,
+      conn->local_settings.stateless_reset_token, null_data, 20);
 
   CU_ASSERT(spktlen > 0);
 
@@ -1700,8 +1714,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   memcpy(conn->remote_settings.stateless_reset_token, token,
          NGTCP2_STATELESS_RESET_TOKENLEN);
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token,
-                                             null_data, 19);
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), 0 /* key_phase */, token, null_data, 23);
 
   CU_ASSERT(spktlen > 0);
 
@@ -1717,8 +1731,8 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 24324325;
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token,
-                                             null_data, 17);
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), 0 /* key_phase */, token, null_data, 29);
 
   CU_ASSERT(spktlen > 0);
 
@@ -1730,51 +1744,118 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   ngtcp2_conn_del(conn);
 }
 
-void test_ngtcp2_conn_recv_server_stateless_retry(void) {
-  /* TODO Retry packet handling is TBD */
-  /* ngtcp2_conn *conn; */
-  /* my_user_data ud; */
-  /* uint8_t buf[2048]; */
-  /* ssize_t spktlen; */
-  /* size_t pktlen; */
-  /* ngtcp2_frame fra[2]; */
-  /* ngtcp2_frame *fr; */
+void test_ngtcp2_conn_recv_retry(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ssize_t spktlen;
+  ngtcp2_pkt_hd hd;
+  uint64_t t = 0;
+  ngtcp2_cid dcid;
+  const uint8_t token[] = "address-validation-token";
+  size_t i;
+  uint64_t stream_id;
+  ssize_t datalen;
+  int rv;
 
-  /* memset(&ud, 0, sizeof(ud)); */
-  /* ud.pkt_num = 0; */
-  /* setup_handshake_client(&conn); */
-  /* conn->user_data = &ud; */
+  dcid_init(&dcid);
+  setup_handshake_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
 
-  /* spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, 1); */
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, ++t);
 
-  /* CU_ASSERT(spktlen > 0); */
+  CU_ASSERT(spktlen > 0);
 
-  /* fr = &fra[0]; */
-  /* fr->type = NGTCP2_FRAME_STREAM; */
-  /* fr->stream.flags = 0; */
-  /* fr->stream.stream_id = 0; */
-  /* fr->stream.fin = 0; */
-  /* fr->stream.offset = 0; */
-  /* fr->stream.datalen = 333; */
-  /* fr->stream.data = null_data; */
+  for (i = 0; i < NGTCP2_MAX_RETRIES + 1; ++i) {
+    ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
+                       &conn->scid, &dcid, 0, 0, conn->version, 0);
 
-  /* fr = &fra[1]; */
-  /* fr->type = NGTCP2_FRAME_ACK; */
-  /* fr->ack.largest_ack = conn->in_pktns.last_tx_pkt_num; */
-  /* fr->ack.ack_delay = 0; */
-  /* fr->ack.first_ack_blklen = 0; */
-  /* fr->ack.num_blks = 0; */
+    spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &conn->dcid, token,
+                                     strsize(token));
 
-  /* pktlen = write_handshake_pkt( */
-  /*     conn, buf, sizeof(buf), NGTCP2_PKT_RETRY, &conn->scid, &conn->dcid, */
-  /*     conn->in_pktns.last_tx_pkt_num, conn->version, fra, arraylen(fra)); */
+    CU_ASSERT(spktlen > 0);
 
-  /* spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, 2); */
+    spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf,
+                                    (size_t)spktlen, ++t);
 
-  /* CU_ASSERT(spktlen > 0); */
-  /* CU_ASSERT(1 == conn->in_pktns.last_tx_pkt_num); */
+    if (i == NGTCP2_MAX_RETRIES) {
+      CU_ASSERT(NGTCP2_ERR_TOO_MANY_RETRIES == spktlen);
+    } else {
+      CU_ASSERT(spktlen > 0);
+      CU_ASSERT(0 == conn->in_pktns.last_tx_pkt_num);
+      CU_ASSERT(ngtcp2_cid_eq(&dcid, &conn->dcid));
+    }
+  }
 
-  /* ngtcp2_conn_del(conn); */
+  ngtcp2_conn_del(conn);
+
+  /* Retry with wrong ODCID is rejected */
+  setup_handshake_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
+
+  spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), NULL, 0, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
+                     &conn->scid, &dcid, 0, 0, conn->version, 0);
+
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &dcid, token,
+                                   strsize(token));
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen =
+      ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, (size_t)spktlen, ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Make sure that 0RTT packets are retransmitted */
+  setup_early_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
+                                         0, stream_id, 0, null_data, 219, ++t);
+
+  CU_ASSERT(sizeof(buf) == spktlen);
+  CU_ASSERT(219 == datalen);
+
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
+                                     stream_id, 0, null_data, 119, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(119 == datalen);
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
+                     &conn->scid, &dcid, 0, 0, conn->version, 0);
+
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &conn->dcid, token,
+                                   strsize(token));
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen =
+      ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, (size_t)spktlen, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(0 == conn->pktns.last_tx_pkt_num);
+
+  /* ngtcp2_conn_write_stream resends second 0RTT packet */
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
+                                     stream_id, 0, null_data, 120, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == conn->pktns.last_tx_pkt_num);
+  CU_ASSERT(-1 == datalen);
+  CU_ASSERT(NULL == conn->retry_early_rtb);
+  CU_ASSERT(!ngtcp2_rtb_empty(&conn->pktns.rtb));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
@@ -1787,13 +1868,11 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   /* STREAM frame within final_hs_rx_offset */
   setup_default_client(&conn);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.flags = 0;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datalen = 567;
-  fr.stream.data = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 567;
+  fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
@@ -1822,7 +1901,8 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   /* fr.stream.data = null_data; */
 
   /* pktlen = write_single_frame_handshake_pkt( */
-  /*     conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1, */
+  /*     conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
+   * 1, */
   /*     NGTCP2_PROTO_VER_MAX, &fr); */
   /* rv = ngtcp2_conn_recv(conn, buf, pktlen, 1); */
 
@@ -2148,7 +2228,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should be sent */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data = datalen;
+  conn->local_settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2176,7 +2256,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should not be sent on incoming fin */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data = datalen;
+  conn->local_settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2205,7 +2285,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   /* MAX_STREAM_DATA should not be sent if STOP_SENDING frame is being
      sent by local endpoint */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data = datalen;
+  conn->local_settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2238,7 +2318,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   /* MAX_STREAM_DATA should not be sent if stream is being reset by
      remote endpoint */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data = datalen;
+  conn->local_settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2892,7 +2972,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   pktlen += write_single_frame_handshake_pkt(
       conn, buf + pktlen, sizeof(buf) - pktlen, NGTCP2_PKT_INITIAL, &conn->scid,
-      &conn->scid, ++pkt_num, conn->version, &fr);
+      &conn->dcid, ++pkt_num, conn->version, &fr);
 
   spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, pktlen, ++t);
 

@@ -913,6 +913,32 @@ void test_ngtcp2_pkt_encode_crypto_frame(void) {
                         fr.crypto.data[0].len));
 }
 
+void test_ngtcp2_pkt_encode_new_token_frame(void) {
+  const uint8_t token[] = "0123456789abcdef2";
+  uint8_t buf[256];
+  ngtcp2_frame fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+
+  fr.type = NGTCP2_FRAME_NEW_TOKEN;
+  fr.new_token.tokenlen = strsize(token);
+  fr.new_token.token = token;
+
+  framelen = 1 + 1 + strsize(token);
+
+  rv = ngtcp2_pkt_encode_new_token_frame(buf, sizeof(buf), &fr.new_token);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_new_token_frame(&nfr.new_token, buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.new_token.tokenlen == nfr.new_token.tokenlen);
+  CU_ASSERT(0 == memcmp(fr.new_token.token, nfr.new_token.token,
+                        fr.new_token.tokenlen));
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
@@ -963,27 +989,18 @@ void test_ngtcp2_pkt_validate_ack(void) {
 void test_ngtcp2_pkt_write_stateless_reset(void) {
   uint8_t buf[256];
   ssize_t spktlen;
-  ngtcp2_cid dcid;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t rand[256];
   size_t i;
   uint8_t *p;
-  ngtcp2_pkt_hd hd;
   size_t randlen;
-
-  dcid.datalen = NGTCP2_MAX_CIDLEN;
-  for (i = 0; i < NGTCP2_MAX_CIDLEN; ++i) {
-    dcid.data[i] = 0xff;
-  }
 
   memset(rand, 0, sizeof(rand));
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
     token[i] = (uint8_t)(i + 1);
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_KEY_PHASE, NGTCP2_PKT_SHORT, &dcid,
-                     NULL, 0xf1, 1, 0, 0);
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), &hd, token, rand,
+  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), 1, token, rand,
                                              sizeof(rand));
 
   p = buf;
@@ -991,14 +1008,6 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   CU_ASSERT(256 == spktlen);
   CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_THIRD_BIT | NGTCP2_FOURTH_BIT) ==
             *p);
-
-  ++p;
-
-  CU_ASSERT(0 == memcmp(dcid.data, p, dcid.datalen));
-
-  p += dcid.datalen;
-
-  CU_ASSERT((0xf1 & 0x7f) == *p);
 
   ++p;
 
@@ -1015,13 +1024,57 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   CU_ASSERT(spktlen == p - buf);
 
   /* Not enough buffer */
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
-                     0xf1, 2, 0, 0);
-  spktlen = ngtcp2_pkt_write_stateless_reset(
-      buf, 1 + dcid.datalen + 2 + NGTCP2_STATELESS_RESET_TOKENLEN - 1, &hd,
-      token, rand, sizeof(rand));
+  spktlen =
+      ngtcp2_pkt_write_stateless_reset(buf,
+                                       1 + NGTCP2_MIN_STATELESS_RETRY_RANDLEN -
+                                           1 + NGTCP2_STATELESS_RESET_TOKENLEN,
+                                       0, token, rand, sizeof(rand));
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
+}
+
+void test_ngtcp2_pkt_write_retry(void) {
+  uint8_t buf[256];
+  ssize_t spktlen;
+  ngtcp2_cid scid, dcid, odcid;
+  ngtcp2_pkt_hd hd, nhd;
+  uint8_t token[32];
+  size_t i;
+  ngtcp2_pkt_retry retry;
+  ssize_t nread;
+  int rv;
+
+  scid_init(&scid);
+  dcid_init(&dcid);
+  rcid_init(&odcid);
+
+  for (i = 0; i < sizeof(token); ++i) {
+    token[i] = (uint8_t)i;
+  }
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY, &dcid,
+                     &scid, 0, 0, NGTCP2_PROTO_VER_D14, 0);
+
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &odcid, token,
+                                   sizeof(token));
+
+  CU_ASSERT(spktlen > 0);
+
+  memset(&nhd, 0, sizeof(nhd));
+
+  nread = ngtcp2_pkt_decode_hd_long(&nhd, buf, (size_t)spktlen);
+
+  CU_ASSERT(nread > 0);
+  CU_ASSERT(hd.type == nhd.type);
+  CU_ASSERT(hd.version == nhd.version);
+  CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
+  CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
+
+  rv = ngtcp2_pkt_decode_retry(&retry, buf + nread, (size_t)(spktlen - nread));
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_cid_eq(&odcid, &retry.odcid));
+  CU_ASSERT(0 == memcmp(token, retry.token, sizeof(token)));
 }
 
 void test_ngtcp2_pkt_write_version_negotiation(void) {

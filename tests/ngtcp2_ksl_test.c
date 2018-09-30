@@ -241,3 +241,30 @@ void test_ngtcp2_ksl_insert(void) {
 
   ngtcp2_ksl_free(&ksl);
 }
+
+void test_ngtcp2_ksl_clear(void) {
+  ngtcp2_ksl ksl;
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_ksl_it it;
+  size_t i;
+
+  ngtcp2_ksl_init(&ksl, less, INT64_MAX, mem);
+
+  for (i = 0; i < 100; ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, (int64_t)i, NULL);
+  }
+
+  ngtcp2_ksl_clear(&ksl);
+
+  CU_ASSERT(0 == ngtcp2_ksl_len(&ksl));
+
+  it = ngtcp2_ksl_begin(&ksl);
+
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
+
+  it = ngtcp2_ksl_end(&ksl);
+
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
+
+  ngtcp2_ksl_free(&ksl);
+}

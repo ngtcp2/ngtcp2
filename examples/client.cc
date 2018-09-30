@@ -138,33 +138,45 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen,
 
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
-    std::cerr << "client_early_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "client_early_traffic" << std::endl;
+    }
     ngtcp2_conn_set_early_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
-    std::cerr << "client_handshake_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "client_handshake_traffic" << std::endl;
+    }
     ngtcp2_conn_set_handshake_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
                                       pnlen);
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
-    std::cerr << "client_application_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "client_application_traffic" << std::endl;
+    }
     ngtcp2_conn_update_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
     break;
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
-    std::cerr << "server_handshake_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "server_handshake_traffic" << std::endl;
+    }
     ngtcp2_conn_set_handshake_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
                                       pnlen);
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
-    std::cerr << "server_application_traffic" << std::endl;
+    if (!config.quiet) {
+      std::cerr << "server_application_traffic" << std::endl;
+    }
     ngtcp2_conn_update_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
     break;
   }
 
-  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
-            << "+ key=" << util::format_hex(key, keylen) << "\n"
-            << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
-            << "+ pn=" << util::format_hex(pn.data(), pnlen) << std::endl;
+  if (!config.quiet) {
+    std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+              << "+ key=" << util::format_hex(key, keylen) << "\n"
+              << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
+              << "+ pn=" << util::format_hex(pn.data(), pnlen) << std::endl;
+  }
 
   return 0;
 }
@@ -174,13 +186,32 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
             size_t len, SSL *ssl, void *arg) {
   int rv;
 
-  std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
-            << " content_type=" << content_type << " len=" << len << std::endl;
-  if (!write_p || content_type != SSL3_RT_HANDSHAKE) {
+  if (!config.quiet) {
+    std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
+              << " content_type=" << content_type << " len=" << len
+              << std::endl;
+  }
+
+  if (!write_p) {
     return;
   }
 
   auto c = static_cast<Client *>(arg);
+  auto msg = reinterpret_cast<const uint8_t *>(buf);
+
+  switch (content_type) {
+  case SSL3_RT_HANDSHAKE:
+    break;
+  case SSL3_RT_ALERT:
+    assert(len == 2);
+    if (msg[0] != 2 /* FATAL */) {
+      return;
+    }
+    c->set_tls_alert(msg[1]);
+    return;
+  default:
+    return;
+  }
 
   rv = c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
 
@@ -371,10 +402,14 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       tx_crypto_offset_(0),
       nsread_(0),
       conn_(nullptr),
+      addr_(nullptr),
+      hs_crypto_ctx_{},
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       last_stream_id_(0),
       nstreams_done_(0),
+      version_(0),
+      tls_alert_(0),
       resumption_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
@@ -509,12 +544,13 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int recv_server_stateless_retry(ngtcp2_conn *conn, void *user_data) {
+int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+               const ngtcp2_pkt_retry *retry, void *user_data) {
   // Re-generate handshake secrets here because connection ID might
   // change.
   auto c = static_cast<Client *>(user_data);
 
-  c->setup_initial_crypto_context();
+  c->on_recv_retry();
 
   return 0;
 }
@@ -652,29 +688,9 @@ ssize_t do_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 } // namespace
 
-int Client::init(int fd, const Address &remote_addr, const char *addr,
-                 int datafd, uint32_t version) {
-  int rv;
-
-  remote_addr_ = remote_addr;
-
-  switch (remote_addr_.su.storage.ss_family) {
-  case AF_INET:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
-    break;
-  case AF_INET6:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
-    break;
-  default:
-    return -1;
-  }
-
-  fd_ = fd;
-  datafd_ = datafd;
-
-  if (-1 == connect(fd_, &remote_addr_.su.sa, remote_addr_.len)) {
-    std::cerr << "connect: " << strerror(errno) << std::endl;
-    return -1;
+int Client::init_ssl() {
+  if (ssl_) {
+    SSL_free(ssl_);
   }
 
   ssl_ = SSL_new(ssl_ctx_);
@@ -690,22 +706,22 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   const uint8_t *alpn = nullptr;
   size_t alpnlen;
 
-  switch (version) {
-  case NGTCP2_PROTO_VER_D13:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D13);
-    alpnlen = str_size(NGTCP2_ALPN_D13);
+  switch (version_) {
+  case NGTCP2_PROTO_VER_D14:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D14);
+    alpnlen = str_size(NGTCP2_ALPN_D14);
     break;
   }
   if (alpn) {
     SSL_set_alpn_protos(ssl_, alpn, alpnlen);
   }
 
-  if (util::numeric_host(addr)) {
+  if (util::numeric_host(addr_)) {
     // If remote host is numeric address, just send "localhost" as SNI
     // for now.
     SSL_set_tlsext_host_name(ssl_, "localhost");
   } else {
-    SSL_set_tlsext_host_name(ssl_, addr);
+    SSL_set_tlsext_host_name(ssl_, addr_);
   }
 
   if (config.session_file) {
@@ -730,25 +746,51 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
     }
   }
 
+  return 0;
+}
+
+int Client::init(int fd, const Address &remote_addr, const char *addr,
+                 int datafd, uint32_t version) {
+  int rv;
+
+  remote_addr_ = remote_addr;
+
+  switch (remote_addr_.su.storage.ss_family) {
+  case AF_INET:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
+    break;
+  case AF_INET6:
+    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
+    break;
+  default:
+    return -1;
+  }
+
+  fd_ = fd;
+  datafd_ = datafd;
+  addr_ = addr;
+  version_ = version;
+
+  if (-1 == connect(fd_, &remote_addr_.su.sa, remote_addr_.len)) {
+    std::cerr << "connect: " << strerror(errno) << std::endl;
+    return -1;
+  }
+
+  if (init_ssl() != 0) {
+    return -1;
+  }
+
   auto callbacks = ngtcp2_conn_callbacks{
       client_initial,
       nullptr, // recv_client_initial
-      recv_crypto_data,
-      handshake_completed,
+      recv_crypto_data, handshake_completed,
       nullptr, // recv_version_negotiation
-      do_hs_encrypt,
-      do_hs_decrypt,
-      do_encrypt,
-      do_decrypt,
-      do_hs_encrypt_pn,
-      do_encrypt_pn,
-      recv_stream_data,
-      acked_crypto_offset,
-      acked_stream_data_offset,
+      do_hs_encrypt,    do_hs_decrypt,        do_encrypt,
+      do_decrypt,       do_hs_encrypt_pn,     do_encrypt_pn,
+      recv_stream_data, acked_crypto_offset,  acked_stream_data_offset,
       stream_close,
-      nullptr, // recv_stateless_reset,
-      recv_server_stateless_retry,
-      extend_max_stream_id,
+      nullptr, // recv_stateless_reset
+      recv_retry,       extend_max_stream_id,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -765,7 +807,9 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   ngtcp2_settings settings{};
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
-  settings.max_stream_data = 256_k;
+  settings.max_stream_data_bidi_local = 256_k;
+  settings.max_stream_data_bidi_remote = 256_k;
+  settings.max_stream_data_uni = 256_k;
   settings.max_data = 1_m;
   settings.max_bidi_streams = 1;
   settings.max_uni_streams = 1;
@@ -974,8 +1018,10 @@ int Client::read_tls() {
   for (;;) {
     auto rv = SSL_read_ex(ssl_, buf.data(), buf.size(), &nread);
     if (rv == 1) {
-      std::cerr << "Read " << nread << " bytes from TLS crypto stream"
-                << std::endl;
+      if (!config.quiet) {
+        std::cerr << "Read " << nread << " bytes from TLS crypto stream"
+                  << std::endl;
+      }
       continue;
     }
     auto err = SSL_get_error(ssl_, 0);
@@ -1132,9 +1178,9 @@ int Client::on_write(bool retransmit) {
 
   if (retransmit) {
     auto rv =
-        ngtcp2_conn_on_loss_detection_alarm(conn_, util::timestamp(loop_));
+        ngtcp2_conn_on_loss_detection_timer(conn_, util::timestamp(loop_));
     if (rv != 0) {
-      std::cerr << "ngtcp2_conn_on_loss_detection_alarm: "
+      std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
                 << ngtcp2_strerror(rv) << std::endl;
       disconnect(NGTCP2_ERR_INTERNAL);
       return -1;
@@ -1265,7 +1311,6 @@ int Client::write_0rtt_streams() {
     auto &stream = p.second;
     auto &streambuf = stream->streambuf;
     auto &streambuf_idx = stream->streambuf_idx;
-
     for (auto it = std::begin(streambuf) + streambuf_idx;
          it != std::end(streambuf); ++it) {
       auto &v = *it;
@@ -1436,6 +1481,11 @@ ssize_t Client::encrypt_pn(uint8_t *dest, size_t destlen,
                             crypto_ctx_, key, keylen, nonce, noncelen);
 }
 
+void Client::on_recv_retry() {
+  init_ssl();
+  setup_initial_crypto_context();
+}
+
 ngtcp2_conn *Client::conn() const { return conn_; }
 
 int Client::send_packet() {
@@ -1560,10 +1610,15 @@ int Client::handle_error(int liberr) {
     return 0;
   }
 
+  uint16_t err_code;
+  if (tls_alert_) {
+    err_code = NGTCP2_CRYPTO_ERROR | tls_alert_;
+  } else {
+    err_code = ngtcp2_err_infer_quic_transport_error_code(liberr);
+  }
+
   auto n = ngtcp2_conn_write_connection_close(
-      conn_, sendbuf_.wpos(), max_pktlen_,
-      ngtcp2_err_infer_quic_transport_error_code(liberr),
-      util::timestamp(loop_));
+      conn_, sendbuf_.wpos(), max_pktlen_, err_code, util::timestamp(loop_));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
@@ -1633,7 +1688,12 @@ int write_transport_params(const char *path,
 
   f << "initial_max_bidi_streams=" << params->initial_max_bidi_streams << "\n"
     << "initial_max_uni_streams=" << params->initial_max_uni_streams << "\n"
-    << "initial_max_stream_data=" << params->initial_max_stream_data << "\n"
+    << "initial_max_stream_data_bidi_local="
+    << params->initial_max_stream_data_bidi_local << "\n"
+    << "initial_max_stream_data_bidi_remote="
+    << params->initial_max_stream_data_bidi_remote << "\n"
+    << "initial_max_stream_data_uni=" << params->initial_max_stream_data_uni
+    << "\n"
     << "initial_max_data=" << params->initial_max_data << "\n";
 
   f.close();
@@ -1659,9 +1719,19 @@ int read_transport_params(const char *path, ngtcp2_transport_params *params) {
     } else if (util::istarts_with_l(line, "initial_max_uni_streams=")) {
       params->initial_max_uni_streams = strtoul(
           line.c_str() + str_size("initial_max_uni_streams="), nullptr, 10);
-    } else if (util::istarts_with_l(line, "initial_max_stream_data=")) {
-      params->initial_max_stream_data = strtoul(
-          line.c_str() + str_size("initial_max_stream_data="), nullptr, 10);
+    } else if (util::istarts_with_l(line,
+                                    "initial_max_stream_data_bidi_local=")) {
+      params->initial_max_stream_data_bidi_local = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_bidi_local="),
+          nullptr, 10);
+    } else if (util::istarts_with_l(line,
+                                    "initial_max_stream_data_bidi_remote=")) {
+      params->initial_max_stream_data_bidi_remote = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_bidi_remote="),
+          nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_stream_data_uni=")) {
+      params->initial_max_stream_data_uni = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_uni="), nullptr, 10);
     } else if (util::istarts_with_l(line, "initial_max_data=")) {
       params->initial_max_data =
           strtoul(line.c_str() + str_size("initial_max_data="), nullptr, 10);
@@ -1736,6 +1806,8 @@ int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
 }
 
 void Client::start_wev() { ev_io_start(loop_, &wev_); }
+
+void Client::set_tls_alert(uint8_t alert) { tls_alert_ = alert; }
 
 namespace {
 int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
@@ -2014,7 +2086,7 @@ void config_set_default(Config &config) {
   config.nstreams = 1;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_D13;
+  config.version = NGTCP2_PROTO_VER_D14;
   config.timeout = 30;
 }
 } // namespace

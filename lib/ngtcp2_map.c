@@ -197,4 +197,14 @@ int ngtcp2_map_remove(ngtcp2_map *map, key_type key) {
   return NGTCP2_ERR_INVALID_ARGUMENT;
 }
 
+void ngtcp2_map_clear(ngtcp2_map *map) {
+  uint32_t i;
+
+  for (i = 0; i < map->tablelen; ++i) {
+    map->table[i] = NULL;
+  }
+
+  map->size = 0;
+}
+
 size_t ngtcp2_map_size(ngtcp2_map *map) { return map->size; }

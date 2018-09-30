@@ -155,17 +155,17 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER_D13 is the supported QUIC protocol version
-   draft-13. */
-#define NGTCP2_PROTO_VER_D13 0xff00000du
+/* NGTCP2_PROTO_VER_D14 is the supported QUIC protocol version
+   draft-14. */
+#define NGTCP2_PROTO_VER_D14 0xff00000eu
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D13
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D14
 
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D13 "\x5hq-13"
+#define NGTCP2_ALPN_D14 "\x5hq-14"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -177,6 +177,10 @@ typedef struct {
 /* NGTCP2_STATELESS_RESET_TOKENLEN is the length of Stateless Reset
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
+
+/* NGTCP2_MIN_STATELESS_RETRY_RANDLEN is the minimum length of random
+   bytes in Stateless Retry packet */
+#define NGTCP2_MIN_STATELESS_RETRY_RANDLEN 20
 
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
@@ -216,6 +220,7 @@ typedef enum {
   NGTCP2_ERR_DRAINING = -231,
   NGTCP2_ERR_PKT_ENCODING = -232,
   NGTCP2_ERR_CONGESTION = -233,
+  NGTCP2_ERR_TOO_MANY_RETRIES = -234,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -258,7 +263,8 @@ typedef enum {
   NGTCP2_FRAME_PATH_CHALLENGE = 0x0e,
   NGTCP2_FRAME_PATH_RESPONSE = 0x0f,
   NGTCP2_FRAME_STREAM = 0x10,
-  NGTCP2_FRAME_CRYPTO = 0x18
+  NGTCP2_FRAME_CRYPTO = 0x18,
+  NGTCP2_FRAME_NEW_TOKEN = 0x19
 } ngtcp2_frame_type;
 
 typedef enum {
@@ -273,8 +279,8 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
   NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
   NGTCP2_PROTOCOL_VIOLATION = 0xau,
-  NGTCP2_UNSOLICITED_PATH_RESPONSE = 0xbu,
-  NGTCP2_INVALID_MIGRATION = 0xcu
+  NGTCP2_INVALID_MIGRATION = 0xcu,
+  NGTCP2_CRYPTO_ERROR = 0x100
 } ngtcp2_transport_error;
 
 typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
@@ -348,6 +354,12 @@ typedef struct {
   const uint8_t *rand;
   size_t randlen;
 } ngtcp2_pkt_stateless_reset;
+
+typedef struct {
+  ngtcp2_cid odcid;
+  const uint8_t *token;
+  size_t tokenlen;
+} ngtcp2_pkt_retry;
 
 typedef struct {
   uint8_t type;
@@ -492,6 +504,12 @@ typedef struct {
   ngtcp2_vec data[1];
 } ngtcp2_crypto;
 
+typedef struct {
+  uint8_t type;
+  size_t tokenlen;
+  const uint8_t *token;
+} ngtcp2_new_token;
+
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
@@ -512,19 +530,22 @@ typedef union {
   ngtcp2_path_challenge path_challenge;
   ngtcp2_path_response path_response;
   ngtcp2_crypto crypto;
+  ngtcp2_new_token new_token;
 } ngtcp2_frame;
 
 typedef enum {
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA = 0,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 1,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS = 2,
-  NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 3,
-  NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 4,
-  NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 5,
-  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 6,
-  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 7,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS = 8,
-  NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 9
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL = 0x00,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 0x01,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS = 0x02,
+  NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 0x03,
+  NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 0x04,
+  NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 0x05,
+  NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 0x06,
+  NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 0x07,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS = 0x08,
+  NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 0x09,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0a,
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI = 0x0b
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -596,7 +617,9 @@ typedef struct {
     } ee;
   } v;
   ngtcp2_preferred_addr preferred_address;
-  uint32_t initial_max_stream_data;
+  uint32_t initial_max_stream_data_bidi_local;
+  uint32_t initial_max_stream_data_bidi_remote;
+  uint32_t initial_max_stream_data_uni;
   uint32_t initial_max_data;
   uint16_t initial_max_bidi_streams;
   uint16_t initial_max_uni_streams;
@@ -618,7 +641,9 @@ typedef struct {
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
-  uint32_t max_stream_data;
+  uint32_t max_stream_data_bidi_local;
+  uint32_t max_stream_data_bidi_remote;
+  uint32_t max_stream_data_uni;
   uint32_t max_data;
   uint16_t max_bidi_streams;
   uint16_t max_uni_streams;
@@ -627,6 +652,7 @@ typedef struct {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
   uint8_t ack_delay_exponent;
+  uint8_t disable_migration;
 } ngtcp2_settings;
 
 /**
@@ -650,7 +676,7 @@ typedef struct {
   size_t handshake_count;
   /* probe_pkt_left is the number of probe packet to sent */
   size_t probe_pkt_left;
-  uint64_t loss_detection_alarm;
+  uint64_t loss_detection_timer;
   uint64_t largest_sent_before_rto;
   /* last_tx_pkt_ts corresponds to
      time_of_last_sent_retransmittable_packet. */
@@ -789,13 +815,14 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  * @function
  *
  * `ngtcp2_pkt_write_stateless_reset` writes Stateless Reset packet in
- * the buffer pointed by |dest| whose length is |destlen|.  |hd| is a
- * short packet header.  This function assumes that
- * :enum:`NGTCP2_PKT_FLAG_LONG_FORM` is not set in hd->type.
- * |stateless_reset_token| is a pointer to the Stateless Reset Token,
- * and its length must be :macro:`NGTCP2_STATELESS_RESET_TOKENLEN`
- * bytes long.  |rand| specifies the random octets following Stateless
- * Reset Token.  The length of |rand| is specified by |randlen|.
+ * the buffer pointed by |dest| whose length is |destlen|.
+ * |key_phase| specifies KEY_PHASE bit in the first byte of short
+ * packet header.  |stateless_reset_token| is a pointer to the
+ * Stateless Reset Token, and its length must be
+ * :macro:`NGTCP2_STATELESS_RESET_TOKENLEN` bytes long.  |rand|
+ * specifies the random octets preceding Stateless Reset Token.  The
+ * length of |rand| is specified by |randlen| which must be at least
+ * :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN` bytes long.
  *
  * If |randlen| is too long to write them all in the buffer, |rand| is
  * written to the buffer as much as possible, and is truncated.
@@ -805,10 +832,34 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  *
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |randlen| is strictly less than
+ *     :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN`.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
-    uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd,
+    uint8_t *dest, size_t destlen, int key_phase,
     uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_write_retry` writes Retry packet in the buffer pointed
+ * by |dest| whose length is |destlen|.  |hd| must be long packet
+ * header, and its type must be :enum:`NGTCP2_PKT_RETRY`.  |odcid|
+ * specifies Original Destination Connection ID.  |token| specifies
+ * Retry Token, and |tokenlen| specifies its length.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ */
+NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
+                                             const ngtcp2_pkt_hd *hd,
+                                             const ngtcp2_cid *odcid,
+                                             const uint8_t *token,
+                                             size_t tokenlen);
 
 /**
  * @function
@@ -852,11 +903,11 @@ typedef int (*ngtcp2_client_initial)(ngtcp2_conn *conn, void *user_data);
  *
  * :type:`ngtcp2_recv_client_initial` is invoked when Client Initial
  * packet is received.  An server application must implement this
- * callback, and generate handshake key, and iv.  Then call
- * `ngtcp2_conn_set_handshake_tx_keys` and
- * `ngtcp2_conn_set_handshake_rx_keys` to inform |conn| of the packet
+ * callback, and generate initial key, and iv.  Then call
+ * `ngtcp2_conn_set_initial_tx_keys` and
+ * `ngtcp2_conn_set_initial_rx_keys` to inform |conn| of the packet
  * protection keys and ivs.  |dcid| is the destination connection ID
- * which client generated randomly.  It is used to derive handshake
+ * which client generated randomly.  It is used to derive initial
  * packet protection keys.
  *
  * The callback function must return 0 if it succeeds.  If an error
@@ -910,8 +961,26 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
                                                const uint32_t *sv, size_t nsv,
                                                void *user_data);
 
-typedef int (*ngtcp2_recv_server_stateless_retry)(ngtcp2_conn *conn,
-                                                  void *user_data);
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_retry` is invoked when Retry packet is received.
+ * This callback is client only.
+ *
+ * Application must perform necessary step to make TLS stack to
+ * produce a fresh cryptographic handshake message.
+ *
+ * 0-RTT data must be sent from scratch.  Application must assume that
+ * 0-RTT data which have been sent before receiving Retry packet are
+ * lost.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                 const ngtcp2_pkt_retry *retry,
+                                 void *user_data);
 
 typedef ssize_t (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
                                   size_t destlen, const uint8_t *plaintext,
@@ -1028,7 +1097,7 @@ typedef struct {
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
-  ngtcp2_recv_server_stateless_retry recv_server_stateless_retry;
+  ngtcp2_recv_retry recv_retry;
   ngtcp2_extend_max_stream_id extend_max_stream_id;
   ngtcp2_rand rand;
 } ngtcp2_conn_callbacks;
@@ -1314,10 +1383,10 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
- * of loss detection alarm.  Application should call
- * `ngtcp2_conn_on_loss_detection_alarm` and `ngtcp2_conn_recv` (or
+ * of loss detection timer.  Application should call
+ * `ngtcp2_conn_on_loss_detection_timer` and `ngtcp2_conn_recv` (or
  * `ngtcp2_conn_handshake` if handshake has not finished yet) when it
- * expires.  It returns UINT64_MAX if loss detection alarm is not
+ * expires.  It returns UINT64_MAX if loss detection timer is not
  * armed.
  */
 NGTCP2_EXTERN ngtcp2_tstamp
@@ -1373,7 +1442,9 @@ ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
  *
  * * initial_max_stream_id_bidi
  * * initial_max_stream_id_uni
- * * initial_max_stream_data
+ * * initial_max_stream_data_bidi_local
+ * * initial_max_stream_data_bidi_remote
+ * * initial_max_stream_data_uni
  * * initial_max_data
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -1739,7 +1810,7 @@ typedef struct {
 /**
  * @function
  *
- * `ngtcp2_conn_on_loss_detection_alarm` should be called when a timer
+ * `ngtcp2_conn_on_loss_detection_timer` should be called when a timer
  * returned from `ngtcp2_conn_earliest_expiry` fires.
  *
  * Application should call `ngtcp2_conn_handshake` if handshake has
@@ -1756,7 +1827,7 @@ typedef struct {
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  */
-NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_alarm(ngtcp2_conn *conn,
+NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
                                                       ngtcp2_tstamp ts);
 
 /**

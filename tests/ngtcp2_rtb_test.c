@@ -350,3 +350,49 @@ void test_ngtcp2_rtb_insert_range(void) {
 
   ngtcp2_rtb_free(&rtb);
 }
+
+void test_ngtcp2_rtb_clear(void) {
+  ngtcp2_rtb rtb;
+  ngtcp2_rtb_entry *ent;
+  int rv;
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_pkt_hd hd;
+  ngtcp2_log log;
+  ngtcp2_cid dcid;
+  ngtcp2_cc_stat ccs;
+
+  dcid_init(&dcid);
+  cc_stat_init(&ccs);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+  ngtcp2_rtb_init(&rtb, &ccs, &log, mem);
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     1000000007, 1, NGTCP2_PROTO_VER_MAX, 0);
+
+  rv =
+      ngtcp2_rtb_entry_new(&ent, &hd, NULL, 10, 111, NGTCP2_RTB_FLAG_NONE, mem);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_rtb_add(&rtb, ent);
+  ngtcp2_rtb_mark_pkt_lost(&rtb);
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+                     1000000009, 1, NGTCP2_PROTO_VER_MAX, 0);
+
+  rv =
+      ngtcp2_rtb_entry_new(&ent, &hd, NULL, 11, 123, NGTCP2_RTB_FLAG_NONE, mem);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_rtb_add(&rtb, ent);
+  ngtcp2_rtb_clear(&rtb);
+
+  CU_ASSERT(NULL == rtb.lost);
+  CU_ASSERT(0 == rtb.bytes_in_flight);
+  CU_ASSERT(-1 == rtb.largest_acked_tx_pkt_num);
+  CU_ASSERT(0 == rtb.nearly_pkt);
+  CU_ASSERT(0 == ngtcp2_ksl_len(&rtb.ents));
+
+  ngtcp2_rtb_free(&rtb);
+}

@@ -12,8 +12,8 @@ Development status
 Second Implementation Draft
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We are focusing on implementing `7th Implementation Draft
-<https://github.com/quicwg/base-drafts/wiki/7th-Implementation-Draft>`_.
+We are focusing on implementing `8th Implementation Draft
+<https://github.com/quicwg/base-drafts/wiki/8th-Implementation-Draft>`_.
 
 * https://quicwg.github.io/base-drafts/draft-ietf-quic-transport.html
 * https://quicwg.github.io/base-drafts/draft-ietf-quic-tls.html
@@ -52,7 +52,7 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b quic-draft-13 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b quic-draft-14 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build

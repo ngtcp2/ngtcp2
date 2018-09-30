@@ -106,6 +106,12 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
   NGTCP2_RTB_FLAG_PROBE = 0x1,
+  /* NGTCP2_RTB_FLAG_0RTT indicates that the entry incldues 0RTT
+     Protected packet which includes EOED in its CRYPTO frame. */
+  NGTCP2_RTB_FLAG_0RTT = 0x2,
+  /* NGTCP2_RTB_FLAG_CLIENT_INITIAL indicates that entry includes
+     client very first Initial packet. */
+  NGTCP2_RTB_FLAG_CLIENT_INITIAL = 0x4,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -125,9 +131,6 @@ struct ngtcp2_rtb_entry {
   ngtcp2_tstamp ts;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
-  /* src_pkt_num is a packet number of a original packet if this entry
-     includes a probe packet duplicating original. */
-  int64_t src_pkt_num;
   /* flags is bitwise-OR of zero or more of ngtcp2_rtb_flag. */
   uint8_t flags;
 };
@@ -192,6 +195,9 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
  */
 void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
+int ngtcp2_rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
+                      ngtcp2_rtb_entry *ent);
+
 /*
  * ngtcp2_rtb_insert_range inserts linked list pointed by |head| to
  * rtb->head keeping the assertion that rtb->head is sorted by
@@ -250,5 +256,12 @@ void ngtcp2_rtb_lost_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
  * not consider lost packets.
  */
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
+
+/*
+ * ngtcp2_rtb_clear removes all ngtcp2_rtb_entry objects including
+ * lost ones.  bytes_in_flight and largest_acked_tx_pkt_num are also
+ * reset to their initial value.
+ */
+void ngtcp2_rtb_clear(ngtcp2_rtb *rtb);
 
 #endif /* NGTCP2_RTB_H */

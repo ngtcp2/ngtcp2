@@ -180,3 +180,21 @@ void test_ngtcp2_map_each_free(void) {
   ngtcp2_map_each_free(&map, entry_free, mem);
   ngtcp2_map_free(&map);
 }
+
+void test_ngtcp2_map_clear(void) {
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_map map;
+  strentry foo;
+
+  strentry_init(&foo, 1, "foo");
+
+  ngtcp2_map_init(&map, mem);
+
+  CU_ASSERT(0 == ngtcp2_map_insert(&map, &foo.map_entry));
+
+  ngtcp2_map_clear(&map);
+
+  CU_ASSERT(0 == ngtcp2_map_size(&map));
+
+  ngtcp2_map_free(&map);
+}

@@ -36,44 +36,6 @@ namespace ngtcp2 {
 
 namespace crypto {
 
-int export_secret(uint8_t *dest, size_t destlen, SSL *ssl, const uint8_t *label,
-                  size_t labellen) {
-  int rv;
-
-  rv = SSL_export_keying_material(
-      ssl, dest, destlen, reinterpret_cast<const char *>(label), labellen,
-      reinterpret_cast<const uint8_t *>(""), 0, 1);
-  if (rv != 1) {
-    return -1;
-  }
-
-  return 0;
-}
-
-int export_client_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  static constexpr uint8_t label[] = "EXPORTER-QUIC client 1rtt";
-  return export_secret(dest, destlen, ssl, label, str_size(label));
-}
-
-int export_server_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  static constexpr uint8_t label[] = "EXPORTER-QUIC server 1rtt";
-  return export_secret(dest, destlen, ssl, label, str_size(label));
-}
-
-int export_early_secret(uint8_t *dest, size_t destlen, SSL *ssl) {
-  int rv;
-  static constexpr char label[] = "EXPORTER-QUIC 0rtt";
-
-  rv = SSL_export_keying_material_early(
-      ssl, dest, destlen, label, str_size(label),
-      reinterpret_cast<const uint8_t *>(""), 0);
-  if (rv != 1) {
-    return -1;
-  }
-
-  return 0;
-}
-
 #ifdef WORDS_BIGENDIAN
 #  define bswap64(N) (N)
 #else /* !WORDS_BIGENDIAN */

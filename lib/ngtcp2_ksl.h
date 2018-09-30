@@ -200,6 +200,11 @@ ngtcp2_ksl_it ngtcp2_ksl_end(const ngtcp2_ksl *ksl);
 size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl);
 
 /*
+ * ngtcp2_ksl_clear removes all elements stored in |ksl|.
+ */
+void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
+
+/*
  * ngtcp2_ksl_print prints its internal state in stderr.  This
  * function should be used for the debugging purpose only.
  */

@@ -87,12 +87,11 @@ typedef enum {
 #define NGTCP2_MIN_RTO_TIMEOUT 200000000
 #define NGTCP2_MAX_TLP_COUNT 2
 
-#define NGTCP2_DEFAULT_MSS 1460
-#define NGTCP2_INITIAL_CWND (10 * NGTCP2_DEFAULT_MSS)
-#define NGTCP2_MIN_CWND (2 * NGTCP2_DEFAULT_MSS)
+#define NGTCP2_MAX_DGRAM_SIZE 1200
+#define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
 #define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
 
-#define NGTCP2_MIN_PKTLEN NGTCP2_DEFAULT_MSS
+#define NGTCP2_MIN_PKTLEN 1460
 
 /* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
    crypto stream in Initial packet.  We set this hard limit here
@@ -102,6 +101,10 @@ typedef enum {
    received crypto stream in Handshake packet.  We set this hard limit
    here because crypto stream is unbounded. */
 #define NGTCP2_MAX_RX_HANDSHAKE_CRYPTO_DATA 65536
+
+/* NGTCP2_MAX_RETRIES is the number of Retry packet which client can
+   accept. */
+#define NGTCP2_MAX_RETRIES 3
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -227,9 +230,10 @@ struct ngtcp2_conn {
   ngtcp2_cid dcid;
   ngtcp2_cid scid;
   /* rcid is a connection ID present in Initial or 0-RTT protected
-     packet as destination connection ID.  Server uses this field to
-     check that duplicated Initial or 0-RTT packet are indeed sent to
-     this connection. */
+     packet from client as destination connection ID.  Server uses
+     this field to check that duplicated Initial or 0-RTT packet are
+     indeed sent to this connection.  This field is not used by
+     client. */
   ngtcp2_cid rcid;
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
@@ -245,6 +249,8 @@ struct ngtcp2_conn {
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_ringbuf tx_crypto_data;
   ngtcp2_log log;
+  /* token is an address validation token received from server. */
+  ngtcp2_buf token;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
      initiated bidirectional stream which the local endpoint can
      accept.  This limit is not yet notified to the remote
@@ -315,6 +321,8 @@ struct ngtcp2_conn {
   /* rx_bw is receiver side bandwidth. */
   double rx_bw;
   size_t probe_pkt_left;
+  /* nretry is the number of Retry packet this client has received. */
+  size_t nretry;
   ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
@@ -331,9 +339,11 @@ struct ngtcp2_conn {
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
-  /* early_rtb is a linked list of 0-RTT packets sorted by decreasing
-     order of packet number. */
-  ngtcp2_rtb_entry *early_rtb;
+  /* retry_early_rtb is a linked list of 0-RTT packets sorted by
+     ascending order of packet number.  This field is used when Retry
+     packet is received from server and points to the entries which
+     should be retransmitted along with new Initial. */
+  ngtcp2_rtb_entry *retry_early_rtb;
   ngtcp2_settings local_settings;
   ngtcp2_settings remote_settings;
   /* decrypt_buf is a buffer which is used to write decrypted data. */
@@ -416,6 +426,6 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
 void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
                             int ack_only);
 
-void ngtcp2_conn_set_loss_detection_alarm(ngtcp2_conn *conn);
+void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
 
 #endif /* NGTCP2_CONN_H */
