@@ -997,15 +997,9 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 
   p = payload + 1;
 
-  n = ngtcp2_get_varint_len(p);
-  len += n - 1;
-
-  if (payloadlen < len) {
-    return NGTCP2_ERR_FRAME_ENCODING;
-  }
-
-  p += n;
-  cil = *p;
+  cil = *p++;
+  /* TODO This kind of validation should happen outside of this
+     function. */
   if (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN) {
     return NGTCP2_ERR_PROTO;
   }
@@ -1015,11 +1009,18 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
   p = payload + 1;
 
   dest->type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  ++p;
   dest->seq = ngtcp2_get_varint(&n, p);
-  p += n + 1;
+  p += n;
   ngtcp2_cid_init(&dest->cid, p, cil);
   p += cil;
   memcpy(dest->stateless_reset_token, p, NGTCP2_STATELESS_RESET_TOKENLEN);
@@ -1593,7 +1594,7 @@ ngtcp2_pkt_encode_stream_id_blocked_frame(uint8_t *out, size_t outlen,
 ssize_t
 ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
                                           const ngtcp2_new_connection_id *fr) {
-  size_t len = 1 + ngtcp2_put_varint_len(fr->seq) + 1 + fr->cid.datalen +
+  size_t len = 1 + 1 + ngtcp2_put_varint_len(fr->seq) + fr->cid.datalen +
                NGTCP2_STATELESS_RESET_TOKENLEN;
   uint8_t *p;
 
@@ -1604,8 +1605,8 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
   p = out;
 
   *p++ = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  p = ngtcp2_put_varint(p, fr->seq);
   *p++ = (uint8_t)fr->cid.datalen;
+  p = ngtcp2_put_varint(p, fr->seq);
   p = ngtcp2_cpymem(p, fr->cid.data, fr->cid.datalen);
   p = ngtcp2_cpymem(p, fr->stateless_reset_token,
                     NGTCP2_STATELESS_RESET_TOKENLEN);
