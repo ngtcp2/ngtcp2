@@ -81,7 +81,7 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                        uint8_t exttype,
                                        const ngtcp2_transport_params *params) {
   uint8_t *p;
-  size_t len = 2 /* transport parameters length */ + 6 /* idle_timeout */;
+  size_t len = 2 /* transport parameters length */;
   size_t i;
   size_t vlen;
   /* For some reason, gcc 7.3.0 requires this initialization. */
@@ -150,6 +150,9 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
     len += 5;
   }
+  if (params->idle_timeout) {
+    len += 6;
+  }
 
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -171,10 +174,6 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   p = ngtcp2_put_uint16be(p, (uint16_t)(len - vlen - sizeof(uint16_t)));
-
-  p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT);
-  p = ngtcp2_put_uint16be(p, 2);
-  p = ngtcp2_put_uint16be(p, params->idle_timeout);
 
   if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
     if (params->stateless_reset_token_present) {
@@ -271,6 +270,12 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     *p++ = params->max_ack_delay;
   }
 
+  if (params->idle_timeout) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT);
+    p = ngtcp2_put_uint16be(p, 2);
+    p = ngtcp2_put_uint16be(p, params->idle_timeout);
+  }
+
   assert((size_t)(p - dest) == len);
 
   return (ssize_t)len;
@@ -344,6 +349,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->preferred_address.ip_version = NGTCP2_IP_VERSION_NONE;
   params->disable_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  params->idle_timeout = 0;
 
   for (; (size_t)(end - p) >= sizeof(uint16_t) * 2;) {
     param_type = ngtcp2_get_uint16(p);
@@ -560,14 +566,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
   if (end - p != 0) {
     return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
-  }
-
-#define NGTCP2_REQUIRED_TRANSPORT_PARAMS                                       \
-  (1u << NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT)
-
-  if ((flags & NGTCP2_REQUIRED_TRANSPORT_PARAMS) !=
-      NGTCP2_REQUIRED_TRANSPORT_PARAMS) {
-    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
   }
 
   return 0;

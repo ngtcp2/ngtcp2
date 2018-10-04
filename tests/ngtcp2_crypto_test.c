@@ -47,7 +47,6 @@ void test_ngtcp2_encode_transport_params(void) {
 
   /* CH, required parameters only */
   params.v.ch.initial_version = 0xe1e2e3e4u;
-  params.idle_timeout = 0xd1d2;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
@@ -55,7 +54,7 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(4 /* initial_version */ + 2 + 6 == nwrite);
+  CU_ASSERT(4 /* initial_version */ + 2 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -89,7 +88,6 @@ void test_ngtcp2_encode_transport_params(void) {
   params.v.ee.supported_versions[1] = 0xe1e2e3e4u;
   params.v.ee.supported_versions[2] = 0xf1f2f3f4u;
   params.v.ee.len = 3;
-  params.idle_timeout = 0xd1d2;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
@@ -99,7 +97,7 @@ void test_ngtcp2_encode_transport_params(void) {
       &params);
 
   CU_ASSERT(4 /* negotiated_version */ + 1 +
-                4 * 3 /* supported_versions and its length */ + 2 + 6 ==
+                4 * 3 /* supported_versions and its length */ + 2 ==
             nwrite);
 
   rv = ngtcp2_decode_transport_params(
