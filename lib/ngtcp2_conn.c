@@ -2633,7 +2633,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     return rv;
   }
 
-  rv = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, conn, ts);
+  rv = ngtcp2_rtb_recv_ack(&pktns->rtb, hd, fr, conn, ts);
   if (rv != 0) {
     return rv;
   }
@@ -6053,16 +6053,13 @@ void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   }
 }
 
-void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
-                            int ack_only) {
+void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
+                            uint64_t ack_delay) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
 
   rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
   if (rtt - rcs->min_rtt > ack_delay) {
     rtt -= ack_delay;
-    if (!ack_only) {
-      rcs->max_ack_delay = ngtcp2_max(rcs->max_ack_delay, ack_delay);
-    }
   }
 
   rcs->latest_rtt = rtt;
@@ -6103,7 +6100,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
       timeout = (uint64_t)(2 * rcs->smoothed_rtt);
     }
 
-    timeout = ngtcp2_max(timeout + rcs->max_ack_delay, NGTCP2_MIN_TLP_TIMEOUT);
+    timeout = ngtcp2_max(timeout, NGTCP2_MIN_TLP_TIMEOUT);
     timeout *= 1ull << rcs->handshake_count;
 
     rcs->loss_detection_timer = rcs->last_hs_tx_pkt_ts + timeout;

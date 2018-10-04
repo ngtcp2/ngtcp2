@@ -423,11 +423,10 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * RTT which is not adjusted by ack delay.  |ack_delay| is unscaled
  * ack_delay included in ACK frame.  |ack_delay| is actually tainted
  * (sent by peer), so don't assume that |ack_delay| is always smaller
- * than, or equals to |rtt|.  |ack_only| is nonzero if an received ACK
- * frame acknowledges a packet which contains an ACK frame only.
+ * than, or equals to |rtt|.
  */
-void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt, uint64_t ack_delay,
-                            int ack_only);
+void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
+                            uint64_t ack_delay);
 
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
 

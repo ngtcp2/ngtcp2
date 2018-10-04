@@ -389,35 +389,21 @@ static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
                   ccs->cwnd);
 }
 
-static int rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
-                            ngtcp2_rtb_entry *ent) {
-  int rv;
-
+static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   rtb_on_pkt_acked_cc(rtb, ent);
-  if (!ngtcp2_pkt_handshake_pkt(&ent->hd) && rcs->rto_count &&
-      ent->hd.pkt_num > rcs->largest_sent_before_rto) {
-    rv = rtb_on_retransmission_timeout_verified(rtb, ent->hd.pkt_num);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
-  rcs->handshake_count = 0;
-  rcs->tlp_count = 0;
-  rcs->rto_count = 0;
-  rcs->probe_pkt_left = 0;
-
-  return 0;
 }
 
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_pkt_hd *hd,
+                        const ngtcp2_ack *fr, ngtcp2_conn *conn,
+                        ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
   int rv;
   ngtcp2_ksl_it it;
   int64_t key;
+  uint64_t smallest_acked = UINT64_MAX;
+  ngtcp2_rcvry_stat *rcs = conn ? &conn->rcs : NULL;
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   it = ngtcp2_ksl_lower_bound(&rtb->ents, (int64_t)largest_ack);
@@ -438,18 +424,15 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           return rv;
         }
         if (largest_ack == (uint64_t)key) {
-          ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled,
-                                 0 /* ack_only */);
+          ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
         }
-        rv = rtb_on_pkt_acked(rtb, &conn->rcs, ent);
+        rtb_on_pkt_acked(rtb, ent);
         /* At this point, it is invalided because rtb->ents might be
            modified. */
-        if (rv != 0) {
-          return rv;
-        }
       }
       rtb->largest_acked_tx_pkt_num =
           ngtcp2_max(rtb->largest_acked_tx_pkt_num, key);
+      smallest_acked = (uint64_t)key;
       rv = rtb_remove(rtb, &it, ent);
       if (rv != 0) {
         return rv;
@@ -483,13 +466,11 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           }
         }
 
-        rv = rtb_on_pkt_acked(rtb, &conn->rcs, ent);
-        if (rv != 0) {
-          return rv;
-        }
+        rtb_on_pkt_acked(rtb, ent);
       }
       rtb->largest_acked_tx_pkt_num =
           ngtcp2_max(rtb->largest_acked_tx_pkt_num, key);
+      smallest_acked = (uint64_t)key;
       rv = rtb_remove(rtb, &it, ent);
       if (rv != 0) {
         return rv;
@@ -498,6 +479,22 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
     ++i;
   }
+
+  if (!rcs || smallest_acked == UINT64_MAX || ngtcp2_pkt_handshake_pkt(hd)) {
+    return 0;
+  }
+
+  if (rcs->rto_count && smallest_acked > rcs->largest_sent_before_rto) {
+    rv = rtb_on_retransmission_timeout_verified(rtb, smallest_acked);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  rcs->handshake_count = 0;
+  rcs->tlp_count = 0;
+  rcs->rto_count = 0;
+  rcs->probe_pkt_left = 0;
 
   return 0;
 }

@@ -290,8 +290,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
         return rv;
       }
       if (conn && largest_ack == ent->pkt_num && ent->ack_only) {
-        ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled,
-                               ent->ack_only);
+        ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
       }
       return 0;
     }

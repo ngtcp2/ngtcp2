@@ -222,7 +222,8 @@ void ngtcp2_rtb_lost_pop(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
- * |pkt_num| is a packet number which includes |fr|.
+ * |pkt_num| is a packet number which includes |fr|.  |hd| is a header
+ * of packet which contains |fr|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -230,8 +231,9 @@ void ngtcp2_rtb_lost_pop(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
  */
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                        ngtcp2_conn *conn, ngtcp2_tstamp ts);
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_pkt_hd *hd,
+                        const ngtcp2_ack *fr, ngtcp2_conn *conn,
+                        ngtcp2_tstamp ts);
 
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                                uint64_t largest_ack, uint64_t last_tx_pkt_num,
