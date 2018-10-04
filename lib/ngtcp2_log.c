@@ -564,34 +564,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
           log->user_data, (NGTCP2_LOG_TP " supported_version[%zu]=0x%08x\n"),
           NGTCP2_LOG_TP_HD_FIELDS, i, params->v.ee.supported_versions[i]);
     }
-    break;
-  }
 
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_local=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS,
-                  params->initial_max_stream_data_bidi_local);
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_remote=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS,
-                  params->initial_max_stream_data_bidi_remote);
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_stream_data_uni=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_uni);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_data=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_data);
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_bidi_streams=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_bidi_streams);
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_uni_streams=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_uni_streams);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " idle_timeout=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->idle_timeout);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u\n"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
-
-  if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
     if (params->stateless_reset_token_present) {
       log->log_printf(log->user_data,
                       (NGTCP2_LOG_TP " stateless_reset_token=0x%s\n"),
@@ -637,8 +610,33 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                           buf, params->original_connection_id.data,
                           params->original_connection_id.datalen));
     }
+
+    break;
   }
 
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_local=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS,
+                  params->initial_max_stream_data_bidi_local);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_remote=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS,
+                  params->initial_max_stream_data_bidi_remote);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_stream_data_uni=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_uni);
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_data=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_data);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_bidi_streams=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_bidi_streams);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_uni_streams=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_uni_streams);
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " idle_timeout=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->idle_timeout);
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->ack_delay_exponent);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_ack_delay=%u\n"),
