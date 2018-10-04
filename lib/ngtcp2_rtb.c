@@ -139,7 +139,6 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
   rtb->mem = mem;
   rtb->bytes_in_flight = 0;
   rtb->largest_acked_tx_pkt_num = -1;
-  rtb->nearly_pkt = 0;
 }
 
 static void rtb_entry_list_free(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
@@ -172,18 +171,9 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   rtb->bytes_in_flight += ent->pktlen;
-
-  if (ent->flags & NGTCP2_RTB_FLAG_0RTT) {
-    ++rtb->nearly_pkt;
-  }
 }
 
 static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
-  if (ent->flags & NGTCP2_RTB_FLAG_0RTT) {
-    assert(rtb->nearly_pkt);
-    --rtb->nearly_pkt;
-  }
-
   assert(rtb->bytes_in_flight >= ent->pktlen);
   rtb->bytes_in_flight -= ent->pktlen;
 }
@@ -617,34 +607,6 @@ int ngtcp2_rtb_mark_pkt_lost(ngtcp2_rtb *rtb) {
   return 0;
 }
 
-int ngtcp2_rtb_mark_0rtt_pkt_lost(ngtcp2_rtb *rtb) {
-  ngtcp2_rtb_entry *ent, **pdest = &rtb->lost;
-  ngtcp2_ksl_it it;
-  int rv;
-
-  it = ngtcp2_ksl_begin(&rtb->ents);
-
-  for (; !ngtcp2_ksl_it_end(&it);) {
-    ent = ngtcp2_ksl_it_get(&it);
-
-    if (!(ent->flags & NGTCP2_RTB_FLAG_0RTT)) {
-      ngtcp2_ksl_it_next(&it);
-      continue;
-    }
-
-    ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts);
-
-    rtb_on_remove(rtb, ent);
-    rv = ngtcp2_ksl_remove(&rtb->ents, &it, ngtcp2_ksl_it_key(&it));
-    if (rv != 0) {
-      return rv;
-    }
-    ngtcp2_list_insert(ent, pdest);
-  }
-
-  return 0;
-}
-
 void ngtcp2_rtb_lost_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   ngtcp2_list_insert(ent, &rtb->lost);
 }
@@ -668,5 +630,4 @@ void ngtcp2_rtb_clear(ngtcp2_rtb *rtb) {
 
   rtb->bytes_in_flight = 0;
   rtb->largest_acked_tx_pkt_num = -1;
-  rtb->nearly_pkt = 0;
 }

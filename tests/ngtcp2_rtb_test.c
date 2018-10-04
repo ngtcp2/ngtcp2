@@ -391,7 +391,6 @@ void test_ngtcp2_rtb_clear(void) {
   CU_ASSERT(NULL == rtb.lost);
   CU_ASSERT(0 == rtb.bytes_in_flight);
   CU_ASSERT(-1 == rtb.largest_acked_tx_pkt_num);
-  CU_ASSERT(0 == rtb.nearly_pkt);
   CU_ASSERT(0 == ngtcp2_ksl_len(&rtb.ents));
 
   ngtcp2_rtb_free(&rtb);

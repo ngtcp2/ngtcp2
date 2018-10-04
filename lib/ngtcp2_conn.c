@@ -620,9 +620,7 @@ static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
      retransmittable packet (non-ACK only packet). */
   ngtcp2_rtb_add(rtb, ent);
 
-  if (ngtcp2_pkt_handshake_pkt(&ent->hd) &&
-      (ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED ||
-       (ent->flags & NGTCP2_RTB_FLAG_0RTT))) {
+  if (ngtcp2_pkt_handshake_pkt(&ent->hd)) {
     conn->rcs.last_hs_tx_pkt_ts = ent->ts;
   } else {
     conn->rcs.last_tx_pkt_ts = ent->ts;
@@ -1186,16 +1184,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ctx.encrypt_pn = conn->callbacks.encrypt_pn;
     ctx.user_data = conn;
     break;
-  case NGTCP2_PKT_0RTT_PROTECTED:
-    assert(conn->early_ckm);
-    pktns = &conn->pktns;
-    ctx.ckm = conn->early_ckm;
-    ctx.aead_overhead = conn->aead_overhead;
-    ctx.encrypt = conn->callbacks.encrypt;
-    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
-    ctx.user_data = conn;
-    flags = NGTCP2_RTB_FLAG_0RTT;
-    break;
   default:
     assert(0);
   }
@@ -1228,8 +1216,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  if (type != NGTCP2_PKT_0RTT_PROTECTED &&
-      conn->state != NGTCP2_CS_CLIENT_INITIAL) {
+  if (conn->state != NGTCP2_CS_CLIENT_INITIAL) {
     ackfr = NULL;
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
                                NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
@@ -1252,7 +1239,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  if (type != NGTCP2_PKT_INITIAL && type != NGTCP2_PKT_0RTT_PROTECTED) {
+  if (type != NGTCP2_PKT_INITIAL) {
     if (!conn->server) {
       pclen = ngtcp2_ringbuf_len(&conn->rx_path_challenge);
       while (ngtcp2_ringbuf_len(&conn->rx_path_challenge)) {
@@ -1580,7 +1567,6 @@ static ssize_t conn_write_client_handshake(ngtcp2_conn *conn, uint8_t *dest,
     case NGTCP2_PKT_INITIAL:
       break;
     case NGTCP2_PKT_HANDSHAKE:
-    case NGTCP2_PKT_0RTT_PROTECTED:
       require_padding = 0;
       break;
     default:
@@ -2247,8 +2233,7 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
     ent = ngtcp2_ksl_it_get(&it);
 
     if ((ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) == 0 ||
-        ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED ||
-        (ent->flags & NGTCP2_RTB_FLAG_0RTT)) {
+        ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED) {
       continue;
     }
 
@@ -4409,10 +4394,9 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     payloadlen -= (size_t)nread;
 
     if (fr->type == NGTCP2_FRAME_ACK) {
-      /* It probably illegal to send ACK in 0RTT protected packet. */
       if ((hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
           hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_PROTO;
       }
       assign_recved_ack_delay_unscaled(
           &fr->ack, conn->remote_settings.ack_delay_exponent);
@@ -6112,8 +6096,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
   ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
   ngtcp2_pktns *pktns = &conn->pktns;
 
-  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb) ||
-      pktns->rtb.nearly_pkt) {
+  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb)) {
     if (rcs->smoothed_rtt < 1e-09) {
       timeout = 2 * NGTCP2_DEFAULT_INITIAL_RTT;
     } else {
@@ -6188,17 +6171,12 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "loss detection timer fired");
 
-  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb) ||
-      pktns->rtb.nearly_pkt) {
+  if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb)) {
     rv = ngtcp2_rtb_mark_pkt_lost(&in_pktns->rtb);
     if (rv != 0) {
       return rv;
     }
     rv = ngtcp2_rtb_mark_pkt_lost(&hs_pktns->rtb);
-    if (rv != 0) {
-      return rv;
-    }
-    rv = ngtcp2_rtb_mark_0rtt_pkt_lost(&pktns->rtb);
     if (rv != 0) {
       return rv;
     }
@@ -6250,14 +6228,6 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
     pkt_type = 0; /* Short packet */
   } else if (hs_pktns->tx_ckm) {
     pkt_type = NGTCP2_PKT_HANDSHAKE;
-  } else if (!conn->server && conn->early_ckm && datalen == 4) {
-    /* TODO datalen == 4 is quite hackish.  When client sends Initial
-       along with 0RTT, and server sends back HRR, without this
-       condition client sends CH in 0RTT packet.  For TLSv1.3, the
-       only data submitted by this function for 0RTT is EOED which is
-       just 4 bytes long.  If the given data is not 4 bytes, assume
-       that it is CH in response to HRR. */
-    pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
   } else {
     assert(in_pktns->tx_ckm);
     pkt_type = NGTCP2_PKT_INITIAL;

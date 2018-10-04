@@ -106,9 +106,6 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
   NGTCP2_RTB_FLAG_PROBE = 0x1,
-  /* NGTCP2_RTB_FLAG_0RTT indicates that the entry incldues 0RTT
-     Protected packet which includes EOED in its CRYPTO frame. */
-  NGTCP2_RTB_FLAG_0RTT = 0x2,
   /* NGTCP2_RTB_FLAG_CLIENT_INITIAL indicates that entry includes
      client very first Initial packet. */
   NGTCP2_RTB_FLAG_CLIENT_INITIAL = 0x4,
@@ -175,8 +172,6 @@ typedef struct {
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
-  /* nearly_pkt is the number of 0-RTT Protected packet in ents. */
-  size_t nearly_pkt;
 } ngtcp2_rtb;
 
 /*
@@ -243,8 +238,6 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
                                ngtcp2_tstamp ts);
 
 int ngtcp2_rtb_mark_pkt_lost(ngtcp2_rtb *rtb);
-
-int ngtcp2_rtb_mark_0rtt_pkt_lost(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_lost_add insert |ent| to the head of lost packets list.
