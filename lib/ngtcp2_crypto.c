@@ -110,6 +110,9 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
           NGTCP2_STATELESS_RESET_TOKENLEN;
       len += 4 + preferred_addrlen;
     }
+    if (params->original_connection_id_present) {
+      len += 4 + params->original_connection_id.datalen;
+    }
     break;
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -193,6 +196,13 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
       p = ngtcp2_cpymem(
           p, params->preferred_address.stateless_reset_token,
           sizeof(params->preferred_address.stateless_reset_token));
+    }
+    if (params->original_connection_id_present) {
+      p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID);
+      p = ngtcp2_put_uint16be(p,
+                              (uint16_t)params->original_connection_id.datalen);
+      p = ngtcp2_cpymem(p, params->original_connection_id.data,
+                        params->original_connection_id.datalen);
     }
   }
 
@@ -503,6 +513,20 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       }
       p += sizeof(uint16_t);
       params->disable_migration = 1;
+      break;
+    case NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID:
+      if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      flags |= 1u << NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID;
+      len = ngtcp2_get_uint16(p);
+      p += sizeof(uint16_t);
+      if ((size_t)(end - p) < len) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      ngtcp2_cid_init(&params->original_connection_id, p, len);
+      params->original_connection_id_present = 1;
+      p += len;
       break;
     default:
       /* Ignore unknown parameter */

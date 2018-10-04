@@ -156,11 +156,11 @@ class Server;
 class Handler {
 public:
   Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
-          const ngtcp2_cid *dcid);
+          const ngtcp2_cid *rcid);
   ~Handler();
 
   int init(int fd, const sockaddr *sa, socklen_t salen, const ngtcp2_cid *dcid,
-           uint32_t version);
+           const ngtcp2_cid *ocid, uint32_t version);
 
   int tls_handshake();
   int read_tls();
@@ -293,9 +293,9 @@ public:
                                socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa, socklen_t salen);
   int generate_token(uint8_t *token, size_t *ptokenlen, const sockaddr *sa,
-                     socklen_t salen);
-  int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
-                   socklen_t salen);
+                     socklen_t salen, const ngtcp2_cid *ocid);
+  int verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
+                   const sockaddr *sa, socklen_t salen);
   int send_packet(Address &remote_addr, Buffer &buf);
   void remove(const Handler *h);
   std::map<std::string, std::unique_ptr<Handler>>::const_iterator

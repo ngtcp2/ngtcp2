@@ -298,6 +298,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if (rv != 0) {
     return rv;
   }
+  (*pconn)->rcid = *dcid;
   (*pconn)->unsent_max_remote_stream_id_bidi =
       (*pconn)->max_remote_stream_id_bidi =
           ngtcp2_nth_server_bidi_id(settings->max_bidi_streams);
@@ -5435,11 +5436,24 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
 
   for (i = 0; i < params->v.ee.len; ++i) {
     if (params->v.ee.supported_versions[i] == conn->version) {
-      return 0;
+      break;
     }
   }
 
-  return NGTCP2_ERR_VERSION_NEGOTIATION;
+  if (i == params->v.ee.len) {
+    return NGTCP2_ERR_VERSION_NEGOTIATION;
+  }
+
+  if (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
+    if (!params->original_connection_id_present) {
+      return NGTCP2_ERR_TRANSPORT_PARAM;
+    }
+    if (!ngtcp2_cid_eq(&conn->rcid, &params->original_connection_id)) {
+      return NGTCP2_ERR_TRANSPORT_PARAM;
+    }
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_set_remote_transport_params(
@@ -5539,6 +5553,14 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
   transport_params_copy_from_settings(params, &conn->local_settings);
+  if (conn->server && (conn->flags & NGTCP2_CONN_FLAG_OCID_PRESENT)) {
+    ngtcp2_cid_init(&params->original_connection_id, conn->ocid.data,
+                    conn->ocid.datalen);
+    params->original_connection_id_present = 1;
+  } else {
+    params->original_connection_id_present = 0;
+  }
+
   return 0;
 }
 
@@ -6245,6 +6267,17 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
   ngtcp2_buf_init(&cdata->buf, (uint8_t *)data, datalen);
   cdata->buf.last += datalen;
   cdata->pkt_type = pkt_type;
+
+  return 0;
+}
+
+int ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn, const ngtcp2_cid *ocid) {
+  if (!conn->server) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  conn->flags |= NGTCP2_CONN_FLAG_OCID_PRESENT;
+  conn->ocid = *ocid;
 
   return 0;
 }

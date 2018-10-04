@@ -922,7 +922,8 @@ int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx,
 } // namespace
 
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
-                  const ngtcp2_cid *dcid, uint32_t version) {
+                  const ngtcp2_cid *dcid, const ngtcp2_cid *ocid,
+                  uint32_t version) {
   int rv;
 
   remote_addr_.len = salen;
@@ -1002,6 +1003,10 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
+  }
+
+  if (ocid) {
+    ngtcp2_conn_set_retry_ocid(conn_, ocid);
   }
 
   ev_timer_again(loop_, &timer_);
@@ -1973,16 +1978,21 @@ int Server::on_read() {
           send_version_negotiation(&hd, &su.sa, addrlen);
           return 0;
         }
+
+        ngtcp2_cid ocid;
+        ngtcp2_cid *pocid = nullptr;
         if (config.validate_addr && hd.type == NGTCP2_PKT_INITIAL) {
           std::cerr << "Perform stateless address validation" << std::endl;
-          if (hd.tokenlen == 0 || verify_token(&hd, &su.sa, addrlen) != 0) {
+          if (hd.tokenlen == 0 ||
+              verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
             send_retry(&hd, &su.sa, addrlen);
             return 0;
           }
+          pocid = &ocid;
         }
 
         auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-        h->init(fd_, &su.sa, addrlen, &hd.scid, hd.version);
+        h->init(fd_, &su.sa, addrlen, &hd.scid, pocid, hd.version);
 
         if (h->on_read(buf.data(), nread) != 0) {
           return 0;
@@ -2129,7 +2139,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa,
   std::array<uint8_t, 256> token;
   size_t tokenlen = token.size();
 
-  if (generate_token(token.data(), &tokenlen, sa, salen) != 0) {
+  if (generate_token(token.data(), &tokenlen, sa, salen, &chd->dcid) != 0) {
     return -1;
   }
 
@@ -2176,7 +2186,8 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa,
 }
 
 int Server::generate_token(uint8_t *token, size_t *ptokenlen,
-                           const sockaddr *sa, socklen_t salen) {
+                           const sockaddr *sa, socklen_t salen,
+                           const ngtcp2_cid *ocid) {
   std::array<uint8_t, TOKEN_NONCELEN> nonce;
   std::array<uint8_t, 4096> plaintext;
 
@@ -2194,14 +2205,17 @@ int Server::generate_token(uint8_t *token, size_t *ptokenlen,
                    std::chrono::system_clock::now().time_since_epoch())
                    .count();
 
-  memcpy(plaintext.data(), sa, salen);
+  auto p = std::begin(plaintext);
+  p = std::copy_n(reinterpret_cast<const uint8_t *>(sa), salen, p);
   // Host byte order
-  memcpy(plaintext.data() + salen, &t, sizeof(t));
+  p = std::copy_n(reinterpret_cast<uint8_t *>(&t), sizeof(t), p);
+  p = std::copy_n(ocid->data, ocid->datalen, p);
 
-  auto n = crypto::encrypt(
-      token, *ptokenlen, plaintext.data(), salen + sizeof(t), token_crypto_ctx_,
-      token_key_.data(), token_key_.size(), nonce.data(), nonce.size(),
-      reinterpret_cast<const uint8_t *>(sa), salen);
+  auto n = crypto::encrypt(token, *ptokenlen, plaintext.data(),
+                           std::distance(std::begin(plaintext), p),
+                           token_crypto_ctx_, token_key_.data(),
+                           token_key_.size(), nonce.data(), nonce.size(),
+                           reinterpret_cast<const uint8_t *>(sa), salen);
 
   if (n < 0) {
     return -1;
@@ -2214,8 +2228,8 @@ int Server::generate_token(uint8_t *token, size_t *ptokenlen,
   return 0;
 }
 
-int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
-                         socklen_t salen) {
+int Server::verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
+                         const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;
   int rv;
@@ -2261,7 +2275,15 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
     return -1;
   }
 
-  if ((size_t)n != salen + sizeof(uint64_t)) {
+  if (static_cast<size_t>(n) < salen + sizeof(uint64_t)) {
+    if (!config.quiet) {
+      std::cerr << "Bad token construction" << std::endl;
+    }
+    return -1;
+  }
+
+  auto cil = static_cast<size_t>(n) - salen - sizeof(uint64_t);
+  if (cil != 0 && (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN)) {
     if (!config.quiet) {
       std::cerr << "Bad token construction" << std::endl;
     }
@@ -2289,6 +2311,8 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
     }
     return -1;
   }
+
+  ngtcp2_cid_init(ocid, plaintext.data() + salen + sizeof(uint64_t), cil);
 
   return 0;
 }

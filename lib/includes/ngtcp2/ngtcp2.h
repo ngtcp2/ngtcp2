@@ -220,6 +220,7 @@ typedef enum {
   NGTCP2_ERR_DRAINING = -231,
   NGTCP2_ERR_PKT_ENCODING = -232,
   NGTCP2_ERR_CONGESTION = -233,
+  NGTCP2_ERR_TRANSPORT_PARAM = -234,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -327,7 +328,8 @@ typedef struct {
  * must be at least :enum:`NGTCP2_MIN_CDLEN`, and at most
  * :enum:`NGTCP2_MAX_CDLEN`.
  */
-void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data, size_t datalen);
+NGTCP2_EXTERN void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data,
+                                   size_t datalen);
 
 typedef struct {
   ngtcp2_cid dcid;
@@ -551,7 +553,8 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS = 0x08,
   NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 0x09,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0a,
-  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI = 0x0b
+  NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI = 0x0b,
+  NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID = 0x0d
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -623,6 +626,7 @@ typedef struct {
     } ee;
   } v;
   ngtcp2_preferred_addr preferred_address;
+  ngtcp2_cid original_connection_id;
   uint32_t initial_max_stream_data_bidi_local;
   uint32_t initial_max_stream_data_bidi_remote;
   uint32_t initial_max_stream_data_uni;
@@ -635,6 +639,7 @@ typedef struct {
   uint8_t stateless_reset_token_present;
   uint8_t ack_delay_exponent;
   uint8_t disable_migration;
+  uint8_t original_connection_id_present;
 } ngtcp2_transport_params;
 
 /* user_data is the same object passed to ngtcp2_conn_client_new or
@@ -1853,6 +1858,20 @@ NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
 NGTCP2_EXTERN int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
                                                  const uint8_t *data,
                                                  const size_t datalen);
+
+/**
+ * `ngtcp2_conn_set_retry_ocid` tells |conn| that application as a
+ * server received |ocid| included in token from client.  |ocid| will
+ * be sent in transport parameter.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * enum:`NGTCP2_ERR_INVALID_STATE`
+ *     |conn| is not initialized as a server.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn,
+                                             const ngtcp2_cid *ocid);
 
 /**
  * @function

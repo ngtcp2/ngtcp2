@@ -38,6 +38,9 @@ void test_ngtcp2_encode_transport_params(void) {
   ssize_t nwrite;
   int rv;
   size_t i;
+  ngtcp2_cid ocid;
+
+  dcid_init(&ocid);
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -208,6 +211,8 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
   params.disable_migration = 1;
+  params.original_connection_id_present = 1;
+  params.original_connection_id = ocid;
 
   for (i = 0;
        i < 4 /* negotiated_version */ + 1 +
@@ -215,7 +220,7 @@ void test_ngtcp2_encode_transport_params(void) {
                6 * 2 + 6 + 6 + 20 + 5 +
                (4 + 1 + 1 + 255 + 2 + 1 + params.preferred_address.cid.datalen +
                 NGTCP2_STATELESS_RESET_TOKENLEN) +
-               4;
+               4 + 4 + params.original_connection_id.datalen;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -270,4 +275,8 @@ void test_ngtcp2_encode_transport_params(void) {
                    nparams.preferred_address.stateless_reset_token,
                    sizeof(params.preferred_address.stateless_reset_token)));
   CU_ASSERT(params.disable_migration == nparams.disable_migration);
+  CU_ASSERT(params.original_connection_id_present ==
+            nparams.original_connection_id_present);
+  CU_ASSERT(ngtcp2_cid_eq(&params.original_connection_id,
+                          &nparams.original_connection_id));
 }

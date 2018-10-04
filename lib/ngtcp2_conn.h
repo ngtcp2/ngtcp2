@@ -183,6 +183,9 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_SADDR_VERIFIED is set when source address is
      verified. */
   NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
+  /* NGTCP2_CONN_FLAG_OCID_PRESENT is set when ocid field of
+     ngtcp2_conn is set. */
+  NGTCP2_CONN_FLAG_OCID_PRESENT = 0x80,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -232,9 +235,13 @@ struct ngtcp2_conn {
   /* rcid is a connection ID present in Initial or 0-RTT protected
      packet from client as destination connection ID.  Server uses
      this field to check that duplicated Initial or 0-RTT packet are
-     indeed sent to this connection.  This field is not used by
-     client. */
+     indeed sent to this connection.  Client uses this field to
+     validate original_connection_id transport parameter. */
   ngtcp2_cid rcid;
+  /* ocid is a connection ID sent as original destination connection
+     ID in Retry packet.  Only server uses this field to send this CID
+     to client in original_connection_id transport parameter. */
+  ngtcp2_cid ocid;
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;

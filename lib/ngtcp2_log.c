@@ -628,6 +628,15 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
               buf, params->preferred_address.stateless_reset_token,
               sizeof(params->preferred_address.stateless_reset_token)));
     }
+
+    if (params->original_connection_id_present) {
+      log->log_printf(log->user_data,
+                      (NGTCP2_LOG_TP " original_connection_id=0x%s\n"),
+                      NGTCP2_LOG_TP_HD_FIELDS,
+                      (const char *)ngtcp2_encode_hex(
+                          buf, params->original_connection_id.data,
+                          params->original_connection_id.datalen));
+    }
   }
 
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u\n"),
