@@ -797,7 +797,7 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   size_t framelen = 1 + 4 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  fr.seq = 0xf1f2;
+  fr.seq = 1000000009;
   scid_init(&fr.cid);
   memset(fr.stateless_reset_token, 0xe1, sizeof(fr.stateless_reset_token));
 

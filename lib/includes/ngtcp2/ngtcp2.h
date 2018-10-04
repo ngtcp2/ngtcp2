@@ -465,7 +465,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint16_t seq;
+  uint64_t seq;
   ngtcp2_cid cid;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_new_connection_id;

@@ -1015,7 +1015,7 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
   p = payload + 1;
 
   dest->type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  dest->seq = (uint16_t)ngtcp2_get_varint(&n, p);
+  dest->seq = ngtcp2_get_varint(&n, p);
   p += n + 1;
   ngtcp2_cid_init(&dest->cid, p, cil);
   p += cil;
