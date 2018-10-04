@@ -188,19 +188,10 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
 /*
  * ngtcp2_rtb_add adds |ent| to |rtb|.
  */
-void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
 int ngtcp2_rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
                       ngtcp2_rtb_entry *ent);
-
-/*
- * ngtcp2_rtb_insert_range inserts linked list pointed by |head| to
- * rtb->head keeping the assertion that rtb->head is sorted by
- * decreasing order of packet number.  The linked list pointed by
- * |head| is assumed to be sorted by decreasing order of packet
- * number.
- */
-void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head);
 
 /*
  * ngtcp2_rtb_head returns the iterator which points to the entry

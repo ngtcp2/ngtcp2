@@ -192,24 +192,19 @@ static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   }
 }
 
-void ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+  int rv;
+
   ent->next = NULL;
-  ngtcp2_ksl_insert(&rtb->ents, NULL, (int64_t)ent->hd.pkt_num, ent);
-  rtb_on_add(rtb, ent);
-}
 
-void ngtcp2_rtb_insert_range(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *head) {
-  ngtcp2_rtb_entry *ent;
-
-  for (; head;) {
-    ent = head;
-    head = head->next;
-
-    ent->next = NULL;
-
-    ngtcp2_ksl_insert(&rtb->ents, NULL, (int64_t)ent->hd.pkt_num, ent);
-    rtb_on_add(rtb, ent);
+  rv = ngtcp2_ksl_insert(&rtb->ents, NULL, (int64_t)ent->hd.pkt_num, ent);
+  if (rv != 0) {
+    return rv;
   }
+
+  rtb_on_add(rtb, ent);
+
+  return 0;
 }
 
 int ngtcp2_rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,

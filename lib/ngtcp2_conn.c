@@ -614,11 +614,16 @@ static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
   return 0;
 }
 
-static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
-                             ngtcp2_rtb_entry *ent) {
+static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
+                            ngtcp2_rtb_entry *ent) {
+  int rv;
+
   /* This function implements OnPacketSent, but it handles only
      retransmittable packet (non-ACK only packet). */
-  ngtcp2_rtb_add(rtb, ent);
+  rv = ngtcp2_rtb_add(rtb, ent);
+  if (rv != 0) {
+    return rv;
+  }
 
   if (ngtcp2_pkt_handshake_pkt(&ent->hd)) {
     conn->rcs.last_hs_tx_pkt_ts = ent->ts;
@@ -626,6 +631,8 @@ static void conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
     conn->rcs.last_tx_pkt_ts = ent->ts;
   }
   ngtcp2_conn_set_loss_detection_timer(conn);
+
+  return 0;
 }
 
 /*
@@ -871,6 +878,7 @@ static ssize_t conn_retransmit_pktns(ngtcp2_conn *conn, uint8_t *dest,
                                      ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ssize_t nwrite;
+  int rv;
 
   /* TODO We should not retransmit packets after we are in closing, or
      draining state */
@@ -923,7 +931,11 @@ static ssize_t conn_retransmit_pktns(ngtcp2_conn *conn, uint8_t *dest,
 
     ent->pktlen = (size_t)nwrite;
     ent->ts = ts;
-    conn_on_pkt_sent(conn, &pktns->rtb, ent);
+    rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
+    if (rv != 0) {
+      ngtcp2_rtb_lost_insert(&pktns->rtb, ent);
+      return rv;
+    }
 
     return nwrite;
   }
@@ -953,6 +965,7 @@ static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
                                            ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ssize_t nwrite;
+  int rv;
 
   if (!conn->early_ckm) {
     return 0;
@@ -977,12 +990,21 @@ static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
 
           return nwrite;
         }
+
+        ngtcp2_list_insert(ent, &conn->retry_early_rtb);
+
+        return nwrite;
       } else {
         ent->pktlen = (size_t)nwrite;
         ent->ts = ts;
       }
 
-      conn_on_pkt_sent(conn, &conn->pktns.rtb, ent);
+      rv = conn_on_pkt_sent(conn, &conn->pktns.rtb, ent);
+      if (rv != 0) {
+        ngtcp2_list_insert(ent, &conn->retry_early_rtb);
+
+        return rv;
+      }
 
       return nwrite;
     }
@@ -1279,7 +1301,11 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
           return rv;
         }
 
-        conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
+        rv = conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
+        if (rv != 0) {
+          ngtcp2_rtb_entry_del(rtbent, conn->mem);
+          return rv;
+        }
       }
 
       ++pktns->last_tx_pkt_num;
@@ -1351,7 +1377,11 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       goto fail;
     }
 
-    conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
+    rv = conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
+    if (rv != 0) {
+      ngtcp2_rtb_entry_del(rtbent, conn->mem);
+      return rv;
+    }
   } else if (ack_ent) {
     ack_ent->ack_only = 1;
   }
@@ -2030,7 +2060,11 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->frq = *pfrc;
     *pfrc = NULL;
 
-    conn_on_pkt_sent(conn, &pktns->rtb, ent);
+    rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
+    if (rv != 0) {
+      ngtcp2_rtb_entry_del(ent, conn->mem);
+      return rv;
+    }
 
     if (send_stream) {
       data_strm->tx_offset += ndatalen;
@@ -2226,8 +2260,6 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
     ent = next;
   }
 
-  ngtcp2_rtb_insert_range(rtb, conn->retry_early_rtb);
-
   for (it = ngtcp2_rtb_head(rtb); !ngtcp2_ksl_it_end(&it);
        ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
@@ -2333,7 +2365,11 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
     goto fail;
   }
 
-  conn_on_pkt_sent(conn, &pktns->rtb, ent);
+  rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
+  if (rv != 0) {
+    ngtcp2_rtb_entry_del(ent, conn->mem);
+    return rv;
+  }
 
   ++pktns->last_tx_pkt_num;
 
@@ -5047,7 +5083,11 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  conn_on_pkt_sent(conn, &pktns->rtb, ent);
+  rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
+  if (rv != 0) {
+    ngtcp2_rtb_entry_del(ent, conn->mem);
+    return rv;
+  }
 
   strm->tx_offset += ndatalen;
   conn->tx_offset += ndatalen;
