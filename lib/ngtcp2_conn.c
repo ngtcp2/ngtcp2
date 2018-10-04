@@ -3415,9 +3415,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       conn_recv_connection_close(conn);
       break;
-    case NGTCP2_FRAME_PING:
-      require_ack = 1;
-      break;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -4152,7 +4149,6 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
          Initial/Handshake? */
       break;
     case NGTCP2_FRAME_CRYPTO:
-    case NGTCP2_FRAME_PING:
       require_ack = 1;
       break;
     default:
@@ -4426,9 +4422,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     if (hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
       switch (fr->type) {
-      case NGTCP2_FRAME_CRYPTO:
       case NGTCP2_FRAME_PADDING:
-      case NGTCP2_FRAME_PING:
       case NGTCP2_FRAME_STREAM:
         break;
       default:
