@@ -453,12 +453,12 @@ static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
   uint64_t ack_delay;
 
   if (conn->rcs.min_rtt == UINT64_MAX) {
-    return NGTCP2_DEFAULT_ACK_DELAY;
+    return conn->local_settings.max_ack_delay * 1000000;
   }
 
   ack_delay = (uint64_t)(conn->rcs.smoothed_rtt / 4);
 
-  return ngtcp2_min(NGTCP2_DEFAULT_ACK_DELAY, ack_delay);
+  return ngtcp2_min(conn->local_settings.max_ack_delay * 1000000, ack_delay);
 }
 
 /*

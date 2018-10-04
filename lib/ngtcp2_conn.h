@@ -66,10 +66,6 @@ typedef enum {
    connection. */
 #define NGTCP2_PKT_DEADLINE_PERIOD 60000000000
 
-/* NGTCP2_DELAYED_ACK_TIMEOUT is the delayed ACK timeout in nanosecond
-   resolution. */
-#define NGTCP2_DELAYED_ACK_TIMEOUT 25000000
-
 /* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
    reordered packets. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 16

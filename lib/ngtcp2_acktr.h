@@ -39,9 +39,6 @@
    which ngtcp2_acktr stores. */
 #define NGTCP2_ACKTR_MAX_ENT 1024
 
-/* ns */
-#define NGTCP2_DEFAULT_ACK_DELAY 25000000
-
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
