@@ -350,6 +350,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->disable_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params->idle_timeout = 0;
+  params->original_connection_id_present = 0;
 
   for (; (size_t)(end - p) >= sizeof(uint16_t) * 2;) {
     param_type = ngtcp2_get_uint16(p);
