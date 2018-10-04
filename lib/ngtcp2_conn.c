@@ -2547,8 +2547,8 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_rtb_entry *ent;
   uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
 
-  if (conn->nretry >= NGTCP2_MAX_RETRIES) {
-    return NGTCP2_ERR_TOO_MANY_RETRIES;
+  if (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
+    return 0;
   }
 
   rv = ngtcp2_pkt_decode_retry(&retry, payload, payloadlen);
@@ -2568,7 +2568,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
      generates new initial keys there. */
   conn->dcid = hd->scid;
 
-  ++conn->nretry;
+  conn->flags |= NGTCP2_CONN_FLAG_RECV_RETRY;
 
   assert(conn->callbacks.recv_retry);
 
@@ -2602,15 +2602,13 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_ringbuf_resize(&conn->tx_crypto_data, 0);
   conn->crypto.tx_offset = 0;
 
-  if (ngtcp2_buf_cap(&conn->token) < retry.tokenlen) {
-    ngtcp2_mem_free(conn->mem, conn->token.begin);
-    ngtcp2_buf_init(&conn->token, NULL, 0);
-    p = ngtcp2_mem_malloc(conn->mem, retry.tokenlen);
-    if (p == NULL) {
-      return NGTCP2_ERR_NOMEM;
-    }
-    ngtcp2_buf_init(&conn->token, p, retry.tokenlen);
+  assert(conn->token.begin == NULL);
+
+  p = ngtcp2_mem_malloc(conn->mem, retry.tokenlen);
+  if (p == NULL) {
+    return NGTCP2_ERR_NOMEM;
   }
+  ngtcp2_buf_init(&conn->token, p, retry.tokenlen);
 
   ngtcp2_cpymem(conn->token.begin, retry.token, retry.tokenlen);
   conn->token.pos = conn->token.begin;
@@ -3206,13 +3204,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     rv = conn_on_retry(conn, &hd, pkt + hdpktlen, pktlen - hdpktlen);
-    if (rv != 0) {
-      if (rv == NGTCP2_ERR_TOO_MANY_RETRIES) {
-        return rv;
-      }
-      if (ngtcp2_err_is_fatal(rv)) {
-        return rv;
-      }
+    if (ngtcp2_err_is_fatal(rv)) {
+      return rv;
     }
     return (ssize_t)pktlen;
   }

@@ -1765,7 +1765,7 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  for (i = 0; i < NGTCP2_MAX_RETRIES + 1; ++i) {
+  for (i = 0; i < 1; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
                        &conn->scid, &dcid, 0, 0, conn->version, 0);
 
@@ -1777,12 +1777,14 @@ void test_ngtcp2_conn_recv_retry(void) {
     spktlen = ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf,
                                     (size_t)spktlen, ++t);
 
-    if (i == NGTCP2_MAX_RETRIES) {
-      CU_ASSERT(NGTCP2_ERR_TOO_MANY_RETRIES == spktlen);
+    if (i == 1) {
+      /* Retry packet was ignored */
+      CU_ASSERT(spktlen == 0);
     } else {
       CU_ASSERT(spktlen > 0);
       CU_ASSERT(0 == conn->in_pktns.last_tx_pkt_num);
       CU_ASSERT(ngtcp2_cid_eq(&dcid, &conn->dcid));
+      CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY);
     }
   }
 

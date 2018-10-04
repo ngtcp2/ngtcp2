@@ -92,8 +92,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_PKT_ENCODING";
   case NGTCP2_ERR_CONGESTION:
     return "ERR_CONGESTION";
-  case NGTCP2_ERR_TOO_MANY_RETRIES:
-    return "ERR_TOO_MANY_RETRIES";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:
