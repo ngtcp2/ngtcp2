@@ -809,7 +809,7 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(fr.seq = nfr.seq);
+  CU_ASSERT(fr.seq == nfr.seq);
   CU_ASSERT(ngtcp2_cid_eq(&fr.cid, &nfr.cid));
   CU_ASSERT(0 == memcmp(fr.stateless_reset_token, nfr.stateless_reset_token,
                         sizeof(fr.stateless_reset_token)));
