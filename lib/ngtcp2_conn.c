@@ -450,15 +450,14 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
  * ACK.
  */
 static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
-  uint64_t ack_delay;
+  uint64_t initial_delay =
+      (uint64_t)conn->local_settings.max_ack_delay * 1000000;
 
-  if (conn->rcs.min_rtt == UINT64_MAX) {
-    return conn->local_settings.max_ack_delay * 1000000;
+  if (conn->rcs.smoothed_rtt < 1e-9) {
+    return initial_delay;
   }
 
-  ack_delay = (uint64_t)(conn->rcs.smoothed_rtt / 4);
-
-  return ngtcp2_min(conn->local_settings.max_ack_delay * 1000000, ack_delay);
+  return ngtcp2_min(initial_delay, (uint64_t)(conn->rcs.smoothed_rtt / 4));
 }
 
 /*
