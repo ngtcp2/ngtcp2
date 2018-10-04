@@ -1205,8 +1205,10 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);
 
-  if (type == NGTCP2_PKT_INITIAL && conn->state == NGTCP2_CS_CLIENT_INITIAL) {
-    flags |= NGTCP2_RTB_FLAG_CLIENT_INITIAL;
+  if (type == NGTCP2_PKT_INITIAL) {
+    if (conn->state == NGTCP2_CS_CLIENT_INITIAL) {
+      flags |= NGTCP2_RTB_FLAG_CLIENT_INITIAL;
+    }
 
     if (ngtcp2_buf_len(&conn->token)) {
       hd.token = conn->token.pos;
