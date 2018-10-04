@@ -52,6 +52,7 @@ void test_ngtcp2_pkt_encode_path_challenge_frame(void);
 void test_ngtcp2_pkt_encode_path_response_frame(void);
 void test_ngtcp2_pkt_encode_crypto_frame(void);
 void test_ngtcp2_pkt_encode_new_token_frame(void);
+void test_ngtcp2_pkt_encode_retire_connection_id(void);
 void test_ngtcp2_pkt_adjust_pkt_num(void);
 void test_ngtcp2_pkt_validate_ack(void);
 void test_ngtcp2_pkt_write_stateless_reset(void);

@@ -939,6 +939,30 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
                         fr.new_token.tokenlen));
 }
 
+void test_ngtcp2_pkt_encode_retire_connection_id(void) {
+  uint8_t buf[256];
+  ngtcp2_frame fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+
+  fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+  fr.retire_connection_id.seq = 1000000007;
+
+  framelen = 1 + ngtcp2_put_varint_len(fr.retire_connection_id.seq);
+
+  rv = ngtcp2_pkt_encode_retire_connection_id_frame(buf, sizeof(buf),
+                                                    &fr.retire_connection_id);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_retire_connection_id_frame(&nfr.retire_connection_id,
+                                                    buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.retire_connection_id.seq == nfr.retire_connection_id.seq);
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));

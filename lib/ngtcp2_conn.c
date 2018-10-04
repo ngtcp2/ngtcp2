@@ -4500,6 +4500,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     case NGTCP2_FRAME_STREAM_ID_BLOCKED:
     case NGTCP2_FRAME_NEW_CONNECTION_ID:
     case NGTCP2_FRAME_NEW_TOKEN:
+    case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
       /* TODO Not implemented yet */
       break;
     }

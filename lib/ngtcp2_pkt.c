@@ -389,6 +389,9 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   case NGTCP2_FRAME_NEW_TOKEN:
     return ngtcp2_pkt_decode_new_token_frame(&dest->new_token, payload,
                                              payloadlen);
+  case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
+    return ngtcp2_pkt_decode_retire_connection_id_frame(
+        &dest->retire_connection_id, payload, payloadlen);
   default:
     if (has_mask(type, NGTCP2_FRAME_STREAM)) {
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
@@ -1198,6 +1201,36 @@ ssize_t ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
   return (ssize_t)len;
 }
 
+ssize_t
+ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen) {
+  size_t len = 1 + 1;
+  const uint8_t *p;
+  size_t n;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  p = payload + 1;
+
+  n = ngtcp2_get_varint_len(p);
+  len += n - 1;
+
+  if (payloadlen < len) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  dest->type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+  dest->seq = ngtcp2_get_varint(&n, p);
+  p += n;
+
+  assert((size_t)(p - payload) == len);
+
+  return (ssize_t)len;
+}
+
 ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
@@ -1247,6 +1280,9 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
     return ngtcp2_pkt_encode_crypto_frame(out, outlen, &fr->crypto);
   case NGTCP2_FRAME_NEW_TOKEN:
     return ngtcp2_pkt_encode_new_token_frame(out, outlen, &fr->new_token);
+  case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
+    return ngtcp2_pkt_encode_retire_connection_id_frame(
+        out, outlen, &fr->retire_connection_id);
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -1692,6 +1728,26 @@ ssize_t ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
   if (fr->tokenlen) {
     p = ngtcp2_cpymem(p, fr->token, fr->tokenlen);
   }
+
+  assert((size_t)(p - out) == len);
+
+  return (ssize_t)len;
+}
+
+ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
+    uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr) {
+  size_t len = 1 + ngtcp2_put_varint_len(fr->seq);
+  uint8_t *p;
+
+  if (outlen < len) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  p = out;
+
+  *p++ = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+
+  p = ngtcp2_put_varint(p, fr->seq);
 
   assert((size_t)(p - out) == len);
 
