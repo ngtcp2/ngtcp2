@@ -2093,7 +2093,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd,
   std::array<uint32_t, 2> sv;
 
   sv[0] = generate_reserved_version(sa, salen, chd->version);
-  sv[1] = NGTCP2_PROTO_VER_D14;
+  sv[1] = NGTCP2_PROTO_VER_D15;
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
@@ -2376,9 +2376,9 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   auto version = ngtcp2_conn_get_negotiated_version(h->conn());
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D14:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D14);
-    alpnlen = str_size(NGTCP2_ALPN_D14);
+  case NGTCP2_PROTO_VER_D15:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D15);
+    alpnlen = str_size(NGTCP2_ALPN_D15);
     break;
   default:
     if (!config.quiet) {
@@ -2400,7 +2400,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   *outlen = alpn[0];
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D14 + 1
+    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D15 + 1
               << std::endl;
   }
 
@@ -2427,7 +2427,7 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
   }
 
   params.v.ee.len = 1;
-  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D14;
+  params.v.ee.supported_versions[0] = NGTCP2_PROTO_VER_D15;
 
   constexpr size_t bufsize = 512;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
