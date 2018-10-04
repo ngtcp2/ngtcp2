@@ -641,6 +641,8 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
 
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->ack_delay_exponent);
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_ack_delay=%u\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->max_ack_delay);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

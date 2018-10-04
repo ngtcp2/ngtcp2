@@ -5390,6 +5390,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   }
   dest->ack_delay_exponent = src->ack_delay_exponent;
   dest->disable_migration = src->disable_migration;
+  dest->max_ack_delay = src->max_ack_delay;
   dest->preferred_address = src->preferred_address;
 }
 
@@ -5412,6 +5413,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   }
   dest->ack_delay_exponent = src->ack_delay_exponent;
   dest->disable_migration = src->disable_migration;
+  dest->max_ack_delay = src->max_ack_delay;
   dest->preferred_address = src->preferred_address;
 }
 

@@ -554,6 +554,7 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 0x09,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0a,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI = 0x0b,
+  NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY = 0x0c,
   NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID = 0x0d
 } ngtcp2_transport_param_id;
 
@@ -585,6 +586,15 @@ typedef enum {
  * factor of ACK Delay field in ACK frame.
  */
 #define NGTCP2_DEFAULT_ACK_DELAY_EXPONENT 3
+
+/**
+ * @macro
+ *
+ * NGTCP2_DEFAULT_MAX_ACK_DELAY is a default value of the maximum
+ * amount of time in milliseconds by which endpoint delays sending
+ * acknowledgement.
+ */
+#define NGTCP2_DEFAULT_MAX_ACK_DELAY 25
 
 /**
  * @macro
@@ -640,6 +650,7 @@ typedef struct {
   uint8_t ack_delay_exponent;
   uint8_t disable_migration;
   uint8_t original_connection_id_present;
+  uint8_t max_ack_delay;
 } ngtcp2_transport_params;
 
 /* user_data is the same object passed to ngtcp2_conn_client_new or
@@ -664,6 +675,7 @@ typedef struct {
   uint8_t stateless_reset_token_present;
   uint8_t ack_delay_exponent;
   uint8_t disable_migration;
+  uint8_t max_ack_delay;
 } ngtcp2_settings;
 
 /**

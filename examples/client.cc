@@ -816,6 +816,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   settings.idle_timeout = config.timeout;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+  settings.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
 
   rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, version, &callbacks,
                               &settings, this);
