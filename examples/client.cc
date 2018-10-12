@@ -1049,10 +1049,8 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
     rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp(loop_));
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
-      if (rv != NGTCP2_ERR_TLS_DECRYPT) {
-        disconnect(rv);
-        return -1;
-      }
+      disconnect(rv);
+      return -1;
     }
   } else {
     return do_handshake(data, datalen);
@@ -1066,9 +1064,6 @@ ssize_t Client::do_handshake_once(const uint8_t *data, size_t datalen) {
                                       datalen, util::timestamp(loop_));
   if (nwrite < 0) {
     switch (nwrite) {
-    case NGTCP2_ERR_TLS_DECRYPT:
-      std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
-                << std::endl;
     case NGTCP2_ERR_NOBUF:
     case NGTCP2_ERR_CONGESTION:
       return 0;

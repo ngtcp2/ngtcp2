@@ -1702,7 +1702,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_DECRYPT == rv);
+  CU_ASSERT(0 == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -1738,7 +1738,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
 
-  CU_ASSERT(NGTCP2_ERR_TLS_DECRYPT == rv);
+  CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_CS_DRAINING != conn->state);
 
   ngtcp2_conn_del(conn);

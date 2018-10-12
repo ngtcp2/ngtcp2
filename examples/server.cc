@@ -1325,9 +1325,6 @@ ssize_t Handler::do_handshake_once(const uint8_t *data, size_t datalen) {
                                       datalen, util::timestamp(loop_));
   if (nwrite < 0) {
     switch (nwrite) {
-    case NGTCP2_ERR_TLS_DECRYPT:
-      std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
-                << std::endl;
     case NGTCP2_ERR_NOBUF:
     case NGTCP2_ERR_CONGESTION:
       return 0;
@@ -1395,9 +1392,7 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
         start_draining_period();
         return NETWORK_ERR_CLOSE_WAIT;
       }
-      if (rv != NGTCP2_ERR_TLS_DECRYPT) {
-        return handle_error(rv);
-      }
+      return handle_error(rv);
     }
   } else {
     rv = do_handshake(data, datalen);

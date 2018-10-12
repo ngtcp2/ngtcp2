@@ -2557,8 +2557,6 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
  *     Packet payload is badly formatted.
  * NGTCP2_ERR_PROTO
  *     ODCID does not match; or Token is empty.
- * NGTCP2_ERR_TOO_MANY_RETRIES
- *     The endpoint cannot process another Retry packet.
  */
 static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                          const uint8_t *payload, size_t payloadlen) {
@@ -3109,22 +3107,19 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
  *     Out of memory.
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Packet is too short; or it is not a long header.
- * NGTCP2_ERR_UNKNOWN_PKT_TYPE
- *     Packet type is unknown
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  * NGTCP2_ERR_PROTO
  *     Generic QUIC protocol error.
  * NGTCP2_ERR_ACK_FRAME
  *     ACK frame is malformed.
- * NGTCP2_ERR_TLS_HANDSHAKE
- *     TLS handshake failed, and/or TLS alert was generated.
- * NGTCP2_ERR_FRAME_ENCODING
- *     Frame is badly formatted.
  * NGTCP2_ERR_RECV_VERSION_NEGOTIATION
  *     Version Negotiation packet is received.
- * NGTCP2_ERR_TLS_DECRYPT
- *     Could not decrypt a packet.
+ * NGTCP2_ERR_CRYPTO
+ *     TLS stack reported error.
+ * NGTCP2_ERR_DISCARD_PKT
+ *     Packet was discarded because plain text header was malformed;
+ *     or its payload could not be decrypted.
  *
  * In addition to the above error codes, error codes returned from
  * conn_recv_pkt are also returned.
@@ -3175,6 +3170,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     rv = conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
     if (rv != 0) {
+      assert(ngtcp2_err_is_fatal(rv));
       return rv;
     }
     return (ssize_t)pktlen;
@@ -3182,7 +3178,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
   if (nread < 0) {
-    return (int)nread;
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   switch (hd.type) {
@@ -3192,23 +3188,26 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
     if (conn->server) {
-      return NGTCP2_ERR_PROTO;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     /* Receiving Version Negotiation packet after getting Handshake
        packet from server is invalid. */
     if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
     if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid) ||
         !ngtcp2_cid_eq(&conn->dcid, &hd.scid)) {
       /* Just discard invalid Version Negotiation packet */
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
     rv = conn_on_version_negotiation(conn, &hd, pkt + hdpktlen,
                                      pktlen - hdpktlen);
     if (rv != 0) {
-      return rv;
+      if (ngtcp2_err_is_fatal(rv)) {
+        return rv;
+      }
+      return NGTCP2_ERR_DISCARD_PKT;
     }
     return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
   case NGTCP2_PKT_RETRY:
@@ -3217,30 +3216,33 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
     if (conn->server) {
-      return NGTCP2_ERR_PROTO;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     /* Receiving Retry packet after getting Initial packet from server
        is invalid. */
     if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     rv = conn_on_retry(conn, &hd, pkt + hdpktlen, pktlen - hdpktlen);
-    if (ngtcp2_err_is_fatal(rv)) {
-      return rv;
+    if (rv != 0) {
+      if (ngtcp2_err_is_fatal(rv)) {
+        return rv;
+      }
+      return NGTCP2_ERR_DISCARD_PKT;
     }
     return (ssize_t)pktlen;
   }
 
   if (pktlen < (size_t)nread + hd.len) {
-    return (ssize_t)pktlen;
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   pktlen = (size_t)nread + hd.len;
 
   if (conn->version != hd.version) {
-    return (ssize_t)pktlen;
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   /* Quoted from spec: if subsequent packets of those types include a
@@ -3250,14 +3252,13 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet was ignored because of mismatched SCID");
-    return (ssize_t)pktlen;
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   switch (hd.type) {
   case NGTCP2_PKT_0RTT_PROTECTED:
     if (!conn->server) {
-      /* TODO protocol violation? */
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
     if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
       if (conn->early_ckm) {
@@ -3279,6 +3280,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     rv = conn_buffer_protected_pkt(conn, pkt, pktlen, ts);
     if (rv != 0) {
+      assert(ngtcp2_err_is_fatal(rv));
       return rv;
     }
     return (ssize_t)pktlen;
@@ -3296,16 +3298,18 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                  !ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "packet was ignored because of mismatched DCID");
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_DISCARD_PKT;
       }
     } else {
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "packet was ignored because of mismatched DCID");
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_DISCARD_PKT;
       }
       if (hd.tokenlen != 0) {
-        return (ssize_t)pktlen;
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "packet was ignored because token is not empty");
+        return NGTCP2_ERR_DISCARD_PKT;
       }
     }
 
@@ -3324,7 +3328,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "packet was ignored because of mismatched DCID");
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     if (!conn->hs_pktns.rx_ckm) {
@@ -3333,6 +3337,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
       rv = conn_buffer_handshake_pkt(conn, pkt, pktlen, ts);
       if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
         return rv;
       }
       return (ssize_t)pktlen;
@@ -3347,6 +3352,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     break;
   default:
     /* unknown packet type */
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet was ignored because of unknown packet type");
     return (ssize_t)pktlen;
   }
 
@@ -3360,7 +3367,12 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       conn_decrypt_pn(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), pkt, pktlen,
                       (size_t)nread, ckm, encrypt_pn, aead_overhead);
   if (nwrite < 0) {
-    return (ssize_t)nwrite;
+    if (ngtcp2_err_is_fatal((int)nwrite)) {
+      return nwrite;
+    }
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "could not decrypt packet number");
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   hdpktlen = (size_t)nwrite;
@@ -3381,7 +3393,12 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                             payloadlen, plain_hdpkt, hdpktlen, hd.pkt_num, ckm,
                             decrypt);
   if (nwrite < 0) {
-    return (int)nwrite;
+    if (ngtcp2_err_is_fatal((int)nwrite)) {
+      return nwrite;
+    }
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "could not decrypt packet payload");
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   payload = conn->decrypt_buf.base;
@@ -3469,6 +3486,16 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const uint8_t *pkt,
   while (pktlen) {
     nread = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
     if (nread < 0) {
+      if (ngtcp2_err_is_fatal((int)nread)) {
+        return (int)nread;
+      }
+      if (nread == NGTCP2_ERR_DISCARD_PKT) {
+        return 0;
+      }
+      if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_PKT_FLAG_LONG_FORM) &&
+          (pkt[0] & NGTCP2_LONG_TYPE_MASK) == NGTCP2_PKT_INITIAL) {
+        return 0;
+      }
       return (int)nread;
     }
 
@@ -4126,7 +4153,12 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
                             payloadlen, ad, adlen, hd->pkt_num, pktns->rx_ckm,
                             decrypt);
   if (nwrite < 0) {
-    return (int)nwrite;
+    if (ngtcp2_err_is_fatal((int)nwrite)) {
+      return (int)nwrite;
+    }
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "could not decrypt packet payload");
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   payload = conn->decrypt_buf.base;
@@ -4232,29 +4264,17 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     if (nread < 0) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "could not decode long header");
-      return (ssize_t)pktlen;
-    }
-
-    switch (hd.type) {
-    case NGTCP2_PKT_INITIAL:
-    case NGTCP2_PKT_HANDSHAKE:
-    case NGTCP2_PKT_0RTT_PROTECTED:
-      break;
-    default:
-      ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                      "packet type 0x%02x was ignored", hd.type);
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     if (pktlen < (size_t)nread + hd.len) {
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     pktlen = (size_t)nread + hd.len;
 
     if (conn->version != hd.version) {
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     /* Quoted from spec: if subsequent packets of those types include
@@ -4263,7 +4283,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "packet was ignored because of mismatched SCID");
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     switch (hd.type) {
@@ -4272,7 +4292,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
           (!conn->server || !ngtcp2_cid_eq(&conn->rcid, &hd.dcid))) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "packet was ignored because of mismatched DCID");
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_DISCARD_PKT;
       }
 
       pktns = &conn->in_pktns;
@@ -4290,7 +4310,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "packet was ignored because of mismatched DCID");
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_DISCARD_PKT;
       }
 
       pktns = &conn->hs_pktns;
@@ -4302,18 +4322,18 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
       if (!conn->server) {
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_DISCARD_PKT;
       }
       if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid) &&
           !ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "packet was ignored because of mismatched DCID");
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_DISCARD_PKT;
       }
 
       pktns = &conn->pktns;
       if (!conn->early_ckm) {
-        return (ssize_t)pktlen;
+        return NGTCP2_ERR_DISCARD_PKT;
       }
       ckm = conn->early_ckm;
       encrypt_pn = conn->callbacks.encrypt_pn;
@@ -4322,14 +4342,17 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
       break;
     default:
-      assert(0);
+      ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "packet type 0x%02x was ignored", hd.type);
+      return (ssize_t)pktlen;
     }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen, conn->scid.datalen);
     if (nread < 0) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "could not decode short header");
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     /* TODO If we check DCID here, we drop Stateless Reset packet. */
@@ -4349,7 +4372,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       conn_decrypt_pn(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), pkt, pktlen,
                       (size_t)nread, ckm, encrypt_pn, aead_overhead);
   if (nwrite < 0) {
-    return (ssize_t)nwrite;
+    if (ngtcp2_err_is_fatal((int)nwrite)) {
+      return nwrite;
+    }
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "could not decrypt packet number");
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   hdpktlen = (size_t)nwrite;
@@ -4368,8 +4396,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       /* TODO find a way when to ignore incoming handshake packet */
       rv = conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen,
                                            plain_hdpkt, hdpktlen, ts);
-      if (ngtcp2_err_is_fatal(rv)) {
-        return rv;
+      if (rv < 0) {
+        if (ngtcp2_err_is_fatal(rv)) {
+          return rv;
+        }
+        return (ssize_t)rv;
       }
       return (ssize_t)pktlen;
     case NGTCP2_PKT_0RTT_PROTECTED:
@@ -4389,9 +4420,13 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                             payloadlen, plain_hdpkt, hdpktlen, hd.pkt_num, ckm,
                             conn->callbacks.decrypt);
   if (nwrite < 0) {
-    if (nwrite != NGTCP2_ERR_TLS_DECRYPT ||
-        (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
-      return (int)nwrite;
+    if (ngtcp2_err_is_fatal((int)nwrite)) {
+      return nwrite;
+    }
+    if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "could not decrypt packet payload");
+      return NGTCP2_ERR_DISCARD_PKT;
     }
 
     if (!conn->server) {
@@ -4400,13 +4435,15 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
         return (ssize_t)pktlen;
       }
     }
-    return (int)nwrite;
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "could not decrypt packet payload");
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   if (maybeSR) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet was ignored because of mismatched DCID");
-    return (ssize_t)pktlen;
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   payload = conn->decrypt_buf.base;
@@ -4414,7 +4451,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   if (!(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
     if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
-      return (ssize_t)pktlen;
+      return NGTCP2_ERR_DISCARD_PKT;
     }
     conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
   }
@@ -4545,6 +4582,9 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   for (; pc; pc = pc->next) {
     rv = conn_recv_pkt(conn, pc->pkt, pc->pktlen, ts);
     if (rv < 0) {
+      if (rv == NGTCP2_ERR_DISCARD_PKT) {
+        continue;
+      }
       return (int)rv;
     }
   }
@@ -4568,6 +4608,9 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
   for (; pc; pc = pc->next) {
     rv = conn_recv_handshake_pkt(conn, pc->pkt, pc->pktlen, ts);
     if (rv < 0) {
+      if (rv == NGTCP2_ERR_DISCARD_PKT) {
+        continue;
+      }
       return (int)rv;
     }
   }
@@ -4630,6 +4673,16 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   while (pktlen) {
     nread = conn_recv_pkt(conn, pkt, pktlen, ts);
     if (nread < 0) {
+      if (ngtcp2_err_is_fatal((int)nread)) {
+        return (int)nread;
+      }
+      if (nread == NGTCP2_ERR_DISCARD_PKT) {
+        return 0;
+      }
+      if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_PKT_FLAG_LONG_FORM) &&
+          (pkt[0] & NGTCP2_LONG_TYPE_MASK) == NGTCP2_PKT_INITIAL) {
+        return 0;
+      }
       return (int)nread;
     }
 
