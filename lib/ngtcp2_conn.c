@@ -4102,8 +4102,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * packet which is received after handshake completed.  This function
  * does the minimal job, and its purpose is send acknowledgement of
  * this packet to the peer.  We assume that hd->type is one of
- * Initial, or Handshake.  |ad| and |adlen| is an additional data and
- * its length to decrypt a packet.
+ * Initial, or Handshake.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4117,55 +4116,29 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  *     Frame is badly formatted; or frame type is unknown.
  * NGTCP2_ERR_NOMEM
  *     Out of memory
- * NGTCP2_ERR_TLS_DECRYPT
- *     Could not decrypt a packet.
  */
 static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_hd *hd,
                                            const uint8_t *payload,
-                                           size_t payloadlen, const uint8_t *ad,
-                                           size_t adlen, ngtcp2_tstamp ts) {
+                                           size_t payloadlen,
+                                           ngtcp2_tstamp ts) {
   ssize_t nread;
   ngtcp2_max_frame mfr;
   ngtcp2_frame *fr = &mfr.fr;
   int rv;
   int require_ack = 0;
-  ssize_t nwrite;
   ngtcp2_pktns *pktns;
-  ngtcp2_decrypt decrypt;
 
   switch (hd->type) {
   case NGTCP2_PKT_INITIAL:
     pktns = &conn->in_pktns;
-    decrypt = conn->callbacks.in_decrypt;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
-    decrypt = conn->callbacks.decrypt;
     break;
   default:
     assert(0);
   }
-
-  rv = conn_ensure_decrypt_buffer(conn, payloadlen);
-  if (rv != 0) {
-    return rv;
-  }
-
-  nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf.base, payloadlen, payload,
-                            payloadlen, ad, adlen, hd->pkt_num, pktns->rx_ckm,
-                            decrypt);
-  if (nwrite < 0) {
-    if (ngtcp2_err_is_fatal((int)nwrite)) {
-      return (int)nwrite;
-    }
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "could not decrypt packet payload");
-    return NGTCP2_ERR_DISCARD_PKT;
-  }
-
-  payload = conn->decrypt_buf.base;
-  payloadlen = (size_t)nwrite;
 
   if (payloadlen == 0) {
     /* QUIC packet must contain at least one frame */
@@ -4259,6 +4232,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ngtcp2_crypto_km *ckm;
   uint8_t plain_hdpkt[1500];
   ngtcp2_encrypt_pn encrypt_pn;
+  ngtcp2_decrypt decrypt;
   size_t aead_overhead;
   ngtcp2_pktns *pktns;
   uint64_t max_crypto_rx_offset = 0;
@@ -4305,6 +4279,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       pktns = &conn->in_pktns;
       ckm = pktns->rx_ckm;
       encrypt_pn = conn->callbacks.in_encrypt_pn;
+      decrypt = conn->callbacks.in_decrypt;
       aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
       max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
       break;
@@ -4318,6 +4293,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       pktns = &conn->hs_pktns;
       ckm = pktns->rx_ckm;
       encrypt_pn = conn->callbacks.encrypt_pn;
+      decrypt = conn->callbacks.decrypt;
       aead_overhead = conn->aead_overhead;
       max_crypto_rx_offset = conn->pktns.crypto_rx_offset_base;
       break;
@@ -4338,6 +4314,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       }
       ckm = conn->early_ckm;
       encrypt_pn = conn->callbacks.encrypt_pn;
+      decrypt = conn->callbacks.decrypt;
       aead_overhead = conn->aead_overhead;
       break;
     default:
@@ -4362,6 +4339,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     pktns = &conn->pktns;
     ckm = pktns->rx_ckm;
     encrypt_pn = conn->callbacks.encrypt_pn;
+    decrypt = conn->callbacks.decrypt;
     aead_overhead = conn->aead_overhead;
   }
 
@@ -4386,28 +4364,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
-  if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    switch (hd.type) {
-    case NGTCP2_PKT_INITIAL:
-    case NGTCP2_PKT_HANDSHAKE:
-      /* TODO find a way when to ignore incoming handshake packet */
-      rv = conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen,
-                                           plain_hdpkt, hdpktlen, ts);
-      if (rv < 0) {
-        if (ngtcp2_err_is_fatal(rv)) {
-          return rv;
-        }
-        return (ssize_t)rv;
-      }
-      return (ssize_t)pktlen;
-    case NGTCP2_PKT_0RTT_PROTECTED:
-      break;
-    default:
-      /* unreachable */
-      assert(0);
-    }
-  }
-
   rv = conn_ensure_decrypt_buffer(conn, payloadlen);
   if (rv != 0) {
     return rv;
@@ -4415,7 +4371,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   nwrite = conn_decrypt_pkt(conn, conn->decrypt_buf.base, payloadlen, payload,
                             payloadlen, plain_hdpkt, hdpktlen, hd.pkt_num, ckm,
-                            conn->callbacks.decrypt);
+                            decrypt);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -4449,6 +4405,27 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   if (payloadlen == 0) {
     /* QUIC packet must contain at least one frame */
     return NGTCP2_ERR_DISCARD_PKT;
+  }
+
+  if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+    switch (hd.type) {
+    case NGTCP2_PKT_INITIAL:
+    case NGTCP2_PKT_HANDSHAKE:
+      /* TODO find a way when to ignore incoming handshake packet */
+      rv = conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen, ts);
+      if (rv < 0) {
+        if (ngtcp2_err_is_fatal(rv)) {
+          return rv;
+        }
+        return (ssize_t)rv;
+      }
+      return (ssize_t)pktlen;
+    case NGTCP2_PKT_0RTT_PROTECTED:
+      break;
+    default:
+      /* unreachable */
+      assert(0);
+    }
   }
 
   if (!(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
