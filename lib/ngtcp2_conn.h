@@ -309,10 +309,6 @@ struct ngtcp2_conn {
   /* max_tx_offset is the maximum offset that local endpoint can
      send. */
   uint64_t max_tx_offset;
-  /* early_crypto_rx_offset_base is just like
-     ngtcp2_pktns.crypto_rx_offset_base, but it is dedicated for
-     CRYPTO frame received in 0-RTT packet. */
-  uint64_t early_crypto_rx_offset_base;
   /* largest_ack is the largest ack in received ACK packet. */
   int64_t largest_ack;
   /* first_rx_bw_ts is a timestamp when bandwidth measurement is

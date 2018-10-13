@@ -3315,11 +3315,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     encrypt_pn = conn->callbacks.in_encrypt_pn;
     decrypt = conn->callbacks.in_decrypt;
     aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
-    if (conn->server && conn->early_ckm) {
-      max_crypto_rx_offset = conn->early_crypto_rx_offset_base;
-    } else {
-      max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
-    }
+    max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
 
     break;
   case NGTCP2_PKT_HANDSHAKE:
@@ -4265,8 +4261,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ngtcp2_encrypt_pn encrypt_pn;
   size_t aead_overhead;
   ngtcp2_pktns *pktns;
-  uint64_t crypto_rx_offset_base;
-  uint64_t max_crypto_rx_offset;
+  uint64_t max_crypto_rx_offset = 0;
   /* maybeSR becomes nonzero if an incoming packet has mismatched DCID
      and may be Stateless Reset packet. */
   int maybeSR = 0;
@@ -4311,12 +4306,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       ckm = pktns->rx_ckm;
       encrypt_pn = conn->callbacks.in_encrypt_pn;
       aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
-      crypto_rx_offset_base = 0;
-      if (conn->server && conn->early_ckm) {
-        max_crypto_rx_offset = conn->early_crypto_rx_offset_base;
-      } else {
-        max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
-      }
+      max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
       break;
     case NGTCP2_PKT_HANDSHAKE:
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
@@ -4329,7 +4319,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       ckm = pktns->rx_ckm;
       encrypt_pn = conn->callbacks.encrypt_pn;
       aead_overhead = conn->aead_overhead;
-      crypto_rx_offset_base = pktns->crypto_rx_offset_base;
       max_crypto_rx_offset = conn->pktns.crypto_rx_offset_base;
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
@@ -4350,8 +4339,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       ckm = conn->early_ckm;
       encrypt_pn = conn->callbacks.encrypt_pn;
       aead_overhead = conn->aead_overhead;
-      crypto_rx_offset_base = conn->early_crypto_rx_offset_base;
-      max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
       break;
     default:
       ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -4376,8 +4363,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     ckm = pktns->rx_ckm;
     encrypt_pn = conn->callbacks.encrypt_pn;
     aead_overhead = conn->aead_overhead;
-    crypto_rx_offset_base = pktns->crypto_rx_offset_base;
-    max_crypto_rx_offset = 0;
   }
 
   nwrite =
@@ -4527,8 +4512,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       conn_update_rx_bw(conn, fr->stream.datalen, ts);
       break;
     case NGTCP2_FRAME_CRYPTO:
-      rv = conn_recv_crypto(conn, crypto_rx_offset_base, max_crypto_rx_offset,
-                            &fr->crypto);
+      rv = conn_recv_crypto(conn, pktns->crypto_rx_offset_base,
+                            max_crypto_rx_offset, &fr->crypto);
       if (rv != 0) {
         return rv;
       }
@@ -5392,10 +5377,6 @@ int ngtcp2_conn_set_early_keys(ngtcp2_conn *conn, const uint8_t *key,
                                const uint8_t *pn, size_t pnlen) {
   if (conn->early_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
-  }
-
-  if (conn->server) {
-    conn->early_crypto_rx_offset_base = conn->crypto.last_rx_offset;
   }
 
   return ngtcp2_crypto_km_new(&conn->early_ckm, key, keylen, iv, ivlen, pn,
