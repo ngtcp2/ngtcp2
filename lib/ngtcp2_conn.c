@@ -48,12 +48,13 @@ static int conn_local_stream(ngtcp2_conn *conn, uint64_t stream_id) {
  */
 static int bidi_stream(uint64_t stream_id) { return (stream_id & 0x2) == 0; }
 
-static int conn_call_recv_client_initial(ngtcp2_conn *conn) {
+static int conn_call_recv_client_initial(ngtcp2_conn *conn,
+                                         const ngtcp2_cid *dcid) {
   int rv;
 
   assert(conn->callbacks.recv_client_initial);
 
-  rv = conn->callbacks.recv_client_initial(conn, &conn->rcid, conn->user_data);
+  rv = conn->callbacks.recv_client_initial(conn, dcid, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -3287,10 +3288,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   case NGTCP2_PKT_INITIAL:
     if (conn->server) {
       if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
-        conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-        conn->rcid = hd.dcid;
-
-        rv = conn_call_recv_client_initial(conn);
+        rv = conn_call_recv_client_initial(conn, &hd.dcid);
         if (rv != 0) {
           return rv;
         }
@@ -3404,10 +3402,19 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   payload = conn->decrypt_buf.base;
   payloadlen = (size_t)nwrite;
 
-  if (!conn->server && hd.type == NGTCP2_PKT_INITIAL &&
+  if (payloadlen == 0) {
+    /* QUIC packet must contain at least one frame */
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
+
+  if (hd.type == NGTCP2_PKT_INITIAL &&
       !(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
     conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-    conn->dcid = hd.scid;
+    if (conn->server) {
+      conn->rcid = hd.dcid;
+    } else {
+      conn->dcid = hd.scid;
+    }
   }
 
   for (; payloadlen;) {
@@ -4164,6 +4171,11 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
   payload = conn->decrypt_buf.base;
   payloadlen = (size_t)nwrite;
 
+  if (payloadlen == 0) {
+    /* QUIC packet must contain at least one frame */
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
+
   for (; payloadlen;) {
     nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
     if (nread < 0) {
@@ -4448,6 +4460,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   payload = conn->decrypt_buf.base;
   payloadlen = (size_t)nwrite;
+
+  if (payloadlen == 0) {
+    /* QUIC packet must contain at least one frame */
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
 
   if (!(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
     if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
