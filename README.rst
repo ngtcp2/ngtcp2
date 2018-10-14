@@ -84,9 +84,10 @@ Client
 
 The notable options are:
 
-- -d, --data=<PATH>: Read data from <PATH> and send it to a peer.
-- -i, --interactive: Read data from terminal and send it to a peer
-  interactively.  This does not work with 0-RTT.  See below.
+- ``-d``, ``--data=<PATH>``: Read data from <PATH> and send it to a
+  peer.
+- ``-i``, ``--interactive``: Read data from terminal and send it to a
+  peer interactively.  This does not work with 0-RTT.  See below.
 
 Server
 ~~~~~~
@@ -97,7 +98,7 @@ Server
 
 The notable options are:
 
-- -V, --validate-addr: Enforce stateless address validation.
+- ``-V``, ``--validate-addr``: Enforce stateless address validation.
 
 Resumption and 0-RTT
 --------------------
