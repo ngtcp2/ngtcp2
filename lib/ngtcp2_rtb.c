@@ -475,7 +475,12 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_pkt_hd *hd,
     ++i;
   }
 
-  if (!rcs || smallest_acked == UINT64_MAX || ngtcp2_pkt_handshake_pkt(hd)) {
+  if (!rcs || smallest_acked == UINT64_MAX) {
+    return 0;
+  }
+
+  if (ngtcp2_pkt_handshake_pkt(hd)) {
+    rcs->handshake_count = 0;
     return 0;
   }
 
@@ -486,7 +491,6 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_pkt_hd *hd,
     }
   }
 
-  rcs->handshake_count = 0;
   rcs->tlp_count = 0;
   rcs->rto_count = 0;
   rcs->probe_pkt_left = 0;
