@@ -101,3 +101,11 @@ uint64_t ngtcp2_gaptr_first_gap_offset(ngtcp2_gaptr *gaptr) {
   const ngtcp2_range *r = ngtcp2_psl_it_range(&it);
   return r->begin;
 }
+
+int ngtcp2_gaptr_is_pushed(ngtcp2_gaptr *gaptr, uint64_t offset,
+                           size_t datalen) {
+  ngtcp2_range q = {offset, offset + datalen};
+  ngtcp2_psl_it it = ngtcp2_psl_lower_bound(&gaptr->gap, &q);
+  ngtcp2_range m = ngtcp2_range_intersect(&q, ngtcp2_psl_it_range(&it));
+  return ngtcp2_range_len(&m) == 0;
+}

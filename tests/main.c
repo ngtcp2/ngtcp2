@@ -215,7 +215,8 @@ int main() {
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||
       !CU_add_test(pSuite, "map_clear", test_ngtcp2_map_clear) ||
-      !CU_add_test(pSuite, "gaptr_push", test_ngtcp2_gaptr_push)) {
+      !CU_add_test(pSuite, "gaptr_push", test_ngtcp2_gaptr_push) ||
+      !CU_add_test(pSuite, "gaptr_is_pushed", test_ngtcp2_gaptr_is_pushed)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }

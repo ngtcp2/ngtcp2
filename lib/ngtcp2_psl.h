@@ -104,6 +104,7 @@ struct ngtcp2_psl {
   ngtcp2_psl_blk *head;
   /* front points to the first leaf block. */
   ngtcp2_psl_blk *front;
+  size_t n;
   ngtcp2_mem *mem;
 };
 
@@ -182,6 +183,11 @@ ngtcp2_psl_it ngtcp2_psl_lower_bound(ngtcp2_psl *psl,
  * satisfies ngtcp2_psl_it_end(it) != 0.
  */
 ngtcp2_psl_it ngtcp2_psl_begin(const ngtcp2_psl *psl);
+
+/*
+ * ngtcp2_psl_len returns the number of elements stored in |ksl|.
+ */
+size_t ngtcp2_psl_len(ngtcp2_psl *psl);
 
 /*
  * ngtcp2_psl_print prints its internal state in stderr.  This

@@ -202,6 +202,9 @@ struct ngtcp2_cc_stat {
 typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
 
 typedef struct {
+  /* pngap tracks received packet number in order to suppress
+     duplicated packet number. */
+  ngtcp2_gaptr pngap;
   /* last_tx_pkt_num is the packet number which the local endpoint
      sent last time.*/
   uint64_t last_tx_pkt_num;

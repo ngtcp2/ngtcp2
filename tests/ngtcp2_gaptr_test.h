@@ -30,5 +30,6 @@
 #endif /* HAVE_CONFIG_H */
 
 void test_ngtcp2_gaptr_push(void);
+void test_ngtcp2_gaptr_is_pushed(void);
 
 #endif /* NGTCP2_GAPTR_TEST_H */

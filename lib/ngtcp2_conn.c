@@ -152,10 +152,16 @@ static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_cc_stat *ccs,
                       ngtcp2_log *log, ngtcp2_mem *mem) {
   int rv;
 
+  rv = ngtcp2_gaptr_init(&pktns->pngap, mem);
+  if (rv != 0) {
+    return rv;
+  }
+
   pktns->last_tx_pkt_num = (uint64_t)-1;
 
   rv = ngtcp2_acktr_init(&pktns->acktr, delayed_ack, log, mem);
   if (rv != 0) {
+    ngtcp2_gaptr_free(&pktns->pngap);
     return rv;
   }
 
@@ -170,6 +176,7 @@ static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
 
   ngtcp2_rtb_free(&pktns->rtb);
   ngtcp2_acktr_free(&pktns->acktr);
+  ngtcp2_gaptr_free(&pktns->pngap);
 }
 
 static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
@@ -3092,6 +3099,35 @@ static size_t pkt_num_bits(size_t pkt_numlen) {
   }
 }
 
+/*
+ * pktns_pkt_num_is_duplicate returns nonzero if |pkt_num| is
+ * duplicated packet number.
+ */
+static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, uint64_t pkt_num) {
+  return ngtcp2_gaptr_is_pushed(&pktns->pngap, pkt_num, 1);
+}
+
+/*
+ * pktns_commit_recv_pkt_num marks packet number |pkt_num| as
+ * received.
+ */
+static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, uint64_t pkt_num) {
+  int rv;
+  ngtcp2_psl_it it;
+
+  rv = ngtcp2_gaptr_push(&pktns->pngap, pkt_num, 1);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (ngtcp2_psl_len(&pktns->pngap.gap) > 256) {
+    it = ngtcp2_psl_begin(&pktns->pngap.gap);
+    return ngtcp2_psl_remove(&pktns->pngap.gap, NULL, ngtcp2_psl_it_range(&it));
+  }
+
+  return 0;
+}
+
 static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
                             uint64_t max_rx_offset, const ngtcp2_crypto *fr);
 
@@ -3378,6 +3414,12 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
+  if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet was discarded because of duplicated packet number");
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
+
   rv = conn_ensure_decrypt_buffer(conn, payloadlen);
   if (rv != 0) {
     return rv;
@@ -3466,6 +3508,11 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
+
+  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num);
+  if (rv != 0) {
+    return rv;
+  }
 
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack, ts);
   if (rv != 0) {
@@ -4191,6 +4238,11 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd->pkt_num);
 
+  rv = pktns_commit_recv_pkt_num(pktns, hd->pkt_num);
+  if (rv != 0) {
+    return rv;
+  }
+
   return ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack,
                                ts);
 }
@@ -4363,6 +4415,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                                          pkt_num_bits(hd.pkt_numlen));
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
+
+  if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet was discarded because of duplicated packet number");
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
 
   rv = conn_ensure_decrypt_buffer(conn, payloadlen);
   if (rv != 0) {
@@ -4545,6 +4603,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
+
+  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num);
+  if (rv != 0) {
+    return rv;
+  }
 
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack, ts);
   if (rv != 0) {

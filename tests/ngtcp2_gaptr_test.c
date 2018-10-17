@@ -96,3 +96,19 @@ void test_ngtcp2_gaptr_push(void) {
 
   ngtcp2_gaptr_free(&gaptr);
 }
+
+void test_ngtcp2_gaptr_is_pushed(void) {
+  ngtcp2_gaptr gaptr;
+  ngtcp2_mem *mem = ngtcp2_mem_default();
+  int rv;
+
+  ngtcp2_gaptr_init(&gaptr, mem);
+
+  rv = ngtcp2_gaptr_push(&gaptr, 1000000007, 1009);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_gaptr_is_pushed(&gaptr, 1000000007, 1009));
+  CU_ASSERT(!ngtcp2_gaptr_is_pushed(&gaptr, 1000000007, 1010));
+
+  ngtcp2_gaptr_free(&gaptr);
+}

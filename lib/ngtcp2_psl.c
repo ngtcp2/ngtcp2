@@ -41,6 +41,7 @@ int ngtcp2_psl_init(ngtcp2_psl *psl, ngtcp2_mem *mem) {
     return NGTCP2_ERR_NOMEM;
   }
   psl->front = psl->head;
+  psl->n = 0;
 
   head = psl->head;
 
@@ -231,6 +232,7 @@ int ngtcp2_psl_insert(ngtcp2_psl *psl, ngtcp2_psl_it *it,
 
     if (blk->leaf) {
       insert_node(blk, i, range, data);
+      ++psl->n;
       if (it) {
         ngtcp2_psl_it_init(it, blk, i);
       }
@@ -448,6 +450,7 @@ int ngtcp2_psl_remove(ngtcp2_psl *psl, ngtcp2_psl_it *it,
     if (blk->leaf) {
       assert(i < blk->n);
       remove_node(blk, i);
+      --psl->n;
       if (it) {
         if (blk->n == i) {
           ngtcp2_psl_it_init(it, blk->next, 0);
@@ -577,6 +580,8 @@ ngtcp2_psl_it ngtcp2_psl_begin(const ngtcp2_psl *psl) {
   ngtcp2_psl_it it = {psl->front, 0};
   return it;
 }
+
+size_t ngtcp2_psl_len(ngtcp2_psl *psl) { return psl->n; }
 
 void ngtcp2_psl_it_init(ngtcp2_psl_it *it, const ngtcp2_psl_blk *blk,
                         size_t i) {

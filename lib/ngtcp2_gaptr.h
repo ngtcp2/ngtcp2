@@ -80,4 +80,11 @@ int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen);
  */
 uint64_t ngtcp2_gaptr_first_gap_offset(ngtcp2_gaptr *gaptr);
 
+/*
+ * ngtcp2_gaptr_is_pushed returns nonzero if range [offset, offset +
+ * datalen) is completely pushed into this object.
+ */
+int ngtcp2_gaptr_is_pushed(ngtcp2_gaptr *gaptr, uint64_t offset,
+                           size_t datalen);
+
 #endif /* NGTCP2_GAPTR_H */
