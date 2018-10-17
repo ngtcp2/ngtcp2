@@ -32,46 +32,7 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_mem.h"
-#include "ngtcp2_range.h"
-
-struct ngtcp2_idtr_gap;
-typedef struct ngtcp2_idtr_gap ngtcp2_idtr_gap;
-
-/*
- * ngtcp2_idtr_gap represents the gap, which is the range of ID that
- * is not used yet.
- */
-struct ngtcp2_idtr_gap {
-  /* next points to the next gap.  This singly linked list is ordered
-     by range.begin in the increasing order, and they never
-     overlap. */
-  ngtcp2_idtr_gap *next;
-  /* range is the range of this gap. */
-  ngtcp2_range range;
-};
-
-/*
- * ngtcp2_idtr_gap_new allocates new ngtcp2_idtr_gap object, and
- * assigns its pointer to |*pg|.  The caller should call
- * ngtcp2_idtr_gap_del to delete it when it is no longer used.  The
- * range of the gap is [begin, end).  |mem| is custom memory allocator
- * to allocate memory.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_idtr_gap_new(ngtcp2_idtr_gap **pg, uint64_t begin, uint64_t end,
-                        ngtcp2_mem *mem);
-
-/*
- * ngtcp2_idtr_gap_del deallocates |g|.  It deallocates the memory
- * pointed by |g| it self.  |mem| is custom memory allocator to
- * deallocate memory.
- */
-void ngtcp2_idtr_gap_del(ngtcp2_idtr_gap *g, ngtcp2_mem *mem);
+#include "ngtcp2_gaptr.h"
 
 /*
  * ngtcp2_idtr tracks the usage of stream ID.
@@ -79,7 +40,7 @@ void ngtcp2_idtr_gap_del(ngtcp2_idtr_gap *g, ngtcp2_mem *mem);
 typedef struct {
   /* gap maintains the range of ID which is not used yet. Initially,
      its range is [0, UINT64_MAX). */
-  ngtcp2_idtr_gap *gap;
+  ngtcp2_gaptr gap;
   /* server is nonzero if this object records server initiated stream
      ID. */
   int server;
@@ -121,11 +82,7 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t stream_id);
 /*
  * ngtcp2_idtr_open tells whether ID |stream_id| is in used or not.
  *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
- *
- * NGTCP2_ERR_STREAM_IN_USE
- *     ID has already been used.
+ * It returns nonzero if |stream_id| is used.
  */
 int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t stream_id);
 
