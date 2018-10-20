@@ -224,6 +224,7 @@ typedef struct {
   /* rx_ckm is a cryptographic key, and iv to decrypt incoming
      packets. */
   ngtcp2_crypto_km *rx_ckm;
+  ngtcp2_frame_chain *frq;
 } ngtcp2_pktns;
 
 struct ngtcp2_conn {
@@ -325,7 +326,6 @@ struct ngtcp2_conn {
   size_t probe_pkt_left;
   /* nretry is the number of Retry packet this client has received. */
   size_t nretry;
-  ngtcp2_frame_chain *frq;
   ngtcp2_mem *mem;
   void *user_data;
   uint32_t version;

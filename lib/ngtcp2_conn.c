@@ -148,6 +148,15 @@ static int conn_call_extend_max_stream_id(ngtcp2_conn *conn,
   return 0;
 }
 
+static void delete_frq(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
+  ngtcp2_frame_chain *next;
+  for (; frc;) {
+    next = frc->next;
+    ngtcp2_frame_chain_del(frc, mem);
+    frc = next;
+  }
+}
+
 static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_cc_stat *ccs,
                       ngtcp2_log *log, ngtcp2_mem *mem) {
   int rv;
@@ -171,6 +180,8 @@ static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_cc_stat *ccs,
 }
 
 static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
+  delete_frq(pktns->frq, mem);
+
   ngtcp2_crypto_km_del(pktns->rx_ckm, mem);
   ngtcp2_crypto_km_del(pktns->tx_ckm, mem);
 
@@ -355,15 +366,6 @@ static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
   }
 }
 
-static void delete_frq(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
-  ngtcp2_frame_chain *next;
-  for (; frc;) {
-    next = frc->next;
-    ngtcp2_frame_chain_del(frc, mem);
-    frc = next;
-  }
-}
-
 static int delete_strms_each(ngtcp2_map_entry *ent, void *ptr) {
   ngtcp2_mem *mem = ptr;
   ngtcp2_strm *s = ngtcp2_struct_of(ent, ngtcp2_strm, me);
@@ -396,8 +398,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   delete_buffed_pkts(conn->buffed_rx_hs_pkts, conn->mem);
 
   ngtcp2_crypto_km_del(conn->early_ckm, conn->mem);
-
-  delete_frq(conn->frq, conn->mem);
 
   pktns_free(&conn->pktns, conn->mem);
   pktns_free(&conn->hs_pktns, conn->mem);
@@ -1799,7 +1799,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
   }
 
-  if ((conn->frq || send_stream || conn_should_send_max_data(conn) ||
+  if ((pktns->frq || send_stream || conn_should_send_max_data(conn) ||
        ngtcp2_ringbuf_len(&conn->tx_crypto_data)) &&
       conn->unsent_max_rx_offset > conn->max_rx_offset) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
@@ -1808,8 +1808,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     nfrc->fr.type = NGTCP2_FRAME_MAX_DATA;
     nfrc->fr.max_data.max_data = conn->unsent_max_rx_offset;
-    nfrc->next = conn->frq;
-    conn->frq = nfrc;
+    nfrc->next = pktns->frq;
+    pktns->frq = nfrc;
 
     conn->max_rx_offset = conn->unsent_max_rx_offset;
   }
@@ -1823,8 +1823,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
     nfrc->fr.max_stream_data.stream_id = strm->stream_id;
     nfrc->fr.max_stream_data.max_stream_data = strm->unsent_max_rx_offset;
-    nfrc->next = conn->frq;
-    conn->frq = nfrc;
+    nfrc->next = pktns->frq;
+    pktns->frq = nfrc;
 
     strm->max_rx_offset = strm->unsent_max_rx_offset;
 
@@ -1842,7 +1842,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       conn->unsent_max_remote_stream_id_bidi ==
           conn->max_remote_stream_id_bidi &&
       conn->unsent_max_remote_stream_id_uni == conn->max_remote_stream_id_uni &&
-      conn->frq == NULL;
+      pktns->frq == NULL;
 
   if (ack_only && conn->rcs.probe_pkt_left) {
     /* Sending ACK only packet does not elicit ACK, therefore it is
@@ -1897,7 +1897,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     ackfr = NULL;
   }
 
-  for (pfrc = &conn->frq; *pfrc;) {
+  for (pfrc = &pktns->frq; *pfrc;) {
     switch ((*pfrc)->fr.type) {
     case NGTCP2_FRAME_RST_STREAM:
       strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.rst_stream.stream_id);
@@ -2056,15 +2056,15 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     return nwrite;
   }
 
-  if (*pfrc != conn->frq) {
+  if (*pfrc != pktns->frq) {
     rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, ts, (size_t)nwrite,
                               NGTCP2_RTB_FLAG_NONE, conn->mem);
     if (rv != 0) {
       return rv;
     }
 
-    ent->frc = conn->frq;
-    conn->frq = *pfrc;
+    ent->frc = pktns->frq;
+    pktns->frq = *pfrc;
     *pfrc = NULL;
 
     rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
@@ -2251,6 +2251,7 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 static int conn_process_early_rtb(ngtcp2_conn *conn) {
   ngtcp2_rtb_entry *ent, *next;
   ngtcp2_frame_chain *frc;
+  ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_ksl_it it;
 
@@ -2261,8 +2262,8 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
     ngtcp2_rtb_entry_del(ent, conn->mem);
 
     assert(frc->next == NULL);
-    frc->next = conn->frq;
-    conn->frq = frc;
+    frc->next = pktns->frq;
+    pktns->frq = frc;
 
     ent = next;
   }
@@ -3918,6 +3919,7 @@ static int conn_rst_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                            uint16_t app_error_code) {
   int rv;
   ngtcp2_frame_chain *frc;
+  ngtcp2_pktns *pktns = &conn->pktns;
 
   rv = ngtcp2_frame_chain_new(&frc, conn->mem);
   if (rv != 0) {
@@ -3929,9 +3931,9 @@ static int conn_rst_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   frc->fr.rst_stream.app_error_code = app_error_code;
   frc->fr.rst_stream.final_offset = strm->tx_offset;
 
-  /* TODO This prepends RST_STREAM to conn->frq. */
-  frc->next = conn->frq;
-  conn->frq = frc;
+  /* TODO This prepends RST_STREAM to pktns->frq. */
+  frc->next = pktns->frq;
+  pktns->frq = frc;
 
   return 0;
 }
@@ -3940,6 +3942,7 @@ static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint16_t app_error_code) {
   int rv;
   ngtcp2_frame_chain *frc;
+  ngtcp2_pktns *pktns = &conn->pktns;
 
   rv = ngtcp2_frame_chain_new(&frc, conn->mem);
   if (rv != 0) {
@@ -3950,9 +3953,9 @@ static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
   frc->fr.stop_sending.stream_id = strm->stream_id;
   frc->fr.stop_sending.app_error_code = app_error_code;
 
-  /* TODO This prepends STOP_SENDING to conn->frq. */
-  frc->next = conn->frq;
-  conn->frq = frc;
+  /* TODO This prepends STOP_SENDING to pktns->frq. */
+  frc->next = pktns->frq;
+  pktns->frq = frc;
 
   /* Since STREAM is being reset, we don't have to send
      MAX_STREAM_DATA anymore */
@@ -6145,6 +6148,7 @@ uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn) {
 
 void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   ngtcp2_rtb_entry *ent, *next;
+  ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_ksl_it it;
   ngtcp2_frame_chain *frc;
@@ -6158,8 +6162,8 @@ void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
     ngtcp2_rtb_entry_del(ent, conn->mem);
 
     assert(frc->next == NULL);
-    frc->next = conn->frq;
-    conn->frq = frc;
+    frc->next = pktns->frq;
+    pktns->frq = frc;
 
     ent = next;
   }
@@ -6178,8 +6182,8 @@ void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
     ent->frc = NULL;
     ngtcp2_rtb_entry_del(ent, conn->mem);
 
-    frc->next = conn->frq;
-    conn->frq = frc;
+    frc->next = pktns->frq;
+    pktns->frq = frc;
   }
 }
 

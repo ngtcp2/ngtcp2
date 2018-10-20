@@ -948,7 +948,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
 
   CU_ASSERT(0 == rv);
 
-  for (frc = conn->frq; frc; frc = frc->next) {
+  for (frc = conn->pktns.frq; frc; frc = frc->next) {
     if (frc->fr.type == NGTCP2_FRAME_RST_STREAM) {
       break;
     }
@@ -1396,7 +1396,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
   CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SENT_RST);
 
-  for (frc = conn->frq; frc; frc = frc->next) {
+  for (frc = conn->pktns.frq; frc; frc = frc->next) {
     if (frc->fr.type == NGTCP2_FRAME_RST_STREAM) {
       break;
     }
@@ -1437,7 +1437,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, stream_id));
 
-  for (frc = conn->frq; frc; frc = frc->next) {
+  for (frc = conn->pktns.frq; frc; frc = frc->next) {
     if (frc->fr.type == NGTCP2_FRAME_RST_STREAM) {
       break;
     }
@@ -1479,7 +1479,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NGTCP2_FRAME_RST_STREAM == conn->frq->fr.type);
+  CU_ASSERT(NGTCP2_FRAME_RST_STREAM == conn->pktns.frq->fr.type);
 
   ngtcp2_conn_del(conn);
 
@@ -2668,7 +2668,7 @@ void test_ngtcp2_conn_recv_ping(void) {
   rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NULL == conn->frq);
+  CU_ASSERT(NULL == conn->pktns.frq);
 
   ngtcp2_conn_del(conn);
 }
