@@ -254,7 +254,6 @@ struct ngtcp2_conn {
   ngtcp2_cc_stat ccs;
   ngtcp2_ringbuf tx_path_challenge;
   ngtcp2_ringbuf rx_path_challenge;
-  ngtcp2_ringbuf tx_crypto_data;
   ngtcp2_log log;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
@@ -341,11 +340,6 @@ struct ngtcp2_conn {
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
-  /* retry_early_rtb is a linked list of 0-RTT packets sorted by
-     ascending order of packet number.  This field is used when Retry
-     packet is received from server and points to the entries which
-     should be retransmitted along with new Initial. */
-  ngtcp2_rtb_entry *retry_early_rtb;
   ngtcp2_settings local_settings;
   ngtcp2_settings remote_settings;
   /* decrypt_buf is a buffer which is used to write decrypted data. */

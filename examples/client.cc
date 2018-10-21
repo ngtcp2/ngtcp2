@@ -987,7 +987,12 @@ int Client::tls_handshake(bool initial) {
   if (resumption_ &&
       SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
     std::cerr << "Early data was rejected by server" << std::endl;
-    ngtcp2_conn_early_data_rejected(conn_);
+    rv = ngtcp2_conn_early_data_rejected(conn_);
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_early_data_rejected: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
   }
 
   ngtcp2_conn_handshake_completed(conn_);

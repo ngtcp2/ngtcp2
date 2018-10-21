@@ -1843,17 +1843,18 @@ void test_ngtcp2_conn_recv_retry(void) {
   spktlen =
       ngtcp2_conn_handshake(conn, buf, sizeof(buf), buf, (size_t)spktlen, ++t);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen > 219 + 119);
   CU_ASSERT(0 == conn->pktns.last_tx_pkt_num);
+  CU_ASSERT(NULL == conn->pktns.frq);
 
-  /* ngtcp2_conn_write_stream resends second 0RTT packet */
+  /* ngtcp2_conn_write_stream sends new 0RTT packet. */
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
                                      stream_id, 0, null_data, 120, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(1 == conn->pktns.last_tx_pkt_num);
-  CU_ASSERT(-1 == datalen);
-  CU_ASSERT(NULL == conn->retry_early_rtb);
+  CU_ASSERT(120 == datalen);
+  CU_ASSERT(NULL == conn->pktns.frq);
   CU_ASSERT(!ngtcp2_rtb_empty(&conn->pktns.rtb));
 
   ngtcp2_conn_del(conn);
@@ -2111,13 +2112,8 @@ void test_ngtcp2_conn_client_handshake(void) {
 void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
-  size_t pktlen;
   ssize_t spktlen;
-  int rv;
-  uint64_t pkt_num = 890;
   ngtcp2_tstamp t = 0;
-  ngtcp2_frame fr;
-  ngtcp2_rtb_entry *ent;
   uint64_t stream_id, stream_id_a, stream_id_b;
   ngtcp2_ksl_it it;
 
@@ -2134,21 +2130,20 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   t += 1000000000;
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
-  ent = ngtcp2_ksl_it_get(&it);
-  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->rcs, 1000000007,
-                             1000000007, ++t);
+  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->pktns.frq, &conn->rcs,
+                             1000000007, 1000000007, ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NULL == conn->pktns.frq);
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
 
-  CU_ASSERT(ent == ngtcp2_ksl_it_get(&it));
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
 
-  /* Partially retransmiting a packet is not possible at the
-     moment. */
+  /* Retransmission takes place per frame basis. */
   setup_default_client(&conn);
   conn->max_local_stream_id_bidi = 8;
 
@@ -2166,52 +2161,16 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   t += 1000000000;
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
-  ent = ngtcp2_ksl_it_get(&it);
-  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->rcs, 1000000007,
-                             1000000007, ++t);
+  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->pktns.frq, &conn->rcs,
+                             1000000007, 1000000007, ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, buf, (size_t)(spktlen - 1), ++t);
-
-  CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
-
-  it = ngtcp2_rtb_head(&conn->pktns.rtb);
-
-  CU_ASSERT(ngtcp2_ksl_it_end(&it));
-  CU_ASSERT(ent == conn->pktns.rtb.lost);
-  CU_ASSERT(1 == rtb_entry_length(ngtcp2_rtb_lost_head(&conn->pktns.rtb)));
-
-  ngtcp2_conn_del(conn);
-
-  /* ngtcp2_rtb_entry is reused because buffer was too small */
-  setup_default_client(&conn);
-
-  fr.type = NGTCP2_FRAME_PING;
-
-  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
-                                  ++pkt_num, &fr);
-
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
-
-  CU_ASSERT(0 == rv);
-
-  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
-  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), NULL, stream_id, 0,
-                                     null_data, 1000, ++t);
 
   CU_ASSERT(spktlen > 0);
 
-  /* Kick delayed ACK timer */
-  t += 1000000000;
-
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
-  ent = ngtcp2_ksl_it_get(&it);
-  ngtcp2_rtb_detect_lost_pkt(&conn->pktns.rtb, &conn->rcs, 1000000007,
-                             1000000007, ++t);
 
-  /* This should not send ACK only packet */
-  spktlen = ngtcp2_conn_write_pkt(conn, buf, 999, ++t);
-
-  CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
-  CU_ASSERT(ent == ngtcp2_rtb_lost_head(&conn->pktns.rtb));
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+  CU_ASSERT(NULL != conn->pktns.frq);
 
   ngtcp2_conn_del(conn);
 }

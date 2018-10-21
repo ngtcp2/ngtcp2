@@ -106,9 +106,6 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
   NGTCP2_RTB_FLAG_PROBE = 0x1,
-  /* NGTCP2_RTB_FLAG_CLIENT_INITIAL indicates that entry includes
-     client very first Initial packet. */
-  NGTCP2_RTB_FLAG_CLIENT_INITIAL = 0x4,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -161,9 +158,6 @@ typedef struct {
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
-  /* lost includes packet entries which are considered to be lost.
-     Currently, this list is not listed in the particular order. */
-  ngtcp2_rtb_entry *lost;
   ngtcp2_cc_stat *ccs;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
@@ -190,9 +184,6 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
  */
 int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
-int ngtcp2_rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
-                      ngtcp2_rtb_entry *ent);
-
 /*
  * ngtcp2_rtb_head returns the iterator which points to the entry
  * which has the largest packet number.  If there is no entry,
@@ -201,20 +192,10 @@ int ngtcp2_rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
 ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_lost returns the first element of lost packet.
- */
-ngtcp2_rtb_entry *ngtcp2_rtb_lost_head(ngtcp2_rtb *rtb);
-
-/*
- * ngtcp2_rtb_lost_pop removes the first entry of lost packet.  It
- * does nothing if there is no entry.
- */
-void ngtcp2_rtb_lost_pop(ngtcp2_rtb *rtb);
-
-/*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
  * |pkt_num| is a packet number which includes |fr|.  |hd| is a header
- * of packet which contains |fr|.
+ * of packet which contains |fr|.  The frames included to lost packets
+ * as a result of RTO will be prepended to |*pfrc|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -222,31 +203,34 @@ void ngtcp2_rtb_lost_pop(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
  */
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_pkt_hd *hd,
-                        const ngtcp2_ack *fr, ngtcp2_conn *conn,
-                        ngtcp2_tstamp ts);
-
-int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
-                               uint64_t largest_ack, uint64_t last_tx_pkt_num,
-                               ngtcp2_tstamp ts);
-
-int ngtcp2_rtb_mark_pkt_lost(ngtcp2_rtb *rtb);
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                        const ngtcp2_pkt_hd *hd, const ngtcp2_ack *fr,
+                        ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 /*
- * ngtcp2_rtb_lost_add insert |ent| to the head of lost packets list.
+ * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
+ * frames contained them to |*pfrc|.  Even when this function fails,
+ * some frames might be prepended to |*pfrc|.
  */
-void ngtcp2_rtb_lost_insert(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                               ngtcp2_rcvry_stat *rcs, uint64_t largest_ack,
+                               uint64_t last_tx_pkt_num, ngtcp2_tstamp ts);
 
 /*
- * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.  It does
- * not consider lost packets.
+ * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends
+ * all frames to |*pfrc|.
+ */
+int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+
+/*
+ * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.
  */
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_clear removes all ngtcp2_rtb_entry objects including
- * lost ones.  bytes_in_flight and largest_acked_tx_pkt_num are also
- * reset to their initial value.
+ * ngtcp2_rtb_clear removes all ngtcp2_rtb_entry objects.
+ * bytes_in_flight and largest_acked_tx_pkt_num are also reset to
+ * their initial value.
  */
 void ngtcp2_rtb_clear(ngtcp2_rtb *rtb);
 
