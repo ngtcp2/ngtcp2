@@ -30,6 +30,7 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_conn.h"
 #include "ngtcp2_log.h"
+#include "ngtcp2_vec.h"
 
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
@@ -59,6 +60,24 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
 }
 
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) { frc->next = NULL; }
+
+int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
+                                  ngtcp2_mem *mem) {
+  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_stream_frame_chain));
+  if (*pfrc == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  ngtcp2_frame_chain_init(&(*pfrc)->frc);
+  (*pfrc)->pe.index = NGTCP2_PQ_BAD_INDEX;
+
+  return 0;
+}
+
+void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
+                                   ngtcp2_mem *mem) {
+  ngtcp2_mem_free(mem, frc);
+}
 
 ngtcp2_frame_chain *ngtcp2_frame_chain_list_copy(ngtcp2_frame_chain *frc,
                                                  ngtcp2_mem *mem) {
@@ -230,8 +249,9 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
       }
       prev_stream_offset =
           ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
-      rv = ngtcp2_gaptr_push(&strm->acked_tx_offset, frc->fr.stream.offset,
-                             frc->fr.stream.datalen);
+      rv = ngtcp2_gaptr_push(
+          &strm->acked_tx_offset, frc->fr.stream.offset,
+          ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
       if (rv != 0) {
         return rv;
       }
@@ -313,7 +333,7 @@ static int rtb_on_retransmission_timeout_verified(ngtcp2_rtb *rtb,
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);
-    rv = ngtcp2_ksl_remove(&rtb->ents, &it, ngtcp2_ksl_it_key(&it));
+    rv = ngtcp2_ksl_remove(&rtb->ents, &it, (int64_t)ent->hd.pkt_num);
     if (rv != 0) {
       return rv;
     }
@@ -529,7 +549,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);
-        rv = ngtcp2_ksl_remove(&rtb->ents, &it, ngtcp2_ksl_it_key(&it));
+        rv = ngtcp2_ksl_remove(&rtb->ents, &it, (int64_t)ent->hd.pkt_num);
         if (rv != 0) {
           return rv;
         }
@@ -559,7 +579,7 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
     ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts);
 
     rtb_on_remove(rtb, ent);
-    rv = ngtcp2_ksl_remove(&rtb->ents, &it, ngtcp2_ksl_it_key(&it));
+    rv = ngtcp2_ksl_remove(&rtb->ents, &it, (int64_t)ent->hd.pkt_num);
     if (rv != 0) {
       return rv;
     }

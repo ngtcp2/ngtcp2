@@ -41,6 +41,7 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_log.h"
+#include "ngtcp2_pq.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -247,7 +248,8 @@ struct ngtcp2_conn {
   ngtcp2_pktns pktns;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
-  ngtcp2_strm *fc_strms;
+  /* tx_strmq contains ngtcp2_strm which has frames to send. */
+  ngtcp2_pq tx_strmq;
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
@@ -422,5 +424,32 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
                             uint64_t ack_delay);
 
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
+
+int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                                ngtcp2_rcvry_stat *rcs, uint64_t largest_ack,
+                                ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_conn_tx_strmq_top returns the ngtcp2_strm which sits on the
+ * top of queue.  tx_strmq must not be empty.
+ */
+ngtcp2_strm *ngtcp2_conn_tx_strmq_top(ngtcp2_conn *conn);
+
+/*
+ * ngtcp2_conn_tx_strmq_pop pops the ngtcp2_strm from the queue.
+ * tx_strmq must not be empty.
+ */
+void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn);
+
+/*
+ * ngtcp2_conn_tx_strmq_push pushes |strm| into tx_strmq.
+ *
+ *  This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
 #endif /* NGTCP2_CONN_H */

@@ -607,6 +607,6 @@ int ngtcp2_psl_it_end(const ngtcp2_psl_it *it) {
   return ngtcp2_range_eq(&end, &it->blk->nodes[it->i].range);
 }
 
-const ngtcp2_range *ngtcp2_psl_it_range(const ngtcp2_psl_it *it) {
-  return &it->blk->nodes[it->i].range;
+ngtcp2_range ngtcp2_psl_it_range(const ngtcp2_psl_it *it) {
+  return it->blk->nodes[it->i].range;
 }

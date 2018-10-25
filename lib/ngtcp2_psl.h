@@ -226,6 +226,6 @@ int ngtcp2_psl_it_end(const ngtcp2_psl_it *it);
  * returns nonzero.  In this case, this function returns {UINT64_MAX,
  * UINT64_MAX}.
  */
-const ngtcp2_range *ngtcp2_psl_it_range(const ngtcp2_psl_it *it);
+ngtcp2_range ngtcp2_psl_it_range(const ngtcp2_psl_it *it);
 
 #endif /* NGTCP2_PSL_H */

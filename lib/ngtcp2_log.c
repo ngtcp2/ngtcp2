@@ -30,6 +30,7 @@
 #include <errno.h>
 
 #include "ngtcp2_str.h"
+#include "ngtcp2_vec.h"
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
@@ -198,7 +199,8 @@ static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
       (NGTCP2_LOG_PKT " STREAM(0x%02x) id=0x%" PRIx64 " fin=%d offset=%" PRIu64
                       " len=%" PRIu64 " uni=%d\n"),
       NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type | fr->flags, fr->stream_id,
-      fr->fin, fr->offset, fr->datalen, (fr->stream_id & 0x2) != 0);
+      fr->fin, fr->offset, ngtcp2_vec_len(fr->data, fr->datacnt),
+      (fr->stream_id & 0x2) != 0);
 }
 
 static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -711,5 +713,5 @@ void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
 void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_PKT,
                   "cancel tx pkt %" PRIu64 " type=%s(0x%02x)", hd->pkt_num,
-                  hd->type);
+                  strpkttype(hd), hd->type);
 }

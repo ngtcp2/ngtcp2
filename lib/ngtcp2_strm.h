@@ -35,6 +35,11 @@
 #include "ngtcp2_buf.h"
 #include "ngtcp2_map.h"
 #include "ngtcp2_gaptr.h"
+#include "ngtcp2_ksl.h"
+#include "ngtcp2_pq.h"
+
+struct ngtcp2_stream_frame_chain;
+typedef struct ngtcp2_stream_frame_chain ngtcp2_stream_frame_chain;
 
 typedef enum {
   NGTCP2_STRM_FLAG_NONE = 0,
@@ -60,11 +65,12 @@ typedef enum {
 } ngtcp2_strm_flags;
 
 struct ngtcp2_strm;
-
 typedef struct ngtcp2_strm ngtcp2_strm;
 
 struct ngtcp2_strm {
   ngtcp2_map_entry me;
+  ngtcp2_pq_entry pe;
+  uint64_t cycle;
   uint64_t tx_offset;
   ngtcp2_gaptr acked_tx_offset;
   /* max_tx_offset is the maximum offset that local endpoint can send
@@ -74,6 +80,8 @@ struct ngtcp2_strm {
      this stream. */
   uint64_t last_rx_offset;
   ngtcp2_rob rob;
+  /* streamfrq contains STREAM frame for (re)transmission. */
+  ngtcp2_pq streamfrq;
   /* max_rx_offset is the maximum offset that remote endpoint can send
      to this stream. */
   uint64_t max_rx_offset;
@@ -88,7 +96,6 @@ struct ngtcp2_strm {
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
   uint32_t flags;
-  ngtcp2_strm **fc_pprev, *fc_next;
   /* app_error_code is an error code the local endpoint sent in
      RST_STREAM or STOP_SENDING. */
   uint16_t app_error_code;
@@ -136,5 +143,37 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
  * NGTCP2_STRM_FLAG_SHUT_RD, and/or NGTCP2_STRM_FLAG_SHUT_WR.
  */
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags);
+
+/*
+ * ngtcp2_strm_streamfrq_push pushes |frc| to streamfrq for
+ * retransmission.
+ */
+int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm,
+                               ngtcp2_stream_frame_chain *frc);
+
+/*
+ * ngtcp2_strm_streamfrq_pop pops the first ngtcp2_stream_frame_chain
+ * and assigns it to |*pfrc|.  This function splits into or merges
+ * several ngtcp2_stream_frame_chain objects so that the returned
+ * ngtcp2_stream_frame_chain has at most |left| data length.  If there
+ * is no frames to send, this function returns 0 and |*pfrc| is NULL.
+ */
+int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
+                              ngtcp2_stream_frame_chain **pfrc, size_t left);
+
+/*
+ * ngtcp2_strm_streamfrq_empty returns nonzero if streamfrq is empty.
+ */
+int ngtcp2_strm_streamfrq_empty(ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_strm_streamfrq_clear removes all frames from streamfrq.
+ */
+void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_strm_is_tx_queued returns nonzero if |strm| is queued.
+ */
+int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm);
 
 #endif /* NGTCP2_STRM_H */

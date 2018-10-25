@@ -869,7 +869,7 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, uint8_t fin,
+int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, int fin,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);

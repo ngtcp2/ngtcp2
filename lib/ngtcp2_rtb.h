@@ -32,6 +32,7 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_ksl.h"
+#include "ngtcp2_pq.h"
 
 struct ngtcp2_cc_stat;
 typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
@@ -51,6 +52,28 @@ typedef struct ngtcp2_log ngtcp2_log;
 struct ngtcp2_frame_chain {
   ngtcp2_frame_chain *next;
   ngtcp2_frame fr;
+};
+
+/* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
+   a ngtcp2_crypto can include. */
+#define NGTCP2_MAX_STREAM_DATACNT 8
+
+struct ngtcp2_stream_frame_chain;
+typedef struct ngtcp2_stream_frame_chain ngtcp2_stream_frame_chain;
+
+/* ngtcp2_stream_frame_chain is an extension to ngtcp2_frame_chain and
+   specific to ngtcp2_stream.  It includes pe in order to push it to
+   ngtcp2_pq. */
+struct ngtcp2_stream_frame_chain {
+  union {
+    ngtcp2_frame_chain frc;
+    struct {
+      ngtcp2_frame_chain *next;
+      ngtcp2_stream fr;
+      ngtcp2_vec extra[NGTCP2_MAX_STREAM_DATACNT - 1];
+    };
+  };
+  ngtcp2_pq_entry pe;
 };
 
 /*
@@ -83,6 +106,12 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
  * ngtcp2_frame_chain_init initializes |frc|.
  */
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
+
+int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
+                                  ngtcp2_mem *mem);
+
+void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
+                                   ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_list_copy creates a copy of |frc| following next

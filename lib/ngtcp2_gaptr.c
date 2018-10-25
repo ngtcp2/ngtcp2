@@ -58,29 +58,28 @@ void ngtcp2_gaptr_free(ngtcp2_gaptr *gaptr) {
 
 int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen) {
   int rv;
-  ngtcp2_range m, l, r, q = {offset, offset + datalen};
-  const ngtcp2_range *k;
+  ngtcp2_range k, m, l, r, q = {offset, offset + datalen};
   ngtcp2_psl_it it;
 
   it = ngtcp2_psl_lower_bound(&gaptr->gap, &q);
 
   for (; !ngtcp2_psl_it_end(&it);) {
     k = ngtcp2_psl_it_range(&it);
-    m = ngtcp2_range_intersect(&q, k);
+    m = ngtcp2_range_intersect(&q, &k);
     if (!ngtcp2_range_len(&m)) {
       break;
     }
 
-    if (ngtcp2_range_eq(k, &m)) {
-      rv = ngtcp2_psl_remove(&gaptr->gap, &it, k);
+    if (ngtcp2_range_eq(&k, &m)) {
+      rv = ngtcp2_psl_remove(&gaptr->gap, &it, &k);
       if (rv != 0) {
         return rv;
       }
       continue;
     }
-    ngtcp2_range_cut(&l, &r, k, &m);
+    ngtcp2_range_cut(&l, &r, &k, &m);
     if (ngtcp2_range_len(&l)) {
-      ngtcp2_psl_update_range(&gaptr->gap, k, &l);
+      ngtcp2_psl_update_range(&gaptr->gap, &k, &l);
 
       if (ngtcp2_range_len(&r)) {
         rv = ngtcp2_psl_insert(&gaptr->gap, &it, &r, NULL);
@@ -89,7 +88,7 @@ int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen) {
         }
       }
     } else if (ngtcp2_range_len(&r)) {
-      ngtcp2_psl_update_range(&gaptr->gap, k, &r);
+      ngtcp2_psl_update_range(&gaptr->gap, &k, &r);
     }
     ngtcp2_psl_it_next(&it);
   }
@@ -98,14 +97,15 @@ int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen) {
 
 uint64_t ngtcp2_gaptr_first_gap_offset(ngtcp2_gaptr *gaptr) {
   ngtcp2_psl_it it = ngtcp2_psl_begin(&gaptr->gap);
-  const ngtcp2_range *r = ngtcp2_psl_it_range(&it);
-  return r->begin;
+  ngtcp2_range r = ngtcp2_psl_it_range(&it);
+  return r.begin;
 }
 
 int ngtcp2_gaptr_is_pushed(ngtcp2_gaptr *gaptr, uint64_t offset,
                            size_t datalen) {
   ngtcp2_range q = {offset, offset + datalen};
   ngtcp2_psl_it it = ngtcp2_psl_lower_bound(&gaptr->gap, &q);
-  ngtcp2_range m = ngtcp2_range_intersect(&q, ngtcp2_psl_it_range(&it));
+  ngtcp2_range k = ngtcp2_psl_it_range(&it);
+  ngtcp2_range m = ngtcp2_range_intersect(&q, &k);
   return ngtcp2_range_len(&m) == 0;
 }

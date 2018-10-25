@@ -35,6 +35,7 @@ set(ngtcp2_SOURCES
   ngtcp2_pkt.c
   ngtcp2_conv.c
   ngtcp2_str.c
+  ngtcp2_vec.c
   ngtcp2_buf.c
   ngtcp2_conn.c
   ngtcp2_mem.c

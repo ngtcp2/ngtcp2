@@ -374,8 +374,12 @@ typedef struct {
   uint8_t fin;
   uint64_t stream_id;
   uint64_t offset;
-  size_t datalen;
-  const uint8_t *data;
+  /* datacnt is the number of elements that data contains.  Although
+     the length of data is 1 in this definition, the library may
+     allocate extra bytes to hold more elements. */
+  size_t datacnt;
+  /* data is the array of ngtcp2_vec which references data. */
+  ngtcp2_vec data[1];
 } ngtcp2_stream;
 
 typedef struct {
@@ -1027,7 +1031,7 @@ typedef ssize_t (*ngtcp2_encrypt_pn)(ngtcp2_conn *conn, uint8_t *dest,
                                      size_t noncelen, void *user_data);
 
 typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint64_t stream_id,
-                                       uint8_t fin, uint64_t offset,
+                                       int fin, uint64_t offset,
                                        const uint8_t *data, size_t datalen,
                                        void *user_data, void *stream_user_data);
 

@@ -34,43 +34,43 @@ void test_ngtcp2_gaptr_push(void) {
   ngtcp2_gaptr gaptr;
   ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_psl_it it;
-  const ngtcp2_range *key;
+  ngtcp2_range r;
   int rv;
   size_t i;
 
   ngtcp2_gaptr_init(&gaptr, mem);
 
   it = ngtcp2_psl_begin(&gaptr.gap);
-  key = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(0 == key->begin);
-  CU_ASSERT(UINT64_MAX == key->end);
+  CU_ASSERT(0 == r.begin);
+  CU_ASSERT(UINT64_MAX == r.end);
 
   rv = ngtcp2_gaptr_push(&gaptr, 0, 1);
 
   CU_ASSERT(0 == rv);
 
   it = ngtcp2_psl_begin(&gaptr.gap);
-  key = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(1 == key->begin);
-  CU_ASSERT(UINT64_MAX == key->end);
+  CU_ASSERT(1 == r.begin);
+  CU_ASSERT(UINT64_MAX == r.end);
 
   rv = ngtcp2_gaptr_push(&gaptr, 12389, 133);
 
   CU_ASSERT(0 == rv);
 
   it = ngtcp2_psl_begin(&gaptr.gap);
-  key = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(1 == key->begin);
-  CU_ASSERT(12389 == key->end);
+  CU_ASSERT(1 == r.begin);
+  CU_ASSERT(12389 == r.end);
 
   ngtcp2_psl_it_next(&it);
-  key = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(12389 + 133 == key->begin);
-  CU_ASSERT(UINT64_MAX == key->end);
+  CU_ASSERT(12389 + 133 == r.begin);
+  CU_ASSERT(UINT64_MAX == r.end);
 
   for (i = 0; i < 2; ++i) {
     rv = ngtcp2_gaptr_push(&gaptr, 1, 12389);
@@ -78,10 +78,10 @@ void test_ngtcp2_gaptr_push(void) {
     CU_ASSERT(0 == rv);
 
     it = ngtcp2_psl_begin(&gaptr.gap);
-    key = ngtcp2_psl_it_range(&it);
+    r = ngtcp2_psl_it_range(&it);
 
-    CU_ASSERT(12389 + 133 == key->begin);
-    CU_ASSERT(UINT64_MAX == key->end);
+    CU_ASSERT(12389 + 133 == r.begin);
+    CU_ASSERT(UINT64_MAX == r.end);
   }
 
   rv = ngtcp2_gaptr_push(&gaptr, 12389 + 133 - 1, 2);
@@ -89,10 +89,10 @@ void test_ngtcp2_gaptr_push(void) {
   CU_ASSERT(0 == rv);
 
   it = ngtcp2_psl_begin(&gaptr.gap);
-  key = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(12389 + 133 + 1 == key->begin);
-  CU_ASSERT(UINT64_MAX == key->end);
+  CU_ASSERT(12389 + 133 + 1 == r.begin);
+  CU_ASSERT(UINT64_MAX == r.end);
 
   ngtcp2_gaptr_free(&gaptr);
 }

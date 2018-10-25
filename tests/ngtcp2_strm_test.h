@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2018 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,28 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_str.h"
+#ifndef NGTCP2_STRM_TEST_H
+#define NGTCP2_STRM_TEST_H
 
-#include <string.h>
-#include <assert.h>
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n) {
-  memcpy(dest, src, n);
-  return dest + n;
-}
+void test_ngtcp2_strm_streamfrq_pop(void);
 
-#define LOWER_XDIGITS "0123456789abcdef"
-
-uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
-  size_t i;
-  uint8_t *p = dest;
-
-  for (i = 0; i < len; ++i) {
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
-  }
-
-  *p = '\0';
-
-  return dest;
-}
+#endif /* NGTCP2_STRM_TEST_H */

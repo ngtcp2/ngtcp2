@@ -45,6 +45,8 @@
 #include "ngtcp2_ksl_test.h"
 #include "ngtcp2_map_test.h"
 #include "ngtcp2_gaptr_test.h"
+#include "ngtcp2_vec_test.h"
+#include "ngtcp2_strm_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -216,7 +218,11 @@ int main() {
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||
       !CU_add_test(pSuite, "map_clear", test_ngtcp2_map_clear) ||
       !CU_add_test(pSuite, "gaptr_push", test_ngtcp2_gaptr_push) ||
-      !CU_add_test(pSuite, "gaptr_is_pushed", test_ngtcp2_gaptr_is_pushed)) {
+      !CU_add_test(pSuite, "gaptr_is_pushed", test_ngtcp2_gaptr_is_pushed) ||
+      !CU_add_test(pSuite, "vec_split", test_ngtcp2_vec_split) ||
+      !CU_add_test(pSuite, "vec_merge", test_ngtcp2_vec_merge) ||
+      !CU_add_test(pSuite, "strm_streamfrq_pop",
+                   test_ngtcp2_strm_streamfrq_pop)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }
