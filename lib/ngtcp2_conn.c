@@ -1252,7 +1252,8 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, ngtcp2_tstamp ts);
+                                            size_t destlen, int nodelay,
+                                            ngtcp2_tstamp ts);
 
 static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ngtcp2_tstamp ts) {
@@ -1274,7 +1275,8 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   /* Acknowledge 0-RTT packet here. */
   if (conn->pktns.tx_ckm) {
-    nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+    nwrite = conn_write_protected_ack_pkt(conn, dest, destlen,
+                                          res > 0 /* nodelay */, ts);
     if (nwrite < 0) {
       if (nwrite != NGTCP2_ERR_NOBUF) {
         return nwrite;
@@ -1882,14 +1884,15 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
  *     Out of memory.
  */
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, ngtcp2_tstamp ts) {
+                                            size_t destlen, int nodelay,
+                                            ngtcp2_tstamp ts) {
   int rv;
   ssize_t spktlen;
   ngtcp2_frame *ackfr;
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, acktr, ts, 0 /* nodelay */,
+  rv = conn_create_ack_frame(conn, &ackfr, acktr, ts, nodelay,
                              conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     return rv;
@@ -2120,7 +2123,8 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
-      nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+      nwrite = conn_write_protected_ack_pkt(conn, dest, destlen,
+                                            0 /* nodelay */, ts);
       if (nwrite) {
         return nwrite;
       }
@@ -5562,7 +5566,8 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
-      nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+      nwrite = conn_write_protected_ack_pkt(conn, dest, destlen,
+                                            0 /* nodelay */, ts);
       if (nwrite) {
         return nwrite;
       }
