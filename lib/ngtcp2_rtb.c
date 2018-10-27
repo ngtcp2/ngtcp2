@@ -79,6 +79,24 @@ void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
   ngtcp2_mem_free(mem, frc);
 }
 
+int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
+                                  ngtcp2_mem *mem) {
+  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_crypto_frame_chain));
+  if (*pfrc == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  ngtcp2_frame_chain_init(&(*pfrc)->frc);
+  (*pfrc)->pe.index = NGTCP2_PQ_BAD_INDEX;
+
+  return 0;
+}
+
+void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
+                                   ngtcp2_mem *mem) {
+  ngtcp2_mem_free(mem, frc);
+}
+
 ngtcp2_frame_chain *ngtcp2_frame_chain_list_copy(ngtcp2_frame_chain *frc,
                                                  ngtcp2_mem *mem) {
   ngtcp2_frame_chain *nfrc = NULL, **pfrc = &nfrc;
@@ -475,6 +493,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
     }
   }
 
+  rcs->handshake_count = 0;
   rcs->tlp_count = 0;
   rcs->rto_count = 0;
   rcs->probe_pkt_left = 0;

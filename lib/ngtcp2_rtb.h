@@ -76,6 +76,28 @@ struct ngtcp2_stream_frame_chain {
   ngtcp2_pq_entry pe;
 };
 
+/* NGTCP2_MAX_CRYPTO_DATACNT is the maximum number of ngtcp2_vec that
+   a ngtcp2_crypto can include. */
+#define NGTCP2_MAX_CRYPTO_DATACNT 8
+
+struct ngtcp2_crypto_frame_chain;
+typedef struct ngtcp2_crypto_frame_chain ngtcp2_crypto_frame_chain;
+
+/* ngtcp2_crypto_frame_chain is an extension to ngtcp2_frame_chain and
+   specific to ngtcp2_crypto.  It includes pe in order to push it to
+   ngtcp2_pq. */
+struct ngtcp2_crypto_frame_chain {
+  union {
+    ngtcp2_frame_chain frc;
+    struct {
+      ngtcp2_frame_chain *next;
+      ngtcp2_crypto fr;
+      ngtcp2_vec extra[NGTCP2_MAX_CRYPTO_DATACNT - 1];
+    };
+  };
+  ngtcp2_pq_entry pe;
+};
+
 /*
  * ngtcp2_frame_chain_new allocates ngtcp2_frame_chain object and
  * assigns its pointer to |*pfrc|.
@@ -111,6 +133,12 @@ int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
                                   ngtcp2_mem *mem);
 
 void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
+                                   ngtcp2_mem *mem);
+
+int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
+                                  ngtcp2_mem *mem);
+
+void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
                                    ngtcp2_mem *mem);
 
 /*

@@ -223,14 +223,17 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
     if (nfr->datacnt == 0) {
       frc->fr.fin = nfrc->fr.fin;
       ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
-    } else {
-      rv = ngtcp2_pq_push(&strm->streamfrq, &nfrc->pe);
-      if (rv != 0) {
-        ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
-        ngtcp2_stream_frame_chain_del(frc, strm->mem);
-        return rv;
-      }
+      continue;
     }
+
+    rv = ngtcp2_pq_push(&strm->streamfrq, &nfrc->pe);
+    if (rv != 0) {
+      ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
+      ngtcp2_stream_frame_chain_del(frc, strm->mem);
+      return rv;
+    }
+
+    break;
   }
 
   *pfrc = frc;

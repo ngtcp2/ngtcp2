@@ -219,6 +219,7 @@ typedef struct {
   uint64_t crypto_rx_offset_base;
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
+  ngtcp2_pq cryptofrq;
   /* tx_ckm is a cryptographic key, and iv to encrypt outgoing
      packets. */
   ngtcp2_crypto_km *tx_ckm;
