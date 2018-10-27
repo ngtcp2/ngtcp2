@@ -406,7 +406,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       hs_crypto_ctx_{},
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      last_stream_id_(0),
+      last_stream_id_(UINT64_MAX),
       nstreams_done_(0),
       version_(0),
       tls_alert_(0),
@@ -1773,7 +1773,7 @@ int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
   int rv;
 
   if (config.interactive) {
-    if (last_stream_id_ != 0) {
+    if (last_stream_id_ != UINT64_MAX) {
       return 0;
     }
     if (start_interactive_input() != 0) {
