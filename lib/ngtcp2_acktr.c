@@ -124,7 +124,10 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
     it = ngtcp2_ksl_end(&acktr->ents);
     ngtcp2_ksl_it_prev(&it);
     delent = ngtcp2_ksl_it_get(&it);
-    ngtcp2_ksl_remove(&acktr->ents, NULL, (int64_t)delent->pkt_num);
+    rv = ngtcp2_ksl_remove(&acktr->ents, NULL, (int64_t)delent->pkt_num);
+    if (rv != 0) {
+      return rv;
+    }
     ngtcp2_acktr_entry_del(delent, acktr->mem);
   }
 
