@@ -97,29 +97,6 @@ void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
   ngtcp2_mem_free(mem, frc);
 }
 
-ngtcp2_frame_chain *ngtcp2_frame_chain_list_copy(ngtcp2_frame_chain *frc,
-                                                 ngtcp2_mem *mem) {
-  ngtcp2_frame_chain *nfrc = NULL, **pfrc = &nfrc;
-  int rv;
-
-  for (; frc; frc = frc->next) {
-    rv = ngtcp2_frame_chain_new(pfrc, mem);
-    if (rv != 0) {
-      *pfrc = NULL;
-      ngtcp2_frame_chain_del(nfrc, mem);
-      return NULL;
-    }
-
-    memcpy(&(*pfrc)->fr, &frc->fr, sizeof((*pfrc)->fr));
-
-    pfrc = &(*pfrc)->next;
-  }
-
-  *pfrc = NULL;
-
-  return nfrc;
-}
-
 void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
   ngtcp2_frame_chain *next;
 

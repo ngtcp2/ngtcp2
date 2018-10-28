@@ -142,17 +142,6 @@ void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
                                    ngtcp2_mem *mem);
 
 /*
- * ngtcp2_frame_chain_list_copy creates a copy of |frc| following next
- * field.  It makes copy of each ngtcp2_frame_chain object pointed by
- * next field.
- *
- * This function returns the head of copied list if it succeeds, or
- * NULL.
- */
-ngtcp2_frame_chain *ngtcp2_frame_chain_list_copy(ngtcp2_frame_chain *frc,
-                                                 ngtcp2_mem *mem);
-
-/*
  * ngtcp2_frame_chain_list_del deletes |frc|, and all objects
  * connected by next field.
  */
