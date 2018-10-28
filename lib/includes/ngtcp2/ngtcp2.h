@@ -1261,6 +1261,12 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_client_handshake(
  * functions.
  *
  * This function returns 0 if it succeeds, or negative error codes.
+ * In general, if the error code which satisfies
+ * ngtcp2_erro_is_fatal(err) != 0 is returned, the application should
+ * just close the connection by calling
+ * `ngtcp2_conn_write_connection_close` or just delete the QUIC
+ * connection using `ngtcp2_conn_del`.  It is undefined to call the
+ * other library functions.
  */
 NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
                                    size_t pktlen, ngtcp2_tstamp ts);
@@ -1299,6 +1305,13 @@ NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
  *     the function cannot make new packet on this connection.
  * :enum:`NGTCP2_ERR_CRYPTO`
  *     TLS backend reported error
+ *
+ * In general, if the error code which satisfies
+ * ngtcp2_erro_is_fatal(err) != 0 is returned, the application should
+ * just close the connection by calling
+ * `ngtcp2_conn_write_connection_close` or just delete the QUIC
+ * connection using `ngtcp2_conn_del`.  It is undefined to call the
+ * other library functions.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts);
@@ -1662,8 +1675,6 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *     Early data was rejected by server.
  * :enum:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  *     Stream is blocked because of flow control.
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     Stream 0 data cannot be sent in 0-RTT packet.
  * :enum:`NGTCP2_ERR_CONGESTION`
  *     Could not write any data because of congestion control.
  */
@@ -1864,9 +1875,6 @@ NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
  * `ngtcp2_conn_submit_crypto_data` submits crypto stream data |data|
  * of length |datalen| to the library for transmission.  The
  * encryption level is automatically determined by the installed keys.
- *
- * TODO we might have an issue when submitting OEOD, but will see it
- * later.
  *
  * Application should keep the buffer pointed by |data| alive until
  * the data is acknowledged.  The acknowledgement is notified by
