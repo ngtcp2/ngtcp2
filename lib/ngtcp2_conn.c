@@ -2401,7 +2401,7 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   return 0;
 }
 
-static int conn_pkt_lost(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
+static int conn_handshake_pkt_lost(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   ngtcp2_frame_chain *frc = NULL;
   int rv;
 
@@ -6066,11 +6066,11 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                   "loss detection timer fired");
 
   if (!ngtcp2_rtb_empty(&in_pktns->rtb) || !ngtcp2_rtb_empty(&hs_pktns->rtb)) {
-    rv = conn_pkt_lost(conn, in_pktns);
+    rv = conn_handshake_pkt_lost(conn, in_pktns);
     if (rv != 0) {
       return rv;
     }
-    rv = conn_pkt_lost(conn, hs_pktns);
+    rv = conn_handshake_pkt_lost(conn, hs_pktns);
     if (rv != 0) {
       return rv;
     }
