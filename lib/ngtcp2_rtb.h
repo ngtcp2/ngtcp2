@@ -227,6 +227,12 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_add adds |ent| to |rtb|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
 int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
 
@@ -240,14 +246,18 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
  * |pkt_num| is a packet number which includes |fr|.  |hd| is a header
- * of packet which contains |fr|.  The frames included to lost packets
- * as a result of RTO will be prepended to |*pfrc|.
+ * of packet which contains |fr|.  The frames included in the lost
+ * packets as a result of verified RTO will be prepended to |*pfrc|.
+ * Even when this function fails, some frames might be prepended to
+ * |*pfrc| and the caller should handle them.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                         const ngtcp2_pkt_hd *hd, const ngtcp2_ack *fr,
@@ -256,7 +266,14 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 /*
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
  * frames contained them to |*pfrc|.  Even when this function fails,
- * some frames might be prepended to |*pfrc|.
+ * some frames might be prepended to |*pfrc| and the caller should
+ * handle them.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                                ngtcp2_rcvry_stat *rcs, uint64_t largest_ack,
@@ -264,7 +281,14 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
 /*
  * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends
- * all frames to |*pfrc|.
+ * all frames to |*pfrc|.  Even when this function fails, some frames
+ * might be prepended to |*pfrc| and the caller should handle them.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
 int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
 
