@@ -1913,19 +1913,10 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_process_early_rtb adds ngtcp2_rtb_entry pointed by
- * conn->early_rtb, which are 0-RTT packets, to conn->rtb.  If things
- * go wrong, this function deletes ngtcp2_rtb_entry pointed by
- * conn->early_rtb excluding the ones which are already added to
- * conn->rtb.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
+ * conn_process_early_rtb makes any pending 0RTT protected packet
+ * Short packet.
  */
-static int conn_process_early_rtb(ngtcp2_conn *conn) {
+static void conn_process_early_rtb(ngtcp2_conn *conn) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_ksl_it it;
@@ -1945,8 +1936,6 @@ static int conn_process_early_rtb(ngtcp2_conn *conn) {
     ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
     ent->hd.type = NGTCP2_PKT_SHORT;
   }
-
-  return 0;
 }
 
 /*
@@ -4693,10 +4682,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-    rv = conn_process_early_rtb(conn);
-    if (rv != 0) {
-      return (ssize_t)rv;
-    }
+    conn_process_early_rtb(conn);
 
     rv = conn_process_buffered_protected_pkt(conn, ts);
     if (rv != 0) {
