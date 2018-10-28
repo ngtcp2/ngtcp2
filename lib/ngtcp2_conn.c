@@ -4376,16 +4376,16 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
-  ssize_t rv;
+  ssize_t nread;
   ngtcp2_pkt_chain *pc = conn->buffed_rx_ppkts, *next;
 
   for (; pc; pc = pc->next) {
-    rv = conn_recv_pkt(conn, pc->pkt, pc->pktlen, ts);
-    if (rv < 0) {
-      if (rv == NGTCP2_ERR_DISCARD_PKT) {
+    nread = conn_recv_pkt(conn, pc->pkt, pc->pktlen, ts);
+    if (nread < 0) {
+      if (nread == NGTCP2_ERR_DISCARD_PKT) {
         continue;
       }
-      return (int)rv;
+      return (int)nread;
     }
   }
 
@@ -4402,16 +4402,16 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
 
 static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
-  ssize_t rv;
+  ssize_t nread;
   ngtcp2_pkt_chain *pc = conn->buffed_rx_hs_pkts, *next;
 
   for (; pc; pc = pc->next) {
-    rv = conn_recv_handshake_pkt(conn, pc->pkt, pc->pktlen, ts);
-    if (rv < 0) {
-      if (rv == NGTCP2_ERR_DISCARD_PKT) {
+    nread = conn_recv_handshake_pkt(conn, pc->pkt, pc->pktlen, ts);
+    if (nread < 0) {
+      if (nread == NGTCP2_ERR_DISCARD_PKT) {
         continue;
       }
-      return (int)rv;
+      return (int)nread;
     }
   }
 
