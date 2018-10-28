@@ -1049,6 +1049,9 @@ typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint64_t stream_id,
  * greater than 0.  One exception is that when a packet which includes
  * STREAM frame which has fin flag set, and 0 length data, this
  * callback is invoked with 0 passed as |datalen|.
+ *
+ * If a stream is closed prematurely and stream data is still
+ * in-flight, this callback function is not called for those data.
  */
 typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
                                                uint64_t stream_id,
