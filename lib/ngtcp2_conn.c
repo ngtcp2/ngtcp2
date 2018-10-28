@@ -4199,6 +4199,9 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
     }
+
+    assert(NGTCP2_ERR_TLS_DECRYPT == nwrite);
+
     if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "could not decrypt packet payload");
