@@ -141,6 +141,8 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
  *
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Same packet number has already been included in |acktr|.
+ * NGTCP2_ERR_NOMEM
+ *     OUt of memory.
  */
 int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
                      int active_ack, ngtcp2_tstamp ts);
@@ -187,6 +189,8 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
                           ngtcp2_conn *conn, ngtcp2_tstamp ts);
