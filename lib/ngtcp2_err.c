@@ -34,8 +34,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_UNKNOWN_PKT_TYPE";
   case NGTCP2_ERR_NOBUF:
     return "ERR_NOBUF";
-  case NGTCP2_ERR_BAD_PKT_HASH:
-    return "ERR_BAD_PKT_HASH";
   case NGTCP2_ERR_PROTO:
     return "ERR_PROTO";
   case NGTCP2_ERR_INVALID_STATE:
@@ -50,8 +48,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_STREAM_DATA_BLOCKED";
   case NGTCP2_ERR_FLOW_CONTROL:
     return "ERR_FLOW_CONTROL";
-  case NGTCP2_ERR_PKT_TIMEOUT:
-    return "ERR_PKT_TIMEOUT";
   case NGTCP2_ERR_STREAM_ID:
     return "ERR_STREAM_ID";
   case NGTCP2_ERR_FINAL_OFFSET:
