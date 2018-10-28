@@ -700,6 +700,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
   ngtcp2_crypto *fr, *nfr;
   ngtcp2_crypto_frame_chain *frc, *nfrc;
   int rv;
+  ssize_t nsplit;
   size_t nmerged;
   size_t datalen;
 
@@ -715,13 +716,39 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
 
   fr = &frc->fr;
 
-  if (fr->datacnt == NGTCP2_MAX_CRYPTO_DATACNT) {
-    *pfrc = frc;
-    return 0;
-  }
-
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
   if (datalen > left) {
+    if (!ngtcp2_pq_empty(&pktns->cryptofrq)) {
+      nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+                              ngtcp2_crypto_frame_chain, pe);
+      nfr = &nfrc->fr;
+
+      if (fr->offset + datalen == nfr->offset) {
+        nsplit =
+            ngtcp2_vec_split(fr->data, &fr->datacnt, nfr->data, &nfr->datacnt,
+                             left, NGTCP2_MAX_CRYPTO_DATACNT);
+        assert(nsplit);
+
+        if (nsplit > 0) {
+          ngtcp2_pq_pop(&pktns->cryptofrq);
+          nfr->ordered_offset -= (size_t)nsplit;
+          nfr->offset -= (size_t)nsplit;
+
+          rv = ngtcp2_pq_push(&pktns->cryptofrq, &nfrc->pe);
+          if (rv != 0) {
+            assert(ngtcp2_err_is_fatal(rv));
+            ngtcp2_crypto_frame_chain_del(nfrc, conn->mem);
+            ngtcp2_crypto_frame_chain_del(frc, conn->mem);
+            return rv;
+          }
+
+          *pfrc = frc;
+
+          return 0;
+        }
+      }
+    }
+
     rv = ngtcp2_crypto_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -735,7 +762,8 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
     nfr->offset = fr->offset + left;
     nfr->datacnt = 0;
 
-    ngtcp2_vec_split(fr->data, &fr->datacnt, nfr->data, &nfr->datacnt, left);
+    ngtcp2_vec_split(fr->data, &fr->datacnt, nfr->data, &nfr->datacnt, left,
+                     NGTCP2_MAX_CRYPTO_DATACNT);
 
     rv = ngtcp2_pq_push(&pktns->cryptofrq, &nfrc->pe);
     if (rv != 0) {
@@ -747,6 +775,11 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
 
     *pfrc = frc;
 
+    return 0;
+  }
+
+  if (fr->datacnt == NGTCP2_MAX_CRYPTO_DATACNT) {
+    *pfrc = frc;
     return 0;
   }
 

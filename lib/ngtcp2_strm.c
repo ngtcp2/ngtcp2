@@ -134,6 +134,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
   ngtcp2_stream *fr, *nfr;
   ngtcp2_stream_frame_chain *frc, *nfrc;
   int rv;
+  ssize_t nsplit;
   size_t nmerged;
   size_t datalen;
 
@@ -149,13 +150,39 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
 
   fr = &frc->fr;
 
-  if (fr->datacnt == NGTCP2_MAX_STREAM_DATACNT) {
-    *pfrc = frc;
-    return 0;
-  }
-
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
   if (datalen > left) {
+    if (!ngtcp2_pq_empty(&strm->streamfrq)) {
+      nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+                              ngtcp2_stream_frame_chain, pe);
+      nfr = &nfrc->fr;
+
+      if (fr->offset + datalen == nfr->offset) {
+        nsplit =
+            ngtcp2_vec_split(fr->data, &fr->datacnt, nfr->data, &nfr->datacnt,
+                             left, NGTCP2_MAX_STREAM_DATACNT);
+        assert(nsplit);
+
+        if (nsplit > 0) {
+          ngtcp2_pq_pop(&strm->streamfrq);
+          nfr->offset -= (size_t)nsplit;
+          assert(!fr->fin);
+
+          rv = ngtcp2_pq_push(&strm->streamfrq, &nfrc->pe);
+          if (rv != 0) {
+            assert(ngtcp2_err_is_fatal(rv));
+            ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
+            ngtcp2_stream_frame_chain_del(frc, strm->mem);
+            return rv;
+          }
+
+          *pfrc = frc;
+
+          return 0;
+        }
+      }
+    }
+
     rv = ngtcp2_stream_frame_chain_new(&nfrc, strm->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -171,7 +198,8 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
     nfr->offset = fr->offset + left;
     nfr->datacnt = 0;
 
-    ngtcp2_vec_split(fr->data, &fr->datacnt, nfr->data, &nfr->datacnt, left);
+    ngtcp2_vec_split(fr->data, &fr->datacnt, nfr->data, &nfr->datacnt, left,
+                     NGTCP2_MAX_STREAM_DATACNT);
 
     fr->fin = 0;
 
@@ -185,6 +213,13 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
 
     *pfrc = frc;
 
+    return 0;
+  }
+
+  /* TODO We can merge data even if fr->datacnt ==
+     NGTCP2_MAX_STREAM_DATACNT */
+  if (fr->datacnt == NGTCP2_MAX_STREAM_DATACNT) {
+    *pfrc = frc;
     return 0;
   }
 

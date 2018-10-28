@@ -33,6 +33,7 @@ void test_ngtcp2_vec_split(void) {
   uint8_t nulldata[1024];
   ngtcp2_vec a[16], b[16];
   size_t acnt, bcnt;
+  ssize_t nsplit;
 
   /* No split occurs */
   acnt = 1;
@@ -43,8 +44,9 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  ngtcp2_vec_split(a, &acnt, b, &bcnt, 135);
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 135, 16);
 
+  CU_ASSERT(0 == nsplit);
   CU_ASSERT(1 == acnt);
   CU_ASSERT(135 == a[0].len);
   CU_ASSERT(nulldata == a[0].base);
@@ -61,8 +63,9 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  ngtcp2_vec_split(a, &acnt, b, &bcnt, 87);
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 87, 16);
 
+  CU_ASSERT(48 == nsplit);
   CU_ASSERT(1 == acnt);
   CU_ASSERT(87 == a[0].len);
   CU_ASSERT(nulldata == a[0].base);
@@ -81,8 +84,9 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  ngtcp2_vec_split(a, &acnt, b, &bcnt, 33);
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 16);
 
+  CU_ASSERT(89 == nsplit);
   CU_ASSERT(1 == acnt);
   CU_ASSERT(33 == a[0].len);
   CU_ASSERT(nulldata == a[0].base);
@@ -103,8 +107,9 @@ void test_ngtcp2_vec_split(void) {
   b[0].len = 0;
   b[0].base = NULL;
 
-  ngtcp2_vec_split(a, &acnt, b, &bcnt, 34);
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 34, 16);
 
+  CU_ASSERT(88 + 211 == nsplit);
   CU_ASSERT(2 == acnt);
   CU_ASSERT(33 == a[0].len);
   CU_ASSERT(nulldata == a[0].base);
@@ -115,6 +120,150 @@ void test_ngtcp2_vec_split(void) {
   CU_ASSERT(nulldata + 34 == b[0].base);
   CU_ASSERT(211 == b[1].len);
   CU_ASSERT(nulldata + 34 + 88 == b[1].base);
+
+  /* Multiple a vector; split at ngtcp2_vec boundary; continuous
+     data */
+  acnt = 2;
+  a[0].len = 33;
+  a[0].base = nulldata;
+  a[1].len = 89;
+  a[1].base = nulldata + 33;
+
+  bcnt = 2;
+  b[0].len = 17;
+  b[0].base = nulldata + 33 + 89;
+  b[1].len = 3;
+  b[1].base = nulldata + 33 + 89 + 17;
+
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 16);
+
+  CU_ASSERT(89 == nsplit);
+  CU_ASSERT(1 == acnt);
+  CU_ASSERT(33 == a[0].len);
+  CU_ASSERT(nulldata == a[0].base);
+  CU_ASSERT(2 == bcnt);
+  CU_ASSERT(89 + 17 == b[0].len);
+  CU_ASSERT(nulldata + 33 == b[0].base);
+  CU_ASSERT(3 == b[1].len);
+  CU_ASSERT(nulldata + 33 + 89 + 17 == b[1].base);
+
+  /* Multiple a vector; not split at ngtcp2_vec boundary; continuous
+     data; nmove == 0 */
+  acnt = 2;
+  a[0].len = 33;
+  a[0].base = nulldata;
+  a[1].len = 89;
+  a[1].base = nulldata + 33;
+
+  bcnt = 2;
+  b[0].len = 17;
+  b[0].base = nulldata + 33 + 89;
+  b[1].len = 3;
+  b[1].base = nulldata + 33 + 89 + 17;
+
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 34, 16);
+
+  CU_ASSERT(88 == nsplit);
+  CU_ASSERT(2 == acnt);
+  CU_ASSERT(33 == a[0].len);
+  CU_ASSERT(nulldata == a[0].base);
+  CU_ASSERT(1 == a[1].len);
+  CU_ASSERT(nulldata + 33 == a[1].base);
+  CU_ASSERT(2 == bcnt);
+  CU_ASSERT(88 + 17 == b[0].len);
+  CU_ASSERT(nulldata + 34 == b[0].base);
+  CU_ASSERT(3 == b[1].len);
+  CU_ASSERT(nulldata + 33 + 89 + 17 == b[1].base);
+
+  /* Multiple a vector; not split at ngtcp2_vec boundary; continuous
+     data */
+  acnt = 3;
+  a[0].len = 33;
+  a[0].base = nulldata;
+  a[1].len = 89;
+  a[1].base = nulldata + 33;
+  a[2].len = 211;
+  a[2].base = nulldata + 33 + 89;
+
+  bcnt = 2;
+  b[0].len = 17;
+  b[0].base = nulldata + 33 + 89 + 211;
+  b[1].len = 3;
+  b[1].base = nulldata + 33 + 89 + 211 + 17;
+
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 34, 16);
+
+  CU_ASSERT(88 + 211 == nsplit);
+  CU_ASSERT(2 == acnt);
+  CU_ASSERT(33 == a[0].len);
+  CU_ASSERT(nulldata == a[0].base);
+  CU_ASSERT(1 == a[1].len);
+  CU_ASSERT(nulldata + 33 == a[1].base);
+  CU_ASSERT(3 == bcnt);
+  CU_ASSERT(88 == b[0].len);
+  CU_ASSERT(nulldata + 34 == b[0].base);
+  CU_ASSERT(211 + 17 == b[1].len);
+  CU_ASSERT(nulldata + 34 + 88 == b[1].base);
+  CU_ASSERT(3 == b[2].len);
+  CU_ASSERT(nulldata + 33 + 89 + 211 + 17 == b[2].base);
+
+  /* Multiple a vector; split at ngtcp2_vec boundary; not continuous
+     data */
+  acnt = 2;
+  a[0].len = 33;
+  a[0].base = nulldata;
+  a[1].len = 89;
+  a[1].base = nulldata + 33;
+
+  bcnt = 2;
+  b[0].len = 17;
+  b[0].base = nulldata + 256;
+  b[1].len = 3;
+  b[1].base = nulldata + 256 + 17;
+
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 16);
+
+  CU_ASSERT(89 == nsplit);
+  CU_ASSERT(1 == acnt);
+  CU_ASSERT(33 == a[0].len);
+  CU_ASSERT(nulldata == a[0].base);
+  CU_ASSERT(3 == bcnt);
+  CU_ASSERT(89 == b[0].len);
+  CU_ASSERT(nulldata + 33 == b[0].base);
+  CU_ASSERT(17 == b[1].len);
+  CU_ASSERT(nulldata + 256 == b[1].base);
+  CU_ASSERT(3 == b[2].len);
+  CU_ASSERT(nulldata + 256 + 17 == b[2].base);
+
+  /* maxcnt exceeded; continuous */
+  acnt = 2;
+  a[0].len = 33;
+  a[0].base = nulldata;
+  a[1].len = 89;
+  a[1].base = nulldata + 33;
+
+  bcnt = 1;
+  b[0].len = 17;
+  b[0].base = nulldata + 33 + 89;
+
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 32, 1);
+
+  CU_ASSERT(-1 == nsplit);
+
+  /* maxcnt exceeded; not continuous */
+  acnt = 2;
+  a[0].len = 33;
+  a[0].base = nulldata;
+  a[1].len = 89;
+  a[1].base = nulldata + 33;
+
+  bcnt = 1;
+  b[0].len = 17;
+  b[0].base = nulldata + 256;
+
+  nsplit = ngtcp2_vec_split(a, &acnt, b, &bcnt, 33, 1);
+
+  CU_ASSERT(-1 == nsplit);
 }
 
 void test_ngtcp2_vec_merge(void) {

@@ -38,34 +38,55 @@ size_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n) {
   return res;
 }
 
-void ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
-                      size_t *pdstcnt, size_t left) {
+ssize_t ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
+                         size_t *pdstcnt, size_t left, size_t maxcnt) {
   size_t i;
   size_t srccnt = *psrccnt;
-
-  *pdstcnt = 0;
+  size_t nmove;
+  size_t extra = 0;
 
   for (i = 0; i < srccnt; ++i) {
     if (left >= src[i].len) {
       left -= src[i].len;
       continue;
     }
+
+    if (*pdstcnt && src[srccnt - 1].base + src[srccnt - 1].len == dst[0].base) {
+      if (*pdstcnt + srccnt - i - 1 > maxcnt) {
+        return -1;
+      }
+
+      dst[0].len += src[srccnt - 1].len;
+      dst[0].base = src[srccnt - 1].base;
+      extra = src[srccnt - 1].len;
+      --srccnt;
+    } else if (*pdstcnt + srccnt - i > maxcnt) {
+      return -1;
+    }
+
     if (left == 0) {
       *psrccnt = i;
-      *pdstcnt = srccnt - i;
-      memcpy(dst, src + i, sizeof(ngtcp2_vec) * (*pdstcnt));
-      return;
+    } else {
+      *psrccnt = i + 1;
     }
-    dst[0].len = src[i].len - left;
-    dst[0].base = src[i].base + left;
-    src[i].len = left;
-    ++i;
-    *psrccnt = i;
-    *pdstcnt = 1 + srccnt - i;
-    memcpy(dst + 1, src + i, sizeof(ngtcp2_vec) * (*pdstcnt - 1));
 
-    return;
+    nmove = srccnt - i;
+    memmove(dst + nmove, dst, sizeof(ngtcp2_vec) * (*pdstcnt));
+    *pdstcnt += nmove;
+    memcpy(dst, src + i, sizeof(ngtcp2_vec) * nmove);
+
+    dst[0].len -= left;
+    dst[0].base += left;
+    src[i].len = left;
+
+    if (nmove == 0) {
+      extra -= left;
+    }
+
+    return (ssize_t)(ngtcp2_vec_len(dst, nmove) + extra);
   }
+
+  return 0;
 }
 
 size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,

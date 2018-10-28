@@ -183,6 +183,42 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_stream_frame_chain_del(frc, mem);
   ngtcp2_strm_free(&strm);
 
+  /* split; continuous */
+  setup_strm_streamfrq_fixture(&strm, mem);
+
+  frc = NULL;
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 12);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == frc->fr.offset);
+  CU_ASSERT(2 == frc->fr.datacnt);
+
+  data = frc->fr.data;
+
+  CU_ASSERT(11 == data[0].len);
+  CU_ASSERT(nulldata == data[0].base);
+  CU_ASSERT(1 == data[1].len);
+  CU_ASSERT(nulldata + 11 == data[1].base);
+
+  ngtcp2_stream_frame_chain_del(frc, mem);
+
+  frc = NULL;
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(12 == frc->fr.offset);
+  CU_ASSERT(4 == frc->fr.datacnt);
+
+  data = frc->fr.data;
+
+  CU_ASSERT(35 == data[0].len);
+  CU_ASSERT(nulldata + 12 == data[0].base);
+
+  data = frc->fr.data;
+
+  ngtcp2_stream_frame_chain_del(frc, mem);
+  ngtcp2_strm_free(&strm);
+
   /* offset gap */
   ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
 
