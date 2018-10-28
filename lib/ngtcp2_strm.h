@@ -147,6 +147,12 @@ void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags);
 /*
  * ngtcp2_strm_streamfrq_push pushes |frc| to streamfrq for
  * retransmission.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
 int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm,
                                ngtcp2_stream_frame_chain *frc);
@@ -157,6 +163,12 @@ int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm,
  * several ngtcp2_stream_frame_chain objects so that the returned
  * ngtcp2_stream_frame_chain has at most |left| data length.  If there
  * is no frames to send, this function returns 0 and |*pfrc| is NULL.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
  */
 int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
                               ngtcp2_stream_frame_chain **pfrc, size_t left);

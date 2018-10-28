@@ -31,11 +31,32 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+/*
+ * ngtcp2_vec_len returns the sum of length in |vec| of |n| elements.
+ */
 size_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n);
 
+/*
+ * ngtcp2_vec_split splits |src| to |dst| so that the sum of the
+ * length in |src| does not exceed |left| bytes.  |dst| must be 0
+ * length vector and the caller should set |*pdstcnt| to 0.  The
+ * caller must set |*psrccnt| to the number of elements of |src|.  The
+ * split does not necessarily occur at the boundary of ngtcp2_vec
+ * object.  After split has done, this function updates |*psrccnt| and
+ * |*pdstcnt|.
+ */
 void ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
                       size_t *pdstcnt, size_t left);
 
+/*
+ * ngtcp2_vec_merge merges |src| into |dst| by moving at most |left|
+ * bytes from |src|.  The |maxcnt| is the maximum number of elements
+ * which |dst| array can contain.  The caller must set |*pdstcnt| to
+ * the number of elements of |dst|.  Similarly, the caller must set
+ * |*psrccnt| to the number of elements of |src|.  After merge has
+ * done, this function updates |*psrccnt| and |*pdstcnt|.  This
+ * function returns the number of bytes moved from |src| to |dst|.
+ */
 size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
                         size_t *psrccnt, size_t left, size_t maxcnt);
 
