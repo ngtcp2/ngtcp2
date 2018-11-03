@@ -289,6 +289,11 @@ typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
  */
 typedef uint64_t ngtcp2_tstamp;
 
+/*
+ * ngtcp2_duration is a period of time in nanosecond resolution.
+ */
+typedef uint64_t ngtcp2_duration;
+
 /* NGTCP2_MAX_CIDLEN is the maximum length of Connection ID. */
 #define NGTCP2_MAX_CIDLEN 18
 /* NGTCP2_MIN_CIDLEN is the minimum length of Connection ID. */
@@ -392,7 +397,7 @@ typedef struct {
    * ack_delay_unscaled is an ack_delay multiplied by
    * 2**ack_delay_component * 1000.  The resolution is nanoseconds.
    */
-  uint64_t ack_delay_unscaled;
+  ngtcp2_duration ack_delay_unscaled;
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[1];
@@ -689,19 +694,19 @@ typedef struct {
  * Everything is nanoseconds resolution.
  */
 typedef struct {
-  uint64_t latest_rtt;
-  uint64_t min_rtt;
-  uint64_t max_ack_delay;
+  ngtcp2_duration latest_rtt;
+  ngtcp2_duration min_rtt;
+  ngtcp2_duration max_ack_delay;
   double smoothed_rtt;
   double rttvar;
-  uint64_t loss_time;
+  ngtcp2_tstamp loss_time;
   uint64_t reordering_threshold;
   size_t tlp_count;
   size_t rto_count;
   size_t handshake_count;
   /* probe_pkt_left is the number of probe packet to sent */
   size_t probe_pkt_left;
-  uint64_t loss_detection_timer;
+  ngtcp2_tstamp loss_detection_timer;
   uint64_t largest_sent_before_rto;
   /* last_tx_pkt_ts corresponds to
      time_of_last_sent_retransmittable_packet. */
