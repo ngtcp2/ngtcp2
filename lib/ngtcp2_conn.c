@@ -194,10 +194,19 @@ static int cycle_less(const ngtcp2_pq_entry *lhs, const ngtcp2_pq_entry *rhs) {
 }
 
 static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
+  ngtcp2_crypto_frame_chain *frc;
+
   ngtcp2_frame_chain_list_del(pktns->frq, mem);
 
   ngtcp2_crypto_km_del(pktns->rx_ckm, mem);
   ngtcp2_crypto_km_del(pktns->tx_ckm, mem);
+
+  for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
+    frc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+                           ngtcp2_crypto_frame_chain, pe);
+    ngtcp2_pq_pop(&pktns->cryptofrq);
+    ngtcp2_crypto_frame_chain_del(frc, mem);
+  }
 
   ngtcp2_pq_free(&pktns->cryptofrq);
   ngtcp2_rtb_free(&pktns->rtb);
