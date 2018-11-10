@@ -157,3 +157,25 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
 
   return orig_left - left;
 }
+
+size_t ngtcp2_vec_copy(ngtcp2_vec *dst, size_t dstcnt, const ngtcp2_vec *src,
+                       size_t srccnt, size_t left) {
+  size_t i, j;
+
+  for (i = 0, j = 0; left > 0 && i < srccnt && j < dstcnt;) {
+    if (src[i].len == 0) {
+      ++i;
+      continue;
+    }
+    dst[j] = src[i];
+    if (dst[j].len > left) {
+      dst[j].len = left;
+      return j + 1;
+    }
+    left -= dst[j].len;
+    ++i;
+    ++j;
+  }
+
+  return j;
+}

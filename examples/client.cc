@@ -1339,9 +1339,10 @@ int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
   ssize_t ndatalen;
 
   for (;;) {
-    auto n = ngtcp2_conn_client_handshake(
-        conn_, sendbuf_.wpos(), max_pktlen_, &ndatalen, nullptr, 0, stream_id,
-        fin, data.rpos(), data.size(), util::timestamp(loop_));
+    ngtcp2_vec datav{const_cast<uint8_t *>(data.rpos()), data.size()};
+    auto n = ngtcp2_conn_client_handshake(conn_, sendbuf_.wpos(), max_pktlen_,
+                                          &ndatalen, nullptr, 0, stream_id, fin,
+                                          &datav, 1, util::timestamp(loop_));
     if (n < 0) {
       switch (n) {
       case NGTCP2_ERR_EARLY_DATA_REJECTED:

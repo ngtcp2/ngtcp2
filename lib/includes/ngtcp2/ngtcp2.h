@@ -1245,15 +1245,16 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
  * Protected packet into single UDP packet, thus it could be more
  * efficient than `ngtcp2_conn_handshake`.
  *
- * |stream_id|, |fin|, |data|, and |datalen| are stream identifier to
- * which 0-RTT data is sent, whether it is a last data chunk in this
- * stream, a pointer to 0-RTT data, and its length respectively.
- * Passing negative integer to |stream_id| disables 0-RTT data.
+ * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
+ * to which 0-RTT data is sent, whether it is a last data chunk in
+ * this stream, a vector of 0-RTT data, and its number of elements
+ * respectively.  If there is no 0RTT data to send, pass negative
+ * integer to |stream_id|.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_client_handshake(
     ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,
     const uint8_t *pkt, size_t pktlen, uint64_t stream_id, uint8_t fin,
-    const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
+    const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -1638,7 +1639,19 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_write_stream` writes a packet containing stream data
+ * `ngtcp2_conn_write_stream` is just like
+ * `ngtcp2_conn_writev_stream`.  The only difference is that it
+ * conveniently accepts a single buffer.
+ */
+NGTCP2_EXTERN ssize_t
+ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                         ssize_t *pdatalen, uint64_t stream_id, uint8_t fin,
+                         const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_writev_stream` writes a packet containing stream data
  * of stream denoted by |stream_id|.  The buffer of the packet is
  * pointed by |dest| of length |destlen|.
  *
@@ -1683,10 +1696,10 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_CONGESTION`
  *     Could not write any data because of congestion control.
  */
-NGTCP2_EXTERN ssize_t
-ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                         ssize_t *pdatalen, uint64_t stream_id, uint8_t fin,
-                         const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,
+    uint64_t stream_id, uint8_t fin, const ngtcp2_vec *datav, size_t datavcnt,
+    ngtcp2_tstamp ts);
 
 /**
  * @function

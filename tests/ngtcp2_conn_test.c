@@ -120,6 +120,12 @@ static uint8_t null_iv[16];
 static uint8_t null_pn[16];
 static uint8_t null_data[4096];
 
+static ngtcp2_vec *null_datav(ngtcp2_vec *datav, size_t len) {
+  datav->base = null_data;
+  datav->len = len;
+  return datav;
+}
+
 typedef struct {
   uint64_t pkt_num;
   /* stream_data is intended to store the arguments passed in
@@ -1769,6 +1775,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   uint64_t stream_id;
   ssize_t datalen;
   int rv;
+  ngtcp2_vec datav;
 
   dcid_init(&dcid);
   setup_handshake_client(&conn);
@@ -1835,13 +1842,15 @@ void test_ngtcp2_conn_recv_retry(void) {
   CU_ASSERT(0 == rv);
 
   spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
-                                         0, stream_id, 0, null_data, 219, ++t);
+                                         0, stream_id, 0,
+                                         null_datav(&datav, 219), 1, ++t);
 
   CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(219 == datalen);
 
-  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
-                                     stream_id, 0, null_data, 119, ++t);
+  spktlen =
+      ngtcp2_conn_writev_stream(conn, buf, sizeof(buf), &datalen, stream_id, 0,
+                                null_datav(&datav, 119), 1, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(119 == datalen);
@@ -2072,6 +2081,7 @@ void test_ngtcp2_conn_client_handshake(void) {
   uint64_t stream_id;
   int rv;
   ssize_t datalen;
+  ngtcp2_vec datav;
 
   /* Verify that Handshake packet and 0-RTT Protected packet are
      coalesced into one UDP packet. */
@@ -2082,7 +2092,8 @@ void test_ngtcp2_conn_client_handshake(void) {
   CU_ASSERT(0 == rv);
 
   spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
-                                         0, stream_id, 0, null_data, 199, ++t);
+                                         0, stream_id, 0,
+                                         null_datav(&datav, 199), 1, ++t);
 
   CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(199 == datalen);
@@ -2097,7 +2108,7 @@ void test_ngtcp2_conn_client_handshake(void) {
   CU_ASSERT(0 == rv);
 
   spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
-                                         0, stream_id, 1, null_data, 0, +t);
+                                         0, stream_id, 1, NULL, 0, +t);
 
   CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(0 == datalen);
@@ -2115,7 +2126,7 @@ void test_ngtcp2_conn_client_handshake(void) {
       conn, buf,
       NGTCP2_MIN_LONG_HEADERLEN + 1 + conn->dcid.datalen + conn->scid.datalen +
           300,
-      &datalen, NULL, 0, stream_id, 1, null_data, 0, +t);
+      &datalen, NULL, 0, stream_id, 1, NULL, 0, +t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(-1 == datalen);
