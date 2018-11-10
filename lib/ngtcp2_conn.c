@@ -3300,9 +3300,21 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
-  if (conn->server && hd.type == NGTCP2_PKT_INITIAL &&
-      ngtcp2_rob_first_gap_offset(&crypto->rob) == 0) {
-    return NGTCP2_ERR_PROTO;
+  if (conn->server) {
+    switch (hd.type) {
+    case NGTCP2_PKT_INITIAL:
+      if (ngtcp2_rob_first_gap_offset(&crypto->rob) == 0) {
+        return NGTCP2_ERR_PROTO;
+      }
+      break;
+    case NGTCP2_PKT_HANDSHAKE:
+      if (conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
+        /* Successful processing of Handshake packet from client verifies
+           source address. */
+        conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
+      }
+      break;
+    }
   }
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
@@ -3330,6 +3342,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const uint8_t *pkt,
                                     size_t pktlen, ngtcp2_tstamp ts) {
   ssize_t nread;
+  size_t origlen = pktlen;
 
   while (pktlen) {
     nread = conn_recv_handshake_pkt(conn, pkt, pktlen, ts);
@@ -3354,6 +3367,8 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const uint8_t *pkt,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "read packet %zd left %zu", nread, pktlen);
   }
+
+  conn->hs_recved += origlen;
 
   return 0;
 }
@@ -4601,6 +4616,20 @@ static int conn_check_pkt_num_exhausted(ngtcp2_conn *conn) {
          conn->pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM;
 }
 
+/*
+ * conn_server_hs_tx_left returns the maximum number of bytes that
+ * server is allowed to send during handshake.
+ */
+static size_t conn_server_hs_tx_left(ngtcp2_conn *conn) {
+  if (conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED) {
+    return SIZE_MAX;
+  }
+  /* From QUIC spec: Prior to validating the client address, servers
+     MUST NOT send more than three times as many bytes as the number
+     of bytes they have received. */
+  return conn->hs_recved * 3 - conn->hs_sent;
+}
+
 static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               const uint8_t *pkt, size_t pktlen,
                               int require_padding, ngtcp2_tstamp ts) {
@@ -4748,18 +4777,25 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
+      origlen = ngtcp2_min(origlen, conn_server_hs_tx_left(conn));
       /* TODO This should be conn_write_initial_ack_pkt */
       nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
       if (nwrite == 0) {
         return NGTCP2_ERR_CONGESTION;
       }
+      if (nwrite > 0) {
+        conn->hs_sent += (size_t)nwrite;
+      }
       return nwrite;
     }
 
+    destlen = ngtcp2_min(destlen, conn_server_hs_tx_left(conn));
     nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
     if (nwrite < 0) {
       return (ssize_t)rv;
     }
+
+    conn->hs_sent += (size_t)nwrite;
 
     conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
 
@@ -4779,13 +4815,18 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
       if (cwnd < NGTCP2_MIN_PKTLEN) {
+        origlen = ngtcp2_min(origlen, conn_server_hs_tx_left(conn));
         nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
         if (nwrite == 0) {
           return NGTCP2_ERR_CONGESTION;
         }
+        if (nwrite > 0) {
+          conn->hs_sent += (size_t)nwrite;
+        }
         return nwrite;
       }
 
+      destlen = ngtcp2_min(destlen, conn_server_hs_tx_left(conn));
       nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
       if (nwrite < 0) {
         return nwrite;
@@ -4805,6 +4846,7 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       } else {
         res += nwrite;
       }
+      conn->hs_sent += (size_t)res;
       return res;
     }
 
@@ -4826,9 +4868,6 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return (ssize_t)rv;
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
-    /* The receipt of the final cryptographic message from the client
-       verifies source address. */
-    conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
 
     rv = conn_process_buffered_protected_pkt(conn, ts);
     if (rv != 0) {

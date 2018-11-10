@@ -326,6 +326,14 @@ struct ngtcp2_conn {
   /* rx_bw is receiver side bandwidth. */
   double rx_bw;
   size_t probe_pkt_left;
+  /* hs_recved is the number of bytes received from client before its
+     address is validated.  This field is only used by server to
+     ensure "3 times received data" rule. */
+  size_t hs_recved;
+  /* hs_sent is the number of bytes sent from server during handshake.
+     This field is only used by server to ensure "3 times received
+     data" rule. */
+  size_t hs_sent;
   /* nretry is the number of Retry packet this client has received. */
   size_t nretry;
   ngtcp2_mem *mem;
