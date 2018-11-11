@@ -189,9 +189,13 @@ static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   } else {
     ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts);
 
-    /* TODO Reconsider the order of pfrc */
-    frame_chain_insert(pfrc, ent->frc);
-    ent->frc = NULL;
+    /* PADDING only (or PADDING + ACK ) packets will have NULL
+       ent->frc. */
+    if (ent->frc) {
+      /* TODO Reconsider the order of pfrc */
+      frame_chain_insert(pfrc, ent->frc);
+      ent->frc = NULL;
+    }
   }
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 }

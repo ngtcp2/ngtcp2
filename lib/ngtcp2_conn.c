@@ -835,6 +835,17 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
 }
 
 /*
+ * conn_handshake_pkt_acked returns nonzero if at least one Handshake
+ * packet is acknowledged.
+ */
+static int conn_handshake_pkt_acked(ngtcp2_conn *conn) {
+  /* TODO We might send Handshake packet with ACK frame only, but
+     typically we send CRYPTO frame with it. */
+  return conn->in_pktns.crypto_tx_offset <
+         ngtcp2_gaptr_first_gap_offset(&conn->crypto.acked_tx_offset);
+}
+
+/*
  * conn_write_handshake_pkt writes handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.  |type| specifies long
  * packet type.
@@ -1031,7 +1042,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   /* If we cannot write another packet, then we need to add padding to
      Initial here. */
-  if (!conn->server && !(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
+  if (!conn->server && type == NGTCP2_PKT_INITIAL &&
+      !conn_handshake_pkt_acked(conn)) {
     min_payloadlen = ngtcp2_max(conn_retry_early_payloadlen(conn), 128);
 
     if (!conn->early_ckm || require_padding ||
@@ -1094,14 +1106,34 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
  *     Out of memory.
  */
 static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, ngtcp2_pktns *pktns,
+                                            size_t destlen, uint8_t type,
+                                            int require_padding,
                                             ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
-  ngtcp2_frame *ackfr;
+  ngtcp2_frame *ackfr, lfr;
   ngtcp2_crypto_ctx ctx;
-  uint8_t type;
+  ngtcp2_pktns *pktns;
+  ngtcp2_rtb_entry *rtbent;
+  ssize_t spktlen;
+
+  switch (type) {
+  case NGTCP2_PKT_INITIAL:
+    pktns = &conn->in_pktns;
+    ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+    ctx.encrypt = conn->callbacks.in_encrypt;
+    ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
+    break;
+  case NGTCP2_PKT_HANDSHAKE:
+    pktns = &conn->hs_pktns;
+    ctx.aead_overhead = conn->aead_overhead;
+    ctx.encrypt = conn->callbacks.encrypt;
+    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
+    break;
+  default:
+    assert(0);
+  }
 
   if (!pktns->tx_ckm) {
     return 0;
@@ -1115,19 +1147,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
   if (!ackfr) {
     return 0;
-  }
-
-  if (pktns == &conn->in_pktns) {
-    ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
-    ctx.encrypt = conn->callbacks.in_encrypt;
-    ctx.encrypt_pn = conn->callbacks.in_encrypt_pn;
-    type = NGTCP2_PKT_INITIAL;
-  } else {
-    assert(pktns == &conn->hs_pktns);
-    ctx.aead_overhead = conn->aead_overhead;
-    ctx.encrypt = conn->callbacks.encrypt;
-    ctx.encrypt_pn = conn->callbacks.encrypt_pn;
-    type = NGTCP2_PKT_HANDSHAKE;
   }
 
   ngtcp2_pkt_hd_init(
@@ -1160,9 +1179,40 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
                        1 /* ack_only*/);
 
+  if (require_padding) {
+    lfr.type = NGTCP2_FRAME_PADDING;
+    lfr.padding.len = ngtcp2_ppe_padding(&ppe);
+    if (lfr.padding.len > 0) {
+      ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+    }
+
+    spktlen = ngtcp2_ppe_final(&ppe, NULL);
+    if (spktlen < 0) {
+      return spktlen;
+    }
+
+    rv = ngtcp2_rtb_entry_new(&rtbent, &hd, NULL, ts, (size_t)spktlen,
+                              NGTCP2_RTB_FLAG_NONE, conn->mem);
+    if (rv != 0) {
+      assert(ngtcp2_err_is_fatal(rv));
+      return rv;
+    }
+
+    rv = conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
+    if (rv != 0) {
+      ngtcp2_rtb_entry_del(rtbent, conn->mem);
+      return rv;
+    }
+  } else {
+    spktlen = ngtcp2_ppe_final(&ppe, NULL);
+    if (spktlen < 0) {
+      return spktlen;
+    }
+  }
+
   ++pktns->last_tx_pkt_num;
 
-  return ngtcp2_ppe_final(&ppe, NULL);
+  return spktlen;
 
 fail:
   ngtcp2_mem_free(conn->mem, ackfr);
@@ -1177,26 +1227,36 @@ fail:
 static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
                                              size_t destlen, ngtcp2_tstamp ts) {
   ssize_t in_nwrite, hs_nwrite;
+  int require_padding;
 
-  in_nwrite =
-      conn_write_handshake_ack_pkt(conn, dest, destlen, &conn->in_pktns, ts);
-  if (in_nwrite < 0) {
-    return in_nwrite;
+  hs_nwrite = conn_write_handshake_ack_pkt(
+      conn, dest, destlen, NGTCP2_PKT_HANDSHAKE, 0 /* require_padding */, ts);
+  if (hs_nwrite < 0) {
+    return hs_nwrite;
   }
 
-  dest += in_nwrite;
-  destlen -= (size_t)in_nwrite;
+  dest += hs_nwrite;
+  destlen -= (size_t)hs_nwrite;
 
-  hs_nwrite =
-      conn_write_handshake_ack_pkt(conn, dest, destlen, &conn->hs_pktns, ts);
-  if (hs_nwrite < 0) {
-    if (ngtcp2_err_is_fatal((int)hs_nwrite)) {
-      return hs_nwrite;
-    }
-    if (in_nwrite) {
+  require_padding =
+      hs_nwrite == 0 && !conn->server && !conn_handshake_pkt_acked(conn);
+
+  if (require_padding) {
+    /* PADDING frame counts toward bytes_in_flight, thus destlen is
+       constrained to cwnd */
+    destlen = ngtcp2_min(destlen, conn_cwnd_left(conn));
+  }
+
+  in_nwrite = conn_write_handshake_ack_pkt(
+      conn, dest, destlen, NGTCP2_PKT_INITIAL, require_padding, ts);
+  if (in_nwrite < 0) {
+    if (ngtcp2_err_is_fatal((int)in_nwrite)) {
       return in_nwrite;
     }
-    return hs_nwrite;
+    if (hs_nwrite) {
+      return hs_nwrite;
+    }
+    return in_nwrite;
   }
 
   return in_nwrite + hs_nwrite;
