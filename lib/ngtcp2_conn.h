@@ -183,6 +183,12 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_OCID_PRESENT is set when ocid field of
      ngtcp2_conn is set. */
   NGTCP2_CONN_FLAG_OCID_PRESENT = 0x80,
+  /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
+     library transitions its state to "post handshake". */
+  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x100,
+  /* NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL is set when client has to
+     send Initial packets even if it has nothing to send. */
+  NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL = 0x200,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -340,7 +346,7 @@ struct ngtcp2_conn {
   void *user_data;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
-  uint8_t flags;
+  uint16_t flags;
   int server;
   ngtcp2_crypto_km *early_ckm;
   size_t aead_overhead;
