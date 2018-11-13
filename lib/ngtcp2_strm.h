@@ -174,6 +174,12 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
                               ngtcp2_stream_frame_chain **pfrc, size_t left);
 
 /*
+ * ngtcp2_strm_streamfrq_top returns the first
+ * ngtcp2_stream_frame_chain.  The queue must not be empty.
+ */
+ngtcp2_stream_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm);
+
+/*
  * ngtcp2_strm_streamfrq_empty returns nonzero if streamfrq is empty.
  */
 int ngtcp2_strm_streamfrq_empty(ngtcp2_strm *strm);

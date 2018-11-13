@@ -275,6 +275,12 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
   return 0;
 }
 
+ngtcp2_stream_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm) {
+  assert(!ngtcp2_pq_empty(&strm->streamfrq));
+  return ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+                          ngtcp2_stream_frame_chain, pe);
+}
+
 int ngtcp2_strm_streamfrq_empty(ngtcp2_strm *strm) {
   return ngtcp2_pq_empty(&strm->streamfrq);
 }
