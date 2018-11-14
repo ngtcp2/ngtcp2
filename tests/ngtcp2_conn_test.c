@@ -753,6 +753,14 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
 
+  /* We can write 0 length STREAM frame */
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &nwrite, stream_id,
+                                     0, null_data, 0, 3);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(0 == nwrite);
+  CU_ASSERT(2047 == strm->tx_offset);
+
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
   fr.max_stream_data.stream_id = stream_id;
   fr.max_stream_data.max_stream_data = 2048;
@@ -2112,6 +2120,27 @@ void test_ngtcp2_conn_client_handshake(void) {
 
   CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(0 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Can write 0 length STREAM frame */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
+                                         0, (uint64_t)-1, 0, NULL, 0, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* We have written Initial.  Now check that STREAM frame is
+     written. */
+  spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
+                                         0, stream_id, 0, NULL, 0, ++t);
+
+  CU_ASSERT(spktlen > 0);
 
   ngtcp2_conn_del(conn);
 
