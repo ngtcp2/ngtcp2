@@ -2116,7 +2116,7 @@ void test_ngtcp2_conn_client_handshake(void) {
   CU_ASSERT(0 == rv);
 
   spktlen = ngtcp2_conn_client_handshake(conn, buf, sizeof(buf), &datalen, NULL,
-                                         0, stream_id, 1, NULL, 0, +t);
+                                         0, stream_id, 1, NULL, 0, ++t);
 
   CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(0 == datalen);
@@ -2155,7 +2155,7 @@ void test_ngtcp2_conn_client_handshake(void) {
       conn, buf,
       NGTCP2_MIN_LONG_HEADERLEN + 1 + conn->dcid.datalen + conn->scid.datalen +
           300,
-      &datalen, NULL, 0, stream_id, 1, NULL, 0, +t);
+      &datalen, NULL, 0, stream_id, 1, NULL, 0, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(-1 == datalen);
