@@ -345,6 +345,15 @@ static int psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
     }
     node = &blk->nodes[i];
     rnode = &blk->nodes[i + 1];
+
+    if (node->blk->n == NGTCP2_PSL_MIN_NBLK &&
+        node->blk->n + rnode->blk->n < NGTCP2_PSL_MAX_NBLK) {
+      j = node->blk->n - 1;
+      blk = psl_merge_node(psl, blk, i);
+      assert(blk != psl->head);
+      *pi = j;
+      return 0;
+    }
   }
 
   if (node->blk->n < rnode->blk->n) {
