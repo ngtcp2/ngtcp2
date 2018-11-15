@@ -5914,13 +5914,9 @@ int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn) {
  * |*punsent_max_remote_stream_id| if a condition allows it.
  */
 static void
-handle_remote_stream_id_extension(uint64_t *punsent_max_remote_stream_id,
-                                  uint64_t *premote_stream_id_window_start,
-                                  ngtcp2_idtr *idtr) {
-  if (*punsent_max_remote_stream_id <= NGTCP2_MAX_VARINT - 4 &&
-      *premote_stream_id_window_start < ngtcp2_idtr_first_gap(idtr)) {
+handle_remote_stream_id_extension(uint64_t *punsent_max_remote_stream_id) {
+  if (*punsent_max_remote_stream_id <= NGTCP2_MAX_VARINT - 4) {
     *punsent_max_remote_stream_id += 4;
-    ++premote_stream_id_window_start;
   }
 }
 
@@ -5945,12 +5941,9 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   if (!conn_local_stream(conn, strm->stream_id)) {
     if (bidi_stream(strm->stream_id)) {
       handle_remote_stream_id_extension(
-          &conn->unsent_max_remote_stream_id_bidi,
-          &conn->remote_stream_id_bidi_window_start, &conn->remote_bidi_idtr);
+          &conn->unsent_max_remote_stream_id_bidi);
     } else {
-      handle_remote_stream_id_extension(
-          &conn->unsent_max_remote_stream_id_uni,
-          &conn->remote_stream_id_uni_window_start, &conn->remote_uni_idtr);
+      handle_remote_stream_id_extension(&conn->unsent_max_remote_stream_id_uni);
     }
   }
 
