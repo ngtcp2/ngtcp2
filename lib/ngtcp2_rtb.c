@@ -241,10 +241,11 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   ngtcp2_strm *crypto = &conn->crypto;
 
   for (frc = ent->frc; frc; frc = frc->next) {
-    if (frc->fr.type == NGTCP2_FRAME_STREAM) {
+    switch (frc->fr.type) {
+    case NGTCP2_FRAME_STREAM:
       strm = ngtcp2_conn_find_stream(conn, frc->fr.stream.stream_id);
       if (strm == NULL) {
-        continue;
+        break;
       }
       prev_stream_offset =
           ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
@@ -259,7 +260,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
         stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
         datalen = stream_offset - prev_stream_offset;
         if (datalen == 0 && !frc->fr.stream.fin) {
-          continue;
+          break;
         }
 
         rv = conn->callbacks.acked_stream_data_offset(
@@ -274,9 +275,8 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
       if (rv != 0) {
         return rv;
       }
-      continue;
-    }
-    if (frc->fr.type == NGTCP2_FRAME_CRYPTO) {
+      break;
+    case NGTCP2_FRAME_CRYPTO:
       prev_stream_offset =
           ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset);
       rv = ngtcp2_gaptr_push(&crypto->acked_tx_offset,
@@ -290,7 +290,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
         stream_offset = ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset);
         datalen = stream_offset - prev_stream_offset;
         if (datalen == 0) {
-          continue;
+          break;
         }
 
         rv = conn->callbacks.acked_crypto_offset(conn, prev_stream_offset,
@@ -299,7 +299,17 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
           return NGTCP2_ERR_CALLBACK_FAILURE;
         }
       }
-      continue;
+      break;
+    case NGTCP2_FRAME_RST_STREAM:
+      strm = ngtcp2_conn_find_stream(conn, frc->fr.rst_stream.stream_id);
+      if (strm == NULL) {
+        break;
+      }
+      rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
+      if (rv != 0) {
+        return rv;
+      }
+      break;
     }
   }
   return 0;

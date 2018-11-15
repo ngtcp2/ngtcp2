@@ -945,6 +945,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   uint8_t buf[2048];
   ngtcp2_frame fr;
   size_t pktlen;
+  ssize_t spktlen;
   ngtcp2_strm *strm;
   uint64_t stream_id;
 
@@ -992,6 +993,50 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
       write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 890, &fr);
 
   rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, stream_id));
+
+  ngtcp2_conn_del(conn);
+
+  /* Check that stream is closed when RST_STREAM is acknowledged */
+  setup_default_client(&conn);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = stream_id;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 0;
+
+  pktlen =
+      write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 119, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, stream_id));
+
+  rv = ngtcp2_conn_shutdown_stream_write(conn, stream_id, NGTCP2_APP_ERR01);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, stream_id));
+
+  spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), 2);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.last_tx_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen =
+      write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 332, &fr);
+
+  rv = ngtcp2_conn_recv(conn, buf, pktlen, 3);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, stream_id));
