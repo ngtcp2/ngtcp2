@@ -756,7 +756,7 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
 
 /*
  * ngtcp2_pkt_hd returns nonzero if |hd| indicates packets which are
- * sent in hadshake phase.
+ * sent in handshake phase.
  */
 int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
 
