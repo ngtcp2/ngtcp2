@@ -373,6 +373,27 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   return 0;
 }
 
+/*
+ * conn_fc_credits returns the number of bytes allowed to be sent to
+ * the given stream.  Both connection and stream level flow control
+ * credits are considered.
+ */
+static size_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
+  return ngtcp2_min(strm->max_tx_offset - strm->tx_offset,
+                    conn->max_tx_offset - conn->tx_offset);
+}
+
+/*
+ * conn_enforce_flow_control returns the number of bytes allowed to be
+ * sent to the given stream.  |len| might be shorted because of
+ * available flow control credits.
+ */
+static size_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
+                                        size_t len) {
+  size_t fc_credits = conn_fc_credits(conn, strm);
+  return ngtcp2_min(len, fc_credits);
+}
+
 static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
   ngtcp2_pkt_chain *next;
 
@@ -1037,18 +1058,27 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       }
 
       left = ngtcp2_ppe_left(&ppe);
+      /* What we handle here is retransmission of 0RTT STREAM frame
+         after Retry packet.  The flow control credits have already
+         been paid for these frames. */
+      left = ngtcp2_pkt_stream_max_datalen(
+          strm->stream_id, ngtcp2_strm_streamfrq_top(strm)->fr.offset, left,
+          left);
 
-      if (left < NGTCP2_STREAM_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
+      if (left == (size_t)-1) {
         break;
       }
 
-      left -= NGTCP2_STREAM_OVERHEAD;
       rv = ngtcp2_strm_streamfrq_pop(strm, &nsfrc, left);
       if (rv != 0) {
         return rv;
       }
       if (ngtcp2_strm_streamfrq_empty(strm)) {
         ngtcp2_conn_tx_strmq_pop(conn);
+      }
+
+      if (nsfrc == NULL) {
+        break;
       }
 
       rv = conn_ppe_write_frame(conn, &ppe, &hd, &nsfrc->frc.fr);
@@ -1511,9 +1541,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   size_t datalen = ngtcp2_vec_len(datav, datavcnt);
 
   if (data_strm) {
-    ndatalen =
-        ngtcp2_min(datalen, data_strm->max_tx_offset - data_strm->tx_offset);
-    ndatalen = ngtcp2_min(ndatalen, conn->max_tx_offset - conn->tx_offset);
+    ndatalen = conn_enforce_flow_control(conn, data_strm, datalen);
     /* 0 length STREAM frame is allowed */
     if (ndatalen || datalen == 0) {
       send_stream = 1;
@@ -1740,7 +1768,11 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
         left = ngtcp2_ppe_left(&ppe);
 
-        if (left < NGTCP2_STREAM_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
+        left = ngtcp2_pkt_stream_max_datalen(
+            strm->stream_id, ngtcp2_strm_streamfrq_top(strm)->fr.offset, left,
+            left);
+
+        if (left == (size_t)-1) {
           if (written_stream_id != UINT64_MAX) {
             ngtcp2_conn_tx_strmq_pop(conn);
             ++strm->cycle;
@@ -1752,11 +1784,14 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
           goto tx_strmq_finish;
         }
 
-        left -= NGTCP2_STREAM_OVERHEAD;
         rv = ngtcp2_strm_streamfrq_pop(strm, &nsfrc, left);
         if (rv != 0) {
           assert(ngtcp2_err_is_fatal(rv));
           return rv;
+        }
+
+        if (nsfrc == NULL) {
+          goto tx_strmq_finish;
         }
 
         rv = conn_ppe_write_frame(conn, &ppe, &hd, &nsfrc->frc.fr);
@@ -1782,11 +1817,9 @@ tx_strmq_finish:
       (written_stream_id == UINT64_MAX ||
        written_stream_id == data_strm->stream_id) &&
       *pfrc == NULL &&
-      left >= NGTCP2_STREAM_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
-    left -= NGTCP2_STREAM_OVERHEAD;
-
-    ndatalen = ngtcp2_min(ndatalen, left);
-
+      (ndatalen = ngtcp2_pkt_stream_max_datalen(data_strm->stream_id,
+                                                data_strm->tx_offset, ndatalen,
+                                                left)) != (size_t)-1) {
     fin = fin && ndatalen == datalen;
 
     rv = ngtcp2_stream_frame_chain_new(&nsfrc, conn->mem);
@@ -2220,16 +2253,20 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_POST_HANDSHAKE:
-    nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
-    if (nwrite) {
-      return nwrite;
-    }
-
     cwnd = conn_cwnd_left(conn);
 
     if (cwnd >= NGTCP2_MIN_PKTLEN) {
       nwrite =
           conn_write_handshake(conn, dest, ngtcp2_min(destlen, cwnd), 0, ts);
+      if (nwrite < 0) {
+        if (ngtcp2_err_is_fatal((int)nwrite)) {
+          return nwrite;
+        }
+      } else if (nwrite) {
+        return nwrite;
+      }
+    } else {
+      nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
       if (nwrite) {
         return nwrite;
       }
@@ -5061,15 +5098,13 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   left = ngtcp2_ppe_left(&ppe);
-  if (left < NGTCP2_STREAM_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
+  ndatalen = ngtcp2_pkt_stream_max_datalen(
+      strm->stream_id, strm->tx_offset,
+      conn_enforce_flow_control(conn, strm, datalen), left);
+
+  if (ndatalen == (size_t)-1) {
     return NGTCP2_ERR_NOBUF;
   }
-
-  left -= NGTCP2_STREAM_OVERHEAD;
-
-  ndatalen = ngtcp2_min(datalen, left);
-  ndatalen = ngtcp2_min(ndatalen, strm->max_tx_offset - strm->tx_offset);
-  ndatalen = ngtcp2_min(ndatalen, conn->max_tx_offset - conn->tx_offset);
 
   if (datalen > 0 && ndatalen == 0) {
     return NGTCP2_ERR_STREAM_DATA_BLOCKED;
@@ -5098,7 +5133,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_log_tx_fr(&conn->log, &hd, &frc->frc.fr);
 
-  if (require_padding) {
+  if (require_padding && ngtcp2_ppe_left(&ppe)) {
     localfr.type = NGTCP2_FRAME_PADDING;
     localfr.padding.len = ngtcp2_ppe_padding(&ppe);
 

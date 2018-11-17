@@ -1829,6 +1829,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   ssize_t datalen;
   int rv;
   ngtcp2_vec datav;
+  ngtcp2_strm *strm;
 
   dcid_init(&dcid);
   setup_handshake_client(&conn);
@@ -1921,7 +1922,10 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   CU_ASSERT(spktlen > 219 + 119);
   CU_ASSERT(0 == conn->pktns.last_tx_pkt_num);
-  CU_ASSERT(NULL == conn->pktns.frq);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(ngtcp2_pq_empty(&strm->streamfrq));
 
   /* ngtcp2_conn_write_stream sends new 0RTT packet. */
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
@@ -2876,10 +2880,10 @@ void test_ngtcp2_conn_send_early_data(void) {
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
-                                     stream_id, 1, null_data, 911, 1);
+                                     stream_id, 1, null_data, 1024, 1);
 
-  CU_ASSERT(spktlen > 0);
-  CU_ASSERT(911 == datalen);
+  CU_ASSERT((ssize_t)sizeof(buf) == spktlen);
+  CU_ASSERT(959 == datalen);
 
   ngtcp2_conn_del(conn);
 }

@@ -145,12 +145,21 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
 
   frc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
                          ngtcp2_stream_frame_chain, pe);
-  ngtcp2_pq_pop(&strm->streamfrq);
-  frc->pe.index = NGTCP2_PQ_BAD_INDEX;
 
   fr = &frc->fr;
 
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
+
+  if (left == 0) {
+    if (datalen || !ngtcp2_pq_empty(&strm->streamfrq)) {
+      *pfrc = NULL;
+      return 0;
+    }
+  }
+
+  ngtcp2_pq_pop(&strm->streamfrq);
+  frc->pe.index = NGTCP2_PQ_BAD_INDEX;
+
   if (datalen > left) {
     if (!ngtcp2_pq_empty(&strm->streamfrq)) {
       nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),

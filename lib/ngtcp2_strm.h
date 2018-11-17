@@ -80,7 +80,10 @@ struct ngtcp2_strm {
      this stream. */
   uint64_t last_rx_offset;
   ngtcp2_rob rob;
-  /* streamfrq contains STREAM frame for (re)transmission. */
+  /* streamfrq contains STREAM frame for retransmission.  The flow
+     control credits have been paid when they are transmitted first
+     time.  There are no restriction regarding flow control for
+     retransmission. */
   ngtcp2_pq streamfrq;
   /* max_rx_offset is the maximum offset that remote endpoint can send
      to this stream. */

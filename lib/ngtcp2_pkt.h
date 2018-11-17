@@ -760,4 +760,14 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
  */
 int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
 
+/*
+ * ngtcp2_pkt_stream_max_datalen returns the maximum number of bytes
+ * which can be sent for stream denoted by |stream_id|.  |offset| is
+ * an offset of within the stream.  |len| is the estimated number of
+ * bytes to be sent.  |left| is the size of buffer.  If |left| is too
+ * small to write STREAM frame, this function returns (size_t)-1.
+ */
+size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
+                                     size_t len, size_t left);
+
 #endif /* NGTCP2_PKT_H */

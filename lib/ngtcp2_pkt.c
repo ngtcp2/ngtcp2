@@ -1991,3 +1991,21 @@ int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd) {
   return (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
          (hd->type == NGTCP2_PKT_INITIAL || hd->type == NGTCP2_PKT_HANDSHAKE);
 }
+
+size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
+                                     size_t len, size_t left) {
+  size_t n = 1 /* type */ + ngtcp2_put_varint_len(stream_id) +
+             (offset ? ngtcp2_put_varint_len(offset) : 0);
+
+  if (left < n) {
+    return (size_t)-1;
+  }
+
+  n += ngtcp2_put_varint_len(ngtcp2_min(len, left - n));
+
+  if (left < n) {
+    return (size_t)-1;
+  }
+
+  return ngtcp2_min(len, left - n);
+}
