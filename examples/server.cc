@@ -860,6 +860,7 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
     if (rv != 0) {
       return rv;
     }
+    return 0;
   }
 
   // SSL_do_handshake() might not consume all data (e.g.,
