@@ -1158,3 +1158,67 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
     CU_ASSERT(sv[i] == ngtcp2_get_uint32(p));
   }
 }
+
+void test_ngtcp2_pkt_stream_max_datalen(void) {
+  size_t len;
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 0, 2);
+
+  CU_ASSERT((size_t)-1 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 0, 3);
+
+  CU_ASSERT(0 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1, 3);
+
+  CU_ASSERT(0 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1, 4);
+
+  CU_ASSERT(1 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 1, 1, 4);
+
+  CU_ASSERT(0 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 63, 66);
+
+  CU_ASSERT(63 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 63, 65);
+
+  CU_ASSERT(62 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1396, 1400);
+
+  CU_ASSERT(1396 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1396, 1399);
+
+  CU_ASSERT(1395 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1396, 9);
+
+  CU_ASSERT(6 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 16385, 16391);
+
+  CU_ASSERT(16385 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 16385, 16390);
+
+  CU_ASSERT(16384 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1073741824, 1073741834);
+
+  CU_ASSERT(1073741824 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1073741824, 1073741833);
+
+  CU_ASSERT(1073741823 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 16383, 16387);
+
+  CU_ASSERT(16383 == len);
+}

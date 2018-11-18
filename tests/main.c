@@ -124,6 +124,8 @@ int main() {
       !CU_add_test(pSuite, "pkt_write_retry", test_ngtcp2_pkt_write_retry) ||
       !CU_add_test(pSuite, "pkt_write_version_negotiation",
                    test_ngtcp2_pkt_write_version_negotiation) ||
+      !CU_add_test(pSuite, "pkt_stream_max_datalen",
+                   test_ngtcp2_pkt_stream_max_datalen) ||
       !CU_add_test(pSuite, "get_varint", test_ngtcp2_get_varint) ||
       !CU_add_test(pSuite, "get_varint_len", test_ngtcp2_get_varint_len) ||
       !CU_add_test(pSuite, "put_varint_len", test_ngtcp2_put_varint_len) ||
