@@ -4810,6 +4810,11 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     if (conn->state == NGTCP2_CS_CLIENT_INITIAL) {
+      /* On Retry, all in-flight packets are considered to be lost.
+         Reclaim cwnd. */
+      cwnd = conn_cwnd_left(conn);
+      destlen = ngtcp2_min(origlen, cwnd);
+
       early_datalen = conn_retry_early_payloadlen(conn);
       nwrite =
           conn_write_client_initial(conn, dest, destlen, early_datalen, ts);
@@ -4820,14 +4825,14 @@ static ssize_t conn_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       early_spktlen = conn_retransmit_retry_early(conn, dest + nwrite,
                                                   destlen - (size_t)nwrite, ts);
 
+      conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
+
       if (early_spktlen < 0) {
         if (ngtcp2_err_is_fatal((int)early_spktlen)) {
           return early_spktlen;
         }
         return nwrite;
       }
-
-      conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
 
       return nwrite + early_spktlen;
     }
