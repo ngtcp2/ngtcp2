@@ -487,9 +487,11 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
 
   c->write_server_handshake(data, datalen);
 
-  if (!ngtcp2_conn_get_handshake_completed(c->conn()) &&
-      c->tls_handshake() != 0) {
-    return NGTCP2_ERR_CRYPTO;
+  if (!ngtcp2_conn_get_handshake_completed(c->conn())) {
+    if (c->tls_handshake() != 0) {
+      return NGTCP2_ERR_CRYPTO;
+    }
+    return 0;
   }
 
   // SSL_do_handshake() might not consume all data (e.g.,
