@@ -770,4 +770,13 @@ int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
 size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
                                      size_t len, size_t left);
 
+/*
+ * ngtcp2_pkt_crypto_max_datalen returns the maximum number of bytes
+ * which can be sent for crypto stream.  |offset| is an offset of
+ * within the crypto stream.  |len| is the estimated number of bytes
+ * to be sent.  |left| is the size of buffer.  If |left| is too small
+ * to write CRYPTO frame, this function returns (size_t)-1.
+ */
+size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
+
 #endif /* NGTCP2_PKT_H */

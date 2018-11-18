@@ -729,6 +729,18 @@ static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
   return 0;
 }
 
+/*
+ * conn_cryptofrq_top returns the element which sits on top of the
+ * queue.  The queue must not be empty.
+ */
+static ngtcp2_crypto_frame_chain *conn_cryptofrq_top(ngtcp2_conn *conn,
+                                                     ngtcp2_pktns *pktns) {
+  (void)conn;
+  assert(!ngtcp2_pq_empty(&pktns->cryptofrq));
+  return ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+                          ngtcp2_crypto_frame_chain, pe);
+}
+
 static int conn_cryptofrq_pop(ngtcp2_conn *conn,
                               ngtcp2_crypto_frame_chain **pfrc,
                               ngtcp2_pktns *pktns, size_t left) {
@@ -1027,16 +1039,21 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (type != NGTCP2_PKT_0RTT_PROTECTED) {
     for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
       left = ngtcp2_ppe_left(&ppe);
+      left = ngtcp2_pkt_crypto_max_datalen(
+          conn_cryptofrq_top(conn, pktns)->fr.offset, left, left);
 
-      if (left < NGTCP2_CRYPTO_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
+      if (left == (size_t)-1) {
         break;
       }
 
-      left -= NGTCP2_CRYPTO_OVERHEAD;
       rv = conn_cryptofrq_pop(conn, &ncfrc, pktns, left);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
         return rv;
+      }
+
+      if (ncfrc == NULL) {
+        break;
       }
 
       rv = conn_ppe_write_frame(conn, &ppe, &hd, &ncfrc->frc.fr);
@@ -1662,15 +1679,21 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
     left = ngtcp2_ppe_left(&ppe);
 
-    if (left < NGTCP2_CRYPTO_OVERHEAD + NGTCP2_MIN_FRAME_PAYLOADLEN) {
+    left = ngtcp2_pkt_crypto_max_datalen(
+        conn_cryptofrq_top(conn, pktns)->fr.offset, left, left);
+
+    if (left == (size_t)-1) {
       break;
     }
 
-    left -= NGTCP2_CRYPTO_OVERHEAD;
     rv = conn_cryptofrq_pop(conn, &ncfrc, pktns, left);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
+    }
+
+    if (ncfrc == NULL) {
+      break;
     }
 
     rv = conn_ppe_write_frame(conn, &ppe, &hd, &ncfrc->frc.fr);

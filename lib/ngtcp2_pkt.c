@@ -2021,3 +2021,31 @@ size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
   len = ngtcp2_min(len, 63);
   return ngtcp2_min(len, left - 1);
 }
+
+size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left) {
+  size_t n = 1 /* type */ + ngtcp2_put_varint_len(offset);
+
+  if (left <= n) {
+    return (size_t)-1;
+  }
+
+  left -= n;
+
+  if (left > 8 + 1073741823 && len > 1073741823) {
+    len = ngtcp2_min(len, 4611686018427387903lu);
+    return ngtcp2_min(len, left - 8);
+  }
+
+  if (left > 4 + 16383 && len > 16383) {
+    len = ngtcp2_min(len, 1073741823);
+    return ngtcp2_min(len, left - 4);
+  }
+
+  if (left > 2 + 63 && len > 63) {
+    len = ngtcp2_min(len, 16383);
+    return ngtcp2_min(len, left - 2);
+  }
+
+  len = ngtcp2_min(len, 63);
+  return ngtcp2_min(len, left - 1);
+}
