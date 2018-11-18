@@ -1206,11 +1206,37 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_handshake` performs QUIC cryptographic handshake.  If
- * |pktlen| is nonzero, the function reads a packet pointed by |pkt|.
- * It may write a packet in the given buffer pointed by |dest| whose
- * capacity is given as |destlen|.  Application must ensure that the
- * buffer pointed by |dest| is not empty.
+ * `ngtcp2_conn_read_handshake` performs QUIC cryptographic handshake
+ * by reading given data.  |pkt| points to the buffer to read and
+ * |pktlen| is the length of the buffer.
+ *
+ * The application should call `ngtcp2_conn_write_handshake` (or
+ * `ngtcp2_conn_client_write_handshake` for client session) to make
+ * handshake go forward after calling this function.
+ *
+ * Application should call this function until
+ * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
+ * completion of handshake, `ngtcp2_conn_recv` and
+ * `ngtcp2_conn_write_pkt` should be called instead.
+ *
+ * This function must not be called from inside the callback
+ * functions.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes: (TBD).
+ */
+NGTCP2_EXTERN int ngtcp2_conn_read_handshake(ngtcp2_conn *conn,
+                                             const uint8_t *pkt, size_t pktlen,
+                                             ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_write_handshake` performs QUIC cryptographic handshake
+ * by writing handshake packets.  It may write a packet in the given
+ * buffer pointed by |dest| whose capacity is given as |destlen|.
+ * Application must ensure that the buffer pointed by |dest| is not
+ * empty.
  *
  * Application should keep calling this function repeatedly until it
  * returns zero, or negative error code.
@@ -1221,9 +1247,10 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * `ngtcp2_conn_write_pkt` should be called instead.
  *
  * During handshake, application can send 0-RTT data (or its response)
- * using `ngtcp2_conn_write_stream`.  `ngtcp2_conn_client_handshake`
- * might be efficient because it can coalesce Handshake packet and
- * 0-RTT protected packet into one UDP packet.
+ * using `ngtcp2_conn_write_stream`.
+ * `ngtcp2_conn_client_write_handshake` is generally efficient because
+ * it can coalesce Handshake packet and 0-RTT protected packet into
+ * one UDP packet.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -1232,29 +1259,37 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * pointed by |dest| if it succeeds, or one of the following negative
  * error codes: (TBD).
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, const uint8_t *pkt,
-                                            size_t pktlen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn,
+                                                  uint8_t *dest, size_t destlen,
+                                                  ngtcp2_tstamp ts);
 
 /**
  * @function
  *
- * `ngtcp2_conn_client_handshake` is just like
- * `ngtcp2_conn_handshake`, but it is for client only, and can accept
- * 0-RTT data.  This function can coalesce Handshake packet and 0-RTT
- * Protected packet into single UDP packet, thus it could be more
- * efficient than `ngtcp2_conn_handshake`.
+ * `ngtcp2_conn_client_write_handshake` is just like
+ * `ngtcp2_conn_write_handshake`, but it is for client only, and can
+ * write 0-RTT data.  This function can coalesce handshake packet and
+ * 0-RTT Protected packet into single UDP packet, thus it is generally
+ * more efficient than the combination of
+ * `ngtcp2_conn_write_handshake`. and `ngtcp2_conn_write_stream`.
  *
  * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
  * to which 0-RTT data is sent, whether it is a last data chunk in
  * this stream, a vector of 0-RTT data, and its number of elements
  * respectively.  If there is no 0RTT data to send, pass negative
- * integer to |stream_id|.
+ * integer to |stream_id|.  The amount of 0RTT data sent is assigned
+ * to |*pdatalen|.  If no data is sent, -1 is assigned.  Note that 0
+ * length STREAM frame is allowed in QUIC, so 0 might be assigned to
+ * |*pdatalen|.
+ *
+ * This function returns the number of bytes written to the buffer
+ * pointed by |dest| if it succeeds, or one of the following negative
+ * error codes: (TBD).
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_client_handshake(
+NGTCP2_EXTERN ssize_t ngtcp2_conn_client_write_handshake(
     ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,
-    const uint8_t *pkt, size_t pktlen, uint64_t stream_id, uint8_t fin,
-    const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
+    uint64_t stream_id, uint8_t fin, const ngtcp2_vec *datav, size_t datavcnt,
+    ngtcp2_tstamp ts);
 
 /**
  * @function

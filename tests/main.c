@@ -196,8 +196,8 @@ int main() {
       !CU_add_test(pSuite, "conn_handshake", test_ngtcp2_conn_handshake) ||
       !CU_add_test(pSuite, "conn_handshake_error",
                    test_ngtcp2_conn_handshake_error) ||
-      !CU_add_test(pSuite, "conn_client_handshake",
-                   test_ngtcp2_conn_client_handshake) ||
+      !CU_add_test(pSuite, "conn_client_write_handshake",
+                   test_ngtcp2_conn_client_write_handshake) ||
       !CU_add_test(pSuite, "conn_retransmit_protected",
                    test_ngtcp2_conn_retransmit_protected) ||
       !CU_add_test(pSuite, "conn_send_max_stream_data",

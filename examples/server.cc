@@ -1321,16 +1321,27 @@ ssize_t Handler::encrypt_pn(uint8_t *dest, size_t destlen,
                             crypto_ctx_, key, keylen, nonce, noncelen);
 }
 
-ssize_t Handler::do_handshake_once(const uint8_t *data, size_t datalen) {
-  auto nwrite = ngtcp2_conn_handshake(conn_, sendbuf_.wpos(), max_pktlen_, data,
-                                      datalen, util::timestamp(loop_));
+int Handler::do_handshake_read_once(const uint8_t *data, size_t datalen) {
+  auto rv =
+      ngtcp2_conn_read_handshake(conn_, data, datalen, util::timestamp(loop_));
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_read_handshake: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+  return 0;
+}
+
+ssize_t Handler::do_handshake_write_once() {
+  auto nwrite = ngtcp2_conn_write_handshake(conn_, sendbuf_.wpos(), max_pktlen_,
+                                            util::timestamp(loop_));
   if (nwrite < 0) {
     switch (nwrite) {
     case NGTCP2_ERR_NOBUF:
     case NGTCP2_ERR_CONGESTION:
       return 0;
     }
-    std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
+    std::cerr << "ngtcp2_conn_write_handshake: " << ngtcp2_strerror(nwrite)
               << std::endl;
     return -1;
   }
@@ -1354,7 +1365,10 @@ ssize_t Handler::do_handshake_once(const uint8_t *data, size_t datalen) {
 }
 
 int Handler::do_handshake(const uint8_t *data, size_t datalen) {
-  ssize_t nwrite;
+  auto rv = do_handshake_read_once(data, datalen);
+  if (rv != 0) {
+    return rv;
+  }
 
   if (sendbuf_.size() > 0) {
     auto rv = server_->send_packet(remote_addr_, sendbuf_);
@@ -1363,16 +1377,8 @@ int Handler::do_handshake(const uint8_t *data, size_t datalen) {
     }
   }
 
-  nwrite = do_handshake_once(data, datalen);
-  if (nwrite < 0) {
-    return nwrite;
-  }
-  if (nwrite == 0) {
-    return 0;
-  }
-
   for (;;) {
-    nwrite = do_handshake_once(nullptr, 0);
+    auto nwrite = do_handshake_write_once();
     if (nwrite < 0) {
       return nwrite;
     }

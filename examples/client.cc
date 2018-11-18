@@ -1066,9 +1066,22 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
   return 0;
 }
 
-ssize_t Client::do_handshake_once(const uint8_t *data, size_t datalen) {
-  auto nwrite = ngtcp2_conn_handshake(conn_, sendbuf_.wpos(), max_pktlen_, data,
-                                      datalen, util::timestamp(loop_));
+int Client::do_handshake_read_once(const uint8_t *data, size_t datalen) {
+  auto rv =
+      ngtcp2_conn_read_handshake(conn_, data, datalen, util::timestamp(loop_));
+  if (rv < 0) {
+    std::cerr << "ngtcp2_conn_read_handshake: " << ngtcp2_strerror(rv)
+              << std::endl;
+    disconnect(rv);
+    return -1;
+  }
+
+  return 0;
+}
+
+ssize_t Client::do_handshake_write_once() {
+  auto nwrite = ngtcp2_conn_write_handshake(conn_, sendbuf_.wpos(), max_pktlen_,
+                                            util::timestamp(loop_));
   if (nwrite < 0) {
     switch (nwrite) {
     case NGTCP2_ERR_NOBUF:
@@ -1076,7 +1089,7 @@ ssize_t Client::do_handshake_once(const uint8_t *data, size_t datalen) {
       return 0;
     }
 
-    std::cerr << "ngtcp2_conn_handshake: " << ngtcp2_strerror(nwrite)
+    std::cerr << "ngtcp2_conn_write_handshake: " << ngtcp2_strerror(nwrite)
               << std::endl;
     disconnect(nwrite);
     return -1;
@@ -1110,22 +1123,19 @@ int Client::do_handshake(const uint8_t *data, size_t datalen) {
     }
   }
 
-  nwrite = do_handshake_once(data, datalen);
-  if (nwrite < 0) {
-    return nwrite;
-  }
-  if (nwrite == 0) {
-    return 0;
+  auto rv = do_handshake_read_once(data, datalen);
+  if (rv != 0) {
+    return rv;
   }
 
   // For 0-RTT
-  auto rv = write_0rtt_streams();
+  rv = write_0rtt_streams();
   if (rv != 0) {
     return rv;
   }
 
   for (;;) {
-    nwrite = do_handshake_once(nullptr, 0);
+    nwrite = do_handshake_write_once();
     if (nwrite < 0) {
       return nwrite;
     }
@@ -1342,9 +1352,9 @@ int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
 
   for (;;) {
     ngtcp2_vec datav{const_cast<uint8_t *>(data.rpos()), data.size()};
-    auto n = ngtcp2_conn_client_handshake(conn_, sendbuf_.wpos(), max_pktlen_,
-                                          &ndatalen, nullptr, 0, stream_id, fin,
-                                          &datav, 1, util::timestamp(loop_));
+    auto n = ngtcp2_conn_client_write_handshake(
+        conn_, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream_id, fin, &datav,
+        1, util::timestamp(loop_));
     if (n < 0) {
       switch (n) {
       case NGTCP2_ERR_EARLY_DATA_REJECTED:
@@ -1356,7 +1366,7 @@ int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
       case NGTCP2_ERR_CONGESTION:
         return 0;
       }
-      std::cerr << "ngtcp2_conn_client_handshake: " << ngtcp2_strerror(n)
+      std::cerr << "ngtcp2_conn_client_write_handshake: " << ngtcp2_strerror(n)
                 << std::endl;
       disconnect(n);
       return -1;
@@ -2050,7 +2060,7 @@ int run(Client &c, const char *addr, const char *port) {
     return rv;
   }
 
-  nwrite = c.do_handshake_once(nullptr, 0);
+  nwrite = c.do_handshake_write_once();
   if (nwrite < 0) {
     return nwrite;
   }
