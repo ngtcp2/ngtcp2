@@ -1216,7 +1216,7 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  *
  * Application should call this function until
  * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
- * completion of handshake, `ngtcp2_conn_recv` and
+ * completion of handshake, `ngtcp2_conn_read_pkt` and
  * `ngtcp2_conn_write_pkt` should be called instead.
  *
  * This function must not be called from inside the callback
@@ -1243,7 +1243,7 @@ NGTCP2_EXTERN int ngtcp2_conn_read_handshake(ngtcp2_conn *conn,
  *
  * Application should call this function until
  * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
- * completion of handshake, `ngtcp2_conn_recv` and
+ * completion of handshake, `ngtcp2_conn_read_pkt` and
  * `ngtcp2_conn_write_pkt` should be called instead.
  *
  * During handshake, application can send 0-RTT data (or its response)
@@ -1294,9 +1294,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_client_write_handshake(
 /**
  * @function
  *
- * `ngtcp2_conn_recv` decrypts QUIC packet given in |pkt| of length
- * |pktlen| and processes it.  This function must be called after QUIC
- * handshake has finished successfully.
+ * `ngtcp2_conn_read_pkt` decrypts QUIC packet given in |pkt| of
+ * length |pktlen| and processes it.  This function must be called
+ * after QUIC handshake has finished successfully.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -1309,8 +1309,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_client_write_handshake(
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.
  */
-NGTCP2_EXTERN int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt,
-                                   size_t pktlen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
+                                       size_t pktlen, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -1466,9 +1466,9 @@ NGTCP2_EXTERN int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
  * of loss detection timer.  Application should call
- * `ngtcp2_conn_on_loss_detection_timer` and `ngtcp2_conn_recv` (or
- * `ngtcp2_conn_handshake` if handshake has not finished yet) when it
- * expires.  It returns UINT64_MAX if loss detection timer is not
+ * `ngtcp2_conn_on_loss_detection_timer` and `ngtcp2_conn_read_pkt`
+ * (or `ngtcp2_conn_handshake` if handshake has not finished yet) when
+ * it expires.  It returns UINT64_MAX if loss detection timer is not
  * armed.
  */
 NGTCP2_EXTERN ngtcp2_tstamp

@@ -1053,9 +1053,9 @@ int Client::feed_data(uint8_t *data, size_t datalen) {
   int rv;
 
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    rv = ngtcp2_conn_recv(conn_, data, datalen, util::timestamp(loop_));
+    rv = ngtcp2_conn_read_pkt(conn_, data, datalen, util::timestamp(loop_));
     if (rv != 0) {
-      std::cerr << "ngtcp2_conn_recv: " << ngtcp2_strerror(rv) << std::endl;
+      std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
       disconnect(rv);
       return -1;
     }

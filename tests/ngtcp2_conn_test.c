@@ -551,7 +551,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -565,7 +565,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_RD == strm->flags);
@@ -593,7 +593,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 3, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 3);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 3);
 
   CU_ASSERT(0 == rv);
 
@@ -643,7 +643,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
 
     pktlen =
         write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, i, &fr);
-    rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+    rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
     CU_ASSERT(0 == rv);
 
@@ -707,7 +707,7 @@ void test_ngtcp2_conn_stream_rx_flow_control_error(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
 
@@ -767,7 +767,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 4);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 4);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(2048 == strm->max_tx_offset);
@@ -806,7 +806,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -825,7 +825,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
 
@@ -865,7 +865,7 @@ void test_ngtcp2_conn_rx_flow_control_error(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
 
@@ -923,7 +923,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 5);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 5);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(3072 == conn->max_tx_offset);
@@ -992,7 +992,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   pktlen =
       write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 890, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, stream_id));
@@ -1013,7 +1013,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   pktlen =
       write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 119, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, stream_id));
@@ -1036,7 +1036,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   pktlen =
       write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 332, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 3);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 3);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, stream_id));
@@ -1066,7 +1066,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1079,7 +1079,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 955;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 3);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 3);
 
   CU_ASSERT(0 == rv);
 
@@ -1103,7 +1103,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1118,7 +1118,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 955;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 4);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 4);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
@@ -1138,7 +1138,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1153,7 +1153,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 955;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 4);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 4);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, 4));
@@ -1173,7 +1173,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1185,7 +1185,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 3);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 3);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
@@ -1196,7 +1196,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 955;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 3, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 4);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 4);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, 4));
@@ -1216,7 +1216,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1226,7 +1226,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 954;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
 
@@ -1246,7 +1246,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1256,7 +1256,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 956;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(NGTCP2_ERR_FINAL_OFFSET == rv);
 
@@ -1271,7 +1271,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 0;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
 
@@ -1287,7 +1287,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 0;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
 
@@ -1303,7 +1303,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 0;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(
@@ -1324,7 +1324,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 1 << 20;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
 
@@ -1343,7 +1343,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 1 << 20;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
 
@@ -1365,7 +1365,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1375,7 +1375,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 1024 * 1024;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
 
@@ -1397,7 +1397,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1407,7 +1407,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 1024 * 1024;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(NGTCP2_ERR_FLOW_CONTROL == rv);
 
@@ -1427,7 +1427,7 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
   fr.rst_stream.final_offset = 0;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
@@ -1459,7 +1459,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -1494,7 +1494,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -1504,7 +1504,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, stream_id));
@@ -1530,7 +1530,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
 
@@ -1548,7 +1548,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_FRAME_RST_STREAM == conn->pktns.frq->fr.type);
@@ -1564,7 +1564,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
 
@@ -1593,7 +1593,7 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
 
   pktlen =
       write_single_frame_pkt_without_conn_id(conn, buf, sizeof(buf), 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   /* packet is just ignored */
   CU_ASSERT(0 == rv);
@@ -1607,7 +1607,7 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
 
   pktlen =
       write_single_frame_pkt_without_conn_id(conn, buf, sizeof(buf), 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
@@ -1772,7 +1772,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, (size_t)spktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -1791,7 +1791,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, (size_t)spktlen, 1);
 
   CU_ASSERT(NGTCP2_ERR_DRAINING == rv);
   CU_ASSERT(NGTCP2_CS_DRAINING == conn->state);
@@ -1808,7 +1808,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  rv = ngtcp2_conn_recv(conn, buf, (size_t)spktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, (size_t)spktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_CS_DRAINING != conn->state);
@@ -1968,7 +1968,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
       NGTCP2_PROTO_VER_MAX, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ents));
@@ -1995,7 +1995,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   /*     conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid,
    * 1, */
   /*     NGTCP2_PROTO_VER_MAX, &fr); */
-  /* rv = ngtcp2_conn_recv(conn, buf, pktlen, 1); */
+  /* rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1); */
 
   /* CU_ASSERT(NGTCP2_ERR_PROTO == rv); */
 
@@ -2013,7 +2013,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->scid, &conn->dcid, 1,
       NGTCP2_PROTO_VER_MAX, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ents));
@@ -2035,7 +2035,7 @@ void test_ngtcp2_conn_recv_max_stream_id(void) {
   fr.max_stream_id.max_stream_id = 999;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(999 == conn->max_local_stream_id_uni);
@@ -2044,7 +2044,7 @@ void test_ngtcp2_conn_recv_max_stream_id(void) {
   fr.max_stream_id.max_stream_id = 997;
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 2, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(997 == conn->max_local_stream_id_bidi);
@@ -2317,7 +2317,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -2346,7 +2346,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -2376,7 +2376,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -2410,7 +2410,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -2422,7 +2422,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -2462,7 +2462,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
@@ -2481,7 +2481,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
@@ -2508,7 +2508,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
@@ -2525,7 +2525,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
@@ -2550,7 +2550,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(0 == ud.stream_data.stream_id);
@@ -2567,7 +2567,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
@@ -2593,7 +2593,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(0 == ud.stream_data.stream_id);
@@ -2610,7 +2610,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
@@ -2636,7 +2636,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(3 == ud.stream_data.stream_id);
@@ -2663,7 +2663,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
                                   ++pkt_num, &fr);
 
   memset(&ud, 0, sizeof(ud));
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
 
@@ -2688,7 +2688,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
@@ -2707,7 +2707,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_CRYPTO == rv);
 
@@ -2725,7 +2725,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
@@ -2748,7 +2748,7 @@ void test_ngtcp2_conn_recv_ping(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == conn->pktns.frq);
@@ -2777,7 +2777,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
 
@@ -2794,7 +2794,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
@@ -2811,7 +2811,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
 
@@ -2828,7 +2828,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 
@@ -2850,7 +2850,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
@@ -2868,7 +2868,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1000000009 == strm->max_tx_offset);
@@ -3123,7 +3123,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   pktlen += write_single_frame_pkt(conn, buf + pktlen, sizeof(buf) - pktlen,
                                    &conn->scid, ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_recv(conn, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
 

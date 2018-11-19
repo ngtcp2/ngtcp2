@@ -4704,8 +4704,8 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   return 0;
 }
 
-int ngtcp2_conn_recv(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
-                     ngtcp2_tstamp ts) {
+int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
+                         ngtcp2_tstamp ts) {
   int rv = 0;
 
   conn->log.last_ts = ts;
