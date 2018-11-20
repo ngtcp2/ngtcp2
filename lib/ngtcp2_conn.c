@@ -2261,6 +2261,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ssize_t nwrite;
   uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
+  size_t origlen = destlen;
 
   conn->log.last_ts = ts;
 
@@ -2278,10 +2279,10 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_POST_HANDSHAKE:
     cwnd = conn_cwnd_left(conn);
+    destlen = ngtcp2_min(destlen, cwnd);
 
     if (cwnd >= NGTCP2_MIN_PKTLEN) {
-      nwrite = conn_write_handshake_pkts(conn, dest, ngtcp2_min(destlen, cwnd),
-                                         0, ts);
+      nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
       if (nwrite < 0) {
         if (ngtcp2_err_is_fatal((int)nwrite)) {
           return nwrite;
@@ -2290,19 +2291,19 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         return nwrite;
       }
     } else {
-      nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
+      nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
       if (nwrite) {
         return nwrite;
       }
     }
 
     if (conn->rcs.probe_pkt_left) {
-      return conn_write_probe_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0,
+      return conn_write_probe_pkt(conn, dest, origlen, NULL, NULL, 0, NULL, 0,
                                   ts);
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
-      nwrite = conn_write_protected_ack_pkt(conn, dest, destlen,
+      nwrite = conn_write_protected_ack_pkt(conn, dest, origlen,
                                             0 /* nodelay */, ts);
       if (nwrite) {
         return nwrite;
@@ -2310,8 +2311,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return NGTCP2_ERR_CONGESTION;
     }
 
-    return conn_write_pkt(conn, dest, ngtcp2_min(destlen, cwnd), NULL, NULL, 0,
-                          NULL, 0, ts);
+    return conn_write_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
