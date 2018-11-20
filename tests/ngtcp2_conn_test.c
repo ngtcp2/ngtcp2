@@ -335,6 +335,10 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                              sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
+  (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
+                     NGTCP2_CONN_FLAG_SADDR_VERIFIED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
   (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
   (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
   (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;
@@ -378,6 +382,9 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                              sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
+  (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
   (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
   (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
   (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;

@@ -5826,6 +5826,9 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t nwrite;
   uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
+  size_t origlen = destlen;
+  size_t server_hs_tx_left;
+  ngtcp2_rcvry_stat *rcs = &conn->rcs;
 
   conn->log.last_ts = ts;
 
@@ -5853,21 +5856,46 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_STREAM_SHUT_WR;
   }
 
-  nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
-  if (nwrite) {
-    return nwrite;
+  cwnd = conn_cwnd_left(conn);
+  destlen = ngtcp2_min(destlen, cwnd);
+
+  if (conn->server) {
+    server_hs_tx_left = conn_server_hs_tx_left(conn);
+    if (server_hs_tx_left == 0) {
+      if (rcs->loss_detection_timer) {
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
+                        "loss detection timer canceled");
+        rcs->loss_detection_timer = 0;
+      }
+      return 0;
+    }
+    destlen = ngtcp2_min(destlen, server_hs_tx_left);
   }
 
-  cwnd = conn_cwnd_left(conn);
+  if (cwnd >= NGTCP2_MIN_PKTLEN) {
+    nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
+    if (nwrite < 0) {
+      if (ngtcp2_err_is_fatal((int)nwrite)) {
+        return nwrite;
+      }
+    } else if (nwrite) {
+      return nwrite;
+    }
+  } else {
+    nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
+    if (nwrite) {
+      return nwrite;
+    }
+  }
 
   if (pktns->tx_ckm) {
     if (conn->rcs.probe_pkt_left) {
-      return conn_write_probe_pkt(conn, dest, destlen, pdatalen, strm, fin,
+      return conn_write_probe_pkt(conn, dest, origlen, pdatalen, strm, fin,
                                   datav, datavcnt, ts);
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
-      nwrite = conn_write_protected_ack_pkt(conn, dest, destlen,
+      nwrite = conn_write_protected_ack_pkt(conn, dest, origlen,
                                             0 /* nodelay */, ts);
       if (nwrite) {
         return nwrite;
@@ -5875,8 +5903,8 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
       return NGTCP2_ERR_CONGESTION;
     }
 
-    nwrite = conn_write_pkt(conn, dest, ngtcp2_min(destlen, cwnd), pdatalen,
-                            strm, fin, datav, datavcnt, ts);
+    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, datav,
+                            datavcnt, ts);
 
     if (nwrite) {
       return nwrite;
@@ -5900,14 +5928,13 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_CONGESTION;
   }
 
-  nwrite =
-      conn_retransmit_retry_early(conn, dest, ngtcp2_min(destlen, cwnd), ts);
+  nwrite = conn_retransmit_retry_early(conn, dest, destlen, ts);
   if (nwrite) {
     return nwrite;
   }
 
-  return conn_write_stream_early(conn, dest, ngtcp2_min(destlen, cwnd),
-                                 pdatalen, strm, fin, datav, datavcnt, 0, ts);
+  return conn_write_stream_early(conn, dest, destlen, pdatalen, strm, fin,
+                                 datav, datavcnt, 0, ts);
 }
 
 ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
