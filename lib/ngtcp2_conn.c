@@ -159,8 +159,8 @@ static int crypto_offset_less(const ngtcp2_pq_entry *lhs,
   return lfrc->fr.offset < rfrc->fr.offset;
 }
 
-static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_cc_stat *ccs,
-                      ngtcp2_log *log, ngtcp2_mem *mem) {
+static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
+                      ngtcp2_mem *mem) {
   int rv;
 
   rv = ngtcp2_gaptr_init(&pktns->pngap, mem);
@@ -170,7 +170,7 @@ static int pktns_init(ngtcp2_pktns *pktns, int delayed_ack, ngtcp2_cc_stat *ccs,
 
   pktns->last_tx_pkt_num = (uint64_t)-1;
 
-  rv = ngtcp2_acktr_init(&pktns->acktr, delayed_ack, log, mem);
+  rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
   if (rv != 0) {
     ngtcp2_gaptr_free(&pktns->pngap);
     return rv;
@@ -269,20 +269,17 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_log_init(&(*pconn)->log, &(*pconn)->scid, settings->log_printf,
                   settings->initial_ts, user_data);
 
-  rv = pktns_init(&(*pconn)->in_pktns, 0 /* delayed_ack */, &(*pconn)->ccs,
-                  &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->in_pktns, &(*pconn)->ccs, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->hs_pktns, 0 /* delayed_ack */, &(*pconn)->ccs,
-                  &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->hs_pktns, &(*pconn)->ccs, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->pktns, 1 /* delayed_ack */, &(*pconn)->ccs,
-                  &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->pktns, &(*pconn)->ccs, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
@@ -515,7 +512,7 @@ static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, ngtcp2_tstamp ts,
-                                 int nodelay, uint8_t ack_delay_exponent) {
+                                 uint8_t ack_delay_exponent) {
   uint64_t first_pkt_num;
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
@@ -530,11 +527,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
-  uint64_t max_ack_delay = (nodelay || !ngtcp2_acktr_delayed_ack(acktr))
-                               ? 0
-                               : conn_compute_ack_delay(conn);
 
-  if (!ngtcp2_acktr_require_active_ack(acktr, max_ack_delay, ts)) {
+  if (!(acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK) &&
+      !ngtcp2_acktr_require_active_ack(acktr, conn_compute_ack_delay(conn),
+                                       ts)) {
     return 0;
   }
 
@@ -995,7 +991,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ctx.user_data = conn;
 
   if (type != NGTCP2_PKT_0RTT_PROTECTED) {
-    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* nodelay */,
+    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
                                NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     if (rv != 0) {
       return rv;
@@ -1216,7 +1212,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
-                             force_initial /* nodelay */,
                              NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
     return rv;
@@ -1433,8 +1428,7 @@ static ssize_t conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, int nodelay,
-                                            ngtcp2_tstamp ts);
+                                            size_t destlen, ngtcp2_tstamp ts);
 
 static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ngtcp2_tstamp ts) {
@@ -1455,8 +1449,7 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   /* Acknowledge 0-RTT packet here. */
   if (conn->pktns.tx_ckm) {
-    nwrite = conn_write_protected_ack_pkt(conn, dest, destlen,
-                                          res > 0 /* nodelay */, ts);
+    nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
     if (nwrite < 0) {
       if (nwrite != NGTCP2_ERR_NOBUF) {
         return nwrite;
@@ -1881,7 +1874,6 @@ tx_strmq_finish:
   }
 
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
-                             !pkt_empty /* nodelay */,
                              conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     assert(ngtcp2_err_is_fatal(rv));
@@ -2070,15 +2062,14 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
  *     Out of memory.
  */
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, int nodelay,
-                                            ngtcp2_tstamp ts) {
+                                            size_t destlen, ngtcp2_tstamp ts) {
   int rv;
   ssize_t spktlen;
   ngtcp2_frame *ackfr;
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, acktr, ts, nodelay,
+  rv = conn_create_ack_frame(conn, &ackfr, acktr, ts,
                              conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     return rv;
@@ -2177,7 +2168,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_log_tx_fr(&conn->log, &hd, &frc->fr);
 
-  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 1 /* nodelay */,
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
                              conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     goto fail;
@@ -2303,8 +2294,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
-      nwrite = conn_write_protected_ack_pkt(conn, dest, origlen,
-                                            0 /* nodelay */, ts);
+      nwrite = conn_write_protected_ack_pkt(conn, dest, origlen, ts);
       if (nwrite) {
         return nwrite;
       }
@@ -3471,6 +3461,10 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
 
+  if (++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  }
+
   rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num);
   if (rv != 0) {
     return rv;
@@ -4197,6 +4191,10 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd->pkt_num);
 
+  if (++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  }
+
   rv = pktns_commit_recv_pkt_num(pktns, hd->pkt_num);
   if (rv != 0) {
     return rv;
@@ -4567,6 +4565,10 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
 
+  if (++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  }
+
   rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num);
   if (rv != 0) {
     return rv;
@@ -4743,27 +4745,6 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   return rv;
 }
 
-/*
- * conn_handle_delayed_ack_expiry handles expired delayed ACK timer
- * during handshake.  The delayed ACK timer is only used for ACK frame
- * in protected packet, but it starts during handshake.  Application
- * may be awakened by this timer and attempt to send ACK, but this is
- * ACK for protected packet.  We have no key so we cannot send any
- * protected packet.  Timer keeps firing and it could become busy loop
- * until handshake finishes.  We can disable it during handshake, but
- * 0-RTT stuff complicates this.  This function checks that delayed
- * ACK timer has expired, and if so disarm timer.  We have internal
- * flag which shows that timer has expired.
- */
-static void conn_handle_delayed_ack_expiry(ngtcp2_conn *conn,
-                                           ngtcp2_tstamp ts) {
-  if (ngtcp2_conn_ack_delay_expiry(conn) > ts) {
-    return;
-  }
-
-  ngtcp2_acktr_expire_delayed_ack(&conn->pktns.acktr);
-}
-
 static int conn_check_pkt_num_exhausted(ngtcp2_conn *conn) {
   return conn->in_pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM ||
          conn->hs_pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM ||
@@ -4795,8 +4776,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const uint8_t *pkt,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
                     pktlen);
   }
-
-  conn_handle_delayed_ack_expiry(conn, ts);
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
@@ -4895,8 +4874,6 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   size_t pending_early_datalen;
 
   conn->log.last_ts = ts;
-
-  conn_handle_delayed_ack_expiry(conn, ts);
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
@@ -5895,8 +5872,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     if (cwnd < NGTCP2_MIN_PKTLEN) {
-      nwrite = conn_write_protected_ack_pkt(conn, dest, origlen,
-                                            0 /* nodelay */, ts);
+      nwrite = conn_write_protected_ack_pkt(conn, dest, origlen, ts);
       if (nwrite) {
         return nwrite;
       }
