@@ -447,11 +447,9 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       }
       ent = ngtcp2_ksl_it_get(&it);
       if (conn) {
-        if (conn->callbacks.acked_stream_data_offset) {
-          rv = call_acked_stream_offset(ent, conn);
-          if (rv != 0) {
-            return rv;
-          }
+        rv = call_acked_stream_offset(ent, conn);
+        if (rv != 0) {
+          return rv;
         }
 
         rtb_on_pkt_acked(rtb, ent);
