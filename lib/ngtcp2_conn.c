@@ -527,10 +527,11 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
+  uint64_t ack_delay = (acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK)
+                           ? 0
+                           : conn_compute_ack_delay(conn);
 
-  if (!(acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK) &&
-      !ngtcp2_acktr_require_active_ack(acktr, conn_compute_ack_delay(conn),
-                                       ts)) {
+  if (!ngtcp2_acktr_require_active_ack(acktr, ack_delay, ts)) {
     return 0;
   }
 
