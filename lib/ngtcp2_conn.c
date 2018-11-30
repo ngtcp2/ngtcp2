@@ -3756,6 +3756,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       if (strm->last_rx_offset != fr_end_offset) {
         return NGTCP2_ERR_FINAL_OFFSET;
       }
+
+      if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
+                                                     strm->app_error_code);
+      }
     } else if (strm->last_rx_offset > fr_end_offset) {
       return NGTCP2_ERR_FINAL_OFFSET;
     } else {

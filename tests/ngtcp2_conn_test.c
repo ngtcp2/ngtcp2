@@ -2451,6 +2451,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   size_t pktlen;
   int rv;
   uint64_t stream_id;
+  size_t i;
 
   /* 2 STREAM frames are received in the correct order. */
   setup_default_server(&conn);
@@ -2736,6 +2737,51 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
+
+  ngtcp2_conn_del(conn);
+
+  /* After sending STOP_SENDING, receiving 2 STREAM frames with fin
+     bit set must not invoke recv_stream_data callback. */
+  setup_default_server(&conn);
+  conn->callbacks.recv_stream_data = recv_stream_data;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, 4, 99);
+
+  CU_ASSERT(0 == rv);
+
+  for (i = 0; i < 2; ++i) {
+    fr.type = NGTCP2_FRAME_STREAM;
+    fr.stream.stream_id = 4;
+    fr.stream.fin = 1;
+    fr.stream.offset = 0;
+    fr.stream.datacnt = 1;
+    fr.stream.data[0].base = null_data;
+    fr.stream.data[0].len = 19;
+
+    pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid,
+                                    ++pkt_num, &fr);
+
+    ud.stream_data.stream_id = 0;
+    rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
+
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(0 == ud.stream_data.stream_id);
+  }
 
   ngtcp2_conn_del(conn);
 }
