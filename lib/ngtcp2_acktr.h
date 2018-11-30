@@ -57,6 +57,7 @@ typedef struct ngtcp2_log ngtcp2_log;
  */
 struct ngtcp2_acktr_entry {
   uint64_t pkt_num;
+  size_t len;
   ngtcp2_tstamp tstamp;
 };
 
@@ -135,7 +136,8 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem);
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
 
 /*
- * ngtcp2_acktr_add adds |ent|.
+ * ngtcp2_acktr_add adds packet number |pkt_num| to |acktr|.
+ * |active_ack| is nonzero if |pkt_num| is retransmittable packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -145,8 +147,8 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
  * NGTCP2_ERR_NOMEM
  *     OUt of memory.
  */
-int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
-                     int active_ack, ngtcp2_tstamp ts);
+int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
+                     ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_forget removes all entries which have the packet

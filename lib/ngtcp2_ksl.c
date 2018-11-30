@@ -536,6 +536,30 @@ ngtcp2_ksl_it ngtcp2_ksl_lower_bound(ngtcp2_ksl *ksl, int64_t key) {
   }
 }
 
+void ngtcp2_ksl_update_key(ngtcp2_ksl *ksl, int64_t old_key, int64_t new_key) {
+  ngtcp2_ksl_blk *blk = ksl->head;
+  ngtcp2_ksl_node *node;
+  size_t i;
+
+  for (;;) {
+    for (i = 0, node = &blk->nodes[i]; ksl->compar(node->key, old_key);
+         ++i, node = &blk->nodes[i])
+      ;
+
+    if (blk->leaf) {
+      assert(node->key == old_key);
+      node->key = new_key;
+      return;
+    }
+
+    if (node->key == old_key) {
+      node->key = new_key;
+    }
+
+    blk = node->blk;
+  }
+}
+
 static void ksl_print(ngtcp2_ksl *ksl, const ngtcp2_ksl_blk *blk,
                       size_t level) {
   size_t i;

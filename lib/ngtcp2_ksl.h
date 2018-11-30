@@ -180,6 +180,13 @@ int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it, int64_t key);
 ngtcp2_ksl_it ngtcp2_ksl_lower_bound(ngtcp2_ksl *ksl, int64_t key);
 
 /*
+ * ngtcp2_ksl_update_key replaces the key of nodes which has |old_key|
+ * with |new_key|.  |new_key| must be strictly greater than the
+ * previous node and strictly smaller than the next node.
+ */
+void ngtcp2_ksl_update_key(ngtcp2_ksl *ksl, int64_t old_key, int64_t new_key);
+
+/*
  * ngtcp2_ksl_begin returns the iterator which points to the first
  * node.  If there is no node in |ksl|, it returns the iterator which
  * satisfies ngtcp2_ksl_it_end(it) != 0.

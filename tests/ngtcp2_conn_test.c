@@ -3100,12 +3100,11 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   it = ngtcp2_acktr_get(&conn->in_pktns.acktr);
   ackent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(ackent->pkt_num == pkt_num);
+  CU_ASSERT(pkt_num == ackent->pkt_num);
+  CU_ASSERT(2 == ackent->len);
 
   ngtcp2_ksl_it_next(&it);
-  ackent = ngtcp2_ksl_it_get(&it);
-
-  CU_ASSERT(ackent->pkt_num == pkt_num - 1);
+  ngtcp2_ksl_it_end(&it);
 
   ngtcp2_conn_del(conn);
 

@@ -513,11 +513,8 @@ static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, ngtcp2_tstamp ts,
                                  uint8_t ack_delay_exponent) {
-  uint64_t first_pkt_num;
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
-  int initial = 1;
-  uint64_t gap;
   ngtcp2_ksl_it it;
   ngtcp2_acktr_entry *rpkt;
   ngtcp2_frame *fr;
@@ -550,10 +547,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ack = &fr->ack;
 
   rpkt = ngtcp2_ksl_it_get(&it);
-  first_pkt_num = last_pkt_num = rpkt->pkt_num;
-
+  last_pkt_num = rpkt->pkt_num - (rpkt->len - 1);
   ack->type = NGTCP2_FRAME_ACK;
-  ack->largest_ack = first_pkt_num;
+  ack->largest_ack = rpkt->pkt_num;
+  ack->first_ack_blklen = rpkt->len - 1;
   ack->ack_delay_unscaled = ts - rpkt->tstamp;
   ack->ack_delay = (ack->ack_delay_unscaled / 1000) >> ack_delay_exponent;
   ack->num_blks = 0;
@@ -562,38 +559,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
 
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     rpkt = ngtcp2_ksl_it_get(&it);
-    if (rpkt->pkt_num + 1 == last_pkt_num) {
-      last_pkt_num = rpkt->pkt_num;
-      continue;
-    }
 
-    if (initial) {
-      initial = 0;
-      ack->first_ack_blklen = first_pkt_num - last_pkt_num;
-    } else {
-      blk_idx = ack->num_blks++;
-      rv = conn_ensure_ack_blks(conn, &fr, &num_blks_max, ack->num_blks);
-      if (rv != 0) {
-        ngtcp2_mem_free(conn->mem, fr);
-        return rv;
-      }
-      ack = &fr->ack;
-      blk = &ack->blks[blk_idx];
-      blk->gap = gap;
-      blk->blklen = first_pkt_num - last_pkt_num;
-    }
-
-    gap = last_pkt_num - rpkt->pkt_num - 2;
-    first_pkt_num = last_pkt_num = rpkt->pkt_num;
-
-    if (ack->num_blks == NGTCP2_MAX_ACK_BLKS - 1) {
-      break;
-    }
-  }
-
-  if (initial) {
-    ack->first_ack_blklen = first_pkt_num - last_pkt_num;
-  } else {
     blk_idx = ack->num_blks++;
     rv = conn_ensure_ack_blks(conn, &fr, &num_blks_max, ack->num_blks);
     if (rv != 0) {
@@ -602,8 +568,14 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     }
     ack = &fr->ack;
     blk = &ack->blks[blk_idx];
-    blk->gap = gap;
-    blk->blklen = first_pkt_num - last_pkt_num;
+    blk->gap = last_pkt_num - rpkt->pkt_num - 2;
+    blk->blklen = rpkt->len - 1;
+
+    last_pkt_num = rpkt->pkt_num - (rpkt->len - 1);
+
+    if (ack->num_blks == NGTCP2_MAX_ACK_BLKS) {
+      break;
+    }
   }
 
   /* TODO Just remove entries which cannot fit into a single ACK frame
@@ -5315,17 +5287,11 @@ int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
                           uint64_t pkt_num, int active_ack, ngtcp2_tstamp ts) {
-  ngtcp2_acktr_entry *rpkt;
   int rv;
+  (void)conn;
 
-  rv = ngtcp2_acktr_entry_new(&rpkt, pkt_num, ts, conn->mem);
+  rv = ngtcp2_acktr_add(acktr, pkt_num, active_ack, ts);
   if (rv != 0) {
-    return rv;
-  }
-
-  rv = ngtcp2_acktr_add(acktr, rpkt, active_ack, ts);
-  if (rv != 0) {
-    ngtcp2_acktr_entry_del(rpkt, conn->mem);
     /* NGTCP2_ERR_INVALID_ARGUMENT means duplicated packet number.
        Just ignore it for now. */
     if (rv != NGTCP2_ERR_INVALID_ARGUMENT) {
