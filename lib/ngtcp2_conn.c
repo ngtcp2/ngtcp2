@@ -3816,10 +3816,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     if (fr_end_offset <= rx_offset) {
       return 0;
     }
+  }
 
-    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-      return 0;
-    }
+  if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+    return 0;
   }
 
   if (fr->offset <= rx_offset) {
@@ -6089,7 +6089,7 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
     return 0;
   }
 
-  strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
+  strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST;
   strm->app_error_code = app_error_code;
 
   return conn_stop_sending(conn, strm, app_error_code);
