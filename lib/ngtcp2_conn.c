@@ -4564,22 +4564,19 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
-  ngtcp2_pkt_chain *pc = conn->buffed_rx_ppkts, *next;
+  ngtcp2_pkt_chain *pc, *next;
 
-  for (; pc; pc = pc->next) {
+  for (pc = conn->buffed_rx_ppkts; pc;) {
+    next = pc->next;
     nread = conn_recv_pkt(conn, pc->pkt, pc->pktlen, ts);
+    ngtcp2_pkt_chain_del(pc, conn->mem);
+    pc = next;
     if (nread < 0) {
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         continue;
       }
       return (int)nread;
     }
-  }
-
-  for (pc = conn->buffed_rx_ppkts; pc;) {
-    next = pc->next;
-    ngtcp2_pkt_chain_del(pc, conn->mem);
-    pc = next;
   }
 
   conn->buffed_rx_ppkts = NULL;
@@ -4590,22 +4587,19 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
 static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
-  ngtcp2_pkt_chain *pc = conn->buffed_rx_hs_pkts, *next;
+  ngtcp2_pkt_chain *pc, *next;
 
-  for (; pc; pc = pc->next) {
+  for (pc = conn->buffed_rx_hs_pkts; pc;) {
+    next = pc->next;
     nread = conn_recv_handshake_pkt(conn, pc->pkt, pc->pktlen, ts);
+    ngtcp2_pkt_chain_del(pc, conn->mem);
+    pc = next;
     if (nread < 0) {
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         continue;
       }
       return (int)nread;
     }
-  }
-
-  for (pc = conn->buffed_rx_hs_pkts; pc;) {
-    next = pc->next;
-    ngtcp2_pkt_chain_del(pc, conn->mem);
-    pc = next;
   }
 
   conn->buffed_rx_hs_pkts = NULL;
@@ -4792,9 +4786,14 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const uint8_t *pkt,
 
     /* Process re-ordered 0-RTT Protected packets which were
        arrived before Initial packet. */
-    rv = conn_process_buffered_protected_pkt(conn, ts);
-    if (rv != 0) {
-      return rv;
+    if (conn->early_ckm) {
+      rv = conn_process_buffered_protected_pkt(conn, ts);
+      if (rv != 0) {
+        return rv;
+      }
+    } else {
+      delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
+      conn->buffed_rx_ppkts = NULL;
     }
 
     return 0;
