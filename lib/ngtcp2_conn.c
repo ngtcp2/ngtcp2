@@ -4154,15 +4154,16 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     case NGTCP2_FRAME_PADDING:
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
-      /* TODO What should I do if we get this in delayed
-         Initial/Handshake? */
+      if (hd->type != NGTCP2_PKT_HANDSHAKE) {
+        break;
+      }
+      conn_recv_connection_close(conn);
       break;
     case NGTCP2_FRAME_APPLICATION_CLOSE:
       if (hd->type != NGTCP2_PKT_HANDSHAKE) {
         return NGTCP2_ERR_PROTO;
       }
-      /* TODO What should I do if we get this in delayed
-         Initial/Handshake? */
+      conn_recv_connection_close(conn);
       break;
     case NGTCP2_FRAME_CRYPTO:
       require_ack = 1;
