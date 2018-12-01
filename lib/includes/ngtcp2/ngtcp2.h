@@ -1037,6 +1037,21 @@ typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint64_t stream_id,
                                        const uint8_t *data, size_t datalen,
                                        void *user_data, void *stream_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_stream_open` is a callback function which is called
+ * when remote stream is opened by peer.  This function is not called
+ * if stream is opened by implicitly (we might reconsider this
+ * behaviour).
+ *
+ * The implementation of this callback should return 0 if it succeeds.
+ * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
+ * call return imediately.
+ */
+typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, uint64_t stream_id,
+                                  void *user_data);
+
 typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint64_t stream_id,
                                    uint16_t app_error_code, void *user_data,
                                    void *stream_user_data);
@@ -1128,6 +1143,7 @@ typedef struct {
   ngtcp2_recv_stream_data recv_stream_data;
   ngtcp2_acked_crypto_offset acked_crypto_offset;
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
+  ngtcp2_stream_open stream_open;
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_retry recv_retry;

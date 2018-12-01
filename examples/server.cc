@@ -967,6 +967,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       ::recv_stream_data,
       acked_crypto_offset,
       acked_stream_data_offset,
+      nullptr, // stream_open
       stream_close,
       nullptr, // recv_stateless_reset
       nullptr, // recv_retry

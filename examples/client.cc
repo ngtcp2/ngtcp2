@@ -790,6 +790,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       do_hs_encrypt,    do_hs_decrypt,        do_encrypt,
       do_decrypt,       do_hs_encrypt_pn,     do_encrypt_pn,
       recv_stream_data, acked_crypto_offset,  acked_stream_data_offset,
+      nullptr, // stream_open
       stream_close,
       nullptr, // recv_stateless_reset
       recv_retry,       extend_max_stream_id,

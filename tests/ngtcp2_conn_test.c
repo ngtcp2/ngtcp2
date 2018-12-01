@@ -1284,6 +1284,23 @@ void test_ngtcp2_conn_recv_rst_stream(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* RST_STREAM against remote stream which has not been initiated */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_RST_STREAM;
+  fr.rst_stream.stream_id = 0;
+  fr.rst_stream.app_error_code = NGTCP2_APP_ERR01;
+  fr.rst_stream.final_offset = 1999;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, 0));
+  CU_ASSERT(12 == conn->unsent_max_remote_stream_id_bidi);
+
+  ngtcp2_conn_del(conn);
+
   /* RST_STREAM against remote stream which is larger than allowed
      maximum */
   setup_default_server(&conn);
@@ -1525,6 +1542,26 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   CU_ASSERT(NULL != frc);
   CU_ASSERT(NGTCP2_STOPPING == frc->fr.rst_stream.app_error_code);
   CU_ASSERT(333 == frc->fr.rst_stream.final_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* STOP_SENDING against remote bidirectional stream which has not
+     been initiated. */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STOP_SENDING;
+  fr.stop_sending.stream_id = 0;
+  fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  CU_ASSERT(NULL != strm);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
 
   ngtcp2_conn_del(conn);
 
