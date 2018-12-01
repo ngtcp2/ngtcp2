@@ -3027,6 +3027,13 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, uint64_t pkt_num) {
   ngtcp2_psl_it it;
   ngtcp2_range key;
 
+  if (pktns->max_rx_pkt_num + 1 != pkt_num) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  }
+  if (pktns->max_rx_pkt_num < pkt_num) {
+    pktns->max_rx_pkt_num = pkt_num;
+  }
+
   rv = ngtcp2_gaptr_push(&pktns->pngap, pkt_num, 1);
   if (rv != 0) {
     return rv;
@@ -3432,15 +3439,13 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
-  pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
-
-  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-
   rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num);
   if (rv != 0) {
     return rv;
+  }
+
+  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack, ts);
@@ -4167,15 +4172,13 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     }
   }
 
-  pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd->pkt_num);
-
-  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-
   rv = pktns_commit_recv_pkt_num(pktns, hd->pkt_num);
   if (rv != 0) {
     return rv;
+  }
+
+  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
   return ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack,
@@ -4541,15 +4544,13 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
   }
 
-  pktns->max_rx_pkt_num = ngtcp2_max(pktns->max_rx_pkt_num, hd.pkt_num);
-
-  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-
   rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num);
   if (rv != 0) {
     return rv;
+  }
+
+  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack, ts);
