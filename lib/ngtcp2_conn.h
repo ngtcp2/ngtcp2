@@ -58,15 +58,6 @@ typedef enum {
   NGTCP2_CS_DRAINING,
 } ngtcp2_conn_state;
 
-/* NGTCP2_INITIAL_EXPIRY is initial retransmission timeout in
-   nanosecond resolution. */
-#define NGTCP2_INITIAL_EXPIRY 1000000000
-
-/* NGTCP2_PKT_DEADLINE_PERIOD is the period of time with nanoseconds
-   resolution when the library gives up re-sending packet, and closes
-   connection. */
-#define NGTCP2_PKT_DEADLINE_PERIOD 60000000000
-
 /* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
    reordered packets. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 16
@@ -79,9 +70,9 @@ typedef enum {
    draft-ietf-quic-recovery-10. */
 #define NGTCP2_REORDERING_THRESHOLD 3
 
-#define NGTCP2_DEFAULT_INITIAL_RTT 100000000
-#define NGTCP2_MIN_TLP_TIMEOUT 10000000
-#define NGTCP2_MIN_RTO_TIMEOUT 200000000
+#define NGTCP2_DEFAULT_INITIAL_RTT (100 * NGTCP2_MILLISECONDS)
+#define NGTCP2_MIN_TLP_TIMEOUT (10 * NGTCP2_MILLISECONDS)
+#define NGTCP2_MIN_RTO_TIMEOUT (200 * NGTCP2_MILLISECONDS)
 #define NGTCP2_MAX_TLP_COUNT 2
 
 #define NGTCP2_MAX_DGRAM_SIZE 1200

@@ -190,7 +190,7 @@ static const char *strevent(ngtcp2_log_event ev) {
   }
 }
 
-static uint64_t timestamp_cast(uint64_t ns) { return ns / 1000000; }
+static uint64_t timestamp_cast(uint64_t ns) { return ns / NGTCP2_MILLISECONDS; }
 
 static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                           const ngtcp2_stream *fr, const char *dir) {
@@ -208,12 +208,13 @@ static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   uint64_t largest_ack, min_ack;
   size_t i;
 
-  log->log_printf(
-      log->user_data,
-      (NGTCP2_LOG_PKT " ACK(0x%02x) largest_ack=%" PRIu64 " ack_delay=%" PRIu64
-                      "(%" PRIu64 ") ack_block_count=%zu\n"),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->largest_ack,
-      fr->ack_delay_unscaled / 1000000, fr->ack_delay, fr->num_blks);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_PKT " ACK(0x%02x) largest_ack=%" PRIu64
+                                  " ack_delay=%" PRIu64 "(%" PRIu64
+                                  ") ack_block_count=%zu\n"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->largest_ack,
+                  fr->ack_delay_unscaled / NGTCP2_MILLISECONDS, fr->ack_delay,
+                  fr->num_blks);
 
   largest_ack = fr->largest_ack;
   min_ack = fr->largest_ack - fr->first_ack_blklen;

@@ -494,15 +494,17 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
  * conn_compute_ack_delay computes ACK delay for outgoing protected
  * ACK.
  */
-static uint64_t conn_compute_ack_delay(ngtcp2_conn *conn) {
-  uint64_t initial_delay =
-      (uint64_t)conn->local_settings.max_ack_delay * 1000000;
+static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
+  ngtcp2_duration initial_delay =
+      (ngtcp2_duration)conn->local_settings.max_ack_delay *
+      (NGTCP2_DURATION_TICK / NGTCP2_MILLISECONDS);
 
   if (conn->rcs.smoothed_rtt < 1e-9) {
     return initial_delay;
   }
 
-  return ngtcp2_min(initial_delay, (uint64_t)(conn->rcs.smoothed_rtt / 4));
+  return ngtcp2_min(initial_delay,
+                    (ngtcp2_duration)(conn->rcs.smoothed_rtt / 4));
 }
 
 /*
@@ -567,7 +569,9 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ack->largest_ack = rpkt->pkt_num;
   ack->first_ack_blklen = rpkt->len - 1;
   ack->ack_delay_unscaled = ts - rpkt->tstamp;
-  ack->ack_delay = (ack->ack_delay_unscaled / 1000) >> ack_delay_exponent;
+  ack->ack_delay = ack->ack_delay_unscaled /
+                   (NGTCP2_DURATION_TICK / NGTCP2_MICROSECONDS) /
+                   (1UL << ack_delay_exponent);
   ack->num_blks = 0;
 
   ngtcp2_ksl_it_next(&it);
@@ -2644,7 +2648,8 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  */
 static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
                                              uint8_t ack_delay_exponent) {
-  fr->ack_delay_unscaled = (fr->ack_delay << ack_delay_exponent) * 1000;
+  fr->ack_delay_unscaled = fr->ack_delay * (1UL << ack_delay_exponent) *
+                           (NGTCP2_DURATION_TICK / NGTCP2_MICROSECONDS);
 }
 
 /*
@@ -2991,7 +2996,7 @@ static void conn_recv_path_response(ngtcp2_conn *conn,
 static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
                               ngtcp2_tstamp ts) {
   /* Reset bandwidth measurement after 1 second idle time. */
-  if (ts - conn->first_rx_bw_ts > 1000000000) {
+  if (ts - conn->first_rx_bw_ts > NGTCP2_SECONDS) {
     conn->first_rx_bw_ts = ts;
     conn->rx_bw_datalen = datalen;
     conn->rx_bw = 0.;
@@ -3000,12 +3005,12 @@ static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
 
   conn->rx_bw_datalen += datalen;
 
-  if (ts - conn->first_rx_bw_ts >= 25000000) {
+  if (ts - conn->first_rx_bw_ts >= 25 * NGTCP2_MILLISECONDS) {
     conn->rx_bw =
         (double)conn->rx_bw_datalen / (double)(ts - conn->first_rx_bw_ts);
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "rx_bw=%.02fBs",
-                    conn->rx_bw * 1000000000);
+                    conn->rx_bw * NGTCP2_DURATION_TICK);
   }
 }
 
@@ -6305,9 +6310,11 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
                   " smoothed_rtt=%.3f rttvar=%.3f max_ack_delay=%" PRIu64,
-                  rcs->latest_rtt / 1000000, rcs->min_rtt / 1000000,
-                  rcs->smoothed_rtt / 1000000, rcs->rttvar / 1000000,
-                  rcs->max_ack_delay / 1000000);
+                  rcs->latest_rtt / NGTCP2_MILLISECONDS,
+                  rcs->min_rtt / NGTCP2_MILLISECONDS,
+                  rcs->smoothed_rtt / NGTCP2_MILLISECONDS,
+                  rcs->rttvar / NGTCP2_MILLISECONDS,
+                  rcs->max_ack_delay / NGTCP2_MILLISECONDS);
 }
 
 void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
@@ -6339,7 +6346,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
                     "loss_detection_timer=%" PRIu64
                     " last_hs_tx_pkt_ts=%" PRIu64 " timeout=%" PRIu64,
                     rcs->loss_detection_timer, rcs->last_hs_tx_pkt_ts,
-                    timeout / 1000000);
+                    timeout / NGTCP2_MILLISECONDS);
     return;
   }
 

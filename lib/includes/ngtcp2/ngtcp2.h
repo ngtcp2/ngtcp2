@@ -188,6 +188,24 @@ typedef struct {
   "\x9c\x10\x8f\x98\x52\x0a\x5c\x5c\x32\x96\x8e\x95\x0e\x8a\x2c\x5f\xe0\x6d"   \
   "\x6c\x38"
 
+/* NGTCP2_DURATION_TICK is a count of tick per second. */
+#define NGTCP2_DURATION_TICK 1000000000
+
+/* NGTCP2_SECONDS is a count of tick which corresponds to 1 second. */
+#define NGTCP2_SECONDS 1000000000
+
+/* NGTCP2_MILLISECONDS is a count of tick which corresponds to 1
+   millisecond. */
+#define NGTCP2_MILLISECONDS 1000000
+
+/* NGTCP2_MICROSECONDS is a count of tick which corresponds to 1
+   microsecond. */
+#define NGTCP2_MICROSECONDS 1000
+
+/* NGTCP2_NANOSECONDS is a count of tick which corresponds to 1
+   nanosecond. */
+#define NGTCP2_NANOSECONDS 1
+
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
@@ -285,12 +303,13 @@ typedef enum {
 typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
 
 /*
- * ngtcp2_tstamp is a timestamp with nanosecond resolution.
+ * ngtcp2_tstamp is a timestamp with NGTCP2_DURATION_TICK resolution.
  */
 typedef uint64_t ngtcp2_tstamp;
 
 /*
- * ngtcp2_duration is a period of time in nanosecond resolution.
+ * ngtcp2_duration is a period of time in NGTCP2_DURATION_TICK
+ * resolution.
  */
 typedef uint64_t ngtcp2_duration;
 
@@ -395,7 +414,8 @@ typedef struct {
   uint64_t ack_delay;
   /**
    * ack_delay_unscaled is an ack_delay multiplied by
-   * 2**ack_delay_component * 1000.  The resolution is nanoseconds.
+   * 2**ack_delay_component * NGTCP2_DURATION_TICK /
+   * NGTCP2_MICROSECONDS.
    */
   ngtcp2_duration ack_delay_unscaled;
   uint64_t first_ack_blklen;
@@ -691,7 +711,7 @@ typedef struct {
  * ngtcp2_rcvry_stat holds various statistics, and computed data for
  * recovery from packet loss.
  *
- * Everything is nanoseconds resolution.
+ * Everything is NGTCP2_DURATION_TICK resolution.
  */
 typedef struct {
   ngtcp2_duration latest_rtt;

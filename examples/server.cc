@@ -1674,8 +1674,8 @@ void Handler::schedule_retransmit() {
   auto expiry = std::min(ngtcp2_conn_loss_detection_expiry(conn_),
                          ngtcp2_conn_ack_delay_expiry(conn_));
   auto now = util::timestamp(loop_);
-  auto t =
-      expiry < now ? 1e-9 : static_cast<ev_tstamp>(expiry - now) / 1000000000;
+  auto t = expiry < now ? 1e-9
+                        : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
   rttimer_.repeat = t;
   ev_timer_again(loop_, &rttimer_);
 }
@@ -2309,7 +2309,7 @@ int Server::verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                      .count();
 
   // Allow 10 seconds window
-  if (t + 10 * 1000000000ULL < now) {
+  if (t + 10ULL * NGTCP2_SECONDS < now) {
     if (!config.quiet) {
       std::cerr << "Token has been expired" << std::endl;
     }

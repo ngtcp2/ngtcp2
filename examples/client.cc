@@ -1401,8 +1401,8 @@ void Client::schedule_retransmit() {
                          ngtcp2_conn_ack_delay_expiry(conn_));
 
   auto now = util::timestamp(loop_);
-  auto t =
-      expiry < now ? 1e-9 : static_cast<ev_tstamp>(expiry - now) / 1000000000;
+  auto t = expiry < now ? 1e-9
+                        : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
   rttimer_.repeat = t;
   ev_timer_again(loop_, &rttimer_);
 }

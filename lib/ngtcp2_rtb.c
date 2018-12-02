@@ -509,7 +509,7 @@ static int pkt_lost(ngtcp2_rcvry_stat *rcs, const ngtcp2_rtb_entry *ent,
 
 /*
  * rtb_compute_pkt_loss_delay computes delay until packet is
- * considered lost in nanoseconds resolution.
+ * considered lost in NGTCP2_DURATION_TICK resolution.
  */
 static uint64_t compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs,
                                        uint64_t largest_ack,
