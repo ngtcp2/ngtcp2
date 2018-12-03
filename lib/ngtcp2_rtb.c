@@ -305,6 +305,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
       if (strm == NULL) {
         break;
       }
+      strm->flags |= NGTCP2_STRM_FLAG_RST_ACKED;
       rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
       if (rv != 0) {
         return rv;

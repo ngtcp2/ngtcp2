@@ -62,6 +62,9 @@ typedef enum {
   /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
      from the local endpoint. */
   NGTCP2_STRM_FLAG_STOP_SENDING = 0x10,
+  /* NGTCP2_STRM_FLAG_RST_ACKED indicates that the outgoing RST_STREAM
+     is acknowledged by peer. */
+  NGTCP2_STRM_FLAG_RST_ACKED = 0x20,
 } ngtcp2_strm_flags;
 
 struct ngtcp2_strm;

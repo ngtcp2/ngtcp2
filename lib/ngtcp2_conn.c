@@ -3796,9 +3796,9 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return NGTCP2_ERR_FINAL_OFFSET;
       }
 
-      if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
-                                                     strm->app_error_code);
+      if (strm->flags &
+          (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST)) {
+        return 0;
       }
     } else if (strm->last_rx_offset > fr_end_offset) {
       return NGTCP2_ERR_FINAL_OFFSET;
@@ -3833,7 +3833,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return 0;
     }
 
-    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+    if (strm->flags &
+        (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST)) {
       return 0;
     }
   }
@@ -4029,6 +4030,7 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
 
   conn->rx_offset += datalen;
 
+  strm->last_rx_offset = fr->final_offset;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
 
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
@@ -6102,9 +6104,11 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
           NGTCP2_STRM_FLAG_SHUT_RDWR &&
       ((strm->flags & NGTCP2_STRM_FLAG_RECV_RST) ||
        ngtcp2_rob_first_gap_offset(&strm->rob) == strm->last_rx_offset) &&
-      ((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) ||
-       ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset) ==
-           strm->tx_offset)) {
+      (((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
+        (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
+       (!(strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
+        ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset) ==
+            strm->tx_offset))) {
     return ngtcp2_conn_close_stream(conn, strm, app_error_code);
   }
   return 0;
