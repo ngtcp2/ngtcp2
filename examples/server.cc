@@ -1701,13 +1701,19 @@ int Handler::recv_stream_data(uint64_t stream_id, uint8_t fin,
   if (stream->recv_data(fin, data, datalen) != 0) {
     if (stream->resp_state == RESP_IDLE) {
       stream->send_status_response(400);
-      return 0;
-    }
-    rv = ngtcp2_conn_shutdown_stream(conn_, stream_id, NGTCP2_APP_PROTO);
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_shutdown_stream: " << ngtcp2_strerror(rv)
-                << std::endl;
-      return -1;
+      rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id, NGTCP2_APP_PROTO);
+      if (rv != 0) {
+        std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
+                  << std::endl;
+        return -1;
+      }
+    } else {
+      rv = ngtcp2_conn_shutdown_stream(conn_, stream_id, NGTCP2_APP_PROTO);
+      if (rv != 0) {
+        std::cerr << "ngtcp2_conn_shutdown_stream: " << ngtcp2_strerror(rv)
+                  << std::endl;
+        return -1;
+      }
     }
   }
 
