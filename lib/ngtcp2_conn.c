@@ -1390,10 +1390,7 @@ static ssize_t conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
   nwrite = conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
                                     early_datalen, ts);
   if (nwrite < 0) {
-    if (nwrite != NGTCP2_ERR_NOBUF) {
-      return nwrite;
-    }
-    return NGTCP2_ERR_NOBUF;
+    return nwrite;
   }
 
   res += nwrite;
@@ -1429,10 +1426,7 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
   if (nwrite < 0) {
-    if (nwrite != NGTCP2_ERR_NOBUF) {
-      return nwrite;
-    }
-    return NGTCP2_ERR_NOBUF;
+    return nwrite;
   }
 
   res += nwrite;
@@ -1893,6 +1887,15 @@ tx_strmq_finish:
     /* TODO We might have NGTCP2_ERR_NOBUF before creating ACK
        frame */
     ngtcp2_log_tx_cancel(&conn->log, &hd);
+
+    if (ndatalen == (size_t)-1) {
+      return NGTCP2_ERR_NOBUF;
+    }
+
+    if (datalen > 0 && ndatalen == 0) {
+      return NGTCP2_ERR_STREAM_DATA_BLOCKED;
+    }
+
     return 0;
   }
 
@@ -5936,16 +5939,8 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
       return NGTCP2_ERR_CONGESTION;
     }
 
-    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, datav,
-                            datavcnt, ts);
-
-    if (nwrite) {
-      return nwrite;
-    }
-    if (ngtcp2_vec_len(datav, datavcnt)) {
-      return NGTCP2_ERR_STREAM_DATA_BLOCKED;
-    }
-    return 0;
+    return conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, datav,
+                          datavcnt, ts);
   }
 
   /* Send STREAM frame in 0-RTT packet. */
