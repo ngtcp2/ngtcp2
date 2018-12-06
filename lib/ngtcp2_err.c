@@ -84,8 +84,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_CLOSING";
   case NGTCP2_ERR_DRAINING:
     return "ERR_DRAINING";
-  case NGTCP2_ERR_CONGESTION:
-    return "ERR_CONGESTION";
   case NGTCP2_ERR_TRANSPORT_PARAM:
     return "ERR_TRANSPORT_PARAM";
   case NGTCP2_ERR_DISCARD_PKT:

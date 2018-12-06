@@ -145,7 +145,7 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
       conn->user_data);
 
   if (nwrite < 0) {
-    return nwrite;
+    return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   if (ppkt != NULL) {

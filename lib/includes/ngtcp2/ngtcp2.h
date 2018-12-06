@@ -234,7 +234,6 @@ typedef enum {
   NGTCP2_ERR_RECV_VERSION_NEGOTIATION = -229,
   NGTCP2_ERR_CLOSING = -230,
   NGTCP2_ERR_DRAINING = -231,
-  NGTCP2_ERR_CONGESTION = -233,
   NGTCP2_ERR_TRANSPORT_PARAM = -234,
   NGTCP2_ERR_DISCARD_PKT = -235,
   NGTCP2_ERR_FATAL = -500,
@@ -1288,6 +1287,10 @@ NGTCP2_EXTERN int ngtcp2_conn_read_handshake(ngtcp2_conn *conn,
  * it can coalesce Handshake packet and 0-RTT protected packet into
  * one UDP packet.
  *
+ * This function returns 0 if it cannot write any frame because buffer
+ * is too small, or packet is congestion limited.  Application should
+ * keep reading and wait for congestion window to grow.
+ *
  * This function must not be called from inside the callback
  * functions.
  *
@@ -1317,6 +1320,10 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn,
  * to |*pdatalen|.  If no data is sent, -1 is assigned.  Note that 0
  * length STREAM frame is allowed in QUIC, so 0 might be assigned to
  * |*pdatalen|.
+ *
+ * This function returns 0 if it cannot write any frame because buffer
+ * is too small, or packet is congestion limited.  Application should
+ * keep reading and wait for congestion window to grow.
  *
  * This function returns the number of bytes written to the buffer
  * pointed by |dest| if it succeeds, or one of the following negative
@@ -1360,6 +1367,10 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
  * Application should keep calling this function repeatedly until it
  * returns zero, or negative error code.
  *
+ * This function returns 0 if it cannot write any frame because buffer
+ * is too small, or packet is congestion limited.  Application should
+ * keep reading and wait for congestion window to grow.
+ *
  * This function must not be called from inside the callback
  * functions.
  *
@@ -1370,8 +1381,6 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
  *     Out of memory.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User-defined callback function failed.
- * :enum:`NGTCP2_ERR_NOBUF`
- *     Buffer is too small.
  * :enum:`NGTCP2_ERR_PKT_TIMEOUT`
  *     Give up the retransmission of lost packet because of timeout.
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
@@ -1740,6 +1749,10 @@ ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
  * if it is not NULL.
  *
+ * This function returns 0 if it cannot write any frame because buffer
+ * is too small, or packet is congestion limited.  Application should
+ * keep reading and wait for congestion window to grow.
+ *
  * This function must not be called from inside the callback
  * functions.
  *
@@ -1748,8 +1761,6 @@ ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
- * :enum:`NGTCP2_ERR_NOBUF`
- *     Buffer is too small
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  * :enum:`NGTCP2_ERR_STREAM_SHUT_WR`
@@ -1764,8 +1775,6 @@ ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  *     Early data was rejected by server.
  * :enum:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  *     Stream is blocked because of flow control.
- * :enum:`NGTCP2_ERR_CONGESTION`
- *     Could not write any data because of congestion control.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
     ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,

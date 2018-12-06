@@ -787,6 +787,23 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
   CU_ASSERT(2048 == strm->tx_offset);
 
   ngtcp2_conn_del(conn);
+
+  /* CWND is too small */
+  setup_default_client(&conn);
+
+  conn->ccs.cwnd = 1;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &nwrite, stream_id,
+                                     1, null_data, 1024, 1);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(-1 == nwrite);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_rx_flow_control(void) {
