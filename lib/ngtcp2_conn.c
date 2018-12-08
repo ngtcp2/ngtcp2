@@ -1643,48 +1643,51 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     rv = conn_ppe_write_frame(conn, &ppe, &hd, &(*pfrc)->fr);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
-      goto frame_write_finish;
+      break;
     }
 
     pkt_empty = 0;
     pfrc = &(*pfrc)->next;
   }
 
-  for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
-    left = ngtcp2_ppe_left(&ppe);
+  if (rv != NGTCP2_ERR_NOBUF) {
+    for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
+      left = ngtcp2_ppe_left(&ppe);
 
-    left = ngtcp2_pkt_crypto_max_datalen(
-        conn_cryptofrq_top(conn, pktns)->fr.offset, left, left);
+      left = ngtcp2_pkt_crypto_max_datalen(
+          conn_cryptofrq_top(conn, pktns)->fr.offset, left, left);
 
-    if (left == (size_t)-1) {
-      goto frame_write_finish;
+      if (left == (size_t)-1) {
+        break;
+      }
+
+      rv = conn_cryptofrq_pop(conn, &ncfrc, pktns, left);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
+
+      if (ncfrc == NULL) {
+        break;
+      }
+
+      rv = conn_ppe_write_frame(conn, &ppe, &hd, &ncfrc->frc.fr);
+      if (rv != 0) {
+        assert(0);
+      }
+
+      *pfrc = &ncfrc->frc;
+      pfrc = &(*pfrc)->next;
+
+      pkt_empty = 0;
     }
-
-    rv = conn_cryptofrq_pop(conn, &ncfrc, pktns, left);
-    if (rv != 0) {
-      assert(ngtcp2_err_is_fatal(rv));
-      return rv;
-    }
-
-    if (ncfrc == NULL) {
-      break;
-    }
-
-    rv = conn_ppe_write_frame(conn, &ppe, &hd, &ncfrc->frc.fr);
-    if (rv != 0) {
-      assert(0);
-    }
-
-    *pfrc = &ncfrc->frc;
-    pfrc = &(*pfrc)->next;
-
-    pkt_empty = 0;
   }
 
   /* Write MAX_STREAM_ID after RST_STREAM so that we can extend stream
      ID space in one packet. */
-  if (*pfrc == NULL && conn->unsent_max_remote_stream_id_bidi >
-                           conn->max_remote_stream_id_bidi) {
+  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
+      conn->unsent_max_remote_stream_id_bidi >
+          conn->max_remote_stream_id_bidi) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -1700,14 +1703,13 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     rv = conn_ppe_write_frame(conn, &ppe, &hd, &(*pfrc)->fr);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
-      goto frame_write_finish;
+    } else {
+      pkt_empty = 0;
+      pfrc = &(*pfrc)->next;
     }
-
-    pkt_empty = 0;
-    pfrc = &(*pfrc)->next;
   }
 
-  if (*pfrc == NULL) {
+  if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL) {
     if (conn->unsent_max_remote_stream_id_uni >
         conn->max_remote_stream_id_uni) {
       rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
@@ -1725,13 +1727,14 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       rv = conn_ppe_write_frame(conn, &ppe, &hd, &(*pfrc)->fr);
       if (rv != 0) {
         assert(NGTCP2_ERR_NOBUF == rv);
-        goto frame_write_finish;
+      } else {
+        pkt_empty = 0;
+        pfrc = &(*pfrc)->next;
       }
-
-      pkt_empty = 0;
-      pfrc = &(*pfrc)->next;
     }
+  }
 
+  if (rv != NGTCP2_ERR_NOBUF) {
     for (; !ngtcp2_pq_empty(&conn->tx_strmq);) {
       strm = ngtcp2_conn_tx_strmq_top(conn);
 
@@ -1750,7 +1753,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         rv = conn_ppe_write_frame(conn, &ppe, &hd, &nfrc->fr);
         if (rv != 0) {
           assert(NGTCP2_ERR_NOBUF == rv);
-          goto frame_write_finish;
+          goto tx_strmq_finish;
         }
 
         pkt_empty = 0;
@@ -1783,7 +1786,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
               return rv;
             }
           }
-          goto frame_write_finish;
+          goto tx_strmq_finish;
         }
 
         rv = ngtcp2_strm_streamfrq_pop(strm, &nsfrc, left);
@@ -1793,7 +1796,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         }
 
         if (nsfrc == NULL) {
-          goto frame_write_finish;
+          goto tx_strmq_finish;
         }
 
         rv = conn_ppe_write_frame(conn, &ppe, &hd, &nsfrc->frc.fr);
@@ -1815,7 +1818,7 @@ tx_strmq_finish:
 
   left = ngtcp2_ppe_left(&ppe);
 
-  if (send_stream &&
+  if (rv != NGTCP2_ERR_NOBUF && send_stream &&
       (written_stream_id == UINT64_MAX ||
        written_stream_id == data_strm->stream_id) &&
       *pfrc == NULL &&
@@ -1879,7 +1882,6 @@ tx_strmq_finish:
     }
   }
 
-frame_write_finish:
   if (pkt_empty) {
     assert(rv == 0 || NGTCP2_ERR_NOBUF == rv);
     ngtcp2_log_tx_cancel(&conn->log, &hd);
