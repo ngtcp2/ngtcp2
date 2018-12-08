@@ -2254,9 +2254,13 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     cwnd = conn_cwnd_left(conn);
     destlen = ngtcp2_min(destlen, cwnd);
 
-    nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
-    if (nwrite) {
-      return nwrite;
+    if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
+        !ngtcp2_rtb_empty(&conn->in_pktns.rtb) ||
+        !ngtcp2_rtb_empty(&conn->hs_pktns.rtb)) {
+      nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
+      if (nwrite) {
+        return nwrite;
+      }
     }
     nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
     if (nwrite) {
@@ -5854,9 +5858,13 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
     destlen = ngtcp2_min(destlen, server_hs_tx_left);
   }
 
-  nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
-  if (nwrite) {
-    return nwrite;
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
+      !ngtcp2_rtb_empty(&conn->in_pktns.rtb) ||
+      !ngtcp2_rtb_empty(&conn->hs_pktns.rtb)) {
+    nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
+    if (nwrite) {
+      return nwrite;
+    }
   }
   nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
   if (nwrite) {
