@@ -151,6 +151,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
 
   if (left == 0) {
+    /* datalen could be zero if 0 length STREAM has been sent */
     if (datalen || !ngtcp2_pq_empty(&strm->streamfrq)) {
       *pfrc = NULL;
       return 0;
