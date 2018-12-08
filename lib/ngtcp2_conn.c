@@ -850,6 +850,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
     ngtcp2_pq_pop(&pktns->cryptofrq);
 
     datalen += nmerged;
+    nfr->ordered_offset += nmerged;
     nfr->offset += nmerged;
     left -= nmerged;
 
