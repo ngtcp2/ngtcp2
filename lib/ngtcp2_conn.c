@@ -991,16 +991,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ctx.user_data = conn;
 
-  if (type != NGTCP2_PKT_0RTT_PROTECTED) {
-    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
-                               NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
-  if (ngtcp2_pq_empty(&pktns->cryptofrq) && !ackfr &&
-      type != NGTCP2_PKT_0RTT_PROTECTED) {
+  if (ngtcp2_pq_empty(&pktns->cryptofrq) && type != NGTCP2_PKT_0RTT_PROTECTED) {
     return 0;
   }
 
@@ -1014,21 +1005,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
-  if (ackfr) {
-    rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
-    if (rv != 0) {
-      assert(NGTCP2_ERR_NOBUF == rv);
-      ngtcp2_mem_free(conn->mem, ackfr);
-    } else {
-      ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ack_ent = ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
-                                     0 /* ack_only */);
-      /* Now ackfr is owned by conn->acktr. */
-      pkt_empty = 0;
-    }
-    ackfr = NULL;
-  }
 
   /* TODO pktns->frq is not used during handshake */
   assert(pktns->frq == NULL);
@@ -1113,6 +1089,29 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet transmission canceled");
     return 0;
+  }
+
+  if (type != NGTCP2_PKT_0RTT_PROTECTED) {
+    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+                               NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  if (ackfr) {
+    rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
+    if (rv != 0) {
+      assert(NGTCP2_ERR_NOBUF == rv);
+      ngtcp2_mem_free(conn->mem, ackfr);
+    } else {
+      ngtcp2_acktr_commit_ack(&pktns->acktr);
+      ack_ent = ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
+                                     0 /* ack_only */);
+      /* Now ackfr is owned by conn->acktr. */
+      pkt_empty = 0;
+    }
+    ackfr = NULL;
   }
 
   /* If we cannot write another packet, then we need to add padding to
