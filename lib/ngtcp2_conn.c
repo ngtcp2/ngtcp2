@@ -1005,14 +1005,14 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     ngtcp2_mem_free(conn->mem, ackfr);
     return 0;
   }
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   if (ackfr) {
     rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
@@ -1230,14 +1230,14 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     ngtcp2_mem_free(conn->mem, ackfr);
     return 0;
   }
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   if (ackfr) {
     rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
@@ -1567,13 +1567,13 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     return 0;
   }
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   for (pfrc = &pktns->frq; *pfrc;) {
     switch ((*pfrc)->fr.type) {
@@ -1999,10 +1999,16 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    assert(NGTCP2_ERR_NOBUF == rv);
+    return 0;
+  }
+
   ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
-  if ((rv = ngtcp2_ppe_encode_hd(&ppe, &hd)) != 0 ||
-      (rv = conn_ppe_write_frame(conn, &ppe, &hd, fr)) != 0) {
+  rv = conn_ppe_write_frame(conn, &ppe, &hd, fr);
+  if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     return 0;
   }
@@ -2123,13 +2129,13 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     return 0;
   }
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   rv = ngtcp2_frame_chain_new(&frc, conn->mem);
   if (rv != 0) {
@@ -5133,13 +5139,13 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     return 0;
   }
+
+  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   ndatalen = conn_enforce_flow_control(conn, strm, datalen);
   if (datalen > 0 && ndatalen == 0) {
