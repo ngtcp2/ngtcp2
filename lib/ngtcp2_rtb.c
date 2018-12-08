@@ -279,9 +279,9 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
     case NGTCP2_FRAME_CRYPTO:
       prev_stream_offset =
           ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset);
-      rv = ngtcp2_gaptr_push(&crypto->acked_tx_offset,
-                             frc->fr.crypto.ordered_offset,
-                             frc->fr.crypto.data[0].len);
+      rv = ngtcp2_gaptr_push(
+          &crypto->acked_tx_offset, frc->fr.crypto.ordered_offset,
+          ngtcp2_vec_len(frc->fr.crypto.data, frc->fr.crypto.datacnt));
       if (rv != 0) {
         return rv;
       }
