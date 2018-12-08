@@ -1310,7 +1310,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn,
  * write 0-RTT data.  This function can coalesce handshake packet and
  * 0-RTT Protected packet into single UDP packet, thus it is generally
  * more efficient than the combination of
- * `ngtcp2_conn_write_handshake`. and `ngtcp2_conn_write_stream`.
+ * `ngtcp2_conn_write_handshake` and `ngtcp2_conn_write_stream`.
  *
  * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
  * to which 0-RTT data is sent, whether it is a last data chunk in
