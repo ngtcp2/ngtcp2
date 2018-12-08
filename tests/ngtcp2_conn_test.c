@@ -3132,6 +3132,7 @@ void test_ngtcp2_conn_send_early_data(void) {
   uint8_t buf[1024];
   uint64_t stream_id;
   int rv;
+  ngtcp2_tstamp t = 0;
 
   setup_early_client(&conn);
 
@@ -3139,15 +3140,59 @@ void test_ngtcp2_conn_send_early_data(void) {
 
   CU_ASSERT(0 == rv);
 
-  spktlen = ngtcp2_conn_write_handshake(conn, buf, sizeof(buf), 1);
+  spktlen = ngtcp2_conn_write_handshake(conn, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_conn_write_stream(conn, buf, sizeof(buf), &datalen,
-                                     stream_id, 1, null_data, 1024, 1);
+                                     stream_id, 1, null_data, 1024, ++t);
 
   CU_ASSERT((ssize_t)sizeof(buf) == spktlen);
   CU_ASSERT(959 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* 0 length STREAM should not be written if we supply nonzero length
+     data. */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_handshake(conn, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /*
+   * Long header (1+4+1+18*2+2+1)
+   * STREAM overhead (+3)
+   * AEAD overhead (16)
+   */
+  spktlen = ngtcp2_conn_write_stream(conn, buf, 64, &datalen, stream_id, 0,
+                                     null_data, 10, ++t);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* +1 buffer size */
+  setup_early_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_handshake(conn, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen = ngtcp2_conn_write_stream(conn, buf, 65, &datalen, stream_id, 0,
+                                     null_data, 10, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == datalen);
 
   ngtcp2_conn_del(conn);
 }
@@ -3427,6 +3472,53 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
 
   CU_ASSERT(spktlen == 0);
   CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns.acktr.ents));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_writev_stream(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ssize_t spktlen;
+  ngtcp2_tstamp t = 0;
+  int rv;
+  uint64_t stream_id;
+  ngtcp2_vec datav = {null_data, 10};
+  ssize_t datalen;
+
+  /* 0 length STREAM should not be written if we supply nonzero length
+     data. */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  /*
+   * Long header (1+18+1)
+   * STREAM overhead (+3)
+   * AEAD overhead (16)
+   */
+  spktlen = ngtcp2_conn_writev_stream(conn, buf, 39, &datalen, stream_id, 0,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(-1 == datalen);
+
+  ngtcp2_conn_del(conn);
+
+  /* +1 buffer size */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_writev_stream(conn, buf, 40, &datalen, stream_id, 0,
+                                      &datav, 1, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == datalen);
 
   ngtcp2_conn_del(conn);
 }

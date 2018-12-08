@@ -215,6 +215,8 @@ int main() {
                    test_ngtcp2_conn_recv_compound_pkt) ||
       !CU_add_test(pSuite, "conn_pkt_payloadlen",
                    test_ngtcp2_conn_pkt_payloadlen) ||
+      !CU_add_test(pSuite, "conn_writev_stream",
+                   test_ngtcp2_conn_writev_stream) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||

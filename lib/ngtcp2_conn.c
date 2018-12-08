@@ -1825,7 +1825,8 @@ tx_strmq_finish:
       *pfrc == NULL &&
       (ndatalen = ngtcp2_pkt_stream_max_datalen(data_strm->stream_id,
                                                 data_strm->tx_offset, ndatalen,
-                                                left)) != (size_t)-1) {
+                                                left)) != (size_t)-1 &&
+      (ndatalen || datalen == 0)) {
     fin = fin && ndatalen == datalen;
 
     rv = ngtcp2_stream_frame_chain_new(&nsfrc, conn->mem);
@@ -5158,7 +5159,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   left = ngtcp2_ppe_left(&ppe);
   ndatalen = ngtcp2_pkt_stream_max_datalen(strm->stream_id, strm->tx_offset,
                                            ndatalen, left);
-  if (ndatalen == (size_t)-1) {
+  if (ndatalen == (size_t)-1 || (ndatalen == 0 && datalen)) {
     return 0;
   }
 
