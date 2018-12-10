@@ -57,6 +57,10 @@ constexpr size_t NGTCP2_SV_SCIDLEN = 18;
 } // namespace
 
 namespace {
+constexpr size_t TOKEN_RAND_DATALEN = 16;
+} // namespace
+
+namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
@@ -1829,23 +1833,16 @@ Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 
   crypto::aead_aes_128_gcm(token_crypto_ctx_);
+  crypto::prf_sha256(token_crypto_ctx_);
 
-  std::array<uint8_t, TOKEN_NONCELEN> nonce;
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate(std::begin(nonce), std::end(nonce),
-                [&dis]() { return dis(randgen); });
-  nonce[0] &= 0x7f;
-  nonce[0] |= 0x40;
-  token_nonce_ = BN_bin2bn(nonce.data(), nonce.size(), nullptr);
-  std::generate(std::begin(token_key_), std::end(token_key_),
+  std::generate(std::begin(token_secret_), std::end(token_secret_),
                 [&dis]() { return dis(randgen); });
 }
 
 Server::~Server() {
   disconnect();
   close();
-
-  BN_free(token_nonce_);
 }
 
 void Server::disconnect() { disconnect(0); }
@@ -2139,7 +2136,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa,
   std::array<uint8_t, 256> token;
   size_t tokenlen = token.size();
 
-  if (generate_token(token.data(), &tokenlen, sa, salen, &chd->dcid) != 0) {
+  if (generate_token(token.data(), tokenlen, sa, salen, &chd->dcid) != 0) {
     return -1;
   }
 
@@ -2185,21 +2182,51 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa,
   return 0;
 }
 
-int Server::generate_token(uint8_t *token, size_t *ptokenlen,
-                           const sockaddr *sa, socklen_t salen,
-                           const ngtcp2_cid *ocid) {
-  std::array<uint8_t, TOKEN_NONCELEN> nonce;
+int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
+                             size_t &ivlen, const uint8_t *rand_data,
+                             size_t rand_datalen) {
+  std::array<uint8_t, 32> secret;
+
+  if (crypto::hkdf_extract(secret.data(), secret.size(), token_secret_.data(),
+                           token_secret_.size(), rand_data, rand_datalen,
+                           token_crypto_ctx_) != 0) {
+    return -1;
+  }
+
+  auto slen = crypto::derive_packet_protection_key(
+      key, keylen, secret.data(), secret.size(), token_crypto_ctx_);
+  if (slen < 0) {
+    return -1;
+  }
+  keylen = slen;
+
+  slen = crypto::derive_packet_protection_iv(iv, ivlen, secret.data(),
+                                             secret.size(), token_crypto_ctx_);
+  if (slen < 0) {
+    return -1;
+  }
+  ivlen = slen;
+
+  return 0;
+}
+
+int Server::generate_rand_data(uint8_t *buf, size_t len) {
+  std::array<uint8_t, 16> rand;
+  std::array<uint8_t, 32> md;
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  std::generate_n(rand.data(), rand.size(), [&dis]() { return dis(randgen); });
+  if (crypto::message_digest(md.data(), EVP_sha256(), rand.data(),
+                             rand.size()) != 0) {
+    return -1;
+  }
+  assert(len <= md.size());
+  std::copy_n(std::begin(md), len, buf);
+  return 0;
+}
+
+int Server::generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
+                           socklen_t salen, const ngtcp2_cid *ocid) {
   std::array<uint8_t, 4096> plaintext;
-
-  assert(BN_num_bytes(token_nonce_) == nonce.size());
-
-  if (BN_bn2bin(token_nonce_, nonce.data()) != nonce.size()) {
-    return -1;
-  }
-
-  if (BN_add(token_nonce_, token_nonce_, BN_value_one()) != 1) {
-    return -1;
-  }
 
   uint64_t t = std::chrono::duration_cast<std::chrono::nanoseconds>(
                    std::chrono::system_clock::now().time_since_epoch())
@@ -2211,19 +2238,31 @@ int Server::generate_token(uint8_t *token, size_t *ptokenlen,
   p = std::copy_n(reinterpret_cast<uint8_t *>(&t), sizeof(t), p);
   p = std::copy_n(ocid->data, ocid->datalen, p);
 
-  auto n = crypto::encrypt(token, *ptokenlen, plaintext.data(),
+  std::array<uint8_t, TOKEN_RAND_DATALEN> rand_data;
+  std::array<uint8_t, 32> key, iv;
+  auto keylen = key.size();
+  auto ivlen = iv.size();
+
+  if (generate_rand_data(rand_data.data(), rand_data.size()) != 0) {
+    return -1;
+  }
+  if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data.data(),
+                       rand_data.size()) != 0) {
+    return -1;
+  }
+
+  auto n = crypto::encrypt(token, tokenlen, plaintext.data(),
                            std::distance(std::begin(plaintext), p),
-                           token_crypto_ctx_, token_key_.data(),
-                           token_key_.size(), nonce.data(), nonce.size(),
-                           reinterpret_cast<const uint8_t *>(sa), salen);
+                           token_crypto_ctx_, key.data(), keylen, iv.data(),
+                           ivlen, reinterpret_cast<const uint8_t *>(sa), salen);
 
   if (n < 0) {
     return -1;
   }
 
-  memcpy(token + n, nonce.data(), nonce.size());
+  memcpy(token + n, rand_data.data(), rand_data.size());
 
-  *ptokenlen = n + nonce.size();
+  tokenlen = n + rand_data.size();
 
   return 0;
 }
@@ -2251,22 +2290,31 @@ int Server::verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
     util::hexdump(stderr, hd->token, hd->tokenlen);
   }
 
-  if (hd->tokenlen < TOKEN_NONCELEN) {
+  if (hd->tokenlen < TOKEN_RAND_DATALEN) {
     if (!config.quiet) {
       std::cerr << "Token is too short" << std::endl;
     }
     return -1;
   }
 
-  auto nonce = hd->token + hd->tokenlen - TOKEN_NONCELEN;
+  auto rand_data = hd->token + hd->tokenlen - TOKEN_RAND_DATALEN;
   auto ciphertext = hd->token;
-  auto ciphertextlen = hd->tokenlen - TOKEN_NONCELEN;
+  auto ciphertextlen = hd->tokenlen - TOKEN_RAND_DATALEN;
+
+  std::array<uint8_t, 32> key, iv;
+  auto keylen = key.size();
+  auto ivlen = iv.size();
+
+  if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data,
+                       TOKEN_RAND_DATALEN) != 0) {
+    return -1;
+  }
 
   std::array<uint8_t, 4096> plaintext;
 
   auto n = crypto::decrypt(plaintext.data(), plaintext.size(), ciphertext,
-                           ciphertextlen, token_crypto_ctx_, token_key_.data(),
-                           token_key_.size(), nonce, TOKEN_NONCELEN,
+                           ciphertextlen, token_crypto_ctx_, key.data(), keylen,
+                           iv.data(), ivlen,
                            reinterpret_cast<const uint8_t *>(sa), salen);
   if (n < 0) {
     if (!config.quiet) {

@@ -161,6 +161,13 @@ void prf_sha256(Context &ctx);
 // aead_aes_128_gcm sets AEAD_AES_128_GCM to ctx.aead.
 void aead_aes_128_gcm(Context &ctx);
 
+// message_digest computes message digest over |data| of length |len|
+// using a hash function |meth|.  The result is stored to the buffer
+// pointed by |res| which must have enough capacity to store the
+// result.  This function returns 0 if it succeeds, or -1.
+int message_digest(uint8_t *res, const EVP_MD *meth, const uint8_t *data,
+                   size_t len);
+
 } // namespace crypto
 
 } // namespace ngtcp2

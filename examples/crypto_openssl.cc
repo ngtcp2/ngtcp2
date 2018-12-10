@@ -332,6 +332,37 @@ void aead_aes_128_gcm(Context &ctx) {
   ctx.pn = EVP_aes_128_ctr();
 }
 
+int message_digest(uint8_t *res, const EVP_MD *meth, const uint8_t *data,
+                   size_t len) {
+  int rv;
+
+  auto ctx = EVP_MD_CTX_new();
+  if (ctx == nullptr) {
+    return -1;
+  }
+
+  auto ctx_deleter = defer(EVP_MD_CTX_free, ctx);
+
+  rv = EVP_DigestInit_ex(ctx, meth, nullptr);
+  if (rv != 1) {
+    return -1;
+  }
+
+  rv = EVP_DigestUpdate(ctx, data, len);
+  if (rv != 1) {
+    return -1;
+  }
+
+  unsigned int mdlen = EVP_MD_size(meth);
+
+  rv = EVP_DigestFinal_ex(ctx, res, &mdlen);
+  if (rv != 1) {
+    return -1;
+  }
+
+  return 0;
+}
+
 } // namespace crypto
 
 } // namespace ngtcp2

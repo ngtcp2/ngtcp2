@@ -275,8 +275,7 @@ private:
   bool draining_;
 };
 
-constexpr size_t TOKEN_KEYLEN = 16;
-constexpr size_t TOKEN_NONCELEN = 12;
+constexpr size_t TOKEN_SECRETLEN = 16;
 
 class Server {
 public:
@@ -293,7 +292,7 @@ public:
   int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                                socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa, socklen_t salen);
-  int generate_token(uint8_t *token, size_t *ptokenlen, const sockaddr *sa,
+  int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
                      socklen_t salen, const ngtcp2_cid *ocid);
   int verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                    const sockaddr *sa, socklen_t salen);
@@ -303,6 +302,10 @@ public:
   remove(std::map<std::string, std::unique_ptr<Handler>>::const_iterator it);
   void start_wev();
 
+  int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
+                       const uint8_t *rand_data, size_t rand_datalen);
+  int generate_rand_data(uint8_t *buf, size_t len);
+
 private:
   std::map<std::string, std::unique_ptr<Handler>> handlers_;
   // ctos_ is a mapping between client's initial destination
@@ -311,8 +314,7 @@ private:
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   crypto::Context token_crypto_ctx_;
-  std::array<uint8_t, TOKEN_KEYLEN> token_key_;
-  BIGNUM *token_nonce_;
+  std::array<uint8_t, TOKEN_SECRETLEN> token_secret_;
   int fd_;
   ev_io wev_;
   ev_io rev_;
