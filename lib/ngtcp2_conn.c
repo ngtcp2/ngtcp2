@@ -5756,27 +5756,6 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
   return acktr->first_unacked_ts + conn_compute_ack_delay(conn);
 }
 
-int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
-                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem) {
-  *ppc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pkt_chain) + pktlen);
-  if (*ppc == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  (*ppc)->next = NULL;
-  (*ppc)->pkt = (uint8_t *)(*ppc) + sizeof(ngtcp2_pkt_chain);
-  (*ppc)->pktlen = pktlen;
-  (*ppc)->ts = ts;
-
-  memcpy((*ppc)->pkt, pkt, pktlen);
-
-  return 0;
-}
-
-void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
-  ngtcp2_mem_free(mem, pc);
-}
-
 /*
  * settings_copy_from_transport_params translates
  * ngtcp2_transport_params to ngtcp2_settings.

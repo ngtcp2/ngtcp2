@@ -74,6 +74,39 @@
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
 #define NGTCP2_MAX_PKT_NUM ((1llu << 62) - 1)
 
+struct ngtcp2_pkt_chain;
+typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
+
+/*
+ * ngtcp2_pkt_chain is the chain of incoming packets buffered.
+ */
+struct ngtcp2_pkt_chain {
+  ngtcp2_pkt_chain *next;
+  uint8_t *pkt;
+  size_t pktlen;
+  ngtcp2_tstamp ts;
+};
+
+/*
+ * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
+ * assigns its pointer to |*ppc|.  The content of buffer pointed by
+ * |pkt| of length |pktlen| is copied into |*ppc|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
+                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_pkt_chain_del deallocates |pc|.  It also frees the memory
+ * pointed by |pc|.
+ */
+void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
+
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.  If
  * |dcid| and/or |scid| is NULL, DCID and SCID of |hd| is empty

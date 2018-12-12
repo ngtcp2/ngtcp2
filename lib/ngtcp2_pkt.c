@@ -31,6 +31,28 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_macro.h"
 #include "ngtcp2_cid.h"
+#include "ngtcp2_mem.h"
+
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
+                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem) {
+  *ppc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pkt_chain) + pktlen);
+  if (*ppc == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  (*ppc)->next = NULL;
+  (*ppc)->pkt = (uint8_t *)(*ppc) + sizeof(ngtcp2_pkt_chain);
+  (*ppc)->pktlen = pktlen;
+  (*ppc)->ts = ts;
+
+  memcpy((*ppc)->pkt, pkt, pktlen);
+
+  return 0;
+}
+
+void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
+  ngtcp2_mem_free(mem, pc);
+}
 
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
