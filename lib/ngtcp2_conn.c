@@ -5636,10 +5636,10 @@ void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn, size_t aead_overhead) {
   conn->aead_overhead = aead_overhead;
 }
 
-int ngtcp2_conn_set_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                    size_t keylen, const uint8_t *iv,
-                                    size_t ivlen, const uint8_t *pn,
-                                    size_t pnlen) {
+int ngtcp2_conn_install_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                        size_t keylen, const uint8_t *iv,
+                                        size_t ivlen, const uint8_t *pn,
+                                        size_t pnlen) {
   ngtcp2_pktns *pktns = &conn->in_pktns;
 
   if (pktns->tx_ckm) {
@@ -5651,10 +5651,10 @@ int ngtcp2_conn_set_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
                               conn->mem);
 }
 
-int ngtcp2_conn_set_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                    size_t keylen, const uint8_t *iv,
-                                    size_t ivlen, const uint8_t *pn,
-                                    size_t pnlen) {
+int ngtcp2_conn_install_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                        size_t keylen, const uint8_t *iv,
+                                        size_t ivlen, const uint8_t *pn,
+                                        size_t pnlen) {
   ngtcp2_pktns *pktns = &conn->in_pktns;
 
   if (pktns->rx_ckm) {
@@ -5666,10 +5666,10 @@ int ngtcp2_conn_set_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
                               conn->mem);
 }
 
-int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                      size_t keylen, const uint8_t *iv,
-                                      size_t ivlen, const uint8_t *pn,
-                                      size_t pnlen) {
+int ngtcp2_conn_install_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                          size_t keylen, const uint8_t *iv,
+                                          size_t ivlen, const uint8_t *pn,
+                                          size_t pnlen) {
   ngtcp2_pktns *pktns = &conn->hs_pktns;
 
   if (pktns->tx_ckm) {
@@ -5680,10 +5680,10 @@ int ngtcp2_conn_set_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
                               conn->mem);
 }
 
-int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                      size_t keylen, const uint8_t *iv,
-                                      size_t ivlen, const uint8_t *pn,
-                                      size_t pnlen) {
+int ngtcp2_conn_install_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                          size_t keylen, const uint8_t *iv,
+                                          size_t ivlen, const uint8_t *pn,
+                                          size_t pnlen) {
   ngtcp2_pktns *pktns = &conn->hs_pktns;
 
   if (pktns->rx_ckm) {
@@ -5696,9 +5696,10 @@ int ngtcp2_conn_set_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
                               conn->mem);
 }
 
-int ngtcp2_conn_set_early_keys(ngtcp2_conn *conn, const uint8_t *key,
-                               size_t keylen, const uint8_t *iv, size_t ivlen,
-                               const uint8_t *pn, size_t pnlen) {
+int ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                   size_t keylen, const uint8_t *iv,
+                                   size_t ivlen, const uint8_t *pn,
+                                   size_t pnlen) {
   if (conn->early_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
@@ -5707,9 +5708,9 @@ int ngtcp2_conn_set_early_keys(ngtcp2_conn *conn, const uint8_t *key,
                               pnlen, conn->mem);
 }
 
-int ngtcp2_conn_update_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                               size_t keylen, const uint8_t *iv, size_t ivlen,
-                               const uint8_t *pn, size_t pnlen) {
+int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                size_t keylen, const uint8_t *iv, size_t ivlen,
+                                const uint8_t *pn, size_t pnlen) {
   ngtcp2_pktns *pktns = &conn->pktns;
 
   if (pktns->tx_ckm) {
@@ -5720,9 +5721,9 @@ int ngtcp2_conn_update_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
                               conn->mem);
 }
 
-int ngtcp2_conn_update_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                               size_t keylen, const uint8_t *iv, size_t ivlen,
-                               const uint8_t *pn, size_t pnlen) {
+int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
+                                size_t keylen, const uint8_t *iv, size_t ivlen,
+                                const uint8_t *pn, size_t pnlen) {
   ngtcp2_pktns *pktns = &conn->pktns;
 
   if (pktns->rx_ckm) {

@@ -141,33 +141,36 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen,
     if (!config.quiet) {
       std::cerr << "client_early_traffic" << std::endl;
     }
-    ngtcp2_conn_set_early_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
+    ngtcp2_conn_install_early_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                   pnlen);
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "client_handshake_traffic" << std::endl;
     }
-    ngtcp2_conn_set_handshake_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
-                                      pnlen);
+    ngtcp2_conn_install_handshake_tx_keys(conn_, key, keylen, iv, ivlen,
+                                          pn.data(), pnlen);
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "client_application_traffic" << std::endl;
     }
-    ngtcp2_conn_update_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
+    ngtcp2_conn_install_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                pnlen);
     break;
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "server_handshake_traffic" << std::endl;
     }
-    ngtcp2_conn_set_handshake_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
-                                      pnlen);
+    ngtcp2_conn_install_handshake_rx_keys(conn_, key, keylen, iv, ivlen,
+                                          pn.data(), pnlen);
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "server_application_traffic" << std::endl;
     }
-    ngtcp2_conn_update_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(), pnlen);
+    ngtcp2_conn_install_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
+                                pnlen);
     break;
   }
 
@@ -900,8 +903,8 @@ int Client::setup_initial_crypto_context() {
     debug::print_client_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_initial_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                  pn.data(), pnlen);
+  ngtcp2_conn_install_initial_tx_keys(conn_, key.data(), keylen, iv.data(),
+                                      ivlen, pn.data(), pnlen);
 
   rv = crypto::derive_server_initial_secret(secret.data(), secret.size(),
                                             initial_secret.data(),
@@ -936,8 +939,8 @@ int Client::setup_initial_crypto_context() {
     debug::print_server_pp_pn(pn.data(), pnlen);
   }
 
-  ngtcp2_conn_set_initial_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                  pn.data(), pnlen);
+  ngtcp2_conn_install_initial_rx_keys(conn_, key.data(), keylen, iv.data(),
+                                      ivlen, pn.data(), pnlen);
 
   return 0;
 }
