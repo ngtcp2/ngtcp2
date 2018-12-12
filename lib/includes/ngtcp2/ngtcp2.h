@@ -1623,7 +1623,7 @@ ngtcp2_conn_set_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
  * `ngtcp2_conn_set_handshake_tx_keys` installs packet protection key
  * |key| of length |key| and IV |iv| of length |ivlen|, and packet
  * protection key |pn| of length |pnlen| to encrypt outgoing Handshake
- * packets.  If they have already been set, they are overwritten.
+ * packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
  * application don't have to generate them.  For client, they are
@@ -1637,6 +1637,8 @@ ngtcp2_conn_set_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
@@ -1648,7 +1650,7 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(
  * `ngtcp2_conn_set_handshake_rx_keys` installs packet protection key
  * |key| of length |key| and IV |iv| of length |ivlen|, and packet
  * protection key |pn| of length |pnlen| to decrypt incoming Handshake
- * packets.  If they have already been set, they are overwritten.
+ * packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
  * application don't have to generate them.  For client, they are
@@ -1662,6 +1664,8 @@ NGTCP2_EXTERN int ngtcp2_conn_set_handshake_tx_keys(
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_handshake_rx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
