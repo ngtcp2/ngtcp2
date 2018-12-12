@@ -63,7 +63,14 @@ struct ngtcp2_acktr_entry {
 
 /*
  * ngtcp2_acktr_entry_new allocates memory for ent, and initializes it
- * with the given parameters.
+ * with the given parameters.  The pointer to the allocated object is
+ * stored to |*ent|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
                            ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
@@ -139,11 +146,11 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
  * ngtcp2_acktr_add adds packet number |pkt_num| to |acktr|.
  * |active_ack| is nonzero if |pkt_num| is retransmittable packet.
  *
+ * This function assumes that |acktr| does not contain |pkt_num|.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Same packet number has already been included in |acktr|.
  * NGTCP2_ERR_NOMEM
  *     OUt of memory.
  */

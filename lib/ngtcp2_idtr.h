@@ -76,6 +76,8 @@ void ngtcp2_idtr_free(ngtcp2_idtr *idtr);
  *
  * NGTCP2_ERR_STREAM_IN_USE
  *     ID has already been used.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t stream_id);
 

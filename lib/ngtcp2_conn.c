@@ -1493,6 +1493,15 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
  * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.
  *
+ * This function can send new stream data.  In order to send stream
+ * data, specify the underlying stream to |data_strm|.  If |fin| is
+ * set to nonzero, it signals that the given data is the final portion
+ * of the stream.  |datav| vector of length |datavcnt| specify stream
+ * data to send.  If no stream data to send, set |strm| to NULL.  The
+ * number of bytes sent to the stream is assigned to |*pdatalen|.  If
+ * 0 length STREAM data is sent, 0 is assigned to |*pdatalen|.  The
+ * caller should initialize |*pdatalen| to -1.
+ *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
  *
@@ -2034,9 +2043,9 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_write_protected_ack_pkt writes a protected QUIC packet which
- * only includes ACK frame in the buffer pointed by |dest| whose
- * length is |destlen|.
+ * conn_write_protected_ack_pkt writes QUIC Short packet which only
+ * includes ACK frame in the buffer pointed by |dest| whose length is
+ * |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -2102,7 +2111,18 @@ static void conn_process_early_rtb(ngtcp2_conn *conn) {
 
 /*
  * conn_write_probe_ping writes probe packet containing PING frame
- * (and optionally ACK frame).
+ * (and optionally ACK frame) to the buffer pointed by |dest| of
+ * length |destlen|.  Probe packet is always Short packet.  This
+ * function might return 0 if it cannot write packet (e.g., |destlen|
+ * is too small).
+ *
+ * This function returns the number of bytes written to |dest|, or one
+ * of the following negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
                                      size_t destlen, ngtcp2_tstamp ts) {
@@ -2201,6 +2221,28 @@ fail:
   return rv;
 }
 
+/*
+ * conn_write_probe_pkt writes a QUIC Short packet as probe packet.
+ * The packet is written to the buffer pointed by |dest| of length
+ * |destlen|.  This function can send new stream data.  In order to
+ * send stream data, specify the underlying stream to |strm|.  If
+ * |fin| is set to nonzero, it signals that the given data is the
+ * final portion of the stream.  |datav| vector of length |datavcnt|
+ * specify stream data to send.  If no stream data to send, set |strm|
+ * to NULL.  The number of bytes sent to the stream is assigned to
+ * |*pdatalen|.  If 0 length STREAM data is sent, 0 is assigned to
+ * |*pdatalen|.  The caller should initialize |*pdatalen| to -1.
+ *
+ * This function returns the number of bytes written to the buffer
+ * pointed by |dest|, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_STREAM_DATA_BLOCKED
+ *     Stream data could not be written because of flow control.
+ */
 static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                     size_t destlen, ssize_t *pdatalen,
                                     ngtcp2_strm *strm, uint8_t fin,
@@ -2314,7 +2356,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  *     Out of memory.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
- * NGTCP2_ERR_PROTO
+ * NGTCP2_ERR_INVALID_ARGUMENT
  *     Packet payload is badly formatted.
  */
 static int conn_on_version_negotiation(ngtcp2_conn *conn,
@@ -2327,7 +2369,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
   size_t nsv;
 
   if (payloadlen % sizeof(uint32_t)) {
-    return NGTCP2_ERR_PROTO;
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   if (payloadlen > sizeof(sv)) {
@@ -2366,6 +2408,12 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 /*
  * conn_resched_frames reschedules frames linked from |*pfrc| for
  * retransmission.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                ngtcp2_frame_chain **pfrc) {
@@ -2560,26 +2608,6 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   return 0;
 }
 
-static int conn_handshake_pkt_lost(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
-  ngtcp2_frame_chain *frc = NULL;
-  int rv;
-
-  rv = ngtcp2_rtb_remove_all(&pktns->rtb, &frc);
-  if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
-    return rv;
-  }
-
-  rv = conn_resched_frames(conn, pktns, &frc);
-  if (rv != 0) {
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
-    return rv;
-  }
-
-  return 0;
-}
-
 /*
  * conn_recv_ack processes received ACK frame |fr|.
  *
@@ -2717,6 +2745,7 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
     }
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
+      ngtcp2_mem_free(conn->mem, strm);
       return rv;
     }
   }
@@ -2733,6 +2762,16 @@ static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
   conn->max_tx_offset = ngtcp2_max(conn->max_tx_offset, fr->max_data);
 }
 
+/*
+ * conn_buffer_pkt buffers |pkt| of length |pktlen|, chaining it from
+ * |*ppc|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pkt_chain **ppc,
                            const uint8_t *pkt, size_t pktlen,
                            ngtcp2_tstamp ts) {
@@ -2875,6 +2914,15 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * |pkt_num_offset|.  The entire plaintext QUIC packer header will be
  * written to the buffer pointed by |dest| whose capacity is
  * |destlen|.
+ *
+ * This function returns the number of bytes written to |dest|, or one
+ * of the following negative error codes:
+ *
+ * NGTCP2_ERR_PROTO
+ *     Packet is badly formatted
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed; or it does not return
+ *     expected result.
  */
 static ssize_t conn_decrypt_pn(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
                                uint8_t *dest, size_t destlen,
@@ -2888,13 +2936,10 @@ static ssize_t conn_decrypt_pn(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
   assert(enc);
   assert(ckm);
   assert(aead_overhead >= NGTCP2_PN_SAMPLELEN);
+  assert(destlen >= pkt_num_offset + 4);
 
   if (pkt_num_offset + 1 + aead_overhead > pktlen) {
     return NGTCP2_ERR_PROTO;
-  }
-
-  if (destlen < pkt_num_offset + 4) {
-    return NGTCP2_ERR_INTERNAL;
   }
 
   p = ngtcp2_cpymem(p, pkt, pkt_num_offset);
@@ -2955,8 +3000,10 @@ static int conn_emit_pending_crypto_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 }
 
-/* conn_recv_connection_close is called when CONNECTION_CLOSE or
-   APPLICATION_CLOSE frame is received. */
+/*
+ * conn_recv_connection_close is called when CONNECTION_CLOSE or
+ * APPLICATION_CLOSE frame is received.
+ */
 static void conn_recv_connection_close(ngtcp2_conn *conn) {
   conn->state = NGTCP2_CS_DRAINING;
 }
@@ -2990,7 +3037,9 @@ static void conn_recv_path_response(ngtcp2_conn *conn,
   }
 }
 
-/* conn_update_rx_bw updates rx bandwidth. */
+/*
+ * conn_update_rx_bw updates rx bandwidth.
+ */
 static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
                               ngtcp2_tstamp ts) {
   /* Reset bandwidth measurement after 1 second idle time. */
@@ -3011,9 +3060,6 @@ static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
                     conn->rx_bw * NGTCP2_DURATION_TICK);
   }
 }
-
-static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
-                             size_t pktlen, ngtcp2_tstamp ts);
 
 /*
  * pkt_num_bits returns the number of bits available when packet
@@ -3073,6 +3119,9 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, uint64_t pkt_num) {
 static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
                             uint64_t max_rx_offset, const ngtcp2_crypto *fr);
 
+static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
+                             size_t pktlen, ngtcp2_tstamp ts);
+
 /*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length if |pktlen| during handshake period.  The buffer pointed by
@@ -3082,23 +3131,23 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
  * This function returns the number of bytes it reads if it succeeds,
  * or one of the following negative error codes:
  *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Packet is too short; or it is not a long header.
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_PROTO
- *     Generic QUIC protocol error.
- * NGTCP2_ERR_ACK_FRAME
- *     ACK frame is malformed.
  * NGTCP2_ERR_RECV_VERSION_NEGOTIATION
  *     Version Negotiation packet is received.
- * NGTCP2_ERR_CRYPTO
- *     TLS stack reported error.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
  * NGTCP2_ERR_DISCARD_PKT
  *     Packet was discarded because plain text header was malformed;
  *     or its payload could not be decrypted.
+ * NGTCP2_ERR_FRAME_FORMAT
+ *     Frame is badly formatted
+ * NGTCP2_ERR_ACK_FRAME
+ *     ACK frame is malformed.
+ * NGTCP2_ERR_CRYPTO
+ *     TLS stack reported error.
+ * NGTCP2_ERR_PROTO
+ *     Generic QUIC protocol error.
  *
  * In addition to the above error codes, error codes returned from
  * conn_recv_pkt are also returned.
@@ -3484,6 +3533,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
  * handshake.  The buffer pointed by |pkt| might contain multiple
  * packets.  The Short packet must be the last one because it does not
  * have payload length field.
+ *
+ * This function returns the same error code returned by
+ * conn_recv_handshake_pkt.
  */
 static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const uint8_t *pkt,
                                     size_t pktlen, ngtcp2_tstamp ts) {
@@ -3545,27 +3597,27 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   rv = ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE, max_rx_offset,
                         max_tx_offset, stream_user_data, conn->mem);
   if (rv != 0) {
-    ngtcp2_mem_free(conn->mem, strm);
     return rv;
   }
 
   rv = ngtcp2_map_insert(&conn->strms, &strm->me);
   if (rv != 0) {
     assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
-
-    ngtcp2_strm_free(strm);
-    ngtcp2_mem_free(conn->mem, strm);
-    return rv;
+    goto fail;
   }
 
   if (!conn_local_stream(conn, stream_id)) {
     rv = conn_call_stream_open(conn, strm);
     if (rv != 0) {
-      return rv;
+      goto fail;
     }
   }
 
   return 0;
+
+fail:
+  ngtcp2_strm_free(strm);
+  return rv;
 }
 
 /*
@@ -3581,6 +3633,8 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                          uint64_t rx_offset) {
@@ -3624,7 +3678,14 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * TBD
+ * NGTCP2_ERR_PROTO
+ *     CRYPTO frame has invalid offset.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CRYPTO
+ *     TLS stack reported error.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
  */
 static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
                             uint64_t max_rx_offset, const ngtcp2_crypto *fr) {
@@ -3644,7 +3705,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
   }
 
   if (crypto->max_rx_offset && crypto->max_rx_offset < fr_end_offset) {
-    return NGTCP2_ERR_INTERNAL;
+    return NGTCP2_ERR_PROTO;
   }
 
   rx_offset = ngtcp2_strm_rx_offset(crypto);
@@ -3700,6 +3761,31 @@ static int conn_max_data_violated(ngtcp2_conn *conn, size_t datalen) {
   return conn->max_rx_offset - conn->rx_offset < datalen;
 }
 
+/*
+ * conn_recv_stream is called when STREAM frame |fr| is received.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_STREAM_STATE
+ *     STREAM frame is received to the local stream which is not
+ *     initiated.
+ * NGTCP2_ERR_STREAM_ID
+ *     STREAM frame has remote stream ID which is strictly greater
+ *     than the allowed limit.
+ * NGTCP2_ERR_PROTO
+ *     STREAM frame is received to the local unidirectional stream; or
+ *     the end offset of stream data is beyond the NGTCP2_MAX_VARINT.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_FLOW_CONTROL
+ *     Flow control limit is violated.
+ * NGTCP2_ERR_FINAL_OFFSET
+ *     STREAM frame has strictly larger end offset than it is
+ *     permitted.
+ */
 static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   int rv;
   ngtcp2_strm *strm;
@@ -3763,6 +3849,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     /* TODO Perhaps, call new_stream callback? */
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
+      ngtcp2_mem_free(conn->mem, strm);
       return rv;
     }
     if (!bidi) {
@@ -3913,6 +4000,16 @@ static int conn_rst_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
+/*
+ * conn_stop_sending adds STOP_SENDING frame to the transmission
+ * queue.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint16_t app_error_code) {
   int rv;
@@ -3946,6 +4043,30 @@ handle_remote_stream_id_extension(uint64_t *punsent_max_remote_stream_id) {
   }
 }
 
+/*
+ * conn_recv_rst_stream is called when RST_STREAM |fr| is received.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_STREAM_STATE
+ *     RST_STREAM frame is received to the local stream which is not
+ *     initiated.
+ * NGTCP2_ERR_STREAM_ID
+ *     RST_STREAM frame has remote stream ID which is strictly greater
+ *     than the allowed limit.
+ * NGTCP2_ERR_PROTO
+ *     RST_STREAM frame is received to the local unidirectional
+ *     stream; or the final offset is beyond the NGTCP2_MAX_VARINT.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_FLOW_CONTROL
+ *     Flow control limit is violated.
+ * NGTCP2_ERR_FINAL_OFFSET
+ *     The final offset is strictly larger than it is permitted.
+ */
 static int conn_recv_rst_stream(ngtcp2_conn *conn,
                                 const ngtcp2_rst_stream *fr) {
   ngtcp2_strm *strm;
@@ -3955,6 +4076,7 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
   ngtcp2_idtr *idtr;
   int rv;
 
+  /* TODO share this piece of code */
   if (bidi) {
     if (local_stream) {
       if (conn->next_local_stream_id_bidi <= fr->stream_id) {
@@ -4034,6 +4156,26 @@ static int conn_recv_rst_stream(ngtcp2_conn *conn,
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
 }
 
+/*
+ * conn_recv_stop_sending is called when STOP_SENDING |fr| is received.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_STREAM_STATE
+ *     STOP_SENDING frame is received to the local stream which is not
+ *     initiated.
+ * NGTCP2_ERR_STREAM_ID
+ *     STOP_SENDING frame has remote stream ID which is strictly
+ *     greater than the allowed limit.
+ * NGTCP2_ERR_PROTO
+ *     STOP_SENDING frame is received to the local unidirectional
+ *     stream; or the final offset is beyond the NGTCP2_MAX_VARINT.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
 static int conn_recv_stop_sending(ngtcp2_conn *conn,
                                   const ngtcp2_stop_sending *fr) {
   int rv;
@@ -4085,6 +4227,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
+      ngtcp2_mem_free(conn->mem, strm);
       return rv;
     }
   }
@@ -4117,6 +4260,8 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
  *     not match.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
+ * NGTCP2_ERR_PROTO
+ *     No stateless reset token is available.
  */
 static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                                    const uint8_t *payload, size_t payloadlen) {
@@ -4172,15 +4317,18 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_PROTO
- *     Packet type is unexpected; or same packet number has already
- *     been added.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  * NGTCP2_ERR_FRAME_ENCODING
  *     Frame is badly formatted; or frame type is unknown.
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_DISCARD_PKT
+ *     Packet was discarded.
+ * NGTCP2_ERR_ACK_FRAME
+ *     ACK frame is malformed.
+ * NGTCP2_ERR_PROTO
+ *     APPLICATION_CLOSE frame is included in Initial packet.
  */
 static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
                                            const ngtcp2_pkt_hd *hd,
@@ -4291,6 +4439,39 @@ static int conn_recv_max_stream_id(ngtcp2_conn *conn,
   return conn_call_extend_max_stream_id(conn, fr->max_stream_id);
 }
 
+/*
+ * conn_recv_pkt processes a packet contained in the buffer pointed by
+ * |pkt| of length |pktlen|.  |pkt| may contain multiple QUIC packets.
+ * This function only processes the first packet.
+ *
+ * This function returns the number of bytes processed if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_DISCARD_PKT
+ *     Packet was discarded because plain text header was malformed;
+ *     or its payload could not be decrypted.
+ * NGTCP2_ERR_PROTO
+ *     Packet is badly formatted; or 0RTT packet contains other than
+ *     PADDING or STREAM frames; or other QUIC protocol violation is
+ *     found.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Frame is badly formatted; or frame type is unknown.
+ * NGTCP2_ERR_ACK_FRAME
+ *     ACK frame is malformed.
+ * NGTCP2_ERR_STREAM_STATE
+ *     Frame is received to the local stream which is not initiated.
+ * NGTCP2_ERR_STREAM_ID
+ *     Frame has remote stream ID which is strictly greater than the
+ *     allowed limit.
+ * NGTCP2_ERR_FLOW_CONTROL
+ *     Flow control limit is violated.
+ * NGTCP2_ERR_FINAL_OFFSET
+ *     Frame has strictly larger end offset than it is permitted.
+ */
 static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                              size_t pktlen, ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
@@ -4643,6 +4824,13 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   return (ssize_t)pktlen;
 }
 
+/*
+ * conn_process_buffered_protected_pkt processes buffered 0RTT
+ * Protected or Short packets.
+ *
+ * This function returns 0 if it succeeds, or the same negative error
+ * codes from conn_recv_pkt.
+ */
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
@@ -4666,6 +4854,13 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   return 0;
 }
 
+/*
+ * conn_process_buffered_handshake_pkt processes buffered Initial or
+ * Handshake packets.
+ *
+ * This function returns 0 if it succeeds, or the same negative error
+ * codes from conn_recv_handshake_pkt.
+ */
 static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
@@ -4730,6 +4925,9 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
  * buffer pointed by |pkt| might contain multiple packets.  The Short
  * packet must be the last one because it does not have payload length
  * field.
+ *
+ * This function returns 0 if it succeeds, or the same negative error
+ * codes from conn_recv_pkt except for NGTCP2_ERR_DISCARD_PKT.
  */
 static int conn_recv_cpkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
                           ngtcp2_tstamp ts) {
@@ -4801,6 +4999,10 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
   return rv;
 }
 
+/*
+ * conn_check_pkt_num_exhausted returns nonzero if packet number is
+ * exhausted in at least one of packet number space.
+ */
 static int conn_check_pkt_num_exhausted(ngtcp2_conn *conn) {
   return conn->in_pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM ||
          conn->hs_pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM ||
@@ -4923,6 +5125,29 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const uint8_t *pkt,
   }
 }
 
+/*
+ * conn_write_handshake writes QUIC handshake packets to the buffer
+ * pointed by |dest| of length |destlen|.  |early_datalen| specifies
+ * the expected length of early data to send.  Specify 0 to
+ * |early_datalen| if there is no early data.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * NGTCP2_ERR_PKT_NUM_EXHAUSTED
+ *     Packet number is exhausted.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ * NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM
+ *     Required transport parameter is missing.
+ * NGTCP2_CS_CLOSING
+ *     Connection is in closing state.
+ * NGTCP2_CS_DRAINING
+ *     Connection is in draining state.
+ *
+ * In addition to the above negative error codes, the same error codes
+ * from conn_recv_pkt may also be returned.
+ */
 static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                     size_t destlen, size_t early_datalen,
                                     ngtcp2_tstamp ts) {
@@ -5118,6 +5343,22 @@ ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   return conn_write_handshake(conn, dest, destlen, 0, ts);
 }
 
+/*
+ * conn_write_stream_early writes 0RTT packet to the buffer pointed by
+ * |dest| of length |destlen|.  The stream is specified by |strm|.  If
+ * |fin| is nonzero, the STREAM frame has fin bit set if all data is
+ * written.  If |require_padding| is nonzero, padding is added.  The
+ * number of bytes sent to the stream is assigned to |*padatalen|.  If
+ * 0 length STREAM frame is written, 0 is assigned.  The caller should
+ * initialize |*pdatalen| to -1.
+ *
+ * NGTCP2_ERR_STREAM_DATA_BLOCKED
+ *     Stream data could not be written because of flow control.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
 static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
                                        size_t destlen, ssize_t *pdatalen,
                                        ngtcp2_strm *strm, uint8_t fin,
@@ -5345,12 +5586,8 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
 
   rv = ngtcp2_acktr_add(acktr, pkt_num, active_ack, ts);
   if (rv != 0) {
-    /* NGTCP2_ERR_INVALID_ARGUMENT means duplicated packet number.
-       Just ignore it for now. */
-    if (rv != NGTCP2_ERR_INVALID_ARGUMENT) {
-      return rv;
-    }
-    return 0;
+    assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
+    return rv;
   }
 
   return 0;
@@ -5540,6 +5777,10 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, pc);
 }
 
+/*
+ * settings_copy_from_transport_params translates
+ * ngtcp2_transport_params to ngtcp2_settings.
+ */
 static void
 settings_copy_from_transport_params(ngtcp2_settings *dest,
                                     const ngtcp2_transport_params *src) {
@@ -5564,6 +5805,10 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   dest->preferred_address = src->preferred_address;
 }
 
+/*
+ * transport_params_copy_from_settings translates ngtcp2_settings to
+ * ngtcp2_transport_params.
+ */
 static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
   dest->initial_max_stream_data_bidi_local = src->max_stream_data_bidi_local;
@@ -5753,6 +5998,7 @@ int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, uint64_t *pstream_id,
   rv = ngtcp2_conn_init_stream(conn, strm, conn->next_local_stream_id_bidi,
                                stream_user_data);
   if (rv != 0) {
+    ngtcp2_mem_free(conn->mem, strm);
     return rv;
   }
 
@@ -5779,6 +6025,7 @@ int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn, uint64_t *pstream_id,
   rv = ngtcp2_conn_init_stream(conn, strm, conn->next_local_stream_id_uni,
                                stream_user_data);
   if (rv != 0) {
+    ngtcp2_mem_free(conn->mem, strm);
     return rv;
   }
   ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
@@ -6017,6 +6264,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   rv = ngtcp2_map_remove(&conn->strms, strm->me.key);
   if (rv != 0) {
+    assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
     return rv;
   }
 
@@ -6060,6 +6308,16 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
+/*
+ * conn_shutdown_stream_write closes send stream with error code
+ * |app_error_code|.  RST_STREAM frame is scheduled.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                       uint16_t app_error_code) {
   if (strm->flags & NGTCP2_STRM_FLAG_SENT_RST) {
@@ -6076,6 +6334,16 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return conn_rst_stream(conn, strm, app_error_code);
 }
 
+/*
+ * conn_shutdown_stream_read closes read stream with error code
+ * |app_error_code|.  STOP_SENDING frame is scheduled.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                      uint16_t app_error_code) {
   if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
@@ -6147,6 +6415,16 @@ int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint64_t stream_id,
   return conn_shutdown_stream_read(conn, strm, app_error_code);
 }
 
+/*
+ * conn_extend_max_stream_offset extends stream level flow control
+ * window by |datalen| of the stream denoted by |strm|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 static int conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                          size_t datalen) {
   ngtcp2_strm *top;
@@ -6337,6 +6615,36 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
   }
 
   rcs->loss_detection_timer = rcs->last_tx_pkt_ts + timeout;
+}
+
+/*
+ * conn_handshake_pkt_lost is called when handshake packets which
+ * belong to |pktns| are lost.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+static int conn_handshake_pkt_lost(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
+  ngtcp2_frame_chain *frc = NULL;
+  int rv;
+
+  rv = ngtcp2_rtb_remove_all(&pktns->rtb, &frc);
+  if (rv != 0) {
+    assert(ngtcp2_err_is_fatal(rv));
+    ngtcp2_frame_chain_list_del(frc, conn->mem);
+    return rv;
+  }
+
+  rv = conn_resched_frames(conn, pktns, &frc);
+  if (rv != 0) {
+    ngtcp2_frame_chain_list_del(frc, conn->mem);
+    return rv;
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {

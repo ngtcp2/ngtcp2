@@ -363,13 +363,16 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id);
 
 /*
  * conn_init_stream initializes |strm|.  Its stream ID is |stream_id|.
- * This function adds |strm| to conn->strms.
+ * This function adds |strm| to conn->strms.  |strm| must be allocated
+ * by the caller.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-callback function failed.
  */
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                             uint64_t stream_id, void *stream_user_data);
@@ -417,6 +420,16 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
 
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
 
+/*
+ * ngtcp2_conn_detect_lost_pkt detects lost packets based on the
+ * incoming largest acknowledged packet number |largest_ack|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                 ngtcp2_rcvry_stat *rcs, uint64_t largest_ack,
                                 ngtcp2_tstamp ts);

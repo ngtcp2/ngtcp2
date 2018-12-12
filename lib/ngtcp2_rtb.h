@@ -129,12 +129,34 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
  */
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
 
+/*
+ * ngtcp2_stream_frame_chain_new allocates and initializes
+ * ngtcp2_stream_frame_chain object and assigns its pointer to
+ * |*pfrc|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
                                   ngtcp2_mem *mem);
 
 void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
                                    ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_crypto_frame_chain_new allocates and initializes
+ * ngtcp2_crypto_frame_chain object and assigns its pointer to
+ * |*pfrc|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
                                   ngtcp2_mem *mem);
 

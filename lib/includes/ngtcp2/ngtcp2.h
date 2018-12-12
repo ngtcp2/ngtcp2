@@ -838,7 +838,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  * This function returns the number of bytes read to decode a single
  * frame if it succeeds, or one of the following negative error codes:
  *
- * :enum:`NGTCP2_ERR_FRAME_FORMAT`
+ * :enum:`NGTCP2_ERR_FRAME_ENCODING`
  *     Frame is badly formatted; or frame type is unknown.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest,
@@ -1381,16 +1381,9 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
  *     Out of memory.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User-defined callback function failed.
- * :enum:`NGTCP2_ERR_PKT_TIMEOUT`
- *     Give up the retransmission of lost packet because of timeout.
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     Packet type is unexpected.  TODO: This will be removed in the
- *     future.
  * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
  *     The packet number has reached at the maximum value, therefore
  *     the function cannot make new packet on this connection.
- * :enum:`NGTCP2_ERR_CRYPTO`
- *     TLS backend reported error
  *
  * In general, if the error code which satisfies
  * ngtcp2_erro_is_fatal(err) != 0 is returned, the application should
