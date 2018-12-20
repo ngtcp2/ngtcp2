@@ -37,7 +37,6 @@ void test_ngtcp2_psl_insert(void) {
   ngtcp2_psl psl;
   ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
-  const ngtcp2_range *pr;
   ngtcp2_range r;
   ngtcp2_psl_it it;
 
@@ -46,16 +45,16 @@ void test_ngtcp2_psl_insert(void) {
   for (i = 0; i < arraylen(keys); ++i) {
     ngtcp2_psl_insert(&psl, NULL, &keys[i], NULL);
     it = ngtcp2_psl_lower_bound(&psl, &keys[i]);
-
-    CU_ASSERT(ngtcp2_range_eq(&keys[i], ngtcp2_psl_it_range(&it)));
+    r = ngtcp2_psl_it_range(&it);
+    CU_ASSERT(ngtcp2_range_eq(&keys[i], &r));
   }
 
   for (i = 0; i < arraylen(keys); ++i) {
     ngtcp2_psl_remove(&psl, NULL, &keys[i]);
     it = ngtcp2_psl_lower_bound(&psl, &keys[i]);
-    pr = ngtcp2_psl_it_range(&it);
+    r = ngtcp2_psl_it_range(&it);
 
-    CU_ASSERT(keys[i].end <= pr->begin);
+    CU_ASSERT(keys[i].end <= r.begin);
   }
 
   ngtcp2_psl_free(&psl);
@@ -71,21 +70,21 @@ void test_ngtcp2_psl_insert(void) {
   /* Removing [7, 8) requires relocation */
   ngtcp2_range_init(&r, 7, 8);
   ngtcp2_psl_remove(&psl, &it, &r);
-  pr = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(8 == pr->begin);
-  CU_ASSERT(9 == pr->end);
+  CU_ASSERT(8 == r.begin);
+  CU_ASSERT(9 == r.end);
 
   it = ngtcp2_psl_lower_bound(&psl, &r);
-  pr = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(8 == pr->begin);
-  CU_ASSERT(9 == pr->end);
+  CU_ASSERT(8 == r.begin);
+  CU_ASSERT(9 == r.end);
 
-  pr = &psl.head->nodes[0].range;
+  r = psl.head->nodes[0].range;
 
-  CU_ASSERT(8 == pr->begin);
-  CU_ASSERT(9 == pr->end);
+  CU_ASSERT(8 == r.begin);
+  CU_ASSERT(9 == r.end);
 
   ngtcp2_psl_free(&psl);
 
@@ -100,16 +99,16 @@ void test_ngtcp2_psl_insert(void) {
 
   ngtcp2_range_init(&r, 63, 64);
   ngtcp2_psl_remove(&psl, &it, &r);
-  pr = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(64 == pr->begin);
-  CU_ASSERT(65 == pr->end);
+  CU_ASSERT(64 == r.begin);
+  CU_ASSERT(65 == r.end);
 
   it = ngtcp2_psl_lower_bound(&psl, &r);
-  pr = ngtcp2_psl_it_range(&it);
+  r = ngtcp2_psl_it_range(&it);
 
-  CU_ASSERT(64 == pr->begin);
-  CU_ASSERT(65 == pr->end);
+  CU_ASSERT(64 == r.begin);
+  CU_ASSERT(65 == r.end);
 
   ngtcp2_psl_free(&psl);
 

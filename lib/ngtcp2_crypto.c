@@ -81,7 +81,7 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                        uint8_t exttype,
                                        const ngtcp2_transport_params *params) {
   uint8_t *p;
-  size_t len = 2 /* transport parameters length */ + 6 /* idle_timeout */;
+  size_t len = 2 /* transport parameters length */;
   size_t i;
   size_t vlen;
   /* For some reason, gcc 7.3.0 requires this initialization. */
@@ -109,6 +109,9 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
           params->preferred_address.cid.datalen /* connection_id */ +
           NGTCP2_STATELESS_RESET_TOKENLEN;
       len += 4 + preferred_addrlen;
+    }
+    if (params->original_connection_id_present) {
+      len += 4 + params->original_connection_id.datalen;
     }
     break;
   default:
@@ -144,6 +147,12 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->disable_migration) {
     len += 4;
   }
+  if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
+    len += 5;
+  }
+  if (params->idle_timeout) {
+    len += 6;
+  }
 
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -165,10 +174,6 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   p = ngtcp2_put_uint16be(p, (uint16_t)(len - vlen - sizeof(uint16_t)));
-
-  p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT);
-  p = ngtcp2_put_uint16be(p, 2);
-  p = ngtcp2_put_uint16be(p, params->idle_timeout);
 
   if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
     if (params->stateless_reset_token_present) {
@@ -193,6 +198,13 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
       p = ngtcp2_cpymem(
           p, params->preferred_address.stateless_reset_token,
           sizeof(params->preferred_address.stateless_reset_token));
+    }
+    if (params->original_connection_id_present) {
+      p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID);
+      p = ngtcp2_put_uint16be(p,
+                              (uint16_t)params->original_connection_id.datalen);
+      p = ngtcp2_cpymem(p, params->original_connection_id.data,
+                        params->original_connection_id.datalen);
     }
   }
 
@@ -250,6 +262,18 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->disable_migration) {
     p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION);
     p = ngtcp2_put_uint16be(p, 0);
+  }
+
+  if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY);
+    p = ngtcp2_put_uint16be(p, 1);
+    *p++ = params->max_ack_delay;
+  }
+
+  if (params->idle_timeout) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT);
+    p = ngtcp2_put_uint16be(p, 2);
+    p = ngtcp2_put_uint16be(p, params->idle_timeout);
   }
 
   assert((size_t)(p - dest) == len);
@@ -324,6 +348,9 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->stateless_reset_token_present = 0;
   params->preferred_address.ip_version = NGTCP2_IP_VERSION_NONE;
   params->disable_migration = 0;
+  params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  params->idle_timeout = 0;
+  params->original_connection_id_present = 0;
 
   for (; (size_t)(end - p) >= sizeof(uint16_t) * 2;) {
     param_type = ngtcp2_get_uint16(p);
@@ -504,6 +531,28 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       p += sizeof(uint16_t);
       params->disable_migration = 1;
       break;
+    case NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID:
+      if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      flags |= 1u << NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID;
+      len = ngtcp2_get_uint16(p);
+      p += sizeof(uint16_t);
+      if ((size_t)(end - p) < len) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      ngtcp2_cid_init(&params->original_connection_id, p, len);
+      params->original_connection_id_present = 1;
+      p += len;
+      break;
+    case NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY:
+      flags |= 1u << NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY;
+      if (ngtcp2_get_uint16(p) != 1) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      p += sizeof(uint16_t);
+      params->max_ack_delay = *p++;
+      break;
     default:
       /* Ignore unknown parameter */
       valuelen = ngtcp2_get_uint16(p);
@@ -518,14 +567,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
   if (end - p != 0) {
     return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
-  }
-
-#define NGTCP2_REQUIRED_TRANSPORT_PARAMS                                       \
-  (1u << NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT)
-
-  if ((flags & NGTCP2_REQUIRED_TRANSPORT_PARAMS) !=
-      NGTCP2_REQUIRED_TRANSPORT_PARAMS) {
-    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
   }
 
   return 0;

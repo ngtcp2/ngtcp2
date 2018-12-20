@@ -187,7 +187,6 @@ size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
  * Caller should call this function from offset 0 in non-decreasing
  * order.
  *
- *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *

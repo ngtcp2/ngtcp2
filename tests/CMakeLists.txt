@@ -46,6 +46,9 @@ if(HAVE_CUNIT)
     ngtcp2_test_helper.c
     ngtcp2_psl_test.c
     ngtcp2_ksl_test.c
+    ngtcp2_gaptr_test.c
+    ngtcp2_vec_test.c
+    ngtcp2_strm_test.c
   )
 
   add_executable(main EXCLUDE_FROM_ALL

@@ -229,7 +229,8 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
   CU_ASSERT(0 == fr.stream.fin);
   CU_ASSERT(0xf1f2f3f4u == fr.stream.stream_id);
   CU_ASSERT(0x31f2f3f4f5f6f7f8llu == fr.stream.offset);
-  CU_ASSERT(0x14 == fr.stream.datalen);
+  CU_ASSERT(1 == fr.stream.datacnt);
+  CU_ASSERT(0x14 == fr.stream.data[0].len);
 
   /* Cutting 1 bytes from the tail must cause invalid argument
      error */
@@ -253,7 +254,8 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
   CU_ASSERT(0 == fr.stream.fin);
   CU_ASSERT(0x31 == fr.stream.stream_id);
   CU_ASSERT(0x00 == fr.stream.offset);
-  CU_ASSERT(0x14 == fr.stream.datalen);
+  CU_ASSERT(1 == fr.stream.datacnt);
+  CU_ASSERT(0x14 == fr.stream.data[0].len);
 
   /* Cutting 1 bytes from the tail must cause invalid argument
      error */
@@ -277,7 +279,8 @@ void test_ngtcp2_pkt_decode_stream_frame(void) {
   CU_ASSERT(1 == fr.stream.fin);
   CU_ASSERT(0x31f2f3f4u == fr.stream.stream_id);
   CU_ASSERT(0x00 == fr.stream.offset);
-  CU_ASSERT(0x14 == fr.stream.datalen);
+  CU_ASSERT(1 == fr.stream.datacnt);
+  CU_ASSERT(0x14 == fr.stream.data[0].len);
 
   memset(&fr, 0, sizeof(fr));
 }
@@ -336,8 +339,9 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   fr.stream.fin = 0;
   fr.stream.stream_id = 0xf1f2f3f4u;
   fr.stream.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.stream.datalen = strsize(data);
-  fr.stream.data = data;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = strsize(data);
+  fr.stream.data[0].base = (uint8_t *)data;
 
   framelen = 1 + 8 + 8 + 1 + 17;
 
@@ -354,8 +358,10 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   CU_ASSERT(fr.stream.fin == nfr.stream.fin);
   CU_ASSERT(fr.stream.stream_id == nfr.stream.stream_id);
   CU_ASSERT(fr.stream.offset == nfr.stream.offset);
-  CU_ASSERT(fr.stream.datalen == nfr.stream.datalen);
-  CU_ASSERT(0 == memcmp(fr.stream.data, nfr.stream.data, fr.stream.datalen));
+  CU_ASSERT(1 == nfr.stream.datacnt);
+  CU_ASSERT(fr.stream.data[0].len == nfr.stream.data[0].len);
+  CU_ASSERT(0 == memcmp(fr.stream.data[0].base, nfr.stream.data[0].base,
+                        fr.stream.data[0].len));
 
   memset(&nfr, 0, sizeof(nfr));
 
@@ -364,8 +370,9 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   fr.stream.fin = 0;
   fr.stream.stream_id = 0x31;
   fr.stream.offset = 0;
-  fr.stream.datalen = strsize(data);
-  fr.stream.data = data;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = strsize(data);
+  fr.stream.data[0].base = (uint8_t *)data;
 
   framelen = 1 + 1 + 1 + 17;
 
@@ -381,8 +388,10 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   CU_ASSERT(fr.stream.fin == nfr.stream.fin);
   CU_ASSERT(fr.stream.stream_id == nfr.stream.stream_id);
   CU_ASSERT(fr.stream.offset == nfr.stream.offset);
-  CU_ASSERT(fr.stream.datalen == nfr.stream.datalen);
-  CU_ASSERT(0 == memcmp(fr.stream.data, nfr.stream.data, fr.stream.datalen));
+  CU_ASSERT(1 == nfr.stream.datacnt);
+  CU_ASSERT(fr.stream.data[0].len == nfr.stream.data[0].len);
+  CU_ASSERT(0 == memcmp(fr.stream.data[0].base, nfr.stream.data[0].base,
+                        fr.stream.data[0].len));
 
   memset(&nfr, 0, sizeof(nfr));
 
@@ -391,8 +400,9 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   fr.stream.fin = 1;
   fr.stream.stream_id = 0xf1f2f3f4u;
   fr.stream.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.stream.datalen = strsize(data);
-  fr.stream.data = data;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = strsize(data);
+  fr.stream.data[0].base = (uint8_t *)data;
 
   framelen = 1 + 8 + 8 + 1 + 17;
 
@@ -409,8 +419,10 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   CU_ASSERT(fr.stream.fin == nfr.stream.fin);
   CU_ASSERT(fr.stream.stream_id == nfr.stream.stream_id);
   CU_ASSERT(fr.stream.offset == nfr.stream.offset);
-  CU_ASSERT(fr.stream.datalen == nfr.stream.datalen);
-  CU_ASSERT(0 == memcmp(fr.stream.data, nfr.stream.data, fr.stream.datalen));
+  CU_ASSERT(1 == nfr.stream.datacnt);
+  CU_ASSERT(fr.stream.data[0].len == nfr.stream.data[0].len);
+  CU_ASSERT(0 == memcmp(fr.stream.data[0].base, nfr.stream.data[0].base,
+                        fr.stream.data[0].len));
 
   /* Make sure that we check the length properly. */
   for (i = 1; i < framelen; ++i) {
@@ -426,8 +438,9 @@ void test_ngtcp2_pkt_encode_stream_frame(void) {
   fr.stream.fin = 1;
   fr.stream.stream_id = 0xf1f2f3f4u;
   fr.stream.offset = 0x31f2f3f4f5f6f7f8llu;
-  fr.stream.datalen = strsize(data);
-  fr.stream.data = data;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = strsize(data);
+  fr.stream.data[0].base = (uint8_t *)data;
 
   framelen = 1 + 8 + 8 + 1 + 17;
 
@@ -797,7 +810,7 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   size_t framelen = 1 + 4 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
-  fr.seq = 0xf1f2;
+  fr.seq = 1000000009;
   scid_init(&fr.cid);
   memset(fr.stateless_reset_token, 0xe1, sizeof(fr.stateless_reset_token));
 
@@ -809,7 +822,7 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
 
   CU_ASSERT((ssize_t)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(fr.seq = nfr.seq);
+  CU_ASSERT(fr.seq == nfr.seq);
   CU_ASSERT(ngtcp2_cid_eq(&fr.cid, &nfr.cid));
   CU_ASSERT(0 == memcmp(fr.stateless_reset_token, nfr.stateless_reset_token,
                         sizeof(fr.stateless_reset_token)));
@@ -939,6 +952,30 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
                         fr.new_token.tokenlen));
 }
 
+void test_ngtcp2_pkt_encode_retire_connection_id(void) {
+  uint8_t buf[256];
+  ngtcp2_frame fr, nfr;
+  ssize_t rv;
+  size_t framelen;
+
+  fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+  fr.retire_connection_id.seq = 1000000007;
+
+  framelen = 1 + ngtcp2_put_varint_len(fr.retire_connection_id.seq);
+
+  rv = ngtcp2_pkt_encode_retire_connection_id_frame(buf, sizeof(buf),
+                                                    &fr.retire_connection_id);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_retire_connection_id_frame(&nfr.retire_connection_id,
+                                                    buf, framelen);
+
+  CU_ASSERT((ssize_t)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.retire_connection_id.seq == nfr.retire_connection_id.seq);
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
@@ -1053,7 +1090,7 @@ void test_ngtcp2_pkt_write_retry(void) {
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY, &dcid,
-                     &scid, 0, 0, NGTCP2_PROTO_VER_D14, 0);
+                     &scid, 0, 0, NGTCP2_PROTO_VER_D15, 0);
 
   spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &odcid, token,
                                    sizeof(token));
@@ -1120,4 +1157,68 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
   for (i = 0; i < arraylen(sv); ++i, p += 4) {
     CU_ASSERT(sv[i] == ngtcp2_get_uint32(p));
   }
+}
+
+void test_ngtcp2_pkt_stream_max_datalen(void) {
+  size_t len;
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 0, 2);
+
+  CU_ASSERT((size_t)-1 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 0, 3);
+
+  CU_ASSERT(0 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1, 3);
+
+  CU_ASSERT(0 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1, 4);
+
+  CU_ASSERT(1 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 1, 1, 4);
+
+  CU_ASSERT(0 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 63, 66);
+
+  CU_ASSERT(63 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 63, 65);
+
+  CU_ASSERT(62 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1396, 1400);
+
+  CU_ASSERT(1396 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1396, 1399);
+
+  CU_ASSERT(1395 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1396, 9);
+
+  CU_ASSERT(6 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 16385, 16391);
+
+  CU_ASSERT(16385 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 16385, 16390);
+
+  CU_ASSERT(16384 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1073741824, 1073741834);
+
+  CU_ASSERT(1073741824 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 1073741824, 1073741833);
+
+  CU_ASSERT(1073741823 == len);
+
+  len = ngtcp2_pkt_stream_max_datalen(63, 0, 16383, 16387);
+
+  CU_ASSERT(16383 == len);
 }

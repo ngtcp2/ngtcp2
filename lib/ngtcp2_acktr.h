@@ -39,8 +39,9 @@
    which ngtcp2_acktr stores. */
 #define NGTCP2_ACKTR_MAX_ENT 1024
 
-/* ns */
-#define NGTCP2_DEFAULT_ACK_DELAY 25000000
+/* NGTCP2_NUM_IMMEDIATE_ACK_PKT is the maximum number of received
+   packets which triggers the immediate ACK. */
+#define NGTCP2_NUM_IMMEDIATE_ACK_PKT 2
 
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
@@ -56,12 +57,20 @@ typedef struct ngtcp2_log ngtcp2_log;
  */
 struct ngtcp2_acktr_entry {
   uint64_t pkt_num;
+  size_t len;
   ngtcp2_tstamp tstamp;
 };
 
 /*
  * ngtcp2_acktr_entry_new allocates memory for ent, and initializes it
- * with the given parameters.
+ * with the given parameters.  The pointer to the allocated object is
+ * stored to |*ent|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
                            ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
@@ -81,9 +90,9 @@ typedef struct {
 
 typedef enum {
   NGTCP2_ACKTR_FLAG_NONE = 0x00,
-  /* NGTCP2_ACKTR_FLAG_DELAYED_ACK indicates that delayed ACK is
-     enabled. */
-  NGTCP2_ACKTR_FLAG_DELAYED_ACK = 0x01,
+  /* NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK indicates that immediate
+     acknowledgement is required. */
+  NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK = 0x01,
   /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are
      pending protected packet to be acknowledged. */
   NGTCP2_ACKTR_FLAG_ACTIVE_ACK = 0x02,
@@ -95,9 +104,6 @@ typedef enum {
      acknowledgement for ACK which acknowledges the last handshake
      packet from client (which contains TLSv1.3 Finished message). */
   NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK = 0x80,
-  /* NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED is set when delayed ACK
-     timer is expired. */
-  NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED = 0x0100,
 } ngtcp2_acktr_flag;
 
 /*
@@ -115,11 +121,12 @@ typedef struct {
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
      first time after the last outgoing protected ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
+  /* rx_npkt is the number of packets received without sending ACK. */
+  size_t rx_npkt;
 } ngtcp2_acktr;
 
 /*
- * ngtcp2_acktr_init initializes |acktr|.  If |delayed_ack| is
- * nonzero, delayed ack is enabled.
+ * ngtcp2_acktr_init initializes |acktr|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -127,8 +134,7 @@ typedef struct {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_acktr_init(ngtcp2_acktr *acktr, int delayed_ack, ngtcp2_log *log,
-                      ngtcp2_mem *mem);
+int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees
@@ -137,16 +143,19 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, int delayed_ack, ngtcp2_log *log,
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
 
 /*
- * ngtcp2_acktr_add adds |ent|.
+ * ngtcp2_acktr_add adds packet number |pkt_num| to |acktr|.
+ * |active_ack| is nonzero if |pkt_num| is retransmittable packet.
+ *
+ * This function assumes that |acktr| does not contain |pkt_num|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Same packet number has already been included in |acktr|.
+ * NGTCP2_ERR_NOMEM
+ *     OUt of memory.
  */
-int ngtcp2_acktr_add(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent,
-                     int active_ack, ngtcp2_tstamp ts);
+int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
+                     ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_forget removes all entries which have the packet
@@ -190,6 +199,8 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
  */
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
                           ngtcp2_conn *conn, ngtcp2_tstamp ts);
@@ -207,16 +218,9 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint64_t max_ack_delay,
                                     ngtcp2_tstamp ts);
 
 /*
- * ngtcp2_acktr_expire_delayed_ack expires delayed ACK timer.  This
- * function sets NGTCP2_ACKTR_FLAG_DELAYED_ACK_EXPIRED so that we know
- * that the timer has expired.
+ * ngtcp2_acktr_immediate_ack tells |acktr| that immediate
+ * acknowledgement is required.
  */
-void ngtcp2_acktr_expire_delayed_ack(ngtcp2_acktr *acktr);
-
-/*
- * ngtcp2_acktr_delayed_ack returns nonzero if |acktr| enables delayed
- * ACK.
- */
-int ngtcp2_acktr_delayed_ack(ngtcp2_acktr *acktr);
+void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr);
 
 #endif /* NGTCP2_ACKTR_H */

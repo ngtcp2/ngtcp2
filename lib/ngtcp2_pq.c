@@ -87,11 +87,8 @@ int ngtcp2_pq_push(ngtcp2_pq *pq, ngtcp2_pq_entry *item) {
 }
 
 ngtcp2_pq_entry *ngtcp2_pq_top(ngtcp2_pq *pq) {
-  if (pq->length == 0) {
-    return NULL;
-  } else {
-    return pq->q[0];
-  }
+  assert(pq->length);
+  return pq->q[0];
 }
 
 static void bubble_down(ngtcp2_pq *pq, size_t index) {

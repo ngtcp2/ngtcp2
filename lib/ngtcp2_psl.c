@@ -41,6 +41,7 @@ int ngtcp2_psl_init(ngtcp2_psl *psl, ngtcp2_mem *mem) {
     return NGTCP2_ERR_NOMEM;
   }
   psl->front = psl->head;
+  psl->n = 0;
 
   head = psl->head;
 
@@ -231,6 +232,7 @@ int ngtcp2_psl_insert(ngtcp2_psl *psl, ngtcp2_psl_it *it,
 
     if (blk->leaf) {
       insert_node(blk, i, range, data);
+      ++psl->n;
       if (it) {
         ngtcp2_psl_it_init(it, blk, i);
       }
@@ -343,6 +345,15 @@ static int psl_relocate_node(ngtcp2_psl *psl, ngtcp2_psl_blk **pblk,
     }
     node = &blk->nodes[i];
     rnode = &blk->nodes[i + 1];
+
+    if (node->blk->n == NGTCP2_PSL_MIN_NBLK &&
+        node->blk->n + rnode->blk->n < NGTCP2_PSL_MAX_NBLK) {
+      j = node->blk->n - 1;
+      blk = psl_merge_node(psl, blk, i);
+      assert(blk != psl->head);
+      *pi = j;
+      return 0;
+    }
   }
 
   if (node->blk->n < rnode->blk->n) {
@@ -448,6 +459,7 @@ int ngtcp2_psl_remove(ngtcp2_psl *psl, ngtcp2_psl_it *it,
     if (blk->leaf) {
       assert(i < blk->n);
       remove_node(blk, i);
+      --psl->n;
       if (it) {
         if (blk->n == i) {
           ngtcp2_psl_it_init(it, blk->next, 0);
@@ -578,6 +590,8 @@ ngtcp2_psl_it ngtcp2_psl_begin(const ngtcp2_psl *psl) {
   return it;
 }
 
+size_t ngtcp2_psl_len(ngtcp2_psl *psl) { return psl->n; }
+
 void ngtcp2_psl_it_init(ngtcp2_psl_it *it, const ngtcp2_psl_blk *blk,
                         size_t i) {
   it->blk = blk;
@@ -602,6 +616,6 @@ int ngtcp2_psl_it_end(const ngtcp2_psl_it *it) {
   return ngtcp2_range_eq(&end, &it->blk->nodes[it->i].range);
 }
 
-const ngtcp2_range *ngtcp2_psl_it_range(const ngtcp2_psl_it *it) {
-  return &it->blk->nodes[it->i].range;
+ngtcp2_range ngtcp2_psl_it_range(const ngtcp2_psl_it *it) {
+  return it->blk->nodes[it->i].range;
 }

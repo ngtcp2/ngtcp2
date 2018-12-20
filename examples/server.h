@@ -156,11 +156,11 @@ class Server;
 class Handler {
 public:
   Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
-          const ngtcp2_cid *dcid);
+          const ngtcp2_cid *rcid);
   ~Handler();
 
   int init(int fd, const sockaddr *sa, socklen_t salen, const ngtcp2_cid *dcid,
-           uint32_t version);
+           const ngtcp2_cid *ocid, uint32_t version);
 
   int tls_handshake();
   int read_tls();
@@ -169,7 +169,8 @@ public:
   int on_write_stream(Stream &stream);
   int write_stream_data(Stream &stream, int fin, Buffer &data);
   int feed_data(uint8_t *data, size_t datalen);
-  ssize_t do_handshake_once(const uint8_t *data, size_t datalen);
+  int do_handshake_read_once(const uint8_t *data, size_t datalen);
+  ssize_t do_handshake_write_once();
   int do_handshake(const uint8_t *data, size_t datalen);
   void schedule_retransmit();
   void signal_write();
@@ -274,8 +275,7 @@ private:
   bool draining_;
 };
 
-constexpr size_t TOKEN_KEYLEN = 16;
-constexpr size_t TOKEN_NONCELEN = 12;
+constexpr size_t TOKEN_SECRETLEN = 16;
 
 class Server {
 public:
@@ -292,15 +292,19 @@ public:
   int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                                socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa, socklen_t salen);
-  int generate_token(uint8_t *token, size_t *ptokenlen, const sockaddr *sa,
-                     socklen_t salen);
-  int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
-                   socklen_t salen);
+  int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
+                     socklen_t salen, const ngtcp2_cid *ocid);
+  int verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
+                   const sockaddr *sa, socklen_t salen);
   int send_packet(Address &remote_addr, Buffer &buf);
   void remove(const Handler *h);
   std::map<std::string, std::unique_ptr<Handler>>::const_iterator
   remove(std::map<std::string, std::unique_ptr<Handler>>::const_iterator it);
   void start_wev();
+
+  int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
+                       const uint8_t *rand_data, size_t rand_datalen);
+  int generate_rand_data(uint8_t *buf, size_t len);
 
 private:
   std::map<std::string, std::unique_ptr<Handler>> handlers_;
@@ -310,8 +314,7 @@ private:
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   crypto::Context token_crypto_ctx_;
-  std::array<uint8_t, TOKEN_KEYLEN> token_key_;
-  BIGNUM *token_nonce_;
+  std::array<uint8_t, TOKEN_SECRETLEN> token_secret_;
   int fd_;
   ev_io wev_;
   ev_io rev_;

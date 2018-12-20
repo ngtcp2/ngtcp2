@@ -59,11 +59,6 @@ uint16_t ngtcp2_get_uint16(const uint8_t *p) {
   return ntohs(n);
 }
 
-/* varintlen_def is an array of required length of variable-length
-   integer encoding.  Use 2 most significant bits as an index to get
-   the length in bytes. */
-static size_t varintlen_def[] = {1, 2, 4, 8};
-
 uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
   union {
     char b[8];
@@ -72,26 +67,23 @@ uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
     uint64_t n64;
   } n;
 
-  *plen = varintlen_def[*p >> 6];
+  *plen = 1u << (*p >> 6);
 
   switch (*plen) {
   case 1:
     return *p;
-  case 2: {
+  case 2:
     memcpy(&n, p, 2);
     n.b[0] &= 0x3f;
     return ntohs(n.n16);
-  }
-  case 4: {
+  case 4:
     memcpy(&n, p, 4);
     n.b[0] &= 0x3f;
     return ntohl(n.n32);
-  }
-  case 8: {
+  case 8:
     memcpy(&n, p, 8);
     n.b[0] &= 0x3f;
     return bswap64(n.n64);
-  }
   }
 
   assert(0);
@@ -201,9 +193,7 @@ uint8_t *ngtcp2_put_pkt_num(uint8_t *p, uint64_t pkt_num, size_t len) {
   }
 }
 
-size_t ngtcp2_get_varint_len(const uint8_t *p) {
-  return varintlen_def[*p >> 6];
-}
+size_t ngtcp2_get_varint_len(const uint8_t *p) { return 1u << (*p >> 6); }
 
 size_t ngtcp2_get_pkt_num_len(const uint8_t *p) {
   if ((*p >> 7) == 0) {

@@ -41,6 +41,9 @@ OBJECTS = \
 	ngtcp2_conv_test.c \
 	ngtcp2_psl_test.c \
 	ngtcp2_ksl_test.c \
+	ngtcp2_gaptr_test.c \
+	ngtcp2_vec_test.c \
+	ngtcp2_strm_test.c \
 	ngtcp2_test_helper.c
 HFILES= \
 	ngtcp2_pkt_test.h \
@@ -56,6 +59,9 @@ HFILES= \
 	ngtcp2_conv_test.h \
 	ngtcp2_psl_test.h \
 	ngtcp2_ksl_test.h \
+	ngtcp2_gaptr_test.h \
+	ngtcp2_vec_test.h \
+	ngtcp2_strm_test.h \
 	ngtcp2_test_helper.h
 
 main_SOURCES = $(HFILES) $(OBJECTS)

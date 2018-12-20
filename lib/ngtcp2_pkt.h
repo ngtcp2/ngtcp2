@@ -74,9 +74,38 @@
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
 #define NGTCP2_MAX_PKT_NUM ((1llu << 62) - 1)
 
-/* NGTCP2_MAX_CRYPTO_DATACNT is the maximum number of ngtcp2_vec that
-   a ngtcp2_crypto can include. */
-#define NGTCP2_MAX_CRYPTO_DATACNT 16
+struct ngtcp2_pkt_chain;
+typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
+
+/*
+ * ngtcp2_pkt_chain is the chain of incoming packets buffered.
+ */
+struct ngtcp2_pkt_chain {
+  ngtcp2_pkt_chain *next;
+  uint8_t *pkt;
+  size_t pktlen;
+  ngtcp2_tstamp ts;
+};
+
+/*
+ * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
+ * assigns its pointer to |*ppc|.  The content of buffer pointed by
+ * |pkt| of length |pktlen| is copied into |*ppc|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
+                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_pkt_chain_del deallocates |pc|.  It also frees the memory
+ * pointed by |pc|.
+ */
+void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.  If
@@ -444,6 +473,22 @@ ssize_t ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
                                           size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_retire_connection_id_frame decodes RETIRE_CONNECTION_ID
+ * frame from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  RETIRE_CONNECTION_ID frame must start at
+ * payload[0].  This function finishes when it decodes one RETIRE_CONNECTION_ID
+ * frame, and returns the exact number of bytes read to decode a frame
+ * if it succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include RETIRE_CONNECTION_ID frame.
+ */
+ssize_t
+ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -704,6 +749,19 @@ ssize_t ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
                                           const ngtcp2_new_token *fr);
 
 /*
+ * ngtcp2_pkt_encode_retire_connection_id_frame encodes RETIRE_CONNECTION_ID
+ * frame |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
+    uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr);
+
+/*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
  * |pkt_num|, which is expected to be least significant |n| bits.  The
  * |max_pkt_num| is the highest successfully authenticated packet
@@ -731,8 +789,27 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
 
 /*
  * ngtcp2_pkt_hd returns nonzero if |hd| indicates packets which are
- * sent in hadshake phase.
+ * sent in handshake phase.
  */
 int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
+
+/*
+ * ngtcp2_pkt_stream_max_datalen returns the maximum number of bytes
+ * which can be sent for stream denoted by |stream_id|.  |offset| is
+ * an offset of within the stream.  |len| is the estimated number of
+ * bytes to be sent.  |left| is the size of buffer.  If |left| is too
+ * small to write STREAM frame, this function returns (size_t)-1.
+ */
+size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
+                                     size_t len, size_t left);
+
+/*
+ * ngtcp2_pkt_crypto_max_datalen returns the maximum number of bytes
+ * which can be sent for crypto stream.  |offset| is an offset of
+ * within the crypto stream.  |len| is the estimated number of bytes
+ * to be sent.  |left| is the size of buffer.  If |left| is too small
+ * to write CRYPTO frame, this function returns (size_t)-1.
+ */
+size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
 
 #endif /* NGTCP2_PKT_H */

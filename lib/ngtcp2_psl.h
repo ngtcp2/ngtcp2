@@ -104,6 +104,7 @@ struct ngtcp2_psl {
   ngtcp2_psl_blk *head;
   /* front points to the first leaf block. */
   ngtcp2_psl_blk *front;
+  size_t n;
   ngtcp2_mem *mem;
 };
 
@@ -184,6 +185,11 @@ ngtcp2_psl_it ngtcp2_psl_lower_bound(ngtcp2_psl *psl,
 ngtcp2_psl_it ngtcp2_psl_begin(const ngtcp2_psl *psl);
 
 /*
+ * ngtcp2_psl_len returns the number of elements stored in |ksl|.
+ */
+size_t ngtcp2_psl_len(ngtcp2_psl *psl);
+
+/*
  * ngtcp2_psl_print prints its internal state in stderr.  This
  * function should be used for the debugging purpose only.
  */
@@ -220,6 +226,6 @@ int ngtcp2_psl_it_end(const ngtcp2_psl_it *it);
  * returns nonzero.  In this case, this function returns {UINT64_MAX,
  * UINT64_MAX}.
  */
-const ngtcp2_range *ngtcp2_psl_it_range(const ngtcp2_psl_it *it);
+ngtcp2_range ngtcp2_psl_it_range(const ngtcp2_psl_it *it);
 
 #endif /* NGTCP2_PSL_H */

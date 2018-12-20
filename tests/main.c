@@ -44,6 +44,9 @@
 #include "ngtcp2_psl_test.h"
 #include "ngtcp2_ksl_test.h"
 #include "ngtcp2_map_test.h"
+#include "ngtcp2_gaptr_test.h"
+#include "ngtcp2_vec_test.h"
+#include "ngtcp2_strm_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -111,6 +114,8 @@ int main() {
                    test_ngtcp2_pkt_encode_crypto_frame) ||
       !CU_add_test(pSuite, "pkt_encode_new_token_frame",
                    test_ngtcp2_pkt_encode_new_token_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_retire_connection_id",
+                   test_ngtcp2_pkt_encode_retire_connection_id) ||
       !CU_add_test(pSuite, "pkt_adjust_pkt_num",
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "pkt_validate_ack", test_ngtcp2_pkt_validate_ack) ||
@@ -119,6 +124,8 @@ int main() {
       !CU_add_test(pSuite, "pkt_write_retry", test_ngtcp2_pkt_write_retry) ||
       !CU_add_test(pSuite, "pkt_write_version_negotiation",
                    test_ngtcp2_pkt_write_version_negotiation) ||
+      !CU_add_test(pSuite, "pkt_stream_max_datalen",
+                   test_ngtcp2_pkt_stream_max_datalen) ||
       !CU_add_test(pSuite, "get_varint", test_ngtcp2_get_varint) ||
       !CU_add_test(pSuite, "get_varint_len", test_ngtcp2_get_varint_len) ||
       !CU_add_test(pSuite, "put_varint_len", test_ngtcp2_put_varint_len) ||
@@ -149,7 +156,6 @@ int main() {
                    test_ngtcp2_encode_transport_params) ||
       !CU_add_test(pSuite, "rtb_add", test_ngtcp2_rtb_add) ||
       !CU_add_test(pSuite, "rtb_recv_ack", test_ngtcp2_rtb_recv_ack) ||
-      !CU_add_test(pSuite, "rtb_insert_range", test_ngtcp2_rtb_insert_range) ||
       !CU_add_test(pSuite, "rtb_clear", test_ngtcp2_rtb_clear) ||
       !CU_add_test(pSuite, "idtr_open", test_ngtcp2_idtr_open) ||
       !CU_add_test(pSuite, "ringbuf_push_front",
@@ -190,8 +196,8 @@ int main() {
       !CU_add_test(pSuite, "conn_handshake", test_ngtcp2_conn_handshake) ||
       !CU_add_test(pSuite, "conn_handshake_error",
                    test_ngtcp2_conn_handshake_error) ||
-      !CU_add_test(pSuite, "conn_client_handshake",
-                   test_ngtcp2_conn_client_handshake) ||
+      !CU_add_test(pSuite, "conn_client_write_handshake",
+                   test_ngtcp2_conn_client_write_handshake) ||
       !CU_add_test(pSuite, "conn_retransmit_protected",
                    test_ngtcp2_conn_retransmit_protected) ||
       !CU_add_test(pSuite, "conn_send_max_stream_data",
@@ -209,10 +215,18 @@ int main() {
                    test_ngtcp2_conn_recv_compound_pkt) ||
       !CU_add_test(pSuite, "conn_pkt_payloadlen",
                    test_ngtcp2_conn_pkt_payloadlen) ||
+      !CU_add_test(pSuite, "conn_writev_stream",
+                   test_ngtcp2_conn_writev_stream) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||
-      !CU_add_test(pSuite, "map_clear", test_ngtcp2_map_clear)) {
+      !CU_add_test(pSuite, "map_clear", test_ngtcp2_map_clear) ||
+      !CU_add_test(pSuite, "gaptr_push", test_ngtcp2_gaptr_push) ||
+      !CU_add_test(pSuite, "gaptr_is_pushed", test_ngtcp2_gaptr_is_pushed) ||
+      !CU_add_test(pSuite, "vec_split", test_ngtcp2_vec_split) ||
+      !CU_add_test(pSuite, "vec_merge", test_ngtcp2_vec_merge) ||
+      !CU_add_test(pSuite, "strm_streamfrq_pop",
+                   test_ngtcp2_strm_streamfrq_pop)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }

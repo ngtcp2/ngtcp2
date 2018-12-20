@@ -34,8 +34,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_UNKNOWN_PKT_TYPE";
   case NGTCP2_ERR_NOBUF:
     return "ERR_NOBUF";
-  case NGTCP2_ERR_BAD_PKT_HASH:
-    return "ERR_BAD_PKT_HASH";
   case NGTCP2_ERR_PROTO:
     return "ERR_PROTO";
   case NGTCP2_ERR_INVALID_STATE:
@@ -50,8 +48,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_STREAM_DATA_BLOCKED";
   case NGTCP2_ERR_FLOW_CONTROL:
     return "ERR_FLOW_CONTROL";
-  case NGTCP2_ERR_PKT_TIMEOUT:
-    return "ERR_PKT_TIMEOUT";
   case NGTCP2_ERR_STREAM_ID:
     return "ERR_STREAM_ID";
   case NGTCP2_ERR_FINAL_OFFSET:
@@ -88,12 +84,10 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_CLOSING";
   case NGTCP2_ERR_DRAINING:
     return "ERR_DRAINING";
-  case NGTCP2_ERR_PKT_ENCODING:
-    return "ERR_PKT_ENCODING";
-  case NGTCP2_ERR_CONGESTION:
-    return "ERR_CONGESTION";
-  case NGTCP2_ERR_TOO_MANY_RETRIES:
-    return "ERR_TOO_MANY_RETRIES";
+  case NGTCP2_ERR_TRANSPORT_PARAM:
+    return "ERR_TRANSPORT_PARAM";
+  case NGTCP2_ERR_DISCARD_PKT:
+    return "ERR_DISCARD_PKT";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:

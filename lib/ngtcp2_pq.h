@@ -36,12 +36,18 @@
 
 /* Implementation of priority queue */
 
-/* "less" function, return nonzero if |lhs| is less than |rhs|. */
-typedef int (*ngtcp2_less)(const void *lhs, const void *rhs);
+/* NGTCP2_PQ_BAD_INDEX is the priority queue index which indicates
+   that an entry is not queued.  Assigning this value to
+   ngtcp2_pq_entry.index can check that the entry is queued or not. */
+#define NGTCP2_PQ_BAD_INDEX SIZE_MAX
 
 typedef struct {
   size_t index;
 } ngtcp2_pq_entry;
+
+/* "less" function, return nonzero if |lhs| is less than |rhs|. */
+typedef int (*ngtcp2_less)(const ngtcp2_pq_entry *lhs,
+                           const ngtcp2_pq_entry *rhs);
 
 typedef struct {
   /* The pointer to the pointer to the item stored */
@@ -80,8 +86,8 @@ void ngtcp2_pq_free(ngtcp2_pq *pq);
 int ngtcp2_pq_push(ngtcp2_pq *pq, ngtcp2_pq_entry *item);
 
 /*
- * Returns item at the top of the queue |pq|. If the queue is empty,
- * this function returns NULL.
+ * Returns item at the top of the queue |pq|.  It is undefined if the
+ * queue is empty.
  */
 ngtcp2_pq_entry *ngtcp2_pq_top(ngtcp2_pq *pq);
 
