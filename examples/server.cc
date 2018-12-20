@@ -96,8 +96,7 @@ int key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
 } // namespace
 
 int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
-                    const uint8_t *key, size_t keylen, const uint8_t *iv,
-                    size_t ivlen) {
+                    const uint8_t *, size_t, const uint8_t *, size_t) {
   int rv;
 
   switch (name) {
@@ -121,10 +120,22 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
     return -1;
   }
 
-  std::array<uint8_t, 64> pn;
-  auto pnlen = crypto::derive_pkt_num_protection_key(
-      pn.data(), pn.size(), secret, secretlen, crypto_ctx_);
-  if (pnlen < 0) {
+  std::array<uint8_t, 64> key, iv, hp;
+  auto keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), secret, secretlen, crypto_ctx_);
+  if (keylen < 0) {
+    return -1;
+  }
+
+  auto ivlen = crypto::derive_packet_protection_iv(iv.data(), iv.size(), secret,
+                                                   secretlen, crypto_ctx_);
+  if (ivlen < 0) {
+    return -1;
+  }
+
+  auto hplen = crypto::derive_header_protection_key(
+      hp.data(), hp.size(), secret, secretlen, crypto_ctx_);
+  if (hplen < 0) {
     return -1;
   }
 
@@ -136,44 +147,44 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
     if (!config.quiet) {
       std::cerr << "client_early_traffic" << std::endl;
     }
-    ngtcp2_conn_install_early_keys(conn_, key, keylen, iv, ivlen, pn.data(),
-                                   pnlen);
+    ngtcp2_conn_install_early_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                   hp.data(), hplen);
     break;
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "client_handshake_traffic" << std::endl;
     }
-    ngtcp2_conn_install_handshake_rx_keys(conn_, key, keylen, iv, ivlen,
-                                          pn.data(), pnlen);
+    ngtcp2_conn_install_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
+                                          ivlen, hp.data(), hplen);
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "client_application_traffic" << std::endl;
     }
-    ngtcp2_conn_install_rx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
-                                pnlen);
+    ngtcp2_conn_install_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                hp.data(), hplen);
     break;
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "server_handshake_traffic" << std::endl;
     }
-    ngtcp2_conn_install_handshake_tx_keys(conn_, key, keylen, iv, ivlen,
-                                          pn.data(), pnlen);
+    ngtcp2_conn_install_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
+                                          ivlen, hp.data(), hplen);
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
     if (!config.quiet) {
       std::cerr << "server_application_traffic" << std::endl;
     }
-    ngtcp2_conn_install_tx_keys(conn_, key, keylen, iv, ivlen, pn.data(),
-                                pnlen);
+    ngtcp2_conn_install_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
+                                hp.data(), hplen);
     break;
   }
 
   if (!config.quiet) {
     std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
-              << "+ key=" << util::format_hex(key, keylen) << "\n"
-              << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
-              << "+ pn=" << util::format_hex(pn.data(), pnlen) << std::endl;
+              << "+ key=" << util::format_hex(key.data(), keylen) << "\n"
+              << "+ iv=" << util::format_hex(iv.data(), ivlen) << "\n"
+              << "+ hp=" << util::format_hex(hp.data(), hplen) << std::endl;
   }
 
   return 0;
@@ -1207,7 +1218,7 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     return -1;
   }
 
-  std::array<uint8_t, 16> key, iv, pn;
+  std::array<uint8_t, 16> key, iv, hp;
   auto keylen = crypto::derive_packet_protection_key(
       key.data(), key.size(), secret.data(), secret.size(), hs_crypto_ctx_);
   if (keylen < 0) {
@@ -1220,9 +1231,9 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     return -1;
   }
 
-  auto pnlen = crypto::derive_pkt_num_protection_key(
-      pn.data(), pn.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (pnlen < 0) {
+  auto hplen = crypto::derive_header_protection_key(
+      hp.data(), hp.size(), secret.data(), secret.size(), hs_crypto_ctx_);
+  if (hplen < 0) {
     return -1;
   }
 
@@ -1230,11 +1241,11 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     debug::print_server_in_secret(secret.data(), secret.size());
     debug::print_server_pp_key(key.data(), keylen);
     debug::print_server_pp_iv(iv.data(), ivlen);
-    debug::print_server_pp_pn(pn.data(), pnlen);
+    debug::print_server_pp_hp(hp.data(), hplen);
   }
 
   ngtcp2_conn_install_initial_tx_keys(conn_, key.data(), keylen, iv.data(),
-                                      ivlen, pn.data(), pnlen);
+                                      ivlen, hp.data(), hplen);
 
   rv = crypto::derive_client_initial_secret(secret.data(), secret.size(),
                                             initial_secret.data(),
@@ -1256,9 +1267,9 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     return -1;
   }
 
-  pnlen = crypto::derive_pkt_num_protection_key(
-      pn.data(), pn.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (pnlen < 0) {
+  hplen = crypto::derive_header_protection_key(
+      hp.data(), hp.size(), secret.data(), secret.size(), hs_crypto_ctx_);
+  if (hplen < 0) {
     return -1;
   }
 
@@ -1266,11 +1277,11 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     debug::print_client_in_secret(secret.data(), secret.size());
     debug::print_client_pp_key(key.data(), keylen);
     debug::print_client_pp_iv(iv.data(), ivlen);
-    debug::print_client_pp_pn(pn.data(), pnlen);
+    debug::print_client_pp_hp(hp.data(), hplen);
   }
 
   ngtcp2_conn_install_initial_rx_keys(conn_, key.data(), keylen, iv.data(),
-                                      ivlen, pn.data(), pnlen);
+                                      ivlen, hp.data(), hplen);
 
   return 0;
 }

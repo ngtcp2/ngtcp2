@@ -74,7 +74,7 @@ ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
                                      const uint8_t *secret, size_t secretlen,
                                      const Context &ctx) {
   int rv;
-  static constexpr uint8_t LABEL_KEY[] = "key";
+  static constexpr uint8_t LABEL_KEY[] = "quic key";
 
   auto keylen = aead_key_length(ctx);
   if (keylen > destlen) {
@@ -94,7 +94,7 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const Context &ctx) {
   int rv;
-  static constexpr uint8_t LABEL_IV[] = "iv";
+  static constexpr uint8_t LABEL_IV[] = "quic iv";
 
   auto ivlen = std::max(static_cast<size_t>(8), aead_nonce_length(ctx));
   if (ivlen > destlen) {
@@ -110,11 +110,11 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
   return ivlen;
 }
 
-ssize_t derive_pkt_num_protection_key(uint8_t *dest, size_t destlen,
-                                      const uint8_t *secret, size_t secretlen,
-                                      const Context &ctx) {
+ssize_t derive_header_protection_key(uint8_t *dest, size_t destlen,
+                                     const uint8_t *secret, size_t secretlen,
+                                     const Context &ctx) {
   int rv;
-  static constexpr uint8_t LABEL_PKNKEY[] = "pn";
+  static constexpr uint8_t LABEL_PKNKEY[] = "quic hp";
 
   auto keylen = aead_key_length(ctx);
   if (keylen > destlen) {

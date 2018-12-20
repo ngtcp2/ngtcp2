@@ -94,13 +94,13 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const Context &ctx);
 
-// derive_pkt_num_protection_key derives and stores the packet number
+// derive_header_protection_key derives and stores the header
 // protection key in the buffer pointed by |dest| of length |destlen|,
 // and the key size is returned.  This function returns the key length
 // if it succeeds, or -1.
-ssize_t derive_pkt_num_protection_key(uint8_t *dest, size_t destlen,
-                                      const uint8_t *secret, size_t secretlen,
-                                      const Context &ctx);
+ssize_t derive_header_protection_key(uint8_t *dest, size_t destlen,
+                                     const uint8_t *secret, size_t secretlen,
+                                     const Context &ctx);
 
 // encrypt encrypts |plaintext| of length |plaintextlen| and writes
 // the encrypted data in the buffer pointed by |dest| of length
