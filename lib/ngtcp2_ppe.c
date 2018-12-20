@@ -190,3 +190,25 @@ size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe) {
 
   return len;
 }
+
+size_t ngtcp2_ppe_padding_hp_sample(ngtcp2_ppe *ppe) {
+  ngtcp2_crypto_ctx *ctx = ppe->ctx;
+  ngtcp2_buf *buf = &ppe->buf;
+  size_t max_samplelen;
+  size_t len = 0;
+
+  max_samplelen = ngtcp2_buf_len(buf) + ctx->aead_overhead - ppe->sample_offset;
+  if (max_samplelen < NGTCP2_HP_SAMPLELEN) {
+    len = NGTCP2_HP_SAMPLELEN - max_samplelen;
+    assert(ngtcp2_ppe_left(ppe) >= len);
+    memset(buf->last, 0, len);
+    buf->last += len;
+  }
+
+  return len;
+}
+
+int ngtcp2_ppe_ensure_hp_sample(ngtcp2_ppe *ppe) {
+  ngtcp2_buf *buf = &ppe->buf;
+  return ngtcp2_buf_left(buf) >= (4 - ppe->pkt_numlen) + NGTCP2_HP_SAMPLELEN;
+}

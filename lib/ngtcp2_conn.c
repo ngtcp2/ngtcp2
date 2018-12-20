@@ -1003,11 +1003,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
-    ngtcp2_mem_free(conn->mem, ackfr);
     return 0;
   }
 
-  /* TODO If we don't have enough space for hp sample, return 0. */
+  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
+    return 0;
+  }
 
   ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
@@ -1128,6 +1129,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
     }
     padded = 1;
+  } else {
+    lfr.type = NGTCP2_FRAME_PADDING;
+    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+    if (lfr.padding.len) {
+      ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+    }
   }
 
   spktlen = ngtcp2_ppe_final(&ppe, NULL);
@@ -1242,6 +1249,11 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
+  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
+    ngtcp2_mem_free(conn->mem, ackfr);
+    return 0;
+  }
+
   ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   if (ackfr) {
@@ -1286,6 +1298,12 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     assert(type == NGTCP2_PKT_INITIAL);
     conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL;
   } else {
+    lfr.type = NGTCP2_FRAME_PADDING;
+    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+    if (lfr.padding.len) {
+      ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+    }
+
     spktlen = ngtcp2_ppe_final(&ppe, NULL);
     if (spktlen < 0) {
       return spktlen;
@@ -1524,7 +1542,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
-  ngtcp2_frame *ackfr = NULL;
+  ngtcp2_frame *ackfr = NULL, lfr;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_frame_chain **pfrc, *nfrc, *frc;
@@ -1584,6 +1602,10 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
+    return 0;
+  }
+
+  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
     return 0;
   }
 
@@ -1909,6 +1931,12 @@ tx_strmq_finish:
   /* TODO Push STREAM frame back to ngtcp2_strm if there is an error
      before ngtcp2_rtb_entry is safely created and added. */
 
+  lfr.type = NGTCP2_FRAME_PADDING;
+  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+  if (lfr.padding.len) {
+    ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+  }
+
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
   if (nwrite < 0) {
     assert(ngtcp2_err_is_fatal((int)nwrite));
@@ -1973,6 +2001,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
+  ngtcp2_frame lfr;
   ssize_t nwrite;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_pktns *pktns;
@@ -2022,12 +2051,22 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
+  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
+    return 0;
+  }
+
   ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   rv = conn_ppe_write_frame(conn, &ppe, &hd, fr);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
     return 0;
+  }
+
+  lfr.type = NGTCP2_FRAME_PADDING;
+  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+  if (lfr.padding.len) {
+    ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
   }
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
@@ -2137,7 +2176,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_crypto_ctx ctx;
   ngtcp2_frame_chain *frc = NULL;
   ngtcp2_rtb_entry *ent;
-  ngtcp2_frame *ackfr = NULL;
+  ngtcp2_frame *ackfr = NULL, lfr;
   int rv;
   ssize_t nwrite;
 
@@ -2160,6 +2199,10 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
+    return 0;
+  }
+
+  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
     return 0;
   }
 
@@ -2196,6 +2239,12 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
                            0 /* ack_only */);
     }
     ackfr = NULL;
+  }
+
+  lfr.type = NGTCP2_FRAME_PADDING;
+  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+  if (lfr.padding.len) {
+    ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
   }
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
@@ -5419,6 +5468,10 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
+  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
+    return 0;
+  }
+
   ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
 
   ndatalen = conn_enforce_flow_control(conn, strm, datalen);
@@ -5459,6 +5512,12 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
     localfr.padding.len = ngtcp2_ppe_padding(&ppe);
 
     ngtcp2_log_tx_fr(&conn->log, &hd, &localfr);
+  } else {
+    localfr.type = NGTCP2_FRAME_PADDING;
+    localfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+    if (localfr.padding.len) {
+      ngtcp2_log_tx_fr(&conn->log, &hd, &localfr);
+    }
   }
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
