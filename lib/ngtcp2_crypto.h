@@ -41,17 +41,17 @@
 /* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
 #define NGTCP2_MAX_AEAD_OVERHEAD 16
 
-/* NGTCP2_PN_SAMPLELEN is the number bytes sampled when encoding a
-   packet number. */
-#define NGTCP2_PN_SAMPLELEN 16
+/* NGTCP2_HP_SAMPLELEN is the number bytes sampled when encrypting a
+   packet header. */
+#define NGTCP2_HP_SAMPLELEN 16
 
 typedef struct {
   const uint8_t *key;
   size_t keylen;
   const uint8_t *iv;
   size_t ivlen;
-  const uint8_t *pn;
-  size_t pnlen;
+  const uint8_t *hp;
+  size_t hplen;
 } ngtcp2_crypto_km;
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
@@ -65,7 +65,7 @@ typedef struct {
   size_t aead_overhead;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
-  ngtcp2_encrypt_pn encrypt_pn;
+  ngtcp2_hp_mask hp_mask;
   void *user_data;
 } ngtcp2_crypto_ctx;
 

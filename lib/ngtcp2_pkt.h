@@ -31,18 +31,25 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+/* QUIC header macros */
 #define NGTCP2_HEADER_FORM_BIT 0x80
-#define NGTCP2_KEY_PHASE_BIT 0x40
-#define NGTCP2_THIRD_BIT 0x20
-#define NGTCP2_FOURTH_BIT 0x10
-#define NGTCP2_GQUIC_BIT 0x08
-#define NGTCP2_LONG_TYPE_MASK 0x7f
+#define NGTCP2_FIXED_BIT_MASK 0x40
+#define NGTCP2_PKT_NUMLEN_MASK 0x03
+
+/* Long header specific macros */
+#define NGTCP2_LONG_TYPE_MASK 0x30
+#define NGTCP2_LONG_RESERVED_BIT_MASK 0x0c
+
+/* Short header specific macros */
+#define NGTCP2_SHORT_SPIN_BIT_MASK 0x20
+#define NGTCP2_SHORT_RESERVED_BIT_MASK 0x18
+#define NGTCP2_SHORT_KEY_PHASE_BIT 0x04
 
 /* NGTCP2_SR_TYPE is a Type field of Stateless Reset. */
 #define NGTCP2_SR_TYPE 0x1f
 
 /* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
-   That is (1|TYPE)<1> + VERSION<4> + (DCIL|SCIL)<1> + LENGTH<1> +
+   That is (1|1|TT|RR|PP)<1> + VERSION<4> + (DCIL|SCIL)<1> + LENGTH<1> +
    PKN<1> */
 #define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 1)
 
@@ -811,5 +818,11 @@ size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
  * to write CRYPTO frame, this function returns (size_t)-1.
  */
 size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
+
+/*
+ * ngtcp2_pkt_get_type_long returns the long packet type.  |c| is the
+ * first byte of Long packet header.
+ */
+uint8_t ngtcp2_pkt_get_type_long(uint8_t c);
 
 #endif /* NGTCP2_PKT_H */

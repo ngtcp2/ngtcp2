@@ -58,6 +58,10 @@
  */
 #define NGTCP2_FAKE_AEAD_OVERHEAD NGTCP2_INITIAL_AEAD_OVERHEAD
 
+/* NGTCP2_FAKE_HP_MASK is a header protection mask used in unit
+   tests. */
+#define NGTCP2_FAKE_HP_MASK "\x00\x00\x00\x00\x00"
+
 /*
  * ngtcp2_t_encode_stream_frame encodes STREAM frame into |out| with
  * the given parameters.  If NGTCP2_STREAM_LEN_BIT is set in |flags|,
@@ -156,7 +160,7 @@ void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
 
 /*
  * pkt_decode_hd_long decodes long packet header from |pkt| of length
- * |pktlen|.  This function assumes that packte number field has been
+ * |pktlen|.  This function assumes that header protection has been
  * decrypted.
  */
 ssize_t pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
@@ -164,10 +168,18 @@ ssize_t pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
 /*
  * pkt_decode_hd_short decodes long packet header from |pkt| of length
- * |pktlen|.  This function assumes that packte number field has been
+ * |pktlen|.  This function assumes that header protection has been
  * decrypted.
  */
 ssize_t pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                             size_t pktlen, size_t dcidlen);
+
+/*
+ * pkt_decode_hd_short_mask decodes long packet header from |pkt| of
+ * length |pktlen|.  NGTCP2_FAKE_HP_MASK is used to decrypt header
+ * protection.
+ */
+ssize_t pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                 size_t pktlen, size_t dcidlen);
 
 #endif /* NGTCP2_TEST_HELPER_H */

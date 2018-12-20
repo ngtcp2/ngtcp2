@@ -45,7 +45,7 @@ struct Context {
 #else  // !OPENSSL_IS_BORINGSSL
   const EVP_CIPHER *aead;
 #endif // !OPENSSL_IS_BORINGSSL
-  const EVP_CIPHER *pn;
+  const EVP_CIPHER *hp;
   const EVP_MD *prf;
   std::array<uint8_t, 64> tx_secret, rx_secret;
   size_t secretlen;
@@ -131,17 +131,12 @@ size_t aead_key_length(const Context &ctx);
 // aead_nonce_length returns the nonce size of ctx.aead.
 size_t aead_nonce_length(const Context &ctx);
 
-// encrypt_pn encrypts |plaintext| of length |plaintextlen| and writes
-// the encrypted data in the buffer pointed by |dest| of length
-// |destlen|.  This function can encrypt data in-place.  In other
-// words, |dest| == |plaintext| is allowed.  This function returns the
-// number of bytes written if it succeeds, or -1.
-//
-// Use this function to decrypt ciphertext.  Just pass ciphertext as
-// |plaintext|.
-ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
-                   size_t plaintextlen, const Context &ctx, const uint8_t *key,
-                   size_t keylen, const uint8_t *nonce, size_t noncelen);
+// hp_mask writes mask into the buffer pointed by |dest| of length
+// |destlen|.  This function returns the number of bytes written if it
+// succeeds, or -1.
+ssize_t hp_mask(uint8_t *dest, size_t destlen, const Context &ctx,
+                const uint8_t *key, size_t keylen, const uint8_t *sample,
+                size_t samplelen);
 
 // hkdf_expand performs HKDF-expand.  This function returns 0 if it
 // succeeds, or -1.

@@ -55,15 +55,15 @@ int negotiated_aead(Context &ctx, SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case 0x03001301u: // TLS_AES_128_GCM_SHA256
     ctx.aead = EVP_aes_128_gcm();
-    ctx.pn = EVP_aes_128_ctr();
+    ctx.hp = EVP_aes_128_ecb();
     return 0;
   case 0x03001302u: // TLS_AES_256_GCM_SHA384
     ctx.aead = EVP_aes_256_gcm();
-    ctx.pn = EVP_aes_256_ctr();
+    ctx.hp = EVP_aes_256_ecb();
     return 0;
   case 0x03001303u: // TLS_CHACHA20_POLY1305_SHA256
     ctx.aead = EVP_chacha20_poly1305();
-    ctx.pn = EVP_chacha20();
+    ctx.hp = EVP_chacha20();
     return 0;
   default:
     return -1;
@@ -211,9 +211,14 @@ size_t aead_nonce_length(const Context &ctx) {
   return EVP_CIPHER_iv_length(ctx.aead);
 }
 
-ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
-                   size_t plaintextlen, const Context &ctx, const uint8_t *key,
-                   size_t keylen, const uint8_t *nonce, size_t noncelen) {
+ssize_t hp_mask(uint8_t *dest, size_t destlen, const Context &ctx,
+                const uint8_t *key, size_t keylen, const uint8_t *sample,
+                size_t samplelen) {
+  static constexpr uint8_t CHACHA_INPUT[] = "\x00\x00\x00\x00\x00";
+  const uint8_t *iv = nullptr;
+  const uint8_t *plaintext;
+  size_t plaintextlen;
+
   auto actx = EVP_CIPHER_CTX_new();
   if (actx == nullptr) {
     return -1;
@@ -221,7 +226,19 @@ ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
 
   auto actx_d = defer(EVP_CIPHER_CTX_free, actx);
 
-  if (EVP_EncryptInit_ex(actx, ctx.pn, nullptr, key, nonce) != 1) {
+  if (ctx.hp == EVP_chacha20()) {
+    iv = sample;
+    plaintext = CHACHA_INPUT;
+    plaintextlen = sizeof(CHACHA_INPUT) - 1;
+  } else {
+    plaintext = sample;
+    plaintextlen = samplelen;
+  }
+
+  if (EVP_EncryptInit_ex(actx, ctx.hp, nullptr, key, iv) != 1) {
+    return -1;
+  }
+  if (EVP_CIPHER_CTX_set_padding(actx, 0) != 1) {
     return -1;
   }
 
@@ -241,8 +258,6 @@ ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
   }
 
   assert(len == 0);
-
-  /* outlen += len; */
 
   return outlen;
 }
@@ -329,7 +344,7 @@ void prf_sha256(Context &ctx) { ctx.prf = EVP_sha256(); }
 
 void aead_aes_128_gcm(Context &ctx) {
   ctx.aead = EVP_aes_128_gcm();
-  ctx.pn = EVP_aes_128_ctr();
+  ctx.hp = EVP_aes_128_ecb();
 }
 
 int message_digest(uint8_t *res, const EVP_MD *meth, const uint8_t *data,

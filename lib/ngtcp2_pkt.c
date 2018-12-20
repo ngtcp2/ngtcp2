@@ -78,6 +78,8 @@ void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
   hd->len = len;
 }
 
+static int has_mask(uint8_t b, uint8_t mask) { return (b & mask) == mask; }
+
 ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                   size_t pktlen) {
   uint8_t type;
@@ -94,7 +96,7 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) == 0) {
+  if (!has_mask(pkt[0], NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -106,10 +108,11 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
        number and payload length fields. */
     len = 5 + 1;
   } else {
-    type = pkt[0] & NGTCP2_LONG_TYPE_MASK;
+    type = ngtcp2_pkt_get_type_long(pkt[0]);
     switch (type) {
     case NGTCP2_PKT_INITIAL:
-      len = 1 + NGTCP2_MIN_LONG_HEADERLEN - 1; /* Cut packet number field */
+      len = 1 /* Token Length */ + NGTCP2_MIN_LONG_HEADERLEN -
+            1; /* Cut packet number field */
       break;
     case NGTCP2_PKT_RETRY:
       /* Retry packet does not have packet number and length fields */
@@ -227,17 +230,13 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
+  if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) ||
+      (pkt[0] & NGTCP2_FIXED_BIT_MASK) == 0) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (pkt[0] & NGTCP2_KEY_PHASE_BIT) {
+  if (pkt[0] & NGTCP2_SHORT_KEY_PHASE_BIT) {
     flags |= NGTCP2_PKT_FLAG_KEY_PHASE;
-  }
-
-  if ((pkt[0] & (NGTCP2_THIRD_BIT | NGTCP2_FOURTH_BIT | NGTCP2_GQUIC_BIT)) !=
-      0x30) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   p = &pkt[1];
@@ -283,7 +282,8 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = NGTCP2_HEADER_FORM_BIT | hd->type;
+  *p++ = NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK |
+         (uint8_t)(hd->type << 4) | (uint8_t)(hd->pkt_numlen - 1);
   p = ngtcp2_put_uint32be(p, hd->version);
   *p = 0;
   if (hd->dcid.datalen) {
@@ -330,9 +330,9 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p = NGTCP2_THIRD_BIT | NGTCP2_FOURTH_BIT;
+  *p = NGTCP2_FIXED_BIT_MASK | (uint8_t)(hd->pkt_numlen - 1);
   if (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) {
-    *p |= NGTCP2_KEY_PHASE_BIT;
+    *p |= NGTCP2_SHORT_KEY_PHASE_BIT;
   }
 
   ++p;
@@ -347,8 +347,6 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 
   return (ssize_t)len;
 }
-
-static int has_mask(uint8_t b, uint8_t mask) { return (b & mask) == mask; }
 
 ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
                                 size_t payloadlen) {
@@ -1945,7 +1943,6 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
 }
 
 ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
-                                         int key_phase,
                                          uint8_t *stateless_reset_token,
                                          uint8_t *rand, size_t randlen) {
   uint8_t *p;
@@ -1961,13 +1958,11 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
 
   p = dest;
 
-  *p++ = 0x30 | (uint8_t)(key_phase << 6);
-
-  randlen = ngtcp2_min(
-      destlen - (size_t)(p - dest) - NGTCP2_STATELESS_RESET_TOKENLEN, randlen);
+  randlen = ngtcp2_min(destlen - NGTCP2_STATELESS_RESET_TOKENLEN, randlen);
 
   p = ngtcp2_cpymem(p, rand, randlen);
   p = ngtcp2_cpymem(p, stateless_reset_token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  *dest = (uint8_t)((*dest & 0x7fu) | 0x40u);
 
   return p - dest;
 }
@@ -2070,4 +2065,8 @@ size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left) {
 
   len = ngtcp2_min(len, 63);
   return ngtcp2_min(len, left - 1);
+}
+
+uint8_t ngtcp2_pkt_get_type_long(uint8_t c) {
+  return (c & NGTCP2_LONG_TYPE_MASK) >> 4;
 }

@@ -85,11 +85,10 @@ uint16_t ngtcp2_get_uint16(const uint8_t *p);
 uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p);
 
 /*
- * ngtcp2_get_pkt_num reads packet number encoded in variable-length
- * encoding from |p|, and returns it in host byte order.  The number
- * of bytes read is stored in |*plen|.
+ * ngtcp2_get_pkt_num reads encoded packet number from |p|.  The
+ * packet number is encoed in |pkt_numlen| bytes.
  */
-uint64_t ngtcp2_get_pkt_num(size_t *plen, const uint8_t *p);
+uint64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen);
 
 /*
  * ngtcp2_put_uint64be writes |n| in host byte order in |p| in network
@@ -151,12 +150,6 @@ uint8_t *ngtcp2_put_pkt_num(uint8_t *p, uint64_t pkt_num, size_t len);
  * variable-length integer starting at |p|.
  */
 size_t ngtcp2_get_varint_len(const uint8_t *p);
-
-/*
- * ngtcp2_get_pkt_num_len returns the required number of bytes to read
- * variable-length packet number starting at |p|.
- */
-size_t ngtcp2_get_pkt_num_len(const uint8_t *p);
 
 /*
  * ngtcp2_put_varint_len returns the required number of bytes to

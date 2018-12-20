@@ -60,7 +60,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   CU_ASSERT(hd.flags == nhd.flags);
   CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0x3fffffffu) == nhd.pkt_num);
+  CU_ASSERT(0xe1e2e3e4u == nhd.pkt_num);
   CU_ASSERT(hd.version == nhd.version);
   CU_ASSERT(hd.len == nhd.len);
 
@@ -114,7 +114,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0x3fffffffu) == nhd.pkt_num);
+  CU_ASSERT(0xe1e2e3e4u == nhd.pkt_num);
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
@@ -136,7 +136,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0x3fff) == nhd.pkt_num);
+  CU_ASSERT(0xe3e4u == nhd.pkt_num);
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
@@ -158,7 +158,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0x7f) == nhd.pkt_num);
+  CU_ASSERT(0xe4 == nhd.pkt_num);
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
@@ -180,7 +180,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0x3fffffff) == nhd.pkt_num);
+  CU_ASSERT(0xe1e2e3e4u == nhd.pkt_num);
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
@@ -202,7 +202,7 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_empty(&nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
-  CU_ASSERT((hd.pkt_num & 0x3fffffff) == nhd.pkt_num);
+  CU_ASSERT(0xe1e2e3e4u == nhd.pkt_num);
   CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
   CU_ASSERT(0 == nhd.version);
   CU_ASSERT(0 == nhd.len);
@@ -1037,14 +1037,14 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
     token[i] = (uint8_t)(i + 1);
   }
 
-  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), 1, token, rand,
+  spktlen = ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token, rand,
                                              sizeof(rand));
 
   p = buf;
 
   CU_ASSERT(256 == spktlen);
-  CU_ASSERT((NGTCP2_KEY_PHASE_BIT | NGTCP2_THIRD_BIT | NGTCP2_FOURTH_BIT) ==
-            *p);
+  CU_ASSERT(0 == (*p & NGTCP2_HEADER_FORM_BIT));
+  CU_ASSERT((*p & NGTCP2_FIXED_BIT_MASK));
 
   ++p;
 
@@ -1065,7 +1065,7 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
       ngtcp2_pkt_write_stateless_reset(buf,
                                        1 + NGTCP2_MIN_STATELESS_RETRY_RANDLEN -
                                            1 + NGTCP2_STATELESS_RESET_TOKENLEN,
-                                       0, token, rand, sizeof(rand));
+                                       token, rand, sizeof(rand));
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }

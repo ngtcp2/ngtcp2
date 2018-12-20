@@ -202,13 +202,10 @@ public:
                        size_t ciphertextlen, const uint8_t *key, size_t keylen,
                        const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
                        size_t adlen);
-  ssize_t hs_encrypt_pn(uint8_t *dest, size_t destlen,
-                        const uint8_t *ciphertext, size_t ciphertextlen,
-                        const uint8_t *key, size_t keylen, const uint8_t *nonce,
-                        size_t noncelen);
-  ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
-                     size_t ciphertextlen, const uint8_t *key, size_t keylen,
-                     const uint8_t *nonce, size_t noncelen);
+  ssize_t in_hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
+                     size_t keylen, const uint8_t *sample, size_t samplelen);
+  ssize_t hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
+                  size_t keylen, const uint8_t *sample, size_t samplelen);
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;

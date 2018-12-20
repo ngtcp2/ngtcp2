@@ -180,13 +180,16 @@ typedef struct {
 
 /* NGTCP2_MIN_STATELESS_RETRY_RANDLEN is the minimum length of random
    bytes in Stateless Retry packet */
-#define NGTCP2_MIN_STATELESS_RETRY_RANDLEN 20
+#define NGTCP2_MIN_STATELESS_RETRY_RANDLEN 23
 
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
 #define NGTCP2_INITIAL_SALT                                                    \
   "\xef\x4f\xb0\xab\xb4\x74\x70\xc4\x1b\xef\xcf\x80\x31\x33\x4f\xae\x48\x5e"   \
   "\x09\xa0"
+
+/* NGTCP2_HP_MASKLEN is the length of header protection mask. */
+#define NGTCP2_HP_MASKLEN 5
 
 /* NGTCP2_DURATION_TICK is a count of tick per second. */
 #define NGTCP2_DURATION_TICK 1000000000
@@ -251,13 +254,13 @@ typedef enum {
 typedef enum {
   /* NGTCP2_PKT_VERSION_NEGOTIATION is defined by libngtcp2 for
      convenience. */
-  NGTCP2_PKT_VERSION_NEGOTIATION = 0x00,
-  NGTCP2_PKT_INITIAL = 0x7F,
-  NGTCP2_PKT_RETRY = 0x7E,
-  NGTCP2_PKT_HANDSHAKE = 0x7D,
-  NGTCP2_PKT_0RTT_PROTECTED = 0x7C,
+  NGTCP2_PKT_VERSION_NEGOTIATION = 0xf0,
+  NGTCP2_PKT_INITIAL = 0x0,
+  NGTCP2_PKT_0RTT_PROTECTED = 0x1,
+  NGTCP2_PKT_HANDSHAKE = 0x2,
+  NGTCP2_PKT_RETRY = 0x3,
   /* NGTCP2_PKT_SHORT is defined by libngtcp2 for convenience. */
-  NGTCP2_PKT_SHORT = 0x00
+  NGTCP2_PKT_SHORT = 0x70
 } ngtcp2_pkt_type;
 
 typedef enum {
@@ -865,13 +868,12 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  *
  * `ngtcp2_pkt_write_stateless_reset` writes Stateless Reset packet in
  * the buffer pointed by |dest| whose length is |destlen|.
- * |key_phase| specifies KEY_PHASE bit in the first byte of short
- * packet header.  |stateless_reset_token| is a pointer to the
- * Stateless Reset Token, and its length must be
- * :macro:`NGTCP2_STATELESS_RESET_TOKENLEN` bytes long.  |rand|
- * specifies the random octets preceding Stateless Reset Token.  The
- * length of |rand| is specified by |randlen| which must be at least
- * :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN` bytes long.
+ * |stateless_reset_token| is a pointer to the Stateless Reset Token,
+ * and its length must be :macro:`NGTCP2_STATELESS_RESET_TOKENLEN`
+ * bytes long.  |rand| specifies the random octets preceding Stateless
+ * Reset Token.  The length of |rand| is specified by |randlen| which
+ * must be at least :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN` bytes
+ * long.
  *
  * If |randlen| is too long to write them all in the buffer, |rand| is
  * written to the buffer as much as possible, and is truncated.
@@ -886,8 +888,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
  *     :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN`.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
-    uint8_t *dest, size_t destlen, int key_phase,
-    uint8_t *stateless_reset_token, uint8_t *rand, size_t randlen);
+    uint8_t *dest, size_t destlen, uint8_t *stateless_reset_token,
+    uint8_t *rand, size_t randlen);
 
 /**
  * @function
@@ -1119,31 +1121,26 @@ typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
 /**
  * @functypedef
  *
- * :type:`ngtcp2_encrypt_pn` is invoked when the ngtcp2 library asks
- * the application to encrypt or decrypt packet number.  Because of
- * the chosen cipher suite by QUIC specification, the encryption and
- * decryption are done by the same function, and application does not
- * need to distinguish them.  |plaintext| of length |plaintextlen| is
- * the data to ecnrypt or decrypt.  The encryption and decryption key
- * is passed as |key| of length |keylen|.  The nonce is passed as
- * |nonce| of length |noncelen|.
+ * :type:`ngtcp2_hp_mask` is invoked when the ngtcp2 library asks the
+ * application to produce mask to encrypt or decrypt packet header.
+ * The key is passed as |key| of length |keylen|.  The sample is
+ * passed as |sample| of length |samplelen|.
  *
- * The implementation of this callback must encrypt or decrypt
- * |plaintext| using the packet number encryption cipher suite
- * specified by QUIC specification and write the result into the
- * buffer pointed by |dest| of length |destlen|.
- *
- * |dest| and |plaintext| may point to the same buffer.
+ * The implementation of this callback must produce a mask using the
+ * header protection cipher suite specified by QUIC specification and
+ * write the result into the buffer pointed by |dest| of length
+ * |destlen|.  The length of mask must be at least
+ * :macro:`NGTCP2_HP_MASKLEN`.  The library ensures that |destlen| is
+ * at least :macro:`NGTCP2_HP_MASKLEN`.
  *
  * The callback function must return the number of bytes written to
  * |dest|, or :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the
  * library call return immediately.
  */
-typedef ssize_t (*ngtcp2_encrypt_pn)(ngtcp2_conn *conn, uint8_t *dest,
-                                     size_t destlen, const uint8_t *plaintext,
-                                     size_t plaintextlen, const uint8_t *key,
-                                     size_t keylen, const uint8_t *nonce,
-                                     size_t noncelen, void *user_data);
+typedef ssize_t (*ngtcp2_hp_mask)(ngtcp2_conn *conn, uint8_t *dest,
+                                  size_t destlen, const uint8_t *key,
+                                  size_t keylen, const uint8_t *sample,
+                                  size_t samplelen, void *user_data);
 
 /**
  * @functypedef
@@ -1310,15 +1307,15 @@ typedef struct {
    */
   ngtcp2_decrypt decrypt;
   /**
-   * in_encrypt_pn is a callback function which is invoked to encrypt
-   * or decrypt packet number in Initial packets.
+   * in_hp_mask is a callback function which is invoked to get mask to
+   * encrypt or decrypt Initial packet header.
    */
-  ngtcp2_encrypt_pn in_encrypt_pn;
+  ngtcp2_hp_mask in_hp_mask;
   /**
-   * encrypt_pn is a callback function which is invoked to encrypt or
-   * decrypt packet number in packets other than Initial packets.
+   * hp_mask is a callback function which is invoked to get mask to
+   * encrypt or decrypt packet header other than Initial packets.
    */
-  ngtcp2_encrypt_pn encrypt_pn;
+  ngtcp2_hp_mask hp_mask;
   ngtcp2_recv_stream_data recv_stream_data;
   ngtcp2_acked_crypto_offset acked_crypto_offset;
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
@@ -1576,8 +1573,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_install_initial_tx_keys` installs packet protection
  * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * protection key |pn| of length |pnlen| to encrypt outgoing Initial
- * packets.  If they have already been set, they are overwritten.
+ * header protection key |hp| of length |hplen| to encrypt outgoing
+ * Initial packets.  If they have already been set, they are
+ * overwritten.
  *
  * After receiving Retry packet, the DCID most likely changes.  In
  * that case, client application must generate these keying materials
@@ -1591,15 +1589,16 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_initial_tx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *pn, size_t pnlen);
+    size_t ivlen, const uint8_t *hp, size_t hplen);
 
 /**
  * @function
  *
  * `ngtcp2_conn_install_initial_rx_keys` installs packet protection
  * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * protection key |pn| of length |pnlen| to decrypt incoming Initial
- * packets.  If they have already been set, they are overwritten.
+ * header protection key |hp| of length |hplen| to decrypt incoming
+ * Initial packets.  If they have already been set, they are
+ * overwritten.
  *
  * After receiving Retry packet, the DCID most likely changes.  In
  * that case, client application must generate these keying materials
@@ -1613,15 +1612,15 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_tx_keys(
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_initial_rx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *pn, size_t pnlen);
+    size_t ivlen, const uint8_t *hp, size_t hplen);
 
 /**
  * @function
  *
  * `ngtcp2_conn_install_handshake_tx_keys` installs packet protection
  * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * protection key |pn| of length |pnlen| to encrypt outgoing Handshake
- * packets.
+ * header protection key |hp| of length |hplen| to encrypt outgoing
+ * Handshake packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
  * application don't have to generate them.  For client, they are
@@ -1640,15 +1639,15 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_rx_keys(
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *pn, size_t pnlen);
+    size_t ivlen, const uint8_t *hp, size_t hplen);
 
 /**
  * @function
  *
  * `ngtcp2_conn_install_handshake_rx_keys` installs packet protection
  * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * protection key |pn| of length |pnlen| to decrypt incoming Handshake
- * packets.
+ * header protection key |hp| of length |hplen| to decrypt incoming
+ * Handshake packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
  * application don't have to generate them.  For client, they are
@@ -1667,7 +1666,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_handshake_rx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *pn, size_t pnlen);
+    size_t ivlen, const uint8_t *hp, size_t hplen);
 
 /**
  * @function
@@ -1685,8 +1684,8 @@ NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_install_early_rx_keys` installs packet protection key
  * |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * protection key |pn| of length |pnlen| to encrypt or decrypt 0RTT
- * packets.
+ * header protection key |hp| of length |hplen| to encrypt or decrypt
+ * 0RTT packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
  * application don't have to generate them.  They are derived from
@@ -1704,14 +1703,14 @@ NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
 NGTCP2_EXTERN int
 ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
                                size_t keylen, const uint8_t *iv, size_t ivlen,
-                               const uint8_t *pn, size_t pnlen);
+                               const uint8_t *hp, size_t hplen);
 
 /**
  * @function
  *
  * `ngtcp2_conn_install_tx_keys` installs packet protection key |key|
- * of length |key| and IV |iv| of length |ivlen|, and packet
- * protection key |pn| of length |pnlen| to encrypt outgoing Short
+ * of length |key| and IV |iv| of length |ivlen|, and packet header
+ * protection key |hp| of length |hplen| to encrypt outgoing Short
  * packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
@@ -1732,14 +1731,14 @@ ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
 NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
                                               const uint8_t *key, size_t keylen,
                                               const uint8_t *iv, size_t ivlen,
-                                              const uint8_t *pn, size_t pnlen);
+                                              const uint8_t *hp, size_t hplen);
 
 /**
  * @function
  *
  * `ngtcp2_conn_install_rx_keys` installs packet protection key |key|
- * of length |key| and IV |iv| of length |ivlen|, and packet
- * protection key |pn| of length |pnlen| to decrypt incoming Short
+ * of length |key| and IV |iv| of length |ivlen|, and packet header
+ * protection key |hp| of length |hplen| to decrypt incoming Short
  * packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
@@ -1760,7 +1759,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
 NGTCP2_EXTERN int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn,
                                               const uint8_t *key, size_t keylen,
                                               const uint8_t *iv, size_t ivlen,
-                                              const uint8_t *pn, size_t pnlen);
+                                              const uint8_t *hp, size_t hplen);
 
 /**
  * @function

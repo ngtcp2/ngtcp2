@@ -670,15 +670,12 @@ ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 } // namespace
 
 namespace {
-ssize_t do_hs_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                         const uint8_t *plaintext, size_t plaintextlen,
-                         const uint8_t *key, size_t keylen,
-                         const uint8_t *nonce, size_t noncelen,
-                         void *user_data) {
+ssize_t do_in_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                      const uint8_t *key, size_t keylen, const uint8_t *sample,
+                      size_t samplelen, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->hs_encrypt_pn(dest, destlen, plaintext, plaintextlen, key,
-                                 keylen, nonce, noncelen);
+  auto nwrite = c->in_hp_mask(dest, destlen, key, keylen, sample, samplelen);
   if (nwrite < 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -688,14 +685,12 @@ ssize_t do_hs_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 } // namespace
 
 namespace {
-ssize_t do_encrypt_pn(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                      const uint8_t *plaintext, size_t plaintextlen,
-                      const uint8_t *key, size_t keylen, const uint8_t *nonce,
-                      size_t noncelen, void *user_data) {
+ssize_t do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                   const uint8_t *key, size_t keylen, const uint8_t *sample,
+                   size_t samplelen, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->encrypt_pn(dest, destlen, plaintext, plaintextlen, key,
-                              keylen, nonce, noncelen);
+  auto nwrite = c->hp_mask(dest, destlen, key, keylen, sample, samplelen);
   if (nwrite < 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -802,7 +797,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       recv_crypto_data, handshake_completed,
       nullptr, // recv_version_negotiation
       do_hs_encrypt,    do_hs_decrypt,        do_encrypt,
-      do_decrypt,       do_hs_encrypt_pn,     do_encrypt_pn,
+      do_decrypt,       do_in_hp_mask,        do_hp_mask,
       recv_stream_data, acked_crypto_offset,  acked_stream_data_offset,
       nullptr, // stream_open
       stream_close,
@@ -1481,20 +1476,18 @@ ssize_t Client::decrypt_data(uint8_t *dest, size_t destlen,
                          key, keylen, nonce, noncelen, ad, adlen);
 }
 
-ssize_t Client::hs_encrypt_pn(uint8_t *dest, size_t destlen,
-                              const uint8_t *ciphertext, size_t ciphertextlen,
-                              const uint8_t *key, size_t keylen,
-                              const uint8_t *nonce, size_t noncelen) {
-  return crypto::encrypt_pn(dest, destlen, ciphertext, ciphertextlen,
-                            hs_crypto_ctx_, key, keylen, nonce, noncelen);
+ssize_t Client::in_hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
+                           size_t keylen, const uint8_t *sample,
+                           size_t samplelen) {
+  return crypto::hp_mask(dest, destlen, hs_crypto_ctx_, key, keylen, sample,
+                         samplelen);
 }
 
-ssize_t Client::encrypt_pn(uint8_t *dest, size_t destlen,
-                           const uint8_t *ciphertext, size_t ciphertextlen,
-                           const uint8_t *key, size_t keylen,
-                           const uint8_t *nonce, size_t noncelen) {
-  return crypto::encrypt_pn(dest, destlen, ciphertext, ciphertextlen,
-                            crypto_ctx_, key, keylen, nonce, noncelen);
+ssize_t Client::hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
+                        size_t keylen, const uint8_t *sample,
+                        size_t samplelen) {
+  return crypto::hp_mask(dest, destlen, crypto_ctx_, key, keylen, sample,
+                         samplelen);
 }
 
 void Client::on_recv_retry() {
@@ -1943,8 +1936,8 @@ SSL_CTX *create_ssl_ctx() {
 
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 
-  if (SSL_CTX_set_cipher_list(ssl_ctx, config.ciphers) != 1) {
-    std::cerr << "SSL_CTX_set_cipher_list: "
+  if (SSL_CTX_set_ciphersuites(ssl_ctx, config.ciphers) != 1) {
+    std::cerr << "SSL_CTX_set_ciphersuites: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     exit(EXIT_FAILURE);
   }
@@ -2096,8 +2089,8 @@ void config_set_default(Config &config) {
   config.tx_loss_prob = 0.;
   config.rx_loss_prob = 0.;
   config.fd = -1;
-  config.ciphers = "TLS13-AES-128-GCM-SHA256:TLS13-AES-256-GCM-SHA384:TLS13-"
-                   "CHACHA20-POLY1305-SHA256";
+  config.ciphers = "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_"
+                   "POLY1305_SHA256";
   config.groups = "P-256:X25519:P-384:P-521";
   config.nstreams = 1;
   config.data = nullptr;
