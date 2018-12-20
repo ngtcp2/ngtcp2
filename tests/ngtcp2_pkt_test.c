@@ -1090,7 +1090,7 @@ void test_ngtcp2_pkt_write_retry(void) {
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY, &dcid,
-                     &scid, 0, 0, NGTCP2_PROTO_VER_D15, 0);
+                     &scid, 0, 0, NGTCP2_PROTO_VER_D17, 0);
 
   spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &odcid, token,
                                    sizeof(token));

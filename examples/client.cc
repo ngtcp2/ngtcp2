@@ -712,9 +712,9 @@ int Client::init_ssl() {
   size_t alpnlen;
 
   switch (version_) {
-  case NGTCP2_PROTO_VER_D15:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D15);
-    alpnlen = str_size(NGTCP2_ALPN_D15);
+  case NGTCP2_PROTO_VER_D17:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D17);
+    alpnlen = str_size(NGTCP2_ALPN_D17);
     break;
   }
   if (alpn) {
@@ -2091,7 +2091,7 @@ void config_set_default(Config &config) {
   config.nstreams = 1;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_D15;
+  config.version = NGTCP2_PROTO_VER_D17;
   config.timeout = 30;
 }
 } // namespace
