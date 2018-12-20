@@ -185,8 +185,8 @@ typedef struct {
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
 #define NGTCP2_INITIAL_SALT                                                    \
-  "\x9c\x10\x8f\x98\x52\x0a\x5c\x5c\x32\x96\x8e\x95\x0e\x8a\x2c\x5f\xe0\x6d"   \
-  "\x6c\x38"
+  "\xef\x4f\xb0\xab\xb4\x74\x70\xc4\x1b\xef\xcf\x80\x31\x33\x4f\xae\x48\x5e"   \
+  "\x09\xa0"
 
 /* NGTCP2_DURATION_TICK is a count of tick per second. */
 #define NGTCP2_DURATION_TICK 1000000000
