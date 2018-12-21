@@ -666,20 +666,20 @@ typedef struct {
   } v;
   ngtcp2_preferred_addr preferred_address;
   ngtcp2_cid original_connection_id;
-  uint32_t initial_max_stream_data_bidi_local;
-  uint32_t initial_max_stream_data_bidi_remote;
-  uint32_t initial_max_stream_data_uni;
-  uint32_t initial_max_data;
-  uint16_t initial_max_streams_bidi;
-  uint16_t initial_max_streams_uni;
-  uint16_t idle_timeout;
-  uint16_t max_packet_size;
+  uint64_t initial_max_stream_data_bidi_local;
+  uint64_t initial_max_stream_data_bidi_remote;
+  uint64_t initial_max_stream_data_uni;
+  uint64_t initial_max_data;
+  uint64_t initial_max_streams_bidi;
+  uint64_t initial_max_streams_uni;
+  uint64_t idle_timeout;
+  uint64_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
-  uint8_t ack_delay_exponent;
+  uint64_t ack_delay_exponent;
   uint8_t disable_migration;
   uint8_t original_connection_id_present;
-  uint8_t max_ack_delay;
+  uint64_t max_ack_delay;
 } ngtcp2_transport_params;
 
 /* user_data is the same object passed to ngtcp2_conn_client_new or
@@ -692,19 +692,19 @@ typedef struct {
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
-  uint32_t max_stream_data_bidi_local;
-  uint32_t max_stream_data_bidi_remote;
-  uint32_t max_stream_data_uni;
-  uint32_t max_data;
-  uint16_t max_streams_bidi;
-  uint16_t max_streams_uni;
-  uint16_t idle_timeout;
-  uint16_t max_packet_size;
+  uint64_t max_stream_data_bidi_local;
+  uint64_t max_stream_data_bidi_remote;
+  uint64_t max_stream_data_uni;
+  uint64_t max_data;
+  uint64_t max_streams_bidi;
+  uint64_t max_streams_uni;
+  uint64_t idle_timeout;
+  uint64_t max_packet_size;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
-  uint8_t ack_delay_exponent;
+  uint64_t ack_delay_exponent;
   uint8_t disable_migration;
-  uint8_t max_ack_delay;
+  uint64_t max_ack_delay;
 } ngtcp2_settings;
 
 /**

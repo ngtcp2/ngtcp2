@@ -138,20 +138,19 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_data_bidi_remote = 961748941;
   params.initial_max_stream_data_uni = 982451653;
   params.initial_max_data = 1000000009;
-  params.initial_max_streams_bidi = 909;
+   params.initial_max_streams_bidi = 909;
   params.initial_max_streams_uni = 911;
-  params.idle_timeout = 0xd1d2;
+  params.idle_timeout = 1023;
   params.max_packet_size = 1400;
   params.ack_delay_exponent = 20;
   params.disable_migration = 1;
-  params.max_ack_delay = 253;
+  params.max_ack_delay = 59;
 
   for (i = 0;
        i < 4 /* initial_version */ + 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
-
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
   }
   nwrite = ngtcp2_encode_transport_params(
@@ -200,8 +199,8 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_data_uni = 982451653;
   params.initial_max_data = 1000000009;
   params.initial_max_streams_bidi = 908;
-  params.initial_max_streams_uni = 16384;
-  params.idle_timeout = 0xd1d2;
+  params.initial_max_streams_uni = 16383;
+  params.idle_timeout = 16363;
   params.max_packet_size = 1200;
   params.stateless_reset_token_present = 1;
   memset(params.stateless_reset_token, 0xf1,
@@ -216,7 +215,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
   params.disable_migration = 1;
-  params.max_ack_delay = 251;
+  params.max_ack_delay = 63;
   params.original_connection_id_present = 1;
   params.original_connection_id = ocid;
 

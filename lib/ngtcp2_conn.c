@@ -529,7 +529,7 @@ static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, ngtcp2_tstamp ts,
-                                 uint8_t ack_delay_exponent) {
+                                 uint64_t ack_delay_exponent) {
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
   ngtcp2_ksl_it it;
@@ -2727,7 +2727,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  * fr->ack_delay_unscaled.
  */
 static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
-                                             uint8_t ack_delay_exponent) {
+                                             uint64_t ack_delay_exponent) {
   fr->ack_delay_unscaled = fr->ack_delay * (1UL << ack_delay_exponent) *
                            (NGTCP2_DURATION_TICK / NGTCP2_MICROSECONDS);
 }

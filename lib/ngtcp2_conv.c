@@ -197,32 +197,32 @@ size_t ngtcp2_put_varint_len(uint64_t n) {
   return 8;
 }
 
-uint64_t ngtcp2_nth_server_bidi_id(uint16_t n) {
+uint64_t ngtcp2_nth_server_bidi_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
-  return ((uint64_t)n << 2) - 3;
+  return (n << 2) - 3;
 }
 
-uint64_t ngtcp2_nth_client_bidi_id(uint16_t n) {
+uint64_t ngtcp2_nth_client_bidi_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
-  return (uint64_t)(n - 1) << 2;
+  return (n - 1) << 2;
 }
 
-uint64_t ngtcp2_nth_server_uni_id(uint16_t n) {
+uint64_t ngtcp2_nth_server_uni_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
 
-  return ((uint64_t)n << 2) - 1;
+  return (n << 2) - 1;
 }
 
-uint64_t ngtcp2_nth_client_uni_id(uint16_t n) {
+uint64_t ngtcp2_nth_client_uni_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
 
-  return ((uint64_t)n << 2) - 2;
+  return (n << 2) - 2;
 }
