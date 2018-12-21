@@ -68,9 +68,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.initial_max_stream_data_uni ==
             nparams.initial_max_stream_data_uni);
   CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_bidi_streams ==
-            nparams.initial_max_bidi_streams);
-  CU_ASSERT(params.initial_max_uni_streams == nparams.initial_max_uni_streams);
+  CU_ASSERT(params.initial_max_streams_bidi ==
+            nparams.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
@@ -118,9 +118,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.initial_max_stream_data_uni ==
             nparams.initial_max_stream_data_uni);
   CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_bidi_streams ==
-            nparams.initial_max_bidi_streams);
-  CU_ASSERT(params.initial_max_uni_streams == nparams.initial_max_uni_streams);
+  CU_ASSERT(params.initial_max_streams_bidi ==
+            nparams.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.stateless_reset_token_present ==
@@ -138,8 +138,8 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_data_bidi_remote = 961748941;
   params.initial_max_stream_data_uni = 982451653;
   params.initial_max_data = 1000000009;
-  params.initial_max_bidi_streams = 909;
-  params.initial_max_uni_streams = 911;
+  params.initial_max_streams_bidi = 909;
+  params.initial_max_streams_uni = 911;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = 1400;
   params.ack_delay_exponent = 20;
@@ -177,9 +177,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.initial_max_stream_data_uni ==
             nparams.initial_max_stream_data_uni);
   CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_bidi_streams ==
-            nparams.initial_max_bidi_streams);
-  CU_ASSERT(params.initial_max_uni_streams == nparams.initial_max_uni_streams);
+  CU_ASSERT(params.initial_max_streams_bidi ==
+            nparams.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
@@ -199,8 +199,8 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_data_bidi_remote = 961748941;
   params.initial_max_stream_data_uni = 982451653;
   params.initial_max_data = 1000000009;
-  params.initial_max_bidi_streams = 908;
-  params.initial_max_uni_streams = 16384;
+  params.initial_max_streams_bidi = 908;
+  params.initial_max_streams_uni = 16384;
   params.idle_timeout = 0xd1d2;
   params.max_packet_size = 1200;
   params.stateless_reset_token_present = 1;
@@ -257,9 +257,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.initial_max_stream_data_uni ==
             nparams.initial_max_stream_data_uni);
   CU_ASSERT(params.initial_max_data == nparams.initial_max_data);
-  CU_ASSERT(params.initial_max_bidi_streams ==
-            nparams.initial_max_bidi_streams);
-  CU_ASSERT(params.initial_max_uni_streams == nparams.initial_max_uni_streams);
+  CU_ASSERT(params.initial_max_streams_bidi ==
+            nparams.initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(0 == memcmp(params.stateless_reset_token,

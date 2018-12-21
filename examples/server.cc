@@ -996,8 +996,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   settings.max_stream_data_bidi_remote = 256_k;
   settings.max_stream_data_uni = 256_k;
   settings.max_data = 1_m;
-  settings.max_bidi_streams = 100;
-  settings.max_uni_streams = 0;
+  settings.max_streams_bidi = 100;
+  settings.max_streams_uni = 0;
   settings.idle_timeout = config.timeout;
   settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;

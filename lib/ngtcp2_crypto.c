@@ -132,10 +132,10 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->initial_max_data) {
     len += 8;
   }
-  if (params->initial_max_bidi_streams) {
+  if (params->initial_max_streams_bidi) {
     len += 6;
   }
-  if (params->initial_max_uni_streams) {
+  if (params->initial_max_streams_uni) {
     len += 6;
   }
   if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
@@ -235,16 +235,16 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     p = ngtcp2_put_uint32be(p, params->initial_max_data);
   }
 
-  if (params->initial_max_bidi_streams) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS);
+  if (params->initial_max_streams_bidi) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI);
     p = ngtcp2_put_uint16be(p, 2);
-    p = ngtcp2_put_uint16be(p, params->initial_max_bidi_streams);
+    p = ngtcp2_put_uint16be(p, params->initial_max_streams_bidi);
   }
 
-  if (params->initial_max_uni_streams) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS);
+  if (params->initial_max_streams_uni) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI);
     p = ngtcp2_put_uint16be(p, 2);
-    p = ngtcp2_put_uint16be(p, params->initial_max_uni_streams);
+    p = ngtcp2_put_uint16be(p, params->initial_max_streams_uni);
   }
 
   if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
@@ -338,8 +338,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   p += sizeof(uint16_t);
 
   /* Set default values */
-  params->initial_max_bidi_streams = 0;
-  params->initial_max_uni_streams = 0;
+  params->initial_max_streams_bidi = 0;
+  params->initial_max_streams_uni = 0;
   params->initial_max_stream_data_bidi_local = 0;
   params->initial_max_stream_data_bidi_remote = 0;
   params->initial_max_stream_data_uni = 0;
@@ -384,8 +384,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       }
       p += sizeof(uint32_t);
       break;
-    case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS:
-    case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS:
+    case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI:
+    case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI:
       flags |= 1u << param_type;
       if (ngtcp2_get_uint16(p) != sizeof(uint16_t)) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
@@ -395,11 +395,11 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       switch (param_type) {
-      case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_BIDI_STREAMS:
-        params->initial_max_bidi_streams = ngtcp2_get_uint16(p);
+      case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI:
+        params->initial_max_streams_bidi = ngtcp2_get_uint16(p);
         break;
-      case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_UNI_STREAMS:
-        params->initial_max_uni_streams = ngtcp2_get_uint16(p);
+      case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI:
+        params->initial_max_streams_uni = ngtcp2_get_uint16(p);
         break;
       }
       p += sizeof(uint16_t);
