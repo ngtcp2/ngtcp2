@@ -146,10 +146,13 @@ typedef enum {
   NGTCP2_CONN_FLAG_OCID_PRESENT = 0x80,
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
-  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x100,
+  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
   /* NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL is set when client has to
      send Initial packets even if it has nothing to send. */
-  NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL = 0x200,
+  NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL = 0x0200,
+  /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
+     have been discarded. */
+  NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
 } ngtcp2_conn_flag;
 
 typedef struct {

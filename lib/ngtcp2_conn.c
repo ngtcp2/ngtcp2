@@ -201,6 +201,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
   }
 
   pktns->last_tx_pkt_num = (uint64_t)-1;
+  pktns->max_rx_pkt_num = (uint64_t)-1;
 
   rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
   if (rv != 0) {
@@ -962,8 +963,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   switch (type) {
   case NGTCP2_PKT_INITIAL:
     if (!conn->in_pktns.tx_ckm) {
-      /* This should be assert, but returning 0 is convenient for unit
-         tests. */
       return 0;
     }
     pktns = &conn->in_pktns;
@@ -3182,7 +3181,8 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, uint64_t pkt_num) {
   if (pktns->max_rx_pkt_num + 1 != pkt_num) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
-  if (pktns->max_rx_pkt_num < pkt_num) {
+  if (pktns->max_rx_pkt_num == (uint64_t)-1 ||
+      pktns->max_rx_pkt_num < pkt_num) {
     pktns->max_rx_pkt_num = pkt_num;
   }
 
@@ -3198,6 +3198,27 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, uint64_t pkt_num) {
   }
 
   return 0;
+}
+
+/*
+ * conn_discard_initial_key discards Initial packet protection keys.
+ */
+static void conn_discard_initial_key(ngtcp2_conn *conn) {
+  ngtcp2_pktns *pktns = &conn->in_pktns;
+
+  if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED) {
+    return;
+  }
+
+  conn->flags |= NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED;
+
+  ngtcp2_crypto_km_del(pktns->tx_ckm, conn->mem);
+  ngtcp2_crypto_km_del(pktns->rx_ckm, conn->mem);
+
+  pktns->tx_ckm = NULL;
+  pktns->rx_ckm = NULL;
+
+  ngtcp2_rtb_clear(&pktns->rtb);
 }
 
 static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
@@ -3397,6 +3418,13 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
     return (ssize_t)pktlen;
   case NGTCP2_PKT_INITIAL:
+    if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED) {
+      ngtcp2_log_info(
+          &conn->log, NGTCP2_LOG_EVENT_PKT,
+          "Initial packet is discarded because keys have been discarded");
+      return (ssize_t)pktlen;
+    }
+
     if (conn->server) {
       if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
         rv = conn_call_recv_client_initial(conn, &hd.dcid);
@@ -4393,7 +4421,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 }
 
 /*
- * conn_recv_delayed_handshake_pkt processes the received handshake
+ * conn_recv_delayed_handshake_pkt processes the received Handshake
  * packet which is received after handshake completed.  This function
  * does the minimal job, and its purpose is send acknowledgement of
  * this packet to the peer.  We assume that hd->type is one of
@@ -4428,9 +4456,6 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
   ngtcp2_pktns *pktns;
 
   switch (hd->type) {
-  case NGTCP2_PKT_INITIAL:
-    pktns = &conn->in_pktns;
-    break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
     break;
@@ -4469,14 +4494,9 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     case NGTCP2_FRAME_PADDING:
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
-      if (hd->type != NGTCP2_PKT_HANDSHAKE) {
-        break;
-      }
-      conn_recv_connection_close(conn);
-      break;
     case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
       if (hd->type != NGTCP2_PKT_HANDSHAKE) {
-        return NGTCP2_ERR_PROTO;
+        break;
       }
       conn_recv_connection_close(conn);
       break;
@@ -4627,20 +4647,9 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
-      if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid) &&
-          (!conn->server || !ngtcp2_cid_eq(&conn->rcid, &hd.dcid))) {
-        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                        "packet was ignored because of mismatched DCID");
-        return NGTCP2_ERR_DISCARD_PKT;
-      }
-
-      pktns = &conn->in_pktns;
-      ckm = pktns->rx_ckm;
-      hp_mask = conn->callbacks.in_hp_mask;
-      decrypt = conn->callbacks.in_decrypt;
-      aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
-      max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
-      break;
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "delayed Initial packet was discarded");
+      return (ssize_t)pktlen;
     case NGTCP2_PKT_HANDSHAKE:
       if (!ngtcp2_cid_eq(&conn->scid, &hd.dcid)) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
@@ -4775,7 +4784,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     switch (hd.type) {
-    case NGTCP2_PKT_INITIAL:
     case NGTCP2_PKT_HANDSHAKE:
       /* TODO find a way when to ignore incoming handshake packet */
       rv = conn_recv_delayed_handshake_pkt(conn, &hd, payload, payloadlen, ts);
@@ -5202,6 +5210,10 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const uint8_t *pkt,
       }
     }
 
+    if (conn->hs_pktns.max_rx_pkt_num != (uint64_t)-1) {
+      conn_discard_initial_key(conn);
+    }
+
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
       return 0;
     }
@@ -5315,6 +5327,10 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     nwrite = conn_write_handshake_pkts(conn, dest, destlen, early_datalen, ts);
     if (nwrite < 0) {
       return nwrite;
+    }
+
+    if (conn->hs_pktns.last_tx_pkt_num != (uint64_t)-1) {
+      conn_discard_initial_key(conn);
     }
 
     res += nwrite;
