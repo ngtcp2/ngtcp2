@@ -984,7 +984,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       stream_close,
       nullptr, // recv_stateless_reset
       nullptr, // recv_retry
-      nullptr, // extend_max_stream_id
+      nullptr, // extend_max_streams_bidi
+      nullptr, // extend_max_streams_uni
       rand,
   };
 

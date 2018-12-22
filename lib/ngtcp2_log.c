@@ -245,11 +245,12 @@ static void log_fr_padding(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->len);
 }
 
-static void log_fr_rst_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                              const ngtcp2_rst_stream *fr, const char *dir) {
+static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                const ngtcp2_reset_stream *fr,
+                                const char *dir) {
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT
-                   " RST_STREAM(0x%02x) id=0x%" PRIu64
+                   " RESET_STREAM(0x%02x) id=0x%" PRIu64
                    " app_error_code=%s(0x%04x) final_offset=%" PRIu64 "\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
                   strapperrorcode(fr->app_error_code), fr->app_error_code,
@@ -265,18 +266,6 @@ static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       "frame_type=%u reason_len=%" PRIu64 "\n"),
       NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, strerrorcode(fr->error_code),
       fr->error_code, fr->frame_type, fr->reasonlen);
-}
-
-static void log_fr_application_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                                     const ngtcp2_application_close *fr,
-                                     const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT
-                   " APPLICATION_CLOSE(0x%02x) app_error_code=%s(%" PRIu64 ") "
-                   "reason_len=%" PRIu64 "\n"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
-                  strapperrorcode(fr->app_error_code), fr->app_error_code,
-                  fr->reasonlen);
 }
 
 static void log_fr_max_data(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -296,13 +285,12 @@ static void log_fr_max_stream_data(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   fr->max_stream_data);
 }
 
-static void log_fr_max_stream_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                                 const ngtcp2_max_stream_id *fr,
-                                 const char *dir) {
+static void log_fr_max_streams(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                               const ngtcp2_max_streams *fr, const char *dir) {
   log->log_printf(
       log->user_data,
-      (NGTCP2_LOG_PKT " MAX_STREAM_ID(0x%02x) max_stream_id=%" PRIu64 "\n"),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->max_stream_id);
+      (NGTCP2_LOG_PKT " MAX_STREAMS(0x%02x) max_streams=%" PRIu64 "\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->max_streams);
 }
 
 static void log_fr_ping(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -311,29 +299,30 @@ static void log_fr_ping(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type);
 }
 
-static void log_fr_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                           const ngtcp2_blocked *fr, const char *dir) {
+static void log_fr_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                const ngtcp2_data_blocked *fr,
+                                const char *dir) {
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " BLOCKED(0x%02x) offset=%" PRIu64 "\n"),
+                  (NGTCP2_LOG_PKT " DATA_BLOCKED(0x%02x) offset=%" PRIu64 "\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->offset);
 }
 
-static void log_fr_stream_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                                  const ngtcp2_stream_blocked *fr,
-                                  const char *dir) {
+static void log_fr_stream_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                       const ngtcp2_stream_data_blocked *fr,
+                                       const char *dir) {
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " STREAM_BLOCKED(0x%02x) id=%" PRIu64
+                  (NGTCP2_LOG_PKT " STREAM_DATA_BLOCKED(0x%02x) id=%" PRIu64
                                   " offset=%" PRIu64 "\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->stream_id, fr->offset);
 }
 
-static void log_fr_stream_id_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                                     const ngtcp2_stream_id_blocked *fr,
-                                     const char *dir) {
+static void log_fr_streams_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                   const ngtcp2_streams_blocked *fr,
+                                   const char *dir) {
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " STREAM_ID_BLOCKED(0x%02x) id=0x%" PRIx64
-                                  " offset=%" PRIu64 "\n"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id);
+                  (NGTCP2_LOG_PKT " STREAMS_BLOCKED(0x%02x) id=0x%" PRIx64
+                                  " stream_limit=%" PRIu64 "\n"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_limit);
 }
 
 static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -440,14 +429,12 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   case NGTCP2_FRAME_PADDING:
     log_fr_padding(log, hd, &fr->padding, dir);
     break;
-  case NGTCP2_FRAME_RST_STREAM:
-    log_fr_rst_stream(log, hd, &fr->rst_stream, dir);
+  case NGTCP2_FRAME_RESET_STREAM:
+    log_fr_reset_stream(log, hd, &fr->reset_stream, dir);
     break;
   case NGTCP2_FRAME_CONNECTION_CLOSE:
+  case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
     log_fr_connection_close(log, hd, &fr->connection_close, dir);
-    break;
-  case NGTCP2_FRAME_APPLICATION_CLOSE:
-    log_fr_application_close(log, hd, &fr->application_close, dir);
     break;
   case NGTCP2_FRAME_MAX_DATA:
     log_fr_max_data(log, hd, &fr->max_data, dir);
@@ -455,20 +442,22 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   case NGTCP2_FRAME_MAX_STREAM_DATA:
     log_fr_max_stream_data(log, hd, &fr->max_stream_data, dir);
     break;
-  case NGTCP2_FRAME_MAX_STREAM_ID:
-    log_fr_max_stream_id(log, hd, &fr->max_stream_id, dir);
+  case NGTCP2_FRAME_MAX_STREAMS_BIDI:
+  case NGTCP2_FRAME_MAX_STREAMS_UNI:
+    log_fr_max_streams(log, hd, &fr->max_streams, dir);
     break;
   case NGTCP2_FRAME_PING:
     log_fr_ping(log, hd, &fr->ping, dir);
     break;
-  case NGTCP2_FRAME_BLOCKED:
-    log_fr_blocked(log, hd, &fr->blocked, dir);
+  case NGTCP2_FRAME_DATA_BLOCKED:
+    log_fr_data_blocked(log, hd, &fr->data_blocked, dir);
     break;
-  case NGTCP2_FRAME_STREAM_BLOCKED:
-    log_fr_stream_blocked(log, hd, &fr->stream_blocked, dir);
+  case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
+    log_fr_stream_data_blocked(log, hd, &fr->stream_data_blocked, dir);
     break;
-  case NGTCP2_FRAME_STREAM_ID_BLOCKED:
-    log_fr_stream_id_blocked(log, hd, &fr->stream_id_blocked, dir);
+  case NGTCP2_FRAME_STREAMS_BLOCKED_BIDI:
+  case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
+    log_fr_streams_blocked(log, hd, &fr->streams_blocked, dir);
     break;
   case NGTCP2_FRAME_NEW_CONNECTION_ID:
     log_fr_new_connection_id(log, hd, &fr->new_connection_id, dir);

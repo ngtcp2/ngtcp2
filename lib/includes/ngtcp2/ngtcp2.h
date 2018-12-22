@@ -265,25 +265,28 @@ typedef enum {
 
 typedef enum {
   NGTCP2_FRAME_PADDING = 0x00,
-  NGTCP2_FRAME_RST_STREAM = 0x01,
-  NGTCP2_FRAME_CONNECTION_CLOSE = 0x02,
-  NGTCP2_FRAME_APPLICATION_CLOSE = 0x03,
-  NGTCP2_FRAME_MAX_DATA = 0x04,
-  NGTCP2_FRAME_MAX_STREAM_DATA = 0x05,
-  NGTCP2_FRAME_MAX_STREAM_ID = 0x06,
-  NGTCP2_FRAME_PING = 0x07,
-  NGTCP2_FRAME_BLOCKED = 0x08,
-  NGTCP2_FRAME_STREAM_BLOCKED = 0x09,
-  NGTCP2_FRAME_STREAM_ID_BLOCKED = 0x0a,
-  NGTCP2_FRAME_NEW_CONNECTION_ID = 0x0b,
-  NGTCP2_FRAME_STOP_SENDING = 0x0c,
-  NGTCP2_FRAME_RETIRE_CONNECTION_ID = 0x0d,
-  NGTCP2_FRAME_PATH_CHALLENGE = 0x0e,
-  NGTCP2_FRAME_PATH_RESPONSE = 0x0f,
-  NGTCP2_FRAME_STREAM = 0x10,
-  NGTCP2_FRAME_CRYPTO = 0x18,
-  NGTCP2_FRAME_NEW_TOKEN = 0x19,
-  NGTCP2_FRAME_ACK = 0x1a
+  NGTCP2_FRAME_PING = 0x01,
+  NGTCP2_FRAME_ACK = 0x02,
+  NGTCP2_FRAME_ACK_ECN = 0x03,
+  NGTCP2_FRAME_RESET_STREAM = 0x04,
+  NGTCP2_FRAME_STOP_SENDING = 0x05,
+  NGTCP2_FRAME_CRYPTO = 0x06,
+  NGTCP2_FRAME_NEW_TOKEN = 0x07,
+  NGTCP2_FRAME_STREAM = 0x08,
+  NGTCP2_FRAME_MAX_DATA = 0x10,
+  NGTCP2_FRAME_MAX_STREAM_DATA = 0x11,
+  NGTCP2_FRAME_MAX_STREAMS_BIDI = 0x12,
+  NGTCP2_FRAME_MAX_STREAMS_UNI = 0x13,
+  NGTCP2_FRAME_DATA_BLOCKED = 0x14,
+  NGTCP2_FRAME_STREAM_DATA_BLOCKED = 0x15,
+  NGTCP2_FRAME_STREAMS_BLOCKED_BIDI = 0x16,
+  NGTCP2_FRAME_STREAMS_BLOCKED_UNI = 0x17,
+  NGTCP2_FRAME_NEW_CONNECTION_ID = 0x18,
+  NGTCP2_FRAME_RETIRE_CONNECTION_ID = 0x19,
+  NGTCP2_FRAME_PATH_CHALLENGE = 0x1a,
+  NGTCP2_FRAME_PATH_RESPONSE = 0x1b,
+  NGTCP2_FRAME_CONNECTION_CLOSE = 0x1c,
+  NGTCP2_FRAME_CONNECTION_CLOSE_APP = 0x1d
 } ngtcp2_frame_type;
 
 typedef enum {
@@ -438,7 +441,7 @@ typedef struct {
   uint64_t stream_id;
   uint16_t app_error_code;
   uint64_t final_offset;
-} ngtcp2_rst_stream;
+} ngtcp2_reset_stream;
 
 typedef struct {
   uint8_t type;
@@ -447,13 +450,6 @@ typedef struct {
   size_t reasonlen;
   uint8_t *reason;
 } ngtcp2_connection_close;
-
-typedef struct {
-  uint8_t type;
-  uint16_t app_error_code;
-  size_t reasonlen;
-  uint8_t *reason;
-} ngtcp2_application_close;
 
 typedef struct {
   uint8_t type;
@@ -471,8 +467,8 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint64_t max_stream_id;
-} ngtcp2_max_stream_id;
+  uint64_t max_streams;
+} ngtcp2_max_streams;
 
 typedef struct {
   uint8_t type;
@@ -481,18 +477,18 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint64_t offset;
-} ngtcp2_blocked;
+} ngtcp2_data_blocked;
 
 typedef struct {
   uint8_t type;
   uint64_t stream_id;
   uint64_t offset;
-} ngtcp2_stream_blocked;
+} ngtcp2_stream_data_blocked;
 
 typedef struct {
   uint8_t type;
-  uint64_t stream_id;
-} ngtcp2_stream_id_blocked;
+  uint64_t stream_limit;
+} ngtcp2_streams_blocked;
 
 typedef struct {
   uint8_t type;
@@ -551,16 +547,15 @@ typedef union {
   ngtcp2_stream stream;
   ngtcp2_ack ack;
   ngtcp2_padding padding;
-  ngtcp2_rst_stream rst_stream;
+  ngtcp2_reset_stream reset_stream;
   ngtcp2_connection_close connection_close;
-  ngtcp2_application_close application_close;
   ngtcp2_max_data max_data;
   ngtcp2_max_stream_data max_stream_data;
-  ngtcp2_max_stream_id max_stream_id;
+  ngtcp2_max_streams max_streams;
   ngtcp2_ping ping;
-  ngtcp2_blocked blocked;
-  ngtcp2_stream_blocked stream_blocked;
-  ngtcp2_stream_id_blocked stream_id_blocked;
+  ngtcp2_data_blocked data_blocked;
+  ngtcp2_stream_data_blocked stream_data_blocked;
+  ngtcp2_streams_blocked streams_blocked;
   ngtcp2_new_connection_id new_connection_id;
   ngtcp2_stop_sending stop_sending;
   ngtcp2_path_challenge path_challenge;
@@ -1252,18 +1247,17 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
 /**
  * @functypedef
  *
- * :type:`ngtcp2_extend_max_stream_id` is a callback function which is
+ * :type:`ngtcp2_extend_max_streams` is a callback function which is
  * called every time max stream ID is strictly extended.
- * |max_stream_id| is the maximum stream ID which a local endpoint can
- * open.
+ * |max_streams| is the cumulative number of streams which a local
+ * endpoint can open.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_extend_max_stream_id)(ngtcp2_conn *conn,
-                                           uint64_t max_stream_id,
-                                           void *user_data);
+typedef int (*ngtcp2_extend_max_streams)(ngtcp2_conn *conn,
+                                         uint64_t max_streams, void *user_data);
 
 /**
  * @functypedef
@@ -1323,7 +1317,8 @@ typedef struct {
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_retry recv_retry;
-  ngtcp2_extend_max_stream_id extend_max_stream_id;
+  ngtcp2_extend_max_streams extend_max_streams_bidi;
+  ngtcp2_extend_max_streams extend_max_streams_uni;
   ngtcp2_rand rand;
 } ngtcp2_conn_callbacks;
 

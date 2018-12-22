@@ -300,8 +300,8 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
         }
       }
       break;
-    case NGTCP2_FRAME_RST_STREAM:
-      strm = ngtcp2_conn_find_stream(conn, frc->fr.rst_stream.stream_id);
+    case NGTCP2_FRAME_RESET_STREAM:
+      strm = ngtcp2_conn_find_stream(conn, frc->fr.reset_stream.stream_id);
       if (strm == NULL) {
         break;
       }

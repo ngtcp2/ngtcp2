@@ -201,6 +201,7 @@ uint64_t ngtcp2_nth_server_bidi_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
+  // ((n-1) << 2) | 1
   return (n << 2) - 3;
 }
 

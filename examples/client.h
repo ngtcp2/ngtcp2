@@ -197,7 +197,7 @@ public:
   int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
                             size_t datalen);
   void on_stream_close(uint64_t stream_id);
-  int on_extend_max_stream_id(uint64_t max_stream_id);
+  int on_extend_max_streams();
   int handle_error(int liberr);
   void make_stream_early();
   void on_recv_retry();

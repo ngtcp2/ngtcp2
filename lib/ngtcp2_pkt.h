@@ -232,19 +232,20 @@ size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
                                        size_t payloadlen);
 
 /*
- * ngtcp2_pkt_decode_rst_stream_frame decodes RST_STREAM frame from
- * |payload| of length |payloadlen|.  The result is stored in the
- * object pointed by |dest|.  RST_STREAM frame must start at
- * payload[0].  This function finishes when it decodes one RST_STREAM
- * frame, and returns the exact number of bytes read to decode a frame
- * if it succeeds, or one of the following negative error codes:
+ * ngtcp2_pkt_decode_reset_stream_frame decodes RESET_STREAM frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  RESET_STREAM frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * RESET_STREAM frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
  *
  * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include RST_STREAM frame.
+ *     Payload is too short to include RESET_STREAM frame.
  */
-ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
-                                           const uint8_t *payload,
-                                           size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_connection_close_frame decodes CONNECTION_CLOSE
@@ -261,21 +262,6 @@ ssize_t ngtcp2_pkt_decode_rst_stream_frame(ngtcp2_rst_stream *dest,
 ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
                                                  const uint8_t *payload,
                                                  size_t payloadlen);
-
-/*
- * ngtcp2_pkt_decode_application_close_frame decodes APPLICATION_CLOSE
- * frame from |payload| of length |payloadlen|.  The result is stored
- * in the object pointed by |dest|.  APPLICATION_CLOSE frame must start
- * at payload[0].  This function finishes it decodes one
- * APPLICATION_CLOSE frame, and returns the exact number of bytes read
- * to decode a frame if it succeeds, or one of the following negative
- * error codes:
- *
- * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include APPLICATION_CLOSE frame.
- */
-ssize_t ngtcp2_pkt_decode_application_close_frame(
-    ngtcp2_application_close *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_max_data_frame decodes MAX_DATA frame from
@@ -309,20 +295,19 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
                                                 size_t payloadlen);
 
 /*
- * ngtcp2_pkt_decode_max_stream_id_frame decodes MAX_STREAM_ID frame
- * from |payload| of length |payloadlen|.  The result is stored in the
- * object pointed by |dest|.  MAX_STREAM_ID frame must start at
- * payload[0].  This function finishes when it decodes one
- * MAX_STREAM_ID frame, and returns the exact number of bytes read to
- * decode a frame if it succeeds, or one of the following negative
- * error codes:
+ * ngtcp2_pkt_decode_max_streams_frame decodes MAX_STREAMS frame from
+ * |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  MAX_STREAMS frame must start at
+ * payload[0].  This function finishes when it decodes one MAX_STREAMS
+ * frame, and returns the exact number of bytes read to decode a frame
+ * if it succeeds, or one of the following negative error codes:
  *
  * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include MAX_STREAM_ID frame.
+ *     Payload is too short to include MAX_STREAMS frame.
  */
-ssize_t ngtcp2_pkt_decode_max_stream_id_frame(ngtcp2_max_stream_id *dest,
-                                              const uint8_t *payload,
-                                              size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
+                                            const uint8_t *payload,
+                                            size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_ping_frame decodes PING frame from |payload| of
@@ -339,50 +324,53 @@ ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
                                      size_t payloadlen);
 
 /*
- * ngtcp2_pkt_decode_blocked_frame decodes BLOCKED frame from
- * |payload| of length |payloadlen|.  The result is stored in the
- * object pointed by |dest|.  BLOCKED frame must start at payload[0].
- * This function finishes when it decodes one BLOCKED frame, and
- * returns the exact number of bytes read to decode a frame if it
- * succeeds, or one of the following negative error codes:
- *
- * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include BLOCKED frame.
- */
-ssize_t ngtcp2_pkt_decode_blocked_frame(ngtcp2_blocked *dest,
-                                        const uint8_t *payload,
-                                        size_t payloadlen);
-
-/*
- * ngtcp2_pkt_decode_stream_blocked_frame decodes STREAM_BLOCKED frame
+ * ngtcp2_pkt_decode_data_blocked_frame decodes DATA_BLOCKED frame
  * from |payload| of length |payloadlen|.  The result is stored in the
- * object pointed by |dest|.  STREAM_BLOCKED frame must start at
+ * object pointed by |dest|.  DATA_BLOCKED frame must start at
  * payload[0].  This function finishes when it decodes one
- * STREAM_BLOCKED frame, and returns the exact number of bytes read to
+ * DATA_BLOCKED frame, and returns the exact number of bytes read to
  * decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
  * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include STREAM_BLOCKED frame.
+ *     Payload is too short to include DATA_BLOCKED frame.
  */
-ssize_t ngtcp2_pkt_decode_stream_blocked_frame(ngtcp2_stream_blocked *dest,
-                                               const uint8_t *payload,
-                                               size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
+                                             const uint8_t *payload,
+                                             size_t payloadlen);
 
 /*
- * ngtcp2_pkt_decode_stream_id_blocked_frame decodes STREAM_ID_BLOCKED
+ * ngtcp2_pkt_decode_stream_data_blocked_frame decodes
+ * STREAM_DATA_BLOCKED frame from |payload| of length |payloadlen|.
+ * The result is stored in the object pointed by |dest|.
+ * STREAM_DATA_BLOCKED frame must start at payload[0].  This function
+ * finishes when it decodes one STREAM_DATA_BLOCKED frame, and returns
+ * the exact number of bytes read to decode a frame if it succeeds, or
+ * one of the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include STREAM_DATA_BLOCKED frame.
+ */
+ssize_t
+ngtcp2_pkt_decode_stream_data_blocked_frame(ngtcp2_stream_data_blocked *dest,
+                                            const uint8_t *payload,
+                                            size_t payloadlen);
+
+/*
+ * ngtcp2_pkt_decode_streams_blocked_frame decodes STREAMS_BLOCKED
  * frame from |payload| of length |payloadlen|.  The result is stored
- * in the object pointed by |dest|.  STREAM_ID_BLOCKED frame must
- * start at payload[0].  This function finishes when it decodes one
- * STREAM_ID_BLOCKED frame, and returns the exact number of bytes read
+ * in the object pointed by |dest|.  STREAMS_BLOCKED frame must start
+ * at payload[0].  This function finishes when it decodes one
+ * STREAMS_BLOCKED frame, and returns the exact number of bytes read
  * to decode a frame if it succeeds, or one of the following negative
  * error codes:
  *
  * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include STREAM_ID_BLOCKED frame.
+ *     Payload is too short to include STREAMS_BLOCKED frame.
  */
-ssize_t ngtcp2_pkt_decode_stream_id_blocked_frame(
-    ngtcp2_stream_id_blocked *dest, const uint8_t *payload, size_t payloadlen);
+ssize_t ngtcp2_pkt_decode_streams_blocked_frame(ngtcp2_streams_blocked *dest,
+                                                const uint8_t *payload,
+                                                size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_new_connection_id_frame decodes NEW_CONNECTION_ID
@@ -543,8 +531,8 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_padding *fr);
 
 /*
- * ngtcp2_pkt_encode_rst_stream_frame encodes RST_STREAM frame |fr|
- * into the buffer pointed by |out| of length |buflen|.
+ * ngtcp2_pkt_encode_reset_stream_frame encodes RESET_STREAM frame
+ * |fr| into the buffer pointed by |out| of length |buflen|.
  *
  * This function returns the number of bytes written if it succeeds,
  * or one of the following negative error codes:
@@ -552,8 +540,8 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
-                                           const ngtcp2_rst_stream *fr);
+ssize_t ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
+                                             const ngtcp2_reset_stream *fr);
 
 /*
  * ngtcp2_pkt_encode_connection_close_frame encodes CONNECTION_CLOSE
@@ -568,20 +556,6 @@ ssize_t ngtcp2_pkt_encode_rst_stream_frame(uint8_t *out, size_t outlen,
 ssize_t
 ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_connection_close *fr);
-
-/*
- * ngtcp2_pkt_encode_application_close_frame encodes APPLICATION_CLOSE
- * frame |fr| into the buffer pointed by |out| of length |outlen|.
- *
- * This function returns the number of bytes written if it succeeds,
- * or one of the following negative error codes:
- *
- * NGTCP2_ERR_NOBUF
- *     Buffer does not have enough capacity to write a frame.
- */
-ssize_t
-ngtcp2_pkt_encode_application_close_frame(uint8_t *out, size_t outlen,
-                                          const ngtcp2_application_close *fr);
 
 /*
  * ngtcp2_pkt_encode_max_data_frame encodes MAX_DATA frame |fr| into
@@ -611,8 +585,8 @@ ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_max_stream_data *fr);
 
 /*
- * ngtcp2_pkt_encode_max_stream_id_frame encodes MAX_STREAM_ID frame
- * |fr| into the buffer pointed by |out| of length |outlen|.
+ * ngtcp2_pkt_encode_max_streams_frame encodes MAX_STREAMS
+ * frame |fr| into the buffer pointed by |out| of length |outlen|.
  *
  * This function returns the number of bytes written if it succeeds,
  * or one of the following negative error codes:
@@ -620,8 +594,8 @@ ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_max_stream_id_frame(uint8_t *out, size_t outlen,
-                                              const ngtcp2_max_stream_id *fr);
+ssize_t ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
+                                            const ngtcp2_max_streams *fr);
 
 /*
  * ngtcp2_pkt_encode_ping_frame encodes PING frame |fr| into the
@@ -637,20 +611,7 @@ ssize_t ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
                                      const ngtcp2_ping *fr);
 
 /*
- * ngtcp2_pkt_encode_blocked_frame encodes BLOCKED frame |fr| into the
- * buffer pointed by |out| of length |outlen|.
- *
- * This function returns the number of bytes written if it succeeds,
- * or one of the following negative error codes:
- *
- * NGTCP2_ERR_NOBUF
- *     Buffer does not have enough capacity to write a frame.
- */
-ssize_t ngtcp2_pkt_encode_blocked_frame(uint8_t *out, size_t outlen,
-                                        const ngtcp2_blocked *fr);
-
-/*
- * ngtcp2_pkt_encode_stream_blocked_frame encodes STREAM_BLOCKED frame
+ * ngtcp2_pkt_encode_data_blocked_frame encodes DATA_BLOCKED frame
  * |fr| into the buffer pointed by |out| of length |outlen|.
  *
  * This function returns the number of bytes written if it succeeds,
@@ -659,11 +620,25 @@ ssize_t ngtcp2_pkt_encode_blocked_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_stream_blocked_frame(uint8_t *out, size_t outlen,
-                                               const ngtcp2_stream_blocked *fr);
+ssize_t ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
+                                             const ngtcp2_data_blocked *fr);
 
 /*
- * ngtcp2_pkt_encode_stream_id_blocked_frame encodes STREAM_ID_BLOCKED
+ * ngtcp2_pkt_encode_stream_data_blocked_frame encodes
+ * STREAM_DATA_BLOCKED frame |fr| into the buffer pointed by |out| of
+ * length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_stream_data_blocked_frame(
+    uint8_t *out, size_t outlen, const ngtcp2_stream_data_blocked *fr);
+
+/*
+ * ngtcp2_pkt_encode_streams_blocked_frame encodes STREAMS_BLOCKED
  * frame |fr| into the buffer pointed by |out| of length |outlen|.
  *
  * This function returns the number of bytes written if it succeeds,
@@ -673,8 +648,8 @@ ssize_t ngtcp2_pkt_encode_stream_blocked_frame(uint8_t *out, size_t outlen,
  *     Buffer does not have enough capacity to write a frame.
  */
 ssize_t
-ngtcp2_pkt_encode_stream_id_blocked_frame(uint8_t *out, size_t outlen,
-                                          const ngtcp2_stream_id_blocked *fr);
+ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
+                                        const ngtcp2_streams_blocked *fr);
 
 /*
  * ngtcp2_pkt_encode_new_connection_id_frame encodes NEW_CONNECTION_ID

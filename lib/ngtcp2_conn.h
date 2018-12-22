@@ -92,6 +92,11 @@ typedef enum {
    accept. */
 #define NGTCP2_MAX_RETRIES 3
 
+#define NGTCP2_MAX_SERVER_ID_BIDI 0x3fffffffffffff00ULL
+#define NGTCP2_MAX_SERVER_ID_UNI 0x3fffffffffffff10ULL
+#define NGTCP2_MAX_CLIENT_ID_BIDI 0x3fffffffffffff01ULL
+#define NGTCP2_MAX_CLIENT_ID_UNI 0x3fffffffffffff11ULL
+
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.

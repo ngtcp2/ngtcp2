@@ -584,11 +584,11 @@ int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
 } // namespace
 
 namespace {
-int extend_max_stream_id(ngtcp2_conn *conn, uint64_t max_stream_id,
-                         void *user_data) {
+int extend_max_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
+                            void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->on_extend_max_stream_id(max_stream_id) != 0) {
+  if (c->on_extend_max_streams() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -796,13 +796,14 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
       nullptr, // recv_client_initial
       recv_crypto_data, handshake_completed,
       nullptr, // recv_version_negotiation
-      do_hs_encrypt,    do_hs_decrypt,        do_encrypt,
-      do_decrypt,       do_in_hp_mask,        do_hp_mask,
-      recv_stream_data, acked_crypto_offset,  acked_stream_data_offset,
+      do_hs_encrypt,    do_hs_decrypt,           do_encrypt,
+      do_decrypt,       do_in_hp_mask,           do_hp_mask,
+      recv_stream_data, acked_crypto_offset,     acked_stream_data_offset,
       nullptr, // stream_open
       stream_close,
       nullptr, // recv_stateless_reset
-      recv_retry,       extend_max_stream_id,
+      recv_retry,       extend_max_streams_bidi,
+      nullptr, // extend_max_streams_uni
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -1777,7 +1778,7 @@ void Client::make_stream_early() {
   streams_.emplace(stream_id, std::move(stream));
 }
 
-int Client::on_extend_max_stream_id(uint64_t max_stream_id) {
+int Client::on_extend_max_streams() {
   int rv;
 
   if (config.interactive) {
