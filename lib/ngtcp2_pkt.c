@@ -751,7 +751,7 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
     }
     p += n;
   } else {
-    frame_type = 0;
+    dest->frame_type = 0;
   }
   dest->reasonlen = reasonlen;
   p += nreasonlen;
