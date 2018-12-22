@@ -81,11 +81,10 @@ Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
 namespace {
 int key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
-           const unsigned char *key, size_t keylen, const unsigned char *iv,
-           size_t ivlen, void *arg) {
+           void *arg) {
   auto h = static_cast<Handler *>(arg);
 
-  if (h->on_key(name, secret, secretlen, key, keylen, iv, ivlen) != 0) {
+  if (h->on_key(name, secret, secretlen) != 0) {
     return 0;
   }
 
@@ -95,8 +94,7 @@ int key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
 }
 } // namespace
 
-int Handler::on_key(int name, const uint8_t *secret, size_t secretlen,
-                    const uint8_t *, size_t, const uint8_t *, size_t) {
+int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
   int rv;
 
   switch (name) {

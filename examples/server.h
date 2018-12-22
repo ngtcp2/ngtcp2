@@ -226,9 +226,7 @@ public:
 
   int send_greeting();
 
-  int on_key(int name, const uint8_t *secret, size_t secretlen,
-             const uint8_t *key, size_t keylen, const uint8_t *iv,
-             size_t ivlen);
+  int on_key(int name, const uint8_t *secret, size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
 
