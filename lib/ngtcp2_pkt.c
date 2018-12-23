@@ -96,7 +96,7 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (!has_mask(pkt[0], NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK)) {
+  if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -108,6 +108,10 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
        number and payload length fields. */
     len = 5 + 1;
   } else {
+    if (!(pkt[0] & NGTCP2_FIXED_BIT_MASK)) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
     type = ngtcp2_pkt_get_type_long(pkt[0]);
     switch (type) {
     case NGTCP2_PKT_INITIAL:
