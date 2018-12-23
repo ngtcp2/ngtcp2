@@ -51,8 +51,8 @@ following fields of ``ngtcp2_conn_callbacks`` must be set:
 * in_decrypt
 * encrypt
 * decrypt
-* in_encrypt_pn
-* encrypt_pn
+* in_hp_mask
+* hp_mask
 * acked_crypto_offset
 * recv_retry
 
@@ -108,8 +108,6 @@ QUIC uses modified version of TLSv1.3.  The differences are:
 * QUIC does not use End of Early Data TLS message.
 * QUIC does not send early (0-RTT) data through TLSv1.3 application
   message.  It is sent outside TLS.
-* QUIC uses ``quic`` label instead of ``tls13`` to derive keying
-  materials (this might change in the future).
 
 QUIC has 4 types of packets: Initial, Handshake, 0-RTT Protected, and
 Short.  They are encrypted with their own keys.
@@ -117,18 +115,19 @@ Short.  They are encrypted with their own keys.
 Initial packet is encrypted by the Initial key which is derived from
 client DCID and static salt.
 
-Handshake packet is encrypted by the Handshake key which is fed by TLS
-stack.  It is the same key and IV derived from
-client_handshake_traffic_secret for client and
-server_handshake_traffic_secret for server.
+Handshake packet is encrypted by the Handshake key.  TLS stack
+provides secret, and application derives key and IV using
+HKDF-Expand-Label with ``quic key`` and ``quic iv`` labels
+respectively.  The secret is client_handshake_traffic_secret for
+client and server_handshake_traffic_secret for server.
 
-0-RTT Protected packet is encrypted by the 0RTT key which is fed by
-TLS stack.  It is the same key and IV derived from
-client_early_traffic_secret.
+0-RTT Protected packet is encrypted by the 0RTT key.  TLS stack
+provides secret, and application derives key and IV using the same
+labels for Handshake key.  The secret is client_early_traffic_secret.
 
-Short packet is encrypted by the 1RTT key which is fed by TLS stack.
-It is the same key and IV derived from
-client_application_traffic_secret for client and
+Short packet is encrypted by the 1RTT key.  TLS stack provides secret,
+and application derives key and IV using the same labels for Handshake
+key.  The secret is client_application_traffic_secret for client and
 server_application_traffic_secret for server.
 
 TLS stack has to implement the interface which notify these keying
@@ -173,13 +172,13 @@ until ``ngtcp2_conn_callbacks.acked_crypto_offset`` callback tells
 that the data is acknowledged by the peer and no longer used.  Next,
 ``ngtcp2_conn_callbacks.in_encrypt`` callback is called to tell
 application to encrypt the data using AEAD_AES_128_GCM.  And then,
-``ngtcp2_conn_callbacks.in_encrypt_pn`` callback is called to tell
-application to encrypt the packet number using AES-CTR.  After
-negotiated Handshake keys are available,
+``ngtcp2_conn_callbacks.in_hp_mask`` callback is called to tell
+application to produce a mask to encrypt packet header using AES-ECB.
+After negotiated Handshake keys are available,
 ``ngtcp2_conn_callbacks.encrypt`` and
-``ngtcp2_conn_callbacks.encrypt_pn`` are called instead.  Use the
+``ngtcp2_conn_callbacks.hp_mask`` are called instead.  Use the
 negotiated cipher suites.  If ChaCha20 based cipher suite is
-negotiated, ChaCha20 is used to protect packet number.
+negotiated, ChaCha20 is used to protect packet header.
 
 `ngtcp2_conn_read_handshake()` reads QUIC handshake packets.
 
@@ -187,14 +186,15 @@ For server application, it first calls
 ``ngtcp2_conn_callbacks.recv_client_initial`` callback.  The callback
 must create the Initial key using client DCID and install it to
 ``ngtcp2_conn``.  The library calls
-``ngtcp2_conn_callbacks.in_encrypt_pn`` callback to decrypt packet
-number.  Then ``ngtcp2_conn_callbacks.in_decrypt`` callback is called
-to decrypt packet payload.  ``ngtcp2_conn_callbacks.recv_crypto_data``
-callback is called with the received TLS messages.  Feed them to TLS
-stack.  If TLS stack produces any TLS message other than Alert, passes
-them to ``ngtcp2_conn`` through `ngtcp2_conn_submit_crypto_data()`
-function.  After negotiated Handshake keys are available,
-``ngtcp2_conn_callbacks.encrypt_pn`` and
+``ngtcp2_conn_callbacks.in_hp_mask`` callback to produce a mask in
+order to decrypt packet header.  Then
+``ngtcp2_conn_callbacks.in_decrypt`` callback is called to decrypt
+packet payload.  ``ngtcp2_conn_callbacks.recv_crypto_data`` callback
+is called with the received TLS messages.  Feed them to TLS stack.  If
+TLS stack produces any TLS message other than Alert, passes them to
+``ngtcp2_conn`` through `ngtcp2_conn_submit_crypto_data()` function.
+After negotiated Handshake keys are available,
+``ngtcp2_conn_callbacks.hp_mask`` and
 ``ngtcp2_conn_callbacks.decrypt`` are called instead.  When peer
 acknowledges TLS messages,
 ``ngtcp2_conn_callbacks.acked_crypto_offset`` callback is called.  The
