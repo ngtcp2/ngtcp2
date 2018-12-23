@@ -305,8 +305,6 @@ typedef enum {
   NGTCP2_CRYPTO_ERROR = 0x100
 } ngtcp2_transport_error;
 
-typedef enum { NGTCP2_STOPPING = 0x0u } ngtcp2_app_error;
-
 /*
  * ngtcp2_tstamp is a timestamp with NGTCP2_DURATION_TICK resolution.
  */
@@ -1908,8 +1906,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0; or |app_error_code| ==
- *     :enum:`NGTCP2_STOPPING`.
+ *     |stream_id| is 0
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -1933,8 +1930,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0; or |app_error_code| ==
- *     :enum:`NGTCP2_STOPPING`.
+ *     |stream_id| is 0
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -1957,8 +1953,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0; or |app_error_code| ==
- *     :enum:`NGTCP2_STOPPING`.
+ *     |stream_id| is 0
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -2086,8 +2081,6 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
  *     Packet number is exhausted, and cannot send any more packet.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |app_error_code| == :enum:`NGTCP2_STOPPING`.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_application_close(
     ngtcp2_conn *conn, uint8_t *dest, size_t destlen, uint16_t app_error_code,

@@ -1629,16 +1629,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   for (pfrc = &pktns->frq; *pfrc;) {
     switch ((*pfrc)->fr.type) {
-    case NGTCP2_FRAME_RESET_STREAM:
-      strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.reset_stream.stream_id);
-      if (strm == NULL &&
-          (*pfrc)->fr.reset_stream.app_error_code != NGTCP2_STOPPING) {
-        frc = *pfrc;
-        *pfrc = (*pfrc)->next;
-        ngtcp2_frame_chain_del(frc, conn->mem);
-        continue;
-      }
-      break;
     case NGTCP2_FRAME_STOP_SENDING:
       strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.stop_sending.stream_id);
       if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD)) {
@@ -4352,7 +4342,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
   }
 
-  rv = conn_reset_stream(conn, strm, NGTCP2_STOPPING);
+  rv = conn_reset_stream(conn, strm, fr->app_error_code);
   if (rv != 0) {
     return rv;
   }
@@ -6339,10 +6329,6 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
 
   conn->log.last_ts = ts;
 
-  if (app_error_code == NGTCP2_STOPPING) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
@@ -6486,10 +6472,6 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint64_t stream_id,
   int rv;
   ngtcp2_strm *strm;
 
-  if (app_error_code == NGTCP2_STOPPING) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
     return NGTCP2_ERR_STREAM_NOT_FOUND;
@@ -6512,10 +6494,6 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint64_t stream_id,
                                       uint16_t app_error_code) {
   ngtcp2_strm *strm;
 
-  if (app_error_code == NGTCP2_STOPPING) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {
     return NGTCP2_ERR_STREAM_NOT_FOUND;
@@ -6527,10 +6505,6 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, uint64_t stream_id,
 int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, uint64_t stream_id,
                                      uint16_t app_error_code) {
   ngtcp2_strm *strm;
-
-  if (app_error_code == NGTCP2_STOPPING) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
   if (strm == NULL) {

@@ -1024,7 +1024,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
   fr.reset_stream.stream_id = stream_id;
-  fr.reset_stream.app_error_code = NGTCP2_STOPPING;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR02;
   fr.reset_stream.final_offset = 100;
 
   pktlen =
@@ -1586,7 +1586,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   }
 
   CU_ASSERT(NULL != frc);
-  CU_ASSERT(NGTCP2_STOPPING == frc->fr.reset_stream.app_error_code);
+  CU_ASSERT(NGTCP2_APP_ERR01 == frc->fr.reset_stream.app_error_code);
   CU_ASSERT(333 == frc->fr.reset_stream.final_offset);
 
   ngtcp2_conn_del(conn);
@@ -1627,7 +1627,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   }
 
   CU_ASSERT(NULL != frc);
-  CU_ASSERT(NGTCP2_STOPPING == frc->fr.reset_stream.app_error_code);
+  CU_ASSERT(NGTCP2_APP_ERR01 == frc->fr.reset_stream.app_error_code);
   CU_ASSERT(333 == frc->fr.reset_stream.final_offset);
 
   spktlen = ngtcp2_conn_write_pkt(conn, buf, sizeof(buf), ++t);
