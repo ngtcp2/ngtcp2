@@ -1140,21 +1140,21 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (rv != 0) {
       return rv;
     }
-  }
 
-  if (ackfr) {
-    rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
-    if (rv != 0) {
-      assert(NGTCP2_ERR_NOBUF == rv);
-      ngtcp2_mem_free(conn->mem, ackfr);
-    } else {
-      ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ack_ent = ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
-                                     0 /* ack_only */);
-      /* Now ackfr is owned by conn->acktr. */
-      pkt_empty = 0;
+    if (ackfr) {
+      rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
+      if (rv != 0) {
+        assert(NGTCP2_ERR_NOBUF == rv);
+        ngtcp2_mem_free(conn->mem, ackfr);
+      } else {
+        ngtcp2_acktr_commit_ack(&pktns->acktr);
+        ack_ent = ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack,
+                                       ts, 0 /* ack_only */);
+        /* Now ackfr is owned by conn->acktr. */
+        pkt_empty = 0;
+      }
+      ackfr = NULL;
     }
-    ackfr = NULL;
   }
 
   /* If we cannot write another packet, then we need to add padding to
