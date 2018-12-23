@@ -201,8 +201,7 @@ uint64_t ngtcp2_nth_server_bidi_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
-  // ((n-1) << 2) | 1
-  return (n << 2) - 3;
+  return ((n - 1) << 2) | 0x01;
 }
 
 uint64_t ngtcp2_nth_client_bidi_id(uint64_t n) {
@@ -217,7 +216,7 @@ uint64_t ngtcp2_nth_server_uni_id(uint64_t n) {
     return 0;
   }
 
-  return (n << 2) - 1;
+  return ((n - 1) << 2) | 0x03;
 }
 
 uint64_t ngtcp2_nth_client_uni_id(uint64_t n) {
@@ -225,5 +224,5 @@ uint64_t ngtcp2_nth_client_uni_id(uint64_t n) {
     return 0;
   }
 
-  return (n << 2) - 2;
+  return ((n - 1) << 2) | 0x02;
 }
