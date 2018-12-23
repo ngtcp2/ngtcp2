@@ -115,8 +115,8 @@ static const char *strerrorcode(uint16_t error_code) {
     return "SERVER_BUSY";
   case NGTCP2_FLOW_CONTROL_ERROR:
     return "FLOW_CONTROL_ERROR";
-  case NGTCP2_STREAM_ID_ERROR:
-    return "STREAM_ID_ERROR";
+  case NGTCP2_STREAM_LIMIT_ERROR:
+    return "STREAM_LIMIT_ERROR";
   case NGTCP2_STREAM_STATE_ERROR:
     return "STREAM_STATE_ERROR";
   case NGTCP2_FINAL_OFFSET_ERROR:

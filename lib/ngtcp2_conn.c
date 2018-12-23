@@ -2749,7 +2749,7 @@ static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
  * NGTCP2_ERR_STREAM_STATE
  *     Stream ID indicates that it is a local stream, and the local
  *     endpoint has not initiated it.
- * NGTCP2_ERR_STREAM_ID
+ * NGTCP2_ERR_STREAM_LIMIT
  *     Stream ID exceeds allowed limit.
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
@@ -2768,7 +2768,7 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
         return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (conn->max_remote_stream_id_bidi < fr->stream_id) {
-      return NGTCP2_ERR_STREAM_ID;
+      return NGTCP2_ERR_STREAM_LIMIT;
     }
 
     idtr = &conn->remote_bidi_idtr;
@@ -3878,7 +3878,7 @@ static int conn_max_data_violated(ngtcp2_conn *conn, size_t datalen) {
  * NGTCP2_ERR_STREAM_STATE
  *     STREAM frame is received to the local stream which is not
  *     initiated.
- * NGTCP2_ERR_STREAM_ID
+ * NGTCP2_ERR_STREAM_LIMIT
  *     STREAM frame has remote stream ID which is strictly greater
  *     than the allowed limit.
  * NGTCP2_ERR_PROTO
@@ -3912,7 +3912,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (conn->max_remote_stream_id_bidi < fr->stream_id) {
-      return NGTCP2_ERR_STREAM_ID;
+      return NGTCP2_ERR_STREAM_LIMIT;
     }
 
     idtr = &conn->remote_bidi_idtr;
@@ -3921,7 +3921,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return NGTCP2_ERR_PROTO;
     }
     if (conn->max_remote_stream_id_uni < fr->stream_id) {
-      return NGTCP2_ERR_STREAM_ID;
+      return NGTCP2_ERR_STREAM_LIMIT;
     }
 
     idtr = &conn->remote_uni_idtr;
@@ -4162,7 +4162,7 @@ handle_remote_stream_id_extension(uint64_t *punsent_max_remote_stream_id) {
  * NGTCP2_ERR_STREAM_STATE
  *     RESET_STREAM frame is received to the local stream which is not
  *     initiated.
- * NGTCP2_ERR_STREAM_ID
+ * NGTCP2_ERR_STREAM_LIMIT
  *     RESET_STREAM frame has remote stream ID which is strictly
  *     greater than the allowed limit.
  * NGTCP2_ERR_PROTO
@@ -4193,7 +4193,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
         return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (fr->stream_id > conn->max_remote_stream_id_bidi) {
-      return NGTCP2_ERR_STREAM_ID;
+      return NGTCP2_ERR_STREAM_LIMIT;
     }
 
     idtr = &conn->remote_bidi_idtr;
@@ -4202,7 +4202,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
       return NGTCP2_ERR_PROTO;
     }
     if (fr->stream_id > conn->max_remote_stream_id_uni) {
-      return NGTCP2_ERR_STREAM_ID;
+      return NGTCP2_ERR_STREAM_LIMIT;
     }
 
     idtr = &conn->remote_uni_idtr;
@@ -4275,7 +4275,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
  * NGTCP2_ERR_STREAM_STATE
  *     STOP_SENDING frame is received to the local stream which is not
  *     initiated.
- * NGTCP2_ERR_STREAM_ID
+ * NGTCP2_ERR_STREAM_LIMIT
  *     STOP_SENDING frame has remote stream ID which is strictly
  *     greater than the allowed limit.
  * NGTCP2_ERR_PROTO
@@ -4300,7 +4300,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
         return NGTCP2_ERR_STREAM_STATE;
       }
     } else if (fr->stream_id > conn->max_remote_stream_id_bidi) {
-      return NGTCP2_ERR_STREAM_ID;
+      return NGTCP2_ERR_STREAM_LIMIT;
     }
 
     idtr = &conn->remote_bidi_idtr;
@@ -4585,7 +4585,7 @@ static int conn_recv_max_streams(ngtcp2_conn *conn,
  *     ACK frame is malformed.
  * NGTCP2_ERR_STREAM_STATE
  *     Frame is received to the local stream which is not initiated.
- * NGTCP2_ERR_STREAM_ID
+ * NGTCP2_ERR_STREAM_LIMIT
  *     Frame has remote stream ID which is strictly greater than the
  *     allowed limit.
  * NGTCP2_ERR_FLOW_CONTROL

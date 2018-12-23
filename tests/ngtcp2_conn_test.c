@@ -1399,7 +1399,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->scid, 1, &fr);
   rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, 1);
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_LIMIT == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -2846,7 +2846,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   memset(&ud, 0, sizeof(ud));
   rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_LIMIT == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -3104,7 +3104,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_ID == rv);
+  CU_ASSERT(NGTCP2_ERR_STREAM_LIMIT == rv);
 
   ngtcp2_conn_del(conn);
 
