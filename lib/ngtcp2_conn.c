@@ -5754,9 +5754,13 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
 
   switch (p->type) {
   case NGTCP2_PKT_INITIAL:
+    if (pktlen < NGTCP2_MIN_INITIAL_PKTLEN) {
+      return -1;
+    }
+    break;
+  case NGTCP2_PKT_0RTT_PROTECTED:
     /* 0-RTT Protected packet may arrive before Initial packet due to
        re-ordering. */
-  case NGTCP2_PKT_0RTT_PROTECTED:
     break;
   default:
     return -1;

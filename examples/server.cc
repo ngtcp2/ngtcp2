@@ -1957,22 +1957,15 @@ int Server::on_read() {
     if (handler_it == std::end(handlers_)) {
       auto ctos_it = ctos_.find(dcid_key);
       if (ctos_it == std::end(ctos_)) {
-        constexpr size_t MIN_PKT_SIZE = 1200;
-        if (static_cast<size_t>(nread) < MIN_PKT_SIZE) {
+        rv = ngtcp2_accept(&hd, buf.data(), nread);
+        if (rv == -1) {
           if (!config.quiet) {
-            std::cerr << "Initial packet is too short: " << nread << " < "
-                      << MIN_PKT_SIZE << std::endl;
+            std::cerr << "Unexpected packet received: length=" << nread
+                      << std::endl;
           }
           return 0;
         }
 
-        rv = ngtcp2_accept(&hd, buf.data(), nread);
-        if (rv == -1) {
-          if (!config.quiet) {
-            std::cerr << "Unexpected packet received" << std::endl;
-          }
-          return 0;
-        }
         if (rv == 1) {
           if (!config.quiet) {
             std::cerr << "Unsupported version: Send Version Negotiation"

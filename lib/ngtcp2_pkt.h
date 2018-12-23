@@ -796,12 +796,6 @@ size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
 size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
 
 /*
- * ngtcp2_pkt_get_type_long returns the long packet type.  |c| is the
- * first byte of Long packet header.
- */
-uint8_t ngtcp2_pkt_get_type_long(uint8_t c);
-
-/*
  * ngtcp2_pkt_verify_reserved_bits verifies that the first byte |c| of
  * the packet header has the correct reserved bits.
  *

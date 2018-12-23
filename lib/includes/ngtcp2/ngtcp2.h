@@ -170,6 +170,10 @@ typedef struct {
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
 
+/* NGTCP2_MIN_INITIAL_PKTLEN is the minimum UDP packet size for a
+   packet sent by client which contains its first Initial packet. */
+#define NGTCP2_MIN_INITIAL_PKTLEN 1200
+
 /* NGTCP2_MAX_INITIAL_PKT_NUM is the maximum packet number a endpoint
    can choose */
 #define NGTCP2_MAX_INITIAL_PKT_NUM 0xfffffbffu
@@ -928,6 +932,14 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_version_negotiation(
     uint8_t *dest, size_t destlen, uint8_t unused_random,
     const ngtcp2_cid *dcid, const ngtcp2_cid *scid, const uint32_t *sv,
     size_t nsv);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_get_type_long` returns the long packet type.  |c| is
+ * the first byte of Long packet header.
+ */
+NGTCP2_EXTERN uint8_t ngtcp2_pkt_get_type_long(uint8_t c);
 
 struct ngtcp2_conn;
 
