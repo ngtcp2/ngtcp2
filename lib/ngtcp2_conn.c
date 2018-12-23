@@ -5058,10 +5058,6 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const uint8_t *pkt, size_t pktlen,
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         return 0;
       }
-      if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
-          ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
-        return 0;
-      }
       return (int)nread;
     }
 
