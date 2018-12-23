@@ -1812,27 +1812,14 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
   return 0;
 }
 
-int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
-                            size_t payloadlen) {
-  size_t len = 1;
+int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, size_t odcil,
+                            const uint8_t *payload, size_t payloadlen) {
+  size_t len = 1 + odcil;
   const uint8_t *p = payload;
-  size_t odcil;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
-
-  odcil = *p & 0xf;
-  if (odcil) {
-    odcil += 3;
-  }
-  len += odcil;
-
-  if (payloadlen < len) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  ++p;
 
   ngtcp2_cid_init(&dest->odcid, p, odcil);
   p += odcil;
@@ -1938,12 +1925,12 @@ ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
     return NGTCP2_ERR_NOBUF;
   }
 
+  dest[0] &= 0xf0;
+
   p = dest + nwrite;
 
-  if (odcid->datalen == 0) {
-    *p++ = 0;
-  } else {
-    *p++ = (uint8_t)(odcid->datalen - 3);
+  if (odcid->datalen) {
+    dest[0] |= (uint8_t)(odcid->datalen - 3);
     p = ngtcp2_cpymem(p, odcid->data, odcid->datalen);
   }
 

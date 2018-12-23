@@ -1083,7 +1083,8 @@ void test_ngtcp2_pkt_write_retry(void) {
   CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
 
-  rv = ngtcp2_pkt_decode_retry(&retry, buf + nread, (size_t)(spktlen - nread));
+  rv = ngtcp2_pkt_decode_retry(&retry, odcid.datalen, buf + nread,
+                               (size_t)(spktlen - nread));
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_cid_eq(&odcid, &retry.odcid));

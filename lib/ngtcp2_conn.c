@@ -2543,7 +2543,7 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  * conn_on_retry is called when Retry packet is received.  The
  * function decodes the data in the buffer pointed by |payload| whose
  * length is |payloadlen| as Retry packet payload.  The packet header
- * is given in |hd|.
+ * is given in |hd|.  The length of ODCIL is given as |odcil|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2558,7 +2558,8 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  *     ODCID does not match; or Token is empty.
  */
 static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                         const uint8_t *payload, size_t payloadlen) {
+                         size_t odcil, const uint8_t *payload,
+                         size_t payloadlen) {
   int rv;
   ngtcp2_pkt_retry retry;
   uint8_t *p;
@@ -2570,7 +2571,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return 0;
   }
 
-  rv = ngtcp2_pkt_decode_retry(&retry, payload, payloadlen);
+  rv = ngtcp2_pkt_decode_retry(&retry, odcil, payload, payloadlen);
   if (rv != 0) {
     return rv;
   }
@@ -3267,6 +3268,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   ngtcp2_pktns *pktns;
   ngtcp2_strm *crypto = &conn->crypto;
   uint64_t max_crypto_rx_offset;
+  size_t odcil;
 
   if (pktlen == 0) {
     return 0;
@@ -3348,7 +3350,11 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    rv = conn_on_retry(conn, &hd, pkt + hdpktlen, pktlen - hdpktlen);
+    odcil = pkt[0] & 0x0f;
+    if (odcil) {
+      odcil += 3;
+    }
+    rv = conn_on_retry(conn, &hd, odcil, pkt + hdpktlen, pktlen - hdpktlen);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
