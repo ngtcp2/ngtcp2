@@ -173,7 +173,13 @@ typedef enum {
   NGTCP2_RTB_FLAG_NONE = 0x00,
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
-  NGTCP2_RTB_FLAG_PROBE = 0x1,
+  NGTCP2_RTB_FLAG_PROBE = 0x01,
+  /* NGTCP2_RTB_FLAG_CRYPTO_PKT indicates that the entry includes
+     handshake CRYPTO frame. */
+  NGTCP2_RTB_FLAG_CRYPTO_PKT = 0x02,
+  /* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
+     acknowledgement. */
+  NGTCP2_RTB_FLAG_ACK_ELICITING = 0x4,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -234,6 +240,7 @@ typedef struct {
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
+  size_t num_ack_eliciting;
 } ngtcp2_rtb;
 
 /*
@@ -267,11 +274,7 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
- * |pkt_num| is a packet number which includes |fr|.  |hd| is a header
- * of packet which contains |fr|.  The frames included in the lost
- * packets as a result of verified RTO will be prepended to |*pfrc|.
- * Even when this function fails, some frames might be prepended to
- * |*pfrc| and the caller should handle them.
+ * |pkt_num| is a packet number which includes |fr|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -281,8 +284,7 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                        const ngtcp2_pkt_hd *hd, const ngtcp2_ack *fr,
+int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                         ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 /*
@@ -298,8 +300,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
  *     Out of memory
  */
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                               ngtcp2_rcvry_stat *rcs, uint64_t largest_ack,
-                               uint64_t last_tx_pkt_num, ngtcp2_tstamp ts);
+                               ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends
@@ -321,9 +322,15 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_clear removes all ngtcp2_rtb_entry objects.
- * bytes_in_flight and largest_acked_tx_pkt_num are also reset to
- * their initial value.
+ * bytes_in_flight, largest_acked_tx_pkt_num, and num_ack_eliciting
+ * are also reset to their initial value.
  */
 void ngtcp2_rtb_clear(ngtcp2_rtb *rtb);
+
+/*
+ * ngtcp2_rtb_num_ack_eliciting returns the number of ACK eliciting
+ * entries.
+ */
+size_t ngtcp2_rtb_num_ack_eliciting(ngtcp2_rtb *rtb);
 
 #endif /* NGTCP2_RTB_H */

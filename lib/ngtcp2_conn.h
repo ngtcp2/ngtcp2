@@ -66,18 +66,20 @@ typedef enum {
    endpoint can send initially. */
 #define NGTCP2_STRM0_MAX_STREAM_DATA 65535
 
-/* NGTCP2_REORDERING_THRESHOLD is kReorderingThreshold described in
-   draft-ietf-quic-recovery-10. */
-#define NGTCP2_REORDERING_THRESHOLD 3
+/* NGTCP2_PACKET_THRESHOLD is kPacketThreshold described in
+   draft-ietf-quic-recovery-17. */
+#define NGTCP2_PACKET_THRESHOLD 3
+
+/* NGTCP2_GRANULARITY is kGranularity described in
+   draft-ietf-quic-recovery-17. */
+#define NGTCP2_GRANULARITY NGTCP2_MILLISECONDS
 
 #define NGTCP2_DEFAULT_INITIAL_RTT (100 * NGTCP2_MILLISECONDS)
-#define NGTCP2_MIN_TLP_TIMEOUT (10 * NGTCP2_MILLISECONDS)
-#define NGTCP2_MIN_RTO_TIMEOUT (200 * NGTCP2_MILLISECONDS)
-#define NGTCP2_MAX_TLP_COUNT 2
 
 #define NGTCP2_MAX_DGRAM_SIZE 1200
 #define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
 #define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
+#define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 2
 
 /* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
    crypto stream in Initial packet.  We set this hard limit here
@@ -166,8 +168,7 @@ typedef struct {
 struct ngtcp2_cc_stat {
   uint64_t cwnd;
   uint64_t ssthresh;
-  /* eor_pkt_num is "end_of_recovery" */
-  uint64_t eor_pkt_num;
+  uint64_t recovery_start_time;
 };
 
 typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
@@ -273,8 +274,6 @@ struct ngtcp2_conn {
   /* max_tx_offset is the maximum offset that local endpoint can
      send. */
   uint64_t max_tx_offset;
-  /* largest_ack is the largest ack in received ACK packet. */
-  int64_t largest_ack;
   /* first_rx_bw_ts is a timestamp when bandwidth measurement is
      started. */
   ngtcp2_tstamp first_rx_bw_ts;
@@ -396,8 +395,7 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
 
 /*
- * ngtcp2_conn_detect_lost_pkt detects lost packets based on the
- * incoming largest acknowledged packet number |largest_ack|.
+ * ngtcp2_conn_detect_lost_pkt detects lost packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -406,8 +404,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
  *     Out of memory.
  */
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                                ngtcp2_rcvry_stat *rcs, uint64_t largest_ack,
-                                ngtcp2_tstamp ts);
+                                ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_tx_strmq_top returns the ngtcp2_strm which sits on the

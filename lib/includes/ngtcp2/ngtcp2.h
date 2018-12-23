@@ -719,16 +719,14 @@ typedef struct {
   double smoothed_rtt;
   double rttvar;
   ngtcp2_tstamp loss_time;
-  uint64_t reordering_threshold;
-  size_t tlp_count;
-  size_t rto_count;
-  size_t handshake_count;
+  size_t pto_count;
+  size_t crypto_count;
   /* probe_pkt_left is the number of probe packet to sent */
   size_t probe_pkt_left;
   ngtcp2_tstamp loss_detection_timer;
-  uint64_t largest_sent_before_rto;
   /* last_tx_pkt_ts corresponds to
-     time_of_last_sent_retransmittable_packet. */
+     time_of_last_sent_ack_eliciting_packet in
+     draft-ietf-quic-recovery-17. */
   ngtcp2_tstamp last_tx_pkt_ts;
   /* last_hs_tx_pkt_ts corresponds to
      time_of_last_sent_handshake_packet. */
