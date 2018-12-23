@@ -301,7 +301,18 @@ static ssize_t decode_varint(uint64_t *pdest, const uint8_t *p,
   size_t n;
 
   p += sizeof(uint16_t);
-  if (len == 0 || len > 8 || (size_t)(end - p) < len) {
+
+  switch (len) {
+  case 1:
+  case 2:
+  case 4:
+  case 8:
+    break;
+  default:
+    return -1;
+  }
+
+  if ((size_t)(end - p) < len) {
     return -1;
   }
 
