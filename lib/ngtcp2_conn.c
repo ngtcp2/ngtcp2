@@ -3516,6 +3516,13 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
+  rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
+  if (rv != 0) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet has incorrect reserved bits");
+    return rv;
+  }
+
   if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet was discarded because of duplicated packet number");
@@ -4729,6 +4736,13 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
                                          pkt_num_bits(hd.pkt_numlen));
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
+
+  rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
+  if (rv != 0) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet has incorrect reserved bits");
+    return rv;
+  }
 
   if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,

@@ -2018,3 +2018,10 @@ size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left) {
 uint8_t ngtcp2_pkt_get_type_long(uint8_t c) {
   return (c & NGTCP2_LONG_TYPE_MASK) >> 4;
 }
+
+int ngtcp2_pkt_verify_reserved_bits(uint8_t c) {
+  if (c & NGTCP2_HEADER_FORM_BIT) {
+    return (c & NGTCP2_LONG_RESERVED_BIT_MASK) == 0 ? 0 : NGTCP2_ERR_PROTO;
+  }
+  return (c & NGTCP2_SHORT_RESERVED_BIT_MASK) == 0 ? 0 : NGTCP2_ERR_PROTO;
+}
