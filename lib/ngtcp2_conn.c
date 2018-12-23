@@ -3571,6 +3571,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
       rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
       if (rv != 0) {
         return rv;
@@ -4482,6 +4483,7 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
       rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
       if (rv != 0) {
         return rv;
@@ -4844,6 +4846,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
     case NGTCP2_FRAME_PADDING:
     case NGTCP2_FRAME_CONNECTION_CLOSE:
     case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
@@ -4854,6 +4857,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
 
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
       rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
       if (rv != 0) {
         return rv;

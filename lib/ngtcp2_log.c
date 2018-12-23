@@ -423,6 +423,7 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     log_fr_stream(log, hd, &fr->stream, dir);
     break;
   case NGTCP2_FRAME_ACK:
+  case NGTCP2_FRAME_ACK_ECN:
     log_fr_ack(log, hd, &fr->ack, dir);
     break;
   case NGTCP2_FRAME_PADDING:

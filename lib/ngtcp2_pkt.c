@@ -531,10 +531,13 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   size_t i, j;
   ngtcp2_ack_blk *blk;
   size_t n;
+  uint8_t type;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }
+
+  type = payload[0];
 
   p = payload + 1;
 
@@ -599,12 +602,30 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
     }
   }
 
+  if (type == NGTCP2_FRAME_ACK_ECN) {
+    len += 3;
+    if (payloadlen < len) {
+      return NGTCP2_ERR_FRAME_ENCODING;
+    }
+
+    for (i = 0; i < 3; ++i) {
+      n = ngtcp2_get_varint_len(p);
+      len += n - 1;
+
+      if (payloadlen < len) {
+        return NGTCP2_ERR_FRAME_ENCODING;
+      }
+
+      p += n;
+    }
+  }
+
   /* TODO We might not decode all blocks.  It could be very large. */
   max_num_blks = ngtcp2_min(NGTCP2_MAX_ACK_BLKS, num_blks);
 
   p = payload + 1;
 
-  dest->type = NGTCP2_FRAME_ACK;
+  dest->type = type;
   dest->largest_ack = ngtcp2_get_varint(&n, p);
   p += n;
   dest->ack_delay = ngtcp2_get_varint(&n, p);
@@ -626,6 +647,14 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
   for (i = max_num_blks; i < num_blks; ++i) {
     p += ngtcp2_get_varint_len(p);
     p += ngtcp2_get_varint_len(p);
+  }
+
+  if (type == NGTCP2_FRAME_ACK_ECN) {
+    /* Just parse ECN section for now */
+    for (i = 0; i < 3; ++i) {
+      ngtcp2_get_varint(&n, p);
+      p += n;
+    }
   }
 
   assert((size_t)(p - payload) == len);
