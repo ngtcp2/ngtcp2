@@ -46,6 +46,7 @@
 using namespace ngtcp2;
 
 struct Config {
+  ngtcp2_cid dcid;
   // tx_loss_prob is probability of losing outgoing packet.
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.

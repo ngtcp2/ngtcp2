@@ -29,6 +29,7 @@
 #  include <arpa/inet.h>
 #endif // HAVE_ARPA_INET_H
 
+#include <cassert>
 #include <chrono>
 #include <array>
 
@@ -65,6 +66,31 @@ std::string format_hex(const uint8_t *s, size_t len) {
 
 std::string format_hex(const std::string &s) {
   return format_hex(reinterpret_cast<const uint8_t *>(s.data()), s.size());
+}
+
+namespace {
+uint32_t hex_to_uint(char c) {
+  if (c <= '9') {
+    return c - '0';
+  }
+  if (c <= 'Z') {
+    return c - 'A' + 10;
+  }
+  if (c <= 'z') {
+    return c - 'a' + 10;
+  }
+  return 256;
+}
+} // namespace
+
+std::string decode_hex(const std::string &s) {
+  assert(s.size() % 2 == 0);
+  std::string res(s.size() / 2, '0');
+  auto p = std::begin(res);
+  for (auto it = std::begin(s); it != std::end(s); it += 2) {
+    *p++ = (hex_to_uint(*it) << 4) | hex_to_uint(*(it + 1));
+  }
+  return res;
 }
 
 namespace {

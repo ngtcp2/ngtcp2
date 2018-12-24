@@ -819,9 +819,13 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   scid.datalen = 17;
   std::generate(std::begin(scid.data), std::begin(scid.data) + scid.datalen,
                 [&dis]() { return dis(randgen); });
-  dcid.datalen = 18;
-  std::generate(std::begin(dcid.data), std::begin(dcid.data) + dcid.datalen,
-                [&dis]() { return dis(randgen); });
+  if (config.dcid.datalen == 0) {
+    dcid.datalen = 18;
+    std::generate(std::begin(dcid.data), std::begin(dcid.data) + dcid.datalen,
+                  [&dis]() { return dis(randgen); });
+  } else {
+    dcid = config.dcid;
+  }
 
   ngtcp2_settings settings{};
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
@@ -2159,6 +2163,10 @@ Options:
               Read/write QUIC transport parameters from/to <PATH>.  To
               send 0-RTT data, the  transport parameters received from
               the previous session must be supplied with this option.
+  --dcid=<DCID>
+              Specify  initial  DCID.   <DCID> is  hex  string.   When
+              decoded as binary, it should be  at least 8 bytes and at
+              most 18 bytes long.
   -h, --help  Display this help and exit.
 )";
 }
@@ -2185,6 +2193,7 @@ int main(int argc, char **argv) {
         {"timeout", required_argument, &flag, 3},
         {"session-file", required_argument, &flag, 4},
         {"tp-file", required_argument, &flag, 5},
+        {"dcid", required_argument, &flag, 6},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2255,6 +2264,18 @@ int main(int argc, char **argv) {
       case 5:
         // --tp-file
         config.tp_file = optarg;
+        break;
+      case 6:
+        // --dcid
+        auto dcidlen2 = strlen(optarg);
+        if (dcidlen2 % 2 || dcidlen2 / 2 < 8 || dcidlen2 / 2 > 18) {
+          std::cerr << "dcid: wrong length" << std::endl;
+          exit(EXIT_FAILURE);
+        }
+        auto dcid = util::decode_hex(optarg);
+        ngtcp2_cid_init(&config.dcid,
+                        reinterpret_cast<const uint8_t *>(dcid.c_str()),
+                        dcid.size());
         break;
       }
       break;

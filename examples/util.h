@@ -51,6 +51,8 @@ template <size_t N> std::string format_hex(const uint8_t (&s)[N]) {
   return format_hex(s, N);
 }
 
+std::string decode_hex(const std::string &s);
+
 // format_duration formats |ns| in human readable manner.  |ns| must
 // be nanoseconds resolution.  This function uses the largest unit so
 // that the integral part is strictly more than zero, and the
