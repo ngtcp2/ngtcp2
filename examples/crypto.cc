@@ -135,7 +135,7 @@ int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
                  size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
                  const Context &ctx) {
   std::array<uint8_t, 256> info;
-  static constexpr const uint8_t LABEL[] = "quic ";
+  static constexpr const uint8_t LABEL[] = "tls13 ";
 
   auto p = std::begin(info);
   *p++ = destlen / 256;
