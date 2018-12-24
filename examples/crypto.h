@@ -73,12 +73,6 @@ int derive_client_initial_secret(uint8_t *dest, size_t destlen,
 int derive_server_initial_secret(uint8_t *dest, size_t destlen,
                                  const uint8_t *secret, size_t secretlen);
 
-// qhkdf_expand derives secret using HKDF-Expand-Label with label
-// prefix "quic".  It returns 0 if it succeeds, or -1.
-int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                 size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                 const Context &ctx);
-
 // derive_packet_protection_key derives and stores the packet
 // protection key in the buffer pointed by |dest| of length |destlen|,
 // and the key size is returned.  This function returns the key length
@@ -138,13 +132,20 @@ ssize_t hp_mask(uint8_t *dest, size_t destlen, const Context &ctx,
                 const uint8_t *key, size_t keylen, const uint8_t *sample,
                 size_t samplelen);
 
-// hkdf_expand performs HKDF-expand.  This function returns 0 if it
-// succeeds, or -1.
+// hkdf_expand_label implements HKDF-Expand-Label function defined in
+// https://tools.ietf.org/html/rfc8446#section-7.1.  It uses 0 length
+// context.  This function returns 0 if it succeeds, or -1.
+int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
+                      size_t secretlen, const uint8_t *label, size_t labellen,
+                      const Context &ctx);
+
+// hkdf_expand perhorms HKDF-Expand.  It returns 0 if it succeeds, or
+// -1.
 int hkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                size_t secretlen, const uint8_t *info, size_t infolen,
+                size_t secretlen, const uint8_t *label, size_t labellen,
                 const Context &ctx);
 
-// hkdf_extract performs HKDF-extract.  This function returns 0 if it
+// hkdf_extract performs HKDF-Extract.  This function returns 0 if it
 // succeeds, or -1.
 int hkdf_extract(uint8_t *dest, size_t destlen, const uint8_t *secret,
                  size_t secretlen, const uint8_t *salt, size_t saltlen,

@@ -57,8 +57,8 @@ int derive_client_initial_secret(uint8_t *dest, size_t destlen,
   static constexpr uint8_t LABEL[] = "client in";
   Context ctx;
   prf_sha256(ctx);
-  return crypto::qhkdf_expand(dest, destlen, secret, secretlen, LABEL,
-                              str_size(LABEL), ctx);
+  return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
+                                   str_size(LABEL), ctx);
 }
 
 int derive_server_initial_secret(uint8_t *dest, size_t destlen,
@@ -66,23 +66,23 @@ int derive_server_initial_secret(uint8_t *dest, size_t destlen,
   static constexpr uint8_t LABEL[] = "server in";
   Context ctx;
   prf_sha256(ctx);
-  return crypto::qhkdf_expand(dest, destlen, secret, secretlen, LABEL,
-                              str_size(LABEL), ctx);
+  return crypto::hkdf_expand_label(dest, destlen, secret, secretlen, LABEL,
+                                   str_size(LABEL), ctx);
 }
 
 ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
                                      const uint8_t *secret, size_t secretlen,
                                      const Context &ctx) {
   int rv;
-  static constexpr uint8_t LABEL_KEY[] = "quic key";
+  static constexpr uint8_t LABEL[] = "quic key";
 
   auto keylen = aead_key_length(ctx);
   if (keylen > destlen) {
     return -1;
   }
 
-  rv = crypto::qhkdf_expand(dest, keylen, secret, secretlen, LABEL_KEY,
-                            str_size(LABEL_KEY), ctx);
+  rv = crypto::hkdf_expand_label(dest, keylen, secret, secretlen, LABEL,
+                                 str_size(LABEL), ctx);
   if (rv != 0) {
     return -1;
   }
@@ -94,15 +94,15 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const Context &ctx) {
   int rv;
-  static constexpr uint8_t LABEL_IV[] = "quic iv";
+  static constexpr uint8_t LABEL[] = "quic iv";
 
   auto ivlen = std::max(static_cast<size_t>(8), aead_nonce_length(ctx));
   if (ivlen > destlen) {
     return -1;
   }
 
-  rv = crypto::qhkdf_expand(dest, ivlen, secret, secretlen, LABEL_IV,
-                            str_size(LABEL_IV), ctx);
+  rv = crypto::hkdf_expand_label(dest, ivlen, secret, secretlen, LABEL,
+                                 str_size(LABEL), ctx);
   if (rv != 0) {
     return -1;
   }
@@ -114,15 +114,15 @@ ssize_t derive_header_protection_key(uint8_t *dest, size_t destlen,
                                      const uint8_t *secret, size_t secretlen,
                                      const Context &ctx) {
   int rv;
-  static constexpr uint8_t LABEL_PKNKEY[] = "quic hp";
+  static constexpr uint8_t LABEL[] = "quic hp";
 
   auto keylen = aead_key_length(ctx);
   if (keylen > destlen) {
     return -1;
   }
 
-  rv = crypto::qhkdf_expand(dest, keylen, secret, secretlen, LABEL_PKNKEY,
-                            str_size(LABEL_PKNKEY), ctx);
+  rv = crypto::hkdf_expand_label(dest, keylen, secret, secretlen, LABEL,
+                                 str_size(LABEL), ctx);
 
   if (rv != 0) {
     return -1;
@@ -131,18 +131,18 @@ ssize_t derive_header_protection_key(uint8_t *dest, size_t destlen,
   return keylen;
 }
 
-int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                 size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                 const Context &ctx) {
+int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
+                      size_t secretlen, const uint8_t *label, size_t labellen,
+                      const Context &ctx) {
   std::array<uint8_t, 256> info;
   static constexpr const uint8_t LABEL[] = "tls13 ";
 
   auto p = std::begin(info);
   *p++ = destlen / 256;
   *p++ = destlen % 256;
-  *p++ = str_size(LABEL) + qlabellen;
+  *p++ = str_size(LABEL) + labellen;
   p = std::copy_n(LABEL, str_size(LABEL), p);
-  p = std::copy_n(qlabel, qlabellen, p);
+  p = std::copy_n(label, labellen, p);
   *p++ = 0;
 
   return hkdf_expand(dest, destlen, secret, secretlen, info.data(),
