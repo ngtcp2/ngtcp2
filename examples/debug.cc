@@ -135,6 +135,13 @@ void print_server_pp_hp(const uint8_t *data, size_t len) {
   fprintf(outfile, "+ server_pp_hp=%s\n", util::format_hex(data, len).c_str());
 }
 
+void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,
+                   size_t samplelen) {
+  fprintf(outfile, "mask=%s sample=%s\n",
+          util::format_hex(mask, masklen).c_str(),
+          util::format_hex(sample, samplelen).c_str());
+}
+
 void log_printf(void *user_data, const char *fmt, ...) {
   va_list ap;
 

@@ -75,6 +75,9 @@ void print_server_pp_iv(const uint8_t *data, size_t len);
 void print_client_pp_hp(const uint8_t *data, size_t len);
 void print_server_pp_hp(const uint8_t *data, size_t len);
 
+void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,
+                   size_t samplelen);
+
 void log_printf(void *user_data, const char *fmt, ...);
 
 } // namespace debug

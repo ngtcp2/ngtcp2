@@ -834,6 +834,10 @@ ssize_t do_in_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
+  if (!config.quiet && config.show_secret) {
+    debug::print_hp_mask(dest, destlen, sample, samplelen);
+  }
+
   return nwrite;
 }
 } // namespace
@@ -847,6 +851,10 @@ ssize_t do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   auto nwrite = h->hp_mask(dest, destlen, key, keylen, sample, samplelen);
   if (nwrite < 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  if (!config.quiet && config.show_secret) {
+    debug::print_hp_mask(dest, destlen, sample, samplelen);
   }
 
   return nwrite;
