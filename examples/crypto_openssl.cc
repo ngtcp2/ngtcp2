@@ -55,11 +55,11 @@ int negotiated_aead(Context &ctx, SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case 0x03001301u: // TLS_AES_128_GCM_SHA256
     ctx.aead = EVP_aes_128_gcm();
-    ctx.hp = EVP_aes_128_ecb();
+    ctx.hp = EVP_aes_128_ctr();
     return 0;
   case 0x03001302u: // TLS_AES_256_GCM_SHA384
     ctx.aead = EVP_aes_256_gcm();
-    ctx.hp = EVP_aes_256_ecb();
+    ctx.hp = EVP_aes_256_ctr();
     return 0;
   case 0x03001303u: // TLS_CHACHA20_POLY1305_SHA256
     ctx.aead = EVP_chacha20_poly1305();
@@ -214,10 +214,7 @@ size_t aead_nonce_length(const Context &ctx) {
 ssize_t hp_mask(uint8_t *dest, size_t destlen, const Context &ctx,
                 const uint8_t *key, size_t keylen, const uint8_t *sample,
                 size_t samplelen) {
-  static constexpr uint8_t CHACHA_INPUT[] = "\x00\x00\x00\x00\x00";
-  const uint8_t *iv = nullptr;
-  const uint8_t *plaintext;
-  size_t plaintextlen;
+  static constexpr uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
 
   auto actx = EVP_CIPHER_CTX_new();
   if (actx == nullptr) {
@@ -226,30 +223,19 @@ ssize_t hp_mask(uint8_t *dest, size_t destlen, const Context &ctx,
 
   auto actx_d = defer(EVP_CIPHER_CTX_free, actx);
 
-  if (ctx.hp == EVP_chacha20()) {
-    iv = sample;
-    plaintext = CHACHA_INPUT;
-    plaintextlen = sizeof(CHACHA_INPUT) - 1;
-  } else {
-    plaintext = sample;
-    plaintextlen = samplelen;
-  }
-
-  if (EVP_EncryptInit_ex(actx, ctx.hp, nullptr, key, iv) != 1) {
-    return -1;
-  }
-  if (EVP_CIPHER_CTX_set_padding(actx, 0) != 1) {
+  if (EVP_EncryptInit_ex(actx, ctx.hp, nullptr, key, sample) != 1) {
     return -1;
   }
 
   size_t outlen = 0;
   int len;
 
-  if (EVP_EncryptUpdate(actx, dest, &len, plaintext, plaintextlen) != 1) {
+  if (EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT, str_size(PLAINTEXT)) !=
+      1) {
     return -1;
   }
 
-  assert(len > 0);
+  assert(len == 5);
 
   outlen = len;
 
@@ -344,7 +330,7 @@ void prf_sha256(Context &ctx) { ctx.prf = EVP_sha256(); }
 
 void aead_aes_128_gcm(Context &ctx) {
   ctx.aead = EVP_aes_128_gcm();
-  ctx.hp = EVP_aes_128_ecb();
+  ctx.hp = EVP_aes_128_ctr();
 }
 
 int message_digest(uint8_t *res, const EVP_MD *meth, const uint8_t *data,
