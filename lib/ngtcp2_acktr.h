@@ -81,7 +81,6 @@ void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 typedef struct {
   ngtcp2_ack *ack;
   uint64_t pkt_num;
-  ngtcp2_tstamp ts;
 } ngtcp2_acktr_ack_entry;
 
 typedef enum {
@@ -180,8 +179,7 @@ ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
  * a pointer to the object it adds.
  */
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
-                                             uint64_t pkt_num, ngtcp2_ack *fr,
-                                             ngtcp2_tstamp ts);
+                                             uint64_t pkt_num, ngtcp2_ack *fr);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.

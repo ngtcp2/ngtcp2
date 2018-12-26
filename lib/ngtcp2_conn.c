@@ -1147,7 +1147,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
         ngtcp2_mem_free(conn->mem, ackfr);
       } else {
         ngtcp2_acktr_commit_ack(&pktns->acktr);
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
+        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
         /* Now ackfr is owned by conn->acktr. */
         pkt_empty = 0;
       }
@@ -1295,7 +1295,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_mem_free(conn->mem, ackfr);
     } else {
       ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
     }
     ackfr = NULL;
   }
@@ -1939,7 +1939,7 @@ tx_strmq_finish:
       } else {
         ngtcp2_acktr_commit_ack(&pktns->acktr);
         pkt_empty = 0;
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
+        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
         /* Now ackfr is owned by conn->acktr. */
         pkt_empty = 0;
       }
@@ -2014,6 +2014,8 @@ tx_strmq_finish:
  * |destlen|.  |type| is a long packet type to send.  If |type| is 0,
  * Short packet is used.
  *
+ * The packet written by this function will not be retransmitted.
+ *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
  *
@@ -2022,7 +2024,7 @@ tx_strmq_finish:
  */
 static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, uint8_t type,
-                                           ngtcp2_frame *fr, ngtcp2_tstamp ts) {
+                                           ngtcp2_frame *fr) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -2102,7 +2104,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   /* Do this when we are sure that there is no error. */
   if (fr->type == NGTCP2_FRAME_ACK) {
     ngtcp2_acktr_commit_ack(&pktns->acktr);
-    ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &fr->ack, ts);
+    ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &fr->ack);
   }
 
   ++pktns->last_tx_pkt_num;
@@ -2141,8 +2143,8 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  spktlen = conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT,
-                                        ackfr, ts);
+  spktlen =
+      conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT, ackfr);
   if (spktlen < 0) {
     ngtcp2_mem_free(conn->mem, ackfr);
     return spktlen;
@@ -2259,7 +2261,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_mem_free(conn->mem, ackfr);
     } else {
       ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
     }
     ackfr = NULL;
   }
@@ -6326,7 +6328,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
     pkt_type = NGTCP2_PKT_INITIAL;
   }
 
-  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, pkt_type, &fr, ts);
+  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, pkt_type, &fr);
 
   if (nwrite > 0) {
     conn->state = NGTCP2_CS_CLOSING;
@@ -6361,8 +6363,8 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
 
-  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT,
-                                       &fr, ts);
+  nwrite =
+      conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT, &fr);
   if (nwrite < 0) {
     return nwrite;
   }
