@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial
 language: cpp
 os:
   - osx
@@ -19,10 +19,8 @@ addons:
   apt:
     sources:
     - ubuntu-toolchain-r-test
-    - llvm-toolchain-trusty-7
     packages:
     - g++-8
-    - clang-7
     - autoconf
     - automake
     - autotools-dev
@@ -37,7 +35,7 @@ addons:
 before_install:
   - $CC --version
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then CMAKE_OPTS=" -DENABLE_ASAN=1" AUTOTOOLS_OPTS=" --enable-asan"; fi
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then  if [ "$CXX" = "g++" ]; then export CXX="g++-8" CC="gcc-8" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++-7" CC="clang-7"; fi; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then  if [ "$CXX" = "g++" ]; then export CXX="g++-8" CC="gcc-8" EXTRA_LDFLAGS="-fuse-ld=gold"; else export CXX="clang++" CC="clang"; fi; fi
   - $CC --version
   - cmake --version
 before_script:
