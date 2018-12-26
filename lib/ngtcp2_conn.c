@@ -1144,13 +1144,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
       if (rv != 0) {
         assert(NGTCP2_ERR_NOBUF == rv);
-        ngtcp2_mem_free(conn->mem, ackfr);
       } else {
         ngtcp2_acktr_commit_ack(&pktns->acktr);
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
-        /* Now ackfr is owned by conn->acktr. */
+        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
         pkt_empty = 0;
       }
+      ngtcp2_mem_free(conn->mem, ackfr);
       ackfr = NULL;
     }
   }
@@ -1292,11 +1291,11 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
-      ngtcp2_mem_free(conn->mem, ackfr);
     } else {
       ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
     }
+    ngtcp2_mem_free(conn->mem, ackfr);
     ackfr = NULL;
   }
 
@@ -1935,14 +1934,12 @@ tx_strmq_finish:
       rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
       if (rv != 0) {
         assert(NGTCP2_ERR_NOBUF == rv);
-        ngtcp2_mem_free(conn->mem, ackfr);
       } else {
         ngtcp2_acktr_commit_ack(&pktns->acktr);
-        pkt_empty = 0;
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
-        /* Now ackfr is owned by conn->acktr. */
+        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
         pkt_empty = 0;
       }
+      ngtcp2_mem_free(conn->mem, ackfr);
       ackfr = NULL;
     }
   }
@@ -2104,7 +2101,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   /* Do this when we are sure that there is no error. */
   if (fr->type == NGTCP2_FRAME_ACK) {
     ngtcp2_acktr_commit_ack(&pktns->acktr);
-    ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &fr->ack);
+    ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, fr->ack.largest_ack);
   }
 
   ++pktns->last_tx_pkt_num;
@@ -2145,8 +2142,8 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   spktlen =
       conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT, ackfr);
+  ngtcp2_mem_free(conn->mem, ackfr);
   if (spktlen < 0) {
-    ngtcp2_mem_free(conn->mem, ackfr);
     return spktlen;
   }
 
@@ -2258,11 +2255,11 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
     rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
     if (rv != 0) {
       assert(NGTCP2_ERR_NOBUF == rv);
-      ngtcp2_mem_free(conn->mem, ackfr);
     } else {
       ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
     }
+    ngtcp2_mem_free(conn->mem, ackfr);
     ackfr = NULL;
   }
 

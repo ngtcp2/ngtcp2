@@ -79,7 +79,7 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 
 typedef struct {
-  ngtcp2_ack *ack;
+  uint64_t largest_ack;
   uint64_t pkt_num;
 } ngtcp2_acktr_ack_entry;
 
@@ -173,13 +173,14 @@ int ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
 /*
- * ngtcp2_acktr_add_ack adds the outgoing ACK frame |fr| to |acktr|.
- * |pkt_num| is the packet number which |fr| belongs.  This function
- * transfers the ownership of |fr| to |acktr|.  This function returns
- * a pointer to the object it adds.
+ * ngtcp2_acktr_add_ack records outgoing ACK frame whose largest
+ * acknowledged packet number is |largest_ack|.  |pkt_num| is the
+ * packet number of a packet in which ACK frame is included.  This
+ * function returns a pointer to the object it adds.
  */
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
-                                             uint64_t pkt_num, ngtcp2_ack *fr);
+                                             uint64_t pkt_num,
+                                             uint64_t largest_ack);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.

@@ -73,8 +73,6 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem) {
 }
 
 void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
-  ngtcp2_acktr_ack_entry *ack_ent;
-  size_t i;
   ngtcp2_ksl_it it;
 
   if (acktr == NULL) {
@@ -87,10 +85,6 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
   }
   ngtcp2_ksl_free(&acktr->ents);
 
-  for (i = 0; i < acktr->acks.len; ++i) {
-    ack_ent = ngtcp2_ringbuf_get(&acktr->acks, i);
-    ngtcp2_mem_free(acktr->mem, ack_ent->ack);
-  }
   ngtcp2_ringbuf_free(&acktr->acks);
 }
 
@@ -213,17 +207,11 @@ ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr) {
 }
 
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
-                                             uint64_t pkt_num, ngtcp2_ack *fr) {
-  ngtcp2_acktr_ack_entry *ent;
+                                             uint64_t pkt_num,
+                                             uint64_t largest_ack) {
+  ngtcp2_acktr_ack_entry *ent = ngtcp2_ringbuf_push_front(&acktr->acks);
 
-  if (ngtcp2_ringbuf_full(&acktr->acks)) {
-    ent =
-        ngtcp2_ringbuf_get(&acktr->acks, ngtcp2_ringbuf_len(&acktr->acks) - 1);
-    ngtcp2_mem_free(acktr->mem, ent->ack);
-  }
-  ent = ngtcp2_ringbuf_push_front(&acktr->acks);
-
-  ent->ack = fr;
+  ent->largest_ack = largest_ack;
   ent->pkt_num = pkt_num;
 
   return ent;
@@ -257,70 +245,34 @@ static int acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
                         size_t ack_ent_offset) {
   ngtcp2_acktr_ack_entry *ack_ent;
   ngtcp2_acktr_entry *ent;
-  ngtcp2_ack *fr;
-  uint64_t largest_ack, min_ack;
-  size_t i;
   ngtcp2_ksl_it it;
   int rv;
 
+  assert(ngtcp2_ringbuf_len(rb));
+
   ack_ent = ngtcp2_ringbuf_get(rb, ack_ent_offset);
-  fr = ack_ent->ack;
-  largest_ack = fr->largest_ack;
-  min_ack = largest_ack - fr->first_ack_blklen;
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
-  it = ngtcp2_ksl_lower_bound(&acktr->ents, (int64_t)largest_ack);
-  if (ngtcp2_ksl_it_end(&it)) {
-    goto fin;
-  }
-
+  it = ngtcp2_ksl_lower_bound(&acktr->ents, (int64_t)ack_ent->largest_ack);
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);
-    if (ent->pkt_num < min_ack) {
-      break;
-    }
-    if (ent->pkt_num == largest_ack &&
-        ent->pkt_num - (ent->len - 1) == min_ack) {
-      rv = acktr_remove(acktr, &it, ent);
-      if (rv != 0) {
-        return rv;
-      }
-    } else {
-      ngtcp2_ksl_it_next(&it);
+    rv = acktr_remove(acktr, &it, ent);
+    if (rv != 0) {
+      return rv;
     }
   }
 
-  for (i = 0; i < fr->num_blks && !ngtcp2_ksl_it_end(&it); ++i) {
-    largest_ack = min_ack - fr->blks[i].gap - 2;
-    min_ack = largest_ack - fr->blks[i].blklen;
+  if (ngtcp2_ksl_len(&acktr->ents)) {
+    assert(ngtcp2_ksl_it_end(&it));
 
-    it = ngtcp2_ksl_lower_bound(&acktr->ents, (int64_t)largest_ack);
-    if (ngtcp2_ksl_it_end(&it)) {
-      break;
-    }
-
-    for (; !ngtcp2_ksl_it_end(&it);) {
-      ent = ngtcp2_ksl_it_get(&it);
-      if (ent->pkt_num < min_ack) {
-        break;
-      }
-      if (ent->pkt_num == largest_ack &&
-          ent->pkt_num - (ent->len - 1) == min_ack) {
-        rv = acktr_remove(acktr, &it, ent);
-        if (rv != 0) {
-          return rv;
-        }
-      } else {
-        ngtcp2_ksl_it_next(&it);
-      }
+    ngtcp2_ksl_it_prev(&it);
+    ent = ngtcp2_ksl_it_get(&it);
+    if (ent->pkt_num > ack_ent->largest_ack &&
+        ack_ent->largest_ack >= ent->pkt_num - (ent->len - 1)) {
+      ent->len = ent->pkt_num - ack_ent->largest_ack;
     }
   }
 
-fin:
-  for (i = ack_ent_offset; i < rb->len; ++i) {
-    ack_ent = ngtcp2_ringbuf_get(rb, i);
-    ngtcp2_mem_free(acktr->mem, ack_ent->ack);
-  }
   ngtcp2_ringbuf_resize(rb, ack_ent_offset);
 
   return 0;
