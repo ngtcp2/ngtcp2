@@ -2724,7 +2724,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return rv;
   }
 
-  rv = ngtcp2_acktr_recv_ack(&pktns->acktr, fr, conn, ts);
+  rv = ngtcp2_acktr_recv_ack(&pktns->acktr, fr);
   if (rv != 0) {
     return rv;
   }

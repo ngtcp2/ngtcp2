@@ -43,9 +43,6 @@
    packets which triggers the immediate ACK. */
 #define NGTCP2_NUM_IMMEDIATE_ACK_PKT 2
 
-struct ngtcp2_conn;
-typedef struct ngtcp2_conn ngtcp2_conn;
-
 struct ngtcp2_acktr_entry;
 typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
 
@@ -202,8 +199,7 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                          ngtcp2_conn *conn, ngtcp2_tstamp ts);
+int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr);
 
 /*
  * ngtcp2_acktr_commit_ack tells |acktr| that ACK frame is generated.

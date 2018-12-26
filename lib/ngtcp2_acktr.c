@@ -26,7 +26,6 @@
 
 #include <assert.h>
 
-#include "ngtcp2_conn.h"
 #include "ngtcp2_macro.h"
 
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
@@ -330,8 +329,7 @@ fin:
   return 0;
 }
 
-int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                          ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
   ngtcp2_acktr_ack_entry *ent;
   uint64_t largest_ack = fr->largest_ack, min_ack;
   size_t i, j;
@@ -356,9 +354,6 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
     rv = acktr_on_ack(acktr, rb, j);
     if (rv != 0) {
       return rv;
-    }
-    if (conn && largest_ack == ent->pkt_num && ent->ack_only) {
-      ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
     }
     return 0;
   }
