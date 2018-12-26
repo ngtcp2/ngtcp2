@@ -82,7 +82,6 @@ typedef struct {
   ngtcp2_ack *ack;
   uint64_t pkt_num;
   ngtcp2_tstamp ts;
-  uint8_t ack_only;
 } ngtcp2_acktr_ack_entry;
 
 typedef enum {
@@ -177,13 +176,12 @@ ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 /*
  * ngtcp2_acktr_add_ack adds the outgoing ACK frame |fr| to |acktr|.
  * |pkt_num| is the packet number which |fr| belongs.  This function
- * transfers the ownership of |fr| to |acktr|.  |ack_only| is nonzero
- * if the packet contains an ACK frame only.  This function returns a
- * pointer to the object it adds.
+ * transfers the ownership of |fr| to |acktr|.  This function returns
+ * a pointer to the object it adds.
  */
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              uint64_t pkt_num, ngtcp2_ack *fr,
-                                             ngtcp2_tstamp ts, int ack_only);
+                                             ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.

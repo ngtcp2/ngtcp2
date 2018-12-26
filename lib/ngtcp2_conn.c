@@ -973,7 +973,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ssize_t spktlen;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_rtb_entry *rtbent;
-  ngtcp2_acktr_ack_entry *ack_ent = NULL;
   ngtcp2_pktns *pktns;
   size_t left;
   uint8_t flags = NGTCP2_RTB_FLAG_NONE;
@@ -1148,8 +1147,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
         ngtcp2_mem_free(conn->mem, ackfr);
       } else {
         ngtcp2_acktr_commit_ack(&pktns->acktr);
-        ack_ent = ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack,
-                                       ts, 0 /* ack_only */);
+        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
         /* Now ackfr is owned by conn->acktr. */
         pkt_empty = 0;
       }
@@ -1194,8 +1192,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_rtb_entry_del(rtbent, conn->mem);
       return rv;
     }
-  } else if (ack_ent) {
-    ack_ent->ack_only = 1;
   }
 
   ++pktns->last_tx_pkt_num;
@@ -1230,7 +1226,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_crypto_ctx ctx;
   ngtcp2_pktns *pktns;
   ngtcp2_rtb_entry *rtbent;
-  ngtcp2_acktr_ack_entry *ack_ent = NULL;
   ssize_t spktlen;
   int force_initial;
 
@@ -1300,9 +1295,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_mem_free(conn->mem, ackfr);
     } else {
       ngtcp2_acktr_commit_ack(&pktns->acktr);
-
-      ack_ent = ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
-                                     0 /* ack_only*/);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
     }
     ackfr = NULL;
   }
@@ -1345,8 +1338,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (spktlen < 0) {
       return spktlen;
     }
-
-    ack_ent->ack_only = 1;
   }
 
   ++pktns->last_tx_pkt_num;
@@ -1588,7 +1579,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_rtb_entry *ent;
   ngtcp2_strm *strm;
   int pkt_empty = 1;
-  ngtcp2_acktr_ack_entry *ack_ent = NULL;
   size_t ndatalen = 0;
   int send_stream = 0;
   int stream_blocked = 0;
@@ -1949,9 +1939,7 @@ tx_strmq_finish:
       } else {
         ngtcp2_acktr_commit_ack(&pktns->acktr);
         pkt_empty = 0;
-
-        ack_ent = ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack,
-                                       ts, 0 /*ack_only*/);
+        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
         /* Now ackfr is owned by conn->acktr. */
         pkt_empty = 0;
       }
@@ -2009,8 +1997,6 @@ tx_strmq_finish:
         ngtcp2_strm_shutdown(data_strm, NGTCP2_STRM_FLAG_SHUT_WR);
       }
     }
-  } else if (ack_ent) {
-    ack_ent->ack_only = 1;
   }
 
   if (pdatalen && send_stream) {
@@ -2116,8 +2102,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   /* Do this when we are sure that there is no error. */
   if (fr->type == NGTCP2_FRAME_ACK) {
     ngtcp2_acktr_commit_ack(&pktns->acktr);
-    ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &fr->ack, ts,
-                         1 /* ack_only */);
+    ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &fr->ack, ts);
   }
 
   ++pktns->last_tx_pkt_num;
@@ -2274,8 +2259,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_mem_free(conn->mem, ackfr);
     } else {
       ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts,
-                           0 /* ack_only */);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, &ackfr->ack, ts);
     }
     ackfr = NULL;
   }

@@ -214,7 +214,7 @@ ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr) {
 
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              uint64_t pkt_num, ngtcp2_ack *fr,
-                                             ngtcp2_tstamp ts, int ack_only) {
+                                             ngtcp2_tstamp ts) {
   ngtcp2_acktr_ack_entry *ent;
 
   if (ngtcp2_ringbuf_full(&acktr->acks)) {
@@ -227,7 +227,6 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
   ent->ack = fr;
   ent->pkt_num = pkt_num;
   ent->ts = ts;
-  ent->ack_only = (uint8_t)ack_only;
 
   return ent;
 }
