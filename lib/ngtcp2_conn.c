@@ -3142,11 +3142,13 @@ static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
 static size_t pkt_num_bits(size_t pkt_numlen) {
   switch (pkt_numlen) {
   case 1:
-    return 7;
+    return 8;
   case 2:
-    return 14;
+    return 16;
+  case 3:
+    return 24;
   case 4:
-    return 30;
+    return 32;
   default:
     assert(0);
   }
