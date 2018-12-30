@@ -50,11 +50,18 @@ struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
 /*
- * ngtcp2_acktr_entry is a single packet which needs to be acked.
+ * ngtcp2_acktr_entry is a range of packets which need to be acked.
  */
 struct ngtcp2_acktr_entry {
+  /* pkt_num is the largest packet number to acknowledge in this
+     range. */
   uint64_t pkt_num;
+  /* len is the consecutive packets started from pkt_num which
+     includes pkt_num itself counting in decreasing order.  So pkt_num
+     = 987 and len = 2, this entry includes packet 987 and 986. */
   size_t len;
+  /* tstamp is the timestamp when a packet denoted by pkt_num is
+     received. */
   ngtcp2_tstamp tstamp;
 };
 
@@ -79,7 +86,9 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 
 typedef struct {
+  /* largest_ack is the largest packet number in outgoing ACK frame */
   uint64_t largest_ack;
+  /* pkt_num is the packet number that ACK frame is included. */
   uint64_t pkt_num;
 } ngtcp2_acktr_ack_entry;
 
@@ -114,7 +123,7 @@ typedef struct {
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
-     first time after the last outgoing protected ACK frame. */
+     first time after the last outgoing ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
   /* rx_npkt is the number of packets received without sending ACK. */
   size_t rx_npkt;
