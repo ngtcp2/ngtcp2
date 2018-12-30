@@ -117,6 +117,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
           ngtcp2_ksl_update_key(&acktr->ents, (int64_t)ent->pkt_num,
                                 (int64_t)pkt_num);
           ent->pkt_num = pkt_num;
+          ent->tstamp = ts;
           ++ent->len;
           added = 1;
         }
@@ -139,6 +140,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
             ngtcp2_ksl_update_key(&acktr->ents, (int64_t)ent->pkt_num,
                                   (int64_t)pkt_num);
             ent->pkt_num = pkt_num;
+            ent->tstamp = ts;
             ++ent->len;
             added = 1;
           }

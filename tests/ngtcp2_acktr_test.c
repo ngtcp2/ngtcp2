@@ -72,8 +72,8 @@ void test_ngtcp2_acktr_add(void) {
      added packet number extends the first entry. */
   ngtcp2_acktr_init(&acktr, &log, mem);
 
-  ngtcp2_acktr_add(&acktr, 1, 1, 0);
-  ngtcp2_acktr_add(&acktr, 0, 1, 0);
+  ngtcp2_acktr_add(&acktr, 1, 1, 100);
+  ngtcp2_acktr_add(&acktr, 0, 1, 101);
 
   CU_ASSERT(1 == ngtcp2_ksl_len(&acktr.ents));
 
@@ -82,6 +82,7 @@ void test_ngtcp2_acktr_add(void) {
 
   CU_ASSERT(1 == ent->pkt_num);
   CU_ASSERT(2 == ent->len);
+  CU_ASSERT(100 == ent->tstamp);
 
   ngtcp2_acktr_free(&acktr);
 
@@ -89,8 +90,8 @@ void test_ngtcp2_acktr_add(void) {
      to the forward. */
   ngtcp2_acktr_init(&acktr, &log, mem);
 
-  ngtcp2_acktr_add(&acktr, 0, 1, 0);
-  ngtcp2_acktr_add(&acktr, 1, 1, 0);
+  ngtcp2_acktr_add(&acktr, 0, 1, 100);
+  ngtcp2_acktr_add(&acktr, 1, 1, 101);
 
   CU_ASSERT(1 == ngtcp2_ksl_len(&acktr.ents));
 
@@ -99,19 +100,20 @@ void test_ngtcp2_acktr_add(void) {
 
   CU_ASSERT(1 == ent->pkt_num);
   CU_ASSERT(2 == ent->len);
+  CU_ASSERT(101 == ent->tstamp);
 
   ngtcp2_acktr_free(&acktr);
 
   /* The adding entry merges the existing 2 entries. */
   ngtcp2_acktr_init(&acktr, &log, mem);
 
-  ngtcp2_acktr_add(&acktr, 0, 1, 0);
-  ngtcp2_acktr_add(&acktr, 2, 1, 0);
-  ngtcp2_acktr_add(&acktr, 3, 1, 0);
+  ngtcp2_acktr_add(&acktr, 0, 1, 100);
+  ngtcp2_acktr_add(&acktr, 2, 1, 101);
+  ngtcp2_acktr_add(&acktr, 3, 1, 102);
 
   CU_ASSERT(2 == ngtcp2_ksl_len(&acktr.ents));
 
-  ngtcp2_acktr_add(&acktr, 1, 1, 0);
+  ngtcp2_acktr_add(&acktr, 1, 1, 103);
 
   CU_ASSERT(1 == ngtcp2_ksl_len(&acktr.ents));
 
@@ -120,20 +122,21 @@ void test_ngtcp2_acktr_add(void) {
 
   CU_ASSERT(3 == ent->pkt_num);
   CU_ASSERT(4 == ent->len);
+  CU_ASSERT(102 == ent->tstamp);
 
   ngtcp2_acktr_free(&acktr);
 
-  /* The adding entry does not merge the existing 2 entries.  It
-     extends the last entry. */
+  /* Adding entry does not merge the existing 2 entries.  It extends
+     the last entry. */
   ngtcp2_acktr_init(&acktr, &log, mem);
 
-  ngtcp2_acktr_add(&acktr, 0, 1, 0);
-  ngtcp2_acktr_add(&acktr, 3, 1, 0);
-  ngtcp2_acktr_add(&acktr, 4, 1, 0);
+  ngtcp2_acktr_add(&acktr, 0, 1, 100);
+  ngtcp2_acktr_add(&acktr, 3, 1, 101);
+  ngtcp2_acktr_add(&acktr, 4, 1, 102);
 
   CU_ASSERT(2 == ngtcp2_ksl_len(&acktr.ents));
 
-  ngtcp2_acktr_add(&acktr, 1, 1, 0);
+  ngtcp2_acktr_add(&acktr, 1, 1, 103);
 
   CU_ASSERT(2 == ngtcp2_ksl_len(&acktr.ents));
 
@@ -142,26 +145,28 @@ void test_ngtcp2_acktr_add(void) {
 
   CU_ASSERT(4 == ent->pkt_num);
   CU_ASSERT(2 == ent->len);
+  CU_ASSERT(102 == ent->tstamp);
 
   ngtcp2_ksl_it_next(&it);
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(1 == ent->pkt_num);
   CU_ASSERT(2 == ent->len);
+  CU_ASSERT(103 == ent->tstamp);
 
   ngtcp2_acktr_free(&acktr);
 
-  /* The adding entry does not merge the existing 2 entries.  It
-     extends the first entry. */
+  /* Adding entry does not merge the existing 2 entries.  It extends
+     the first entry. */
   ngtcp2_acktr_init(&acktr, &log, mem);
 
-  ngtcp2_acktr_add(&acktr, 0, 1, 0);
-  ngtcp2_acktr_add(&acktr, 3, 1, 0);
-  ngtcp2_acktr_add(&acktr, 4, 1, 0);
+  ngtcp2_acktr_add(&acktr, 0, 1, 100);
+  ngtcp2_acktr_add(&acktr, 3, 1, 101);
+  ngtcp2_acktr_add(&acktr, 4, 1, 102);
 
   CU_ASSERT(2 == ngtcp2_ksl_len(&acktr.ents));
 
-  ngtcp2_acktr_add(&acktr, 2, 1, 0);
+  ngtcp2_acktr_add(&acktr, 2, 1, 103);
 
   CU_ASSERT(2 == ngtcp2_ksl_len(&acktr.ents));
 
@@ -170,12 +175,14 @@ void test_ngtcp2_acktr_add(void) {
 
   CU_ASSERT(4 == ent->pkt_num);
   CU_ASSERT(3 == ent->len);
+  CU_ASSERT(102 == ent->tstamp);
 
   ngtcp2_ksl_it_next(&it);
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(0 == ent->pkt_num);
   CU_ASSERT(1 == ent->len);
+  CU_ASSERT(100 == ent->tstamp);
 
   ngtcp2_acktr_free(&acktr);
 
