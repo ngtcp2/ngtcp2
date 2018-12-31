@@ -191,8 +191,8 @@ static int crypto_offset_less(const ngtcp2_pq_entry *lhs,
   return lfrc->fr.offset < rfrc->fr.offset;
 }
 
-static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
-                      ngtcp2_mem *mem) {
+static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_default_cc *cc,
+                      ngtcp2_log *log, ngtcp2_mem *mem) {
   int rv;
 
   rv = ngtcp2_gaptr_init(&pktns->pngap, mem);
@@ -209,7 +209,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
     return rv;
   }
 
-  ngtcp2_rtb_init(&pktns->rtb, ccs, log, mem);
+  ngtcp2_rtb_init(&pktns->rtb, cc, log, mem);
   ngtcp2_pq_init(&pktns->cryptofrq, crypto_offset_less, mem);
 
   return 0;
@@ -302,17 +302,19 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_log_init(&(*pconn)->log, &(*pconn)->scid, settings->log_printf,
                   settings->initial_ts, user_data);
 
-  rv = pktns_init(&(*pconn)->in_pktns, &(*pconn)->ccs, &(*pconn)->log, mem);
+  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->ccs, &(*pconn)->log);
+
+  rv = pktns_init(&(*pconn)->in_pktns, &(*pconn)->cc, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->hs_pktns, &(*pconn)->ccs, &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->hs_pktns, &(*pconn)->cc, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->pktns, &(*pconn)->ccs, &(*pconn)->log, mem);
+  rv = pktns_init(&(*pconn)->pktns, &(*pconn)->cc, &(*pconn)->log, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
@@ -335,6 +337,7 @@ fail_pktns_init:
 fail_hs_pktns_init:
   pktns_free(&(*pconn)->in_pktns, mem);
 fail_in_pktns_init:
+  ngtcp2_default_cc_free(&(*pconn)->cc);
   ngtcp2_ringbuf_free(&(*pconn)->rx_path_challenge);
 fail_rx_path_challenge_init:
   ngtcp2_ringbuf_free(&(*pconn)->tx_path_challenge);
@@ -457,6 +460,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   pktns_free(&conn->pktns, conn->mem);
   pktns_free(&conn->hs_pktns, conn->mem);
   pktns_free(&conn->in_pktns, conn->mem);
+
+  ngtcp2_default_cc_free(&conn->cc);
 
   ngtcp2_ringbuf_free(&conn->rx_path_challenge);
   ngtcp2_ringbuf_free(&conn->tx_path_challenge);
@@ -6585,12 +6590,7 @@ void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, size_t datalen) {
 }
 
 size_t ngtcp2_conn_get_bytes_in_flight(ngtcp2_conn *conn) {
-  ngtcp2_pktns *in_pktns = &conn->in_pktns;
-  ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
-  ngtcp2_pktns *pktns = &conn->pktns;
-
-  return in_pktns->rtb.bytes_in_flight + hs_pktns->rtb.bytes_in_flight +
-         pktns->rtb.bytes_in_flight;
+  return conn->ccs.bytes_in_flight;
 }
 
 const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn) {

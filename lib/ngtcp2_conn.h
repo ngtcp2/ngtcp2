@@ -42,6 +42,7 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_log.h"
 #include "ngtcp2_pq.h"
+#include "ngtcp2_cc.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -75,11 +76,6 @@ typedef enum {
 #define NGTCP2_GRANULARITY NGTCP2_MILLISECONDS
 
 #define NGTCP2_DEFAULT_INITIAL_RTT (100 * NGTCP2_MILLISECONDS)
-
-#define NGTCP2_MAX_DGRAM_SIZE 1200
-#define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
-#define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
-#define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 2
 
 /* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
    crypto stream in Initial packet.  We set this hard limit here
@@ -165,14 +161,6 @@ typedef struct {
   uint8_t pkt_type;
 } ngtcp2_crypto_data;
 
-struct ngtcp2_cc_stat {
-  uint64_t cwnd;
-  uint64_t ssthresh;
-  uint64_t recovery_start_time;
-};
-
-typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
-
 typedef struct {
   /* pngap tracks received packet number in order to suppress
      duplicated packet number. */
@@ -229,6 +217,7 @@ struct ngtcp2_conn {
   ngtcp2_ringbuf tx_path_challenge;
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
+  ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer

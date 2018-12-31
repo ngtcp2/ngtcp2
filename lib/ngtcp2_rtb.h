@@ -34,9 +34,6 @@
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
 
-struct ngtcp2_cc_stat;
-typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
-
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
@@ -45,6 +42,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
+
+struct ngtcp2_default_cc;
+typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 
 /*
  * ngtcp2_frame_chain chains frames in a single packet.
@@ -232,11 +232,9 @@ typedef struct {
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
-  ngtcp2_cc_stat *ccs;
+  ngtcp2_default_cc *cc;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
-  /* bytes_in_flight is the sum of packet length linked from head. */
-  size_t bytes_in_flight;
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
@@ -246,7 +244,7 @@ typedef struct {
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_default_cc *cc, ngtcp2_log *log,
                      ngtcp2_mem *mem);
 
 /*

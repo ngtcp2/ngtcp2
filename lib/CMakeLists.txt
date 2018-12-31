@@ -56,6 +56,7 @@ set(ngtcp2_SOURCES
   ngtcp2_cid.c
   ngtcp2_psl.c
   ngtcp2_ksl.c
+  ngtcp2_cc.c
 )
 
 # Public shared library

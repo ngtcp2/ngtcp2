@@ -31,6 +31,7 @@
 #include "ngtcp2_conn.h"
 #include "ngtcp2_log.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_cc.h"
 
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
@@ -147,13 +148,12 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
 
 static int greater(int64_t lhs, int64_t rhs) { return lhs > rhs; }
 
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_cc_stat *ccs, ngtcp2_log *log,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_default_cc *cc, ngtcp2_log *log,
                      ngtcp2_mem *mem) {
   ngtcp2_ksl_init(&rtb->ents, greater, -1, mem);
-  rtb->ccs = ccs;
+  rtb->cc = cc;
   rtb->log = log;
   rtb->mem = mem;
-  rtb->bytes_in_flight = 0;
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
 }
@@ -175,7 +175,8 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 }
 
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
-  rtb->bytes_in_flight += ent->pktlen;
+  rtb->cc->ccs->bytes_in_flight += ent->pktlen;
+
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     ++rtb->num_ack_eliciting;
   }
@@ -186,8 +187,9 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
     assert(rtb->num_ack_eliciting);
     --rtb->num_ack_eliciting;
   }
-  assert(rtb->bytes_in_flight >= ent->pktlen);
-  rtb->bytes_in_flight -= ent->pktlen;
+
+  assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
+  rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
 }
 
 static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
@@ -324,37 +326,15 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   return 0;
 }
 
-static int rtb_in_rcvry(ngtcp2_rtb *rtb, ngtcp2_tstamp sent_time) {
-  return sent_time <= rtb->ccs->recovery_start_time;
-}
-
-static void rtb_on_pkt_acked_cc(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
-  ngtcp2_cc_stat *ccs = rtb->ccs;
-
-  /* bytes_in_flight is reduced in rtb_on_remove */
-  if (rtb_in_rcvry(rtb, ent->ts)) {
-    return;
-  }
-
-  if (ccs->cwnd < ccs->ssthresh) {
-    ccs->cwnd += ent->pktlen;
-    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                    "packet %" PRIu64 " acked, slow start cwnd=%lu",
-                    ent->hd.pkt_num, ccs->cwnd);
-    return;
-  }
-
-  ccs->cwnd += NGTCP2_MAX_DGRAM_SIZE * ent->pktlen / ccs->cwnd;
-
-  ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                  "packet %" PRIu64 " acked, cwnd=%lu", ent->hd.pkt_num,
-                  ccs->cwnd);
-}
-
 static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
-  if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
-    rtb_on_pkt_acked_cc(rtb, ent);
+  ngtcp2_cc_pkt pkt;
+
+  if (!(ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+    return;
   }
+
+  ngtcp2_default_cc_on_pkt_acked(
+      rtb->cc, ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts));
 }
 
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
@@ -479,7 +459,6 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   ngtcp2_rtb_entry *ent;
   uint64_t loss_delay;
   ngtcp2_tstamp lost_send_time;
-  ngtcp2_cc_stat *ccs = rtb->ccs;
   ngtcp2_ksl_it it;
   int64_t lost_pkt_num;
   int rv;
@@ -495,24 +474,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
     if (pkt_lost(rcs, ent, loss_delay, lost_send_time, lost_pkt_num)) {
       /* All entries from ent are considered to be lost. */
-
-      /* OnPacketsLost in recovery draft */
-      /* TODO I'm not sure we should do this for handshake packets. */
-      if (!rtb_in_rcvry(rtb, ent->ts)) {
-        ccs->recovery_start_time = ts;
-        ccs->cwnd =
-            (uint64_t)((double)ccs->cwnd * NGTCP2_LOSS_REDUCTION_FACTOR);
-        ccs->cwnd = ngtcp2_max(ccs->cwnd, NGTCP2_MIN_CWND);
-        ccs->ssthresh = ccs->cwnd;
-
-        if (rcs->pto_count > NGTCP2_PERSISTENT_CONGESTION_THRESHOLD) {
-          ccs->cwnd = NGTCP2_MIN_CWND;
-        }
-
-        ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                        "reduce cwnd because of packet loss cwnd=%lu",
-                        ccs->cwnd);
-      }
+      ngtcp2_default_cc_congestion_event(rtb->cc, ent->ts, rcs, ts);
 
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);
@@ -564,15 +526,17 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
 
 void ngtcp2_rtb_clear(ngtcp2_rtb *rtb) {
   ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
 
   it = ngtcp2_ksl_begin(&rtb->ents);
 
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
-    ngtcp2_rtb_entry_del(ngtcp2_ksl_it_get(&it), rtb->mem);
+    ent = ngtcp2_ksl_it_get(&it);
+    rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+    ngtcp2_rtb_entry_del(ent, rtb->mem);
   }
   ngtcp2_ksl_clear(&rtb->ents);
 
-  rtb->bytes_in_flight = 0;
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
 }
