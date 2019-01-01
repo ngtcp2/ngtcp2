@@ -90,6 +90,10 @@ typedef enum {
    accept. */
 #define NGTCP2_MAX_RETRIES 3
 
+/* NGTCP2_HS_ACK_DELAY is the ACK delay for Initial and Handshake
+   packets. */
+#define NGTCP2_HS_ACK_DELAY NGTCP2_MILLISECONDS
+
 #define NGTCP2_MAX_SERVER_ID_BIDI 0x3fffffffffffff00ULL
 #define NGTCP2_MAX_SERVER_ID_UNI 0x3fffffffffffff10ULL
 #define NGTCP2_MAX_CLIENT_ID_BIDI 0x3fffffffffffff01ULL

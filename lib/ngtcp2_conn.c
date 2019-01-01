@@ -549,6 +549,7 @@ static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, ngtcp2_tstamp ts,
+                                 uint64_t ack_delay,
                                  uint64_t ack_delay_exponent) {
   uint64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
@@ -561,9 +562,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
-  uint64_t ack_delay = (acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK)
-                           ? 0
-                           : conn_compute_ack_delay(conn);
+
+  if (acktr->flags & NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK) {
+    ack_delay = 0;
+  }
 
   if (!ngtcp2_acktr_require_active_ack(acktr, ack_delay, ts)) {
     return 0;
@@ -1140,6 +1142,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (type != NGTCP2_PKT_0RTT_PROTECTED) {
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+                               NGTCP2_HS_ACK_DELAY,
                                NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     if (rv != 0) {
       return rv;
@@ -1259,6 +1262,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+                             NGTCP2_HS_ACK_DELAY,
                              NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
     return rv;
@@ -1929,6 +1933,7 @@ tx_strmq_finish:
      without flow control limits later. */
   if (!pkt_empty) {
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+                               conn_compute_ack_delay(conn),
                                conn->local_settings.ack_delay_exponent);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -2136,6 +2141,7 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, acktr, ts,
+                             conn_compute_ack_delay(conn),
                              conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     return rv;
@@ -2251,6 +2257,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+                             conn_compute_ack_delay(conn),
                              conn->local_settings.ack_delay_exponent);
   if (rv != 0) {
     goto fail;
@@ -5902,12 +5909,24 @@ ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
 }
 
 ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
+  ngtcp2_acktr *in_acktr = &conn->in_pktns.acktr;
+  ngtcp2_acktr *hs_acktr = &conn->hs_pktns.acktr;
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
+  ngtcp2_tstamp ts = UINT64_MAX, t;
 
-  if (acktr->first_unacked_ts == UINT64_MAX) {
-    return UINT64_MAX;
+  if (in_acktr->first_unacked_ts != UINT64_MAX) {
+    t = in_acktr->first_unacked_ts + NGTCP2_HS_ACK_DELAY;
+    ts = ngtcp2_min(ts, t);
   }
-  return acktr->first_unacked_ts + conn_compute_ack_delay(conn);
+  if (hs_acktr->first_unacked_ts != UINT64_MAX) {
+    t = hs_acktr->first_unacked_ts + NGTCP2_HS_ACK_DELAY;
+    ts = ngtcp2_min(ts, t);
+  }
+  if (acktr->first_unacked_ts != UINT64_MAX) {
+    t = acktr->first_unacked_ts + conn_compute_ack_delay(conn);
+    ts = ngtcp2_min(ts, t);
+  }
+  return ts;
 }
 
 /*
