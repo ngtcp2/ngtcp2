@@ -1142,7 +1142,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (type != NGTCP2_PKT_0RTT_PROTECTED) {
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
-                               NGTCP2_HS_ACK_DELAY,
+                               0 /* ack_delay */,
                                NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
     if (rv != 0) {
       return rv;
