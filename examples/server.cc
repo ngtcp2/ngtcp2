@@ -941,6 +941,32 @@ int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx,
 }
 } // namespace
 
+namespace {
+int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
+                          size_t cidlen, void *user_data) {
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  auto f = [&dis]() { return dis(randgen); };
+
+  std::generate_n(cid->data, cidlen, f);
+  cid->datalen = cidlen;
+  std::generate_n(token, NGTCP2_STATELESS_RESET_TOKENLEN, f);
+
+  auto h = static_cast<Handler *>(user_data);
+  h->server()->associate_cid(cid, h);
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
+                         void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  h->server()->dissociate_cid(cid);
+  return 0;
+}
+} // namespace
+
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
                   const ngtcp2_cid *dcid, const ngtcp2_cid *ocid,
                   uint32_t version) {
@@ -993,6 +1019,8 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       nullptr, // extend_max_streams_bidi
       nullptr, // extend_max_streams_uni
       rand,
+      get_new_connection_id,
+      remove_connection_id,
   };
 
   ngtcp2_settings settings{};
@@ -1016,12 +1044,11 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
                 std::end(settings.stateless_reset_token),
                 [&dis]() { return dis(randgen); });
 
-  ngtcp2_cid scid;
-  scid.datalen = NGTCP2_SV_SCIDLEN;
-  std::generate(scid.data, scid.data + scid.datalen,
+  scid_.datalen = NGTCP2_SV_SCIDLEN;
+  std::generate(scid_.data, scid_.data + scid_.datalen,
                 [&dis]() { return dis(randgen); });
 
-  rv = ngtcp2_conn_server_new(&conn_, dcid, &scid, version, &callbacks,
+  rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, version, &callbacks,
                               &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
@@ -1728,7 +1755,7 @@ int Handler::recv_stream_data(uint64_t stream_id, uint8_t fin,
   return 0;
 }
 
-const ngtcp2_cid *Handler::scid() const { return ngtcp2_conn_get_scid(conn_); }
+const ngtcp2_cid *Handler::scid() const { return &scid_; }
 
 const ngtcp2_cid *Handler::rcid() const { return &rcid_; }
 
@@ -2407,8 +2434,25 @@ int Server::send_packet(Address &remote_addr, Buffer &buf) {
   return NETWORK_ERR_OK;
 }
 
+void Server::associate_cid(const ngtcp2_cid *cid, Handler *h) {
+  ctos_.emplace(util::make_cid_key(cid), util::make_cid_key(h->scid()));
+}
+
+void Server::dissociate_cid(const ngtcp2_cid *cid) {
+  ctos_.erase(util::make_cid_key(cid));
+}
+
 void Server::remove(const Handler *h) {
   ctos_.erase(util::make_cid_key(h->rcid()));
+
+  auto conn = h->conn();
+  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(conn));
+  ngtcp2_conn_get_scid(conn, cids.data());
+
+  for (auto &cid : cids) {
+    ctos_.erase(util::make_cid_key(&cid));
+  }
+
   handlers_.erase(util::make_cid_key(h->scid()));
 }
 

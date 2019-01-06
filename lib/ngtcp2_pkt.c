@@ -1833,7 +1833,7 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
   const uint8_t *p = payload;
 
   if (payloadlen <
-      NGTCP2_MIN_STATELESS_RETRY_RANDLEN + NGTCP2_STATELESS_RESET_TOKENLEN) {
+      NGTCP2_MIN_STATELESS_RESET_RANDLEN + NGTCP2_STATELESS_RESET_TOKENLEN) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -1915,12 +1915,12 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
                                          uint8_t *rand, size_t randlen) {
   uint8_t *p;
 
-  if (destlen < 1 + NGTCP2_MIN_STATELESS_RETRY_RANDLEN +
+  if (destlen < 1 + NGTCP2_MIN_STATELESS_RESET_RANDLEN +
                     NGTCP2_STATELESS_RESET_TOKENLEN) {
     return NGTCP2_ERR_NOBUF;
   }
 
-  if (randlen < NGTCP2_MIN_STATELESS_RETRY_RANDLEN) {
+  if (randlen < NGTCP2_MIN_STATELESS_RESET_RANDLEN) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 

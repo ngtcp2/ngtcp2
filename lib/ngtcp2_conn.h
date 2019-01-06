@@ -99,6 +99,15 @@ typedef enum {
 #define NGTCP2_MAX_CLIENT_ID_BIDI 0x3fffffffffffff01ULL
 #define NGTCP2_MAX_CLIENT_ID_UNI 0x3fffffffffffff11ULL
 
+/* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
+   connection ID the remote endpoint provides to store.  It must be
+   the power of 2. */
+#define NGTCP2_MAX_DCID_POOL_SIZE 16
+/* NGTCP2_MIN_SCID_POOL_SIZE is the minimum number of source
+   connection ID the local endpoint provides to the remote endpoint.
+   It must be at least 8 as per the spec. */
+#define NGTCP2_MIN_SCID_POOL_SIZE 8
+
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
@@ -192,11 +201,32 @@ typedef struct {
   ngtcp2_frame_chain *frq;
 } ngtcp2_pktns;
 
+typedef enum {
+  NGTCP2_CID_FLAG_NONE,
+  NGTCP2_CID_FLAG_USED = 0x01,
+  NGTCP2_CID_FLAG_RETIRED = 0x02,
+} ngtcp2_cid_flags;
+
+typedef struct {
+  ngtcp2_pq_entry pe;
+  /* seq is the sequence number associated to the CID. */
+  uint64_t seq;
+  /* cid is a connection ID */
+  ngtcp2_cid cid;
+  /* ts_retired is the timestamp when peer tells that this CID is
+     retired. */
+  ngtcp2_tstamp ts_retired;
+  /* flags is the bitwise OR of zero or more of ngtcp2_cid_flags. */
+  uint8_t flags;
+  /* token is a stateless reset token associated to this CID.
+     Actually, the stateless reset token is tied to the connection,
+     not to the particular connection ID. */
+  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+} ngtcp2_cid_entry;
+
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
-  ngtcp2_cid dcid;
-  ngtcp2_cid scid;
   /* rcid is a connection ID present in Initial or 0-RTT protected
      packet from client as destination connection ID.  Server uses
      this field to check that duplicated Initial or 0-RTT packet are
@@ -207,6 +237,16 @@ struct ngtcp2_conn {
      ID in Retry packet.  Only server uses this field to send this CID
      to client in original_connection_id transport parameter. */
   ngtcp2_cid ocid;
+  /* oscid is the source connection ID initially used by the local
+     endpoint. */
+  ngtcp2_cid oscid;
+  /* dcids is a set of CID received from peer.  The first CID is in
+     use. */
+  ngtcp2_ringbuf dcids;
+  /* scids is a set of CID sent to peer.  The peer can use any CIDs in
+     this set. */
+  ngtcp2_ksl scids;
+  ngtcp2_pq used_scids;
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
@@ -267,6 +307,8 @@ struct ngtcp2_conn {
   /* max_tx_offset is the maximum offset that local endpoint can
      send. */
   uint64_t max_tx_offset;
+  /* tx_last_cid_seq is the last sequence number of connection ID. */
+  uint64_t tx_last_cid_seq;
   /* first_rx_bw_ts is a timestamp when bandwidth measurement is
      started. */
   ngtcp2_tstamp first_rx_bw_ts;
@@ -306,6 +348,14 @@ struct ngtcp2_conn {
   /* decrypt_buf is a buffer which is used to write decrypted data. */
   ngtcp2_array decrypt_buf;
 };
+
+/*
+ * ngtcp2_cid_entry_init initializes |ent| with the given parameters.
+ * If |token| is NULL, the function fills ent->token it with 0.
+ * |token| must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
+ */
+void ngtcp2_cid_entry_init(ngtcp2_cid_entry *ent, uint64_t seq,
+                           const ngtcp2_cid *cid, const uint8_t *token);
 
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its

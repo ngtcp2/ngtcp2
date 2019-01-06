@@ -247,6 +247,7 @@ private:
   // buffer to read next.
   size_t shandshake_idx_;
   ngtcp2_conn *conn_;
+  ngtcp2_cid scid_;
   ngtcp2_cid rcid_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
@@ -300,6 +301,8 @@ public:
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
                        const uint8_t *rand_data, size_t rand_datalen);
   int generate_rand_data(uint8_t *buf, size_t len);
+  void associate_cid(const ngtcp2_cid *cid, Handler *h);
+  void dissociate_cid(const ngtcp2_cid *cid);
 
 private:
   std::map<std::string, std::unique_ptr<Handler>> handlers_;

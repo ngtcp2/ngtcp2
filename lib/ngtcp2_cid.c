@@ -45,4 +45,12 @@ int ngtcp2_cid_eq(const ngtcp2_cid *cid, const ngtcp2_cid *other) {
          0 == memcmp(cid->data, other->data, cid->datalen);
 }
 
+int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs) {
+  int s = lhs->datalen < rhs->datalen;
+  size_t n = s ? lhs->datalen : rhs->datalen;
+  int c = memcmp(lhs->data, rhs->data, n);
+
+  return c < 0 || (c == 0 && s);
+}
+
 int ngtcp2_cid_empty(const ngtcp2_cid *cid) { return cid->datalen == 0; }

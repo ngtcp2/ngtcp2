@@ -182,9 +182,9 @@ typedef struct {
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
-/* NGTCP2_MIN_STATELESS_RETRY_RANDLEN is the minimum length of random
+/* NGTCP2_MIN_STATELESS_RESET_RANDLEN is the minimum length of random
    bytes in Stateless Retry packet */
-#define NGTCP2_MIN_STATELESS_RETRY_RANDLEN 23
+#define NGTCP2_MIN_STATELESS_RESET_RANDLEN 23
 
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
@@ -1282,6 +1282,41 @@ typedef int (*ngtcp2_extend_max_streams)(ngtcp2_conn *conn,
 typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                            ngtcp2_rand_ctx ctx, void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_get_new_connection_id` is a callback function to ask
+ * an application for new connection ID.  Application must generate
+ * new unused connection ID with the exact |cidlen| bytes and store it
+ * in |cid|.  It also has to generate stateless reset token into
+ * |token|.  The length of stateless reset token is
+ * :macro:`NGTCP2_STATELESS_RESET_TOKENLEN` and it is guaranteed that
+ * the buffer pointed by |cid| has the sufficient space to store the
+ * token.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_get_new_connection_id)(ngtcp2_conn *conn, ngtcp2_cid *cid,
+                                            uint8_t *token, size_t cidlen,
+                                            void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_remove_connection_id` is a callback function which
+ * notifies the application that connection ID |cid| is no longer used
+ * by remote endpoint.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_remove_connection_id)(ngtcp2_conn *conn,
+                                           const ngtcp2_cid *cid,
+                                           void *user_data);
+
 typedef struct {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
@@ -1328,6 +1363,8 @@ typedef struct {
   ngtcp2_extend_max_streams extend_max_streams_bidi;
   ngtcp2_extend_max_streams extend_max_streams_uni;
   ngtcp2_rand rand;
+  ngtcp2_get_new_connection_id get_new_connection_id;
+  ngtcp2_remove_connection_id remove_connection_id;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -2158,10 +2195,22 @@ NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_scid` returns the non-NULL pointer to destination
- * connection ID.
+ * `ngtcp2_conn_get_num_scid` returns the number of source connection
+ * IDs which the local endpoint has provided to the peer and have not
+ * retired.
  */
-NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_scid(ngtcp2_conn *conn);
+NGTCP2_EXTERN size_t ngtcp2_conn_get_num_scid(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_scid` writes the all source connection IDs which
+ * the local endpoint has provided to the peer and have not retired in
+ * |dest|.  The buffer pointed by |dest| must have
+ * ``sizeof(ngtcp2_cid) * n`` bytes available, where n is the return
+ * value of `ngtcp2_conn_get_num_scid()`.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest);
 
 /**
  * @function

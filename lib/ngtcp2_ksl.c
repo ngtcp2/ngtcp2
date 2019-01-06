@@ -646,8 +646,6 @@ void *ngtcp2_ksl_it_get(const ngtcp2_ksl_it *it) {
 }
 
 void ngtcp2_ksl_it_next(ngtcp2_ksl_it *it) {
-  assert(!ngtcp2_ksl_it_end(it));
-
   if (++it->i == it->blk->n) {
     it->blk = it->blk->next;
     it->i = 0;
@@ -682,7 +680,7 @@ ngtcp2_ksl_key *ngtcp2_ksl_key_i(ngtcp2_ksl_key *key, int64_t i) {
   return key;
 }
 
-ngtcp2_ksl_key *ngtcp2_ksl_key_ptr(ngtcp2_ksl_key *key, void *ptr) {
+ngtcp2_ksl_key *ngtcp2_ksl_key_ptr(ngtcp2_ksl_key *key, const void *ptr) {
   key->ptr = ptr;
   return key;
 }

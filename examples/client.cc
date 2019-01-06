@@ -596,6 +596,27 @@ int extend_max_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 } // namespace
 
 namespace {
+int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
+                          size_t cidlen, void *user_data) {
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  auto f = [&dis]() { return dis(randgen); };
+
+  std::generate_n(cid->data, cidlen, f);
+  cid->datalen = cidlen;
+  std::generate_n(token, NGTCP2_STATELESS_RESET_TOKENLEN, f);
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
+                         void *user_data) {
+  return 0;
+}
+} // namespace
+
+namespace {
 ssize_t do_hs_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                       const uint8_t *plaintext, size_t plaintextlen,
                       const uint8_t *key, size_t keylen, const uint8_t *nonce,
@@ -800,16 +821,27 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   auto callbacks = ngtcp2_conn_callbacks{
       client_initial,
       nullptr, // recv_client_initial
-      recv_crypto_data, handshake_completed,
+      recv_crypto_data,
+      handshake_completed,
       nullptr, // recv_version_negotiation
-      do_hs_encrypt,    do_hs_decrypt,           do_encrypt,
-      do_decrypt,       do_in_hp_mask,           do_hp_mask,
-      recv_stream_data, acked_crypto_offset,     acked_stream_data_offset,
+      do_hs_encrypt,
+      do_hs_decrypt,
+      do_encrypt,
+      do_decrypt,
+      do_in_hp_mask,
+      do_hp_mask,
+      recv_stream_data,
+      acked_crypto_offset,
+      acked_stream_data_offset,
       nullptr, // stream_open
       stream_close,
       nullptr, // recv_stateless_reset
-      recv_retry,       extend_max_streams_bidi,
+      recv_retry,
+      extend_max_streams_bidi,
       nullptr, // extend_max_streams_uni
+      nullptr, // rand
+      get_new_connection_id,
+      remove_connection_id,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(

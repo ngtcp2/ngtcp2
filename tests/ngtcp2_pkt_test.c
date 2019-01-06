@@ -1039,7 +1039,7 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   /* Not enough buffer */
   spktlen =
       ngtcp2_pkt_write_stateless_reset(buf,
-                                       1 + NGTCP2_MIN_STATELESS_RETRY_RANDLEN -
+                                       1 + NGTCP2_MIN_STATELESS_RESET_RANDLEN -
                                            1 + NGTCP2_STATELESS_RESET_TOKENLEN,
                                        token, rand, sizeof(rand));
 

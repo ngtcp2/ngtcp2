@@ -50,7 +50,7 @@
  */
 typedef union {
   int64_t i;
-  void *ptr;
+  const void *ptr;
 } ngtcp2_ksl_key;
 
 struct ngtcp2_ksl_node;
@@ -288,6 +288,6 @@ ngtcp2_ksl_key *ngtcp2_ksl_key_i(ngtcp2_ksl_key *key, int64_t i);
  * ngtcp2_ksl_key_ptr is a convenient function which initializes |key|
  * with |ptr| and returns |key|.
  */
-ngtcp2_ksl_key *ngtcp2_ksl_key_ptr(ngtcp2_ksl_key *key, void *ptr);
+ngtcp2_ksl_key *ngtcp2_ksl_key_ptr(ngtcp2_ksl_key *key, const void *ptr);
 
 #endif /* NGTCP2_KSL_H */

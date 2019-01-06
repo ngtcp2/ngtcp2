@@ -411,9 +411,10 @@ static void log_fr_retire_connection_id(ngtcp2_log *log,
                                         const ngtcp2_pkt_hd *hd,
                                         const ngtcp2_retire_connection_id *fr,
                                         const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " RETIRE_CONNECTION_ID(0x%02x) seq=%" PRIu64),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq);
+  log->log_printf(
+      log->user_data,
+      (NGTCP2_LOG_PKT " RETIRE_CONNECTION_ID(0x%02x) seq=%" PRIu64 "\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq);
 }
 
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

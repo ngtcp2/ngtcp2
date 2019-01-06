@@ -41,6 +41,12 @@ void ngtcp2_cid_zero(ngtcp2_cid *cid);
 int ngtcp2_cid_eq(const ngtcp2_cid *cid, const ngtcp2_cid *other);
 
 /*
+ * ngtcp2_cid_less returns nonzero if |lhs| is lexicographical smaller
+ * than |rhs|.
+ */
+int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs);
+
+/*
  * ngtcp2_cid_empty returns nonzero if |cid| includes empty connection
  * ID.
  */
