@@ -164,11 +164,13 @@ public:
 
   int tls_handshake();
   int read_tls();
-  int on_read(uint8_t *data, size_t datalen);
+  int on_read(const sockaddr *sa, socklen_t salen, uint8_t *data,
+              size_t datalen);
   int on_write(bool retransmit = false);
   int on_write_stream(Stream &stream);
   int write_stream_data(Stream &stream, int fin, Buffer &data);
-  int feed_data(uint8_t *data, size_t datalen);
+  int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
+                size_t datalen);
   int do_handshake_read_once(const uint8_t *data, size_t datalen);
   ssize_t do_handshake_write_once();
   int do_handshake(const uint8_t *data, size_t datalen);
@@ -223,6 +225,7 @@ public:
   bool draining() const;
   int handle_error(int liberror);
   int send_conn_close();
+  void update_remote_addr();
 
   int send_greeting();
 

@@ -56,7 +56,8 @@ OBJECTS = \
 	ngtcp2_cid.c \
 	ngtcp2_psl.c \
 	ngtcp2_ksl.c \
-	ngtcp2_cc.c
+	ngtcp2_cc.c \
+	ngtcp2_addr.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -84,6 +85,7 @@ HFILES = \
 	ngtcp2_psl.h \
 	ngtcp2_ksl.h \
 	ngtcp2_cc.h \
+	ngtcp2_addr.h \
 	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)

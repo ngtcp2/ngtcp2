@@ -80,6 +80,9 @@ struct Config {
   const char *tp_file;
   // show_secret is true if transport secrets should be printed out.
   bool show_secret;
+  // change_local_addr is the duration after which client changes
+  // local address.
+  uint32_t change_local_addr;
 };
 
 struct Buffer {
@@ -135,8 +138,8 @@ public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Client();
 
-  int init(int fd, const Address &remote_addr, const char *addr, int datafd,
-           uint32_t version);
+  int init(int fd, const Address &local_addr, const Address &remote_addr,
+           const char *addr, const char *port, int datafd, uint32_t version);
   int init_ssl();
   void disconnect();
   void disconnect(int liberr);
@@ -152,7 +155,8 @@ public:
   int on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
   int write_0rtt_streams();
   int on_write_0rtt_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
-  int feed_data(uint8_t *data, size_t datalen);
+  int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
+                size_t datalen);
   int do_handshake(const uint8_t *data, size_t datalen);
   int do_handshake_read_once(const uint8_t *data, size_t datalen);
   ssize_t do_handshake_write_once();
@@ -202,12 +206,15 @@ public:
   int handle_error(int liberr);
   void make_stream_early();
   void on_recv_retry();
+  int change_local_addr();
+  void start_change_local_addr_timer();
 
   int on_key(int name, const uint8_t *secret, size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
 
 private:
+  Address local_addr_;
   Address remote_addr_;
   size_t max_pktlen_;
   ev_io wev_;
@@ -215,6 +222,7 @@ private:
   ev_io stdinrev_;
   ev_timer timer_;
   ev_timer rttimer_;
+  ev_timer change_local_addr_timer_;
   ev_signal sigintev_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
@@ -232,6 +240,8 @@ private:
   ngtcp2_conn *conn_;
   // addr_ is the server host address.
   const char *addr_;
+  // port_ is the server port.
+  const char *port_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
   // common buffer used to store packet data before sending

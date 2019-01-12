@@ -1059,6 +1059,9 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
     ngtcp2_conn_set_retry_ocid(conn_, ocid);
   }
 
+  ngtcp2_addr addr;
+  ngtcp2_conn_set_remote_addr(conn_, ngtcp2_addr_init(&addr, sa, salen));
+
   ev_timer_again(loop_, &timer_);
 
   return 0;
@@ -1429,11 +1432,22 @@ int Handler::do_handshake(const uint8_t *data, size_t datalen) {
   }
 }
 
-int Handler::feed_data(uint8_t *data, size_t datalen) {
+void Handler::update_remote_addr() {
+  auto addr = ngtcp2_conn_get_remote_addr(conn_);
+  remote_addr_.len = addr->len;
+  memcpy(&remote_addr_.su, addr->addr, sizeof(addr->len));
+}
+
+int Handler::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
+                       size_t datalen) {
   int rv;
 
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    rv = ngtcp2_conn_read_pkt(conn_, data, datalen, util::timestamp(loop_));
+    auto path = ngtcp2_path{
+        {},
+        {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
+    rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
+                              util::timestamp(loop_));
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
       if (rv == NGTCP2_ERR_DRAINING) {
@@ -1442,6 +1456,7 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
       }
       return handle_error(rv);
     }
+    update_remote_addr();
   } else {
     rv = do_handshake(data, datalen);
     if (rv != 0) {
@@ -1452,10 +1467,11 @@ int Handler::feed_data(uint8_t *data, size_t datalen) {
   return 0;
 }
 
-int Handler::on_read(uint8_t *data, size_t datalen) {
+int Handler::on_read(const sockaddr *sa, socklen_t salen, uint8_t *data,
+                     size_t datalen) {
   int rv;
 
-  rv = feed_data(data, datalen);
+  rv = feed_data(sa, salen, data, datalen);
   if (rv != 0) {
     return rv;
   }
@@ -1947,12 +1963,13 @@ int Server::on_write() {
 
 int Server::on_read() {
   sockaddr_union su;
-  socklen_t addrlen = sizeof(su);
+  socklen_t addrlen;
   std::array<uint8_t, 64_k> buf;
   int rv;
   ngtcp2_pkt_hd hd;
 
   while (true) {
+    addrlen = sizeof(su);
     auto nread =
         recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
     if (nread == -1) {
@@ -2025,7 +2042,7 @@ int Server::on_read() {
         auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
         h->init(fd_, &su.sa, addrlen, &hd.scid, pocid, hd.version);
 
-        if (h->on_read(buf.data(), nread) != 0) {
+        if (h->on_read(&su.sa, addrlen, buf.data(), nread) != 0) {
           return 0;
         }
         rv = h->on_write();
@@ -2071,7 +2088,7 @@ int Server::on_read() {
       return 0;
     }
 
-    rv = h->on_read(buf.data(), nread);
+    rv = h->on_read(&su.sa, addrlen, buf.data(), nread);
     if (rv != 0) {
       if (rv != NETWORK_ERR_CLOSE_WAIT) {
         remove(handler_it);

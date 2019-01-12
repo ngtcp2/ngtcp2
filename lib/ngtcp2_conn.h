@@ -108,6 +108,10 @@ typedef enum {
    It must be at least 8 as per the spec. */
 #define NGTCP2_MIN_SCID_POOL_SIZE 8
 
+/* NGTCP2_MIN_DCID_CHANGE_DURATION is the minimum duration that local
+   endpoint changes DCID. */
+#define NGTCP2_MIN_DCID_CHANGE_DURATION (3ULL * NGTCP2_SECONDS)
+
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
@@ -122,7 +126,8 @@ typedef union {
 } ngtcp2_max_frame;
 
 typedef struct {
-  ngtcp2_tstamp ts;
+  /* ts_expire is the timestamp when this PATH_CHALLENGE expires. */
+  ngtcp2_tstamp ts_expire;
   uint8_t data[8];
 } ngtcp2_path_challenge_entry;
 
@@ -164,6 +169,16 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
      have been discarded. */
   NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
+  /* NGTCP2_CONN_FLAG_CONN_MIGRATION_IN_PROGRESS is set when
+     connection migration (path validation) is in progress due to the
+     change of remote address. */
+  NGTCP2_CONN_FLAG_CONN_MIGRATION_IN_PROGRESS = 0x0800,
+  /* NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE is set when local
+     endpoint waits for the remote endpoint to change its DCID. */
+  NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE = 0x1000,
+  /* NGTCP2_CONN_FLAG_CHANGE_DCID is set when local endpoint has to
+     change its DCID. */
+  NGTCP2_CONN_FLAG_CHANGE_DCID = 0x2000,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -262,6 +277,8 @@ struct ngtcp2_conn {
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
   ngtcp2_default_cc cc;
+  ngtcp2_addr local_addr;
+  ngtcp2_addr remote_addr;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
@@ -318,6 +335,11 @@ struct ngtcp2_conn {
   /* rx_bw is receiver side bandwidth. */
   double rx_bw;
   size_t probe_pkt_left;
+  /* last_dcid_change is the last timestamp when local endpoint
+     changed DCID. */
+  ngtcp2_tstamp last_dcid_change;
+  /* path_challenge_count is the number of PATH_CHALLENGE timeout. */
+  size_t path_challenge_count;
   /* hs_recved is the number of bytes received from client before its
      address is validated.  This field is only used by server to
      ensure "3 times received data" rule. */
@@ -347,6 +369,8 @@ struct ngtcp2_conn {
   ngtcp2_settings remote_settings;
   /* decrypt_buf is a buffer which is used to write decrypted data. */
   ngtcp2_array decrypt_buf;
+  uint8_t local_addrbuf[128];
+  uint8_t remote_addrbuf[128];
 };
 
 /*

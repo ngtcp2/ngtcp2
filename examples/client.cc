@@ -397,6 +397,14 @@ fail:
 } // namespace
 
 namespace {
+void change_local_addrcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  auto c = static_cast<Client *>(w->data);
+
+  c->change_local_addr();
+}
+} // namespace
+
+namespace {
 void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
   ev_break(loop, EVBREAK_ALL);
 }
@@ -433,6 +441,9 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
+  ev_timer_init(&change_local_addr_timer_, change_local_addrcb,
+                config.change_local_addr, 0.);
+  change_local_addr_timer_.data = this;
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
@@ -446,6 +457,7 @@ void Client::disconnect() { disconnect(0); }
 void Client::disconnect(int liberr) {
   config.tx_loss_prob = 0;
 
+  ev_timer_stop(loop_, &change_local_addr_timer_);
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
 
@@ -549,9 +561,13 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
 
 namespace {
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
   if (!config.quiet) {
     debug::handshake_completed(conn, user_data);
   }
+
+  c->start_change_local_addr_timer();
 
   return 0;
 }
@@ -787,10 +803,12 @@ int Client::init_ssl() {
   return 0;
 }
 
-int Client::init(int fd, const Address &remote_addr, const char *addr,
-                 int datafd, uint32_t version) {
+int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
+                 const char *addr, const char *port, int datafd,
+                 uint32_t version) {
   int rv;
 
+  local_addr_ = local_addr;
   remote_addr_ = remote_addr;
 
   switch (remote_addr_.su.storage.ss_family) {
@@ -807,6 +825,7 @@ int Client::init(int fd, const Address &remote_addr, const char *addr,
   fd_ = fd;
   datafd_ = datafd;
   addr_ = addr;
+  port_ = port;
   version_ = version;
 
   if (-1 == connect(fd_, &remote_addr_.su.sa, remote_addr_.len)) {
@@ -1102,11 +1121,16 @@ int Client::read_tls() {
   }
 }
 
-int Client::feed_data(uint8_t *data, size_t datalen) {
+int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
+                      size_t datalen) {
   int rv;
 
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    rv = ngtcp2_conn_read_pkt(conn_, data, datalen, util::timestamp(loop_));
+    auto path = ngtcp2_path{
+        {},
+        {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
+    rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
+                              util::timestamp(loop_));
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
       disconnect(rv);
@@ -1194,10 +1218,13 @@ int Client::do_handshake(const uint8_t *data, size_t datalen) {
 
 int Client::on_read() {
   std::array<uint8_t, 65536> buf;
+  sockaddr_union su;
+  socklen_t addrlen;
 
   for (;;) {
+    addrlen = sizeof(su);
     auto nread =
-        recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, nullptr, nullptr);
+        recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
 
     if (nread == -1) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -1213,7 +1240,7 @@ int Client::on_read() {
       break;
     }
 
-    if (feed_data(buf.data(), nread) != 0) {
+    if (feed_data(&su.sa, addrlen, buf.data(), nread) != 0) {
       return -1;
     }
   }
@@ -1538,7 +1565,132 @@ void Client::on_recv_retry() {
   setup_initial_crypto_context();
 }
 
+namespace {
+int bind_addr(Address &local_addr, int fd, int family) {
+  addrinfo hints{};
+  addrinfo *res, *rp;
+  int rv;
+
+  hints.ai_family = family;
+  hints.ai_socktype = SOCK_DGRAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  rv = getaddrinfo(nullptr, "0", &hints, &res);
+  if (rv != 0) {
+    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+    return -1;
+  }
+
+  auto res_d = defer(freeaddrinfo, res);
+
+  for (rp = res; rp; rp = rp->ai_next) {
+    if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
+      break;
+    }
+  }
+
+  if (!rp) {
+    std::cerr << "Could not bind" << std::endl;
+    return -1;
+  }
+
+  local_addr.len = rp->ai_addrlen;
+  memcpy(&local_addr.su, rp->ai_addr, rp->ai_addrlen);
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int create_sock(Address &remote_addr, const char *addr, const char *port) {
+  addrinfo hints{};
+  addrinfo *res, *rp;
+  int rv;
+
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_DGRAM;
+
+  rv = getaddrinfo(addr, port, &hints, &res);
+  if (rv != 0) {
+    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+    return -1;
+  }
+
+  auto res_d = defer(freeaddrinfo, res);
+
+  int fd = -1;
+
+  for (rp = res; rp; rp = rp->ai_next) {
+    fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    if (fd == -1) {
+      continue;
+    }
+
+    break;
+  }
+
+  if (!rp) {
+    std::cerr << "Could not connect" << std::endl;
+    return -1;
+  }
+
+  auto val = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
+                 static_cast<socklen_t>(sizeof(val))) == -1) {
+    return -1;
+  }
+
+  remote_addr.len = rp->ai_addrlen;
+  memcpy(&remote_addr.su, rp->ai_addr, rp->ai_addrlen);
+
+  return fd;
+}
+} // namespace
+
 ngtcp2_conn *Client::conn() const { return conn_; }
+
+void Client::start_change_local_addr_timer() {
+  ev_timer_start(loop_, &change_local_addr_timer_);
+}
+
+int Client::change_local_addr() {
+  if (!config.change_local_addr) {
+    return 0;
+  }
+
+  Address remote_addr, local_addr;
+
+  std::cerr << "Changing local address" << std::endl;
+
+  auto nfd = create_sock(remote_addr, addr_, port_);
+  if (nfd == -1) {
+    return -1;
+  }
+
+  if (bind_addr(local_addr, nfd, remote_addr.su.sa.sa_family) != 0) {
+    ::close(nfd);
+    return -1;
+  }
+
+  ::close(fd_);
+
+  fd_ = nfd;
+  local_addr_ = local_addr;
+  remote_addr_ = remote_addr;
+
+  auto wev_active = ev_is_active(&wev_);
+
+  ev_io_stop(loop_, &wev_);
+  ev_io_stop(loop_, &rev_);
+  ev_io_set(&wev_, fd_, EV_WRITE);
+  ev_io_set(&rev_, fd_, EV_READ);
+  if (wev_active) {
+    ev_io_start(loop_, &wev_);
+  }
+  ev_io_start(loop_, &rev_);
+
+  return 0;
+}
 
 int Client::send_packet() {
   if (debug::packet_lost(config.tx_loss_prob)) {
@@ -1553,7 +1705,8 @@ int Client::send_packet() {
   ssize_t nwrite = 0;
 
   do {
-    nwrite = send(fd_, sendbuf_.rpos(), sendbuf_.size(), 0);
+    nwrite = sendto(fd_, sendbuf_.rpos(), sendbuf_.size(), 0,
+                    &remote_addr_.su.sa, remote_addr_.len);
   } while ((nwrite == -1) && (errno == EINTR) && (eintr_retries-- > 0));
 
   if (nwrite == -1) {
@@ -2014,62 +2167,8 @@ SSL_CTX *create_ssl_ctx() {
 } // namespace
 
 namespace {
-int create_sock(Address &remote_addr, const char *addr, const char *port) {
-  addrinfo hints{};
-  addrinfo *res, *rp;
-  int rv;
-
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_DGRAM;
-
-  rv = getaddrinfo(addr, port, &hints, &res);
-  if (rv != 0) {
-    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
-    return -1;
-  }
-
-  auto res_d = defer(freeaddrinfo, res);
-
-  int fd = -1;
-
-  for (rp = res; rp; rp = rp->ai_next) {
-    fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-    if (fd == -1) {
-      continue;
-    }
-
-    if (connect(fd, rp->ai_addr, rp->ai_addrlen) == -1) {
-      goto next;
-    }
-
-    break;
-
-  next:
-    close(fd);
-  }
-
-  if (!rp) {
-    std::cerr << "Could not connect" << std::endl;
-    return -1;
-  }
-
-  auto val = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
-                 static_cast<socklen_t>(sizeof(val))) == -1) {
-    return -1;
-  }
-
-  remote_addr.len = rp->ai_addrlen;
-  memcpy(&remote_addr.su, rp->ai_addr, rp->ai_addrlen);
-
-  return fd;
-}
-
-} // namespace
-
-namespace {
 int run(Client &c, const char *addr, const char *port) {
-  Address remote_addr;
+  Address remote_addr, local_addr;
   ssize_t nwrite;
 
   auto fd = create_sock(remote_addr, addr, port);
@@ -2077,7 +2176,13 @@ int run(Client &c, const char *addr, const char *port) {
     return -1;
   }
 
-  if (c.init(fd, remote_addr, addr, config.fd, config.version) != 0) {
+  if (bind_addr(local_addr, fd, remote_addr.su.sa.sa_family) != 0) {
+    close(fd);
+    return -1;
+  }
+
+  if (c.init(fd, local_addr, remote_addr, addr, port, config.fd,
+             config.version) != 0) {
     return -1;
   }
 
@@ -2199,6 +2304,9 @@ Options:
               Specify  initial  DCID.   <DCID> is  hex  string.   When
               decoded as binary, it should be  at least 8 bytes and at
               most 18 bytes long.
+  --change-local-addr=<T>
+              Client  changes local  address when  <T> seconds  elapse
+              after handshake completes.
   -h, --help  Display this help and exit.
 )";
 }
@@ -2226,6 +2334,7 @@ int main(int argc, char **argv) {
         {"session-file", required_argument, &flag, 4},
         {"tp-file", required_argument, &flag, 5},
         {"dcid", required_argument, &flag, 6},
+        {"change-local-addr", required_argument, &flag, 7},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2297,7 +2406,7 @@ int main(int argc, char **argv) {
         // --tp-file
         config.tp_file = optarg;
         break;
-      case 6:
+      case 6: {
         // --dcid
         auto dcidlen2 = strlen(optarg);
         if (dcidlen2 % 2 || dcidlen2 / 2 < 8 || dcidlen2 / 2 > 18) {
@@ -2308,6 +2417,11 @@ int main(int argc, char **argv) {
         ngtcp2_cid_init(&config.dcid,
                         reinterpret_cast<const uint8_t *>(dcid.c_str()),
                         dcid.size());
+        break;
+      }
+      case 7:
+        // --change-local-addr
+        config.change_local_addr = strtol(optarg, nullptr, 10);
         break;
       }
       break;

@@ -221,6 +221,8 @@ int main() {
                    test_ngtcp2_conn_recv_new_connection_id) ||
       !CU_add_test(pSuite, "conn_recv_retire_connection_id",
                    test_ngtcp2_conn_recv_retire_connection_id) ||
+      !CU_add_test(pSuite, "conn_write_path_challenge",
+                   test_ngtcp2_conn_write_path_challenge) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||

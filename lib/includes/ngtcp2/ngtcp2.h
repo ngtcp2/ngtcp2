@@ -734,6 +734,32 @@ typedef struct {
 } ngtcp2_rcvry_stat;
 
 /**
+ * @struct
+ *
+ * ngtcp2_addr is the endpoint address.
+ */
+typedef struct {
+  /* len is the length of addr. */
+  size_t len;
+  /* addr points to the buffer which contains endpoint address.  It is
+     opaque to the ngtcp2 library. */
+  uint8_t *addr;
+} ngtcp2_addr;
+
+/**
+ * @struct
+ *
+ * ngtcp2_path is the network endpoints where a packet is sent and
+ * received.
+ */
+typedef struct {
+  /* local is the address of local endpoint. */
+  ngtcp2_addr local;
+  /* remote is the address of remote endpoint. */
+  ngtcp2_addr remote;
+} ngtcp2_path;
+
+/**
  * @function
  *
  * `ngtcp2_encode_transport_params` encodes |params| in |dest| of
@@ -1535,8 +1561,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_client_write_handshake(
  * @function
  *
  * `ngtcp2_conn_read_pkt` decrypts QUIC packet given in |pkt| of
- * length |pktlen| and processes it.  This function must be called
- * after QUIC handshake has finished successfully.
+ * length |pktlen| and processes it.  |path| is the network path the
+ * packet is delivered.  This function must be called after QUIC
+ * handshake has finished successfully.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -1549,8 +1576,10 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_client_write_handshake(
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.
  */
-NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
-                                       size_t pktlen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
+                                       const ngtcp2_path *path,
+                                       const uint8_t *pkt, size_t pktlen,
+                                       ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2285,6 +2314,8 @@ NGTCP2_EXTERN int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
                                                  const size_t datalen);
 
 /**
+ * @function
+ *
  * `ngtcp2_conn_set_retry_ocid` tells |conn| that application as a
  * server received |ocid| included in token from client.  |ocid| will
  * be sent in transport parameter.
@@ -2297,6 +2328,32 @@ NGTCP2_EXTERN int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn,
                                              const ngtcp2_cid *ocid);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_local_addr` sets local endpoint address |addr| to
+ * |conn|.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn,
+                                              const ngtcp2_addr *addr);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_remote_addr` sets remote endpoint address |addr|
+ * to |conn|.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_remote_addr(ngtcp2_conn *conn,
+                                               const ngtcp2_addr *addr);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_remote_addr` returns the remote endpoint address
+ * set in |conn|.
+ */
+NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
 
 /**
  * @function
@@ -2319,6 +2376,15 @@ NGTCP2_EXTERN int ngtcp2_err_is_fatal(int liberr);
  * transport error code which corresponds to |liberr|.
  */
 NGTCP2_EXTERN uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
+
+/**
+ * @function
+ *
+ * `ngtcp2_addr_init` initializes |addr| with the given arguments and
+ * returns |addr|.
+ */
+NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *addr,
+                                            const void *address, size_t len);
 
 #ifdef __cplusplus
 }
