@@ -28,10 +28,12 @@
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
 #endif // HAVE_ARPA_INET_H
+#include <netdb.h>
 
 #include <cassert>
 #include <chrono>
 #include <array>
+#include <iostream>
 
 namespace ngtcp2 {
 
@@ -237,6 +239,23 @@ void hexdump(FILE *out, const uint8_t *src, size_t len) {
 
 std::string make_cid_key(const ngtcp2_cid *cid) {
   return std::string(cid->data, cid->data + cid->datalen);
+}
+
+std::string straddr(const sockaddr *sa, socklen_t salen) {
+  std::array<char, NI_MAXHOST> host;
+  std::array<char, NI_MAXSERV> port;
+
+  auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
+                        port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
+  if (rv != 0) {
+    std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
+    return "";
+  }
+  std::string res = "[";
+  res.append(host.data(), strlen(host.data()));
+  res += "]:";
+  res.append(port.data(), strlen(port.data()));
+  return res;
 }
 
 } // namespace util

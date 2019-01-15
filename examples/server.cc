@@ -1979,6 +1979,11 @@ int Server::on_read() {
       return 0;
     }
 
+    if (!config.quiet) {
+      std::cerr << "Received packet from " << util::straddr(&su.sa, addrlen)
+                << std::endl;
+    }
+
     if (debug::packet_lost(config.rx_loss_prob)) {
       if (!config.quiet) {
         std::cerr << "** Simulated incoming packet loss **" << std::endl;
@@ -2447,6 +2452,12 @@ int Server::send_packet(Address &remote_addr, Buffer &buf) {
 
   assert(static_cast<size_t>(nwrite) == buf.size());
   buf.reset();
+
+  if (!config.quiet) {
+    std::cerr << "Sent packet to "
+              << util::straddr(&remote_addr.su.sa, remote_addr.len)
+              << std::endl;
+  }
 
   return NETWORK_ERR_OK;
 }
