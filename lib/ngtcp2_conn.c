@@ -5169,8 +5169,8 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   for (i = 0; i < len; ++i) {
     ent = ngtcp2_ringbuf_get(&conn->dcids, i);
     if (fr->seq == ent->seq && (!ngtcp2_cid_eq(&ent->cid, &fr->cid) ||
-                                !memcmp(&ent->token, fr->stateless_reset_token,
-                                        NGTCP2_STATELESS_RESET_TOKENLEN))) {
+                                memcmp(ent->token, fr->stateless_reset_token,
+                                       NGTCP2_STATELESS_RESET_TOKENLEN) != 0)) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                       "duplicated seq %" PRIu64 " with different CID or token",
                       fr->seq);
