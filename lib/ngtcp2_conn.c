@@ -5284,6 +5284,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_pktns *pktns;
   uint64_t max_crypto_rx_offset = 0;
   int non_probing_pkt = 0;
+  uint64_t bytes_in_flight;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -5642,7 +5643,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       conn->first_rx_bw_ts = 0;
       conn->probe_pkt_left = 0;
       rcvry_stat_reset(&conn->rcs);
+      /* Keep bytes_in_flight because we have to take care of packets
+         in flight. */
+      bytes_in_flight = conn->ccs.bytes_in_flight;
       cc_stat_reset(&conn->ccs);
+      conn->ccs.bytes_in_flight = bytes_in_flight;
     }
   }
 
