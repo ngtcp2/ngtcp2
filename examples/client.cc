@@ -828,11 +828,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   port_ = port;
   version_ = version;
 
-  if (-1 == connect(fd_, &remote_addr_.su.sa, remote_addr_.len)) {
-    std::cerr << "connect: " << strerror(errno) << std::endl;
-    return -1;
-  }
-
   if (init_ssl() != 0) {
     return -1;
   }
