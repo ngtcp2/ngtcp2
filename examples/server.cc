@@ -2455,8 +2455,8 @@ int Server::send_packet(Address &remote_addr, Buffer &buf) {
 
   if (!config.quiet) {
     std::cerr << "Sent packet to "
-              << util::straddr(&remote_addr.su.sa, remote_addr.len)
-              << std::endl;
+              << util::straddr(&remote_addr.su.sa, remote_addr.len) << " "
+              << nwrite << " bytes" << std::endl;
   }
 
   return NETWORK_ERR_OK;
