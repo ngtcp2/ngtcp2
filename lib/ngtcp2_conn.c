@@ -1709,11 +1709,11 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
     }
-  }
 
-  res += nwrite;
-  dest += nwrite;
-  destlen -= (size_t)nwrite;
+    res += nwrite;
+    dest += nwrite;
+    destlen -= (size_t)nwrite;
+  }
 
   return res;
 }
