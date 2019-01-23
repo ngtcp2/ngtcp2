@@ -5678,16 +5678,16 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
-  ngtcp2_pkt_chain *pc, *next;
+  ngtcp2_pkt_chain **ppc, *next;
   /* TODO Assume that protected packet is received in the expected
      path. */
   ngtcp2_path path = {conn->local_addr, conn->remote_addr};
 
-  for (pc = conn->buffed_rx_ppkts; pc;) {
-    next = pc->next;
-    nread = conn_recv_pkt(conn, &path, pc->pkt, pc->pktlen, ts);
-    ngtcp2_pkt_chain_del(pc, conn->mem);
-    pc = next;
+  for (ppc = &conn->buffed_rx_ppkts; *ppc;) {
+    next = (*ppc)->next;
+    nread = conn_recv_pkt(conn, &path, (*ppc)->pkt, (*ppc)->pktlen, ts);
+    ngtcp2_pkt_chain_del(*ppc, conn->mem);
+    *ppc = next;
     if (nread < 0) {
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         continue;
@@ -5695,8 +5695,6 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
       return (int)nread;
     }
   }
-
-  conn->buffed_rx_ppkts = NULL;
 
   return 0;
 }
@@ -5711,13 +5709,13 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
 static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
-  ngtcp2_pkt_chain *pc, *next;
+  ngtcp2_pkt_chain **ppc, *next;
 
-  for (pc = conn->buffed_rx_hs_pkts; pc;) {
-    next = pc->next;
-    nread = conn_recv_handshake_pkt(conn, pc->pkt, pc->pktlen, ts);
-    ngtcp2_pkt_chain_del(pc, conn->mem);
-    pc = next;
+  for (ppc = &conn->buffed_rx_hs_pkts; *ppc;) {
+    next = (*ppc)->next;
+    nread = conn_recv_handshake_pkt(conn, (*ppc)->pkt, (*ppc)->pktlen, ts);
+    ngtcp2_pkt_chain_del(*ppc, conn->mem);
+    *ppc = next;
     if (nread < 0) {
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         continue;
@@ -5725,8 +5723,6 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
       return (int)nread;
     }
   }
-
-  conn->buffed_rx_hs_pkts = NULL;
 
   return 0;
 }
