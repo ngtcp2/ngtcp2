@@ -2095,10 +2095,7 @@ namespace {
 int new_session_cb(SSL *ssl, SSL_SESSION *session) {
   if (SSL_SESSION_get_max_early_data(session) !=
       std::numeric_limits<uint32_t>::max()) {
-    // TODO Find a way to send CONNECTION_CLOSE with
-    // PROTOCOL_VIOLATION in this case.
-    std::cerr << "max_early_data is not 0xffffffff" << std::endl;
-    return 0;
+    std::cerr << "max_early_data_size is not 0xffffffff" << std::endl;
   }
   auto f = BIO_new_file(config.session_file, "w");
   if (f == nullptr) {
