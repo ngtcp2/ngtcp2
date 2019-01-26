@@ -125,12 +125,12 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
         (uint16_t)(payloadlen + ppe->pkt_numlen + ctx->aead_overhead));
   }
 
-  ngtcp2_crypto_create_nonce(ppe->nonce, ctx->ckm->iv, ctx->ckm->ivlen,
+  ngtcp2_crypto_create_nonce(ppe->nonce, ctx->ckm->iv.base, ctx->ckm->iv.len,
                              ppe->pkt_num);
 
   nwrite = ppe->ctx->encrypt(conn, payload, destlen, payload, payloadlen,
-                             ctx->ckm->key, ctx->ckm->keylen, ppe->nonce,
-                             ctx->ckm->ivlen, buf->begin, ppe->hdlen,
+                             ctx->ckm->key.base, ctx->ckm->key.len, ppe->nonce,
+                             ctx->ckm->iv.len, buf->begin, ppe->hdlen,
                              conn->user_data);
   if (nwrite < 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -141,8 +141,8 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   /* TODO Check that we have enough space to get sample */
   assert(ppe->sample_offset + NGTCP2_HP_SAMPLELEN <= ngtcp2_buf_len(buf));
 
-  nwrite = ppe->ctx->hp_mask(conn, mask, sizeof(mask), ctx->ckm->hp,
-                             ctx->ckm->hplen, buf->begin + ppe->sample_offset,
+  nwrite = ppe->ctx->hp_mask(conn, mask, sizeof(mask), ctx->hp->base,
+                             ctx->hp->len, buf->begin + ppe->sample_offset,
                              NGTCP2_HP_SAMPLELEN, conn->user_data);
   if (nwrite < NGTCP2_HP_MASKLEN) {
     return NGTCP2_ERR_CALLBACK_FAILURE;

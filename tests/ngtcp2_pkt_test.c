@@ -176,7 +176,9 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   rv = pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
 
   CU_ASSERT((ssize_t)expectedlen == rv);
-  CU_ASSERT(hd.flags == nhd.flags);
+  /* key phase bit is protected by header protection and
+     ngtcp2_pkt_decode_hd_short does not decode it. */
+  CU_ASSERT(NGTCP2_PKT_FLAG_NONE == nhd.flags);
   CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
   CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));

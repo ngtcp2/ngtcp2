@@ -45,23 +45,35 @@
    packet header. */
 #define NGTCP2_HP_SAMPLELEN 16
 
+typedef enum {
+  NGTCP2_CRYPTO_KM_FLAG_NONE,
+  /* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
+     set. */
+  NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE = 0x01,
+} ngtcp2_crypto_km_flag;
+
 typedef struct {
-  const uint8_t *key;
-  size_t keylen;
-  const uint8_t *iv;
-  size_t ivlen;
-  const uint8_t *hp;
-  size_t hplen;
+  ngtcp2_vec key;
+  ngtcp2_vec iv;
+  /* pkt_num is a packet number of a packet which uses this keying
+     material.  For encryption key, it is the lowest packet number of
+     a packet.  For decryption key, it is the lowest packet number of
+     a packet which can be decrypted with this keying material. */
+  uint64_t pkt_num;
+  /* flags is the bitwise OR of zero or more of
+     ngtcp2_crypto_km_flag. */
+  uint8_t flags;
 } ngtcp2_crypto_km;
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
                          size_t keylen, const uint8_t *iv, size_t ivlen,
-                         const uint8_t *pn, size_t pnlen, ngtcp2_mem *mem);
+                         ngtcp2_mem *mem);
 
 void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, ngtcp2_mem *mem);
 
 typedef struct {
   const ngtcp2_crypto_km *ckm;
+  const ngtcp2_vec *hp;
   size_t aead_overhead;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;

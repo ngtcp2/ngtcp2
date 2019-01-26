@@ -661,13 +661,13 @@ static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
   ngtcp2_log_info(
       log, NGTCP2_LOG_EVENT_PKT,
-      "%s pkt %" PRIu64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu", dir,
-      hd->pkt_num,
+      "%s pkn=%" PRIu64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu k=%d",
+      dir, hd->pkt_num,
       (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
       (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
       (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) ? strpkttype_long(hd->type)
                                               : "Short",
-      hd->type, hd->len);
+      hd->type, hd->len, (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) != 0);
 }
 
 void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {

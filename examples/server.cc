@@ -100,9 +100,13 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
-  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
+    break;
+  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+    rx_secret_.assign(secret, secret + secretlen);
+    break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
+    tx_secret_.assign(secret, secret + secretlen);
     break;
   default:
     return 0;
@@ -179,10 +183,8 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
   }
 
   if (!config.quiet) {
-    std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
-              << "+ key=" << util::format_hex(key.data(), keylen) << "\n"
-              << "+ iv=" << util::format_hex(iv.data(), ivlen) << "\n"
-              << "+ hp=" << util::format_hex(hp.data(), hplen) << std::endl;
+    debug::print_secrets(secret, secretlen, key.data(), keylen, iv.data(),
+                         ivlen, hp.data(), hplen);
   }
 
   return 0;
@@ -698,6 +700,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       tx_crypto_offset_(0),
+      nkey_update_(0),
       tls_alert_(0),
       initial_(true),
       draining_(false) {
@@ -967,6 +970,16 @@ int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
 }
 } // namespace
 
+namespace {
+int update_key(ngtcp2_conn *conn, void *user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  if (h->update_key() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
 int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
                   const ngtcp2_cid *dcid, const ngtcp2_cid *ocid,
                   uint32_t version) {
@@ -1021,6 +1034,7 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
       rand,
       get_new_connection_id,
       remove_connection_id,
+      ::update_key,
   };
 
   ngtcp2_settings settings{};
@@ -1766,6 +1780,83 @@ int Handler::recv_stream_data(uint64_t stream_id, uint8_t fin,
         return -1;
       }
     }
+  }
+
+  return 0;
+}
+
+int Handler::update_key() {
+  int rv;
+  std::array<uint8_t, 64> secret, key, iv;
+
+  ++nkey_update_;
+
+  auto secretlen = crypto::update_traffic_secret(
+      secret.data(), secret.size(), tx_secret_.data(), tx_secret_.size(),
+      crypto_ctx_);
+  if (secretlen < 0) {
+    return -1;
+  }
+
+  tx_secret_.assign(std::begin(secret), std::end(secret));
+
+  auto keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), secret.data(), secretlen, crypto_ctx_);
+  if (keylen < 0) {
+    return -1;
+  }
+
+  auto ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), secret.data(), secretlen, crypto_ctx_);
+  if (ivlen < 0) {
+    return -1;
+  }
+
+  rv = ngtcp2_conn_update_tx_key(conn_, key.data(), keylen, iv.data(), ivlen);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_update_tx_key: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  if (!config.quiet) {
+    std::cerr << "server_application_traffic " << nkey_update_ << std::endl;
+    debug::print_secrets(secret.data(), secretlen, key.data(), keylen,
+                         iv.data(), ivlen);
+  }
+
+  secretlen = crypto::update_traffic_secret(secret.data(), secret.size(),
+                                            rx_secret_.data(),
+                                            rx_secret_.size(), crypto_ctx_);
+  if (secretlen < 0) {
+    return -1;
+  }
+
+  rx_secret_.assign(std::begin(secret), std::end(secret));
+
+  keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), secret.data(), secretlen, crypto_ctx_);
+  if (keylen < 0) {
+    return -1;
+  }
+
+  ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), secret.data(), secretlen, crypto_ctx_);
+  if (ivlen < 0) {
+    return -1;
+  }
+
+  rv = ngtcp2_conn_update_rx_key(conn_, key.data(), keylen, iv.data(), ivlen);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_update_rx_key: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  if (!config.quiet) {
+    std::cerr << "client_application_traffic " << nkey_update_ << std::endl;
+    debug::print_secrets(secret.data(), secretlen, key.data(), keylen,
+                         iv.data(), ivlen);
   }
 
   return 0;

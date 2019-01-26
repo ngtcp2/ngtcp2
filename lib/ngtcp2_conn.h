@@ -179,6 +179,10 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_CHANGE_DCID is set when local endpoint has to
      change its DCID. */
   NGTCP2_CONN_FLAG_CHANGE_DCID = 0x2000,
+  /* NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE is set when local
+     endpoint has initiated key update and waits for the remote
+     endpoint to update key. */
+  NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE = 0x4000,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -213,6 +217,8 @@ typedef struct {
   /* rx_ckm is a cryptographic key, and iv to decrypt incoming
      packets. */
   ngtcp2_crypto_km *rx_ckm;
+  ngtcp2_vec *tx_hp;
+  ngtcp2_vec *rx_hp;
   ngtcp2_frame_chain *frq;
 } ngtcp2_pktns;
 
@@ -220,7 +226,7 @@ typedef enum {
   NGTCP2_CID_FLAG_NONE,
   NGTCP2_CID_FLAG_USED = 0x01,
   NGTCP2_CID_FLAG_RETIRED = 0x02,
-} ngtcp2_cid_flags;
+} ngtcp2_cid_flag;
 
 typedef struct {
   ngtcp2_pq_entry pe;
@@ -231,7 +237,7 @@ typedef struct {
   /* ts_retired is the timestamp when peer tells that this CID is
      retired. */
   ngtcp2_tstamp ts_retired;
-  /* flags is the bitwise OR of zero or more of ngtcp2_cid_flags. */
+  /* flags is the bitwise OR of zero or more of ngtcp2_cid_flag. */
   uint8_t flags;
   /* token is a stateless reset token associated to this CID.
      Actually, the stateless reset token is tied to the connection,
@@ -357,6 +363,14 @@ struct ngtcp2_conn {
   uint16_t flags;
   int server;
   ngtcp2_crypto_km *early_ckm;
+  ngtcp2_vec *early_hp;
+  /* old_ckm is an old 1RTT key. */
+  ngtcp2_crypto_km *old_rx_ckm;
+  /* new_tx_ckm is a new 1RTT key which has not been used. */
+  ngtcp2_crypto_km *new_tx_ckm;
+  /* new_rx_ckm is a new 1RTT key which has not successfully decrypted
+     incoming packet. */
+  ngtcp2_crypto_km *new_rx_ckm;
   size_t aead_overhead;
   /* buffed_rx_hs_pkts is buffered Handshake packets which come before
      Initial packet. */

@@ -25,6 +25,7 @@
 #include "debug.h"
 
 #include <random>
+#include <iostream>
 
 #include "util.h"
 
@@ -133,6 +134,22 @@ void print_client_pp_hp(const uint8_t *data, size_t len) {
 
 void print_server_pp_hp(const uint8_t *data, size_t len) {
   fprintf(outfile, "+ server_pp_hp=%s\n", util::format_hex(data, len).c_str());
+}
+
+void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
+                   size_t keylen, const uint8_t *iv, size_t ivlen,
+                   const uint8_t *hp, size_t hplen) {
+  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+            << "+ key=" << util::format_hex(key, keylen) << "\n"
+            << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
+            << "+ hp=" << util::format_hex(hp, hplen) << std::endl;
+}
+
+void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
+                   size_t keylen, const uint8_t *iv, size_t ivlen) {
+  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+            << "+ key=" << util::format_hex(key, keylen) << "\n"
+            << "+ iv=" << util::format_hex(iv, ivlen) << std::endl;
 }
 
 void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,

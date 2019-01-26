@@ -70,6 +70,25 @@ int derive_server_initial_secret(uint8_t *dest, size_t destlen,
                                    str_size(LABEL), ctx);
 }
 
+ssize_t update_traffic_secret(uint8_t *dest, size_t destlen,
+                              const uint8_t *secret, size_t secretlen,
+                              const Context &ctx) {
+  int rv;
+  static constexpr uint8_t LABEL[] = "traffic upd";
+
+  if (destlen < secretlen) {
+    return -1;
+  }
+
+  rv = crypto::hkdf_expand_label(dest, secretlen, secret, secretlen, LABEL,
+                                 str_size(LABEL), ctx);
+  if (rv != 0) {
+    return -1;
+  }
+
+  return secretlen;
+}
+
 ssize_t derive_packet_protection_key(uint8_t *dest, size_t destlen,
                                      const uint8_t *secret, size_t secretlen,
                                      const Context &ctx) {

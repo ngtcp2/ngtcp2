@@ -1343,6 +1343,22 @@ typedef int (*ngtcp2_remove_connection_id)(ngtcp2_conn *conn,
                                            const ngtcp2_cid *cid,
                                            void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_update_key` is a callback function which tells the
+ * application that it should update and install new keys.
+ *
+ * In the callback function, the application has to generate new keys
+ * for both encryption and decryption, and install them to |conn|
+ * using `ngtcp2_conn_update_tx_key` and `ngtcp2_conn_update_rx_key`.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, void *user_data);
+
 typedef struct {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
@@ -1391,6 +1407,7 @@ typedef struct {
   ngtcp2_rand rand;
   ngtcp2_get_new_connection_id get_new_connection_id;
   ngtcp2_remove_connection_id remove_connection_id;
+  ngtcp2_update_key update_key;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -1641,9 +1658,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_install_initial_tx_keys` installs packet protection
- * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * header protection key |hp| of length |hplen| to encrypt outgoing
- * Initial packets.  If they have already been set, they are
+ * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
+ * packet header protection key |hp| of length |hplen| to encrypt
+ * outgoing Initial packets.  If they have already been set, they are
  * overwritten.
  *
  * After receiving Retry packet, the DCID most likely changes.  In
@@ -1664,9 +1681,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_tx_keys(
  * @function
  *
  * `ngtcp2_conn_install_initial_rx_keys` installs packet protection
- * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * header protection key |hp| of length |hplen| to decrypt incoming
- * Initial packets.  If they have already been set, they are
+ * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
+ * packet header protection key |hp| of length |hplen| to decrypt
+ * incoming Initial packets.  If they have already been set, they are
  * overwritten.
  *
  * After receiving Retry packet, the DCID most likely changes.  In
@@ -1687,9 +1704,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_rx_keys(
  * @function
  *
  * `ngtcp2_conn_install_handshake_tx_keys` installs packet protection
- * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * header protection key |hp| of length |hplen| to encrypt outgoing
- * Handshake packets.
+ * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
+ * packet header protection key |hp| of length |hplen| to encrypt
+ * outgoing Handshake packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
  * application don't have to generate them.  For client, they are
@@ -1714,9 +1731,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
  * @function
  *
  * `ngtcp2_conn_install_handshake_rx_keys` installs packet protection
- * key |key| of length |key| and IV |iv| of length |ivlen|, and packet
- * header protection key |hp| of length |hplen| to decrypt incoming
- * Handshake packets.
+ * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
+ * packet header protection key |hp| of length |hplen| to decrypt
+ * incoming Handshake packets.
  *
  * TLS stack generates the packet protection key and IV, and therefore
  * application don't have to generate them.  For client, they are
@@ -1752,7 +1769,7 @@ NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_install_early_rx_keys` installs packet protection key
- * |key| of length |key| and IV |iv| of length |ivlen|, and packet
+ * |key| of length |keylen| and IV |iv| of length |ivlen|, and packet
  * header protection key |hp| of length |hplen| to encrypt or decrypt
  * 0RTT packets.
  *
@@ -1778,7 +1795,7 @@ ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
  * @function
  *
  * `ngtcp2_conn_install_tx_keys` installs packet protection key |key|
- * of length |key| and IV |iv| of length |ivlen|, and packet header
+ * of length |keylen| and IV |iv| of length |ivlen|, and packet header
  * protection key |hp| of length |hplen| to encrypt outgoing Short
  * packets.
  *
@@ -1806,7 +1823,7 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_install_rx_keys` installs packet protection key |key|
- * of length |key| and IV |iv| of length |ivlen|, and packet header
+ * of length |keylen| and IV |iv| of length |ivlen|, and packet header
  * protection key |hp| of length |hplen| to decrypt incoming Short
  * packets.
  *
@@ -1829,6 +1846,66 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn,
                                               const uint8_t *key, size_t keylen,
                                               const uint8_t *iv, size_t ivlen,
                                               const uint8_t *hp, size_t hplen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_update_tx_key` installs the updated packet protection
+ * key |key| of length |keylen| and IV |iv| of length |ivlen|.  They
+ * are used to encrypt an outgoing packet.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     The updated keying materials have not been synchronized yet.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_update_tx_key(ngtcp2_conn *conn,
+                                            const uint8_t *key, size_t keylen,
+                                            const uint8_t *iv, size_t ivlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_update_rx_key` installs the updated packet protection
+ * key |key| of length |keylen| and IV |iv| of length |ivlen|.  They
+ * are used to decrypt an incoming packet.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     The updated keying materials have not been synchronized yet.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_update_rx_key(ngtcp2_conn *conn,
+                                            const uint8_t *key, size_t keylen,
+                                            const uint8_t *iv, size_t ivlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_initiate_key_update` initiates the key update.  Prior
+ * to calling this function, the application has to install updated
+ * keys using `ngtcp2_conn_update_tx_key` and
+ * `ngtcp2_conn_update_rx_key`.
+ *
+ * Do not call this function if the local endpoint updates key in
+ * response to the key update of the remote endpoint.  In other words,
+ * don't call this function inside :type:`ngtcp2_update_key` callback
+ * function.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     The updated keying materials have not been synchronized yet; or
+ *     updated keys are not available.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn);
 
 /**
  * @function

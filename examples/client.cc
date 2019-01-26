@@ -105,9 +105,13 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC:
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
-  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
   case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
+    break;
+  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+    tx_secret_.assign(secret, secret + secretlen);
+    break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
+    rx_secret_.assign(secret, secret + secretlen);
     break;
   default:
     return 0;
@@ -184,10 +188,8 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
   }
 
   if (!config.quiet) {
-    std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
-              << "+ key=" << util::format_hex(key.data(), keylen) << "\n"
-              << "+ iv=" << util::format_hex(iv.data(), ivlen) << "\n"
-              << "+ hp=" << util::format_hex(hp.data(), hplen) << std::endl;
+    debug::print_secrets(secret, secretlen, key.data(), keylen, iv.data(),
+                         ivlen, hp.data(), hplen);
   }
 
   return 0;
@@ -405,6 +407,16 @@ void change_local_addrcb(struct ev_loop *loop, ev_timer *w, int revents) {
 } // namespace
 
 namespace {
+void key_updatecb(struct ev_loop *loop, ev_timer *w, int revents) {
+  auto c = static_cast<Client *>(w->data);
+
+  if (c->initiate_key_update() != 0) {
+    c->disconnect();
+  }
+}
+} // namespace
+
+namespace {
 void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
   ev_break(loop, EVBREAK_ALL);
 }
@@ -428,6 +440,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       last_stream_id_(UINT64_MAX),
       nstreams_done_(0),
+      nkey_update_(0),
       version_(0),
       tls_alert_(0),
       resumption_(false) {
@@ -444,6 +457,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   ev_timer_init(&change_local_addr_timer_, change_local_addrcb,
                 config.change_local_addr, 0.);
   change_local_addr_timer_.data = this;
+  ev_timer_init(&key_update_timer_, key_updatecb, config.key_update, 0.);
+  key_update_timer_.data = this;
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
@@ -457,6 +472,7 @@ void Client::disconnect() { disconnect(0); }
 void Client::disconnect(int liberr) {
   config.tx_loss_prob = 0;
 
+  ev_timer_stop(loop_, &key_update_timer_);
   ev_timer_stop(loop_, &change_local_addr_timer_);
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
@@ -567,7 +583,12 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
     debug::handshake_completed(conn, user_data);
   }
 
-  c->start_change_local_addr_timer();
+  if (config.change_local_addr) {
+    c->start_change_local_addr_timer();
+  }
+  if (config.key_update) {
+    c->start_key_update_timer();
+  }
 
   return 0;
 }
@@ -742,6 +763,18 @@ ssize_t do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 } // namespace
 
+namespace {
+int update_key(ngtcp2_conn *conn, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  if (c->update_key() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
 int Client::init_ssl() {
   if (ssl_) {
     SSL_free(ssl_);
@@ -856,6 +889,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // rand
       get_new_connection_id,
       remove_connection_id,
+      ::update_key,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -1649,13 +1683,11 @@ void Client::start_change_local_addr_timer() {
 }
 
 int Client::change_local_addr() {
-  if (!config.change_local_addr) {
-    return 0;
-  }
-
   Address remote_addr, local_addr;
 
-  std::cerr << "Changing local address" << std::endl;
+  if (!config.quiet) {
+    std::cerr << "Changing local address" << std::endl;
+  }
 
   auto nfd = create_sock(remote_addr, addr_, port_);
   if (nfd == -1) {
@@ -1683,6 +1715,108 @@ int Client::change_local_addr() {
     ev_io_start(loop_, &wev_);
   }
   ev_io_start(loop_, &rev_);
+
+  return 0;
+}
+
+void Client::start_key_update_timer() {
+  ev_timer_start(loop_, &key_update_timer_);
+}
+
+int Client::update_key() {
+  if (!config.quiet) {
+    std::cerr << "Updating traffic key" << std::endl;
+  }
+
+  int rv;
+  std::array<uint8_t, 64> secret, key, iv;
+
+  ++nkey_update_;
+
+  auto secretlen = crypto::update_traffic_secret(
+      secret.data(), secret.size(), tx_secret_.data(), tx_secret_.size(),
+      crypto_ctx_);
+  if (secretlen < 0) {
+    return -1;
+  }
+
+  tx_secret_.assign(std::begin(secret), std::end(secret));
+
+  auto keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), secret.data(), secretlen, crypto_ctx_);
+  if (keylen < 0) {
+    return -1;
+  }
+
+  auto ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), secret.data(), secretlen, crypto_ctx_);
+  if (ivlen < 0) {
+    return -1;
+  }
+
+  rv = ngtcp2_conn_update_tx_key(conn_, key.data(), keylen, iv.data(), ivlen);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_update_tx_key: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  if (!config.quiet) {
+    std::cerr << "client_application_traffic " << nkey_update_ << std::endl;
+    debug::print_secrets(secret.data(), secretlen, key.data(), keylen,
+                         iv.data(), ivlen);
+  }
+
+  secretlen = crypto::update_traffic_secret(secret.data(), secret.size(),
+                                            rx_secret_.data(),
+                                            rx_secret_.size(), crypto_ctx_);
+  if (secretlen < 0) {
+    return -1;
+  }
+
+  rx_secret_.assign(std::begin(secret), std::end(secret));
+
+  keylen = crypto::derive_packet_protection_key(
+      key.data(), key.size(), secret.data(), secretlen, crypto_ctx_);
+  if (keylen < 0) {
+    return -1;
+  }
+
+  ivlen = crypto::derive_packet_protection_iv(
+      iv.data(), iv.size(), secret.data(), secretlen, crypto_ctx_);
+  if (ivlen < 0) {
+    return -1;
+  }
+
+  rv = ngtcp2_conn_update_rx_key(conn_, key.data(), keylen, iv.data(), ivlen);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_update_rx_key: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  if (!config.quiet) {
+    std::cerr << "server_application_traffic " << nkey_update_ << std::endl;
+    debug::print_secrets(secret.data(), secretlen, key.data(), keylen,
+                         iv.data(), ivlen);
+  }
+
+  return 0;
+}
+
+int Client::initiate_key_update() {
+  int rv;
+
+  if (update_key() != 0) {
+    return -1;
+  }
+
+  rv = ngtcp2_conn_initiate_key_update(conn_);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_initiate_key_update: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
 
   return 0;
 }
@@ -2299,6 +2433,9 @@ Options:
   --change-local-addr=<T>
               Client  changes local  address when  <T> seconds  elapse
               after handshake completes.
+  --key-update=<T>
+              Client  initiates key  update  when  <T> seconds  elapse
+              after handshake completes.
   -h, --help  Display this help and exit.
 )";
 }
@@ -2327,6 +2464,7 @@ int main(int argc, char **argv) {
         {"tp-file", required_argument, &flag, 5},
         {"dcid", required_argument, &flag, 6},
         {"change-local-addr", required_argument, &flag, 7},
+        {"key-update", required_argument, &flag, 8},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2414,6 +2552,10 @@ int main(int argc, char **argv) {
       case 7:
         // --change-local-addr
         config.change_local_addr = strtol(optarg, nullptr, 10);
+        break;
+      case 8:
+        // --key-update
+        config.key_update = strtol(optarg, nullptr, 10);
         break;
       }
       break;

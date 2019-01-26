@@ -73,6 +73,14 @@ int derive_client_initial_secret(uint8_t *dest, size_t destlen,
 int derive_server_initial_secret(uint8_t *dest, size_t destlen,
                                  const uint8_t *secret, size_t secretlen);
 
+// update_traffic_secret stores new secret into |dest| of length
+// |destlen| using the current secret |secret| of length |secretlen|.
+// |destlen| must be at least |secretlen| bytes long.  This function
+// returns the length of secret if it succeeds, or -1.
+ssize_t update_traffic_secret(uint8_t *dest, size_t destlen,
+                              const uint8_t *secret, size_t secretlen,
+                              const Context &ctx);
+
 // derive_packet_protection_key derives and stores the packet
 // protection key in the buffer pointed by |dest| of length |destlen|,
 // and the key size is returned.  This function returns the key length

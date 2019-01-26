@@ -226,7 +226,6 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
 ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                    size_t pktlen, size_t dcidlen) {
-  uint8_t flags = 0;
   size_t len = 1 + dcidlen;
   const uint8_t *p = pkt;
 
@@ -237,10 +236,6 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) ||
       (pkt[0] & NGTCP2_FIXED_BIT_MASK) == 0) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  if (pkt[0] & NGTCP2_SHORT_KEY_PHASE_BIT) {
-    flags |= NGTCP2_PKT_FLAG_KEY_PHASE;
   }
 
   p = &pkt[1];
@@ -254,7 +249,7 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
      garbage. */
   ngtcp2_cid_zero(&dest->scid);
 
-  dest->flags = flags;
+  dest->flags = NGTCP2_PKT_FLAG_NONE;
   dest->version = 0;
   dest->len = 0;
   dest->pkt_num = 0;
