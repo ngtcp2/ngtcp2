@@ -1084,7 +1084,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
 
 /*
  * conn_verify_dcid verifies that destination connection ID in |hd| is
- * valid for the connection.
+ * valid for the connection.  |pktns| may be NULL.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1094,9 +1094,8 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     |dcid| is not known to the local endpoint.
  */
-static int conn_verify_dcid(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                            ngtcp2_tstamp ts) {
-  ngtcp2_pktns *pktns = &conn->pktns;
+static int conn_verify_dcid(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                            const ngtcp2_pkt_hd *hd, ngtcp2_tstamp ts) {
   ngtcp2_ksl_key key;
   ngtcp2_ksl_it it;
   ngtcp2_cid_entry *ent;
@@ -1124,7 +1123,9 @@ static int conn_verify_dcid(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
       /* Initially pktns->max_rx_pkt_num == (uint64_t)-1 and this
          branch won't be taken. */
-      if (hd->type == NGTCP2_PKT_SHORT && hd->pkt_num > pktns->max_rx_pkt_num) {
+      if (pktns &&
+          (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED) &&
+          hd->pkt_num > pktns->max_rx_pkt_num) {
         if (conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE) {
           conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE;
         } else if (conn->last_dcid_change + NGTCP2_MIN_DCID_CHANGE_DURATION <
@@ -3889,7 +3890,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
 
     /* TODO Do not change state here? */
-    rv = conn_verify_dcid(conn, &hd, ts);
+    rv = conn_verify_dcid(conn, NULL, &hd, ts);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -4108,7 +4109,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
   case NGTCP2_PKT_INITIAL:
     if (!conn->server || ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) &&
                           !ngtcp2_cid_eq(&conn->rcid, &hd.dcid))) {
-      rv = conn_verify_dcid(conn, &hd, ts);
+      rv = conn_verify_dcid(conn, pktns, &hd, ts);
       if (rv != 0) {
         if (ngtcp2_err_is_fatal(rv)) {
           return rv;
@@ -4120,7 +4121,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     }
     break;
   case NGTCP2_PKT_HANDSHAKE:
-    rv = conn_verify_dcid(conn, &hd, ts);
+    rv = conn_verify_dcid(conn, pktns, &hd, ts);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -5579,7 +5580,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     switch (hd.type) {
     case NGTCP2_PKT_HANDSHAKE:
-      rv = conn_verify_dcid(conn, &hd, ts);
+      rv = conn_verify_dcid(conn, pktns, &hd, ts);
       if (rv != 0) {
         if (ngtcp2_err_is_fatal(rv)) {
           return rv;
@@ -5600,7 +5601,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return (ssize_t)pktlen;
     case NGTCP2_PKT_0RTT_PROTECTED:
       if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
-        rv = conn_verify_dcid(conn, &hd, ts);
+        rv = conn_verify_dcid(conn, pktns, &hd, ts);
         if (rv != 0) {
           if (ngtcp2_err_is_fatal(rv)) {
             return rv;
@@ -5613,7 +5614,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       break;
     }
   } else {
-    rv = conn_verify_dcid(conn, &hd, ts);
+    rv = conn_verify_dcid(conn, pktns, &hd, ts);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
