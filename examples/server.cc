@@ -2703,6 +2703,8 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
   rv = ngtcp2_conn_set_remote_transport_params(
       conn, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
   if (rv != 0) {
+    std::cerr << "ngtcp2_conn_set_remote_transport_params: "
+              << ngtcp2_strerror(rv) << std::endl;
     *al = SSL_AD_ILLEGAL_PARAMETER;
     return -1;
   }
