@@ -1100,6 +1100,10 @@ int Client::tls_handshake(bool initial) {
 
   ngtcp2_conn_handshake_completed(conn_);
 
+  if (read_tls() != 0) {
+    return -1;
+  }
+
   if (!config.quiet) {
     std::cerr << "Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
               << std::endl;
