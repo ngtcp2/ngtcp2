@@ -6821,7 +6821,7 @@ int ngtcp2_conn_update_tx_key(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
-  if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE) ||
+  if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE) ||
       conn->new_tx_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
@@ -6844,7 +6844,7 @@ int ngtcp2_conn_update_rx_key(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
-  if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE) ||
+  if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE) ||
       conn->new_rx_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
