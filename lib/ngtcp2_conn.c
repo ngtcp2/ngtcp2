@@ -3895,11 +3895,15 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
       }
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "packet was ignored because of mismatched DCID");
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
     if (!ngtcp2_cid_eq(ngtcp2_conn_get_dcid(conn), &hd.scid)) {
       /* Just discard invalid Version Negotiation packet */
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "packet was ignored because of mismatched SCID");
       return NGTCP2_ERR_DISCARD_PKT;
     }
     rv = conn_on_version_negotiation(conn, &hd, pkt + hdpktlen,
