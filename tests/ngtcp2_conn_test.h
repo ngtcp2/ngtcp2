@@ -60,6 +60,8 @@ void test_ngtcp2_conn_pkt_payloadlen(void);
 void test_ngtcp2_conn_writev_stream(void);
 void test_ngtcp2_conn_recv_new_connection_id(void);
 void test_ngtcp2_conn_recv_retire_connection_id(void);
-void test_ngtcp2_conn_write_path_challenge(void);
+void test_ngtcp2_conn_server_path_validation(void);
+void test_ngtcp2_conn_client_connection_migration(void);
+void test_ngtcp2_conn_recv_path_challenge(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

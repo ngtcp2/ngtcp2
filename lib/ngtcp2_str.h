@@ -49,4 +49,16 @@ uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
  */
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
 
+/*
+ * ngtcp2_verify_stateless_retry_token verifies stateless retry token
+ * |want| and |got|.  This function returns 0 if |want| equals |got|
+ * and |got| is not all zero, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Token does not match; or token is all zero.
+ */
+int ngtcp2_verify_stateless_retry_token(const uint8_t *want,
+                                        const uint8_t *got);
+
 #endif /* NGTCP2_STR_H */

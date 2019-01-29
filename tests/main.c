@@ -47,6 +47,7 @@
 #include "ngtcp2_gaptr_test.h"
 #include "ngtcp2_vec_test.h"
 #include "ngtcp2_strm_test.h"
+#include "ngtcp2_pv_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -221,8 +222,12 @@ int main() {
                    test_ngtcp2_conn_recv_new_connection_id) ||
       !CU_add_test(pSuite, "conn_recv_retire_connection_id",
                    test_ngtcp2_conn_recv_retire_connection_id) ||
-      !CU_add_test(pSuite, "conn_write_path_challenge",
-                   test_ngtcp2_conn_write_path_challenge) ||
+      !CU_add_test(pSuite, "conn_server_path_validation",
+                   test_ngtcp2_conn_server_path_validation) ||
+      !CU_add_test(pSuite, "conn_client_connection_migration",
+                   test_ngtcp2_conn_client_write_handshake) ||
+      !CU_add_test(pSuite, "conn_recv_path_challenge",
+                   test_ngtcp2_conn_recv_path_challenge) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||
@@ -232,7 +237,9 @@ int main() {
       !CU_add_test(pSuite, "vec_split", test_ngtcp2_vec_split) ||
       !CU_add_test(pSuite, "vec_merge", test_ngtcp2_vec_merge) ||
       !CU_add_test(pSuite, "strm_streamfrq_pop",
-                   test_ngtcp2_strm_streamfrq_pop)) {
+                   test_ngtcp2_strm_streamfrq_pop) ||
+      !CU_add_test(pSuite, "pv_add_entry", test_ngtcp2_pv_add_entry) ||
+      !CU_add_test(pSuite, "pv_validate", test_ngtcp2_pv_validate)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }

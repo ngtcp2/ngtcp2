@@ -33,6 +33,8 @@
 
 typedef enum {
   NGTCP2_LOG_EVENT_NONE,
+  /* connection (catch-all) event */
+  NGTCP2_LOG_EVENT_CON,
   /* packet event */
   NGTCP2_LOG_EVENT_PKT,
   /* frame event */
@@ -41,8 +43,8 @@ typedef enum {
   NGTCP2_LOG_EVENT_RCV,
   /* crypto event */
   NGTCP2_LOG_EVENT_CRY,
-  /* connection (catch-all) event */
-  NGTCP2_LOG_EVENT_CON,
+  /* path validation event */
+  NGTCP2_LOG_EVENT_PTV,
 } ngtcp2_log_event;
 
 struct ngtcp2_log {

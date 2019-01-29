@@ -31,6 +31,38 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pq.h"
+#include "ngtcp2_path.h"
+
+typedef enum {
+  NGTCP2_CID_FLAG_NONE,
+  NGTCP2_CID_FLAG_USED = 0x01,
+  NGTCP2_CID_FLAG_RETIRED = 0x02,
+} ngtcp2_cid_flag;
+
+/* TODO Split this into 2: ngtcp2_dcid_entry and ngtcp2_scid_entry */
+typedef struct {
+  ngtcp2_pq_entry pe;
+  /* seq is the sequence number associated to the CID. */
+  uint64_t seq;
+  /* cid is a connection ID */
+  ngtcp2_cid cid;
+  /* path is a path which cid is bound to.  The addresses are zero
+     length if cid has not been bound to a particular path yet. */
+  ngtcp2_path path;
+  /* ts_retired is the timestamp when peer tells that this CID is
+     retired. */
+  ngtcp2_tstamp ts_retired;
+  /* flags is the bitwise OR of zero or more of ngtcp2_cid_flag. */
+  uint8_t flags;
+  /* token is a stateless reset token associated to this CID.
+     Actually, the stateless reset token is tied to the connection,
+     not to the particular connection ID. */
+  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t local_addrbuf[128];
+  uint8_t remote_addrbuf[128];
+} ngtcp2_cid_entry;
+
 /* ngtcp2_cid_zero makes |cid| zero-length. */
 void ngtcp2_cid_zero(ngtcp2_cid *cid);
 
@@ -51,5 +83,26 @@ int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs);
  * ID.
  */
 int ngtcp2_cid_empty(const ngtcp2_cid *cid);
+
+/*
+ * ngtcp2_cid_entry_init initializes |ent| with the given parameters.
+ * If |token| is NULL, the function fills ent->token it with 0.
+ * |token| must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
+ */
+void ngtcp2_cid_entry_init(ngtcp2_cid_entry *ent, uint64_t seq,
+                           const ngtcp2_cid *cid, const uint8_t *token);
+
+/*
+ * ngtcp2_cid_entry_copy copies |src| into |dest|.
+ */
+void ngtcp2_cid_entry_copy(ngtcp2_cid_entry *dest, const ngtcp2_cid_entry *src);
+
+/*
+ * ngtcp2_cid_entry_verify_uniqueness verifies uniqueness of (|seq|,
+ * |cid|, |token|) tuple against |cident|.
+ */
+int ngtcp2_cid_entry_verify_uniqueness(ngtcp2_cid_entry *cident, uint64_t seq,
+                                       const ngtcp2_cid *cid,
+                                       const uint8_t *token);
 
 #endif /* NGTCP2_CID_H */

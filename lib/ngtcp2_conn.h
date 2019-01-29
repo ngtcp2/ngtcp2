@@ -43,6 +43,8 @@
 #include "ngtcp2_log.h"
 #include "ngtcp2_pq.h"
 #include "ngtcp2_cc.h"
+#include "ngtcp2_pv.h"
+#include "ngtcp2_cid.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -99,6 +101,11 @@ typedef enum {
 #define NGTCP2_MAX_CLIENT_ID_BIDI 0x3fffffffffffff01ULL
 #define NGTCP2_MAX_CLIENT_ID_UNI 0x3fffffffffffff11ULL
 
+/* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
+   destination connection ID which have been bound to a particular
+   path, but not yet used as primary path and path validation is not
+   performed from the local endpoint. */
+#define NGTCP2_MAX_BOUND_DCID_POOL_SIZE 4
 /* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
    connection ID the remote endpoint provides to store.  It must be
    the power of 2. */
@@ -126,10 +133,15 @@ typedef union {
 } ngtcp2_max_frame;
 
 typedef struct {
-  /* ts_expire is the timestamp when this PATH_CHALLENGE expires. */
-  ngtcp2_tstamp ts_expire;
+  ngtcp2_path path;
   uint8_t data[8];
+  uint8_t local_addrbuf[128];
+  uint8_t remote_addrbuf[128];
 } ngtcp2_path_challenge_entry;
+
+void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
+                                      const ngtcp2_path *path,
+                                      const uint8_t *data);
 
 typedef enum {
   NGTCP2_CONN_FLAG_NONE = 0x00,
@@ -169,20 +181,10 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
      have been discarded. */
   NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
-  /* NGTCP2_CONN_FLAG_CONN_MIGRATION_IN_PROGRESS is set when
-     connection migration (path validation) is in progress due to the
-     change of remote address. */
-  NGTCP2_CONN_FLAG_CONN_MIGRATION_IN_PROGRESS = 0x0800,
-  /* NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE is set when local
-     endpoint waits for the remote endpoint to change its DCID. */
-  NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_CID_CHANGE = 0x1000,
-  /* NGTCP2_CONN_FLAG_CHANGE_DCID is set when local endpoint has to
-     change its DCID. */
-  NGTCP2_CONN_FLAG_CHANGE_DCID = 0x2000,
   /* NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE is set when local
      endpoint has initiated key update and waits for the remote
      endpoint to update key. */
-  NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE = 0x4000,
+  NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE = 0x0800,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -222,29 +224,6 @@ typedef struct {
   ngtcp2_frame_chain *frq;
 } ngtcp2_pktns;
 
-typedef enum {
-  NGTCP2_CID_FLAG_NONE,
-  NGTCP2_CID_FLAG_USED = 0x01,
-  NGTCP2_CID_FLAG_RETIRED = 0x02,
-} ngtcp2_cid_flag;
-
-typedef struct {
-  ngtcp2_pq_entry pe;
-  /* seq is the sequence number associated to the CID. */
-  uint64_t seq;
-  /* cid is a connection ID */
-  ngtcp2_cid cid;
-  /* ts_retired is the timestamp when peer tells that this CID is
-     retired. */
-  ngtcp2_tstamp ts_retired;
-  /* flags is the bitwise OR of zero or more of ngtcp2_cid_flag. */
-  uint8_t flags;
-  /* token is a stateless reset token associated to this CID.
-     Actually, the stateless reset token is tied to the connection,
-     not to the particular connection ID. */
-  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
-} ngtcp2_cid_entry;
-
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
@@ -261,8 +240,13 @@ struct ngtcp2_conn {
   /* oscid is the source connection ID initially used by the local
      endpoint. */
   ngtcp2_cid oscid;
-  /* dcids is a set of CID received from peer.  The first CID is in
-     use. */
+  /* dcid is the destination connection ID. */
+  ngtcp2_cid_entry dcid;
+  /* bound_dcids is a set of destination connection ID which is bound
+     to a particular path.  These paths are not validated yet. */
+  ngtcp2_ringbuf bound_dcids;
+  /* dcids is a set of unused CID received from peer.  The first CID
+     is in use. */
   ngtcp2_ringbuf dcids;
   /* scids is a set of CID sent to peer.  The peer can use any CIDs in
      this set. */
@@ -279,12 +263,10 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;
-  ngtcp2_ringbuf tx_path_challenge;
+  ngtcp2_pv *pv;
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
   ngtcp2_default_cc cc;
-  ngtcp2_addr local_addr;
-  ngtcp2_addr remote_addr;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
@@ -341,11 +323,6 @@ struct ngtcp2_conn {
   /* rx_bw is receiver side bandwidth. */
   double rx_bw;
   size_t probe_pkt_left;
-  /* last_dcid_change is the last timestamp when local endpoint
-     changed DCID. */
-  ngtcp2_tstamp last_dcid_change;
-  /* path_challenge_count is the number of PATH_CHALLENGE timeout. */
-  size_t path_challenge_count;
   /* hs_recved is the number of bytes received from client before its
      address is validated.  This field is only used by server to
      ensure "3 times received data" rule. */
@@ -383,17 +360,7 @@ struct ngtcp2_conn {
   ngtcp2_settings remote_settings;
   /* decrypt_buf is a buffer which is used to write decrypted data. */
   ngtcp2_array decrypt_buf;
-  uint8_t local_addrbuf[128];
-  uint8_t remote_addrbuf[128];
 };
-
-/*
- * ngtcp2_cid_entry_init initializes |ent| with the given parameters.
- * If |token| is NULL, the function fills ent->token it with 0.
- * |token| must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
- */
-void ngtcp2_cid_entry_init(ngtcp2_cid_entry *ent, uint64_t seq,
-                           const ngtcp2_cid *cid, const uint8_t *token);
 
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its

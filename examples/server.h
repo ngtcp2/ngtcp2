@@ -225,7 +225,7 @@ public:
   bool draining() const;
   int handle_error(int liberror);
   int send_conn_close();
-  void update_remote_addr();
+  void update_remote_addr(const ngtcp2_addr *addr);
 
   int send_greeting();
 
@@ -287,7 +287,7 @@ public:
   Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Server();
 
-  int init(int fd);
+  int init(int fd, const Address &local_addr);
   void disconnect();
   void disconnect(int liberr);
   void close();
@@ -312,8 +312,10 @@ public:
   int generate_rand_data(uint8_t *buf, size_t len);
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
   void dissociate_cid(const ngtcp2_cid *cid);
+  const Address &get_local_addr() const;
 
 private:
+  Address local_addr_;
   std::map<std::string, std::unique_ptr<Handler>> handlers_;
   // ctos_ is a mapping between client's initial destination
   // connection ID, and server source connection ID.

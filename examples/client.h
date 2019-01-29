@@ -86,6 +86,8 @@ struct Config {
   // key_update is the duration after which client initiates key
   // update.
   uint32_t key_update;
+  // nat_rebinding is true if simulated NAT rebinding is enabled.
+  bool nat_rebinding;
 };
 
 struct Buffer {

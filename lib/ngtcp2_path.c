@@ -26,11 +26,35 @@
 
 #include <string.h>
 
-ngtcp2_path *ngtcp2_path_init(ngtcp2_path *path, const ngtcp2_addr *local,
-                              const ngtcp2_addr *remote) {
-  memcpy(path->local.addr, local->addr, local->len);
-  path->local.len = local->len;
-  memcpy(path->remote.addr, remote->addr, remote->len);
-  path->remote.len = remote->len;
-  return path;
+#include "ngtcp2_addr.h"
+
+void ngtcp2_path_init(ngtcp2_path *path, const ngtcp2_addr *local,
+                      const ngtcp2_addr *remote) {
+  path->local = *local;
+  path->remote = *remote;
+}
+
+void ngtcp2_path_copy(ngtcp2_path *dest, const ngtcp2_path *src) {
+  ngtcp2_addr_copy(&dest->local, &src->local);
+  ngtcp2_addr_copy(&dest->remote, &src->remote);
+}
+
+int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b) {
+  return ngtcp2_addr_eq(&a->local, &b->local) &&
+         ngtcp2_addr_eq(&a->remote, &b->remote);
+}
+
+void ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
+                              size_t local_addrlen, const void *remote_addr,
+                              size_t remote_addrlen) {
+  ngtcp2_addr_init(&ps->path.local, ps->local_addrbuf, 0);
+  ngtcp2_addr_init(&ps->path.remote, ps->remote_addrbuf, 0);
+
+  ngtcp2_addr_copy_byte(&ps->path.local, local_addr, local_addrlen);
+  ngtcp2_addr_copy_byte(&ps->path.remote, remote_addr, remote_addrlen);
+}
+
+void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps) {
+  ngtcp2_addr_init(&ps->path.local, ps->local_addrbuf, 0);
+  ngtcp2_addr_init(&ps->path.remote, ps->remote_addrbuf, 0);
 }

@@ -309,6 +309,11 @@ typedef enum {
   NGTCP2_CRYPTO_ERROR = 0x100
 } ngtcp2_transport_error;
 
+typedef enum {
+  NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
+  NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
+} ngtcp2_path_validation_result;
+
 /*
  * ngtcp2_tstamp is a timestamp with NGTCP2_DURATION_TICK resolution.
  */
@@ -758,6 +763,18 @@ typedef struct {
   /* remote is the address of remote endpoint. */
   ngtcp2_addr remote;
 } ngtcp2_path;
+
+/**
+ * @struct
+ *
+ * ngtcp2_path_storage is a convenient struct to have buffers to store
+ * the longest addresses.
+ */
+typedef struct {
+  ngtcp2_path path;
+  uint8_t local_addrbuf[128];
+  uint8_t remote_addrbuf[128];
+} ngtcp2_path_storage;
 
 /**
  * @function
@@ -1359,6 +1376,26 @@ typedef int (*ngtcp2_remove_connection_id)(ngtcp2_conn *conn,
  */
 typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_path_validation` is a callback function which tells
+ * the application the outcome of path validation.  |path| is the path
+ * to validate.  If |res| is
+ * :enum:`NGTCP2_PATH_VALIDATION_RESULT_SUCCESS`, the path validation
+ * succeeded.  If |res| is
+ * :enum:`NGTCP2_PATH_VALIDATION_RESULT_FAILURE`, the path validation
+ * failed.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn,
+                                      const ngtcp2_path *path,
+                                      ngtcp2_path_validation_result res,
+                                      void *user_data);
+
 typedef struct {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
@@ -1408,6 +1445,7 @@ typedef struct {
   ngtcp2_get_new_connection_id get_new_connection_id;
   ngtcp2_remove_connection_id remove_connection_id;
   ngtcp2_update_key update_key;
+  ngtcp2_path_validation path_validation;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -1605,11 +1643,11 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
  * by |dest| whose length is |destlen|.  |ts| is the timestamp of the
  * current time.
  *
- * If |path| is not NULL, this function stores the local and remote
- * addresses with which the packet should be sent.  Each addr field
- * must point to the buffer which at least has 128 bytes.
- * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
- * not done if this function fails, or nothing is written to |dest|.
+ * If |path| is not NULL, this function stores the network path with
+ * which the packet should be sent.  Each addr field must point to the
+ * buffer which is at least 128 bytes.  ``sizeof(struct
+ * sockaddr_storage)`` is enough.  The assignment might not be done if
+ * nothing is written to |dest|.
  *
  * If there is no packet to send, this function returns 0.
  *
@@ -2140,11 +2178,11 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
  * of stream denoted by |stream_id|.  The buffer of the packet is
  * pointed by |dest| of length |destlen|.
  *
- * If |path| is not NULL, this function stores the local and remote
- * addresses with which the packet should be sent.  Each addr field
- * must point to the buffer which at least has 128 bytes.
- * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
- * not done if this function fails, or nothing is written to |dest|.
+ * If |path| is not NULL, this function stores the network path with
+ * which the packet should be sent.  Each addr field must point to the
+ * buffer which is at least 128 bytes.  ``sizeof(struct
+ * sockaddr_storage)`` is enough.  The assignment might not be done if
+ * nothing is written to |dest|.
  *
  * If the all given data is encoded as STREAM frame in|dest|, and if
  * |fin| is nonzero, fin flag is set in outgoing STREAM frame.
@@ -2199,11 +2237,11 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
  * a CONNECTION_CLOSE frame in the buffer pointed by |dest| whose
  * capacity is |datalen|.
  *
- * If |path| is not NULL, this function stores the local and remote
- * addresses with which the packet should be sent.  Each addr field
- * must point to the buffer which at least has 128 bytes.
- * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
- * not done if this function fails, or nothing is written to |dest|.
+ * If |path| is not NULL, this function stores the network path with
+ * which the packet should be sent.  Each addr field must point to the
+ * buffer which is at least 128 bytes.  ``sizeof(struct
+ * sockaddr_storage)`` is enough.  The assignment might not be done if
+ * nothing is written to |dest|.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2234,11 +2272,11 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(
  * contains a APPLICATION_CLOSE frame in the buffer pointed by |dest|
  * whose capacity is |datalen|.
  *
- * If |path| is not NULL, this function stores the local and remote
- * addresses with which the packet should be sent.  Each addr field
- * must point to the buffer which at least has 128 bytes.
- * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
- * not done if this function fails, or nothing is written to |dest|.
+ * If |path| is not NULL, this function stores the network path with
+ * which the packet should be sent.  Each addr field must point to the
+ * buffer which is at least 128 bytes.  ``sizeof(struct
+ * sockaddr_storage)`` is enough.  The assignment might not be done if
+ * nothing is written to |dest|.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2458,6 +2496,27 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_initiate_migration` starts connection migration to the
+ * given |path|.  Only client can initiate migration.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     |conn| is initialized as server; or no unused connection ID is
+ *     available.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |path| equals the current path.
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ */
+NGTCP2_EXTERN int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
+                                                 const ngtcp2_path *path,
+                                                 ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
@@ -2485,6 +2544,26 @@ NGTCP2_EXTERN uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
  */
 NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *addr,
                                             const void *address, size_t len);
+
+/**
+ * @function
+ *
+ * `ngtcp2_path_storage_init` initializes |ps| with the given
+ * arguments.  This function copies |local_addr| and |remote_addr|.
+ */
+NGTCP2_EXTERN void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
+                                            const void *local_addr,
+                                            size_t local_addrlen,
+                                            const void *remote_addr,
+                                            size_t remote_addrlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_path_storage_zero` initializes |ps| with the zero length
+ * addresses.
+ */
+NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
 
 #ifdef __cplusplus
 }

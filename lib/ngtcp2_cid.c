@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "ngtcp2_path.h"
 #include "ngtcp2_str.h"
 
 void ngtcp2_cid_zero(ngtcp2_cid *cid) { cid->datalen = 0; }
@@ -54,3 +55,37 @@ int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs) {
 }
 
 int ngtcp2_cid_empty(const ngtcp2_cid *cid) { return cid->datalen == 0; }
+
+void ngtcp2_cid_entry_init(ngtcp2_cid_entry *ent, uint64_t seq,
+                           const ngtcp2_cid *cid, const uint8_t *token) {
+  ent->pe.index = NGTCP2_PQ_BAD_INDEX;
+  ent->seq = seq;
+  ent->cid = *cid;
+  ent->ts_retired = UINT64_MAX;
+  ent->flags = NGTCP2_CID_FLAG_NONE;
+  if (token) {
+    memcpy(ent->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  } else {
+    memset(ent->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
+  }
+  ngtcp2_addr_init(&ent->path.local, ent->local_addrbuf, 0);
+  ngtcp2_addr_init(&ent->path.remote, ent->remote_addrbuf, 0);
+}
+
+void ngtcp2_cid_entry_copy(ngtcp2_cid_entry *dest,
+                           const ngtcp2_cid_entry *src) {
+  ngtcp2_cid_entry_init(dest, src->seq, &src->cid, src->token);
+  ngtcp2_path_copy(&dest->path, &src->path);
+  dest->ts_retired = src->ts_retired;
+  dest->flags = src->flags;
+}
+
+int ngtcp2_cid_entry_verify_uniqueness(ngtcp2_cid_entry *cident, uint64_t seq,
+                                       const ngtcp2_cid *cid,
+                                       const uint8_t *token) {
+  int r1 = seq == cident->seq;
+  int r2 = ngtcp2_cid_eq(&cident->cid, cid);
+  int r3 = memcmp(cident->token, token, NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
+
+  return (r1 ^ r2 ^ r3) ? NGTCP2_ERR_PROTO : 0;
+}

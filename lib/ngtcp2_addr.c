@@ -32,6 +32,21 @@ ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr, size_t len) {
   return dest;
 }
 
+void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src) {
+  dest->len = src->len;
+  if (src->len) {
+    memcpy(dest->addr, src->addr, src->len);
+  }
+}
+
+void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const void *addr,
+                           size_t addrlen) {
+  dest->len = addrlen;
+  if (addrlen) {
+    memcpy(dest->addr, addr, addrlen);
+  }
+}
+
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b) {
   return a->len == b->len && memcmp(a->addr, b->addr, a->len) == 0;
 }

@@ -127,6 +127,7 @@ static uint8_t null_iv[16];
 static uint8_t null_pn[16];
 static uint8_t null_data[4096];
 static ngtcp2_path null_path = {};
+static ngtcp2_path new_path = {{1, (uint8_t *)"1"}, {1, (uint8_t *)"2"}};
 
 static ngtcp2_vec *null_datav(ngtcp2_vec *datav, size_t len) {
   datav->base = null_data;
@@ -1957,7 +1958,6 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   int rv;
   size_t i;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  ngtcp2_cid_entry *ent;
 
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
     token[i] = (uint8_t)~i;
@@ -1968,8 +1968,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 24324325;
 
-  ent = ngtcp2_ringbuf_get(&conn->dcids, 0);
-  memcpy(ent->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  memcpy(conn->dcid.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
       buf, sizeof(buf), token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
@@ -1988,8 +1987,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 3255454;
 
-  ent = ngtcp2_ringbuf_get(&conn->dcids, 0);
-  memcpy(ent->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  memcpy(conn->dcid.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 
   spktlen =
       ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token, null_data, 29);
@@ -2289,8 +2287,6 @@ void test_ngtcp2_conn_handshake(void) {
   spktlen = ngtcp2_conn_write_handshake(conn, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  /* No path challenge at the moment. */
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->tx_path_challenge));
 
   ngtcp2_conn_del(conn);
 }
@@ -3631,9 +3627,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(2 == ngtcp2_ringbuf_len(&conn->dcids));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcids));
 
-  ent = ngtcp2_ringbuf_get(&conn->dcids, 1);
+  ent = ngtcp2_ringbuf_get(&conn->dcids, 0);
 
   CU_ASSERT(ngtcp2_cid_eq(&fr.new_connection_id.cid, &ent->cid));
   CU_ASSERT(0 == memcmp(fr.new_connection_id.stateless_reset_token, ent->token,
@@ -3686,7 +3682,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   ngtcp2_conn_del(conn);
 }
 
-void test_ngtcp2_conn_write_path_challenge(void) {
+void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
   size_t pktlen;
@@ -3695,9 +3691,25 @@ void test_ngtcp2_conn_write_path_challenge(void) {
   uint64_t pkt_num = 0;
   ngtcp2_frame fr;
   int rv;
-  ngtcp2_path new_path = {{}, {1, (uint8_t *)"1"}};
+  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  ngtcp2_cid cid;
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+
+  ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
   setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
 
   fr.type = NGTCP2_FRAME_PING;
 
@@ -3707,12 +3719,137 @@ void test_ngtcp2_conn_write_path_challenge(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_CONN_MIGRATION_IN_PROGRESS);
+  CU_ASSERT(NULL != conn->pv);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ngtcp2_ringbuf_len(&conn->tx_path_challenge) > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents) > 0);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.path));
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.cid));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_client_connection_migration(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ssize_t spktlen;
+  ngtcp2_tstamp t = 900;
+  uint64_t pkt_num = 0;
+  ngtcp2_frame fr;
+  int rv;
+  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  ngtcp2_cid cid;
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+
+  ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
+
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_initiate_migration(conn, &new_path, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != conn->pv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents) > 0);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.path));
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.cid));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_recv_path_challenge(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ssize_t spktlen;
+  ngtcp2_tstamp t = 11;
+  uint64_t pkt_num = 0;
+  ngtcp2_frame fr;
+  int rv;
+  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  ngtcp2_cid cid;
+  const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  const uint8_t data[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8};
+  ngtcp2_path_storage ps;
+  ngtcp2_cid_entry *cident;
+
+  ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
+
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.cid = cid;
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memcpy(fr.path_challenge.data, data, sizeof(fr.path_challenge.data));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->rx_path_challenge) > 0);
+
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &ps.path));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx_path_challenge));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->bound_dcids));
+
+  cident = ngtcp2_ringbuf_get(&conn->bound_dcids, 0);
+
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &cident->path));
 
   ngtcp2_conn_del(conn);
 }

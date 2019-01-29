@@ -167,6 +167,20 @@ void log_printf(void *user_data, const char *fmt, ...) {
   va_end(ap);
 }
 
+void path_validation(const ngtcp2_path *path,
+                     ngtcp2_path_validation_result res) {
+  auto local_addr = util::straddr(
+      reinterpret_cast<sockaddr *>(path->local.addr), path->local.len);
+  auto remote_addr = util::straddr(
+      reinterpret_cast<sockaddr *>(path->remote.addr), path->remote.len);
+
+  std::cerr << "Path validation against path {local:" << local_addr
+            << ", remote:" << remote_addr << "} "
+            << (res == NGTCP2_PATH_VALIDATION_RESULT_SUCCESS ? "succeeded"
+                                                             : "failed")
+            << std::endl;
+}
+
 } // namespace debug
 
 } // namespace ngtcp2

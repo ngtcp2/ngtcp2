@@ -629,7 +629,15 @@ int extend_max_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 
   return 0;
 }
+} // namespace
 
+namespace {
+int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx,
+         void *user_data) {
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
+  return 0;
+}
 } // namespace
 
 namespace {
@@ -775,6 +783,16 @@ int update_key(ngtcp2_conn *conn, void *user_data) {
 }
 } // namespace
 
+namespace {
+int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
+                    ngtcp2_path_validation_result res, void *user_data) {
+  if (!config.quiet) {
+    debug::path_validation(path, res);
+  }
+  return 0;
+}
+} // namespace
+
 int Client::init_ssl() {
   if (ssl_) {
     SSL_free(ssl_);
@@ -886,10 +904,11 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       recv_retry,
       extend_max_streams_bidi,
       nullptr, // extend_max_streams_uni
-      nullptr, // rand
+      rand,    // rand
       get_new_connection_id,
       remove_connection_id,
       ::update_key,
+      path_validation,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -927,6 +946,12 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
+
+  ngtcp2_addr naddr;
+  ngtcp2_conn_set_local_addr(
+      conn_, ngtcp2_addr_init(&naddr, &local_addr.su, local_addr.len));
+  ngtcp2_conn_set_remote_addr(
+      conn_, ngtcp2_addr_init(&naddr, &remote_addr.su, remote_addr.len));
 
   rv = setup_initial_crypto_context();
   if (rv != 0) {
@@ -1160,7 +1185,7 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
 
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
     auto path = ngtcp2_path{
-        {},
+        {local_addr_.len, reinterpret_cast<uint8_t *>(&local_addr_.su)},
         {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
     rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
                               util::timestamp(loop_));
@@ -1264,6 +1289,11 @@ int Client::on_read() {
         std::cerr << "recvfrom: " << strerror(errno) << std::endl;
       }
       break;
+    }
+
+    if (!config.quiet) {
+      std::cerr << "Received packet from " << util::straddr(&su.sa, addrlen)
+                << std::endl;
     }
 
     if (debug::packet_lost(config.rx_loss_prob)) {
@@ -1627,8 +1657,13 @@ int bind_addr(Address &local_addr, int fd, int family) {
     return -1;
   }
 
-  local_addr.len = rp->ai_addrlen;
-  memcpy(&local_addr.su, rp->ai_addr, rp->ai_addrlen);
+  socklen_t len = sizeof(local_addr.su.storage);
+  rv = getsockname(fd, &local_addr.su.sa, &len);
+  if (rv == -1) {
+    std::cerr << "getsockname: " << strerror(errno) << std::endl;
+    return -1;
+  }
+  local_addr.len = len;
 
   return 0;
 }
@@ -1688,6 +1723,7 @@ void Client::start_change_local_addr_timer() {
 
 int Client::change_local_addr() {
   Address remote_addr, local_addr;
+  int rv;
 
   if (!config.quiet) {
     std::cerr << "Changing local address" << std::endl;
@@ -1708,6 +1744,21 @@ int Client::change_local_addr() {
   fd_ = nfd;
   local_addr_ = local_addr;
   remote_addr_ = remote_addr;
+
+  if (config.nat_rebinding) {
+    ngtcp2_addr addr;
+    ngtcp2_conn_set_local_addr(
+        conn_, ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len));
+  } else {
+    auto path = ngtcp2_path{
+        {local_addr.len, reinterpret_cast<uint8_t *>(&local_addr.su)},
+        {remote_addr.len, reinterpret_cast<uint8_t *>(&remote_addr.su)}};
+    rv = ngtcp2_conn_initiate_migration(conn_, &path, util::timestamp(loop_));
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_initiate_migration: " << ngtcp2_strerror(rv)
+                << std::endl;
+    }
+  }
 
   auto wev_active = ev_is_active(&wev_);
 
@@ -1856,6 +1907,12 @@ int Client::send_packet() {
 
   assert(static_cast<size_t>(nwrite) == sendbuf_.size());
   sendbuf_.reset();
+
+  if (!config.quiet) {
+    std::cerr << "Sent packet to "
+              << util::straddr(&remote_addr_.su.sa, remote_addr_.len) << " "
+              << nwrite << " bytes" << std::endl;
+  }
 
   return NETWORK_ERR_OK;
 }
@@ -2440,6 +2497,10 @@ Options:
   --change-local-addr=<T>
               Client  changes local  address when  <T> seconds  elapse
               after handshake completes.
+  --net-rebinding
+              When   used  with   --change-local-addr,  simulate   NAT
+              rebinding.   In   other  words,  client   changes  local
+              address, but it does not start path validation.
   --key-update=<T>
               Client  initiates key  update  when  <T> seconds  elapse
               after handshake completes.
@@ -2472,6 +2533,7 @@ int main(int argc, char **argv) {
         {"dcid", required_argument, &flag, 6},
         {"change-local-addr", required_argument, &flag, 7},
         {"key-update", required_argument, &flag, 8},
+        {"nat-rebinding", no_argument, &flag, 9},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2563,6 +2625,10 @@ int main(int argc, char **argv) {
       case 8:
         // --key-update
         config.key_update = strtol(optarg, nullptr, 10);
+        break;
+      case 9:
+        // --nat-rebinding
+        config.nat_rebinding = true;
         break;
       }
       break;

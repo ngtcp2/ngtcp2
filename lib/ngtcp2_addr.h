@@ -32,6 +32,21 @@
 #include <ngtcp2/ngtcp2.h>
 
 /*
+ * ngtcp2_addr_copy copies |src| to |dest|.  This function assumes
+ * that dest->addr points to a buffer which have sufficient size to
+ * store the copy.
+ */
+void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src);
+
+/*
+ * ngtcp2_addr_copy_byte copies |addr| of length |addrlen| into the
+ * buffer pointed by dest->addr.  dest->len is updated to have
+ * |addrlen|.  This function assumes that dest->addr points to a
+ * buffer which have sufficient size to store the copy.
+ */
+void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const void *addr, size_t addrlen);
+
+/*
  * ngtcp2_addr_eq returns nonzero if |a| equals |b|.
  */
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);

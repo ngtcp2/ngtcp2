@@ -87,6 +87,9 @@ void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,
 
 void log_printf(void *user_data, const char *fmt, ...);
 
+void path_validation(const ngtcp2_path *path,
+                     ngtcp2_path_validation_result res);
+
 } // namespace debug
 
 } // namespace ngtcp2

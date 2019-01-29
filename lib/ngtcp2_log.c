@@ -170,6 +170,8 @@ static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
 
 static const char *strevent(ngtcp2_log_event ev) {
   switch (ev) {
+  case NGTCP2_LOG_EVENT_CON:
+    return "con";
   case NGTCP2_LOG_EVENT_PKT:
     return "pkt";
   case NGTCP2_LOG_EVENT_FRM:
@@ -178,8 +180,8 @@ static const char *strevent(ngtcp2_log_event ev) {
     return "rcv";
   case NGTCP2_LOG_EVENT_CRY:
     return "cry";
-  case NGTCP2_LOG_EVENT_CON:
-    return "con";
+  case NGTCP2_LOG_EVENT_PTV:
+    return "ptv";
   case NGTCP2_LOG_EVENT_NONE:
   default:
     return "non";

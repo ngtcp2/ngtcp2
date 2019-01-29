@@ -47,3 +47,27 @@ uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
 
   return dest;
 }
+
+int ngtcp2_verify_stateless_retry_token(const uint8_t *want,
+                                        const uint8_t *got) {
+  size_t i;
+  int rv;
+
+  /* We consider that token with all bits not set is invalid. */
+  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
+    if (got[i] != 0) {
+      break;
+    }
+  }
+
+  if (i == NGTCP2_STATELESS_RESET_TOKENLEN) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  rv = 0;
+  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
+    rv |= want[i] ^ got[i];
+  }
+
+  return rv == 0 ? 0 : NGTCP2_ERR_INVALID_ARGUMENT;
+}
