@@ -35,6 +35,7 @@
 #include "ngtcp2_conv.h"
 #include "ngtcp2_vec.h"
 #include "ngtcp2_addr.h"
+#include "ngtcp2_path.h"
 
 /*
  * conn_local_stream returns nonzero if |stream_id| indicates that it
@@ -2816,8 +2817,9 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, ngtcp2_tstamp ts) {
+static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
+                                         uint8_t *dest, size_t destlen,
+                                         ngtcp2_tstamp ts) {
   ngtcp2_frame fr;
   int rv;
   ngtcp2_cid_entry *ent;
@@ -2866,6 +2868,10 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
+  if (path) {
+    ngtcp2_path_init(path, &conn->local_addr, &conn->remote_addr);
+  }
+
   assert(conn->callbacks.rand);
   rv = conn->callbacks.rand(conn, fr.path_challenge.data,
                             sizeof(fr.path_challenge.data),
@@ -2885,8 +2891,8 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, uint8_t *dest,
                                      &fr);
 }
 
-ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                              ngtcp2_tstamp ts) {
+ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
+                              uint8_t *dest, size_t destlen, ngtcp2_tstamp ts) {
   ssize_t nwrite;
   uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
@@ -2918,7 +2924,11 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     if (conn->server &&
         (conn->flags & NGTCP2_CONN_FLAG_CONN_MIGRATION_IN_PROGRESS)) {
-      return conn_write_path_challenge(conn, dest, destlen, ts);
+      return conn_write_path_challenge(conn, path, dest, destlen, ts);
+    }
+
+    if (path) {
+      ngtcp2_path_init(path, &conn->local_addr, &conn->remote_addr);
     }
 
     if (conn_handshake_remnants_left(conn)) {
@@ -7193,25 +7203,25 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id) {
   return ngtcp2_struct_of(me, ngtcp2_strm, me);
 }
 
-ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest,
-                                 size_t destlen, ssize_t *pdatalen,
-                                 uint64_t stream_id, uint8_t fin,
-                                 const uint8_t *data, size_t datalen,
-                                 ngtcp2_tstamp ts) {
+ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
+                                 uint8_t *dest, size_t destlen,
+                                 ssize_t *pdatalen, uint64_t stream_id,
+                                 uint8_t fin, const uint8_t *data,
+                                 size_t datalen, ngtcp2_tstamp ts) {
   ngtcp2_vec datav;
 
   datav.len = datalen;
   datav.base = (uint8_t *)data;
 
-  return ngtcp2_conn_writev_stream(conn, dest, destlen, pdatalen, stream_id,
-                                   fin, &datav, 1, ts);
+  return ngtcp2_conn_writev_stream(conn, path, dest, destlen, pdatalen,
+                                   stream_id, fin, &datav, 1, ts);
 }
 
-ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
-                                  size_t destlen, ssize_t *pdatalen,
-                                  uint64_t stream_id, uint8_t fin,
-                                  const ngtcp2_vec *datav, size_t datavcnt,
-                                  ngtcp2_tstamp ts) {
+ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
+                                  uint8_t *dest, size_t destlen,
+                                  ssize_t *pdatalen, uint64_t stream_id,
+                                  uint8_t fin, const ngtcp2_vec *datav,
+                                  size_t datavcnt, ngtcp2_tstamp ts) {
   ngtcp2_strm *strm;
   ssize_t nwrite;
   uint64_t cwnd;
@@ -7268,8 +7278,12 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
     destlen = ngtcp2_min(destlen, server_hs_tx_left);
 
     if (conn->flags & NGTCP2_CONN_FLAG_CONN_MIGRATION_IN_PROGRESS) {
-      return conn_write_path_challenge(conn, dest, destlen, ts);
+      return conn_write_path_challenge(conn, path, dest, destlen, ts);
     }
+  }
+
+  if (path) {
+    ngtcp2_path_init(path, &conn->local_addr, &conn->remote_addr);
   }
 
   if (conn_handshake_remnants_left(conn)) {
@@ -7319,8 +7333,9 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, uint8_t *dest,
                                  datav, datavcnt, 0, ts);
 }
 
-ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, uint16_t error_code,
+ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
+                                           uint8_t *dest, size_t destlen,
+                                           uint16_t error_code,
                                            ngtcp2_tstamp ts) {
   ssize_t nwrite;
   ngtcp2_frame fr;
@@ -7336,6 +7351,10 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
     return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  if (path) {
+    ngtcp2_path_init(path, &conn->local_addr, &conn->remote_addr);
   }
 
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
@@ -7362,7 +7381,8 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, uint8_t *dest,
   return nwrite;
 }
 
-ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
+ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
+                                            ngtcp2_path *path, uint8_t *dest,
                                             size_t destlen,
                                             uint16_t app_error_code,
                                             ngtcp2_tstamp ts) {
@@ -7382,6 +7402,10 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_INVALID_STATE;
   }
 
+  if (path) {
+    ngtcp2_path_init(path, &conn->local_addr, &conn->remote_addr);
+  }
+
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE_APP;
   fr.connection_close.error_code = app_error_code;
   fr.connection_close.frame_type = 0;
@@ -7390,11 +7414,10 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn, uint8_t *dest,
 
   nwrite =
       conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT, &fr);
-  if (nwrite < 0) {
-    return nwrite;
-  }
 
-  conn->state = NGTCP2_CS_CLOSING;
+  if (nwrite > 0) {
+    conn->state = NGTCP2_CS_CLOSING;
+  }
 
   return nwrite;
 }

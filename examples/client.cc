@@ -1314,7 +1314,7 @@ int Client::on_write(bool retransmit) {
   }
 
   for (;;) {
-    auto n = ngtcp2_conn_write_pkt(conn_, sendbuf_.wpos(), max_pktlen_,
+    auto n = ngtcp2_conn_write_pkt(conn_, nullptr, sendbuf_.wpos(), max_pktlen_,
                                    util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
@@ -1380,9 +1380,9 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
   ssize_t ndatalen;
 
   for (;;) {
-    auto n = ngtcp2_conn_write_stream(conn_, sendbuf_.wpos(), max_pktlen_,
-                                      &ndatalen, stream_id, fin, data.rpos(),
-                                      data.size(), util::timestamp(loop_));
+    auto n = ngtcp2_conn_write_stream(
+        conn_, nullptr, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream_id, fin,
+        data.rpos(), data.size(), util::timestamp(loop_));
     if (n < 0) {
       switch (n) {
       case NGTCP2_ERR_EARLY_DATA_REJECTED:
@@ -1955,8 +1955,9 @@ int Client::handle_error(int liberr) {
     err_code = ngtcp2_err_infer_quic_transport_error_code(liberr);
   }
 
-  auto n = ngtcp2_conn_write_connection_close(
-      conn_, sendbuf_.wpos(), max_pktlen_, err_code, util::timestamp(loop_));
+  auto n = ngtcp2_conn_write_connection_close(conn_, nullptr, sendbuf_.wpos(),
+                                              max_pktlen_, err_code,
+                                              util::timestamp(loop_));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;

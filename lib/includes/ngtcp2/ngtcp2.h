@@ -1605,6 +1605,12 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
  * by |dest| whose length is |destlen|.  |ts| is the timestamp of the
  * current time.
  *
+ * If |path| is not NULL, this function stores the local and remote
+ * addresses with which the packet should be sent.  Each addr field
+ * must point to the buffer which at least has 128 bytes.
+ * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
+ * not done if this function fails, or nothing is written to |dest|.
+ *
  * If there is no packet to send, this function returns 0.
  *
  * Application should keep calling this function repeatedly until it
@@ -1635,7 +1641,8 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn,
+                                            ngtcp2_path *path, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts);
 
 /**
@@ -2121,10 +2128,10 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * `ngtcp2_conn_writev_stream`.  The only difference is that it
  * conveniently accepts a single buffer.
  */
-NGTCP2_EXTERN ssize_t
-ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                         ssize_t *pdatalen, uint64_t stream_id, uint8_t fin,
-                         const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
+    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
+    ssize_t *pdatalen, uint64_t stream_id, uint8_t fin, const uint8_t *data,
+    size_t datalen, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2132,6 +2139,12 @@ ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  * `ngtcp2_conn_writev_stream` writes a packet containing stream data
  * of stream denoted by |stream_id|.  The buffer of the packet is
  * pointed by |dest| of length |destlen|.
+ *
+ * If |path| is not NULL, this function stores the local and remote
+ * addresses with which the packet should be sent.  Each addr field
+ * must point to the buffer which at least has 128 bytes.
+ * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
+ * not done if this function fails, or nothing is written to |dest|.
  *
  * If the all given data is encoded as STREAM frame in|dest|, and if
  * |fin| is nonzero, fin flag is set in outgoing STREAM frame.
@@ -2175,9 +2188,9 @@ ngtcp2_conn_write_stream(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  *     Stream is blocked because of flow control.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
-    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,
-    uint64_t stream_id, uint8_t fin, const ngtcp2_vec *datav, size_t datavcnt,
-    ngtcp2_tstamp ts);
+    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
+    ssize_t *pdatalen, uint64_t stream_id, uint8_t fin, const ngtcp2_vec *datav,
+    size_t datavcnt, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2185,6 +2198,12 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
  * `ngtcp2_conn_write_connection_close` writes a packet which contains
  * a CONNECTION_CLOSE frame in the buffer pointed by |dest| whose
  * capacity is |datalen|.
+ *
+ * If |path| is not NULL, this function stores the local and remote
+ * addresses with which the packet should be sent.  Each addr field
+ * must point to the buffer which at least has 128 bytes.
+ * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
+ * not done if this function fails, or nothing is written to |dest|.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2204,11 +2223,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
-                                                         uint8_t *dest,
-                                                         size_t destlen,
-                                                         uint16_t error_code,
-                                                         ngtcp2_tstamp ts);
+NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(
+    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
+    uint16_t error_code, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2216,6 +2233,12 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
  * `ngtcp2_conn_write_application_close` writes a packet which
  * contains a APPLICATION_CLOSE frame in the buffer pointed by |dest|
  * whose capacity is |datalen|.
+ *
+ * If |path| is not NULL, this function stores the local and remote
+ * addresses with which the packet should be sent.  Each addr field
+ * must point to the buffer which at least has 128 bytes.
+ * ``sizeof(struct sockaddr_storage)`` is enough.  The assignment is
+ * not done if this function fails, or nothing is written to |dest|.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2236,8 +2259,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
  *     User callback failed
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_application_close(
-    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, uint16_t app_error_code,
-    ngtcp2_tstamp ts);
+    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
+    uint16_t app_error_code, ngtcp2_tstamp ts);
 
 /**
  * @function
