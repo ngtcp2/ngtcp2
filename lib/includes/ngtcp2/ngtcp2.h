@@ -156,7 +156,7 @@ typedef struct {
 } ngtcp2_mem;
 
 /* NGTCP2_PROTO_VER_D17 is the supported QUIC protocol version
-   draft-15. */
+   draft-17. */
 #define NGTCP2_PROTO_VER_D17 0xff000011u
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
