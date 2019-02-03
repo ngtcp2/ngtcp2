@@ -3068,9 +3068,6 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
       return rv;
     }
 
-    cwnd = conn_cwnd_left(conn);
-    destlen = ngtcp2_min(destlen, cwnd);
-
     nwrite = conn_write_path_response(conn, path, dest, destlen);
     if (nwrite) {
       return nwrite;
@@ -3082,6 +3079,9 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
         return nwrite;
       }
     }
+
+    cwnd = conn_cwnd_left(conn);
+    destlen = ngtcp2_min(destlen, cwnd);
 
     if (path) {
       ngtcp2_path_copy(path, &conn->dcid.path);
@@ -7563,9 +7563,6 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     return NGTCP2_ERR_STREAM_SHUT_WR;
   }
 
-  cwnd = conn_cwnd_left(conn);
-  destlen = ngtcp2_min(destlen, cwnd);
-
   nwrite = conn_write_path_response(conn, path, dest, destlen);
   if (nwrite) {
     return nwrite;
@@ -7577,6 +7574,9 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
       return nwrite;
     }
   }
+
+  cwnd = conn_cwnd_left(conn);
+  destlen = ngtcp2_min(destlen, cwnd);
 
   if (conn->server) {
     server_hs_tx_left = conn_server_hs_tx_left(conn);
