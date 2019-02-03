@@ -5173,7 +5173,6 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   size_t i, len;
   ngtcp2_dcid *dcid;
 
-  /* TODO Have to check DCID as well as token */
   rv = ngtcp2_pkt_decode_stateless_reset(&sr, payload, payloadlen);
   if (rv != 0) {
     return rv;
