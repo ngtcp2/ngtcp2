@@ -1742,7 +1742,7 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
   ngtcp2_frame fr;
   size_t pktlen;
   ngtcp2_ksl_it it;
-  ngtcp2_cid_entry *ent;
+  ngtcp2_scid *scid;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -1772,8 +1772,8 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
   ngtcp2_cid_zero(&conn->oscid);
 
   it = ngtcp2_ksl_begin(&conn->scids);
-  ent = ngtcp2_ksl_it_get(&it);
-  ngtcp2_cid_zero(&ent->cid);
+  scid = ngtcp2_ksl_it_get(&it);
+  ngtcp2_cid_zero(&scid->cid);
 
   pktlen =
       write_single_frame_pkt_without_conn_id(conn, buf, sizeof(buf), 1, &fr);
@@ -3648,7 +3648,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   ngtcp2_frame fr;
   int rv;
   ngtcp2_ksl_it it;
-  ngtcp2_cid_entry *ent;
+  ngtcp2_scid *scid;
   uint64_t seq;
 
   setup_default_client(&conn);
@@ -3659,11 +3659,11 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   CU_ASSERT(spktlen > 0);
 
   it = ngtcp2_ksl_begin(&conn->scids);
-  ent = ngtcp2_ksl_it_get(&it);
-  seq = ent->seq;
+  scid = ngtcp2_ksl_it_get(&it);
+  seq = scid->seq;
 
-  CU_ASSERT(NGTCP2_CID_FLAG_NONE == ent->flags);
-  CU_ASSERT(UINT64_MAX == ent->ts_retired);
+  CU_ASSERT(NGTCP2_SCID_FLAG_NONE == scid->flags);
+  CU_ASSERT(UINT64_MAX == scid->ts_retired);
   CU_ASSERT(0 == ngtcp2_pq_size(&conn->used_scids));
 
   fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
@@ -3675,8 +3675,8 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NGTCP2_CID_FLAG_RETIRED == ent->flags);
-  CU_ASSERT(1000000010 == ent->ts_retired);
+  CU_ASSERT(NGTCP2_SCID_FLAG_RETIRED == scid->flags);
+  CU_ASSERT(1000000010 == scid->ts_retired);
   CU_ASSERT(2 == ngtcp2_pq_size(&conn->used_scids));
 
   ngtcp2_conn_del(conn);

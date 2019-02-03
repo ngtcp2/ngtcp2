@@ -56,26 +56,22 @@ int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs) {
 
 int ngtcp2_cid_empty(const ngtcp2_cid *cid) { return cid->datalen == 0; }
 
-void ngtcp2_cid_entry_init(ngtcp2_cid_entry *ent, uint64_t seq,
-                           const ngtcp2_cid *cid, const uint8_t *token) {
-  ent->pe.index = NGTCP2_PQ_BAD_INDEX;
-  ent->seq = seq;
-  ent->cid = *cid;
-  ent->ts_retired = UINT64_MAX;
-  ent->flags = NGTCP2_CID_FLAG_NONE;
+void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid,
+                      const uint8_t *token) {
+  scid->pe.index = NGTCP2_PQ_BAD_INDEX;
+  scid->seq = seq;
+  scid->cid = *cid;
+  scid->ts_retired = UINT64_MAX;
+  scid->flags = NGTCP2_SCID_FLAG_NONE;
   if (token) {
-    memcpy(ent->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+    memcpy(scid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
   } else {
-    memset(ent->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
+    memset(scid->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
   }
-  ngtcp2_addr_init(&ent->path.local, ent->local_addrbuf, 0);
-  ngtcp2_addr_init(&ent->path.remote, ent->remote_addrbuf, 0);
 }
 
-void ngtcp2_cid_entry_copy(ngtcp2_cid_entry *dest,
-                           const ngtcp2_cid_entry *src) {
-  ngtcp2_cid_entry_init(dest, src->seq, &src->cid, src->token);
-  ngtcp2_path_copy(&dest->path, &src->path);
+void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src) {
+  ngtcp2_scid_init(dest, src->seq, &src->cid, src->token);
   dest->ts_retired = src->ts_retired;
   dest->flags = src->flags;
 }

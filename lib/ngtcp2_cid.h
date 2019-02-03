@@ -35,33 +35,27 @@
 #include "ngtcp2_path.h"
 
 typedef enum {
-  NGTCP2_CID_FLAG_NONE,
-  NGTCP2_CID_FLAG_USED = 0x01,
-  NGTCP2_CID_FLAG_RETIRED = 0x02,
-} ngtcp2_cid_flag;
+  NGTCP2_SCID_FLAG_NONE,
+  NGTCP2_SCID_FLAG_USED = 0x01,
+  NGTCP2_SCID_FLAG_RETIRED = 0x02,
+} ngtcp2_scid_flag;
 
-/* TODO Split this into 2: ngtcp2_dcid_entry and ngtcp2_scid_entry */
 typedef struct {
   ngtcp2_pq_entry pe;
   /* seq is the sequence number associated to the CID. */
   uint64_t seq;
   /* cid is a connection ID */
   ngtcp2_cid cid;
-  /* path is a path which cid is bound to.  The addresses are zero
-     length if cid has not been bound to a particular path yet. */
-  ngtcp2_path path;
   /* ts_retired is the timestamp when peer tells that this CID is
      retired. */
   ngtcp2_tstamp ts_retired;
-  /* flags is the bitwise OR of zero or more of ngtcp2_cid_flag. */
+  /* flags is the bitwise OR of zero or more of ngtcp2_scid_flag. */
   uint8_t flags;
   /* token is a stateless reset token associated to this CID.
      Actually, the stateless reset token is tied to the connection,
      not to the particular connection ID. */
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  uint8_t local_addrbuf[128];
-  uint8_t remote_addrbuf[128];
-} ngtcp2_cid_entry;
+} ngtcp2_scid;
 
 typedef struct {
   /* seq is the sequence number associated to the CID. */
@@ -101,17 +95,17 @@ int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs);
 int ngtcp2_cid_empty(const ngtcp2_cid *cid);
 
 /*
- * ngtcp2_cid_entry_init initializes |ent| with the given parameters.
- * If |token| is NULL, the function fills ent->token it with 0.
- * |token| must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
+ * ngtcp2_scid_init initializes |scid| with the given parameters.  If
+ * |token| is NULL, the function fills ent->token it with 0.  |token|
+ * must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
  */
-void ngtcp2_cid_entry_init(ngtcp2_cid_entry *ent, uint64_t seq,
-                           const ngtcp2_cid *cid, const uint8_t *token);
+void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid,
+                      const uint8_t *token);
 
 /*
- * ngtcp2_cid_entry_copy copies |src| into |dest|.
+ * ngtcp2_scid_copy copies |src| into |dest|.
  */
-void ngtcp2_cid_entry_copy(ngtcp2_cid_entry *dest, const ngtcp2_cid_entry *src);
+void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src);
 
 /*
  * ngtcp2_dcid_init initializes |ent| with the given parameters.  If
