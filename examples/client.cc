@@ -1623,10 +1623,7 @@ ssize_t Client::hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
                          samplelen);
 }
 
-void Client::on_recv_retry() {
-  init_ssl();
-  setup_initial_crypto_context();
-}
+void Client::on_recv_retry() { setup_initial_crypto_context(); }
 
 namespace {
 int bind_addr(Address &local_addr, int fd, int family) {

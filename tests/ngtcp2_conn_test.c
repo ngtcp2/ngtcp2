@@ -2063,7 +2063,7 @@ void test_ngtcp2_conn_recv_retry(void) {
       CU_ASSERT(spktlen == 0);
     } else {
       CU_ASSERT(spktlen > 0);
-      CU_ASSERT(0 == conn->in_pktns.last_tx_pkt_num);
+      CU_ASSERT(1 == conn->in_pktns.last_tx_pkt_num);
       CU_ASSERT(ngtcp2_cid_eq(&dcid, ngtcp2_conn_get_dcid(conn)));
       CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY);
     }
@@ -2134,7 +2134,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   spktlen = ngtcp2_conn_write_handshake(conn, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 219 + 119);
-  CU_ASSERT(0 == conn->pktns.last_tx_pkt_num);
+  CU_ASSERT(2 == conn->pktns.last_tx_pkt_num);
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
@@ -2145,7 +2145,7 @@ void test_ngtcp2_conn_recv_retry(void) {
                                      stream_id, 0, null_data, 120, ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == conn->pktns.last_tx_pkt_num);
+  CU_ASSERT(3 == conn->pktns.last_tx_pkt_num);
   CU_ASSERT(120 == datalen);
   CU_ASSERT(NULL == conn->pktns.frq);
   CU_ASSERT(!ngtcp2_rtb_empty(&conn->pktns.rtb));

@@ -1094,8 +1094,11 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
  * :type:`ngtcp2_recv_retry` is invoked when Retry packet is received.
  * This callback is client only.
  *
- * Application must reinitialize TLS stack in order to start a fresh
- * cryptographic handshake.
+ * Application must regenerate packet protection key, IV, and header
+ * protection key for Initial packets using the destination connection
+ * ID obtained by `ngtcp2_conn_get_dcid()` and install them by calling
+ * `ngtcp2_conn_install_initial_tx_keys()` and
+ * `ngtcp2_conn_install_initial_rx_keys()`.
  *
  * 0-RTT data accepted by the ngtcp2 library will be retransmitted by
  * the library automatically.
