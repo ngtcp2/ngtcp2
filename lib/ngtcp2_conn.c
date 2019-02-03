@@ -353,8 +353,8 @@ static void cc_stat_reset(ngtcp2_cc_stat *ccs) {
 }
 
 static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
-                    const ngtcp2_cid *scid, uint32_t version,
-                    const ngtcp2_conn_callbacks *callbacks,
+                    const ngtcp2_cid *scid, const ngtcp2_path *path,
+                    uint32_t version, const ngtcp2_conn_callbacks *callbacks,
                     const ngtcp2_settings *settings, void *user_data,
                     int server) {
   int rv;
@@ -456,6 +456,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   ngtcp2_cid_entry_init(&(*pconn)->dcid, 0, dcid, NULL);
+  ngtcp2_path_copy(&(*pconn)->dcid.path, path);
 
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
@@ -502,11 +503,13 @@ fail_conn:
 }
 
 int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
-                           const ngtcp2_cid *scid, uint32_t version,
+                           const ngtcp2_cid *scid, const ngtcp2_path *path,
+                           uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
   int rv;
-  rv = conn_new(pconn, dcid, scid, version, callbacks, settings, user_data, 0);
+  rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings,
+                user_data, 0);
   if (rv != 0) {
     return rv;
   }
@@ -526,11 +529,13 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 }
 
 int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
-                           const ngtcp2_cid *scid, uint32_t version,
+                           const ngtcp2_cid *scid, const ngtcp2_path *path,
+                           uint32_t version,
                            const ngtcp2_conn_callbacks *callbacks,
                            const ngtcp2_settings *settings, void *user_data) {
   int rv;
-  rv = conn_new(pconn, dcid, scid, version, callbacks, settings, user_data, 1);
+  rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings,
+                user_data, 1);
   if (rv != 0) {
     return rv;
   }

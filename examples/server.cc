@@ -1073,7 +1073,12 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   std::generate(scid_.data, scid_.data + scid_.datalen,
                 [&dis]() { return dis(randgen); });
 
-  rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, version, &callbacks,
+  auto &local_addr = server_->get_local_addr();
+  auto path = ngtcp2_path{
+      {local_addr.len, const_cast<uint8_t *>(
+                           reinterpret_cast<const uint8_t *>(&local_addr.su))},
+      {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
+  rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version, &callbacks,
                               &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
@@ -1083,12 +1088,6 @@ int Handler::init(int fd, const sockaddr *sa, socklen_t salen,
   if (ocid) {
     ngtcp2_conn_set_retry_ocid(conn_, ocid);
   }
-
-  auto &local_addr = server_->get_local_addr();
-  ngtcp2_addr addr;
-  ngtcp2_conn_set_local_addr(
-      conn_, ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len));
-  ngtcp2_conn_set_remote_addr(conn_, ngtcp2_addr_init(&addr, sa, salen));
 
   ev_timer_again(loop_, &timer_);
 

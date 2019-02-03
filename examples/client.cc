@@ -940,18 +940,17 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   settings.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
 
-  rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, version, &callbacks,
+  auto path = ngtcp2_path{
+      {local_addr.len, const_cast<uint8_t *>(
+                           reinterpret_cast<const uint8_t *>(&local_addr.su))},
+      {remote_addr.len, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(
+                            &remote_addr.su))}};
+  rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version, &callbacks,
                               &settings, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
-
-  ngtcp2_addr naddr;
-  ngtcp2_conn_set_local_addr(
-      conn_, ngtcp2_addr_init(&naddr, &local_addr.su, local_addr.len));
-  ngtcp2_conn_set_remote_addr(
-      conn_, ngtcp2_addr_init(&naddr, &remote_addr.su, remote_addr.len));
 
   rv = setup_initial_crypto_context();
   if (rv != 0) {
