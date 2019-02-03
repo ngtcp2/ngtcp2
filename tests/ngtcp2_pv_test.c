@@ -35,7 +35,7 @@ void test_ngtcp2_pv_add_entry(void) {
   ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_cid cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  ngtcp2_dcid cident;
+  ngtcp2_dcid dcid;
   ngtcp2_log log;
   uint8_t data[8];
   size_t i;
@@ -43,10 +43,10 @@ void test_ngtcp2_pv_add_entry(void) {
   ngtcp2_tstamp t = 1;
 
   dcid_init(&cid);
-  ngtcp2_dcid_init(&cident, 1000000007, &cid, token);
+  ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
-  rv = ngtcp2_pv_new(&pv, &cident, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
+  rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
 
   CU_ASSERT(0 == rv);
 
@@ -86,7 +86,7 @@ void test_ngtcp2_pv_validate(void) {
   ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_cid cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  ngtcp2_dcid cident;
+  ngtcp2_dcid dcid;
   ngtcp2_log log;
   uint8_t data[8];
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
@@ -95,11 +95,11 @@ void test_ngtcp2_pv_validate(void) {
   ngtcp2_path alt_path = {{1, (uint8_t *)"3"}, {1, (uint8_t *)"4"}};
 
   dcid_init(&cid);
-  ngtcp2_dcid_init(&cident, 1000000007, &cid, token);
-  ngtcp2_path_copy(&cident.path, &path);
+  ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
+  ngtcp2_path_copy(&dcid.path, &path);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
-  rv = ngtcp2_pv_new(&pv, &cident, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
+  rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
 
   CU_ASSERT(0 == rv);
 

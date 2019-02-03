@@ -96,7 +96,7 @@ int ngtcp2_cid_empty(const ngtcp2_cid *cid);
 
 /*
  * ngtcp2_scid_init initializes |scid| with the given parameters.  If
- * |token| is NULL, the function fills ent->token it with 0.  |token|
+ * |token| is NULL, the function fills scid->token it with 0.  |token|
  * must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
  */
 void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid,
@@ -108,8 +108,8 @@ void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid,
 void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src);
 
 /*
- * ngtcp2_dcid_init initializes |ent| with the given parameters.  If
- * |token| is NULL, the function fills ent->token it with 0.  |token|
+ * ngtcp2_dcid_init initializes |dcid| with the given parameters.  If
+ * |token| is NULL, the function fills dcid->token it with 0.  |token|
  * must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
  */
 void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
@@ -122,7 +122,7 @@ void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
 
 /*
  * ngtcp2_dcid_verify_uniqueness verifies uniqueness of (|seq|, |cid|,
- * |token|) tuple against |cident|.
+ * |token|) tuple against |dcid|.
  */
 int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
                                   const ngtcp2_cid *cid, const uint8_t *token);
