@@ -3611,7 +3611,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_frame fr;
   const uint8_t cid[] = {0xf0, 0xf1, 0xf2, 0xf3};
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  ngtcp2_cid_entry *ent;
+  ngtcp2_dcid *ent;
   int rv;
 
   setup_default_client(&conn);
@@ -3809,7 +3809,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   const uint8_t data[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8};
   ngtcp2_path_storage ps;
-  ngtcp2_cid_entry *cident;
+  ngtcp2_dcid *cident;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 

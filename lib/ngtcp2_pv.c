@@ -36,7 +36,7 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
   pvent->expiry = expiry;
 }
 
-int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_cid_entry *cident,
+int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
                   ngtcp2_duration timeout, uint8_t flags, ngtcp2_log *log,
                   ngtcp2_mem *mem) {
   int rv;
@@ -53,7 +53,7 @@ int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_cid_entry *cident,
     return 0;
   }
 
-  ngtcp2_cid_entry_copy(&(*ppv)->cident, cident);
+  ngtcp2_dcid_copy(&(*ppv)->dcid, dcid);
 
   (*ppv)->mem = mem;
   (*ppv)->log = log;
@@ -100,7 +100,7 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, const ngtcp2_path *path,
 
   /* Must validate that path which PATH_CHALLENGE is sent equals to
      the path PATH_RESPONSE is received. */
-  if (!ngtcp2_path_eq(&pv->cident.path, path)) {
+  if (!ngtcp2_path_eq(&pv->dcid.path, path)) {
     ngtcp2_log_info(
         pv->log, NGTCP2_LOG_EVENT_PTV,
         "path does not match the one that path validation is performed");

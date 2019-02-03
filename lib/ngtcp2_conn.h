@@ -241,7 +241,7 @@ struct ngtcp2_conn {
      endpoint. */
   ngtcp2_cid oscid;
   /* dcid is the destination connection ID. */
-  ngtcp2_cid_entry dcid;
+  ngtcp2_dcid dcid;
   /* bound_dcids is a set of destination connection ID which is bound
      to a particular path.  These paths are not validated yet. */
   ngtcp2_ringbuf bound_dcids;

@@ -63,6 +63,22 @@ typedef struct {
   uint8_t remote_addrbuf[128];
 } ngtcp2_cid_entry;
 
+typedef struct {
+  /* seq is the sequence number associated to the CID. */
+  uint64_t seq;
+  /* cid is a connection ID */
+  ngtcp2_cid cid;
+  /* path is a path which cid is bound to.  The addresses are zero
+     length if cid has not been bound to a particular path yet. */
+  ngtcp2_path path;
+  /* token is a stateless reset token associated to this CID.
+     Actually, the stateless reset token is tied to the connection,
+     not to the particular connection ID. */
+  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  uint8_t local_addrbuf[128];
+  uint8_t remote_addrbuf[128];
+} ngtcp2_dcid;
+
 /* ngtcp2_cid_zero makes |cid| zero-length. */
 void ngtcp2_cid_zero(ngtcp2_cid *cid);
 
@@ -98,11 +114,23 @@ void ngtcp2_cid_entry_init(ngtcp2_cid_entry *ent, uint64_t seq,
 void ngtcp2_cid_entry_copy(ngtcp2_cid_entry *dest, const ngtcp2_cid_entry *src);
 
 /*
- * ngtcp2_cid_entry_verify_uniqueness verifies uniqueness of (|seq|,
- * |cid|, |token|) tuple against |cident|.
+ * ngtcp2_dcid_init initializes |ent| with the given parameters.  If
+ * |token| is NULL, the function fills ent->token it with 0.  |token|
+ * must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
  */
-int ngtcp2_cid_entry_verify_uniqueness(ngtcp2_cid_entry *cident, uint64_t seq,
-                                       const ngtcp2_cid *cid,
-                                       const uint8_t *token);
+void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
+                      const uint8_t *token);
+
+/*
+ * ngtcp2_dcid_copy copies |src| into |dest|.
+ */
+void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
+
+/*
+ * ngtcp2_dcid_verify_uniqueness verifies uniqueness of (|seq|, |cid|,
+ * |token|) tuple against |cident|.
+ */
+int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
+                                  const ngtcp2_cid *cid, const uint8_t *token);
 
 #endif /* NGTCP2_CID_H */

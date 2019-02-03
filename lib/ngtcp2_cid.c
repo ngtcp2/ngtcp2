@@ -80,12 +80,29 @@ void ngtcp2_cid_entry_copy(ngtcp2_cid_entry *dest,
   dest->flags = src->flags;
 }
 
-int ngtcp2_cid_entry_verify_uniqueness(ngtcp2_cid_entry *cident, uint64_t seq,
-                                       const ngtcp2_cid *cid,
-                                       const uint8_t *token) {
-  int r1 = seq == cident->seq;
-  int r2 = ngtcp2_cid_eq(&cident->cid, cid);
-  int r3 = memcmp(cident->token, token, NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
+void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
+                      const uint8_t *token) {
+  dcid->seq = seq;
+  dcid->cid = *cid;
+  if (token) {
+    memcpy(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  } else {
+    memset(dcid->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
+  }
+  ngtcp2_addr_init(&dcid->path.local, dcid->local_addrbuf, 0);
+  ngtcp2_addr_init(&dcid->path.remote, dcid->remote_addrbuf, 0);
+}
+
+void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
+  ngtcp2_dcid_init(dest, src->seq, &src->cid, src->token);
+  ngtcp2_path_copy(&dest->path, &src->path);
+}
+
+int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
+                                  const ngtcp2_cid *cid, const uint8_t *token) {
+  int r1 = seq == dcid->seq;
+  int r2 = ngtcp2_cid_eq(&dcid->cid, cid);
+  int r3 = memcmp(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
 
   return (r1 ^ r2 ^ r3) ? NGTCP2_ERR_PROTO : 0;
 }

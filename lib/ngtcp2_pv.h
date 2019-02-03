@@ -84,8 +84,8 @@ typedef struct ngtcp2_pv ngtcp2_pv;
 struct ngtcp2_pv {
   ngtcp2_mem *mem;
   ngtcp2_log *log;
-  /* cident is DCID and path this path validation uses. */
-  ngtcp2_cid_entry cident;
+  /* dcid is DCID and path this path validation uses. */
+  ngtcp2_dcid dcid;
   /* ents is the ring buffer of ngtcp2_pv_entry */
   ngtcp2_ringbuf ents;
   /* timeout is the duration within which this path validation should
@@ -101,7 +101,7 @@ struct ngtcp2_pv {
 
 /*
  * ngtcp2_pv_new creates new ngtcp2_pv object and assigns its pointer
- * to |*ppv|.  This function makes a copy of |cident|.  |timeout| is a
+ * to |*ppv|.  This function makes a copy of |dcid|.  |timeout| is a
  * duration within which this path validation must succeed.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -110,7 +110,7 @@ struct ngtcp2_pv {
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_cid_entry *cident,
+int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
                   ngtcp2_duration timeout, uint8_t flags, ngtcp2_log *log,
                   ngtcp2_mem *mem);
 
