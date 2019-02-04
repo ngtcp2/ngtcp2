@@ -3980,7 +3980,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
 /*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
- * length if |pktlen| during handshake period.  The buffer pointed by
+ * length is |pktlen| during handshake period.  The buffer pointed by
  * |pkt| might contain multiple packets.  This function only processes
  * one packet.
  *
