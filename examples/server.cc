@@ -2747,7 +2747,8 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
 
   constexpr auto ssl_opts = (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                             SSL_OP_SINGLE_ECDH_USE |
-                            SSL_OP_CIPHER_SERVER_PREFERENCE;
+                            SSL_OP_CIPHER_SERVER_PREFERENCE |
+                            SSL_OP_NO_ANTI_REPLAY;
 
   SSL_CTX_set_options(ssl_ctx, ssl_opts);
   SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
