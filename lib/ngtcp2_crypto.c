@@ -126,7 +126,6 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->initial_max_stream_data_bidi_remote) {
     len +=
         4 + ngtcp2_put_varint_len(params->initial_max_stream_data_bidi_remote);
-    ;
   }
   if (params->initial_max_stream_data_uni) {
     len += 4 + ngtcp2_put_varint_len(params->initial_max_stream_data_uni);
