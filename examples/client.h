@@ -74,7 +74,7 @@ struct Config {
   uint32_t timeout;
   // session_file is a path to a file to write, and read TLS session.
   const char *session_file;
-  // tp_file is a path to a fie to write, and read QUIC transport
+  // tp_file is a path to a file to write, and read QUIC transport
   // parameters.
   const char *tp_file;
   // show_secret is true if transport secrets should be printed out.
