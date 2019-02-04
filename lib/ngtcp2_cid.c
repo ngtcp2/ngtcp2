@@ -96,9 +96,13 @@ void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
 
 int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
                                   const ngtcp2_cid *cid, const uint8_t *token) {
-  int r1 = seq == dcid->seq;
-  int r2 = ngtcp2_cid_eq(&dcid->cid, cid);
-  int r3 = memcmp(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN) == 0;
 
-  return (r1 ^ r2 ^ r3) ? NGTCP2_ERR_PROTO : 0;
+  if (dcid->seq == seq) {
+    ngtcp2_cid_eq(&dcid->cid, cid) &&
+            memcmp(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN) == 0
+        ? 0
+        : NGTCP2_ERR_PROTO;
+  }
+
+  return !ngtcp2_cid_eq(&dcid->cid, cid) ? 0 : NGTCP2_ERR_PROTO;
 }
