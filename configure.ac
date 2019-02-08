@@ -124,6 +124,8 @@ fi
 
 AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
 
+AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
+
 # openssl (for examples)
 PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
                   [have_openssl=yes], [have_openssl=no])
