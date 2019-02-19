@@ -24,7 +24,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 # XXX using 0.1.90 instead of 0.1.0-DEV
-project(nghttp2 VERSION 0.1.90)
+project(ngtcp2 VERSION 0.1.90)
 
 # See versioning rule:
 #  http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
@@ -86,6 +86,7 @@ set(HAVE_LIBEV      ${LIBEV_FOUND})
 # Checks for header files.
 include(CheckIncludeFile)
 check_include_file("arpa/inet.h"   HAVE_ARPA_INET_H)
+check_include_file("netinet/in.h"  HAVE_NETINET_IN_H)
 check_include_file("stddef.h"      HAVE_STDDEF_H)
 check_include_file("stdint.h"      HAVE_STDINT_H)
 check_include_file("stdlib.h"      HAVE_STDLIB_H)

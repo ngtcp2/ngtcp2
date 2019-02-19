@@ -25,12 +25,20 @@
 #include "ngtcp2_ringbuf.h"
 
 #include <assert.h>
+#ifdef WIN32
+#  include <intrin.h>
+#endif
 
 #include "ngtcp2_macro.h"
+#include "ngtcp2_net.h"
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         ngtcp2_mem *mem) {
+#ifdef WIN32
+  assert(1 == __popcnt((unsigned int)nmemb));
+#else
   assert(1 == __builtin_popcount((unsigned int)nmemb));
+#endif
 
   rb->buf = ngtcp2_mem_malloc(mem, nmemb * size);
   if (rb->buf == NULL) {
