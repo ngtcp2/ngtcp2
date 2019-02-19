@@ -72,10 +72,23 @@ void print_server_pp_key(const uint8_t *data, size_t len);
 void print_client_pp_iv(const uint8_t *data, size_t len);
 void print_server_pp_iv(const uint8_t *data, size_t len);
 
-void print_client_pp_pn(const uint8_t *data, size_t len);
-void print_server_pp_pn(const uint8_t *data, size_t len);
+void print_client_pp_hp(const uint8_t *data, size_t len);
+void print_server_pp_hp(const uint8_t *data, size_t len);
+
+void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
+                   size_t keylen, const uint8_t *iv, size_t ivlen,
+                   const uint8_t *hp, size_t hplen);
+
+void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
+                   size_t keylen, const uint8_t *iv, size_t ivlen);
+
+void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,
+                   size_t samplelen);
 
 void log_printf(void *user_data, const char *fmt, ...);
+
+void path_validation(const ngtcp2_path *path,
+                     ngtcp2_path_validation_result res);
 
 } // namespace debug
 

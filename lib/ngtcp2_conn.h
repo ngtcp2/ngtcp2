@@ -42,6 +42,9 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_log.h"
 #include "ngtcp2_pq.h"
+#include "ngtcp2_cc.h"
+#include "ngtcp2_pv.h"
+#include "ngtcp2_cid.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -66,18 +69,15 @@ typedef enum {
    endpoint can send initially. */
 #define NGTCP2_STRM0_MAX_STREAM_DATA 65535
 
-/* NGTCP2_REORDERING_THRESHOLD is kReorderingThreshold described in
-   draft-ietf-quic-recovery-10. */
-#define NGTCP2_REORDERING_THRESHOLD 3
+/* NGTCP2_PACKET_THRESHOLD is kPacketThreshold described in
+   draft-ietf-quic-recovery-17. */
+#define NGTCP2_PACKET_THRESHOLD 3
+
+/* NGTCP2_GRANULARITY is kGranularity described in
+   draft-ietf-quic-recovery-17. */
+#define NGTCP2_GRANULARITY NGTCP2_MILLISECONDS
 
 #define NGTCP2_DEFAULT_INITIAL_RTT (100 * NGTCP2_MILLISECONDS)
-#define NGTCP2_MIN_TLP_TIMEOUT (10 * NGTCP2_MILLISECONDS)
-#define NGTCP2_MIN_RTO_TIMEOUT (200 * NGTCP2_MILLISECONDS)
-#define NGTCP2_MAX_TLP_COUNT 2
-
-#define NGTCP2_MAX_DGRAM_SIZE 1200
-#define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
-#define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
 
 /* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
    crypto stream in Initial packet.  We set this hard limit here
@@ -91,6 +91,33 @@ typedef enum {
 /* NGTCP2_MAX_RETRIES is the number of Retry packet which client can
    accept. */
 #define NGTCP2_MAX_RETRIES 3
+
+/* NGTCP2_HS_ACK_DELAY is the ACK delay for Initial and Handshake
+   packets. */
+#define NGTCP2_HS_ACK_DELAY NGTCP2_MILLISECONDS
+
+#define NGTCP2_MAX_SERVER_ID_BIDI 0x3fffffffffffff00ULL
+#define NGTCP2_MAX_SERVER_ID_UNI 0x3fffffffffffff10ULL
+#define NGTCP2_MAX_CLIENT_ID_BIDI 0x3fffffffffffff01ULL
+#define NGTCP2_MAX_CLIENT_ID_UNI 0x3fffffffffffff11ULL
+
+/* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
+   destination connection ID which have been bound to a particular
+   path, but not yet used as primary path and path validation is not
+   performed from the local endpoint. */
+#define NGTCP2_MAX_BOUND_DCID_POOL_SIZE 4
+/* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
+   connection ID the remote endpoint provides to store.  It must be
+   the power of 2. */
+#define NGTCP2_MAX_DCID_POOL_SIZE 16
+/* NGTCP2_MIN_SCID_POOL_SIZE is the minimum number of source
+   connection ID the local endpoint provides to the remote endpoint.
+   It must be at least 8 as per the spec. */
+#define NGTCP2_MIN_SCID_POOL_SIZE 8
+
+/* NGTCP2_MIN_DCID_CHANGE_DURATION is the minimum duration that local
+   endpoint changes DCID. */
+#define NGTCP2_MIN_DCID_CHANGE_DURATION (3ULL * NGTCP2_SECONDS)
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -106,9 +133,15 @@ typedef union {
 } ngtcp2_max_frame;
 
 typedef struct {
-  ngtcp2_tstamp ts;
+  ngtcp2_path path;
   uint8_t data[8];
+  uint8_t local_addrbuf[128];
+  uint8_t remote_addrbuf[128];
 } ngtcp2_path_challenge_entry;
+
+void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
+                                      const ngtcp2_path *path,
+                                      const uint8_t *data);
 
 typedef enum {
   NGTCP2_CONN_FLAG_NONE = 0x00,
@@ -141,10 +174,17 @@ typedef enum {
   NGTCP2_CONN_FLAG_OCID_PRESENT = 0x80,
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
-  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x100,
+  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
   /* NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL is set when client has to
      send Initial packets even if it has nothing to send. */
-  NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL = 0x200,
+  NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL = 0x0200,
+  /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
+     have been discarded. */
+  NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
+  /* NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE is set when local
+     endpoint has initiated key update and waits for the remote
+     endpoint to update key. */
+  NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE = 0x0800,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -154,15 +194,6 @@ typedef struct {
      packet type denoted by pkt_type. */
   uint8_t pkt_type;
 } ngtcp2_crypto_data;
-
-struct ngtcp2_cc_stat {
-  uint64_t cwnd;
-  uint64_t ssthresh;
-  /* eor_pkt_num is "end_of_recovery" */
-  uint64_t eor_pkt_num;
-};
-
-typedef struct ngtcp2_cc_stat ngtcp2_cc_stat;
 
 typedef struct {
   /* pngap tracks received packet number in order to suppress
@@ -188,14 +219,14 @@ typedef struct {
   /* rx_ckm is a cryptographic key, and iv to decrypt incoming
      packets. */
   ngtcp2_crypto_km *rx_ckm;
+  ngtcp2_vec *tx_hp;
+  ngtcp2_vec *rx_hp;
   ngtcp2_frame_chain *frq;
 } ngtcp2_pktns;
 
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
-  ngtcp2_cid dcid;
-  ngtcp2_cid scid;
   /* rcid is a connection ID present in Initial or 0-RTT protected
      packet from client as destination connection ID.  Server uses
      this field to check that duplicated Initial or 0-RTT packet are
@@ -206,6 +237,21 @@ struct ngtcp2_conn {
      ID in Retry packet.  Only server uses this field to send this CID
      to client in original_connection_id transport parameter. */
   ngtcp2_cid ocid;
+  /* oscid is the source connection ID initially used by the local
+     endpoint. */
+  ngtcp2_cid oscid;
+  /* dcid is the destination connection ID. */
+  ngtcp2_dcid dcid;
+  /* bound_dcids is a set of destination connection ID which is bound
+     to a particular path.  These paths are not validated yet. */
+  ngtcp2_ringbuf bound_dcids;
+  /* dcids is a set of unused CID received from peer.  The first CID
+     is in use. */
+  ngtcp2_ringbuf dcids;
+  /* scids is a set of CID sent to peer.  The peer can use any CIDs in
+     this set. */
+  ngtcp2_ksl scids;
+  ngtcp2_pq used_scids;
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
@@ -217,9 +263,10 @@ struct ngtcp2_conn {
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;
-  ngtcp2_ringbuf tx_path_challenge;
+  ngtcp2_pv *pv;
   ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
+  ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
   /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
@@ -265,8 +312,8 @@ struct ngtcp2_conn {
   /* max_tx_offset is the maximum offset that local endpoint can
      send. */
   uint64_t max_tx_offset;
-  /* largest_ack is the largest ack in received ACK packet. */
-  int64_t largest_ack;
+  /* tx_last_cid_seq is the last sequence number of connection ID. */
+  uint64_t tx_last_cid_seq;
   /* first_rx_bw_ts is a timestamp when bandwidth measurement is
      started. */
   ngtcp2_tstamp first_rx_bw_ts;
@@ -293,6 +340,14 @@ struct ngtcp2_conn {
   uint16_t flags;
   int server;
   ngtcp2_crypto_km *early_ckm;
+  ngtcp2_vec *early_hp;
+  /* old_ckm is an old 1RTT key. */
+  ngtcp2_crypto_km *old_rx_ckm;
+  /* new_tx_ckm is a new 1RTT key which has not been used. */
+  ngtcp2_crypto_km *new_tx_ckm;
+  /* new_rx_ckm is a new 1RTT key which has not successfully decrypted
+     incoming packet. */
+  ngtcp2_crypto_km *new_rx_ckm;
   size_t aead_overhead;
   /* buffed_rx_hs_pkts is buffered Handshake packets which come before
      Initial packet. */
@@ -388,8 +443,7 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
 
 /*
- * ngtcp2_conn_detect_lost_pkt detects lost packets based on the
- * incoming largest acknowledged packet number |largest_ack|.
+ * ngtcp2_conn_detect_lost_pkt detects lost packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -398,8 +452,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
  *     Out of memory.
  */
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                                ngtcp2_rcvry_stat *rcs, uint64_t largest_ack,
-                                ngtcp2_tstamp ts);
+                                ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_tx_strmq_top returns the ngtcp2_strm which sits on the

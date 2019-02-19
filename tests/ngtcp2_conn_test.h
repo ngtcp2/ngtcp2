@@ -37,14 +37,14 @@ void test_ngtcp2_conn_rx_flow_control(void);
 void test_ngtcp2_conn_rx_flow_control_error(void);
 void test_ngtcp2_conn_tx_flow_control(void);
 void test_ngtcp2_conn_shutdown_stream_write(void);
-void test_ngtcp2_conn_recv_rst_stream(void);
+void test_ngtcp2_conn_recv_reset_stream(void);
 void test_ngtcp2_conn_recv_stop_sending(void);
 void test_ngtcp2_conn_recv_conn_id_omitted(void);
 void test_ngtcp2_conn_short_pkt_type(void);
 void test_ngtcp2_conn_recv_stateless_reset(void);
 void test_ngtcp2_conn_recv_retry(void);
 void test_ngtcp2_conn_recv_delayed_handshake_pkt(void);
-void test_ngtcp2_conn_recv_max_stream_id(void);
+void test_ngtcp2_conn_recv_max_streams(void);
 void test_ngtcp2_conn_handshake(void);
 void test_ngtcp2_conn_handshake_error(void);
 void test_ngtcp2_conn_client_write_handshake(void);
@@ -58,5 +58,10 @@ void test_ngtcp2_conn_recv_early_data(void);
 void test_ngtcp2_conn_recv_compound_pkt(void);
 void test_ngtcp2_conn_pkt_payloadlen(void);
 void test_ngtcp2_conn_writev_stream(void);
+void test_ngtcp2_conn_recv_new_connection_id(void);
+void test_ngtcp2_conn_recv_retire_connection_id(void);
+void test_ngtcp2_conn_server_path_validation(void);
+void test_ngtcp2_conn_client_connection_migration(void);
+void test_ngtcp2_conn_recv_path_challenge(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

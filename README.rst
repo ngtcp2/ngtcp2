@@ -12,8 +12,8 @@ Development status
 Second Implementation Draft
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We are focusing on implementing `8th Implementation Draft
-<https://github.com/quicwg/base-drafts/wiki/8th-Implementation-Draft>`_.
+We are focusing on implementing `10th Implementation Draft
+<https://github.com/quicwg/base-drafts/wiki/10th-Implementation-Draft>`_.
 
 * https://quicwg.github.io/base-drafts/draft-ietf-quic-transport.html
 * https://quicwg.github.io/base-drafts/draft-ietf-quic-tls.html
@@ -23,8 +23,8 @@ Requirements
 
 The libngtcp2 C library itself does not depend on any external
 libraries.  The example client, and server are written in C++14, and
-should compile with the modern C++ compilers (e.g., clang >= 4.0, or
-gcc >= 5.0).
+should compile with the modern C++ compilers (e.g., clang >= 6.0, or
+gcc >= 6.0).
 
 The following packages are required to configure the build system:
 
@@ -52,7 +52,7 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b quic-draft-15 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b quic-draft-17 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build

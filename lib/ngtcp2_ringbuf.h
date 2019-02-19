@@ -88,6 +88,11 @@ void *ngtcp2_ringbuf_push_back(ngtcp2_ringbuf *rb);
  */
 void ngtcp2_ringbuf_pop_front(ngtcp2_ringbuf *rb);
 
+/*
+ * ngtcp2_ringbuf_pop_back removes the last element in |rb|.
+ */
+void ngtcp2_ringbuf_pop_back(ngtcp2_ringbuf *rb);
+
 /* ngtcp2_ringbuf_resize changes the number of elements stored.  This
    does not change the capacity of the underlying buffer. */
 void ngtcp2_ringbuf_resize(ngtcp2_ringbuf *rb, size_t len);

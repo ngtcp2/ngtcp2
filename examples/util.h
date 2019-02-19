@@ -30,6 +30,8 @@
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
+#include <sys/socket.h>
+
 #include <string>
 #include <random>
 
@@ -50,6 +52,8 @@ std::string format_hex(const std::string &s);
 template <size_t N> std::string format_hex(const uint8_t (&s)[N]) {
   return format_hex(s, N);
 }
+
+std::string decode_hex(const std::string &s);
 
 // format_duration formats |ns| in human readable manner.  |ns| must
 // be nanoseconds resolution.  This function uses the largest unit so
@@ -119,6 +123,9 @@ bool istarts_with_l(const T &a, const CharT (&b)[N]) {
 
 // make_cid_key returns the key for |cid|.
 std::string make_cid_key(const ngtcp2_cid *cid);
+
+// straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
+std::string straddr(const sockaddr *sa, socklen_t salen);
 
 } // namespace util
 

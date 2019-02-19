@@ -43,9 +43,6 @@
    packets which triggers the immediate ACK. */
 #define NGTCP2_NUM_IMMEDIATE_ACK_PKT 2
 
-struct ngtcp2_conn;
-typedef struct ngtcp2_conn ngtcp2_conn;
-
 struct ngtcp2_acktr_entry;
 typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
 
@@ -53,11 +50,18 @@ struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
 /*
- * ngtcp2_acktr_entry is a single packet which needs to be acked.
+ * ngtcp2_acktr_entry is a range of packets which need to be acked.
  */
 struct ngtcp2_acktr_entry {
+  /* pkt_num is the largest packet number to acknowledge in this
+     range. */
   uint64_t pkt_num;
+  /* len is the consecutive packets started from pkt_num which
+     includes pkt_num itself counting in decreasing order.  So pkt_num
+     = 987 and len = 2, this entry includes packet 987 and 986. */
   size_t len;
+  /* tstamp is the timestamp when a packet denoted by pkt_num is
+     received. */
   ngtcp2_tstamp tstamp;
 };
 
@@ -82,10 +86,10 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 
 typedef struct {
-  ngtcp2_ack *ack;
+  /* largest_ack is the largest packet number in outgoing ACK frame */
+  uint64_t largest_ack;
+  /* pkt_num is the packet number that ACK frame is included. */
   uint64_t pkt_num;
-  ngtcp2_tstamp ts;
-  uint8_t ack_only;
 } ngtcp2_acktr_ack_entry;
 
 typedef enum {
@@ -119,7 +123,7 @@ typedef struct {
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
-     first time after the last outgoing protected ACK frame. */
+     first time after the last outgoing ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
   /* rx_npkt is the number of packets received without sending ACK. */
   size_t rx_npkt;
@@ -178,15 +182,14 @@ int ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
 /*
- * ngtcp2_acktr_add_ack adds the outgoing ACK frame |fr| to |acktr|.
- * |pkt_num| is the packet number which |fr| belongs.  This function
- * transfers the ownership of |fr| to |acktr|.  |ack_only| is nonzero
- * if the packet contains an ACK frame only.  This function returns a
- * pointer to the object it adds.
+ * ngtcp2_acktr_add_ack records outgoing ACK frame whose largest
+ * acknowledged packet number is |largest_ack|.  |pkt_num| is the
+ * packet number of a packet in which ACK frame is included.  This
+ * function returns a pointer to the object it adds.
  */
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
-                                             uint64_t pkt_num, ngtcp2_ack *fr,
-                                             ngtcp2_tstamp ts, int ack_only);
+                                             uint64_t pkt_num,
+                                             uint64_t largest_ack);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.
@@ -202,8 +205,7 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr,
-                          ngtcp2_conn *conn, ngtcp2_tstamp ts);
+int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr);
 
 /*
  * ngtcp2_acktr_commit_ack tells |acktr| that ACK frame is generated.

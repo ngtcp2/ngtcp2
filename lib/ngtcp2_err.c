@@ -48,8 +48,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_STREAM_DATA_BLOCKED";
   case NGTCP2_ERR_FLOW_CONTROL:
     return "ERR_FLOW_CONTROL";
-  case NGTCP2_ERR_STREAM_ID:
-    return "ERR_STREAM_ID";
+  case NGTCP2_ERR_STREAM_LIMIT:
+    return "ERR_STREAM_LIMIT";
   case NGTCP2_ERR_FINAL_OFFSET:
     return "ERR_FINAL_OFFSET";
   case NGTCP2_ERR_CRYPTO:
@@ -108,8 +108,8 @@ uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
     return NGTCP2_FRAME_ENCODING_ERROR;
   case NGTCP2_ERR_FLOW_CONTROL:
     return NGTCP2_FLOW_CONTROL_ERROR;
-  case NGTCP2_ERR_STREAM_ID:
-    return NGTCP2_STREAM_ID_ERROR;
+  case NGTCP2_ERR_STREAM_LIMIT:
+    return NGTCP2_STREAM_LIMIT_ERROR;
   case NGTCP2_ERR_FINAL_OFFSET:
     return NGTCP2_FINAL_OFFSET_ERROR;
   case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:

@@ -149,22 +149,6 @@ int ngtcp2_pq_empty(ngtcp2_pq *pq) { return pq->length == 0; }
 
 size_t ngtcp2_pq_size(ngtcp2_pq *pq) { return pq->length; }
 
-void ngtcp2_pq_update(ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg) {
-  size_t i;
-  int rv = 0;
-  if (pq->length == 0) {
-    return;
-  }
-  for (i = 0; i < pq->length; ++i) {
-    rv |= (*fun)(pq->q[i], arg);
-  }
-  if (rv) {
-    for (i = pq->length; i > 0; --i) {
-      bubble_down(pq, i - 1);
-    }
-  }
-}
-
 int ngtcp2_pq_each(ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg) {
   size_t i;
 

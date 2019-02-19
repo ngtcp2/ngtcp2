@@ -114,4 +114,21 @@ size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe);
  */
 size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe);
 
+/*
+ * ngtcp2_ppe_padding_hp_sample adds PADDING frame if the current
+ * payload does not have enough space for header protection sample.
+ * This function should be called just before calling
+ * ngtcp2_ppe_final().
+ *
+ * This function returns the number of bytes added as padding.
+ */
+size_t ngtcp2_ppe_padding_hp_sample(ngtcp2_ppe *ppe);
+
+/*
+ * ngtcp2_ppe_ensure_hp_sample returns nonzero if the buffer has
+ * enough space for header protection sample.  This should be called
+ * right after packet header is written.
+ */
+int ngtcp2_ppe_ensure_hp_sample(ngtcp2_ppe *ppe);
+
 #endif /* NGTCP2_PPE_H */

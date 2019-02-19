@@ -31,6 +31,24 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_mem.h"
+
+/*
+ * ngtcp2_vec_new allocates and initializes |*pvec| with given |data|
+ * of length |datalen|.  This function allocates memory for |*pvec|
+ * and the given data with a single allocation, and the contents
+ * pointed by |data| is copied into the allocated memory space.  To
+ * free the allocated memory, call ngtcp2_vec_del.
+ */
+int ngtcp2_vec_new(ngtcp2_vec **pvec, const uint8_t *data, size_t datalen,
+                   ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_vec_del frees the memory allocated by |vec| which is
+ * allocated and initialized by ngtcp2_vec_new.
+ */
+void ngtcp2_vec_del(ngtcp2_vec *vec, ngtcp2_mem *mem);
+
 /*
  * ngtcp2_vec_len returns the sum of length in |vec| of |n| elements.
  */

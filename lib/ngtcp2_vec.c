@@ -27,6 +27,32 @@
 #include <string.h>
 #include <assert.h>
 
+#include "ngtcp2_str.h"
+
+int ngtcp2_vec_new(ngtcp2_vec **pvec, const uint8_t *data, size_t datalen,
+                   ngtcp2_mem *mem) {
+  size_t len;
+  uint8_t *p;
+
+  len = sizeof(ngtcp2_vec) + datalen;
+
+  *pvec = ngtcp2_mem_malloc(mem, len);
+  if (*pvec == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  p = (uint8_t *)(*pvec) + sizeof(ngtcp2_vec);
+  (*pvec)->base = p;
+  (*pvec)->len = datalen;
+  /* p = */ ngtcp2_cpymem(p, data, datalen);
+
+  return 0;
+}
+
+void ngtcp2_vec_del(ngtcp2_vec *vec, ngtcp2_mem *mem) {
+  ngtcp2_mem_free(mem, vec);
+}
+
 size_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n) {
   size_t i;
   size_t res = 0;

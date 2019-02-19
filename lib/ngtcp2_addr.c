@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2019 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,52 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_str.h"
+#include "ngtcp2_addr.h"
 
 #include <string.h>
-#include <assert.h>
 
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n) {
-  memcpy(dest, src, n);
-  return dest + n;
-}
-
-#define LOWER_XDIGITS "0123456789abcdef"
-
-uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
-  size_t i;
-  uint8_t *p = dest;
-
-  for (i = 0; i < len; ++i) {
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
-  }
-
-  *p = '\0';
-
+ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr, size_t len) {
+  dest->len = len;
+  dest->addr = (uint8_t *)addr;
   return dest;
 }
 
-int ngtcp2_verify_stateless_retry_token(const uint8_t *want,
-                                        const uint8_t *got) {
-  size_t i;
-  int rv;
-
-  /* We consider that token with all bits not set is invalid. */
-  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
-    if (got[i] != 0) {
-      break;
-    }
+void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src) {
+  dest->len = src->len;
+  if (src->len) {
+    memcpy(dest->addr, src->addr, src->len);
   }
-
-  if (i == NGTCP2_STATELESS_RESET_TOKENLEN) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  rv = 0;
-  for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
-    rv |= want[i] ^ got[i];
-  }
-
-  return rv == 0 ? 0 : NGTCP2_ERR_INVALID_ARGUMENT;
 }
+
+void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const void *addr,
+                           size_t addrlen) {
+  dest->len = addrlen;
+  if (addrlen) {
+    memcpy(dest->addr, addr, addrlen);
+  }
+}
+
+int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b) {
+  return a->len == b->len && memcmp(a->addr, b->addr, a->len) == 0;
+}
+
+int ngtcp2_addr_empty(const ngtcp2_addr *addr) { return addr->len == 0; }

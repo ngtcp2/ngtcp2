@@ -45,7 +45,7 @@ struct Context {
 #else  // !OPENSSL_IS_BORINGSSL
   const EVP_CIPHER *aead;
 #endif // !OPENSSL_IS_BORINGSSL
-  const EVP_CIPHER *pn;
+  const EVP_CIPHER *hp;
   const EVP_MD *prf;
   std::array<uint8_t, 64> tx_secret, rx_secret;
   size_t secretlen;
@@ -73,11 +73,13 @@ int derive_client_initial_secret(uint8_t *dest, size_t destlen,
 int derive_server_initial_secret(uint8_t *dest, size_t destlen,
                                  const uint8_t *secret, size_t secretlen);
 
-// qhkdf_expand derives secret using HKDF-Expand-Label with label
-// prefix "quic".  It returns 0 if it succeeds, or -1.
-int qhkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                 size_t secretlen, const uint8_t *qlabel, size_t qlabellen,
-                 const Context &ctx);
+// update_traffic_secret stores new secret into |dest| of length
+// |destlen| using the current secret |secret| of length |secretlen|.
+// |destlen| must be at least |secretlen| bytes long.  This function
+// returns the length of secret if it succeeds, or -1.
+ssize_t update_traffic_secret(uint8_t *dest, size_t destlen,
+                              const uint8_t *secret, size_t secretlen,
+                              const Context &ctx);
 
 // derive_packet_protection_key derives and stores the packet
 // protection key in the buffer pointed by |dest| of length |destlen|,
@@ -94,13 +96,13 @@ ssize_t derive_packet_protection_iv(uint8_t *dest, size_t destlen,
                                     const uint8_t *secret, size_t secretlen,
                                     const Context &ctx);
 
-// derive_pkt_num_protection_key derives and stores the packet number
+// derive_header_protection_key derives and stores the header
 // protection key in the buffer pointed by |dest| of length |destlen|,
 // and the key size is returned.  This function returns the key length
 // if it succeeds, or -1.
-ssize_t derive_pkt_num_protection_key(uint8_t *dest, size_t destlen,
-                                      const uint8_t *secret, size_t secretlen,
-                                      const Context &ctx);
+ssize_t derive_header_protection_key(uint8_t *dest, size_t destlen,
+                                     const uint8_t *secret, size_t secretlen,
+                                     const Context &ctx);
 
 // encrypt encrypts |plaintext| of length |plaintextlen| and writes
 // the encrypted data in the buffer pointed by |dest| of length
@@ -131,25 +133,27 @@ size_t aead_key_length(const Context &ctx);
 // aead_nonce_length returns the nonce size of ctx.aead.
 size_t aead_nonce_length(const Context &ctx);
 
-// encrypt_pn encrypts |plaintext| of length |plaintextlen| and writes
-// the encrypted data in the buffer pointed by |dest| of length
-// |destlen|.  This function can encrypt data in-place.  In other
-// words, |dest| == |plaintext| is allowed.  This function returns the
-// number of bytes written if it succeeds, or -1.
-//
-// Use this function to decrypt ciphertext.  Just pass ciphertext as
-// |plaintext|.
-ssize_t encrypt_pn(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
-                   size_t plaintextlen, const Context &ctx, const uint8_t *key,
-                   size_t keylen, const uint8_t *nonce, size_t noncelen);
-
-// hkdf_expand performs HKDF-expand.  This function returns 0 if it
+// hp_mask writes mask into the buffer pointed by |dest| of length
+// |destlen|.  This function returns the number of bytes written if it
 // succeeds, or -1.
+ssize_t hp_mask(uint8_t *dest, size_t destlen, const Context &ctx,
+                const uint8_t *key, size_t keylen, const uint8_t *sample,
+                size_t samplelen);
+
+// hkdf_expand_label implements HKDF-Expand-Label function defined in
+// https://tools.ietf.org/html/rfc8446#section-7.1.  It uses 0 length
+// context.  This function returns 0 if it succeeds, or -1.
+int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
+                      size_t secretlen, const uint8_t *label, size_t labellen,
+                      const Context &ctx);
+
+// hkdf_expand perhorms HKDF-Expand.  It returns 0 if it succeeds, or
+// -1.
 int hkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
-                size_t secretlen, const uint8_t *info, size_t infolen,
+                size_t secretlen, const uint8_t *label, size_t labellen,
                 const Context &ctx);
 
-// hkdf_extract performs HKDF-extract.  This function returns 0 if it
+// hkdf_extract performs HKDF-Extract.  This function returns 0 if it
 // succeeds, or -1.
 int hkdf_extract(uint8_t *dest, size_t destlen, const uint8_t *secret,
                  size_t secretlen, const uint8_t *salt, size_t saltlen,

@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2019 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_STR_H
-#define NGTCP2_STR_H
+#ifndef NGTCP2_ADDR_H
+#define NGTCP2_ADDR_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -31,34 +31,30 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-/* ngtcp2_array is a fixed size array. */
-typedef struct {
-  /* base points to the beginning of the buffer. */
-  uint8_t *base;
-  /* len is the capacity of the buffer. */
-  size_t len;
-} ngtcp2_array;
-
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
+/*
+ * ngtcp2_addr_copy copies |src| to |dest|.  This function assumes
+ * that dest->addr points to a buffer which have sufficient size to
+ * store the copy.
+ */
+void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src);
 
 /*
- * ngtcp2_encode_hex encodes |data| of length |len| in hex string.  It
- * writes additional NULL bytes at the end of the buffer.  The buffer
- * pointed by |dest| must have at least |len| * 2 + 1 bytes space.
- * This function returns |dest|.
+ * ngtcp2_addr_copy_byte copies |addr| of length |addrlen| into the
+ * buffer pointed by dest->addr.  dest->len is updated to have
+ * |addrlen|.  This function assumes that dest->addr points to a
+ * buffer which have sufficient size to store the copy.
  */
-uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
+void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const void *addr, size_t addrlen);
 
 /*
- * ngtcp2_verify_stateless_retry_token verifies stateless retry token
- * |want| and |got|.  This function returns 0 if |want| equals |got|
- * and |got| is not all zero, or one of the following negative error
- * codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Token does not match; or token is all zero.
+ * ngtcp2_addr_eq returns nonzero if |a| equals |b|.
  */
-int ngtcp2_verify_stateless_retry_token(const uint8_t *want,
-                                        const uint8_t *got);
+int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
 
-#endif /* NGTCP2_STR_H */
+/*
+ * ngtcp2_addr_empty returns nonzero if |addr| has zero length
+ * address.
+ */
+int ngtcp2_addr_empty(const ngtcp2_addr *addr);
+
+#endif /* NGTCP2_ADDR_H */

@@ -78,6 +78,11 @@ void ngtcp2_ringbuf_pop_front(ngtcp2_ringbuf *rb) {
   --rb->len;
 }
 
+void ngtcp2_ringbuf_pop_back(ngtcp2_ringbuf *rb) {
+  assert(rb->len);
+  --rb->len;
+}
+
 void ngtcp2_ringbuf_resize(ngtcp2_ringbuf *rb, size_t len) {
   assert(len <= rb->nmemb);
   rb->len = len;

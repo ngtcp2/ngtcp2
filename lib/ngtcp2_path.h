@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2019 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_STR_H
-#define NGTCP2_STR_H
+#ifndef NGTCP2_PATH_H
+#define NGTCP2_PATH_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -31,34 +31,26 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-/* ngtcp2_array is a fixed size array. */
-typedef struct {
-  /* base points to the beginning of the buffer. */
-  uint8_t *base;
-  /* len is the capacity of the buffer. */
-  size_t len;
-} ngtcp2_array;
-
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
+/*
+ * ngtcp2_path_init initializes |path| with the given addresses.  Note
+ * that the buffer pointed by local->addr and remote->addr are not
+ * copied.  Their pointer values are assigned instead.
+ */
+void ngtcp2_path_init(ngtcp2_path *path, const ngtcp2_addr *local,
+                      const ngtcp2_addr *remote);
 
 /*
- * ngtcp2_encode_hex encodes |data| of length |len| in hex string.  It
- * writes additional NULL bytes at the end of the buffer.  The buffer
- * pointed by |dest| must have at least |len| * 2 + 1 bytes space.
- * This function returns |dest|.
+ * ngtcp2_path_copy copies |src| into |dest|.  This function assumes
+ * that |dest| has enough buffer to store the deep copy of src->local
+ * and src->remote.
  */
-uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
+void ngtcp2_path_copy(ngtcp2_path *dest, const ngtcp2_path *src);
 
 /*
- * ngtcp2_verify_stateless_retry_token verifies stateless retry token
- * |want| and |got|.  This function returns 0 if |want| equals |got|
- * and |got| is not all zero, or one of the following negative error
- * codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     Token does not match; or token is all zero.
+ * ngtcp2_path_eq returns nonzero if |a| equals |b| such that
+ * ngtcp2_addr_eq(&a->local, &b->local) && ngtcp2_addr_eq(&a->remote,
+ * &b->remote) is true.
  */
-int ngtcp2_verify_stateless_retry_token(const uint8_t *want,
-                                        const uint8_t *got);
+int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
 
-#endif /* NGTCP2_STR_H */
+#endif /* NGTCP2_PATH_H */

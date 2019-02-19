@@ -25,6 +25,7 @@
 #include "debug.h"
 
 #include <random>
+#include <iostream>
 
 #include "util.h"
 
@@ -127,12 +128,35 @@ void print_server_pp_iv(const uint8_t *data, size_t len) {
   fprintf(outfile, "+ server_pp_iv=%s\n", util::format_hex(data, len).c_str());
 }
 
-void print_client_pp_pn(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ client_pp_pn=%s\n", util::format_hex(data, len).c_str());
+void print_client_pp_hp(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ client_pp_hp=%s\n", util::format_hex(data, len).c_str());
 }
 
-void print_server_pp_pn(const uint8_t *data, size_t len) {
-  fprintf(outfile, "+ server_pp_pn=%s\n", util::format_hex(data, len).c_str());
+void print_server_pp_hp(const uint8_t *data, size_t len) {
+  fprintf(outfile, "+ server_pp_hp=%s\n", util::format_hex(data, len).c_str());
+}
+
+void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
+                   size_t keylen, const uint8_t *iv, size_t ivlen,
+                   const uint8_t *hp, size_t hplen) {
+  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+            << "+ key=" << util::format_hex(key, keylen) << "\n"
+            << "+ iv=" << util::format_hex(iv, ivlen) << "\n"
+            << "+ hp=" << util::format_hex(hp, hplen) << std::endl;
+}
+
+void print_secrets(const uint8_t *secret, size_t secretlen, const uint8_t *key,
+                   size_t keylen, const uint8_t *iv, size_t ivlen) {
+  std::cerr << "+ secret=" << util::format_hex(secret, secretlen) << "\n"
+            << "+ key=" << util::format_hex(key, keylen) << "\n"
+            << "+ iv=" << util::format_hex(iv, ivlen) << std::endl;
+}
+
+void print_hp_mask(const uint8_t *mask, size_t masklen, const uint8_t *sample,
+                   size_t samplelen) {
+  fprintf(outfile, "mask=%s sample=%s\n",
+          util::format_hex(mask, masklen).c_str(),
+          util::format_hex(sample, samplelen).c_str());
 }
 
 void log_printf(void *user_data, const char *fmt, ...) {
@@ -141,6 +165,20 @@ void log_printf(void *user_data, const char *fmt, ...) {
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
   va_end(ap);
+}
+
+void path_validation(const ngtcp2_path *path,
+                     ngtcp2_path_validation_result res) {
+  auto local_addr = util::straddr(
+      reinterpret_cast<sockaddr *>(path->local.addr), path->local.len);
+  auto remote_addr = util::straddr(
+      reinterpret_cast<sockaddr *>(path->remote.addr), path->remote.len);
+
+  std::cerr << "Path validation against path {local:" << local_addr
+            << ", remote:" << remote_addr << "} "
+            << (res == NGTCP2_PATH_VALIDATION_RESULT_SUCCESS ? "succeeded"
+                                                             : "failed")
+            << std::endl;
 }
 
 } // namespace debug

@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "ngtcp2_path.h"
 #include "ngtcp2_str.h"
 
 void ngtcp2_cid_zero(ngtcp2_cid *cid) { cid->datalen = 0; }
@@ -45,4 +46,64 @@ int ngtcp2_cid_eq(const ngtcp2_cid *cid, const ngtcp2_cid *other) {
          0 == memcmp(cid->data, other->data, cid->datalen);
 }
 
+int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs) {
+  int s = lhs->datalen < rhs->datalen;
+  size_t n = s ? lhs->datalen : rhs->datalen;
+  int c = memcmp(lhs->data, rhs->data, n);
+
+  return c < 0 || (c == 0 && s);
+}
+
 int ngtcp2_cid_empty(const ngtcp2_cid *cid) { return cid->datalen == 0; }
+
+void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid,
+                      const uint8_t *token) {
+  scid->pe.index = NGTCP2_PQ_BAD_INDEX;
+  scid->seq = seq;
+  scid->cid = *cid;
+  scid->ts_retired = UINT64_MAX;
+  scid->flags = NGTCP2_SCID_FLAG_NONE;
+  if (token) {
+    memcpy(scid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  } else {
+    memset(scid->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
+  }
+}
+
+void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src) {
+  ngtcp2_scid_init(dest, src->seq, &src->cid, src->token);
+  dest->ts_retired = src->ts_retired;
+  dest->flags = src->flags;
+}
+
+void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
+                      const uint8_t *token) {
+  dcid->seq = seq;
+  dcid->cid = *cid;
+  if (token) {
+    memcpy(dcid->token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  } else {
+    memset(dcid->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
+  }
+  ngtcp2_addr_init(&dcid->path.local, dcid->local_addrbuf, 0);
+  ngtcp2_addr_init(&dcid->path.remote, dcid->remote_addrbuf, 0);
+}
+
+void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
+  ngtcp2_dcid_init(dest, src->seq, &src->cid, src->token);
+  ngtcp2_path_copy(&dest->path, &src->path);
+}
+
+int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
+                                  const ngtcp2_cid *cid, const uint8_t *token) {
+
+  if (dcid->seq == seq) {
+    return ngtcp2_cid_eq(&dcid->cid, cid) &&
+                   memcmp(dcid->token, token,
+                          NGTCP2_STATELESS_RESET_TOKENLEN) == 0
+               ? 0
+               : NGTCP2_ERR_PROTO;
+  }
+
+  return !ngtcp2_cid_eq(&dcid->cid, cid) ? 0 : NGTCP2_ERR_PROTO;
+}
