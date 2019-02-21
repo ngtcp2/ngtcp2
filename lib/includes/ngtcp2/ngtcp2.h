@@ -155,17 +155,16 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER_D17 is the supported QUIC protocol version
-   draft-17. */
-#define NGTCP2_PROTO_VER_D17 0xff000011u
+/* NGTCP2_PROTO_VER_D18 is the supported QUIC protocol version. */
+#define NGTCP2_PROTO_VER_D18 0xff000012u
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D17
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D18
 
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D17 "\x5hq-17"
+#define NGTCP2_ALPN_D18 "\x5hq-18"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
