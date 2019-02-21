@@ -402,6 +402,9 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   for (; (size_t)(end - p) >= sizeof(uint16_t) * 2;) {
     param_type = ngtcp2_get_uint16(p);
     p += sizeof(uint16_t);
+    if (flags & (1u << param_type)) {
+      return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+    }
     switch (param_type) {
     case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
       flags |= 1u << param_type;
@@ -473,7 +476,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      flags |= 1u << NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN;
+      flags |= 1u << param_type;
       if (ngtcp2_get_uint16(p) != sizeof(params->stateless_reset_token)) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
@@ -500,7 +503,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      flags |= 1u << NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS;
+      flags |= 1u << param_type;
       valuelen = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
       if ((size_t)(end - p) < valuelen) {
@@ -547,7 +550,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       params->preferred_address_present = 1;
       break;
     case NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION:
-      flags |= 1u << NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION;
+      flags |= 1u << param_type;
       if (ngtcp2_get_uint16(p) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
@@ -558,7 +561,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      flags |= 1u << NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID;
+      flags |= 1u << param_type;
       len = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
       if ((size_t)(end - p) < len) {
