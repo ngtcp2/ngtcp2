@@ -3454,7 +3454,8 @@ static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
  *
  * NGTCP2_ERR_STREAM_STATE
  *     Stream ID indicates that it is a local stream, and the local
- *     endpoint has not initiated it.
+ *     endpoint has not initiated it; or stream is peer initiated
+ *     unidirectional stream.
  * NGTCP2_ERR_STREAM_LIMIT
  *     Stream ID exceeds allowed limit.
  * NGTCP2_ERR_NOMEM
@@ -3479,11 +3480,8 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
 
     idtr = &conn->remote_bidi_idtr;
   } else {
-    if (!local_stream) {
-      return NGTCP2_ERR_PROTO;
-    }
-    if (conn->next_local_stream_id_uni <= fr->stream_id) {
-      return NGTCP2_ERR_PROTO;
+    if (!local_stream || conn->next_local_stream_id_uni <= fr->stream_id) {
+      return NGTCP2_ERR_STREAM_STATE;
     }
 
     idtr = &conn->remote_uni_idtr;
@@ -4671,14 +4669,14 @@ static int conn_max_data_violated(ngtcp2_conn *conn, size_t datalen) {
  * negative error codes:
  *
  * NGTCP2_ERR_STREAM_STATE
- *     STREAM frame is received to the local stream which is not
- *     initiated.
+ *     STREAM frame is received for a local stream which is not
+ *     initiated; or STREAM frame is received for a local
+ *     unidirectional stream
  * NGTCP2_ERR_STREAM_LIMIT
  *     STREAM frame has remote stream ID which is strictly greater
  *     than the allowed limit.
  * NGTCP2_ERR_PROTO
- *     STREAM frame is received to the local unidirectional stream; or
- *     the end offset of stream data is beyond the NGTCP2_MAX_VARINT.
+ *     The end offset of stream data is beyond the NGTCP2_MAX_VARINT.
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  * NGTCP2_ERR_CALLBACK_FAILURE
@@ -4713,7 +4711,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     idtr = &conn->remote_bidi_idtr;
   } else {
     if (local_stream) {
-      return NGTCP2_ERR_PROTO;
+      return NGTCP2_ERR_STREAM_STATE;
     }
     if (conn->max_remote_stream_id_uni < fr->stream_id) {
       return NGTCP2_ERR_STREAM_LIMIT;
@@ -5068,14 +5066,12 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
  * negative error codes:
  *
  * NGTCP2_ERR_STREAM_STATE
- *     STOP_SENDING frame is received to the local stream which is not
- *     initiated.
+ *     STOP_SENDING frame is received for a local stream which is not
+ *     initiated; or STOP_SENDING frame is received for a local
+ *     unidirectional stream.
  * NGTCP2_ERR_STREAM_LIMIT
  *     STOP_SENDING frame has remote stream ID which is strictly
  *     greater than the allowed limit.
- * NGTCP2_ERR_PROTO
- *     STOP_SENDING frame is received to the local unidirectional
- *     stream; or the final offset is beyond the NGTCP2_MAX_VARINT.
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  * NGTCP2_ERR_CALLBACK_FAILURE
@@ -5100,10 +5096,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
 
     idtr = &conn->remote_bidi_idtr;
   } else {
-    if (!local_stream) {
-      return NGTCP2_ERR_PROTO;
-    }
-    if (conn->next_local_stream_id_uni <= fr->stream_id) {
+    if (!local_stream || conn->next_local_stream_id_uni <= fr->stream_id) {
       return NGTCP2_ERR_STREAM_STATE;
     }
 
