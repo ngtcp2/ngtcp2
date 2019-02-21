@@ -634,23 +634,12 @@ typedef enum {
  */
 #define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS 0xffa5u
 
-typedef enum {
-  NGTCP2_IP_VERSION_NONE = 0,
-  NGTCP2_IP_VERSION_4 = 4,
-  NGTCP2_IP_VERSION_6 = 6
-} ngtcp2_ip_version;
-
 typedef struct {
   ngtcp2_cid cid;
-  /* ip_addresslen is the length of ip_address. */
-  size_t ip_addresslen;
-  uint16_t port;
-  /* ip_version is the version of IP address.  It should be one of the
-     defined values in :type:`ngtcp2_ip_version`.
-     :enum:`NGTCP2_IP_VERSION_NONE` indicates that no preferred
-     address is set and the other fields are ignored. */
-  uint8_t ip_version;
-  uint8_t ip_address[255];
+  uint16_t ipv4_port;
+  uint16_t ipv6_port;
+  uint8_t ipv4_addr[4];
+  uint8_t ipv6_addr[16];
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_preferred_addr;
 
@@ -681,6 +670,7 @@ typedef struct {
   uint8_t disable_migration;
   uint8_t original_connection_id_present;
   uint64_t max_ack_delay;
+  uint8_t preferred_address_present;
 } ngtcp2_transport_params;
 
 /* user_data is the same object passed to ngtcp2_conn_client_new or
@@ -706,6 +696,7 @@ typedef struct {
   uint64_t ack_delay_exponent;
   uint8_t disable_migration;
   uint64_t max_ack_delay;
+  uint8_t preferred_address_present;
 } ngtcp2_settings;
 
 /**
