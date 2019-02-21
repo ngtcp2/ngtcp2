@@ -351,7 +351,6 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   int rv;
   ngtcp2_ksl_it it;
   ngtcp2_ksl_key key;
-  ngtcp2_rcvry_stat *rcs = conn ? &conn->rcs : NULL;
 
   rtb->largest_acked_tx_pkt_num =
       ngtcp2_max(rtb->largest_acked_tx_pkt_num, (int64_t)largest_ack);
@@ -424,14 +423,6 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
     ++i;
   }
-
-  if (!rcs) {
-    return 0;
-  }
-
-  rcs->crypto_count = 0;
-  rcs->pto_count = 0;
-  rcs->probe_pkt_left = 0;
 
   return 0;
 }

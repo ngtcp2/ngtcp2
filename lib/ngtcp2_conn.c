@@ -873,7 +873,8 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
   if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_PKT) {
     assert(ngtcp2_pkt_handshake_pkt(&ent->hd));
     conn->rcs.last_hs_tx_pkt_ts = ent->ts;
-  } else {
+  }
+  if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     conn->rcs.last_tx_pkt_ts = ent->ts;
   }
   ngtcp2_conn_set_loss_detection_timer(conn);
@@ -3424,6 +3425,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
                          ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_frame_chain *frc = NULL;
+  ngtcp2_rcvry_stat *rcs = &conn->rcs;
 
   rv = ngtcp2_pkt_validate_ack(fr);
   if (rv != 0) {
@@ -3447,6 +3449,10 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   if (rv != 0) {
     return rv;
   }
+
+  rcs->crypto_count = 0;
+  rcs->pto_count = 0;
+  rcs->probe_pkt_left = 0;
 
   ngtcp2_conn_set_loss_detection_timer(conn);
 
