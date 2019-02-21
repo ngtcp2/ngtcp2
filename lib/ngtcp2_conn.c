@@ -4685,7 +4685,7 @@ static int conn_max_data_violated(ngtcp2_conn *conn, size_t datalen) {
  *     User-defined callback function failed.
  * NGTCP2_ERR_FLOW_CONTROL
  *     Flow control limit is violated.
- * NGTCP2_ERR_FINAL_OFFSET
+ * NGTCP2_ERR_FINAL_SIZE
  *     STREAM frame has strictly larger end offset than it is
  *     permitted.
  */
@@ -4781,7 +4781,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   if (fr->fin) {
     if (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) {
       if (strm->last_rx_offset != fr_end_offset) {
-        return NGTCP2_ERR_FINAL_OFFSET;
+        return NGTCP2_ERR_FINAL_SIZE;
       }
 
       if (strm->flags &
@@ -4789,7 +4789,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return 0;
       }
     } else if (strm->last_rx_offset > fr_end_offset) {
-      return NGTCP2_ERR_FINAL_OFFSET;
+      return NGTCP2_ERR_FINAL_SIZE;
     } else {
       strm->last_rx_offset = fr_end_offset;
 
@@ -4812,7 +4812,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   } else {
     if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
         strm->last_rx_offset < fr_end_offset) {
-      return NGTCP2_ERR_FINAL_OFFSET;
+      return NGTCP2_ERR_FINAL_SIZE;
     }
 
     strm->last_rx_offset = ngtcp2_max(strm->last_rx_offset, fr_end_offset);
@@ -4895,7 +4895,7 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   frc->fr.type = NGTCP2_FRAME_RESET_STREAM;
   frc->fr.reset_stream.stream_id = strm->stream_id;
   frc->fr.reset_stream.app_error_code = app_error_code;
-  frc->fr.reset_stream.final_offset = strm->tx_offset;
+  frc->fr.reset_stream.final_size = strm->tx_offset;
 
   /* TODO This prepends RESET_STREAM to pktns->frq. */
   frc->next = pktns->frq;
@@ -4969,7 +4969,7 @@ handle_remote_stream_id_extension(uint64_t *punsent_max_remote_stream_id) {
  *     User-defined callback function failed.
  * NGTCP2_ERR_FLOW_CONTROL
  *     Flow control limit is violated.
- * NGTCP2_ERR_FINAL_OFFSET
+ * NGTCP2_ERR_FINAL_SIZE
  *     The final offset is strictly larger than it is permitted.
  */
 static int conn_recv_reset_stream(ngtcp2_conn *conn,
@@ -5009,8 +5009,8 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
       return 0;
     }
 
-    if (conn_initial_stream_rx_offset(conn, fr->stream_id) < fr->final_offset ||
-        conn_max_data_violated(conn, fr->final_offset)) {
+    if (conn_initial_stream_rx_offset(conn, fr->stream_id) < fr->final_size ||
+        conn_max_data_violated(conn, fr->final_size)) {
       return NGTCP2_ERR_FLOW_CONTROL;
     }
     rv = ngtcp2_idtr_open(idtr, fr->stream_id);
@@ -5023,7 +5023,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     }
 
     /* Stream is reset before we create ngtcp2_strm object. */
-    conn->rx_offset += fr->final_offset;
+    conn->rx_offset += fr->final_size;
 
     /* There will be no activity in this stream because we got
        RESET_STREAM and don't write stream data any further.  This
@@ -5039,23 +5039,23 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   }
 
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD)) {
-    if (strm->last_rx_offset != fr->final_offset) {
-      return NGTCP2_ERR_FINAL_OFFSET;
+    if (strm->last_rx_offset != fr->final_size) {
+      return NGTCP2_ERR_FINAL_SIZE;
     }
-  } else if (strm->last_rx_offset > fr->final_offset) {
-    return NGTCP2_ERR_FINAL_OFFSET;
+  } else if (strm->last_rx_offset > fr->final_size) {
+    return NGTCP2_ERR_FINAL_SIZE;
   }
 
-  datalen = fr->final_offset - strm->last_rx_offset;
+  datalen = fr->final_size - strm->last_rx_offset;
 
-  if (strm->max_rx_offset < fr->final_offset ||
+  if (strm->max_rx_offset < fr->final_size ||
       conn_max_data_violated(conn, datalen)) {
     return NGTCP2_ERR_FLOW_CONTROL;
   }
 
   conn->rx_offset += datalen;
 
-  strm->last_rx_offset = fr->final_offset;
+  strm->last_rx_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
 
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
@@ -5689,7 +5689,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
  *     allowed limit.
  * NGTCP2_ERR_FLOW_CONTROL
  *     Flow control limit is violated.
- * NGTCP2_ERR_FINAL_OFFSET
+ * NGTCP2_ERR_FINAL_SIZE
  *     Frame has strictly larger end offset than it is permitted.
  */
 static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,

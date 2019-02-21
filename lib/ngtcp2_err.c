@@ -50,8 +50,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_FLOW_CONTROL";
   case NGTCP2_ERR_STREAM_LIMIT:
     return "ERR_STREAM_LIMIT";
-  case NGTCP2_ERR_FINAL_OFFSET:
-    return "ERR_FINAL_OFFSET";
+  case NGTCP2_ERR_FINAL_SIZE:
+    return "ERR_FINAL_SIZE";
   case NGTCP2_ERR_CRYPTO:
     return "ERR_CRYPTO";
   case NGTCP2_ERR_PKT_NUM_EXHAUSTED:
@@ -110,8 +110,8 @@ uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
     return NGTCP2_FLOW_CONTROL_ERROR;
   case NGTCP2_ERR_STREAM_LIMIT:
     return NGTCP2_STREAM_LIMIT_ERROR;
-  case NGTCP2_ERR_FINAL_OFFSET:
-    return NGTCP2_FINAL_OFFSET_ERROR;
+  case NGTCP2_ERR_FINAL_SIZE:
+    return NGTCP2_FINAL_SIZE_ERROR;
   case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
     return NGTCP2_TRANSPORT_PARAMETER_ERROR;
   case NGTCP2_ERR_INVALID_ARGUMENT:

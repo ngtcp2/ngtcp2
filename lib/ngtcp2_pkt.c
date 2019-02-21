@@ -712,7 +712,7 @@ ssize_t ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
   p += n;
   dest->app_error_code = ngtcp2_get_uint16(p);
   p += 2;
-  dest->final_offset = ngtcp2_get_varint(&n, p);
+  dest->final_size = ngtcp2_get_varint(&n, p);
   p += n;
 
   assert((size_t)(p - payload) == len);
@@ -1418,7 +1418,7 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
 ssize_t ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
                                              const ngtcp2_reset_stream *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->stream_id) + 2 +
-               ngtcp2_put_varint_len(fr->final_offset);
+               ngtcp2_put_varint_len(fr->final_size);
   uint8_t *p;
 
   if (outlen < len) {
@@ -1430,7 +1430,7 @@ ssize_t ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
   *p++ = NGTCP2_FRAME_RESET_STREAM;
   p = ngtcp2_put_varint(p, fr->stream_id);
   p = ngtcp2_put_uint16be(p, fr->app_error_code);
-  p = ngtcp2_put_varint(p, fr->final_offset);
+  p = ngtcp2_put_varint(p, fr->final_size);
 
   assert((size_t)(p - out) == len);
 

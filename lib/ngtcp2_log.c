@@ -121,8 +121,8 @@ static const char *strerrorcode(uint16_t error_code) {
     return "STREAM_LIMIT_ERROR";
   case NGTCP2_STREAM_STATE_ERROR:
     return "STREAM_STATE_ERROR";
-  case NGTCP2_FINAL_OFFSET_ERROR:
-    return "FINAL_OFFSET_ERROR";
+  case NGTCP2_FINAL_SIZE_ERROR:
+    return "FINAL_SIZE_ERROR";
   case NGTCP2_FRAME_ENCODING_ERROR:
     return "FRAME_ENCODING_ERROR";
   case NGTCP2_TRANSPORT_PARAMETER_ERROR:
@@ -248,13 +248,12 @@ static void log_fr_padding(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                 const ngtcp2_reset_stream *fr,
                                 const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT
-                   " RESET_STREAM(0x%02x) id=0x%" PRIu64
-                   " app_error_code=%s(0x%04x) final_offset=%" PRIu64 "\n"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
-                  strapperrorcode(fr->app_error_code), fr->app_error_code,
-                  fr->final_offset);
+  log->log_printf(
+      log->user_data,
+      (NGTCP2_LOG_PKT " RESET_STREAM(0x%02x) id=0x%" PRIu64
+                      " app_error_code=%s(0x%04x) final_size=%" PRIu64 "\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
+      strapperrorcode(fr->app_error_code), fr->app_error_code, fr->final_size);
 }
 
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

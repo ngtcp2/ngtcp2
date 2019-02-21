@@ -526,7 +526,7 @@ void test_ngtcp2_pkt_encode_reset_stream_frame(void) {
   fr.type = NGTCP2_FRAME_RESET_STREAM;
   fr.stream_id = 1000000007;
   fr.app_error_code = 0xe1e2;
-  fr.final_offset = 0x31f2f3f4f5f6f7f8llu;
+  fr.final_size = 0x31f2f3f4f5f6f7f8llu;
 
   rv = ngtcp2_pkt_encode_reset_stream_frame(buf, sizeof(buf), &fr);
 
@@ -538,7 +538,7 @@ void test_ngtcp2_pkt_encode_reset_stream_frame(void) {
   CU_ASSERT(fr.type == nfr.type);
   CU_ASSERT(fr.stream_id == nfr.stream_id);
   CU_ASSERT(fr.app_error_code == nfr.app_error_code);
-  CU_ASSERT(fr.final_offset == nfr.final_offset);
+  CU_ASSERT(fr.final_size == nfr.final_size);
 }
 
 void test_ngtcp2_pkt_encode_connection_close_frame(void) {
