@@ -308,3 +308,8 @@ void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm) {
 int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm) {
   return strm->pe.index != NGTCP2_PQ_BAD_INDEX;
 }
+
+int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
+  return ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset) ==
+         strm->tx_offset;
+}

@@ -5151,6 +5151,13 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
   }
 
+  /* No RESET_STREAM is required if we have sent FIN and all data have
+     been acknowledged. */
+  if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) &&
+      ngtcp2_strm_is_all_tx_data_acked(strm)) {
+    return 0;
+  }
+
   rv = conn_reset_stream(conn, strm, fr->app_error_code);
   if (rv != 0) {
     return rv;

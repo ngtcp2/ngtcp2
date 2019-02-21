@@ -200,4 +200,10 @@ void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm);
  */
 int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm);
 
+/*
+ * ngtcp2_strm_is_all_tx_data_acked returns nonzero if all outgoing
+ * data for |strm| which have sent so far have been acknowledged.
+ */
+int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm);
+
 #endif /* NGTCP2_STRM_H */

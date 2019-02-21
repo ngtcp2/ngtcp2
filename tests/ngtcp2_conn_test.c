@@ -1732,6 +1732,30 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   CU_ASSERT(NGTCP2_ERR_STREAM_STATE == rv);
 
   ngtcp2_conn_del(conn);
+
+  /* STOP_SENDING against local bidirectional stream in Data Sent
+     state.  Because all data have been acknowledged, and FIN is sent,
+     RESET_STREAM is not necessary. */
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+  ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
+
+  fr.type = NGTCP2_FRAME_STOP_SENDING;
+  fr.stop_sending.stream_id = stream_id;
+  fr.stop_sending.app_error_code = NGTCP2_APP_ERR01;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 1, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == conn->pktns.frq);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_conn_id_omitted(void) {
