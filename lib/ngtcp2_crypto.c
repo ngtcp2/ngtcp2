@@ -581,7 +581,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     case NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY:
       flags |= 1u << param_type;
       nread = decode_varint(&params->max_ack_delay, p, end);
-      if (nread < 0) {
+      if (nread < 0 || params->max_ack_delay >= 16384) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += nread;
