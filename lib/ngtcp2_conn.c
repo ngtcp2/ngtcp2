@@ -7822,8 +7822,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
       (((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
         (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
        (!(strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
-        ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset) ==
-            strm->tx_offset))) {
+        ngtcp2_strm_is_all_tx_data_acked(strm)))) {
     return ngtcp2_conn_close_stream(conn, strm, app_error_code);
   }
   return 0;
