@@ -5582,6 +5582,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_pv *pv;
   size_t i, len;
   int rv;
+  ngtcp2_duration timeout;
 
   assert(conn->server);
 
@@ -5619,7 +5620,10 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   conn_reset_congestion_state(conn);
 
-  rv = ngtcp2_pv_new(&pv, dcid, 6 * NGTCP2_DEFAULT_INITIAL_RTT,
+  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+
+  rv = ngtcp2_pv_new(&pv, dcid, timeout,
                      NGTCP2_PV_FLAG_BLOCKING |
                          NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS,
                      &conn->log, conn->mem);
@@ -8262,6 +8266,7 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   int rv;
   ngtcp2_dcid *dcid;
   ngtcp2_pv *pv;
+  ngtcp2_duration timeout;
 
   conn->log.last_ts = ts;
 
@@ -8280,8 +8285,11 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
     return rv;
   }
 
-  rv = ngtcp2_pv_new(&pv, dcid, 6 * NGTCP2_DEFAULT_INITIAL_RTT,
-                     NGTCP2_PV_FLAG_BLOCKING, &conn->log, conn->mem);
+  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+
+  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_BLOCKING, &conn->log,
+                     conn->mem);
   if (rv != 0) {
     return rv;
   }
