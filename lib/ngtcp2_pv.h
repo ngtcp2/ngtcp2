@@ -144,6 +144,8 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
+ * NGTCP2_ERR_PATH_VALIDATION_FAILED
+ *     path validation has failed and must be abandoned
  * NGTCP2_ERR_INVALID_STATE
  *     |pv| includes no entry
  * NGTCP2_ERR_INVALID_ARGUMENT

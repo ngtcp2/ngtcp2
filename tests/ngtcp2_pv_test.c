@@ -117,7 +117,7 @@ void test_ngtcp2_pv_validate(void) {
   memset(data, 1, sizeof(data));
   rv = ngtcp2_pv_validate(pv, &alt_path, data);
 
-  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+  CU_ASSERT(NGTCP2_ERR_PATH_VALIDATION_FAILED == rv);
 
   rv = ngtcp2_pv_validate(pv, &path, data);
 

@@ -2835,6 +2835,36 @@ static int conn_stop_pv(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_on_path_validation_failed is called when path validation
+ * fails.  This function may delete |pv|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv) {
+  int rv;
+
+  /* If path validation fails, the bound DCID is no longer
+     necessary.  Retire it. */
+  pv->flags |= NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH;
+
+  if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
+    rv = conn_call_path_validation(conn, &pv->dcid.path,
+                                   NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  return conn_stop_pv(conn);
+}
+
+/*
  * conn_write_path_challenge writes a packet which includes
  * PATH_CHALLENGE frame into |dest| of length |destlen|.
  *
@@ -2859,19 +2889,7 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
   if (ngtcp2_pv_validation_timed_out(pv, ts)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
                     "path validation was timed out");
-    /* If path validation fails, the bound DCID is no longer
-       necessary.  Retire it. */
-    pv->flags |= NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH;
-
-    if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
-      rv = conn_call_path_validation(conn, &pv->dcid.path,
-                                     NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-
-    return conn_stop_pv(conn);
+    return conn_on_path_validation_failed(conn, pv);
   }
 
   ngtcp2_pv_handle_entry_expiry(pv, ts);
@@ -3822,6 +3840,9 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   rv = ngtcp2_pv_validate(pv, path, fr->data);
   if (rv != 0) {
+    if (rv == NGTCP2_ERR_PATH_VALIDATION_FAILED) {
+      return conn_on_path_validation_failed(conn, pv);
+    }
     return 0;
   }
 
