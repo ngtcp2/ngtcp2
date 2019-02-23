@@ -199,6 +199,7 @@ public:
   ssize_t hp_mask(uint8_t *data, size_t destlen, const uint8_t *key,
                   size_t keylen, const uint8_t *sample, size_t samplelen);
   ngtcp2_conn *conn() const;
+  void update_remote_addr(const ngtcp2_addr *addr);
   int send_packet();
   int start_interactive_input();
   int send_interactive_input();
@@ -220,6 +221,9 @@ public:
   int on_key(int name, const uint8_t *secret, size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
+
+  int select_preferred_address(Address &selected_addr,
+                               const ngtcp2_preferred_addr *paddr);
 
 private:
   Address local_addr_;

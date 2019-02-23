@@ -230,6 +230,22 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
   return 0;
 }
 
+static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
+                                           ngtcp2_addr *dest) {
+  int rv;
+
+  assert(conn->callbacks.select_preferred_addr);
+  assert(conn->remote_settings.preferred_address_present);
+
+  rv = conn->callbacks.select_preferred_addr(
+      conn, dest, &conn->remote_settings.preferred_address, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int crypto_offset_less(const ngtcp2_pq_entry *lhs,
                               const ngtcp2_pq_entry *rhs) {
   ngtcp2_crypto_frame_chain *lfrc =
@@ -453,6 +469,25 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                          ngtcp2_ksl_key_ptr(&key, &scident->cid), scident);
   if (rv != 0) {
     goto fail_scids_insert;
+  }
+
+  if (server && settings->preferred_address_present) {
+    scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
+    if (scid == NULL) {
+      rv = NGTCP2_ERR_NOMEM;
+      goto fail_scident;
+    }
+
+    ngtcp2_scid_init(scident, 0, &settings->preferred_address.cid,
+                     settings->preferred_address.stateless_reset_token);
+
+    rv = ngtcp2_ksl_insert(&(*pconn)->scids, NULL,
+                           ngtcp2_ksl_key_ptr(&key, &scident->cid), scident);
+    if (rv != 0) {
+      goto fail_scids_insert;
+    }
+
+    (*pconn)->tx_last_cid_seq = 1;
   }
 
   ngtcp2_dcid_init(&(*pconn)->dcid, 0, dcid, NULL);
@@ -3018,7 +3053,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
     }
 
     if (!conn->server) {
-      /* Client don't expect to response path validation against
+      /* Client does not expect to respond to path validation against
          unknown path */
       ngtcp2_ringbuf_pop_front(&conn->rx_path_challenge);
       pcent = NULL;
@@ -3063,6 +3098,14 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
   return nwrite;
 }
 
+/*
+ * conn_peer_has_unused_cid returns nonzero if the remote endpoint has
+ * at least one unused connection ID.
+ */
+static int conn_peer_has_unused_cid(ngtcp2_conn *conn) {
+  return ngtcp2_ksl_len(&conn->scids) - ngtcp2_pq_size(&conn->used_scids) > 0;
+}
+
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
                               uint8_t *dest, size_t destlen, ngtcp2_tstamp ts) {
   ssize_t nwrite;
@@ -3096,7 +3139,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
       return nwrite;
     }
 
-    if (conn->pv) {
+    if (conn->pv && conn_peer_has_unused_cid(conn)) {
       nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
       if (nwrite || (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING))) {
         return nwrite;
@@ -4371,6 +4414,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn, const uint8_t *pkt,
     } else {
       conn->dcid.cid = hd.scid;
     }
+    conn->odcid = hd.scid;
   }
 
   for (; payloadlen;) {
@@ -5767,7 +5811,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     /* Quoted from spec: if subsequent packets of those types include
        a different Source Connection ID, they MUST be discarded. */
-    if (!ngtcp2_cid_eq(&conn->dcid.cid, &hd.scid)) {
+    if (!ngtcp2_cid_eq(&conn->odcid, &hd.scid)) {
       ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "packet was ignored because of mismatched SCID");
@@ -6325,6 +6369,8 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   /* client does not expect a packet from unknown path. */
   if (!conn->server && !ngtcp2_path_eq(&conn->dcid.path, path) &&
       (!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.path, path))) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                    "ignore packet from unknown path");
     return 0;
   }
 
@@ -6485,6 +6531,64 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const uint8_t *pkt,
 }
 
 /*
+ * conn_select_preferred_addr asks a client application to select a
+ * server address from preferred addresses received from server.  If a
+ * client chooses the address, path validation will start.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+static int conn_select_preferred_addr(ngtcp2_conn *conn) {
+  uint8_t buf[128];
+  ngtcp2_addr addr;
+  int rv;
+  ngtcp2_duration timeout;
+  ngtcp2_pv *pv;
+  ngtcp2_dcid dcid;
+
+  ngtcp2_addr_init(&addr, buf, 0, NULL);
+
+  rv = conn_call_select_preferred_addr(conn, &addr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (addr.len == 0 || ngtcp2_addr_eq(&conn->dcid.path.remote, &addr)) {
+    return 0;
+  }
+
+  ngtcp2_dcid_init(
+      &dcid, 1, &conn->remote_settings.preferred_address.cid,
+      conn->remote_settings.preferred_address.stateless_reset_token);
+
+  assert(conn->pv == NULL);
+
+  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+
+  rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_BLOCKING, &conn->log,
+                     conn->mem);
+  if (rv != 0) {
+    /* TODO Call ngtcp2_dcid_free here if it is introduced */
+    return rv;
+  }
+
+  conn->pv = pv;
+
+  ngtcp2_addr_copy(&pv->dcid.path.local, &conn->dcid.path.local);
+  ngtcp2_addr_copy(&pv->dcid.path.remote, &addr);
+
+  conn_reset_congestion_state(conn);
+
+  return 0;
+}
+
+/*
  * conn_write_handshake writes QUIC handshake packets to the buffer
  * pointed by |dest| of length |destlen|.  |early_datalen| specifies
  * the expected length of early data to send.  Specify 0 to
@@ -6627,6 +6731,18 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     rv = conn_process_buffered_protected_pkt(conn, ts);
     if (rv != 0) {
       return (ssize_t)rv;
+    }
+
+    if (conn->remote_settings.preferred_address_present) {
+      /* TODO Starting path validation against preferred address must
+         be done after dropping Handshake key which is impossible at
+         draft-18. */
+      /* TODO And client has to send NEW_CONNECTION_ID before starting
+         path validation */
+      rv = conn_select_preferred_addr(conn);
+      if (rv != 0) {
+        return (ssize_t)rv;
+      }
     }
 
     return res;
@@ -7609,7 +7725,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     return nwrite;
   }
 
-  if (conn->pv) {
+  if (conn->pv && conn_peer_has_unused_cid(conn)) {
     nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
     if (nwrite || (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING))) {
       return nwrite;

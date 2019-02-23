@@ -91,8 +91,8 @@ void test_ngtcp2_pv_validate(void) {
   uint8_t data[8];
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
   ngtcp2_tstamp t = 1;
-  ngtcp2_path path = {{1, (uint8_t *)"1"}, {1, (uint8_t *)"2"}};
-  ngtcp2_path alt_path = {{1, (uint8_t *)"3"}, {1, (uint8_t *)"4"}};
+  ngtcp2_path path = {{1, (uint8_t *)"1", NULL}, {1, (uint8_t *)"2", NULL}};
+  ngtcp2_path alt_path = {{1, (uint8_t *)"3", NULL}, {1, (uint8_t *)"4", NULL}};
 
   dcid_init(&cid);
   ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);

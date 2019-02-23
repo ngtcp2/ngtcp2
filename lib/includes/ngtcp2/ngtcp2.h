@@ -740,6 +740,8 @@ typedef struct {
   /* addr points to the buffer which contains endpoint address.  It is
      opaque to the ngtcp2 library. */
   uint8_t *addr;
+  /* user_data is an arbitrary data and opaque to the library. */
+  void *user_data;
 } ngtcp2_addr;
 
 /**
@@ -1390,6 +1392,25 @@ typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn,
                                       ngtcp2_path_validation_result res,
                                       void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_select_preferred_addr` is a callback function which
+ * asks a client application to choose server address from preferred
+ * addresses |paddr| received from server.  An application should
+ * write preferred address in |dest|.  If an application denies the
+ * preferred addresses, just leave |dest| unmodified (or set dest->len
+ * to 0) and return 0.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
+                                            ngtcp2_addr *dest,
+                                            const ngtcp2_preferred_addr *paddr,
+                                            void *user_data);
+
 typedef struct {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
@@ -1440,6 +1461,7 @@ typedef struct {
   ngtcp2_remove_connection_id remove_connection_id;
   ngtcp2_update_key update_key;
   ngtcp2_path_validation path_validation;
+  ngtcp2_select_preferred_addr select_preferred_addr;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -2540,7 +2562,8 @@ NGTCP2_EXTERN uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
  * returns |addr|.
  */
 NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *addr,
-                                            const void *address, size_t len);
+                                            const void *address, size_t len,
+                                            void *user_data);
 
 /**
  * @function

@@ -240,6 +240,10 @@ struct ngtcp2_conn {
   /* oscid is the source connection ID initially used by the local
      endpoint. */
   ngtcp2_cid oscid;
+  /* odcid is the destination connection ID initially negotiated
+     during handshake.  It is used to receive late handshake packets
+     after handshake completion. */
+  ngtcp2_cid odcid;
   /* dcid is the destination connection ID. */
   ngtcp2_dcid dcid;
   /* bound_dcids is a set of destination connection ID which is bound

@@ -70,9 +70,6 @@ typedef enum {
      validation against the old path should be done after successful
      path validation. */
   NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS = 0x08,
-  /* NGTCP2_PV_FLAG_INVOKE_CALLBACK indicates that callback must be
-     called after path validation finishes. */
-  NGTCP2_PV_FLAG_INVOKE_CALLBACK = 0x10,
 } ngtcp2_pv_flag;
 
 struct ngtcp2_pv;

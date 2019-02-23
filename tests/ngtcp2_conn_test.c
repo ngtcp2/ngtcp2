@@ -127,7 +127,8 @@ static uint8_t null_iv[16];
 static uint8_t null_pn[16];
 static uint8_t null_data[4096];
 static ngtcp2_path null_path = {};
-static ngtcp2_path new_path = {{1, (uint8_t *)"1"}, {1, (uint8_t *)"2"}};
+static ngtcp2_path new_path = {{1, (uint8_t *)"1", NULL},
+                               {1, (uint8_t *)"2", NULL}};
 
 static ngtcp2_vec *null_datav(ngtcp2_vec *datav, size_t len) {
   datav->base = null_data;
@@ -363,6 +364,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   (*pconn)->max_local_stream_id_uni =
       ngtcp2_nth_server_uni_id((*pconn)->remote_settings.max_streams_uni);
   (*pconn)->max_tx_offset = (*pconn)->remote_settings.max_data;
+  (*pconn)->odcid = dcid;
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
@@ -412,6 +414,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->max_local_stream_id_uni =
       ngtcp2_nth_client_uni_id((*pconn)->remote_settings.max_streams_uni);
   (*pconn)->max_tx_offset = (*pconn)->remote_settings.max_data;
+  (*pconn)->odcid = dcid;
 }
 
 static void setup_handshake_server(ngtcp2_conn **pconn) {

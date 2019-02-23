@@ -85,8 +85,8 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
   } else {
     memset(dcid->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
   }
-  ngtcp2_addr_init(&dcid->path.local, dcid->local_addrbuf, 0);
-  ngtcp2_addr_init(&dcid->path.remote, dcid->remote_addrbuf, 0);
+  ngtcp2_addr_init(&dcid->path.local, dcid->local_addrbuf, 0, NULL);
+  ngtcp2_addr_init(&dcid->path.remote, dcid->remote_addrbuf, 0, NULL);
 }
 
 void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {

@@ -26,9 +26,11 @@
 
 #include <string.h>
 
-ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr, size_t len) {
+ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr, size_t len,
+                              void *user_data) {
   dest->len = len;
   dest->addr = (uint8_t *)addr;
+  dest->user_data = user_data;
   return dest;
 }
 
@@ -37,6 +39,7 @@ void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src) {
   if (src->len) {
     memcpy(dest->addr, src->addr, src->len);
   }
+  dest->user_data = src->user_data;
 }
 
 void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const void *addr,

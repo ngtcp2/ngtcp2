@@ -47,6 +47,8 @@
 using namespace ngtcp2;
 
 struct Config {
+  Address preferred_ipv4_addr;
+  Address preferred_ipv6_addr;
   // tx_loss_prob is probability of losing outgoing packet.
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.
@@ -153,24 +155,33 @@ struct Stream {
 
 class Server;
 
+// Endpoint is a local endpoint.
+struct Endpoint {
+  Address addr;
+  ev_io wev;
+  ev_io rev;
+  Server *server;
+  int fd;
+};
+
 class Handler {
 public:
   Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
           const ngtcp2_cid *rcid);
   ~Handler();
 
-  int init(int fd, const sockaddr *sa, socklen_t salen, const ngtcp2_cid *dcid,
-           const ngtcp2_cid *ocid, uint32_t version);
+  int init(Endpoint &ep, const sockaddr *sa, socklen_t salen,
+           const ngtcp2_cid *dcid, const ngtcp2_cid *ocid, uint32_t version);
 
   int tls_handshake();
   int read_tls();
-  int on_read(const sockaddr *sa, socklen_t salen, uint8_t *data,
+  int on_read(Endpoint &ep, const sockaddr *sa, socklen_t salen, uint8_t *data,
               size_t datalen);
   int on_write(bool retransmit = false);
   int on_write_stream(Stream &stream);
   int write_stream_data(Stream &stream, int fin, Buffer &data);
-  int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
-                size_t datalen);
+  int feed_data(Endpoint &ep, const sockaddr *sa, socklen_t salen,
+                uint8_t *data, size_t datalen);
   int do_handshake_read_once(const uint8_t *data, size_t datalen);
   ssize_t do_handshake_write_once();
   int do_handshake(const uint8_t *data, size_t datalen);
@@ -214,6 +225,7 @@ public:
   int recv_stream_data(uint64_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
   const ngtcp2_cid *scid() const;
+  const ngtcp2_cid *pscid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
   void remove_tx_crypto_data(uint64_t offset, size_t datalen);
@@ -225,6 +237,7 @@ public:
   bool draining() const;
   int handle_error(int liberror);
   int send_conn_close();
+  void update_endpoint(const ngtcp2_addr *addr);
   void update_remote_addr(const ngtcp2_addr *addr);
 
   int send_greeting();
@@ -236,13 +249,13 @@ public:
   int update_key();
 
 private:
+  Endpoint *endpoint_;
   Address remote_addr_;
   size_t max_pktlen_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
   Server *server_;
-  int fd_;
   ev_timer timer_;
   ev_timer rttimer_;
   std::vector<uint8_t> chandshake_;
@@ -253,6 +266,7 @@ private:
   size_t shandshake_idx_;
   ngtcp2_conn *conn_;
   ngtcp2_cid scid_;
+  ngtcp2_cid pscid_;
   ngtcp2_cid rcid_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
@@ -287,46 +301,42 @@ public:
   Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Server();
 
-  int init(int fd, const Address &local_addr);
+  int init(const char *addr, const char *port);
   void disconnect();
   void disconnect(int liberr);
   void close();
 
   int on_write();
-  int on_read();
-  int send_version_negotiation(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
-                               socklen_t salen);
-  int send_retry(const ngtcp2_pkt_hd *chd, const sockaddr *sa, socklen_t salen);
+  int on_read(Endpoint &ep);
+  int send_version_negotiation(const ngtcp2_pkt_hd *hd, Endpoint &ep,
+                               const sockaddr *sa, socklen_t salen);
+  int send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep, const sockaddr *sa,
+                 socklen_t salen);
   int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
                      socklen_t salen, const ngtcp2_cid *ocid);
   int verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                    const sockaddr *sa, socklen_t salen);
-  int send_packet(Address &remote_addr, Buffer &buf);
+  int send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf);
   void remove(const Handler *h);
   std::map<std::string, std::unique_ptr<Handler>>::const_iterator
   remove(std::map<std::string, std::unique_ptr<Handler>>::const_iterator it);
-  void start_wev();
 
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
                        const uint8_t *rand_data, size_t rand_datalen);
   int generate_rand_data(uint8_t *buf, size_t len);
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
   void dissociate_cid(const ngtcp2_cid *cid);
-  const Address &get_local_addr() const;
 
 private:
-  Address local_addr_;
   std::map<std::string, std::unique_ptr<Handler>> handlers_;
   // ctos_ is a mapping between client's initial destination
   // connection ID, and server source connection ID.
   std::map<std::string, std::string> ctos_;
   struct ev_loop *loop_;
+  std::vector<Endpoint> endpoints_;
   SSL_CTX *ssl_ctx_;
   crypto::Context token_crypto_ctx_;
   std::array<uint8_t, TOKEN_SECRETLEN> token_secret_;
-  int fd_;
-  ev_io wev_;
-  ev_io rev_;
   ev_signal sigintev_;
 };
 

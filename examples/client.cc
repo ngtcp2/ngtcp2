@@ -793,6 +793,25 @@ int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
 }
 } // namespace
 
+namespace {
+int select_preferred_address(ngtcp2_conn *conn, ngtcp2_addr *dest,
+                             const ngtcp2_preferred_addr *paddr,
+                             void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+  Address addr;
+
+  if (c->select_preferred_address(addr, paddr) != 0) {
+    dest->len = 0;
+    return 0;
+  }
+
+  dest->len = addr.len;
+  memcpy(dest->addr, &addr.su, dest->len);
+
+  return 0;
+}
+} // namespace
+
 int Client::init_ssl() {
   if (ssl_) {
     SSL_free(ssl_);
@@ -909,6 +928,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       remove_connection_id,
       ::update_key,
       path_validation,
+      ::select_preferred_address,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -1342,9 +1362,11 @@ int Client::on_write(bool retransmit) {
     return rv;
   }
 
+  PathStorage path;
+
   for (;;) {
-    auto n = ngtcp2_conn_write_pkt(conn_, nullptr, sendbuf_.wpos(), max_pktlen_,
-                                   util::timestamp(loop_));
+    auto n = ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
+                                   max_pktlen_, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
       disconnect(n);
@@ -1355,6 +1377,8 @@ int Client::on_write(bool retransmit) {
     }
 
     sendbuf_.push(n);
+
+    update_remote_addr(&path.path.remote);
 
     auto rv = send_packet();
     if (rv == NETWORK_ERR_SEND_NON_FATAL) {
@@ -1408,10 +1432,11 @@ int Client::write_streams() {
 int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
   ssize_t ndatalen;
 
+  PathStorage path;
   for (;;) {
     auto n = ngtcp2_conn_write_stream(
-        conn_, nullptr, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream_id, fin,
-        data.rpos(), data.size(), util::timestamp(loop_));
+        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream_id,
+        fin, data.rpos(), data.size(), util::timestamp(loop_));
     if (n < 0) {
       switch (n) {
       case NGTCP2_ERR_EARLY_DATA_REJECTED:
@@ -1436,6 +1461,8 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
     }
 
     sendbuf_.push(n);
+
+    update_remote_addr(&path.path.remote);
 
     auto rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
@@ -1744,7 +1771,7 @@ int Client::change_local_addr() {
   if (config.nat_rebinding) {
     ngtcp2_addr addr;
     ngtcp2_conn_set_local_addr(
-        conn_, ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len));
+        conn_, ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len, NULL));
   } else {
     auto path = ngtcp2_path{
         {local_addr.len, reinterpret_cast<uint8_t *>(&local_addr.su)},
@@ -1870,6 +1897,11 @@ int Client::initiate_key_update() {
   }
 
   return 0;
+}
+
+void Client::update_remote_addr(const ngtcp2_addr *addr) {
+  remote_addr_.len = addr->len;
+  memcpy(&remote_addr_.su, addr->addr, addr->len);
 }
 
 int Client::send_packet() {
@@ -2008,9 +2040,10 @@ int Client::handle_error(int liberr) {
     err_code = ngtcp2_err_infer_quic_transport_error_code(liberr);
   }
 
-  auto n = ngtcp2_conn_write_connection_close(conn_, nullptr, sendbuf_.wpos(),
-                                              max_pktlen_, err_code,
-                                              util::timestamp(loop_));
+  PathStorage path;
+  auto n = ngtcp2_conn_write_connection_close(conn_, &path.path,
+                                              sendbuf_.wpos(), max_pktlen_,
+                                              err_code, util::timestamp(loop_));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
@@ -2018,6 +2051,8 @@ int Client::handle_error(int liberr) {
   }
 
   sendbuf_.push(n);
+
+  update_remote_addr(&path.path.remote);
 
   return send_packet();
 }
@@ -2193,6 +2228,62 @@ int Client::on_extend_max_streams() {
     }
     return 0;
   }
+
+  return 0;
+}
+
+int Client::select_preferred_address(Address &selected_addr,
+                                     const ngtcp2_preferred_addr *paddr) {
+  int af;
+  const uint8_t *binaddr;
+  uint16_t port;
+  constexpr uint8_t empty_addr[] = {0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0};
+  if (local_addr_.su.sa.sa_family == AF_INET &&
+      memcmp(empty_addr, paddr->ipv4_addr, sizeof(paddr->ipv4_addr)) != 0) {
+    af = AF_INET;
+    binaddr = paddr->ipv4_addr;
+    port = paddr->ipv4_port;
+  } else if (local_addr_.su.sa.sa_family == AF_INET6 &&
+             memcmp(empty_addr, paddr->ipv6_addr, sizeof(paddr->ipv6_addr)) !=
+                 0) {
+    af = AF_INET6;
+    binaddr = paddr->ipv6_addr;
+    port = paddr->ipv6_port;
+  } else {
+    return -1;
+  }
+
+  char host[NI_MAXHOST];
+  if (inet_ntop(af, binaddr, host, sizeof(host)) == NULL) {
+    std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
+    return -1;
+  }
+
+  if (!config.quiet) {
+    std::cerr << "selected server preferred_address is [" << host
+              << "]:" << port << std::endl;
+  }
+
+  addrinfo hints{};
+  addrinfo *res;
+
+  hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+  hints.ai_family = af;
+  hints.ai_socktype = SOCK_DGRAM;
+
+  auto rv = getaddrinfo(host, std::to_string(port).c_str(), &hints, &res);
+  if (rv != 0) {
+    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+    return -1;
+  }
+
+  assert(res);
+
+  selected_addr.len = res->ai_addrlen;
+  memcpy(&selected_addr.su, res->ai_addr, res->ai_addrlen);
+
+  freeaddrinfo(res);
 
   return 0;
 }
