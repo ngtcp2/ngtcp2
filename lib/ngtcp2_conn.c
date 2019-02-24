@@ -392,7 +392,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   rv = ngtcp2_ringbuf_init(&(*pconn)->dcids, NGTCP2_MAX_DCID_POOL_SIZE,
-                           sizeof(ngtcp2_scid), mem);
+                           sizeof(ngtcp2_dcid), mem);
   if (rv != 0) {
     goto fail_dcids_init;
   }
