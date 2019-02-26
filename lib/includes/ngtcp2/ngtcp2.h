@@ -2572,11 +2572,11 @@ NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *addr,
  * `ngtcp2_path_storage_init` initializes |ps| with the given
  * arguments.  This function copies |local_addr| and |remote_addr|.
  */
-NGTCP2_EXTERN void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
-                                            const void *local_addr,
-                                            size_t local_addrlen,
-                                            const void *remote_addr,
-                                            size_t remote_addrlen);
+NGTCP2_EXTERN void
+ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
+                         size_t local_addrlen, void *local_user_data,
+                         const void *remote_addr, size_t remote_addrlen,
+                         void *remote_user_data);
 
 /**
  * @function

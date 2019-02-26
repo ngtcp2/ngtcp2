@@ -42,7 +42,8 @@ int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
   }
 
   ngtcp2_path_storage_init(&(*ppc)->path, path->local.addr, path->local.len,
-                           path->remote.addr, path->remote.len);
+                           path->local.user_data, path->remote.addr,
+                           path->remote.len, path->remote.user_data);
   (*ppc)->next = NULL;
   (*ppc)->pkt = (uint8_t *)(*ppc) + sizeof(ngtcp2_pkt_chain);
   (*ppc)->pktlen = pktlen;
