@@ -1202,10 +1202,10 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                       size_t datalen) {
   int rv;
 
+  auto path = ngtcp2_path{
+      {local_addr_.len, reinterpret_cast<uint8_t *>(&local_addr_.su)},
+      {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    auto path = ngtcp2_path{
-        {local_addr_.len, reinterpret_cast<uint8_t *>(&local_addr_.su)},
-        {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
     rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
                               util::timestamp(loop_));
     if (rv != 0) {
@@ -1213,16 +1213,16 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
       disconnect(rv);
       return -1;
     }
-  } else {
-    return do_handshake(data, datalen);
+    return 0;
   }
 
-  return 0;
+  return do_handshake(&path, data, datalen);
 }
 
-int Client::do_handshake_read_once(const uint8_t *data, size_t datalen) {
-  auto rv =
-      ngtcp2_conn_read_handshake(conn_, data, datalen, util::timestamp(loop_));
+int Client::do_handshake_read_once(const ngtcp2_path *path, const uint8_t *data,
+                                   size_t datalen) {
+  auto rv = ngtcp2_conn_read_handshake(conn_, path, data, datalen,
+                                       util::timestamp(loop_));
   if (rv < 0) {
     std::cerr << "ngtcp2_conn_read_handshake: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1261,7 +1261,8 @@ ssize_t Client::do_handshake_write_once() {
   return nwrite;
 }
 
-int Client::do_handshake(const uint8_t *data, size_t datalen) {
+int Client::do_handshake(const ngtcp2_path *path, const uint8_t *data,
+                         size_t datalen) {
   ssize_t nwrite;
 
   if (sendbuf_.size() > 0) {
@@ -1271,13 +1272,15 @@ int Client::do_handshake(const uint8_t *data, size_t datalen) {
     }
   }
 
-  auto rv = do_handshake_read_once(data, datalen);
-  if (rv != 0) {
-    return rv;
+  if (datalen) {
+    auto rv = do_handshake_read_once(path, data, datalen);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   // For 0-RTT
-  rv = write_0rtt_streams();
+  auto rv = write_0rtt_streams();
   if (rv != 0) {
     return rv;
   }
@@ -1357,7 +1360,7 @@ int Client::on_write(bool retransmit) {
   }
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
-    auto rv = do_handshake(nullptr, 0);
+    auto rv = do_handshake(nullptr, nullptr, 0);
     schedule_retransmit();
     return rv;
   }

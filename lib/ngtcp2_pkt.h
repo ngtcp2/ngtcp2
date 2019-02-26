@@ -88,6 +88,7 @@ typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
  * ngtcp2_pkt_chain is the chain of incoming packets buffered.
  */
 struct ngtcp2_pkt_chain {
+  ngtcp2_path_storage path;
   ngtcp2_pkt_chain *next;
   uint8_t *pkt;
   size_t pktlen;
@@ -97,7 +98,9 @@ struct ngtcp2_pkt_chain {
 /*
  * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
  * assigns its pointer to |*ppc|.  The content of buffer pointed by
- * |pkt| of length |pktlen| is copied into |*ppc|.
+ * |pkt| of length |pktlen| is copied into |*ppc|.  The packet is
+ * obtained via the network |path|.  The values of path->local and
+ * path->remote are copied into |*ppc|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -105,8 +108,9 @@ struct ngtcp2_pkt_chain {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
-                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem);
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
+                         const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts,
+                         ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pkt_chain_del deallocates |pc|.  It also frees the memory

@@ -1540,7 +1540,7 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_read_handshake` performs QUIC cryptographic handshake
  * by reading given data.  |pkt| points to the buffer to read and
- * |pktlen| is the length of the buffer.
+ * |pktlen| is the length of the buffer.  |path| is the network path.
  *
  * The application should call `ngtcp2_conn_write_handshake` (or
  * `ngtcp2_conn_client_write_handshake` for client session) to make
@@ -1558,6 +1558,7 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * negative error codes: (TBD).
  */
 NGTCP2_EXTERN int ngtcp2_conn_read_handshake(ngtcp2_conn *conn,
+                                             const ngtcp2_path *path,
                                              const uint8_t *pkt, size_t pktlen,
                                              ngtcp2_tstamp ts);
 

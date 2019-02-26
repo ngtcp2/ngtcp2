@@ -33,13 +33,16 @@
 #include "ngtcp2_cid.h"
 #include "ngtcp2_mem.h"
 
-int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
-                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem) {
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
+                         const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts,
+                         ngtcp2_mem *mem) {
   *ppc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pkt_chain) + pktlen);
   if (*ppc == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
 
+  ngtcp2_path_storage_init(&(*ppc)->path, path->local.addr, path->local.len,
+                           path->remote.addr, path->remote.len);
   (*ppc)->next = NULL;
   (*ppc)->pkt = (uint8_t *)(*ppc) + sizeof(ngtcp2_pkt_chain);
   (*ppc)->pktlen = pktlen;

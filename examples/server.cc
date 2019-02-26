@@ -1425,9 +1425,10 @@ ssize_t Handler::hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
                          samplelen);
 }
 
-int Handler::do_handshake_read_once(const uint8_t *data, size_t datalen) {
-  auto rv =
-      ngtcp2_conn_read_handshake(conn_, data, datalen, util::timestamp(loop_));
+int Handler::do_handshake_read_once(const ngtcp2_path *path,
+                                    const uint8_t *data, size_t datalen) {
+  auto rv = ngtcp2_conn_read_handshake(conn_, path, data, datalen,
+                                       util::timestamp(loop_));
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_read_handshake: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1463,10 +1464,13 @@ ssize_t Handler::do_handshake_write_once() {
   return nwrite;
 }
 
-int Handler::do_handshake(const uint8_t *data, size_t datalen) {
-  auto rv = do_handshake_read_once(data, datalen);
-  if (rv != 0) {
-    return rv;
+int Handler::do_handshake(const ngtcp2_path *path, const uint8_t *data,
+                          size_t datalen) {
+  if (datalen) {
+    auto rv = do_handshake_read_once(path, data, datalen);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   if (sendbuf_.size() > 0) {
@@ -1501,12 +1505,13 @@ int Handler::feed_data(Endpoint &ep, const sockaddr *sa, socklen_t salen,
                        uint8_t *data, size_t datalen) {
   int rv;
 
+  auto path = ngtcp2_path{
+      {ep.addr.len,
+       const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
+       &ep},
+      {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
+
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    auto path = ngtcp2_path{
-        {ep.addr.len,
-         const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
-         &ep},
-        {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
     rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
                               util::timestamp(loop_));
     if (rv != 0) {
@@ -1517,12 +1522,13 @@ int Handler::feed_data(Endpoint &ep, const sockaddr *sa, socklen_t salen,
       }
       return handle_error(rv);
     }
-  } else {
-    // TODO Should we check that path is consistent during handshake?
-    rv = do_handshake(data, datalen);
-    if (rv != 0) {
-      return handle_error(rv);
-    }
+
+    return 0;
+  }
+
+  rv = do_handshake(&path, data, datalen);
+  if (rv != 0) {
+    return handle_error(rv);
   }
 
   return 0;
@@ -1568,7 +1574,7 @@ int Handler::on_write(bool retransmit) {
   }
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
-    rv = do_handshake(nullptr, 0);
+    rv = do_handshake(nullptr, nullptr, 0);
     if (rv == NETWORK_ERR_SEND_NON_FATAL) {
       schedule_retransmit();
     }
