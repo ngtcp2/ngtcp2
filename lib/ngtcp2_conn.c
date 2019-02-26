@@ -3944,13 +3944,15 @@ fail:
 static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
                               ngtcp2_tstamp ts) {
   /* Reset bandwidth measurement after 1 second idle time. */
-  if (ts - conn->first_rx_bw_ts > NGTCP2_SECONDS) {
+  if (conn->last_rx_bw_ts == 0 || ts - conn->last_rx_bw_ts > NGTCP2_SECONDS) {
     conn->first_rx_bw_ts = ts;
+    conn->last_rx_bw_ts = ts;
     conn->rx_bw_datalen = datalen;
     conn->rx_bw = 0.;
     return;
   }
 
+  conn->last_rx_bw_ts = ts;
   conn->rx_bw_datalen += datalen;
 
   if (ts - conn->first_rx_bw_ts >= 25 * NGTCP2_MILLISECONDS) {
@@ -5636,6 +5638,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   conn->rx_bw = 0.;
   conn->rx_bw_datalen = 0;
   conn->first_rx_bw_ts = 0;
+  conn->last_rx_bw_ts = 0;
   conn->probe_pkt_left = 0;
   rcvry_stat_reset(&conn->rcs);
   /* Keep bytes_in_flight because we have to take care of packets
