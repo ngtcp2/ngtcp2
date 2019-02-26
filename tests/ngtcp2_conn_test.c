@@ -3729,6 +3729,12 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   setup_default_server(&conn);
 
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ksl_len(&conn->scids) > 1);
+
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
   fr.new_connection_id.cid = cid;
@@ -3751,7 +3757,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != conn->pv);
 
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents) > 0);
