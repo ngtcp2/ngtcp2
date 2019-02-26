@@ -1377,7 +1377,7 @@ typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, void *user_data);
  *
  * :type:`ngtcp2_path_validation` is a callback function which tells
  * the application the outcome of path validation.  |path| is the path
- * to validate.  If |res| is
+ * that was validated.  If |res| is
  * :enum:`NGTCP2_PATH_VALIDATION_RESULT_SUCCESS`, the path validation
  * succeeded.  If |res| is
  * :enum:`NGTCP2_PATH_VALIDATION_RESULT_FAILURE`, the path validation
