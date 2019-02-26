@@ -170,17 +170,17 @@ public:
           const ngtcp2_cid *rcid);
   ~Handler();
 
-  int init(Endpoint &ep, const sockaddr *sa, socklen_t salen,
+  int init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
            const ngtcp2_cid *dcid, const ngtcp2_cid *ocid, uint32_t version);
 
   int tls_handshake();
   int read_tls();
-  int on_read(Endpoint &ep, const sockaddr *sa, socklen_t salen, uint8_t *data,
-              size_t datalen);
+  int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
+              uint8_t *data, size_t datalen);
   int on_write(bool retransmit = false);
   int on_write_stream(Stream &stream);
   int write_stream_data(Stream &stream, int fin, Buffer &data);
-  int feed_data(Endpoint &ep, const sockaddr *sa, socklen_t salen,
+  int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                 uint8_t *data, size_t datalen);
   int do_handshake_read_once(const ngtcp2_path *path, const uint8_t *data,
                              size_t datalen);

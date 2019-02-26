@@ -990,12 +990,12 @@ int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
 }
 } // namespace
 
-int Handler::init(Endpoint &ep, const sockaddr *sa, socklen_t salen,
+int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                   const ngtcp2_cid *dcid, const ngtcp2_cid *ocid,
                   uint32_t version) {
   int rv;
 
-  endpoint_ = &ep;
+  endpoint_ = const_cast<Endpoint *>(&ep);
 
   remote_addr_.len = salen;
   memcpy(&remote_addr_.su.sa, sa, salen);
@@ -1104,7 +1104,7 @@ int Handler::init(Endpoint &ep, const sockaddr *sa, socklen_t salen,
   auto path = ngtcp2_path{
       {ep.addr.len,
        const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
-       &ep},
+       const_cast<Endpoint *>(&ep)},
       {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
   rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version, &callbacks,
                               &settings, this);
@@ -1501,14 +1501,14 @@ void Handler::update_remote_addr(const ngtcp2_addr *addr) {
   memcpy(&remote_addr_.su, addr->addr, addr->len);
 }
 
-int Handler::feed_data(Endpoint &ep, const sockaddr *sa, socklen_t salen,
+int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                        uint8_t *data, size_t datalen) {
   int rv;
 
   auto path = ngtcp2_path{
       {ep.addr.len,
        const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
-       &ep},
+       const_cast<Endpoint *>(&ep)},
       {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
 
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
@@ -1534,7 +1534,7 @@ int Handler::feed_data(Endpoint &ep, const sockaddr *sa, socklen_t salen,
   return 0;
 }
 
-int Handler::on_read(Endpoint &ep, const sockaddr *sa, socklen_t salen,
+int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                      uint8_t *data, size_t datalen) {
   int rv;
 
