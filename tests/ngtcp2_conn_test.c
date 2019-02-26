@@ -285,6 +285,7 @@ static int genrand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 static void server_default_settings(ngtcp2_settings *settings) {
   size_t i;
 
+  memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->max_stream_data_bidi_local = 65535;
@@ -302,6 +303,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
 }
 
 static void client_default_settings(ngtcp2_settings *settings) {
+  memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->max_stream_data_bidi_local = 65535;
@@ -554,6 +556,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
                                       sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
+  memset(&params, 0, sizeof(params));
   params.initial_max_stream_data_bidi_local = 64 * 1024;
   params.initial_max_stream_data_bidi_remote = 64 * 1024;
   params.initial_max_stream_data_uni = 64 * 1024;
