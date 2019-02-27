@@ -364,7 +364,7 @@ auto htp_settings = http_parser_settings{
     nullptr,             // on_chunk_complete
 };
 
-Stream::Stream(uint64_t stream_id)
+Stream::Stream(int64_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
       tx_stream_offset(0),
@@ -892,7 +892,7 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, int fin,
+int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -915,7 +915,7 @@ int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
 } // namespace
 
 namespace {
-int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
+int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
@@ -927,7 +927,7 @@ int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   h->on_stream_close(stream_id);
@@ -1812,7 +1812,7 @@ void Handler::schedule_retransmit() {
   ev_timer_again(loop_, &rttimer_);
 }
 
-int Handler::recv_stream_data(uint64_t stream_id, uint8_t fin,
+int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
                               const uint8_t *data, size_t datalen) {
   int rv;
 
@@ -1961,7 +1961,7 @@ void Handler::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
                           offset + datalen);
 }
 
-int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
+int Handler::remove_tx_stream_data(int64_t stream_id, uint64_t offset,
                                    size_t datalen) {
   int rv;
 
@@ -1985,7 +1985,7 @@ int Handler::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
 
 int Handler::send_greeting() {
   int rv;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   rv = ngtcp2_conn_open_uni_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
@@ -2004,7 +2004,7 @@ int Handler::send_greeting() {
   return 0;
 }
 
-void Handler::on_stream_close(uint64_t stream_id) {
+void Handler::on_stream_close(int64_t stream_id) {
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   streams_.erase(it);

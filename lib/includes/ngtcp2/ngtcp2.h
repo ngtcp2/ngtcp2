@@ -405,7 +405,7 @@ typedef struct {
    */
   uint8_t flags;
   uint8_t fin;
-  uint64_t stream_id;
+  int64_t stream_id;
   uint64_t offset;
   /* datacnt is the number of elements that data contains.  Although
      the length of data is 1 in this definition, the library may
@@ -445,7 +445,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint64_t stream_id;
+  int64_t stream_id;
   uint16_t app_error_code;
   uint64_t final_size;
 } ngtcp2_reset_stream;
@@ -468,7 +468,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint64_t stream_id;
+  int64_t stream_id;
   uint64_t max_stream_data;
 } ngtcp2_max_stream_data;
 
@@ -488,7 +488,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint64_t stream_id;
+  int64_t stream_id;
   uint64_t offset;
 } ngtcp2_stream_data_blocked;
 
@@ -506,7 +506,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint64_t stream_id;
+  int64_t stream_id;
   uint16_t app_error_code;
 } ngtcp2_stop_sending;
 
@@ -1199,7 +1199,7 @@ typedef ssize_t (*ngtcp2_hp_mask)(ngtcp2_conn *conn, uint8_t *dest,
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library return
  * immediately.
  */
-typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint64_t stream_id,
+typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, int64_t stream_id,
                                        int fin, uint64_t offset,
                                        const uint8_t *data, size_t datalen,
                                        void *user_data, void *stream_user_data);
@@ -1216,7 +1216,7 @@ typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint64_t stream_id,
  * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
-typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, uint64_t stream_id,
+typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
                                   void *user_data);
 
 /**
@@ -1231,7 +1231,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, uint64_t stream_id,
  * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
-typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint64_t stream_id,
+typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, int64_t stream_id,
                                    uint16_t app_error_code, void *user_data,
                                    void *stream_user_data);
 /**
@@ -1254,7 +1254,7 @@ typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint64_t stream_id,
  * call return immediately.
  */
 typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
-                                               uint64_t stream_id,
+                                               int64_t stream_id,
                                                uint64_t offset, size_t datalen,
                                                void *user_data,
                                                void *stream_user_data);
@@ -1629,7 +1629,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_client_write_handshake(
     ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ssize_t *pdatalen,
-    uint64_t stream_id, uint8_t fin, const ngtcp2_vec *datav, size_t datavcnt,
+    int64_t stream_id, uint8_t fin, const ngtcp2_vec *datav, size_t datavcnt,
     ngtcp2_tstamp ts);
 
 /**
@@ -2084,7 +2084,7 @@ NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
  *     The remote peer does not allow |stream_id| yet.
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
-                                               uint64_t *pstream_id,
+                                               int64_t *pstream_id,
                                                void *stream_user_data);
 
 /**
@@ -2103,7 +2103,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  *     The remote peer does not allow |stream_id| yet.
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
-                                              uint64_t *pstream_id,
+                                              int64_t *pstream_id,
                                               void *stream_user_data);
 
 /**
@@ -2129,7 +2129,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
-                                              uint64_t stream_id,
+                                              int64_t stream_id,
                                               uint16_t app_error_code);
 
 /**
@@ -2153,7 +2153,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
-                                                    uint64_t stream_id,
+                                                    int64_t stream_id,
                                                     uint16_t app_error_code);
 
 /**
@@ -2176,7 +2176,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  *     Stream does not exist
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
-                                                   uint64_t stream_id,
+                                                   int64_t stream_id,
                                                    uint16_t app_error_code);
 
 /**
@@ -2188,7 +2188,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ssize_t *pdatalen, uint64_t stream_id, uint8_t fin, const uint8_t *data,
+    ssize_t *pdatalen, int64_t stream_id, uint8_t fin, const uint8_t *data,
     size_t datalen, ngtcp2_tstamp ts);
 
 /**
@@ -2247,7 +2247,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ssize_t *pdatalen, uint64_t stream_id, uint8_t fin, const ngtcp2_vec *datav,
+    ssize_t *pdatalen, int64_t stream_id, uint8_t fin, const ngtcp2_vec *datav,
     size_t datavcnt, ngtcp2_tstamp ts);
 
 /**
@@ -2349,7 +2349,7 @@ NGTCP2_EXTERN int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn);
  *     Stream was not found
  */
 NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
-                                                       uint64_t stream_id,
+                                                       int64_t stream_id,
                                                        size_t datalen);
 
 /**

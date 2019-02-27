@@ -29,6 +29,7 @@
 
 #include "ngtcp2_str.h"
 #include "ngtcp2_net.h"
+#include "ngtcp2_pkt.h"
 
 uint64_t ngtcp2_get_uint64(const uint8_t *p) {
   uint64_t n;
@@ -198,32 +199,50 @@ size_t ngtcp2_put_varint_len(uint64_t n) {
   return 8;
 }
 
-uint64_t ngtcp2_nth_server_bidi_id(uint64_t n) {
+int64_t ngtcp2_nth_server_bidi_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
-  return ((n - 1) << 2) | 0x01;
+
+  if ((NGTCP2_MAX_VARINT >> 2) < n - 1) {
+    return NGTCP2_MAX_SERVER_STREAM_ID_BIDI;
+  }
+
+  return (int64_t)(((n - 1) << 2) | 0x01);
 }
 
-uint64_t ngtcp2_nth_client_bidi_id(uint64_t n) {
+int64_t ngtcp2_nth_client_bidi_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
-  return (n - 1) << 2;
+
+  if ((NGTCP2_MAX_VARINT >> 2) < n - 1) {
+    return NGTCP2_MAX_CLIENT_STREAM_ID_BIDI;
+  }
+
+  return (int64_t)((n - 1) << 2);
 }
 
-uint64_t ngtcp2_nth_server_uni_id(uint64_t n) {
+int64_t ngtcp2_nth_server_uni_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
 
-  return ((n - 1) << 2) | 0x03;
+  if ((NGTCP2_MAX_VARINT >> 2) < n - 1) {
+    return NGTCP2_MAX_SERVER_STREAM_ID_UNI;
+  }
+
+  return (int64_t)(((n - 1) << 2) | 0x03);
 }
 
-uint64_t ngtcp2_nth_client_uni_id(uint64_t n) {
+int64_t ngtcp2_nth_client_uni_id(uint64_t n) {
   if (n == 0) {
     return 0;
   }
 
-  return ((n - 1) << 2) | 0x02;
+  if ((NGTCP2_MAX_VARINT >> 2) < n - 1) {
+    return NGTCP2_MAX_CLIENT_STREAM_ID_UNI;
+  }
+
+  return (int64_t)(((n - 1) << 2) | 0x02);
 }

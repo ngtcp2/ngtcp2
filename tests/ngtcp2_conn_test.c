@@ -141,7 +141,7 @@ typedef struct {
   /* stream_data is intended to store the arguments passed in
      recv_stream_data callback. */
   struct {
-    uint64_t stream_id;
+    int64_t stream_id;
     int fin;
     size_t datalen;
   } stream_data;
@@ -243,7 +243,7 @@ static int recv_crypto_data_server(ngtcp2_conn *conn, uint64_t offset,
   return 0;
 }
 
-static int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, int fin,
+static int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
                             uint64_t offset, const uint8_t *data,
                             size_t datalen, void *user_data,
                             void *stream_user_data) {
@@ -575,7 +575,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
   int rv;
   ngtcp2_frame fr;
   ngtcp2_strm *strm;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   setup_default_server(&conn);
 
@@ -664,13 +664,14 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   ngtcp2_frame fr;
   ngtcp2_strm *strm;
   size_t i;
+  int64_t stream_id;
 
   setup_default_server(&conn);
 
   conn->local_settings.max_stream_data_bidi_remote = 2047;
 
   for (i = 0; i < 3; ++i) {
-    uint64_t stream_id = i * 4;
+    stream_id = (int64_t)(i * 4);
     fr.type = NGTCP2_FRAME_STREAM;
     fr.stream.flags = 0;
     fr.stream.stream_id = stream_id;
@@ -716,7 +717,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   CU_ASSERT(ngtcp2_pq_empty(&conn->tx_strmq));
 
   for (i = 0; i < 3; ++i) {
-    uint64_t stream_id = i * 4;
+    stream_id = (int64_t)(i * 4);
     strm = ngtcp2_conn_find_stream(conn, stream_id);
 
     CU_ASSERT(2047 + 1024 == strm->max_rx_offset);
@@ -762,7 +763,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
   ngtcp2_frame fr;
   ngtcp2_strm *strm;
   ssize_t nwrite;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   setup_default_client(&conn);
 
@@ -936,7 +937,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
   int rv;
   ngtcp2_frame fr;
   ssize_t nwrite;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   setup_default_client(&conn);
 
@@ -1003,7 +1004,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_strm *strm;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   /* Stream not found */
   setup_default_server(&conn);
@@ -1138,7 +1139,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_strm *strm;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   /* Receive RESET_STREAM */
   setup_default_server(&conn);
@@ -1576,7 +1577,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   ngtcp2_tstamp t = 0;
   uint64_t pkt_num = 0;
   ngtcp2_frame_chain *frc;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   /* Receive STOP_SENDING */
   setup_default_client(&conn);
@@ -1819,7 +1820,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   ngtcp2_pkt_hd hd;
   uint8_t buf[2048];
   ssize_t spktlen;
-  uint64_t stream_id;
+  int64_t stream_id;
 
   /* 1 octet pkt num */
   setup_default_client(&conn);
@@ -2057,7 +2058,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_cid dcid;
   const uint8_t token[] = "address-validation-token";
   size_t i;
-  uint64_t stream_id;
+  int64_t stream_id;
   ssize_t datalen;
   int rv;
   ngtcp2_vec datav;
@@ -2382,7 +2383,7 @@ void test_ngtcp2_conn_client_write_handshake(void) {
   uint8_t buf[1240];
   ssize_t spktlen;
   ngtcp2_tstamp t = 0;
-  uint64_t stream_id;
+  int64_t stream_id;
   int rv;
   ssize_t datalen;
   ngtcp2_vec datav;
@@ -2427,7 +2428,7 @@ void test_ngtcp2_conn_client_write_handshake(void) {
   CU_ASSERT(0 == rv);
 
   spktlen = ngtcp2_conn_client_write_handshake(conn, buf, sizeof(buf), &datalen,
-                                               (uint64_t)-1, 0, NULL, 0, ++t);
+                                               -1, 0, NULL, 0, ++t);
 
   CU_ASSERT(spktlen > 0);
 
@@ -2464,7 +2465,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   uint8_t buf[2048];
   ssize_t spktlen;
   ngtcp2_tstamp t = 0;
-  uint64_t stream_id, stream_id_a, stream_id_b;
+  int64_t stream_id, stream_id_a, stream_id_b;
   ngtcp2_ksl_it it;
 
   /* Retransmit a packet completely */
@@ -2677,7 +2678,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   ngtcp2_frame fr;
   size_t pktlen;
   int rv;
-  uint64_t stream_id;
+  int64_t stream_id;
   size_t i;
 
   /* 2 STREAM frames are received in the correct order. */
@@ -3053,11 +3054,11 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
                                   ++pkt_num, &fr);
-  ud.stream_data.stream_id = (uint64_t)-1;
+  ud.stream_data.stream_id = -1;
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT((uint64_t)-1 == ud.stream_data.stream_id);
+  CU_ASSERT(-1 == ud.stream_data.stream_id);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 0;
@@ -3069,11 +3070,11 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
                                   ++pkt_num, &fr);
-  ud.stream_data.stream_id = (uint64_t)-1;
+  ud.stream_data.stream_id = -1;
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT((uint64_t)-1 == ud.stream_data.stream_id);
+  CU_ASSERT(-1 == ud.stream_data.stream_id);
 
   ngtcp2_conn_del(conn);
 }
@@ -3226,7 +3227,7 @@ void test_ngtcp2_conn_send_early_data(void) {
   ssize_t spktlen;
   ssize_t datalen;
   uint8_t buf[1024];
-  uint64_t stream_id;
+  int64_t stream_id;
   int rv;
   ngtcp2_tstamp t = 0;
 
@@ -3581,7 +3582,7 @@ void test_ngtcp2_conn_writev_stream(void) {
   ssize_t spktlen;
   ngtcp2_tstamp t = 0;
   int rv;
-  uint64_t stream_id;
+  int64_t stream_id;
   ngtcp2_vec datav = {null_data, 10};
   ssize_t datalen;
 

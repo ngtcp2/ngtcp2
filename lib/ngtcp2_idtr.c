@@ -52,9 +52,11 @@ void ngtcp2_idtr_free(ngtcp2_idtr *idtr) {
  * id_from_stream_id translates |stream_id| to id space used by
  * ngtcp2_idtr.
  */
-static uint64_t id_from_stream_id(uint64_t stream_id) { return stream_id >> 2; }
+static uint64_t id_from_stream_id(int64_t stream_id) {
+  return (uint64_t)(stream_id >> 2);
+}
 
-int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t stream_id) {
+int ngtcp2_idtr_open(ngtcp2_idtr *idtr, int64_t stream_id) {
   uint64_t q;
 
   assert((idtr->server && (stream_id % 2)) ||
@@ -69,7 +71,7 @@ int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t stream_id) {
   return ngtcp2_gaptr_push(&idtr->gap, q, 1);
 }
 
-int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t stream_id) {
+int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, int64_t stream_id) {
   uint64_t q;
 
   assert((idtr->server && (stream_id % 2)) ||

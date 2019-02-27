@@ -41,7 +41,7 @@ static int offset_less(const ngtcp2_pq_entry *lhs, const ngtcp2_pq_entry *rhs) {
   return lfrc->fr.offset < rfrc->fr.offset;
 }
 
-int ngtcp2_strm_init(ngtcp2_strm *strm, uint64_t stream_id, uint32_t flags,
+int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                      uint64_t max_rx_offset, uint64_t max_tx_offset,
                      void *stream_user_data, ngtcp2_mem *mem) {
   int rv;
@@ -55,7 +55,7 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, uint64_t stream_id, uint32_t flags,
   strm->stream_user_data = stream_user_data;
   strm->max_rx_offset = strm->unsent_max_rx_offset = max_rx_offset;
   strm->max_tx_offset = max_tx_offset;
-  strm->me.key = stream_id;
+  strm->me.key = (uint64_t)stream_id;
   strm->me.next = NULL;
   strm->pe.index = NGTCP2_PQ_BAD_INDEX;
   strm->mem = mem;

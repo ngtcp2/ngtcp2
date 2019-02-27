@@ -74,6 +74,19 @@
    variable-length integer encoding */
 #define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)
 
+/* NGTCP2_MAX_SERVER_STREAM_ID_BIDI is the maximum bidirectional
+   server stream ID. */
+#define NGTCP2_MAX_SERVER_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffdll)
+/* NGTCP2_MAX_CLIENT_STREAM_ID_BIDI is the maximum bidirectional
+   client stream ID. */
+#define NGTCP2_MAX_CLIENT_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffcll)
+/* NGTCP2_MAX_SERVER_STREAM_ID_UNI is the maximum unidirectional
+   server stream ID. */
+#define NGTCP2_MAX_SERVER_STREAM_ID_UNI ((int64_t)0x3fffffffffffffffll)
+/* NGTCP2_MAX_CLIENT_STREAM_ID_UNI is the maximum unidirectional
+   client stream ID. */
+#define NGTCP2_MAX_CLIENT_STREAM_ID_UNI ((int64_t)0x3ffffffffffffffell)
+
 /* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
    blocks which this library can create, or decode. */
 #define NGTCP2_MAX_ACK_BLKS 255
@@ -787,7 +800,7 @@ int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
  * bytes to be sent.  |left| is the size of buffer.  If |left| is too
  * small to write STREAM frame, this function returns (size_t)-1.
  */
-size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
+size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
                                      size_t len, size_t left);
 
 /*

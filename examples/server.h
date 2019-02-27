@@ -108,7 +108,7 @@ enum {
 };
 
 struct Stream {
-  Stream(uint64_t stream_id);
+  Stream(int64_t stream_id);
   ~Stream();
 
   int recv_data(uint8_t fin, const uint8_t *data, size_t datalen);
@@ -121,7 +121,7 @@ struct Stream {
   void send_redirect_response(unsigned int status_code,
                               const std::string &path);
 
-  uint64_t stream_id;
+  int64_t stream_id;
   std::deque<Buffer> streambuf;
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
@@ -224,16 +224,15 @@ public:
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;
-  int recv_stream_data(uint64_t stream_id, uint8_t fin, const uint8_t *data,
+  int recv_stream_data(int64_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
   const ngtcp2_cid *scid() const;
   const ngtcp2_cid *pscid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
   void remove_tx_crypto_data(uint64_t offset, size_t datalen);
-  int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
-                            size_t datalen);
-  void on_stream_close(uint64_t stream_id);
+  int remove_tx_stream_data(int64_t stream_id, uint64_t offset, size_t datalen);
+  void on_stream_close(int64_t stream_id);
   void start_draining_period();
   int start_closing_period(int liberror);
   bool draining() const;
@@ -272,7 +271,7 @@ private:
   ngtcp2_cid rcid_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
-  std::map<uint32_t, std::unique_ptr<Stream>> streams_;
+  std::map<int64_t, std::unique_ptr<Stream>> streams_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
   // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.

@@ -279,7 +279,7 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   return (size_t)n;
 }
 
-ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id) {
+ngtcp2_strm *open_stream(ngtcp2_conn *conn, int64_t stream_id) {
   ngtcp2_strm *strm;
   int rv;
 

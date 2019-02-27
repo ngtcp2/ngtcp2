@@ -132,7 +132,7 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
 /*
  * open_stream opens new stream denoted by |stream_id|.
  */
-ngtcp2_strm *open_stream(ngtcp2_conn *conn, uint64_t stream_id);
+ngtcp2_strm *open_stream(ngtcp2_conn *conn, int64_t stream_id);
 
 /*
  * rtb_entry_length returns the length of elements pointed by |ent|

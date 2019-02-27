@@ -79,14 +79,14 @@ void ngtcp2_idtr_free(ngtcp2_idtr *idtr);
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_idtr_open(ngtcp2_idtr *idtr, uint64_t stream_id);
+int ngtcp2_idtr_open(ngtcp2_idtr *idtr, int64_t stream_id);
 
 /*
  * ngtcp2_idtr_open tells whether ID |stream_id| is in used or not.
  *
  * It returns nonzero if |stream_id| is used.
  */
-int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, uint64_t stream_id);
+int ngtcp2_idtr_is_open(ngtcp2_idtr *idtr, int64_t stream_id);
 
 /*
  * ngtcp2_idtr_first_gap returns the first id of first gap.  If there

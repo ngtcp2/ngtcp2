@@ -122,12 +122,12 @@ struct Buffer {
 };
 
 struct Stream {
-  Stream(uint64_t stream_id);
+  Stream(int64_t stream_id);
   ~Stream();
 
   void buffer_file();
 
-  uint64_t stream_id;
+  int64_t stream_id;
   std::deque<Buffer> streambuf;
   // streambuf_idx is the index in streambuf, which points to the
   // buffer to send next.
@@ -157,9 +157,9 @@ public:
   int on_read();
   int on_write(bool retransmit = false);
   int write_streams();
-  int on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
+  int on_write_stream(int64_t stream_id, uint8_t fin, Buffer &data);
   int write_0rtt_streams();
-  int on_write_0rtt_stream(uint64_t stream_id, uint8_t fin, Buffer &data);
+  int on_write_0rtt_stream(int64_t stream_id, uint8_t fin, Buffer &data);
   int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                 size_t datalen);
   int do_handshake(const ngtcp2_path *path, const uint8_t *data,
@@ -207,9 +207,8 @@ public:
   int send_interactive_input();
   int stop_interactive_input();
   void remove_tx_crypto_data(uint64_t offset, size_t datalen);
-  int remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
-                            size_t datalen);
-  void on_stream_close(uint64_t stream_id);
+  int remove_tx_stream_data(int64_t stream_id, uint64_t offset, size_t datalen);
+  void on_stream_close(int64_t stream_id);
   int on_extend_max_streams();
   int handle_error(int liberr);
   void make_stream_early();
@@ -244,7 +243,7 @@ private:
   SSL *ssl_;
   int fd_;
   int datafd_;
-  std::map<uint32_t, std::unique_ptr<Stream>> streams_;
+  std::map<int64_t, std::unique_ptr<Stream>> streams_;
   std::deque<Buffer> chandshake_;
   // chandshake_idx_ is the index in *chandshake_, which points to the
   // buffer to read next.
@@ -263,7 +262,7 @@ private:
   crypto::Context crypto_ctx_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
-  uint64_t last_stream_id_;
+  int64_t last_stream_id_;
   // nstreams_done_ is the number of streams opened.
   uint64_t nstreams_done_;
   // nkey_update_ is the number of key update occurred.

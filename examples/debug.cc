@@ -62,8 +62,7 @@ void print_crypto_data(const uint8_t *data, size_t datalen) {
   util::hexdump(outfile, data, datalen);
 }
 
-void print_stream_data(uint64_t stream_id, const uint8_t *data,
-                       size_t datalen) {
+void print_stream_data(int64_t stream_id, const uint8_t *data, size_t datalen) {
   fprintf(outfile, "Ordered STREAM data stream_id=0x%" PRIx64 "\n", stream_id);
   util::hexdump(outfile, data, datalen);
 }

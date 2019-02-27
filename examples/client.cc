@@ -71,7 +71,7 @@ Buffer::Buffer(size_t datalen)
     : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
 Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
-Stream::Stream(uint64_t stream_id)
+Stream::Stream(int64_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
       tx_stream_offset(0),
@@ -438,7 +438,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       hs_crypto_ctx_{},
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      last_stream_id_(UINT64_MAX),
+      last_stream_id_(-1),
       nstreams_done_(0),
       nkey_update_(0),
       version_(0),
@@ -541,7 +541,7 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, int fin,
+int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
   if (!config.quiet) {
@@ -564,7 +564,7 @@ int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
 } // namespace
 
 namespace {
-int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
+int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
@@ -608,7 +608,7 @@ int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -1432,7 +1432,7 @@ int Client::write_streams() {
   return 0;
 }
 
-int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
+int Client::on_write_stream(int64_t stream_id, uint8_t fin, Buffer &data) {
   ssize_t ndatalen;
 
   PathStorage path;
@@ -1507,8 +1507,7 @@ int Client::write_0rtt_streams() {
   return 0;
 }
 
-int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
-                                 Buffer &data) {
+int Client::on_write_0rtt_stream(int64_t stream_id, uint8_t fin, Buffer &data) {
   ssize_t ndatalen;
 
   for (;;) {
@@ -1957,7 +1956,7 @@ int Client::start_interactive_input() {
   ev_io_set(&stdinrev_, datafd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
-  uint64_t stream_id;
+  int64_t stream_id;
 
   rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
@@ -2080,7 +2079,7 @@ void Client::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
                           offset + datalen);
 }
 
-int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
+int Client::remove_tx_stream_data(int64_t stream_id, uint64_t offset,
                                   size_t datalen) {
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
@@ -2094,7 +2093,7 @@ int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
   return 0;
 }
 
-void Client::on_stream_close(uint64_t stream_id) {
+void Client::on_stream_close(int64_t stream_id) {
   auto it = streams_.find(stream_id);
 
   if (it == std::end(streams_)) {
@@ -2185,7 +2184,7 @@ void Client::make_stream_early() {
 
   ++nstreams_done_;
 
-  uint64_t stream_id;
+  int64_t stream_id;
   rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_bidi_stream: " << ngtcp2_strerror(rv)
@@ -2202,7 +2201,7 @@ int Client::on_extend_max_streams() {
   int rv;
 
   if (config.interactive) {
-    if (last_stream_id_ != UINT64_MAX) {
+    if (last_stream_id_ != -1) {
       return 0;
     }
     if (start_interactive_input() != 0) {
@@ -2214,7 +2213,7 @@ int Client::on_extend_max_streams() {
 
   if (datafd_ != -1) {
     for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
-      uint64_t stream_id;
+      int64_t stream_id;
 
       rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
       if (rv != 0) {

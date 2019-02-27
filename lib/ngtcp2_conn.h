@@ -96,11 +96,6 @@ typedef enum {
    packets. */
 #define NGTCP2_HS_ACK_DELAY NGTCP2_MILLISECONDS
 
-#define NGTCP2_MAX_SERVER_ID_BIDI 0x3fffffffffffff00ULL
-#define NGTCP2_MAX_SERVER_ID_UNI 0x3fffffffffffff10ULL
-#define NGTCP2_MAX_CLIENT_ID_BIDI 0x3fffffffffffff01ULL
-#define NGTCP2_MAX_CLIENT_ID_UNI 0x3fffffffffffff11ULL
-
 /* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
    destination connection ID which have been bound to a particular
    path, but not yet used as primary path and path validation is not
@@ -277,29 +272,29 @@ struct ngtcp2_conn {
      initiated bidirectional stream which the local endpoint can
      accept.  This limit is not yet notified to the remote
      endpoint. */
-  uint64_t unsent_max_remote_stream_id_bidi;
+  int64_t unsent_max_remote_stream_id_bidi;
   /* max_remote_stream_id_bidi is the maximum stream ID of peer
      initiated bidirectional stream which the local endpoint can
      accept. */
-  uint64_t max_remote_stream_id_bidi;
+  int64_t max_remote_stream_id_bidi;
   /* max_local_stream_id_bidi is the maximum bidirectional stream ID
      which the local endpoint can open. */
-  uint64_t max_local_stream_id_bidi;
+  int64_t max_local_stream_id_bidi;
   /* next_local_stream_id_bidi is the bidirectional stream ID which
      the local endpoint opens next. */
-  uint64_t next_local_stream_id_bidi;
+  int64_t next_local_stream_id_bidi;
   /* unsent_max_remote_stream_id_uni is an unidirectional stream
      version of unsent_max_remote_stream_id_bidi. */
-  uint64_t unsent_max_remote_stream_id_uni;
+  int64_t unsent_max_remote_stream_id_uni;
   /* max_remote_stream_id_uni is an unidirectional stream version of
      max_remote_stream_id_bidi. */
-  uint64_t max_remote_stream_id_uni;
+  int64_t max_remote_stream_id_uni;
   /* max_local_stream_id_uni is an unidirectional stream version of
      max_local_stream_id_bidi. */
-  uint64_t max_local_stream_id_uni;
+  int64_t max_local_stream_id_uni;
   /* next_local_stream_id_uni is an unidirectional stream version of
      next_local_stream_id_bidi. */
-  uint64_t next_local_stream_id_uni;
+  int64_t next_local_stream_id_uni;
   /* unsent_max_rx_offset is the maximum offset that remote endpoint
      can send without extending MAX_DATA.  This limit is not yet
      notified to the remote endpoint. */
@@ -388,7 +383,7 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
  * |stream_id|.  If no such stream is found, it returns NULL.
  */
-ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id);
+ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, int64_t stream_id);
 
 /*
  * conn_init_stream initializes |strm|.  Its stream ID is |stream_id|.
@@ -404,7 +399,7 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id);
  *     User-callback function failed.
  */
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                            uint64_t stream_id, void *stream_user_data);
+                            int64_t stream_id, void *stream_user_data);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm|.
