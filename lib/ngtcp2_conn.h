@@ -256,9 +256,6 @@ struct ngtcp2_conn {
      during handshake.  It is used to receive late handshake packets
      after handshake completion. */
   ngtcp2_cid odcid;
-  /* scids is a set of CID sent to peer.  The peer can use any CIDs in
-     this set. */
-  ngtcp2_ksl scids;
   ngtcp2_pq used_scids;
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
@@ -273,6 +270,12 @@ struct ngtcp2_conn {
     /* unused is a set of unused CID received from peer. */
     ngtcp2_ringbuf unused;
   } dcid;
+
+  struct {
+    /* set is a set of CID sent to peer.  The peer can use any CIDs in
+       this set.  This includes used CID as well as unused ones. */
+    ngtcp2_ksl set;
+  } scid;
 
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */

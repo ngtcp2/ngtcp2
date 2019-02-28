@@ -1801,7 +1801,7 @@ void test_ngtcp2_conn_recv_conn_id_omitted(void) {
   setup_default_server(&conn);
   ngtcp2_cid_zero(&conn->oscid);
 
-  it = ngtcp2_ksl_begin(&conn->scids);
+  it = ngtcp2_ksl_begin(&conn->scid.set);
   scid = ngtcp2_ksl_it_get(&it);
   ngtcp2_cid_zero(&scid->cid);
 
@@ -3691,7 +3691,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  it = ngtcp2_ksl_begin(&conn->scids);
+  it = ngtcp2_ksl_begin(&conn->scid.set);
   scid = ngtcp2_ksl_it_get(&it);
   seq = scid->seq;
 
@@ -3736,7 +3736,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ngtcp2_ksl_len(&conn->scids) > 1);
+  CU_ASSERT(ngtcp2_ksl_len(&conn->scid.set) > 1);
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
