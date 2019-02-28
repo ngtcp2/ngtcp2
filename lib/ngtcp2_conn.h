@@ -196,8 +196,8 @@ typedef struct {
   ngtcp2_gaptr pngap;
   /* last_tx_pkt_num is the packet number which the local endpoint
      sent last time.*/
-  uint64_t last_tx_pkt_num;
-  uint64_t max_rx_pkt_num;
+  int64_t last_tx_pkt_num;
+  int64_t max_rx_pkt_num;
   /* crypto_tx_offset is the offset of crypto stream in this packet
      number space. */
   uint64_t crypto_tx_offset;
@@ -377,7 +377,7 @@ struct ngtcp2_conn {
  *     Same packet number has already been added.
  */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
-                          uint64_t pkt_num, int active_ack, ngtcp2_tstamp ts);
+                          int64_t pkt_num, int active_ack, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is

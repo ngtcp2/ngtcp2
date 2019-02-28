@@ -28,7 +28,7 @@
 
 #include "ngtcp2_macro.h"
 
-int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
+int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
                            ngtcp2_tstamp tstamp, ngtcp2_mem *mem) {
   *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));
   if (*ent == NULL) {
@@ -91,7 +91,7 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
   ngtcp2_ringbuf_free(&acktr->acks);
 }
 
-int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
+int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
                      ngtcp2_tstamp ts) {
   ngtcp2_ksl_it it;
   ngtcp2_acktr_entry *ent, *prev_ent, *delent;
@@ -104,9 +104,9 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
       ngtcp2_ksl_it_prev(&it);
       ent = ngtcp2_ksl_it_get(&it);
 
-      assert(ent->pkt_num >= pkt_num + ent->len);
+      assert(ent->pkt_num >= pkt_num + (int64_t)ent->len);
 
-      if (ent->pkt_num == pkt_num + ent->len) {
+      if (ent->pkt_num == pkt_num + (int64_t)ent->len) {
         ++ent->len;
         added = 1;
       }
@@ -129,10 +129,10 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
         ngtcp2_ksl_it_prev(&it);
         prev_ent = ngtcp2_ksl_it_get(&it);
 
-        assert(prev_ent->pkt_num >= pkt_num + prev_ent->len);
+        assert(prev_ent->pkt_num >= pkt_num + (int64_t)prev_ent->len);
 
         if (ent->pkt_num + 1 == pkt_num) {
-          if (prev_ent->pkt_num == pkt_num + prev_ent->len) {
+          if (prev_ent->pkt_num == pkt_num + (int64_t)prev_ent->len) {
             prev_ent->len += ent->len + 1;
             rv = ngtcp2_ksl_remove(&acktr->ents, NULL,
                                    (const ngtcp2_ksl_key *)&ent->pkt_num);
@@ -150,7 +150,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
             ++ent->len;
             added = 1;
           }
-        } else if (prev_ent->pkt_num == pkt_num + prev_ent->len) {
+        } else if (prev_ent->pkt_num == pkt_num + (int64_t)prev_ent->len) {
           ++prev_ent->len;
           added = 1;
         }
@@ -219,8 +219,8 @@ ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr) {
 }
 
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
-                                             uint64_t pkt_num,
-                                             uint64_t largest_ack) {
+                                             int64_t pkt_num,
+                                             int64_t largest_ack) {
   ngtcp2_acktr_ack_entry *ent = ngtcp2_ringbuf_push_front(&acktr->acks);
 
   ent->largest_ack = largest_ack;
@@ -282,8 +282,8 @@ static int acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
     ngtcp2_ksl_it_prev(&it);
     ent = ngtcp2_ksl_it_get(&it);
     if (ent->pkt_num > ack_ent->largest_ack &&
-        ack_ent->largest_ack >= ent->pkt_num - (ent->len - 1)) {
-      ent->len = ent->pkt_num - ack_ent->largest_ack;
+        ack_ent->largest_ack >= ent->pkt_num - (int64_t)(ent->len - 1)) {
+      ent->len = (size_t)(ent->pkt_num - ack_ent->largest_ack);
     }
   }
 
@@ -294,7 +294,7 @@ static int acktr_on_ack(ngtcp2_acktr *acktr, ngtcp2_ringbuf *rb,
 
 int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
   ngtcp2_acktr_ack_entry *ent;
-  uint64_t largest_ack = fr->largest_ack, min_ack;
+  int64_t largest_ack = fr->largest_ack, min_ack;
   size_t i, j;
   ngtcp2_ringbuf *rb = &acktr->acks;
   size_t nacks = ngtcp2_ringbuf_len(rb);
@@ -311,7 +311,7 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
     return 0;
   }
 
-  min_ack = largest_ack - fr->first_ack_blklen;
+  min_ack = largest_ack - (int64_t)fr->first_ack_blklen;
 
   if (min_ack <= ent->pkt_num && ent->pkt_num <= largest_ack) {
     rv = acktr_on_ack(acktr, rb, j);
@@ -322,8 +322,8 @@ int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
   }
 
   for (i = 0; i < fr->num_blks && j < nacks; ++i) {
-    largest_ack = min_ack - fr->blks[i].gap - 2;
-    min_ack = largest_ack - fr->blks[i].blklen;
+    largest_ack = min_ack - (int64_t)fr->blks[i].gap - 2;
+    min_ack = largest_ack - (int64_t)fr->blks[i].blklen;
 
     for (;;) {
       if (ent->pkt_num > largest_ack) {

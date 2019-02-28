@@ -50,14 +50,14 @@ typedef struct {
    packet. */
 typedef struct {
   /* pkt_num is the packet number */
-  uint64_t pkt_num;
+  int64_t pkt_num;
   /* pktlen is the length of packet. */
   size_t pktlen;
   /* ts_sent is the timestamp when packet is sent. */
   ngtcp2_tstamp ts_sent;
 } ngtcp2_cc_pkt;
 
-ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, uint64_t pkt_num,
+ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_tstamp ts_sent);
 
 /* ngtcp2_default_cc is the default congestion controller. */

@@ -116,7 +116,7 @@ static ssize_t null_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 }
 
 size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
-                              const ngtcp2_cid *dcid, uint64_t pkt_num,
+                              const ngtcp2_cid *dcid, int64_t pkt_num,
                               ngtcp2_frame *fr) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;
@@ -147,7 +147,7 @@ size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
 }
 
 size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
-                                              size_t outlen, uint64_t pkt_num,
+                                              size_t outlen, int64_t pkt_num,
                                               ngtcp2_frame *fr) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;
@@ -180,7 +180,7 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
                                         size_t outlen, uint8_t pkt_type,
                                         const ngtcp2_cid *dcid,
                                         const ngtcp2_cid *scid,
-                                        uint64_t pkt_num, uint32_t version,
+                                        int64_t pkt_num, uint32_t version,
                                         ngtcp2_frame *fr) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;
@@ -227,7 +227,7 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
 
 size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
                            uint8_t pkt_type, const ngtcp2_cid *dcid,
-                           const ngtcp2_cid *scid, uint64_t pkt_num,
+                           const ngtcp2_cid *scid, int64_t pkt_num,
                            uint32_t version, ngtcp2_frame *fra, size_t frlen) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;

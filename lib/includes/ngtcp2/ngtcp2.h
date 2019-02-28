@@ -173,10 +173,6 @@ typedef struct {
    packet sent by client which contains its first Initial packet. */
 #define NGTCP2_MIN_INITIAL_PKTLEN 1200
 
-/* NGTCP2_MAX_INITIAL_PKT_NUM is the maximum packet number a endpoint
-   can choose */
-#define NGTCP2_MAX_INITIAL_PKT_NUM 0xfffffbffu
-
 /* NGTCP2_STATELESS_RESET_TOKENLEN is the length of Stateless Reset
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
@@ -368,7 +364,7 @@ NGTCP2_EXTERN void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data,
 typedef struct {
   ngtcp2_cid dcid;
   ngtcp2_cid scid;
-  uint64_t pkt_num;
+  int64_t pkt_num;
   uint8_t *token;
   size_t tokenlen;
   /**
@@ -422,7 +418,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint64_t largest_ack;
+  int64_t largest_ack;
   uint64_t ack_delay;
   /**
    * ack_delay_unscaled is an ack_delay multiplied by

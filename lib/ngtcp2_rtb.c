@@ -346,14 +346,14 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
 int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                         ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
-  uint64_t largest_ack = fr->largest_ack, min_ack;
+  int64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
   int rv;
   ngtcp2_ksl_it it;
   ngtcp2_ksl_key key;
 
   rtb->largest_acked_tx_pkt_num =
-      ngtcp2_max(rtb->largest_acked_tx_pkt_num, (int64_t)largest_ack);
+      ngtcp2_max(rtb->largest_acked_tx_pkt_num, largest_ack);
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   it = ngtcp2_ksl_lower_bound(&rtb->ents, (const ngtcp2_ksl_key *)&largest_ack);
@@ -362,18 +362,18 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     return 0;
   }
 
-  min_ack = largest_ack - fr->first_ack_blklen;
+  min_ack = largest_ack - (int64_t)fr->first_ack_blklen;
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     key = ngtcp2_ksl_it_key(&it);
-    if (min_ack <= (uint64_t)key.i && (uint64_t)key.i <= largest_ack) {
+    if (min_ack <= key.i && key.i <= largest_ack) {
       ent = ngtcp2_ksl_it_get(&it);
       if (conn) {
         rv = call_acked_stream_offset(ent, conn);
         if (rv != 0) {
           return rv;
         }
-        if (largest_ack == (uint64_t)key.i &&
+        if (largest_ack == key.i &&
             (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
           ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
         }
@@ -391,9 +391,8 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   }
 
   for (i = 0; i < fr->num_blks;) {
-    largest_ack = min_ack - fr->blks[i].gap - 2;
-
-    min_ack = largest_ack - fr->blks[i].blklen;
+    largest_ack = min_ack - (int64_t)fr->blks[i].gap - 2;
+    min_ack = largest_ack - (int64_t)fr->blks[i].blklen;
 
     it = ngtcp2_ksl_lower_bound(&rtb->ents,
                                 (const ngtcp2_ksl_key *)&largest_ack);
@@ -403,7 +402,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
     for (; !ngtcp2_ksl_it_end(&it);) {
       key = ngtcp2_ksl_it_key(&it);
-      if ((uint64_t)key.i < min_ack) {
+      if (key.i < min_ack) {
         break;
       }
       ent = ngtcp2_ksl_it_get(&it);
@@ -430,7 +429,7 @@ int ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 static int pkt_lost(ngtcp2_rcvry_stat *rcs, const ngtcp2_rtb_entry *ent,
                     uint64_t loss_delay, ngtcp2_tstamp lost_send_time,
                     int64_t lost_pkt_num) {
-  if (ent->ts <= lost_send_time || (int64_t)ent->hd.pkt_num <= lost_pkt_num) {
+  if (ent->ts <= lost_send_time || ent->hd.pkt_num <= lost_pkt_num) {
     return 1;
   }
 

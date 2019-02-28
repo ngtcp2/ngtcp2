@@ -29,7 +29,7 @@
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
 
-ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, uint64_t pkt_num,
+ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_tstamp ts_sent) {
   pkt->pkt_num = pkt_num;
   pkt->pktlen = pktlen;
@@ -61,8 +61,8 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
   if (ccs->cwnd < ccs->ssthresh) {
     ccs->cwnd += pkt->pktlen;
     ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
-                    "packet %" PRIu64 " acked, slow start cwnd=%lu",
-                    pkt->pkt_num, ccs->cwnd);
+                    "pkn=%" PRId64 " acked, slow start cwnd=%lu", pkt->pkt_num,
+                    ccs->cwnd);
     return;
   }
 

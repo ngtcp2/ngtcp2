@@ -59,7 +59,7 @@ typedef struct {
      material.  For encryption key, it is the lowest packet number of
      a packet.  For decryption key, it is the lowest packet number of
      a packet which can be decrypted with this keying material. */
-  uint64_t pkt_num;
+  int64_t pkt_num;
   /* flags is the bitwise OR of zero or more of
      ngtcp2_crypto_km_flag. */
   uint8_t flags;
@@ -82,6 +82,6 @@ typedef struct {
 } ngtcp2_crypto_ctx;
 
 void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
-                                uint64_t pkt_num);
+                                int64_t pkt_num);
 
 #endif /* NGTCP2_CRYPTO_H */

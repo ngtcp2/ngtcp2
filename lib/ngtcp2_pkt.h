@@ -92,7 +92,7 @@
 #define NGTCP2_MAX_ACK_BLKS 255
 
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
-#define NGTCP2_MAX_PKT_NUM ((1llu << 62) - 1)
+#define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -139,7 +139,7 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                        uint64_t pkt_num, size_t pkt_numlen, uint32_t version,
+                        int64_t pkt_num, size_t pkt_numlen, uint32_t version,
                         size_t len);
 
 /*
@@ -767,14 +767,8 @@ ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
  * |max_pkt_num| is the highest successfully authenticated packet
  * number.
  */
-uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
-                                   size_t n);
-
-/*
- * ngtcp2_pkt_adjust_ack_pkt_num adjusts all packet numbers in |ack|
- * using the maximum packet number |max_pkt_num| received so far.
- */
-void ngtcp2_pkt_adjust_ack_pkt_num(ngtcp2_ack *ack, uint64_t max_pkt_num);
+int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
+                                  size_t n);
 
 /*
  * ngtcp2_pkt_validate_ack checks that ack is malformed or not.

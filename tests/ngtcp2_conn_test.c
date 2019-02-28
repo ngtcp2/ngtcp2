@@ -681,8 +681,8 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
     fr.stream.data[0].len = 1024;
     fr.stream.data[0].base = null_data;
 
-    pktlen =
-        write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, i, &fr);
+    pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                    (int64_t)i, &fr);
     rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
 
     CU_ASSERT(0 == rv);
@@ -1575,7 +1575,7 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   ssize_t spktlen;
   ngtcp2_strm *strm;
   ngtcp2_tstamp t = 0;
-  uint64_t pkt_num = 0;
+  int64_t pkt_num = 0;
   ngtcp2_frame_chain *frc;
   int64_t stream_id;
 
@@ -2293,7 +2293,8 @@ void test_ngtcp2_conn_handshake(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_frame fr;
-  uint64_t pkt_num = 12345689, t = 0;
+  int64_t pkt_num = 12345689;
+  ngtcp2_tstamp t = 0;
   ngtcp2_cid rcid;
   int rv;
 
@@ -2328,7 +2329,8 @@ void test_ngtcp2_conn_handshake_error(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_frame fr;
-  uint64_t pkt_num = 107, t = 0;
+  int64_t pkt_num = 107;
+  ngtcp2_tstamp t = 0;
   ngtcp2_cid rcid;
   int rv;
 
@@ -2531,7 +2533,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   uint8_t buf[2048];
   size_t pktlen;
   ngtcp2_strm *strm;
-  uint64_t pkt_num = 890;
+  int64_t pkt_num = 890;
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   int rv;
@@ -2673,7 +2675,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   uint8_t buf[1024];
   ngtcp2_conn *conn;
   my_user_data ud;
-  uint64_t pkt_num = 612;
+  int64_t pkt_num = 612;
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   size_t pktlen;
@@ -3082,7 +3084,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 void test_ngtcp2_conn_recv_ping(void) {
   uint8_t buf[1024];
   ngtcp2_conn *conn;
-  uint64_t pkt_num = 133;
+  int64_t pkt_num = 133;
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   size_t pktlen;
@@ -3105,7 +3107,7 @@ void test_ngtcp2_conn_recv_ping(void) {
 void test_ngtcp2_conn_recv_max_stream_data(void) {
   uint8_t buf[1024];
   ngtcp2_conn *conn;
-  uint64_t pkt_num = 1000000007;
+  int64_t pkt_num = 1000000007;
   ngtcp2_tstamp t = 0;
   ngtcp2_frame fr;
   size_t pktlen;
@@ -3300,7 +3302,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_frame fr;
-  uint64_t pkt_num = 1;
+  int64_t pkt_num = 1;
   ngtcp2_tstamp t = 0;
   ngtcp2_strm *strm;
   ngtcp2_cid rcid;
@@ -3450,7 +3452,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_frame fr;
-  uint64_t pkt_num = 1;
+  int64_t pkt_num = 1;
   ngtcp2_tstamp t = 0;
   ngtcp2_acktr_entry *ackent;
   int rv;
@@ -3536,7 +3538,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_frame fr;
-  uint64_t pkt_num = 1;
+  int64_t pkt_num = 1;
   ngtcp2_tstamp t = 0;
   uint64_t payloadlen;
   int rv;
@@ -3638,7 +3640,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   uint8_t buf[2048];
   size_t pktlen;
   ngtcp2_tstamp t = 0;
-  uint64_t pkt_num = 0;
+  int64_t pkt_num = 0;
   ngtcp2_frame fr;
   const uint8_t cid[] = {0xf0, 0xf1, 0xf2, 0xf3};
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
@@ -3675,7 +3677,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_tstamp t = 1000000009;
-  uint64_t pkt_num = 0;
+  int64_t pkt_num = 0;
   ngtcp2_frame fr;
   int rv;
   ngtcp2_ksl_it it;
@@ -3719,7 +3721,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_tstamp t = 900;
-  uint64_t pkt_num = 0;
+  int64_t pkt_num = 0;
   ngtcp2_frame fr;
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
@@ -3784,7 +3786,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_tstamp t = 900;
-  uint64_t pkt_num = 0;
+  int64_t pkt_num = 0;
   ngtcp2_frame fr;
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
@@ -3838,7 +3840,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   size_t pktlen;
   ssize_t spktlen;
   ngtcp2_tstamp t = 11;
-  uint64_t pkt_num = 0;
+  int64_t pkt_num = 0;
   ngtcp2_frame fr;
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};

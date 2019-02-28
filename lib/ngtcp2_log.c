@@ -93,7 +93,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
 
 /* TODO Split second and remaining fraction with comma */
 #define NGTCP2_LOG_HD "I%08" PRIu64 " 0x%s %s"
-#define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %s %" PRIu64 " %s(0x%02x)"
+#define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %s %" PRId64 " %s(0x%02x)"
 #define NGTCP2_LOG_TP NGTCP2_LOG_HD " remote transport_parameters"
 
 #define NGTCP2_LOG_FRM_HD_FIELDS(DIR)                                          \
@@ -205,11 +205,11 @@ static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                        const ngtcp2_ack *fr, const char *dir) {
-  uint64_t largest_ack, min_ack;
+  int64_t largest_ack, min_ack;
   size_t i;
 
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " ACK(0x%02x) largest_ack=%" PRIu64
+                  (NGTCP2_LOG_PKT " ACK(0x%02x) largest_ack=%" PRId64
                                   " ack_delay=%" PRIu64 "(%" PRIu64
                                   ") ack_block_count=%zu\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->largest_ack,
@@ -217,20 +217,20 @@ static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   fr->num_blks);
 
   largest_ack = fr->largest_ack;
-  min_ack = fr->largest_ack - fr->first_ack_blklen;
+  min_ack = fr->largest_ack - (int64_t)fr->first_ack_blklen;
 
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " ACK(0x%02x) block=[%" PRIu64 "..%" PRIu64
+                  (NGTCP2_LOG_PKT " ACK(0x%02x) block=[%" PRId64 "..%" PRId64
                                   "] block_count=%" PRIu64 "\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, largest_ack, min_ack,
                   fr->first_ack_blklen);
 
   for (i = 0; i < fr->num_blks; ++i) {
     const ngtcp2_ack_blk *blk = &fr->blks[i];
-    largest_ack = min_ack - blk->gap - 2;
-    min_ack = largest_ack - blk->blklen;
+    largest_ack = min_ack - (int64_t)blk->gap - 2;
+    min_ack = largest_ack - (int64_t)blk->blklen;
     log->log_printf(log->user_data,
-                    (NGTCP2_LOG_PKT " ACK(0x%02x) block=[%" PRIu64 "..%" PRIu64
+                    (NGTCP2_LOG_PKT " ACK(0x%02x) block=[%" PRId64 "..%" PRId64
                                     "] gap=%" PRIu64 " block_count=%" PRIu64
                                     "\n"),
                     NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, largest_ack,
@@ -655,12 +655,12 @@ void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     return;
   }
 
-  ngtcp2_log_info(log, NGTCP2_LOG_EVENT_RCV,
-                  "packet lost type=%s(0x%02x) %" PRIu64 " sent_ts=%" PRIu64,
-                  (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM)
-                      ? strpkttype_long(hd->type)
-                      : "Short",
-                  hd->type, hd->pkt_num, sent_ts);
+  ngtcp2_log_info(
+      log, NGTCP2_LOG_EVENT_RCV,
+      "pkn=%" PRId64 " lost type=%s(0x%02x) sent_ts=%" PRIu64, hd->pkt_num,
+      (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) ? strpkttype_long(hd->type)
+                                              : "Short",
+      hd->type, sent_ts);
 }
 
 static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -674,7 +674,7 @@ static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
   ngtcp2_log_info(
       log, NGTCP2_LOG_EVENT_PKT,
-      "%s pkn=%" PRIu64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu k=%d",
+      "%s pkn=%" PRId64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu k=%d",
       dir, hd->pkt_num,
       (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
       (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
@@ -716,6 +716,6 @@ void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
 
 void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_PKT,
-                  "cancel tx pkt %" PRIu64 " type=%s(0x%02x)", hd->pkt_num,
+                  "cancel tx pkn=%" PRId64 " type=%s(0x%02x)", hd->pkt_num,
                   strpkttype(hd), hd->type);
 }

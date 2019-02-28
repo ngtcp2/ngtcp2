@@ -91,16 +91,16 @@ uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
   assert(0);
 }
 
-uint64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {
+int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {
   switch (pkt_numlen) {
   case 1:
     return *p;
   case 2:
-    return ngtcp2_get_uint16(p);
+    return (int64_t)ngtcp2_get_uint16(p);
   case 3:
-    return ngtcp2_get_uint24(p);
+    return (int64_t)ngtcp2_get_uint24(p);
   case 4:
-    return ngtcp2_get_uint32(p);
+    return (int64_t)ngtcp2_get_uint32(p);
   default:
     assert(0);
   }
@@ -164,7 +164,7 @@ uint8_t *ngtcp2_put_varint14(uint8_t *p, uint16_t n) {
   return rv;
 }
 
-uint8_t *ngtcp2_put_pkt_num(uint8_t *p, uint64_t pkt_num, size_t len) {
+uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len) {
   switch (len) {
   case 1:
     *p++ = (uint8_t)pkt_num;

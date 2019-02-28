@@ -55,7 +55,7 @@ typedef struct ngtcp2_log ngtcp2_log;
 struct ngtcp2_acktr_entry {
   /* pkt_num is the largest packet number to acknowledge in this
      range. */
-  uint64_t pkt_num;
+  int64_t pkt_num;
   /* len is the consecutive packets started from pkt_num which
      includes pkt_num itself counting in decreasing order.  So pkt_num
      = 987 and len = 2, this entry includes packet 987 and 986. */
@@ -76,7 +76,7 @@ struct ngtcp2_acktr_entry {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, uint64_t pkt_num,
+int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
                            ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
 
 /*
@@ -87,9 +87,9 @@ void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
 
 typedef struct {
   /* largest_ack is the largest packet number in outgoing ACK frame */
-  uint64_t largest_ack;
+  int64_t largest_ack;
   /* pkt_num is the packet number that ACK frame is included. */
-  uint64_t pkt_num;
+  int64_t pkt_num;
 } ngtcp2_acktr_ack_entry;
 
 typedef enum {
@@ -158,7 +158,7 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr);
  * NGTCP2_ERR_NOMEM
  *     OUt of memory.
  */
-int ngtcp2_acktr_add(ngtcp2_acktr *acktr, uint64_t pkt_num, int active_ack,
+int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
                      ngtcp2_tstamp ts);
 
 /*
@@ -187,9 +187,8 @@ ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
  * packet number of a packet in which ACK frame is included.  This
  * function returns a pointer to the object it adds.
  */
-ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
-                                             uint64_t pkt_num,
-                                             uint64_t largest_ack);
+ngtcp2_acktr_ack_entry *
+ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, int64_t pkt_num, int64_t largest_ack);
 
 /*
  * ngtcp2_acktr_recv_ack processes the incoming ACK frame |fr|.

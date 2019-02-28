@@ -265,8 +265,8 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_default_cc *cc,
     return rv;
   }
 
-  pktns->last_tx_pkt_num = (uint64_t)-1;
-  pktns->max_rx_pkt_num = (uint64_t)-1;
+  pktns->last_tx_pkt_num = -1;
+  pktns->max_rx_pkt_num = -1;
 
   rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
   if (rv != 0) {
@@ -757,7 +757,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, ngtcp2_tstamp ts,
                                  uint64_t ack_delay,
                                  uint64_t ack_delay_exponent) {
-  uint64_t last_pkt_num;
+  int64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
   ngtcp2_ksl_it it;
   ngtcp2_acktr_entry *rpkt;
@@ -792,7 +792,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ack = &fr->ack;
 
   rpkt = ngtcp2_ksl_it_get(&it);
-  last_pkt_num = rpkt->pkt_num - (rpkt->len - 1);
+  last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
   ack->type = NGTCP2_FRAME_ACK;
   ack->largest_ack = rpkt->pkt_num;
   ack->first_ack_blklen = rpkt->len - 1;
@@ -815,10 +815,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     }
     ack = &fr->ack;
     blk = &ack->blks[blk_idx];
-    blk->gap = last_pkt_num - rpkt->pkt_num - 2;
+    blk->gap = (uint64_t)(last_pkt_num - rpkt->pkt_num - 2);
     blk->blklen = rpkt->len - 1;
 
-    last_pkt_num = rpkt->pkt_num - (rpkt->len - 1);
+    last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
 
     if (ack->num_blks == NGTCP2_MAX_ACK_BLKS) {
       break;
@@ -923,21 +923,21 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
  * acknowledged packet number.  It returns the number of bytes to
  * encode the packet number.
  */
-static size_t rtb_select_pkt_numlen(ngtcp2_rtb *rtb, uint64_t pkt_num) {
-  uint64_t n = (uint64_t)((int64_t)pkt_num - rtb->largest_acked_tx_pkt_num);
-  if (UINT64_MAX / 2 <= pkt_num) {
+static size_t rtb_select_pkt_numlen(ngtcp2_rtb *rtb, int64_t pkt_num) {
+  int64_t n = pkt_num - rtb->largest_acked_tx_pkt_num;
+  if (NGTCP2_MAX_PKT_NUM / 2 <= pkt_num) {
     return 4;
   }
 
   n = n * 2 + 1;
 
-  if (n > 0xffffffu) {
+  if (n > 0xffffff) {
     return 4;
   }
-  if (n > 0xffffu) {
+  if (n > 0xffff) {
     return 3;
   }
-  if (n > 0xffu) {
+  if (n > 0xff) {
     return 2;
   }
   return 1;
@@ -3720,7 +3720,7 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t n) {
 static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                 size_t destlen, const uint8_t *payload,
                                 size_t payloadlen, const uint8_t *ad,
-                                size_t adlen, uint64_t pkt_num,
+                                size_t adlen, int64_t pkt_num,
                                 ngtcp2_crypto_km *ckm, ngtcp2_decrypt decrypt) {
   /* TODO nonce is limited to 64 bytes. */
   uint8_t nonce[64];
@@ -3986,15 +3986,15 @@ static size_t pkt_num_bits(size_t pkt_numlen) {
  * pktns_pkt_num_is_duplicate returns nonzero if |pkt_num| is
  * duplicated packet number.
  */
-static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, uint64_t pkt_num) {
-  return ngtcp2_gaptr_is_pushed(&pktns->pngap, pkt_num, 1);
+static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, int64_t pkt_num) {
+  return ngtcp2_gaptr_is_pushed(&pktns->pngap, (uint64_t)pkt_num, 1);
 }
 
 /*
  * pktns_commit_recv_pkt_num marks packet number |pkt_num| as
  * received.
  */
-static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, uint64_t pkt_num) {
+static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num) {
   int rv;
   ngtcp2_psl_it it;
   ngtcp2_range key;
@@ -4002,12 +4002,11 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, uint64_t pkt_num) {
   if (pktns->max_rx_pkt_num + 1 != pkt_num) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
-  if (pktns->max_rx_pkt_num == (uint64_t)-1 ||
-      pktns->max_rx_pkt_num < pkt_num) {
+  if (pktns->max_rx_pkt_num < pkt_num) {
     pktns->max_rx_pkt_num = pkt_num;
   }
 
-  rv = ngtcp2_gaptr_push(&pktns->pngap, pkt_num, 1);
+  rv = ngtcp2_gaptr_push(&pktns->pngap, (uint64_t)pkt_num, 1);
   if (rv != 0) {
     return rv;
   }
@@ -5597,7 +5596,7 @@ static int conn_prepare_key_update(ngtcp2_conn *conn) {
  * conn_commit_key_update rotates keys.  The current key moves to old
  * key, and new key moves to the current key.
  */
-static void conn_commit_key_update(ngtcp2_conn *conn, uint64_t pkt_num) {
+static void conn_commit_key_update(ngtcp2_conn *conn, int64_t pkt_num) {
   ngtcp2_pktns *pktns = &conn->pktns;
 
   assert(conn->new_rx_ckm);
@@ -5933,8 +5932,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       } else {
         force_decrypt_failure = 1;
       }
-    } else if (pktns->max_rx_pkt_num == (uint64_t)-1 ||
-               pktns->max_rx_pkt_num < hd.pkt_num) {
+    } else if (pktns->max_rx_pkt_num < hd.pkt_num) {
       assert(ckm->pkt_num < hd.pkt_num);
       if (!conn->new_rx_ckm) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT, "preparing new key");
@@ -6179,8 +6177,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (conn->server && hd.type == NGTCP2_PKT_SHORT && non_probing_pkt &&
-      (pktns->max_rx_pkt_num == (uint64_t)-1 ||
-       pktns->max_rx_pkt_num < hd.pkt_num) &&
+      pktns->max_rx_pkt_num < hd.pkt_num &&
       !ngtcp2_path_eq(&conn->dcid.path, path) &&
       !conn_path_validation_in_progress(conn, path)) {
     rv = conn_recv_non_probing_pkt_on_new_path(conn, path);
@@ -6503,7 +6500,7 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
     }
 
-    if (conn->hs_pktns.max_rx_pkt_num != (uint64_t)-1) {
+    if (conn->hs_pktns.max_rx_pkt_num != -1) {
       conn_discard_initial_key(conn);
     }
 
@@ -6686,7 +6683,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       return nwrite;
     }
 
-    if (conn->hs_pktns.last_tx_pkt_num != (uint64_t)-1) {
+    if (conn->hs_pktns.last_tx_pkt_num != -1) {
       conn_discard_initial_key(conn);
     }
 
@@ -7089,7 +7086,7 @@ int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
-                          uint64_t pkt_num, int active_ack, ngtcp2_tstamp ts) {
+                          int64_t pkt_num, int active_ack, ngtcp2_tstamp ts) {
   int rv;
   (void)conn;
 

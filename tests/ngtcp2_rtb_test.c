@@ -104,18 +104,18 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_default_cc_free(&cc);
 }
 
-static void add_rtb_entry_range(ngtcp2_rtb *rtb, uint64_t base_pkt_num,
+static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
                                 size_t len, ngtcp2_mem *mem) {
   ngtcp2_pkt_hd hd;
   ngtcp2_rtb_entry *ent;
-  uint64_t i;
+  size_t i;
   ngtcp2_cid dcid;
 
   dcid_init(&dcid);
 
-  for (i = base_pkt_num; i < base_pkt_num + len; ++i) {
+  for (i = 0; i < len; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
-                       i, 1, NGTCP2_PROTO_VER_MAX, 0);
+                       base_pkt_num + (int64_t)i, 1, NGTCP2_PROTO_VER_MAX, 0);
     ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 0, NGTCP2_RTB_FLAG_NONE, mem);
     ngtcp2_rtb_add(rtb, ent);
   }
@@ -130,7 +130,7 @@ static void setup_rtb_fixture(ngtcp2_rtb *rtb, ngtcp2_mem *mem) {
   add_rtb_entry_range(rtb, 440, 7, mem);
 }
 
-static void assert_rtb_entry_not_found(ngtcp2_rtb *rtb, uint64_t pkt_num) {
+static void assert_rtb_entry_not_found(ngtcp2_rtb *rtb, int64_t pkt_num) {
   ngtcp2_ksl_it it = ngtcp2_rtb_head(rtb);
   ngtcp2_rtb_entry *ent;
 
