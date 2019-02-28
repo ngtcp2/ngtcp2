@@ -301,8 +301,20 @@ static int cycle_less(const ngtcp2_pq_entry *lhs, const ngtcp2_pq_entry *rhs) {
   return ls->cycle - rs->cycle > 1;
 }
 
+static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
+  ngtcp2_pkt_chain *next;
+
+  for (; pc;) {
+    next = pc->next;
+    ngtcp2_pkt_chain_del(pc, mem);
+    pc = next;
+  }
+}
+
 static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
   ngtcp2_crypto_frame_chain *frc;
+
+  delete_buffed_pkts(pktns->buffed_rx_pkts, mem);
 
   ngtcp2_frame_chain_list_del(pktns->frq, mem);
 
@@ -620,16 +632,6 @@ static size_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return ngtcp2_min(len, fc_credits);
 }
 
-static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
-  ngtcp2_pkt_chain *next;
-
-  for (; pc;) {
-    next = pc->next;
-    ngtcp2_pkt_chain_del(pc, mem);
-    pc = next;
-  }
-}
-
 static int delete_strms_each(ngtcp2_map_entry *ent, void *ptr) {
   ngtcp2_mem *mem = ptr;
   ngtcp2_strm *s = ngtcp2_struct_of(ent, ngtcp2_strm, me);
@@ -656,9 +658,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   ngtcp2_mem_free(conn->mem, conn->token.begin);
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
-
-  delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
-  delete_buffed_pkts(conn->buffed_rx_hs_pkts, conn->mem);
 
   ngtcp2_crypto_km_del(conn->crypto.key_update.rx_old_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->crypto.key_update.rx_new_ckm, conn->mem);
@@ -3627,11 +3626,11 @@ static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pkt_chain **ppc,
+static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                            const ngtcp2_path *path, const uint8_t *pkt,
                            size_t pktlen, ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_pkt_chain *pc;
+  ngtcp2_pkt_chain **ppc = &pktns->buffed_rx_pkts, *pc;
   size_t i;
   for (i = 0; *ppc && i < NGTCP2_MAX_NUM_BUFFED_RX_PKTS;
        ppc = &(*ppc)->next, ++i)
@@ -3649,48 +3648,6 @@ static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pkt_chain **ppc,
   *ppc = pc;
 
   return 0;
-}
-
-/*
- * conn_buffer_protected_pkt buffers a protected packet |pkt| whose
- * length is |pktlen|.  The packet is obtained via network |path|.
- * This function is called when a protected packet is received, but
- * the local endpoint has not established cryptographic context (e.g.,
- * Handshake packet is lost or delayed).
- *
- * This function also buffers 0-RTT Protected packet if it arrives
- * before Initial packet.
- *
- * The processing of 0-RTT Protected and Short packets take place in
- * their own stage, and we don't buffer them at the same time.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static int conn_buffer_protected_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
-                                     const uint8_t *pkt, size_t pktlen,
-                                     ngtcp2_tstamp ts) {
-  return conn_buffer_pkt(conn, &conn->buffed_rx_ppkts, path, pkt, pktlen, ts);
-}
-
-/*
- * conn_buffer_handshake_pkt buffers Handshake packet which comes
- * before Initial packet, in other words, before handshake rx key is
- * generated.  The packet is obtained via network |path|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static int conn_buffer_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
-                                     const uint8_t *pkt, size_t pktlen,
-                                     ngtcp2_tstamp ts) {
-  return conn_buffer_pkt(conn, &conn->buffed_rx_hs_pkts, path, pkt, pktlen, ts);
 }
 
 /*
@@ -4140,7 +4097,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "buffering Short packet len=%zu", pktlen);
 
-    rv = conn_buffer_protected_pkt(conn, path, pkt, pktlen, ts);
+    rv = conn_buffer_pkt(conn, &conn->hs_pktns, path, pkt, pktlen, ts);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
@@ -4268,7 +4225,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "buffering 0-RTT Protected packet len=%zu", pktlen);
 
-    rv = conn_buffer_protected_pkt(conn, path, pkt, pktlen, ts);
+    rv = conn_buffer_pkt(conn, &conn->in_pktns, path, pkt, pktlen, ts);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
@@ -4304,10 +4261,16 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     break;
   case NGTCP2_PKT_HANDSHAKE:
     if (!conn->hs_pktns.rx_ckm) {
+      if (conn->server) {
+        ngtcp2_log_info(
+            &conn->log, NGTCP2_LOG_EVENT_PKT,
+            "Handshake packet at this point is unexpected and discarded");
+        return (ssize_t)pktlen;
+      }
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                       "buffering Handshake packet len=%zu", pktlen);
 
-      rv = conn_buffer_handshake_pkt(conn, path, pkt, pktlen, ts);
+      rv = conn_buffer_pkt(conn, &conn->in_pktns, path, pkt, pktlen, ts);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
         return rv;
@@ -6244,11 +6207,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
  * codes from conn_recv_pkt.
  */
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
+                                               ngtcp2_pktns *pktns,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
   ngtcp2_pkt_chain **ppc, *next;
 
-  for (ppc = &conn->buffed_rx_ppkts; *ppc;) {
+  for (ppc = &pktns->buffed_rx_pkts; *ppc;) {
     next = (*ppc)->next;
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
                           ts);
@@ -6266,18 +6230,19 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
 }
 
 /*
- * conn_process_buffered_handshake_pkt processes buffered Initial or
- * Handshake packets.
+ * conn_process_buffered_handshake_pkt processes buffered Handshake
+ * packets.
  *
  * This function returns 0 if it succeeds, or the same negative error
  * codes from conn_recv_handshake_pkt.
  */
 static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
+  ngtcp2_pktns *pktns = &conn->in_pktns;
   ssize_t nread;
   ngtcp2_pkt_chain **ppc, *next;
 
-  for (ppc = &conn->buffed_rx_hs_pkts; *ppc;) {
+  for (ppc = &pktns->buffed_rx_pkts; *ppc;) {
     next = (*ppc)->next;
     nread = conn_recv_handshake_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt,
                                     (*ppc)->pktlen, ts);
@@ -6488,13 +6453,13 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
     /* Process re-ordered 0-RTT Protected packets which were
        arrived before Initial packet. */
     if (conn->early.ckm) {
-      rv = conn_process_buffered_protected_pkt(conn, ts);
+      rv = conn_process_buffered_protected_pkt(conn, &conn->in_pktns, ts);
       if (rv != 0) {
         return rv;
       }
     } else {
-      delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
-      conn->buffed_rx_ppkts = NULL;
+      delete_buffed_pkts(conn->in_pktns.buffed_rx_pkts, conn->mem);
+      conn->in_pktns.buffed_rx_pkts = NULL;
     }
 
     return 0;
@@ -6529,7 +6494,7 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-    rv = conn_process_buffered_protected_pkt(conn, ts);
+    rv = conn_process_buffered_protected_pkt(conn, &conn->hs_pktns, ts);
     if (rv != 0) {
       return rv;
     }
@@ -6746,7 +6711,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     conn_process_early_rtb(conn);
 
-    rv = conn_process_buffered_protected_pkt(conn, ts);
+    rv = conn_process_buffered_protected_pkt(conn, &conn->hs_pktns, ts);
     if (rv != 0) {
       return (ssize_t)rv;
     }
@@ -6829,7 +6794,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     }
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-    rv = conn_process_buffered_protected_pkt(conn, ts);
+    rv = conn_process_buffered_protected_pkt(conn, &conn->hs_pktns, ts);
     if (rv != 0) {
       return (ssize_t)rv;
     }

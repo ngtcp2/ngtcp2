@@ -232,6 +232,27 @@ typedef struct {
   ngtcp2_vec *tx_hp;
   ngtcp2_vec *rx_hp;
   ngtcp2_frame_chain *frq;
+  /*
+   * buffed_rx_pkts is buffered packets which cannot be decrypted with
+   * the current encryption level.
+   *
+   * In server Initial encryption level, 0-RTT packet may be buffered.
+   * In server Handshake encryption level, Short packet may be buffered.
+   *
+   * In client Initial encryption level, Handshake or Short packet may
+   * be buffered.  In client Handshake encryption level, Short packet
+   * may be buffered.
+   *
+   * - 0-RTT packet is only buffered in server Initial encryption
+   *   level ngtcp2_pktns.
+   *
+   * - Handshake packet is only buffered in client Initial encryption
+   *   level ngtcp2_pktns.
+   *
+   * - Short packet is only buffered in Handshake encryption level
+   *   ngtcp2_pktns.
+   */
+  ngtcp2_pkt_chain *buffed_rx_pkts;
 } ngtcp2_pktns;
 
 struct ngtcp2_conn {
@@ -401,13 +422,6 @@ struct ngtcp2_conn {
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint16_t flags;
   int server;
-  /* buffed_rx_hs_pkts is buffered Handshake packets which come before
-     Initial packet. */
-  ngtcp2_pkt_chain *buffed_rx_hs_pkts;
-  /* buffed_rx_ppkts is buffered (0-RTT) Protected packets which come
-     before (Initial packet for 0-RTT, or) handshake completed due to
-     packet reordering. */
-  ngtcp2_pkt_chain *buffed_rx_ppkts;
 };
 
 /*
