@@ -1803,8 +1803,7 @@ int Handler::send_conn_close() {
 }
 
 void Handler::schedule_retransmit() {
-  auto expiry = std::min(ngtcp2_conn_loss_detection_expiry(conn_),
-                         ngtcp2_conn_ack_delay_expiry(conn_));
+  auto expiry = ngtcp2_conn_get_expiry(conn_);
   auto now = util::timestamp(loop_);
   auto t = expiry < now ? 1e-9
                         : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;

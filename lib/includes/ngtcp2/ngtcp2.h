@@ -1995,6 +1995,16 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_expiry` returns the next expiry time.  This
+ * function returns the timestamp such that
+ * min(ngtcp2_conn_loss_detection_expiry(conn),
+ * ngtcp2_conn_ack_delay_expiry(conn)).
+ */
+NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
  * |params| to |conn|.  |exttype| is the type of message it is
  * carried, and it should be one of

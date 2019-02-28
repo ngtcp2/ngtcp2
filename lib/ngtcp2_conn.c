@@ -7388,6 +7388,12 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
   return ts;
 }
 
+ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
+  ngtcp2_tstamp t1 = ngtcp2_conn_loss_detection_expiry(conn);
+  ngtcp2_tstamp t2 = ngtcp2_conn_ack_delay_expiry(conn);
+  return ngtcp2_min(t1, t2);
+}
+
 /*
  * settings_copy_from_transport_params translates
  * ngtcp2_transport_params to ngtcp2_settings.
