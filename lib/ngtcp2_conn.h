@@ -356,6 +356,8 @@ struct ngtcp2_conn {
   struct {
     ngtcp2_strm strm;
     size_t aead_overhead;
+    /* decrypt_buf is a buffer which is used to write decrypted data. */
+    ngtcp2_array decrypt_buf;
   } crypto;
 
   ngtcp2_map strms;
@@ -393,8 +395,6 @@ struct ngtcp2_conn {
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
-  /* decrypt_buf is a buffer which is used to write decrypted data. */
-  ngtcp2_array decrypt_buf;
 };
 
 /*
