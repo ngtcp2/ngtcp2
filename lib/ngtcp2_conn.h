@@ -256,9 +256,6 @@ struct ngtcp2_conn {
      during handshake.  It is used to receive late handshake packets
      after handshake completion. */
   ngtcp2_cid odcid;
-  /* bound_dcids is a set of destination connection IDs which are bound
-     to particular paths.  These paths are not validated yet. */
-  ngtcp2_ringbuf bound_dcids;
   /* scids is a set of CID sent to peer.  The peer can use any CIDs in
      this set. */
   ngtcp2_ksl scids;
@@ -270,6 +267,9 @@ struct ngtcp2_conn {
   struct {
     /* current is the current destination connection ID. */
     ngtcp2_dcid current;
+    /* bound is a set of destination connection IDs which are bound to
+       particular paths.  These paths are not validated yet. */
+    ngtcp2_ringbuf bound;
     /* unused is a set of unused CID received from peer. */
     ngtcp2_ringbuf unused;
   } dcid;

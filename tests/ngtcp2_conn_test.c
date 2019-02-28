@@ -3884,9 +3884,9 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(ngtcp2_path_eq(&new_path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx_path_challenge));
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->bound_dcids));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound));
 
-  dcid = ngtcp2_ringbuf_get(&conn->bound_dcids, 0);
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, 0);
 
   CU_ASSERT(ngtcp2_path_eq(&new_path, &dcid->path));
 
