@@ -306,9 +306,34 @@ struct ngtcp2_conn {
     ngtcp2_crypto_km *ckm;
     ngtcp2_vec *hp;
   } early;
+
+  struct {
+    struct {
+      /* max_stream_id is the maximum bidirectional stream ID which
+         the local endpoint can open. */
+      int64_t max_stream_id;
+      /* next_stream_id is the bidirectional stream ID which the local
+         endpoint opens next. */
+      int64_t next_stream_id;
+    } bidi;
+  } local;
+
+  struct {
+    struct {
+      ngtcp2_idtr idtr;
+      /* unsent_max_stream_id is the maximum stream ID of peer
+         initiated bidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      int64_t unsent_max_stream_id;
+      /* max_stream_id is the maximum stream ID of peer initiated
+         bidirectional stream which the local endpoint can accept. */
+      int64_t max_stream_id;
+    } bidi;
+  } remote;
+
   ngtcp2_strm crypto;
   ngtcp2_map strms;
-  ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;
@@ -318,21 +343,6 @@ struct ngtcp2_conn {
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
-  /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
-     initiated bidirectional stream which the local endpoint can
-     accept.  This limit is not yet notified to the remote
-     endpoint. */
-  int64_t unsent_max_remote_stream_id_bidi;
-  /* max_remote_stream_id_bidi is the maximum stream ID of peer
-     initiated bidirectional stream which the local endpoint can
-     accept. */
-  int64_t max_remote_stream_id_bidi;
-  /* max_local_stream_id_bidi is the maximum bidirectional stream ID
-     which the local endpoint can open. */
-  int64_t max_local_stream_id_bidi;
-  /* next_local_stream_id_bidi is the bidirectional stream ID which
-     the local endpoint opens next. */
-  int64_t next_local_stream_id_bidi;
   /* unsent_max_remote_stream_id_uni is an unidirectional stream
      version of unsent_max_remote_stream_id_bidi. */
   int64_t unsent_max_remote_stream_id_uni;

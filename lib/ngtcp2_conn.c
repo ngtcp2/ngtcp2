@@ -428,7 +428,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_pq_init(&(*pconn)->tx.strmq, cycle_less, mem);
 
-  rv = ngtcp2_idtr_init(&(*pconn)->remote_bidi_idtr, !server, mem);
+  rv = ngtcp2_idtr_init(&(*pconn)->remote.bidi.idtr, !server, mem);
   if (rv != 0) {
     goto fail_remote_bidi_idtr_init;
   }
@@ -530,7 +530,7 @@ fail_in_pktns_init:
 fail_rx_path_challenge_init:
   ngtcp2_idtr_free(&(*pconn)->remote_uni_idtr);
 fail_remote_uni_idtr_init:
-  ngtcp2_idtr_free(&(*pconn)->remote_bidi_idtr);
+  ngtcp2_idtr_free(&(*pconn)->remote.bidi.idtr);
 fail_remote_bidi_idtr_init:
   ngtcp2_map_free(&(*pconn)->strms);
 fail_strms_init:
@@ -559,8 +559,8 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     return rv;
   }
   (*pconn)->rcid = *dcid;
-  (*pconn)->unsent_max_remote_stream_id_bidi =
-      (*pconn)->max_remote_stream_id_bidi =
+  (*pconn)->remote.bidi.unsent_max_stream_id =
+      (*pconn)->remote.bidi.max_stream_id =
           ngtcp2_nth_server_bidi_id(settings->max_streams_bidi);
 
   (*pconn)->unsent_max_remote_stream_id_uni =
@@ -568,7 +568,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
           ngtcp2_nth_server_uni_id(settings->max_streams_uni);
 
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
-  (*pconn)->next_local_stream_id_bidi = 0;
+  (*pconn)->local.bidi.next_stream_id = 0;
   (*pconn)->next_local_stream_id_uni = 2;
   return 0;
 }
@@ -585,8 +585,8 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     return rv;
   }
   (*pconn)->server = 1;
-  (*pconn)->unsent_max_remote_stream_id_bidi =
-      (*pconn)->max_remote_stream_id_bidi =
+  (*pconn)->remote.bidi.unsent_max_stream_id =
+      (*pconn)->remote.bidi.max_stream_id =
           ngtcp2_nth_client_bidi_id(settings->max_streams_bidi);
 
   (*pconn)->unsent_max_remote_stream_id_uni =
@@ -594,7 +594,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
           ngtcp2_nth_client_uni_id(settings->max_streams_uni);
 
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
-  (*pconn)->next_local_stream_id_bidi = 1;
+  (*pconn)->local.bidi.next_stream_id = 1;
   (*pconn)->next_local_stream_id_uni = 3;
   return 0;
 }
@@ -677,7 +677,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_pv_del(conn->pv);
 
   ngtcp2_idtr_free(&conn->remote_uni_idtr);
-  ngtcp2_idtr_free(&conn->remote_bidi_idtr);
+  ngtcp2_idtr_free(&conn->remote.bidi.idtr);
   ngtcp2_pq_free(&conn->tx.strmq);
   ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
   ngtcp2_map_free(&conn->strms);
@@ -2113,7 +2113,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       break;
     case NGTCP2_FRAME_MAX_STREAMS_BIDI:
       if ((*pfrc)->fr.max_streams.max_streams <
-          (uint64_t)(conn->max_remote_stream_id_bidi >> 2)) {
+          (uint64_t)(conn->remote.bidi.max_stream_id >> 2)) {
         frc = *pfrc;
         *pfrc = (*pfrc)->next;
         ngtcp2_frame_chain_del(frc, conn->mem);
@@ -2202,8 +2202,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   /* Write MAX_STREAM_ID after RESET_STREAM so that we can extend stream
      ID space in one packet. */
   if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
-      conn->unsent_max_remote_stream_id_bidi >
-          conn->max_remote_stream_id_bidi) {
+      conn->remote.bidi.unsent_max_stream_id >
+          conn->remote.bidi.max_stream_id) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -2211,10 +2211,10 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     nfrc->fr.type = NGTCP2_FRAME_MAX_STREAMS_BIDI;
     nfrc->fr.max_streams.max_streams =
-        (uint64_t)(conn->unsent_max_remote_stream_id_bidi >> 2);
+        (uint64_t)(conn->remote.bidi.unsent_max_stream_id >> 2);
     *pfrc = nfrc;
 
-    conn->max_remote_stream_id_bidi = conn->unsent_max_remote_stream_id_bidi;
+    conn->remote.bidi.max_stream_id = conn->remote.bidi.unsent_max_stream_id;
 
     rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &(*pfrc)->fr);
     if (rv != 0) {
@@ -3556,14 +3556,14 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
 
   if (bidi) {
     if (local_stream) {
-      if (conn->next_local_stream_id_bidi <= fr->stream_id) {
+      if (conn->local.bidi.next_stream_id <= fr->stream_id) {
         return NGTCP2_ERR_STREAM_STATE;
       }
-    } else if (conn->max_remote_stream_id_bidi < fr->stream_id) {
+    } else if (conn->remote.bidi.max_stream_id < fr->stream_id) {
       return NGTCP2_ERR_STREAM_LIMIT;
     }
 
-    idtr = &conn->remote_bidi_idtr;
+    idtr = &conn->remote.bidi.idtr;
   } else {
     if (!local_stream || conn->next_local_stream_id_uni <= fr->stream_id) {
       return NGTCP2_ERR_STREAM_STATE;
@@ -4785,14 +4785,14 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
   if (bidi) {
     if (local_stream) {
-      if (conn->next_local_stream_id_bidi <= fr->stream_id) {
+      if (conn->local.bidi.next_stream_id <= fr->stream_id) {
         return NGTCP2_ERR_STREAM_STATE;
       }
-    } else if (conn->max_remote_stream_id_bidi < fr->stream_id) {
+    } else if (conn->remote.bidi.max_stream_id < fr->stream_id) {
       return NGTCP2_ERR_STREAM_LIMIT;
     }
 
-    idtr = &conn->remote_bidi_idtr;
+    idtr = &conn->remote.bidi.idtr;
   } else {
     if (local_stream) {
       return NGTCP2_ERR_STREAM_STATE;
@@ -5066,14 +5066,14 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   /* TODO share this piece of code */
   if (bidi) {
     if (local_stream) {
-      if (conn->next_local_stream_id_bidi <= fr->stream_id) {
+      if (conn->local.bidi.next_stream_id <= fr->stream_id) {
         return NGTCP2_ERR_STREAM_STATE;
       }
-    } else if (fr->stream_id > conn->max_remote_stream_id_bidi) {
+    } else if (fr->stream_id > conn->remote.bidi.max_stream_id) {
       return NGTCP2_ERR_STREAM_LIMIT;
     }
 
-    idtr = &conn->remote_bidi_idtr;
+    idtr = &conn->remote.bidi.idtr;
   } else {
     if (local_stream) {
       return NGTCP2_ERR_PROTO;
@@ -5112,7 +5112,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
        effectively allows another new stream for peer. */
     if (bidi) {
       handle_remote_stream_id_extension(
-          &conn->unsent_max_remote_stream_id_bidi);
+          &conn->remote.bidi.unsent_max_stream_id);
     } else {
       handle_remote_stream_id_extension(&conn->unsent_max_remote_stream_id_uni);
     }
@@ -5171,14 +5171,14 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
 
   if (bidi) {
     if (local_stream) {
-      if (conn->next_local_stream_id_bidi <= fr->stream_id) {
+      if (conn->local.bidi.next_stream_id <= fr->stream_id) {
         return NGTCP2_ERR_STREAM_STATE;
       }
-    } else if (fr->stream_id > conn->max_remote_stream_id_bidi) {
+    } else if (fr->stream_id > conn->remote.bidi.max_stream_id) {
       return NGTCP2_ERR_STREAM_LIMIT;
     }
 
-    idtr = &conn->remote_bidi_idtr;
+    idtr = &conn->remote.bidi.idtr;
   } else {
     if (!local_stream || conn->next_local_stream_id_uni <= fr->stream_id) {
       return NGTCP2_ERR_STREAM_STATE;
@@ -5428,8 +5428,8 @@ static int conn_recv_max_streams(ngtcp2_conn *conn,
       n = ngtcp2_nth_client_bidi_id(fr->max_streams);
       n = ngtcp2_min(n, NGTCP2_MAX_CLIENT_STREAM_ID_BIDI);
     }
-    if (n > conn->max_local_stream_id_bidi) {
-      conn->max_local_stream_id_bidi = n;
+    if (n > conn->local.bidi.max_stream_id) {
+      conn->local.bidi.max_stream_id = n;
       return conn_call_extend_max_streams_bidi(conn, (uint64_t)(n >> 2));
     }
     return 0;
@@ -6307,9 +6307,9 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
     return rv;
   }
 
-  if (conn->max_local_stream_id_bidi > 0) {
+  if (conn->local.bidi.max_stream_id > 0) {
     rv = conn_call_extend_max_streams_bidi(
-        conn, (uint64_t)(conn->max_local_stream_id_bidi >> 2));
+        conn, (uint64_t)(conn->local.bidi.max_stream_id >> 2));
     if (rv != 0) {
       return rv;
     }
@@ -7502,13 +7502,13 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
 
 static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
   if (conn->server) {
-    conn->max_local_stream_id_bidi =
+    conn->local.bidi.max_stream_id =
         ngtcp2_nth_server_bidi_id(conn->remote_settings.max_streams_bidi);
 
     conn->max_local_stream_id_uni =
         ngtcp2_nth_server_uni_id(conn->remote_settings.max_streams_uni);
   } else {
-    conn->max_local_stream_id_bidi =
+    conn->local.bidi.max_stream_id =
         ngtcp2_nth_client_bidi_id(conn->remote_settings.max_streams_bidi);
 
     conn->max_local_stream_id_uni =
@@ -7607,7 +7607,7 @@ int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
   int rv;
   ngtcp2_strm *strm;
 
-  if (conn->next_local_stream_id_bidi > conn->max_local_stream_id_bidi) {
+  if (conn->local.bidi.next_stream_id > conn->local.bidi.max_stream_id) {
     return NGTCP2_ERR_STREAM_ID_BLOCKED;
   }
 
@@ -7616,15 +7616,15 @@ int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = ngtcp2_conn_init_stream(conn, strm, conn->next_local_stream_id_bidi,
+  rv = ngtcp2_conn_init_stream(conn, strm, conn->local.bidi.next_stream_id,
                                stream_user_data);
   if (rv != 0) {
     ngtcp2_mem_free(conn->mem, strm);
     return rv;
   }
 
-  *pstream_id = conn->next_local_stream_id_bidi;
-  conn->next_local_stream_id_bidi += 4;
+  *pstream_id = conn->local.bidi.next_stream_id;
+  conn->local.bidi.next_stream_id += 4;
 
   return 0;
 }
@@ -7926,7 +7926,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   if (!conn_local_stream(conn, strm->stream_id)) {
     if (bidi_stream(strm->stream_id)) {
       handle_remote_stream_id_extension(
-          &conn->unsent_max_remote_stream_id_bidi);
+          &conn->remote.bidi.unsent_max_stream_id);
     } else {
       handle_remote_stream_id_extension(&conn->unsent_max_remote_stream_id_uni);
     }
