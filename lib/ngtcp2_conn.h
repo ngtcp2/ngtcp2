@@ -277,6 +277,9 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that remote endpoint can
        send. */
     uint64_t max_offset;
+    /* new_ckm is a new 1RTT key which has not successfully decrypted
+       incoming packet. */
+    ngtcp2_crypto_km *new_ckm;
   } rx;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
@@ -351,9 +354,6 @@ struct ngtcp2_conn {
   ngtcp2_vec *early_hp;
   /* old_ckm is an old 1RTT key. */
   ngtcp2_crypto_km *old_rx_ckm;
-  /* new_rx_ckm is a new 1RTT key which has not successfully decrypted
-     incoming packet. */
-  ngtcp2_crypto_km *new_rx_ckm;
   size_t aead_overhead;
   /* buffed_rx_hs_pkts is buffered Handshake packets which come before
      Initial packet. */

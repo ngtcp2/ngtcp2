@@ -650,7 +650,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
   delete_buffed_pkts(conn->buffed_rx_hs_pkts, conn->mem);
 
-  ngtcp2_crypto_km_del(conn->new_rx_ckm, conn->mem);
+  ngtcp2_crypto_km_del(conn->rx.new_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->tx.new_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->old_rx_ckm, conn->mem);
   ngtcp2_vec_del(conn->early_hp, conn->mem);
@@ -5567,8 +5567,8 @@ static int conn_key_phase_changed(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
 static int conn_prepare_key_update(ngtcp2_conn *conn) {
   int rv;
 
-  if (conn->new_rx_ckm || conn->tx.new_ckm) {
-    assert(conn->new_rx_ckm);
+  if (conn->rx.new_ckm || conn->tx.new_ckm) {
+    assert(conn->rx.new_ckm);
     assert(conn->tx.new_ckm);
     return 0;
   }
@@ -5583,7 +5583,7 @@ static int conn_prepare_key_update(ngtcp2_conn *conn) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  assert(conn->new_rx_ckm);
+  assert(conn->rx.new_ckm);
   assert(conn->tx.new_ckm);
 
   return 0;
@@ -5596,14 +5596,14 @@ static int conn_prepare_key_update(ngtcp2_conn *conn) {
 static void conn_commit_key_update(ngtcp2_conn *conn, int64_t pkt_num) {
   ngtcp2_pktns *pktns = &conn->pktns;
 
-  assert(conn->new_rx_ckm);
+  assert(conn->rx.new_ckm);
   assert(conn->tx.new_ckm);
 
   ngtcp2_crypto_km_del(conn->old_rx_ckm, conn->mem);
   conn->old_rx_ckm = pktns->rx_ckm;
 
-  pktns->rx_ckm = conn->new_rx_ckm;
-  conn->new_rx_ckm = NULL;
+  pktns->rx_ckm = conn->rx.new_ckm;
+  conn->rx.new_ckm = NULL;
   pktns->rx_ckm->pkt_num = pkt_num;
 
   ngtcp2_crypto_km_del(pktns->tx_ckm, conn->mem);
@@ -5931,7 +5931,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
     } else if (pktns->max_rx_pkt_num < hd.pkt_num) {
       assert(ckm->pkt_num < hd.pkt_num);
-      if (!conn->new_rx_ckm) {
+      if (!conn->rx.new_ckm) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT, "preparing new key");
         rv = conn_prepare_key_update(conn);
         if (rv != 0) {
@@ -5940,7 +5940,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "decrypting with new key");
-      ckm = conn->new_rx_ckm;
+      ckm = conn->rx.new_ckm;
     } else {
       force_decrypt_failure = 1;
     }
@@ -6189,7 +6189,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (hd.type == NGTCP2_PKT_SHORT) {
-    if (ckm == conn->new_rx_ckm) {
+    if (ckm == conn->rx.new_ckm) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "commit new key");
       conn_commit_key_update(conn, hd.pkt_num);
     } else {
@@ -7320,18 +7320,18 @@ int ngtcp2_conn_update_rx_key(ngtcp2_conn *conn, const uint8_t *key,
   int rv;
 
   if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE) ||
-      conn->new_rx_ckm) {
+      conn->rx.new_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  rv = ngtcp2_crypto_km_new(&conn->new_rx_ckm, key, keylen, iv, ivlen,
+  rv = ngtcp2_crypto_km_new(&conn->rx.new_ckm, key, keylen, iv, ivlen,
                             conn->mem);
   if (rv != 0) {
     return rv;
   }
 
   if (!(pktns->rx_ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)) {
-    conn->new_rx_ckm->flags |= NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
+    conn->rx.new_ckm->flags |= NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
   }
 
   return 0;
@@ -7339,7 +7339,7 @@ int ngtcp2_conn_update_rx_key(ngtcp2_conn *conn, const uint8_t *key,
 
 int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn) {
   if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE) ||
-      !conn->tx.new_ckm || !conn->new_rx_ckm) {
+      !conn->tx.new_ckm || !conn->rx.new_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
