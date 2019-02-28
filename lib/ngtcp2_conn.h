@@ -263,6 +263,8 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that local endpoint can
        send. */
     uint64_t max_offset;
+    /* new_ckm is a new 1RTT key which has not been used. */
+    ngtcp2_crypto_km *new_ckm;
   } tx;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
@@ -347,8 +349,6 @@ struct ngtcp2_conn {
   ngtcp2_vec *early_hp;
   /* old_ckm is an old 1RTT key. */
   ngtcp2_crypto_km *old_rx_ckm;
-  /* new_tx_ckm is a new 1RTT key which has not been used. */
-  ngtcp2_crypto_km *new_tx_ckm;
   /* new_rx_ckm is a new 1RTT key which has not successfully decrypted
      incoming packet. */
   ngtcp2_crypto_km *new_rx_ckm;
