@@ -302,6 +302,10 @@ struct ngtcp2_conn {
     /* bw is STREAM data bandwidth */
     ngtcp2_bw bw;
   } rx;
+  struct {
+    ngtcp2_crypto_km *ckm;
+    ngtcp2_vec *hp;
+  } early;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
   ngtcp2_idtr remote_bidi_idtr;
@@ -360,8 +364,6 @@ struct ngtcp2_conn {
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint16_t flags;
   int server;
-  ngtcp2_crypto_km *early_ckm;
-  ngtcp2_vec *early_hp;
   size_t aead_overhead;
   /* buffed_rx_hs_pkts is buffered Handshake packets which come before
      Initial packet. */

@@ -203,8 +203,8 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
     ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_0RTT_PROTECTED:
-    ctx.ckm = conn->early_ckm;
-    ctx.hp = conn->early_hp;
+    ctx.ckm = conn->early.ckm;
+    ctx.hp = conn->early.hp;
     ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   default:
@@ -252,8 +252,8 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
     ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_0RTT_PROTECTED:
-    ctx.ckm = conn->early_ckm;
-    ctx.hp = conn->early_hp;
+    ctx.ckm = conn->early.ckm;
+    ctx.hp = conn->early.hp;
     ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   default:

@@ -663,8 +663,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_crypto_km_del(conn->rx.old_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->rx.new_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->tx.new_ckm, conn->mem);
-  ngtcp2_vec_del(conn->early_hp, conn->mem);
-  ngtcp2_crypto_km_del(conn->early_ckm, conn->mem);
+  ngtcp2_vec_del(conn->early.hp, conn->mem);
+  ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
 
   pktns_free(&conn->pktns, conn->mem);
   pktns_free(&conn->hs_pktns, conn->mem);
@@ -1195,7 +1195,7 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
-    if (!conn->early_ckm || early_datalen == 0) {
+    if (!conn->early.ckm || early_datalen == 0) {
       return 1;
     }
     min_payloadlen = ngtcp2_min(early_datalen, 128);
@@ -1272,12 +1272,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ctx.user_data = conn;
     break;
   case NGTCP2_PKT_0RTT_PROTECTED:
-    if (!conn->early_ckm || ngtcp2_pq_empty(&conn->tx.strmq)) {
+    if (!conn->early.ckm || ngtcp2_pq_empty(&conn->tx.strmq)) {
       return 0;
     }
     pktns = &conn->pktns;
-    ctx.ckm = conn->early_ckm;
-    ctx.hp = conn->early_hp;
+    ctx.ckm = conn->early.ckm;
+    ctx.hp = conn->early.hp;
     ctx.aead_overhead = conn->aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
@@ -4244,7 +4244,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return NGTCP2_ERR_DISCARD_PKT;
     }
     if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
-      if (conn->early_ckm) {
+      if (conn->early.ckm) {
         ssize_t nread2;
         /* TODO Avoid to parse header twice. */
         nread2 = conn_recv_pkt(conn, &conn->dcid.path, pkt, pktlen, ts);
@@ -5849,11 +5849,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
 
       pktns = &conn->pktns;
-      if (!conn->early_ckm) {
+      if (!conn->early.ckm) {
         return NGTCP2_ERR_DISCARD_PKT;
       }
-      ckm = conn->early_ckm;
-      hp = conn->early_hp;
+      ckm = conn->early.ckm;
+      hp = conn->early.hp;
       hp_mask = conn->callbacks.hp_mask;
       decrypt = conn->callbacks.decrypt;
       aead_overhead = conn->aead_overhead;
@@ -6480,7 +6480,7 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     /* Process re-ordered 0-RTT Protected packets which were
        arrived before Initial packet. */
-    if (conn->early_ckm) {
+    if (conn->early.ckm) {
       rv = conn_process_buffered_protected_pkt(conn, ts);
       if (rv != 0) {
         return rv;
@@ -6878,12 +6878,12 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   size_t datalen = ngtcp2_vec_len(datav, datavcnt);
 
   assert(!conn->server);
-  assert(conn->early_ckm);
+  assert(conn->early.ckm);
 
   pkt_flags = NGTCP2_PKT_FLAG_LONG_FORM;
   pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
-  ctx.ckm = conn->early_ckm;
-  ctx.hp = conn->early_hp;
+  ctx.ckm = conn->early.ckm;
+  ctx.hp = conn->early.hp;
 
   ngtcp2_pkt_hd_init(
       &hd, pkt_flags, pkt_type, &conn->dcid.cid, &conn->oscid,
@@ -7016,7 +7016,7 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  /* conn->early_ckm might be created in the first call of
+  /* conn->early.ckm might be created in the first call of
      conn_handshake().  Check it later. */
   if (stream_id != -1 &&
       !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
@@ -7050,7 +7050,7 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     return spktlen;
   }
 
-  if (conn->pktns.tx_ckm || !conn->early_ckm || !send_stream) {
+  if (conn->pktns.tx_ckm || !conn->early.ckm || !send_stream) {
     return spktlen;
   }
 
@@ -7244,17 +7244,17 @@ int ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
                                    size_t pnlen) {
   int rv;
 
-  if (conn->early_hp || conn->early_ckm) {
+  if (conn->early.hp || conn->early.ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
   rv =
-      ngtcp2_crypto_km_new(&conn->early_ckm, key, keylen, iv, ivlen, conn->mem);
+      ngtcp2_crypto_km_new(&conn->early.ckm, key, keylen, iv, ivlen, conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  return ngtcp2_vec_new(&conn->early_hp, pn, pnlen, conn->mem);
+  return ngtcp2_vec_new(&conn->early.hp, pn, pnlen, conn->mem);
 }
 
 int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
@@ -7789,7 +7789,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   /* Send STREAM frame in 0-RTT packet. */
-  if (conn->server || !conn->early_ckm) {
+  if (conn->server || !conn->early.ckm) {
     return NGTCP2_ERR_NOKEY;
   }
 
