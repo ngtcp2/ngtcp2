@@ -254,10 +254,12 @@ struct ngtcp2_conn {
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
+  struct {
+    /* strmq contains ngtcp2_strm which has frames to send. */
+    ngtcp2_pq strmq;
+  } tx;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
-  /* tx_strmq contains ngtcp2_strm which has frames to send. */
-  ngtcp2_pq tx_strmq;
   ngtcp2_idtr remote_bidi_idtr;
   ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;

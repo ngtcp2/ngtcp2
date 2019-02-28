@@ -697,7 +697,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
     CU_ASSERT(0 == rv);
   }
 
-  CU_ASSERT(3 == ngtcp2_pq_size(&conn->tx_strmq));
+  CU_ASSERT(3 == ngtcp2_pq_size(&conn->tx.strmq));
 
   strm = ngtcp2_conn_find_stream(conn, 0);
 
@@ -714,7 +714,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), 2);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ngtcp2_pq_empty(&conn->tx_strmq));
+  CU_ASSERT(ngtcp2_pq_empty(&conn->tx.strmq));
 
   for (i = 0; i < 3; ++i) {
     stream_id = (int64_t)(i * 4);
@@ -2666,7 +2666,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   rv = ngtcp2_conn_extend_max_stream_offset(conn, 4, datalen);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_pq_empty(&conn->tx_strmq));
+  CU_ASSERT(ngtcp2_pq_empty(&conn->tx.strmq));
 
   ngtcp2_conn_del(conn);
 }
