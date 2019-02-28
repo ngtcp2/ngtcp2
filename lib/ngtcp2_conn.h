@@ -353,7 +353,10 @@ struct ngtcp2_conn {
     } uni;
   } remote;
 
-  ngtcp2_strm crypto;
+  struct {
+    ngtcp2_strm strm;
+  } crypto;
+
   ngtcp2_map strms;
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;

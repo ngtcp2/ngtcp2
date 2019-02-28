@@ -254,7 +254,7 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
   ngtcp2_strm *strm;
   int rv;
   size_t datalen;
-  ngtcp2_strm *crypto = &conn->crypto;
+  ngtcp2_strm *crypto = &conn->crypto.strm;
 
   for (frc = ent->frc; frc; frc = frc->next) {
     switch (frc->fr.type) {
