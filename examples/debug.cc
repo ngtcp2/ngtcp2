@@ -169,9 +169,9 @@ void log_printf(void *user_data, const char *fmt, ...) {
 void path_validation(const ngtcp2_path *path,
                      ngtcp2_path_validation_result res) {
   auto local_addr = util::straddr(
-      reinterpret_cast<sockaddr *>(path->local.addr), path->local.len);
+      reinterpret_cast<sockaddr *>(path->local.addr), path->local.addrlen);
   auto remote_addr = util::straddr(
-      reinterpret_cast<sockaddr *>(path->remote.addr), path->remote.len);
+      reinterpret_cast<sockaddr *>(path->remote.addr), path->remote.addrlen);
 
   std::cerr << "Path validation against path {local:" << local_addr
             << ", remote:" << remote_addr << "} "

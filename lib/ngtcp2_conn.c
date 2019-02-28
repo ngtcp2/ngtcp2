@@ -6574,7 +6574,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
     return rv;
   }
 
-  if (addr.len == 0 ||
+  if (addr.addrlen == 0 ||
       ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &addr)) {
     return 0;
   }
@@ -8414,14 +8414,14 @@ size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
 void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn, const ngtcp2_addr *addr) {
   ngtcp2_addr *dest = &conn->dcid.current.ps.path.local;
 
-  assert(addr->len <= sizeof(conn->dcid.current.ps.local_addrbuf));
+  assert(addr->addrlen <= sizeof(conn->dcid.current.ps.local_addrbuf));
   ngtcp2_addr_copy(dest, addr);
 }
 
 void ngtcp2_conn_set_remote_addr(ngtcp2_conn *conn, const ngtcp2_addr *addr) {
   ngtcp2_addr *dest = &conn->dcid.current.ps.path.remote;
 
-  assert(addr->len <= sizeof(conn->dcid.current.ps.remote_addrbuf));
+  assert(addr->addrlen <= sizeof(conn->dcid.current.ps.remote_addrbuf));
   ngtcp2_addr_copy(dest, addr);
 }
 

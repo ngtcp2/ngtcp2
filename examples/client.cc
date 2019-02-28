@@ -801,12 +801,12 @@ int select_preferred_address(ngtcp2_conn *conn, ngtcp2_addr *dest,
   Address addr;
 
   if (c->select_preferred_address(addr, paddr) != 0) {
-    dest->len = 0;
+    dest->addrlen = 0;
     return 0;
   }
 
-  dest->len = addr.len;
-  memcpy(dest->addr, &addr.su, dest->len);
+  dest->addrlen = addr.len;
+  memcpy(dest->addr, &addr.su, dest->addrlen);
 
   return 0;
 }
@@ -1900,8 +1900,8 @@ int Client::initiate_key_update() {
 }
 
 void Client::update_remote_addr(const ngtcp2_addr *addr) {
-  remote_addr_.len = addr->len;
-  memcpy(&remote_addr_.su, addr->addr, addr->len);
+  remote_addr_.len = addr->addrlen;
+  memcpy(&remote_addr_.su, addr->addr, addr->addrlen);
 }
 
 int Client::send_packet() {

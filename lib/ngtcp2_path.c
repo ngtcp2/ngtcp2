@@ -57,9 +57,9 @@ void ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
 
 void ngtcp2_path_storage_init2(ngtcp2_path_storage *ps,
                                const ngtcp2_path *path) {
-  ngtcp2_path_storage_init(ps, path->local.addr, path->local.len,
+  ngtcp2_path_storage_init(ps, path->local.addr, path->local.addrlen,
                            path->local.user_data, path->remote.addr,
-                           path->remote.len, path->remote.user_data);
+                           path->remote.addrlen, path->remote.user_data);
 }
 
 void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps) {

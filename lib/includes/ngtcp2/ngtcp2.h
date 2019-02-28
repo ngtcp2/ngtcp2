@@ -732,7 +732,7 @@ typedef struct {
  */
 typedef struct {
   /* len is the length of addr. */
-  size_t len;
+  size_t addrlen;
   /* addr points to the buffer which contains endpoint address.  It is
      opaque to the ngtcp2 library. */
   uint8_t *addr;
@@ -2565,12 +2565,11 @@ NGTCP2_EXTERN uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
 /**
  * @function
  *
- * `ngtcp2_addr_init` initializes |addr| with the given arguments and
- * returns |addr|.
+ * `ngtcp2_addr_init` initializes |dest| with the given arguments and
+ * returns |dest|.
  */
-NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *addr,
-                                            const void *address, size_t len,
-                                            void *user_data);
+NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr,
+                                            size_t addrlen, void *user_data);
 
 /**
  * @function

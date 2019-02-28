@@ -1497,8 +1497,8 @@ void Handler::update_endpoint(const ngtcp2_addr *addr) {
 }
 
 void Handler::update_remote_addr(const ngtcp2_addr *addr) {
-  remote_addr_.len = addr->len;
-  memcpy(&remote_addr_.su, addr->addr, addr->len);
+  remote_addr_.len = addr->addrlen;
+  memcpy(&remote_addr_.su, addr->addr, addr->addrlen);
 }
 
 int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
