@@ -145,6 +145,7 @@ LIBS=$save_LIBS
 # Checks for header files.
 AC_CHECK_HEADERS([ \
   arpa/inet.h \
+  netinet/in.h \
   stddef.h \
   stdint.h \
   stdlib.h \
