@@ -116,7 +116,7 @@ static int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
                                  void *user_data) {
   (void)user_data;
   memset(cid->data, 0, cidlen);
-  cid->data[0] = (uint8_t)(conn->tx_last_cid_seq + 1);
+  cid->data[0] = (uint8_t)(conn->scid.last_seq + 1);
   cid->datalen = cidlen;
   memset(token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
   return 0;

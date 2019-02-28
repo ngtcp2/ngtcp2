@@ -497,7 +497,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
       goto fail_scid_set_insert;
     }
 
-    (*pconn)->tx_last_cid_seq = 1;
+    (*pconn)->scid.last_seq = 1;
   }
 
   ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
@@ -1866,7 +1866,7 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
       return NGTCP2_ERR_CALLBACK_FAILURE;
     }
 
-    seq = ++conn->tx_last_cid_seq;
+    seq = ++conn->scid.last_seq;
 
     scid = ngtcp2_mem_malloc(conn->mem, sizeof(*scid));
     if (scid == NULL) {

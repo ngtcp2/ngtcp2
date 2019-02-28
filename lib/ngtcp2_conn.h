@@ -278,6 +278,8 @@ struct ngtcp2_conn {
        priority queue takes timestamp when CID is retired and sorts
        them in ascending order. */
     ngtcp2_pq used;
+    /* last_seq is the last sequence number of connection ID. */
+    uint64_t last_seq;
   } scid;
 
   struct {
@@ -386,8 +388,6 @@ struct ngtcp2_conn {
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
-  /* tx_last_cid_seq is the last sequence number of connection ID. */
-  uint64_t tx_last_cid_seq;
   size_t probe_pkt_left;
   /* hs_recved is the number of bytes received from client before its
      address is validated.  This field is only used by server to
