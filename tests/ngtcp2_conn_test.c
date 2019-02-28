@@ -3660,9 +3660,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcids));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.unused));
 
-  dcid = ngtcp2_ringbuf_get(&conn->dcids, 0);
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
   CU_ASSERT(ngtcp2_cid_eq(&fr.new_connection_id.cid, &dcid->cid));
   CU_ASSERT(0 == memcmp(fr.new_connection_id.stateless_reset_token, dcid->token,
