@@ -355,6 +355,7 @@ struct ngtcp2_conn {
 
   struct {
     ngtcp2_strm strm;
+    size_t aead_overhead;
   } crypto;
 
   ngtcp2_map strms;
@@ -385,7 +386,6 @@ struct ngtcp2_conn {
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint16_t flags;
   int server;
-  size_t aead_overhead;
   /* buffed_rx_hs_pkts is buffered Handshake packets which come before
      Initial packet. */
   ngtcp2_pkt_chain *buffed_rx_hs_pkts;

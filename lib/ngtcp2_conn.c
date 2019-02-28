@@ -1266,7 +1266,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     pktns = &conn->hs_pktns;
     ctx.ckm = pktns->tx_ckm;
     ctx.hp = pktns->tx_hp;
-    ctx.aead_overhead = conn->aead_overhead;
+    ctx.aead_overhead = conn->crypto.aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
     ctx.user_data = conn;
@@ -1278,7 +1278,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     pktns = &conn->pktns;
     ctx.ckm = conn->early.ckm;
     ctx.hp = conn->early.hp;
-    ctx.aead_overhead = conn->aead_overhead;
+    ctx.aead_overhead = conn->crypto.aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
     ctx.user_data = conn;
@@ -1508,7 +1508,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
-    ctx.aead_overhead = conn->aead_overhead;
+    ctx.aead_overhead = conn->crypto.aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
     break;
@@ -2055,7 +2055,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   ctx.ckm = pktns->tx_ckm;
   ctx.hp = pktns->tx_hp;
-  ctx.aead_overhead = conn->aead_overhead;
+  ctx.aead_overhead = conn->crypto.aead_overhead;
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.hp_mask = conn->callbacks.hp_mask;
   ctx.user_data = conn;
@@ -2503,7 +2503,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
-    ctx.aead_overhead = conn->aead_overhead;
+    ctx.aead_overhead = conn->crypto.aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
     flags = NGTCP2_PKT_FLAG_LONG_FORM;
@@ -2511,7 +2511,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   case NGTCP2_PKT_SHORT:
     /* 0 means Short packet. */
     pktns = &conn->pktns;
-    ctx.aead_overhead = conn->aead_overhead;
+    ctx.aead_overhead = conn->crypto.aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
     flags = (pktns->tx_ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
@@ -2671,7 +2671,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
 
   assert(pktns->tx_ckm);
 
-  ctx.aead_overhead = conn->aead_overhead;
+  ctx.aead_overhead = conn->crypto.aead_overhead;
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.hp_mask = conn->callbacks.hp_mask;
   ctx.ckm = pktns->tx_ckm;
@@ -4311,7 +4311,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     pktns = &conn->hs_pktns;
     hp_mask = conn->callbacks.hp_mask;
     decrypt = conn->callbacks.decrypt;
-    aead_overhead = conn->aead_overhead;
+    aead_overhead = conn->crypto.aead_overhead;
     max_crypto_rx_offset = conn->pktns.crypto_rx_offset_base;
 
     break;
@@ -5840,7 +5840,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       hp = pktns->rx_hp;
       hp_mask = conn->callbacks.hp_mask;
       decrypt = conn->callbacks.decrypt;
-      aead_overhead = conn->aead_overhead;
+      aead_overhead = conn->crypto.aead_overhead;
       max_crypto_rx_offset = conn->pktns.crypto_rx_offset_base;
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
@@ -5856,7 +5856,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       hp = conn->early.hp;
       hp_mask = conn->callbacks.hp_mask;
       decrypt = conn->callbacks.decrypt;
-      aead_overhead = conn->aead_overhead;
+      aead_overhead = conn->crypto.aead_overhead;
       break;
     default:
       ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -5877,7 +5877,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     hp = pktns->rx_hp;
     hp_mask = conn->callbacks.hp_mask;
     decrypt = conn->callbacks.decrypt;
-    aead_overhead = conn->aead_overhead;
+    aead_overhead = conn->crypto.aead_overhead;
   }
 
   nwrite =
@@ -6891,7 +6891,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
       rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
       conn->version, 0);
 
-  ctx.aead_overhead = conn->aead_overhead;
+  ctx.aead_overhead = conn->crypto.aead_overhead;
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.hp_mask = conn->callbacks.hp_mask;
   ctx.user_data = conn;
@@ -7147,7 +7147,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
 }
 
 void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn, size_t aead_overhead) {
-  conn->aead_overhead = aead_overhead;
+  conn->crypto.aead_overhead = aead_overhead;
 }
 
 int ngtcp2_conn_install_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
