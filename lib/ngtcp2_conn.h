@@ -271,6 +271,7 @@ struct ngtcp2_conn {
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
+
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
     ngtcp2_pq strmq;
@@ -283,6 +284,7 @@ struct ngtcp2_conn {
     /* new_ckm is a new 1RTT key which has not been used. */
     ngtcp2_crypto_km *new_ckm;
   } tx;
+
   struct {
     /* unsent_max_offset is the maximum offset that remote endpoint
        can send without extending MAX_DATA.  This limit is not yet
@@ -302,6 +304,7 @@ struct ngtcp2_conn {
     /* bw is STREAM data bandwidth */
     ngtcp2_bw bw;
   } rx;
+
   struct {
     ngtcp2_crypto_km *ckm;
     ngtcp2_vec *hp;
@@ -317,6 +320,7 @@ struct ngtcp2_conn {
          endpoint opens next. */
       int64_t next_stream_id;
     } bidi;
+
     struct {
       /* max_stream_id is the maximum unidirectional stream ID which
          the local endpoint can open. */
@@ -340,6 +344,7 @@ struct ngtcp2_conn {
          bidirectional stream which the local endpoint can accept. */
       int64_t max_stream_id;
     } bidi;
+
     struct {
       ngtcp2_idtr idtr;
       /* unsent_max_stream_id is the maximum stream ID of peer
