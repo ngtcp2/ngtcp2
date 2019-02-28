@@ -760,9 +760,9 @@ typedef struct {
  * the longest addresses.
  */
 typedef struct {
-  ngtcp2_path path;
   uint8_t local_addrbuf[128];
   uint8_t remote_addrbuf[128];
+  ngtcp2_path path;
 } ngtcp2_path_storage;
 
 /**
