@@ -281,8 +281,6 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that local endpoint can
        send. */
     uint64_t max_offset;
-    /* new_ckm is a new 1RTT key which has not been used. */
-    ngtcp2_crypto_km *new_ckm;
   } tx;
 
   struct {
@@ -359,6 +357,12 @@ struct ngtcp2_conn {
   } remote;
 
   struct {
+    struct {
+      /* tx_new_ckm is a new sender 1RTT key which has not been
+         used. */
+      ngtcp2_crypto_km *tx_new_ckm;
+    } key_update;
+
     ngtcp2_strm strm;
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
