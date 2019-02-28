@@ -1998,7 +1998,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 24324325;
 
-  memcpy(conn->dcid.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
       buf, sizeof(buf), token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
@@ -2017,7 +2017,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.max_rx_pkt_num = 3255454;
 
-  memcpy(conn->dcid.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 
   spktlen =
       ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token, null_data, 29);
@@ -3774,8 +3774,8 @@ void test_ngtcp2_conn_server_path_validation(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.path));
-  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.cid));
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.path));
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);
 }
@@ -3828,8 +3828,8 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.path));
-  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.cid));
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.path));
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);
 }

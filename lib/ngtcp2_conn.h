@@ -256,8 +256,6 @@ struct ngtcp2_conn {
      during handshake.  It is used to receive late handshake packets
      after handshake completion. */
   ngtcp2_cid odcid;
-  /* dcid is the destination connection ID. */
-  ngtcp2_dcid dcid;
   /* bound_dcids is a set of destination connection IDs which are bound
      to particular paths.  These paths are not validated yet. */
   ngtcp2_ringbuf bound_dcids;
@@ -271,6 +269,11 @@ struct ngtcp2_conn {
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
+
+  struct {
+    /* current is the current destination connection ID. */
+    ngtcp2_dcid current;
+  } dcid;
 
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
