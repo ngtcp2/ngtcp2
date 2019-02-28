@@ -499,7 +499,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
   (*pconn)->local_settings = *settings;
-  (*pconn)->rx.unsent_max_offset = (*pconn)->max_rx_offset = settings->max_data;
+  (*pconn)->rx.unsent_max_offset = (*pconn)->rx.max_offset = settings->max_data;
 
   rcvry_stat_reset(&(*pconn)->rcs);
   cc_stat_reset(&(*pconn)->ccs);
@@ -1797,9 +1797,9 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
  */
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   return conn->local_settings.max_data / 2 <
-             conn->rx.unsent_max_offset - conn->max_rx_offset ||
+             conn->rx.unsent_max_offset - conn->rx.max_offset ||
          2 * conn->rx_bw * conn->rcs.smoothed_rtt >=
-             conn->max_rx_offset - conn->rx_offset;
+             conn->rx.max_offset - conn->rx.offset;
 }
 
 /*
@@ -2021,7 +2021,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   if ((pktns->frq || send_stream ||
        ngtcp2_ringbuf_len(&conn->rx_path_challenge) ||
        conn_should_send_max_data(conn)) &&
-      conn->rx.unsent_max_offset > conn->max_rx_offset) {
+      conn->rx.unsent_max_offset > conn->rx.max_offset) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
       return rv;
@@ -2031,7 +2031,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     nfrc->next = pktns->frq;
     pktns->frq = nfrc;
 
-    conn->max_rx_offset = conn->rx.unsent_max_offset;
+    conn->rx.max_offset = conn->rx.unsent_max_offset;
   }
 
   ngtcp2_pkt_hd_init(
@@ -2131,7 +2131,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       }
       break;
     case NGTCP2_FRAME_MAX_DATA:
-      if ((*pfrc)->fr.max_data.max_data < conn->max_rx_offset) {
+      if ((*pfrc)->fr.max_data.max_data < conn->rx.max_offset) {
         frc = *pfrc;
         *pfrc = (*pfrc)->next;
         ngtcp2_frame_chain_del(frc, conn->mem);
@@ -4733,7 +4733,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
  * violates connection flow control on local endpoint.
  */
 static int conn_max_data_violated(ngtcp2_conn *conn, size_t datalen) {
-  return conn->max_rx_offset - conn->rx_offset < datalen;
+  return conn->rx.max_offset - conn->rx.offset < datalen;
 }
 
 /*
@@ -4845,7 +4845,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return NGTCP2_ERR_FLOW_CONTROL;
     }
 
-    conn->rx_offset += len;
+    conn->rx.offset += len;
   }
 
   rx_offset = ngtcp2_strm_rx_offset(strm);
@@ -5095,7 +5095,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     }
 
     /* Stream is reset before we create ngtcp2_strm object. */
-    conn->rx_offset += fr->final_size;
+    conn->rx.offset += fr->final_size;
 
     /* There will be no activity in this stream because we got
        RESET_STREAM and don't write stream data any further.  This
@@ -5125,7 +5125,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     return NGTCP2_ERR_FLOW_CONTROL;
   }
 
-  conn->rx_offset += datalen;
+  conn->rx.offset += datalen;
 
   strm->last_rx_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;

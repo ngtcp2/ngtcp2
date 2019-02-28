@@ -271,6 +271,12 @@ struct ngtcp2_conn {
        can send without extending MAX_DATA.  This limit is not yet
        notified to the remote endpoint. */
     uint64_t unsent_max_offset;
+    /* offset is the cumulative sum of stream data received for this
+       connection. */
+    uint64_t offset;
+    /* max_offset is the maximum offset that remote endpoint can
+       send. */
+    uint64_t max_offset;
   } rx;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
@@ -311,12 +317,6 @@ struct ngtcp2_conn {
   /* next_local_stream_id_uni is an unidirectional stream version of
      next_local_stream_id_bidi. */
   int64_t next_local_stream_id_uni;
-  /* max_rx_offset is the maximum offset that remote endpoint can
-     send. */
-  uint64_t max_rx_offset;
-  /* rx_offset is the cumulative sum of stream data received for this
-     connection. */
-  uint64_t rx_offset;
   /* tx_last_cid_seq is the last sequence number of connection ID. */
   uint64_t tx_last_cid_seq;
   /* first_rx_bw_ts is a timestamp when bandwidth measurement is

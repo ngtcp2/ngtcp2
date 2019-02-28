@@ -850,7 +850,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   setup_default_server(&conn);
 
   conn->local_settings.max_data = 1024;
-  conn->max_rx_offset = 1024;
+  conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
 
   fr.type = NGTCP2_FRAME_STREAM;
@@ -870,7 +870,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   ngtcp2_conn_extend_max_offset(conn, 1023);
 
   CU_ASSERT(1024 + 1023 == conn->rx.unsent_max_offset);
-  CU_ASSERT(1024 == conn->max_rx_offset);
+  CU_ASSERT(1024 == conn->rx.max_offset);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -889,12 +889,12 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   ngtcp2_conn_extend_max_offset(conn, 1);
 
   CU_ASSERT(2048 == conn->rx.unsent_max_offset);
-  CU_ASSERT(1024 == conn->max_rx_offset);
+  CU_ASSERT(1024 == conn->rx.max_offset);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), 3);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(2048 == conn->max_rx_offset);
+  CU_ASSERT(2048 == conn->rx.max_offset);
 
   ngtcp2_conn_del(conn);
 }
@@ -909,7 +909,7 @@ void test_ngtcp2_conn_rx_flow_control_error(void) {
   setup_default_server(&conn);
 
   conn->local_settings.max_data = 1024;
-  conn->max_rx_offset = 1024;
+  conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
 
   fr.type = NGTCP2_FRAME_STREAM;
@@ -1468,7 +1468,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
       stream-level flow control. */
   setup_default_server(&conn);
 
-  conn->max_rx_offset = 1 << 21;
+  conn->rx.max_offset = 1 << 21;
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
   fr.reset_stream.stream_id = 4;
@@ -1517,7 +1517,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   /* final_size in RESET_STREAM violates stream-level flow control */
   setup_default_server(&conn);
 
-  conn->max_rx_offset = 1 << 21;
+  conn->rx.max_offset = 1 << 21;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
