@@ -55,6 +55,13 @@ void ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
   ngtcp2_addr_copy_byte(&ps->path.remote, remote_addr, remote_addrlen);
 }
 
+void ngtcp2_path_storage_init2(ngtcp2_path_storage *ps,
+                               const ngtcp2_path *path) {
+  ngtcp2_path_storage_init(ps, path->local.addr, path->local.len,
+                           path->local.user_data, path->remote.addr,
+                           path->remote.len, path->remote.user_data);
+}
+
 void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps) {
   ngtcp2_addr_init(&ps->path.local, ps->local_addrbuf, 0, NULL);
   ngtcp2_addr_init(&ps->path.remote, ps->remote_addrbuf, 0, NULL);

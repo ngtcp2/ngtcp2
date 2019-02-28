@@ -53,4 +53,11 @@ void ngtcp2_path_copy(ngtcp2_path *dest, const ngtcp2_path *src);
  */
 int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
 
+/*
+ * ngtcp2_path_storage_init2 initializes |ps| using |path| as initial
+ * data.
+ */
+void ngtcp2_path_storage_init2(ngtcp2_path_storage *ps,
+                               const ngtcp2_path *path);
+
 #endif /* NGTCP2_PATH_H */

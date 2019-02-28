@@ -2079,7 +2079,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
     /* PATH_RESPONSE is bound to the path that the corresponding
        PATH_CHALLENGE is received. */
-    if (!ngtcp2_path_eq(&conn->dcid.current.path, &pcent->path)) {
+    if (!ngtcp2_path_eq(&conn->dcid.current.path, &pcent->ps.path)) {
       break;
     }
 
@@ -3060,7 +3060,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
   for (; ngtcp2_ringbuf_len(&conn->rx_path_challenge);) {
     pcent = ngtcp2_ringbuf_get(&conn->rx_path_challenge, 0);
 
-    if (ngtcp2_path_eq(&conn->dcid.current.path, &pcent->path)) {
+    if (ngtcp2_path_eq(&conn->dcid.current.path, &pcent->ps.path)) {
       if (!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING)) {
         return 0;
       }
@@ -3068,7 +3068,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
       break;
     }
 
-    if (conn->pv && ngtcp2_path_eq(&conn->pv->dcid.path, &pcent->path)) {
+    if (conn->pv && ngtcp2_path_eq(&conn->pv->dcid.path, &pcent->ps.path)) {
       dcid = &conn->pv->dcid;
       break;
     }
@@ -3096,7 +3096,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
        conn->pv. */
     assert(conn->server);
 
-    rv = conn_bind_dcid(conn, &dcid, &pcent->path);
+    rv = conn_bind_dcid(conn, &dcid, &pcent->ps.path);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -3106,7 +3106,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   if (path) {
-    ngtcp2_path_copy(path, &pcent->path);
+    ngtcp2_path_copy(path, &pcent->ps.path);
   }
 
   nwrite = conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT,
@@ -8475,10 +8475,6 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
                                       const uint8_t *data) {
-  pcent->path.local.addr = pcent->local_addrbuf;
-  pcent->path.remote.addr = pcent->remote_addrbuf;
-
-  ngtcp2_path_copy(&pcent->path, path);
-
+  ngtcp2_path_storage_init2(&pcent->ps, path);
   memcpy(pcent->data, data, sizeof(pcent->data));
 }
