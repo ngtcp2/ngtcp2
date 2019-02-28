@@ -341,6 +341,7 @@ struct ngtcp2_conn {
       int64_t max_stream_id;
     } bidi;
     struct {
+      ngtcp2_idtr idtr;
       /* unsent_max_stream_id is the maximum stream ID of peer
          initiated unidirectional stream which the local endpoint can
          accept.  This limit is not yet notified to the remote
@@ -354,7 +355,6 @@ struct ngtcp2_conn {
 
   ngtcp2_strm crypto;
   ngtcp2_map strms;
-  ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;
   ngtcp2_pv *pv;

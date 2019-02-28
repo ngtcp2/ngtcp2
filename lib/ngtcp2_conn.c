@@ -433,7 +433,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_remote_bidi_idtr_init;
   }
 
-  rv = ngtcp2_idtr_init(&(*pconn)->remote_uni_idtr, !server, mem);
+  rv = ngtcp2_idtr_init(&(*pconn)->remote.uni.idtr, !server, mem);
   if (rv != 0) {
     goto fail_remote_uni_idtr_init;
   }
@@ -528,7 +528,7 @@ fail_in_pktns_init:
   ngtcp2_default_cc_free(&(*pconn)->cc);
   ngtcp2_ringbuf_free(&(*pconn)->rx_path_challenge);
 fail_rx_path_challenge_init:
-  ngtcp2_idtr_free(&(*pconn)->remote_uni_idtr);
+  ngtcp2_idtr_free(&(*pconn)->remote.uni.idtr);
 fail_remote_uni_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->remote.bidi.idtr);
 fail_remote_bidi_idtr_init:
@@ -676,7 +676,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   ngtcp2_pv_del(conn->pv);
 
-  ngtcp2_idtr_free(&conn->remote_uni_idtr);
+  ngtcp2_idtr_free(&conn->remote.uni.idtr);
   ngtcp2_idtr_free(&conn->remote.bidi.idtr);
   ngtcp2_pq_free(&conn->tx.strmq);
   ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
@@ -3569,7 +3569,7 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
       return NGTCP2_ERR_STREAM_STATE;
     }
 
-    idtr = &conn->remote_uni_idtr;
+    idtr = &conn->remote.uni.idtr;
   }
 
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
@@ -4801,7 +4801,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return NGTCP2_ERR_STREAM_LIMIT;
     }
 
-    idtr = &conn->remote_uni_idtr;
+    idtr = &conn->remote.uni.idtr;
   }
 
   if (NGTCP2_MAX_VARINT - datalen < fr->offset) {
@@ -5082,7 +5082,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
       return NGTCP2_ERR_STREAM_LIMIT;
     }
 
-    idtr = &conn->remote_uni_idtr;
+    idtr = &conn->remote.uni.idtr;
   }
 
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
@@ -5184,7 +5184,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
       return NGTCP2_ERR_STREAM_STATE;
     }
 
-    idtr = &conn->remote_uni_idtr;
+    idtr = &conn->remote.uni.idtr;
   }
 
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
