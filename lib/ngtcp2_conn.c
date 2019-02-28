@@ -246,6 +246,16 @@ static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
   return 0;
 }
 
+/*
+ * bw_reset resets |bw| to the initial state.
+ */
+static void bw_reset(ngtcp2_bw *bw) {
+  bw->first_ts = 0;
+  bw->last_ts = 0;
+  bw->datalen = 0;
+  bw->value = 0.;
+}
+
 static int crypto_offset_less(const ngtcp2_pq_entry *lhs,
                               const ngtcp2_pq_entry *rhs) {
   ngtcp2_crypto_frame_chain *lfrc =
@@ -1787,7 +1797,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
 
   return conn_initial_stream_rx_offset(conn, strm->stream_id) / 2 <
              (strm->unsent_max_rx_offset - strm->max_rx_offset) ||
-         2 * conn->rx_bw * conn->rcs.smoothed_rtt >=
+         2 * conn->rx.bw.value * conn->rcs.smoothed_rtt >=
              strm->max_rx_offset - strm->last_rx_offset;
 }
 
@@ -1798,7 +1808,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   return conn->local_settings.max_data / 2 <
              conn->rx.unsent_max_offset - conn->rx.max_offset ||
-         2 * conn->rx_bw * conn->rcs.smoothed_rtt >=
+         2 * conn->rx.bw.value * conn->rcs.smoothed_rtt >=
              conn->rx.max_offset - conn->rx.offset;
 }
 
@@ -3940,23 +3950,23 @@ fail:
 static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
                               ngtcp2_tstamp ts) {
   /* Reset bandwidth measurement after 1 second idle time. */
-  if (conn->last_rx_bw_ts == 0 || ts - conn->last_rx_bw_ts > NGTCP2_SECONDS) {
-    conn->first_rx_bw_ts = ts;
-    conn->last_rx_bw_ts = ts;
-    conn->rx_bw_datalen = datalen;
-    conn->rx_bw = 0.;
+  if (conn->rx.bw.last_ts == 0 || ts - conn->rx.bw.last_ts > NGTCP2_SECONDS) {
+    conn->rx.bw.first_ts = ts;
+    conn->rx.bw.last_ts = ts;
+    conn->rx.bw.datalen = datalen;
+    conn->rx.bw.value = 0.;
     return;
   }
 
-  conn->last_rx_bw_ts = ts;
-  conn->rx_bw_datalen += datalen;
+  conn->rx.bw.last_ts = ts;
+  conn->rx.bw.datalen += datalen;
 
-  if (ts - conn->first_rx_bw_ts >= 25 * NGTCP2_MILLISECONDS) {
-    conn->rx_bw =
-        (double)conn->rx_bw_datalen / (double)(ts - conn->first_rx_bw_ts);
+  if (ts - conn->rx.bw.first_ts >= 25 * NGTCP2_MILLISECONDS) {
+    conn->rx.bw.value =
+        (double)conn->rx.bw.datalen / (double)(ts - conn->rx.bw.first_ts);
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "rx_bw=%.02fBs",
-                    conn->rx_bw * NGTCP2_DURATION_TICK);
+                    conn->rx.bw.value * NGTCP2_DURATION_TICK);
   }
 }
 
@@ -5630,10 +5640,7 @@ static int conn_path_validation_in_progress(ngtcp2_conn *conn,
 static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight;
 
-  conn->rx_bw = 0.;
-  conn->rx_bw_datalen = 0;
-  conn->first_rx_bw_ts = 0;
-  conn->last_rx_bw_ts = 0;
+  bw_reset(&conn->rx.bw);
   conn->probe_pkt_left = 0;
   rcvry_stat_reset(&conn->rcs);
   /* Keep bytes_in_flight because we have to take care of packets

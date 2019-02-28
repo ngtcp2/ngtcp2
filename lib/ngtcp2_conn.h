@@ -190,6 +190,23 @@ typedef struct {
   uint8_t pkt_type;
 } ngtcp2_crypto_data;
 
+/*
+ * ngtcp2_bw measures bandwidth.
+ */
+typedef struct {
+  /* first_ts is a timestamp when bandwidth measurement is
+     started. */
+  ngtcp2_tstamp first_ts;
+  /* last_ts is a timestamp when bandwidth measurement was last
+     updated. */
+  ngtcp2_tstamp last_ts;
+  /* datalen is the length of STREAM data received for bandwidth
+     measurement. */
+  uint64_t datalen;
+  /* value is receiver side bandwidth. */
+  double value;
+} ngtcp2_bw;
+
 typedef struct {
   /* pngap tracks received packet number in order to suppress
      duplicated packet number. */
@@ -282,6 +299,8 @@ struct ngtcp2_conn {
     ngtcp2_crypto_km *new_ckm;
     /* old_ckm is an old 1RTT key. */
     ngtcp2_crypto_km *old_ckm;
+    /* bw is STREAM data bandwidth */
+    ngtcp2_bw bw;
   } rx;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
@@ -324,17 +343,6 @@ struct ngtcp2_conn {
   int64_t next_local_stream_id_uni;
   /* tx_last_cid_seq is the last sequence number of connection ID. */
   uint64_t tx_last_cid_seq;
-  /* first_rx_bw_ts is a timestamp when bandwidth measurement is
-     started. */
-  ngtcp2_tstamp first_rx_bw_ts;
-  /* last_rx_bw_ts is a timestamp when bandwidth measurement was last
-     updated. */
-  ngtcp2_tstamp last_rx_bw_ts;
-  /* rx_bw_datalen is the length of STREAM data received for bandwidth
-     measurement. */
-  uint64_t rx_bw_datalen;
-  /* rx_bw is receiver side bandwidth. */
-  double rx_bw;
   size_t probe_pkt_left;
   /* hs_recved is the number of bytes received from client before its
      address is validated.  This field is only used by server to
