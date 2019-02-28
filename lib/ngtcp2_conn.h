@@ -386,7 +386,6 @@ struct ngtcp2_conn {
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
-  size_t probe_pkt_left;
   /* hs_recved is the number of bytes received from client before its
      address is validated.  This field is only used by server to
      ensure "3 times received data" rule. */

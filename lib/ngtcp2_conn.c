@@ -5649,7 +5649,6 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight;
 
   bw_reset(&conn->rx.bw);
-  conn->probe_pkt_left = 0;
   rcvry_stat_reset(&conn->rcs);
   /* Keep bytes_in_flight because we have to take care of packets
      in flight. */
