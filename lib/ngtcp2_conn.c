@@ -660,7 +660,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   delete_buffed_pkts(conn->buffed_rx_ppkts, conn->mem);
   delete_buffed_pkts(conn->buffed_rx_hs_pkts, conn->mem);
 
-  ngtcp2_crypto_km_del(conn->rx.old_ckm, conn->mem);
+  ngtcp2_crypto_km_del(conn->crypto.key_update.rx_old_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->crypto.key_update.rx_new_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->crypto.key_update.tx_new_ckm, conn->mem);
   ngtcp2_vec_del(conn->early.hp, conn->mem);
@@ -5611,8 +5611,8 @@ static void conn_commit_key_update(ngtcp2_conn *conn, int64_t pkt_num) {
   assert(conn->crypto.key_update.rx_new_ckm);
   assert(conn->crypto.key_update.tx_new_ckm);
 
-  ngtcp2_crypto_km_del(conn->rx.old_ckm, conn->mem);
-  conn->rx.old_ckm = pktns->rx_ckm;
+  ngtcp2_crypto_km_del(conn->crypto.key_update.rx_old_ckm, conn->mem);
+  conn->crypto.key_update.rx_old_ckm = pktns->rx_ckm;
 
   pktns->rx_ckm = conn->crypto.key_update.rx_new_ckm;
   conn->crypto.key_update.rx_new_ckm = NULL;
@@ -5931,10 +5931,10 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT, "unexpected KEY_PHASE");
 
     if (ckm->pkt_num > hd.pkt_num) {
-      if (conn->rx.old_ckm) {
+      if (conn->crypto.key_update.rx_old_ckm) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                         "decrypting with old key");
-        ckm = conn->rx.old_ckm;
+        ckm = conn->crypto.key_update.rx_old_ckm;
       } else {
         force_decrypt_failure = 1;
       }

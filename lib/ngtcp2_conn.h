@@ -294,8 +294,6 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that remote endpoint can
        send. */
     uint64_t max_offset;
-    /* old_ckm is an old 1RTT key. */
-    ngtcp2_crypto_km *old_ckm;
     /* bw is STREAM data bandwidth */
     ngtcp2_bw bw;
   } rx;
@@ -361,6 +359,8 @@ struct ngtcp2_conn {
       /* rx_new_ckm is a new receiver 1RTT key which has not
          successfully decrypted incoming packet yet. */
       ngtcp2_crypto_km *rx_new_ckm;
+      /* rx_old_ckm is an old receiver 1RTT key. */
+      ngtcp2_crypto_km *rx_old_ckm;
     } key_update;
 
     ngtcp2_strm strm;
