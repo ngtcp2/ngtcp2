@@ -499,7 +499,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
   (*pconn)->local_settings = *settings;
-  (*pconn)->unsent_max_rx_offset = (*pconn)->max_rx_offset = settings->max_data;
+  (*pconn)->rx.unsent_max_offset = (*pconn)->max_rx_offset = settings->max_data;
 
   rcvry_stat_reset(&(*pconn)->rcs);
   cc_stat_reset(&(*pconn)->ccs);
@@ -1797,7 +1797,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
  */
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   return conn->local_settings.max_data / 2 <
-             conn->unsent_max_rx_offset - conn->max_rx_offset ||
+             conn->rx.unsent_max_offset - conn->max_rx_offset ||
          2 * conn->rx_bw * conn->rcs.smoothed_rtt >=
              conn->max_rx_offset - conn->rx_offset;
 }
@@ -2021,17 +2021,17 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   if ((pktns->frq || send_stream ||
        ngtcp2_ringbuf_len(&conn->rx_path_challenge) ||
        conn_should_send_max_data(conn)) &&
-      conn->unsent_max_rx_offset > conn->max_rx_offset) {
+      conn->rx.unsent_max_offset > conn->max_rx_offset) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
       return rv;
     }
     nfrc->fr.type = NGTCP2_FRAME_MAX_DATA;
-    nfrc->fr.max_data.max_data = conn->unsent_max_rx_offset;
+    nfrc->fr.max_data.max_data = conn->rx.unsent_max_offset;
     nfrc->next = pktns->frq;
     pktns->frq = nfrc;
 
-    conn->max_rx_offset = conn->unsent_max_rx_offset;
+    conn->max_rx_offset = conn->rx.unsent_max_offset;
   }
 
   ngtcp2_pkt_hd_init(
@@ -8091,12 +8091,12 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, int64_t stream_id,
 
 void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, size_t datalen) {
   if (NGTCP2_MAX_VARINT < (uint64_t)datalen ||
-      conn->unsent_max_rx_offset > NGTCP2_MAX_VARINT - datalen) {
-    conn->unsent_max_rx_offset = NGTCP2_MAX_VARINT;
+      conn->rx.unsent_max_offset > NGTCP2_MAX_VARINT - datalen) {
+    conn->rx.unsent_max_offset = NGTCP2_MAX_VARINT;
     return;
   }
 
-  conn->unsent_max_rx_offset += datalen;
+  conn->rx.unsent_max_offset += datalen;
 }
 
 size_t ngtcp2_conn_get_bytes_in_flight(ngtcp2_conn *conn) {

@@ -266,6 +266,12 @@ struct ngtcp2_conn {
     /* new_ckm is a new 1RTT key which has not been used. */
     ngtcp2_crypto_km *new_ckm;
   } tx;
+  struct {
+    /* unsent_max_offset is the maximum offset that remote endpoint
+       can send without extending MAX_DATA.  This limit is not yet
+       notified to the remote endpoint. */
+    uint64_t unsent_max_offset;
+  } rx;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
   ngtcp2_idtr remote_bidi_idtr;
@@ -305,10 +311,6 @@ struct ngtcp2_conn {
   /* next_local_stream_id_uni is an unidirectional stream version of
      next_local_stream_id_bidi. */
   int64_t next_local_stream_id_uni;
-  /* unsent_max_rx_offset is the maximum offset that remote endpoint
-     can send without extending MAX_DATA.  This limit is not yet
-     notified to the remote endpoint. */
-  uint64_t unsent_max_rx_offset;
   /* max_rx_offset is the maximum offset that remote endpoint can
      send. */
   uint64_t max_rx_offset;
