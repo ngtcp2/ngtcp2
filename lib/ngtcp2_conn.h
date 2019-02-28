@@ -316,6 +316,14 @@ struct ngtcp2_conn {
          endpoint opens next. */
       int64_t next_stream_id;
     } bidi;
+    struct {
+      /* max_stream_id is the maximum unidirectional stream ID which
+         the local endpoint can open. */
+      int64_t max_stream_id;
+      /* next_stream_id is the unidirectional stream ID which the
+         local endpoint opens next. */
+      int64_t next_stream_id;
+    } uni;
   } local;
 
   struct {
@@ -353,12 +361,6 @@ struct ngtcp2_conn {
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
-  /* max_local_stream_id_uni is an unidirectional stream version of
-     max_local_stream_id_bidi. */
-  int64_t max_local_stream_id_uni;
-  /* next_local_stream_id_uni is an unidirectional stream version of
-     next_local_stream_id_bidi. */
-  int64_t next_local_stream_id_uni;
   /* tx_last_cid_seq is the last sequence number of connection ID. */
   uint64_t tx_last_cid_seq;
   size_t probe_pkt_left;
