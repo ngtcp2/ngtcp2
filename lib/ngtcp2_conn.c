@@ -438,7 +438,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_remote_uni_idtr_init;
   }
 
-  rv = ngtcp2_ringbuf_init(&(*pconn)->rx_path_challenge, 4,
+  rv = ngtcp2_ringbuf_init(&(*pconn)->rx.path_challenge, 4,
                            sizeof(ngtcp2_path_challenge_entry), mem);
   if (rv != 0) {
     goto fail_rx_path_challenge_init;
@@ -526,7 +526,7 @@ fail_hs_pktns_init:
   pktns_free(&(*pconn)->in_pktns, mem);
 fail_in_pktns_init:
   ngtcp2_default_cc_free(&(*pconn)->cc);
-  ngtcp2_ringbuf_free(&(*pconn)->rx_path_challenge);
+  ngtcp2_ringbuf_free(&(*pconn)->rx.path_challenge);
 fail_rx_path_challenge_init:
   ngtcp2_idtr_free(&(*pconn)->remote.uni.idtr);
 fail_remote_uni_idtr_init:
@@ -672,7 +672,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   ngtcp2_default_cc_free(&conn->cc);
 
-  ngtcp2_ringbuf_free(&conn->rx_path_challenge);
+  ngtcp2_ringbuf_free(&conn->rx.path_challenge);
 
   ngtcp2_pv_del(conn->pv);
 
@@ -2030,7 +2030,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
   /* TODO Take into account stream frames */
   if ((pktns->frq || send_stream ||
-       ngtcp2_ringbuf_len(&conn->rx_path_challenge) ||
+       ngtcp2_ringbuf_len(&conn->rx.path_challenge) ||
        conn_should_send_max_data(conn)) &&
       conn->rx.unsent_max_offset > conn->rx.max_offset) {
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
@@ -2074,8 +2074,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     return 0;
   }
 
-  for (; ngtcp2_ringbuf_len(&conn->rx_path_challenge);) {
-    pcent = ngtcp2_ringbuf_get(&conn->rx_path_challenge, 0);
+  for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge);) {
+    pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
 
     /* PATH_RESPONSE is bound to the path that the corresponding
        PATH_CHALLENGE is received. */
@@ -2092,7 +2092,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       break;
     }
 
-    ngtcp2_ringbuf_pop_front(&conn->rx_path_challenge);
+    ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
 
     pkt_empty = 0;
     rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
@@ -3057,8 +3057,8 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
   ngtcp2_frame lfr;
   ssize_t nwrite;
 
-  for (; ngtcp2_ringbuf_len(&conn->rx_path_challenge);) {
-    pcent = ngtcp2_ringbuf_get(&conn->rx_path_challenge, 0);
+  for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge);) {
+    pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
 
     if (ngtcp2_path_eq(&conn->dcid.current.ps.path, &pcent->ps.path)) {
       if (!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING)) {
@@ -3076,7 +3076,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
     if (!conn->server) {
       /* Client does not expect to respond to path validation against
          unknown path */
-      ngtcp2_ringbuf_pop_front(&conn->rx_path_challenge);
+      ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
       pcent = NULL;
       continue;
     }
@@ -3115,7 +3115,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
     return nwrite;
   }
 
-  ngtcp2_ringbuf_pop_front(&conn->rx_path_challenge);
+  ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
 
   return nwrite;
 }
@@ -3888,7 +3888,7 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
                                      ngtcp2_path_challenge *fr) {
   ngtcp2_path_challenge_entry *ent;
 
-  ent = ngtcp2_ringbuf_push_front(&conn->rx_path_challenge);
+  ent = ngtcp2_ringbuf_push_front(&conn->rx.path_challenge);
   ngtcp2_path_challenge_entry_init(ent, path, fr->data);
 }
 

@@ -304,6 +304,8 @@ struct ngtcp2_conn {
     uint64_t max_offset;
     /* bw is STREAM data bandwidth */
     ngtcp2_bw bw;
+    /* path_challenge stores received PATH_CHALLENGE data. */
+    ngtcp2_ringbuf path_challenge;
   } rx;
 
   struct {
@@ -381,7 +383,6 @@ struct ngtcp2_conn {
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;
   ngtcp2_pv *pv;
-  ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
