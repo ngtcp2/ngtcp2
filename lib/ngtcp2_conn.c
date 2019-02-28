@@ -1889,6 +1889,18 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
 }
 
 /*
+ * rcvry_stat_compute_pto returns the current PTO.
+ */
+static ngtcp2_duration rcvry_stat_compute_pto(const ngtcp2_rcvry_stat *rcs) {
+  ngtcp2_duration timeout = (ngtcp2_duration)(
+      rcs->smoothed_rtt + 4 * rcs->rttvar + (double)rcs->max_ack_delay);
+  timeout = ngtcp2_max(timeout, NGTCP2_GRANULARITY);
+  timeout *= (ngtcp2_duration)1 << rcs->pto_count;
+
+  return timeout;
+}
+
+/*
  * conn_remove_retired_connection_id removes the already retired
  * connection ID.  It waits RTT * 2 before actually removing a
  * connection ID after it receives RETIRE_CONNECTION_ID from peer to
@@ -1904,21 +1916,18 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
  */
 static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
-  ngtcp2_duration d;
+  ngtcp2_duration timeout;
   ngtcp2_scid *scid;
   ngtcp2_ksl_key key;
   int rv;
 
-  if (conn->rcs.smoothed_rtt < 1e-9) {
-    d = NGTCP2_DEFAULT_INITIAL_RTT * 2;
-  } else {
-    d = (ngtcp2_duration)(conn->rcs.smoothed_rtt * 2);
-  }
+  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
 
   for (; !ngtcp2_pq_empty(&conn->used_scids);) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->used_scids), ngtcp2_scid, pe);
 
-    if (scid->ts_retired == UINT64_MAX || d >= ts - scid->ts_retired) {
+    if (scid->ts_retired == UINT64_MAX || scid->ts_retired + timeout >= ts) {
       return 0;
     }
 
@@ -3865,18 +3874,6 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ent = ngtcp2_ringbuf_push_front(&conn->rx_path_challenge);
   ngtcp2_path_challenge_entry_init(ent, path, fr->data);
-}
-
-/*
- * rcvry_stat_compute_pto returns the current PTO.
- */
-static ngtcp2_duration rcvry_stat_compute_pto(const ngtcp2_rcvry_stat *rcs) {
-  uint64_t timeout = (uint64_t)(rcs->smoothed_rtt + 4 * rcs->rttvar +
-                                (double)rcs->max_ack_delay);
-  timeout = ngtcp2_max(timeout, NGTCP2_GRANULARITY);
-  timeout *= 1ull << rcs->pto_count;
-
-  return timeout;
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
