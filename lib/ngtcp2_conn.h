@@ -328,6 +328,7 @@ struct ngtcp2_conn {
   } local;
 
   struct {
+    ngtcp2_settings settings;
     struct {
       ngtcp2_idtr idtr;
       /* unsent_max_stream_id is the maximum stream ID of peer
@@ -389,7 +390,6 @@ struct ngtcp2_conn {
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
-  ngtcp2_settings remote_settings;
   /* decrypt_buf is a buffer which is used to write decrypted data. */
   ngtcp2_array decrypt_buf;
 };

@@ -355,17 +355,17 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_SADDR_VERIFIED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
-  (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;
-  (*pconn)->remote_settings.max_streams_bidi = 0;
-  (*pconn)->remote_settings.max_streams_uni = 1;
-  (*pconn)->remote_settings.max_data = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_bidi_local = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_bidi_remote = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_uni = 64 * 1024;
+  (*pconn)->remote.settings.max_streams_bidi = 0;
+  (*pconn)->remote.settings.max_streams_uni = 1;
+  (*pconn)->remote.settings.max_data = 64 * 1024;
   (*pconn)->local.bidi.max_stream_id =
-      ngtcp2_nth_server_bidi_id((*pconn)->remote_settings.max_streams_bidi);
+      ngtcp2_nth_server_bidi_id((*pconn)->remote.settings.max_streams_bidi);
   (*pconn)->local.uni.max_stream_id =
-      ngtcp2_nth_server_uni_id((*pconn)->remote_settings.max_streams_uni);
-  (*pconn)->tx.max_offset = (*pconn)->remote_settings.max_data;
+      ngtcp2_nth_server_uni_id((*pconn)->remote.settings.max_streams_uni);
+  (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
   (*pconn)->odcid = dcid;
 }
 
@@ -405,17 +405,17 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
-  (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;
-  (*pconn)->remote_settings.max_streams_bidi = 1;
-  (*pconn)->remote_settings.max_streams_uni = 1;
-  (*pconn)->remote_settings.max_data = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_bidi_local = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_bidi_remote = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_uni = 64 * 1024;
+  (*pconn)->remote.settings.max_streams_bidi = 1;
+  (*pconn)->remote.settings.max_streams_uni = 1;
+  (*pconn)->remote.settings.max_data = 64 * 1024;
   (*pconn)->local.bidi.max_stream_id =
-      ngtcp2_nth_client_bidi_id((*pconn)->remote_settings.max_streams_bidi);
+      ngtcp2_nth_client_bidi_id((*pconn)->remote.settings.max_streams_bidi);
   (*pconn)->local.uni.max_stream_id =
-      ngtcp2_nth_client_uni_id((*pconn)->remote_settings.max_streams_uni);
-  (*pconn)->tx.max_offset = (*pconn)->remote_settings.max_data;
+      ngtcp2_nth_client_uni_id((*pconn)->remote.settings.max_streams_uni);
+  (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
   (*pconn)->odcid = dcid;
 }
 
@@ -513,17 +513,17 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_install_early_keys(*pconn, null_key, sizeof(null_key), null_iv,
                                  sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
-  (*pconn)->remote_settings.max_stream_data_bidi_local = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_data_bidi_remote = 64 * 1024;
-  (*pconn)->remote_settings.max_stream_data_uni = 64 * 1024;
-  (*pconn)->remote_settings.max_streams_bidi = 0;
-  (*pconn)->remote_settings.max_streams_uni = 1;
-  (*pconn)->remote_settings.max_data = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_bidi_local = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_bidi_remote = 64 * 1024;
+  (*pconn)->remote.settings.max_stream_data_uni = 64 * 1024;
+  (*pconn)->remote.settings.max_streams_bidi = 0;
+  (*pconn)->remote.settings.max_streams_uni = 1;
+  (*pconn)->remote.settings.max_data = 64 * 1024;
   (*pconn)->local.bidi.max_stream_id =
-      ngtcp2_nth_server_bidi_id((*pconn)->remote_settings.max_streams_bidi);
+      ngtcp2_nth_server_bidi_id((*pconn)->remote.settings.max_streams_bidi);
   (*pconn)->local.uni.max_stream_id =
-      ngtcp2_nth_server_uni_id((*pconn)->remote_settings.max_streams_uni);
-  (*pconn)->tx.max_offset = (*pconn)->remote_settings.max_data;
+      ngtcp2_nth_server_uni_id((*pconn)->remote.settings.max_streams_uni);
+  (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
 }
 
 static void setup_early_client(ngtcp2_conn **pconn) {
@@ -767,7 +767,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   setup_default_client(&conn);
 
-  conn->remote_settings.max_stream_data_bidi_remote = 2047;
+  conn->remote.settings.max_stream_data_bidi_remote = 2047;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -941,7 +941,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
 
   setup_default_client(&conn);
 
-  conn->remote_settings.max_data = 2048;
+  conn->remote.settings.max_data = 2048;
   conn->tx.max_offset = 2048;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);

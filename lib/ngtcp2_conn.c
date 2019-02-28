@@ -235,10 +235,10 @@ static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
   int rv;
 
   assert(conn->callbacks.select_preferred_addr);
-  assert(conn->remote_settings.preferred_address_present);
+  assert(conn->remote.settings.preferred_address_present);
 
   rv = conn->callbacks.select_preferred_addr(
-      conn, dest, &conn->remote_settings.preferred_address, conn->user_data);
+      conn, dest, &conn->remote.settings.preferred_address, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -4566,14 +4566,14 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   if (bidi_stream(stream_id)) {
     if (local_stream) {
       max_rx_offset = conn->local.settings.max_stream_data_bidi_local;
-      max_tx_offset = conn->remote_settings.max_stream_data_bidi_remote;
+      max_tx_offset = conn->remote.settings.max_stream_data_bidi_remote;
     } else {
       max_rx_offset = conn->local.settings.max_stream_data_bidi_remote;
-      max_tx_offset = conn->remote_settings.max_stream_data_bidi_local;
+      max_tx_offset = conn->remote.settings.max_stream_data_bidi_local;
     }
   } else if (local_stream) {
     max_rx_offset = 0;
-    max_tx_offset = conn->remote_settings.max_stream_data_uni;
+    max_tx_offset = conn->remote.settings.max_stream_data_uni;
   } else {
     max_rx_offset = conn->local.settings.max_stream_data_uni;
     max_tx_offset = 0;
@@ -6056,7 +6056,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return NGTCP2_ERR_PROTO;
       }
       assign_recved_ack_delay_unscaled(
-          &fr->ack, conn->remote_settings.ack_delay_exponent);
+          &fr->ack, conn->remote.settings.ack_delay_exponent);
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
@@ -6572,8 +6572,8 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   }
 
   ngtcp2_dcid_init(
-      &dcid, 1, &conn->remote_settings.preferred_address.cid,
-      conn->remote_settings.preferred_address.stateless_reset_token);
+      &dcid, 1, &conn->remote.settings.preferred_address.cid,
+      conn->remote.settings.preferred_address.stateless_reset_token);
 
   assert(conn->pv == NULL);
 
@@ -6730,8 +6730,8 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-    if (conn->remote_settings.stateless_reset_token_present) {
-      memcpy(conn->dcid.token, conn->remote_settings.stateless_reset_token,
+    if (conn->remote.settings.stateless_reset_token_present) {
+      memcpy(conn->dcid.token, conn->remote.settings.stateless_reset_token,
              sizeof(conn->dcid.token));
     }
 
@@ -6742,7 +6742,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       return (ssize_t)rv;
     }
 
-    if (conn->remote_settings.preferred_address_present) {
+    if (conn->remote.settings.preferred_address_present) {
       /* TODO Starting path validation against preferred address must
          be done after dropping Handshake key which is impossible at
          draft-18. */
@@ -7503,16 +7503,16 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
 static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
   if (conn->server) {
     conn->local.bidi.max_stream_id =
-        ngtcp2_nth_server_bidi_id(conn->remote_settings.max_streams_bidi);
+        ngtcp2_nth_server_bidi_id(conn->remote.settings.max_streams_bidi);
 
     conn->local.uni.max_stream_id =
-        ngtcp2_nth_server_uni_id(conn->remote_settings.max_streams_uni);
+        ngtcp2_nth_server_uni_id(conn->remote.settings.max_streams_uni);
   } else {
     conn->local.bidi.max_stream_id =
-        ngtcp2_nth_client_bidi_id(conn->remote_settings.max_streams_bidi);
+        ngtcp2_nth_client_bidi_id(conn->remote.settings.max_streams_bidi);
 
     conn->local.uni.max_stream_id =
-        ngtcp2_nth_client_uni_id(conn->remote_settings.max_streams_uni);
+        ngtcp2_nth_client_uni_id(conn->remote.settings.max_streams_uni);
   }
 }
 
@@ -7543,10 +7543,10 @@ int ngtcp2_conn_set_remote_transport_params(
 
   ngtcp2_log_remote_tp(&conn->log, exttype, params);
 
-  settings_copy_from_transport_params(&conn->remote_settings, params);
+  settings_copy_from_transport_params(&conn->remote.settings, params);
   conn_sync_stream_id_limit(conn);
 
-  conn->tx.max_offset = conn->remote_settings.max_data;
+  conn->tx.max_offset = conn->remote.settings.max_data;
 
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 
@@ -7559,10 +7559,10 @@ int ngtcp2_conn_set_early_remote_transport_params(
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  settings_copy_from_transport_params(&conn->remote_settings, params);
+  settings_copy_from_transport_params(&conn->remote.settings, params);
   conn_sync_stream_id_limit(conn);
 
-  conn->tx.max_offset = conn->remote_settings.max_data;
+  conn->tx.max_offset = conn->remote.settings.max_data;
 
   return 0;
 }
@@ -8148,7 +8148,7 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
 
   rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
-  ack_delay = ngtcp2_min(ack_delay, conn->remote_settings.max_ack_delay);
+  ack_delay = ngtcp2_min(ack_delay, conn->remote.settings.max_ack_delay);
   if (rtt - rcs->min_rtt > ack_delay) {
     rtt -= ack_delay;
   }
