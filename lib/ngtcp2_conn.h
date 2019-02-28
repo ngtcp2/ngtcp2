@@ -257,6 +257,12 @@ struct ngtcp2_conn {
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
     ngtcp2_pq strmq;
+    /* offset is the offset the local endpoint has sent to the remote
+       endpoint. */
+    uint64_t offset;
+    /* max_offset is the maximum offset that local endpoint can
+       send. */
+    uint64_t max_offset;
   } tx;
   ngtcp2_strm crypto;
   ngtcp2_map strms;
@@ -307,12 +313,6 @@ struct ngtcp2_conn {
   /* rx_offset is the cumulative sum of stream data received for this
      connection. */
   uint64_t rx_offset;
-  /* tx_offset is the offset the local endpoint has sent to the remote
-     endpoint. */
-  uint64_t tx_offset;
-  /* max_tx_offset is the maximum offset that local endpoint can
-     send. */
-  uint64_t max_tx_offset;
   /* tx_last_cid_seq is the last sequence number of connection ID. */
   uint64_t tx_last_cid_seq;
   /* first_rx_bw_ts is a timestamp when bandwidth measurement is

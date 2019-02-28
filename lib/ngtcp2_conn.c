@@ -596,7 +596,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  */
 static size_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   return ngtcp2_min(strm->max_tx_offset - strm->tx_offset,
-                    conn->max_tx_offset - conn->tx_offset);
+                    conn->tx.max_offset - conn->tx.offset);
 }
 
 /*
@@ -2438,7 +2438,7 @@ tx_strmq_finish:
 
     if (send_stream) {
       data_strm->tx_offset += ndatalen;
-      conn->tx_offset += ndatalen;
+      conn->tx.offset += ndatalen;
 
       if (fin) {
         ngtcp2_strm_shutdown(data_strm, NGTCP2_STRM_FLAG_SHUT_WR);
@@ -3599,7 +3599,7 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
  * conn_recv_max_data processes received MAX_DATA frame |fr|.
  */
 static void conn_recv_max_data(ngtcp2_conn *conn, const ngtcp2_max_data *fr) {
-  conn->max_tx_offset = ngtcp2_max(conn->max_tx_offset, fr->max_data);
+  conn->tx.max_offset = ngtcp2_max(conn->tx.max_offset, fr->max_data);
 }
 
 /*
@@ -6972,7 +6972,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   strm->tx_offset += ndatalen;
-  conn->tx_offset += ndatalen;
+  conn->tx.offset += ndatalen;
 
   ++pktns->last_tx_pkt_num;
 
@@ -7026,12 +7026,12 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
                   /* 0 length STREAM frame is allowed */
                   (datalen == 0 ||
                    (datalen > 0 && (strm->max_tx_offset - strm->tx_offset) &&
-                    (conn->max_tx_offset - conn->tx_offset)));
+                    (conn->tx.max_offset - conn->tx.offset)));
     if (send_stream) {
       early_datalen =
           ngtcp2_min(datalen, strm->max_tx_offset - strm->tx_offset);
       early_datalen =
-          ngtcp2_min(early_datalen, conn->max_tx_offset - conn->tx_offset) +
+          ngtcp2_min(early_datalen, conn->tx.max_offset - conn->tx.offset) +
           NGTCP2_STREAM_OVERHEAD;
     }
   }
@@ -7539,7 +7539,7 @@ int ngtcp2_conn_set_remote_transport_params(
   settings_copy_from_transport_params(&conn->remote_settings, params);
   conn_sync_stream_id_limit(conn);
 
-  conn->max_tx_offset = conn->remote_settings.max_data;
+  conn->tx.max_offset = conn->remote_settings.max_data;
 
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 
@@ -7555,7 +7555,7 @@ int ngtcp2_conn_set_early_remote_transport_params(
   settings_copy_from_transport_params(&conn->remote_settings, params);
   conn_sync_stream_id_limit(conn);
 
-  conn->max_tx_offset = conn->remote_settings.max_data;
+  conn->tx.max_offset = conn->remote_settings.max_data;
 
   return 0;
 }
