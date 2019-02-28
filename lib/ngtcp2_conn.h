@@ -389,8 +389,6 @@ struct ngtcp2_conn {
      This field is only used by server to ensure "3 times received
      data" rule. */
   size_t hs_sent;
-  /* nretry is the number of Retry packet this client has received. */
-  size_t nretry;
   ngtcp2_mem *mem;
   void *user_data;
   uint32_t version;
