@@ -668,7 +668,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
 
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data_bidi_remote = 2047;
+  conn->local.settings.max_stream_data_bidi_remote = 2047;
 
   for (i = 0; i < 3; ++i) {
     stream_id = (int64_t)(i * 4);
@@ -735,7 +735,7 @@ void test_ngtcp2_conn_stream_rx_flow_control_error(void) {
 
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data_bidi_remote = 1023;
+  conn->local.settings.max_stream_data_bidi_remote = 1023;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -849,7 +849,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
 
   setup_default_server(&conn);
 
-  conn->local_settings.max_data = 1024;
+  conn->local.settings.max_data = 1024;
   conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
 
@@ -908,7 +908,7 @@ void test_ngtcp2_conn_rx_flow_control_error(void) {
 
   setup_default_server(&conn);
 
-  conn->local_settings.max_data = 1024;
+  conn->local.settings.max_data = 1024;
   conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
 
@@ -1449,7 +1449,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
      connection-level flow control. */
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data_bidi_remote = 1 << 21;
+  conn->local.settings.max_stream_data_bidi_remote = 1 << 21;
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
   fr.reset_stream.stream_id = 4;
@@ -1486,7 +1486,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
      control */
   setup_default_server(&conn);
 
-  conn->local_settings.max_stream_data_bidi_remote = 1 << 21;
+  conn->local.settings.max_stream_data_bidi_remote = 1 << 21;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -2541,7 +2541,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should be sent */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data_bidi_remote = datalen;
+  conn->local.settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2570,7 +2570,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should not be sent on incoming fin */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data_bidi_remote = datalen;
+  conn->local.settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2600,7 +2600,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   /* MAX_STREAM_DATA should not be sent if STOP_SENDING frame is being
      sent by local endpoint */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data_bidi_remote = datalen;
+  conn->local.settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2634,7 +2634,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   /* MAX_STREAM_DATA should not be sent if stream is being reset by
      remote endpoint */
   setup_default_server(&conn);
-  conn->local_settings.max_stream_data_bidi_remote = datalen;
+  conn->local.settings.max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;

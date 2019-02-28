@@ -308,6 +308,7 @@ struct ngtcp2_conn {
   } early;
 
   struct {
+    ngtcp2_settings settings;
     struct {
       /* max_stream_id is the maximum bidirectional stream ID which
          the local endpoint can open. */
@@ -388,7 +389,6 @@ struct ngtcp2_conn {
      before (Initial packet for 0-RTT, or) handshake completed due to
      packet reordering. */
   ngtcp2_pkt_chain *buffed_rx_ppkts;
-  ngtcp2_settings local_settings;
   ngtcp2_settings remote_settings;
   /* decrypt_buf is a buffer which is used to write decrypted data. */
   ngtcp2_array decrypt_buf;
