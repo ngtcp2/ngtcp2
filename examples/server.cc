@@ -1022,11 +1022,11 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   SSL_set_key_callback(ssl_, key_cb, this);
 
   auto callbacks = ngtcp2_conn_callbacks{
-      nullptr,
+      nullptr, // client_initial
       ::recv_client_initial,
       recv_crypto_data,
       handshake_completed,
-      nullptr,
+      nullptr, // recv_version_negotiation
       do_hs_encrypt,
       do_hs_decrypt,
       do_encrypt,
