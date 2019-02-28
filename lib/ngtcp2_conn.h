@@ -330,6 +330,16 @@ struct ngtcp2_conn {
          bidirectional stream which the local endpoint can accept. */
       int64_t max_stream_id;
     } bidi;
+    struct {
+      /* unsent_max_stream_id is the maximum stream ID of peer
+         initiated unidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      int64_t unsent_max_stream_id;
+      /* max_stream_id is the maximum stream ID of peer initiated
+         unidirectional stream which the local endpoint can accept. */
+      int64_t max_stream_id;
+    } uni;
   } remote;
 
   ngtcp2_strm crypto;
@@ -343,12 +353,6 @@ struct ngtcp2_conn {
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
-  /* unsent_max_remote_stream_id_uni is an unidirectional stream
-     version of unsent_max_remote_stream_id_bidi. */
-  int64_t unsent_max_remote_stream_id_uni;
-  /* max_remote_stream_id_uni is an unidirectional stream version of
-     max_remote_stream_id_bidi. */
-  int64_t max_remote_stream_id_uni;
   /* max_local_stream_id_uni is an unidirectional stream version of
      max_local_stream_id_bidi. */
   int64_t max_local_stream_id_uni;

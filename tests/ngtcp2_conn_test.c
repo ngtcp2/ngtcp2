@@ -2886,7 +2886,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   /* Receive an unidirectional stream which is beyond the limit. */
   setup_default_server(&conn);
   conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->max_remote_stream_id_uni = 0;
+  conn->remote.uni.max_stream_id = 0;
   conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;
