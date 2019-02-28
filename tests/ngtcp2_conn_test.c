@@ -3774,7 +3774,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.path));
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.ps.path));
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);
@@ -3828,7 +3828,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.path));
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.ps.path));
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);
@@ -3888,7 +3888,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, 0);
 
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &dcid->path));
+  CU_ASSERT(ngtcp2_path_eq(&new_path, &dcid->ps.path));
 
   ngtcp2_conn_del(conn);
 }

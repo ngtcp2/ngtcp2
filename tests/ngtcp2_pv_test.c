@@ -96,7 +96,7 @@ void test_ngtcp2_pv_validate(void) {
 
   dcid_init(&cid);
   ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
-  ngtcp2_path_copy(&dcid.path, &path);
+  ngtcp2_path_copy(&dcid.ps.path, &path);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);

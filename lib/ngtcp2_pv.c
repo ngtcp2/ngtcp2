@@ -101,13 +101,13 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, const ngtcp2_path *path,
 
   /* Must validate that path which PATH_CHALLENGE is sent equals to
      the path PATH_RESPONSE is received. */
-  if (!ngtcp2_addr_eq(&pv->dcid.path.remote, &path->remote)) {
+  if (!ngtcp2_addr_eq(&pv->dcid.ps.path.remote, &path->remote)) {
     ngtcp2_log_info(pv->log, NGTCP2_LOG_EVENT_PTV,
                     "remote address does not match the one that path "
                     "validation is performed");
     return NGTCP2_ERR_PATH_VALIDATION_FAILED;
   }
-  if (!ngtcp2_addr_eq(&pv->dcid.path.local, &path->local)) {
+  if (!ngtcp2_addr_eq(&pv->dcid.ps.path.local, &path->local)) {
     ngtcp2_log_info(pv->log, NGTCP2_LOG_EVENT_PTV,
                     "local address does not match the one that path validation "
                     "is performed");
