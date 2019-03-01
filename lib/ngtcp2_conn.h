@@ -219,6 +219,27 @@ typedef struct {
     ngtcp2_gaptr pngap;
     /* max_pkt_num is the largest packet number received so far. */
     int64_t max_pkt_num;
+    /*
+     * buffed_pkts is buffered packets which cannot be decrypted with
+     * the current encryption level.
+     *
+     * In server Initial encryption level, 0-RTT packet may be buffered.
+     * In server Handshake encryption level, Short packet may be buffered.
+     *
+     * In client Initial encryption level, Handshake or Short packet may
+     * be buffered.  In client Handshake encryption level, Short packet
+     * may be buffered.
+     *
+     * - 0-RTT packet is only buffered in server Initial encryption
+     *   level ngtcp2_pktns.
+     *
+     * - Handshake packet is only buffered in client Initial encryption
+     *   level ngtcp2_pktns.
+     *
+     * - Short packet is only buffered in Handshake encryption level
+     *   ngtcp2_pktns.
+     */
+    ngtcp2_pkt_chain *buffed_pkts;
   } rx;
 
   /* crypto_tx_offset is the offset of crypto stream in this packet
@@ -239,27 +260,6 @@ typedef struct {
   ngtcp2_crypto_km *rx_ckm;
   ngtcp2_vec *tx_hp;
   ngtcp2_vec *rx_hp;
-  /*
-   * buffed_rx_pkts is buffered packets which cannot be decrypted with
-   * the current encryption level.
-   *
-   * In server Initial encryption level, 0-RTT packet may be buffered.
-   * In server Handshake encryption level, Short packet may be buffered.
-   *
-   * In client Initial encryption level, Handshake or Short packet may
-   * be buffered.  In client Handshake encryption level, Short packet
-   * may be buffered.
-   *
-   * - 0-RTT packet is only buffered in server Initial encryption
-   *   level ngtcp2_pktns.
-   *
-   * - Handshake packet is only buffered in client Initial encryption
-   *   level ngtcp2_pktns.
-   *
-   * - Short packet is only buffered in Handshake encryption level
-   *   ngtcp2_pktns.
-   */
-  ngtcp2_pkt_chain *buffed_rx_pkts;
 } ngtcp2_pktns;
 
 struct ngtcp2_conn {

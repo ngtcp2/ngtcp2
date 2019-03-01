@@ -314,7 +314,7 @@ static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
 static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
   ngtcp2_crypto_frame_chain *frc;
 
-  delete_buffed_pkts(pktns->buffed_rx_pkts, mem);
+  delete_buffed_pkts(pktns->rx.buffed_pkts, mem);
 
   ngtcp2_frame_chain_list_del(pktns->tx.frq, mem);
 
@@ -3630,7 +3630,7 @@ static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                            const ngtcp2_path *path, const uint8_t *pkt,
                            size_t pktlen, ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_pkt_chain **ppc = &pktns->buffed_rx_pkts, *pc;
+  ngtcp2_pkt_chain **ppc = &pktns->rx.buffed_pkts, *pc;
   size_t i;
   for (i = 0; *ppc && i < NGTCP2_MAX_NUM_BUFFED_RX_PKTS;
        ppc = &(*ppc)->next, ++i)
@@ -6212,7 +6212,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   ssize_t nread;
   ngtcp2_pkt_chain **ppc, *next;
 
-  for (ppc = &pktns->buffed_rx_pkts; *ppc;) {
+  for (ppc = &pktns->rx.buffed_pkts; *ppc;) {
     next = (*ppc)->next;
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
                           ts);
@@ -6242,7 +6242,7 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
   ssize_t nread;
   ngtcp2_pkt_chain **ppc, *next;
 
-  for (ppc = &pktns->buffed_rx_pkts; *ppc;) {
+  for (ppc = &pktns->rx.buffed_pkts; *ppc;) {
     next = (*ppc)->next;
     nread = conn_recv_handshake_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt,
                                     (*ppc)->pktlen, ts);
@@ -6458,8 +6458,8 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
         return rv;
       }
     } else {
-      delete_buffed_pkts(conn->in_pktns.buffed_rx_pkts, conn->mem);
-      conn->in_pktns.buffed_rx_pkts = NULL;
+      delete_buffed_pkts(conn->in_pktns.rx.buffed_pkts, conn->mem);
+      conn->in_pktns.rx.buffed_pkts = NULL;
     }
 
     return 0;
