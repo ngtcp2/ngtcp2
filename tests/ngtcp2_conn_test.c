@@ -208,6 +208,22 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
   return 0;
 }
 
+static int update_key(ngtcp2_conn *conn, void *user_data) {
+  uint8_t new_key[16];
+  uint8_t new_iv[16];
+  (void)user_data;
+
+  memset(new_key, 0xff, sizeof(new_key));
+  memset(new_iv, 0xff, sizeof(new_iv));
+
+  ngtcp2_conn_update_tx_key(conn, new_key, sizeof(new_key), new_iv,
+                            sizeof(new_iv));
+  ngtcp2_conn_update_rx_key(conn, new_key, sizeof(new_key), new_iv,
+                            sizeof(new_iv));
+
+  return 0;
+}
+
 static int recv_crypto_handshake_error(ngtcp2_conn *conn, uint64_t offset,
                                        const uint8_t *data, size_t datalen,
                                        void *user_data) {
@@ -335,6 +351,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   cb.recv_crypto_data = recv_crypto_data;
   cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
+  cb.update_key = update_key;
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
@@ -386,6 +403,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   cb.hp_mask = null_hp_mask;
   cb.recv_crypto_data = recv_crypto_data;
   cb.get_new_connection_id = get_new_connection_id;
+  cb.update_key = update_key;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
@@ -3889,6 +3907,33 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, 0);
 
   CU_ASSERT(ngtcp2_path_eq(&new_path, &dcid->ps.path));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_key_update(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_tstamp t = 19393;
+  int64_t pkt_num = -1;
+  ngtcp2_frame fr;
+  int rv;
+
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  pktlen = write_single_frame_pkt_flags(conn, buf, sizeof(buf),
+                                        NGTCP2_PKT_FLAG_KEY_PHASE, &conn->oscid,
+                                        ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != conn->crypto.key_update.rx_old_ckm);
+  CU_ASSERT(NULL == conn->crypto.key_update.tx_new_ckm);
+  CU_ASSERT(NULL == conn->crypto.key_update.rx_new_ckm);
 
   ngtcp2_conn_del(conn);
 }

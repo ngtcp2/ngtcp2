@@ -51,7 +51,7 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
   (*pckm)->iv.base = p;
   (*pckm)->iv.len = ivlen;
   /* p = */ ngtcp2_cpymem(p, iv, ivlen);
-  (*pckm)->pkt_num = 0;
+  (*pckm)->pkt_num = -1;
   (*pckm)->flags = NGTCP2_CRYPTO_KM_FLAG_NONE;
 
   return 0;

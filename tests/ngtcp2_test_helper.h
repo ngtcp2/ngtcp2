@@ -92,6 +92,15 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
  * |fr| in |out| whose capacity is |outlen|.  This function returns
  * the number of bytes written.
  */
+size_t write_single_frame_pkt_flags(ngtcp2_conn *conn, uint8_t *out,
+                                    size_t outlen, uint8_t flags,
+                                    const ngtcp2_cid *dcid, int64_t pkt_num,
+                                    ngtcp2_frame *fr);
+
+/*
+ * write_single_frame_pkt is write_single_frame_pkt_flags with flag =
+ * NGTCP2_PKT_FLAG_NONE.
+ */
 size_t write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
                               const ngtcp2_cid *dcid, int64_t pkt_num,
                               ngtcp2_frame *fr);

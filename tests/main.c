@@ -228,6 +228,7 @@ int main() {
                    test_ngtcp2_conn_client_write_handshake) ||
       !CU_add_test(pSuite, "conn_recv_path_challenge",
                    test_ngtcp2_conn_recv_path_challenge) ||
+      !CU_add_test(pSuite, "conn_key_update", test_ngtcp2_conn_key_update) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||
