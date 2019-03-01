@@ -252,6 +252,8 @@ typedef struct {
       /* ckm is a cryptographic key, and iv to encrypt outgoing
          packets. */
       ngtcp2_crypto_km *ckm;
+      /* hp is header protection key. */
+      ngtcp2_vec *hp;
     } tx;
 
     struct {
@@ -267,7 +269,6 @@ typedef struct {
 
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
-  ngtcp2_vec *tx_hp;
   ngtcp2_vec *rx_hp;
 } ngtcp2_pktns;
 

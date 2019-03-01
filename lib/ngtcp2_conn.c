@@ -319,7 +319,7 @@ static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
   ngtcp2_frame_chain_list_del(pktns->tx.frq, mem);
 
   ngtcp2_vec_del(pktns->rx_hp, mem);
-  ngtcp2_vec_del(pktns->tx_hp, mem);
+  ngtcp2_vec_del(pktns->crypto.tx.hp, mem);
 
   ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, mem);
   ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, mem);
@@ -1253,7 +1253,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
     pktns = &conn->in_pktns;
     ctx.ckm = pktns->crypto.tx.ckm;
-    ctx.hp = pktns->tx_hp;
+    ctx.hp = pktns->crypto.tx.hp;
     ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     ctx.encrypt = conn->callbacks.in_encrypt;
     ctx.hp_mask = conn->callbacks.in_hp_mask;
@@ -1264,7 +1264,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
     pktns = &conn->hs_pktns;
     ctx.ckm = pktns->crypto.tx.ckm;
-    ctx.hp = pktns->tx_hp;
+    ctx.hp = pktns->crypto.tx.hp;
     ctx.aead_overhead = conn->crypto.aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
@@ -1541,7 +1541,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
       conn->version, 0);
 
   ctx.ckm = pktns->crypto.tx.ckm;
-  ctx.hp = pktns->tx_hp;
+  ctx.hp = pktns->crypto.tx.hp;
   ctx.user_data = conn;
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
@@ -2056,7 +2056,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       conn->version, 0);
 
   ctx.ckm = pktns->crypto.tx.ckm;
-  ctx.hp = pktns->tx_hp;
+  ctx.hp = pktns->crypto.tx.hp;
   ctx.aead_overhead = conn->crypto.aead_overhead;
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.hp_mask = conn->callbacks.hp_mask;
@@ -2526,7 +2526,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ctx.ckm = pktns->crypto.tx.ckm;
-  ctx.hp = pktns->tx_hp;
+  ctx.hp = pktns->crypto.tx.hp;
   ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(
@@ -2677,7 +2677,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   ctx.encrypt = conn->callbacks.encrypt;
   ctx.hp_mask = conn->callbacks.hp_mask;
   ctx.ckm = pktns->crypto.tx.ckm;
-  ctx.hp = pktns->tx_hp;
+  ctx.hp = pktns->crypto.tx.hp;
   ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(
@@ -7132,9 +7132,9 @@ int ngtcp2_conn_install_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->in_pktns;
   int rv;
 
-  if (pktns->tx_hp) {
-    ngtcp2_vec_del(pktns->tx_hp, conn->mem);
-    pktns->tx_hp = NULL;
+  if (pktns->crypto.tx.hp) {
+    ngtcp2_vec_del(pktns->crypto.tx.hp, conn->mem);
+    pktns->crypto.tx.hp = NULL;
   }
   if (pktns->crypto.tx.ckm) {
     ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
@@ -7147,7 +7147,7 @@ int ngtcp2_conn_install_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->tx_hp, pn, pnlen, conn->mem);
+  return ngtcp2_vec_new(&pktns->crypto.tx.hp, pn, pnlen, conn->mem);
 }
 
 int ngtcp2_conn_install_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
@@ -7182,7 +7182,7 @@ int ngtcp2_conn_install_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->hs_pktns;
   int rv;
 
-  if (pktns->tx_hp || pktns->crypto.tx.ckm) {
+  if (pktns->crypto.tx.hp || pktns->crypto.tx.ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
@@ -7192,7 +7192,7 @@ int ngtcp2_conn_install_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->tx_hp, pn, pnlen, conn->mem);
+  return ngtcp2_vec_new(&pktns->crypto.tx.hp, pn, pnlen, conn->mem);
 }
 
 int ngtcp2_conn_install_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
@@ -7242,7 +7242,7 @@ int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
-  if (pktns->tx_hp || pktns->crypto.tx.ckm) {
+  if (pktns->crypto.tx.hp || pktns->crypto.tx.ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
@@ -7252,7 +7252,7 @@ int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->tx_hp, pn, pnlen, conn->mem);
+  return ngtcp2_vec_new(&pktns->crypto.tx.hp, pn, pnlen, conn->mem);
 }
 
 int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
