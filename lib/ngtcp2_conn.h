@@ -259,14 +259,14 @@ typedef struct {
          stream and it specifies the offset where the crypto stream in
          this encryption level starts. */
       uint64_t offset_base;
+      /* ckm is a cryptographic key, and iv to decrypt incoming
+         packets. */
+      ngtcp2_crypto_km *ckm;
     } rx;
   } crypto;
 
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
-  /* rx_ckm is a cryptographic key, and iv to decrypt incoming
-     packets. */
-  ngtcp2_crypto_km *rx_ckm;
   ngtcp2_vec *tx_hp;
   ngtcp2_vec *rx_hp;
 } ngtcp2_pktns;
