@@ -8315,7 +8315,7 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
 
   fr->type = NGTCP2_FRAME_CRYPTO;
   fr->ordered_offset = conn->crypto.strm.tx_offset;
-  fr->offset = pktns->crypto_tx_offset;
+  fr->offset = pktns->crypto.tx.offset;
   fr->datacnt = 1;
   fr->data[0].len = datalen;
   fr->data[0].base = (uint8_t *)data;
@@ -8327,7 +8327,7 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
   }
 
   conn->crypto.strm.tx_offset += datalen;
-  pktns->crypto_tx_offset += datalen;
+  pktns->crypto.tx.offset += datalen;
 
   return 0;
 }

@@ -242,9 +242,14 @@ typedef struct {
     ngtcp2_pkt_chain *buffed_pkts;
   } rx;
 
-  /* crypto_tx_offset is the offset of crypto stream in this packet
-     number space. */
-  uint64_t crypto_tx_offset;
+  struct {
+    struct {
+      /* offset is the offset of crypto stream in this packet number
+         space. */
+      uint64_t offset;
+    } tx;
+  } crypto;
+
   /* crypto_rx_offset_base is the offset of crypto stream in the
      global TLS stream and it specifies the offset where this local
      crypto stream starts. */
