@@ -285,7 +285,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_default_cc *cc,
   }
 
   ngtcp2_rtb_init(&pktns->rtb, cc, log, mem);
-  ngtcp2_pq_init(&pktns->cryptofrq, crypto_offset_less, mem);
+  ngtcp2_pq_init(&pktns->crypto.tx.frq, crypto_offset_less, mem);
 
   return 0;
 }
@@ -324,14 +324,14 @@ static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
   ngtcp2_crypto_km_del(pktns->rx_ckm, mem);
   ngtcp2_crypto_km_del(pktns->tx_ckm, mem);
 
-  for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
-    frc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+  for (; !ngtcp2_pq_empty(&pktns->crypto.tx.frq);) {
+    frc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->crypto.tx.frq),
                            ngtcp2_crypto_frame_chain, pe);
-    ngtcp2_pq_pop(&pktns->cryptofrq);
+    ngtcp2_pq_pop(&pktns->crypto.tx.frq);
     ngtcp2_crypto_frame_chain_del(frc, mem);
   }
 
-  ngtcp2_pq_free(&pktns->cryptofrq);
+  ngtcp2_pq_free(&pktns->crypto.tx.frq);
   ngtcp2_rtb_free(&pktns->rtb);
   ngtcp2_acktr_free(&pktns->acktr);
   ngtcp2_gaptr_free(&pktns->rx.pngap);
@@ -998,8 +998,8 @@ static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
 static ngtcp2_crypto_frame_chain *conn_cryptofrq_top(ngtcp2_conn *conn,
                                                      ngtcp2_pktns *pktns) {
   (void)conn;
-  assert(!ngtcp2_pq_empty(&pktns->cryptofrq));
-  return ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+  assert(!ngtcp2_pq_empty(&pktns->crypto.tx.frq));
+  return ngtcp2_struct_of(ngtcp2_pq_top(&pktns->crypto.tx.frq),
                           ngtcp2_crypto_frame_chain, pe);
 }
 
@@ -1013,22 +1013,22 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
   size_t nmerged;
   size_t datalen;
 
-  if (ngtcp2_pq_empty(&pktns->cryptofrq)) {
+  if (ngtcp2_pq_empty(&pktns->crypto.tx.frq)) {
     *pfrc = NULL;
     return 0;
   }
 
-  frc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+  frc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->crypto.tx.frq),
                          ngtcp2_crypto_frame_chain, pe);
-  ngtcp2_pq_pop(&pktns->cryptofrq);
+  ngtcp2_pq_pop(&pktns->crypto.tx.frq);
   frc->pe.index = NGTCP2_PQ_BAD_INDEX;
 
   fr = &frc->fr;
 
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
   if (datalen > left) {
-    if (!ngtcp2_pq_empty(&pktns->cryptofrq)) {
-      nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+    if (!ngtcp2_pq_empty(&pktns->crypto.tx.frq)) {
+      nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->crypto.tx.frq),
                               ngtcp2_crypto_frame_chain, pe);
       nfr = &nfrc->fr;
 
@@ -1039,11 +1039,11 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
         assert(nsplit);
 
         if (nsplit > 0) {
-          ngtcp2_pq_pop(&pktns->cryptofrq);
+          ngtcp2_pq_pop(&pktns->crypto.tx.frq);
           nfr->ordered_offset -= (size_t)nsplit;
           nfr->offset -= (size_t)nsplit;
 
-          rv = ngtcp2_pq_push(&pktns->cryptofrq, &nfrc->pe);
+          rv = ngtcp2_pq_push(&pktns->crypto.tx.frq, &nfrc->pe);
           if (rv != 0) {
             assert(ngtcp2_err_is_fatal(rv));
             ngtcp2_crypto_frame_chain_del(nfrc, conn->mem);
@@ -1074,7 +1074,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
     ngtcp2_vec_split(fr->data, &fr->datacnt, nfr->data, &nfr->datacnt, left,
                      NGTCP2_MAX_CRYPTO_DATACNT);
 
-    rv = ngtcp2_pq_push(&pktns->cryptofrq, &nfrc->pe);
+    rv = ngtcp2_pq_push(&pktns->crypto.tx.frq, &nfrc->pe);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       ngtcp2_crypto_frame_chain_del(nfrc, conn->mem);
@@ -1095,8 +1095,8 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
   left -= datalen;
 
   for (; left && fr->datacnt < NGTCP2_MAX_CRYPTO_DATACNT &&
-         !ngtcp2_pq_empty(&pktns->cryptofrq);) {
-    nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->cryptofrq),
+         !ngtcp2_pq_empty(&pktns->crypto.tx.frq);) {
+    nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&pktns->crypto.tx.frq),
                             ngtcp2_crypto_frame_chain, pe);
     nfr = &nfrc->fr;
 
@@ -1111,7 +1111,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
       break;
     }
 
-    ngtcp2_pq_pop(&pktns->cryptofrq);
+    ngtcp2_pq_pop(&pktns->crypto.tx.frq);
 
     datalen += nmerged;
     nfr->ordered_offset += nmerged;
@@ -1123,7 +1123,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
       continue;
     }
 
-    rv = ngtcp2_pq_push(&pktns->cryptofrq, &nfrc->pe);
+    rv = ngtcp2_pq_push(&pktns->crypto.tx.frq, &nfrc->pe);
     if (rv != 0) {
       ngtcp2_crypto_frame_chain_del(nfrc, conn->mem);
       ngtcp2_crypto_frame_chain_del(frc, conn->mem);
@@ -1299,7 +1299,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ctx.user_data = conn;
 
-  if (ngtcp2_pq_empty(&pktns->cryptofrq) && type != NGTCP2_PKT_0RTT_PROTECTED) {
+  if (ngtcp2_pq_empty(&pktns->crypto.tx.frq) &&
+      type != NGTCP2_PKT_0RTT_PROTECTED) {
     return 0;
   }
 
@@ -1319,7 +1320,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   assert(pktns->tx.frq == NULL);
 
   if (type != NGTCP2_PKT_0RTT_PROTECTED) {
-    for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
+    for (; !ngtcp2_pq_empty(&pktns->crypto.tx.frq);) {
       left = ngtcp2_ppe_left(&ppe);
       left = ngtcp2_pkt_crypto_max_datalen(
           conn_cryptofrq_top(conn, pktns)->fr.offset, left, left);
@@ -2166,7 +2167,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   if (rv != NGTCP2_ERR_NOBUF) {
-    for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
+    for (; !ngtcp2_pq_empty(&pktns->crypto.tx.frq);) {
       left = ngtcp2_ppe_left(&ppe);
 
       left = ngtcp2_pkt_crypto_max_datalen(
@@ -2830,8 +2831,8 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
   return !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
          ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb) ||
          ngtcp2_rtb_num_ack_eliciting(&conn->hs_pktns.rtb) ||
-         !ngtcp2_pq_empty(&conn->in_pktns.cryptofrq) ||
-         !ngtcp2_pq_empty(&conn->hs_pktns.cryptofrq);
+         !ngtcp2_pq_empty(&conn->in_pktns.crypto.tx.frq) ||
+         !ngtcp2_pq_empty(&conn->hs_pktns.crypto.tx.frq);
 }
 
 /*
@@ -3325,7 +3326,7 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
       *pfrc = cfrc->next;
       cfrc->next = NULL;
 
-      rv = ngtcp2_pq_push(&pktns->cryptofrq, &cfrc->pe);
+      rv = ngtcp2_pq_push(&pktns->crypto.tx.frq, &cfrc->pe);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
         ngtcp2_crypto_frame_chain_del(cfrc, conn->mem);
@@ -8320,7 +8321,7 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
   fr->data[0].len = datalen;
   fr->data[0].base = (uint8_t *)data;
 
-  rv = ngtcp2_pq_push(&pktns->cryptofrq, &frc->pe);
+  rv = ngtcp2_pq_push(&pktns->crypto.tx.frq, &frc->pe);
   if (rv != 0) {
     ngtcp2_crypto_frame_chain_del(frc, conn->mem);
     return rv;
