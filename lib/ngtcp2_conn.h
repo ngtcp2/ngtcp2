@@ -249,6 +249,9 @@ typedef struct {
       /* offset is the offset of crypto stream in this packet number
          space. */
       uint64_t offset;
+      /* ckm is a cryptographic key, and iv to encrypt outgoing
+         packets. */
+      ngtcp2_crypto_km *ckm;
     } tx;
 
     struct {
@@ -261,9 +264,6 @@ typedef struct {
 
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
-  /* tx_ckm is a cryptographic key, and iv to encrypt outgoing
-     packets. */
-  ngtcp2_crypto_km *tx_ckm;
   /* rx_ckm is a cryptographic key, and iv to decrypt incoming
      packets. */
   ngtcp2_crypto_km *rx_ckm;
