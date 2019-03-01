@@ -3933,7 +3933,7 @@ void test_ngtcp2_conn_key_update(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != conn->crypto.key_update.rx_old_ckm);
   CU_ASSERT(NULL == conn->crypto.key_update.new_tx_ckm);
-  CU_ASSERT(NULL == conn->crypto.key_update.rx_new_ckm);
+  CU_ASSERT(NULL == conn->crypto.key_update.new_rx_ckm);
 
   ngtcp2_conn_del(conn);
 }
