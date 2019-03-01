@@ -216,9 +216,10 @@ typedef struct {
     /* pngap tracks received packet number in order to suppress
        duplicated packet number. */
     ngtcp2_gaptr pngap;
+    /* max_pkt_num is the largest packet number received so far. */
+    int64_t max_pkt_num;
   } rx;
 
-  int64_t max_rx_pkt_num;
   /* crypto_tx_offset is the offset of crypto stream in this packet
      number space. */
   uint64_t crypto_tx_offset;

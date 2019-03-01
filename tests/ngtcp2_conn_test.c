@@ -2014,7 +2014,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   /* server */
   setup_default_server(&conn);
   conn->callbacks.decrypt = fail_decrypt;
-  conn->pktns.max_rx_pkt_num = 24324325;
+  conn->pktns.rx.max_pkt_num = 24324325;
 
   memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 
@@ -2033,7 +2033,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   /* client */
   setup_default_client(&conn);
   conn->callbacks.decrypt = fail_decrypt;
-  conn->pktns.max_rx_pkt_num = 3255454;
+  conn->pktns.rx.max_pkt_num = 3255454;
 
   memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 
@@ -2052,7 +2052,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   /* token does not match */
   setup_default_client(&conn);
   conn->callbacks.decrypt = fail_decrypt;
-  conn->pktns.max_rx_pkt_num = 24324325;
+  conn->pktns.rx.max_pkt_num = 24324325;
 
   spktlen =
       ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token, null_data, 29);

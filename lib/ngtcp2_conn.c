@@ -276,7 +276,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_default_cc *cc,
   }
 
   pktns->tx.last_pkt_num = -1;
-  pktns->max_rx_pkt_num = -1;
+  pktns->rx.max_pkt_num = -1;
 
   rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
   if (rv != 0) {
@@ -3969,11 +3969,11 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num) {
   ngtcp2_psl_it it;
   ngtcp2_range key;
 
-  if (pktns->max_rx_pkt_num + 1 != pkt_num) {
+  if (pktns->rx.max_pkt_num + 1 != pkt_num) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
-  if (pktns->max_rx_pkt_num < pkt_num) {
-    pktns->max_rx_pkt_num = pkt_num;
+  if (pktns->rx.max_pkt_num < pkt_num) {
+    pktns->rx.max_pkt_num = pkt_num;
   }
 
   rv = ngtcp2_gaptr_push(&pktns->rx.pngap, (uint64_t)pkt_num, 1);
@@ -4315,7 +4315,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   payload = pkt + hdpktlen;
   payloadlen = hd.len - hd.pkt_numlen;
 
-  hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->max_rx_pkt_num, hd.pkt_num,
+  hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
                                          pkt_num_bits(hd.pkt_numlen));
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -5866,7 +5866,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   payload = pkt + hdpktlen;
   payloadlen = pktlen - hdpktlen;
 
-  hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->max_rx_pkt_num, hd.pkt_num,
+  hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
                                          pkt_num_bits(hd.pkt_numlen));
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -5906,7 +5906,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       } else {
         force_decrypt_failure = 1;
       }
-    } else if (pktns->max_rx_pkt_num < hd.pkt_num) {
+    } else if (pktns->rx.max_pkt_num < hd.pkt_num) {
       assert(ckm->pkt_num < hd.pkt_num);
       if (!conn->crypto.key_update.new_rx_ckm) {
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT, "preparing new key");
@@ -6151,7 +6151,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (conn->server && hd.type == NGTCP2_PKT_SHORT && non_probing_pkt &&
-      pktns->max_rx_pkt_num < hd.pkt_num &&
+      pktns->rx.max_pkt_num < hd.pkt_num &&
       !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
       !conn_path_validation_in_progress(conn, path)) {
     rv = conn_recv_non_probing_pkt_on_new_path(conn, path);
@@ -6476,7 +6476,7 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
     }
 
-    if (conn->hs_pktns.max_rx_pkt_num != -1) {
+    if (conn->hs_pktns.rx.max_pkt_num != -1) {
       conn_discard_initial_key(conn);
     }
 
