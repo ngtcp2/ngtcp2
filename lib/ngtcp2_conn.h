@@ -210,6 +210,7 @@ typedef struct {
     /* last_pkt_num is the packet number which the local endpoint sent
        last time.*/
     int64_t last_pkt_num;
+    ngtcp2_frame_chain *frq;
   } tx;
 
   struct {
@@ -238,7 +239,6 @@ typedef struct {
   ngtcp2_crypto_km *rx_ckm;
   ngtcp2_vec *tx_hp;
   ngtcp2_vec *rx_hp;
-  ngtcp2_frame_chain *frq;
   /*
    * buffed_rx_pkts is buffered packets which cannot be decrypted with
    * the current encryption level.

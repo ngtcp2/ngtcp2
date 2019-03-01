@@ -316,7 +316,7 @@ static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
 
   delete_buffed_pkts(pktns->buffed_rx_pkts, mem);
 
-  ngtcp2_frame_chain_list_del(pktns->frq, mem);
+  ngtcp2_frame_chain_list_del(pktns->tx.frq, mem);
 
   ngtcp2_vec_del(pktns->rx_hp, mem);
   ngtcp2_vec_del(pktns->tx_hp, mem);
@@ -1315,8 +1315,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  /* TODO pktns->frq is not used during handshake */
-  assert(pktns->frq == NULL);
+  /* TODO pktns->tx.frq is not used during handshake */
+  assert(pktns->tx.frq == NULL);
 
   if (type != NGTCP2_PKT_0RTT_PROTECTED) {
     for (; !ngtcp2_pq_empty(&pktns->cryptofrq);) {
@@ -1891,8 +1891,8 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
     nfrc->fr.new_connection_id.cid = cid;
     memcpy(nfrc->fr.new_connection_id.stateless_reset_token, token,
            sizeof(token));
-    nfrc->next = pktns->frq;
-    pktns->frq = nfrc;
+    nfrc->next = pktns->tx.frq;
+    pktns->tx.frq = nfrc;
   }
 
   return 0;
@@ -2028,7 +2028,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   }
 
   /* TODO Take into account stream frames */
-  if ((pktns->frq || send_stream ||
+  if ((pktns->tx.frq || send_stream ||
        ngtcp2_ringbuf_len(&conn->rx.path_challenge) ||
        conn_should_send_max_data(conn)) &&
       conn->rx.unsent_max_offset > conn->rx.max_offset) {
@@ -2038,8 +2038,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
     nfrc->fr.type = NGTCP2_FRAME_MAX_DATA;
     nfrc->fr.max_data.max_data = conn->rx.unsent_max_offset;
-    nfrc->next = pktns->frq;
-    pktns->frq = nfrc;
+    nfrc->next = pktns->tx.frq;
+    pktns->tx.frq = nfrc;
 
     conn->rx.max_offset = conn->rx.unsent_max_offset;
   }
@@ -2098,7 +2098,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     /* We don't retransmit PATH_RESPONSE. */
   }
 
-  for (pfrc = &pktns->frq; *pfrc;) {
+  for (pfrc = &pktns->tx.frq; *pfrc;) {
     switch ((*pfrc)->fr.type) {
     case NGTCP2_FRAME_STOP_SENDING:
       strm = ngtcp2_conn_find_stream(conn, (*pfrc)->fr.stop_sending.stream_id);
@@ -2428,7 +2428,7 @@ tx_strmq_finish:
     return nwrite;
   }
 
-  if (*pfrc != pktns->frq) {
+  if (*pfrc != pktns->tx.frq) {
     rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, ts, (size_t)nwrite,
                               rtb_entry_flags, conn->mem);
     if (rv != 0) {
@@ -2436,8 +2436,8 @@ tx_strmq_finish:
       return rv;
     }
 
-    ent->frc = pktns->frq;
-    pktns->frq = *pfrc;
+    ent->frc = pktns->tx.frq;
+    pktns->tx.frq = *pfrc;
     *pfrc = NULL;
 
     rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
@@ -2855,8 +2855,8 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid) {
 
   nfrc->fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
   nfrc->fr.retire_connection_id.seq = dcid->seq;
-  nfrc->next = pktns->frq;
-  pktns->frq = nfrc;
+  nfrc->next = pktns->tx.frq;
+  pktns->tx.frq = nfrc;
 
   return 0;
 }
@@ -3337,8 +3337,8 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     }
   }
 
-  *pfrc = pktns->frq;
-  pktns->frq = *first;
+  *pfrc = pktns->tx.frq;
+  pktns->tx.frq = *first;
 
   return 0;
 }
@@ -4949,9 +4949,9 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   frc->fr.reset_stream.app_error_code = app_error_code;
   frc->fr.reset_stream.final_size = strm->tx_offset;
 
-  /* TODO This prepends RESET_STREAM to pktns->frq. */
-  frc->next = pktns->frq;
-  pktns->frq = frc;
+  /* TODO This prepends RESET_STREAM to pktns->tx.frq. */
+  frc->next = pktns->tx.frq;
+  pktns->tx.frq = frc;
 
   return 0;
 }
@@ -4981,9 +4981,9 @@ static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
   frc->fr.stop_sending.stream_id = strm->stream_id;
   frc->fr.stop_sending.app_error_code = app_error_code;
 
-  /* TODO This prepends STOP_SENDING to pktns->frq. */
-  frc->next = pktns->frq;
-  pktns->frq = frc;
+  /* TODO This prepends STOP_SENDING to pktns->tx.frq. */
+  frc->next = pktns->tx.frq;
+  pktns->tx.frq = frc;
 
   return 0;
 }
