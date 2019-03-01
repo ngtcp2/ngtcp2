@@ -390,8 +390,8 @@ struct ngtcp2_conn {
       /* rx_new_ckm is a new receiver 1RTT key which has not
          successfully decrypted incoming packet yet. */
       ngtcp2_crypto_km *new_rx_ckm;
-      /* rx_old_ckm is an old receiver 1RTT key. */
-      ngtcp2_crypto_km *rx_old_ckm;
+      /* old_rx_ckm is an old receiver 1RTT key. */
+      ngtcp2_crypto_km *old_rx_ckm;
     } key_update;
 
     ngtcp2_strm strm;
