@@ -386,7 +386,7 @@ struct ngtcp2_conn {
     struct {
       /* tx_new_ckm is a new sender 1RTT key which has not been
          used. */
-      ngtcp2_crypto_km *tx_new_ckm;
+      ngtcp2_crypto_km *new_tx_ckm;
       /* rx_new_ckm is a new receiver 1RTT key which has not
          successfully decrypted incoming packet yet. */
       ngtcp2_crypto_km *rx_new_ckm;
