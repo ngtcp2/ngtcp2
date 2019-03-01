@@ -264,12 +264,13 @@ typedef struct {
       /* ckm is a cryptographic key, and iv to decrypt incoming
          packets. */
       ngtcp2_crypto_km *ckm;
+      /* hp is header protection key. */
+      ngtcp2_vec *hp;
     } rx;
   } crypto;
 
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
-  ngtcp2_vec *rx_hp;
 } ngtcp2_pktns;
 
 struct ngtcp2_conn {

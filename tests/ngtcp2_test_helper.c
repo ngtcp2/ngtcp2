@@ -136,7 +136,7 @@ size_t write_single_frame_pkt_flags(ngtcp2_conn *conn, uint8_t *out,
   ctx.encrypt = null_encrypt;
   ctx.hp_mask = null_hp_mask;
   ctx.ckm = conn->pktns.crypto.rx.ckm;
-  ctx.hp = conn->pktns.rx_hp;
+  ctx.hp = conn->pktns.crypto.rx.hp;
   ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
@@ -167,7 +167,7 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   ctx.encrypt = null_encrypt;
   ctx.hp_mask = null_hp_mask;
   ctx.ckm = conn->pktns.crypto.rx.ckm;
-  ctx.hp = conn->pktns.rx_hp;
+  ctx.hp = conn->pktns.crypto.rx.hp;
   ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
   ctx.user_data = conn;
 
@@ -187,9 +187,8 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
 size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
                                         size_t outlen, uint8_t pkt_type,
                                         const ngtcp2_cid *dcid,
-                                        const ngtcp2_cid *scid,
-                                        int64_t pkt_num, uint32_t version,
-                                        ngtcp2_frame *fr) {
+                                        const ngtcp2_cid *scid, int64_t pkt_num,
+                                        uint32_t version, ngtcp2_frame *fr) {
   ngtcp2_crypto_ctx ctx;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -202,12 +201,12 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
   switch (pkt_type) {
   case NGTCP2_PKT_INITIAL:
     ctx.ckm = conn->in_pktns.crypto.rx.ckm;
-    ctx.hp = conn->in_pktns.rx_hp;
+    ctx.hp = conn->in_pktns.crypto.rx.hp;
     ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     ctx.ckm = conn->hs_pktns.crypto.rx.ckm;
-    ctx.hp = conn->hs_pktns.rx_hp;
+    ctx.hp = conn->hs_pktns.crypto.rx.hp;
     ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_0RTT_PROTECTED:
@@ -251,12 +250,12 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   switch (pkt_type) {
   case NGTCP2_PKT_INITIAL:
     ctx.ckm = conn->in_pktns.crypto.rx.ckm;
-    ctx.hp = conn->in_pktns.rx_hp;
+    ctx.hp = conn->in_pktns.crypto.rx.hp;
     ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     ctx.ckm = conn->hs_pktns.crypto.rx.ckm;
-    ctx.hp = conn->hs_pktns.rx_hp;
+    ctx.hp = conn->hs_pktns.crypto.rx.hp;
     ctx.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_0RTT_PROTECTED:
