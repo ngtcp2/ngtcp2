@@ -275,7 +275,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_default_cc *cc,
     return rv;
   }
 
-  pktns->last_tx_pkt_num = -1;
+  pktns->tx.last_pkt_num = -1;
   pktns->max_rx_pkt_num = -1;
 
   rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
@@ -1288,8 +1288,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_pkt_hd_init(
       &hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid.current.cid,
-      &conn->oscid, pktns->last_tx_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
+      &conn->oscid, pktns->tx.last_pkt_num + 1,
+      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
       conn->version, 0);
 
   if (type == NGTCP2_PKT_INITIAL && ngtcp2_buf_len(&conn->token)) {
@@ -1463,7 +1463,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  ++pktns->last_tx_pkt_num;
+  ++pktns->tx.last_pkt_num;
 
   return spktlen;
 }
@@ -1535,8 +1535,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_pkt_hd_init(
       &hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid.current.cid,
-      &conn->oscid, pktns->last_tx_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
+      &conn->oscid, pktns->tx.last_pkt_num + 1,
+      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
       conn->version, 0);
 
   ctx.ckm = pktns->tx_ckm;
@@ -1611,7 +1611,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  ++pktns->last_tx_pkt_num;
+  ++pktns->tx.last_pkt_num;
 
   return spktlen;
 }
@@ -2050,8 +2050,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
           ? NGTCP2_PKT_FLAG_KEY_PHASE
           : NGTCP2_PKT_FLAG_NONE,
       NGTCP2_PKT_SHORT, &conn->dcid.current.cid, NULL,
-      pktns->last_tx_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
+      pktns->tx.last_pkt_num + 1,
+      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
       conn->version, 0);
 
   ctx.ckm = pktns->tx_ckm;
@@ -2461,7 +2461,7 @@ tx_strmq_finish:
     *pdatalen = (ssize_t)ndatalen;
   }
 
-  ++pktns->last_tx_pkt_num;
+  ++pktns->tx.last_pkt_num;
 
   return nwrite;
 }
@@ -2529,8 +2529,8 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ctx.user_data = conn;
 
   ngtcp2_pkt_hd_init(
-      &hd, flags, type, dcid, &conn->oscid, pktns->last_tx_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
+      &hd, flags, type, dcid, &conn->oscid, pktns->tx.last_pkt_num + 1,
+      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
       conn->version, 0);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
@@ -2570,7 +2570,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, fr->ack.largest_ack);
   }
 
-  ++pktns->last_tx_pkt_num;
+  ++pktns->tx.last_pkt_num;
 
   return nwrite;
 }
@@ -2685,8 +2685,8 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
           ? NGTCP2_PKT_FLAG_KEY_PHASE
           : NGTCP2_PKT_FLAG_NONE,
       NGTCP2_PKT_SHORT, &conn->dcid.current.cid, NULL,
-      pktns->last_tx_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
+      pktns->tx.last_pkt_num + 1,
+      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
       conn->version, 0);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
@@ -2761,7 +2761,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  ++pktns->last_tx_pkt_num;
+  ++pktns->tx.last_pkt_num;
 
   return nwrite;
 
@@ -3137,7 +3137,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
 
   conn->log.last_ts = ts;
 
-  if (pktns->last_tx_pkt_num == NGTCP2_MAX_PKT_NUM) {
+  if (pktns->tx.last_pkt_num == NGTCP2_MAX_PKT_NUM) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
@@ -5590,7 +5590,7 @@ static void conn_commit_key_update(ngtcp2_conn *conn, int64_t pkt_num) {
   ngtcp2_crypto_km_del(pktns->tx_ckm, conn->mem);
   pktns->tx_ckm = conn->crypto.key_update.new_tx_ckm;
   conn->crypto.key_update.new_tx_ckm = NULL;
-  pktns->tx_ckm->pkt_num = pktns->last_tx_pkt_num + 1;
+  pktns->tx_ckm->pkt_num = pktns->tx.last_pkt_num + 1;
 }
 
 /*
@@ -6385,9 +6385,9 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
  * exhausted in at least one of packet number space.
  */
 static int conn_check_pkt_num_exhausted(ngtcp2_conn *conn) {
-  return conn->in_pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM ||
-         conn->hs_pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM ||
-         conn->pktns.last_tx_pkt_num == NGTCP2_MAX_PKT_NUM;
+  return conn->in_pktns.tx.last_pkt_num == NGTCP2_MAX_PKT_NUM ||
+         conn->hs_pktns.tx.last_pkt_num == NGTCP2_MAX_PKT_NUM ||
+         conn->pktns.tx.last_pkt_num == NGTCP2_MAX_PKT_NUM;
 }
 
 /*
@@ -6660,7 +6660,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       return nwrite;
     }
 
-    if (conn->hs_pktns.last_tx_pkt_num != -1) {
+    if (conn->hs_pktns.tx.last_pkt_num != -1) {
       conn_discard_initial_key(conn);
     }
 
@@ -6861,8 +6861,8 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_pkt_hd_init(
       &hd, pkt_flags, pkt_type, &conn->dcid.current.cid, &conn->oscid,
-      pktns->last_tx_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->last_tx_pkt_num + 1),
+      pktns->tx.last_pkt_num + 1,
+      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
       conn->version, 0);
 
   ctx.aead_overhead = conn->crypto.aead_overhead;
@@ -6955,7 +6955,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   strm->tx_offset += ndatalen;
   conn->tx.offset += ndatalen;
 
-  ++pktns->last_tx_pkt_num;
+  ++pktns->tx.last_pkt_num;
 
   if (pdatalen) {
     *pdatalen = (ssize_t)ndatalen;

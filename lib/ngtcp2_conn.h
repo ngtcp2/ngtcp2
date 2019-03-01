@@ -206,12 +206,15 @@ typedef struct {
 } ngtcp2_bw;
 
 typedef struct {
+  struct {
+    /* last_pkt_num is the packet number which the local endpoint sent
+       last time.*/
+    int64_t last_pkt_num;
+  } tx;
+
   /* pngap tracks received packet number in order to suppress
      duplicated packet number. */
   ngtcp2_gaptr pngap;
-  /* last_tx_pkt_num is the packet number which the local endpoint
-     sent last time.*/
-  int64_t last_tx_pkt_num;
   int64_t max_rx_pkt_num;
   /* crypto_tx_offset is the offset of crypto stream in this packet
      number space. */
