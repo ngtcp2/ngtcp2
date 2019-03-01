@@ -270,7 +270,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_default_cc *cc,
                       ngtcp2_log *log, ngtcp2_mem *mem) {
   int rv;
 
-  rv = ngtcp2_gaptr_init(&pktns->pngap, mem);
+  rv = ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
   if (rv != 0) {
     return rv;
   }
@@ -280,7 +280,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_default_cc *cc,
 
   rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
   if (rv != 0) {
-    ngtcp2_gaptr_free(&pktns->pngap);
+    ngtcp2_gaptr_free(&pktns->rx.pngap);
     return rv;
   }
 
@@ -334,7 +334,7 @@ static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
   ngtcp2_pq_free(&pktns->cryptofrq);
   ngtcp2_rtb_free(&pktns->rtb);
   ngtcp2_acktr_free(&pktns->acktr);
-  ngtcp2_gaptr_free(&pktns->pngap);
+  ngtcp2_gaptr_free(&pktns->rx.pngap);
 }
 
 /*
@@ -3957,7 +3957,7 @@ static size_t pkt_num_bits(size_t pkt_numlen) {
  * duplicated packet number.
  */
 static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, int64_t pkt_num) {
-  return ngtcp2_gaptr_is_pushed(&pktns->pngap, (uint64_t)pkt_num, 1);
+  return ngtcp2_gaptr_is_pushed(&pktns->rx.pngap, (uint64_t)pkt_num, 1);
 }
 
 /*
@@ -3976,15 +3976,15 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num) {
     pktns->max_rx_pkt_num = pkt_num;
   }
 
-  rv = ngtcp2_gaptr_push(&pktns->pngap, (uint64_t)pkt_num, 1);
+  rv = ngtcp2_gaptr_push(&pktns->rx.pngap, (uint64_t)pkt_num, 1);
   if (rv != 0) {
     return rv;
   }
 
-  if (ngtcp2_psl_len(&pktns->pngap.gap) > 256) {
-    it = ngtcp2_psl_begin(&pktns->pngap.gap);
+  if (ngtcp2_psl_len(&pktns->rx.pngap.gap) > 256) {
+    it = ngtcp2_psl_begin(&pktns->rx.pngap.gap);
     key = ngtcp2_psl_it_range(&it);
-    return ngtcp2_psl_remove(&pktns->pngap.gap, NULL, &key);
+    return ngtcp2_psl_remove(&pktns->rx.pngap.gap, NULL, &key);
   }
 
   return 0;
