@@ -4257,7 +4257,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     hp_mask = conn->callbacks.in_hp_mask;
     decrypt = conn->callbacks.in_decrypt;
     aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
-    max_crypto_rx_offset = conn->hs_pktns.crypto_rx_offset_base;
+    max_crypto_rx_offset = conn->hs_pktns.crypto.rx.offset_base;
 
     break;
   case NGTCP2_PKT_HANDSHAKE:
@@ -4283,7 +4283,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     hp_mask = conn->callbacks.hp_mask;
     decrypt = conn->callbacks.decrypt;
     aead_overhead = conn->crypto.aead_overhead;
-    max_crypto_rx_offset = conn->pktns.crypto_rx_offset_base;
+    max_crypto_rx_offset = conn->pktns.crypto.rx.offset_base;
 
     break;
   default:
@@ -4427,7 +4427,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     case NGTCP2_FRAME_PADDING:
       break;
     case NGTCP2_FRAME_CRYPTO:
-      rv = conn_recv_crypto(conn, pktns->crypto_rx_offset_base,
+      rv = conn_recv_crypto(conn, pktns->crypto.rx.offset_base,
                             max_crypto_rx_offset, &fr->crypto);
       if (rv != 0) {
         return rv;
@@ -5812,7 +5812,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       hp_mask = conn->callbacks.hp_mask;
       decrypt = conn->callbacks.decrypt;
       aead_overhead = conn->crypto.aead_overhead;
-      max_crypto_rx_offset = conn->pktns.crypto_rx_offset_base;
+      max_crypto_rx_offset = conn->pktns.crypto.rx.offset_base;
       break;
     case NGTCP2_PKT_0RTT_PROTECTED:
       if (!conn->server) {
@@ -6072,7 +6072,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
           conn, ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt), ts);
       break;
     case NGTCP2_FRAME_CRYPTO:
-      rv = conn_recv_crypto(conn, pktns->crypto_rx_offset_base,
+      rv = conn_recv_crypto(conn, pktns->crypto.rx.offset_base,
                             max_crypto_rx_offset, &fr->crypto);
       if (rv != 0) {
         return rv;
@@ -7203,7 +7203,7 @@ int ngtcp2_conn_install_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  conn->hs_pktns.crypto_rx_offset_base = conn->crypto.strm.last_rx_offset;
+  conn->hs_pktns.crypto.rx.offset_base = conn->crypto.strm.last_rx_offset;
 
   rv = ngtcp2_crypto_km_new(&pktns->rx_ckm, key, keylen, iv, ivlen, conn->mem);
   if (rv != 0) {
@@ -7261,8 +7261,8 @@ int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
   }
 
   /* TODO This must be done once */
-  if (conn->pktns.crypto_rx_offset_base == 0) {
-    conn->pktns.crypto_rx_offset_base = conn->crypto.strm.last_rx_offset;
+  if (conn->pktns.crypto.rx.offset_base == 0) {
+    conn->pktns.crypto.rx.offset_base = conn->crypto.strm.last_rx_offset;
   }
 
   rv = ngtcp2_crypto_km_new(&pktns->rx_ckm, key, keylen, iv, ivlen, conn->mem);

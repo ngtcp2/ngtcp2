@@ -250,12 +250,15 @@ typedef struct {
          space. */
       uint64_t offset;
     } tx;
+
+    struct {
+      /* offset_base is the offset of crypto stream in the global TLS
+         stream and it specifies the offset where the crypto stream in
+         this encryption level starts. */
+      uint64_t offset_base;
+    } rx;
   } crypto;
 
-  /* crypto_rx_offset_base is the offset of crypto stream in the
-     global TLS stream and it specifies the offset where this local
-     crypto stream starts. */
-  uint64_t crypto_rx_offset_base;
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
   /* tx_ckm is a cryptographic key, and iv to encrypt outgoing
