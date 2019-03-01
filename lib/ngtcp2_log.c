@@ -156,7 +156,7 @@ static const char *strpkttype_long(uint8_t type) {
     return "Retry";
   case NGTCP2_PKT_HANDSHAKE:
     return "Handshake";
-  case NGTCP2_PKT_0RTT_PROTECTED:
+  case NGTCP2_PKT_0RTT:
     return "0RTT";
   default:
     return "(unknown)";

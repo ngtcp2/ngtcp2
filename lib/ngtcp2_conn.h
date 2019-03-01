@@ -276,11 +276,11 @@ typedef struct {
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
-  /* rcid is a connection ID present in Initial or 0-RTT protected
-     packet from client as destination connection ID.  Server uses
-     this field to check that duplicated Initial or 0-RTT packet are
-     indeed sent to this connection.  Client uses this field to
-     validate original_connection_id transport parameter. */
+  /* rcid is a connection ID present in Initial or 0-RTT packet from
+     client as destination connection ID.  Server uses this field to
+     check that duplicated Initial or 0-RTT packet are indeed sent to
+     this connection.  Client uses this field to validate
+     original_connection_id transport parameter. */
   ngtcp2_cid rcid;
   /* ocid is a connection ID sent as original destination connection
      ID in Retry packet.  Only server uses this field to send this CID

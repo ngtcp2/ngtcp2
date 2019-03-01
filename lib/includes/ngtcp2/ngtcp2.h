@@ -256,7 +256,7 @@ typedef enum {
      convenience. */
   NGTCP2_PKT_VERSION_NEGOTIATION = 0xf0,
   NGTCP2_PKT_INITIAL = 0x0,
-  NGTCP2_PKT_0RTT_PROTECTED = 0x1,
+  NGTCP2_PKT_0RTT = 0x1,
   NGTCP2_PKT_HANDSHAKE = 0x2,
   NGTCP2_PKT_RETRY = 0x3,
   /* NGTCP2_PKT_SHORT is defined by libngtcp2 for convenience. */
@@ -1578,8 +1578,8 @@ NGTCP2_EXTERN int ngtcp2_conn_read_handshake(ngtcp2_conn *conn,
  * During handshake, application can send 0-RTT data (or its response)
  * using `ngtcp2_conn_write_stream`.
  * `ngtcp2_conn_client_write_handshake` is generally efficient because
- * it can coalesce Handshake packet and 0-RTT protected packet into
- * one UDP packet.
+ * it can coalesce Handshake packet and 0-RTT packet into one UDP
+ * packet.
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
@@ -1602,9 +1602,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn,
  * `ngtcp2_conn_client_write_handshake` is just like
  * `ngtcp2_conn_write_handshake`, but it is for client only, and can
  * write 0-RTT data.  This function can coalesce handshake packet and
- * 0-RTT Protected packet into single UDP packet, thus it is generally
- * more efficient than the combination of
- * `ngtcp2_conn_write_handshake` and `ngtcp2_conn_write_stream`.
+ * 0-RTT packet into single UDP packet, thus it is generally more
+ * efficient than the combination of `ngtcp2_conn_write_handshake` and
+ * `ngtcp2_conn_write_stream`.
  *
  * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
  * to which 0-RTT data is sent, whether it is a last data chunk in

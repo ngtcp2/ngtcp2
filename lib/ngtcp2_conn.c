@@ -1182,7 +1182,7 @@ static int conn_verify_dcid(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
  * conn_should_pad_pkt returns nonzero if the packet should be padded.
  * |type| is the type of packet.  |left| is the space left in packet
  * buffer.  |early_datalen| is the number of bytes which will be sent
- * in the next, coalesced 0-RTT protected packet.
+ * in the next, coalesced 0-RTT packet.
  */
 static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
                                size_t early_datalen) {
@@ -1204,7 +1204,7 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
            NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.current.cid.datalen +
                conn->oscid.datalen + 1 /* payloadlen bytes - 1 */ +
                min_payloadlen + NGTCP2_MAX_AEAD_OVERHEAD;
-  case NGTCP2_PKT_0RTT_PROTECTED:
+  case NGTCP2_PKT_0RTT:
     return conn->state == NGTCP2_CS_CLIENT_INITIAL;
   default:
     return 0;
@@ -1270,7 +1270,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ctx.hp_mask = conn->callbacks.hp_mask;
     ctx.user_data = conn;
     break;
-  case NGTCP2_PKT_0RTT_PROTECTED:
+  case NGTCP2_PKT_0RTT:
     if (!conn->early.ckm || ngtcp2_pq_empty(&conn->tx.strmq)) {
       return 0;
     }
@@ -1299,8 +1299,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ctx.user_data = conn;
 
-  if (ngtcp2_pq_empty(&pktns->crypto.tx.frq) &&
-      type != NGTCP2_PKT_0RTT_PROTECTED) {
+  if (ngtcp2_pq_empty(&pktns->crypto.tx.frq) && type != NGTCP2_PKT_0RTT) {
     return 0;
   }
 
@@ -1319,7 +1318,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   /* TODO pktns->tx.frq is not used during handshake */
   assert(pktns->tx.frq == NULL);
 
-  if (type != NGTCP2_PKT_0RTT_PROTECTED) {
+  if (type != NGTCP2_PKT_0RTT) {
     for (; !ngtcp2_pq_empty(&pktns->crypto.tx.frq);) {
       left = ngtcp2_ppe_left(&ppe);
       left = ngtcp2_pkt_crypto_max_datalen(
@@ -1403,7 +1402,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  if (type != NGTCP2_PKT_0RTT_PROTECTED) {
+  if (type != NGTCP2_PKT_0RTT) {
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
                                0 /* ack_delay */,
                                NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
@@ -1655,13 +1654,12 @@ static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_retransmit_retry_early retransmits 0RTT Protected packet after
- * Retry is received from server.
+ * conn_retransmit_retry_early retransmits 0RTT packet after Retry is
+ * received from server.
  */
 static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ngtcp2_tstamp ts) {
-  return conn_write_handshake_pkt(conn, dest, destlen,
-                                  NGTCP2_PKT_0RTT_PROTECTED, 0, ts);
+  return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_0RTT, 0, ts);
 }
 
 /*
@@ -2521,7 +2519,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
                 : NGTCP2_PKT_FLAG_NONE;
     break;
   default:
-    /* We don't support 0-RTT Protected packet in this function. */
+    /* We don't support 0-RTT packet in this function. */
     assert(0);
   }
 
@@ -2619,8 +2617,7 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_process_early_rtb makes any pending 0RTT protected packet
- * Short packet.
+ * conn_process_early_rtb makes any pending 0RTT packet Short packet.
  */
 static void conn_process_early_rtb(ngtcp2_conn *conn) {
   ngtcp2_rtb_entry *ent;
@@ -2632,7 +2629,7 @@ static void conn_process_early_rtb(ngtcp2_conn *conn) {
     ent = ngtcp2_ksl_it_get(&it);
 
     if ((ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) == 0 ||
-        ent->hd.type != NGTCP2_PKT_0RTT_PROTECTED) {
+        ent->hd.type != NGTCP2_PKT_0RTT) {
       continue;
     }
 
@@ -4203,7 +4200,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   }
 
   switch (hd.type) {
-  case NGTCP2_PKT_0RTT_PROTECTED:
+  case NGTCP2_PKT_0RTT:
     if (!conn->server) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
@@ -4222,9 +4219,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return (ssize_t)pktlen;
     }
 
-    /* Buffer re-ordered 0-RTT Protected packet. */
+    /* Buffer re-ordered 0-RTT packet. */
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                    "buffering 0-RTT Protected packet len=%zu", pktlen);
+                    "buffering 0-RTT packet len=%zu", pktlen);
 
     rv = conn_buffer_pkt(conn, &conn->in_pktns, path, pkt, pktlen, ts);
     if (rv != 0) {
@@ -5814,7 +5811,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       aead_overhead = conn->crypto.aead_overhead;
       max_crypto_rx_offset = conn->pktns.crypto.rx.offset_base;
       break;
-    case NGTCP2_PKT_0RTT_PROTECTED:
+    case NGTCP2_PKT_0RTT:
       if (!conn->server) {
         return NGTCP2_ERR_DISCARD_PKT;
       }
@@ -5985,7 +5982,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return (ssize_t)rv;
       }
       return (ssize_t)pktlen;
-    case NGTCP2_PKT_0RTT_PROTECTED:
+    case NGTCP2_PKT_0RTT:
       if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
         rv = conn_verify_dcid(conn, &hd);
         if (rv != 0) {
@@ -6023,7 +6020,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     if (fr->type == NGTCP2_FRAME_ACK) {
       if ((hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
-          hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
+          hd.type == NGTCP2_PKT_0RTT) {
         return NGTCP2_ERR_PROTO;
       }
       assign_recved_ack_delay_unscaled(
@@ -6032,7 +6029,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
 
-    if (hd.type == NGTCP2_PKT_0RTT_PROTECTED) {
+    if (hd.type == NGTCP2_PKT_0RTT) {
       switch (fr->type) {
       case NGTCP2_FRAME_PADDING:
       case NGTCP2_FRAME_STREAM:
@@ -6201,8 +6198,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 }
 
 /*
- * conn_process_buffered_protected_pkt processes buffered 0RTT
- * Protected or Short packets.
+ * conn_process_buffered_protected_pkt processes buffered 0RTT or
+ * Short packets.
  *
  * This function returns 0 if it succeeds, or the same negative error
  * codes from conn_recv_pkt.
@@ -6451,8 +6448,8 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       return 0;
     }
 
-    /* Process re-ordered 0-RTT Protected packets which were
-       arrived before Initial packet. */
+    /* Process re-ordered 0-RTT packets which were arrived before
+       Initial packet. */
     if (conn->early.ckm) {
       rv = conn_process_buffered_protected_pkt(conn, &conn->in_pktns, ts);
       if (rv != 0) {
@@ -6856,7 +6853,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   assert(conn->early.ckm);
 
   pkt_flags = NGTCP2_PKT_FLAG_LONG_FORM;
-  pkt_type = NGTCP2_PKT_0RTT_PROTECTED;
+  pkt_type = NGTCP2_PKT_0RTT;
   ctx.ckm = conn->early.ckm;
   ctx.hp = conn->early.hp;
 
@@ -7030,8 +7027,7 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   /* If spktlen > 0, we are making a compound packet.  If Initial
-     packet is written, we have to pad bytes to 0-RTT Protected
-     packet. */
+     packet is written, we have to pad bytes to 0-RTT packet. */
 
   require_padding = spktlen && was_client_initial;
 
@@ -7103,8 +7099,8 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
       return -1;
     }
     break;
-  case NGTCP2_PKT_0RTT_PROTECTED:
-    /* 0-RTT Protected packet may arrive before Initial packet due to
+  case NGTCP2_PKT_0RTT:
+    /* 0-RTT packet may arrive before Initial packet due to
        re-ordering. */
     break;
   default:

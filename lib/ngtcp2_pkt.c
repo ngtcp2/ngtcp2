@@ -125,7 +125,7 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
       len = 5 + 1;
       break;
     case NGTCP2_PKT_HANDSHAKE:
-    case NGTCP2_PKT_0RTT_PROTECTED:
+    case NGTCP2_PKT_0RTT:
       len = NGTCP2_MIN_LONG_HEADERLEN - 1; /* Cut packet number field */
       break;
     default:

@@ -2408,8 +2408,8 @@ void test_ngtcp2_conn_client_write_handshake(void) {
   ssize_t datalen;
   ngtcp2_vec datav;
 
-  /* Verify that Handshake packet and 0-RTT Protected packet are
-     coalesced into one UDP packet. */
+  /* Verify that Handshake packet and 0-RTT packet are coalesced into
+     one UDP packet. */
   setup_early_client(&conn);
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -3357,7 +3357,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, &rcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_0RTT, &rcid,
       ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
 
   rv = ngtcp2_conn_read_handshake(conn, &null_path, buf, pktlen, ++t);
@@ -3375,7 +3375,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Re-ordered 0-RTT Protected packet */
+  /* Re-ordered 0-RTT packet */
   setup_early_server(&conn);
 
   fr.type = NGTCP2_FRAME_STREAM;
@@ -3387,7 +3387,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_0RTT_PROTECTED, &rcid,
+      conn, buf, sizeof(buf), NGTCP2_PKT_0RTT, &rcid,
       ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
 
   rv = ngtcp2_conn_read_handshake(conn, &null_path, buf, pktlen, ++t);
@@ -3445,8 +3445,8 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data[0].base = null_data;
 
   pktlen += write_single_frame_handshake_pkt(
-      conn, buf + pktlen, sizeof(buf) - pktlen, NGTCP2_PKT_0RTT_PROTECTED,
-      &rcid, ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
+      conn, buf + pktlen, sizeof(buf) - pktlen, NGTCP2_PKT_0RTT, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
 
   rv = ngtcp2_conn_read_handshake(conn, &null_path, buf, pktlen, ++t);
 
