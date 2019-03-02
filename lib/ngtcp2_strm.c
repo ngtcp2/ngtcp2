@@ -70,7 +70,7 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
     goto fail_gaptr_init;
   }
 
-  rv = ngtcp2_rob_init(&strm->rob, 8 * 1024, mem);
+  rv = ngtcp2_rob_init(&strm->rx.rob, 8 * 1024, mem);
   if (rv != 0) {
     goto fail_rob_init;
   }
@@ -100,17 +100,17 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
   }
 
   ngtcp2_pq_free(&strm->tx.streamfrq);
-  ngtcp2_rob_free(&strm->rob);
+  ngtcp2_rob_free(&strm->rx.rob);
   ngtcp2_gaptr_free(&strm->tx.acked_offset);
 }
 
 uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
-  return ngtcp2_rob_first_gap_offset(&strm->rob);
+  return ngtcp2_rob_first_gap_offset(&strm->rx.rob);
 }
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
                                 size_t datalen, uint64_t offset) {
-  return ngtcp2_rob_push(&strm->rob, offset, data, datalen);
+  return ngtcp2_rob_push(&strm->rx.rob, offset, data, datalen);
 }
 
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {

@@ -3810,7 +3810,7 @@ static int conn_emit_pending_crypto_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   uint64_t offset;
 
   for (;;) {
-    datalen = ngtcp2_rob_data_at(&strm->rob, &data, rx_offset);
+    datalen = ngtcp2_rob_data_at(&strm->rx.rob, &data, rx_offset);
     if (datalen == 0) {
       assert(rx_offset == ngtcp2_strm_rx_offset(strm));
       return 0;
@@ -3824,7 +3824,7 @@ static int conn_emit_pending_crypto_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       return rv;
     }
 
-    rv = ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
+    rv = ngtcp2_rob_pop(&strm->rx.rob, rx_offset - datalen, datalen);
     if (rv != 0) {
       return rv;
     }
@@ -4448,7 +4448,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   if (conn->server) {
     switch (hd.type) {
     case NGTCP2_PKT_INITIAL:
-      if (ngtcp2_rob_first_gap_offset(&crypto->rob) == 0) {
+      if (ngtcp2_rob_first_gap_offset(&crypto->rx.rob) == 0) {
         return NGTCP2_ERR_PROTO;
       }
       break;
@@ -4597,7 +4597,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   uint64_t offset;
 
   for (;;) {
-    datalen = ngtcp2_rob_data_at(&strm->rob, &data, rx_offset);
+    datalen = ngtcp2_rob_data_at(&strm->rx.rob, &data, rx_offset);
     if (datalen == 0) {
       assert(rx_offset == ngtcp2_strm_rx_offset(strm));
       return 0;
@@ -4614,7 +4614,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       return rv;
     }
 
-    rv = ngtcp2_rob_pop(&strm->rob, rx_offset - datalen, datalen);
+    rv = ngtcp2_rob_pop(&strm->rx.rob, rx_offset - datalen, datalen);
     if (rv != 0) {
       return rv;
     }
@@ -4681,7 +4681,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
     uint64_t offset = rx_offset;
 
     rx_offset += datalen;
-    rv = ngtcp2_rob_remove_prefix(&crypto->rob, rx_offset);
+    rv = ngtcp2_rob_remove_prefix(&crypto->rx.rob, rx_offset);
     if (rv != 0) {
       return rv;
     }
@@ -4888,7 +4888,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       datalen -= ncut;
 
       rx_offset += datalen;
-      rv = ngtcp2_rob_remove_prefix(&strm->rob, rx_offset);
+      rv = ngtcp2_rob_remove_prefix(&strm->rx.rob, rx_offset);
       if (rv != 0) {
         return rv;
       }
@@ -6444,7 +6444,7 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       return rv;
     }
 
-    if (ngtcp2_rob_first_gap_offset(&conn->crypto.strm.rob) == 0) {
+    if (ngtcp2_rob_first_gap_offset(&conn->crypto.strm.rx.rob) == 0) {
       return 0;
     }
 
@@ -7927,7 +7927,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
           NGTCP2_STRM_FLAG_SHUT_RDWR &&
       ((strm->flags & NGTCP2_STRM_FLAG_RECV_RST) ||
-       ngtcp2_rob_first_gap_offset(&strm->rob) == strm->rx.last_offset) &&
+       ngtcp2_rob_first_gap_offset(&strm->rx.rob) == strm->rx.last_offset) &&
       (((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
         (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
        (!(strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&

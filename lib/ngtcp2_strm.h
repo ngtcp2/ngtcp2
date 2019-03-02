@@ -91,6 +91,10 @@ struct ngtcp2_strm {
   } tx;
 
   struct {
+    /* rob is the reorder buffer for incoming stream data.  The data
+       received in out of order is buffered and sorted by its offset
+       in this object. */
+    ngtcp2_rob rob;
     /* last_offset is the largest offset of stream data received for
        this stream. */
     uint64_t last_offset;
@@ -103,7 +107,6 @@ struct ngtcp2_strm {
     uint64_t unsent_max_offset;
   } rx;
 
-  ngtcp2_rob rob;
   ngtcp2_mem *mem;
   int64_t stream_id;
   void *stream_user_data;
