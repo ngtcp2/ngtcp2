@@ -3056,9 +3056,6 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
     pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
 
     if (ngtcp2_path_eq(&conn->dcid.current.ps.path, &pcent->ps.path)) {
-      if (!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING)) {
-        return 0;
-      }
       dcid = &conn->dcid.current;
       break;
     }
@@ -3158,7 +3155,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
 
     if (conn->pv && conn_peer_has_unused_cid(conn)) {
       nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
-      if (nwrite || (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING))) {
+      if (nwrite) {
         return nwrite;
       }
     }
@@ -5679,9 +5676,8 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
 
   rv = ngtcp2_pv_new(&pv, dcid, timeout,
-                     NGTCP2_PV_FLAG_BLOCKING |
-                         NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS,
-                     &conn->log, conn->mem);
+                     NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS, &conn->log,
+                     conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -6549,7 +6545,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   timeout = rcvry_stat_compute_pto(&conn->rcs);
   timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
 
-  rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_BLOCKING, &conn->log,
+  rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
                      conn->mem);
   if (rv != 0) {
     /* TODO Call ngtcp2_dcid_free here if it is introduced */
@@ -7338,9 +7334,6 @@ ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
 
   if (conn->pv) {
     ts = ngtcp2_pv_next_expiry(conn->pv);
-    if (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING) {
-      return ts;
-    }
   }
   if (conn->rcs.loss_detection_timer) {
     ts = ngtcp2_min(ts, conn->rcs.loss_detection_timer);
@@ -7353,10 +7346,6 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
   ngtcp2_acktr *hs_acktr = &conn->hs_pktns.acktr;
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
   ngtcp2_tstamp ts = UINT64_MAX, t;
-
-  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING)) {
-    return ts;
-  }
 
   if (in_acktr->first_unacked_ts != UINT64_MAX) {
     t = in_acktr->first_unacked_ts + NGTCP2_HS_ACK_DELAY;
@@ -7715,7 +7704,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
 
   if (conn->pv && conn_peer_has_unused_cid(conn)) {
     nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
-    if (nwrite || (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING))) {
+    if (nwrite) {
       return nwrite;
     }
   }
@@ -8425,7 +8414,7 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   timeout = rcvry_stat_compute_pto(&conn->rcs);
   timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
 
-  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_BLOCKING, &conn->log,
+  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
                      conn->mem);
   if (rv != 0) {
     return rv;

@@ -56,9 +56,6 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
 
 typedef enum {
   NGTCP2_PV_FLAG_NONE,
-  /* NGTCP2_PV_FLAG_BLOCKING indicates that the path validation must
-     finish before sending non-probing packets. */
-  NGTCP2_PV_FLAG_BLOCKING = 0x01,
   /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of the path
      validation does not matter. */
   NGTCP2_PV_FLAG_DONT_CARE = 0x02,
