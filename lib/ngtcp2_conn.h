@@ -45,6 +45,7 @@
 #include "ngtcp2_cc.h"
 #include "ngtcp2_pv.h"
 #include "ngtcp2_cid.h"
+#include "ngtcp2_buf.h"
 
 typedef enum {
   /* Client specific handshake states */

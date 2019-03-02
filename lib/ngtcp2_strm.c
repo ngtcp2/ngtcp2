@@ -65,7 +65,6 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
      indicate the cause of closure.  So effectively, 0 means "no
      error." */
   strm->app_error_code = 0;
-  memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
 
   rv = ngtcp2_gaptr_init(&strm->tx.acked_offset, mem);
   if (rv != 0) {

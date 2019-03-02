@@ -32,7 +32,6 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_rob.h"
-#include "ngtcp2_buf.h"
 #include "ngtcp2_map.h"
 #include "ngtcp2_gaptr.h"
 #include "ngtcp2_ksl.h"
@@ -104,7 +103,6 @@ struct ngtcp2_strm {
   uint64_t unsent_max_rx_offset;
   ngtcp2_mem *mem;
   size_t nbuffered;
-  ngtcp2_buf tx_buf;
   int64_t stream_id;
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
