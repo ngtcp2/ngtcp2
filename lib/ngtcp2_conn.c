@@ -1794,7 +1794,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
 
   return conn_initial_stream_rx_offset(conn, strm->stream_id) / 2 <
-             (strm->unsent_max_rx_offset - strm->rx.max_offset) ||
+             (strm->rx.unsent_max_offset - strm->rx.max_offset) ||
          2 * conn->rx.bw.value * conn->rcs.smoothed_rtt >=
              strm->rx.max_offset - strm->rx.last_offset;
 }
@@ -2258,7 +2258,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       strm = ngtcp2_conn_tx_strmq_top(conn);
 
       if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-          strm->rx.max_offset < strm->unsent_max_rx_offset) {
+          strm->rx.max_offset < strm->rx.unsent_max_offset) {
         rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
         if (rv != 0) {
           assert(ngtcp2_err_is_fatal(rv));
@@ -2266,7 +2266,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         }
         nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
         nfrc->fr.max_stream_data.stream_id = strm->stream_id;
-        nfrc->fr.max_stream_data.max_stream_data = strm->unsent_max_rx_offset;
+        nfrc->fr.max_stream_data.max_stream_data = strm->rx.unsent_max_offset;
         ngtcp2_list_insert(nfrc, pfrc);
 
         rv =
@@ -2279,7 +2279,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         pkt_empty = 0;
         rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
         pfrc = &(*pfrc)->next;
-        strm->rx.max_offset = strm->unsent_max_rx_offset;
+        strm->rx.max_offset = strm->rx.unsent_max_offset;
       }
 
       for (;;) {
@@ -8046,8 +8046,8 @@ static int conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                          size_t datalen) {
   ngtcp2_strm *top;
 
-  if (strm->unsent_max_rx_offset <= NGTCP2_MAX_VARINT - datalen) {
-    strm->unsent_max_rx_offset += datalen;
+  if (strm->rx.unsent_max_offset <= NGTCP2_MAX_VARINT - datalen) {
+    strm->rx.unsent_max_offset += datalen;
   }
 
   if (!(strm->flags &
