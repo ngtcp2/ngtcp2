@@ -828,7 +828,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 4);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(2048 == strm->max_tx_offset);
+  CU_ASSERT(2048 == strm->tx.max_offset);
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), &nwrite,
                                      stream_id, 0, null_data, 1024, 5);
@@ -3201,7 +3201,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   strm = ngtcp2_conn_find_stream(conn, 4);
 
   CU_ASSERT(NULL != strm);
-  CU_ASSERT(1000000009 == strm->max_tx_offset);
+  CU_ASSERT(1000000009 == strm->tx.max_offset);
 
   ngtcp2_conn_del(conn);
 
@@ -3237,7 +3237,7 @@ void test_ngtcp2_conn_recv_max_stream_data(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1000000009 == strm->max_tx_offset);
+  CU_ASSERT(1000000009 == strm->tx.max_offset);
 
   ngtcp2_conn_del(conn);
 }

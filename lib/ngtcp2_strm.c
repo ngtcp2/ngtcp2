@@ -48,13 +48,13 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
 
   strm->cycle = 0;
   strm->tx.offset = 0;
+  strm->tx.max_offset = max_tx_offset;
   strm->last_rx_offset = 0;
   strm->nbuffered = 0;
   strm->stream_id = stream_id;
   strm->flags = flags;
   strm->stream_user_data = stream_user_data;
   strm->max_rx_offset = strm->unsent_max_rx_offset = max_rx_offset;
-  strm->max_tx_offset = max_tx_offset;
   strm->me.key = (uint64_t)stream_id;
   strm->me.next = NULL;
   strm->pe.index = NGTCP2_PQ_BAD_INDEX;

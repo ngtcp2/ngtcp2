@@ -617,7 +617,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * credits are considered.
  */
 static size_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
-  return ngtcp2_min(strm->max_tx_offset - strm->tx.offset,
+  return ngtcp2_min(strm->tx.max_offset - strm->tx.offset,
                     conn->tx.max_offset - conn->tx.offset);
 }
 
@@ -3602,7 +3602,7 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
     }
   }
 
-  strm->max_tx_offset = ngtcp2_max(strm->max_tx_offset, fr->max_stream_data);
+  strm->tx.max_offset = ngtcp2_max(strm->tx.max_offset, fr->max_stream_data);
 
   return 0;
 }
@@ -7004,11 +7004,11 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     send_stream = conn_retry_early_payloadlen(conn) == 0 &&
                   /* 0 length STREAM frame is allowed */
                   (datalen == 0 ||
-                   (datalen > 0 && (strm->max_tx_offset - strm->tx.offset) &&
+                   (datalen > 0 && (strm->tx.max_offset - strm->tx.offset) &&
                     (conn->tx.max_offset - conn->tx.offset)));
     if (send_stream) {
       early_datalen =
-          ngtcp2_min(datalen, strm->max_tx_offset - strm->tx.offset);
+          ngtcp2_min(datalen, strm->tx.max_offset - strm->tx.offset);
       early_datalen =
           ngtcp2_min(early_datalen, conn->tx.max_offset - conn->tx.offset) +
           NGTCP2_STREAM_OVERHEAD;
