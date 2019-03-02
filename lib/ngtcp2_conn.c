@@ -927,13 +927,16 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
 }
 
 /*
- * conn_select_pkt_numlen selects shortest packet number encoding
- * based on the next packet number |pkt_num| and the largest
- * acknowledged packet number.  It returns the number of bytes to
- * encode the packet number.
+ * pktns_select_pkt_numlen selects shortest packet number encoding for
+ * the next packet number based on the largest acknowledged packet
+ * number.  It returns the number of bytes to encode the packet
+ * number.
  */
-static size_t rtb_select_pkt_numlen(ngtcp2_rtb *rtb, int64_t pkt_num) {
+static size_t pktns_select_pkt_numlen(ngtcp2_pktns *pktns) {
+  int64_t pkt_num = pktns->tx.last_pkt_num + 1;
+  ngtcp2_rtb *rtb = &pktns->rtb;
   int64_t n = pkt_num - rtb->largest_acked_tx_pkt_num;
+
   if (NGTCP2_MAX_PKT_NUM / 2 <= pkt_num) {
     return 4;
   }
@@ -1286,11 +1289,10 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     assert(0);
   }
 
-  ngtcp2_pkt_hd_init(
-      &hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid.current.cid,
-      &conn->oscid, pktns->tx.last_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
-      conn->version, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type,
+                     &conn->dcid.current.cid, &conn->oscid,
+                     pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
+                     conn->version, 0);
 
   if (type == NGTCP2_PKT_INITIAL && ngtcp2_buf_len(&conn->token)) {
     hd.token = conn->token.pos;
@@ -1533,11 +1535,10 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  ngtcp2_pkt_hd_init(
-      &hd, NGTCP2_PKT_FLAG_LONG_FORM, type, &conn->dcid.current.cid,
-      &conn->oscid, pktns->tx.last_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
-      conn->version, 0);
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type,
+                     &conn->dcid.current.cid, &conn->oscid,
+                     pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
+                     conn->version, 0);
 
   ctx.ckm = pktns->crypto.tx.ckm;
   ctx.hp = pktns->crypto.tx.hp;
@@ -2049,9 +2050,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
           ? NGTCP2_PKT_FLAG_KEY_PHASE
           : NGTCP2_PKT_FLAG_NONE,
       NGTCP2_PKT_SHORT, &conn->dcid.current.cid, NULL,
-      pktns->tx.last_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
-      conn->version, 0);
+      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns), conn->version,
+      0);
 
   ctx.ckm = pktns->crypto.tx.ckm;
   ctx.hp = pktns->crypto.tx.hp;
@@ -2527,10 +2527,9 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ctx.hp = pktns->crypto.tx.hp;
   ctx.user_data = conn;
 
-  ngtcp2_pkt_hd_init(
-      &hd, flags, type, dcid, &conn->oscid, pktns->tx.last_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
-      conn->version, 0);
+  ngtcp2_pkt_hd_init(&hd, flags, type, dcid, &conn->oscid,
+                     pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
+                     conn->version, 0);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
@@ -2683,9 +2682,8 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
           ? NGTCP2_PKT_FLAG_KEY_PHASE
           : NGTCP2_PKT_FLAG_NONE,
       NGTCP2_PKT_SHORT, &conn->dcid.current.cid, NULL,
-      pktns->tx.last_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
-      conn->version, 0);
+      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns), conn->version,
+      0);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
@@ -6857,11 +6855,9 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   ctx.ckm = conn->early.ckm;
   ctx.hp = conn->early.hp;
 
-  ngtcp2_pkt_hd_init(
-      &hd, pkt_flags, pkt_type, &conn->dcid.current.cid, &conn->oscid,
-      pktns->tx.last_pkt_num + 1,
-      rtb_select_pkt_numlen(&pktns->rtb, pktns->tx.last_pkt_num + 1),
-      conn->version, 0);
+  ngtcp2_pkt_hd_init(&hd, pkt_flags, pkt_type, &conn->dcid.current.cid,
+                     &conn->oscid, pktns->tx.last_pkt_num + 1,
+                     pktns_select_pkt_numlen(pktns), conn->version, 0);
 
   ctx.aead_overhead = conn->crypto.aead_overhead;
   ctx.encrypt = conn->callbacks.encrypt;
