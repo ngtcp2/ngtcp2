@@ -1796,7 +1796,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
   return conn_initial_stream_rx_offset(conn, strm->stream_id) / 2 <
              (strm->unsent_max_rx_offset - strm->max_rx_offset) ||
          2 * conn->rx.bw.value * conn->rcs.smoothed_rtt >=
-             strm->max_rx_offset - strm->last_rx_offset;
+             strm->max_rx_offset - strm->rx.last_offset;
 }
 
 /*
@@ -4608,7 +4608,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
     rv = conn_call_recv_stream_data(conn, strm,
                                     (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-                                        rx_offset == strm->last_rx_offset,
+                                        rx_offset == strm->rx.last_offset,
                                     offset, data, datalen);
     if (rv != 0) {
       return rv;
@@ -4667,7 +4667,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
     return 0;
   }
 
-  crypto->last_rx_offset = ngtcp2_max(crypto->last_rx_offset, fr_end_offset);
+  crypto->rx.last_offset = ngtcp2_max(crypto->rx.last_offset, fr_end_offset);
 
   /* TODO Before dispatching incoming data to TLS stack, make sure
      that previous data in previous encryption level has been
@@ -4816,8 +4816,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     return NGTCP2_ERR_FLOW_CONTROL;
   }
 
-  if (strm->last_rx_offset < fr_end_offset) {
-    size_t len = fr_end_offset - strm->last_rx_offset;
+  if (strm->rx.last_offset < fr_end_offset) {
+    size_t len = fr_end_offset - strm->rx.last_offset;
 
     if (conn_max_data_violated(conn, len)) {
       return NGTCP2_ERR_FLOW_CONTROL;
@@ -4830,7 +4830,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
   if (fr->fin) {
     if (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) {
-      if (strm->last_rx_offset != fr_end_offset) {
+      if (strm->rx.last_offset != fr_end_offset) {
         return NGTCP2_ERR_FINAL_SIZE;
       }
 
@@ -4838,10 +4838,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
           (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST)) {
         return 0;
       }
-    } else if (strm->last_rx_offset > fr_end_offset) {
+    } else if (strm->rx.last_offset > fr_end_offset) {
       return NGTCP2_ERR_FINAL_SIZE;
     } else {
-      strm->last_rx_offset = fr_end_offset;
+      strm->rx.last_offset = fr_end_offset;
 
       ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
 
@@ -4861,11 +4861,11 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     }
   } else {
     if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-        strm->last_rx_offset < fr_end_offset) {
+        strm->rx.last_offset < fr_end_offset) {
       return NGTCP2_ERR_FINAL_SIZE;
     }
 
-    strm->last_rx_offset = ngtcp2_max(strm->last_rx_offset, fr_end_offset);
+    strm->rx.last_offset = ngtcp2_max(strm->rx.last_offset, fr_end_offset);
 
     if (fr_end_offset <= rx_offset) {
       return 0;
@@ -4898,7 +4898,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     }
 
     fin = (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-          rx_offset == strm->last_rx_offset;
+          rx_offset == strm->rx.last_offset;
 
     if (fin || datalen) {
       rv = conn_call_recv_stream_data(conn, strm, fin, offset, data, datalen);
@@ -5089,14 +5089,14 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   }
 
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD)) {
-    if (strm->last_rx_offset != fr->final_size) {
+    if (strm->rx.last_offset != fr->final_size) {
       return NGTCP2_ERR_FINAL_SIZE;
     }
-  } else if (strm->last_rx_offset > fr->final_size) {
+  } else if (strm->rx.last_offset > fr->final_size) {
     return NGTCP2_ERR_FINAL_SIZE;
   }
 
-  datalen = fr->final_size - strm->last_rx_offset;
+  datalen = fr->final_size - strm->rx.last_offset;
 
   if (strm->max_rx_offset < fr->final_size ||
       conn_max_data_violated(conn, datalen)) {
@@ -5105,7 +5105,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
 
   conn->rx.offset += datalen;
 
-  strm->last_rx_offset = fr->final_size;
+  strm->rx.last_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
 
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
@@ -7202,7 +7202,7 @@ int ngtcp2_conn_install_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  conn->hs_pktns.crypto.rx.offset_base = conn->crypto.strm.last_rx_offset;
+  conn->hs_pktns.crypto.rx.offset_base = conn->crypto.strm.rx.last_offset;
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, key, keylen, iv, ivlen,
                             conn->mem);
@@ -7263,7 +7263,7 @@ int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
 
   /* TODO This must be done once */
   if (conn->pktns.crypto.rx.offset_base == 0) {
-    conn->pktns.crypto.rx.offset_base = conn->crypto.strm.last_rx_offset;
+    conn->pktns.crypto.rx.offset_base = conn->crypto.strm.rx.last_offset;
   }
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, key, keylen, iv, ivlen,
@@ -7927,7 +7927,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
           NGTCP2_STRM_FLAG_SHUT_RDWR &&
       ((strm->flags & NGTCP2_STRM_FLAG_RECV_RST) ||
-       ngtcp2_rob_first_gap_offset(&strm->rob) == strm->last_rx_offset) &&
+       ngtcp2_rob_first_gap_offset(&strm->rob) == strm->rx.last_offset) &&
       (((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
         (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
        (!(strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&

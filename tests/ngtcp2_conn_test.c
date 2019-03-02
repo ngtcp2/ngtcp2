@@ -626,7 +626,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_RD == strm->flags);
-  CU_ASSERT(fr.stream.offset == strm->last_rx_offset);
+  CU_ASSERT(fr.stream.offset == strm->rx.last_offset);
   CU_ASSERT(fr.stream.offset == ngtcp2_strm_rx_offset(strm));
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), NULL, 4, 1,
@@ -657,7 +657,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
   strm = ngtcp2_conn_find_stream(conn, 2);
 
   CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_WR == strm->flags);
-  CU_ASSERT(fr.stream.data[0].len == strm->last_rx_offset);
+  CU_ASSERT(fr.stream.data[0].len == strm->rx.last_offset);
   CU_ASSERT(fr.stream.data[0].len == ngtcp2_strm_rx_offset(strm));
 
   /* Open a local unidirectional stream */
@@ -3371,7 +3371,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   strm = ngtcp2_conn_find_stream(conn, 4);
 
   CU_ASSERT(NULL != strm);
-  CU_ASSERT(911 == strm->last_rx_offset);
+  CU_ASSERT(911 == strm->rx.last_offset);
 
   ngtcp2_conn_del(conn);
 
@@ -3419,7 +3419,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   strm = ngtcp2_conn_find_stream(conn, 4);
 
   CU_ASSERT(NULL != strm);
-  CU_ASSERT(119 == strm->last_rx_offset);
+  CU_ASSERT(119 == strm->rx.last_offset);
 
   ngtcp2_conn_del(conn);
 
@@ -3459,7 +3459,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   strm = ngtcp2_conn_find_stream(conn, 4);
 
   CU_ASSERT(NULL != strm);
-  CU_ASSERT(999 == strm->last_rx_offset);
+  CU_ASSERT(999 == strm->rx.last_offset);
 
   ngtcp2_conn_del(conn);
 }
