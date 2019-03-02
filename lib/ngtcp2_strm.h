@@ -102,7 +102,6 @@ struct ngtcp2_strm {
      endpoint.  unsent_max_rx_offset >= max_rx_offset must be hold. */
   uint64_t unsent_max_rx_offset;
   ngtcp2_mem *mem;
-  size_t nbuffered;
   int64_t stream_id;
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
