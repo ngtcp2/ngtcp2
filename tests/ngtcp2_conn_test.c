@@ -797,14 +797,14 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(1024 == nwrite);
-  CU_ASSERT(1024 == strm->tx_offset);
+  CU_ASSERT(1024 == strm->tx.offset);
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), &nwrite,
                                      stream_id, 0, null_data, 1024, 2);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(1023 == nwrite);
-  CU_ASSERT(2047 == strm->tx_offset);
+  CU_ASSERT(2047 == strm->tx.offset);
 
   spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), &nwrite,
                                      stream_id, 0, null_data, 1024, 3);
@@ -817,7 +817,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(0 == nwrite);
-  CU_ASSERT(2047 == strm->tx_offset);
+  CU_ASSERT(2047 == strm->tx.offset);
 
   fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
   fr.max_stream_data.stream_id = stream_id;
@@ -835,7 +835,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(1 == nwrite);
-  CU_ASSERT(2048 == strm->tx_offset);
+  CU_ASSERT(2048 == strm->tx.offset);
 
   ngtcp2_conn_del(conn);
 

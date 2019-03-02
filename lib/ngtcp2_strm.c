@@ -47,7 +47,7 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   int rv;
 
   strm->cycle = 0;
-  strm->tx_offset = 0;
+  strm->tx.offset = 0;
   strm->last_rx_offset = 0;
   strm->nbuffered = 0;
   strm->stream_id = stream_id;
@@ -311,5 +311,5 @@ int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm) {
 
 int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
   return ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset) ==
-         strm->tx_offset;
+         strm->tx.offset;
 }

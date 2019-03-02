@@ -617,7 +617,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * credits are considered.
  */
 static size_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
-  return ngtcp2_min(strm->max_tx_offset - strm->tx_offset,
+  return ngtcp2_min(strm->max_tx_offset - strm->tx.offset,
                     conn->tx.max_offset - conn->tx.offset);
 }
 
@@ -2345,7 +2345,7 @@ tx_strmq_finish:
       (written_stream_id == -1 || written_stream_id == data_strm->stream_id) &&
       *pfrc == NULL &&
       (ndatalen = ngtcp2_pkt_stream_max_datalen(data_strm->stream_id,
-                                                data_strm->tx_offset, ndatalen,
+                                                data_strm->tx.offset, ndatalen,
                                                 left)) != (size_t)-1 &&
       (ndatalen || datalen == 0)) {
     fin = fin && ndatalen == datalen;
@@ -2360,7 +2360,7 @@ tx_strmq_finish:
     nsfrc->fr.flags = 0;
     nsfrc->fr.fin = fin;
     nsfrc->fr.stream_id = data_strm->stream_id;
-    nsfrc->fr.offset = data_strm->tx_offset;
+    nsfrc->fr.offset = data_strm->tx.offset;
     nsfrc->fr.datacnt = ngtcp2_vec_copy(
         nsfrc->fr.data, NGTCP2_MAX_STREAM_DATACNT, datav, datavcnt, ndatalen);
 
@@ -2447,7 +2447,7 @@ tx_strmq_finish:
     }
 
     if (send_stream) {
-      data_strm->tx_offset += ndatalen;
+      data_strm->tx.offset += ndatalen;
       conn->tx.offset += ndatalen;
 
       if (fin) {
@@ -4945,7 +4945,7 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   frc->fr.type = NGTCP2_FRAME_RESET_STREAM;
   frc->fr.reset_stream.stream_id = strm->stream_id;
   frc->fr.reset_stream.app_error_code = app_error_code;
-  frc->fr.reset_stream.final_size = strm->tx_offset;
+  frc->fr.reset_stream.final_size = strm->tx.offset;
 
   /* TODO This prepends RESET_STREAM to pktns->tx.frq. */
   frc->next = pktns->tx.frq;
@@ -6888,7 +6888,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   left = ngtcp2_ppe_left(&ppe);
-  ndatalen = ngtcp2_pkt_stream_max_datalen(strm->stream_id, strm->tx_offset,
+  ndatalen = ngtcp2_pkt_stream_max_datalen(strm->stream_id, strm->tx.offset,
                                            ndatalen, left);
   if (ndatalen == (size_t)-1 || (ndatalen == 0 && datalen)) {
     return 0;
@@ -6906,7 +6906,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
   frc->fr.flags = 0;
   frc->fr.fin = fin;
   frc->fr.stream_id = strm->stream_id;
-  frc->fr.offset = strm->tx_offset;
+  frc->fr.offset = strm->tx.offset;
   frc->fr.datacnt = ngtcp2_vec_copy(frc->fr.data, NGTCP2_MAX_STREAM_DATACNT,
                                     datav, datavcnt, ndatalen);
 
@@ -6950,7 +6950,7 @@ static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
     return rv;
   }
 
-  strm->tx_offset += ndatalen;
+  strm->tx.offset += ndatalen;
   conn->tx.offset += ndatalen;
 
   ++pktns->tx.last_pkt_num;
@@ -7004,11 +7004,11 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     send_stream = conn_retry_early_payloadlen(conn) == 0 &&
                   /* 0 length STREAM frame is allowed */
                   (datalen == 0 ||
-                   (datalen > 0 && (strm->max_tx_offset - strm->tx_offset) &&
+                   (datalen > 0 && (strm->max_tx_offset - strm->tx.offset) &&
                     (conn->tx.max_offset - conn->tx.offset)));
     if (send_stream) {
       early_datalen =
-          ngtcp2_min(datalen, strm->max_tx_offset - strm->tx_offset);
+          ngtcp2_min(datalen, strm->max_tx_offset - strm->tx.offset);
       early_datalen =
           ngtcp2_min(early_datalen, conn->tx.max_offset - conn->tx.offset) +
           NGTCP2_STREAM_OVERHEAD;
@@ -8317,7 +8317,7 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
   fr = &frc->fr;
 
   fr->type = NGTCP2_FRAME_CRYPTO;
-  fr->ordered_offset = conn->crypto.strm.tx_offset;
+  fr->ordered_offset = conn->crypto.strm.tx.offset;
   fr->offset = pktns->crypto.tx.offset;
   fr->datacnt = 1;
   fr->data[0].len = datalen;
@@ -8329,7 +8329,7 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
     return rv;
   }
 
-  conn->crypto.strm.tx_offset += datalen;
+  conn->crypto.strm.tx.offset += datalen;
   pktns->crypto.tx.offset += datalen;
 
   return 0;

@@ -74,7 +74,13 @@ struct ngtcp2_strm {
   ngtcp2_map_entry me;
   ngtcp2_pq_entry pe;
   uint64_t cycle;
-  uint64_t tx_offset;
+
+  struct {
+    /* offset is the number of bytes sent in this stream without
+       duplication. */
+    uint64_t offset;
+  } tx;
+
   ngtcp2_gaptr acked_tx_offset;
   /* max_tx_offset is the maximum offset that local endpoint can send
      for this stream. */
