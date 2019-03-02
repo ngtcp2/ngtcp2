@@ -6204,6 +6204,9 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   ssize_t nread;
   ngtcp2_pkt_chain **ppc, *next;
 
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                  "processing buffered protected packet");
+
   for (ppc = &pktns->rx.buffed_pkts; *ppc;) {
     next = (*ppc)->next;
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
@@ -6233,6 +6236,9 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
   ngtcp2_pktns *pktns = &conn->in_pktns;
   ssize_t nread;
   ngtcp2_pkt_chain **ppc, *next;
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                  "processing buffered handshake packet");
 
   for (ppc = &pktns->rx.buffed_pkts; *ppc;) {
     next = (*ppc)->next;
