@@ -82,7 +82,8 @@ struct ngtcp2_strm {
        time.  There are no restriction regarding flow control for
        retransmission. */
     ngtcp2_pq streamfrq;
-    /* offset is the number of bytes sent in this stream without
+    /* offset is the next offset of outgoing data.  In other words, it
+       is the number of bytes sent in this stream without
        duplication. */
     uint64_t offset;
     /* max_tx_offset is the maximum offset that local endpoint can
