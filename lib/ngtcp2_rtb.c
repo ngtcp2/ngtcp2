@@ -264,16 +264,16 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
         break;
       }
       prev_stream_offset =
-          ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
+          ngtcp2_gaptr_first_gap_offset(&strm->tx.acked_offset);
       rv = ngtcp2_gaptr_push(
-          &strm->acked_tx_offset, frc->fr.stream.offset,
+          &strm->tx.acked_offset, frc->fr.stream.offset,
           ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
       if (rv != 0) {
         return rv;
       }
 
       if (conn->callbacks.acked_stream_data_offset) {
-        stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->acked_tx_offset);
+        stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->tx.acked_offset);
         datalen = stream_offset - prev_stream_offset;
         if (datalen == 0 && !frc->fr.stream.fin) {
           break;
@@ -294,16 +294,16 @@ static int call_acked_stream_offset(ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
       break;
     case NGTCP2_FRAME_CRYPTO:
       prev_stream_offset =
-          ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset);
+          ngtcp2_gaptr_first_gap_offset(&crypto->tx.acked_offset);
       rv = ngtcp2_gaptr_push(
-          &crypto->acked_tx_offset, frc->fr.crypto.ordered_offset,
+          &crypto->tx.acked_offset, frc->fr.crypto.ordered_offset,
           ngtcp2_vec_len(frc->fr.crypto.data, frc->fr.crypto.datacnt));
       if (rv != 0) {
         return rv;
       }
 
       if (conn->callbacks.acked_crypto_offset) {
-        stream_offset = ngtcp2_gaptr_first_gap_offset(&crypto->acked_tx_offset);
+        stream_offset = ngtcp2_gaptr_first_gap_offset(&crypto->tx.acked_offset);
         datalen = stream_offset - prev_stream_offset;
         if (datalen == 0) {
           break;
