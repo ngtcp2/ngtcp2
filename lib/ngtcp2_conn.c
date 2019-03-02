@@ -7334,13 +7334,18 @@ int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn) {
 }
 
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
+  ngtcp2_tstamp ts = UINT64_MAX;
+
   if (conn->pv) {
-    return ngtcp2_pv_next_expiry(conn->pv);
+    ts = ngtcp2_pv_next_expiry(conn->pv);
+    if (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING) {
+      return ts;
+    }
   }
   if (conn->rcs.loss_detection_timer) {
-    return conn->rcs.loss_detection_timer;
+    ts = ngtcp2_min(ts, conn->rcs.loss_detection_timer);
   }
-  return UINT64_MAX;
+  return ts;
 }
 
 ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
@@ -7349,7 +7354,7 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
   ngtcp2_tstamp ts = UINT64_MAX, t;
 
-  if (conn->pv) {
+  if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_BLOCKING)) {
     return ts;
   }
 
