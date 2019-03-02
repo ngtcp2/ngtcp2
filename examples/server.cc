@@ -2285,8 +2285,10 @@ int Server::on_read(Endpoint &ep) {
     }
 
     if (!config.quiet) {
-      std::cerr << "Received packet from " << util::straddr(&su.sa, addrlen)
-                << std::endl;
+      std::cerr << "Received packet: local="
+                << util::straddr(&ep.addr.su.sa, ep.addr.len)
+                << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
+                << " bytes" << std::endl;
     }
 
     if (debug::packet_lost(config.rx_loss_prob)) {
@@ -2768,7 +2770,8 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf) {
   buf.reset();
 
   if (!config.quiet) {
-    std::cerr << "Sent packet to "
+    std::cerr << "Sent packet: local="
+              << util::straddr(&ep.addr.su.sa, ep.addr.len) << " remote="
               << util::straddr(&remote_addr.su.sa, remote_addr.len) << " "
               << nwrite << " bytes" << std::endl;
   }

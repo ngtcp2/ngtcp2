@@ -1314,8 +1314,10 @@ int Client::on_read() {
     }
 
     if (!config.quiet) {
-      std::cerr << "Received packet from " << util::straddr(&su.sa, addrlen)
-                << std::endl;
+      std::cerr << "Received packet: local="
+                << util::straddr(&local_addr_.su.sa, local_addr_.len)
+                << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
+                << " bytes" << std::endl;
     }
 
     if (debug::packet_lost(config.rx_loss_prob)) {
@@ -1937,7 +1939,9 @@ int Client::send_packet() {
   sendbuf_.reset();
 
   if (!config.quiet) {
-    std::cerr << "Sent packet to "
+    std::cerr << "Sent packet: local="
+              << util::straddr(&local_addr_.su.sa, local_addr_.len)
+              << " remote="
               << util::straddr(&remote_addr_.su.sa, remote_addr_.len) << " "
               << nwrite << " bytes" << std::endl;
   }
