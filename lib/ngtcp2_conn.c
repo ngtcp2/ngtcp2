@@ -1794,9 +1794,9 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
 
   return conn_initial_stream_rx_offset(conn, strm->stream_id) / 2 <
-             (strm->unsent_max_rx_offset - strm->max_rx_offset) ||
+             (strm->unsent_max_rx_offset - strm->rx.max_offset) ||
          2 * conn->rx.bw.value * conn->rcs.smoothed_rtt >=
-             strm->max_rx_offset - strm->rx.last_offset;
+             strm->rx.max_offset - strm->rx.last_offset;
 }
 
 /*
@@ -2133,7 +2133,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       strm =
           ngtcp2_conn_find_stream(conn, (*pfrc)->fr.max_stream_data.stream_id);
       if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) ||
-          (*pfrc)->fr.max_stream_data.max_stream_data < strm->max_rx_offset) {
+          (*pfrc)->fr.max_stream_data.max_stream_data < strm->rx.max_offset) {
         frc = *pfrc;
         *pfrc = (*pfrc)->next;
         ngtcp2_frame_chain_del(frc, conn->mem);
@@ -2258,7 +2258,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       strm = ngtcp2_conn_tx_strmq_top(conn);
 
       if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-          strm->max_rx_offset < strm->unsent_max_rx_offset) {
+          strm->rx.max_offset < strm->unsent_max_rx_offset) {
         rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
         if (rv != 0) {
           assert(ngtcp2_err_is_fatal(rv));
@@ -2279,7 +2279,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         pkt_empty = 0;
         rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
         pfrc = &(*pfrc)->next;
-        strm->max_rx_offset = strm->unsent_max_rx_offset;
+        strm->rx.max_offset = strm->unsent_max_rx_offset;
       }
 
       for (;;) {
@@ -4657,7 +4657,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
     return NGTCP2_ERR_PROTO;
   }
 
-  if (crypto->max_rx_offset && crypto->max_rx_offset < fr_end_offset) {
+  if (crypto->rx.max_offset && crypto->rx.max_offset < fr_end_offset) {
     return NGTCP2_ERR_PROTO;
   }
 
@@ -4812,7 +4812,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
 
   fr_end_offset = fr->offset + datalen;
 
-  if (strm->max_rx_offset < fr_end_offset) {
+  if (strm->rx.max_offset < fr_end_offset) {
     return NGTCP2_ERR_FLOW_CONTROL;
   }
 
@@ -5098,7 +5098,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
 
   datalen = fr->final_size - strm->rx.last_offset;
 
-  if (strm->max_rx_offset < fr->final_size ||
+  if (strm->rx.max_offset < fr->final_size ||
       conn_max_data_violated(conn, datalen)) {
     return NGTCP2_ERR_FLOW_CONTROL;
   }

@@ -738,7 +738,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
     stream_id = (int64_t)(i * 4);
     strm = ngtcp2_conn_find_stream(conn, stream_id);
 
-    CU_ASSERT(2047 + 1024 == strm->max_rx_offset);
+    CU_ASSERT(2047 + 1024 == strm->rx.max_offset);
   }
 
   ngtcp2_conn_del(conn);

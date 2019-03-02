@@ -94,12 +94,12 @@ struct ngtcp2_strm {
     /* last_offset is the largest offset of stream data received for
        this stream. */
     uint64_t last_offset;
+    /* max_offset is the maximum offset that remote endpoint can send
+       to this stream. */
+    uint64_t max_offset;
   } rx;
 
   ngtcp2_rob rob;
-  /* max_rx_offset is the maximum offset that remote endpoint can send
-     to this stream. */
-  uint64_t max_rx_offset;
   /* unsent_max_rx_offset is the maximum offset that remote endpoint
      can send to this stream, and it is not notified to the remote
      endpoint.  unsent_max_rx_offset >= max_rx_offset must be hold. */
