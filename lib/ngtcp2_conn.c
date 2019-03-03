@@ -4648,7 +4648,8 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
 
   fr_end_offset = rx_offset_base + fr->offset + fr->data[0].len;
 
-  if (max_rx_offset && max_rx_offset < fr_end_offset) {
+  if (NGTCP2_MAX_VARINT < fr_end_offset ||
+      (max_rx_offset && max_rx_offset < fr_end_offset)) {
     return NGTCP2_ERR_PROTO;
   }
 
