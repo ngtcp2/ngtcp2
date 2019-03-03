@@ -8443,3 +8443,10 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
   ngtcp2_path_storage_init2(&pcent->ps, path);
   memcpy(pcent->data, data, sizeof(pcent->data));
 }
+
+void ngtcp2_settings_default(ngtcp2_settings *settings) {
+  memset(settings, 0, sizeof(*settings));
+  settings->max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  settings->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+  settings->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+}

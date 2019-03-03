@@ -946,7 +946,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     dcid = config.dcid;
   }
 
-  ngtcp2_settings settings{};
+  ngtcp2_settings settings;
+  ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.max_stream_data_bidi_local = 256_k;
@@ -956,9 +957,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.max_streams_bidi = 1;
   settings.max_streams_uni = 1;
   settings.idle_timeout = config.timeout;
-  settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
-  settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-  settings.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
 
   auto path = ngtcp2_path{
       {local_addr.len, const_cast<uint8_t *>(

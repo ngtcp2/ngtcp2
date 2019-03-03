@@ -2591,6 +2591,19 @@ ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
  */
 NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
 
+/**
+ * @function
+ *
+ * `ngtcp2_settings_default` initializes |settings| with the default
+ * values.  First this function fills |settings| with 0 and set the
+ * default value to the following fields:
+ *
+ * * max_packet_size = NGTCP2_MAX_PKT_SIZE
+ * * ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
+ * * max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY
+ */
+NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
+
 #ifdef __cplusplus
 }
 #endif
