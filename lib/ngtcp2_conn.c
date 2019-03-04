@@ -3876,6 +3876,13 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
   /* TODO Retire all DCIDs in conn->bound_dcid */
 
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
+    if (!(pv->flags & NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS)) {
+      rv = conn_retire_dcid(conn, &conn->dcid.current);
+      if (rv != 0) {
+        goto fail;
+      }
+    }
+
     ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
 
     rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
