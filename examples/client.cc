@@ -2586,7 +2586,7 @@ Options:
   --change-local-addr=<T>
               Client  changes local  address when  <T> seconds  elapse
               after handshake completes.
-  --net-rebinding
+  --nat-rebinding
               When   used  with   --change-local-addr,  simulate   NAT
               rebinding.   In   other  words,  client   changes  local
               address, but it does not start path validation.
