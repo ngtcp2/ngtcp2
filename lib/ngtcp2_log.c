@@ -250,7 +250,7 @@ static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                 const char *dir) {
   log->log_printf(
       log->user_data,
-      (NGTCP2_LOG_PKT " RESET_STREAM(0x%02x) id=0x%" PRIu64
+      (NGTCP2_LOG_PKT " RESET_STREAM(0x%02x) id=0x%" PRIx64
                       " app_error_code=%s(0x%04x) final_size=%" PRIu64 "\n"),
       NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
       strapperrorcode(fr->app_error_code), fr->app_error_code, fr->final_size);
@@ -313,7 +313,7 @@ static void log_fr_stream_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                        const ngtcp2_stream_data_blocked *fr,
                                        const char *dir) {
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " STREAM_DATA_BLOCKED(0x%02x) id=%" PRIu64
+                  (NGTCP2_LOG_PKT " STREAM_DATA_BLOCKED(0x%02x) id=0x%" PRIx64
                                   " offset=%" PRIu64 "\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->stream_id, fr->offset);
 }
@@ -321,10 +321,10 @@ static void log_fr_stream_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_streams_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                    const ngtcp2_streams_blocked *fr,
                                    const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " STREAMS_BLOCKED(0x%02x) id=0x%" PRIx64
-                                  " stream_limit=%" PRIu64 "\n"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_limit);
+  log->log_printf(
+      log->user_data,
+      (NGTCP2_LOG_PKT " STREAMS_BLOCKED(0x%02x) stream_limit=%" PRIu64 "\n"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_limit);
 }
 
 static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
