@@ -390,6 +390,15 @@ static void cc_stat_reset(ngtcp2_cc_stat *ccs) {
   ccs->ssthresh = UINT64_MAX;
 }
 
+static void delete_scid(ngtcp2_ksl *scids, ngtcp2_mem *mem) {
+  ngtcp2_ksl_it it;
+
+  for (it = ngtcp2_ksl_begin(scids); !ngtcp2_ksl_it_end(&it);
+       ngtcp2_ksl_it_next(&it)) {
+    ngtcp2_mem_free(mem, ngtcp2_ksl_it_get(&it));
+  }
+}
+
 static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                     const ngtcp2_cid *scid, const ngtcp2_path *path,
                     uint32_t version, const ngtcp2_conn_callbacks *callbacks,
@@ -493,6 +502,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_scid_set_insert;
   }
 
+  scident = NULL;
+
   if (server && settings->preferred_address_present) {
     scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
     if (scid == NULL) {
@@ -508,6 +519,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     if (rv != 0) {
       goto fail_scid_set_insert;
     }
+
+    scident = NULL;
 
     (*pconn)->scid.last_seq = 1;
   }
@@ -548,6 +561,7 @@ fail_remote_bidi_idtr_init:
 fail_strms_init:
   ngtcp2_strm_free(&(*pconn)->crypto.strm);
 fail_crypto_init:
+  delete_scid(&(*pconn)->scid.set, mem);
   ngtcp2_ksl_free(&(*pconn)->scid.set);
 fail_scid_set_init:
   ngtcp2_ringbuf_free(&(*pconn)->dcid.unused);
@@ -640,15 +654,6 @@ static int delete_strms_each(ngtcp2_map_entry *ent, void *ptr) {
   ngtcp2_mem_free(mem, s);
 
   return 0;
-}
-
-static void delete_scid(ngtcp2_ksl *scids, ngtcp2_mem *mem) {
-  ngtcp2_ksl_it it;
-
-  for (it = ngtcp2_ksl_begin(scids); !ngtcp2_ksl_it_end(&it);
-       ngtcp2_ksl_it_next(&it)) {
-    ngtcp2_mem_free(mem, ngtcp2_ksl_it_get(&it));
-  }
 }
 
 void ngtcp2_conn_del(ngtcp2_conn *conn) {
