@@ -8410,7 +8410,8 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   conn->log.last_ts = ts;
 
-  if (conn->server || ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+  if (conn->server || conn->remote.settings.disable_migration ||
+      ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
