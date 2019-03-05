@@ -1145,7 +1145,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn,
 
 /*
  * conn_verify_dcid verifies that destination connection ID in |hd| is
- * valid for the connection.  |pktns| may be NULL.
+ * valid for the connection.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
