@@ -2971,7 +2971,7 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
 
   /* TODO reconsider this.  This might get larger pretty quickly than
      validation timeout which is just around 3*PTO. */
-  expiry = ts + NGTCP2_DEFAULT_INITIAL_RTT * (1ull << pv->loss_count);
+  expiry = ts + 6 * NGTCP2_DEFAULT_INITIAL_RTT * (1ull << pv->loss_count);
 
   ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry);
 
