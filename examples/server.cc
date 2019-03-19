@@ -651,7 +651,13 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto conn = h->conn();
   auto now = util::timestamp(loop);
 
+  if (!config.quiet) {
+    std::cerr << "Timer expired" << std::endl;
+  }
   if (ngtcp2_conn_loss_detection_expiry(conn) <= now) {
+    if (!config.quiet) {
+      std::cerr << "Loss detection timer expired" << std::endl;
+    }
     rv = ngtcp2_conn_on_loss_detection_timer(conn, util::timestamp(loop));
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
@@ -673,6 +679,9 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
 
   if (ngtcp2_conn_ack_delay_expiry(conn) <= now) {
+    if (!config.quiet) {
+      std::cerr << "Delayed ACK timer expired" << std::endl;
+    }
     rv = h->on_write();
     switch (rv) {
     case 0:
@@ -1802,6 +1811,9 @@ void Handler::schedule_retransmit() {
   auto now = util::timestamp(loop_);
   auto t = expiry < now ? 1e-9
                         : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
+  if (!config.quiet) {
+    std::cerr << "Set timer=" << std::fixed << t << "s" << std::endl;
+  }
   rttimer_.repeat = t;
   ev_timer_again(loop_, &rttimer_);
 }
