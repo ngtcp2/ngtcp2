@@ -652,7 +652,14 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto now = util::timestamp(loop);
 
   if (ngtcp2_conn_loss_detection_expiry(conn) <= now) {
-    rv = h->on_write(true);
+    rv = ngtcp2_conn_on_loss_detection_timer(conn, util::timestamp(loop));
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
+                << ngtcp2_strerror(rv) << std::endl;
+      s->remove(h);
+      return;
+    }
+    rv = h->on_write();
     switch (rv) {
     case 0:
     case NETWORK_ERR_CLOSE_WAIT:
@@ -1545,7 +1552,7 @@ int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   return 0;
 }
 
-int Handler::on_write(bool retransmit) {
+int Handler::on_write() {
   int rv;
 
   if (ngtcp2_conn_is_in_closing_period(conn_)) {
@@ -1560,15 +1567,6 @@ int Handler::on_write(bool retransmit) {
   }
 
   assert(sendbuf_.left() >= max_pktlen_);
-
-  if (retransmit) {
-    rv = ngtcp2_conn_on_loss_detection_timer(conn_, util::timestamp(loop_));
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
-                << ngtcp2_strerror(rv) << std::endl;
-      return -1;
-    }
-  }
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
     rv = do_handshake(nullptr, nullptr, 0);

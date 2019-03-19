@@ -177,7 +177,7 @@ public:
   int read_tls();
   int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
               uint8_t *data, size_t datalen);
-  int on_write(bool retransmit = false);
+  int on_write();
   int on_write_stream(Stream &stream);
   int write_stream_data(Stream &stream, int fin, Buffer &data);
   int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
