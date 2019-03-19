@@ -511,7 +511,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
       goto fail_scident;
     }
 
-    ngtcp2_scid_init(scident, 0, &settings->preferred_address.cid,
+    ngtcp2_scid_init(scident, 1, &settings->preferred_address.cid,
                      settings->preferred_address.stateless_reset_token);
 
     rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL,
