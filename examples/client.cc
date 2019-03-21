@@ -929,6 +929,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       ::update_key,
       path_validation,
       ::select_preferred_address,
+      nullptr, // stream_reset
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(

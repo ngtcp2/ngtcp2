@@ -1063,6 +1063,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       remove_connection_id,
       ::update_key,
       path_validation,
+      nullptr, // select_preferred_addr
+      nullptr, // stream_reset
   };
 
   ngtcp2_settings settings;

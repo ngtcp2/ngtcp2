@@ -1230,6 +1230,21 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
 typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, int64_t stream_id,
                                    uint16_t app_error_code, void *user_data,
                                    void *stream_user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_stream_reset` is invoked when a stream identified by
+ * |stream_id| is reset by a remote endpoint.
+ *
+ * The implementation of this callback should return 0 if it succeeds.
+ * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
+ * call return immediately.
+ */
+typedef int (*ngtcp2_stream_reset)(ngtcp2_conn *conn, int64_t stream_id,
+                                   uint64_t final_size, uint16_t app_error_code,
+                                   void *user_data, void *stream_user_data);
+
 /**
  * @functypedef
  *
@@ -1458,6 +1473,7 @@ typedef struct {
   ngtcp2_update_key update_key;
   ngtcp2_path_validation path_validation;
   ngtcp2_select_preferred_addr select_preferred_addr;
+  ngtcp2_stream_reset stream_reset;
 } ngtcp2_conn_callbacks;
 
 /*

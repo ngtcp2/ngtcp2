@@ -149,6 +149,24 @@ static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
+static int conn_call_stream_reset(ngtcp2_conn *conn, int64_t stream_id,
+                                  uint64_t final_size, uint16_t app_error_code,
+                                  void *stream_user_data) {
+  int rv;
+
+  if (!conn->callbacks.stream_reset) {
+    return 0;
+  }
+
+  rv = conn->callbacks.stream_reset(conn, stream_id, final_size, app_error_code,
+                                    conn->user_data, stream_user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int conn_call_extend_max_streams_bidi(ngtcp2_conn *conn,
                                              uint64_t max_streams) {
   int rv;
@@ -5108,6 +5126,12 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     /* Stream is reset before we create ngtcp2_strm object. */
     conn->rx.offset += fr->final_size;
 
+    rv = conn_call_stream_reset(conn, fr->stream_id, fr->final_size,
+                                fr->app_error_code, NULL);
+    if (rv != 0) {
+      return rv;
+    }
+
     /* There will be no activity in this stream because we got
        RESET_STREAM and don't write stream data any further.  This
        effectively allows another new stream for peer. */
@@ -5134,6 +5158,14 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   if (strm->rx.max_offset < fr->final_size ||
       conn_max_data_violated(conn, datalen)) {
     return NGTCP2_ERR_FLOW_CONTROL;
+  }
+
+  if (!(strm->flags & NGTCP2_STRM_FLAG_RECV_RST)) {
+    rv = conn_call_stream_reset(conn, fr->stream_id, fr->final_size,
+                                fr->app_error_code, strm->stream_user_data);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   conn->rx.offset += datalen;
