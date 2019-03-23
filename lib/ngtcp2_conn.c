@@ -5937,6 +5937,14 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   if (rv != 0) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet has incorrect reserved bits");
+
+    if (hd.type == NGTCP2_PKT_SHORT) {
+      rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
+      if (rv == 0) {
+        return (ssize_t)pktlen;
+      }
+    }
+
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
