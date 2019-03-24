@@ -266,6 +266,40 @@ static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_call_max_remote_stream_id_bidi(ngtcp2_conn *conn,
+                                               int64_t max_stream_id) {
+  int rv;
+
+  if (!conn->callbacks.max_remote_stream_id_bidi) {
+    return 0;
+  }
+
+  rv = conn->callbacks.max_remote_stream_id_bidi(conn, max_stream_id,
+                                                 conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_max_remote_stream_id_uni(ngtcp2_conn *conn,
+                                              int64_t max_stream_id) {
+  int rv;
+
+  if (!conn->callbacks.max_remote_stream_id_uni) {
+    return 0;
+  }
+
+  rv = conn->callbacks.max_remote_stream_id_uni(conn, max_stream_id,
+                                                conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 /*
  * bw_reset resets |bw| to the initial state.
  */
@@ -2229,6 +2263,13 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL &&
       conn->remote.bidi.unsent_max_stream_id >
           conn->remote.bidi.max_stream_id) {
+    rv = conn_call_max_remote_stream_id_bidi(
+        conn, conn->remote.bidi.unsent_max_stream_id);
+    if (rv != 0) {
+      assert(ngtcp2_err_is_fatal(rv));
+      return rv;
+    }
+
     rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -2254,6 +2295,13 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   if (rv != NGTCP2_ERR_NOBUF && *pfrc == NULL) {
     if (conn->remote.uni.unsent_max_stream_id >
         conn->remote.uni.max_stream_id) {
+      rv = conn_call_max_remote_stream_id_uni(
+          conn, conn->remote.uni.unsent_max_stream_id);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
+
       rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
