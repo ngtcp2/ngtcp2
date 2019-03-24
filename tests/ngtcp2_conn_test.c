@@ -174,10 +174,11 @@ static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
   return 0;
 }
 
-static int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset,
-                            const uint8_t *data, size_t datalen,
-                            void *user_data) {
+static int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+                            uint64_t offset, const uint8_t *data,
+                            size_t datalen, void *user_data) {
   (void)conn;
+  (void)crypto_level;
   (void)offset;
   (void)data;
   (void)datalen;
@@ -186,10 +187,12 @@ static int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset,
 }
 
 static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
+                                              ngtcp2_crypto_level crypto_level,
                                               uint64_t offset,
                                               const uint8_t *data,
                                               size_t datalen, void *user_data) {
   (void)offset;
+  (void)crypto_level;
   (void)data;
   (void)datalen;
   (void)user_data;
@@ -224,10 +227,12 @@ static int update_key(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 
-static int recv_crypto_handshake_error(ngtcp2_conn *conn, uint64_t offset,
-                                       const uint8_t *data, size_t datalen,
-                                       void *user_data) {
+static int recv_crypto_handshake_error(ngtcp2_conn *conn,
+                                       ngtcp2_crypto_level crypto_level,
+                                       uint64_t offset, const uint8_t *data,
+                                       size_t datalen, void *user_data) {
   (void)conn;
+  (void)crypto_level;
   (void)offset;
   (void)data;
   (void)datalen;
@@ -235,10 +240,13 @@ static int recv_crypto_handshake_error(ngtcp2_conn *conn, uint64_t offset,
   return NGTCP2_ERR_CRYPTO;
 }
 
-static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn, uint64_t offset,
+static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn,
+                                             ngtcp2_crypto_level crypto_level,
+                                             uint64_t offset,
                                              const uint8_t *data,
                                              size_t datalen, void *user_data) {
   (void)conn;
+  (void)crypto_level;
   (void)offset;
   (void)data;
   (void)datalen;
@@ -246,10 +254,12 @@ static int recv_crypto_fatal_alert_generated(ngtcp2_conn *conn, uint64_t offset,
   return NGTCP2_ERR_CRYPTO;
 }
 
-static int recv_crypto_data_server(ngtcp2_conn *conn, uint64_t offset,
-                                   const uint8_t *data, size_t datalen,
-                                   void *user_data) {
+static int recv_crypto_data_server(ngtcp2_conn *conn,
+                                   ngtcp2_crypto_level crypto_level,
+                                   uint64_t offset, const uint8_t *data,
+                                   size_t datalen, void *user_data) {
   (void)offset;
+  (void)crypto_level;
   (void)data;
   (void)datalen;
   (void)user_data;
