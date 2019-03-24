@@ -1336,8 +1336,8 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_extend_max_streams` is a callback function which is
  * called every time max stream ID is strictly extended.
- * |max_streams| is the cumulative number of streams which a local
- * endpoint can open.
+ * |max_streams| is the cumulative number of streams which an endpoint
+ * can open.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
@@ -1451,22 +1451,6 @@ typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
                                             const ngtcp2_preferred_addr *paddr,
                                             void *user_data);
 
-/**
- * @functypedef
- *
- * :type:`ngtcp2_max_remote_stream_id` is a callback function which is
- * invoked when the maximum stream ID which remote endpoint can open
- * is extended.  |max_stream_id| is the maximum stream ID which remote
- * endpoint can initiate.
- *
- * The callback function must return 0 if it succeeds.  Returning
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
- * immediately.
- */
-typedef int (*ngtcp2_max_remote_stream_id)(ngtcp2_conn *conn,
-                                           int64_t max_stream_id,
-                                           void *user_data);
-
 typedef struct {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
@@ -1510,8 +1494,8 @@ typedef struct {
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_retry recv_retry;
-  ngtcp2_extend_max_streams extend_max_streams_bidi;
-  ngtcp2_extend_max_streams extend_max_streams_uni;
+  ngtcp2_extend_max_streams extend_max_local_streams_bidi;
+  ngtcp2_extend_max_streams extend_max_local_streams_uni;
   ngtcp2_rand rand;
   ngtcp2_get_new_connection_id get_new_connection_id;
   ngtcp2_remove_connection_id remove_connection_id;
@@ -1519,8 +1503,8 @@ typedef struct {
   ngtcp2_path_validation path_validation;
   ngtcp2_select_preferred_addr select_preferred_addr;
   ngtcp2_stream_reset stream_reset;
-  ngtcp2_max_remote_stream_id max_remote_stream_id_bidi;
-  ngtcp2_max_remote_stream_id max_remote_stream_id_uni;
+  ngtcp2_extend_max_streams extend_max_remote_streams_bidi;
+  ngtcp2_extend_max_streams extend_max_remote_streams_uni;
 } ngtcp2_conn_callbacks;
 
 /*

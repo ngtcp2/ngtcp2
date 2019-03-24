@@ -189,4 +189,9 @@ int64_t ngtcp2_nth_server_uni_id(uint64_t n);
  */
 int64_t ngtcp2_nth_client_uni_id(uint64_t n);
 
+/*
+ * ngtcp2_ord_stream_id returns the ordinal number of |stream_id|.
+ */
+uint64_t ngtcp2_ord_stream_id(int64_t stream_id);
+
 #endif /* NGTCP2_CONV_H */

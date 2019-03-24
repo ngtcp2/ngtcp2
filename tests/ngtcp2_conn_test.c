@@ -388,10 +388,8 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   (*pconn)->remote.settings.max_streams_bidi = 0;
   (*pconn)->remote.settings.max_streams_uni = 1;
   (*pconn)->remote.settings.max_data = 64 * 1024;
-  (*pconn)->local.bidi.max_stream_id =
-      ngtcp2_nth_server_bidi_id((*pconn)->remote.settings.max_streams_bidi);
-  (*pconn)->local.uni.max_stream_id =
-      ngtcp2_nth_server_uni_id((*pconn)->remote.settings.max_streams_uni);
+  (*pconn)->local.bidi.max_streams = (*pconn)->remote.settings.max_streams_bidi;
+  (*pconn)->local.uni.max_streams = (*pconn)->remote.settings.max_streams_uni;
   (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
   (*pconn)->odcid = dcid;
 }
@@ -439,10 +437,8 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->remote.settings.max_streams_bidi = 1;
   (*pconn)->remote.settings.max_streams_uni = 1;
   (*pconn)->remote.settings.max_data = 64 * 1024;
-  (*pconn)->local.bidi.max_stream_id =
-      ngtcp2_nth_client_bidi_id((*pconn)->remote.settings.max_streams_bidi);
-  (*pconn)->local.uni.max_stream_id =
-      ngtcp2_nth_client_uni_id((*pconn)->remote.settings.max_streams_uni);
+  (*pconn)->local.bidi.max_streams = (*pconn)->remote.settings.max_streams_bidi;
+  (*pconn)->local.uni.max_streams = (*pconn)->remote.settings.max_streams_uni;
   (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
   (*pconn)->odcid = dcid;
 }
@@ -547,10 +543,8 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   (*pconn)->remote.settings.max_streams_bidi = 0;
   (*pconn)->remote.settings.max_streams_uni = 1;
   (*pconn)->remote.settings.max_data = 64 * 1024;
-  (*pconn)->local.bidi.max_stream_id =
-      ngtcp2_nth_server_bidi_id((*pconn)->remote.settings.max_streams_bidi);
-  (*pconn)->local.uni.max_stream_id =
-      ngtcp2_nth_server_uni_id((*pconn)->remote.settings.max_streams_uni);
+  (*pconn)->local.bidi.max_streams = (*pconn)->remote.settings.max_streams_bidi;
+  (*pconn)->local.uni.max_streams = (*pconn)->remote.settings.max_streams_uni;
   (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
 }
 
@@ -1434,7 +1428,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == ngtcp2_conn_find_stream(conn, 0));
-  CU_ASSERT(12 == conn->remote.bidi.unsent_max_stream_id);
+  CU_ASSERT(4 == conn->remote.bidi.unsent_max_streams);
 
   ngtcp2_conn_del(conn);
 
@@ -2301,7 +2295,7 @@ void test_ngtcp2_conn_recv_max_streams(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(((999 - 1) << 2) + 0x02 == conn->local.uni.max_stream_id);
+  CU_ASSERT(999 == conn->local.uni.max_streams);
 
   fr.type = NGTCP2_FRAME_MAX_STREAMS_BIDI;
   fr.max_streams.max_streams = 997;
@@ -2310,7 +2304,7 @@ void test_ngtcp2_conn_recv_max_streams(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(((997 - 1) << 2) == conn->local.bidi.max_stream_id);
+  CU_ASSERT(997 == conn->local.bidi.max_streams);
 
   ngtcp2_conn_del(conn);
 }
@@ -2526,7 +2520,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   /* Retransmission takes place per frame basis. */
   setup_default_client(&conn);
-  conn->local.bidi.max_stream_id = 8;
+  conn->local.bidi.max_streams = 3;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id_a, NULL);
   ngtcp2_conn_open_bidi_stream(conn, &stream_id_b, NULL);
@@ -2914,7 +2908,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   /* Receive an unidirectional stream which is beyond the limit. */
   setup_default_server(&conn);
   conn->callbacks.recv_stream_data = recv_stream_data;
-  conn->remote.uni.max_stream_id = 0;
+  conn->remote.uni.max_streams = 0;
   conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_STREAM;

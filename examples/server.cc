@@ -1066,8 +1066,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       path_validation,
       nullptr, // select_preferred_addr
       nullptr, // stream_reset
-      nullptr, // max_remote_stream_id_bidi,
-      nullptr, // max_remote_stream_id_uni,
+      nullptr, // extend_max_remote_streams_bidi,
+      nullptr, // extend_max_remote_streams_uni,
   };
 
   ngtcp2_settings settings;

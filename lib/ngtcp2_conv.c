@@ -246,3 +246,7 @@ int64_t ngtcp2_nth_client_uni_id(uint64_t n) {
 
   return (int64_t)(((n - 1) << 2) | 0x02);
 }
+
+uint64_t ngtcp2_ord_stream_id(int64_t stream_id) {
+  return (uint64_t)(stream_id >> 2) + 1;
+}

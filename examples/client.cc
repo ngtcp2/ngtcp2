@@ -931,8 +931,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       path_validation,
       ::select_preferred_address,
       nullptr, // stream_reset
-      nullptr, // max_remote_stream_id_bidi,
-      nullptr, // max_remote_stream_id_uni,
+      nullptr, // extend_max_remote_streams_bidi,
+      nullptr, // extend_max_remote_streams_uni,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
