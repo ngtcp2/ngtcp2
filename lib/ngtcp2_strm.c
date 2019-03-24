@@ -41,21 +41,20 @@ static int offset_less(const ngtcp2_pq_entry *lhs, const ngtcp2_pq_entry *rhs) {
   return lfrc->fr.offset < rfrc->fr.offset;
 }
 
-int ngtcp2_strm_init(ngtcp2_strm *strm, uint64_t stream_id, uint32_t flags,
+int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                      uint64_t max_rx_offset, uint64_t max_tx_offset,
                      void *stream_user_data, ngtcp2_mem *mem) {
   int rv;
 
   strm->cycle = 0;
-  strm->tx_offset = 0;
-  strm->last_rx_offset = 0;
-  strm->nbuffered = 0;
+  strm->tx.offset = 0;
+  strm->tx.max_offset = max_tx_offset;
+  strm->rx.last_offset = 0;
   strm->stream_id = stream_id;
   strm->flags = flags;
   strm->stream_user_data = stream_user_data;
-  strm->max_rx_offset = strm->unsent_max_rx_offset = max_rx_offset;
-  strm->max_tx_offset = max_tx_offset;
-  strm->me.key = stream_id;
+  strm->rx.max_offset = strm->rx.unsent_max_offset = max_rx_offset;
+  strm->me.key = (uint64_t)stream_id;
   strm->me.next = NULL;
   strm->pe.index = NGTCP2_PQ_BAD_INDEX;
   strm->mem = mem;
@@ -65,24 +64,23 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, uint64_t stream_id, uint32_t flags,
      indicate the cause of closure.  So effectively, 0 means "no
      error." */
   strm->app_error_code = 0;
-  memset(&strm->tx_buf, 0, sizeof(strm->tx_buf));
 
-  rv = ngtcp2_gaptr_init(&strm->acked_tx_offset, mem);
+  rv = ngtcp2_gaptr_init(&strm->tx.acked_offset, mem);
   if (rv != 0) {
     goto fail_gaptr_init;
   }
 
-  rv = ngtcp2_rob_init(&strm->rob, 8 * 1024, mem);
+  rv = ngtcp2_rob_init(&strm->rx.rob, 8 * 1024, mem);
   if (rv != 0) {
     goto fail_rob_init;
   }
 
-  ngtcp2_pq_init(&strm->streamfrq, offset_less, mem);
+  ngtcp2_pq_init(&strm->tx.streamfrq, offset_less, mem);
 
   return 0;
 
 fail_rob_init:
-  ngtcp2_gaptr_free(&strm->acked_tx_offset);
+  ngtcp2_gaptr_free(&strm->tx.acked_offset);
 fail_gaptr_init:
   return rv;
 }
@@ -94,25 +92,25 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
     return;
   }
 
-  for (; !ngtcp2_pq_empty(&strm->streamfrq);) {
-    frc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+  for (; !ngtcp2_pq_empty(&strm->tx.streamfrq);) {
+    frc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->tx.streamfrq),
                            ngtcp2_stream_frame_chain, pe);
-    ngtcp2_pq_pop(&strm->streamfrq);
+    ngtcp2_pq_pop(&strm->tx.streamfrq);
     ngtcp2_stream_frame_chain_del(frc, strm->mem);
   }
 
-  ngtcp2_pq_free(&strm->streamfrq);
-  ngtcp2_rob_free(&strm->rob);
-  ngtcp2_gaptr_free(&strm->acked_tx_offset);
+  ngtcp2_pq_free(&strm->tx.streamfrq);
+  ngtcp2_rob_free(&strm->rx.rob);
+  ngtcp2_gaptr_free(&strm->tx.acked_offset);
 }
 
 uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
-  return ngtcp2_rob_first_gap_offset(&strm->rob);
+  return ngtcp2_rob_first_gap_offset(&strm->rx.rob);
 }
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
                                 size_t datalen, uint64_t offset) {
-  return ngtcp2_rob_push(&strm->rob, offset, data, datalen);
+  return ngtcp2_rob_push(&strm->rx.rob, offset, data, datalen);
 }
 
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
@@ -126,7 +124,7 @@ int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm,
   assert(fr->type == NGTCP2_FRAME_STREAM);
   assert(frc->next == NULL);
 
-  return ngtcp2_pq_push(&strm->streamfrq, &frc->pe);
+  return ngtcp2_pq_push(&strm->tx.streamfrq, &frc->pe);
 }
 
 int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
@@ -138,12 +136,12 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
   size_t nmerged;
   size_t datalen;
 
-  if (ngtcp2_pq_empty(&strm->streamfrq)) {
+  if (ngtcp2_pq_empty(&strm->tx.streamfrq)) {
     *pfrc = NULL;
     return 0;
   }
 
-  frc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+  frc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->tx.streamfrq),
                          ngtcp2_stream_frame_chain, pe);
 
   fr = &frc->fr;
@@ -152,18 +150,18 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
 
   if (left == 0) {
     /* datalen could be zero if 0 length STREAM has been sent */
-    if (datalen || !ngtcp2_pq_empty(&strm->streamfrq)) {
+    if (datalen || !ngtcp2_pq_empty(&strm->tx.streamfrq)) {
       *pfrc = NULL;
       return 0;
     }
   }
 
-  ngtcp2_pq_pop(&strm->streamfrq);
+  ngtcp2_pq_pop(&strm->tx.streamfrq);
   frc->pe.index = NGTCP2_PQ_BAD_INDEX;
 
   if (datalen > left) {
-    if (!ngtcp2_pq_empty(&strm->streamfrq)) {
-      nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+    if (!ngtcp2_pq_empty(&strm->tx.streamfrq)) {
+      nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->tx.streamfrq),
                               ngtcp2_stream_frame_chain, pe);
       nfr = &nfrc->fr;
 
@@ -174,11 +172,11 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
         assert(nsplit);
 
         if (nsplit > 0) {
-          ngtcp2_pq_pop(&strm->streamfrq);
+          ngtcp2_pq_pop(&strm->tx.streamfrq);
           nfr->offset -= (size_t)nsplit;
           assert(!fr->fin);
 
-          rv = ngtcp2_pq_push(&strm->streamfrq, &nfrc->pe);
+          rv = ngtcp2_pq_push(&strm->tx.streamfrq, &nfrc->pe);
           if (rv != 0) {
             assert(ngtcp2_err_is_fatal(rv));
             ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
@@ -213,7 +211,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
 
     fr->fin = 0;
 
-    rv = ngtcp2_pq_push(&strm->streamfrq, &nfrc->pe);
+    rv = ngtcp2_pq_push(&strm->tx.streamfrq, &nfrc->pe);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
@@ -236,8 +234,8 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
   left -= datalen;
 
   for (; left && fr->datacnt < NGTCP2_MAX_STREAM_DATACNT &&
-         !ngtcp2_pq_empty(&strm->streamfrq);) {
-    nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+         !ngtcp2_pq_empty(&strm->tx.streamfrq);) {
+    nfrc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->tx.streamfrq),
                             ngtcp2_stream_frame_chain, pe);
     nfr = &nfrc->fr;
 
@@ -248,7 +246,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
 
     if (nfr->fin && nfr->datacnt == 0) {
       frc->fr.fin = 1;
-      ngtcp2_pq_pop(&strm->streamfrq);
+      ngtcp2_pq_pop(&strm->tx.streamfrq);
       ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
       break;
     }
@@ -259,7 +257,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
       break;
     }
 
-    ngtcp2_pq_pop(&strm->streamfrq);
+    ngtcp2_pq_pop(&strm->tx.streamfrq);
 
     datalen += nmerged;
     nfr->offset += nmerged;
@@ -271,7 +269,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
       continue;
     }
 
-    rv = ngtcp2_pq_push(&strm->streamfrq, &nfrc->pe);
+    rv = ngtcp2_pq_push(&strm->tx.streamfrq, &nfrc->pe);
     if (rv != 0) {
       ngtcp2_stream_frame_chain_del(nfrc, strm->mem);
       ngtcp2_stream_frame_chain_del(frc, strm->mem);
@@ -286,25 +284,30 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
 }
 
 ngtcp2_stream_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm) {
-  assert(!ngtcp2_pq_empty(&strm->streamfrq));
-  return ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+  assert(!ngtcp2_pq_empty(&strm->tx.streamfrq));
+  return ngtcp2_struct_of(ngtcp2_pq_top(&strm->tx.streamfrq),
                           ngtcp2_stream_frame_chain, pe);
 }
 
 int ngtcp2_strm_streamfrq_empty(ngtcp2_strm *strm) {
-  return ngtcp2_pq_empty(&strm->streamfrq);
+  return ngtcp2_pq_empty(&strm->tx.streamfrq);
 }
 
 void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm) {
   ngtcp2_stream_frame_chain *frc;
-  for (; !ngtcp2_pq_empty(&strm->streamfrq);) {
-    frc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->streamfrq),
+  for (; !ngtcp2_pq_empty(&strm->tx.streamfrq);) {
+    frc = ngtcp2_struct_of(ngtcp2_pq_top(&strm->tx.streamfrq),
                            ngtcp2_stream_frame_chain, pe);
-    ngtcp2_pq_pop(&strm->streamfrq);
+    ngtcp2_pq_pop(&strm->tx.streamfrq);
     ngtcp2_stream_frame_chain_del(frc, strm->mem);
   }
 }
 
 int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm) {
   return strm->pe.index != NGTCP2_PQ_BAD_INDEX;
+}
+
+int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
+  return ngtcp2_gaptr_first_gap_offset(&strm->tx.acked_offset) ==
+         strm->tx.offset;
 }

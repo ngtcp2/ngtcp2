@@ -74,12 +74,25 @@
    variable-length integer encoding */
 #define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)
 
+/* NGTCP2_MAX_SERVER_STREAM_ID_BIDI is the maximum bidirectional
+   server stream ID. */
+#define NGTCP2_MAX_SERVER_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffdll)
+/* NGTCP2_MAX_CLIENT_STREAM_ID_BIDI is the maximum bidirectional
+   client stream ID. */
+#define NGTCP2_MAX_CLIENT_STREAM_ID_BIDI ((int64_t)0x3ffffffffffffffcll)
+/* NGTCP2_MAX_SERVER_STREAM_ID_UNI is the maximum unidirectional
+   server stream ID. */
+#define NGTCP2_MAX_SERVER_STREAM_ID_UNI ((int64_t)0x3fffffffffffffffll)
+/* NGTCP2_MAX_CLIENT_STREAM_ID_UNI is the maximum unidirectional
+   client stream ID. */
+#define NGTCP2_MAX_CLIENT_STREAM_ID_UNI ((int64_t)0x3ffffffffffffffell)
+
 /* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
    blocks which this library can create, or decode. */
 #define NGTCP2_MAX_ACK_BLKS 255
 
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
-#define NGTCP2_MAX_PKT_NUM ((1llu << 62) - 1)
+#define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
 
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -88,6 +101,7 @@ typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
  * ngtcp2_pkt_chain is the chain of incoming packets buffered.
  */
 struct ngtcp2_pkt_chain {
+  ngtcp2_path_storage path;
   ngtcp2_pkt_chain *next;
   uint8_t *pkt;
   size_t pktlen;
@@ -97,7 +111,9 @@ struct ngtcp2_pkt_chain {
 /*
  * ngtcp2_pkt_chain_new allocates ngtcp2_pkt_chain objects, and
  * assigns its pointer to |*ppc|.  The content of buffer pointed by
- * |pkt| of length |pktlen| is copied into |*ppc|.
+ * |pkt| of length |pktlen| is copied into |*ppc|.  The packet is
+ * obtained via the network |path|.  The values of path->local and
+ * path->remote are copied into |*ppc|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -105,8 +121,9 @@ struct ngtcp2_pkt_chain {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const uint8_t *pkt,
-                         size_t pktlen, ngtcp2_tstamp ts, ngtcp2_mem *mem);
+int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
+                         const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts,
+                         ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pkt_chain_del deallocates |pc|.  It also frees the memory
@@ -122,7 +139,7 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                        uint64_t pkt_num, size_t pkt_numlen, uint32_t version,
+                        int64_t pkt_num, size_t pkt_numlen, uint32_t version,
                         size_t len);
 
 /*
@@ -750,14 +767,8 @@ ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
  * |max_pkt_num| is the highest successfully authenticated packet
  * number.
  */
-uint64_t ngtcp2_pkt_adjust_pkt_num(uint64_t max_pkt_num, uint64_t pkt_num,
-                                   size_t n);
-
-/*
- * ngtcp2_pkt_adjust_ack_pkt_num adjusts all packet numbers in |ack|
- * using the maximum packet number |max_pkt_num| received so far.
- */
-void ngtcp2_pkt_adjust_ack_pkt_num(ngtcp2_ack *ack, uint64_t max_pkt_num);
+int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
+                                  size_t n);
 
 /*
  * ngtcp2_pkt_validate_ack checks that ack is malformed or not.
@@ -783,7 +794,7 @@ int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
  * bytes to be sent.  |left| is the size of buffer.  If |left| is too
  * small to write STREAM frame, this function returns (size_t)-1.
  */
-size_t ngtcp2_pkt_stream_max_datalen(uint64_t stream_id, uint64_t offset,
+size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
                                      size_t len, size_t left);
 
 /*

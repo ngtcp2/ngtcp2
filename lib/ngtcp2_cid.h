@@ -64,13 +64,11 @@ typedef struct {
   ngtcp2_cid cid;
   /* path is a path which cid is bound to.  The addresses are zero
      length if cid has not been bound to a particular path yet. */
-  ngtcp2_path path;
+  ngtcp2_path_storage ps;
   /* token is a stateless reset token associated to this CID.
      Actually, the stateless reset token is tied to the connection,
      not to the particular connection ID. */
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  uint8_t local_addrbuf[128];
-  uint8_t remote_addrbuf[128];
 } ngtcp2_dcid;
 
 /* ngtcp2_cid_zero makes |cid| zero-length. */

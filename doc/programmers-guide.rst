@@ -26,8 +26,8 @@ use other TLS libraries:
 * nss
 * BoringSSL
 
-You should use ngtcp2 draft-15 branch.  At the time of this writing,
-interop is done with draft-15 or -16.
+You should use ngtcp2 draft-18 branch.  At the time of this writing,
+interop is done with draft-18.
 
 Creating ngtcp2_conn object
 ---------------------------
@@ -55,6 +55,10 @@ following fields of ``ngtcp2_conn_callbacks`` must be set:
 * hp_mask
 * acked_crypto_offset
 * recv_retry
+* rand
+* get_new_connection_id
+* update_key
+* select_preferred_addr
 
 For server application:
 
@@ -67,6 +71,9 @@ For server application:
 * in_encrypt_pn
 * encrypt_pn
 * acked_crypto_offset
+* rand
+* get_new_connection_id
+* update_key
 
 ``ngtcp2_settings`` contains the settings for QUIC connection.  All
 fields must be set.  It would be very useful to enable debug logging
@@ -97,6 +104,17 @@ version to use.  It should be ``NGTCP2_PROTO_VER_MAX``.
 Client application must create initial secret and derives packet
 protection key and IV, and packet number encryption key.  See
 https://tools.ietf.org/html/draft-ietf-quic-tls-16#section-5.2
+
+A path is very important to QUIC connection.  It is the pair of
+endpoints, local and remote.  The path passed to
+`ngtcp2_conn_client_new()` and `ngtcp2_conn_server_new()` is a network
+path that handshake is performed.  The path must not change during
+handshake.  After handshake, client can migrate to new path.  In that
+case, both endpoints will perform path validation to migrate new path.
+An application must provide actual path to the API function to tell
+the library where a packet comes from.  The "write" API function takes
+path parameter and fills it with which the written packet should be
+sent.
 
 TLS integration
 ---------------
@@ -233,6 +251,31 @@ recreate TLS session from scratch to produce fresh keying materials.
 0RTT data that has already passed to ``ngtcp2_conn`` is still alive.
 Client application must not free them until
 ``ngtcp2_conn_callbacks.acked_stream_data_offset`` callback is called.
+
+Timer
+-----
+
+The library does not ask any timestamp to an operating system.
+Instead, an application has to supply timestamp to the library.  The
+type of timestamp in ngtcp2 library is ``ngtcp2_tstamp``.  At the
+moment, it is nanosecond resolution.  The library only cares the
+difference of timestamp, so it does not have to be a system clock.  A
+monotonic clock should work better.  It should be same clock passed to
+``ngtcp2_setting``.
+
+`ngtcp2_conn_get_expiry()` tells an application when timer fires.
+When timer fires, it has to call some API functions.  If the current
+timestamp is equal to or larger than the value returned from
+`ngtcp2_conn_loss_detection_expiry()`, it has to call
+`ngtcp2_conn_on_loss_detection_timer()` and `ngtcp2_conn_write_pkt()`
+(or `ngtcp2_conn_write_handshake()` if handshake has not completed
+yet).  If the current timestamp is equal to or larger than the value
+returned from `ngtcp2_conn_ack_delay_expiry()`, it has to call
+`ngtcp2_conn_write_pkt()` (or `ngtcp2_conn_write_handshake()` if
+handshake has not completed yet).  After calling these functions, new
+expiry will be set.  The application should call
+`ngtcp2_conn_get_expiry()` to restart timer.
+
 
 After QUIC handshake
 --------------------

@@ -88,7 +88,7 @@ uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p);
  * ngtcp2_get_pkt_num reads encoded packet number from |p|.  The
  * packet number is encoed in |pkt_numlen| bytes.
  */
-uint64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen);
+int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen);
 
 /*
  * ngtcp2_put_uint64be writes |n| in host byte order in |p| in network
@@ -143,7 +143,7 @@ uint8_t *ngtcp2_put_varint14(uint8_t *p, uint16_t n);
  * ngtcp2_put_pkt_num encodes |pkt_num| using |len| bytes.  It
  * returns the one beyond of the last written position.
  */
-uint8_t *ngtcp2_put_pkt_num(uint8_t *p, uint64_t pkt_num, size_t len);
+uint8_t *ngtcp2_put_pkt_num(uint8_t *p, int64_t pkt_num, size_t len);
 
 /*
  * ngtcp2_get_varint_len returns the required number of bytes to read
@@ -158,27 +158,35 @@ size_t ngtcp2_get_varint_len(const uint8_t *p);
 size_t ngtcp2_put_varint_len(uint64_t n);
 
 /*
- * ngtcp2_nth_server_bidi_id returns |n|-th server bidirectional stream
- * ID.  If |n| is 0, it returns 0.
+ * ngtcp2_nth_server_bidi_id returns |n|-th server bidirectional
+ * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
+ * larger than NGTCP2_MAX_SERVER_STREAM_ID_BIDI, this function returns
+ * NGTCP2_MAX_SERVER_STREAM_ID_BIDI.
  */
-uint64_t ngtcp2_nth_server_bidi_id(uint64_t n);
+int64_t ngtcp2_nth_server_bidi_id(uint64_t n);
 
 /*
  * ngtcp2_nth_client_bidi_id returns |n|-th client bidirectional
- * stream ID.  If |n| is 0, it returns 0.
+ * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
+ * larger than NGTCP2_MAX_CLIENT_STREAM_ID_BIDI, this function returns
+ * NGTCP2_MAX_CLIENT_STREAM_ID_BIDI.
  */
-uint64_t ngtcp2_nth_client_bidi_id(uint64_t n);
+int64_t ngtcp2_nth_client_bidi_id(uint64_t n);
 
 /*
- * ngtcp2_nth_server_uni_id returns |n|-th server unidirectional stream
- * ID.  If |n| is 0, it returns 0.
+ * ngtcp2_nth_server_uni_id returns |n|-th server unidirectional
+ * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
+ * larger than NGTCP2_MAX_SERVER_STREAM_ID_UNI, this function returns
+ * NGTCP2_MAX_SERVER_STREAM_ID_UNI.
  */
-uint64_t ngtcp2_nth_server_uni_id(uint64_t n);
+int64_t ngtcp2_nth_server_uni_id(uint64_t n);
 
 /*
  * ngtcp2_nth_client_uni_id returns |n|-th client unidirectional
- * stream ID.  If |n| is 0, it returns 0.
+ * stream ID.  If |n| is 0, it returns 0.  If the |n|-th stream ID is
+ * larger than NGTCP2_MAX_CLIENT_STREAM_ID_UNI, this function returns
+ * NGTCP2_MAX_CLIENT_STREAM_ID_UNI.
  */
-uint64_t ngtcp2_nth_client_uni_id(uint64_t n);
+int64_t ngtcp2_nth_client_uni_id(uint64_t n);
 
 #endif /* NGTCP2_CONV_H */

@@ -45,6 +45,7 @@
 #include "ngtcp2_cc.h"
 #include "ngtcp2_pv.h"
 #include "ngtcp2_cid.h"
+#include "ngtcp2_buf.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -96,11 +97,6 @@ typedef enum {
    packets. */
 #define NGTCP2_HS_ACK_DELAY NGTCP2_MILLISECONDS
 
-#define NGTCP2_MAX_SERVER_ID_BIDI 0x3fffffffffffff00ULL
-#define NGTCP2_MAX_SERVER_ID_UNI 0x3fffffffffffff10ULL
-#define NGTCP2_MAX_CLIENT_ID_BIDI 0x3fffffffffffff01ULL
-#define NGTCP2_MAX_CLIENT_ID_UNI 0x3fffffffffffff11ULL
-
 /* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
    destination connection ID which have been bound to a particular
    path, but not yet used as primary path and path validation is not
@@ -133,10 +129,8 @@ typedef union {
 } ngtcp2_max_frame;
 
 typedef struct {
-  ngtcp2_path path;
+  ngtcp2_path_storage ps;
   uint8_t data[8];
-  uint8_t local_addrbuf[128];
-  uint8_t remote_addrbuf[128];
 } ngtcp2_path_challenge_entry;
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
@@ -195,43 +189,99 @@ typedef struct {
   uint8_t pkt_type;
 } ngtcp2_crypto_data;
 
+/*
+ * ngtcp2_bw measures bandwidth.
+ */
 typedef struct {
-  /* pngap tracks received packet number in order to suppress
-     duplicated packet number. */
-  ngtcp2_gaptr pngap;
-  /* last_tx_pkt_num is the packet number which the local endpoint
-     sent last time.*/
-  uint64_t last_tx_pkt_num;
-  uint64_t max_rx_pkt_num;
-  /* crypto_tx_offset is the offset of crypto stream in this packet
-     number space. */
-  uint64_t crypto_tx_offset;
-  /* crypto_rx_offset_base is the offset of crypto stream in the
-     global TLS stream and it specifies the offset where this local
-     crypto stream starts. */
-  uint64_t crypto_rx_offset_base;
+  /* first_ts is a timestamp when bandwidth measurement is
+     started. */
+  ngtcp2_tstamp first_ts;
+  /* last_ts is a timestamp when bandwidth measurement was last
+     updated. */
+  ngtcp2_tstamp last_ts;
+  /* datalen is the length of STREAM data received for bandwidth
+     measurement. */
+  uint64_t datalen;
+  /* value is receiver side bandwidth. */
+  double value;
+} ngtcp2_bw;
+
+typedef struct {
+  struct {
+    /* last_pkt_num is the packet number which the local endpoint sent
+       last time.*/
+    int64_t last_pkt_num;
+    ngtcp2_frame_chain *frq;
+  } tx;
+
+  struct {
+    /* pngap tracks received packet number in order to suppress
+       duplicated packet number. */
+    ngtcp2_gaptr pngap;
+    /* max_pkt_num is the largest packet number received so far. */
+    int64_t max_pkt_num;
+    /*
+     * buffed_pkts is buffered packets which cannot be decrypted with
+     * the current encryption level.
+     *
+     * In server Initial encryption level, 0-RTT packet may be buffered.
+     * In server Handshake encryption level, Short packet may be buffered.
+     *
+     * In client Initial encryption level, Handshake or Short packet may
+     * be buffered.  In client Handshake encryption level, Short packet
+     * may be buffered.
+     *
+     * - 0-RTT packet is only buffered in server Initial encryption
+     *   level ngtcp2_pktns.
+     *
+     * - Handshake packet is only buffered in client Initial encryption
+     *   level ngtcp2_pktns.
+     *
+     * - Short packet is only buffered in Handshake encryption level
+     *   ngtcp2_pktns.
+     */
+    ngtcp2_pkt_chain *buffed_pkts;
+  } rx;
+
+  struct {
+    struct {
+      /* frq is a priority queue ordered by crypto offset */
+      ngtcp2_pq frq;
+      /* offset is the offset of crypto stream in this packet number
+         space. */
+      uint64_t offset;
+      /* ckm is a cryptographic key, and iv to encrypt outgoing
+         packets. */
+      ngtcp2_crypto_km *ckm;
+      /* hp is header protection key. */
+      ngtcp2_vec *hp;
+    } tx;
+
+    struct {
+      /* offset_base is the offset of crypto stream in the global TLS
+         stream and it specifies the offset where the crypto stream in
+         this encryption level starts. */
+      uint64_t offset_base;
+      /* ckm is a cryptographic key, and iv to decrypt incoming
+         packets. */
+      ngtcp2_crypto_km *ckm;
+      /* hp is header protection key. */
+      ngtcp2_vec *hp;
+    } rx;
+  } crypto;
+
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
-  ngtcp2_pq cryptofrq;
-  /* tx_ckm is a cryptographic key, and iv to encrypt outgoing
-     packets. */
-  ngtcp2_crypto_km *tx_ckm;
-  /* rx_ckm is a cryptographic key, and iv to decrypt incoming
-     packets. */
-  ngtcp2_crypto_km *rx_ckm;
-  ngtcp2_vec *tx_hp;
-  ngtcp2_vec *rx_hp;
-  ngtcp2_frame_chain *frq;
 } ngtcp2_pktns;
 
 struct ngtcp2_conn {
   int state;
   ngtcp2_conn_callbacks callbacks;
-  /* rcid is a connection ID present in Initial or 0-RTT protected
-     packet from client as destination connection ID.  Server uses
-     this field to check that duplicated Initial or 0-RTT packet are
-     indeed sent to this connection.  Client uses this field to
-     validate original_connection_id transport parameter. */
+  /* rcid is a connection ID present in Initial or 0-RTT packet from
+     client as destination connection ID.  Server uses this field to
+     check that duplicated Initial or 0-RTT packet are indeed sent to
+     this connection.  Client uses this field to validate
+     original_connection_id transport parameter. */
   ngtcp2_cid rcid;
   /* ocid is a connection ID sent as original destination connection
      ID in Retry packet.  Only server uses this field to send this CID
@@ -240,89 +290,143 @@ struct ngtcp2_conn {
   /* oscid is the source connection ID initially used by the local
      endpoint. */
   ngtcp2_cid oscid;
-  /* dcid is the destination connection ID. */
-  ngtcp2_dcid dcid;
-  /* bound_dcids is a set of destination connection ID which is bound
-     to a particular path.  These paths are not validated yet. */
-  ngtcp2_ringbuf bound_dcids;
-  /* dcids is a set of unused CID received from peer.  The first CID
-     is in use. */
-  ngtcp2_ringbuf dcids;
-  /* scids is a set of CID sent to peer.  The peer can use any CIDs in
-     this set. */
-  ngtcp2_ksl scids;
-  ngtcp2_pq used_scids;
+  /* odcid is the destination connection ID initially negotiated
+     during handshake.  It is used to receive late handshake packets
+     after handshake completion. */
+  ngtcp2_cid odcid;
   ngtcp2_pktns in_pktns;
   ngtcp2_pktns hs_pktns;
   ngtcp2_pktns pktns;
-  ngtcp2_strm crypto;
+
+  struct {
+    /* current is the current destination connection ID. */
+    ngtcp2_dcid current;
+    /* bound is a set of destination connection IDs which are bound to
+       particular paths.  These paths are not validated yet. */
+    ngtcp2_ringbuf bound;
+    /* unused is a set of unused CID received from peer. */
+    ngtcp2_ringbuf unused;
+  } dcid;
+
+  struct {
+    /* set is a set of CID sent to peer.  The peer can use any CIDs in
+       this set.  This includes used CID as well as unused ones. */
+    ngtcp2_ksl set;
+    /* used is a set of CID used by peer.  The sort function of this
+       priority queue takes timestamp when CID is retired and sorts
+       them in ascending order. */
+    ngtcp2_pq used;
+    /* last_seq is the last sequence number of connection ID. */
+    uint64_t last_seq;
+  } scid;
+
+  struct {
+    /* strmq contains ngtcp2_strm which has frames to send. */
+    ngtcp2_pq strmq;
+    /* offset is the offset the local endpoint has sent to the remote
+       endpoint. */
+    uint64_t offset;
+    /* max_offset is the maximum offset that local endpoint can
+       send. */
+    uint64_t max_offset;
+  } tx;
+
+  struct {
+    /* unsent_max_offset is the maximum offset that remote endpoint
+       can send without extending MAX_DATA.  This limit is not yet
+       notified to the remote endpoint. */
+    uint64_t unsent_max_offset;
+    /* offset is the cumulative sum of stream data received for this
+       connection. */
+    uint64_t offset;
+    /* max_offset is the maximum offset that remote endpoint can
+       send. */
+    uint64_t max_offset;
+    /* bw is STREAM data bandwidth */
+    ngtcp2_bw bw;
+    /* path_challenge stores received PATH_CHALLENGE data. */
+    ngtcp2_ringbuf path_challenge;
+  } rx;
+
+  struct {
+    ngtcp2_crypto_km *ckm;
+    ngtcp2_vec *hp;
+  } early;
+
+  struct {
+    ngtcp2_settings settings;
+    struct {
+      /* max_stream_id is the maximum bidirectional stream ID which
+         the local endpoint can open. */
+      int64_t max_stream_id;
+      /* next_stream_id is the bidirectional stream ID which the local
+         endpoint opens next. */
+      int64_t next_stream_id;
+    } bidi;
+
+    struct {
+      /* max_stream_id is the maximum unidirectional stream ID which
+         the local endpoint can open. */
+      int64_t max_stream_id;
+      /* next_stream_id is the unidirectional stream ID which the
+         local endpoint opens next. */
+      int64_t next_stream_id;
+    } uni;
+  } local;
+
+  struct {
+    ngtcp2_settings settings;
+    struct {
+      ngtcp2_idtr idtr;
+      /* unsent_max_stream_id is the maximum stream ID of peer
+         initiated bidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      int64_t unsent_max_stream_id;
+      /* max_stream_id is the maximum stream ID of peer initiated
+         bidirectional stream which the local endpoint can accept. */
+      int64_t max_stream_id;
+    } bidi;
+
+    struct {
+      ngtcp2_idtr idtr;
+      /* unsent_max_stream_id is the maximum stream ID of peer
+         initiated unidirectional stream which the local endpoint can
+         accept.  This limit is not yet notified to the remote
+         endpoint. */
+      int64_t unsent_max_stream_id;
+      /* max_stream_id is the maximum stream ID of peer initiated
+         unidirectional stream which the local endpoint can accept. */
+      int64_t max_stream_id;
+    } uni;
+  } remote;
+
+  struct {
+    struct {
+      /* new_tx_ckm is a new sender 1RTT key which has not been
+         used. */
+      ngtcp2_crypto_km *new_tx_ckm;
+      /* new_rx_ckm is a new receiver 1RTT key which has not
+         successfully decrypted incoming packet yet. */
+      ngtcp2_crypto_km *new_rx_ckm;
+      /* old_rx_ckm is an old receiver 1RTT key. */
+      ngtcp2_crypto_km *old_rx_ckm;
+    } key_update;
+
+    ngtcp2_strm strm;
+    size_t aead_overhead;
+    /* decrypt_buf is a buffer which is used to write decrypted data. */
+    ngtcp2_array decrypt_buf;
+  } crypto;
+
   ngtcp2_map strms;
-  /* tx_strmq contains ngtcp2_strm which has frames to send. */
-  ngtcp2_pq tx_strmq;
-  ngtcp2_idtr remote_bidi_idtr;
-  ngtcp2_idtr remote_uni_idtr;
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;
   ngtcp2_pv *pv;
-  ngtcp2_ringbuf rx_path_challenge;
   ngtcp2_log log;
   ngtcp2_default_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
-  /* unsent_max_remote_stream_id_bidi is the maximum stream ID of peer
-     initiated bidirectional stream which the local endpoint can
-     accept.  This limit is not yet notified to the remote
-     endpoint. */
-  uint64_t unsent_max_remote_stream_id_bidi;
-  /* max_remote_stream_id_bidi is the maximum stream ID of peer
-     initiated bidirectional stream which the local endpoint can
-     accept. */
-  uint64_t max_remote_stream_id_bidi;
-  /* max_local_stream_id_bidi is the maximum bidirectional stream ID
-     which the local endpoint can open. */
-  uint64_t max_local_stream_id_bidi;
-  /* next_local_stream_id_bidi is the bidirectional stream ID which
-     the local endpoint opens next. */
-  uint64_t next_local_stream_id_bidi;
-  /* unsent_max_remote_stream_id_uni is an unidirectional stream
-     version of unsent_max_remote_stream_id_bidi. */
-  uint64_t unsent_max_remote_stream_id_uni;
-  /* max_remote_stream_id_uni is an unidirectional stream version of
-     max_remote_stream_id_bidi. */
-  uint64_t max_remote_stream_id_uni;
-  /* max_local_stream_id_uni is an unidirectional stream version of
-     max_local_stream_id_bidi. */
-  uint64_t max_local_stream_id_uni;
-  /* next_local_stream_id_uni is an unidirectional stream version of
-     next_local_stream_id_bidi. */
-  uint64_t next_local_stream_id_uni;
-  /* unsent_max_rx_offset is the maximum offset that remote endpoint
-     can send without extending MAX_DATA.  This limit is not yet
-     notified to the remote endpoint. */
-  uint64_t unsent_max_rx_offset;
-  /* max_rx_offset is the maximum offset that remote endpoint can
-     send. */
-  uint64_t max_rx_offset;
-  /* rx_offset is the cumulative sum of stream data received for this
-     connection. */
-  uint64_t rx_offset;
-  /* tx_offset is the offset the local endpoint has sent to the remote
-     endpoint. */
-  uint64_t tx_offset;
-  /* max_tx_offset is the maximum offset that local endpoint can
-     send. */
-  uint64_t max_tx_offset;
-  /* tx_last_cid_seq is the last sequence number of connection ID. */
-  uint64_t tx_last_cid_seq;
-  /* first_rx_bw_ts is a timestamp when bandwidth measurement is
-     started. */
-  ngtcp2_tstamp first_rx_bw_ts;
-  /* rx_bw_datalen is the length of STREAM data received for bandwidth
-     measurement. */
-  uint64_t rx_bw_datalen;
-  /* rx_bw is receiver side bandwidth. */
-  double rx_bw;
-  size_t probe_pkt_left;
   /* hs_recved is the number of bytes received from client before its
      address is validated.  This field is only used by server to
      ensure "3 times received data" rule. */
@@ -331,35 +435,12 @@ struct ngtcp2_conn {
      This field is only used by server to ensure "3 times received
      data" rule. */
   size_t hs_sent;
-  /* nretry is the number of Retry packet this client has received. */
-  size_t nretry;
   ngtcp2_mem *mem;
   void *user_data;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
   uint16_t flags;
   int server;
-  ngtcp2_crypto_km *early_ckm;
-  ngtcp2_vec *early_hp;
-  /* old_ckm is an old 1RTT key. */
-  ngtcp2_crypto_km *old_rx_ckm;
-  /* new_tx_ckm is a new 1RTT key which has not been used. */
-  ngtcp2_crypto_km *new_tx_ckm;
-  /* new_rx_ckm is a new 1RTT key which has not successfully decrypted
-     incoming packet. */
-  ngtcp2_crypto_km *new_rx_ckm;
-  size_t aead_overhead;
-  /* buffed_rx_hs_pkts is buffered Handshake packets which come before
-     Initial packet. */
-  ngtcp2_pkt_chain *buffed_rx_hs_pkts;
-  /* buffed_rx_ppkts is buffered (0-RTT) Protected packets which come
-     before (Initial packet for 0-RTT, or) handshake completed due to
-     packet reordering. */
-  ngtcp2_pkt_chain *buffed_rx_ppkts;
-  ngtcp2_settings local_settings;
-  ngtcp2_settings remote_settings;
-  /* decrypt_buf is a buffer which is used to write decrypted data. */
-  ngtcp2_array decrypt_buf;
 };
 
 /*
@@ -375,13 +456,13 @@ struct ngtcp2_conn {
  *     Same packet number has already been added.
  */
 int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
-                          uint64_t pkt_num, int active_ack, ngtcp2_tstamp ts);
+                          int64_t pkt_num, int active_ack, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_find_stream returns a stream whose stream ID is
  * |stream_id|.  If no such stream is found, it returns NULL.
  */
-ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id);
+ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, int64_t stream_id);
 
 /*
  * conn_init_stream initializes |strm|.  Its stream ID is |stream_id|.
@@ -397,7 +478,7 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, uint64_t stream_id);
  *     User-callback function failed.
  */
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                            uint64_t stream_id, void *stream_user_data);
+                            int64_t stream_id, void *stream_user_data);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm|.

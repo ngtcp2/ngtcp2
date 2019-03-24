@@ -56,9 +56,6 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
 
 typedef enum {
   NGTCP2_PV_FLAG_NONE,
-  /* NGTCP2_PV_FLAG_BLOCKING indicates that the path validation must
-     finish before sending non-probing packets. */
-  NGTCP2_PV_FLAG_BLOCKING = 0x01,
   /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of the path
      validation does not matter. */
   NGTCP2_PV_FLAG_DONT_CARE = 0x02,
@@ -70,9 +67,6 @@ typedef enum {
      validation against the old path should be done after successful
      path validation. */
   NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS = 0x08,
-  /* NGTCP2_PV_FLAG_INVOKE_CALLBACK indicates that callback must be
-     called after path validation finishes. */
-  NGTCP2_PV_FLAG_INVOKE_CALLBACK = 0x10,
 } ngtcp2_pv_flag;
 
 struct ngtcp2_pv;
@@ -144,6 +138,8 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
+ * NGTCP2_ERR_PATH_VALIDATION_FAILED
+ *     path validation has failed and must be abandoned
  * NGTCP2_ERR_INVALID_STATE
  *     |pv| includes no entry
  * NGTCP2_ERR_INVALID_ARGUMENT

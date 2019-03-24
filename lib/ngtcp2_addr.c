@@ -26,29 +26,32 @@
 
 #include <string.h>
 
-ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr, size_t len) {
-  dest->len = len;
+ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr,
+                              size_t addrlen, void *user_data) {
+  dest->addrlen = addrlen;
   dest->addr = (uint8_t *)addr;
+  dest->user_data = user_data;
   return dest;
 }
 
 void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src) {
-  dest->len = src->len;
-  if (src->len) {
-    memcpy(dest->addr, src->addr, src->len);
+  dest->addrlen = src->addrlen;
+  if (src->addrlen) {
+    memcpy(dest->addr, src->addr, src->addrlen);
   }
+  dest->user_data = src->user_data;
 }
 
 void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const void *addr,
                            size_t addrlen) {
-  dest->len = addrlen;
+  dest->addrlen = addrlen;
   if (addrlen) {
     memcpy(dest->addr, addr, addrlen);
   }
 }
 
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b) {
-  return a->len == b->len && memcmp(a->addr, b->addr, a->len) == 0;
+  return a->addrlen == b->addrlen && memcmp(a->addr, b->addr, a->addrlen) == 0;
 }
 
-int ngtcp2_addr_empty(const ngtcp2_addr *addr) { return addr->len == 0; }
+int ngtcp2_addr_empty(const ngtcp2_addr *addr) { return addr->addrlen == 0; }

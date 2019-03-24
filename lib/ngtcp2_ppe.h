@@ -53,7 +53,7 @@ typedef struct {
      encryption. */
   size_t sample_offset;
   /* pkt_num is the packet number written in buf. */
-  uint64_t pkt_num;
+  int64_t pkt_num;
   /* nonce is the buffer to store nonce.  It should be equal or longer
      than then length of IV. */
   uint8_t nonce[32];

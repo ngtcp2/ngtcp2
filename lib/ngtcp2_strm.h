@@ -32,7 +32,6 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_rob.h"
-#include "ngtcp2_buf.h"
 #include "ngtcp2_map.h"
 #include "ngtcp2_gaptr.h"
 #include "ngtcp2_ksl.h"
@@ -74,31 +73,43 @@ struct ngtcp2_strm {
   ngtcp2_map_entry me;
   ngtcp2_pq_entry pe;
   uint64_t cycle;
-  uint64_t tx_offset;
-  ngtcp2_gaptr acked_tx_offset;
-  /* max_tx_offset is the maximum offset that local endpoint can send
-     for this stream. */
-  uint64_t max_tx_offset;
-  /* last_rx_offset is the largest offset of stream data received for
-     this stream. */
-  uint64_t last_rx_offset;
-  ngtcp2_rob rob;
-  /* streamfrq contains STREAM frame for retransmission.  The flow
-     control credits have been paid when they are transmitted first
-     time.  There are no restriction regarding flow control for
-     retransmission. */
-  ngtcp2_pq streamfrq;
-  /* max_rx_offset is the maximum offset that remote endpoint can send
-     to this stream. */
-  uint64_t max_rx_offset;
-  /* unsent_max_rx_offset is the maximum offset that remote endpoint
-     can send to this stream, and it is not notified to the remote
-     endpoint.  unsent_max_rx_offset >= max_rx_offset must be hold. */
-  uint64_t unsent_max_rx_offset;
+
+  struct {
+    /* acked_offset tracks acknowledged outgoing data. */
+    ngtcp2_gaptr acked_offset;
+    /* streamfrq contains STREAM frame for retransmission.  The flow
+       control credits have been paid when they are transmitted first
+       time.  There are no restriction regarding flow control for
+       retransmission. */
+    ngtcp2_pq streamfrq;
+    /* offset is the next offset of outgoing data.  In other words, it
+       is the number of bytes sent in this stream without
+       duplication. */
+    uint64_t offset;
+    /* max_tx_offset is the maximum offset that local endpoint can
+       send for this stream. */
+    uint64_t max_offset;
+  } tx;
+
+  struct {
+    /* rob is the reorder buffer for incoming stream data.  The data
+       received in out of order is buffered and sorted by its offset
+       in this object. */
+    ngtcp2_rob rob;
+    /* last_offset is the largest offset of stream data received for
+       this stream. */
+    uint64_t last_offset;
+    /* max_offset is the maximum offset that remote endpoint can send
+       to this stream. */
+    uint64_t max_offset;
+    /* unsent_max_offset is the maximum offset that remote endpoint
+       can send to this stream, and it is not notified to the remote
+       endpoint.  unsent_max_offset >= max_offset must be hold. */
+    uint64_t unsent_max_offset;
+  } rx;
+
   ngtcp2_mem *mem;
-  size_t nbuffered;
-  ngtcp2_buf tx_buf;
-  uint64_t stream_id;
+  int64_t stream_id;
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
   uint32_t flags;
@@ -116,7 +127,7 @@ struct ngtcp2_strm {
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_strm_init(ngtcp2_strm *strm, uint64_t stream_id, uint32_t flags,
+int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                      uint64_t max_rx_offset, uint64_t max_tx_offset,
                      void *stream_user_data, ngtcp2_mem *mem);
 
@@ -199,5 +210,11 @@ void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm);
  * ngtcp2_strm_is_tx_queued returns nonzero if |strm| is queued.
  */
 int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_strm_is_all_tx_data_acked returns nonzero if all outgoing
+ * data for |strm| which have sent so far have been acknowledged.
+ */
+int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm);
 
 #endif /* NGTCP2_STRM_H */

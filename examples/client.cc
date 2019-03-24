@@ -71,7 +71,7 @@ Buffer::Buffer(size_t datalen)
     : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
 Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
-Stream::Stream(uint64_t stream_id)
+Stream::Stream(int64_t stream_id)
     : stream_id(stream_id),
       streambuf_idx(0),
       tx_stream_offset(0),
@@ -438,7 +438,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       hs_crypto_ctx_{},
       crypto_ctx_{},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      last_stream_id_(UINT64_MAX),
+      last_stream_id_(-1),
       nstreams_done_(0),
       nkey_update_(0),
       version_(0),
@@ -517,10 +517,11 @@ int client_initial(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
-                     size_t datalen, void *user_data) {
+int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+                     uint64_t offset, const uint8_t *data, size_t datalen,
+                     void *user_data) {
   if (!config.quiet) {
-    debug::print_crypto_data(data, datalen);
+    debug::print_crypto_data(crypto_level, data, datalen);
   }
 
   auto c = static_cast<Client *>(user_data);
@@ -541,7 +542,7 @@ int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, uint64_t stream_id, int fin,
+int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
   if (!config.quiet) {
@@ -564,7 +565,7 @@ int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
 } // namespace
 
 namespace {
-int acked_stream_data_offset(ngtcp2_conn *conn, uint64_t stream_id,
+int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
                              uint64_t offset, size_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
@@ -608,7 +609,7 @@ int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, uint64_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -793,6 +794,25 @@ int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
 }
 } // namespace
 
+namespace {
+int select_preferred_address(ngtcp2_conn *conn, ngtcp2_addr *dest,
+                             const ngtcp2_preferred_addr *paddr,
+                             void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+  Address addr;
+
+  if (c->select_preferred_address(addr, paddr) != 0) {
+    dest->addrlen = 0;
+    return 0;
+  }
+
+  dest->addrlen = addr.len;
+  memcpy(dest->addr, &addr.su, dest->addrlen);
+
+  return 0;
+}
+} // namespace
+
 int Client::init_ssl() {
   if (ssl_) {
     SSL_free(ssl_);
@@ -812,9 +832,9 @@ int Client::init_ssl() {
   size_t alpnlen;
 
   switch (version_) {
-  case NGTCP2_PROTO_VER_D17:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D17);
-    alpnlen = str_size(NGTCP2_ALPN_D17);
+  case NGTCP2_PROTO_VER_D18:
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D18);
+    alpnlen = str_size(NGTCP2_ALPN_D18);
     break;
   }
   if (alpn) {
@@ -909,6 +929,10 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       remove_connection_id,
       ::update_key,
       path_validation,
+      ::select_preferred_address,
+      nullptr, // stream_reset
+      nullptr, // max_remote_stream_id_bidi,
+      nullptr, // max_remote_stream_id_uni,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -926,7 +950,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     dcid = config.dcid;
   }
 
-  ngtcp2_settings settings{};
+  ngtcp2_settings settings;
+  ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.max_stream_data_bidi_local = 256_k;
@@ -936,9 +961,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.max_streams_bidi = 1;
   settings.max_streams_uni = 1;
   settings.idle_timeout = config.timeout;
-  settings.max_packet_size = NGTCP2_MAX_PKT_SIZE;
-  settings.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-  settings.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
 
   auto path = ngtcp2_path{
       {local_addr.len, const_cast<uint8_t *>(
@@ -1182,10 +1204,10 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                       size_t datalen) {
   int rv;
 
+  auto path = ngtcp2_path{
+      {local_addr_.len, reinterpret_cast<uint8_t *>(&local_addr_.su)},
+      {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
   if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    auto path = ngtcp2_path{
-        {local_addr_.len, reinterpret_cast<uint8_t *>(&local_addr_.su)},
-        {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
     rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
                               util::timestamp(loop_));
     if (rv != 0) {
@@ -1193,16 +1215,16 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
       disconnect(rv);
       return -1;
     }
-  } else {
-    return do_handshake(data, datalen);
+    return 0;
   }
 
-  return 0;
+  return do_handshake(&path, data, datalen);
 }
 
-int Client::do_handshake_read_once(const uint8_t *data, size_t datalen) {
-  auto rv =
-      ngtcp2_conn_read_handshake(conn_, data, datalen, util::timestamp(loop_));
+int Client::do_handshake_read_once(const ngtcp2_path *path, const uint8_t *data,
+                                   size_t datalen) {
+  auto rv = ngtcp2_conn_read_handshake(conn_, path, data, datalen,
+                                       util::timestamp(loop_));
   if (rv < 0) {
     std::cerr << "ngtcp2_conn_read_handshake: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1241,7 +1263,8 @@ ssize_t Client::do_handshake_write_once() {
   return nwrite;
 }
 
-int Client::do_handshake(const uint8_t *data, size_t datalen) {
+int Client::do_handshake(const ngtcp2_path *path, const uint8_t *data,
+                         size_t datalen) {
   ssize_t nwrite;
 
   if (sendbuf_.size() > 0) {
@@ -1251,13 +1274,15 @@ int Client::do_handshake(const uint8_t *data, size_t datalen) {
     }
   }
 
-  auto rv = do_handshake_read_once(data, datalen);
-  if (rv != 0) {
-    return rv;
+  if (datalen) {
+    auto rv = do_handshake_read_once(path, data, datalen);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   // For 0-RTT
-  rv = write_0rtt_streams();
+  auto rv = write_0rtt_streams();
   if (rv != 0) {
     return rv;
   }
@@ -1291,8 +1316,10 @@ int Client::on_read() {
     }
 
     if (!config.quiet) {
-      std::cerr << "Received packet from " << util::straddr(&su.sa, addrlen)
-                << std::endl;
+      std::cerr << "Received packet: local="
+                << util::straddr(&local_addr_.su.sa, local_addr_.len)
+                << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
+                << " bytes" << std::endl;
     }
 
     if (debug::packet_lost(config.rx_loss_prob)) {
@@ -1337,14 +1364,16 @@ int Client::on_write(bool retransmit) {
   }
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
-    auto rv = do_handshake(nullptr, 0);
+    auto rv = do_handshake(nullptr, nullptr, 0);
     schedule_retransmit();
     return rv;
   }
 
+  PathStorage path;
+
   for (;;) {
-    auto n = ngtcp2_conn_write_pkt(conn_, nullptr, sendbuf_.wpos(), max_pktlen_,
-                                   util::timestamp(loop_));
+    auto n = ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
+                                   max_pktlen_, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
       disconnect(n);
@@ -1355,6 +1384,8 @@ int Client::on_write(bool retransmit) {
     }
 
     sendbuf_.push(n);
+
+    update_remote_addr(&path.path.remote);
 
     auto rv = send_packet();
     if (rv == NETWORK_ERR_SEND_NON_FATAL) {
@@ -1405,13 +1436,14 @@ int Client::write_streams() {
   return 0;
 }
 
-int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
+int Client::on_write_stream(int64_t stream_id, uint8_t fin, Buffer &data) {
   ssize_t ndatalen;
 
+  PathStorage path;
   for (;;) {
     auto n = ngtcp2_conn_write_stream(
-        conn_, nullptr, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream_id, fin,
-        data.rpos(), data.size(), util::timestamp(loop_));
+        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream_id,
+        fin, data.rpos(), data.size(), util::timestamp(loop_));
     if (n < 0) {
       switch (n) {
       case NGTCP2_ERR_EARLY_DATA_REJECTED:
@@ -1436,6 +1468,8 @@ int Client::on_write_stream(uint64_t stream_id, uint8_t fin, Buffer &data) {
     }
 
     sendbuf_.push(n);
+
+    update_remote_addr(&path.path.remote);
 
     auto rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
@@ -1477,8 +1511,7 @@ int Client::write_0rtt_streams() {
   return 0;
 }
 
-int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
-                                 Buffer &data) {
+int Client::on_write_0rtt_stream(int64_t stream_id, uint8_t fin, Buffer &data) {
   ssize_t ndatalen;
 
   for (;;) {
@@ -1525,9 +1558,7 @@ int Client::on_write_0rtt_stream(uint64_t stream_id, uint8_t fin,
 }
 
 void Client::schedule_retransmit() {
-  auto expiry = std::min(ngtcp2_conn_loss_detection_expiry(conn_),
-                         ngtcp2_conn_ack_delay_expiry(conn_));
-
+  auto expiry = ngtcp2_conn_get_expiry(conn_);
   auto now = util::timestamp(loop_);
   auto t = expiry < now ? 1e-9
                         : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
@@ -1744,7 +1775,7 @@ int Client::change_local_addr() {
   if (config.nat_rebinding) {
     ngtcp2_addr addr;
     ngtcp2_conn_set_local_addr(
-        conn_, ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len));
+        conn_, ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len, NULL));
   } else {
     auto path = ngtcp2_path{
         {local_addr.len, reinterpret_cast<uint8_t *>(&local_addr.su)},
@@ -1872,6 +1903,11 @@ int Client::initiate_key_update() {
   return 0;
 }
 
+void Client::update_remote_addr(const ngtcp2_addr *addr) {
+  remote_addr_.len = addr->addrlen;
+  memcpy(&remote_addr_.su, addr->addr, addr->addrlen);
+}
+
 int Client::send_packet() {
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
@@ -1905,7 +1941,9 @@ int Client::send_packet() {
   sendbuf_.reset();
 
   if (!config.quiet) {
-    std::cerr << "Sent packet to "
+    std::cerr << "Sent packet: local="
+              << util::straddr(&local_addr_.su.sa, local_addr_.len)
+              << " remote="
               << util::straddr(&remote_addr_.su.sa, remote_addr_.len) << " "
               << nwrite << " bytes" << std::endl;
   }
@@ -1922,7 +1960,7 @@ int Client::start_interactive_input() {
   ev_io_set(&stdinrev_, datafd_, EV_READ);
   ev_io_start(loop_, &stdinrev_);
 
-  uint64_t stream_id;
+  int64_t stream_id;
 
   rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
@@ -2008,9 +2046,10 @@ int Client::handle_error(int liberr) {
     err_code = ngtcp2_err_infer_quic_transport_error_code(liberr);
   }
 
-  auto n = ngtcp2_conn_write_connection_close(conn_, nullptr, sendbuf_.wpos(),
-                                              max_pktlen_, err_code,
-                                              util::timestamp(loop_));
+  PathStorage path;
+  auto n = ngtcp2_conn_write_connection_close(conn_, &path.path,
+                                              sendbuf_.wpos(), max_pktlen_,
+                                              err_code, util::timestamp(loop_));
   if (n < 0) {
     std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
@@ -2018,6 +2057,8 @@ int Client::handle_error(int liberr) {
   }
 
   sendbuf_.push(n);
+
+  update_remote_addr(&path.path.remote);
 
   return send_packet();
 }
@@ -2042,7 +2083,7 @@ void Client::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
                           offset + datalen);
 }
 
-int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
+int Client::remove_tx_stream_data(int64_t stream_id, uint64_t offset,
                                   size_t datalen) {
   auto it = streams_.find(stream_id);
   if (it == std::end(streams_)) {
@@ -2056,7 +2097,7 @@ int Client::remove_tx_stream_data(uint64_t stream_id, uint64_t offset,
   return 0;
 }
 
-void Client::on_stream_close(uint64_t stream_id) {
+void Client::on_stream_close(int64_t stream_id) {
   auto it = streams_.find(stream_id);
 
   if (it == std::end(streams_)) {
@@ -2147,7 +2188,7 @@ void Client::make_stream_early() {
 
   ++nstreams_done_;
 
-  uint64_t stream_id;
+  int64_t stream_id;
   rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_bidi_stream: " << ngtcp2_strerror(rv)
@@ -2164,7 +2205,7 @@ int Client::on_extend_max_streams() {
   int rv;
 
   if (config.interactive) {
-    if (last_stream_id_ != UINT64_MAX) {
+    if (last_stream_id_ != -1) {
       return 0;
     }
     if (start_interactive_input() != 0) {
@@ -2176,7 +2217,7 @@ int Client::on_extend_max_streams() {
 
   if (datafd_ != -1) {
     for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
-      uint64_t stream_id;
+      int64_t stream_id;
 
       rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
       if (rv != 0) {
@@ -2193,6 +2234,62 @@ int Client::on_extend_max_streams() {
     }
     return 0;
   }
+
+  return 0;
+}
+
+int Client::select_preferred_address(Address &selected_addr,
+                                     const ngtcp2_preferred_addr *paddr) {
+  int af;
+  const uint8_t *binaddr;
+  uint16_t port;
+  constexpr uint8_t empty_addr[] = {0, 0, 0, 0, 0, 0, 0, 0,
+                                    0, 0, 0, 0, 0, 0, 0, 0};
+  if (local_addr_.su.sa.sa_family == AF_INET &&
+      memcmp(empty_addr, paddr->ipv4_addr, sizeof(paddr->ipv4_addr)) != 0) {
+    af = AF_INET;
+    binaddr = paddr->ipv4_addr;
+    port = paddr->ipv4_port;
+  } else if (local_addr_.su.sa.sa_family == AF_INET6 &&
+             memcmp(empty_addr, paddr->ipv6_addr, sizeof(paddr->ipv6_addr)) !=
+                 0) {
+    af = AF_INET6;
+    binaddr = paddr->ipv6_addr;
+    port = paddr->ipv6_port;
+  } else {
+    return -1;
+  }
+
+  char host[NI_MAXHOST];
+  if (inet_ntop(af, binaddr, host, sizeof(host)) == NULL) {
+    std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
+    return -1;
+  }
+
+  if (!config.quiet) {
+    std::cerr << "selected server preferred_address is [" << host
+              << "]:" << port << std::endl;
+  }
+
+  addrinfo hints{};
+  addrinfo *res;
+
+  hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+  hints.ai_family = af;
+  hints.ai_socktype = SOCK_DGRAM;
+
+  auto rv = getaddrinfo(host, std::to_string(port).c_str(), &hints, &res);
+  if (rv != 0) {
+    std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
+    return -1;
+  }
+
+  assert(res);
+
+  selected_addr.len = res->ai_addrlen;
+  memcpy(&selected_addr.su, res->ai_addr, res->ai_addrlen);
+
+  freeaddrinfo(res);
 
   return 0;
 }
@@ -2429,7 +2526,7 @@ void config_set_default(Config &config) {
   config.nstreams = 1;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_D17;
+  config.version = NGTCP2_PROTO_VER_D18;
   config.timeout = 30;
 }
 } // namespace
@@ -2493,7 +2590,7 @@ Options:
   --change-local-addr=<T>
               Client  changes local  address when  <T> seconds  elapse
               after handshake completes.
-  --net-rebinding
+  --nat-rebinding
               When   used  with   --change-local-addr,  simulate   NAT
               rebinding.   In   other  words,  client   changes  local
               address, but it does not start path validation.

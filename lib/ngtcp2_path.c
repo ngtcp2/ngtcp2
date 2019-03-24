@@ -45,16 +45,24 @@ int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b) {
 }
 
 void ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
-                              size_t local_addrlen, const void *remote_addr,
-                              size_t remote_addrlen) {
-  ngtcp2_addr_init(&ps->path.local, ps->local_addrbuf, 0);
-  ngtcp2_addr_init(&ps->path.remote, ps->remote_addrbuf, 0);
+                              size_t local_addrlen, void *local_user_data,
+                              const void *remote_addr, size_t remote_addrlen,
+                              void *remote_user_data) {
+  ngtcp2_addr_init(&ps->path.local, ps->local_addrbuf, 0, local_user_data);
+  ngtcp2_addr_init(&ps->path.remote, ps->remote_addrbuf, 0, remote_user_data);
 
   ngtcp2_addr_copy_byte(&ps->path.local, local_addr, local_addrlen);
   ngtcp2_addr_copy_byte(&ps->path.remote, remote_addr, remote_addrlen);
 }
 
+void ngtcp2_path_storage_init2(ngtcp2_path_storage *ps,
+                               const ngtcp2_path *path) {
+  ngtcp2_path_storage_init(ps, path->local.addr, path->local.addrlen,
+                           path->local.user_data, path->remote.addr,
+                           path->remote.addrlen, path->remote.user_data);
+}
+
 void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps) {
-  ngtcp2_addr_init(&ps->path.local, ps->local_addrbuf, 0);
-  ngtcp2_addr_init(&ps->path.remote, ps->remote_addrbuf, 0);
+  ngtcp2_addr_init(&ps->path.local, ps->local_addrbuf, 0, NULL);
+  ngtcp2_addr_init(&ps->path.remote, ps->remote_addrbuf, 0, NULL);
 }

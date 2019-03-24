@@ -138,7 +138,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_stream_data_bidi_remote = 961748941;
   params.initial_max_stream_data_uni = 982451653;
   params.initial_max_data = 1000000009;
-   params.initial_max_streams_bidi = 909;
+  params.initial_max_streams_bidi = 909;
   params.initial_max_streams_uni = 911;
   params.idle_timeout = 1023;
   params.max_packet_size = 1400;
@@ -206,11 +206,13 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(params.stateless_reset_token, 0xf1,
          sizeof(params.stateless_reset_token));
   params.ack_delay_exponent = 20;
-  params.preferred_address.ip_version = NGTCP2_IP_VERSION_6;
-  params.preferred_address.ip_addresslen = 255;
-  memset(params.preferred_address.ip_address, 0xe1,
-         params.preferred_address.ip_addresslen);
-  params.preferred_address.port = 63111;
+  params.preferred_address_present = 1;
+  memset(params.preferred_address.ipv4_addr, 0,
+         sizeof(params.preferred_address.ipv4_addr));
+  params.preferred_address.ipv4_port = 0;
+  memset(params.preferred_address.ipv6_addr, 0xe1,
+         sizeof(params.preferred_address.ipv6_addr));
+  params.preferred_address.ipv6_port = 63111;
   scid_init(&params.preferred_address.cid);
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
@@ -223,7 +225,7 @@ void test_ngtcp2_encode_transport_params(void) {
        i < 4 /* negotiated_version */ + 1 +
                4 * 3 /* supported_versions and its length */ + 2 + 8 * 4 +
                6 * 2 + 6 + 6 + 20 + 5 + 5 +
-               (4 + 1 + 1 + 255 + 2 + 1 + params.preferred_address.cid.datalen +
+               (4 + 4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
                 NGTCP2_STATELESS_RESET_TOKENLEN) +
                4 + 4 + params.original_connection_id.datalen;
        ++i) {
@@ -265,14 +267,18 @@ void test_ngtcp2_encode_transport_params(void) {
                         nparams.stateless_reset_token,
                         sizeof(params.stateless_reset_token)));
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
-  CU_ASSERT(params.preferred_address.ip_version ==
-            nparams.preferred_address.ip_version);
-  CU_ASSERT(params.preferred_address.ip_addresslen ==
-            nparams.preferred_address.ip_addresslen);
-  CU_ASSERT(0 == memcmp(params.preferred_address.ip_address,
-                        nparams.preferred_address.ip_address,
-                        params.preferred_address.ip_addresslen));
-  CU_ASSERT(params.preferred_address.port == nparams.preferred_address.port);
+  CU_ASSERT(params.preferred_address_present ==
+            nparams.preferred_address_present);
+  CU_ASSERT(0 == memcmp(params.preferred_address.ipv4_addr,
+                        nparams.preferred_address.ipv4_addr,
+                        sizeof(params.preferred_address.ipv4_addr)));
+  CU_ASSERT(params.preferred_address.ipv4_port ==
+            nparams.preferred_address.ipv4_port);
+  CU_ASSERT(0 == memcmp(params.preferred_address.ipv6_addr,
+                        nparams.preferred_address.ipv6_addr,
+                        sizeof(params.preferred_address.ipv6_addr)));
+  CU_ASSERT(params.preferred_address.ipv6_port ==
+            nparams.preferred_address.ipv6_port);
   CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid,
                           &nparams.preferred_address.cid));
   CU_ASSERT(0 ==

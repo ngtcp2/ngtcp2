@@ -24,6 +24,7 @@
  */
 #include "debug.h"
 
+#include <cassert>
 #include <random>
 #include <iostream>
 
@@ -57,13 +58,28 @@ bool packet_lost(double prob) {
   return p < prob;
 }
 
-void print_crypto_data(const uint8_t *data, size_t datalen) {
-  fprintf(outfile, "Ordered CRYPTO data\n");
+void print_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
+                       size_t datalen) {
+  const char *crypto_level_str;
+  switch (crypto_level) {
+  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+    crypto_level_str = "Initial";
+    break;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    crypto_level_str = "Handshake";
+    break;
+  case NGTCP2_CRYPTO_LEVEL_APP:
+    crypto_level_str = "Application";
+    break;
+  default:
+    assert(0);
+  }
+  fprintf(outfile, "Ordered CRYPTO data in %s crypto level\n",
+          crypto_level_str);
   util::hexdump(outfile, data, datalen);
 }
 
-void print_stream_data(uint64_t stream_id, const uint8_t *data,
-                       size_t datalen) {
+void print_stream_data(int64_t stream_id, const uint8_t *data, size_t datalen) {
   fprintf(outfile, "Ordered STREAM data stream_id=0x%" PRIx64 "\n", stream_id);
   util::hexdump(outfile, data, datalen);
 }
@@ -170,9 +186,9 @@ void log_printf(void *user_data, const char *fmt, ...) {
 void path_validation(const ngtcp2_path *path,
                      ngtcp2_path_validation_result res) {
   auto local_addr = util::straddr(
-      reinterpret_cast<sockaddr *>(path->local.addr), path->local.len);
+      reinterpret_cast<sockaddr *>(path->local.addr), path->local.addrlen);
   auto remote_addr = util::straddr(
-      reinterpret_cast<sockaddr *>(path->remote.addr), path->remote.len);
+      reinterpret_cast<sockaddr *>(path->remote.addr), path->remote.addrlen);
 
   std::cerr << "Path validation against path {local:" << local_addr
             << ", remote:" << remote_addr << "} "
