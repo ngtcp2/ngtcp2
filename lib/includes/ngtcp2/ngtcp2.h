@@ -1023,6 +1023,32 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
                                           void *user_data);
 
 /**
+ * @enum
+ *
+ * ngtcp2_crypto_level is encryption level.
+ */
+typedef enum {
+  /**
+   * NGTCP2_CRYPTO_LEVEL_INITIAL is Initial Keys encryption level.
+   */
+  NGTCP2_CRYPTO_LEVEL_INITIAL,
+  /**
+   * NGTCP2_CRYPTO_LEVEL_EARLY is Early Data (0-RTT) Keys encryption
+   * level.
+   */
+  NGTCP2_CRYPTO_LEVEL_EARLY,
+  /**
+   * NGTCP2_CRYPTO_LEVEL_HANDSHAKE is Handshake Keys encryption level.
+   */
+  NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+  /**
+   * NGTCP2_CRYPTO_LEVEL_APP is Application Data (1-RTT) Keys
+   * encryption level.
+   */
+  NGTCP2_CRYPTO_LEVEL_APP
+} ngtcp2_crypto_level;
+
+/**
  * @functypedef
  *
  * :type`ngtcp2_recv_crypto_data` is invoked when crypto data are
@@ -1032,7 +1058,9 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
  * `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.  The ngtcp2
  * library ensures that the crypto data is passed to the application
  * in the increasing order of |offset|.  |datalen| is always strictly
- * greater than 0.
+ * greater than 0.  |crypto_level| indicates the encryption level
+ * where this data is received.  Crypto data never be received in
+ * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY`.
  *
  * The application should provide the given data to TLS stack.
  *
@@ -1043,9 +1071,10 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
  * value is returned, it is treated as
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
-typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn, uint64_t offset,
-                                       const uint8_t *data, size_t datalen,
-                                       void *user_data);
+typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn,
+                                       ngtcp2_crypto_level crypto_level,
+                                       uint64_t offset, const uint8_t *data,
+                                       size_t datalen, void *user_data);
 
 /**
  * @functypedef

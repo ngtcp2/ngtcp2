@@ -517,10 +517,11 @@ int client_initial(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int recv_crypto_data(ngtcp2_conn *conn, uint64_t offset, const uint8_t *data,
-                     size_t datalen, void *user_data) {
+int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+                     uint64_t offset, const uint8_t *data, size_t datalen,
+                     void *user_data) {
   if (!config.quiet) {
-    debug::print_crypto_data(data, datalen);
+    debug::print_crypto_data(crypto_level, data, datalen);
   }
 
   auto c = static_cast<Client *>(user_data);

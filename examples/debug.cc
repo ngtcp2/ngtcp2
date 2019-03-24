@@ -24,6 +24,7 @@
  */
 #include "debug.h"
 
+#include <cassert>
 #include <random>
 #include <iostream>
 
@@ -57,8 +58,24 @@ bool packet_lost(double prob) {
   return p < prob;
 }
 
-void print_crypto_data(const uint8_t *data, size_t datalen) {
-  fprintf(outfile, "Ordered CRYPTO data\n");
+void print_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
+                       size_t datalen) {
+  const char *crypto_level_str;
+  switch (crypto_level) {
+  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+    crypto_level_str = "Initial";
+    break;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    crypto_level_str = "Handshake";
+    break;
+  case NGTCP2_CRYPTO_LEVEL_APP:
+    crypto_level_str = "Application";
+    break;
+  default:
+    assert(0);
+  }
+  fprintf(outfile, "Ordered CRYPTO data in %s crypto level\n",
+          crypto_level_str);
   util::hexdump(outfile, data, datalen);
 }
 

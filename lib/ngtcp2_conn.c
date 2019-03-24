@@ -99,12 +99,14 @@ static int conn_call_recv_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return 0;
 }
 
-static int conn_call_recv_crypto_data(ngtcp2_conn *conn, uint64_t offset,
-                                      const uint8_t *data, size_t datalen) {
+static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
+                                      ngtcp2_crypto_level crypto_level,
+                                      uint64_t offset, const uint8_t *data,
+                                      size_t datalen) {
   int rv;
 
-  rv = conn->callbacks.recv_crypto_data(conn, offset, data, datalen,
-                                        conn->user_data);
+  rv = conn->callbacks.recv_crypto_data(conn, crypto_level, offset, data,
+                                        datalen, conn->user_data);
   switch (rv) {
   case 0:
   case NGTCP2_ERR_CRYPTO:
@@ -3845,7 +3847,9 @@ static ssize_t conn_decrypt_hp(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
  * NGTCP2_ERR_CRYPTO
  *     TLS backend reported error
  */
-static int conn_emit_pending_crypto_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
+static int conn_emit_pending_crypto_data(ngtcp2_conn *conn,
+                                         ngtcp2_crypto_level crypto_level,
+                                         ngtcp2_strm *strm,
                                          uint64_t rx_offset) {
   size_t datalen;
   const uint8_t *data;
@@ -3862,7 +3866,7 @@ static int conn_emit_pending_crypto_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     offset = rx_offset;
     rx_offset += datalen;
 
-    rv = conn_call_recv_crypto_data(conn, offset, data, datalen);
+    rv = conn_call_recv_crypto_data(conn, crypto_level, offset, data, datalen);
     if (rv != 0) {
       return rv;
     }
@@ -4060,8 +4064,9 @@ static void conn_discard_initial_key(ngtcp2_conn *conn) {
   ngtcp2_acktr_commit_ack(&pktns->acktr);
 }
 
-static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
-                            uint64_t max_rx_offset, const ngtcp2_crypto *fr);
+static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+                            uint64_t rx_offset_base, uint64_t max_rx_offset,
+                            const ngtcp2_crypto *fr);
 
 static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                              const uint8_t *pkt, size_t pktlen,
@@ -4121,6 +4126,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   ngtcp2_strm *crypto = &conn->crypto.strm;
   uint64_t max_crypto_rx_offset;
   size_t odcil;
+  ngtcp2_crypto_level crypto_level;
 
   if (pktlen == 0) {
     return 0;
@@ -4278,6 +4284,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
     }
+
+    crypto_level = NGTCP2_CRYPTO_LEVEL_EARLY;
+
     return (ssize_t)pktlen;
   case NGTCP2_PKT_INITIAL:
     if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED) {
@@ -4305,6 +4314,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     decrypt = conn->callbacks.in_decrypt;
     aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     max_crypto_rx_offset = conn->hs_pktns.crypto.rx.offset_base;
+    crypto_level = NGTCP2_CRYPTO_LEVEL_INITIAL;
 
     break;
   case NGTCP2_PKT_HANDSHAKE:
@@ -4331,6 +4341,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     decrypt = conn->callbacks.decrypt;
     aead_overhead = conn->crypto.aead_overhead;
     max_crypto_rx_offset = conn->pktns.crypto.rx.offset_base;
+    crypto_level = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
 
     break;
   default:
@@ -4474,7 +4485,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     case NGTCP2_FRAME_PADDING:
       break;
     case NGTCP2_FRAME_CRYPTO:
-      rv = conn_recv_crypto(conn, pktns->crypto.rx.offset_base,
+      rv = conn_recv_crypto(conn, crypto_level, pktns->crypto.rx.offset_base,
                             max_crypto_rx_offset, &fr->crypto);
       if (rv != 0) {
         return rv;
@@ -4676,7 +4687,8 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * |rx_offset_base| is the offset in the entire TLS handshake stream.
  * fr->offset specifies the offset in each encryption level.
  * |max_rx_offset| is, if it is nonzero, the maximum offset in the
- * entire TLS handshake stream that |fr| can carry.
+ * entire TLS handshake stream that |fr| can carry.  |crypto_level| is
+ * the encryption level where this data is received.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4690,8 +4702,9 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
-                            uint64_t max_rx_offset, const ngtcp2_crypto *fr) {
+static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+                            uint64_t rx_offset_base, uint64_t max_rx_offset,
+                            const ngtcp2_crypto *fr) {
   ngtcp2_strm *crypto = &conn->crypto.strm;
   uint64_t fr_end_offset;
   uint64_t rx_offset;
@@ -4737,12 +4750,12 @@ static int conn_recv_crypto(ngtcp2_conn *conn, uint64_t rx_offset_base,
       return rv;
     }
 
-    rv = conn_call_recv_crypto_data(conn, offset, data, datalen);
+    rv = conn_call_recv_crypto_data(conn, crypto_level, offset, data, datalen);
     if (rv != 0) {
       return rv;
     }
 
-    rv = conn_emit_pending_crypto_data(conn, crypto, rx_offset);
+    rv = conn_emit_pending_crypto_data(conn, crypto_level, crypto, rx_offset);
     if (rv != 0) {
       return rv;
     }
@@ -6141,8 +6154,9 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
           conn, ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt), ts);
       break;
     case NGTCP2_FRAME_CRYPTO:
-      rv = conn_recv_crypto(conn, pktns->crypto.rx.offset_base,
-                            max_crypto_rx_offset, &fr->crypto);
+      rv = conn_recv_crypto(conn, NGTCP2_CRYPTO_LEVEL_APP,
+                            pktns->crypto.rx.offset_base, max_crypto_rx_offset,
+                            &fr->crypto);
       if (rv != 0) {
         return rv;
       }
