@@ -29,12 +29,14 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/third-party \
 	@OPENSSL_CFLAGS@ \
 	@LIBEV_CFLAGS@ \
+	@LIBNGHTTP3_CFLAGS@ \
 	@DEFS@
 AM_LDFLAGS = -no-install
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
 	@OPENSSL_LIBS@ \
-	@LIBEV_LIBS@
+	@LIBEV_LIBS@ \
+	@LIBNGHTTP3_LIBS@
 
 noinst_PROGRAMS = client server
 

@@ -126,6 +126,13 @@ if test "x${have_openssl}" = "xno"; then
   AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
 fi
 
+# nghttp3 (for examples)
+PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
+                  [have_libnghttp3=yes], [have_libnghttp3=no])
+if test "${have_libnghttp3}" = "xno"; then
+  AC_MSG_NOTICE($LIBNGHTTP3_PKG_ERRORS)
+fi
+
 # libev (for examples)
 # libev does not have pkg-config file.  Check it in an old way.
 save_LIBS=$LIBS
@@ -325,4 +332,5 @@ AC_MSG_NOTICE([summary of build options:
     Libs:
       OpenSSL:        ${have_openssl} (CFLAGS='${OPENSSL_CFLAGS}' LIBS='${OPENSSL_LIBS}')
       Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')
+      Libnghttp3:     ${have_libnghttp3} (CFLAGS='${LIBNGHTTP3_CFLAGS}' LIBS='${LIBNGHTTP3_LIBS}')
 ])
