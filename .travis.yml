@@ -41,10 +41,11 @@ before_install:
 before_script:
   # First build external lib
   - ./ci/build_openssl.sh
+  - ./ci/build_nghttp3.sh
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libev cunit; fi
   # configure ngtcp2
   - if [ "$CI_BUILD" == "autotools" ]; then autoreconf -i; fi
-  - export PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
+  - export PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
   - if [ "$CI_BUILD" == "autotools" ]; then ./configure --enable-werror $AUTOTOOLS_OPTS; fi
   # Set CMAKE_LIBRARY_ARCHITECTURE to workaround failure to parse implicit link information from GCC 5
   - if [ "$CI_BUILD" == "cmake" ]; then cmake $CMAKE_OPTS -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu; fi
@@ -54,4 +55,4 @@ script:
   - make check
   - ./ci/gen-certificate.sh
   - ./examples/server localhost 4433 cert/server.key cert/server.crt &
-  - ./examples/client localhost 4433
+  - ./examples/client localhost 4433 https://localhost/

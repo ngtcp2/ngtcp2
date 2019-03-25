@@ -65,6 +65,7 @@ endforeach()
 
 find_package(OpenSSL 1.1.1)
 find_package(Libev 4.11)
+find_package(Libnghttp3 0.0.0)
 find_package(CUnit 2.1)
 enable_testing()
 set(HAVE_CUNIT      ${CUNIT_FOUND})
@@ -82,6 +83,8 @@ else()
 endif()
 # libev (for examples)
 set(HAVE_LIBEV      ${LIBEV_FOUND})
+# libnghttp3 (for examples)
+set(HAVE_LIBNGHTTP3 ${LIBNGHTTP3_FOUND})
 
 # Checks for header files.
 include(CheckIncludeFile)
@@ -260,4 +263,5 @@ message(STATUS "summary of build options:
     Libs:
       OpenSSL:        ${HAVE_OPENSSL} (LIBS='${OPENSSL_LIBRARIES}')
       Libev:          ${HAVE_LIBEV} (LIBS='${LIBEV_LIBRARIES}')
+      Libnghttp3:     ${HAVE_LIBNGHTTP3} (LIBS='${LIBNGHTTP3_LIBRARIES}')
 ")

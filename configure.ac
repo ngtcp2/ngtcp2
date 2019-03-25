@@ -126,7 +126,7 @@ if test "x${have_openssl}" = "xno"; then
   AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
 fi
 
-# nghttp3 (for examples)
+# libnghttp3 (for examples)
 PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
                   [have_libnghttp3=yes], [have_libnghttp3=no])
 if test "${have_libnghttp3}" = "xno"; then
