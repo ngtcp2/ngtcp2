@@ -430,7 +430,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
   rev_.data = this;
-  ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
+  ev_timer_init(&timer_, timeoutcb, 0., config.timeout / 1000.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
@@ -2802,7 +2802,7 @@ void config_set_default(Config &config) {
   config.data = nullptr;
   config.datalen = 0;
   config.version = NGTCP2_PROTO_VER_D19;
-  config.timeout = 30;
+  config.timeout = 30000;
   config.http_method = "GET";
 }
 } // namespace
@@ -2838,7 +2838,7 @@ Options:
   -s, --show-secret
               Print out secrets unless --quiet is used.
   --timeout=<T>
-              Specify idle timeout in seconds.
+              Specify idle timeout in milliseconds.
               Default: )"
             << config.timeout << R"(
   --ciphers=<CIPHERS>

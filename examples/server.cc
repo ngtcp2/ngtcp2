@@ -642,7 +642,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       nkey_update_(0),
       initial_(true),
       draining_(false) {
-  ev_timer_init(&timer_, timeoutcb, 0., config.timeout);
+  ev_timer_init(&timer_, timeoutcb, 0., config.timeout / 1000.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
@@ -3260,7 +3260,7 @@ void config_set_default(Config &config) {
   config.ciphers = "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_"
                    "POLY1305_SHA256";
   config.groups = "P-256:X25519:P-384:P-521";
-  config.timeout = 30;
+  config.timeout = 30000;
   {
     auto path = realpath(".", nullptr);
     config.htdocs = path;
@@ -3306,7 +3306,7 @@ Options:
   -s, --show-secret
               Print out secrets unless --quiet is used.
   --timeout=<T>
-              Specify idle timeout in seconds.
+              Specify idle timeout in milliseconds.
               Default: )"
             << config.timeout << R"(
   -V, --validate-addr
