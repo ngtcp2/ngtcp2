@@ -197,6 +197,33 @@ void path_validation(const ngtcp2_path *path,
             << std::endl;
 }
 
+void print_http_begin_request_headers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " request headers started\n",
+          stream_id);
+}
+
+void print_http_begin_response_headers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " response headers started\n",
+          stream_id);
+}
+
+void print_http_header(int64_t stream_id, const nghttp3_rcbuf *name,
+                       const nghttp3_rcbuf *value, uint8_t flags) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " [%s: %s]%s\n", stream_id,
+          nghttp3_rcbuf_get_buf(name).base, nghttp3_rcbuf_get_buf(value).base,
+          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+}
+
+void print_http_end_headers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " ended\n", stream_id);
+}
+
+void print_http_data(int64_t stream_id, const uint8_t *data, size_t datalen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " body %zu bytes\n", stream_id,
+          datalen);
+  util::hexdump(outfile, data, datalen);
+}
+
 } // namespace debug
 
 } // namespace ngtcp2

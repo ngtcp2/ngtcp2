@@ -35,14 +35,15 @@
 #include <string>
 
 #include <ngtcp2/ngtcp2.h>
+#include <nghttp3/nghttp3.h>
 
 #include <openssl/ssl.h>
 #include <ev.h>
-#include <http-parser/http_parser.h>
 
 #include "network.h"
 #include "crypto.h"
 #include "template.h"
+#include "shared.h"
 
 using namespace ngtcp2;
 
@@ -101,10 +102,12 @@ struct Buffer {
   uint8_t *tail;
 };
 
-enum {
-  RESP_IDLE,
-  RESP_STARTED,
-  RESP_COMPLETED,
+struct HTTPHeader {
+  template <typename T1, typename T2>
+  HTTPHeader(const T1 &name, const T2 &value) : name(name), value(value) {}
+
+  std::string name;
+  std::string value;
 };
 
 struct Stream {
@@ -112,41 +115,22 @@ struct Stream {
   ~Stream();
 
   int recv_data(uint8_t fin, const uint8_t *data, size_t datalen);
-  int start_response();
+  int start_response(nghttp3_conn *conn);
   int open_file(const std::string &path);
   int map_file(size_t len);
-  void buffer_file();
-  void send_status_response(unsigned int status_code,
-                            const std::string &extra_headers = "");
-  void send_redirect_response(unsigned int status_code,
+  void send_status_response(nghttp3_conn *conn, unsigned int status_code,
+                            const std::vector<HTTPHeader> &extra_headers = {});
+  void send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
                               const std::string &path);
 
   int64_t stream_id;
-  std::deque<Buffer> streambuf;
-  // streambuf_idx is the index in streambuf, which points to the
-  // buffer to send next.
-  size_t streambuf_idx;
-  // tx_stream_offset is the offset where all data before offset is
-  // acked by the remote endpoint.
-  uint64_t tx_stream_offset;
-  // should_send_fin tells that fin should be sent after currently
-  // buffered data is sent.  After sending fin, it is set to false.
-  bool should_send_fin;
-  // resp_state is the state of response.
-  int resp_state;
-  http_parser htp;
-  unsigned int http_major;
-  unsigned int http_minor;
   // uri is request uri/path.
   std::string uri;
-  // hdrs contains request HTTP header fields.
-  std::vector<std::pair<std::string, std::string>> hdrs;
-  // prev_hdr_key is true if the previous modification to hdrs is
-  // adding key (header field name).
-  bool prev_hdr_key;
+  std::string method;
   // fd is a file descriptor to read file to send its content to a
   // client.
   int fd;
+  std::string status_resp_body;
   // data is a pointer to the memory which maps file denoted by fd.
   uint8_t *data;
   // datalen is the length of mapped file by data.
@@ -178,8 +162,7 @@ public:
   int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
               uint8_t *data, size_t datalen);
   int on_write();
-  int on_write_stream(Stream &stream);
-  int write_stream_data(Stream &stream, int fin, Buffer &data);
+  int write_streams();
   int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                 uint8_t *data, size_t datalen);
   int do_handshake_read_once(const ngtcp2_path *path, const uint8_t *data,
@@ -226,28 +209,37 @@ public:
   ngtcp2_conn *conn() const;
   int recv_stream_data(int64_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
+  int acked_stream_data_offset(int64_t stream_id, size_t datalen);
   const ngtcp2_cid *scid() const;
   const ngtcp2_cid *pscid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
   void remove_tx_crypto_data(uint64_t offset, size_t datalen);
-  int remove_tx_stream_data(int64_t stream_id, uint64_t offset, size_t datalen);
+  void on_stream_open(int64_t stream_id);
   void on_stream_close(int64_t stream_id);
   void start_draining_period();
-  int start_closing_period(int liberror);
+  int start_closing_period();
   bool draining() const;
-  int handle_error(int liberror);
+  int handle_error();
   int send_conn_close();
   void update_endpoint(const ngtcp2_addr *addr);
   void update_remote_addr(const ngtcp2_addr *addr);
-
-  int send_greeting();
 
   int on_key(int name, const uint8_t *secret, size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
 
   int update_key();
+
+  int setup_httpconn();
+  void http_consume(int64_t stream_id, size_t nconsumed);
+  void extend_max_remote_streams_bidi(uint64_t max_streams);
+  Stream *find_stream(int64_t stream_id);
+  void http_begin_request_headers(int64_t stream_id);
+  void http_recv_request_header(int64_t stream_id, int32_t token,
+                                nghttp3_rcbuf *name, nghttp3_rcbuf *value);
+  void http_end_request_headers(int64_t stream_id);
+  void on_stream_reset(int64_t stream_id);
 
 private:
   Endpoint *endpoint_;
@@ -271,6 +263,7 @@ private:
   ngtcp2_cid rcid_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
+  nghttp3_conn *httpconn_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
@@ -283,11 +276,9 @@ private:
   // tx_crypto_offset_ is the offset where all data before offset is
   // acked by the remote endpoint.
   uint64_t tx_crypto_offset_;
+  QUICError last_error_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
-  // tls_alert_ is the last TLS alert description generated by the
-  // local endpoint.
-  uint8_t tls_alert_;
   // initial_ is initially true, and used to process first packet from
   // client specially.  After first packet, it becomes false.
   bool initial_;
@@ -304,7 +295,6 @@ public:
 
   int init(const char *addr, const char *port);
   void disconnect();
-  void disconnect(int liberr);
   void close();
 
   int on_write();

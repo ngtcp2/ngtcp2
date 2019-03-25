@@ -164,7 +164,7 @@ typedef struct {
 /* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
    library supports.  Notice that the first byte is the length of the
    following protocol identifier. */
-#define NGTCP2_ALPN_D19 "\x5hq-19"
+#define NGTCP2_ALPN_D19 "\x5h3-19"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -2586,6 +2586,22 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
 NGTCP2_EXTERN int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
                                                  const ngtcp2_path *path,
                                                  ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_max_local_streams_uni` returns the cumulative
+ * number of streams which local endpoint can open.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_local_streams_uni(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_max_data_left` returns the number of bytes that
+ * this local endpoint can send in this connection.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
 
 /**
  * @function

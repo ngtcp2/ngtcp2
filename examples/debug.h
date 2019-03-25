@@ -36,6 +36,7 @@
 #include <chrono>
 
 #include <ngtcp2/ngtcp2.h>
+#include <nghttp3/nghttp3.h>
 
 namespace ngtcp2 {
 
@@ -90,6 +91,17 @@ void log_printf(void *user_data, const char *fmt, ...);
 
 void path_validation(const ngtcp2_path *path,
                      ngtcp2_path_validation_result res);
+
+void print_http_begin_request_headers(int64_t stream_id);
+
+void print_http_begin_response_headers(int64_t stream_id);
+
+void print_http_header(int64_t stream_id, const nghttp3_rcbuf *name,
+                       const nghttp3_rcbuf *value, uint8_t flags);
+
+void print_http_end_headers(int64_t stream_id);
+
+void print_http_data(int64_t stream_id, const uint8_t *data, size_t datalen);
 
 } // namespace debug
 

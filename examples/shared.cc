@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2019 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,39 +22,28 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SHARED_H
-#define SHARED_H
+#include "shared.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
-
-#include <ngtcp2/ngtcp2.h>
+#include <nghttp3/nghttp3.h>
 
 namespace ngtcp2 {
 
-constexpr uint16_t NGTCP2_APP_NOERROR = 0xff00;
-constexpr uint16_t NGTCP2_APP_PROTO = 0xff01;
+QUICError quicErrorTransport(int liberr) {
+  if (liberr == NGTCP2_ERR_VERSION_NEGOTIATION) {
+    return {QUICErrorType::TransportVersionNegotiation, 0};
+  }
+  return {QUICErrorType::Transport,
+          ngtcp2_err_infer_quic_transport_error_code(liberr)};
+}
 
-enum class QUICErrorType {
-  Application,
-  Transport,
-  TransportVersionNegotiation,
-};
+QUICError quicErrorTransportTLS(int alert) {
+  return {QUICErrorType::Transport, ngtcp2_err_infer_quic_transport_error_code(
+                                        NGTCP2_CRYPTO_ERROR | alert)};
+}
 
-struct QUICError {
-  QUICError(QUICErrorType type, uint16_t code) : type(type), code(code) {}
-
-  QUICErrorType type;
-  uint16_t code;
-};
-
-QUICError quicErrorTransport(int liberr);
-
-QUICError quicErrorTransportTLS(int alert);
-
-QUICError quicErrorApplication(int liberr);
+QUICError quicErrorApplication(int liberr) {
+  return {QUICErrorType::Application,
+          nghttp3_err_infer_quic_app_error_code(liberr)};
+}
 
 } // namespace ngtcp2
-
-#endif // SHARED_H

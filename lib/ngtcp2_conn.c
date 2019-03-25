@@ -7641,10 +7641,6 @@ int ngtcp2_conn_set_remote_transport_params(
 
 int ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
-  if (conn->server) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
-
   settings_copy_from_transport_params(&conn->remote.settings, params);
   conn_sync_stream_id_limit(conn);
 
@@ -8550,6 +8546,14 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
 
   return 0;
+}
+
+uint64_t ngtcp2_conn_get_max_local_streams_uni(ngtcp2_conn *conn) {
+  return conn->local.uni.max_streams;
+}
+
+uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
+  return conn->tx.max_offset - conn->tx.offset;
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,

@@ -36,12 +36,31 @@
 #include <random>
 
 #include <ngtcp2/ngtcp2.h>
+#include <nghttp3/nghttp3.h>
 
 #include <ev.h>
 
 namespace ngtcp2 {
 
 namespace util {
+
+template <typename T, size_t N1, size_t N2>
+constexpr nghttp3_nv make_nv(const T (&name)[N1], const T (&value)[N2]) {
+  return nghttp3_nv{(uint8_t *)name, (uint8_t *)value, N1 - 1, N2 - 1,
+                    NGHTTP3_NV_FLAG_NONE};
+}
+
+template <typename T, size_t N, typename S>
+constexpr nghttp3_nv make_nv(const T (&name)[N], const S &value) {
+  return nghttp3_nv{(uint8_t *)name, (uint8_t *)value.data(), N - 1,
+                    value.size(), NGHTTP3_NV_FLAG_NONE};
+}
+
+template <typename S1, typename S2>
+constexpr nghttp3_nv make_nv(const S1 &name, const S2 &value) {
+  return nghttp3_nv{(uint8_t *)name.data(), (uint8_t *)value.data(),
+                    name.size(), value.size(), NGHTTP3_NV_FLAG_NONE};
+}
 
 std::string format_hex(uint8_t c);
 
@@ -126,6 +145,11 @@ std::string make_cid_key(const ngtcp2_cid *cid);
 
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
+
+template <typename T, size_t N>
+bool streq_l(const T (&a)[N], const nghttp3_vec &b) {
+  return N - 1 == b.len && memcmp(a, b.base, N - 1) == 0;
+}
 
 } // namespace util
 
