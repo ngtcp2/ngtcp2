@@ -443,7 +443,7 @@ void Stream::send_status_response(
   nva[1] = util::make_nv("server", NGTCP2_SERVER);
   nva[2] = util::make_nv("content-type", "text/html; charset=UTF-8");
   nva[3] = util::make_nv("content-length", content_length_str);
-  for (auto i = 0; i < extra_headers.size(); ++i) {
+  for (size_t i = 0; i < extra_headers.size(); ++i) {
     auto &hdr = extra_headers[i];
     auto &nv = nva[4 + i];
     nv = util::make_nv(hdr.name, hdr.value);
