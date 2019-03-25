@@ -229,7 +229,6 @@ typedef enum {
   NGTCP2_ERR_TLS_DECRYPT = -220,
   NGTCP2_ERR_STREAM_SHUT_WR = -221,
   NGTCP2_ERR_STREAM_NOT_FOUND = -222,
-  NGTCP2_ERR_VERSION_NEGOTIATION = -223,
   NGTCP2_ERR_STREAM_STATE = -226,
   NGTCP2_ERR_NOKEY = -227,
   NGTCP2_ERR_EARLY_DATA_REJECTED = -228,
@@ -641,16 +640,6 @@ typedef struct {
 } ngtcp2_preferred_addr;
 
 typedef struct {
-  union {
-    struct {
-      uint32_t initial_version;
-    } ch;
-    struct {
-      uint32_t negotiated_version;
-      uint32_t supported_versions[63];
-      size_t len;
-    } ee;
-  } v;
   ngtcp2_preferred_addr preferred_address;
   ngtcp2_cid original_connection_id;
   uint64_t initial_max_stream_data_bidi_local;
@@ -2053,9 +2042,7 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
- * |params| to |conn|.  |exttype| is the type of message it is
- * carried, and it should be one of
- * :type:`ngtcp2_transport_params_type`.
+ * |params| to |conn|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2063,16 +2050,9 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
  * :enum:`NGTCP2_ERR_PROTO`
  *     If |conn| is server, and negotiated_version field is not the
  *     same as the used version.
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     If |conn| is client, and |exttype| is
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
- *     |conn| is server, and |exttype| is
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
- * :enum:`NGTCP2_ERR_VERSION_NEGOTIATION`
- *     Failed to validate version.
  */
 NGTCP2_EXTERN int
-ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
+ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn,
                                         const ngtcp2_transport_params *params);
 
 /**
@@ -2106,20 +2086,11 @@ NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params(
  * @function
  *
  * `ngtcp2_conn_get_local_transport_params` fills settings values in
- * |params|.  |exttype| is the type of message it is carried, and it
- * should be one of :type:`ngtcp2_transport_params_type`.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     If |conn| is server, and |exttype| is
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
- *     |conn| is client, and |exttype| is either
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
+ * |params|.
  */
-NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
-    ngtcp2_conn *conn, ngtcp2_transport_params *params, uint8_t exttype);
+NGTCP2_EXTERN void
+ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
+                                       ngtcp2_transport_params *params);
 
 /**
  * @function

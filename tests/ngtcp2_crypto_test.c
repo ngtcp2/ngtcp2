@@ -46,7 +46,6 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* CH, required parameters only */
-  params.v.ch.initial_version = 0xe1e2e3e4u;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
@@ -54,13 +53,12 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(4 /* initial_version */ + 2 == nwrite);
+  CU_ASSERT(0 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(params.v.ch.initial_version == nparams.v.ch.initial_version);
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
             nparams.initial_max_stream_data_bidi_local);
   CU_ASSERT(params.initial_max_stream_data_bidi_remote ==
@@ -83,11 +81,6 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* EE, required parameters only */
-  params.v.ee.negotiated_version = 0xf1f2f3f4u;
-  params.v.ee.supported_versions[0] = 0xd1d2d3d4u;
-  params.v.ee.supported_versions[1] = 0xe1e2e3e4u;
-  params.v.ee.supported_versions[2] = 0xf1f2f3f4u;
-  params.v.ee.len = 3;
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
@@ -96,21 +89,13 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
 
-  CU_ASSERT(4 /* negotiated_version */ + 1 +
-                4 * 3 /* supported_versions and its length */ + 2 ==
-            nwrite);
+  CU_ASSERT(0 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
       (size_t)nwrite);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(params.v.ee.negotiated_version == nparams.v.ee.negotiated_version);
-  CU_ASSERT(params.v.ee.len == nparams.v.ee.len);
-  for (i = 0; i < 3; ++i) {
-    CU_ASSERT(params.v.ee.supported_versions[i] ==
-              nparams.v.ee.supported_versions[i]);
-  }
   CU_ASSERT(params.initial_max_stream_data_bidi_local ==
             nparams.initial_max_stream_data_bidi_local);
   CU_ASSERT(params.initial_max_stream_data_bidi_remote ==
@@ -133,7 +118,6 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* CH, all parameters */
-  params.v.ch.initial_version = 0xe1e2e3e4u;
   params.initial_max_stream_data_bidi_local = 1000000007;
   params.initial_max_stream_data_bidi_remote = 961748941;
   params.initial_max_stream_data_uni = 982451653;
@@ -146,9 +130,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.disable_migration = 1;
   params.max_ack_delay = 59;
 
-  for (i = 0;
-       i < 4 /* initial_version */ + 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5;
-       ++i) {
+  for (i = 0; i < 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5; ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
@@ -157,13 +139,6 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
   CU_ASSERT((ssize_t)i == nwrite);
-
-  for (i = 0; (ssize_t)i < nwrite; ++i) {
-    rv = ngtcp2_decode_transport_params(
-        &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, i);
-
-    CU_ASSERT(NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM == rv);
-  }
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -189,11 +164,6 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* EE, all parameters */
-  params.v.ee.negotiated_version = 0xf1f2f3f4u;
-  params.v.ee.supported_versions[0] = 0xd1d2d3d4u;
-  params.v.ee.supported_versions[1] = 0xe1e2e3e4u;
-  params.v.ee.supported_versions[2] = 0xf1f2f3f4u;
-  params.v.ee.len = 3;
   params.initial_max_stream_data_bidi_local = 1000000007;
   params.initial_max_stream_data_bidi_remote = 961748941;
   params.initial_max_stream_data_uni = 982451653;
@@ -222,9 +192,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.original_connection_id = ocid;
 
   for (i = 0;
-       i < 4 /* negotiated_version */ + 1 +
-               4 * 3 /* supported_versions and its length */ + 2 + 8 * 4 +
-               6 * 2 + 6 + 6 + 20 + 5 + 5 +
+       i < 8 * 4 + 6 * 2 + 6 + 6 + 20 + 5 + 5 +
                (4 + 4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
                 NGTCP2_STATELESS_RESET_TOKENLEN) +
                4 + 4 + params.original_connection_id.datalen;
@@ -238,13 +206,6 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
 
   CU_ASSERT((ssize_t)i == nwrite);
-
-  for (i = 0; (ssize_t)i < nwrite; ++i) {
-    rv = ngtcp2_decode_transport_params(
-        &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf, i);
-
-    CU_ASSERT(rv == NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM);
-  }
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,

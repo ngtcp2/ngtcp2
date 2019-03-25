@@ -70,8 +70,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_STREAM_SHUT_WR";
   case NGTCP2_ERR_STREAM_NOT_FOUND:
     return "ERR_STREAM_NOT_FOUND";
-  case NGTCP2_ERR_VERSION_NEGOTIATION:
-    return "ERR_VERSION_NEGOTIATION";
   case NGTCP2_ERR_STREAM_STATE:
     return "ERR_STREAM_STATE";
   case NGTCP2_ERR_NOKEY:
@@ -121,8 +119,6 @@ uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
     return NGTCP2_INTERNAL_ERROR;
   case NGTCP2_ERR_STREAM_STATE:
     return NGTCP2_STREAM_STATE_ERROR;
-  case NGTCP2_ERR_VERSION_NEGOTIATION:
-    return NGTCP2_VERSION_NEGOTIATION_ERROR;
   default:
     return NGTCP2_PROTOCOL_VIOLATION;
   }

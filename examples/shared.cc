@@ -29,7 +29,7 @@
 namespace ngtcp2 {
 
 QUICError quicErrorTransport(int liberr) {
-  if (liberr == NGTCP2_ERR_VERSION_NEGOTIATION) {
+  if (liberr == NGTCP2_ERR_RECV_VERSION_NEGOTIATION) {
     return {QUICErrorType::TransportVersionNegotiation, 0};
   }
   return {QUICErrorType::Transport,

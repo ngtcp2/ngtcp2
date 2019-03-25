@@ -2539,18 +2539,12 @@ int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
                             unsigned int content, const unsigned char **out,
                             size_t *outlen, X509 *x, size_t chainidx, int *al,
                             void *add_arg) {
-  int rv;
   auto c = static_cast<Client *>(SSL_get_app_data(ssl));
   auto conn = c->conn();
 
   ngtcp2_transport_params params;
 
-  rv = ngtcp2_conn_get_local_transport_params(
-      conn, &params, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO);
-  if (rv != 0) {
-    *al = SSL_AD_INTERNAL_ERROR;
-    return -1;
-  }
+  ngtcp2_conn_get_local_transport_params(conn, &params);
 
   constexpr size_t bufsize = 64;
   auto buf = std::make_unique<uint8_t[]>(bufsize);
@@ -2600,8 +2594,7 @@ int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
     return -1;
   }
 
-  rv = ngtcp2_conn_set_remote_transport_params(
-      conn, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_set_remote_transport_params: "
               << ngtcp2_strerror(rv) << std::endl;

@@ -7563,28 +7563,12 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_VERSION_NEGOTIATION
- *     The negotiated version is invalid.
+ * NGTCP2_ERR_TRANSPORT_PARAM
+ *     Transport parameters are invalid.
  */
 static int
 conn_client_validate_transport_params(ngtcp2_conn *conn,
                                       const ngtcp2_transport_params *params) {
-  size_t i;
-
-  if (params->v.ee.negotiated_version != conn->version) {
-    return NGTCP2_ERR_VERSION_NEGOTIATION;
-  }
-
-  for (i = 0; i < params->v.ee.len; ++i) {
-    if (params->v.ee.supported_versions[i] == conn->version) {
-      break;
-    }
-  }
-
-  if (i == params->v.ee.len) {
-    return NGTCP2_ERR_VERSION_NEGOTIATION;
-  }
-
   if (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
     if (!params->original_connection_id_present) {
       return NGTCP2_ERR_TRANSPORT_PARAM;
@@ -7603,31 +7587,21 @@ static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_set_remote_transport_params(
-    ngtcp2_conn *conn, uint8_t exttype, const ngtcp2_transport_params *params) {
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   int rv;
 
-  switch (exttype) {
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
-    if (!conn->server) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
-    /* TODO At the moment, we only support one version, and there is
-       no validation here. */
-    break;
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    if (conn->server) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
+  if (!conn->server) {
     rv = conn_client_validate_transport_params(conn, params);
     if (rv != 0) {
       return rv;
     }
-    break;
-  default:
-    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  ngtcp2_log_remote_tp(&conn->log, exttype, params);
+  ngtcp2_log_remote_tp(&conn->log,
+                       conn->server
+                           ? NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO
+                           : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+                       params);
 
   settings_copy_from_transport_params(&conn->remote.settings, params);
   conn_sync_stream_id_limit(conn);
@@ -7649,29 +7623,8 @@ int ngtcp2_conn_set_early_remote_transport_params(
   return 0;
 }
 
-int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
-                                           ngtcp2_transport_params *params,
-                                           uint8_t exttype) {
-  switch (exttype) {
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
-    if (conn->server) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
-    /* TODO Fix this; not sure how to handle them correctly */
-    params->v.ch.initial_version = conn->version;
-    break;
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    if (!conn->server) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
-    /* TODO Fix this; not sure how to handle them correctly */
-    params->v.ee.negotiated_version = conn->version;
-    params->v.ee.len = 1;
-    params->v.ee.supported_versions[0] = conn->version;
-    break;
-  default:
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
+void ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
+                                            ngtcp2_transport_params *params) {
   transport_params_copy_from_settings(params, &conn->local.settings);
   if (conn->server && (conn->flags & NGTCP2_CONN_FLAG_OCID_PRESENT)) {
     ngtcp2_cid_init(&params->original_connection_id, conn->ocid.data,
@@ -7680,8 +7633,6 @@ int ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
   } else {
     params->original_connection_id_present = 0;
   }
-
-  return 0;
 }
 
 int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,

@@ -539,7 +539,6 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                           const ngtcp2_transport_params *params) {
-  size_t i;
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1];
   uint8_t addr[16 * 2 + 1];
   uint8_t cid[NGTCP2_MAX_CIDLEN * 2 + 1];
@@ -548,21 +547,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
     return;
   }
 
-  switch (exttype) {
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
-    log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_version=0x%08x\n"),
-                    NGTCP2_LOG_TP_HD_FIELDS, params->v.ch.initial_version);
-    break;
-  case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
-    log->log_printf(log->user_data,
-                    (NGTCP2_LOG_TP " negotiated_version=0x%08x\n"),
-                    NGTCP2_LOG_TP_HD_FIELDS, params->v.ee.negotiated_version);
-    for (i = 0; i < params->v.ee.len; ++i) {
-      log->log_printf(
-          log->user_data, (NGTCP2_LOG_TP " supported_version[%zu]=0x%08x\n"),
-          NGTCP2_LOG_TP_HD_FIELDS, i, params->v.ee.supported_versions[i]);
-    }
-
+  if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
     if (params->stateless_reset_token_present) {
       log->log_printf(log->user_data,
                       (NGTCP2_LOG_TP " stateless_reset_token=0x%s\n"),
@@ -616,8 +601,6 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                           cid, params->original_connection_id.data,
                           params->original_connection_id.datalen));
     }
-
-    break;
   }
 
   log->log_printf(log->user_data,
