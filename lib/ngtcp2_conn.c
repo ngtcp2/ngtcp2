@@ -8373,6 +8373,8 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       loss_pktns = hs_pktns;
     }
     if (loss_pktns->rtb.loss_time) {
+      /* TODO This branch never be taken because loss_time is
+         initially 0 and is updated in ngtcp2_conn_detect_lost_pkt. */
       rv = ngtcp2_conn_detect_lost_pkt(conn, loss_pktns, rcs, ts);
       if (rv != 0) {
         return rv;
