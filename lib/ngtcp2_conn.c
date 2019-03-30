@@ -6168,7 +6168,20 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (hd.type == NGTCP2_PKT_0RTT) {
       switch (fr->type) {
       case NGTCP2_FRAME_PADDING:
+      case NGTCP2_FRAME_PING:
+      case NGTCP2_FRAME_RESET_STREAM:
+      case NGTCP2_FRAME_STOP_SENDING:
       case NGTCP2_FRAME_STREAM:
+      case NGTCP2_FRAME_MAX_DATA:
+      case NGTCP2_FRAME_MAX_STREAM_DATA:
+      case NGTCP2_FRAME_MAX_STREAMS_BIDI:
+      case NGTCP2_FRAME_MAX_STREAMS_UNI:
+      case NGTCP2_FRAME_DATA_BLOCKED:
+      case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
+      case NGTCP2_FRAME_STREAMS_BLOCKED_BIDI:
+      case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
+      case NGTCP2_FRAME_NEW_CONNECTION_ID:
+      case NGTCP2_FRAME_PATH_CHALLENGE:
         break;
       default:
         return NGTCP2_ERR_PROTO;
