@@ -479,8 +479,6 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
     if (rtb_pkt_lost(rtb, ent, loss_delay, lost_send_time, lost_pkt_num)) {
       /* All entries from ent are considered to be lost. */
-      ngtcp2_default_cc_congestion_event(rtb->cc, ent->ts, ts);
-
       latest_ts = oldest_ts = ent->ts;
       last_lost_pkt_num = ent->hd.pkt_num;
 
@@ -502,6 +500,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
         rtb_on_remove(rtb, ent);
         rtb_on_pkt_lost(rtb, pfrc, ent);
       }
+
+      ngtcp2_default_cc_congestion_event(rtb->cc, latest_ts, ts);
 
       if (last_lost_pkt_num != -1) {
         ngtcp2_default_cc_handle_persistent_congestion(
