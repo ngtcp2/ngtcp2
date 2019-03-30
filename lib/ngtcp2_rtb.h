@@ -239,6 +239,7 @@ typedef struct {
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
   size_t num_ack_eliciting;
+  ngtcp2_tstamp loss_time;
 } ngtcp2_rtb;
 
 /*
@@ -289,7 +290,7 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
  * frames contained them to |*pfrc|.  Even when this function fails,
  * some frames might be prepended to |*pfrc| and the caller should
- * handle them.
+ * handle them.  |pto| is PTO.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -298,7 +299,8 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  *     Out of memory
  */
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                               ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts);
+                               ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
+                               ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends

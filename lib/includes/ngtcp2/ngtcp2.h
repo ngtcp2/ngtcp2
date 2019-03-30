@@ -698,7 +698,6 @@ typedef struct {
   ngtcp2_duration max_ack_delay;
   double smoothed_rtt;
   double rttvar;
-  ngtcp2_tstamp loss_time;
   size_t pto_count;
   size_t crypto_count;
   /* probe_pkt_left is the number of probe packet to sent */

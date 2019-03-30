@@ -58,6 +58,8 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
     return;
   }
 
+  /* TODO Do something if "app limited" */
+
   if (ccs->cwnd < ccs->ssthresh) {
     ccs->cwnd += pkt->pktlen;
     ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
@@ -71,7 +73,6 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_tstamp ts_sent,
-                                        ngtcp2_rcvry_stat *rcs,
                                         ngtcp2_tstamp ts) {
   ngtcp2_cc_stat *ccs = cc->ccs;
 
@@ -83,10 +84,23 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
   ccs->cwnd = ngtcp2_max(ccs->cwnd, NGTCP2_MIN_CWND);
   ccs->ssthresh = ccs->cwnd;
 
-  if (rcs->pto_count > NGTCP2_PERSISTENT_CONGESTION_THRESHOLD) {
-    ccs->cwnd = NGTCP2_MIN_CWND;
-  }
-
   ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
                   "reduce cwnd because of packet loss cwnd=%lu", ccs->cwnd);
+}
+
+void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
+                                                    ngtcp2_duration loss_window,
+                                                    ngtcp2_duration pto) {
+  ngtcp2_cc_stat *ccs = cc->ccs;
+  ngtcp2_duration congestion_period =
+      pto * ((1 << NGTCP2_PERSISTENT_CONGESTION_THRESHOLD) - 1);
+
+  if (loss_window >= congestion_period) {
+    ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
+                    "persistent congestion loss_window=%" PRIu64
+                    " congestion_period=%" PRIu64,
+                    loss_window, congestion_period);
+
+    ccs->cwnd = NGTCP2_MIN_CWND;
+  }
 }

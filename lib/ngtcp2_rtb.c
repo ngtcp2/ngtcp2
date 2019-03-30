@@ -160,6 +160,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_default_cc *cc, ngtcp2_log *log,
   rtb->mem = mem;
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
+  rtb->loss_time = 0;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
@@ -429,17 +430,17 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   return num_acked;
 }
 
-static int pkt_lost(ngtcp2_rcvry_stat *rcs, const ngtcp2_rtb_entry *ent,
-                    uint64_t loss_delay, ngtcp2_tstamp lost_send_time,
-                    int64_t lost_pkt_num) {
+static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
+                        uint64_t loss_delay, ngtcp2_tstamp lost_send_time,
+                        int64_t lost_pkt_num) {
   if (ent->ts <= lost_send_time || ent->hd.pkt_num <= lost_pkt_num) {
     return 1;
   }
 
-  if (rcs->loss_time == 0) {
-    rcs->loss_time = ent->ts + loss_delay;
+  if (rtb->loss_time == 0) {
+    rtb->loss_time = ent->ts + loss_delay;
   } else {
-    rcs->loss_time = ngtcp2_min(rcs->loss_time, ent->ts + loss_delay);
+    rtb->loss_time = ngtcp2_min(rtb->loss_time, ent->ts + loss_delay);
   }
 
   return 0;
@@ -455,15 +456,16 @@ static uint64_t compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
 }
 
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                               ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts) {
-  ngtcp2_rtb_entry *ent;
+                               ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
+                               ngtcp2_tstamp ts) {
+  ngtcp2_rtb_entry *ent, *oldest_ent;
   uint64_t loss_delay;
   ngtcp2_tstamp lost_send_time;
-  ngtcp2_ksl_it it;
+  ngtcp2_ksl_it it, last_it;
   int64_t lost_pkt_num;
   int rv;
 
-  rcs->loss_time = 0;
+  rtb->loss_time = 0;
   loss_delay = compute_pkt_loss_delay(rcs);
   lost_send_time = ts - loss_delay;
   lost_pkt_num = rtb->largest_acked_tx_pkt_num - NGTCP2_PACKET_THRESHOLD;
@@ -473,9 +475,16 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
 
-    if (pkt_lost(rcs, ent, loss_delay, lost_send_time, lost_pkt_num)) {
+    if (rtb_pkt_lost(rtb, ent, loss_delay, lost_send_time, lost_pkt_num)) {
       /* All entries from ent are considered to be lost. */
-      ngtcp2_default_cc_congestion_event(rtb->cc, ent->ts, rcs, ts);
+      ngtcp2_default_cc_congestion_event(rtb->cc, ent->ts, ts);
+
+      last_it = ngtcp2_ksl_end(&rtb->ents);
+      ngtcp2_ksl_it_prev(&last_it);
+      oldest_ent = ngtcp2_ksl_it_get(&last_it);
+
+      ngtcp2_default_cc_handle_persistent_congestion(
+          rtb->cc, ent->ts - oldest_ent->ts, pto);
 
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);

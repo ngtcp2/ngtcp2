@@ -78,7 +78,10 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_tstamp ts_sent,
-                                        ngtcp2_rcvry_stat *rcs,
                                         ngtcp2_tstamp ts);
+
+void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
+                                                    ngtcp2_duration loss_window,
+                                                    ngtcp2_duration pto);
 
 #endif /* NGTCP2_CC_H */
