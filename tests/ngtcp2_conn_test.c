@@ -460,6 +460,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
+  cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
   server_default_settings(&settings);
 
@@ -494,6 +495,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   cb.in_decrypt = null_decrypt;
   cb.in_encrypt = null_encrypt;
   cb.in_hp_mask = null_hp_mask;
+  cb.get_new_connection_id = get_new_connection_id;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
@@ -523,6 +525,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
+  cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
   server_default_settings(&settings);
 
@@ -566,6 +569,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
+  cb.get_new_connection_id = get_new_connection_id;
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
@@ -3269,7 +3273,7 @@ void test_ngtcp2_conn_send_early_data(void) {
                                      stream_id, 1, null_data, 1024, ++t);
 
   CU_ASSERT((ssize_t)sizeof(buf) == spktlen);
-  CU_ASSERT(959 == datalen);
+  CU_ASSERT(700 == datalen);
 
   ngtcp2_conn_del(conn);
 
@@ -3285,15 +3289,10 @@ void test_ngtcp2_conn_send_early_data(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  /*
-   * Long header (1+4+1+18*2+2+1)
-   * STREAM overhead (+3)
-   * AEAD overhead (16)
-   */
-  spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, 64, &datalen, stream_id,
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, 323, &datalen, stream_id,
                                      0, null_data, 10, ++t);
 
-  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(spktlen > 0);
   CU_ASSERT(-1 == datalen);
 
   ngtcp2_conn_del(conn);
@@ -3309,7 +3308,7 @@ void test_ngtcp2_conn_send_early_data(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, 65, &datalen, stream_id,
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, 324, &datalen, stream_id,
                                      0, null_data, 10, ++t);
 
   CU_ASSERT(spktlen > 0);

@@ -1250,29 +1250,27 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
     return 0;
   }
 
-  switch (type) {
-  case NGTCP2_PKT_INITIAL:
-    if (!conn->early.ckm || early_datalen == 0) {
-      return 1;
-    }
-    min_payloadlen = ngtcp2_min(early_datalen, 128);
-
-    return left <
-           /* TODO Assuming that pkt_num is encoded in 1 byte. */
-           NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.current.cid.datalen +
-               conn->oscid.datalen + 1 /* payloadlen bytes - 1 */ +
-               min_payloadlen + NGTCP2_MAX_AEAD_OVERHEAD;
-  case NGTCP2_PKT_0RTT:
-    return conn->state == NGTCP2_CS_CLIENT_INITIAL;
-  default:
+  if (type != NGTCP2_PKT_INITIAL) {
     return 0;
   }
+
+  if (!conn->early.ckm || early_datalen == 0) {
+    return 1;
+  }
+  min_payloadlen = ngtcp2_min(early_datalen, 128);
+
+  return left <
+         /* TODO Assuming that pkt_num is encoded in 1 byte. */
+         NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.current.cid.datalen +
+             conn->oscid.datalen + 1 /* payloadlen bytes - 1 */ +
+             min_payloadlen + NGTCP2_MAX_AEAD_OVERHEAD;
 }
 
 /*
  * conn_write_handshake_pkt writes handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.  |type| specifies long
- * packet type.
+ * packet type.  It should be either NGTCP2_PKT_INITIAL or
+ * NGTCP2_PKT_HANDSHAKE_PKT.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1290,10 +1288,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frq = NULL, **pfrc = &frq;
-  ngtcp2_stream_frame_chain *nsfrc;
   ngtcp2_crypto_frame_chain *ncfrc;
   ngtcp2_frame *ackfr = NULL, lfr;
-  ngtcp2_strm *strm;
   ssize_t spktlen;
   ngtcp2_crypto_ctx ctx;
   ngtcp2_rtb_entry *rtbent;
@@ -1328,18 +1324,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ctx.hp_mask = conn->callbacks.hp_mask;
     ctx.user_data = conn;
     break;
-  case NGTCP2_PKT_0RTT:
-    if (!conn->early.ckm || ngtcp2_pq_empty(&conn->tx.strmq)) {
-      return 0;
-    }
-    pktns = &conn->pktns;
-    ctx.ckm = conn->early.ckm;
-    ctx.hp = conn->early.hp;
-    ctx.aead_overhead = conn->crypto.aead_overhead;
-    ctx.encrypt = conn->callbacks.encrypt;
-    ctx.hp_mask = conn->callbacks.hp_mask;
-    ctx.user_data = conn;
-    break;
   default:
     assert(0);
   }
@@ -1356,7 +1340,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ctx.user_data = conn;
 
-  if (ngtcp2_pq_empty(&pktns->crypto.tx.frq) && type != NGTCP2_PKT_0RTT) {
+  if (ngtcp2_pq_empty(&pktns->crypto.tx.frq)) {
     return 0;
   }
 
@@ -1372,113 +1356,59 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  /* TODO pktns->tx.frq is not used during handshake */
-  assert(pktns->tx.frq == NULL);
+  for (; !ngtcp2_pq_empty(&pktns->crypto.tx.frq);) {
+    left = ngtcp2_ppe_left(&ppe);
+    left = ngtcp2_pkt_crypto_max_datalen(
+        conn_cryptofrq_top(conn, pktns)->fr.offset, left, left);
 
-  if (type != NGTCP2_PKT_0RTT) {
-    for (; !ngtcp2_pq_empty(&pktns->crypto.tx.frq);) {
-      left = ngtcp2_ppe_left(&ppe);
-      left = ngtcp2_pkt_crypto_max_datalen(
-          conn_cryptofrq_top(conn, pktns)->fr.offset, left, left);
-
-      if (left == (size_t)-1) {
-        break;
-      }
-
-      rv = conn_cryptofrq_pop(conn, &ncfrc, pktns, left);
-      if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
-        return rv;
-      }
-
-      if (ncfrc == NULL) {
-        break;
-      }
-
-      rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd,
-                                       &ncfrc->frc.fr);
-      if (rv != 0) {
-        assert(0);
-      }
-
-      *pfrc = &ncfrc->frc;
-      pfrc = &(*pfrc)->next;
-
-      pkt_empty = 0;
-      flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_CRYPTO_PKT;
-    }
-  } else if (!conn->pktns.crypto.tx.ckm) {
-    for (; !ngtcp2_pq_empty(&conn->tx.strmq);) {
-      strm = ngtcp2_conn_tx_strmq_top(conn);
-      if (ngtcp2_strm_streamfrq_empty(strm)) {
-        ngtcp2_conn_tx_strmq_pop(conn);
-        continue;
-      }
-
-      left = ngtcp2_ppe_left(&ppe);
-      /* What we handle here is retransmission of 0RTT STREAM frame
-         after Retry packet.  The flow control credits have already
-         been paid for these frames. */
-      left = ngtcp2_pkt_stream_max_datalen(
-          strm->stream_id, ngtcp2_strm_streamfrq_top(strm)->fr.offset, left,
-          left);
-
-      if (left == (size_t)-1) {
-        break;
-      }
-
-      rv = ngtcp2_strm_streamfrq_pop(strm, &nsfrc, left);
-      if (rv != 0) {
-        return rv;
-      }
-      if (ngtcp2_strm_streamfrq_empty(strm)) {
-        ngtcp2_conn_tx_strmq_pop(conn);
-      }
-
-      if (nsfrc == NULL) {
-        break;
-      }
-
-      rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd,
-                                       &nsfrc->frc.fr);
-      if (rv != 0) {
-        assert(0);
-      }
-
-      *pfrc = &nsfrc->frc;
-      pfrc = &(*pfrc)->next;
-
-      pkt_empty = 0;
-      flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
-
+    if (left == (size_t)-1) {
       break;
     }
+
+    rv = conn_cryptofrq_pop(conn, &ncfrc, pktns, left);
+    if (rv != 0) {
+      assert(ngtcp2_err_is_fatal(rv));
+      return rv;
+    }
+
+    if (ncfrc == NULL) {
+      break;
+    }
+
+    rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd,
+                                     &ncfrc->frc.fr);
+    if (rv != 0) {
+      assert(0);
+    }
+
+    *pfrc = &ncfrc->frc;
+    pfrc = &(*pfrc)->next;
+
+    pkt_empty = 0;
+    flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_CRYPTO_PKT;
   }
 
   if (pkt_empty) {
     return 0;
   }
 
-  if (type != NGTCP2_PKT_0RTT) {
-    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
-                               0 /* ack_delay */,
-                               NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
-    if (rv != 0) {
-      return rv;
-    }
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* ack_delay */,
+                             NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+  if (rv != 0) {
+    return rv;
+  }
 
-    if (ackfr) {
-      rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
-      if (rv != 0) {
-        assert(NGTCP2_ERR_NOBUF == rv);
-      } else {
-        ngtcp2_acktr_commit_ack(&pktns->acktr);
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
-        pkt_empty = 0;
-      }
-      ngtcp2_mem_free(conn->mem, ackfr);
-      ackfr = NULL;
+  if (ackfr) {
+    rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
+    if (rv != 0) {
+      assert(NGTCP2_ERR_NOBUF == rv);
+    } else {
+      ngtcp2_acktr_commit_ack(&pktns->acktr);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
+      pkt_empty = 0;
     }
+    ngtcp2_mem_free(conn->mem, ackfr);
+    ackfr = NULL;
   }
 
   /* If we cannot write another packet, then we need to add padding to
@@ -1707,15 +1637,6 @@ static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   return res + nwrite;
-}
-
-/*
- * conn_retransmit_retry_early retransmits 0RTT packet after Retry is
- * received from server.
- */
-static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ngtcp2_tstamp ts) {
-  return conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_0RTT, 0, ts);
 }
 
 /*
@@ -2017,7 +1938,8 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
 
 /*
  * conn_write_pkt writes a protected packet in the buffer pointed by
- * |dest| whose length if |destlen|.
+ * |dest| whose length if |destlen|.  |type| specifies the type of
+ * packet.  It can be NGTCP2_PKT_SHORT or NGTCP2_PKT_0RTT.
  *
  * This function can send new stream data.  In order to send stream
  * data, specify the underlying stream to |data_strm|.  If |fin| is
@@ -2027,6 +1949,9 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
  * number of bytes sent to the stream is assigned to |*pdatalen|.  If
  * 0 length STREAM data is sent, 0 is assigned to |*pdatalen|.  The
  * caller should initialize |*pdatalen| to -1.
+ *
+ * If |require_padding| is nonzero, padding bytes are added to occupy
+ * the remaining packet payload.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -2039,9 +1964,10 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
  *     Stream data could not be written because of flow control.
  */
 static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                              ssize_t *pdatalen, ngtcp2_strm *data_strm,
-                              uint8_t fin, const ngtcp2_vec *datav,
-                              size_t datavcnt, ngtcp2_tstamp ts) {
+                              ssize_t *pdatalen, uint8_t type,
+                              ngtcp2_strm *data_strm, uint8_t fin,
+                              const ngtcp2_vec *datav, size_t datavcnt,
+                              int require_padding, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -2064,6 +1990,35 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   uint8_t rtb_entry_flags = NGTCP2_RTB_FLAG_NONE;
   int hd_logged = 0;
   ngtcp2_path_challenge_entry *pcent;
+  uint8_t hd_flags;
+
+  switch (type) {
+  case NGTCP2_PKT_SHORT:
+    hd_flags =
+        (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
+            ? NGTCP2_PKT_FLAG_KEY_PHASE
+            : NGTCP2_PKT_FLAG_NONE;
+    ctx.ckm = pktns->crypto.tx.ckm;
+    ctx.hp = pktns->crypto.tx.hp;
+    break;
+  case NGTCP2_PKT_0RTT:
+    assert(!conn->server);
+    if (!conn->early.ckm) {
+      return 0;
+    }
+    hd_flags = NGTCP2_PKT_FLAG_LONG_FORM;
+    ctx.ckm = conn->early.ckm;
+    ctx.hp = conn->early.hp;
+    break;
+  default:
+    /* Unreachable */
+    assert(0);
+  }
+
+  ctx.aead_overhead = conn->crypto.aead_overhead;
+  ctx.encrypt = conn->callbacks.encrypt;
+  ctx.hp_mask = conn->callbacks.hp_mask;
+  ctx.user_data = conn;
 
   if (data_strm) {
     ndatalen = conn_enforce_flow_control(conn, data_strm, datalen);
@@ -2099,21 +2054,9 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->rx.max_offset = conn->rx.unsent_max_offset;
   }
 
-  ngtcp2_pkt_hd_init(
-      &hd,
-      (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
-          ? NGTCP2_PKT_FLAG_KEY_PHASE
-          : NGTCP2_PKT_FLAG_NONE,
-      NGTCP2_PKT_SHORT, &conn->dcid.current.cid, NULL,
-      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns), conn->version,
-      0);
-
-  ctx.ckm = pktns->crypto.tx.ckm;
-  ctx.hp = pktns->crypto.tx.hp;
-  ctx.aead_overhead = conn->crypto.aead_overhead;
-  ctx.encrypt = conn->callbacks.encrypt;
-  ctx.hp_mask = conn->callbacks.hp_mask;
-  ctx.user_data = conn;
+  ngtcp2_pkt_hd_init(&hd, hd_flags, type, &conn->dcid.current.cid, &conn->oscid,
+                     pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
+                     conn->version, 0);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
 
@@ -2477,11 +2420,18 @@ tx_strmq_finish:
 
   /* TODO Push STREAM frame back to ngtcp2_strm if there is an error
      before ngtcp2_rtb_entry is safely created and added. */
-
-  lfr.type = NGTCP2_FRAME_PADDING;
-  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
-  if (lfr.padding.len) {
+  if ((require_padding ||
+       (type == NGTCP2_PKT_0RTT && conn->state == NGTCP2_CS_CLIENT_INITIAL)) &&
+      ngtcp2_ppe_left(&ppe)) {
+    lfr.type = NGTCP2_FRAME_PADDING;
+    lfr.padding.len = ngtcp2_ppe_padding(&ppe);
     ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+  } else {
+    lfr.type = NGTCP2_FRAME_PADDING;
+    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+    if (lfr.padding.len) {
+      ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
+    }
   }
 
   nwrite = ngtcp2_ppe_final(&ppe, NULL);
@@ -2880,8 +2830,8 @@ static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
                   "transmit probe pkt left=%zu", conn->rcs.probe_pkt_left);
 
   /* a probe packet is not blocked by cwnd. */
-  nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, datav,
-                          datavcnt, ts);
+  nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT, strm,
+                          fin, datav, datavcnt, /* require_padding = */ 0, ts);
   if (nwrite == 0 || nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
     nwrite = conn_write_probe_ping(conn, dest, destlen, ts);
   }
@@ -3266,7 +3216,8 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
                                   ts);
     }
 
-    nwrite = conn_write_pkt(conn, dest, destlen, NULL, NULL, 0, NULL, 0, ts);
+    nwrite = conn_write_pkt(conn, dest, destlen, NULL, NGTCP2_PKT_SHORT, NULL,
+                            0, NULL, 0, /* require_padding = */ 0, ts);
     if (nwrite < 0) {
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
@@ -6726,6 +6677,16 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_retransmit_retry_early retransmits 0RTT packet after Retry is
+ * received from server.
+ */
+static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen, ngtcp2_tstamp ts) {
+  return conn_write_pkt(conn, dest, destlen, NULL, NGTCP2_PKT_0RTT, NULL, 0,
+                        NULL, 0, /* require_padding = */ 0, ts);
+}
+
+/*
  * conn_write_handshake writes QUIC handshake packets to the buffer
  * pointed by |dest| of length |destlen|.  |early_datalen| specifies
  * the expected length of early data to send.  Specify 0 to
@@ -6971,156 +6932,6 @@ ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   return conn_write_handshake(conn, dest, destlen, 0, ts);
 }
 
-/*
- * conn_write_stream_early writes 0RTT packet to the buffer pointed by
- * |dest| of length |destlen|.  The stream is specified by |strm|.  If
- * |fin| is nonzero, the STREAM frame has fin bit set if all data is
- * written.  If |require_padding| is nonzero, padding is added.  The
- * number of bytes sent to the stream is assigned to |*padatalen|.  If
- * 0 length STREAM frame is written, 0 is assigned.  The caller should
- * initialize |*pdatalen| to -1.
- *
- * NGTCP2_ERR_STREAM_DATA_BLOCKED
- *     Stream data could not be written because of flow control.
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- */
-static ssize_t conn_write_stream_early(ngtcp2_conn *conn, uint8_t *dest,
-                                       size_t destlen, ssize_t *pdatalen,
-                                       ngtcp2_strm *strm, uint8_t fin,
-                                       const ngtcp2_vec *datav, size_t datavcnt,
-                                       int require_padding, ngtcp2_tstamp ts) {
-  ngtcp2_crypto_ctx ctx;
-  ngtcp2_ppe ppe;
-  ngtcp2_rtb_entry *ent;
-  ngtcp2_stream_frame_chain *frc;
-  ngtcp2_frame localfr;
-  ngtcp2_pkt_hd hd;
-  int rv;
-  size_t ndatalen, left;
-  ssize_t nwrite;
-  uint8_t pkt_flags;
-  uint8_t pkt_type;
-  ngtcp2_pktns *pktns = &conn->pktns;
-  size_t datalen = ngtcp2_vec_len(datav, datavcnt);
-
-  assert(!conn->server);
-  assert(conn->early.ckm);
-
-  pkt_flags = NGTCP2_PKT_FLAG_LONG_FORM;
-  pkt_type = NGTCP2_PKT_0RTT;
-  ctx.ckm = conn->early.ckm;
-  ctx.hp = conn->early.hp;
-
-  ngtcp2_pkt_hd_init(&hd, pkt_flags, pkt_type, &conn->dcid.current.cid,
-                     &conn->oscid, pktns->tx.last_pkt_num + 1,
-                     pktns_select_pkt_numlen(pktns), conn->version, 0);
-
-  ctx.aead_overhead = conn->crypto.aead_overhead;
-  ctx.encrypt = conn->callbacks.encrypt;
-  ctx.hp_mask = conn->callbacks.hp_mask;
-  ctx.user_data = conn;
-
-  ngtcp2_ppe_init(&ppe, dest, destlen, &ctx);
-
-  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
-  if (rv != 0) {
-    assert(NGTCP2_ERR_NOBUF == rv);
-    return 0;
-  }
-
-  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
-    return 0;
-  }
-
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
-  ndatalen = conn_enforce_flow_control(conn, strm, datalen);
-  if (datalen > 0 && ndatalen == 0) {
-    return NGTCP2_ERR_STREAM_DATA_BLOCKED;
-  }
-
-  left = ngtcp2_ppe_left(&ppe);
-  ndatalen = ngtcp2_pkt_stream_max_datalen(strm->stream_id, strm->tx.offset,
-                                           ndatalen, left);
-  if (ndatalen == (size_t)-1 || (ndatalen == 0 && datalen)) {
-    return 0;
-  }
-
-  fin = fin && ndatalen == datalen;
-
-  rv = ngtcp2_stream_frame_chain_new(&frc, conn->mem);
-  if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    return rv;
-  }
-
-  frc->fr.type = NGTCP2_FRAME_STREAM;
-  frc->fr.flags = 0;
-  frc->fr.fin = fin;
-  frc->fr.stream_id = strm->stream_id;
-  frc->fr.offset = strm->tx.offset;
-  frc->fr.datacnt = ngtcp2_vec_copy(frc->fr.data, NGTCP2_MAX_STREAM_DATACNT,
-                                    datav, datavcnt, ndatalen);
-
-  rv = conn_ppe_write_frame(conn, &ppe, &hd, &frc->frc.fr);
-  if (rv != 0) {
-    assert(0);
-  }
-
-  if (require_padding && ngtcp2_ppe_left(&ppe)) {
-    localfr.type = NGTCP2_FRAME_PADDING;
-    localfr.padding.len = ngtcp2_ppe_padding(&ppe);
-
-    ngtcp2_log_tx_fr(&conn->log, &hd, &localfr);
-  } else {
-    localfr.type = NGTCP2_FRAME_PADDING;
-    localfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
-    if (localfr.padding.len) {
-      ngtcp2_log_tx_fr(&conn->log, &hd, &localfr);
-    }
-  }
-
-  nwrite = ngtcp2_ppe_final(&ppe, NULL);
-  if (nwrite < 0) {
-    assert(ngtcp2_err_is_fatal((int)nwrite));
-    ngtcp2_stream_frame_chain_del(frc, conn->mem);
-    return nwrite;
-  }
-
-  rv = ngtcp2_rtb_entry_new(&ent, &hd, &frc->frc, ts, (size_t)nwrite,
-                            NGTCP2_RTB_FLAG_ACK_ELICITING, conn->mem);
-  if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    ngtcp2_stream_frame_chain_del(frc, conn->mem);
-    return rv;
-  }
-
-  rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
-  if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    ngtcp2_rtb_entry_del(ent, conn->mem);
-    return rv;
-  }
-
-  strm->tx.offset += ndatalen;
-  conn->tx.offset += ndatalen;
-
-  ++pktns->tx.last_pkt_num;
-
-  if (pdatalen) {
-    *pdatalen = (ssize_t)ndatalen;
-  }
-
-  if (fin) {
-    ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
-  }
-
-  return nwrite;
-}
-
 ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ssize_t *pdatalen,
                                            int64_t stream_id, uint8_t fin,
@@ -7193,8 +7004,8 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   destlen = ngtcp2_min(destlen, cwnd);
 
   early_spktlen =
-      conn_write_stream_early(conn, dest, destlen, pdatalen, strm, fin, datav,
-                              datavcnt, require_padding, ts);
+      conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_0RTT, strm, fin,
+                     datav, datavcnt, require_padding, ts);
 
   if (early_spktlen < 0) {
     if (early_spktlen == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
@@ -7847,8 +7658,9 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
                                   datav, datavcnt, ts);
     }
 
-    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, strm, fin, datav,
-                            datavcnt, ts);
+    nwrite =
+        conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT, strm,
+                       fin, datav, datavcnt, /* require_padding = */ 0, ts);
     if (nwrite < 0) {
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
@@ -7868,13 +7680,8 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     return NGTCP2_ERR_EARLY_DATA_REJECTED;
   }
 
-  nwrite = conn_retransmit_retry_early(conn, dest, destlen, ts);
-  if (nwrite) {
-    return nwrite;
-  }
-
-  return conn_write_stream_early(conn, dest, destlen, pdatalen, strm, fin,
-                                 datav, datavcnt, 0, ts);
+  return conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_0RTT, strm,
+                        fin, datav, datavcnt, /* require_padding = */ 0, ts);
 }
 
 ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
