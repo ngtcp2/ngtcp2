@@ -458,12 +458,14 @@ static uint64_t compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                                ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
                                ngtcp2_tstamp ts) {
-  ngtcp2_rtb_entry *ent, *oldest_ent;
+  ngtcp2_rtb_entry *ent;
   uint64_t loss_delay;
   ngtcp2_tstamp lost_send_time;
-  ngtcp2_ksl_it it, last_it;
+  ngtcp2_ksl_it it;
   int64_t lost_pkt_num;
   int rv;
+  ngtcp2_tstamp latest_ts, oldest_ts;
+  int64_t last_lost_pkt_num;
 
   rtb->loss_time = 0;
   loss_delay = compute_pkt_loss_delay(rcs);
@@ -479,12 +481,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       /* All entries from ent are considered to be lost. */
       ngtcp2_default_cc_congestion_event(rtb->cc, ent->ts, ts);
 
-      last_it = ngtcp2_ksl_end(&rtb->ents);
-      ngtcp2_ksl_it_prev(&last_it);
-      oldest_ent = ngtcp2_ksl_it_get(&last_it);
-
-      ngtcp2_default_cc_handle_persistent_congestion(
-          rtb->cc, ent->ts - oldest_ent->ts, pto);
+      latest_ts = oldest_ts = ent->ts;
+      last_lost_pkt_num = ent->hd.pkt_num;
 
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);
@@ -493,8 +491,21 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
         if (rv != 0) {
           return rv;
         }
+
+        if (last_lost_pkt_num == ent->hd.pkt_num + 1) {
+          last_lost_pkt_num = ent->hd.pkt_num;
+        } else {
+          last_lost_pkt_num = -1;
+        }
+
+        oldest_ts = ent->ts;
         rtb_on_remove(rtb, ent);
         rtb_on_pkt_lost(rtb, pfrc, ent);
+      }
+
+      if (last_lost_pkt_num != -1) {
+        ngtcp2_default_cc_handle_persistent_congestion(
+            rtb->cc, latest_ts - oldest_ts, pto);
       }
 
       return 0;
