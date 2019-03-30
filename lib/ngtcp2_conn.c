@@ -794,7 +794,7 @@ static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
   }
 
   return ngtcp2_min(initial_delay,
-                    (ngtcp2_duration)(conn->rcs.smoothed_rtt / 4));
+                    (ngtcp2_duration)(conn->rcs.smoothed_rtt / 8));
 }
 
 /*
