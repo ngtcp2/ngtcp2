@@ -42,12 +42,13 @@ To build sources under the examples directory, libev and nghttp3 are
 required:
 
 * libev
-* nghttp3 (https://github.com/ngtcp2/nghttp3)
+* nghttp3 (https://github.com/ngtcp2/nghttp3) for HTTP/3
 
-The client and server under examples directory require OpenSSL (master
-branch) as crypto backend:
+The client and server under examples directory require patched OpenSSL
+as crypto backend:
 
-* OpenSSL (https://github.com/openssl/openssl/)
+* Patched OpenSSL
+  (https://github.com/tatsuhiro-t/openssl/tree/quic-draft-19)
 
 Build from git
 --------------
