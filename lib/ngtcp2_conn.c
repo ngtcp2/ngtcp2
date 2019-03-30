@@ -4166,6 +4166,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   uint64_t max_crypto_rx_offset;
   size_t odcil;
   ngtcp2_crypto_level crypto_level;
+  int invalid_reserved_bits = 0;
 
   if (pktlen == 0) {
     return 0;
@@ -4420,9 +4421,12 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
 
   rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
   if (rv != 0) {
+    invalid_reserved_bits = 1;
+
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet has incorrect reserved bits");
-    return rv;
+
+    /* Will return error after decrypting payload */
   }
 
   if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
@@ -4446,6 +4450,10 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "could not decrypt packet payload");
     return NGTCP2_ERR_DISCARD_PKT;
+  }
+
+  if (invalid_reserved_bits) {
+    return NGTCP2_ERR_PROTO;
   }
 
   payload = conn->crypto.decrypt_buf.base;
@@ -5875,6 +5883,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int non_probing_pkt = 0;
   int key_phase_bit_changed = 0;
   int force_decrypt_failure = 0;
+  int invalid_reserved_bits = 0;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -5977,17 +5986,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
   if (rv != 0) {
+    invalid_reserved_bits = 1;
+
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet has incorrect reserved bits");
 
-    if (hd.type == NGTCP2_PKT_SHORT) {
-      rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
-      if (rv == 0) {
-        return (ssize_t)pktlen;
-      }
-    }
-
-    return NGTCP2_ERR_DISCARD_PKT;
+    /* Will return error after decrypting payload */
   }
 
   if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
@@ -6064,6 +6068,17 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "could not decrypt packet payload");
     return NGTCP2_ERR_DISCARD_PKT;
+  }
+
+  if (invalid_reserved_bits) {
+    if (hd.type == NGTCP2_PKT_SHORT) {
+      rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
+      if (rv == 0) {
+        return (ssize_t)pktlen;
+      }
+    }
+
+    return NGTCP2_ERR_PROTO;
   }
 
   payload = conn->crypto.decrypt_buf.base;
