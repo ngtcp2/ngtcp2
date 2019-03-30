@@ -5603,7 +5603,8 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
 
 /*
  * conn_recv_retire_connection_id processes the incoming
- * RETIRE_CONNECTION_ID frame |fr|.
+ * RETIRE_CONNECTION_ID frame |fr|.  |hd| is a packet header which
+ * |fr| is included.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -5614,6 +5615,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
  *     SCID is zero-length.
  */
 static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
+                                          const ngtcp2_pkt_hd *hd,
                                           const ngtcp2_retire_connection_id *fr,
                                           ngtcp2_tstamp ts) {
   ngtcp2_ksl_it it;
@@ -5627,6 +5629,10 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
        ngtcp2_ksl_it_next(&it)) {
     scid = ngtcp2_ksl_it_get(&it);
     if (scid->seq == fr->seq) {
+      if (ngtcp2_cid_eq(&scid->cid, &hd->dcid)) {
+        return NGTCP2_ERR_PROTO;
+      }
+
       scid->flags |= NGTCP2_SCID_FLAG_RETIRED;
 
       if (scid->pe.index != NGTCP2_PQ_BAD_INDEX) {
@@ -6262,7 +6268,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       break;
     case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
-      rv = conn_recv_retire_connection_id(conn, &fr->retire_connection_id, ts);
+      rv = conn_recv_retire_connection_id(conn, &hd, &fr->retire_connection_id,
+                                          ts);
       if (rv != 0) {
         return rv;
       }
