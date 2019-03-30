@@ -8529,6 +8529,19 @@ uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
   return conn->tx.max_offset - conn->tx.offset;
 }
 
+ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn) {
+  ngtcp2_duration trpto;
+
+  if (conn->local.settings.idle_timeout == 0) {
+    return UINT64_MAX;
+  }
+
+  trpto = 3 * rcvry_stat_compute_pto(&conn->rcs);
+
+  return ngtcp2_max(conn->local.settings.idle_timeout * NGTCP2_MILLISECONDS,
+                    trpto);
+}
+
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
                                       const uint8_t *data) {

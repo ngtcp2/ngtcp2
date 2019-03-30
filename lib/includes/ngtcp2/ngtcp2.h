@@ -2040,6 +2040,14 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_idle_timeout` returns the current idle timeout.
+ * If idle timeout is disabled, this function returns UINT64_MAX.
+ */
+NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
  * |params| to |conn|.
  *

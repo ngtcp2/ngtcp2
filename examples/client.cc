@@ -1338,6 +1338,8 @@ int Client::on_read() {
     }
   }
 
+  timer_.repeat = static_cast<ev_tstamp>(ngtcp2_conn_get_idle_timeout(conn_)) /
+                  NGTCP2_SECONDS;
   ev_timer_again(loop_, &timer_);
 
   return 0;

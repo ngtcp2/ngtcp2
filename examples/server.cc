@@ -1752,6 +1752,8 @@ int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     return rv;
   }
 
+  timer_.repeat = static_cast<ev_tstamp>(ngtcp2_conn_get_idle_timeout(conn_)) /
+                  NGTCP2_SECONDS;
   ev_timer_again(loop_, &timer_);
 
   return 0;
