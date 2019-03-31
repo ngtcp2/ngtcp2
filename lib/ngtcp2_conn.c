@@ -2095,6 +2095,27 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     /* We don't retransmit PATH_RESPONSE. */
   }
 
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+                             conn_compute_ack_delay(conn),
+                             conn->local.settings.ack_delay_exponent);
+  if (rv != 0) {
+    assert(ngtcp2_err_is_fatal(rv));
+    return rv;
+  }
+
+  if (ackfr) {
+    rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
+    if (rv != 0) {
+      assert(NGTCP2_ERR_NOBUF == rv);
+    } else {
+      ngtcp2_acktr_commit_ack(&pktns->acktr);
+      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
+      pkt_empty = 0;
+    }
+    ngtcp2_mem_free(conn->mem, ackfr);
+    ackfr = NULL;
+  }
+
   for (pfrc = &pktns->tx.frq; *pfrc;) {
     switch ((*pfrc)->fr.type) {
     case NGTCP2_FRAME_STOP_SENDING:
@@ -2383,31 +2404,6 @@ tx_strmq_finish:
     rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
   } else {
     send_stream = 0;
-  }
-
-  /* It might be better to avoid ACK only packet here.  It can be sent
-     without flow control limits later. */
-  if (!pkt_empty) {
-    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
-                               conn_compute_ack_delay(conn),
-                               conn->local.settings.ack_delay_exponent);
-    if (rv != 0) {
-      assert(ngtcp2_err_is_fatal(rv));
-      return rv;
-    }
-
-    if (ackfr) {
-      rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
-      if (rv != 0) {
-        assert(NGTCP2_ERR_NOBUF == rv);
-      } else {
-        ngtcp2_acktr_commit_ack(&pktns->acktr);
-        ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
-        pkt_empty = 0;
-      }
-      ngtcp2_mem_free(conn->mem, ackfr);
-      ackfr = NULL;
-    }
   }
 
   if (pkt_empty) {
