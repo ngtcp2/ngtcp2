@@ -2264,7 +2264,7 @@ int Client::submit_http_request(int64_t stream_id) {
       util::make_nv(":scheme", config.scheme),
       util::make_nv(":authority", config.authority),
       util::make_nv(":path", config.path),
-      util::make_nv("user-agent", "nghttp3/ngtcp2"),
+      util::make_nv("user-agent", "nghttp3/ngtcp2 client"),
   };
   size_t nvlen = 5;
   if (config.fd != -1) {

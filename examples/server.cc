@@ -322,7 +322,7 @@ int Stream::recv_data(uint8_t fin, const uint8_t *data, size_t datalen) {
 }
 
 namespace {
-constexpr char NGTCP2_SERVER[] = "ngtcp2";
+constexpr char NGTCP2_SERVER[] = "nghttp3/ngtcp2 server";
 } // namespace
 
 namespace {
