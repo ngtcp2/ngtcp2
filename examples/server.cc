@@ -441,7 +441,7 @@ void Stream::send_status_response(
   std::vector<nghttp3_nv> nva(4 + extra_headers.size());
   nva[0] = util::make_nv(":status", status_code_str);
   nva[1] = util::make_nv("server", NGTCP2_SERVER);
-  nva[2] = util::make_nv("content-type", "text/html; charset=UTF-8");
+  nva[2] = util::make_nv("content-type", "text/html; charset=utf-8");
   nva[3] = util::make_nv("content-length", content_length_str);
   for (size_t i = 0; i < extra_headers.size(); ++i) {
     auto &hdr = extra_headers[i];
