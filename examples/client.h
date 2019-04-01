@@ -221,6 +221,7 @@ public:
   int http_acked_stream_data(int64_t stream_id, size_t datalen);
   void http_consume(int64_t stream_id, size_t nconsumed);
   void on_stream_reset(int64_t stream_id);
+  int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
 
 private:
   Address local_addr_;

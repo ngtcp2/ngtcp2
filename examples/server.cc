@@ -1195,6 +1195,21 @@ int Handler::setup_httpconn() {
   return 0;
 }
 
+namespace {
+int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
+                           uint64_t max_data, void *user_data,
+                           void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  h->extend_max_stream_data(stream_id, max_data);
+  return 0;
+}
+} // namespace
+
+int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
+  nghttp3_conn_unblock_stream(httpconn_, stream_id);
+  return 0;
+}
+
 int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                   const ngtcp2_cid *dcid, const ngtcp2_cid *ocid,
                   uint32_t version) {
@@ -1256,6 +1271,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       ::stream_reset,
       ::extend_max_remote_streams_bidi, // extend_max_remote_streams_bidi,
       nullptr,                          // extend_max_remote_streams_uni,
+      ::extend_max_stream_data,
   };
 
   ngtcp2_settings settings;

@@ -300,6 +300,25 @@ static int conn_call_extend_max_remote_streams_uni(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_call_extend_max_stream_data(ngtcp2_conn *conn,
+                                            ngtcp2_strm *strm,
+                                            int64_t stream_id,
+                                            uint64_t datalen) {
+  int rv;
+
+  if (!conn->callbacks.extend_max_stream_data) {
+    return 0;
+  }
+
+  rv = conn->callbacks.extend_max_stream_data(
+      conn, stream_id, datalen, conn->user_data, strm->stream_user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 /*
  * bw_reset resets |bw| to the initial state.
  */
@@ -3634,7 +3653,15 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
     }
   }
 
-  strm->tx.max_offset = ngtcp2_max(strm->tx.max_offset, fr->max_stream_data);
+  if (strm->tx.max_offset < fr->max_stream_data) {
+    strm->tx.max_offset = fr->max_stream_data;
+
+    rv = conn_call_extend_max_stream_data(conn, strm, fr->stream_id,
+                                          fr->max_stream_data);
+    if (rv != 0) {
+      return rv;
+    }
+  }
 
   return 0;
 }

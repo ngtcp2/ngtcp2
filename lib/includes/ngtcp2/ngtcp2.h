@@ -1336,6 +1336,23 @@ typedef int (*ngtcp2_extend_max_streams)(ngtcp2_conn *conn,
 /**
  * @functypedef
  *
+ * :type:`ngtcp2_extend_max_stream_data` is a callback function which
+ * is invoked when max stream data is extended.  |stream_id|
+ * identifies the stream.  |max_data| is a cumulative number of bytes
+ * the endpoint can send on this stream.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
+                                             int64_t stream_id,
+                                             uint64_t max_data, void *user_data,
+                                             void *stream_user_data);
+
+/**
+ * @functypedef
+ *
  * :type:`ngtcp2_rand` is a callback function to get randomized byte
  * string from application.  Application must fill random |destlen|
  * bytes to the buffer pointed by |dest|.  |ctx| provides the context
@@ -1492,6 +1509,7 @@ typedef struct {
   ngtcp2_stream_reset stream_reset;
   ngtcp2_extend_max_streams extend_max_remote_streams_bidi;
   ngtcp2_extend_max_streams extend_max_remote_streams_uni;
+  ngtcp2_extend_max_stream_data extend_max_stream_data;
 } ngtcp2_conn_callbacks;
 
 /*

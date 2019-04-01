@@ -240,6 +240,7 @@ public:
                                 nghttp3_rcbuf *name, nghttp3_rcbuf *value);
   void http_end_request_headers(int64_t stream_id);
   void on_stream_reset(int64_t stream_id);
+  int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
 
 private:
   Endpoint *endpoint_;

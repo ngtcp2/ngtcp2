@@ -816,6 +816,21 @@ int select_preferred_address(ngtcp2_conn *conn, ngtcp2_addr *dest,
 }
 } // namespace
 
+namespace {
+int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
+                           uint64_t max_data, void *user_data,
+                           void *stream_user_data) {
+  auto c = static_cast<Client *>(user_data);
+  c->extend_max_stream_data(stream_id, max_data);
+  return 0;
+}
+} // namespace
+
+int Client::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
+  nghttp3_conn_unblock_stream(httpconn_, stream_id);
+  return 0;
+}
+
 int Client::init_ssl() {
   if (ssl_) {
     SSL_free(ssl_);
@@ -934,6 +949,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       stream_reset,
       nullptr, // extend_max_remote_streams_bidi,
       nullptr, // extend_max_remote_streams_uni,
+      ::extend_max_stream_data,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
