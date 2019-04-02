@@ -7898,7 +7898,8 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                      uint16_t app_error_code) {
-  if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+  if (strm->flags &
+      (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) {
     return 0;
   }
 
