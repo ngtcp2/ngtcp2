@@ -307,8 +307,12 @@ BIO_METHOD *create_bio_method() {
 }
 } // namespace
 
-Stream::Stream(int64_t stream_id)
-    : stream_id(stream_id), fd(-1), data(nullptr), datalen(0) {}
+Stream::Stream(int64_t stream_id, Handler *handler)
+    : stream_id(stream_id),
+      handler(handler),
+      fd(-1),
+      data(nullptr),
+      datalen(0) {}
 
 Stream::~Stream() {
   munmap(data, datalen);
@@ -461,6 +465,10 @@ void Stream::send_status_response(
     std::cerr << "nghttp3_conn_submit_response: " << nghttp3_strerror(rv)
               << std::endl;
   }
+
+  nghttp3_conn_end_stream(httpconn, stream_id);
+
+  handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
 }
 
 void Stream::send_redirect_response(nghttp3_conn *httpconn,
@@ -529,6 +537,8 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   }
 
   nghttp3_conn_end_stream(httpconn, stream_id);
+
+  handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
 
   return 0;
 }
@@ -897,7 +907,7 @@ int stream_open(ngtcp2_conn *conn, int64_t stream_id, void *user_data) {
 void Handler::on_stream_open(int64_t stream_id) {
   auto it = streams_.find(stream_id);
   assert(it == std::end(streams_));
-  streams_.emplace(stream_id, std::make_unique<Stream>(stream_id));
+  streams_.emplace(stream_id, std::make_unique<Stream>(stream_id, this));
 }
 
 namespace {
@@ -2204,6 +2214,10 @@ void Handler::on_stream_close(int64_t stream_id) {
   }
 
   streams_.erase(it);
+}
+
+void Handler::shutdown_read(int64_t stream_id, int app_error_code) {
+  ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
 }
 
 void Handler::set_tls_alert(uint8_t alert) {

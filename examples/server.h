@@ -110,8 +110,10 @@ struct HTTPHeader {
   std::string value;
 };
 
+class Handler;
+
 struct Stream {
-  Stream(int64_t stream_id);
+  Stream(int64_t stream_id, Handler *handler);
   ~Stream();
 
   int recv_data(uint8_t fin, const uint8_t *data, size_t datalen);
@@ -124,6 +126,7 @@ struct Stream {
                               const std::string &path);
 
   int64_t stream_id;
+  Handler *handler;
   // uri is request uri/path.
   std::string uri;
   std::string method;
@@ -241,6 +244,7 @@ public:
   void http_end_request_headers(int64_t stream_id);
   void on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
+  void shutdown_read(int64_t stream_id, int app_error_code);
 
 private:
   Endpoint *endpoint_;
