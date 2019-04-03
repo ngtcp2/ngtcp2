@@ -86,6 +86,9 @@ struct Config {
   // key_update is the duration after which client initiates key
   // update.
   double key_update;
+  // delay_request is the duration after which client sends the first
+  // 1-RTT stream.
+  double delay_stream;
   // nat_rebinding is true if simulated NAT rebinding is enabled.
   bool nat_rebinding;
   std::string http_method;
@@ -205,6 +208,7 @@ public:
   int update_key();
   int initiate_key_update();
   void start_key_update_timer();
+  void start_delay_stream_timer();
 
   int on_key(int name, const uint8_t *secret, size_t secretlen);
 
@@ -233,6 +237,7 @@ private:
   ev_timer rttimer_;
   ev_timer change_local_addr_timer_;
   ev_timer key_update_timer_;
+  ev_timer delay_stream_timer_;
   ev_signal sigintev_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;

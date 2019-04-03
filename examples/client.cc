@@ -401,6 +401,24 @@ void key_updatecb(struct ev_loop *loop, ev_timer *w, int revents) {
 } // namespace
 
 namespace {
+void delay_streamcb(struct ev_loop *loop, ev_timer *w, int revents) {
+  auto c = static_cast<Client *>(w->data);
+
+  ev_timer_stop(loop, w);
+  c->on_extend_max_streams();
+
+  auto rv = c->on_write();
+  switch (rv) {
+  case 0:
+    return;
+  case NETWORK_ERR_SEND_NON_FATAL:
+    c->start_wev();
+    return;
+  }
+}
+} // namespace
+
+namespace {
 void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
   ev_break(loop, EVBREAK_ALL);
 }
@@ -440,6 +458,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   change_local_addr_timer_.data = this;
   ev_timer_init(&key_update_timer_, key_updatecb, config.key_update, 0.);
   key_update_timer_.data = this;
+  ev_timer_init(&delay_stream_timer_, delay_streamcb, config.delay_stream, 0.);
+  delay_stream_timer_.data = this;
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
@@ -451,6 +471,7 @@ Client::~Client() {
 void Client::disconnect() {
   config.tx_loss_prob = 0;
 
+  ev_timer_stop(loop_, &delay_stream_timer_);
   ev_timer_stop(loop_, &key_update_timer_);
   ev_timer_stop(loop_, &change_local_addr_timer_);
   ev_timer_stop(loop_, &rttimer_);
@@ -577,6 +598,9 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   }
   if (std::fpclassify(config.key_update) == FP_NORMAL) {
     c->start_key_update_timer();
+  }
+  if (std::fpclassify(config.delay_stream) == FP_NORMAL) {
+    c->start_delay_stream_timer();
   }
 
   if (c->setup_httpconn() != 0) {
@@ -2000,6 +2024,10 @@ int Client::initiate_key_update() {
   return 0;
 }
 
+void Client::start_delay_stream_timer() {
+  ev_timer_start(loop_, &delay_stream_timer_);
+}
+
 void Client::update_remote_addr(const ngtcp2_addr *addr) {
   remote_addr_.len = addr->addrlen;
   memcpy(&remote_addr_.su, addr->addr, addr->addrlen);
@@ -2225,6 +2253,10 @@ void Client::make_stream_early() {
 int Client::on_extend_max_streams() {
   int rv;
   int64_t stream_id;
+
+  if (ev_is_active(&delay_stream_timer_)) {
+    return 0;
+  }
 
   for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
     rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
@@ -2924,6 +2956,9 @@ Options:
   -m, --http-method=<METHOD>
               Specify HTTP method.  Default: )"
             << config.http_method << R"(
+  --delay-stream=<T>
+              Delay sending STREAM data in 1-RTT for <T> seconds after
+              handshake completes.
   -h, --help  Display this help and exit.
 )";
 }
@@ -2954,6 +2989,7 @@ int main(int argc, char **argv) {
         {"change-local-addr", required_argument, &flag, 7},
         {"key-update", required_argument, &flag, 8},
         {"nat-rebinding", no_argument, &flag, 9},
+        {"delay-stream", required_argument, &flag, 10},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -3048,6 +3084,10 @@ int main(int argc, char **argv) {
       case 9:
         // --nat-rebinding
         config.nat_rebinding = true;
+        break;
+      case 10:
+        // --delay-stream
+        config.delay_stream = strtod(optarg, nullptr);
         break;
       }
       break;
