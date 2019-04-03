@@ -33,6 +33,7 @@
 #include <deque>
 #include <map>
 #include <string>
+#include <deque>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -124,6 +125,7 @@ struct Stream {
                             const std::vector<HTTPHeader> &extra_headers = {});
   void send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
                               const std::string &path);
+  int64_t find_dyn_length(const std::string &path);
 
   int64_t stream_id;
   Handler *handler;
@@ -138,6 +140,17 @@ struct Stream {
   uint8_t *data;
   // datalen is the length of mapped file by data.
   uint64_t datalen;
+  // dynresp is true if dynamic data response is enabled.
+  bool dynresp;
+  // dyndataleft is the number of dynamic data left to send.
+  uint64_t dyndataleft;
+  // dynackedoffset is the offset of acked data in the first element
+  // of dynbufs.
+  size_t dynackedoffset;
+  // dynbuflen is the number of bytes buffered in dybufs.
+  size_t dynbuflen;
+  // dynbufs stores the buffers for dynamic data response.
+  std::deque<std::unique_ptr<std::vector<uint8_t>>> dynbufs;
 };
 
 class Server;
@@ -245,6 +258,7 @@ public:
   void on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
+  void http_acked_stream_data(int64_t stream_id, size_t datalen);
 
 private:
   Endpoint *endpoint_;

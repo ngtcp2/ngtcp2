@@ -312,7 +312,11 @@ Stream::Stream(int64_t stream_id, Handler *handler)
       handler(handler),
       fd(-1),
       data(nullptr),
-      datalen(0) {}
+      datalen(0),
+      dynresp(false),
+      dyndataleft(0),
+      dynackedoffset(0),
+      dynbuflen(0) {}
 
 Stream::~Stream() {
   munmap(data, datalen);
@@ -420,6 +424,24 @@ int Stream::map_file(size_t len) {
   return 0;
 }
 
+int64_t Stream::find_dyn_length(const std::string &path) {
+  assert(path[0] == '/');
+
+  int64_t n = 0;
+
+  for (auto it = std::begin(path) + 1; it != std::end(path); ++it) {
+    if (*it < '0' || '9' < *it) {
+      return -1;
+    }
+    n = n * 10 + (*it - '0');
+    if (n > 1000000) {
+      return -1;
+    }
+  }
+
+  return n;
+}
+
 namespace {
 int read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
               size_t *pdatalen, uint32_t *pflags, void *user_data,
@@ -429,6 +451,32 @@ int read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
   *pdata = stream->data;
   *pdatalen = stream->datalen;
   *pflags |= NGHTTP3_DATA_FLAG_EOF;
+
+  return 0;
+}
+} // namespace
+
+namespace {
+int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
+                  size_t *pdatalen, uint32_t *pflags, void *user_data,
+                  void *stream_user_data) {
+  auto stream = static_cast<Stream *>(stream_user_data);
+
+  auto len = std::min(static_cast<size_t>(16384),
+                      static_cast<size_t>(stream->dyndataleft));
+  auto buf = std::make_unique<std::vector<uint8_t>>(len);
+
+  *pdata = buf->data();
+  *pdatalen = len;
+
+  stream->dynbuflen += len;
+  stream->dynbufs.emplace_back(std::move(buf));
+
+  stream->dyndataleft -= len;
+
+  if (stream->dyndataleft == 0) {
+    *pflags |= NGHTTP3_DATA_FLAG_EOF;
+  }
 
   return 0;
 }
@@ -497,36 +545,48 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   }
 
   auto req_path = request_path(uri, method == "CONNECT");
-  auto path = resolve_path(req_path);
-  if (path.empty() || open_file(path) != 0) {
-    send_status_response(httpconn, 404);
-    return 0;
-  }
-
-  struct stat st {};
+  auto dyn_len = find_dyn_length(req_path);
 
   int64_t content_length = -1;
+  nghttp3_data_reader dr{};
 
-  if (fstat(fd, &st) == 0) {
-    if (st.st_mode & S_IFDIR) {
-      send_redirect_response(httpconn, 308,
-                             path.substr(config.htdocs.size() - 1) + '/');
+  if (dyn_len == -1) {
+    auto path = resolve_path(req_path);
+    if (path.empty() || open_file(path) != 0) {
+      send_status_response(httpconn, 404);
       return 0;
     }
-    content_length = st.st_size;
+
+    struct stat st {};
+
+    if (fstat(fd, &st) == 0) {
+      if (st.st_mode & S_IFDIR) {
+        send_redirect_response(httpconn, 308,
+                               path.substr(config.htdocs.size() - 1) + '/');
+        return 0;
+      }
+      content_length = st.st_size;
+    } else {
+      send_status_response(httpconn, 404);
+      return 0;
+    }
+
+    if (method == "HEAD") {
+      close(fd);
+      fd = -1;
+    } else if (map_file(content_length) != 0) {
+      send_status_response(httpconn, 500);
+      return 0;
+    }
+
+    dr.read_data = read_data;
   } else {
-    send_status_response(httpconn, 404);
-    return 0;
-  }
+    content_length = dyn_len;
+    datalen = dyn_len;
+    dynresp = true;
+    dyndataleft = dyn_len;
 
-  if (map_file(content_length) != 0) {
-    send_status_response(httpconn, 500);
-    return 0;
-  }
-
-  if (method == "HEAD") {
-    close(fd);
-    fd = -1;
+    dr.read_data = dyn_read_data;
   }
 
   auto content_length_str = std::to_string(content_length);
@@ -538,9 +598,6 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       util::make_nv("content-length", content_length_str),
   };
 
-  nghttp3_data_reader dr{};
-  dr.read_data = read_data;
-
   auto rv = nghttp3_conn_submit_response(httpconn, stream_id, nva.data(),
                                          nva.size(), &dr);
   if (rv != 0) {
@@ -549,12 +606,17 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   }
 
   auto stream_id_str = std::to_string(stream_id);
-  std::array<nghttp3_nv, 1> trailers{
+  std::array<nghttp3_nv, 2> trailers{
       util::make_nv("x-ngtcp2-stream-id", stream_id_str),
   };
+  size_t trailerslen = 1;
+
+  if (dyn_len != -1) {
+    trailers[trailerslen++] = util::make_nv("x-ngtcp2-response", "dynamic");
+  }
 
   rv = nghttp3_conn_submit_trailers(httpconn, stream_id, trailers.data(),
-                                    trailers.size());
+                                    trailerslen);
   if (rv != 0) {
     std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
               << std::endl;
@@ -1133,6 +1195,44 @@ void Handler::http_end_request_headers(int64_t stream_id) {
   stream->start_response(httpconn_);
 }
 
+namespace {
+int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
+                           size_t datalen, void *user_data,
+                           void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  h->http_acked_stream_data(stream_id, datalen);
+  return 0;
+}
+} // namespace
+
+void Handler::http_acked_stream_data(int64_t stream_id, size_t datalen) {
+  auto it = streams_.find(stream_id);
+  assert(it != std::end(streams_));
+  auto &stream = (*it).second;
+
+  if (!stream->dynresp) {
+    return;
+  }
+
+  datalen += stream->dynackedoffset;
+
+  assert(stream->dynbuflen >= datalen);
+  assert(!stream->dynbufs.empty());
+
+  for (; !stream->dynbufs.empty() && datalen;) {
+    auto &buf = stream->dynbufs[0];
+    if (datalen < buf->size()) {
+      stream->dynackedoffset = datalen;
+      return;
+    }
+
+    datalen -= buf->size();
+    stream->dynbufs.pop_front();
+  }
+
+  stream->dynackedoffset = 0;
+}
+
 int Handler::setup_httpconn() {
   int rv;
 
@@ -1147,8 +1247,8 @@ int Handler::setup_httpconn() {
   }
 
   nghttp3_conn_callbacks callbacks{
-      nullptr, // acked_stream_data
-      nullptr, // stream_close
+      ::http_acked_stream_data, // acked_stream_data
+      nullptr,                  // stream_close
       ::http_recv_data,
       ::http_deferred_consume,
       ::http_begin_request_headers,
