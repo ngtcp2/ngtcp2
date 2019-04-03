@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cerrno>
+#include <cmath>
 #include <iostream>
 #include <algorithm>
 #include <memory>
@@ -571,10 +572,10 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
     debug::handshake_completed(conn, user_data);
   }
 
-  if (config.change_local_addr) {
+  if (std::fpclassify(config.change_local_addr) == FP_NORMAL) {
     c->start_change_local_addr_timer();
   }
-  if (config.key_update) {
+  if (std::fpclassify(config.key_update) == FP_NORMAL) {
     c->start_key_update_timer();
   }
 
@@ -3038,11 +3039,11 @@ int main(int argc, char **argv) {
       }
       case 7:
         // --change-local-addr
-        config.change_local_addr = strtol(optarg, nullptr, 10);
+        config.change_local_addr = strtod(optarg, nullptr);
         break;
       case 8:
         // --key-update
-        config.key_update = strtol(optarg, nullptr, 10);
+        config.key_update = strtod(optarg, nullptr);
         break;
       case 9:
         // --nat-rebinding

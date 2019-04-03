@@ -82,10 +82,10 @@ struct Config {
   bool show_secret;
   // change_local_addr is the duration after which client changes
   // local address.
-  uint32_t change_local_addr;
+  double change_local_addr;
   // key_update is the duration after which client initiates key
   // update.
-  uint32_t key_update;
+  double key_update;
   // nat_rebinding is true if simulated NAT rebinding is enabled.
   bool nat_rebinding;
   std::string http_method;
