@@ -568,6 +568,30 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
 }
 } // namespace
 
+void Stream::http_acked_stream_data(size_t datalen) {
+  if (!dynresp) {
+    return;
+  }
+
+  datalen += dynackedoffset;
+
+  assert(dynbuflen >= datalen);
+  assert(!dynbufs.empty());
+
+  for (; !dynbufs.empty() && datalen;) {
+    auto &buf = dynbufs[0];
+    if (datalen < buf->size()) {
+      dynackedoffset = datalen;
+      return;
+    }
+
+    datalen -= buf->size();
+    dynbufs.pop_front();
+  }
+
+  dynackedoffset = 0;
+}
+
 void Stream::send_status_response(
     nghttp3_conn *httpconn, unsigned int status_code,
     const std::vector<HTTPHeader> &extra_headers) {
@@ -1297,27 +1321,7 @@ void Handler::http_acked_stream_data(int64_t stream_id, size_t datalen) {
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
 
-  if (!stream->dynresp) {
-    return;
-  }
-
-  datalen += stream->dynackedoffset;
-
-  assert(stream->dynbuflen >= datalen);
-  assert(!stream->dynbufs.empty());
-
-  for (; !stream->dynbufs.empty() && datalen;) {
-    auto &buf = stream->dynbufs[0];
-    if (datalen < buf->size()) {
-      stream->dynackedoffset = datalen;
-      return;
-    }
-
-    datalen -= buf->size();
-    stream->dynbufs.pop_front();
-  }
-
-  stream->dynackedoffset = 0;
+  stream->http_acked_stream_data(datalen);
 }
 
 int Handler::setup_httpconn() {

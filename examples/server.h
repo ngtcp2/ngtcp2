@@ -127,6 +127,7 @@ struct Stream {
   void send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
                               const std::string &path);
   int64_t find_dyn_length(const std::string &path);
+  void http_acked_stream_data(size_t datalen);
 
   int64_t stream_id;
   Handler *handler;
