@@ -316,9 +316,14 @@ Stream::Stream(int64_t stream_id, Handler *handler)
       dynresp(false),
       dyndataleft(0),
       dynackedoffset(0),
-      dynbuflen(0) {}
+      dynbuflen(0),
+      md_ctx(nullptr) {}
 
 Stream::~Stream() {
+  if (md_ctx) {
+    EVP_MD_CTX_free(md_ctx);
+  }
+
   munmap(data, datalen);
   if (fd != -1) {
     close(fd);
@@ -522,6 +527,9 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
   *pdata = buf->data();
   *pdatalen = len;
 
+  auto rv = EVP_DigestUpdate(stream->md_ctx, buf->data(), len);
+  assert(rv == 1);
+
   stream->dynbuflen += len;
   stream->dynbufs.emplace_back(std::move(buf));
 
@@ -530,14 +538,24 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
   if (stream->dyndataleft == 0) {
     *pflags |= NGHTTP3_DATA_FLAG_EOF;
 
+    std::array<uint8_t, 32> md;
+    unsigned int mdlen = md.size();
+
+    rv = EVP_DigestFinal_ex(stream->md_ctx, md.data(), &mdlen);
+    assert(rv == 1);
+    assert(mdlen == md.size());
+
+    auto digest_hdr = std::string("SHA-256=");
+    digest_hdr += util::b64encode(std::begin(md), std::end(md));
+
     auto stream_id_str = std::to_string(stream_id);
     std::array<nghttp3_nv, 2> trailers{
         util::make_nv("x-ngtcp2-stream-id", stream_id_str),
-        util::make_nv("x-ngtcp2-response", "dynamic"),
+        util::make_nv("digest", digest_hdr),
     };
 
-    auto rv = nghttp3_conn_submit_trailers(conn, stream_id, trailers.data(),
-                                           trailers.size());
+    rv = nghttp3_conn_submit_trailers(conn, stream_id, trailers.data(),
+                                      trailers.size());
     if (rv != 0) {
       std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
                 << std::endl;
@@ -655,6 +673,10 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     dyndataleft = dyn_len;
 
     dr.read_data = dyn_read_data;
+
+    md_ctx = EVP_MD_CTX_new();
+    auto rv = EVP_DigestInit_ex(md_ctx, EVP_sha256(), nullptr);
+    assert(rv == 1);
   }
 
   auto content_length_str = std::to_string(content_length);

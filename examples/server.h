@@ -39,6 +39,7 @@
 #include <nghttp3/nghttp3.h>
 
 #include <openssl/ssl.h>
+#include <openssl/evp.h>
 #include <ev.h>
 
 #include "network.h"
@@ -151,6 +152,7 @@ struct Stream {
   size_t dynbuflen;
   // dynbufs stores the buffers for dynamic data response.
   std::deque<std::unique_ptr<std::vector<uint8_t>>> dynbufs;
+  EVP_MD_CTX *md_ctx;
 };
 
 class Server;
