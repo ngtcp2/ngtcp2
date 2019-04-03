@@ -534,7 +534,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   std::array<nghttp3_nv, 4> nva{
       util::make_nv(":status", "200"),
       util::make_nv("server", NGTCP2_SERVER),
-      util::make_nv("content-type", "text/html; charset=UTF-8"),
+      util::make_nv("content-type", "text/html; charset=utf-8"),
       util::make_nv("content-length", content_length_str),
   };
 
