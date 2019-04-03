@@ -2457,6 +2457,37 @@ int http_end_headers(nghttp3_conn *conn, int64_t stream_id, void *user_data,
 }
 } // namespace
 
+namespace {
+int http_begin_trailers(nghttp3_conn *conn, int64_t stream_id, void *user_data,
+                        void *stream_user_data) {
+  if (!config.quiet) {
+    debug::print_http_begin_trailers(stream_id);
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int http_recv_trailer(nghttp3_conn *conn, int64_t stream_id, int32_t token,
+                      nghttp3_rcbuf *name, nghttp3_rcbuf *value, uint8_t flags,
+                      void *user_data, void *stream_user_data) {
+  if (!config.quiet) {
+    debug::print_http_header(stream_id, name, value, flags);
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int http_end_trailers(nghttp3_conn *conn, int64_t stream_id, void *user_data,
+                      void *stream_user_data) {
+  if (!config.quiet) {
+    debug::print_http_end_trailers(stream_id);
+  }
+  return 0;
+}
+} // namespace
+
 int Client::setup_httpconn() {
   int rv;
 
@@ -2478,9 +2509,9 @@ int Client::setup_httpconn() {
       ::http_begin_headers,
       ::http_recv_header,
       ::http_end_headers,
-      nullptr, // begin_trailers
-      nullptr, // recv_trailer
-      nullptr, // end_trailers
+      ::http_begin_trailers,
+      ::http_recv_trailer,
+      ::http_end_trailers,
       nullptr, // begin_push_promise
       nullptr, // recv_push_promise
       nullptr, // end_push_promise

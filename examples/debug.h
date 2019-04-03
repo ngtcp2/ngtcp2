@@ -103,6 +103,10 @@ void print_http_end_headers(int64_t stream_id);
 
 void print_http_data(int64_t stream_id, const uint8_t *data, size_t datalen);
 
+void print_http_begin_trailers(int64_t stream_id);
+
+void print_http_end_trailers(int64_t stream_id);
+
 } // namespace debug
 
 } // namespace ngtcp2

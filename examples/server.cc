@@ -466,6 +466,18 @@ void Stream::send_status_response(
               << std::endl;
   }
 
+  auto stream_id_str = std::to_string(stream_id);
+  std::array<nghttp3_nv, 1> trailers{
+      util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+  };
+
+  rv = nghttp3_conn_submit_trailers(httpconn, stream_id, trailers.data(),
+                                    trailers.size());
+  if (rv != 0) {
+    std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
+              << std::endl;
+  }
+
   nghttp3_conn_end_stream(httpconn, stream_id);
 
   handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
@@ -533,6 +545,18 @@ int Stream::start_response(nghttp3_conn *httpconn) {
                                          nva.size(), &dr);
   if (rv != 0) {
     std::cerr << "nghttp3_conn_submit_response: " << nghttp3_strerror(rv)
+              << std::endl;
+  }
+
+  auto stream_id_str = std::to_string(stream_id);
+  std::array<nghttp3_nv, 1> trailers{
+      util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+  };
+
+  rv = nghttp3_conn_submit_trailers(httpconn, stream_id, trailers.data(),
+                                    trailers.size());
+  if (rv != 0) {
+    std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
               << std::endl;
   }
 
