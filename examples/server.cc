@@ -529,6 +529,21 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
 
   if (stream->dyndataleft == 0) {
     *pflags |= NGHTTP3_DATA_FLAG_EOF;
+
+    auto stream_id_str = std::to_string(stream_id);
+    std::array<nghttp3_nv, 2> trailers{
+        util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+        util::make_nv("x-ngtcp2-response", "dynamic"),
+    };
+
+    auto rv = nghttp3_conn_submit_trailers(conn, stream_id, trailers.data(),
+                                           trailers.size());
+    if (rv != 0) {
+      std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
+                << std::endl;
+    }
+
+    nghttp3_conn_end_stream(conn, stream_id);
   }
 
   return 0;
@@ -658,26 +673,23 @@ int Stream::start_response(nghttp3_conn *httpconn) {
               << std::endl;
   }
 
-  auto stream_id_str = std::to_string(stream_id);
-  std::array<nghttp3_nv, 2> trailers{
-      util::make_nv("x-ngtcp2-stream-id", stream_id_str),
-  };
-  size_t trailerslen = 1;
+  if (dyn_len == -1) {
+    auto stream_id_str = std::to_string(stream_id);
+    std::array<nghttp3_nv, 1> trailers{
+        util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+    };
 
-  if (dyn_len != -1) {
-    trailers[trailerslen++] = util::make_nv("x-ngtcp2-response", "dynamic");
+    rv = nghttp3_conn_submit_trailers(httpconn, stream_id, trailers.data(),
+                                      trailers.size());
+    if (rv != 0) {
+      std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
+                << std::endl;
+    }
+
+    nghttp3_conn_end_stream(httpconn, stream_id);
+
+    handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
   }
-
-  rv = nghttp3_conn_submit_trailers(httpconn, stream_id, trailers.data(),
-                                    trailerslen);
-  if (rv != 0) {
-    std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
-              << std::endl;
-  }
-
-  nghttp3_conn_end_stream(httpconn, stream_id);
-
-  handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
 
   return 0;
 }
