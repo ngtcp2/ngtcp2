@@ -150,7 +150,8 @@ typedef struct {
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
   (void)user_data;
 
-  ngtcp2_conn_submit_crypto_data(conn, null_data, 217);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
+                                 217);
 
   return 0;
 }
@@ -158,7 +159,8 @@ static int client_initial(ngtcp2_conn *conn, void *user_data) {
 static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
   (void)user_data;
 
-  ngtcp2_conn_submit_crypto_data(conn, null_data, 217);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
+                                 217);
 
   ngtcp2_conn_install_early_keys(conn, null_key, sizeof(null_key), null_iv,
                                  sizeof(null_iv), null_pn, sizeof(null_pn));
@@ -199,7 +201,8 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
 
   assert(conn->server);
 
-  ngtcp2_conn_submit_crypto_data(conn, null_data, 179);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
+                                 179);
 
   ngtcp2_conn_install_tx_keys(conn, null_key, sizeof(null_key), null_iv,
                               sizeof(null_iv), null_pn, sizeof(null_pn));
@@ -259,12 +262,15 @@ static int recv_crypto_data_server(ngtcp2_conn *conn,
                                    uint64_t offset, const uint8_t *data,
                                    size_t datalen, void *user_data) {
   (void)offset;
-  (void)crypto_level;
   (void)data;
   (void)datalen;
   (void)user_data;
 
-  ngtcp2_conn_submit_crypto_data(conn, null_data, 218);
+  ngtcp2_conn_submit_crypto_data(conn,
+                                 crypto_level == NGTCP2_CRYPTO_LEVEL_INITIAL
+                                     ? NGTCP2_CRYPTO_LEVEL_INITIAL
+                                     : NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
+                                 null_data, 218);
 
   return 0;
 }

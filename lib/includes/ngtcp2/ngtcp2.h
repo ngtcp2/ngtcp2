@@ -2509,15 +2509,16 @@ NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_submit_crypto_data` submits crypto stream data |data|
  * of length |datalen| to the library for transmission.  The
- * encryption level is automatically determined by the installed keys.
+ * encryption level is given in |crypto_level|.
  *
  * Application should keep the buffer pointed by |data| alive until
  * the data is acknowledged.  The acknowledgement is notified by
  * :type:`ngtcp2_acked_crypto_offset` callback.
  */
-NGTCP2_EXTERN int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
-                                                 const uint8_t *data,
-                                                 const size_t datalen);
+NGTCP2_EXTERN int
+ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
+                               ngtcp2_crypto_level crypto_level,
+                               const uint8_t *data, const size_t datalen);
 
 /**
  * @function

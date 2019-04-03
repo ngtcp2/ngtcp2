@@ -8246,8 +8246,9 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   return 0;
 }
 
-int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
-                                   const size_t datalen) {
+int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
+                                   ngtcp2_crypto_level crypto_level,
+                                   const uint8_t *data, const size_t datalen) {
   ngtcp2_pktns *pktns;
   ngtcp2_crypto_frame_chain *frc;
   ngtcp2_crypto *fr;
@@ -8257,13 +8258,18 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn, const uint8_t *data,
     return 0;
   }
 
-  if (conn->pktns.crypto.tx.ckm) {
-    pktns = &conn->pktns;
-  } else if (conn->hs_pktns.crypto.tx.ckm) {
-    pktns = &conn->hs_pktns;
-  } else {
-    assert(conn->in_pktns.crypto.tx.ckm);
+  switch (crypto_level) {
+  case NGTCP2_CRYPTO_LEVEL_INITIAL:
     pktns = &conn->in_pktns;
+    break;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    pktns = &conn->hs_pktns;
+    break;
+  case NGTCP2_CRYPTO_LEVEL_APP:
+    pktns = &conn->pktns;
+    break;
+  default:
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   rv = ngtcp2_crypto_frame_chain_new(&frc, conn->mem);

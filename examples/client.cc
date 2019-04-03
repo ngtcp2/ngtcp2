@@ -157,6 +157,7 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
                                           ivlen, hp.data(), hplen);
+    tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
     if (!config.quiet) {
@@ -433,6 +434,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       fd_(-1),
       chandshake_idx_(0),
       tx_crypto_offset_(0),
+      tx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
       nsread_(0),
       conn_(nullptr),
       httpconn_(nullptr),
@@ -593,23 +595,29 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
     debug::handshake_completed(conn, user_data);
   }
 
-  if (std::fpclassify(config.change_local_addr) == FP_NORMAL) {
-    c->start_change_local_addr_timer();
-  }
-  if (std::fpclassify(config.key_update) == FP_NORMAL) {
-    c->start_key_update_timer();
-  }
-  if (std::fpclassify(config.delay_stream) == FP_NORMAL) {
-    c->start_delay_stream_timer();
-  }
-
-  if (c->setup_httpconn() != 0) {
-    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  if (c->handshake_completed() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   return 0;
 }
 } // namespace
+
+int Client::handshake_completed() {
+  tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
+
+  if (std::fpclassify(config.change_local_addr) == FP_NORMAL) {
+    start_change_local_addr_timer();
+  }
+  if (std::fpclassify(config.key_update) == FP_NORMAL) {
+    start_key_update_timer();
+  }
+  if (std::fpclassify(config.delay_stream) == FP_NORMAL) {
+    start_delay_stream_timer();
+  }
+
+  return setup_httpconn();
+}
 
 namespace {
 int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
@@ -948,7 +956,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       client_initial,
       nullptr, // recv_client_initial
       recv_crypto_data,
-      handshake_completed,
+      ::handshake_completed,
       nullptr, // recv_version_negotiation
       do_hs_encrypt,
       do_hs_decrypt,
@@ -1700,7 +1708,8 @@ void Client::write_client_handshake(std::deque<Buffer> &dest, size_t &idx,
 
   auto &buf = dest.back();
 
-  ngtcp2_conn_submit_crypto_data(conn_, buf.rpos(), buf.size());
+  ngtcp2_conn_submit_crypto_data(conn_, tx_crypto_level_, buf.rpos(),
+                                 buf.size());
 }
 
 size_t Client::read_client_handshake(const uint8_t **pdest) {

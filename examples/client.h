@@ -162,6 +162,7 @@ public:
                              size_t datalen);
   ssize_t do_handshake_write_once();
   void schedule_retransmit();
+  int handshake_completed();
 
   int write_client_handshake(const uint8_t *data, size_t datalen);
   void write_client_handshake(std::deque<Buffer> &dest, size_t &idx,
@@ -249,6 +250,7 @@ private:
   // buffer to read next.
   size_t chandshake_idx_;
   uint64_t tx_crypto_offset_;
+  ngtcp2_crypto_level tx_crypto_level_;
   std::vector<uint8_t> shandshake_;
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;

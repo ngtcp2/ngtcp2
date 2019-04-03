@@ -191,6 +191,7 @@ public:
                    size_t datalen);
   void schedule_retransmit();
   void signal_write();
+  int handshake_completed();
 
   int write_server_handshake(const uint8_t *data, size_t datalen);
   void write_server_handshake(std::deque<Buffer> &dest, size_t &idx,
@@ -279,6 +280,7 @@ private:
   // shandshake_idx_ is the index in shandshake_, which points to the
   // buffer to read next.
   size_t shandshake_idx_;
+  ngtcp2_crypto_level tx_crypto_level_;
   ngtcp2_conn *conn_;
   ngtcp2_cid scid_;
   ngtcp2_cid pscid_;

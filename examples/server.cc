@@ -178,6 +178,7 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
                                           ivlen, hp.data(), hplen);
+    tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
     if (!config.quiet) {
@@ -836,6 +837,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       server_(server),
       ncread_(0),
       shandshake_idx_(0),
+      tx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
       conn_(nullptr),
       scid_{},
       pscid_{},
@@ -897,13 +899,18 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
     debug::handshake_completed(conn, user_data);
   }
 
-  if (h->setup_httpconn() != 0) {
-    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  if (h->handshake_completed() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   return 0;
 }
 } // namespace
+
+int Handler::handshake_completed() {
+  tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
+  return setup_httpconn() != 0;
+}
 
 namespace {
 ssize_t do_hs_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
@@ -1470,7 +1477,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       nullptr, // client_initial
       ::recv_client_initial,
       recv_crypto_data,
-      handshake_completed,
+      ::handshake_completed,
       nullptr, // recv_version_negotiation
       do_hs_encrypt,
       do_hs_decrypt,
@@ -1701,7 +1708,8 @@ void Handler::write_server_handshake(std::deque<Buffer> &dest, size_t &idx,
 
   auto &buf = dest.back();
 
-  ngtcp2_conn_submit_crypto_data(conn_, buf.rpos(), buf.size());
+  ngtcp2_conn_submit_crypto_data(conn_, tx_crypto_level_, buf.rpos(),
+                                 buf.size());
 }
 
 size_t Handler::read_server_handshake(const uint8_t **pdest) {
