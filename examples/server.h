@@ -122,10 +122,10 @@ struct Stream {
   int start_response(nghttp3_conn *conn);
   int open_file(const std::string &path);
   int map_file(size_t len);
-  void send_status_response(nghttp3_conn *conn, unsigned int status_code,
-                            const std::vector<HTTPHeader> &extra_headers = {});
-  void send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
-                              const std::string &path);
+  int send_status_response(nghttp3_conn *conn, unsigned int status_code,
+                           const std::vector<HTTPHeader> &extra_headers = {});
+  int send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
+                             const std::string &path);
   int64_t find_dyn_length(const std::string &path);
   void http_acked_stream_data(size_t datalen);
 
@@ -236,7 +236,7 @@ public:
   uint32_t version() const;
   void remove_tx_crypto_data(uint64_t offset, size_t datalen);
   void on_stream_open(int64_t stream_id);
-  void on_stream_close(int64_t stream_id);
+  int on_stream_close(int64_t stream_id);
   void start_draining_period();
   int start_closing_period();
   bool draining() const;
@@ -258,8 +258,8 @@ public:
   void http_begin_request_headers(int64_t stream_id);
   void http_recv_request_header(int64_t stream_id, int32_t token,
                                 nghttp3_rcbuf *name, nghttp3_rcbuf *value);
-  void http_end_request_headers(int64_t stream_id);
-  void on_stream_reset(int64_t stream_id);
+  int http_end_request_headers(int64_t stream_id);
+  int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
   void http_acked_stream_data(int64_t stream_id, size_t datalen);
