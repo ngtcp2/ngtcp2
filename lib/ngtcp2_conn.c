@@ -7823,7 +7823,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   rv = conn_call_stream_close(conn, strm, app_error_code);
   if (rv != 0) {
-    return rv;
+    goto fin;
   }
 
   if (!conn_local_stream(conn, strm->stream_id)) {
@@ -7839,10 +7839,11 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     ngtcp2_pq_remove(&conn->tx.strmq, &strm->pe);
   }
 
+fin:
   ngtcp2_strm_free(strm);
   ngtcp2_mem_free(conn->mem, strm);
 
-  return 0;
+  return rv;
 }
 
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
