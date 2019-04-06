@@ -5535,12 +5535,18 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   if (rv != 0) {
     return rv;
   }
+  if (ngtcp2_cid_eq(&conn->dcid.current.cid, &fr->cid)) {
+    return 0;
+  }
 
   if (pv) {
     rv = ngtcp2_dcid_verify_uniqueness(&pv->dcid, fr->seq, &fr->cid,
                                        fr->stateless_reset_token);
     if (rv != 0) {
       return rv;
+    }
+    if (ngtcp2_cid_eq(&pv->dcid.cid, &fr->cid)) {
+      return 0;
     }
   }
 
@@ -5553,6 +5559,9 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     if (rv != 0) {
       return NGTCP2_ERR_PROTO;
     }
+    if (ngtcp2_cid_eq(&dcid->cid, &fr->cid)) {
+      return 0;
+    }
   }
 
   len = ngtcp2_ringbuf_len(&conn->dcid.unused);
@@ -5563,6 +5572,9 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
                                        fr->stateless_reset_token);
     if (rv != 0) {
       return NGTCP2_ERR_PROTO;
+    }
+    if (ngtcp2_cid_eq(&dcid->cid, &fr->cid)) {
+      return 0;
     }
   }
 
