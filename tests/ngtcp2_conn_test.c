@@ -3082,6 +3082,9 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
     CU_ASSERT(0 == rv);
     CU_ASSERT(0 == ud.stream_data.stream_id);
+    CU_ASSERT(19 == conn->rx.offset);
+    CU_ASSERT(19 == conn->rx.unsent_max_offset - conn->local.settings.max_data);
+    CU_ASSERT(conn->local.settings.max_data == conn->rx.max_offset);
   }
 
   ngtcp2_conn_del(conn);
@@ -3116,6 +3119,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 0));
+  CU_ASSERT(199 == conn->rx.unsent_max_offset - conn->local.settings.max_data);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 0;
@@ -3132,6 +3136,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(-1 == ud.stream_data.stream_id);
+  CU_ASSERT(199 == conn->rx.unsent_max_offset - conn->local.settings.max_data);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 0;
@@ -3148,6 +3153,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(-1 == ud.stream_data.stream_id);
+  CU_ASSERT(199 == conn->rx.unsent_max_offset - conn->local.settings.max_data);
 
   ngtcp2_conn_del(conn);
 }

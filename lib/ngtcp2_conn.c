@@ -4911,6 +4911,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     }
 
     conn->rx.offset += len;
+
+    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+      ngtcp2_conn_extend_max_offset(conn, len);
+    }
   }
 
   rx_offset = ngtcp2_strm_rx_offset(strm);
@@ -5166,6 +5170,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
 
     /* Stream is reset before we create ngtcp2_strm object. */
     conn->rx.offset += fr->final_size;
+    ngtcp2_conn_extend_max_offset(conn, fr->final_size);
 
     rv = conn_call_stream_reset(conn, fr->stream_id, fr->final_size,
                                 fr->app_error_code, NULL);
@@ -5210,6 +5215,7 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   }
 
   conn->rx.offset += datalen;
+  ngtcp2_conn_extend_max_offset(conn, datalen);
 
   strm->rx.last_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
