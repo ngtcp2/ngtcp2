@@ -2804,6 +2804,45 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* 2 identical STREAM frames with FIN bit set are received.  The
+     recv_stream_data callback should not be called for sencond STREAM
+     frame. */
+  setup_default_server(&conn);
+  conn->callbacks.recv_stream_data = recv_stream_data;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 1;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 111;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(4 == ud.stream_data.stream_id);
+  CU_ASSERT(1 == ud.stream_data.fin);
+  CU_ASSERT(111 == ud.stream_data.datalen);
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ud.stream_data.stream_id);
+  CU_ASSERT(0 == ud.stream_data.fin);
+  CU_ASSERT(0 == ud.stream_data.datalen);
+
+  ngtcp2_conn_del(conn);
+
   /* Re-ordered STREAM frame; we first gets 0 length STREAM frame with
      FIN bit set. Then the remaining STREAM frame is received. */
   setup_default_server(&conn);

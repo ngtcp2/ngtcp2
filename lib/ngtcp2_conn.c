@@ -4925,6 +4925,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
           (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST)) {
         return 0;
       }
+
+      if (rx_offset == fr_end_offset) {
+        return 0;
+      }
     } else if (strm->rx.last_offset > fr_end_offset) {
       return NGTCP2_ERR_FINAL_SIZE;
     } else {
