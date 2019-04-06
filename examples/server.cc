@@ -440,7 +440,7 @@ int64_t Stream::find_dyn_length(const std::string &path) {
       return -1;
     }
     n = n * 10 + (*it - '0');
-    if (n > 1000000) {
+    if (n > 20 * 1024 * 1024) {
       return -1;
     }
   }
