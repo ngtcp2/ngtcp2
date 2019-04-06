@@ -4157,6 +4157,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "buffering Short packet len=%zu", pktlen);
 
+    /* TODO It would be nicer not to buffer Short packet if we have
+       1RTT key. */
     rv = conn_buffer_pkt(conn, &conn->hs_pktns, path, pkt, pktlen, ts);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
