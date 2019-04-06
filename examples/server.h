@@ -167,6 +167,14 @@ struct Endpoint {
   int fd;
 };
 
+struct Crypto {
+  /* data is unacknowledged data. */
+  std::deque<Buffer> data;
+  /* acked_offset is the size of acknowledged crypto data removed from
+     |data| so far */
+  uint64_t acked_offset;
+};
+
 class Handler {
 public:
   Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
@@ -193,10 +201,9 @@ public:
   void signal_write();
   int handshake_completed();
 
-  int write_server_handshake(const uint8_t *data, size_t datalen);
-  void write_server_handshake(std::deque<Buffer> &dest, size_t &idx,
-                              const uint8_t *data, size_t datalen);
-  size_t read_server_handshake(const uint8_t **pdest);
+  void write_server_handshake(const uint8_t *data, size_t datalen);
+  void write_server_handshake(Crypto &crypto, const uint8_t *data,
+                              size_t datalen);
 
   size_t read_client_handshake(uint8_t *buf, size_t buflen);
   void write_client_handshake(const uint8_t *data, size_t datalen);
@@ -234,7 +241,8 @@ public:
   const ngtcp2_cid *pscid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
-  void remove_tx_crypto_data(uint64_t offset, size_t datalen);
+  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
+                             size_t datalen);
   void on_stream_open(int64_t stream_id);
   int on_stream_close(int64_t stream_id);
   void start_draining_period();
@@ -276,10 +284,7 @@ private:
   ev_timer rttimer_;
   std::vector<uint8_t> chandshake_;
   size_t ncread_;
-  std::deque<Buffer> shandshake_;
-  // shandshake_idx_ is the index in shandshake_, which points to the
-  // buffer to read next.
-  size_t shandshake_idx_;
+  Crypto crypto_[3];
   ngtcp2_crypto_level tx_crypto_level_;
   ngtcp2_conn *conn_;
   ngtcp2_cid scid_;
@@ -297,9 +302,6 @@ private:
   std::unique_ptr<Buffer> conn_closebuf_;
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;
-  // tx_crypto_offset_ is the offset where all data before offset is
-  // acked by the remote endpoint.
-  uint64_t tx_crypto_offset_;
   QUICError last_error_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
