@@ -4154,15 +4154,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return (ssize_t)pktlen;
     }
 
-    if (conn->pktns.crypto.rx.ckm) {
-      nread = conn_recv_pkt(conn, &conn->dcid.current.ps.path, pkt, pktlen, ts);
-      if (nread < 0) {
-        return nread;
-      }
-
-      return (ssize_t)pktlen;
-    }
-
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "buffering Short packet len=%zu", pktlen);
 
