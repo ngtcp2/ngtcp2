@@ -172,6 +172,7 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
                                           ivlen, hp.data(), hplen);
+    rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
     if (!config.quiet) {
@@ -179,6 +180,7 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
                                 hp.data(), hplen);
+    rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
     break;
   }
 
@@ -430,6 +432,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       fd_(-1),
       crypto_{},
       tx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
+      rx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
       nsread_(0),
       conn_(nullptr),
       httpconn_(nullptr),
@@ -527,7 +530,9 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
 
   auto c = static_cast<Client *>(user_data);
 
-  c->write_server_handshake(data, datalen);
+  if (c->write_server_handshake(crypto_level, data, datalen) != 0) {
+    return NGTCP2_ERR_CRYPTO;
+  }
 
   if (!ngtcp2_conn_get_handshake_completed(c->conn())) {
     if (c->tls_handshake() != 0) {
@@ -1724,8 +1729,15 @@ size_t Client::read_server_handshake(uint8_t *buf, size_t buflen) {
   return n;
 }
 
-void Client::write_server_handshake(const uint8_t *data, size_t datalen) {
+int Client::write_server_handshake(ngtcp2_crypto_level crypto_level,
+                                   const uint8_t *data, size_t datalen) {
+  if (rx_crypto_level_ != crypto_level) {
+    std::cerr << "Got crypto level "
+              << ", want " << rx_crypto_level_ << std::endl;
+    return -1;
+  }
   std::copy_n(data, datalen, std::back_inserter(shandshake_));
+  return 0;
 }
 
 ssize_t Client::hs_encrypt_data(uint8_t *dest, size_t destlen,

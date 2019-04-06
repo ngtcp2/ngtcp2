@@ -177,7 +177,8 @@ public:
                               size_t datalen);
 
   size_t read_server_handshake(uint8_t *buf, size_t buflen);
-  void write_server_handshake(const uint8_t *data, size_t datalen);
+  int write_server_handshake(ngtcp2_crypto_level crypto_level,
+                             const uint8_t *data, size_t datalen);
 
   int setup_initial_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
@@ -255,6 +256,7 @@ private:
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   Crypto crypto_[3];
   ngtcp2_crypto_level tx_crypto_level_;
+  ngtcp2_crypto_level rx_crypto_level_;
   std::vector<uint8_t> shandshake_;
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;

@@ -206,7 +206,8 @@ public:
                               size_t datalen);
 
   size_t read_client_handshake(uint8_t *buf, size_t buflen);
-  void write_client_handshake(const uint8_t *data, size_t datalen);
+  int write_client_handshake(ngtcp2_crypto_level crypto_level,
+                             const uint8_t *data, size_t datalen);
 
   int recv_client_initial(const ngtcp2_cid *dcid);
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
@@ -286,6 +287,7 @@ private:
   size_t ncread_;
   Crypto crypto_[3];
   ngtcp2_crypto_level tx_crypto_level_;
+  ngtcp2_crypto_level rx_crypto_level_;
   ngtcp2_conn *conn_;
   ngtcp2_cid scid_;
   ngtcp2_cid pscid_;
