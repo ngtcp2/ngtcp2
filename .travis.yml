@@ -29,7 +29,6 @@ addons:
     - libcunit1-dev
     - libssl-dev
     - libev-dev
-    - libcunit1-dev
     - cmake
     - cmake-data
 before_install:
