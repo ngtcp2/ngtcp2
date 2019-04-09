@@ -82,7 +82,7 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                        uint8_t exttype,
                                        const ngtcp2_transport_params *params) {
   uint8_t *p;
-  size_t len = 0;
+  size_t len = sizeof(uint16_t);
   /* For some reason, gcc 7.3.0 requires this initialization. */
   size_t preferred_addrlen = 0;
 
@@ -153,6 +153,7 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   p = dest;
+  p = ngtcp2_put_uint16be(p, (uint16_t)(len - sizeof(uint16_t)));
 
   if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
     if (params->stateless_reset_token_present) {
@@ -311,6 +312,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
                                    size_t datalen) {
   const uint8_t *p, *end;
   size_t len;
+  size_t tplen;
   uint16_t param_type;
   size_t valuelen;
   ssize_t nread;
@@ -318,8 +320,19 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   size_t scb_idx;
   size_t scb_shift;
 
+  if (datalen < sizeof(uint16_t)) {
+    return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+  }
+
   p = data;
   end = data + datalen;
+
+  tplen = ngtcp2_get_uint16(p);
+  p += sizeof(uint16_t);
+
+  if (sizeof(uint16_t) + tplen != datalen) {
+    return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+  }
 
   /* Set default values */
   params->initial_max_streams_bidi = 0;

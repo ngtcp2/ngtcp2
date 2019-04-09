@@ -53,7 +53,7 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(0 == nwrite);
+  CU_ASSERT(2 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -89,7 +89,7 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
 
-  CU_ASSERT(0 == nwrite);
+  CU_ASSERT(2 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
@@ -130,7 +130,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.disable_migration = 1;
   params.max_ack_delay = 59;
 
-  for (i = 0; i < 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5; ++i) {
+  for (i = 0; i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5; ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
@@ -192,7 +192,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.original_connection_id = ocid;
 
   for (i = 0;
-       i < 8 * 4 + 6 * 2 + 6 + 6 + 20 + 5 + 5 +
+       i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 20 + 5 + 5 +
                (4 + 4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
                 NGTCP2_STATELESS_RESET_TOKENLEN) +
                4 + 4 + params.original_connection_id.datalen;
