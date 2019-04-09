@@ -186,6 +186,7 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
                                 hp.data(), hplen);
+    tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
     break;
   }
 
@@ -916,10 +917,7 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 }
 } // namespace
 
-int Handler::handshake_completed() {
-  tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
-  return setup_httpconn() != 0;
-}
+int Handler::handshake_completed() { return setup_httpconn() != 0; }
 
 namespace {
 ssize_t do_hs_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
