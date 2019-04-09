@@ -46,6 +46,9 @@ typedef struct ngtcp2_log ngtcp2_log;
 struct ngtcp2_default_cc;
 typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 
+struct ngtcp2_strm;
+typedef struct ngtcp2_strm ngtcp2_strm;
+
 /*
  * ngtcp2_frame_chain chains frames in a single packet.
  */
@@ -232,6 +235,8 @@ typedef struct {
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
+  /* crypto is CRYPTO stream. */
+  ngtcp2_strm *crypto;
   ngtcp2_default_cc *cc;
   ngtcp2_log *log;
   ngtcp2_mem *mem;
@@ -240,13 +245,16 @@ typedef struct {
   int64_t largest_acked_tx_pkt_num;
   size_t num_ack_eliciting;
   ngtcp2_tstamp loss_time;
+  /* crypto_level is encryption level which |crypto| belongs to. */
+  ngtcp2_crypto_level crypto_level;
 } ngtcp2_rtb;
 
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_default_cc *cc, ngtcp2_log *log,
-                     ngtcp2_mem *mem);
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
+                     ngtcp2_strm *crypto, ngtcp2_default_cc *cc,
+                     ngtcp2_log *log, ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.

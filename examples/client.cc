@@ -172,6 +172,7 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
                                           ivlen, hp.data(), hplen);
+    rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
     break;
   case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
     if (!config.quiet) {
@@ -179,6 +180,7 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
                                 hp.data(), hplen);
+    rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
     break;
   }
 
@@ -193,8 +195,6 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
 namespace {
 void msg_cb(int write_p, int version, int content_type, const void *buf,
             size_t len, SSL *ssl, void *arg) {
-  int rv;
-
   if (!config.quiet) {
     std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
               << " content_type=" << content_type << " len=" << len
@@ -222,9 +222,7 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
     return;
   }
 
-  rv = c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
-
-  assert(0 == rv);
+  c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
 }
 } // namespace
 
@@ -432,9 +430,9 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       fd_(-1),
-      chandshake_idx_(0),
-      tx_crypto_offset_(0),
+      crypto_{},
       tx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
+      rx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
       nsread_(0),
       conn_(nullptr),
       httpconn_(nullptr),
@@ -532,7 +530,9 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
 
   auto c = static_cast<Client *>(user_data);
 
-  c->write_server_handshake(data, datalen);
+  if (c->write_server_handshake(crypto_level, data, datalen) != 0) {
+    return NGTCP2_ERR_CRYPTO;
+  }
 
   if (!ngtcp2_conn_get_handshake_completed(c->conn())) {
     if (c->tls_handshake() != 0) {
@@ -566,10 +566,10 @@ int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
 } // namespace
 
 namespace {
-int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
-                        void *user_data) {
+int acked_crypto_offset(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+                        uint64_t offset, size_t datalen, void *user_data) {
   auto c = static_cast<Client *>(user_data);
-  c->remove_tx_crypto_data(offset, datalen);
+  c->remove_tx_crypto_data(crypto_level, offset, datalen);
 
   return 0;
 }
@@ -1708,30 +1708,18 @@ void Client::schedule_retransmit() {
   ev_timer_again(loop_, &rttimer_);
 }
 
-int Client::write_client_handshake(const uint8_t *data, size_t datalen) {
-  write_client_handshake(chandshake_, chandshake_idx_, data, datalen);
-
-  return 0;
+void Client::write_client_handshake(const uint8_t *data, size_t datalen) {
+  write_client_handshake(crypto_[tx_crypto_level_], data, datalen);
 }
 
-void Client::write_client_handshake(std::deque<Buffer> &dest, size_t &idx,
-                                    const uint8_t *data, size_t datalen) {
-  dest.emplace_back(data, datalen);
-  ++idx;
+void Client::write_client_handshake(Crypto &crypto, const uint8_t *data,
+                                    size_t datalen) {
+  crypto.data.emplace_back(data, datalen);
 
-  auto &buf = dest.back();
+  auto &buf = crypto.data.back();
 
   ngtcp2_conn_submit_crypto_data(conn_, tx_crypto_level_, buf.rpos(),
                                  buf.size());
-}
-
-size_t Client::read_client_handshake(const uint8_t **pdest) {
-  if (chandshake_idx_ == chandshake_.size()) {
-    return 0;
-  }
-  const auto &v = chandshake_[chandshake_idx_++];
-  *pdest = v.rpos();
-  return v.size();
 }
 
 size_t Client::read_server_handshake(uint8_t *buf, size_t buflen) {
@@ -1741,8 +1729,15 @@ size_t Client::read_server_handshake(uint8_t *buf, size_t buflen) {
   return n;
 }
 
-void Client::write_server_handshake(const uint8_t *data, size_t datalen) {
+int Client::write_server_handshake(ngtcp2_crypto_level crypto_level,
+                                   const uint8_t *data, size_t datalen) {
+  if (rx_crypto_level_ != crypto_level) {
+    std::cerr << "Got crypto level "
+              << ", want " << rx_crypto_level_ << std::endl;
+    return -1;
+  }
   std::copy_n(data, datalen, std::back_inserter(shandshake_));
+  return 0;
 }
 
 ssize_t Client::hs_encrypt_data(uint8_t *dest, size_t destlen,
@@ -2139,11 +2134,10 @@ int Client::handle_error() {
 }
 
 namespace {
-size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
-                             uint64_t &tx_offset, uint64_t offset) {
+size_t remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
+                             uint64_t offset) {
   size_t len = 0;
   for (; !d.empty() && tx_offset + d.front().bufsize() <= offset;) {
-    --idx;
     tx_offset += d.front().bufsize();
     len += d.front().bufsize();
     d.pop_front();
@@ -2152,10 +2146,10 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
-void Client::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
-
-  ::remove_tx_stream_data(chandshake_, chandshake_idx_, tx_crypto_offset_,
-                          offset + datalen);
+void Client::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
+                                   uint64_t offset, size_t datalen) {
+  auto &crypto = crypto_[crypto_level];
+  ::remove_tx_stream_data(crypto.data, crypto.acked_offset, offset + datalen);
 }
 
 int Client::on_stream_close(int64_t stream_id) {

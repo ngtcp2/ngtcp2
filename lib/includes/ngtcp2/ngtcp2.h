@@ -516,13 +516,6 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  /* ordered_offset is an offset in global TLS stream which combines
-     Initial, Handshake, 0/1-RTT packet number space.  Although
-     packets can be acknowledged in the random order, they must be fed
-     into TLS stack as they are generated, so their offset in TLS
-     stream must be ordered and distinct.  This field is not sent on
-     wire, and currently used for outgoing frame only. */
-  uint64_t ordered_offset;
   uint64_t offset;
   /* datacnt is the number of elements that data contains.  Although
      the length of data is 1 in this definition, the library may
@@ -1020,11 +1013,6 @@ typedef enum {
    */
   NGTCP2_CRYPTO_LEVEL_INITIAL,
   /**
-   * NGTCP2_CRYPTO_LEVEL_EARLY is Early Data (0-RTT) Keys encryption
-   * level.
-   */
-  NGTCP2_CRYPTO_LEVEL_EARLY,
-  /**
    * NGTCP2_CRYPTO_LEVEL_HANDSHAKE is Handshake Keys encryption level.
    */
   NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
@@ -1032,7 +1020,12 @@ typedef enum {
    * NGTCP2_CRYPTO_LEVEL_APP is Application Data (1-RTT) Keys
    * encryption level.
    */
-  NGTCP2_CRYPTO_LEVEL_APP
+  NGTCP2_CRYPTO_LEVEL_APP,
+  /**
+   * NGTCP2_CRYPTO_LEVEL_EARLY is Early Data (0-RTT) Keys encryption
+   * level.
+   */
+  NGTCP2_CRYPTO_LEVEL_EARLY
 } ngtcp2_crypto_level;
 
 /**
@@ -1291,7 +1284,9 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_acked_crypto_offset` is a callback function which is
  * called when crypto stream data is acknowledged, and application can
- * free the data.  This works like
+ * free the data.  |crypto_level| indicates the encryption level where
+ * this data was sent.  Crypto data never be sent in
+ * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY`.  This works like
  * :type:`ngtcp2_acked_stream_data_offset` but crypto stream has no
  * stream_id and stream_user_data, and |datalen| never become 0.
  *
@@ -1299,8 +1294,10 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
-typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn, uint64_t offset,
-                                          size_t datalen, void *user_data);
+typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn,
+                                          ngtcp2_crypto_level crypto_level,
+                                          uint64_t offset, size_t datalen,
+                                          void *user_data);
 
 /**
  * @functypedef

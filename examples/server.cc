@@ -164,6 +164,7 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
                                           ivlen, hp.data(), hplen);
+    rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
     break;
   case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
     if (!config.quiet) {
@@ -201,8 +202,6 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
 namespace {
 void msg_cb(int write_p, int version, int content_type, const void *buf,
             size_t len, SSL *ssl, void *arg) {
-  int rv;
-
   if (!config.quiet) {
     std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
               << " content_type=" << content_type << " len=" << len
@@ -230,9 +229,7 @@ void msg_cb(int write_p, int version, int content_type, const void *buf,
     return;
   }
 
-  rv = h->write_server_handshake(reinterpret_cast<const uint8_t *>(buf), len);
-
-  assert(0 == rv);
+  h->write_server_handshake(reinterpret_cast<const uint8_t *>(buf), len);
 }
 } // namespace
 
@@ -846,8 +843,9 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       ssl_(nullptr),
       server_(server),
       ncread_(0),
-      shandshake_idx_(0),
+      crypto_{},
       tx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
+      rx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
       conn_(nullptr),
       scid_{},
       pscid_{},
@@ -856,7 +854,6 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       crypto_ctx_{},
       httpconn_{nullptr},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
-      tx_crypto_offset_(0),
       last_error_{QUICErrorType::Transport, 0},
       nkey_update_(0),
       initial_(true),
@@ -917,7 +914,10 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 }
 } // namespace
 
-int Handler::handshake_completed() { return setup_httpconn() != 0; }
+int Handler::handshake_completed() {
+  rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
+  return setup_httpconn() != 0;
+}
 
 namespace {
 ssize_t do_hs_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
@@ -1041,7 +1041,9 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
 
   auto h = static_cast<Handler *>(user_data);
 
-  h->write_client_handshake(data, datalen);
+  if (h->write_client_handshake(crypto_level, data, datalen) != 0) {
+    return NGTCP2_ERR_CRYPTO;
+  }
 
   if (!ngtcp2_conn_get_handshake_completed(h->conn())) {
     rv = h->tls_handshake();
@@ -1072,10 +1074,10 @@ int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
 } // namespace
 
 namespace {
-int acked_crypto_offset(ngtcp2_conn *conn, uint64_t offset, size_t datalen,
-                        void *user_data) {
+int acked_crypto_offset(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
+                        uint64_t offset, size_t datalen, void *user_data) {
   auto h = static_cast<Handler *>(user_data);
-  h->remove_tx_crypto_data(offset, datalen);
+  h->remove_tx_crypto_data(crypto_level, offset, datalen);
   return 0;
 }
 } // namespace
@@ -1721,30 +1723,18 @@ int Handler::read_tls() {
   }
 }
 
-int Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
-  write_server_handshake(shandshake_, shandshake_idx_, data, datalen);
-
-  return 0;
+void Handler::write_server_handshake(const uint8_t *data, size_t datalen) {
+  write_server_handshake(crypto_[tx_crypto_level_], data, datalen);
 }
 
-void Handler::write_server_handshake(std::deque<Buffer> &dest, size_t &idx,
-                                     const uint8_t *data, size_t datalen) {
-  dest.emplace_back(data, datalen);
-  ++idx;
+void Handler::write_server_handshake(Crypto &crypto, const uint8_t *data,
+                                     size_t datalen) {
+  crypto.data.emplace_back(data, datalen);
 
-  auto &buf = dest.back();
+  auto &buf = crypto.data.back();
 
   ngtcp2_conn_submit_crypto_data(conn_, tx_crypto_level_, buf.rpos(),
                                  buf.size());
-}
-
-size_t Handler::read_server_handshake(const uint8_t **pdest) {
-  if (shandshake_idx_ == shandshake_.size()) {
-    return 0;
-  }
-  auto &v = shandshake_[shandshake_idx_++];
-  *pdest = v.rpos();
-  return v.size();
 }
 
 size_t Handler::read_client_handshake(uint8_t *buf, size_t buflen) {
@@ -1754,8 +1744,15 @@ size_t Handler::read_client_handshake(uint8_t *buf, size_t buflen) {
   return n;
 }
 
-void Handler::write_client_handshake(const uint8_t *data, size_t datalen) {
+int Handler::write_client_handshake(ngtcp2_crypto_level crypto_level,
+                                    const uint8_t *data, size_t datalen) {
+  if (rx_crypto_level_ != crypto_level) {
+    std::cerr << "Got crypto level "
+              << ", want " << rx_crypto_level_ << std::endl;
+    return -1;
+  }
   std::copy_n(data, datalen, std::back_inserter(chandshake_));
+  return 0;
 }
 
 int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
@@ -2436,11 +2433,10 @@ const Address &Handler::remote_addr() const { return remote_addr_; }
 ngtcp2_conn *Handler::conn() const { return conn_; }
 
 namespace {
-size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
-                             uint64_t &tx_offset, uint64_t offset) {
+size_t remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
+                             uint64_t offset) {
   size_t len = 0;
   for (; !d.empty() && tx_offset + d.front().bufsize() <= offset;) {
-    --idx;
     auto &v = d.front();
     len += v.bufsize();
     tx_offset += v.bufsize();
@@ -2450,9 +2446,10 @@ size_t remove_tx_stream_data(std::deque<Buffer> &d, size_t &idx,
 }
 } // namespace
 
-void Handler::remove_tx_crypto_data(uint64_t offset, size_t datalen) {
-  ::remove_tx_stream_data(shandshake_, shandshake_idx_, tx_crypto_offset_,
-                          offset + datalen);
+void Handler::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
+                                    uint64_t offset, size_t datalen) {
+  auto &crypto = crypto_[crypto_level];
+  ::remove_tx_stream_data(crypto.data, crypto.acked_offset, offset + datalen);
 }
 
 int Handler::on_stream_close(int64_t stream_id) {

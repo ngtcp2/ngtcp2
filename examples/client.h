@@ -135,6 +135,14 @@ struct Stream {
   int64_t stream_id;
 };
 
+struct Crypto {
+  /* data is unacknowledged data. */
+  std::deque<Buffer> data;
+  /* acked_offset is the size of acknowledged crypto data removed from
+     |data| so far */
+  uint64_t acked_offset;
+};
+
 class Client {
 public:
   Client(struct ev_loop *loop, SSL_CTX *ssl_ctx);
@@ -164,13 +172,13 @@ public:
   void schedule_retransmit();
   int handshake_completed();
 
-  int write_client_handshake(const uint8_t *data, size_t datalen);
-  void write_client_handshake(std::deque<Buffer> &dest, size_t &idx,
-                              const uint8_t *data, size_t datalen);
-  size_t read_client_handshake(const uint8_t **pdest);
+  void write_client_handshake(const uint8_t *data, size_t datalen);
+  void write_client_handshake(Crypto &crypto, const uint8_t *data,
+                              size_t datalen);
 
   size_t read_server_handshake(uint8_t *buf, size_t buflen);
-  void write_server_handshake(const uint8_t *data, size_t datalen);
+  int write_server_handshake(ngtcp2_crypto_level crypto_level,
+                             const uint8_t *data, size_t datalen);
 
   int setup_initial_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
@@ -198,7 +206,8 @@ public:
   ngtcp2_conn *conn() const;
   void update_remote_addr(const ngtcp2_addr *addr);
   int send_packet();
-  void remove_tx_crypto_data(uint64_t offset, size_t datalen);
+  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
+                             size_t datalen);
   int on_stream_close(int64_t stream_id);
   int on_extend_max_streams();
   int handle_error();
@@ -245,12 +254,9 @@ private:
   SSL *ssl_;
   int fd_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
-  std::deque<Buffer> chandshake_;
-  // chandshake_idx_ is the index in *chandshake_, which points to the
-  // buffer to read next.
-  size_t chandshake_idx_;
-  uint64_t tx_crypto_offset_;
+  Crypto crypto_[3];
   ngtcp2_crypto_level tx_crypto_level_;
+  ngtcp2_crypto_level rx_crypto_level_;
   std::vector<uint8_t> shandshake_;
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;

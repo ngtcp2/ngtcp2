@@ -261,16 +261,14 @@ typedef struct {
     } tx;
 
     struct {
-      /* offset_base is the offset of crypto stream in the global TLS
-         stream and it specifies the offset where the crypto stream in
-         this encryption level starts. */
-      uint64_t offset_base;
       /* ckm is a cryptographic key, and iv to decrypt incoming
          packets. */
       ngtcp2_crypto_km *ckm;
       /* hp is header protection key. */
       ngtcp2_vec *hp;
     } rx;
+
+    ngtcp2_strm strm;
   } crypto;
 
   ngtcp2_acktr acktr;
@@ -418,7 +416,6 @@ struct ngtcp2_conn {
       ngtcp2_crypto_km *old_rx_ckm;
     } key_update;
 
-    ngtcp2_strm strm;
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_array decrypt_buf;
