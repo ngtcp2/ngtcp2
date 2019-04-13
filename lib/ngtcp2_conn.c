@@ -2397,8 +2397,6 @@ tx_strmq_finish:
                                                 data_strm->tx.offset, ndatalen,
                                                 left)) != (size_t)-1 &&
       (ndatalen || datalen == 0)) {
-    fin = fin && ndatalen == datalen;
-
     rv = ngtcp2_stream_frame_chain_new(&nsfrc, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -2407,11 +2405,14 @@ tx_strmq_finish:
 
     nsfrc->fr.type = NGTCP2_FRAME_STREAM;
     nsfrc->fr.flags = 0;
-    nsfrc->fr.fin = fin;
     nsfrc->fr.stream_id = data_strm->stream_id;
     nsfrc->fr.offset = data_strm->tx.offset;
-    nsfrc->fr.datacnt = ngtcp2_vec_copy(
-        nsfrc->fr.data, NGTCP2_MAX_STREAM_DATACNT, datav, datavcnt, ndatalen);
+    nsfrc->fr.datacnt =
+        ngtcp2_vec_copy(nsfrc->fr.data, &ndatalen, NGTCP2_MAX_STREAM_DATACNT,
+                        datav, datavcnt, ndatalen);
+
+    fin = fin && ndatalen == datalen;
+    nsfrc->fr.fin = fin;
 
     rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd,
                                      &nsfrc->frc.fr);

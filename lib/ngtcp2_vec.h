@@ -84,10 +84,11 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
 /*
  * ngtcp2_vec_copy copies |src| of length |srccnt| to |dst| of length
  * |dstcnt|.  The total number of bytes which the copied ngtcp2_vec
- * refers to is at most |left|.  The empty elements in |src| are
- * ignored.  This function returns the number of elements copied.
+ * refers to is at most |left| and is assigned to |*pnwritten|.  The
+ * empty elements in |src| are ignored.  This function returns the
+ * number of elements copied.
  */
-size_t ngtcp2_vec_copy(ngtcp2_vec *dst, size_t dstcnt, const ngtcp2_vec *src,
-                       size_t srccnt, size_t left);
+size_t ngtcp2_vec_copy(ngtcp2_vec *dst, size_t *pnwritten, size_t dstcnt,
+                       const ngtcp2_vec *src, size_t srccnt, size_t left);
 
 #endif /* NGTCP2_VEC_H */
