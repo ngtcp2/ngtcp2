@@ -58,8 +58,8 @@ struct ngtcp2_frame_chain {
 };
 
 /* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
-   a ngtcp2_crypto can include. */
-#define NGTCP2_MAX_STREAM_DATACNT 8
+   a ngtcp2_stream can include. */
+#define NGTCP2_MAX_STREAM_DATACNT 32
 
 struct ngtcp2_stream_frame_chain;
 typedef struct ngtcp2_stream_frame_chain ngtcp2_stream_frame_chain;
