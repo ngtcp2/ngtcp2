@@ -207,11 +207,19 @@ void print_http_begin_response_headers(int64_t stream_id) {
           stream_id);
 }
 
+namespace {
+void print_header(const nghttp3_rcbuf *name, const nghttp3_rcbuf *value,
+                  uint8_t flags) {
+  fprintf(outfile, "[%s: %s]%s\n", nghttp3_rcbuf_get_buf(name).base,
+          nghttp3_rcbuf_get_buf(value).base,
+          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+}
+} // namespace
+
 void print_http_header(int64_t stream_id, const nghttp3_rcbuf *name,
                        const nghttp3_rcbuf *value, uint8_t flags) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " [%s: %s]%s\n", stream_id,
-          nghttp3_rcbuf_get_buf(name).base, nghttp3_rcbuf_get_buf(value).base,
-          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+  fprintf(outfile, "http: stream 0x%" PRIx64 " ", stream_id);
+  print_header(name, value, flags);
 }
 
 void print_http_end_headers(int64_t stream_id) {
@@ -230,6 +238,37 @@ void print_http_begin_trailers(int64_t stream_id) {
 
 void print_http_end_trailers(int64_t stream_id) {
   fprintf(outfile, "http: stream 0x%" PRIx64 " trailers ended\n", stream_id);
+}
+
+void print_http_begin_push_promise(int64_t stream_id, int64_t push_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " started\n",
+          stream_id, push_id);
+}
+
+void print_http_push_promise(int64_t stream_id, int64_t push_id,
+                             const nghttp3_rcbuf *name,
+                             const nghttp3_rcbuf *value, uint8_t flags) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " ", stream_id,
+          push_id);
+  print_header(name, value, flags);
+}
+
+void print_http_end_push_promise(int64_t stream_id, int64_t push_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " ended\n",
+          stream_id, push_id);
+}
+
+void cancel_push(int64_t push_id, int64_t stream_id) {
+  fprintf(outfile,
+          "http: push 0x%" PRIx64 " (stream 0x%" PRIx64
+          ") has been cancelled by remote endpoint\n",
+          push_id, stream_id);
+}
+
+void push_stream(int64_t push_id, int64_t stream_id) {
+  fprintf(outfile,
+          "http: push 0x%" PRIx64 " promise fulfilled stream 0x%" PRIx64 "\n",
+          push_id, stream_id);
 }
 
 } // namespace debug

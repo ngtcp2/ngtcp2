@@ -236,6 +236,7 @@ public:
   void http_consume(int64_t stream_id, size_t nconsumed);
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
+  int send_stop_sending(int64_t stream_id);
 
 private:
   Address local_addr_;

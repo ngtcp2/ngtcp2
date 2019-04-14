@@ -361,28 +361,58 @@ std::string make_status_body(unsigned int status_code) {
 }
 } // namespace
 
+struct Request {
+  std::string path;
+  std::vector<std::string> pushes;
+};
+
 namespace {
-std::string request_path(const std::string &uri, bool is_connect) {
+Request request_path(const std::string &uri, bool is_connect) {
   http_parser_url u;
+  Request req;
 
   http_parser_url_init(&u);
 
   auto rv = http_parser_parse_url(uri.c_str(), uri.size(), is_connect, &u);
   if (rv != 0) {
-    return "";
+    return req;
   }
 
   if (u.field_set & (1 << UF_PATH)) {
-    // TODO path could be empty?
-    auto req_path = std::string(uri.c_str() + u.field_data[UF_PATH].off,
-                                u.field_data[UF_PATH].len);
-    if (!req_path.empty() && req_path.back() == '/') {
-      req_path += "index.html";
+    req.path = std::string(uri.c_str() + u.field_data[UF_PATH].off,
+                           u.field_data[UF_PATH].len);
+    if (!req.path.empty() && req.path.back() == '/') {
+      req.path += "index.html";
     }
-    return req_path;
+  } else {
+    req.path = "/index.html";
   }
 
-  return "/index.html";
+  if (u.field_set & (1 << UF_QUERY)) {
+    static constexpr char push_prefix[] = "push=";
+    auto q = std::string(uri.c_str() + u.field_data[UF_QUERY].off,
+                         u.field_data[UF_QUERY].len);
+    for (auto p = std::begin(q); p != std::end(q);) {
+      if (!util::istarts_with(p, std::end(q), std::begin(push_prefix),
+                              std::end(push_prefix) - 1)) {
+        p = std::find(p, std::end(q), '&');
+        if (p == std::end(q)) {
+          break;
+        }
+        ++p;
+        continue;
+      }
+
+      auto path_start = p + sizeof(push_prefix) - 1;
+      auto path_end = std::find(path_start, std::end(q), '&');
+      req.pushes.emplace_back(path_start, path_end);
+      if (path_end == std::end(q)) {
+        break;
+      }
+      p = path_end + 1;
+    }
+  }
+  return req;
 }
 } // namespace
 
@@ -659,14 +689,14 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     return send_status_response(httpconn, 400);
   }
 
-  auto req_path = request_path(uri, method == "CONNECT");
-  auto dyn_len = find_dyn_length(req_path);
+  auto req = request_path(uri, method == "CONNECT");
+  auto dyn_len = find_dyn_length(req.path);
 
   int64_t content_length = -1;
   nghttp3_data_reader dr{};
 
   if (dyn_len == -1) {
-    auto path = resolve_path(req_path);
+    auto path = resolve_path(req.path);
     if (path.empty() || open_file(path) != 0) {
       send_status_response(httpconn, 404);
       return 0;
@@ -706,6 +736,14 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     md_ctx = EVP_MD_CTX_new();
     auto rv = EVP_DigestInit_ex(md_ctx, EVP_sha256(), nullptr);
     assert(rv == 1);
+  }
+
+  if (!authority.empty()) {
+    for (const auto &push : req.pushes) {
+      if (handler->push_content(stream_id, authority, push) != 0) {
+        return -1;
+      }
+    }
   }
 
   auto content_length_str = std::to_string(content_length);
@@ -1123,6 +1161,65 @@ void Handler::on_stream_open(int64_t stream_id) {
   streams_.emplace(stream_id, std::make_unique<Stream>(stream_id, this));
 }
 
+int Handler::push_content(int64_t stream_id, const std::string &authority,
+                          const std::string &path) {
+  int rv;
+
+  auto nva = std::array<nghttp3_nv, 4>{
+      util::make_nv(":method", "GET"),
+      util::make_nv(":scheme", "https"),
+      util::make_nv(":authority", authority),
+      util::make_nv(":path", path),
+  };
+
+  int64_t push_id;
+  rv = nghttp3_conn_submit_push_promise(httpconn_, &push_id, stream_id,
+                                        nva.data(), nva.size());
+  if (rv != 0) {
+    std::cerr << "nghttp3_conn_submit_push_promise: " << nghttp3_strerror(rv)
+              << std::endl;
+    if (rv != NGHTTP3_ERR_PUSH_ID_BLOCKED) {
+      return -1;
+    }
+    return 0;
+  }
+
+  int64_t push_stream_id;
+  rv = ngtcp2_conn_open_uni_stream(conn_, &push_stream_id, NULL);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
+              << std::endl;
+    if (rv != NGTCP2_ERR_STREAM_ID_BLOCKED) {
+      return -1;
+    }
+    return 0;
+  }
+
+  Stream *stream;
+  {
+    auto p = std::make_unique<Stream>(push_stream_id, this);
+    stream = p.get();
+    streams_.emplace(push_stream_id, std::move(p));
+  }
+
+  rv = nghttp3_conn_bind_push_stream(httpconn_, push_id, push_stream_id);
+  if (rv != 0) {
+    std::cerr << "nghttp3_conn_bind_push_stream: " << nghttp3_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  stream->uri = path;
+  stream->method = "GET";
+  stream->authority = authority;
+
+  nghttp3_conn_set_stream_user_data(httpconn_, push_stream_id, stream);
+
+  stream->start_response(httpconn_);
+
+  return 0;
+}
+
 namespace {
 int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
@@ -1307,6 +1404,9 @@ void Handler::http_recv_request_header(int64_t stream_id, int32_t token,
     break;
   case NGHTTP3_QPACK_TOKEN__METHOD:
     stream->method = std::string{v.base, v.base + v.len};
+    break;
+  case NGHTTP3_QPACK_TOKEN__AUTHORITY:
+    stream->authority = std::string{v.base, v.base + v.len};
     break;
   }
 }

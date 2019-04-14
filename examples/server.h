@@ -134,6 +134,7 @@ struct Stream {
   // uri is request uri/path.
   std::string uri;
   std::string method;
+  std::string authority;
   // fd is a file descriptor to read file to send its content to a
   // client.
   int fd;
@@ -272,6 +273,8 @@ public:
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
   void http_acked_stream_data(int64_t stream_id, size_t datalen);
+  int push_content(int64_t stream_id, const std::string &authority,
+                   const std::string &path);
 
 private:
   Endpoint *endpoint_;

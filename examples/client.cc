@@ -1020,7 +1020,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.max_stream_data_uni = 256_k;
   settings.max_data = 1_m;
   settings.max_streams_bidi = 1;
-  settings.max_streams_uni = 3;
+  settings.max_streams_uni = 100;
   settings.idle_timeout = config.timeout;
 
   auto path = ngtcp2_path{
@@ -2553,6 +2553,82 @@ int http_end_trailers(nghttp3_conn *conn, int64_t stream_id, void *user_data,
 }
 } // namespace
 
+namespace {
+int http_begin_push_promise(nghttp3_conn *conn, int64_t stream_id,
+                            int64_t push_id, void *user_data,
+                            void *stream_user_data) {
+  if (!config.quiet) {
+    debug::print_http_begin_push_promise(stream_id, push_id);
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int http_recv_push_promise(nghttp3_conn *conn, int64_t stream_id,
+                           int64_t push_id, int32_t token, nghttp3_rcbuf *name,
+                           nghttp3_rcbuf *value, uint8_t flags, void *user_data,
+                           void *stream_user_data) {
+  if (!config.quiet) {
+    debug::print_http_push_promise(stream_id, push_id, name, value, flags);
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int http_end_push_promise(nghttp3_conn *conn, int64_t stream_id,
+                          int64_t push_id, void *user_data,
+                          void *stream_user_data) {
+  if (!config.quiet) {
+    debug::print_http_end_push_promise(stream_id, push_id);
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int http_send_stop_sending(nghttp3_conn *conn, int64_t stream_id,
+                           void *user_data, void *stream_user_data) {
+  auto c = static_cast<Client *>(user_data);
+  if (c->send_stop_sending(stream_id) != 0) {
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Client::send_stop_sending(int64_t stream_id) {
+  auto rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id,
+                                             NGHTTP3_HTTP_PUSH_REFUSED);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+  return 0;
+}
+
+namespace {
+int http_cancel_push(nghttp3_conn *conn, int64_t push_id, int64_t stream_id,
+                     void *user_data, void *stream_user_data) {
+  if (!config.quiet) {
+    debug::cancel_push(push_id, stream_id);
+  }
+  return 0;
+}
+} // namespace
+
+namespace {
+int http_push_stream(nghttp3_conn *conn, int64_t push_id, int64_t stream_id,
+                     void *user_data) {
+  if (!config.quiet) {
+    debug::push_stream(push_id, stream_id);
+  }
+  return 0;
+}
+} // namespace
+
 int Client::setup_httpconn() {
   int rv;
 
@@ -2577,14 +2653,18 @@ int Client::setup_httpconn() {
       ::http_begin_trailers,
       ::http_recv_trailer,
       ::http_end_trailers,
-      nullptr, // begin_push_promise
-      nullptr, // recv_push_promise
-      nullptr, // end_push_promise
+      ::http_begin_push_promise,
+      ::http_recv_push_promise,
+      ::http_end_push_promise,
+      ::http_cancel_push,
+      ::http_send_stop_sending,
+      ::http_push_stream,
   };
   nghttp3_conn_settings settings;
   nghttp3_conn_settings_default(&settings);
   settings.qpack_max_table_capacity = 4096;
   settings.qpack_blocked_streams = 100;
+  settings.max_pushes = 100;
 
   auto mem = nghttp3_mem_default();
 
