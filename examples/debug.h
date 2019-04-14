@@ -119,6 +119,15 @@ void cancel_push(int64_t push_id, int64_t stream_id);
 
 void push_stream(int64_t push_id, int64_t stream_id);
 
+void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
+                                size_t nvlen);
+
+void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
+                                 size_t nvlen);
+
+void print_http_push_promise(int64_t stream_id, int64_t push_id,
+                             const nghttp3_nv *nva, size_t nvlen);
+
 } // namespace debug
 
 } // namespace ngtcp2

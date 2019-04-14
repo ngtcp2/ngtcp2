@@ -208,11 +208,23 @@ void print_http_begin_response_headers(int64_t stream_id) {
 }
 
 namespace {
+void print_header(const uint8_t *name, const uint8_t *value, uint8_t flags) {
+  fprintf(outfile, "[%s: %s]%s\n", name, value,
+          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+}
+} // namespace
+
+namespace {
 void print_header(const nghttp3_rcbuf *name, const nghttp3_rcbuf *value,
                   uint8_t flags) {
-  fprintf(outfile, "[%s: %s]%s\n", nghttp3_rcbuf_get_buf(name).base,
-          nghttp3_rcbuf_get_buf(value).base,
-          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+  print_header(nghttp3_rcbuf_get_buf(name).base,
+               nghttp3_rcbuf_get_buf(value).base, flags);
+}
+} // namespace
+
+namespace {
+void print_header(const nghttp3_nv &nv) {
+  print_header(nv.name, nv.value, nv.flags);
 }
 } // namespace
 
@@ -269,6 +281,36 @@ void push_stream(int64_t push_id, int64_t stream_id) {
   fprintf(outfile,
           "http: push 0x%" PRIx64 " promise fulfilled stream 0x%" PRIx64 "\n",
           push_id, stream_id);
+}
+
+void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
+                                size_t nvlen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " submit request headers\n",
+          stream_id);
+  for (size_t i = 0; i < nvlen; ++i) {
+    auto &nv = nva[i];
+    print_header(nv);
+  }
+}
+
+void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
+                                 size_t nvlen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " submit response headers\n",
+          stream_id);
+  for (size_t i = 0; i < nvlen; ++i) {
+    auto &nv = nva[i];
+    print_header(nv);
+  }
+}
+
+void print_http_push_promise(int64_t stream_id, int64_t push_id,
+                             const nghttp3_nv *nva, size_t nvlen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " submit push 0x%" PRIx64 "\n",
+          stream_id, push_id);
+  for (size_t i = 0; i < nvlen; ++i) {
+    auto &nv = nva[i];
+    print_header(nv);
+  }
 }
 
 } // namespace debug

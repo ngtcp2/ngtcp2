@@ -755,6 +755,10 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       util::make_nv("content-length", content_length_str),
   };
 
+  if (!config.quiet) {
+    debug::print_http_response_headers(stream_id, nva.data(), nva.size());
+  }
+
   auto rv = nghttp3_conn_submit_response(httpconn, stream_id, nva.data(),
                                          nva.size(), &dr);
   if (rv != 0) {
@@ -1184,6 +1188,10 @@ int Handler::push_content(int64_t stream_id, const std::string &authority,
     return 0;
   }
 
+  if (!config.quiet) {
+    debug::print_http_push_promise(stream_id, push_id, nva.data(), nva.size());
+  }
+
   int64_t push_stream_id;
   rv = ngtcp2_conn_open_uni_stream(conn_, &push_stream_id, NULL);
   if (rv != 0) {
@@ -1193,6 +1201,10 @@ int Handler::push_content(int64_t stream_id, const std::string &authority,
       return -1;
     }
     return 0;
+  }
+
+  if (!config.quiet) {
+    debug::push_stream(push_id, push_stream_id);
   }
 
   Stream *stream;

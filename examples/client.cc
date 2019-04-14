@@ -2335,6 +2335,10 @@ int Client::submit_http_request(int64_t stream_id) {
     nva[nvlen++] = util::make_nv("content-length", content_length_str);
   }
 
+  if (!config.quiet) {
+    debug::print_http_request_headers(stream_id, nva.data(), nvlen);
+  }
+
   nghttp3_data_reader dr{};
   dr.read_data = read_data;
 
