@@ -738,7 +738,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     assert(rv == 1);
   }
 
-  if (!authority.empty()) {
+  if ((stream_id & 0x3) == 0 && !authority.empty()) {
     for (const auto &push : req.pushes) {
       if (handler->push_content(stream_id, authority, push) != 0) {
         return -1;
