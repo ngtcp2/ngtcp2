@@ -405,7 +405,9 @@ Request request_path(const std::string &uri, bool is_connect) {
 
       auto path_start = p + sizeof(push_prefix) - 1;
       auto path_end = std::find(path_start, std::end(q), '&');
-      req.pushes.emplace_back(path_start, path_end);
+      if (path_start != path_end && *path_start == '/') {
+        req.pushes.emplace_back(path_start, path_end);
+      }
       if (path_end == std::end(q)) {
         break;
       }
@@ -690,6 +692,10 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   }
 
   auto req = request_path(uri, method == "CONNECT");
+  if (req.path.empty()) {
+    return send_status_response(httpconn, 400);
+  }
+
   auto dyn_len = find_dyn_length(req.path);
 
   int64_t content_length = -1;
