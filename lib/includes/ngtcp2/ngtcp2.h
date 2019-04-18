@@ -2084,14 +2084,8 @@ ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn,
  * * initial_max_stream_data_bidi_remote
  * * initial_max_stream_data_uni
  * * initial_max_data
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     |conn| is initialized as a server.
  */
-NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params(
+NGTCP2_EXTERN void ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 /**

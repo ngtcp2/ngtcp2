@@ -7468,14 +7468,12 @@ int ngtcp2_conn_set_remote_transport_params(
   return 0;
 }
 
-int ngtcp2_conn_set_early_remote_transport_params(
+void ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   settings_copy_from_transport_params(&conn->remote.settings, params);
   conn_sync_stream_id_limit(conn);
 
   conn->tx.max_offset = conn->remote.settings.max_data;
-
-  return 0;
 }
 
 void ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
