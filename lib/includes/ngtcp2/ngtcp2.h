@@ -238,6 +238,7 @@ typedef enum {
   NGTCP2_ERR_TRANSPORT_PARAM = -234,
   NGTCP2_ERR_DISCARD_PKT = -235,
   NGTCP2_ERR_PATH_VALIDATION_FAILED = -236,
+  NGTCP2_ERR_CONN_ID_BLOCKED = -237,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -2553,6 +2554,8 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
  * negative error codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     Migration is disabled.
+ * :enum:`NGTCP2_ERR_CONN_ID_BLOCKED`
  *     No unused connection ID is available.
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |path| equals the current path.

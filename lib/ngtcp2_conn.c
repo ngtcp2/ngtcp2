@@ -3032,7 +3032,7 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_STATE
+ * NGTCP2_ERR_CONN_ID_BLOCKED
  *     No unbound DCID is available
  * NGTCP2_ERR_NOMEM
  *     Out of memory
@@ -3058,7 +3058,7 @@ static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
   }
 
   if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
-    return NGTCP2_ERR_INVALID_STATE;
+    return NGTCP2_ERR_CONN_ID_BLOCKED;
   }
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
@@ -5729,7 +5729,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_INVALID_STATE
+ * NGTCP2_ERR_CONN_ID_BLOCKED
  *     No DCID is available
  * NGTCP2_ERR_NOMEM
  *     Out of memory
@@ -5758,7 +5758,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   if (i == len) {
     if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
-      return NGTCP2_ERR_INVALID_STATE;
+      return NGTCP2_ERR_CONN_ID_BLOCKED;
     }
 
     dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
@@ -6288,7 +6288,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
 
       /* DCID is not available.  Just continue. */
-      assert(NGTCP2_ERR_INVALID_STATE == rv);
+      assert(NGTCP2_ERR_CONN_ID_BLOCKED == rv);
     }
   }
 
@@ -8352,9 +8352,11 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   conn->log.last_ts = ts;
 
-  if (conn->remote.settings.disable_migration ||
-      ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+  if (conn->remote.settings.disable_migration) {
     return NGTCP2_ERR_INVALID_STATE;
+  }
+  if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+    return NGTCP2_ERR_CONN_ID_BLOCKED;
   }
 
   if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {

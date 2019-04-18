@@ -88,6 +88,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_DISCARD_PKT";
   case NGTCP2_ERR_PATH_VALIDATION_FAILED:
     return "ERR_PATH_VALIDATION_FAILED";
+  case NGTCP2_ERR_CONN_ID_BLOCKED:
+    return "ERR_CONN_ID_BLOCKED";
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:
