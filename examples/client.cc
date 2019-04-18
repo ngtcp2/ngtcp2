@@ -841,6 +841,10 @@ int select_preferred_address(ngtcp2_conn *conn, ngtcp2_addr *dest,
   auto c = static_cast<Client *>(user_data);
   Address addr;
 
+  if (config.no_preferred_addr) {
+    return 0;
+  }
+
   if (c->select_preferred_address(addr, paddr) != 0) {
     dest->addrlen = 0;
     return 0;
@@ -3075,6 +3079,8 @@ Options:
   --delay-stream=<T>
               Delay sending STREAM data in 1-RTT for <T> seconds after
               handshake completes.
+  --no-preferred-addr
+              Do not try to use preferred address offered by server.
   -h, --help  Display this help and exit.
 )";
 }
@@ -3106,6 +3112,7 @@ int main(int argc, char **argv) {
         {"key-update", required_argument, &flag, 8},
         {"nat-rebinding", no_argument, &flag, 9},
         {"delay-stream", required_argument, &flag, 10},
+        {"no-preferred-addr", no_argument, &flag, 11},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -3204,6 +3211,10 @@ int main(int argc, char **argv) {
       case 10:
         // --delay-stream
         config.delay_stream = strtod(optarg, nullptr);
+        break;
+      case 11:
+        // --no-preferred-addr
+        config.no_preferred_addr = true;
         break;
       }
       break;

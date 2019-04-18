@@ -91,6 +91,9 @@ struct Config {
   double delay_stream;
   // nat_rebinding is true if simulated NAT rebinding is enabled.
   bool nat_rebinding;
+  // no_preferred_addr is true if client do not follow preferred
+  // address offered by server.
+  bool no_preferred_addr;
   std::string http_method;
   std::string scheme;
   std::string authority;
