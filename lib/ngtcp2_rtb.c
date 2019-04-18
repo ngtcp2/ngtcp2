@@ -33,7 +33,7 @@
 #include "ngtcp2_vec.h"
 #include "ngtcp2_cc.h"
 
-int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
+int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
   if (*pfrc == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -45,7 +45,7 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem) {
 }
 
 int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
-                                    ngtcp2_mem *mem) {
+                                    const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain) + extralen);
   if (*pfrc == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -56,14 +56,14 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
   return 0;
 }
 
-void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
+void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, frc);
 }
 
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) { frc->next = NULL; }
 
 int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
-                                  ngtcp2_mem *mem) {
+                                  const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_stream_frame_chain));
   if (*pfrc == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -76,12 +76,12 @@ int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
 }
 
 void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
-                                   ngtcp2_mem *mem) {
+                                   const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, frc);
 }
 
 int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
-                                  ngtcp2_mem *mem) {
+                                  const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_crypto_frame_chain));
   if (*pfrc == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -94,11 +94,12 @@ int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
 }
 
 void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
-                                   ngtcp2_mem *mem) {
+                                   const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, frc);
 }
 
-void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem) {
+void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
+                                 const ngtcp2_mem *mem) {
   ngtcp2_frame_chain *next;
 
   for (; frc;) {
@@ -121,7 +122,7 @@ static void frame_chain_insert(ngtcp2_frame_chain **pfrc,
 
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
-                         size_t pktlen, uint8_t flags, ngtcp2_mem *mem) {
+                         size_t pktlen, uint8_t flags, const ngtcp2_mem *mem) {
   (*pent) = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_rtb_entry));
   if (*pent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -136,7 +137,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
-void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem) {
+void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem) {
   if (ent == NULL) {
     return;
   }
@@ -152,7 +153,7 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
 
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
                      ngtcp2_strm *crypto, ngtcp2_default_cc *cc,
-                     ngtcp2_log *log, ngtcp2_mem *mem) {
+                     ngtcp2_log *log, const ngtcp2_mem *mem) {
   ngtcp2_ksl_key inf_key = {-1};
 
   ngtcp2_ksl_init(&rtb->ents, greater, &inf_key, mem);

@@ -36,7 +36,7 @@ typedef struct {
 
 void test_ngtcp2_ringbuf_push_front(void) {
   ngtcp2_ringbuf rb;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
 
   ngtcp2_ringbuf_init(&rb, 64, sizeof(ints), mem);
@@ -65,7 +65,7 @@ void test_ngtcp2_ringbuf_push_front(void) {
 
 void test_ngtcp2_ringbuf_pop_front(void) {
   ngtcp2_ringbuf rb;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
 
   ngtcp2_ringbuf_init(&rb, 4, sizeof(ints), mem);

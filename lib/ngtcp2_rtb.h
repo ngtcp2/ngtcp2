@@ -111,7 +111,7 @@ struct ngtcp2_crypto_frame_chain {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem);
+int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_extralen_new works like ngtcp2_frame_chain_new,
@@ -119,13 +119,13 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, ngtcp2_mem *mem);
  * ngtcp2_frame.
  */
 int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
-                                    ngtcp2_mem *mem);
+                                    const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
  * memory pointed by |frc|.
  */
-void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
+void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_init initializes |frc|.
@@ -144,10 +144,10 @@ void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
  *     Out of memory.
  */
 int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
-                                  ngtcp2_mem *mem);
+                                  const ngtcp2_mem *mem);
 
 void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
-                                   ngtcp2_mem *mem);
+                                   const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_crypto_frame_chain_new allocates and initializes
@@ -161,16 +161,17 @@ void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
  *     Out of memory.
  */
 int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
-                                  ngtcp2_mem *mem);
+                                  const ngtcp2_mem *mem);
 
 void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
-                                   ngtcp2_mem *mem);
+                                   const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_list_del deletes |frc|, and all objects
  * connected by next field.
  */
-void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc, ngtcp2_mem *mem);
+void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
+                                 const ngtcp2_mem *mem);
 
 typedef enum {
   NGTCP2_RTB_FLAG_NONE = 0x00,
@@ -219,13 +220,13 @@ struct ngtcp2_rtb_entry {
  */
 int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
-                         size_t pktlen, uint8_t flags, ngtcp2_mem *mem);
+                         size_t pktlen, uint8_t flags, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_entry_del deallocates |ent|.  It also frees memory
  * pointed by |ent|.
  */
-void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_mem *mem);
+void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for
@@ -239,7 +240,7 @@ typedef struct {
   ngtcp2_strm *crypto;
   ngtcp2_default_cc *cc;
   ngtcp2_log *log;
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
@@ -254,7 +255,7 @@ typedef struct {
  */
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
                      ngtcp2_strm *crypto, ngtcp2_default_cc *cc,
-                     ngtcp2_log *log, ngtcp2_mem *mem);
+                     ngtcp2_log *log, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.

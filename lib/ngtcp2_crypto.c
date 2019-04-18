@@ -33,7 +33,7 @@
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
                          size_t keylen, const uint8_t *iv, size_t ivlen,
-                         ngtcp2_mem *mem) {
+                         const ngtcp2_mem *mem) {
   size_t len;
   uint8_t *p;
 
@@ -57,7 +57,7 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
   return 0;
 }
 
-void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, ngtcp2_mem *mem) {
+void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem) {
   if (ckm == NULL) {
     return;
   }

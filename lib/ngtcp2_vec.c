@@ -30,7 +30,7 @@
 #include "ngtcp2_str.h"
 
 int ngtcp2_vec_new(ngtcp2_vec **pvec, const uint8_t *data, size_t datalen,
-                   ngtcp2_mem *mem) {
+                   const ngtcp2_mem *mem) {
   size_t len;
   uint8_t *p;
 
@@ -49,7 +49,7 @@ int ngtcp2_vec_new(ngtcp2_vec **pvec, const uint8_t *data, size_t datalen,
   return 0;
 }
 
-void ngtcp2_vec_del(ngtcp2_vec *vec, ngtcp2_mem *mem) {
+void ngtcp2_vec_del(ngtcp2_vec *vec, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, vec);
 }
 

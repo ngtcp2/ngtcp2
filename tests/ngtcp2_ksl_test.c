@@ -39,7 +39,7 @@ void test_ngtcp2_ksl_insert(void) {
   static const int64_t keys[] = {10, 3,  8, 11, 16, 12, 1, 5, 4,
                                  0,  13, 7, 9,  2,  14, 6, 15};
   ngtcp2_ksl ksl;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
   ngtcp2_ksl_it it;
   ngtcp2_ksl_key key;
@@ -248,7 +248,7 @@ void test_ngtcp2_ksl_insert(void) {
 
 void test_ngtcp2_ksl_clear(void) {
   ngtcp2_ksl ksl;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_ksl_it it;
   size_t i;
   ngtcp2_ksl_key key;

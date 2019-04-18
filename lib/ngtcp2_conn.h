@@ -437,7 +437,7 @@ struct ngtcp2_conn {
      This field is only used by server to ensure "3 times received
      data" rule. */
   size_t hs_sent;
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   void *user_data;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */

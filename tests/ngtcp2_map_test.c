@@ -152,14 +152,14 @@ void test_ngtcp2_map_functional(void) {
 }
 
 static int entry_free(ngtcp2_map_entry *entry, void *ptr) {
-  ngtcp2_mem *mem = ptr;
+  const ngtcp2_mem *mem = ptr;
 
   mem->free(entry, NULL);
   return 0;
 }
 
 void test_ngtcp2_map_each_free(void) {
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   strentry *foo = mem->malloc(sizeof(strentry), NULL),
            *bar = mem->malloc(sizeof(strentry), NULL),
            *baz = mem->malloc(sizeof(strentry), NULL),
@@ -177,12 +177,12 @@ void test_ngtcp2_map_each_free(void) {
   ngtcp2_map_insert(&map, &baz->map_entry);
   ngtcp2_map_insert(&map, &shrubbery->map_entry);
 
-  ngtcp2_map_each_free(&map, entry_free, mem);
+  ngtcp2_map_each_free(&map, entry_free, (void *)mem);
   ngtcp2_map_free(&map);
 }
 
 void test_ngtcp2_map_clear(void) {
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_map map;
   strentry foo;
 

@@ -29,7 +29,7 @@
 
 #include "ngtcp2_macro.h"
 
-void ngtcp2_pq_init(ngtcp2_pq *pq, ngtcp2_less less, ngtcp2_mem *mem) {
+void ngtcp2_pq_init(ngtcp2_pq *pq, ngtcp2_less less, const ngtcp2_mem *mem) {
   pq->mem = mem;
   pq->capacity = 0;
   pq->q = NULL;

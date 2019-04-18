@@ -35,7 +35,7 @@ void test_ngtcp2_psl_insert(void) {
       {1, 2},   {5, 6}, {4, 5},   {0, 1},   {13, 14}, {7, 8},
       {9, 10},  {2, 3}, {14, 15}, {6, 7},   {15, 16}};
   ngtcp2_psl psl;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   size_t i;
   ngtcp2_range r;
   ngtcp2_psl_it it;

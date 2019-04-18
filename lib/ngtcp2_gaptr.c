@@ -29,7 +29,7 @@
 
 #include "ngtcp2_macro.h"
 
-int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, ngtcp2_mem *mem) {
+int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem) {
   int rv;
   ngtcp2_range key = {0, UINT64_MAX};
   rv = ngtcp2_psl_init(&gaptr->gap, mem);

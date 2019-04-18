@@ -33,7 +33,7 @@
 #include "ngtcp2_mem.h"
 
 int ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar,
-                    const ngtcp2_ksl_key *inf_key, ngtcp2_mem *mem) {
+                    const ngtcp2_ksl_key *inf_key, const ngtcp2_mem *mem) {
   ngtcp2_ksl_blk *head;
 
   ksl->head = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_ksl_blk));
@@ -60,7 +60,7 @@ int ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar,
 /*
  * free_blk frees |blk| recursively.
  */
-static void free_blk(ngtcp2_ksl_blk *blk, ngtcp2_mem *mem) {
+static void free_blk(ngtcp2_ksl_blk *blk, const ngtcp2_mem *mem) {
   size_t i;
 
   if (!blk->leaf) {

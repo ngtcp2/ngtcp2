@@ -2634,6 +2634,14 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  */
 NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
 
+/*
+ * @function
+ *
+ * `ngtcp2_mem_default` returns the default, system standard memory
+ * allocator.
+ */
+NGTCP2_EXTERN const ngtcp2_mem *ngtcp2_mem_default(void);
+
 #ifdef __cplusplus
 }
 #endif

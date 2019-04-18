@@ -39,7 +39,7 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
 
 int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
                   ngtcp2_duration timeout, uint8_t flags, ngtcp2_log *log,
-                  ngtcp2_mem *mem) {
+                  const ngtcp2_mem *mem) {
   int rv;
 
   (*ppv) = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pv));

@@ -45,7 +45,7 @@ typedef struct ngtcp2_map_entry {
 
 typedef struct {
   ngtcp2_map_entry **table;
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   size_t size;
   uint32_t tablelen;
 } ngtcp2_map;
@@ -59,7 +59,7 @@ typedef struct {
  * NGTCP2_ERR_NOMEM
  *   Out of memory
  */
-int ngtcp2_map_init(ngtcp2_map *map, ngtcp2_mem *mem);
+int ngtcp2_map_init(ngtcp2_map *map, const ngtcp2_mem *mem);
 
 /*
  * Deallocates any resources allocated for |map|. The stored entries

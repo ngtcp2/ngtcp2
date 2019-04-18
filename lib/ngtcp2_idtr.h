@@ -44,8 +44,6 @@ typedef struct {
   /* server is nonzero if this object records server initiated stream
      ID. */
   int server;
-  /* mem is custom memory allocator */
-  ngtcp2_mem *mem;
 } ngtcp2_idtr;
 
 /*
@@ -61,7 +59,7 @@ typedef struct {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, ngtcp2_mem *mem);
+int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_idtr_free frees resources allocated for |idtr|.

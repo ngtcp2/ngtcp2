@@ -32,7 +32,7 @@
 #include "ngtcp2_macro.h"
 #include "ngtcp2_mem.h"
 
-int ngtcp2_psl_init(ngtcp2_psl *psl, ngtcp2_mem *mem) {
+int ngtcp2_psl_init(ngtcp2_psl *psl, const ngtcp2_mem *mem) {
   ngtcp2_psl_blk *head;
 
   psl->mem = mem;
@@ -58,7 +58,7 @@ int ngtcp2_psl_init(ngtcp2_psl *psl, ngtcp2_mem *mem) {
 /*
  * free_blk frees |blk| recursively.
  */
-static void free_blk(ngtcp2_psl_blk *blk, ngtcp2_mem *mem) {
+static void free_blk(ngtcp2_psl_blk *blk, const ngtcp2_mem *mem) {
   size_t i;
 
   if (!blk->leaf) {

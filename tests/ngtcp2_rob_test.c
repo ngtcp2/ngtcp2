@@ -32,7 +32,7 @@
 #include "ngtcp2_macro.h"
 
 void test_ngtcp2_rob_push(void) {
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
   int rv;
   uint8_t data[256];
@@ -258,7 +258,7 @@ static ngtcp2_range randkeys[] = {
 };
 
 void test_ngtcp2_rob_push_random(void) {
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
   int rv;
   uint8_t data[512];
@@ -278,7 +278,7 @@ void test_ngtcp2_rob_push_random(void) {
 }
 
 void test_ngtcp2_rob_data_at(void) {
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
   int rv;
   uint8_t data[256];
@@ -498,7 +498,7 @@ void test_ngtcp2_rob_data_at(void) {
 }
 
 void test_ngtcp2_rob_remove_prefix(void) {
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_rob rob;
   ngtcp2_rob_gap *g;
   ngtcp2_rob_data *d;

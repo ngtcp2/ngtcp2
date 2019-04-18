@@ -105,7 +105,7 @@ struct ngtcp2_psl {
   /* front points to the first leaf block. */
   ngtcp2_psl_blk *front;
   size_t n;
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
 };
 
 /*
@@ -117,7 +117,7 @@ struct ngtcp2_psl {
  * NGTCP2_ERR_NOMEM
  *   Out of memory.
  */
-int ngtcp2_psl_init(ngtcp2_psl *psl, ngtcp2_mem *mem);
+int ngtcp2_psl_init(ngtcp2_psl *psl, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_psl_free frees resources allocated for |psl|.  If |psl| is

@@ -49,16 +49,16 @@ static void *default_realloc(void *ptr, size_t size, void *mem_user_data) {
   return realloc(ptr, size);
 }
 
-static ngtcp2_mem mem_default = {NULL, default_malloc, default_free,
-                                 default_calloc, default_realloc};
+static const ngtcp2_mem mem_default = {NULL, default_malloc, default_free,
+                                       default_calloc, default_realloc};
 
-ngtcp2_mem *ngtcp2_mem_default(void) { return &mem_default; }
+const ngtcp2_mem *ngtcp2_mem_default(void) { return &mem_default; }
 
-void *ngtcp2_mem_malloc(ngtcp2_mem *mem, size_t size) {
+void *ngtcp2_mem_malloc(const ngtcp2_mem *mem, size_t size) {
   return mem->malloc(size, mem->mem_user_data);
 }
 
-void ngtcp2_mem_free(ngtcp2_mem *mem, void *ptr) {
+void ngtcp2_mem_free(const ngtcp2_mem *mem, void *ptr) {
   mem->free(ptr, mem->mem_user_data);
 }
 
@@ -66,10 +66,10 @@ void ngtcp2_mem_free2(ngtcp2_free free_func, void *ptr, void *mem_user_data) {
   free_func(ptr, mem_user_data);
 }
 
-void *ngtcp2_mem_calloc(ngtcp2_mem *mem, size_t nmemb, size_t size) {
+void *ngtcp2_mem_calloc(const ngtcp2_mem *mem, size_t nmemb, size_t size) {
   return mem->calloc(nmemb, size, mem->mem_user_data);
 }
 
-void *ngtcp2_mem_realloc(ngtcp2_mem *mem, void *ptr, size_t size) {
+void *ngtcp2_mem_realloc(const ngtcp2_mem *mem, void *ptr, size_t size) {
   return mem->realloc(ptr, size, mem->mem_user_data);
 }

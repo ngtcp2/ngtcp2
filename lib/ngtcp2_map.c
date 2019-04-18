@@ -32,7 +32,7 @@
 
 #define INITIAL_TABLE_LENGTH 256
 
-int ngtcp2_map_init(ngtcp2_map *map, ngtcp2_mem *mem) {
+int ngtcp2_map_init(ngtcp2_map *map, const ngtcp2_mem *mem) {
   map->mem = mem;
   map->tablelen = INITIAL_TABLE_LENGTH;
   map->table =

@@ -67,9 +67,9 @@ typedef struct {
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
                          size_t keylen, const uint8_t *iv, size_t ivlen,
-                         ngtcp2_mem *mem);
+                         const ngtcp2_mem *mem);
 
-void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, ngtcp2_mem *mem);
+void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 
 typedef struct {
   const ngtcp2_crypto_km *ckm;

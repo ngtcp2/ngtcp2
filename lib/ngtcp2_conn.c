@@ -339,7 +339,8 @@ static int crypto_offset_less(const ngtcp2_pq_entry *lhs,
 }
 
 static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_crypto_level crypto_level,
-                      ngtcp2_default_cc *cc, ngtcp2_log *log, ngtcp2_mem *mem) {
+                      ngtcp2_default_cc *cc, ngtcp2_log *log,
+                      const ngtcp2_mem *mem) {
   int rv;
 
   rv = ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
@@ -385,7 +386,7 @@ static int cycle_less(const ngtcp2_pq_entry *lhs, const ngtcp2_pq_entry *rhs) {
   return ls->cycle - rs->cycle > 1;
 }
 
-static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
+static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem) {
   ngtcp2_pkt_chain *next;
 
   for (; pc;) {
@@ -395,7 +396,7 @@ static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem) {
   }
 }
 
-static void pktns_free(ngtcp2_pktns *pktns, ngtcp2_mem *mem) {
+static void pktns_free(ngtcp2_pktns *pktns, const ngtcp2_mem *mem) {
   ngtcp2_crypto_frame_chain *frc;
 
   delete_buffed_pkts(pktns->rx.buffed_pkts, mem);
@@ -475,7 +476,7 @@ static void cc_stat_reset(ngtcp2_cc_stat *ccs) {
   ccs->ssthresh = UINT64_MAX;
 }
 
-static void delete_scid(ngtcp2_ksl *scids, ngtcp2_mem *mem) {
+static void delete_scid(ngtcp2_ksl *scids, const ngtcp2_mem *mem) {
   ngtcp2_ksl_it it;
 
   for (it = ngtcp2_ksl_begin(scids); !ngtcp2_ksl_it_end(&it);
@@ -490,7 +491,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                     const ngtcp2_settings *settings, void *user_data,
                     int server) {
   int rv;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_scid *scident;
   ngtcp2_ksl_key key;
 
@@ -723,7 +724,7 @@ static size_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 static int delete_strms_each(ngtcp2_map_entry *ent, void *ptr) {
-  ngtcp2_mem *mem = ptr;
+  const ngtcp2_mem *mem = ptr;
   ngtcp2_strm *s = ngtcp2_struct_of(ent, ngtcp2_strm, me);
 
   ngtcp2_strm_free(s);
@@ -759,7 +760,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_idtr_free(&conn->remote.uni.idtr);
   ngtcp2_idtr_free(&conn->remote.bidi.idtr);
   ngtcp2_pq_free(&conn->tx.strmq);
-  ngtcp2_map_each_free(&conn->strms, delete_strms_each, conn->mem);
+  ngtcp2_map_each_free(&conn->strms, delete_strms_each, (void *)conn->mem);
   ngtcp2_map_free(&conn->strms);
 
   ngtcp2_pq_free(&conn->scid.used);

@@ -32,15 +32,12 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-/* The default, system standard memory allocator */
-ngtcp2_mem *ngtcp2_mem_default(void);
-
 /* Convenient wrapper functions to call allocator function in
    |mem|. */
-void *ngtcp2_mem_malloc(ngtcp2_mem *mem, size_t size);
-void ngtcp2_mem_free(ngtcp2_mem *mem, void *ptr);
+void *ngtcp2_mem_malloc(const ngtcp2_mem *mem, size_t size);
+void ngtcp2_mem_free(const ngtcp2_mem *mem, void *ptr);
 void ngtcp2_mem_free2(ngtcp2_free free_func, void *ptr, void *mem_user_data);
-void *ngtcp2_mem_calloc(ngtcp2_mem *mem, size_t nmemb, size_t size);
-void *ngtcp2_mem_realloc(ngtcp2_mem *mem, void *ptr, size_t size);
+void *ngtcp2_mem_calloc(const ngtcp2_mem *mem, size_t nmemb, size_t size);
+void *ngtcp2_mem_realloc(const ngtcp2_mem *mem, void *ptr, size_t size);
 
 #endif /* NGTCP2_MEM_H */

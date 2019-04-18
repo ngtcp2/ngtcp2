@@ -26,7 +26,7 @@
 
 #include <assert.h>
 
-int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, ngtcp2_mem *mem) {
+int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, const ngtcp2_mem *mem) {
   int rv;
 
   rv = ngtcp2_gaptr_init(&idtr->gap, mem);
@@ -35,7 +35,6 @@ int ngtcp2_idtr_init(ngtcp2_idtr *idtr, int server, ngtcp2_mem *mem) {
   }
 
   idtr->server = server;
-  idtr->mem = mem;
 
   return 0;
 }
