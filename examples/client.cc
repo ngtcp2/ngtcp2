@@ -1029,7 +1029,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       {remote_addr.len, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(
                             &remote_addr.su))}};
   rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version, &callbacks,
-                              &settings, this);
+                              &settings, nullptr, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;

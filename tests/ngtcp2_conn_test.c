@@ -371,7 +371,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
-                         &cb, &settings, NULL);
+                         &cb, &settings, /* mem = */ NULL, NULL);
   ngtcp2_conn_install_handshake_tx_keys(*pconn, null_key, sizeof(null_key),
                                         null_iv, sizeof(null_iv), null_pn,
                                         sizeof(null_pn));
@@ -421,7 +421,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
-                         &cb, &settings, NULL);
+                         &cb, &settings, /* mem = */ NULL, NULL);
   ngtcp2_conn_install_handshake_tx_keys(*pconn, null_key, sizeof(null_key),
                                         null_iv, sizeof(null_iv), null_pn,
                                         sizeof(null_pn));
@@ -471,7 +471,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
-                         &cb, &settings, NULL);
+                         &cb, &settings, /* mem = */ NULL, NULL);
   ngtcp2_conn_install_initial_tx_keys(*pconn, null_key, sizeof(null_key),
                                       null_iv, sizeof(null_iv), null_pn,
                                       sizeof(null_pn));
@@ -505,7 +505,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
-                         &cb, &settings, NULL);
+                         &cb, &settings, /* mem = */ NULL, NULL);
   ngtcp2_conn_install_initial_tx_keys(*pconn, null_key, sizeof(null_key),
                                       null_iv, sizeof(null_iv), null_pn,
                                       sizeof(null_pn));
@@ -536,7 +536,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   server_default_settings(&settings);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
-                         &cb, &settings, NULL);
+                         &cb, &settings, /* mem = */ NULL, NULL);
   ngtcp2_conn_install_initial_tx_keys(*pconn, null_key, sizeof(null_key),
                                       null_iv, sizeof(null_iv), null_pn,
                                       sizeof(null_pn));
@@ -579,7 +579,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   client_default_settings(&settings);
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
-                         &cb, &settings, NULL);
+                         &cb, &settings, /* mem = */ NULL, NULL);
   ngtcp2_conn_install_initial_tx_keys(*pconn, null_key, sizeof(null_key),
                                       null_iv, sizeof(null_iv), null_pn,
                                       sizeof(null_pn));

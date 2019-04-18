@@ -1707,7 +1707,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
        const_cast<Endpoint *>(&ep)},
       {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
   rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version, &callbacks,
-                              &settings, this);
+                              &settings, nullptr, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;

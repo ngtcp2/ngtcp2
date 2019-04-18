@@ -1535,7 +1535,8 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * connection is being established.  |callbacks|, and |settings| must
  * not be NULL, and the function make a copy of each of them.
  * |user_data| is the arbitrary pointer which is passed to the
- * user-defined callback functions.
+ * user-defined callback functions.  If |mem| is NULL, the memory
+ * allocator returned by `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1547,7 +1548,8 @@ NGTCP2_EXTERN int
 ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
                        uint32_t version, const ngtcp2_conn_callbacks *callbacks,
-                       const ngtcp2_settings *settings, void *user_data);
+                       const ngtcp2_settings *settings, const ngtcp2_mem *mem,
+                       void *user_data);
 
 /**
  * @function
@@ -1559,7 +1561,8 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * version to use.  |callbacks|, and |settings| must not be NULL, and
  * the function make a copy of each of them.  |user_data| is the
  * arbitrary pointer which is passed to the user-defined callback
- * functions.
+ * functions.  If |mem| is NULL, the memory allocator returned by
+ * `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1571,7 +1574,8 @@ NGTCP2_EXTERN int
 ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
                        uint32_t version, const ngtcp2_conn_callbacks *callbacks,
-                       const ngtcp2_settings *settings, void *user_data);
+                       const ngtcp2_settings *settings, const ngtcp2_mem *mem,
+                       void *user_data);
 
 /**
  * @function
