@@ -6,18 +6,6 @@ ngtcp2
 ngtcp2 project is an effort to implement QUIC protocol which is now
 being discussed in IETF QUICWG for its standardization.
 
-Development status
-------------------
-
-Second Implementation Draft
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-We are focusing on implementing `11th Implementation Draft
-<https://github.com/quicwg/base-drafts/wiki/11th-Implementation-Draft>`_.
-
-* https://quicwg.github.io/base-drafts/draft-ietf-quic-transport.html
-* https://quicwg.github.io/base-drafts/draft-ietf-quic-tls.html
-
 Requirements
 ------------
 
