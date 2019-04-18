@@ -1830,8 +1830,6 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_rx_keys(
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
@@ -1857,8 +1855,6 @@ NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_handshake_rx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
@@ -1893,8 +1889,6 @@ NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int
 ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
@@ -1921,8 +1915,6 @@ ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
                                               const uint8_t *key, size_t keylen,
@@ -1949,8 +1941,6 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn,
                                               const uint8_t *key, size_t keylen,
@@ -2523,15 +2513,9 @@ ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
  * `ngtcp2_conn_set_retry_ocid` tells |conn| that application as a
  * server received |ocid| included in token from client.  |ocid| will
  * be sent in transport parameter.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * enum:`NGTCP2_ERR_INVALID_STATE`
- *     |conn| is not initialized as a server.
  */
-NGTCP2_EXTERN int ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn,
-                                             const ngtcp2_cid *ocid);
+NGTCP2_EXTERN void ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn,
+                                              const ngtcp2_cid *ocid);
 
 /**
  * @function
@@ -2569,8 +2553,7 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
  * negative error codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     |conn| is initialized as server; or no unused connection ID is
- *     available.
+ *     No unused connection ID is available.
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |path| equals the current path.
  * :enum:`NGTCP2_ERR_NOMEM`

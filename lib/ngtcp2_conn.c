@@ -6973,12 +6973,10 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   size_t datalen = ngtcp2_vec_len(datav, datavcnt);
   size_t early_datalen = 0;
 
+  assert(!conn->server);
+
   if (pdatalen) {
     *pdatalen = -1;
-  }
-
-  if (conn->server) {
-    return NGTCP2_ERR_INVALID_STATE;
   }
 
   /* conn->early.ckm might be created in the first call of
@@ -7171,9 +7169,7 @@ int ngtcp2_conn_install_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->hs_pktns;
   int rv;
 
-  if (pktns->crypto.tx.hp || pktns->crypto.tx.ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
+  assert(!pktns->crypto.tx.hp && !pktns->crypto.tx.ckm);
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, key, keylen, iv, ivlen,
                             conn->mem);
@@ -7191,9 +7187,7 @@ int ngtcp2_conn_install_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->hs_pktns;
   int rv;
 
-  if (pktns->crypto.rx.hp || pktns->crypto.rx.ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
+  assert(!pktns->crypto.rx.hp && !pktns->crypto.rx.ckm);
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, key, keylen, iv, ivlen,
                             conn->mem);
@@ -7210,9 +7204,7 @@ int ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
                                    size_t pnlen) {
   int rv;
 
-  if (conn->early.hp || conn->early.ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
+  assert(!conn->early.hp && !conn->early.ckm);
 
   rv =
       ngtcp2_crypto_km_new(&conn->early.ckm, key, keylen, iv, ivlen, conn->mem);
@@ -7229,9 +7221,7 @@ int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
-  if (pktns->crypto.tx.hp || pktns->crypto.tx.ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
+  assert(!pktns->crypto.tx.hp && !pktns->crypto.tx.ckm);
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, key, keylen, iv, ivlen,
                             conn->mem);
@@ -7248,9 +7238,7 @@ int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
-  if (pktns->crypto.rx.hp || pktns->crypto.rx.ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
+  assert(!pktns->crypto.rx.hp && !pktns->crypto.rx.ckm);
 
   rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, key, keylen, iv, ivlen,
                             conn->mem);
@@ -8295,15 +8283,11 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn, const ngtcp2_cid *ocid) {
-  if (!conn->server) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
+void ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn, const ngtcp2_cid *ocid) {
+  assert(conn->server);
 
   conn->flags |= NGTCP2_CONN_FLAG_OCID_PRESENT;
   conn->ocid = *ocid;
-
-  return 0;
 }
 
 ngtcp2_strm *ngtcp2_conn_tx_strmq_top(ngtcp2_conn *conn) {
@@ -8364,9 +8348,11 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_pv *pv;
   ngtcp2_duration timeout;
 
+  assert(!conn->server);
+
   conn->log.last_ts = ts;
 
-  if (conn->server || conn->remote.settings.disable_migration ||
+  if (conn->remote.settings.disable_migration ||
       ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
     return NGTCP2_ERR_INVALID_STATE;
   }
