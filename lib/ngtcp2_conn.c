@@ -111,7 +111,6 @@ static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
   case 0:
   case NGTCP2_ERR_CRYPTO:
   case NGTCP2_ERR_PROTO:
-  case NGTCP2_ERR_INTERNAL:
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return rv;
   default:
