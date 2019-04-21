@@ -316,14 +316,17 @@ Stream::Stream(int64_t stream_id, Handler *handler)
       dyndataleft(0),
       dynackedoffset(0),
       dynbuflen(0),
-      md_ctx(nullptr) {}
+      md_ctx(nullptr),
+      mmapped(false) {}
 
 Stream::~Stream() {
   if (md_ctx) {
     EVP_MD_CTX_free(md_ctx);
   }
 
-  munmap(data, datalen);
+  if (mmapped) {
+    munmap(data, datalen);
+  }
   if (fd != -1) {
     close(fd);
   }
@@ -457,6 +460,7 @@ int Stream::map_file(size_t len) {
     return -1;
   }
   datalen = len;
+  mmapped = true;
   return 0;
 }
 
