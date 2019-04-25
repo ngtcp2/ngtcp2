@@ -94,6 +94,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_CALLBACK_FAILURE";
   case NGTCP2_ERR_INTERNAL:
     return "ERR_INTERNAL";
+  case NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED:
+    return "ERR_CRYPTO_BUFFER_EXCEEDED";
   default:
     return "(unknown)";
   }
@@ -121,6 +123,8 @@ uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
     return NGTCP2_INTERNAL_ERROR;
   case NGTCP2_ERR_STREAM_STATE:
     return NGTCP2_STREAM_STATE_ERROR;
+  case NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED:
+    return NGTCP2_CRYPTO_BUFFER_EXCEEDED;
   default:
     return NGTCP2_PROTOCOL_VIOLATION;
   }
