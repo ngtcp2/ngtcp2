@@ -88,9 +88,9 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
                                  uint64_t ack_blklen);
 
 /*
- * write_single_frame_pkt writes a QUIC packet containing single frame
- * |fr| in |out| whose capacity is |outlen|.  This function returns
- * the number of bytes written.
+ * write_single_frame_pkt_flags writes a QUIC packet containing single
+ * frame |fr| in |out| whose capacity is |outlen|.  This function
+ * returns the number of bytes written.
  */
 size_t write_single_frame_pkt_flags(ngtcp2_conn *conn, uint8_t *out,
                                     size_t outlen, uint8_t flags,
