@@ -3411,8 +3411,8 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
 
   switch (version) {
   case NGTCP2_PROTO_VER_D19:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_D19);
-    alpnlen = str_size(NGTCP2_ALPN_D19);
+    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_H3);
+    alpnlen = str_size(NGTCP2_ALPN_H3);
     break;
   default:
     if (!config.quiet) {
@@ -3429,16 +3429,13 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
       return SSL_TLSEXT_ERR_OK;
     }
   }
-  // Just select alpn for now.
-  *out = reinterpret_cast<const uint8_t *>(alpn + 1);
-  *outlen = alpn[0];
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_D19 + 1
+    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_H3 + 1
               << std::endl;
   }
 
-  return SSL_TLSEXT_ERR_OK;
+  return SSL_TLSEXT_ERR_NOACK;
 }
 } // namespace
 
