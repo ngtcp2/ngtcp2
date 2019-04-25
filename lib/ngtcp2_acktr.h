@@ -77,13 +77,13 @@ struct ngtcp2_acktr_entry {
  *     Out of memory.
  */
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
-                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem);
+                           ngtcp2_tstamp tstamp, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_entry_del deallocates memory allocated for |ent|.  It
  * deallocates memory pointed by |ent|.
  */
-void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem);
+void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, const ngtcp2_mem *mem);
 
 typedef struct {
   /* largest_ack is the largest packet number in outgoing ACK frame */
@@ -119,7 +119,7 @@ typedef struct {
      packet number. */
   ngtcp2_ksl ents;
   ngtcp2_log *log;
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
@@ -138,7 +138,8 @@ typedef struct {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem);
+int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
+                      const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees

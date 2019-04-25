@@ -76,7 +76,7 @@ typedef struct ngtcp2_pv ngtcp2_pv;
  * ngtcp2_pv is the context of a single path validation.
  */
 struct ngtcp2_pv {
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   ngtcp2_log *log;
   /* dcid is DCID and path this path validation uses. */
   ngtcp2_dcid dcid;
@@ -106,7 +106,7 @@ struct ngtcp2_pv {
  */
 int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
                   ngtcp2_duration timeout, uint8_t flags, ngtcp2_log *log,
-                  ngtcp2_mem *mem);
+                  const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pv_del deallocates |pv|.  This function frees memory |pv|

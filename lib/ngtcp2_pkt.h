@@ -123,13 +123,13 @@ struct ngtcp2_pkt_chain {
  */
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
                          const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts,
-                         ngtcp2_mem *mem);
+                         const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pkt_chain_del deallocates |pc|.  It also frees the memory
  * pointed by |pc|.
  */
-void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, ngtcp2_mem *mem);
+void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.  If

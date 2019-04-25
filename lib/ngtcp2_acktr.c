@@ -29,7 +29,7 @@
 #include "ngtcp2_macro.h"
 
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
-                           ngtcp2_tstamp tstamp, ngtcp2_mem *mem) {
+                           ngtcp2_tstamp tstamp, const ngtcp2_mem *mem) {
   *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));
   if (*ent == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -42,7 +42,7 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
   return 0;
 }
 
-void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, ngtcp2_mem *mem) {
+void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, ent);
 }
 
@@ -50,7 +50,8 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return lhs->i > rhs->i;
 }
 
-int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log, ngtcp2_mem *mem) {
+int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
+                      const ngtcp2_mem *mem) {
   int rv;
   ngtcp2_ksl_key inf_key = {-1};
 

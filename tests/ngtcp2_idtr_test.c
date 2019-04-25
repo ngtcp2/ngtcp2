@@ -33,7 +33,7 @@
 static int64_t stream_id_from_id(uint64_t id) { return (int64_t)(id * 4); }
 
 void test_ngtcp2_idtr_open(void) {
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_idtr idtr;
   int rv;
   ngtcp2_psl_it it;

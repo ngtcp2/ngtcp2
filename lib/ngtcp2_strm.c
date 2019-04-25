@@ -43,7 +43,7 @@ static int offset_less(const ngtcp2_pq_entry *lhs, const ngtcp2_pq_entry *rhs) {
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                      uint64_t max_rx_offset, uint64_t max_tx_offset,
-                     void *stream_user_data, ngtcp2_mem *mem) {
+                     void *stream_user_data, const ngtcp2_mem *mem) {
   int rv;
 
   strm->cycle = 0;

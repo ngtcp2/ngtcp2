@@ -43,7 +43,7 @@ typedef struct {
      yet. Initially, its range is [0, UINT64_MAX). */
   ngtcp2_psl gap;
   /* mem is custom memory allocator */
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
 } ngtcp2_gaptr;
 
 /*
@@ -55,7 +55,7 @@ typedef struct {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, ngtcp2_mem *mem);
+int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_gaptr_free frees resources allocated for |gaptr|.

@@ -108,7 +108,7 @@ struct ngtcp2_strm {
     uint64_t unsent_max_offset;
   } rx;
 
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   int64_t stream_id;
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
@@ -129,7 +129,7 @@ struct ngtcp2_strm {
  */
 int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                      uint64_t max_rx_offset, uint64_t max_tx_offset,
-                     void *stream_user_data, ngtcp2_mem *mem);
+                     void *stream_user_data, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_strm_free deallocates memory allocated for |strm|.  This

@@ -30,7 +30,7 @@
 #include "ngtcp2_macro.h"
 
 int ngtcp2_rob_gap_new(ngtcp2_rob_gap **pg, uint64_t begin, uint64_t end,
-                       ngtcp2_mem *mem) {
+                       const ngtcp2_mem *mem) {
   *pg = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_rob_gap));
   if (*pg == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -42,12 +42,12 @@ int ngtcp2_rob_gap_new(ngtcp2_rob_gap **pg, uint64_t begin, uint64_t end,
   return 0;
 }
 
-void ngtcp2_rob_gap_del(ngtcp2_rob_gap *g, ngtcp2_mem *mem) {
+void ngtcp2_rob_gap_del(ngtcp2_rob_gap *g, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, g);
 }
 
 int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, uint64_t offset, size_t chunk,
-                        ngtcp2_mem *mem) {
+                        const ngtcp2_mem *mem) {
   *pd = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_rob_data) + chunk);
   if (*pd == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -61,11 +61,11 @@ int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, uint64_t offset, size_t chunk,
   return 0;
 }
 
-void ngtcp2_rob_data_del(ngtcp2_rob_data *d, ngtcp2_mem *mem) {
+void ngtcp2_rob_data_del(ngtcp2_rob_data *d, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, d);
 }
 
-int ngtcp2_rob_init(ngtcp2_rob *rob, size_t chunk, ngtcp2_mem *mem) {
+int ngtcp2_rob_init(ngtcp2_rob *rob, size_t chunk, const ngtcp2_mem *mem) {
   int rv;
   ngtcp2_rob_gap *g;
 

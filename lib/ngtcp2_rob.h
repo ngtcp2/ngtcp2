@@ -60,14 +60,14 @@ struct ngtcp2_rob_gap {
  *     Out of memory.
  */
 int ngtcp2_rob_gap_new(ngtcp2_rob_gap **pg, uint64_t begin, uint64_t end,
-                       ngtcp2_mem *mem);
+                       const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rob_gap_del deallocates |g|.  It deallocates the memory
  * pointed by |g| it self.  |mem| is custom memory allocator to
  * deallocate memory.
  */
-void ngtcp2_rob_gap_del(ngtcp2_rob_gap *g, ngtcp2_mem *mem);
+void ngtcp2_rob_gap_del(ngtcp2_rob_gap *g, const ngtcp2_mem *mem);
 
 struct ngtcp2_rob_data;
 typedef struct ngtcp2_rob_data ngtcp2_rob_data;
@@ -99,14 +99,14 @@ struct ngtcp2_rob_data {
  *     Out of memory.
  */
 int ngtcp2_rob_data_new(ngtcp2_rob_data **pd, uint64_t offset, size_t chunk,
-                        ngtcp2_mem *mem);
+                        const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rob_data_del deallocates |d|.  It deallocates the memory
  * pointed by |d| itself.  |mem| is custom memory allocator to
  * deallocate memory.
  */
-void ngtcp2_rob_data_del(ngtcp2_rob_data *d, ngtcp2_mem *mem);
+void ngtcp2_rob_data_del(ngtcp2_rob_data *d, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rob is the reorder buffer which reassembles stream data
@@ -120,7 +120,7 @@ typedef struct {
      ordered by stream offset. */
   ngtcp2_psl datapsl;
   /* mem is custom memory allocator */
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   /* chunk is the size of each buffer in data field */
   size_t chunk;
 } ngtcp2_rob;
@@ -135,7 +135,7 @@ typedef struct {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-int ngtcp2_rob_init(ngtcp2_rob *rob, size_t chunk, ngtcp2_mem *mem);
+int ngtcp2_rob_init(ngtcp2_rob *rob, size_t chunk, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rob_free frees resources allocated for |rob|.

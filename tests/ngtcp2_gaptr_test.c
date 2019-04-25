@@ -32,7 +32,7 @@
 
 void test_ngtcp2_gaptr_push(void) {
   ngtcp2_gaptr gaptr;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_psl_it it;
   ngtcp2_range r;
   int rv;
@@ -99,7 +99,7 @@ void test_ngtcp2_gaptr_push(void) {
 
 void test_ngtcp2_gaptr_is_pushed(void) {
   ngtcp2_gaptr gaptr;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   int rv;
 
   ngtcp2_gaptr_init(&gaptr, mem);

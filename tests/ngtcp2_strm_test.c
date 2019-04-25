@@ -31,7 +31,8 @@
 
 static uint8_t nulldata[1024];
 
-static void setup_strm_streamfrq_fixture(ngtcp2_strm *strm, ngtcp2_mem *mem) {
+static void setup_strm_streamfrq_fixture(ngtcp2_strm *strm,
+                                         const ngtcp2_mem *mem) {
   ngtcp2_stream_frame_chain *frc;
   ngtcp2_vec *data;
 
@@ -80,7 +81,7 @@ static void setup_strm_streamfrq_fixture(ngtcp2_strm *strm, ngtcp2_mem *mem) {
 void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm strm;
   ngtcp2_stream_frame_chain *frc;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   int rv;
   ngtcp2_vec *data;
 

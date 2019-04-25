@@ -155,16 +155,16 @@ typedef struct {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER_D18 is the supported QUIC protocol version. */
-#define NGTCP2_PROTO_VER_D18 0xff000012u
+/* NGTCP2_PROTO_VER_D19 is the supported QUIC protocol version. */
+#define NGTCP2_PROTO_VER_D19 0xff000013u
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D18
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_D19
 
-/* NGTCP2_ALPN_* is a serialized form of ALPN protocol identifier this
-   library supports.  Notice that the first byte is the length of the
-   following protocol identifier. */
-#define NGTCP2_ALPN_D18 "\x5hq-18"
+/* NGTCP2_ALPN_H3 is a serialized form of HTTP/3 ALPN protocol
+   identifier this library supports.  Notice that the first byte is
+   the length of the following protocol identifier. */
+#define NGTCP2_ALPN_H3 "\x5h3-19"
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -229,7 +229,6 @@ typedef enum {
   NGTCP2_ERR_TLS_DECRYPT = -220,
   NGTCP2_ERR_STREAM_SHUT_WR = -221,
   NGTCP2_ERR_STREAM_NOT_FOUND = -222,
-  NGTCP2_ERR_VERSION_NEGOTIATION = -223,
   NGTCP2_ERR_STREAM_STATE = -226,
   NGTCP2_ERR_NOKEY = -227,
   NGTCP2_ERR_EARLY_DATA_REJECTED = -228,
@@ -239,10 +238,11 @@ typedef enum {
   NGTCP2_ERR_TRANSPORT_PARAM = -234,
   NGTCP2_ERR_DISCARD_PKT = -235,
   NGTCP2_ERR_PATH_VALIDATION_FAILED = -236,
+  NGTCP2_ERR_CONN_ID_BLOCKED = -237,
+  NGTCP2_ERR_INTERNAL = -238,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
-  NGTCP2_ERR_INTERNAL = -503
 } ngtcp2_lib_error;
 
 typedef enum {
@@ -299,7 +299,6 @@ typedef enum {
   NGTCP2_FINAL_SIZE_ERROR = 0x6u,
   NGTCP2_FRAME_ENCODING_ERROR = 0x7u,
   NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
-  NGTCP2_VERSION_NEGOTIATION_ERROR = 0x9u,
   NGTCP2_PROTOCOL_VIOLATION = 0xau,
   NGTCP2_INVALID_MIGRATION = 0xcu,
   NGTCP2_CRYPTO_ERROR = 0x100
@@ -518,13 +517,6 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  /* ordered_offset is an offset in global TLS stream which combines
-     Initial, Handshake, 0/1-RTT packet number space.  Although
-     packets can be acknowledged in the random order, they must be fed
-     into TLS stack as they are generated, so their offset in TLS
-     stream must be ordered and distinct.  This field is not sent on
-     wire, and currently used for outgoing frame only. */
-  uint64_t ordered_offset;
   uint64_t offset;
   /* datacnt is the number of elements that data contains.  Although
      the length of data is 1 in this definition, the library may
@@ -641,16 +633,6 @@ typedef struct {
 } ngtcp2_preferred_addr;
 
 typedef struct {
-  union {
-    struct {
-      uint32_t initial_version;
-    } ch;
-    struct {
-      uint32_t negotiated_version;
-      uint32_t supported_versions[63];
-      size_t len;
-    } ee;
-  } v;
   ngtcp2_preferred_addr preferred_address;
   ngtcp2_cid original_connection_id;
   uint64_t initial_max_stream_data_bidi_local;
@@ -710,7 +692,6 @@ typedef struct {
   ngtcp2_duration max_ack_delay;
   double smoothed_rtt;
   double rttvar;
-  ngtcp2_tstamp loss_time;
   size_t pto_count;
   size_t crypto_count;
   /* probe_pkt_left is the number of probe packet to sent */
@@ -1033,11 +1014,6 @@ typedef enum {
    */
   NGTCP2_CRYPTO_LEVEL_INITIAL,
   /**
-   * NGTCP2_CRYPTO_LEVEL_EARLY is Early Data (0-RTT) Keys encryption
-   * level.
-   */
-  NGTCP2_CRYPTO_LEVEL_EARLY,
-  /**
    * NGTCP2_CRYPTO_LEVEL_HANDSHAKE is Handshake Keys encryption level.
    */
   NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
@@ -1045,7 +1021,12 @@ typedef enum {
    * NGTCP2_CRYPTO_LEVEL_APP is Application Data (1-RTT) Keys
    * encryption level.
    */
-  NGTCP2_CRYPTO_LEVEL_APP
+  NGTCP2_CRYPTO_LEVEL_APP,
+  /**
+   * NGTCP2_CRYPTO_LEVEL_EARLY is Early Data (0-RTT) Keys encryption
+   * level.
+   */
+  NGTCP2_CRYPTO_LEVEL_EARLY
 } ngtcp2_crypto_level;
 
 /**
@@ -1304,7 +1285,9 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_acked_crypto_offset` is a callback function which is
  * called when crypto stream data is acknowledged, and application can
- * free the data.  This works like
+ * free the data.  |crypto_level| indicates the encryption level where
+ * this data was sent.  Crypto data never be sent in
+ * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY`.  This works like
  * :type:`ngtcp2_acked_stream_data_offset` but crypto stream has no
  * stream_id and stream_user_data, and |datalen| never become 0.
  *
@@ -1312,8 +1295,10 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
-typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn, uint64_t offset,
-                                          size_t datalen, void *user_data);
+typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn,
+                                          ngtcp2_crypto_level crypto_level,
+                                          uint64_t offset, size_t datalen,
+                                          void *user_data);
 
 /**
  * @functypedef
@@ -1336,8 +1321,8 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_extend_max_streams` is a callback function which is
  * called every time max stream ID is strictly extended.
- * |max_streams| is the cumulative number of streams which a local
- * endpoint can open.
+ * |max_streams| is the cumulative number of streams which an endpoint
+ * can open.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
@@ -1345,6 +1330,23 @@ typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
  */
 typedef int (*ngtcp2_extend_max_streams)(ngtcp2_conn *conn,
                                          uint64_t max_streams, void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_extend_max_stream_data` is a callback function which
+ * is invoked when max stream data is extended.  |stream_id|
+ * identifies the stream.  |max_data| is a cumulative number of bytes
+ * the endpoint can send on this stream.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
+                                             int64_t stream_id,
+                                             uint64_t max_data, void *user_data,
+                                             void *stream_user_data);
 
 /**
  * @functypedef
@@ -1451,22 +1453,6 @@ typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
                                             const ngtcp2_preferred_addr *paddr,
                                             void *user_data);
 
-/**
- * @functypedef
- *
- * :type:`ngtcp2_max_remote_stream_id` is a callback function which is
- * invoked when the maximum stream ID which remote endpoint can open
- * is extended.  |max_stream_id| is the maximum stream ID which remote
- * endpoint can initiate.
- *
- * The callback function must return 0 if it succeeds.  Returning
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
- * immediately.
- */
-typedef int (*ngtcp2_max_remote_stream_id)(ngtcp2_conn *conn,
-                                           int64_t max_stream_id,
-                                           void *user_data);
-
 typedef struct {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
@@ -1510,8 +1496,8 @@ typedef struct {
   ngtcp2_stream_close stream_close;
   ngtcp2_recv_stateless_reset recv_stateless_reset;
   ngtcp2_recv_retry recv_retry;
-  ngtcp2_extend_max_streams extend_max_streams_bidi;
-  ngtcp2_extend_max_streams extend_max_streams_uni;
+  ngtcp2_extend_max_streams extend_max_local_streams_bidi;
+  ngtcp2_extend_max_streams extend_max_local_streams_uni;
   ngtcp2_rand rand;
   ngtcp2_get_new_connection_id get_new_connection_id;
   ngtcp2_remove_connection_id remove_connection_id;
@@ -1519,8 +1505,9 @@ typedef struct {
   ngtcp2_path_validation path_validation;
   ngtcp2_select_preferred_addr select_preferred_addr;
   ngtcp2_stream_reset stream_reset;
-  ngtcp2_max_remote_stream_id max_remote_stream_id_bidi;
-  ngtcp2_max_remote_stream_id max_remote_stream_id_uni;
+  ngtcp2_extend_max_streams extend_max_remote_streams_bidi;
+  ngtcp2_extend_max_streams extend_max_remote_streams_uni;
+  ngtcp2_extend_max_stream_data extend_max_stream_data;
 } ngtcp2_conn_callbacks;
 
 /*
@@ -1548,7 +1535,8 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * connection is being established.  |callbacks|, and |settings| must
  * not be NULL, and the function make a copy of each of them.
  * |user_data| is the arbitrary pointer which is passed to the
- * user-defined callback functions.
+ * user-defined callback functions.  If |mem| is NULL, the memory
+ * allocator returned by `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1560,7 +1548,8 @@ NGTCP2_EXTERN int
 ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
                        uint32_t version, const ngtcp2_conn_callbacks *callbacks,
-                       const ngtcp2_settings *settings, void *user_data);
+                       const ngtcp2_settings *settings, const ngtcp2_mem *mem,
+                       void *user_data);
 
 /**
  * @function
@@ -1572,7 +1561,8 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * version to use.  |callbacks|, and |settings| must not be NULL, and
  * the function make a copy of each of them.  |user_data| is the
  * arbitrary pointer which is passed to the user-defined callback
- * functions.
+ * functions.  If |mem| is NULL, the memory allocator returned by
+ * `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1584,7 +1574,8 @@ NGTCP2_EXTERN int
 ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
                        uint32_t version, const ngtcp2_conn_callbacks *callbacks,
-                       const ngtcp2_settings *settings, void *user_data);
+                       const ngtcp2_settings *settings, const ngtcp2_mem *mem,
+                       void *user_data);
 
 /**
  * @function
@@ -1844,8 +1835,6 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_rx_keys(
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
@@ -1871,8 +1860,6 @@ NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_handshake_rx_keys(
     ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
@@ -1907,8 +1894,6 @@ NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int
 ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
@@ -1935,8 +1920,6 @@ ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
                                               const uint8_t *key, size_t keylen,
@@ -1963,8 +1946,6 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     Keying materials have already been installed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn,
                                               const uint8_t *key, size_t keylen,
@@ -2068,10 +2049,16 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_idle_timeout` returns the current idle timeout.
+ * If idle timeout is disabled, this function returns UINT64_MAX.
+ */
+NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
- * |params| to |conn|.  |exttype| is the type of message it is
- * carried, and it should be one of
- * :type:`ngtcp2_transport_params_type`.
+ * |params| to |conn|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2079,16 +2066,9 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
  * :enum:`NGTCP2_ERR_PROTO`
  *     If |conn| is server, and negotiated_version field is not the
  *     same as the used version.
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     If |conn| is client, and |exttype| is
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
- *     |conn| is server, and |exttype| is
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
- * :enum:`NGTCP2_ERR_VERSION_NEGOTIATION`
- *     Failed to validate version.
  */
 NGTCP2_EXTERN int
-ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
+ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn,
                                         const ngtcp2_transport_params *params);
 
 /**
@@ -2108,34 +2088,19 @@ ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn, uint8_t exttype,
  * * initial_max_stream_data_bidi_remote
  * * initial_max_stream_data_uni
  * * initial_max_data
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     |conn| is initialized as a server.
  */
-NGTCP2_EXTERN int ngtcp2_conn_set_early_remote_transport_params(
+NGTCP2_EXTERN void ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
 
 /**
  * @function
  *
  * `ngtcp2_conn_get_local_transport_params` fills settings values in
- * |params|.  |exttype| is the type of message it is carried, and it
- * should be one of :type:`ngtcp2_transport_params_type`.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     If |conn| is server, and |exttype| is
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO`; or, if
- *     |conn| is client, and |exttype| is either
- *     :enum:`NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS`.
+ * |params|.
  */
-NGTCP2_EXTERN int ngtcp2_conn_get_local_transport_params(
-    ngtcp2_conn *conn, ngtcp2_transport_params *params, uint8_t exttype);
+NGTCP2_EXTERN void
+ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
+                                       ngtcp2_transport_params *params);
 
 /**
  * @function
@@ -2192,8 +2157,6 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -2216,8 +2179,6 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -2239,8 +2200,6 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
- * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |stream_id| is 0
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  */
@@ -2530,15 +2489,16 @@ NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_submit_crypto_data` submits crypto stream data |data|
  * of length |datalen| to the library for transmission.  The
- * encryption level is automatically determined by the installed keys.
+ * encryption level is given in |crypto_level|.
  *
  * Application should keep the buffer pointed by |data| alive until
  * the data is acknowledged.  The acknowledgement is notified by
  * :type:`ngtcp2_acked_crypto_offset` callback.
  */
-NGTCP2_EXTERN int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
-                                                 const uint8_t *data,
-                                                 const size_t datalen);
+NGTCP2_EXTERN int
+ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
+                               ngtcp2_crypto_level crypto_level,
+                               const uint8_t *data, const size_t datalen);
 
 /**
  * @function
@@ -2546,15 +2506,9 @@ NGTCP2_EXTERN int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
  * `ngtcp2_conn_set_retry_ocid` tells |conn| that application as a
  * server received |ocid| included in token from client.  |ocid| will
  * be sent in transport parameter.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * enum:`NGTCP2_ERR_INVALID_STATE`
- *     |conn| is not initialized as a server.
  */
-NGTCP2_EXTERN int ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn,
-                                             const ngtcp2_cid *ocid);
+NGTCP2_EXTERN void ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn,
+                                              const ngtcp2_cid *ocid);
 
 /**
  * @function
@@ -2592,8 +2546,9 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
  * negative error codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     |conn| is initialized as server; or no unused connection ID is
- *     available.
+ *     Migration is disabled.
+ * :enum:`NGTCP2_ERR_CONN_ID_BLOCKED`
+ *     No unused connection ID is available.
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |path| equals the current path.
  * :enum:`NGTCP2_ERR_NOMEM`
@@ -2602,6 +2557,22 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
 NGTCP2_EXTERN int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
                                                  const ngtcp2_path *path,
                                                  ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_max_local_streams_uni` returns the cumulative
+ * number of streams which local endpoint can open.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_local_streams_uni(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_max_data_left` returns the number of bytes that
+ * this local endpoint can send in this connection.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
 
 /**
  * @function
@@ -2666,6 +2637,14 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * * max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY
  */
 NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
+
+/*
+ * @function
+ *
+ * `ngtcp2_mem_default` returns the default, system standard memory
+ * allocator.
+ */
+NGTCP2_EXTERN const ngtcp2_mem *ngtcp2_mem_default(void);
 
 #ifdef __cplusplus
 }

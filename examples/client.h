@@ -34,6 +34,7 @@
 #include <map>
 
 #include <ngtcp2/ngtcp2.h>
+#include <nghttp3/nghttp3.h>
 
 #include <openssl/ssl.h>
 
@@ -42,6 +43,7 @@
 #include "network.h"
 #include "crypto.h"
 #include "template.h"
+#include "shared.h"
 
 using namespace ngtcp2;
 
@@ -57,8 +59,6 @@ struct Config {
   const char *ciphers;
   // groups is the list of supported groups.
   const char *groups;
-  // interactive is true if interactive input mode is on.
-  bool interactive;
   // nstreams is the number of streams to open.
   size_t nstreams;
   // data is the pointer to memory region which maps file denoted by
@@ -82,12 +82,22 @@ struct Config {
   bool show_secret;
   // change_local_addr is the duration after which client changes
   // local address.
-  uint32_t change_local_addr;
+  double change_local_addr;
   // key_update is the duration after which client initiates key
   // update.
-  uint32_t key_update;
+  double key_update;
+  // delay_request is the duration after which client sends the first
+  // 1-RTT stream.
+  double delay_stream;
   // nat_rebinding is true if simulated NAT rebinding is enabled.
   bool nat_rebinding;
+  // no_preferred_addr is true if client do not follow preferred
+  // address offered by server.
+  bool no_preferred_addr;
+  std::string http_method;
+  std::string scheme;
+  std::string authority;
+  std::string path;
 };
 
 struct Buffer {
@@ -125,17 +135,15 @@ struct Stream {
   Stream(int64_t stream_id);
   ~Stream();
 
-  void buffer_file();
-
   int64_t stream_id;
-  std::deque<Buffer> streambuf;
-  // streambuf_idx is the index in streambuf, which points to the
-  // buffer to send next.
-  size_t streambuf_idx;
-  // tx_stream_offset is the offset where all data before offset is
-  // acked by the remote endpoint.
-  uint64_t tx_stream_offset;
-  bool should_send_fin;
+};
+
+struct Crypto {
+  /* data is unacknowledged data. */
+  std::deque<Buffer> data;
+  /* acked_offset is the size of acknowledged crypto data removed from
+     |data| so far */
+  uint64_t acked_offset;
 };
 
 class Client {
@@ -144,10 +152,9 @@ public:
   ~Client();
 
   int init(int fd, const Address &local_addr, const Address &remote_addr,
-           const char *addr, const char *port, int datafd, uint32_t version);
+           const char *addr, const char *port, uint32_t version);
   int init_ssl();
   void disconnect();
-  void disconnect(int liberr);
   void close();
 
   void start_wev();
@@ -157,9 +164,7 @@ public:
   int on_read();
   int on_write(bool retransmit = false);
   int write_streams();
-  int on_write_stream(int64_t stream_id, uint8_t fin, Buffer &data);
   int write_0rtt_streams();
-  int on_write_0rtt_stream(int64_t stream_id, uint8_t fin, Buffer &data);
   int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                 size_t datalen);
   int do_handshake(const ngtcp2_path *path, const uint8_t *data,
@@ -168,14 +173,15 @@ public:
                              size_t datalen);
   ssize_t do_handshake_write_once();
   void schedule_retransmit();
+  int handshake_completed();
 
-  int write_client_handshake(const uint8_t *data, size_t datalen);
-  void write_client_handshake(std::deque<Buffer> &dest, size_t &idx,
-                              const uint8_t *data, size_t datalen);
-  size_t read_client_handshake(const uint8_t **pdest);
+  void write_client_handshake(const uint8_t *data, size_t datalen);
+  void write_client_handshake(Crypto &crypto, const uint8_t *data,
+                              size_t datalen);
 
   size_t read_server_handshake(uint8_t *buf, size_t buflen);
-  void write_server_handshake(const uint8_t *data, size_t datalen);
+  int write_server_handshake(ngtcp2_crypto_level crypto_level,
+                             const uint8_t *data, size_t datalen);
 
   int setup_initial_crypto_context();
   ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
@@ -203,14 +209,11 @@ public:
   ngtcp2_conn *conn() const;
   void update_remote_addr(const ngtcp2_addr *addr);
   int send_packet();
-  int start_interactive_input();
-  int send_interactive_input();
-  int stop_interactive_input();
-  void remove_tx_crypto_data(uint64_t offset, size_t datalen);
-  int remove_tx_stream_data(int64_t stream_id, uint64_t offset, size_t datalen);
-  void on_stream_close(int64_t stream_id);
+  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
+                             size_t datalen);
+  int on_stream_close(int64_t stream_id);
   int on_extend_max_streams();
-  int handle_error(int liberr);
+  int handle_error();
   void make_stream_early();
   void on_recv_retry();
   int change_local_addr();
@@ -218,6 +221,7 @@ public:
   int update_key();
   int initiate_key_update();
   void start_key_update_timer();
+  void start_delay_stream_timer();
 
   int on_key(int name, const uint8_t *secret, size_t secretlen);
 
@@ -226,51 +230,57 @@ public:
   int select_preferred_address(Address &selected_addr,
                                const ngtcp2_preferred_addr *paddr);
 
+  int setup_httpconn();
+  int submit_http_request(int64_t stream_id);
+  int recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
+                       size_t datalen);
+  int acked_stream_data_offset(int64_t stream_id, size_t datalen);
+  int http_acked_stream_data(int64_t stream_id, size_t datalen);
+  void http_consume(int64_t stream_id, size_t nconsumed);
+  int on_stream_reset(int64_t stream_id);
+  int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
+  int send_stop_sending(int64_t stream_id);
+
 private:
   Address local_addr_;
   Address remote_addr_;
   size_t max_pktlen_;
   ev_io wev_;
   ev_io rev_;
-  ev_io stdinrev_;
   ev_timer timer_;
   ev_timer rttimer_;
   ev_timer change_local_addr_timer_;
   ev_timer key_update_timer_;
+  ev_timer delay_stream_timer_;
   ev_signal sigintev_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
   int fd_;
-  int datafd_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
-  std::deque<Buffer> chandshake_;
-  // chandshake_idx_ is the index in *chandshake_, which points to the
-  // buffer to read next.
-  size_t chandshake_idx_;
-  uint64_t tx_crypto_offset_;
+  Crypto crypto_[3];
+  ngtcp2_crypto_level tx_crypto_level_;
+  ngtcp2_crypto_level rx_crypto_level_;
   std::vector<uint8_t> shandshake_;
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;
   size_t nsread_;
   ngtcp2_conn *conn_;
+  nghttp3_conn *httpconn_;
   // addr_ is the server host address.
   const char *addr_;
   // port_ is the server port.
   const char *port_;
   crypto::Context hs_crypto_ctx_;
   crypto::Context crypto_ctx_;
+  QUICError last_error_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
-  int64_t last_stream_id_;
   // nstreams_done_ is the number of streams opened.
   uint64_t nstreams_done_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
   uint32_t version_;
-  // tls_alert_ is the last TLS alert description generated by the
-  // local endpoint.
-  uint8_t tls_alert_;
   // resumption_ is true if client attempts to resume session.
   bool resumption_;
 };

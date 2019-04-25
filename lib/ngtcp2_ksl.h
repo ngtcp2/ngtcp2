@@ -125,7 +125,7 @@ struct ngtcp2_ksl {
   ngtcp2_ksl_compar compar;
   ngtcp2_ksl_key inf_key;
   size_t n;
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
 };
 
 /*
@@ -139,7 +139,7 @@ struct ngtcp2_ksl {
  *   Out of memory.
  */
 int ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar,
-                    const ngtcp2_ksl_key *inf_key, ngtcp2_mem *mem);
+                    const ngtcp2_ksl_key *inf_key, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_ksl_free frees resources allocated for |ksl|.  If |ksl| is

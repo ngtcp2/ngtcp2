@@ -21,7 +21,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if(LIBEV_FOUND AND OPENSSL_FOUND)
+if(LIBEV_FOUND AND OPENSSL_FOUND AND LIBNGHTTP3_FOUND)
   include_directories(
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
@@ -29,12 +29,14 @@ if(LIBEV_FOUND AND OPENSSL_FOUND)
 
     ${OPENSSL_INCLUDE_DIRS}
     ${LIBEV_INCLUDE_DIRS}
+    ${LIBNGHTTP3_INCLUDE_DIRS}
   )
 
   link_libraries(
     ngtcp2
     ${OPENSSL_LIBRARIES}
     ${LIBEV_LIBRARIES}
+    ${LIBNGHTTP3_LIBRARIES}
   )
 
   set(client_SOURCES
@@ -44,6 +46,7 @@ if(LIBEV_FOUND AND OPENSSL_FOUND)
     keylog.cc
     crypto_openssl.cc
     crypto.cc
+    shared.cc
   )
 
   set(server_SOURCES
@@ -54,6 +57,7 @@ if(LIBEV_FOUND AND OPENSSL_FOUND)
     crypto_openssl.cc
     crypto.cc
     http.cc
+    shared.cc
   )
 
   add_executable(client ${client_SOURCES} $<TARGET_OBJECTS:http-parser>)
@@ -71,5 +75,5 @@ if(LIBEV_FOUND AND OPENSSL_FOUND)
 
   # TODO prevent client and example servers from being installed?
 else()
-  message(WARNING "Examples are disabled due to lack of good libev or OpenSSL")
+  message(WARNING "Examples are disabled due to lack of good libev, OpenSSL or libnghttp3")
 endif()

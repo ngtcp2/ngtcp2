@@ -53,7 +53,7 @@ typedef struct {
   /* The pointer to the pointer to the item stored */
   ngtcp2_pq_entry **q;
   /* Memory allocator */
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   /* The number of items stored */
   size_t length;
   /* The maximum number of items this pq can store. This is
@@ -66,7 +66,7 @@ typedef struct {
 /*
  * Initializes priority queue |pq| with compare function |cmp|.
  */
-void ngtcp2_pq_init(ngtcp2_pq *pq, ngtcp2_less less, ngtcp2_mem *mem);
+void ngtcp2_pq_init(ngtcp2_pq *pq, ngtcp2_less less, const ngtcp2_mem *mem);
 
 /*
  * Deallocates any resources allocated for |pq|.  The stored items are

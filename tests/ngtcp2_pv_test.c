@@ -32,7 +32,7 @@
 void test_ngtcp2_pv_add_entry(void) {
   ngtcp2_pv *pv;
   int rv;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_cid cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   ngtcp2_dcid dcid;
@@ -83,7 +83,7 @@ void test_ngtcp2_pv_add_entry(void) {
 void test_ngtcp2_pv_validate(void) {
   ngtcp2_pv *pv;
   int rv;
-  ngtcp2_mem *mem = ngtcp2_mem_default();
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_cid cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   ngtcp2_dcid dcid;

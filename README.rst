@@ -6,18 +6,6 @@ ngtcp2
 ngtcp2 project is an effort to implement QUIC protocol which is now
 being discussed in IETF QUICWG for its standardization.
 
-Development status
-------------------
-
-Second Implementation Draft
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-We are focusing on implementing `10th Implementation Draft
-<https://github.com/quicwg/base-drafts/wiki/10th-Implementation-Draft>`_.
-
-* https://quicwg.github.io/base-drafts/draft-ietf-quic-transport.html
-* https://quicwg.github.io/base-drafts/draft-ietf-quic-tls.html
-
 Requirements
 ------------
 
@@ -38,26 +26,36 @@ libngtcp2 uses cunit for its unit test frame work:
 
 * cunit >= 2.1
 
-To build sources under the examples directory, libev is required:
+To build sources under the examples directory, libev and nghttp3 are
+required:
 
 * libev
+* nghttp3 (https://github.com/ngtcp2/nghttp3) for HTTP/3
 
-The client and server under examples directory require OpenSSL (master
-branch) as crypto backend:
+The client and server under examples directory require patched OpenSSL
+as crypto backend:
 
-* OpenSSL (https://github.com/openssl/openssl/)
+* Patched OpenSSL
+  (https://github.com/tatsuhiro-t/openssl/tree/quic-draft-19)
 
 Build from git
 --------------
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b quic-draft-18 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b quic-draft-19 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
    $ make -j$(nproc)
    $ make install_sw
+   $ cd ..
+   $ git clone https://github.com/ngtcp2/nghttp3
+   $ cd nghttp3
+   $ autoreconf -i
+   $ ./configure --prefix=$PWD/build --enable-lib-only
+   $ make -j$(nproc) check
+   $ make install
    $ cd ..
    $ git clone https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
@@ -65,22 +63,21 @@ Build from git
    $ # For Mac users who have installed libev with MacPorts, append
    $ # ',-L/opt/local/lib' to LDFLAGS, and also pass
    $ # CPPFLAGS="-I/opt/local/include" to ./configure.
-   $ ./configure PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/../openssl/build/lib"
+   $ ./configure PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/../openssl/build/lib"
    $ make -j$(nproc) check
 
 Client/Server
 -------------
 
 After successful build, the client and server executable should be
-found under examples directory.
-
+found under examples directory.  They talk HTTP/3.
 
 Client
 ~~~~~~
 
 .. code-block:: text
 
-   $ examples/client [OPTIONS] <ADDR> <PORT>
+   $ examples/client [OPTIONS] <ADDR> <PORT> <URI>
 
 The notable options are:
 

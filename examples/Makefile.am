@@ -29,12 +29,14 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/third-party \
 	@OPENSSL_CFLAGS@ \
 	@LIBEV_CFLAGS@ \
+	@LIBNGHTTP3_CFLAGS@ \
 	@DEFS@
 AM_LDFLAGS = -no-install
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
 	@OPENSSL_LIBS@ \
-	@LIBEV_LIBS@
+	@LIBEV_LIBS@ \
+	@LIBNGHTTP3_LIBS@
 
 noinst_PROGRAMS = client server
 
@@ -43,7 +45,7 @@ client_SOURCES = client.cc client.h \
 	debug.cc debug.h \
 	util.cc util.h \
 	keylog.cc keylog.h \
-	shared.h \
+	shared.cc shared.h \
 	crypto_openssl.cc \
 	crypto.cc
 
@@ -52,7 +54,7 @@ server_SOURCES = server.cc server.h \
 	debug.cc debug.h \
 	util.cc util.h \
 	keylog.cc keylog.h \
-	shared.h \
+	shared.cc shared.h \
 	crypto_openssl.cc \
 	crypto.cc \
 	http.cc http.h

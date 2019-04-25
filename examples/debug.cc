@@ -197,6 +197,122 @@ void path_validation(const ngtcp2_path *path,
             << std::endl;
 }
 
+void print_http_begin_request_headers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " request headers started\n",
+          stream_id);
+}
+
+void print_http_begin_response_headers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " response headers started\n",
+          stream_id);
+}
+
+namespace {
+void print_header(const uint8_t *name, const uint8_t *value, uint8_t flags) {
+  fprintf(outfile, "[%s: %s]%s\n", name, value,
+          (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
+}
+} // namespace
+
+namespace {
+void print_header(const nghttp3_rcbuf *name, const nghttp3_rcbuf *value,
+                  uint8_t flags) {
+  print_header(nghttp3_rcbuf_get_buf(name).base,
+               nghttp3_rcbuf_get_buf(value).base, flags);
+}
+} // namespace
+
+namespace {
+void print_header(const nghttp3_nv &nv) {
+  print_header(nv.name, nv.value, nv.flags);
+}
+} // namespace
+
+void print_http_header(int64_t stream_id, const nghttp3_rcbuf *name,
+                       const nghttp3_rcbuf *value, uint8_t flags) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " ", stream_id);
+  print_header(name, value, flags);
+}
+
+void print_http_end_headers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " headers ended\n", stream_id);
+}
+
+void print_http_data(int64_t stream_id, const uint8_t *data, size_t datalen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " body %zu bytes\n", stream_id,
+          datalen);
+  util::hexdump(outfile, data, datalen);
+}
+
+void print_http_begin_trailers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " trailers started\n", stream_id);
+}
+
+void print_http_end_trailers(int64_t stream_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " trailers ended\n", stream_id);
+}
+
+void print_http_begin_push_promise(int64_t stream_id, int64_t push_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " started\n",
+          stream_id, push_id);
+}
+
+void print_http_push_promise(int64_t stream_id, int64_t push_id,
+                             const nghttp3_rcbuf *name,
+                             const nghttp3_rcbuf *value, uint8_t flags) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " ", stream_id,
+          push_id);
+  print_header(name, value, flags);
+}
+
+void print_http_end_push_promise(int64_t stream_id, int64_t push_id) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " ended\n",
+          stream_id, push_id);
+}
+
+void cancel_push(int64_t push_id, int64_t stream_id) {
+  fprintf(outfile,
+          "http: push 0x%" PRIx64 " (stream 0x%" PRIx64
+          ") has been cancelled by remote endpoint\n",
+          push_id, stream_id);
+}
+
+void push_stream(int64_t push_id, int64_t stream_id) {
+  fprintf(outfile,
+          "http: push 0x%" PRIx64 " promise fulfilled stream 0x%" PRIx64 "\n",
+          push_id, stream_id);
+}
+
+void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
+                                size_t nvlen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " submit request headers\n",
+          stream_id);
+  for (size_t i = 0; i < nvlen; ++i) {
+    auto &nv = nva[i];
+    print_header(nv);
+  }
+}
+
+void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
+                                 size_t nvlen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " submit response headers\n",
+          stream_id);
+  for (size_t i = 0; i < nvlen; ++i) {
+    auto &nv = nva[i];
+    print_header(nv);
+  }
+}
+
+void print_http_push_promise(int64_t stream_id, int64_t push_id,
+                             const nghttp3_nv *nva, size_t nvlen) {
+  fprintf(outfile, "http: stream 0x%" PRIx64 " submit push 0x%" PRIx64 "\n",
+          stream_id, push_id);
+  for (size_t i = 0; i < nvlen; ++i) {
+    auto &nv = nva[i];
+    print_header(nv);
+  }
+}
+
 } // namespace debug
 
 } // namespace ngtcp2

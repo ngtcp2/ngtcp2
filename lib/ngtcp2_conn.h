@@ -62,6 +62,9 @@ typedef enum {
   NGTCP2_CS_DRAINING,
 } ngtcp2_conn_state;
 
+/* NGTCP2_MAX_STREAMS is the maximum number of streams. */
+#define NGTCP2_MAX_STREAMS (((1LL << 60) - 1) << 2)
+
 /* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
    reordered packets. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 16
@@ -258,16 +261,14 @@ typedef struct {
     } tx;
 
     struct {
-      /* offset_base is the offset of crypto stream in the global TLS
-         stream and it specifies the offset where the crypto stream in
-         this encryption level starts. */
-      uint64_t offset_base;
       /* ckm is a cryptographic key, and iv to decrypt incoming
          packets. */
       ngtcp2_crypto_km *ckm;
       /* hp is header protection key. */
       ngtcp2_vec *hp;
     } rx;
+
+    ngtcp2_strm strm;
   } crypto;
 
   ngtcp2_acktr acktr;
@@ -356,18 +357,18 @@ struct ngtcp2_conn {
   struct {
     ngtcp2_settings settings;
     struct {
-      /* max_stream_id is the maximum bidirectional stream ID which
+      /* max_streams is the maximum number of bidirectional streams which
          the local endpoint can open. */
-      int64_t max_stream_id;
+      uint64_t max_streams;
       /* next_stream_id is the bidirectional stream ID which the local
          endpoint opens next. */
       int64_t next_stream_id;
     } bidi;
 
     struct {
-      /* max_stream_id is the maximum unidirectional stream ID which
-         the local endpoint can open. */
-      int64_t max_stream_id;
+      /* max_streams is the maximum number of unidirectional streams
+         which the local endpoint can open. */
+      uint64_t max_streams;
       /* next_stream_id is the unidirectional stream ID which the
          local endpoint opens next. */
       int64_t next_stream_id;
@@ -378,26 +379,28 @@ struct ngtcp2_conn {
     ngtcp2_settings settings;
     struct {
       ngtcp2_idtr idtr;
-      /* unsent_max_stream_id is the maximum stream ID of peer
+      /* unsent_max_streams is the maximum number of streams of peer
          initiated bidirectional stream which the local endpoint can
          accept.  This limit is not yet notified to the remote
          endpoint. */
-      int64_t unsent_max_stream_id;
-      /* max_stream_id is the maximum stream ID of peer initiated
-         bidirectional stream which the local endpoint can accept. */
-      int64_t max_stream_id;
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated bidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
     } bidi;
 
     struct {
       ngtcp2_idtr idtr;
-      /* unsent_max_stream_id is the maximum stream ID of peer
+      /* unsent_max_streams is the maximum number of streams of peer
          initiated unidirectional stream which the local endpoint can
          accept.  This limit is not yet notified to the remote
          endpoint. */
-      int64_t unsent_max_stream_id;
-      /* max_stream_id is the maximum stream ID of peer initiated
-         unidirectional stream which the local endpoint can accept. */
-      int64_t max_stream_id;
+      uint64_t unsent_max_streams;
+      /* max_streams is the maximum number of streams of peer
+         initiated unidirectional stream which the local endpoint can
+         accept. */
+      uint64_t max_streams;
     } uni;
   } remote;
 
@@ -413,7 +416,6 @@ struct ngtcp2_conn {
       ngtcp2_crypto_km *old_rx_ckm;
     } key_update;
 
-    ngtcp2_strm strm;
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_array decrypt_buf;
@@ -435,7 +437,7 @@ struct ngtcp2_conn {
      This field is only used by server to ensure "3 times received
      data" rule. */
   size_t hs_sent;
-  ngtcp2_mem *mem;
+  const ngtcp2_mem *mem;
   void *user_data;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
