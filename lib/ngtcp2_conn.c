@@ -4812,14 +4812,13 @@ static int conn_max_data_violated(ngtcp2_conn *conn, size_t datalen) {
  * NGTCP2_ERR_STREAM_LIMIT
  *     STREAM frame has remote stream ID which is strictly greater
  *     than the allowed limit.
- * NGTCP2_ERR_PROTO
- *     The end offset of stream data is beyond the NGTCP2_MAX_VARINT.
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  * NGTCP2_ERR_FLOW_CONTROL
- *     Flow control limit is violated.
+ *     Flow control limit is violated; or the end offset of stream
+ *     data is beyond the NGTCP2_MAX_VARINT.
  * NGTCP2_ERR_FINAL_SIZE
  *     STREAM frame has strictly larger end offset than it is
  *     permitted.
@@ -4859,7 +4858,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   }
 
   if (NGTCP2_MAX_VARINT - datalen < fr->offset) {
-    return NGTCP2_ERR_PROTO;
+    return NGTCP2_ERR_FLOW_CONTROL;
   }
 
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
@@ -5106,13 +5105,14 @@ handle_max_remote_streams_extension(uint64_t *punsent_max_remote_streams) {
  *     greater than the allowed limit.
  * NGTCP2_ERR_PROTO
  *     RESET_STREAM frame is received to the local unidirectional
- *     stream; or the final offset is beyond the NGTCP2_MAX_VARINT.
+ *     stream
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  * NGTCP2_ERR_FLOW_CONTROL
- *     Flow control limit is violated.
+ *     Flow control limit is violated; or the final size is beyond the
+ *     NGTCP2_MAX_VARINT.
  * NGTCP2_ERR_FINAL_SIZE
  *     The final offset is strictly larger than it is permitted.
  */
@@ -5146,6 +5146,10 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     }
 
     idtr = &conn->remote.uni.idtr;
+  }
+
+  if (NGTCP2_MAX_VARINT < fr->final_size) {
+    return NGTCP2_ERR_FLOW_CONTROL;
   }
 
   strm = ngtcp2_conn_find_stream(conn, fr->stream_id);
