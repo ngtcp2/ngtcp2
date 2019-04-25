@@ -1306,15 +1306,14 @@ typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn,
  * @functypedef
  *
  * :type:`ngtcp2_recv_stateless_reset` is a callback function which is
- * called when Stateless Reset packet is received.  The |hd| is the
- * packet header, and the stateless reset details are given in |sr|.
+ * called when Stateless Reset packet is received.  The stateless
+ * reset details are given in |sr|.
  *
  * The implementation of this callback should return 0 if it succeeds.
  * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
 typedef int (*ngtcp2_recv_stateless_reset)(ngtcp2_conn *conn,
-                                           const ngtcp2_pkt_hd *hd,
                                            const ngtcp2_pkt_stateless_reset *sr,
                                            void *user_data);
 

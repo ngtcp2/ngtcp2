@@ -2063,6 +2063,56 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* stateless reset in long packet */
+  setup_default_server(&conn);
+  conn->callbacks.decrypt = fail_decrypt;
+  conn->pktns.rx.max_pkt_num = 754233;
+
+  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, sizeof(buf), token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* long packet */
+  buf[0] |= NGTCP2_HEADER_FORM_BIT;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_DRAINING == rv);
+  CU_ASSERT(NGTCP2_CS_DRAINING == conn->state);
+
+  ngtcp2_conn_del(conn);
+
+  /* stateless reset in long packet; parsing long header fails */
+  setup_default_server(&conn);
+  conn->callbacks.decrypt = fail_decrypt;
+  conn->pktns.rx.max_pkt_num = 754233;
+
+  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf, 39, token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* long packet */
+  buf[0] |= NGTCP2_HEADER_FORM_BIT;
+  buf[0] |= 0x30;
+  /* Make version nonzero so that it does not look like Version
+     Negotiation packet */
+  buf[1] = 0xff;
+  /* Make largest CID so that ngtcp2_pkt_decode_hd_long fails */
+  buf[5] = 0xff;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_DRAINING == rv);
+  CU_ASSERT(NGTCP2_CS_DRAINING == conn->state);
+
+  ngtcp2_conn_del(conn);
+
   /* token does not match */
   setup_default_client(&conn);
   conn->callbacks.decrypt = fail_decrypt;

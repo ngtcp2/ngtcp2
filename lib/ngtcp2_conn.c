@@ -5330,8 +5330,8 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */
-static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                                   const uint8_t *payload, size_t payloadlen) {
+static int conn_on_stateless_reset(ngtcp2_conn *conn, const uint8_t *payload,
+                                   size_t payloadlen) {
   int rv = 1;
   ngtcp2_pkt_stateless_reset sr;
   size_t i, len;
@@ -5371,13 +5371,13 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   conn->state = NGTCP2_CS_DRAINING;
 
-  ngtcp2_log_rx_sr(&conn->log, hd, &sr);
+  ngtcp2_log_rx_sr(&conn->log, &sr);
 
   if (!conn->callbacks.recv_stateless_reset) {
     return 0;
   }
 
-  rv = conn->callbacks.recv_stateless_reset(conn, hd, &sr, conn->user_data);
+  rv = conn->callbacks.recv_stateless_reset(conn, &sr, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -5900,15 +5900,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    if (pktlen < (size_t)nread + hd.len) {
+    if (pktlen < (size_t)nread + hd.len || conn->version != hd.version) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
     pktlen = (size_t)nread + hd.len;
-
-    if (conn->version != hd.version) {
-      return NGTCP2_ERR_DISCARD_PKT;
-    }
 
     /* Quoted from spec: if subsequent packets of those types include
        a different Source Connection ID, they MUST be discarded. */
@@ -5933,14 +5929,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       aead_overhead = conn->crypto.aead_overhead;
       break;
     case NGTCP2_PKT_0RTT:
-      if (!conn->server) {
+      if (!conn->server || !conn->early.ckm) {
         return NGTCP2_ERR_DISCARD_PKT;
       }
 
       pktns = &conn->pktns;
-      if (!conn->early.ckm) {
-        return NGTCP2_ERR_DISCARD_PKT;
-      }
       ckm = conn->early.ckm;
       hp = conn->early.hp;
       hp_mask = conn->callbacks.hp_mask;
@@ -6066,24 +6059,12 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
-    if (rv == 0) {
-      return (ssize_t)pktlen;
-    }
-
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "could not decrypt packet payload");
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
   if (invalid_reserved_bits) {
-    if (hd.type == NGTCP2_PKT_SHORT) {
-      rv = conn_on_stateless_reset(conn, &hd, pkt, pktlen);
-      if (rv == 0) {
-        return (ssize_t)pktlen;
-      }
-    }
-
     return NGTCP2_ERR_PROTO;
   }
 
@@ -6358,6 +6339,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ssize_t nread;
   ngtcp2_pkt_chain **ppc, *next;
+  int rv;
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "processing buffered protected packet");
@@ -6366,6 +6348,15 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
     next = (*ppc)->next;
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
                           ts);
+    if (nread < 0 && !ngtcp2_err_is_fatal((int)nread)) {
+      rv = conn_on_stateless_reset(conn, (*ppc)->pkt, (*ppc)->pktlen);
+      if (rv == 0) {
+        ngtcp2_pkt_chain_del(*ppc, conn->mem);
+        *ppc = next;
+        return 0;
+      }
+    }
+
     ngtcp2_pkt_chain_del(*ppc, conn->mem);
     *ppc = next;
     if (nread < 0) {
@@ -6462,12 +6453,19 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
 static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                           const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts) {
   ssize_t nread;
+  int rv;
+  const uint8_t *origpkt = pkt;
+  size_t origpktlen = pktlen;
 
   while (pktlen) {
     nread = conn_recv_pkt(conn, path, pkt, pktlen, ts);
     if (nread < 0) {
       if (ngtcp2_err_is_fatal((int)nread)) {
         return (int)nread;
+      }
+      rv = conn_on_stateless_reset(conn, origpkt, origpktlen);
+      if (rv == 0) {
+        return 0;
       }
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         return 0;

@@ -1039,11 +1039,10 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   CU_ASSERT(spktlen == p - buf);
 
   /* Not enough buffer */
-  spktlen =
-      ngtcp2_pkt_write_stateless_reset(buf,
-                                       1 + NGTCP2_MIN_STATELESS_RESET_RANDLEN -
-                                           1 + NGTCP2_STATELESS_RESET_TOKENLEN,
-                                       token, rand, sizeof(rand));
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf,
+      NGTCP2_MIN_STATELESS_RESET_RANDLEN - 1 + NGTCP2_STATELESS_RESET_TOKENLEN,
+      token, rand, sizeof(rand));
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }

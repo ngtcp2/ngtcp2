@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "ngtcp2_conv.h"
 #include "ngtcp2_str.h"
@@ -129,7 +130,8 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
       len = NGTCP2_MIN_LONG_HEADERLEN - 1; /* Cut packet number field */
       break;
     default:
-      return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
+      /* Unreachable */
+      assert(0);
     }
   }
 
@@ -1911,8 +1913,8 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
                                          uint8_t *rand, size_t randlen) {
   uint8_t *p;
 
-  if (destlen < 1 + NGTCP2_MIN_STATELESS_RESET_RANDLEN +
-                    NGTCP2_STATELESS_RESET_TOKENLEN) {
+  if (destlen <
+      NGTCP2_MIN_STATELESS_RESET_RANDLEN + NGTCP2_STATELESS_RESET_TOKENLEN) {
     return NGTCP2_ERR_NOBUF;
   }
 
