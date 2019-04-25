@@ -342,10 +342,6 @@ static int rtb_call_acked_stream_offset(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   ngtcp2_cc_pkt pkt;
 
-  if (!(ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
-    return;
-  }
-
   ngtcp2_default_cc_on_pkt_acked(
       rtb->cc, ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts));
 }
@@ -359,6 +355,9 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   ngtcp2_ksl_it it;
   ngtcp2_ksl_key key;
   ssize_t num_acked = 0;
+  int largest_pkt_acked = 0;
+  int rtt_updated = 0;
+  ngtcp2_tstamp largest_pkt_sent_ts;
 
   rtb->largest_acked_tx_pkt_num =
       ngtcp2_max(rtb->largest_acked_tx_pkt_num, largest_ack);
@@ -381,9 +380,15 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         if (rv != 0) {
           return rv;
         }
-        if (largest_ack == key.i &&
+        if (largest_ack == key.i) {
+          largest_pkt_sent_ts = ent->ts;
+          largest_pkt_acked = 1;
+        }
+        if (!rtt_updated && largest_pkt_acked &&
             (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
-          ngtcp2_conn_update_rtt(conn, ts - ent->ts, fr->ack_delay_unscaled);
+          rtt_updated = 1;
+          ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
+                                 fr->ack_delay_unscaled);
         }
         rtb_on_pkt_acked(rtb, ent);
         /* At this point, it is invalided because rtb->ents might be
@@ -420,7 +425,12 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         if (rv != 0) {
           return rv;
         }
-
+        if (!rtt_updated && largest_pkt_acked &&
+            (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+          rtt_updated = 1;
+          ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
+                                 fr->ack_delay_unscaled);
+        }
         rtb_on_pkt_acked(rtb, ent);
       }
       rv = rtb_remove(rtb, &it, ent);
@@ -457,8 +467,9 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
  * considered lost in NGTCP2_DURATION_TICK resolution.
  */
 static uint64_t compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
-  return (uint64_t)(ngtcp2_max((double)rcs->latest_rtt, rcs->smoothed_rtt) * 9 /
-                    8);
+  uint64_t loss_delay = (uint64_t)(
+      ngtcp2_max((double)rcs->latest_rtt, rcs->smoothed_rtt) * 9 / 8);
+  return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
 }
 
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,

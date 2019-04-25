@@ -34,7 +34,7 @@
 #define NGTCP2_MAX_DGRAM_SIZE 1200
 #define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
 #define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
-#define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 2
+#define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 3
 
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
@@ -42,7 +42,7 @@ typedef struct ngtcp2_log ngtcp2_log;
 typedef struct {
   uint64_t cwnd;
   uint64_t ssthresh;
-  uint64_t recovery_start_time;
+  uint64_t congestion_recovery_start_time;
   uint64_t bytes_in_flight;
 } ngtcp2_cc_stat;
 

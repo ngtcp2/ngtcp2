@@ -1510,7 +1510,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_pktns *pktns;
   ngtcp2_rtb_entry *rtbent;
   ssize_t spktlen;
-  int force_initial;
+  int force_send;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
@@ -1533,8 +1533,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  force_initial = type == NGTCP2_PKT_INITIAL && require_padding &&
-                  (conn->flags & NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL);
+  force_send = (conn->flags & NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE);
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
@@ -1543,7 +1542,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     return rv;
   }
-  if (!ackfr && !force_initial) {
+  if (!ackfr && !force_send) {
     return 0;
   }
 
@@ -1584,7 +1583,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ackfr = NULL;
   }
 
-  if (require_padding) {
+  if (require_padding || force_send) {
     lfr.type = NGTCP2_FRAME_PADDING;
     lfr.padding.len = ngtcp2_ppe_padding(&ppe);
     if (lfr.padding.len > 0) {
@@ -1608,9 +1607,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_rtb_entry_del(rtbent, conn->mem);
       return rv;
     }
-
-    assert(type == NGTCP2_PKT_INITIAL);
-    conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL;
   } else {
     lfr.type = NGTCP2_FRAME_PADDING;
     lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
@@ -1623,6 +1619,8 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
       return spktlen;
     }
   }
+
+  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE;
 
   ++pktns->tx.last_pkt_num;
 
@@ -1941,7 +1939,8 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
   int rv;
 
   timeout = rcvry_stat_compute_pto(&conn->rcs);
-  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+  timeout =
+      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
   for (; !ngtcp2_pq_empty(&conn->scid.used);) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
@@ -3026,7 +3025,7 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
 
   /* TODO reconsider this.  This might get larger pretty quickly than
      validation timeout which is just around 3*PTO. */
-  expiry = ts + 6 * NGTCP2_DEFAULT_INITIAL_RTT * (1ull << pv->loss_count);
+  expiry = ts + 6ULL * NGTCP2_DEFAULT_INITIAL_RTT * (1ULL << pv->loss_count);
 
   ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry);
 
@@ -3944,7 +3943,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (pv->flags & NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS) {
     timeout = rcvry_stat_compute_pto(&conn->rcs);
-    timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+    timeout = ngtcp2_max(timeout,
+                         (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
     rv = ngtcp2_pv_new(&npv, &conn->dcid.current, timeout,
                        NGTCP2_PV_FLAG_DONT_CARE |
@@ -5805,7 +5805,8 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   conn_reset_congestion_state(conn);
 
   timeout = rcvry_stat_compute_pto(&conn->rcs);
-  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+  timeout =
+      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
   rv = ngtcp2_pv_new(&pv, dcid, timeout,
                      NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS, &conn->log,
@@ -6706,7 +6707,8 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   assert(conn->pv == NULL);
 
   timeout = rcvry_stat_compute_pto(&conn->rcs);
-  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+  timeout =
+      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
   rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
                      conn->mem);
@@ -6853,7 +6855,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         res = nwrite;
       }
       if (res) {
-        conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL;
+        conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE;
       }
       return res;
     }
@@ -8061,22 +8063,23 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
                             uint64_t ack_delay) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
 
-  rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
-  ack_delay = ngtcp2_min(ack_delay, conn->remote.settings.max_ack_delay);
-  if (rtt - rcs->min_rtt > ack_delay) {
-    rtt -= ack_delay;
-  }
-
   rcs->latest_rtt = rtt;
 
   if (rcs->smoothed_rtt < 1e-9) {
-    rcs->smoothed_rtt = (double)rtt;
-    rcs->rttvar = (double)rtt / 2;
-  } else {
-    double sample = fabs(rcs->smoothed_rtt - (double)rtt);
-    rcs->rttvar = rcs->rttvar * 3 / 4 + sample / 4;
-    rcs->smoothed_rtt = rcs->smoothed_rtt * 7 / 8 + (double)rtt / 8;
+    rcs->min_rtt = rtt;
+    rcs->smoothed_rtt = rtt;
+    rcs->rttvar = rtt / 2;
+    return;
   }
+
+  rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
+  ack_delay = ngtcp2_min(ack_delay, conn->remote.settings.max_ack_delay);
+  if (rtt > rcs->min_rtt + ack_delay) {
+    rtt -= ack_delay;
+  }
+
+  rcs->rttvar = rcs->rttvar * 3 / 4 + fabs(rcs->smoothed_rtt - (double)rtt) / 4;
+  rcs->smoothed_rtt = rcs->smoothed_rtt * 7 / 8 + (double)rtt / 8;
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
@@ -8095,7 +8098,6 @@ void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
   uint64_t timeout;
-  ngtcp2_ksl_it it;
   ngtcp2_pktns *in_pktns = &conn->in_pktns;
   ngtcp2_pktns *hs_pktns = &conn->hs_pktns;
   ngtcp2_pktns *pktns = &conn->pktns;
@@ -8103,7 +8105,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
 
   if (ngtcp2_rtb_num_ack_eliciting(&in_pktns->rtb) ||
       ngtcp2_rtb_num_ack_eliciting(&hs_pktns->rtb) ||
-      (!conn->server && !conn->hs_pktns.crypto.tx.ckm)) {
+      (!conn->server && !conn->pktns.crypto.tx.ckm)) {
     loss_time = in_pktns->rtb.loss_time;
     if (loss_time == 0 ||
         (hs_pktns->rtb.loss_time && hs_pktns->rtb.loss_time < loss_time)) {
@@ -8139,9 +8141,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
     return;
   }
 
-  it = ngtcp2_rtb_head(&pktns->rtb);
-  if (ngtcp2_ksl_it_end(&it) ||
-      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+  if (ngtcp2_rtb_num_ack_eliciting(&pktns->rtb) == 0) {
     if (rcs->loss_detection_timer) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                       "loss detection timer canceled");
@@ -8221,6 +8221,8 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
         return rv;
       }
     } else {
+      /* TODO It looks like we MUST NOT mark these packets lost.  Just
+         resend them.  CWND is affected. */
       rv = conn_handshake_pkt_lost(conn, in_pktns);
       if (rv != 0) {
         return rv;
@@ -8230,12 +8232,15 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
         return rv;
       }
       if (!conn->server && !conn->hs_pktns.crypto.tx.ckm) {
-        conn->flags |= NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL;
+        conn->flags |= NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE;
       }
       ++rcs->crypto_count;
     }
   } else if (!conn->server && !conn->hs_pktns.crypto.tx.ckm) {
-    conn->flags |= NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL;
+    conn->flags |= NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE;
+    ++rcs->crypto_count;
+  } else if (!conn->server && !conn->pktns.crypto.tx.ckm) {
+    conn->flags |= NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE;
     ++rcs->crypto_count;
   } else if (pktns->rtb.loss_time) {
     rv = ngtcp2_conn_detect_lost_pkt(conn, pktns, rcs, ts);
@@ -8395,7 +8400,8 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   timeout = rcvry_stat_compute_pto(&conn->rcs);
-  timeout = ngtcp2_max(timeout, 6 * NGTCP2_DEFAULT_INITIAL_RTT);
+  timeout =
+      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
   rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
                      conn->mem);

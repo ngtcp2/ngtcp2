@@ -82,7 +82,7 @@ typedef enum {
    draft-ietf-quic-recovery-17. */
 #define NGTCP2_GRANULARITY NGTCP2_MILLISECONDS
 
-#define NGTCP2_DEFAULT_INITIAL_RTT (100 * NGTCP2_MILLISECONDS)
+#define NGTCP2_DEFAULT_INITIAL_RTT (500 * NGTCP2_MILLISECONDS)
 
 /* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
    crypto stream in Initial packet.  We set this hard limit here
@@ -173,9 +173,10 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
   NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
-  /* NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL is set when client has to
-     send Initial packets even if it has nothing to send. */
-  NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL = 0x0200,
+  /* NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE is set when client has to
+     send Initial or Handshake packets even if it has nothing to
+     send. */
+  NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE = 0x0200,
   /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
      have been discarded. */
   NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
