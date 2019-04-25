@@ -898,7 +898,7 @@ int Client::init_ssl() {
   size_t alpnlen;
 
   switch (version_) {
-  case NGTCP2_PROTO_VER_D19:
+  case NGTCP2_PROTO_VER:
     alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_H3);
     alpnlen = str_size(NGTCP2_ALPN_H3);
     break;
@@ -3003,7 +3003,7 @@ void config_set_default(Config &config) {
   config.nstreams = 1;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_D19;
+  config.version = NGTCP2_PROTO_VER;
   config.timeout = 30000;
   config.http_method = "GET";
 }

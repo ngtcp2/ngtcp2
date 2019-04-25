@@ -3049,7 +3049,7 @@ int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   std::array<uint32_t, 2> sv;
 
   sv[0] = generate_reserved_version(sa, salen, chd->version);
-  sv[1] = NGTCP2_PROTO_VER_D19;
+  sv[1] = NGTCP2_PROTO_VER;
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
@@ -3410,7 +3410,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   auto version = ngtcp2_conn_get_negotiated_version(h->conn());
 
   switch (version) {
-  case NGTCP2_PROTO_VER_D19:
+  case NGTCP2_PROTO_VER:
     alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_H3);
     alpnlen = str_size(NGTCP2_ALPN_H3);
     break;
