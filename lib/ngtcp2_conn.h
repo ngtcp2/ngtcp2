@@ -69,9 +69,10 @@ typedef enum {
    reordered packets. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 16
 
-/* NGTCP2_STRM0_MAX_STREAM_DATA is the maximum stream offset that an
-   endpoint can send initially. */
-#define NGTCP2_STRM0_MAX_STREAM_DATA 65535
+/* NGTCP2_MAX_REORDERED_CRYPTO_DATA is the maximum offset of crypto
+   data which is not continuous.  In other words, there is a gap of
+   unreceived data. */
+#define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
 
 /* NGTCP2_PACKET_THRESHOLD is kPacketThreshold described in
    draft-ietf-quic-recovery-17. */

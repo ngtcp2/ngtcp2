@@ -4771,6 +4771,8 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
     if (rv != 0) {
       return rv;
     }
+  } else if (fr_end_offset - rx_offset > NGTCP2_MAX_REORDERED_CRYPTO_DATA) {
+    return NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED;
   } else {
     rv = ngtcp2_strm_recv_reordering(crypto, fr->data[0].base, fr->data[0].len,
                                      fr->offset);

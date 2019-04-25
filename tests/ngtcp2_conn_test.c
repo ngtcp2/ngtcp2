@@ -3991,3 +3991,30 @@ void test_ngtcp2_conn_key_update(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_crypto_buffer_exceeded(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_tstamp t = 11111;
+  int64_t pkt_num = -1;
+  ngtcp2_frame fr;
+  int rv;
+
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 1000000;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].base = null_data;
+  fr.crypto.data[0].len = 1;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED == rv);
+
+  ngtcp2_conn_del(conn);
+}

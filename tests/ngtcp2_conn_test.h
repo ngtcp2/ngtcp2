@@ -64,5 +64,6 @@ void test_ngtcp2_conn_server_path_validation(void);
 void test_ngtcp2_conn_client_connection_migration(void);
 void test_ngtcp2_conn_recv_path_challenge(void);
 void test_ngtcp2_conn_key_update(void);
+void test_ngtcp2_conn_crypto_buffer_exceeded(void);
 
 #endif /* NGTCP2_CONN_TEST_H */
