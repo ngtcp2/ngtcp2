@@ -30,6 +30,7 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_net.h"
+#include "ngtcp2_conn.h"
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
                          size_t keylen, const uint8_t *iv, size_t ivlen,
@@ -399,12 +400,18 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       if (nread < 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
+      if (params->initial_max_streams_bidi > NGTCP2_MAX_STREAMS) {
+        return NGTCP2_ERR_STREAM_LIMIT;
+      }
       p += nread;
       break;
     case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI:
       nread = decode_varint(&params->initial_max_streams_uni, p, end);
       if (nread < 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      if (params->initial_max_streams_uni > NGTCP2_MAX_STREAMS) {
+        return NGTCP2_ERR_STREAM_LIMIT;
       }
       p += nread;
       break;

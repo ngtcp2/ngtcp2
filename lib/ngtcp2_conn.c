@@ -5490,7 +5490,13 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
  */
 static int conn_recv_max_streams(ngtcp2_conn *conn,
                                  const ngtcp2_max_streams *fr) {
-  uint64_t n = ngtcp2_min(fr->max_streams, NGTCP2_MAX_STREAMS);
+  uint64_t n;
+
+  if (fr->max_streams > NGTCP2_MAX_STREAMS) {
+    return NGTCP2_ERR_STREAM_LIMIT;
+  }
+
+  n = ngtcp2_min(fr->max_streams, NGTCP2_MAX_STREAMS);
 
   if (fr->type == NGTCP2_FRAME_MAX_STREAMS_BIDI) {
     if (conn->local.bidi.max_streams < n) {
