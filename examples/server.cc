@@ -496,58 +496,6 @@ int read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
 }
 } // namespace
 
-struct DynDataIterator
-    : public std::iterator<std::input_iterator_tag, uint8_t, std::ptrdiff_t,
-                           const uint8_t *, const uint8_t> {
-  DynDataIterator(std::uniform_int_distribution<uint8_t> &dis, size_t left)
-      : dis(dis), c(dis(randgen)), left(left) {}
-
-  DynDataIterator(std::uniform_int_distribution<uint8_t> &dis, uint8_t c,
-                  size_t left)
-      : dis(dis), c(c), left(left) {}
-
-  DynDataIterator &operator++() {
-    assert(left);
-    --left;
-    c = dis(randgen);
-    return *this;
-  }
-
-  DynDataIterator operator++(int) {
-    assert(left);
-    return DynDataIterator(dis, c, left--);
-  }
-
-  pointer operator->() const { return &c; }
-
-  reference operator*() const { return c; }
-
-  bool operator==(const DynDataIterator &other) const {
-    return left == other.left;
-  }
-
-  bool operator!=(const DynDataIterator &other) const {
-    return left != other.left;
-  }
-
-  std::uniform_int_distribution<uint8_t> &dis;
-  uint8_t c;
-  size_t left;
-};
-
-struct DynDataGenerator {
-  using const_iterator = DynDataIterator;
-
-  DynDataGenerator(size_t len) : len(len), dis(0, 255) {}
-
-  const_iterator begin() { return DynDataIterator(dis, len); }
-
-  const_iterator end() { return DynDataIterator(dis, 0); }
-
-  size_t len;
-  std::uniform_int_distribution<uint8_t> dis;
-};
-
 namespace {
 int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
                   size_t *pdatalen, uint32_t *pflags, void *user_data,
@@ -556,8 +504,7 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
 
   auto len = std::min(static_cast<size_t>(16384),
                       static_cast<size_t>(stream->dyndataleft));
-  auto g = DynDataGenerator(len);
-  auto buf = std::make_unique<std::vector<uint8_t>>(std::begin(g), std::end(g));
+  auto buf = std::make_unique<std::vector<uint8_t>>(len);
 
   *pdata = buf->data();
   *pdatalen = len;
