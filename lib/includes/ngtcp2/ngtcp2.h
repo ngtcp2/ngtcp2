@@ -191,22 +191,22 @@ typedef struct {
 #define NGTCP2_HP_MASKLEN 5
 
 /* NGTCP2_DURATION_TICK is a count of tick per second. */
-#define NGTCP2_DURATION_TICK 1000000000
+#define NGTCP2_DURATION_TICK 1000000000ULL
 
 /* NGTCP2_SECONDS is a count of tick which corresponds to 1 second. */
-#define NGTCP2_SECONDS 1000000000
+#define NGTCP2_SECONDS 1000000000ULL
 
 /* NGTCP2_MILLISECONDS is a count of tick which corresponds to 1
    millisecond. */
-#define NGTCP2_MILLISECONDS 1000000
+#define NGTCP2_MILLISECONDS 1000000ULL
 
 /* NGTCP2_MICROSECONDS is a count of tick which corresponds to 1
    microsecond. */
-#define NGTCP2_MICROSECONDS 1000
+#define NGTCP2_MICROSECONDS 1000ULL
 
 /* NGTCP2_NANOSECONDS is a count of tick which corresponds to 1
    nanosecond. */
-#define NGTCP2_NANOSECONDS 1
+#define NGTCP2_NANOSECONDS 1ULL
 
 typedef enum {
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
@@ -615,7 +615,7 @@ typedef enum {
  * amount of time in nanoseconds by which endpoint delays sending
  * acknowledgement.
  */
-#define NGTCP2_DEFAULT_MAX_ACK_DELAY (25ULL * NGTCP2_MILLISECONDS)
+#define NGTCP2_DEFAULT_MAX_ACK_DELAY (25 * NGTCP2_MILLISECONDS)
 
 /**
  * @macro
