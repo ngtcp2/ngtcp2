@@ -128,7 +128,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = 1400;
   params.ack_delay_exponent = 20;
   params.disable_migration = 1;
-  params.max_ack_delay = 59;
+  params.max_ack_delay = 59 * NGTCP2_MILLISECONDS;
 
   for (i = 0; i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5; ++i) {
     nwrite = ngtcp2_encode_transport_params(
@@ -187,7 +187,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
   params.disable_migration = 1;
-  params.max_ack_delay = 63;
+  params.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
   params.original_connection_id_present = 1;
   params.original_connection_id = ocid;
 

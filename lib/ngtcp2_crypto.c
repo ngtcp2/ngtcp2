@@ -143,7 +143,8 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     len += 4;
   }
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
-    len += 4 + ngtcp2_put_varint_len(params->max_ack_delay);
+    len +=
+        4 + ngtcp2_put_varint_len(params->max_ack_delay / NGTCP2_MILLISECONDS);
   }
   if (params->idle_timeout) {
     len += 4 + ngtcp2_put_varint_len(params->idle_timeout);
@@ -260,9 +261,10 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
     p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->max_ack_delay));
-    p = ngtcp2_put_varint(p, params->max_ack_delay);
+    p = ngtcp2_put_uint16be(p,
+                            (uint16_t)ngtcp2_put_varint_len(
+                                params->max_ack_delay / NGTCP2_MILLISECONDS));
+    p = ngtcp2_put_varint(p, params->max_ack_delay / NGTCP2_MILLISECONDS);
   }
 
   if (params->idle_timeout) {
@@ -528,6 +530,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       if (nread < 0 || params->max_ack_delay >= 16384) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
+      params->max_ack_delay *= NGTCP2_MILLISECONDS;
       p += nread;
       break;
     default:

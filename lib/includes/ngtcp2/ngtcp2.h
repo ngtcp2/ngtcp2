@@ -612,10 +612,10 @@ typedef enum {
  * @macro
  *
  * NGTCP2_DEFAULT_MAX_ACK_DELAY is a default value of the maximum
- * amount of time in milliseconds by which endpoint delays sending
+ * amount of time in nanoseconds by which endpoint delays sending
  * acknowledgement.
  */
-#define NGTCP2_DEFAULT_MAX_ACK_DELAY 25
+#define NGTCP2_DEFAULT_MAX_ACK_DELAY (25ULL * NGTCP2_MILLISECONDS)
 
 /**
  * @macro
@@ -691,7 +691,6 @@ typedef struct {
 typedef struct {
   ngtcp2_duration latest_rtt;
   ngtcp2_duration min_rtt;
-  ngtcp2_duration max_ack_delay;
   double smoothed_rtt;
   double rttvar;
   size_t pto_count;

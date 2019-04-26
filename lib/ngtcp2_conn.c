@@ -2047,12 +2047,17 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
 }
 
 /*
- * rcvry_stat_compute_pto returns the current PTO.
+ * conn_compute_pto computes the current PTO.
  */
-static ngtcp2_duration rcvry_stat_compute_pto(const ngtcp2_rcvry_stat *rcs) {
+static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn) {
+  ngtcp2_rcvry_stat *rcs = &conn->rcs;
   double var = ngtcp2_max(4 * rcs->rttvar, NGTCP2_GRANULARITY);
+  ngtcp2_duration max_ack_delay =
+      (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)
+          ? conn->remote.settings.max_ack_delay
+          : NGTCP2_DEFAULT_MAX_ACK_DELAY;
   ngtcp2_duration timeout =
-      (ngtcp2_duration)(rcs->smoothed_rtt + var + (double)rcs->max_ack_delay);
+      (ngtcp2_duration)(rcs->smoothed_rtt + var + (double)max_ack_delay);
   timeout *= (ngtcp2_duration)(1ULL << rcs->pto_count);
 
   return timeout;
@@ -2079,7 +2084,7 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
   ngtcp2_ksl_key key;
   int rv;
 
-  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = conn_compute_pto(conn);
   timeout =
       ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
@@ -3653,7 +3658,7 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                 ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts) {
   ngtcp2_frame_chain *frc = NULL;
   int rv;
-  ngtcp2_duration pto = rcvry_stat_compute_pto(&conn->rcs);
+  ngtcp2_duration pto = conn_compute_pto(conn);
 
   rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, &frc, rcs, pto, ts);
   if (rv != 0) {
@@ -4083,7 +4088,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS) {
-    timeout = rcvry_stat_compute_pto(&conn->rcs);
+    timeout = conn_compute_pto(conn);
     timeout = ngtcp2_max(timeout,
                          (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
@@ -5945,7 +5950,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   conn_reset_congestion_state(conn);
 
-  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = conn_compute_pto(conn);
   timeout =
       ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
@@ -6847,7 +6852,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
 
   assert(conn->pv == NULL);
 
-  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = conn_compute_pto(conn);
   timeout =
       ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
@@ -8214,7 +8219,11 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
   }
 
   rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
-  ack_delay = ngtcp2_min(ack_delay, conn->remote.settings.max_ack_delay);
+  if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+    ack_delay = ngtcp2_min(ack_delay, conn->remote.settings.max_ack_delay);
+  } else {
+    ack_delay = ngtcp2_min(ack_delay, NGTCP2_DEFAULT_MAX_ACK_DELAY);
+  }
   if (rtt > rcs->min_rtt + ack_delay) {
     rtt -= ack_delay;
   }
@@ -8222,14 +8231,13 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
   rcs->rttvar = rcs->rttvar * 3 / 4 + fabs(rcs->smoothed_rtt - (double)rtt) / 4;
   rcs->smoothed_rtt = rcs->smoothed_rtt * 7 / 8 + (double)rtt / 8;
 
-  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                  "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
-                  " smoothed_rtt=%.3f rttvar=%.3f max_ack_delay=%" PRIu64,
-                  rcs->latest_rtt / NGTCP2_MILLISECONDS,
-                  rcs->min_rtt / NGTCP2_MILLISECONDS,
-                  rcs->smoothed_rtt / NGTCP2_MILLISECONDS,
-                  rcs->rttvar / NGTCP2_MILLISECONDS,
-                  rcs->max_ack_delay / NGTCP2_MILLISECONDS);
+  ngtcp2_log_info(
+      &conn->log, NGTCP2_LOG_EVENT_RCV,
+      "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
+      " smoothed_rtt=%.3f rttvar=%.3f ack_delay=%" PRIu64,
+      rcs->latest_rtt / NGTCP2_MILLISECONDS, rcs->min_rtt / NGTCP2_MILLISECONDS,
+      rcs->smoothed_rtt / NGTCP2_MILLISECONDS,
+      rcs->rttvar / NGTCP2_MILLISECONDS, ack_delay / NGTCP2_MILLISECONDS);
 }
 
 void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
@@ -8303,7 +8311,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
     return;
   }
 
-  rcs->loss_detection_timer = rcs->last_tx_pkt_ts + rcvry_stat_compute_pto(rcs);
+  rcs->loss_detection_timer = rcs->last_tx_pkt_ts + conn_compute_pto(conn);
 }
 
 /*
@@ -8526,7 +8534,7 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
     return rv;
   }
 
-  timeout = rcvry_stat_compute_pto(&conn->rcs);
+  timeout = conn_compute_pto(conn);
   timeout =
       ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
@@ -8562,7 +8570,7 @@ ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn) {
     return UINT64_MAX;
   }
 
-  trpto = 3 * rcvry_stat_compute_pto(&conn->rcs);
+  trpto = 3 * conn_compute_pto(conn);
 
   return ngtcp2_max(conn->local.settings.idle_timeout * NGTCP2_MILLISECONDS,
                     trpto);
