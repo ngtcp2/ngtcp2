@@ -650,7 +650,7 @@ typedef struct {
   uint64_t ack_delay_exponent;
   uint8_t disable_migration;
   uint8_t original_connection_id_present;
-  uint64_t max_ack_delay;
+  ngtcp2_duration max_ack_delay;
   uint8_t preferred_address_present;
 } ngtcp2_transport_params;
 
@@ -676,7 +676,7 @@ typedef struct {
   uint8_t stateless_reset_token_present;
   uint64_t ack_delay_exponent;
   uint8_t disable_migration;
-  uint64_t max_ack_delay;
+  ngtcp2_duration max_ack_delay;
   uint8_t preferred_address_present;
 } ngtcp2_settings;
 
