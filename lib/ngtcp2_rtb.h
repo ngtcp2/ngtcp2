@@ -167,6 +167,13 @@ void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
                                    const ngtcp2_mem *mem);
 
 /*
+ * ngtcp2_crypto_frame_chain_copy copies CRYPTO frame data from |src|
+ * to |dest|.  Other fields are left untouched.
+ */
+void ngtcp2_crypto_frame_chain_copy(ngtcp2_crypto_frame_chain *dest,
+                                    ngtcp2_crypto_frame_chain *src);
+
+/*
  * ngtcp2_frame_chain_list_del deletes |frc|, and all objects
  * connected by next field.
  */
@@ -183,7 +190,10 @@ typedef enum {
   NGTCP2_RTB_FLAG_CRYPTO_PKT = 0x02,
   /* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
      acknowledgement. */
-  NGTCP2_RTB_FLAG_ACK_ELICITING = 0x4,
+  NGTCP2_RTB_FLAG_ACK_ELICITING = 0x04,
+  /* NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED indicates that the
+     CRYPTO frames have been retransmitted. */
+  NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED = 0x08,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -323,6 +333,19 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
  *     Out of memory
  */
 int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+
+/*
+ * ngtcp2_rtb_on_crypto_timeout copies all unacknowledged CRYPTO
+ * frames and links them to |*pfrc|.  The affected ngtcp2_rtb_entry
+ * will have NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED set.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
 
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.

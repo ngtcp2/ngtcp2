@@ -98,6 +98,12 @@ void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
   ngtcp2_mem_free(mem, frc);
 }
 
+void ngtcp2_crypto_frame_chain_copy(ngtcp2_crypto_frame_chain *dest,
+                                    ngtcp2_crypto_frame_chain *src) {
+  dest->fr = src->fr;
+  memcpy(dest->extra, src->extra, sizeof(dest->extra));
+}
+
 void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
                                  const ngtcp2_mem *mem) {
   ngtcp2_frame_chain *next;
@@ -208,9 +214,16 @@ static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   } else {
     ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts);
 
+    if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED) {
+      ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                      "pkn=%" PRId64 " CRYPTO has already been retransmitted",
+                      ent->hd.pkt_num);
+    }
+
     /* PADDING only (or PADDING + ACK ) packets will have NULL
        ent->frc. */
-    if (ent->frc) {
+    if (ent->frc &&
+        !(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED)) {
       /* TODO Reconsider the order of pfrc */
       frame_chain_insert(pfrc, ent->frc);
       ent->frc = NULL;
@@ -466,8 +479,9 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
  * rtb_compute_pkt_loss_delay computes delay until packet is
  * considered lost in NGTCP2_DURATION_TICK resolution.
  */
-static uint64_t compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
-  uint64_t loss_delay = (uint64_t)(
+static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
+  /* 9/8 is kTimeThreshold */
+  ngtcp2_duration loss_delay = (ngtcp2_duration)(
       ngtcp2_max((double)rcs->latest_rtt, rcs->smoothed_rtt) * 9 / 8);
   return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
 }
@@ -476,7 +490,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                                ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
                                ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
-  uint64_t loss_delay;
+  ngtcp2_duration loss_delay;
   ngtcp2_tstamp lost_send_time;
   ngtcp2_ksl_it it;
   int64_t lost_pkt_num;
@@ -552,9 +566,92 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
     if (rv != 0) {
       return rv;
     }
-    frame_chain_insert(pfrc, ent->frc);
-    ent->frc = NULL;
+
+    if (!(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED)) {
+      frame_chain_insert(pfrc, ent->frc);
+      ent->frc = NULL;
+    } else {
+      ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                      "pkn=%" PRId64 " CRYPTO has already been retransmitted",
+                      ent->hd.pkt_num);
+    }
+
     ngtcp2_rtb_entry_del(ent, rtb->mem);
+  }
+
+  return 0;
+}
+
+int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it;
+  ngtcp2_crypto_frame_chain *nfrc;
+  ngtcp2_frame_chain *frc;
+  ngtcp2_psl_it gapit;
+  ngtcp2_range gap, range;
+  ngtcp2_crypto *fr;
+  int all_acked;
+  int rv;
+
+  it = ngtcp2_ksl_begin(&rtb->ents);
+
+  for (; !ngtcp2_ksl_it_end(&it);) {
+    ent = ngtcp2_ksl_it_get(&it);
+
+    if ((ent->flags & (NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED |
+                       NGTCP2_RTB_FLAG_PROBE)) ||
+        !(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_PKT)) {
+      ngtcp2_ksl_it_next(&it);
+      continue;
+    }
+
+    ent->flags |= NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED;
+
+    all_acked = 1;
+
+    for (frc = ent->frc; frc; frc = frc->next) {
+      assert(frc->fr.type == NGTCP2_FRAME_CRYPTO);
+
+      fr = &frc->fr.crypto;
+
+      /* Don't resend CRYPTO frame if the whole region it contains has
+         been acknowledged */
+      gapit = ngtcp2_gaptr_get_first_gap_after(&rtb->crypto->tx.acked_offset,
+                                               fr->offset);
+      gap = ngtcp2_psl_it_range(&gapit);
+
+      range.begin = fr->offset;
+      range.end = fr->offset + ngtcp2_vec_len(fr->data, fr->datacnt);
+      range = ngtcp2_range_intersect(&range, &gap);
+      if (ngtcp2_range_len(&range) == 0) {
+        continue;
+      }
+
+      all_acked = 0;
+
+      rv = ngtcp2_crypto_frame_chain_new(&nfrc, rtb->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      ngtcp2_crypto_frame_chain_copy(nfrc, (ngtcp2_crypto_frame_chain *)frc);
+      frame_chain_insert(pfrc, &nfrc->frc);
+    }
+
+    if (all_acked) {
+      /* If the frames that ent contains have been acknowledged,
+         remove it from rtb.  Otherwise crypto timer keeps firing. */
+      rtb_on_remove(rtb, ent);
+      rv = ngtcp2_ksl_remove(&rtb->ents, &it,
+                             (const ngtcp2_ksl_key *)&ent->hd.pkt_num);
+      if (rv != 0) {
+        return rv;
+      }
+      ngtcp2_rtb_entry_del(ent, rtb->mem);
+      continue;
+    }
+
+    ngtcp2_ksl_it_next(&it);
   }
 
   return 0;

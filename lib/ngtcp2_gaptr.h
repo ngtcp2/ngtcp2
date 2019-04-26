@@ -81,6 +81,13 @@ int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen);
 uint64_t ngtcp2_gaptr_first_gap_offset(ngtcp2_gaptr *gaptr);
 
 /*
+ * ngtcp2_gaptr_get_first_gap_after returns the iterator pointing to
+ * the first gap which overlaps or comes after |offset|.
+ */
+ngtcp2_psl_it ngtcp2_gaptr_get_first_gap_after(ngtcp2_gaptr *gaptr,
+                                               uint64_t offset);
+
+/*
  * ngtcp2_gaptr_is_pushed returns nonzero if range [offset, offset +
  * datalen) is completely pushed into this object.
  */
