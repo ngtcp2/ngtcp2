@@ -1645,6 +1645,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_rtb_entry *rtbent;
   ssize_t spktlen;
   int force_send;
+  int immediate_ack = 0;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
@@ -1652,12 +1653,14 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     ctx.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     ctx.encrypt = conn->callbacks.in_encrypt;
     ctx.hp_mask = conn->callbacks.in_hp_mask;
+    immediate_ack = conn->hs_pktns.crypto.tx.ckm != NULL;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
     ctx.aead_overhead = conn->crypto.aead_overhead;
     ctx.encrypt = conn->callbacks.encrypt;
     ctx.hp_mask = conn->callbacks.hp_mask;
+    immediate_ack = conn->pktns.crypto.tx.ckm != NULL;
     break;
   default:
     assert(0);
@@ -1668,6 +1671,10 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   force_send = (conn->flags & NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE);
+
+  if (immediate_ack) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  }
 
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
