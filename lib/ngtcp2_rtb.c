@@ -370,7 +370,7 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   ssize_t num_acked = 0;
   int largest_pkt_acked = 0;
   int rtt_updated = 0;
-  ngtcp2_tstamp largest_pkt_sent_ts;
+  ngtcp2_tstamp largest_pkt_sent_ts = 0;
 
   rtb->largest_acked_tx_pkt_num =
       ngtcp2_max(rtb->largest_acked_tx_pkt_num, largest_ack);

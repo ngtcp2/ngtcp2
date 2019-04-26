@@ -1113,8 +1113,8 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     frc->pe.index = NGTCP2_PQ_BAD_INDEX;
 
     fr = &frc->fr;
-    offset = fr->offset;
     idx = 0;
+    offset = fr->offset;
     base_offset = 0;
 
     gapit =
@@ -1143,6 +1143,7 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
     end_idx = idx;
     end_offset = offset;
+    end_base_offset = 0;
 
     for (; end_idx < fr->datacnt; ++end_idx) {
       v = &fr->data[end_idx];
@@ -8212,8 +8213,8 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
 
   if (rcs->smoothed_rtt < 1e-9) {
     rcs->min_rtt = rtt;
-    rcs->smoothed_rtt = rtt;
-    rcs->rttvar = rtt / 2;
+    rcs->smoothed_rtt = (double)rtt;
+    rcs->rttvar = (double)rtt / 2;
     return;
   }
 
