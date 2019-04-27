@@ -1941,11 +1941,8 @@ static uint64_t conn_initial_stream_rx_offset(ngtcp2_conn *conn,
  */
 static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
-
   return conn_initial_stream_rx_offset(conn, strm->stream_id) / 2 <
-             (strm->rx.unsent_max_offset - strm->rx.max_offset) ||
-         2 * conn->rx.bw.value * conn->rcs.smoothed_rtt >=
-             strm->rx.max_offset - strm->rx.last_offset;
+         strm->rx.unsent_max_offset - strm->rx.max_offset;
 }
 
 /*
