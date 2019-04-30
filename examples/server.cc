@@ -3285,8 +3285,8 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf) {
   ssize_t nwrite = 0;
 
   do {
-    nwrite = sendto(ep.fd, buf.rpos(), buf.size(), 0, &remote_addr.su.sa,
-                    remote_addr.len);
+    nwrite = sendto(ep.fd, buf.rpos(), buf.size(), MSG_DONTWAIT,
+                    &remote_addr.su.sa, remote_addr.len);
   } while ((nwrite == -1) && (errno == EINTR) && (eintr_retries-- > 0));
 
   if (nwrite == -1) {

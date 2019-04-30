@@ -2067,7 +2067,7 @@ int Client::send_packet() {
   ssize_t nwrite = 0;
 
   do {
-    nwrite = sendto(fd_, sendbuf_.rpos(), sendbuf_.size(), 0,
+    nwrite = sendto(fd_, sendbuf_.rpos(), sendbuf_.size(), MSG_DONTWAIT,
                     &remote_addr_.su.sa, remote_addr_.len);
   } while ((nwrite == -1) && (errno == EINTR) && (eintr_retries-- > 0));
 
