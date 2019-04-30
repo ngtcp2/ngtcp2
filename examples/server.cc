@@ -2272,7 +2272,13 @@ int Handler::write_streams() {
       }
 
       if (ndatalen > 0) {
-        break;
+        // TODO Returning from here instead of break decreases
+        // performance, but it decreases "hidden RTT" increase because
+        // server is unable to read socket timely if it is busy to
+        // write packets here.
+        auto ep = static_cast<Endpoint *>(path.path.local.user_data);
+        ev_io_start(loop_, &ep->wev);
+        return 0;
       }
     }
   }
