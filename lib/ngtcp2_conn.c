@@ -815,8 +815,7 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
  * ACK.
  */
 static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
-  ngtcp2_duration initial_delay = conn->local.settings.max_ack_delay *
-                                  (NGTCP2_DURATION_TICK / NGTCP2_MILLISECONDS);
+  ngtcp2_duration initial_delay = conn->local.settings.max_ack_delay;
 
   if (conn->rcs.smoothed_rtt < 1e-9) {
     return initial_delay;
