@@ -5500,18 +5500,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const uint8_t *payload,
     }
 
     if (i == len) {
-      len = ngtcp2_ringbuf_len(&conn->dcid.unused);
-      for (i = 0; i < len; ++i) {
-        dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, i);
-        if (ngtcp2_verify_stateless_retry_token(
-                dcid->token, sr.stateless_reset_token) == 0) {
-          break;
-        }
-      }
-
-      if (i == len) {
-        return NGTCP2_ERR_INVALID_ARGUMENT;
-      }
+      return NGTCP2_ERR_INVALID_ARGUMENT;
     }
   }
 
