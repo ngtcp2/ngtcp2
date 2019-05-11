@@ -31,5 +31,6 @@
 
 void test_ngtcp2_ksl_insert(void);
 void test_ngtcp2_ksl_clear(void);
+void test_ngtcp2_ksl_range(void);
 
 #endif /* NGTCP2_KSL_TEST_H */

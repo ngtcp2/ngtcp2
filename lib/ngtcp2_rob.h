@@ -33,7 +33,7 @@
 
 #include "ngtcp2_mem.h"
 #include "ngtcp2_range.h"
-#include "ngtcp2_psl.h"
+#include "ngtcp2_ksl.h"
 
 struct ngtcp2_rob_gap;
 typedef struct ngtcp2_rob_gap ngtcp2_rob_gap;
@@ -113,12 +113,12 @@ void ngtcp2_rob_data_del(ngtcp2_rob_data *d, const ngtcp2_mem *mem);
  * received in out of order.
  */
 typedef struct {
-  /* gappsl maintains the range of offset which is not received
+  /* gapksl maintains the range of offset which is not received
      yet. Initially, its range is [0, UINT64_MAX). */
-  ngtcp2_psl gappsl;
-  /* datapsl maintains the list of buffers which store received data
+  ngtcp2_ksl gapksl;
+  /* dataksl maintains the list of buffers which store received data
      ordered by stream offset. */
-  ngtcp2_psl datapsl;
+  ngtcp2_ksl dataksl;
   /* mem is custom memory allocator */
   const ngtcp2_mem *mem;
   /* chunk is the size of each buffer in data field */
@@ -186,14 +186,8 @@ size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
  *
  * Caller should call this function from offset 0 in non-decreasing
  * order.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
  */
-int ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len);
+void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len);
 
 /*
  * ngtcp2_rob_first_gap_offset returns the offset to the first gap.

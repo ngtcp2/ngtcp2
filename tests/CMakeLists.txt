@@ -44,7 +44,6 @@ if(HAVE_CUNIT)
     ngtcp2_ringbuf_test.c
     ngtcp2_conv_test.c
     ngtcp2_test_helper.c
-    ngtcp2_psl_test.c
     ngtcp2_ksl_test.c
     ngtcp2_gaptr_test.c
     ngtcp2_vec_test.c

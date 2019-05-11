@@ -41,7 +41,6 @@
 #include "ngtcp2_conn_test.h"
 #include "ngtcp2_ringbuf_test.h"
 #include "ngtcp2_conv_test.h"
-#include "ngtcp2_psl_test.h"
 #include "ngtcp2_ksl_test.h"
 #include "ngtcp2_map_test.h"
 #include "ngtcp2_gaptr_test.h"
@@ -141,9 +140,9 @@ int main() {
       !CU_add_test(pSuite, "range_intersect", test_ngtcp2_range_intersect) ||
       !CU_add_test(pSuite, "range_cut", test_ngtcp2_range_cut) ||
       !CU_add_test(pSuite, "range_not_after", test_ngtcp2_range_not_after) ||
-      !CU_add_test(pSuite, "psl_insert", test_ngtcp2_psl_insert) ||
       !CU_add_test(pSuite, "ksl_insert", test_ngtcp2_ksl_insert) ||
       !CU_add_test(pSuite, "ksl_clear", test_ngtcp2_ksl_clear) ||
+      !CU_add_test(pSuite, "ksl_range", test_ngtcp2_ksl_range) ||
       !CU_add_test(pSuite, "rob_push", test_ngtcp2_rob_push) ||
       !CU_add_test(pSuite, "rob_push_random", test_ngtcp2_rob_push_random) ||
       !CU_add_test(pSuite, "rob_data_at", test_ngtcp2_rob_data_at) ||

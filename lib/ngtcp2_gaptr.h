@@ -33,7 +33,7 @@
 
 #include "ngtcp2_mem.h"
 #include "ngtcp2_range.h"
-#include "ngtcp2_psl.h"
+#include "ngtcp2_ksl.h"
 
 /*
  * ngtcp2_gaptr maintains the gap in the range [0, UINT64_MAX).
@@ -41,7 +41,7 @@
 typedef struct {
   /* gap maintains the range of offset which is not received
      yet. Initially, its range is [0, UINT64_MAX). */
-  ngtcp2_psl gap;
+  ngtcp2_ksl gap;
   /* mem is custom memory allocator */
   const ngtcp2_mem *mem;
 } ngtcp2_gaptr;
@@ -84,7 +84,7 @@ uint64_t ngtcp2_gaptr_first_gap_offset(ngtcp2_gaptr *gaptr);
  * ngtcp2_gaptr_get_first_gap_after returns the iterator pointing to
  * the first gap which overlaps or comes after |offset|.
  */
-ngtcp2_psl_it ngtcp2_gaptr_get_first_gap_after(ngtcp2_gaptr *gaptr,
+ngtcp2_ksl_it ngtcp2_gaptr_get_first_gap_after(ngtcp2_gaptr *gaptr,
                                                uint64_t offset);
 
 /*

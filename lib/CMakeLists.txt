@@ -54,7 +54,6 @@ set(ngtcp2_SOURCES
   ngtcp2_ringbuf.c
   ngtcp2_log.c
   ngtcp2_cid.c
-  ngtcp2_psl.c
   ngtcp2_ksl.c
   ngtcp2_cc.c
   ngtcp2_addr.c
