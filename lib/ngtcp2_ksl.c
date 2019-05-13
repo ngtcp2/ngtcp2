@@ -617,7 +617,9 @@ void ngtcp2_ksl_update_key(ngtcp2_ksl *ksl, const ngtcp2_ksl_key *old_key,
       return;
     }
 
-    if (ksl->compar(ksl_node_key(&node_key, node), new_key)) {
+    ksl_node_key(&node_key, node);
+    if (key_equal(ksl->compar, &node_key, old_key) ||
+        ksl->compar(&node_key, new_key)) {
       ksl_node_set_key(ksl, node, new_key->ptr);
     }
 

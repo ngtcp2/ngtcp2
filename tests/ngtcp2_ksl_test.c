@@ -349,3 +349,47 @@ void test_ngtcp2_ksl_range(void) {
 
   ngtcp2_ksl_free(&ksl);
 }
+
+void test_ngtcp2_ksl_update_key_range(void) {
+  static ngtcp2_range ranges[] = {
+      {0, 5},     {10, 15},   {20, 25},   {30, 35},   {40, 45},   {50, 55},
+      {60, 65},   {70, 75},   {80, 85},   {90, 95},   {100, 105}, {110, 115},
+      {120, 125}, {130, 135}, {140, 145}, {150, 155}, {160, 165}, {170, 175}};
+  ngtcp2_ksl ksl;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  size_t i;
+  ngtcp2_range r;
+  ngtcp2_ksl_it it;
+  ngtcp2_ksl_key key, old_key;
+
+  ngtcp2_ksl_init(&ksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range), mem);
+
+  for (i = 0; i < arraylen(ranges); ++i) {
+    ngtcp2_ksl_insert(&ksl, NULL, ngtcp2_ksl_key_ptr(&key, &ranges[i]), NULL);
+  }
+
+  r.begin = 70;
+  r.end = 72;
+  ngtcp2_ksl_update_key(&ksl, ngtcp2_ksl_key_ptr(&old_key, &ranges[7]),
+                        ngtcp2_ksl_key_ptr(&key, &r));
+
+  r.begin = 73;
+  r.end = 74;
+  ngtcp2_ksl_insert(&ksl, NULL, ngtcp2_ksl_key_ptr(&key, &r), NULL);
+
+  r.begin = 74;
+  r.end = 75;
+  ngtcp2_ksl_insert(&ksl, NULL, ngtcp2_ksl_key_ptr(&key, &r), NULL);
+
+  r.begin = 74;
+  r.end = 75;
+  it = ngtcp2_ksl_lower_bound_compar(&ksl, ngtcp2_ksl_key_ptr(&key, &r),
+                                     ngtcp2_ksl_range_exclusive_compar);
+
+  r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
+
+  CU_ASSERT(r.begin == 74);
+  CU_ASSERT(r.end == 75);
+
+  ngtcp2_ksl_free(&ksl);
+}
