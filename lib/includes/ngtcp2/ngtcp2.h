@@ -2057,6 +2057,13 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_pto` returns Probe Timeout (PTO).
+ */
+NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
  * |params| to |conn|.
  *

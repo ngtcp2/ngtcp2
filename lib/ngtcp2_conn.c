@@ -8497,6 +8497,10 @@ ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn) {
                     trpto);
 }
 
+ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn) {
+  return conn_compute_pto(conn);
+}
+
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
                                       const uint8_t *data) {

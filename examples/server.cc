@@ -2133,7 +2133,8 @@ void Handler::reset_idle_timer() { ev_timer_again(loop_, &timer_); }
 int Handler::on_write() {
   int rv;
 
-  if (ngtcp2_conn_is_in_closing_period(conn_)) {
+  if (ngtcp2_conn_is_in_closing_period(conn_) ||
+      ngtcp2_conn_is_in_draining_period(conn_)) {
     return 0;
   }
 
@@ -2324,11 +2325,13 @@ void Handler::start_draining_period() {
 
   ev_timer_stop(loop_, &rttimer_);
 
-  timer_.repeat = 15.;
+  timer_.repeat =
+      static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
   ev_timer_again(loop_, &timer_);
 
   if (!config.quiet) {
-    std::cerr << "Draining period has started" << std::endl;
+    std::cerr << "Draining period has started (" << timer_.repeat << " seconds)"
+              << std::endl;
   }
 }
 
@@ -2339,11 +2342,13 @@ int Handler::start_closing_period() {
 
   ev_timer_stop(loop_, &rttimer_);
 
-  timer_.repeat = 15.;
+  timer_.repeat =
+      static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
   ev_timer_again(loop_, &timer_);
 
   if (!config.quiet) {
-    std::cerr << "Closing period has started" << std::endl;
+    std::cerr << "Closing period has started (" << timer_.repeat << " seconds)"
+              << std::endl;
   }
 
   sendbuf_.reset();
