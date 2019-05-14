@@ -332,7 +332,6 @@ public:
   void disconnect();
   void close();
 
-  int on_write();
   int on_read(Endpoint &ep);
   int send_version_negotiation(const ngtcp2_pkt_hd *hd, Endpoint &ep,
                                const sockaddr *sa, socklen_t salen);
@@ -345,8 +344,6 @@ public:
   int send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf,
                   ev_io *wev = nullptr);
   void remove(const Handler *h);
-  std::map<std::string, std::unique_ptr<Handler>>::const_iterator
-  remove(std::map<std::string, std::unique_ptr<Handler>>::const_iterator it);
 
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
                        const uint8_t *rand_data, size_t rand_datalen);

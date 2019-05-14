@@ -2640,7 +2640,7 @@ void Server::disconnect() {
 
     h->handle_error();
 
-    remove(it);
+    remove(h.get());
   }
 }
 
@@ -2813,24 +2813,6 @@ int Server::init(const char *addr, const char *port) {
   return 0;
 }
 
-int Server::on_write() {
-  for (auto it = std::cbegin(handlers_); it != std::cend(handlers_);) {
-    auto h = it->second.get();
-    auto rv = h->on_write();
-    switch (rv) {
-    case 0:
-    case NETWORK_ERR_CLOSE_WAIT:
-      ++it;
-      continue;
-    case NETWORK_ERR_SEND_NON_FATAL:
-      return NETWORK_ERR_SEND_NON_FATAL;
-    }
-    it = remove(it);
-  }
-
-  return NETWORK_ERR_OK;
-}
-
 int Server::on_read(Endpoint &ep) {
   sockaddr_union su;
   socklen_t addrlen;
@@ -2963,7 +2945,7 @@ int Server::on_read(Endpoint &ep) {
       case NETWORK_ERR_SEND_NON_FATAL:
         break;
       default:
-        remove(handler_it);
+        remove(h);
       }
       return 0;
     }
@@ -2974,7 +2956,7 @@ int Server::on_read(Endpoint &ep) {
     rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
     if (rv != 0) {
       if (rv != NETWORK_ERR_CLOSE_WAIT) {
-        remove(handler_it);
+        remove(h);
       }
       return 0;
     }
@@ -2987,7 +2969,7 @@ int Server::on_read(Endpoint &ep) {
     case NETWORK_ERR_SEND_NON_FATAL:
       break;
     default:
-      remove(handler_it);
+      remove(h);
     }
   }
   return 0;
@@ -3370,12 +3352,6 @@ void Server::remove(const Handler *h) {
   }
 
   handlers_.erase(util::make_cid_key(h->scid()));
-}
-
-std::map<std::string, std::unique_ptr<Handler>>::const_iterator Server::remove(
-    std::map<std::string, std::unique_ptr<Handler>>::const_iterator it) {
-  ctos_.erase(util::make_cid_key((*it).second->rcid()));
-  return handlers_.erase(it);
 }
 
 namespace {
