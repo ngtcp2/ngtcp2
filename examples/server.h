@@ -164,7 +164,6 @@ class Server;
 // Endpoint is a local endpoint.
 struct Endpoint {
   Address addr;
-  ev_io wev;
   ev_io rev;
   Server *server;
   int fd;
@@ -286,6 +285,7 @@ private:
   SSL_CTX *ssl_ctx_;
   SSL *ssl_;
   Server *server_;
+  ev_io wev_;
   ev_timer timer_;
   ev_timer rttimer_;
   std::vector<uint8_t> chandshake_;
@@ -340,7 +340,8 @@ public:
                      socklen_t salen, const ngtcp2_cid *ocid);
   int verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                    const sockaddr *sa, socklen_t salen);
-  int send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf);
+  int send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf,
+                  ev_io *wev = nullptr);
   void remove(const Handler *h);
   std::map<std::string, std::unique_ptr<Handler>>::const_iterator
   remove(std::map<std::string, std::unique_ptr<Handler>>::const_iterator it);

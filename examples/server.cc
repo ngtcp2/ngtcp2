@@ -748,6 +748,26 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 }
 
 namespace {
+void writecb(struct ev_loop *loop, ev_io *w, int revents) {
+  ev_io_stop(loop, w);
+
+  auto h = static_cast<Handler *>(w->data);
+  auto s = h->server();
+
+  auto rv = h->on_write();
+  switch (rv) {
+  case 0:
+  case NETWORK_ERR_CLOSE_WAIT:
+    return;
+  case NETWORK_ERR_SEND_NON_FATAL:
+    return;
+  default:
+    s->remove(h);
+  }
+}
+} // namespace
+
+namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
@@ -857,6 +877,8 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       nkey_update_(0),
       initial_(true),
       draining_(false) {
+  ev_io_init(&wev_, writecb, 0, EV_WRITE);
+  wev_.data = this;
   ev_timer_init(&timer_, timeoutcb, 0., config.timeout / 1000.);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
@@ -870,6 +892,7 @@ Handler::~Handler() {
 
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
+  ev_io_stop(loop_, &wev_);
 
   if (httpconn_) {
     nghttp3_conn_del(httpconn_);
@@ -2003,7 +2026,7 @@ ssize_t Handler::do_handshake_write_once() {
 
   sendbuf_.push(nwrite);
 
-  auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_);
+  auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
   if (rv == NETWORK_ERR_SEND_NON_FATAL) {
     schedule_retransmit();
     return rv;
@@ -2025,7 +2048,7 @@ int Handler::do_handshake(const ngtcp2_path *path, const uint8_t *data,
   }
 
   if (sendbuf_.size() > 0) {
-    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_);
+    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
     if (rv != NETWORK_ERR_OK) {
       return rv;
     }
@@ -2112,7 +2135,7 @@ int Handler::on_write() {
   }
 
   if (sendbuf_.size() > 0) {
-    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_);
+    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
     if (rv != NETWORK_ERR_OK) {
       return rv;
     }
@@ -2162,7 +2185,7 @@ int Handler::on_write() {
     update_endpoint(&path.path.local);
     update_remote_addr(&path.path.remote);
 
-    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_);
+    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
     if (rv == NETWORK_ERR_SEND_NON_FATAL) {
       schedule_retransmit();
       return rv;
@@ -2266,7 +2289,7 @@ int Handler::write_streams() {
       update_endpoint(&path.path.local);
       update_remote_addr(&path.path.remote);
 
-      auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_);
+      auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
       if (rv != NETWORK_ERR_OK) {
         return rv;
       }
@@ -2277,7 +2300,9 @@ int Handler::write_streams() {
         // server is unable to read socket timely if it is busy to
         // write packets here.
         auto ep = static_cast<Endpoint *>(path.path.local.user_data);
-        ev_io_start(loop_, &ep->wev);
+        ev_io_stop(loop_, &wev_);
+        ev_io_set(&wev_, ep->fd, EV_WRITE);
+        ev_io_start(loop_, &wev_);
         return 0;
       }
     }
@@ -2378,7 +2403,7 @@ int Handler::send_conn_close() {
     sendbuf_.push(conn_closebuf_->size());
   }
 
-  return server_->send_packet(*endpoint_, remote_addr_, sendbuf_);
+  return server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
 }
 
 void Handler::schedule_retransmit() {
@@ -2559,17 +2584,6 @@ void Handler::set_tls_alert(uint8_t alert) {
 }
 
 namespace {
-void swritecb(struct ev_loop *loop, ev_io *w, int revents) {
-  ev_io_stop(loop, w);
-
-  auto ep = static_cast<Endpoint *>(w->data);
-  // TODO At the moment, this triggers writes to the all endpoints,
-  // which is not ideal.
-  ep->server->on_write();
-}
-} // namespace
-
-namespace {
 void sreadcb(struct ev_loop *loop, ev_io *w, int revents) {
   auto ep = static_cast<Endpoint *>(w->data);
 
@@ -2621,7 +2635,6 @@ void Server::disconnect() {
 
 void Server::close() {
   for (auto &ep : endpoints_) {
-    ev_io_stop(loop_, &ep.wev);
     ::close(ep.fd);
   }
 
@@ -2711,7 +2724,6 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const char *addr,
   auto &ep = endpoints.back();
   ep.addr = dest;
   ep.fd = fd;
-  ev_io_init(&ep.wev, swritecb, 0, EV_WRITE);
   ev_io_init(&ep.rev, sreadcb, 0, EV_READ);
 
   return 0;
@@ -2745,7 +2757,6 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
   auto &ep = endpoints.back();
   ep.addr = addr;
   ep.fd = fd;
-  ev_io_init(&ep.wev, swritecb, 0, EV_WRITE);
   ev_io_init(&ep.rev, sreadcb, 0, EV_READ);
 
   return 0;
@@ -2779,10 +2790,8 @@ int Server::init(const char *addr, const char *port) {
 
   for (auto &ep : endpoints_) {
     ep.server = this;
-    ep.wev.data = &ep;
     ep.rev.data = &ep;
 
-    ev_io_set(&ep.wev, ep.fd, EV_WRITE);
     ev_io_set(&ep.rev, ep.fd, EV_READ);
 
     ev_io_start(loop_, &ep.rev);
@@ -3278,7 +3287,8 @@ int Server::verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
-int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf) {
+int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf,
+                        ev_io *wev) {
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
@@ -3300,7 +3310,11 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf) {
     case EAGAIN:
     case EINTR:
     case 0:
-      ev_io_start(loop_, &ep.wev);
+      if (wev) {
+        ev_io_stop(loop_, wev);
+        ev_io_set(wev, ep.fd, EV_WRITE);
+        ev_io_start(loop_, wev);
+      }
       return NETWORK_ERR_SEND_NON_FATAL;
     default:
       std::cerr << "sendto: " << strerror(errno) << std::endl;
