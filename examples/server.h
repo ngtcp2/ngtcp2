@@ -277,6 +277,8 @@ public:
   int push_content(int64_t stream_id, const std::string &authority,
                    const std::string &path);
 
+  void reset_idle_timer();
+
 private:
   Endpoint *endpoint_;
   Address remote_addr_;

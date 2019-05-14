@@ -2034,6 +2034,7 @@ ssize_t Handler::do_handshake_write_once() {
   if (rv != NETWORK_ERR_OK) {
     return rv;
   }
+  ev_timer_again(loop_, &timer_);
 
   return nwrite;
 }
@@ -2122,10 +2123,12 @@ int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 
   timer_.repeat = static_cast<ev_tstamp>(ngtcp2_conn_get_idle_timeout(conn_)) /
                   NGTCP2_SECONDS;
-  ev_timer_again(loop_, &timer_);
+  reset_idle_timer();
 
   return 0;
 }
+
+void Handler::reset_idle_timer() { ev_timer_again(loop_, &timer_); }
 
 int Handler::on_write() {
   int rv;
@@ -2139,6 +2142,7 @@ int Handler::on_write() {
     if (rv != NETWORK_ERR_OK) {
       return rv;
     }
+    reset_idle_timer();
   }
 
   assert(sendbuf_.left() >= max_pktlen_);
@@ -2193,6 +2197,7 @@ int Handler::on_write() {
     if (rv != NETWORK_ERR_OK) {
       return rv;
     }
+    reset_idle_timer();
   }
 
   schedule_retransmit();
@@ -2293,6 +2298,7 @@ int Handler::write_streams() {
       if (rv != NETWORK_ERR_OK) {
         return rv;
       }
+      reset_idle_timer();
 
       if (ndatalen > 0) {
         // TODO Returning from here instead of break decreases
