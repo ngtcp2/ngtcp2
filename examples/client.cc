@@ -1406,10 +1406,12 @@ int Client::on_read() {
 
   timer_.repeat = static_cast<ev_tstamp>(ngtcp2_conn_get_idle_timeout(conn_)) /
                   NGTCP2_SECONDS;
-  ev_timer_again(loop_, &timer_);
+  reset_idle_timer();
 
   return 0;
 }
+
+void Client::reset_idle_timer() { ev_timer_again(loop_, &timer_); }
 
 int Client::on_write(bool retransmit) {
   if (sendbuf_.size() > 0) {
@@ -2060,6 +2062,7 @@ int Client::send_packet() {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
     }
     sendbuf_.reset();
+    reset_idle_timer();
     return NETWORK_ERR_OK;
   }
 
@@ -2093,6 +2096,8 @@ int Client::send_packet() {
               << util::straddr(&remote_addr_.su.sa, remote_addr_.len) << " "
               << nwrite << " bytes" << std::endl;
   }
+
+  reset_idle_timer();
 
   return NETWORK_ERR_OK;
 }

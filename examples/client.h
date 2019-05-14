@@ -241,6 +241,8 @@ public:
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int send_stop_sending(int64_t stream_id);
 
+  void reset_idle_timer();
+
 private:
   Address local_addr_;
   Address remote_addr_;
