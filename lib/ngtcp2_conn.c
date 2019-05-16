@@ -4034,7 +4034,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   /* If validation succeeds, we don't have to throw DCID away. */
-  pv->flags &= ~NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH;
+  pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH;
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
     timeout = conn_compute_pto(conn);
