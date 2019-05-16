@@ -65,6 +65,9 @@ typedef struct {
   /* path is a path which cid is bound to.  The addresses are zero
      length if cid has not been bound to a particular path yet. */
   ngtcp2_path_storage ps;
+  /* ts_retired is the timestamp when peer tells that this CID is
+     retired. */
+  ngtcp2_tstamp ts_retired;
   /* token is a stateless reset token associated to this CID.
      Actually, the stateless reset token is tied to the connection,
      not to the particular connection ID. */

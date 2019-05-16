@@ -110,6 +110,9 @@ typedef enum {
    connection ID the remote endpoint provides to store.  It must be
    the power of 2. */
 #define NGTCP2_MAX_DCID_POOL_SIZE 16
+/* NGTCP2_MAX_DCID_RETIRED_SIZE is the maximum number of retired DCID
+   kept to catch in-flight packet on retired path. */
+#define NGTCP2_MAX_DCID_RETIRED_SIZE 2
 /* NGTCP2_MIN_SCID_POOL_SIZE is the minimum number of source
    connection ID the local endpoint provides to the remote endpoint.
    It must be at least 8 as per the spec. */
@@ -309,6 +312,9 @@ struct ngtcp2_conn {
     ngtcp2_ringbuf bound;
     /* unused is a set of unused CID received from peer. */
     ngtcp2_ringbuf unused;
+    /* retired is a set of CID retired by local endpoint.  Keep them
+       in 3*PTO to catch packets in flight along the old path. */
+    ngtcp2_ringbuf retired;
   } dcid;
 
   struct {

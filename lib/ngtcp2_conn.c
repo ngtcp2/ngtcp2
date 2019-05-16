@@ -488,6 +488,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_dcid_unused_init;
   }
 
+  rv =
+      ngtcp2_ringbuf_init(&(*pconn)->dcid.retired, NGTCP2_MAX_DCID_RETIRED_SIZE,
+                          sizeof(ngtcp2_dcid), mem);
+  if (rv != 0) {
+    goto fail_dcid_retired_init;
+  }
+
   rv = ngtcp2_ksl_init(&(*pconn)->scid.set, cid_less, sizeof(ngtcp2_cid), mem);
   if (rv != 0) {
     goto fail_scid_set_init;
@@ -618,6 +625,8 @@ fail_strms_init:
   delete_scid(&(*pconn)->scid.set, mem);
   ngtcp2_ksl_free(&(*pconn)->scid.set);
 fail_scid_set_init:
+  ngtcp2_ringbuf_free(&(*pconn)->dcid.retired);
+fail_dcid_retired_init:
   ngtcp2_ringbuf_free(&(*pconn)->dcid.unused);
 fail_dcid_unused_init:
   ngtcp2_ringbuf_free(&(*pconn)->dcid.bound);
@@ -741,6 +750,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_pq_free(&conn->scid.used);
   delete_scid(&conn->scid.set, conn->mem);
   ngtcp2_ksl_free(&conn->scid.set);
+  ngtcp2_ringbuf_free(&conn->dcid.retired);
   ngtcp2_ringbuf_free(&conn->dcid.unused);
   ngtcp2_ringbuf_free(&conn->dcid.bound);
 
@@ -2049,6 +2059,7 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
   ngtcp2_duration timeout;
   ngtcp2_scid *scid;
   ngtcp2_ksl_key key;
+  ngtcp2_dcid *dcid;
   int rv;
 
   timeout = conn_compute_pto(conn);
@@ -2073,6 +2084,14 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
                       ngtcp2_ksl_key_ptr(&key, &scid->cid));
     ngtcp2_pq_pop(&conn->scid.used);
     ngtcp2_mem_free(conn->mem, scid);
+  }
+
+  for (; ngtcp2_ringbuf_len(&conn->dcid.retired);) {
+    dcid = ngtcp2_ringbuf_get(&conn->dcid.retired, 0);
+    if (dcid->ts_retired + timeout >= ts) {
+      break;
+    }
+    ngtcp2_ringbuf_pop_front(&conn->dcid.retired);
   }
 
   return 0;
@@ -3008,10 +3027,21 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid) {
+static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
+                            ngtcp2_tstamp ts) {
   ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_frame_chain *nfrc;
+  ngtcp2_ringbuf *rb = &conn->dcid.retired;
+  ngtcp2_dcid *dest;
   int rv;
+
+  if (ngtcp2_ringbuf_full(rb)) {
+    ngtcp2_ringbuf_pop_front(rb);
+  }
+
+  dest = ngtcp2_ringbuf_push_back(rb);
+  ngtcp2_dcid_copy(dest, dcid);
+  dest->ts_retired = ts;
 
   rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
   if (rv != 0) {
@@ -3037,7 +3067,7 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-static int conn_stop_pv(ngtcp2_conn *conn) {
+static int conn_stop_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv = 0;
   ngtcp2_pv *pv = conn->pv;
 
@@ -3046,7 +3076,7 @@ static int conn_stop_pv(ngtcp2_conn *conn) {
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH) {
-    rv = conn_retire_dcid(conn, &pv->dcid);
+    rv = conn_retire_dcid(conn, &pv->dcid, ts);
   }
 
   ngtcp2_pv_del(pv);
@@ -3067,7 +3097,8 @@ static int conn_stop_pv(ngtcp2_conn *conn) {
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv) {
+static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
+                                          ngtcp2_tstamp ts) {
   int rv;
 
   /* If path validation fails, the bound DCID is no longer
@@ -3086,7 +3117,7 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv) {
     ngtcp2_dcid_copy(&conn->dcid.current, &pv->fallback_dcid);
   }
 
-  return conn_stop_pv(conn);
+  return conn_stop_pv(conn, ts);
 }
 
 /*
@@ -3114,7 +3145,7 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
   if (ngtcp2_pv_validation_timed_out(pv, ts)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
                     "path validation was timed out");
-    return conn_on_path_validation_failed(conn, pv);
+    return conn_on_path_validation_failed(conn, pv, ts);
   }
 
   ngtcp2_pv_handle_entry_expiry(pv, ts);
@@ -3162,7 +3193,7 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
  *     Out of memory
  */
 static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
-                          const ngtcp2_path *path) {
+                          const ngtcp2_path *path, ngtcp2_tstamp ts) {
   ngtcp2_pv *pv = conn->pv;
   ngtcp2_dcid *dcid, *ndcid;
   size_t i, len;
@@ -3188,7 +3219,7 @@ static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
   if (ngtcp2_ringbuf_full(&conn->dcid.bound)) {
-    rv = conn_retire_dcid(conn, ngtcp2_ringbuf_get(&conn->dcid.bound, 0));
+    rv = conn_retire_dcid(conn, ngtcp2_ringbuf_get(&conn->dcid.bound, 0), ts);
     if (rv != 0) {
       return rv;
     }
@@ -3263,7 +3294,7 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
        conn->pv. */
     assert(conn->server);
 
-    rv = conn_bind_dcid(conn, &dcid, &pcent->ps.path);
+    rv = conn_bind_dcid(conn, &dcid, &pcent->ps.path, ts);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -4016,7 +4047,7 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
-                                   ngtcp2_path_response *fr) {
+                                   ngtcp2_path_response *fr, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_pv *pv = conn->pv, *npv = NULL;
   ngtcp2_duration timeout;
@@ -4028,7 +4059,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
   rv = ngtcp2_pv_validate(pv, path, fr->data);
   if (rv != 0) {
     if (rv == NGTCP2_ERR_PATH_VALIDATION_FAILED) {
-      return conn_on_path_validation_failed(conn, pv);
+      return conn_on_path_validation_failed(conn, pv, ts);
     }
     return 0;
   }
@@ -4053,7 +4084,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
     if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
-      rv = conn_retire_dcid(conn, &conn->dcid.current);
+      rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
       if (rv != 0) {
         goto fail;
       }
@@ -4067,7 +4098,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
   }
 
-  rv = conn_stop_pv(conn);
+  rv = conn_stop_pv(conn, ts);
   if (rv != 0) {
     goto fail;
   }
@@ -5843,7 +5874,8 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
  *     Out of memory
  */
 static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
-                                                 const ngtcp2_path *path) {
+                                                 const ngtcp2_path *path,
+                                                 ngtcp2_tstamp ts) {
 
   ngtcp2_dcid *dcid, *last_dcid;
   ngtcp2_ringbuf *rb;
@@ -5862,7 +5894,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
                     "path is migrated back to the original path");
     ngtcp2_dcid_copy(&conn->dcid.current, &conn->pv->fallback_dcid);
-    rv = conn_stop_pv(conn);
+    rv = conn_stop_pv(conn, ts);
     if (rv != 0) {
       return rv;
     }
@@ -5917,7 +5949,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_log_info(
         &conn->log, NGTCP2_LOG_EVENT_PTV,
         "path migration is aborted because new migration has started");
-    rv = conn_stop_pv(conn);
+    rv = conn_stop_pv(conn, ts);
     if (rv != 0) {
       ngtcp2_pv_del(pv);
       return rv;
@@ -6362,7 +6394,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       conn_recv_path_challenge(conn, path, &fr->path_challenge);
       break;
     case NGTCP2_FRAME_PATH_RESPONSE:
-      rv = conn_recv_path_response(conn, path, &fr->path_response);
+      rv = conn_recv_path_response(conn, path, &fr->path_response, ts);
       if (rv != 0) {
         return rv;
       }
@@ -6395,7 +6427,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       pktns->rx.max_pkt_num < hd.pkt_num &&
       !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
       !conn_path_validation_in_progress(conn, path)) {
-    rv = conn_recv_non_probing_pkt_on_new_path(conn, path);
+    rv = conn_recv_non_probing_pkt_on_new_path(conn, path, ts);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -6597,6 +6629,24 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   return 0;
 }
 
+/*
+ * conn_is_retired_path returns nonzero if |path| is inclued in
+ * retired path list.
+ */
+static int conn_is_retired_path(ngtcp2_conn *conn, const ngtcp2_path *path) {
+  size_t i, len = ngtcp2_ringbuf_len(&conn->dcid.retired);
+  ngtcp2_dcid *dcid;
+
+  for (i = 0; i < len; ++i) {
+    dcid = ngtcp2_ringbuf_get(&conn->dcid.retired, i);
+    if (ngtcp2_path_eq(&dcid->ps.path, path)) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                          const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts) {
   int rv = 0;
@@ -6612,7 +6662,8 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   /* client does not expect a packet from unknown path. */
   if (!conn->server && !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
-      (!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path))) {
+      (!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path)) &&
+      !conn_is_retired_path(conn, path)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "ignore packet from unknown path");
     return 0;
@@ -8484,12 +8535,12 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
-  rv = conn_stop_pv(conn);
+  rv = conn_stop_pv(conn, ts);
   if (rv != 0) {
     return rv;
   }
 
-  rv = conn_retire_dcid(conn, &conn->dcid.current);
+  rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
   if (rv != 0) {
     return rv;
   }
