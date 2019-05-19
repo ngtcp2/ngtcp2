@@ -758,8 +758,7 @@ void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   switch (rv) {
   case 0:
   case NETWORK_ERR_CLOSE_WAIT:
-    return;
-  case NETWORK_ERR_SEND_NON_FATAL:
+  case NETWORK_ERR_SEND_BLOCKED:
     return;
   default:
     s->remove(h);
@@ -824,8 +823,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     switch (rv) {
     case 0:
     case NETWORK_ERR_CLOSE_WAIT:
-      return;
-    case NETWORK_ERR_SEND_NON_FATAL:
+    case NETWORK_ERR_SEND_BLOCKED:
       return;
     default:
       s->remove(h);
@@ -841,8 +839,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     switch (rv) {
     case 0:
     case NETWORK_ERR_CLOSE_WAIT:
-      return;
-    case NETWORK_ERR_SEND_NON_FATAL:
+    case NETWORK_ERR_SEND_BLOCKED:
       return;
     default:
       s->remove(h);
@@ -2027,7 +2024,7 @@ ssize_t Handler::do_handshake_write_once() {
   sendbuf_.push(nwrite);
 
   auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-  if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+  if (rv == NETWORK_ERR_SEND_BLOCKED) {
     schedule_retransmit();
     return rv;
   }
@@ -2150,7 +2147,7 @@ int Handler::on_write() {
 
   if (!ngtcp2_conn_get_handshake_completed(conn_)) {
     rv = do_handshake(nullptr, nullptr, 0);
-    if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+    if (rv == NETWORK_ERR_SEND_BLOCKED) {
       schedule_retransmit();
     }
     if (rv != NETWORK_ERR_OK) {
@@ -2160,7 +2157,7 @@ int Handler::on_write() {
 
   rv = write_streams();
   if (rv != 0) {
-    if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+    if (rv == NETWORK_ERR_SEND_BLOCKED) {
       schedule_retransmit();
     }
     return rv;
@@ -2191,7 +2188,7 @@ int Handler::on_write() {
     update_remote_addr(&path.path.remote);
 
     auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-    if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+    if (rv == NETWORK_ERR_SEND_BLOCKED) {
       schedule_retransmit();
       return rv;
     }
@@ -2907,8 +2904,7 @@ int Server::on_read(Endpoint &ep) {
         rv = h->on_write();
         switch (rv) {
         case 0:
-          break;
-        case NETWORK_ERR_SEND_NON_FATAL:
+        case NETWORK_ERR_SEND_BLOCKED:
           break;
         default:
           return 0;
@@ -2942,7 +2938,7 @@ int Server::on_read(Endpoint &ep) {
       rv = h->send_conn_close();
       switch (rv) {
       case 0:
-      case NETWORK_ERR_SEND_NON_FATAL:
+      case NETWORK_ERR_SEND_BLOCKED:
         break;
       default:
         remove(h);
@@ -2965,8 +2961,7 @@ int Server::on_read(Endpoint &ep) {
     switch (rv) {
     case 0:
     case NETWORK_ERR_CLOSE_WAIT:
-      break;
-    case NETWORK_ERR_SEND_NON_FATAL:
+    case NETWORK_ERR_SEND_BLOCKED:
       break;
     default:
       remove(h);
@@ -3290,25 +3285,23 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf,
     return NETWORK_ERR_OK;
   }
 
-  int eintr_retries = 5;
   ssize_t nwrite = 0;
 
   do {
     nwrite = sendto(ep.fd, buf.rpos(), buf.size(), MSG_DONTWAIT,
                     &remote_addr.su.sa, remote_addr.len);
-  } while ((nwrite == -1) && (errno == EINTR) && (eintr_retries-- > 0));
+  } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
     switch (errno) {
     case EAGAIN:
     case EINTR:
-    case 0:
       if (wev) {
         ev_io_stop(loop_, wev);
         ev_io_set(wev, ep.fd, EV_WRITE);
         ev_io_start(loop_, wev);
       }
-      return NETWORK_ERR_SEND_NON_FATAL;
+      return NETWORK_ERR_SEND_BLOCKED;
     default:
       std::cerr << "sendto: " << strerror(errno) << std::endl;
       // TODO We have packet which is expected to fail to send (e.g.,

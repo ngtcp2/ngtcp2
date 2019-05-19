@@ -309,7 +309,7 @@ void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   switch (rv) {
   case 0:
     return;
-  case NETWORK_ERR_SEND_NON_FATAL:
+  case NETWORK_ERR_SEND_BLOCKED:
     c->start_wev();
     return;
   }
@@ -327,7 +327,7 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
   switch (rv) {
   case 0:
     return;
-  case NETWORK_ERR_SEND_NON_FATAL:
+  case NETWORK_ERR_SEND_BLOCKED:
     c->start_wev();
     return;
   }
@@ -371,7 +371,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
 fail:
   switch (rv) {
-  case NETWORK_ERR_SEND_NON_FATAL:
+  case NETWORK_ERR_SEND_BLOCKED:
     c->start_wev();
     return;
   default:
@@ -410,7 +410,7 @@ void delay_streamcb(struct ev_loop *loop, ev_timer *w, int revents) {
   switch (rv) {
   case 0:
     return;
-  case NETWORK_ERR_SEND_NON_FATAL:
+  case NETWORK_ERR_SEND_BLOCKED:
     c->start_wev();
     return;
   }
@@ -1322,7 +1322,7 @@ ssize_t Client::do_handshake_write_once() {
   sendbuf_.push(nwrite);
 
   auto rv = send_packet();
-  if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+  if (rv == NETWORK_ERR_SEND_BLOCKED) {
     schedule_retransmit();
     return rv;
   }
@@ -1417,7 +1417,7 @@ int Client::on_write(bool retransmit) {
   if (sendbuf_.size() > 0) {
     auto rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
-      if (rv != NETWORK_ERR_SEND_NON_FATAL) {
+      if (rv != NETWORK_ERR_SEND_BLOCKED) {
         last_error_ = quicErrorTransport(NGTCP2_ERR_INTERNAL);
         disconnect();
       }
@@ -1465,7 +1465,7 @@ int Client::on_write(bool retransmit) {
     update_remote_addr(&path.path.remote);
 
     auto rv = send_packet();
-    if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+    if (rv == NETWORK_ERR_SEND_BLOCKED) {
       schedule_retransmit();
       return rv;
     }
@@ -1477,7 +1477,7 @@ int Client::on_write(bool retransmit) {
   if (!retransmit) {
     auto rv = write_streams();
     if (rv != 0) {
-      if (rv == NETWORK_ERR_SEND_NON_FATAL) {
+      if (rv == NETWORK_ERR_SEND_BLOCKED) {
         schedule_retransmit();
       }
       return rv;
@@ -2066,23 +2066,21 @@ int Client::send_packet() {
     return NETWORK_ERR_OK;
   }
 
-  int eintr_retries = 5;
   ssize_t nwrite = 0;
 
   do {
     nwrite = sendto(fd_, sendbuf_.rpos(), sendbuf_.size(), MSG_DONTWAIT,
                     &remote_addr_.su.sa, remote_addr_.len);
-  } while ((nwrite == -1) && (errno == EINTR) && (eintr_retries-- > 0));
+  } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
     switch (errno) {
     case EAGAIN:
     case EINTR:
-    case 0:
-      return NETWORK_ERR_SEND_NON_FATAL;
+      return NETWORK_ERR_SEND_BLOCKED;
     default:
       std::cerr << "send: " << strerror(errno) << std::endl;
-      return NETWORK_ERR_SEND_FATAL;
+      return NETWORK_ERR_FATAL;
     }
   }
 
