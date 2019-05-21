@@ -469,6 +469,8 @@ Client::~Client() {
 }
 
 void Client::disconnect() {
+  handle_error();
+
   config.tx_loss_prob = 0;
 
   ev_timer_stop(loop_, &delay_stream_timer_);
@@ -481,7 +483,6 @@ void Client::disconnect() {
 
   ev_signal_stop(loop_, &sigintev_);
 
-  handle_error();
 }
 
 void Client::close() {
