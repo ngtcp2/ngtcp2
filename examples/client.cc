@@ -482,7 +482,6 @@ void Client::disconnect() {
   ev_io_stop(loop_, &rev_);
 
   ev_signal_stop(loop_, &sigintev_);
-
 }
 
 void Client::close() {
