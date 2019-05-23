@@ -1755,9 +1755,9 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
  */
 static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
                                              size_t destlen,
-                                             int require_padding,
                                              ngtcp2_tstamp ts) {
   ssize_t res = 0, nwrite = 0;
+  int require_padding;
 
   if (conn->hs_pktns.crypto.tx.ckm) {
     nwrite =
@@ -1773,7 +1773,7 @@ static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
     destlen -= (size_t)nwrite;
   }
 
-  require_padding = require_padding && res == 0;
+  require_padding = !conn->server && res == 0;
 
   if (require_padding) {
     /* PADDING frame counts toward bytes_in_flight, thus destlen is
@@ -3380,8 +3380,7 @@ ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
         return nwrite;
       }
     }
-    nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen,
-                                           /* require_padding = */ 1, ts);
+    nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
     if (nwrite) {
       return nwrite;
     }
@@ -7006,8 +7005,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         /* This might send PADDING only Initial packet if client has
            nothing to send and does not have client handshake traffic
            key to prevent server from deadlocking. */
-        nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen,
-                                               /* require_padding = */ 1, ts);
+        nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
         if (nwrite < 0) {
           return nwrite;
         }
@@ -7094,8 +7092,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
       nwrite = conn_write_handshake_ack_pkts(
           conn, dest,
-          res == 0 ? ngtcp2_min(origlen, server_hs_tx_left) : destlen,
-          /* require_padding = */ res == 0, ts);
+          res == 0 ? ngtcp2_min(origlen, server_hs_tx_left) : destlen, ts);
       if (nwrite < 0) {
         return nwrite;
       }
@@ -7105,8 +7102,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       return res;
     }
 
-    nwrite = conn_write_handshake_ack_pkts(
-        conn, dest, origlen, /* require_padding = */ res == 0, ts);
+    nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
     if (nwrite < 0) {
       return nwrite;
     }
@@ -7839,8 +7835,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
       return nwrite;
     }
   }
-  nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen,
-                                         /* require_padding = */ 1, ts);
+  nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
   if (nwrite) {
     return nwrite;
   }
