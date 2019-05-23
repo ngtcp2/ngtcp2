@@ -118,10 +118,6 @@ typedef enum {
    It must be at least 8 as per the spec. */
 #define NGTCP2_MIN_SCID_POOL_SIZE 8
 
-/* NGTCP2_MIN_DCID_CHANGE_DURATION is the minimum duration that local
-   endpoint changes DCID. */
-#define NGTCP2_MIN_DCID_CHANGE_DURATION (3ULL * NGTCP2_SECONDS)
-
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
