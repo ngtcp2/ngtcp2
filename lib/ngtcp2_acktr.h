@@ -108,6 +108,9 @@ typedef enum {
      acknowledgement for ACK which acknowledges the last handshake
      packet from client (which contains TLSv1.3 Finished message). */
   NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK = 0x80,
+  /* NGTCP2_ACKTR_FLAG_CANCEL_TIMER is set when ACK delay timer is
+     expired and canceled. */
+  NGTCP2_ACKTR_FLAG_CANCEL_TIMER = 0x0100,
 } ngtcp2_acktr_flag;
 
 /*

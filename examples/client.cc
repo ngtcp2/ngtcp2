@@ -361,6 +361,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
 
   if (ngtcp2_conn_ack_delay_expiry(conn) <= now) {
+    ngtcp2_conn_cancel_expired_ack_delay_timer(conn, now);
     rv = c->on_write();
     if (rv != 0) {
       goto fail;

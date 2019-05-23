@@ -1754,8 +1754,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * Initial and Handshake packet.
  */
 static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
-                                             size_t destlen,
-                                             ngtcp2_tstamp ts) {
+                                             size_t destlen, ngtcp2_tstamp ts) {
   ssize_t res = 0, nwrite = 0;
   int require_padding;
 
@@ -7511,15 +7510,18 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
   ngtcp2_tstamp ts = UINT64_MAX, t;
 
-  if (in_acktr->first_unacked_ts != UINT64_MAX) {
+  if (!(in_acktr->flags & NGTCP2_ACKTR_FLAG_CANCEL_TIMER) &&
+      in_acktr->first_unacked_ts != UINT64_MAX) {
     t = in_acktr->first_unacked_ts + NGTCP2_HS_ACK_DELAY;
     ts = ngtcp2_min(ts, t);
   }
-  if (hs_acktr->first_unacked_ts != UINT64_MAX) {
+  if (!(hs_acktr->flags & NGTCP2_ACKTR_FLAG_CANCEL_TIMER) &&
+      hs_acktr->first_unacked_ts != UINT64_MAX) {
     t = hs_acktr->first_unacked_ts + NGTCP2_HS_ACK_DELAY;
     ts = ngtcp2_min(ts, t);
   }
-  if (acktr->first_unacked_ts != UINT64_MAX) {
+  if (!(acktr->flags & NGTCP2_ACKTR_FLAG_CANCEL_TIMER) &&
+      acktr->first_unacked_ts != UINT64_MAX) {
     t = acktr->first_unacked_ts + conn_compute_ack_delay(conn);
     ts = ngtcp2_min(ts, t);
   }
@@ -7530,6 +7532,21 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp t1 = ngtcp2_conn_loss_detection_expiry(conn);
   ngtcp2_tstamp t2 = ngtcp2_conn_ack_delay_expiry(conn);
   return ngtcp2_min(t1, t2);
+}
+
+static void acktr_cancel_expired_ack_delay_timer(ngtcp2_acktr *acktr,
+                                                 ngtcp2_tstamp ts) {
+  if (!(acktr->flags & NGTCP2_ACKTR_FLAG_CANCEL_TIMER) &&
+      acktr->first_unacked_ts <= ts) {
+    acktr->flags |= NGTCP2_ACKTR_FLAG_CANCEL_TIMER;
+  }
+}
+
+void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
+                                                ngtcp2_tstamp ts) {
+  acktr_cancel_expired_ack_delay_timer(&conn->in_pktns.acktr, ts);
+  acktr_cancel_expired_ack_delay_timer(&conn->hs_pktns.acktr, ts);
+  acktr_cancel_expired_ack_delay_timer(&conn->pktns.acktr, ts);
 }
 
 /*

@@ -316,15 +316,15 @@ void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr) {
 
 void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr) {
   acktr->flags &= (uint16_t) ~(NGTCP2_ACKTR_FLAG_ACTIVE_ACK |
-                               NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK);
+                               NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK |
+                               NGTCP2_ACKTR_FLAG_CANCEL_TIMER);
   acktr->first_unacked_ts = UINT64_MAX;
   acktr->rx_npkt = 0;
 }
 
 int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint64_t max_ack_delay,
                                     ngtcp2_tstamp ts) {
-  return (acktr->flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK) &&
-         acktr->first_unacked_ts <= ts - max_ack_delay;
+  return acktr->first_unacked_ts <= ts - max_ack_delay;
 }
 
 void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr) {

@@ -271,6 +271,7 @@ timestamp is equal to or larger than the value returned from
 (or `ngtcp2_conn_write_handshake()` if handshake has not completed
 yet).  If the current timestamp is equal to or larger than the value
 returned from `ngtcp2_conn_ack_delay_expiry()`, it has to call
+`ngtcp2_conn_cancel_expired_ack_delay_timer()` and
 `ngtcp2_conn_write_pkt()` (or `ngtcp2_conn_write_handshake()` if
 handshake has not completed yet).  After calling these functions, new
 expiry will be set.  The application should call

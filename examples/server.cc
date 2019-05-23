@@ -835,6 +835,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     if (!config.quiet) {
       std::cerr << "Delayed ACK timer expired" << std::endl;
     }
+    ngtcp2_conn_cancel_expired_ack_delay_timer(conn, now);
     rv = h->on_write();
     switch (rv) {
     case 0:
