@@ -198,8 +198,6 @@ int main() {
       !CU_add_test(pSuite, "conn_handshake", test_ngtcp2_conn_handshake) ||
       !CU_add_test(pSuite, "conn_handshake_error",
                    test_ngtcp2_conn_handshake_error) ||
-      !CU_add_test(pSuite, "conn_client_write_handshake",
-                   test_ngtcp2_conn_client_write_handshake) ||
       !CU_add_test(pSuite, "conn_retransmit_protected",
                    test_ngtcp2_conn_retransmit_protected) ||
       !CU_add_test(pSuite, "conn_send_max_stream_data",
@@ -226,7 +224,7 @@ int main() {
       !CU_add_test(pSuite, "conn_server_path_validation",
                    test_ngtcp2_conn_server_path_validation) ||
       !CU_add_test(pSuite, "conn_client_connection_migration",
-                   test_ngtcp2_conn_client_write_handshake) ||
+                   test_ngtcp2_conn_client_connection_migration) ||
       !CU_add_test(pSuite, "conn_recv_path_challenge",
                    test_ngtcp2_conn_recv_path_challenge) ||
       !CU_add_test(pSuite, "conn_key_update", test_ngtcp2_conn_key_update) ||

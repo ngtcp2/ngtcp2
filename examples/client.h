@@ -164,14 +164,8 @@ public:
   int on_read();
   int on_write(bool retransmit = false);
   int write_streams();
-  int write_0rtt_streams();
   int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                 size_t datalen);
-  int do_handshake(const ngtcp2_path *path, const uint8_t *data,
-                   size_t datalen);
-  int do_handshake_read_once(const ngtcp2_path *path, const uint8_t *data,
-                             size_t datalen);
-  ssize_t do_handshake_write_once();
   void schedule_retransmit();
   int handshake_completed();
 

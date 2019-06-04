@@ -1993,77 +1993,6 @@ ssize_t Handler::hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
                          samplelen);
 }
 
-int Handler::do_handshake_read_once(const ngtcp2_path *path,
-                                    const uint8_t *data, size_t datalen) {
-  auto rv = ngtcp2_conn_read_handshake(conn_, path, data, datalen,
-                                       util::timestamp(loop_));
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_read_handshake: " << ngtcp2_strerror(rv)
-              << std::endl;
-    if (!last_error_.code) {
-      last_error_ = quicErrorTransport(rv);
-    }
-    return -1;
-  }
-  return 0;
-}
-
-ssize_t Handler::do_handshake_write_once() {
-  auto nwrite = ngtcp2_conn_write_handshake(conn_, sendbuf_.wpos(), max_pktlen_,
-                                            util::timestamp(loop_));
-  if (nwrite < 0) {
-    std::cerr << "ngtcp2_conn_write_handshake: " << ngtcp2_strerror(nwrite)
-              << std::endl;
-    last_error_ = quicErrorTransport(nwrite);
-    return -1;
-  }
-
-  if (nwrite == 0) {
-    return 0;
-  }
-
-  sendbuf_.push(nwrite);
-
-  auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-  if (rv == NETWORK_ERR_SEND_BLOCKED) {
-    schedule_retransmit();
-    return rv;
-  }
-  if (rv != NETWORK_ERR_OK) {
-    return rv;
-  }
-  ev_timer_again(loop_, &timer_);
-
-  return nwrite;
-}
-
-int Handler::do_handshake(const ngtcp2_path *path, const uint8_t *data,
-                          size_t datalen) {
-  if (datalen) {
-    auto rv = do_handshake_read_once(path, data, datalen);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
-  if (sendbuf_.size() > 0) {
-    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-    if (rv != NETWORK_ERR_OK) {
-      return rv;
-    }
-  }
-
-  for (;;) {
-    auto nwrite = do_handshake_write_once();
-    if (nwrite < 0) {
-      return nwrite;
-    }
-    if (nwrite == 0) {
-      return 0;
-    }
-  }
-}
-
 void Handler::update_endpoint(const ngtcp2_addr *addr) {
   endpoint_ = static_cast<Endpoint *>(addr->user_data);
   assert(endpoint_);
@@ -2084,26 +2013,17 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
        const_cast<Endpoint *>(&ep)},
       {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
 
-  if (ngtcp2_conn_get_handshake_completed(conn_)) {
-    rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
-                              util::timestamp(loop_));
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
-      if (rv == NGTCP2_ERR_DRAINING) {
-        start_draining_period();
-        return NETWORK_ERR_CLOSE_WAIT;
-      }
-      if (!last_error_.code) {
-        last_error_ = quicErrorTransport(rv);
-      }
-      return handle_error();
-    }
-
-    return 0;
-  }
-
-  rv = do_handshake(&path, data, datalen);
+  rv =
+      ngtcp2_conn_read_pkt(conn_, &path, data, datalen, util::timestamp(loop_));
   if (rv != 0) {
+    std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
+    if (rv == NGTCP2_ERR_DRAINING) {
+      start_draining_period();
+      return NETWORK_ERR_CLOSE_WAIT;
+    }
+    if (!last_error_.code) {
+      last_error_ = quicErrorTransport(rv);
+    }
     return handle_error();
   }
 
@@ -2146,16 +2066,6 @@ int Handler::on_write() {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
-  if (!ngtcp2_conn_get_handshake_completed(conn_)) {
-    rv = do_handshake(nullptr, nullptr, 0);
-    if (rv == NETWORK_ERR_SEND_BLOCKED) {
-      schedule_retransmit();
-    }
-    if (rv != NETWORK_ERR_OK) {
-      return rv;
-    }
-  }
-
   rv = write_streams();
   if (rv != 0) {
     if (rv == NETWORK_ERR_SEND_BLOCKED) {
@@ -2164,82 +2074,71 @@ int Handler::on_write() {
     return rv;
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(conn_)) {
-    schedule_retransmit();
-    return 0;
-  }
-
-  PathStorage path;
-
-  for (;;) {
-    auto n = ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
-                                   max_pktlen_, util::timestamp(loop_));
-    if (n < 0) {
-      std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(n) << std::endl;
-      last_error_ = quicErrorTransport(n);
-      return handle_error();
-    }
-    if (n == 0) {
-      break;
-    }
-
-    sendbuf_.push(n);
-
-    update_endpoint(&path.path.local);
-    update_remote_addr(&path.path.remote);
-
-    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-    if (rv == NETWORK_ERR_SEND_BLOCKED) {
-      schedule_retransmit();
-      return rv;
-    }
-    if (rv != NETWORK_ERR_OK) {
-      return rv;
-    }
-    reset_idle_timer();
-  }
-
   schedule_retransmit();
+
   return 0;
 }
 
 int Handler::write_streams() {
-  if (!httpconn_) {
-    return 0;
-  }
-
   std::array<nghttp3_vec, 16> vec;
   int rv;
-
-  if (ngtcp2_conn_get_max_data_left(conn_) == 0) {
-    return 0;
-  }
 
   for (;;) {
     int64_t stream_id;
     int fin;
 
-    auto sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
-                                              vec.data(), vec.size());
-    if (sveccnt < 0) {
-      std::cerr << "nghttp3_conn_writev_stream: " << nghttp3_strerror(sveccnt)
-                << std::endl;
-      last_error_ = quicErrorApplication(sveccnt);
-      return handle_error();
-    }
+    ssize_t sveccnt = 0;
 
-    if (sveccnt == 0) {
-      break;
+    if (httpconn_ && ngtcp2_conn_get_max_data_left(conn_)) {
+      sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
+                                           vec.data(), vec.size());
+      if (sveccnt < 0) {
+        std::cerr << "nghttp3_conn_writev_stream: " << nghttp3_strerror(sveccnt)
+                  << std::endl;
+        last_error_ = quicErrorApplication(sveccnt);
+        return handle_error();
+      }
     }
 
     ssize_t ndatalen;
     PathStorage path;
+    if (sveccnt == 0) {
+      for (;;) {
+        auto nwrite =
+            ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
+                                  max_pktlen_, util::timestamp(loop_));
+        if (nwrite < 0) {
+          std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(nwrite)
+                    << std::endl;
+          last_error_ = quicErrorTransport(nwrite);
+          return handle_error();
+        }
+        if (nwrite == 0) {
+          return 0;
+        }
+        sendbuf_.push(nwrite);
+
+        update_endpoint(&path.path.local);
+        update_remote_addr(&path.path.remote);
+
+        auto rv =
+            server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
+        if (rv != NETWORK_ERR_OK) {
+          return rv;
+        }
+        reset_idle_timer();
+
+        return 0;
+      }
+    }
+
     auto v = vec.data();
     auto vcnt = static_cast<size_t>(sveccnt);
     for (;;) {
       auto nwrite = ngtcp2_conn_writev_stream(
-          conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen, stream_id,
-          fin, reinterpret_cast<const ngtcp2_vec *>(v), vcnt,
+          conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen,
+          NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id, fin,
+          reinterpret_cast<const ngtcp2_vec *>(v), vcnt,
           util::timestamp(loop_));
       if (nwrite < 0) {
         auto should_break = false;
@@ -2259,6 +2158,17 @@ int Handler::write_streams() {
           should_break = true;
           break;
         case NGTCP2_ERR_STREAM_SHUT_WR:
+          should_break = true;
+          break;
+        case NGTCP2_ERR_WRITE_STREAM_MORE:
+          assert(ndatalen > 0);
+          rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+          if (rv != 0) {
+            std::cerr << "nghttp3_conn_add_write_offset: "
+                      << nghttp3_strerror(rv) << std::endl;
+            last_error_ = quicErrorApplication(rv);
+            return handle_error();
+          }
           should_break = true;
           break;
         }
@@ -2312,8 +2222,6 @@ int Handler::write_streams() {
       }
     }
   }
-
-  return 0;
 }
 
 bool Handler::draining() const { return draining_; }
