@@ -31,6 +31,10 @@ addons:
     - libev-dev
     - cmake
     - cmake-data
+  homebrew:
+    packages:
+      - libev
+      - cunit
 before_install:
   - $CC --version
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then CMAKE_OPTS=" -DENABLE_ASAN=1" AUTOTOOLS_OPTS=" --enable-asan"; fi
@@ -41,7 +45,6 @@ before_script:
   # First build external lib
   - ./ci/build_openssl.sh
   - ./ci/build_nghttp3.sh
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install libev cunit; fi
   # configure ngtcp2
   - if [ "$CI_BUILD" == "autotools" ]; then autoreconf -i; fi
   - export PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
