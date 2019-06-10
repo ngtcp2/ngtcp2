@@ -2808,6 +2808,8 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_frame *ackfr;
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
 
+  assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
+
   ackfr = NULL;
   rv = conn_create_ack_frame(conn, &ackfr, acktr, ts,
                              conn_compute_ack_delay(conn),
