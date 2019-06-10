@@ -57,7 +57,7 @@ Build from git
    $ make -j$(nproc) check
    $ make install
    $ cd ..
-   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ git clone -b draft-20 https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
    $ autoreconf -i
    $ # For Mac users who have installed libev with MacPorts, append
