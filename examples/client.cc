@@ -638,7 +638,7 @@ int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->on_stream_close(stream_id) != 0) {
+  if (c->on_stream_close(stream_id, app_error_code) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -1966,7 +1966,7 @@ void Client::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
   ::remove_tx_stream_data(crypto.data, crypto.acked_offset, offset + datalen);
 }
 
-int Client::on_stream_close(int64_t stream_id) {
+int Client::on_stream_close(int64_t stream_id, uint16_t app_error_code) {
   auto it = streams_.find(stream_id);
 
   if (it == std::end(streams_)) {
@@ -1974,7 +1974,7 @@ int Client::on_stream_close(int64_t stream_id) {
   }
 
   if (httpconn_) {
-    auto rv = nghttp3_conn_close_stream(httpconn_, stream_id);
+    auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
     if (rv != 0) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;

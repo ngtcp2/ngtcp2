@@ -205,7 +205,7 @@ public:
   int send_packet();
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
                              size_t datalen);
-  int on_stream_close(int64_t stream_id);
+  int on_stream_close(int64_t stream_id, uint16_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
   void make_stream_early();

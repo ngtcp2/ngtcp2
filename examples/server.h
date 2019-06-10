@@ -242,7 +242,7 @@ public:
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
                              size_t datalen);
   void on_stream_open(int64_t stream_id);
-  int on_stream_close(int64_t stream_id);
+  int on_stream_close(int64_t stream_id, uint16_t app_error_code);
   void start_draining_period();
   int start_closing_period();
   bool draining() const;
