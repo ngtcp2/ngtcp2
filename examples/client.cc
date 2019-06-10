@@ -1416,8 +1416,6 @@ int Client::write_streams() {
         if (rv != NETWORK_ERR_OK) {
           return rv;
         }
-
-        return 0;
       }
     }
 

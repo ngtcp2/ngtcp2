@@ -2127,8 +2127,6 @@ int Handler::write_streams() {
           return rv;
         }
         reset_idle_timer();
-
-        return 0;
       }
     }
 
