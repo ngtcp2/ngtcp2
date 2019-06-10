@@ -577,14 +577,11 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);
 
-    if ((ent->flags & (NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED |
-                       NGTCP2_RTB_FLAG_PROBE)) ||
+    if ((ent->flags & NGTCP2_RTB_FLAG_PROBE) ||
         !(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_PKT)) {
       ngtcp2_ksl_it_next(&it);
       continue;
     }
-
-    ent->flags |= NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED;
 
     all_acked = 1;
 
@@ -608,13 +605,15 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
 
       all_acked = 0;
 
-      rv = ngtcp2_crypto_frame_chain_new(&nfrc, rtb->mem);
-      if (rv != 0) {
-        return rv;
-      }
+      if (!(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED)) {
+        rv = ngtcp2_crypto_frame_chain_new(&nfrc, rtb->mem);
+        if (rv != 0) {
+          return rv;
+        }
 
-      ngtcp2_crypto_frame_chain_copy(nfrc, (ngtcp2_crypto_frame_chain *)frc);
-      frame_chain_insert(pfrc, &nfrc->frc);
+        ngtcp2_crypto_frame_chain_copy(nfrc, (ngtcp2_crypto_frame_chain *)frc);
+        frame_chain_insert(pfrc, &nfrc->frc);
+      }
     }
 
     if (all_acked) {
@@ -626,6 +625,8 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
       ngtcp2_rtb_entry_del(ent, rtb->mem);
       continue;
     }
+
+    ent->flags |= NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED;
 
     ngtcp2_ksl_it_next(&it);
   }
