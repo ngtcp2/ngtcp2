@@ -2724,155 +2724,152 @@ int Server::on_read(Endpoint &ep) {
   int rv;
   ngtcp2_pkt_hd hd;
 
-  while (true) {
-    addrlen = sizeof(su);
-    auto nread =
-        recvfrom(ep.fd, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
-    if (nread == -1) {
-      if (!(errno == EAGAIN || errno == ENOTCONN)) {
-        std::cerr << "recvfrom: " << strerror(errno) << std::endl;
-      }
-      return 0;
+  addrlen = sizeof(su);
+  auto nread =
+      recvfrom(ep.fd, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
+  if (nread == -1) {
+    if (!(errno == EAGAIN || errno == ENOTCONN)) {
+      std::cerr << "recvfrom: " << strerror(errno) << std::endl;
     }
+    return 0;
+  }
 
+  if (!config.quiet) {
+    std::cerr << "Received packet: local="
+              << util::straddr(&ep.addr.su.sa, ep.addr.len)
+              << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
+              << " bytes" << std::endl;
+  }
+
+  if (debug::packet_lost(config.rx_loss_prob)) {
     if (!config.quiet) {
-      std::cerr << "Received packet: local="
-                << util::straddr(&ep.addr.su.sa, ep.addr.len)
-                << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
-                << " bytes" << std::endl;
+      std::cerr << "** Simulated incoming packet loss **" << std::endl;
     }
+    return 0;
+  }
 
-    if (debug::packet_lost(config.rx_loss_prob)) {
-      if (!config.quiet) {
-        std::cerr << "** Simulated incoming packet loss **" << std::endl;
-      }
-      return 0;
-    }
+  if (nread == 0) {
+    return 0;
+  }
 
-    if (nread == 0) {
-      continue;
-    }
+  if (buf[0] & 0x80) {
+    rv = ngtcp2_pkt_decode_hd_long(&hd, buf.data(), nread);
+  } else {
+    // TODO For Short packet, we just need DCID.
+    rv = ngtcp2_pkt_decode_hd_short(&hd, buf.data(), nread, NGTCP2_SV_SCIDLEN);
+  }
+  if (rv < 0) {
+    std::cerr << "Could not decode QUIC packet header: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return 0;
+  }
 
-    if (buf[0] & 0x80) {
-      rv = ngtcp2_pkt_decode_hd_long(&hd, buf.data(), nread);
-    } else {
-      // TODO For Short packet, we just need DCID.
-      rv =
-          ngtcp2_pkt_decode_hd_short(&hd, buf.data(), nread, NGTCP2_SV_SCIDLEN);
-    }
-    if (rv < 0) {
-      std::cerr << "Could not decode QUIC packet header: "
-                << ngtcp2_strerror(rv) << std::endl;
-      return 0;
-    }
+  auto dcid_key = util::make_cid_key(&hd.dcid);
 
-    auto dcid_key = util::make_cid_key(&hd.dcid);
-
-    auto handler_it = handlers_.find(dcid_key);
-    if (handler_it == std::end(handlers_)) {
-      auto ctos_it = ctos_.find(dcid_key);
-      if (ctos_it == std::end(ctos_)) {
-        rv = ngtcp2_accept(&hd, buf.data(), nread);
-        if (rv == -1) {
-          if (!config.quiet) {
-            std::cerr << "Unexpected packet received: length=" << nread
-                      << std::endl;
-          }
-          return 0;
+  auto handler_it = handlers_.find(dcid_key);
+  if (handler_it == std::end(handlers_)) {
+    auto ctos_it = ctos_.find(dcid_key);
+    if (ctos_it == std::end(ctos_)) {
+      rv = ngtcp2_accept(&hd, buf.data(), nread);
+      if (rv == -1) {
+        if (!config.quiet) {
+          std::cerr << "Unexpected packet received: length=" << nread
+                    << std::endl;
         }
-
-        if (rv == 1) {
-          if (!config.quiet) {
-            std::cerr << "Unsupported version: Send Version Negotiation"
-                      << std::endl;
-          }
-          send_version_negotiation(&hd, ep, &su.sa, addrlen);
-          return 0;
-        }
-
-        ngtcp2_cid ocid;
-        ngtcp2_cid *pocid = nullptr;
-        if (config.validate_addr && hd.type == NGTCP2_PKT_INITIAL) {
-          std::cerr << "Perform stateless address validation" << std::endl;
-          if (hd.tokenlen == 0 ||
-              verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
-            send_retry(&hd, ep, &su.sa, addrlen);
-            return 0;
-          }
-          pocid = &ocid;
-        }
-
-        auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-        h->init(ep, &su.sa, addrlen, &hd.scid, pocid, hd.version);
-
-        if (h->on_read(ep, &su.sa, addrlen, buf.data(), nread) != 0) {
-          return 0;
-        }
-        rv = h->on_write();
-        switch (rv) {
-        case 0:
-        case NETWORK_ERR_SEND_BLOCKED:
-          break;
-        default:
-          return 0;
-        }
-
-        auto scid = h->scid();
-        auto scid_key = util::make_cid_key(scid);
-        ctos_.emplace(dcid_key, scid_key);
-
-        auto pscid = h->pscid();
-        if (pscid->datalen) {
-          auto pscid_key = util::make_cid_key(pscid);
-          ctos_.emplace(pscid_key, scid_key);
-        }
-
-        handlers_.emplace(scid_key, std::move(h));
         return 0;
       }
-      if (!config.quiet) {
-        std::cerr << "Forward CID=" << util::format_hex((*ctos_it).first)
-                  << " to CID=" << util::format_hex((*ctos_it).second)
-                  << std::endl;
-      }
-      handler_it = handlers_.find((*ctos_it).second);
-      assert(handler_it != std::end(handlers_));
-    }
 
-    auto h = (*handler_it).second.get();
-    if (ngtcp2_conn_is_in_closing_period(h->conn())) {
-      // TODO do exponential backoff.
-      rv = h->send_conn_close();
+      if (rv == 1) {
+        if (!config.quiet) {
+          std::cerr << "Unsupported version: Send Version Negotiation"
+                    << std::endl;
+        }
+        send_version_negotiation(&hd, ep, &su.sa, addrlen);
+        return 0;
+      }
+
+      ngtcp2_cid ocid;
+      ngtcp2_cid *pocid = nullptr;
+      if (config.validate_addr && hd.type == NGTCP2_PKT_INITIAL) {
+        std::cerr << "Perform stateless address validation" << std::endl;
+        if (hd.tokenlen == 0 ||
+            verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
+          send_retry(&hd, ep, &su.sa, addrlen);
+          return 0;
+        }
+        pocid = &ocid;
+      }
+
+      auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
+      h->init(ep, &su.sa, addrlen, &hd.scid, pocid, hd.version);
+
+      if (h->on_read(ep, &su.sa, addrlen, buf.data(), nread) != 0) {
+        return 0;
+      }
+      rv = h->on_write();
       switch (rv) {
       case 0:
       case NETWORK_ERR_SEND_BLOCKED:
         break;
       default:
-        remove(h);
+        return 0;
       }
-      return 0;
-    }
-    if (h->draining()) {
-      return 0;
-    }
 
-    rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
-    if (rv != 0) {
-      if (rv != NETWORK_ERR_CLOSE_WAIT) {
-        remove(h);
+      auto scid = h->scid();
+      auto scid_key = util::make_cid_key(scid);
+      ctos_.emplace(dcid_key, scid_key);
+
+      auto pscid = h->pscid();
+      if (pscid->datalen) {
+        auto pscid_key = util::make_cid_key(pscid);
+        ctos_.emplace(pscid_key, scid_key);
       }
+
+      handlers_.emplace(scid_key, std::move(h));
       return 0;
     }
+    if (!config.quiet) {
+      std::cerr << "Forward CID=" << util::format_hex((*ctos_it).first)
+                << " to CID=" << util::format_hex((*ctos_it).second)
+                << std::endl;
+    }
+    handler_it = handlers_.find((*ctos_it).second);
+    assert(handler_it != std::end(handlers_));
+  }
 
-    rv = h->on_write();
+  auto h = (*handler_it).second.get();
+  if (ngtcp2_conn_is_in_closing_period(h->conn())) {
+    // TODO do exponential backoff.
+    rv = h->send_conn_close();
     switch (rv) {
     case 0:
-    case NETWORK_ERR_CLOSE_WAIT:
     case NETWORK_ERR_SEND_BLOCKED:
       break;
     default:
       remove(h);
     }
+    return 0;
+  }
+  if (h->draining()) {
+    return 0;
+  }
+
+  rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
+  if (rv != 0) {
+    if (rv != NETWORK_ERR_CLOSE_WAIT) {
+      remove(h);
+    }
+    return 0;
+  }
+
+  rv = h->on_write();
+  switch (rv) {
+  case 0:
+  case NETWORK_ERR_CLOSE_WAIT:
+  case NETWORK_ERR_SEND_BLOCKED:
+    break;
+  default:
+    remove(h);
   }
   return 0;
 }
