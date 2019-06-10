@@ -4893,10 +4893,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     }
 
     conn->rx.offset += len;
-
-    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-      ngtcp2_conn_extend_max_offset(conn, len);
-    }
   }
 
   rx_offset = ngtcp2_strm_rx_offset(strm);
@@ -5202,7 +5198,6 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   }
 
   conn->rx.offset += datalen;
-  ngtcp2_conn_extend_max_offset(conn, datalen);
 
   strm->rx.last_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
@@ -7974,6 +7969,11 @@ int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn) {
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint64_t app_error_code) {
   int rv;
+  uint64_t rx_offset = ngtcp2_strm_rx_offset(strm);
+
+  if (rx_offset < strm->rx.last_offset) {
+    ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset - rx_offset);
+  }
 
   if (!strm->app_error_code) {
     app_error_code = strm->app_error_code;
