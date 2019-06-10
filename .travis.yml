@@ -57,8 +57,7 @@ before_script:
   - export PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
   - |
     if [ "$CI_BUILD" == "autotools" ]; then
-      autoreconf -i
-      ./configure --enable-werror $AUTOTOOLS_OPTS
+      autoreconf -i && ./configure --enable-werror $AUTOTOOLS_OPTS
     fi
   # Set CMAKE_LIBRARY_ARCHITECTURE to workaround failure to parse
   # implicit link information from GCC 5
