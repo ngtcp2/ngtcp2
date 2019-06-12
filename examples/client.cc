@@ -1371,44 +1371,114 @@ int Client::on_write(bool retransmit) {
 
 int Client::write_streams() {
   std::array<nghttp3_vec, 16> vec;
+  PathStorage path;
   int rv;
 
-  for (;;) {
-    int64_t stream_id;
-    int fin;
-
-    ssize_t sveccnt = 0;
-
-    if (httpconn_ && ngtcp2_conn_get_max_data_left(conn_)) {
-      sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
-                                           vec.data(), vec.size());
-      if (sveccnt < 0) {
-        std::cerr << "nghttp3_conn_writev_stream: " << nghttp3_strerror(sveccnt)
-                  << std::endl;
-        last_error_ = quicErrorApplication(sveccnt);
-        disconnect();
-        return -1;
+  if (!httpconn_) {
+    for (;;) {
+      auto nwrite = ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
+                                          max_pktlen_, util::timestamp(loop_));
+      if (nwrite == 0) {
+        break;
+      }
+      sendbuf_.push(nwrite);
+      update_remote_addr(&path.path.remote);
+      auto rv = send_packet();
+      if (rv != NETWORK_ERR_OK) {
+        return rv;
       }
     }
+    // httpconn_ might be initialized during ngtcp2_conn_write_pkt.
+    if (!httpconn_) {
+      return 0;
+    }
+  }
 
-    ssize_t ndatalen;
-    PathStorage path;
-    if (sveccnt == 0) {
+  for (;;) {
+    if (ngtcp2_conn_get_max_data_left(conn_)) {
       for (;;) {
-        auto nwrite =
-            ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
-                                  max_pktlen_, util::timestamp(loop_));
+        int64_t stream_id;
+        int fin;
+        auto sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
+                                                  vec.data(), vec.size());
+        if (sveccnt < 0) {
+          std::cerr << "nghttp3_conn_writev_stream: "
+                    << nghttp3_strerror(sveccnt) << std::endl;
+          last_error_ = quicErrorApplication(sveccnt);
+          disconnect();
+          return -1;
+        }
+
+        if (sveccnt == 0) {
+          break;
+        }
+
+        auto v = vec.data();
+        auto vcnt = static_cast<size_t>(sveccnt);
+        ssize_t ndatalen;
+        auto nwrite = ngtcp2_conn_writev_stream(
+            conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen,
+            NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id, fin,
+            reinterpret_cast<const ngtcp2_vec *>(v), vcnt,
+            util::timestamp(loop_));
         if (nwrite < 0) {
-          std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(nwrite)
+          switch (nwrite) {
+          case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+            if (ngtcp2_conn_get_max_data_left(conn_) == 0) {
+              return 0;
+            }
+
+            rv = nghttp3_conn_block_stream(httpconn_, stream_id);
+            if (rv != 0) {
+              std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
+                        << std::endl;
+              last_error_ = quicErrorApplication(rv);
+              disconnect();
+              return -1;
+            }
+            continue;
+          case NGTCP2_ERR_EARLY_DATA_REJECTED:
+          case NGTCP2_ERR_STREAM_SHUT_WR:
+          case NGTCP2_ERR_STREAM_NOT_FOUND: // This means that stream is
+                                            // closed.
+            continue;
+          case NGTCP2_ERR_WRITE_STREAM_MORE:
+            assert(ndatalen > 0);
+            rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+            if (rv != 0) {
+              std::cerr << "nghttp3_conn_add_write_offset: "
+                        << nghttp3_strerror(rv) << std::endl;
+              last_error_ = quicErrorApplication(rv);
+              disconnect();
+              return -1;
+            }
+            continue;
+          }
+
+          std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
                     << std::endl;
           last_error_ = quicErrorTransport(nwrite);
           disconnect();
           return -1;
         }
+
         if (nwrite == 0) {
+          // We are congestion limited.
           return 0;
         }
+
         sendbuf_.push(nwrite);
+
+        if (ndatalen > 0) {
+          rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+          if (rv != 0) {
+            std::cerr << "nghttp3_conn_add_write_offset: "
+                      << nghttp3_strerror(rv) << std::endl;
+            last_error_ = quicErrorApplication(rv);
+            disconnect();
+            return -1;
+          }
+        }
 
         update_remote_addr(&path.path.remote);
 
@@ -1419,94 +1489,21 @@ int Client::write_streams() {
       }
     }
 
-    auto v = vec.data();
-    auto vcnt = static_cast<size_t>(sveccnt);
     for (;;) {
-      auto nwrite = ngtcp2_conn_writev_stream(
-          conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen,
-          NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id, fin,
-          reinterpret_cast<const ngtcp2_vec *>(v), vcnt,
-          util::timestamp(loop_));
-      if (nwrite < 0) {
-        auto should_break = false;
-        switch (nwrite) {
-        case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-          if (ngtcp2_conn_get_max_data_left(conn_) == 0) {
-            return 0;
-          }
-
-          rv = nghttp3_conn_block_stream(httpconn_, stream_id);
-          if (rv != 0) {
-            std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
-                      << std::endl;
-            last_error_ = quicErrorApplication(rv);
-            disconnect();
-            return -1;
-          }
-          should_break = true;
-          break;
-        case NGTCP2_ERR_EARLY_DATA_REJECTED:
-        case NGTCP2_ERR_STREAM_SHUT_WR:
-        case NGTCP2_ERR_STREAM_NOT_FOUND: // This means that stream is
-                                          // closed.
-          should_break = true;
-          break;
-        case NGTCP2_ERR_WRITE_STREAM_MORE:
-          assert(ndatalen > 0);
-          rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
-          if (rv != 0) {
-            std::cerr << "nghttp3_conn_add_write_offset: "
-                      << nghttp3_strerror(rv) << std::endl;
-            last_error_ = quicErrorApplication(rv);
-            disconnect();
-            return -1;
-          }
-          should_break = true;
-          break;
-        }
-
-        if (should_break) {
-          break;
-        }
-
-        std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
-                  << std::endl;
-        last_error_ = quicErrorTransport(nwrite);
-        disconnect();
-        return -1;
-      }
-
+      auto nwrite = ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
+                                          max_pktlen_, util::timestamp(loop_));
       if (nwrite == 0) {
-        // We are congestion limited.
         return 0;
       }
-
       sendbuf_.push(nwrite);
-
-      if (ndatalen > 0) {
-        rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
-        if (rv != 0) {
-          std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
-                    << std::endl;
-          last_error_ = quicErrorApplication(rv);
-          disconnect();
-          return -1;
-        }
-
-        nghttp3_vec_consume(&v, &vcnt, ndatalen);
-      }
-
       update_remote_addr(&path.path.remote);
-
       auto rv = send_packet();
       if (rv != NETWORK_ERR_OK) {
         return rv;
       }
-
-      if (nghttp3_vec_empty(v, vcnt)) {
-        break;
-      }
     }
+
+    return 0;
   }
 }
 
