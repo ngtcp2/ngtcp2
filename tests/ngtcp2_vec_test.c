@@ -370,4 +370,38 @@ void test_ngtcp2_vec_merge(void) {
   CU_ASSERT(1 == bcnt);
   CU_ASSERT(19 == b[0].len);
   CU_ASSERT(nulldata + 256 + 11 == b[0].base);
+
+  /* Merge occurs at the last object */
+  acnt = 1;
+  a[0].len = 33;
+  a[0].base = nulldata;
+
+  bcnt = 2;
+  b[0].len = 11;
+  b[0].base = nulldata + 33;
+  b[1].len = 99;
+  b[1].base = nulldata + 33 + 11;
+
+  nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 100, 1);
+
+  CU_ASSERT(100 == nmerged);
+  CU_ASSERT(1 == acnt);
+  CU_ASSERT(133 == a[0].len);
+  CU_ASSERT(nulldata == a[0].base);
+  CU_ASSERT(1 == bcnt);
+  CU_ASSERT(10 == b[0].len);
+  CU_ASSERT(nulldata + 33 + 11 + 89 == b[0].base);
+
+  /* No merge occurs if object is full */
+  acnt = 1;
+  a[0].len = 33;
+  a[0].base = nulldata;
+
+  bcnt = 1;
+  b[0].len = 3;
+  b[0].base = nulldata + 100;
+
+  nmerged = ngtcp2_vec_merge(a, &acnt, b, &bcnt, 3, 1);
+
+  CU_ASSERT(0 == nmerged);
 }

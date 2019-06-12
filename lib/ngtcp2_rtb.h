@@ -59,25 +59,7 @@ struct ngtcp2_frame_chain {
 
 /* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
    a ngtcp2_stream can include. */
-#define NGTCP2_MAX_STREAM_DATACNT 32
-
-struct ngtcp2_stream_frame_chain;
-typedef struct ngtcp2_stream_frame_chain ngtcp2_stream_frame_chain;
-
-/* ngtcp2_stream_frame_chain is an extension to ngtcp2_frame_chain and
-   specific to ngtcp2_stream.  It includes pe in order to push it to
-   ngtcp2_pq. */
-struct ngtcp2_stream_frame_chain {
-  union {
-    ngtcp2_frame_chain frc;
-    struct {
-      ngtcp2_frame_chain *next;
-      ngtcp2_stream fr;
-      ngtcp2_vec extra[NGTCP2_MAX_STREAM_DATACNT - 1];
-    };
-  };
-  ngtcp2_pq_entry pe;
-};
+#define NGTCP2_MAX_STREAM_DATACNT 256
 
 /* NGTCP2_MAX_CRYPTO_DATACNT is the maximum number of ngtcp2_vec that
    a ngtcp2_crypto can include. */
@@ -122,6 +104,17 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
                                     const ngtcp2_mem *mem);
 
 /*
+ * ngtcp2_frame_chain_stream_datacnt_new works like
+ * ngtcp2_frame_chain_new, but it allocates enough data to store
+ * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_stream
+ * object.  If |datacnt| equals to 1, ngtcp2_frame_chain_new is called
+ * internally.
+ */
+int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
+                                          size_t datacnt,
+                                          const ngtcp2_mem *mem);
+
+/*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
  * memory pointed by |frc|.
  */
@@ -131,23 +124,6 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
  * ngtcp2_frame_chain_init initializes |frc|.
  */
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
-
-/*
- * ngtcp2_stream_frame_chain_new allocates and initializes
- * ngtcp2_stream_frame_chain object and assigns its pointer to
- * |*pfrc|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
-                                  const ngtcp2_mem *mem);
-
-void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
-                                   const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_crypto_frame_chain_new allocates and initializes

@@ -2279,7 +2279,7 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
 
-  CU_ASSERT(ngtcp2_pq_empty(&strm->tx.streamfrq));
+  CU_ASSERT(0 == ngtcp2_ksl_len(&strm->tx.streamfrq));
 
   /* ngtcp2_conn_write_stream sends new 0RTT packet. */
   spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), &datalen,

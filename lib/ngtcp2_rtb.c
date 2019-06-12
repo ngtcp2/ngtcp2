@@ -56,29 +56,24 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
   return 0;
 }
 
+int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
+                                          size_t datacnt,
+                                          const ngtcp2_mem *mem) {
+  size_t need = sizeof(ngtcp2_vec) * (datacnt - 1);
+  size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream);
+
+  if (datacnt > 0 && need > avail) {
+    return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
+  }
+
+  return ngtcp2_frame_chain_new(pfrc, mem);
+}
+
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, frc);
 }
 
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) { frc->next = NULL; }
-
-int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
-                                  const ngtcp2_mem *mem) {
-  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_stream_frame_chain));
-  if (*pfrc == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  ngtcp2_frame_chain_init(&(*pfrc)->frc);
-  (*pfrc)->pe.index = NGTCP2_PQ_BAD_INDEX;
-
-  return 0;
-}
-
-void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
-                                   const ngtcp2_mem *mem) {
-  ngtcp2_mem_free(mem, frc);
-}
 
 int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
                                   const ngtcp2_mem *mem) {

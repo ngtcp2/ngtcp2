@@ -1039,7 +1039,7 @@ static uint64_t conn_cwnd_left(ngtcp2_conn *conn) {
  * retransmitted due to Retry frame
  */
 static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
-  ngtcp2_stream_frame_chain *sfrc;
+  ngtcp2_frame_chain *frc;
   ngtcp2_strm *strm;
 
   for (; !ngtcp2_pq_empty(&conn->tx.strmq);) {
@@ -1049,8 +1049,8 @@ static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
       continue;
     }
 
-    sfrc = ngtcp2_strm_streamfrq_top(strm);
-    return ngtcp2_vec_len(sfrc->fr.data, sfrc->fr.datacnt) +
+    frc = ngtcp2_strm_streamfrq_top(strm);
+    return ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt) +
            NGTCP2_STREAM_OVERHEAD;
   }
 
@@ -2144,7 +2144,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_frame *ackfr = NULL, lfr;
   ssize_t nwrite;
   ngtcp2_frame_chain **pfrc, *nfrc, *frc;
-  ngtcp2_stream_frame_chain *nsfrc;
+  ngtcp2_frame_chain *nsfrc;
   ngtcp2_crypto_frame_chain *ncfrc;
   ngtcp2_rtb_entry *ent;
   ngtcp2_strm *strm;
@@ -2155,6 +2155,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   ngtcp2_pktns *pktns = &conn->pktns;
   size_t left;
   size_t datalen = ngtcp2_vec_len(datav, datavcnt);
+  ngtcp2_vec data[NGTCP2_MAX_STREAM_DATACNT];
+  size_t datacnt;
   uint8_t rtb_entry_flags = NGTCP2_RTB_FLAG_NONE;
   int hd_logged = 0;
   ngtcp2_path_challenge_entry *pcent;
@@ -2494,8 +2496,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         left = ngtcp2_ppe_left(ppe);
 
         left = ngtcp2_pkt_stream_max_datalen(
-            strm->stream_id, ngtcp2_strm_streamfrq_top(strm)->fr.offset, left,
-            left);
+            strm->stream_id, ngtcp2_strm_streamfrq_top(strm)->fr.stream.offset,
+            left, left);
 
         if (left == (size_t)-1) {
           break;
@@ -2512,13 +2514,12 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
           break;
         }
 
-        rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd,
-                                         &nsfrc->frc.fr);
+        rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nsfrc->fr);
         if (rv != 0) {
           assert(0);
         }
 
-        *pfrc = &nsfrc->frc;
+        *pfrc = nsfrc;
         pfrc = &(*pfrc)->next;
 
         pkt_empty = 0;
@@ -2551,29 +2552,31 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                                 data_strm->tx.offset, ndatalen,
                                                 left)) != (size_t)-1 &&
       (ndatalen || datalen == 0)) {
-    rv = ngtcp2_stream_frame_chain_new(&nsfrc, conn->mem);
+    datacnt = ngtcp2_vec_copy(data, &ndatalen, NGTCP2_MAX_STREAM_DATACNT, datav,
+                              datavcnt, ndatalen);
+
+    rv = ngtcp2_frame_chain_stream_datacnt_new(&nsfrc, datacnt, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
     }
 
-    nsfrc->fr.type = NGTCP2_FRAME_STREAM;
-    nsfrc->fr.flags = 0;
-    nsfrc->fr.stream_id = data_strm->stream_id;
-    nsfrc->fr.offset = data_strm->tx.offset;
-    nsfrc->fr.datacnt =
-        ngtcp2_vec_copy(nsfrc->fr.data, &ndatalen, NGTCP2_MAX_STREAM_DATACNT,
-                        datav, datavcnt, ndatalen);
+    nsfrc->fr.stream.type = NGTCP2_FRAME_STREAM;
+    nsfrc->fr.stream.flags = 0;
+    nsfrc->fr.stream.stream_id = data_strm->stream_id;
+    nsfrc->fr.stream.offset = data_strm->tx.offset;
+    nsfrc->fr.stream.datacnt = datacnt;
+    ngtcp2_vec_clone(nsfrc->fr.stream.data, data, datacnt);
 
     fin = fin && ndatalen == datalen;
-    nsfrc->fr.fin = fin;
+    nsfrc->fr.stream.fin = fin;
 
-    rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nsfrc->frc.fr);
+    rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nsfrc->fr);
     if (rv != 0) {
       assert(0);
     }
 
-    *pfrc = &nsfrc->frc;
+    *pfrc = nsfrc;
     pfrc = &(*pfrc)->next;
 
     pkt_empty = 0;
@@ -3441,7 +3444,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                ngtcp2_frame_chain **pfrc) {
   ngtcp2_frame_chain **first = pfrc;
-  ngtcp2_stream_frame_chain *sfrc;
+  ngtcp2_frame_chain *sfrc;
   ngtcp2_stream *sfr;
   ngtcp2_crypto_frame_chain *cfrc;
   ngtcp2_strm *strm;
@@ -3454,20 +3457,20 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   for (; *pfrc;) {
     switch ((*pfrc)->fr.type) {
     case NGTCP2_FRAME_STREAM:
-      sfrc = (ngtcp2_stream_frame_chain *)*pfrc;
+      sfrc = *pfrc;
 
       *pfrc = sfrc->next;
       sfrc->next = NULL;
-      sfr = &sfrc->fr;
+      sfr = &sfrc->fr.stream;
 
       strm = ngtcp2_conn_find_stream(conn, sfr->stream_id);
       if (!strm) {
-        ngtcp2_stream_frame_chain_del(sfrc, conn->mem);
+        ngtcp2_frame_chain_del(sfrc, conn->mem);
         break;
       }
       rv = ngtcp2_strm_streamfrq_push(strm, sfrc);
       if (rv != 0) {
-        ngtcp2_stream_frame_chain_del(sfrc, conn->mem);
+        ngtcp2_frame_chain_del(sfrc, conn->mem);
         return rv;
       }
       if (!ngtcp2_strm_is_tx_queued(strm)) {
