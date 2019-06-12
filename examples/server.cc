@@ -2583,7 +2583,7 @@ int Handler::on_stream_close(int64_t stream_id) {
   assert(it != std::end(streams_));
 
   if (httpconn_) {
-    auto rv = nghttp3_conn_close_stream(httpconn_, stream_id);
+    auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, 0);
     if (rv != 0) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
