@@ -24,11 +24,6 @@
 
 add_subdirectory(includes)
 
-include_directories(
-  "${CMAKE_CURRENT_SOURCE_DIR}/includes"
-  "${CMAKE_CURRENT_BINARY_DIR}/includes"
-)
-
 add_definitions(-DBUILDING_NGTCP2)
 
 set(ngtcp2_SOURCES
@@ -61,13 +56,23 @@ set(ngtcp2_SOURCES
   ngtcp2_pv.c
 )
 
+set(ngtcp2_INCLUDE_DIRS
+  "${CMAKE_CURRENT_SOURCE_DIR}/includes"
+  "${CMAKE_CURRENT_BINARY_DIR}/includes"
+)
+
 # Public shared library
-add_library(ngtcp2 SHARED ${ngtcp2_SOURCES})
+add_library(ngtcp2 ${ngtcp2_SOURCES})
 set_target_properties(ngtcp2 PROPERTIES
   COMPILE_FLAGS "${WARNCFLAGS}"
   VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
   C_VISIBILITY_PRESET hidden
 )
+
+target_include_directories(ngtcp2 PUBLIC ${ngtcp2_INCLUDE_DIRS})
+if(NOT BUILD_SHARED_LIBS)
+  target_compile_definitions(ngtcp2 PUBLIC "-DNGTCP2_STATICLIB")
+endif()
 
 if(HAVE_CUNIT)
   # Static library (for unittests because of symbol visibility)
@@ -75,8 +80,8 @@ if(HAVE_CUNIT)
   set_target_properties(ngtcp2_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
-    ARCHIVE_OUTPUT_NAME ngtcp2
   )
+  target_include_directories(ngtcp2_static PUBLIC ${ngtcp2_INCLUDE_DIRS})
   target_compile_definitions(ngtcp2_static PUBLIC "-DNGTCP2_STATICLIB")
 endif()
 
