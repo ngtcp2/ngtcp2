@@ -65,24 +65,6 @@ struct ngtcp2_frame_chain {
    a ngtcp2_crypto can include. */
 #define NGTCP2_MAX_CRYPTO_DATACNT 8
 
-struct ngtcp2_crypto_frame_chain;
-typedef struct ngtcp2_crypto_frame_chain ngtcp2_crypto_frame_chain;
-
-/* ngtcp2_crypto_frame_chain is an extension to ngtcp2_frame_chain and
-   specific to ngtcp2_crypto.  It includes pe in order to push it to
-   ngtcp2_pq. */
-struct ngtcp2_crypto_frame_chain {
-  union {
-    ngtcp2_frame_chain frc;
-    struct {
-      ngtcp2_frame_chain *next;
-      ngtcp2_crypto fr;
-      ngtcp2_vec extra[NGTCP2_MAX_CRYPTO_DATACNT - 1];
-    };
-  };
-  ngtcp2_pq_entry pe;
-};
-
 /*
  * ngtcp2_frame_chain_new allocates ngtcp2_frame_chain object and
  * assigns its pointer to |*pfrc|.
@@ -115,6 +97,17 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           const ngtcp2_mem *mem);
 
 /*
+ * ngtcp2_frame_chain_crypto_datacnt_new works like
+ * ngtcp2_frame_chain_new, but it allocates enough data to store
+ * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_crypto
+ * object.  If |datacnt| equals to 1, ngtcp2_frame_chain_new is called
+ * internally.
+ */
+int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
+                                          size_t datacnt,
+                                          const ngtcp2_mem *mem);
+
+/*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
  * memory pointed by |frc|.
  */
@@ -124,30 +117,6 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
  * ngtcp2_frame_chain_init initializes |frc|.
  */
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
-
-/*
- * ngtcp2_crypto_frame_chain_new allocates and initializes
- * ngtcp2_crypto_frame_chain object and assigns its pointer to
- * |*pfrc|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
-                                  const ngtcp2_mem *mem);
-
-void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
-                                   const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_crypto_frame_chain_copy copies CRYPTO frame data from |src|
- * to |dest|.  Other fields are left untouched.
- */
-void ngtcp2_crypto_frame_chain_copy(ngtcp2_crypto_frame_chain *dest,
-                                    ngtcp2_crypto_frame_chain *src);
 
 /*
  * ngtcp2_frame_chain_list_del deletes |frc|, and all objects

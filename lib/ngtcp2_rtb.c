@@ -69,35 +69,24 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
   return ngtcp2_frame_chain_new(pfrc, mem);
 }
 
+int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
+                                          size_t datacnt,
+                                          const ngtcp2_mem *mem) {
+  size_t need = sizeof(ngtcp2_vec) * (datacnt - 1);
+  size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto);
+
+  if (datacnt > 0 && need > avail) {
+    return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
+  }
+
+  return ngtcp2_frame_chain_new(pfrc, mem);
+}
+
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, frc);
 }
 
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) { frc->next = NULL; }
-
-int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
-                                  const ngtcp2_mem *mem) {
-  *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_crypto_frame_chain));
-  if (*pfrc == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  ngtcp2_frame_chain_init(&(*pfrc)->frc);
-  (*pfrc)->pe.index = NGTCP2_PQ_BAD_INDEX;
-
-  return 0;
-}
-
-void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
-                                   const ngtcp2_mem *mem) {
-  ngtcp2_mem_free(mem, frc);
-}
-
-void ngtcp2_crypto_frame_chain_copy(ngtcp2_crypto_frame_chain *dest,
-                                    ngtcp2_crypto_frame_chain *src) {
-  dest->fr = src->fr;
-  memcpy(dest->extra, src->extra, sizeof(dest->extra));
-}
 
 void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
                                  const ngtcp2_mem *mem) {
@@ -558,7 +547,7 @@ void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
 int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_ksl_it it;
-  ngtcp2_crypto_frame_chain *nfrc;
+  ngtcp2_frame_chain *nfrc;
   ngtcp2_frame_chain *frc;
   ngtcp2_ksl_it gapit;
   ngtcp2_range gap, range;
@@ -601,13 +590,17 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
       all_acked = 0;
 
       if (!(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED)) {
-        rv = ngtcp2_crypto_frame_chain_new(&nfrc, rtb->mem);
+        rv = ngtcp2_frame_chain_crypto_datacnt_new(
+            &nfrc, frc->fr.crypto.datacnt, rtb->mem);
         if (rv != 0) {
           return rv;
         }
 
-        ngtcp2_crypto_frame_chain_copy(nfrc, (ngtcp2_crypto_frame_chain *)frc);
-        frame_chain_insert(pfrc, &nfrc->frc);
+        nfrc->fr = frc->fr;
+        ngtcp2_vec_clone(nfrc->fr.crypto.data, frc->fr.crypto.data,
+                         frc->fr.crypto.datacnt);
+
+        frame_chain_insert(pfrc, nfrc);
       }
     }
 

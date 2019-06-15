@@ -254,8 +254,8 @@ typedef struct {
 
   struct {
     struct {
-      /* frq is a priority queue ordered by crypto offset */
-      ngtcp2_pq frq;
+      /* frq contains crypto data sorted by their offset. */
+      ngtcp2_ksl frq;
       /* offset is the offset of crypto stream in this packet number
          space. */
       uint64_t offset;
