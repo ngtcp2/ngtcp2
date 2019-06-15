@@ -63,6 +63,10 @@ constexpr size_t TOKEN_RAND_DATALEN = 16;
 } // namespace
 
 namespace {
+constexpr size_t MAX_DYNBUFLEN = 1024 * 1024;
+} // namespace
+
+namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
@@ -502,6 +506,10 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
                   void *stream_user_data) {
   auto stream = static_cast<Stream *>(stream_user_data);
 
+  if (stream->dynbuflen > MAX_DYNBUFLEN) {
+    return NGHTTP3_ERR_WOULDBLOCK;
+  }
+
   auto len = std::min(static_cast<size_t>(16384),
                       static_cast<size_t>(stream->dyndataleft));
   auto buf = std::make_unique<std::vector<uint8_t>>(len);
@@ -570,6 +578,7 @@ void Stream::http_acked_stream_data(size_t datalen) {
     }
 
     datalen -= buf->size();
+    dynbuflen -= buf->size();
     dynbufs.pop_front();
   }
 
@@ -1440,6 +1449,15 @@ void Handler::http_acked_stream_data(int64_t stream_id, size_t datalen) {
   auto &stream = (*it).second;
 
   stream->http_acked_stream_data(datalen);
+
+  if (stream->fd == -1 && stream->dynbuflen < MAX_DYNBUFLEN - 16384) {
+    auto rv = nghttp3_conn_resume_stream(httpconn_, stream_id);
+    if (rv != 0) {
+      // TODO Handle error
+      std::cerr << "nghttp3_conn_resume_stream: " << nghttp3_strerror(rv)
+                << std::endl;
+    }
+  }
 }
 
 int Handler::setup_httpconn() {
