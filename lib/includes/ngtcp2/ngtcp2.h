@@ -1533,11 +1533,11 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * initializes it as client.  |dcid| is randomized destination
  * connection ID.  |scid| is source connection ID.  |version| is a
  * QUIC version to use.  |path| is the network path where this QUIC
- * connection is being established.  |callbacks|, and |settings| must
- * not be NULL, and the function make a copy of each of them.
- * |user_data| is the arbitrary pointer which is passed to the
- * user-defined callback functions.  If |mem| is NULL, the memory
- * allocator returned by `ngtcp2_mem_default()` is used.
+ * connection is being established and must not be NULL.  |callbacks|,
+ * and |settings| must not be NULL, and the function make a copy of
+ * each of them.  |user_data| is the arbitrary pointer which is passed
+ * to the user-defined callback functions.  If |mem| is NULL, the
+ * memory allocator returned by `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1558,12 +1558,12 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
  * initializes it as server.  |dcid| is a destination connection ID.
  * |scid| is a source connection ID.  |path| is the network path where
- * this QUIC connection is being established.  |version| is a QUIC
- * version to use.  |callbacks|, and |settings| must not be NULL, and
- * the function make a copy of each of them.  |user_data| is the
- * arbitrary pointer which is passed to the user-defined callback
- * functions.  If |mem| is NULL, the memory allocator returned by
- * `ngtcp2_mem_default()` is used.
+ * this QUIC connection is being established and must not be NULL.
+ * |version| is a QUIC version to use.  |callbacks|, and |settings|
+ * must not be NULL, and the function make a copy of each of them.
+ * |user_data| is the arbitrary pointer which is passed to the
+ * user-defined callback functions.  If |mem| is NULL, the memory
+ * allocator returned by `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1591,8 +1591,8 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_read_pkt` decrypts QUIC packet given in |pkt| of
  * length |pktlen| and processes it.  |path| is the network path the
- * packet is delivered.  This function performs QUIC handshake as
- * well.
+ * packet is delivered and must not be NULL.  This function performs
+ * QUIC handshake as well.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2491,9 +2491,9 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_initiate_migration` starts connection migration to the
- * given |path|.  Only client can initiate migration.  This function
- * does immediate migration; it does not probe peer reachability from
- * a new local address.
+ * given |path| which must not be NULL.  Only client can initiate
+ * migration.  This function does immediate migration; it does not
+ * probe peer reachability from a new local address.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
