@@ -118,7 +118,9 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
     return NGTCP2_ERR_NOMEM;
   }
 
-  (*pent)->hd = *hd;
+  (*pent)->hd.pkt_num = hd->pkt_num;
+  (*pent)->hd.type = hd->type;
+  (*pent)->hd.flags = hd->flags;
   (*pent)->frc = frc;
   (*pent)->ts = ts;
   (*pent)->pktlen = pktlen;
@@ -194,7 +196,8 @@ static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   if (ent->flags & NGTCP2_RTB_FLAG_PROBE) {
     /* We don't care if probe packet is lost. */
   } else {
-    ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts);
+    ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
+                        ent->ts);
 
     if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED) {
       ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
@@ -525,7 +528,8 @@ void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
 
     /* TODO Should we check NGTCP2_RTB_FLAG_PROBE here? */
 
-    ngtcp2_log_pkt_lost(rtb->log, &ent->hd, ent->ts);
+    ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
+                        ent->ts);
 
     rtb_on_remove(rtb, ent);
     ngtcp2_ksl_remove(&rtb->ents, &it,

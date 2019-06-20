@@ -151,7 +151,11 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 struct ngtcp2_rtb_entry {
   ngtcp2_rtb_entry *next;
 
-  ngtcp2_pkt_hd hd;
+  struct {
+    int64_t pkt_num;
+    uint8_t type;
+    uint8_t flags;
+  } hd;
   ngtcp2_frame_chain *frc;
   /* ts is the time point when a packet included in this entry is sent
      to a peer. */

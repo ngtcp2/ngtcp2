@@ -782,12 +782,6 @@ int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
 int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr);
 
 /*
- * ngtcp2_pkt_hd returns nonzero if |hd| indicates packets which are
- * sent in handshake phase.
- */
-int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd);
-
-/*
  * ngtcp2_pkt_stream_max_datalen returns the maximum number of bytes
  * which can be sent for stream denoted by |stream_id|.  |offset| is
  * an offset of within the stream.  |len| is the estimated number of

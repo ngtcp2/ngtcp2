@@ -1970,11 +1970,6 @@ ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
   return p - dest;
 }
 
-int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd) {
-  return (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
-         (hd->type == NGTCP2_PKT_INITIAL || hd->type == NGTCP2_PKT_HANDSHAKE);
-}
-
 size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
                                      size_t len, size_t left) {
   size_t n = 1 /* type */ + ngtcp2_put_varint_len((uint64_t)stream_id) +

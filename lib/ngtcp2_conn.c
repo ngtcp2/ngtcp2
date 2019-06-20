@@ -976,7 +976,7 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
   }
 
   if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_PKT) {
-    assert(ngtcp2_pkt_handshake_pkt(&ent->hd));
+    assert(ent->hd.flags & NGTCP2_PKT_FLAG_LONG_FORM);
     conn->rcs.last_hs_tx_pkt_ts = ent->ts;
   }
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
@@ -2878,8 +2878,6 @@ static void conn_process_early_rtb(ngtcp2_conn *conn) {
         ent->hd.type != NGTCP2_PKT_0RTT) {
       continue;
     }
-
-    ent->hd.dcid = conn->dcid.current.cid;
 
     /*  0-RTT packet is retransmitted as a Short packet. */
     ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
