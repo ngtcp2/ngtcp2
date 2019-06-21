@@ -4507,6 +4507,11 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
 
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
                                          pkt_num_bits(hd.pkt_numlen));
+  if (hd.pkt_num > NGTCP2_MAX_PKT_NUM) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "pkn=%" PRId64 " is greater than maximum pkn", hd.pkt_num);
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
@@ -6110,6 +6115,11 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
                                          pkt_num_bits(hd.pkt_numlen));
+  if (hd.pkt_num > NGTCP2_MAX_PKT_NUM) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "pkn=%" PRId64 " is greater than maximum pkn", hd.pkt_num);
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
