@@ -3288,7 +3288,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
       std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
                 << version << std::endl;
     }
-    return SSL_TLSEXT_ERR_NOACK;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
 
   for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
@@ -3304,7 +3304,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
               << std::endl;
   }
 
-  return SSL_TLSEXT_ERR_NOACK;
+  return SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 } // namespace
 

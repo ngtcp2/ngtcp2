@@ -37,8 +37,8 @@ QUICError quicErrorTransport(int liberr) {
 }
 
 QUICError quicErrorTransportTLS(int alert) {
-  return {QUICErrorType::Transport, ngtcp2_err_infer_quic_transport_error_code(
-                                        NGTCP2_CRYPTO_ERROR | alert)};
+  return {QUICErrorType::Transport,
+          static_cast<uint16_t>(NGTCP2_CRYPTO_ERROR | alert)};
 }
 
 QUICError quicErrorApplication(int liberr) {
