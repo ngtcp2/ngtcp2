@@ -3300,7 +3300,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << NGTCP2_ALPN_H3 + 1
+    std::cerr << "Client did not present ALPN " << &NGTCP2_ALPN_H3[1]
               << std::endl;
   }
 
