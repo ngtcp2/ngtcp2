@@ -2040,7 +2040,7 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       return NETWORK_ERR_CLOSE_WAIT;
     }
     if (!last_error_.code) {
-      last_error_ = quicErrorTransport(rv);
+      last_error_ = quic_err_transport(rv);
     }
     return handle_error();
   }
@@ -2113,7 +2113,7 @@ int Handler::write_streams() {
       if (sveccnt < 0) {
         std::cerr << "nghttp3_conn_writev_stream: " << nghttp3_strerror(sveccnt)
                   << std::endl;
-        last_error_ = quicErrorApplication(sveccnt);
+        last_error_ = quic_err_app(sveccnt);
         return handle_error();
       }
     }
@@ -2128,7 +2128,7 @@ int Handler::write_streams() {
         if (nwrite < 0) {
           std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(nwrite)
                     << std::endl;
-          last_error_ = quicErrorTransport(nwrite);
+          last_error_ = quic_err_transport(nwrite);
           return handle_error();
         }
         if (nwrite == 0) {
@@ -2168,7 +2168,7 @@ int Handler::write_streams() {
           if (rv != 0) {
             std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
                       << std::endl;
-            last_error_ = quicErrorApplication(rv);
+            last_error_ = quic_err_app(rv);
             return handle_error();
           }
           should_break = true;
@@ -2182,7 +2182,7 @@ int Handler::write_streams() {
           if (rv != 0) {
             std::cerr << "nghttp3_conn_add_write_offset: "
                       << nghttp3_strerror(rv) << std::endl;
-            last_error_ = quicErrorApplication(rv);
+            last_error_ = quic_err_app(rv);
             return handle_error();
           }
           should_break = true;
@@ -2195,7 +2195,7 @@ int Handler::write_streams() {
 
         std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
                   << std::endl;
-        last_error_ = quicErrorTransport(nwrite);
+        last_error_ = quic_err_transport(nwrite);
         return handle_error();
       }
 
@@ -2211,7 +2211,7 @@ int Handler::write_streams() {
         if (rv != 0) {
           std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                     << std::endl;
-          last_error_ = quicErrorApplication(rv);
+          last_error_ = quic_err_app(rv);
           return handle_error();
         }
       }
@@ -2366,7 +2366,7 @@ int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
   if (nconsumed < 0) {
     std::cerr << "nghttp3_conn_read_stream: " << nghttp3_strerror(nconsumed)
               << std::endl;
-    last_error_ = quicErrorApplication(nconsumed);
+    last_error_ = quic_err_app(nconsumed);
     return -1;
   }
 
@@ -2498,7 +2498,7 @@ int Handler::on_stream_close(int64_t stream_id, uint16_t app_error_code) {
     if (rv != 0) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
-      last_error_ = quicErrorApplication(rv);
+      last_error_ = quic_err_app(rv);
       return -1;
     }
   }
@@ -2513,7 +2513,7 @@ void Handler::shutdown_read(int64_t stream_id, int app_error_code) {
 }
 
 void Handler::set_tls_alert(uint8_t alert) {
-  last_error_ = quicErrorTransportTLS(alert);
+  last_error_ = quic_err_tls(alert);
 }
 
 namespace {

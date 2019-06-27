@@ -1278,7 +1278,7 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.code) {
-      last_error_ = quicErrorTransport(rv);
+      last_error_ = quic_err_transport(rv);
     }
     disconnect();
     return -1;
@@ -1336,7 +1336,7 @@ int Client::on_write(bool retransmit) {
     auto rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
       if (rv != NETWORK_ERR_SEND_BLOCKED) {
-        last_error_ = quicErrorTransport(NGTCP2_ERR_INTERNAL);
+        last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
         disconnect();
       }
       return rv;
@@ -1351,7 +1351,7 @@ int Client::on_write(bool retransmit) {
     if (rv != 0) {
       std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
                 << ngtcp2_strerror(rv) << std::endl;
-      last_error_ = quicErrorTransport(NGTCP2_ERR_INTERNAL);
+      last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
       disconnect();
       return -1;
     }
@@ -1381,7 +1381,7 @@ int Client::write_streams() {
       if (nwrite < 0) {
         std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(nwrite)
                   << std::endl;
-        last_error_ = quicErrorTransport(nwrite);
+        last_error_ = quic_err_transport(nwrite);
         disconnect();
         return -1;
       }
@@ -1411,7 +1411,7 @@ int Client::write_streams() {
         if (sveccnt < 0) {
           std::cerr << "nghttp3_conn_writev_stream: "
                     << nghttp3_strerror(sveccnt) << std::endl;
-          last_error_ = quicErrorApplication(sveccnt);
+          last_error_ = quic_err_app(sveccnt);
           disconnect();
           return -1;
         }
@@ -1439,7 +1439,7 @@ int Client::write_streams() {
             if (rv != 0) {
               std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
                         << std::endl;
-              last_error_ = quicErrorApplication(rv);
+              last_error_ = quic_err_app(rv);
               disconnect();
               return -1;
             }
@@ -1455,7 +1455,7 @@ int Client::write_streams() {
             if (rv != 0) {
               std::cerr << "nghttp3_conn_add_write_offset: "
                         << nghttp3_strerror(rv) << std::endl;
-              last_error_ = quicErrorApplication(rv);
+              last_error_ = quic_err_app(rv);
               disconnect();
               return -1;
             }
@@ -1464,7 +1464,7 @@ int Client::write_streams() {
 
           std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
                     << std::endl;
-          last_error_ = quicErrorTransport(nwrite);
+          last_error_ = quic_err_transport(nwrite);
           disconnect();
           return -1;
         }
@@ -1481,7 +1481,7 @@ int Client::write_streams() {
           if (rv != 0) {
             std::cerr << "nghttp3_conn_add_write_offset: "
                       << nghttp3_strerror(rv) << std::endl;
-            last_error_ = quicErrorApplication(rv);
+            last_error_ = quic_err_app(rv);
             disconnect();
             return -1;
           }
@@ -1980,7 +1980,7 @@ int Client::on_stream_close(int64_t stream_id, uint16_t app_error_code) {
     if (rv != 0) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
-      last_error_ = quicErrorApplication(rv);
+      last_error_ = quic_err_app(rv);
       return -1;
     }
   }
@@ -2185,7 +2185,7 @@ int Client::recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
   if (nconsumed < 0) {
     std::cerr << "nghttp3_conn_read_stream: " << nghttp3_strerror(nconsumed)
               << std::endl;
-    last_error_ = quicErrorApplication(nconsumed);
+    last_error_ = quic_err_app(nconsumed);
     return -1;
   }
 
@@ -2264,9 +2264,7 @@ int Client::select_preferred_address(Address &selected_addr,
 
 void Client::start_wev() { ev_io_start(loop_, &wev_); }
 
-void Client::set_tls_alert(uint8_t alert) {
-  last_error_ = quicErrorTransportTLS(alert);
-}
+void Client::set_tls_alert(uint8_t alert) { last_error_ = quic_err_tls(alert); }
 
 namespace {
 int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
