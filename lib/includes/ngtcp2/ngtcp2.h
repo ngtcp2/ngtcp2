@@ -1747,6 +1747,15 @@ NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_get_aead_overhead` returns the aead overhead passed to
+ * `ngtcp2_conn_set_aead_overhead`. If `ngtcp2_conn_set_aead_overhead` hasn't
+ * been called yet this function returns 0.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_install_early_rx_keys` installs packet protection key
  * |key| of length |keylen| and IV |iv| of length |ivlen|, and packet
  * header protection key |hp| of length |hplen| to encrypt or decrypt
