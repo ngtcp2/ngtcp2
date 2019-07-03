@@ -7297,6 +7297,10 @@ void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn, size_t aead_overhead) {
   conn->crypto.aead_overhead = aead_overhead;
 }
 
+size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn) {
+  return conn->crypto.aead_overhead;
+}
+
 int ngtcp2_conn_install_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
                                         size_t keylen, const uint8_t *iv,
                                         size_t ivlen, const uint8_t *pn,
