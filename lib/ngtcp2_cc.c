@@ -46,15 +46,16 @@ void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_cc_stat *ccs,
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc) { (void)cc; }
 
-static int default_cc_in_rcvry(ngtcp2_default_cc *cc, ngtcp2_tstamp sent_time) {
-  return sent_time <= cc->ccs->recovery_start_time;
+static int default_cc_in_congestion_recovery(ngtcp2_default_cc *cc,
+                                             ngtcp2_tstamp sent_time) {
+  return sent_time <= cc->ccs->congestion_recovery_start_time;
 }
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
                                     const ngtcp2_cc_pkt *pkt) {
   ngtcp2_cc_stat *ccs = cc->ccs;
 
-  if (default_cc_in_rcvry(cc, pkt->ts_sent)) {
+  if (default_cc_in_congestion_recovery(cc, pkt->ts_sent)) {
     return;
   }
 
@@ -76,10 +77,10 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_tstamp ts) {
   ngtcp2_cc_stat *ccs = cc->ccs;
 
-  if (!default_cc_in_rcvry(cc, ts_sent)) {
+  if (!default_cc_in_congestion_recovery(cc, ts_sent)) {
     return;
   }
-  ccs->recovery_start_time = ts;
+  ccs->congestion_recovery_start_time = ts;
   ccs->cwnd = (uint64_t)((double)ccs->cwnd * NGTCP2_LOSS_REDUCTION_FACTOR);
   ccs->cwnd = ngtcp2_max(ccs->cwnd, NGTCP2_MIN_CWND);
   ccs->ssthresh = ccs->cwnd;
@@ -93,7 +94,7 @@ void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
                                                     ngtcp2_duration pto) {
   ngtcp2_cc_stat *ccs = cc->ccs;
   ngtcp2_duration congestion_period =
-      pto * ((1 << NGTCP2_PERSISTENT_CONGESTION_THRESHOLD) - 1);
+      pto * NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
   if (loss_window >= congestion_period) {
     ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,

@@ -59,47 +59,11 @@ struct ngtcp2_frame_chain {
 
 /* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
    a ngtcp2_stream can include. */
-#define NGTCP2_MAX_STREAM_DATACNT 32
-
-struct ngtcp2_stream_frame_chain;
-typedef struct ngtcp2_stream_frame_chain ngtcp2_stream_frame_chain;
-
-/* ngtcp2_stream_frame_chain is an extension to ngtcp2_frame_chain and
-   specific to ngtcp2_stream.  It includes pe in order to push it to
-   ngtcp2_pq. */
-struct ngtcp2_stream_frame_chain {
-  union {
-    ngtcp2_frame_chain frc;
-    struct {
-      ngtcp2_frame_chain *next;
-      ngtcp2_stream fr;
-      ngtcp2_vec extra[NGTCP2_MAX_STREAM_DATACNT - 1];
-    };
-  };
-  ngtcp2_pq_entry pe;
-};
+#define NGTCP2_MAX_STREAM_DATACNT 256
 
 /* NGTCP2_MAX_CRYPTO_DATACNT is the maximum number of ngtcp2_vec that
    a ngtcp2_crypto can include. */
 #define NGTCP2_MAX_CRYPTO_DATACNT 8
-
-struct ngtcp2_crypto_frame_chain;
-typedef struct ngtcp2_crypto_frame_chain ngtcp2_crypto_frame_chain;
-
-/* ngtcp2_crypto_frame_chain is an extension to ngtcp2_frame_chain and
-   specific to ngtcp2_crypto.  It includes pe in order to push it to
-   ngtcp2_pq. */
-struct ngtcp2_crypto_frame_chain {
-  union {
-    ngtcp2_frame_chain frc;
-    struct {
-      ngtcp2_frame_chain *next;
-      ngtcp2_crypto fr;
-      ngtcp2_vec extra[NGTCP2_MAX_CRYPTO_DATACNT - 1];
-    };
-  };
-  ngtcp2_pq_entry pe;
-};
 
 /*
  * ngtcp2_frame_chain_new allocates ngtcp2_frame_chain object and
@@ -122,6 +86,28 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
                                     const ngtcp2_mem *mem);
 
 /*
+ * ngtcp2_frame_chain_stream_datacnt_new works like
+ * ngtcp2_frame_chain_new, but it allocates enough data to store
+ * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_stream
+ * object.  If |datacnt| equals to 1, ngtcp2_frame_chain_new is called
+ * internally.
+ */
+int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
+                                          size_t datacnt,
+                                          const ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_frame_chain_crypto_datacnt_new works like
+ * ngtcp2_frame_chain_new, but it allocates enough data to store
+ * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_crypto
+ * object.  If |datacnt| equals to 1, ngtcp2_frame_chain_new is called
+ * internally.
+ */
+int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
+                                          size_t datacnt,
+                                          const ngtcp2_mem *mem);
+
+/*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
  * memory pointed by |frc|.
  */
@@ -131,40 +117,6 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
  * ngtcp2_frame_chain_init initializes |frc|.
  */
 void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
-
-/*
- * ngtcp2_stream_frame_chain_new allocates and initializes
- * ngtcp2_stream_frame_chain object and assigns its pointer to
- * |*pfrc|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_stream_frame_chain_new(ngtcp2_stream_frame_chain **pfrc,
-                                  const ngtcp2_mem *mem);
-
-void ngtcp2_stream_frame_chain_del(ngtcp2_stream_frame_chain *frc,
-                                   const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_crypto_frame_chain_new allocates and initializes
- * ngtcp2_crypto_frame_chain object and assigns its pointer to
- * |*pfrc|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_crypto_frame_chain_new(ngtcp2_crypto_frame_chain **pfrc,
-                                  const ngtcp2_mem *mem);
-
-void ngtcp2_crypto_frame_chain_del(ngtcp2_crypto_frame_chain *frc,
-                                   const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_list_del deletes |frc|, and all objects
@@ -183,7 +135,10 @@ typedef enum {
   NGTCP2_RTB_FLAG_CRYPTO_PKT = 0x02,
   /* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
      acknowledgement. */
-  NGTCP2_RTB_FLAG_ACK_ELICITING = 0x4,
+  NGTCP2_RTB_FLAG_ACK_ELICITING = 0x04,
+  /* NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED indicates that the
+     CRYPTO frames have been retransmitted. */
+  NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED = 0x08,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -196,7 +151,11 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 struct ngtcp2_rtb_entry {
   ngtcp2_rtb_entry *next;
 
-  ngtcp2_pkt_hd hd;
+  struct {
+    int64_t pkt_num;
+    uint8_t type;
+    uint8_t flags;
+  } hd;
   ngtcp2_frame_chain *frc;
   /* ts is the time point when a packet included in this entry is sent
      to a peer. */
@@ -300,21 +259,22 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * frames contained them to |*pfrc|.  Even when this function fails,
  * some frames might be prepended to |*pfrc| and the caller should
  * handle them.  |pto| is PTO.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
  */
-int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                               ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
-                               ngtcp2_tstamp ts);
+void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                                ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
+                                ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends
  * all frames to |*pfrc|.  Even when this function fails, some frames
  * might be prepended to |*pfrc| and the caller should handle them.
+ */
+void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+
+/*
+ * ngtcp2_rtb_on_crypto_timeout copies all unacknowledged CRYPTO
+ * frames and links them to |*pfrc|.  The affected ngtcp2_rtb_entry
+ * will have NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED set.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -322,7 +282,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
 
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.

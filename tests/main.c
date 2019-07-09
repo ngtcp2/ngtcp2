@@ -41,7 +41,6 @@
 #include "ngtcp2_conn_test.h"
 #include "ngtcp2_ringbuf_test.h"
 #include "ngtcp2_conv_test.h"
-#include "ngtcp2_psl_test.h"
 #include "ngtcp2_ksl_test.h"
 #include "ngtcp2_map_test.h"
 #include "ngtcp2_gaptr_test.h"
@@ -141,9 +140,11 @@ int main() {
       !CU_add_test(pSuite, "range_intersect", test_ngtcp2_range_intersect) ||
       !CU_add_test(pSuite, "range_cut", test_ngtcp2_range_cut) ||
       !CU_add_test(pSuite, "range_not_after", test_ngtcp2_range_not_after) ||
-      !CU_add_test(pSuite, "psl_insert", test_ngtcp2_psl_insert) ||
       !CU_add_test(pSuite, "ksl_insert", test_ngtcp2_ksl_insert) ||
       !CU_add_test(pSuite, "ksl_clear", test_ngtcp2_ksl_clear) ||
+      !CU_add_test(pSuite, "ksl_range", test_ngtcp2_ksl_range) ||
+      !CU_add_test(pSuite, "ksl_update_key_range",
+                   test_ngtcp2_ksl_update_key_range) ||
       !CU_add_test(pSuite, "rob_push", test_ngtcp2_rob_push) ||
       !CU_add_test(pSuite, "rob_push_random", test_ngtcp2_rob_push_random) ||
       !CU_add_test(pSuite, "rob_data_at", test_ngtcp2_rob_data_at) ||
@@ -197,8 +198,6 @@ int main() {
       !CU_add_test(pSuite, "conn_handshake", test_ngtcp2_conn_handshake) ||
       !CU_add_test(pSuite, "conn_handshake_error",
                    test_ngtcp2_conn_handshake_error) ||
-      !CU_add_test(pSuite, "conn_client_write_handshake",
-                   test_ngtcp2_conn_client_write_handshake) ||
       !CU_add_test(pSuite, "conn_retransmit_protected",
                    test_ngtcp2_conn_retransmit_protected) ||
       !CU_add_test(pSuite, "conn_send_max_stream_data",
@@ -225,10 +224,12 @@ int main() {
       !CU_add_test(pSuite, "conn_server_path_validation",
                    test_ngtcp2_conn_server_path_validation) ||
       !CU_add_test(pSuite, "conn_client_connection_migration",
-                   test_ngtcp2_conn_client_write_handshake) ||
+                   test_ngtcp2_conn_client_connection_migration) ||
       !CU_add_test(pSuite, "conn_recv_path_challenge",
                    test_ngtcp2_conn_recv_path_challenge) ||
       !CU_add_test(pSuite, "conn_key_update", test_ngtcp2_conn_key_update) ||
+      !CU_add_test(pSuite, "conn_crypto_buffer_exceeded",
+                   test_ngtcp2_conn_crypto_buffer_exceeded) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||

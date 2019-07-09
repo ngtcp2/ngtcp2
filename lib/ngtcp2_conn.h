@@ -46,6 +46,7 @@
 #include "ngtcp2_pv.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_buf.h"
+#include "ngtcp2_ppe.h"
 
 typedef enum {
   /* Client specific handshake states */
@@ -63,15 +64,16 @@ typedef enum {
 } ngtcp2_conn_state;
 
 /* NGTCP2_MAX_STREAMS is the maximum number of streams. */
-#define NGTCP2_MAX_STREAMS (((1LL << 60) - 1) << 2)
+#define NGTCP2_MAX_STREAMS (1LL << 60)
 
 /* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
    reordered packets. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 16
 
-/* NGTCP2_STRM0_MAX_STREAM_DATA is the maximum stream offset that an
-   endpoint can send initially. */
-#define NGTCP2_STRM0_MAX_STREAM_DATA 65535
+/* NGTCP2_MAX_REORDERED_CRYPTO_DATA is the maximum offset of crypto
+   data which is not continuous.  In other words, there is a gap of
+   unreceived data. */
+#define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
 
 /* NGTCP2_PACKET_THRESHOLD is kPacketThreshold described in
    draft-ietf-quic-recovery-17. */
@@ -81,7 +83,7 @@ typedef enum {
    draft-ietf-quic-recovery-17. */
 #define NGTCP2_GRANULARITY NGTCP2_MILLISECONDS
 
-#define NGTCP2_DEFAULT_INITIAL_RTT (100 * NGTCP2_MILLISECONDS)
+#define NGTCP2_DEFAULT_INITIAL_RTT (500 * NGTCP2_MILLISECONDS)
 
 /* NGTCP2_MAX_RX_INITIAL_CRYPTO_DATA is the maximum offset of received
    crypto stream in Initial packet.  We set this hard limit here
@@ -109,14 +111,13 @@ typedef enum {
    connection ID the remote endpoint provides to store.  It must be
    the power of 2. */
 #define NGTCP2_MAX_DCID_POOL_SIZE 16
+/* NGTCP2_MAX_DCID_RETIRED_SIZE is the maximum number of retired DCID
+   kept to catch in-flight packet on retired path. */
+#define NGTCP2_MAX_DCID_RETIRED_SIZE 2
 /* NGTCP2_MIN_SCID_POOL_SIZE is the minimum number of source
    connection ID the local endpoint provides to the remote endpoint.
    It must be at least 8 as per the spec. */
 #define NGTCP2_MIN_SCID_POOL_SIZE 8
-
-/* NGTCP2_MIN_DCID_CHANGE_DURATION is the minimum duration that local
-   endpoint changes DCID. */
-#define NGTCP2_MIN_DCID_CHANGE_DURATION (3ULL * NGTCP2_SECONDS)
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -172,9 +173,10 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
   NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
-  /* NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL is set when client has to
-     send Initial packets even if it has nothing to send. */
-  NGTCP2_CONN_FLAG_FORCE_SEND_INITIAL = 0x0200,
+  /* NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE is set when client has to
+     send Initial or Handshake packets even if it has nothing to
+     send. */
+  NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE = 0x0200,
   /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
      have been discarded. */
   NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
@@ -182,6 +184,10 @@ typedef enum {
      endpoint has initiated key update and waits for the remote
      endpoint to update key. */
   NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE = 0x0800,
+  /* NGTCP2_CONN_FLAG_PPE_PENDING is set when
+     NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state
+     of ngtcp2_ppe is stored in pkt struct of ngtcp2_conn. */
+  NGTCP2_CONN_FLAG_PPE_PENDING = 0x1000,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -248,8 +254,8 @@ typedef struct {
 
   struct {
     struct {
-      /* frq is a priority queue ordered by crypto offset */
-      ngtcp2_pq frq;
+      /* frq contains crypto data sorted by their offset. */
+      ngtcp2_ksl frq;
       /* offset is the offset of crypto stream in this packet number
          space. */
       uint64_t offset;
@@ -307,6 +313,9 @@ struct ngtcp2_conn {
     ngtcp2_ringbuf bound;
     /* unused is a set of unused CID received from peer. */
     ngtcp2_ringbuf unused;
+    /* retired is a set of CID retired by local endpoint.  Keep them
+       in 3*PTO to catch packets in flight along the old path. */
+    ngtcp2_ringbuf retired;
   } dcid;
 
   struct {
@@ -421,6 +430,19 @@ struct ngtcp2_conn {
     ngtcp2_array decrypt_buf;
   } crypto;
 
+  /* pkt contains the packet intermediate construction data to support
+     NGTCP2_WRITE_STREAM_FLAG_MORE */
+  struct {
+    ngtcp2_crypto_ctx ctx;
+    ngtcp2_pkt_hd hd;
+    ngtcp2_ppe ppe;
+    ngtcp2_frame_chain **pfrc;
+    int pkt_empty;
+    uint8_t rtb_entry_flags;
+    int was_client_initial;
+    ssize_t hs_spktlen;
+  } pkt;
+
   ngtcp2_map strms;
   ngtcp2_rcvry_stat rcs;
   ngtcp2_cc_stat ccs;
@@ -444,6 +466,102 @@ struct ngtcp2_conn {
   uint16_t flags;
   int server;
 };
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_read_handshake` performs QUIC cryptographic handshake
+ * by reading given data.  |pkt| points to the buffer to read and
+ * |pktlen| is the length of the buffer.  |path| is the network path.
+ *
+ * The application should call `ngtcp2_conn_write_handshake` (or
+ * `ngtcp2_conn_client_write_handshake` for client session) to make
+ * handshake go forward after calling this function.
+ *
+ * Application should call this function until
+ * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
+ * completion of handshake, `ngtcp2_conn_read_pkt` and
+ * `ngtcp2_conn_write_pkt` should be called instead.
+ *
+ * This function must not be called from inside the callback
+ * functions.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes: (TBD).
+ */
+int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
+                               const uint8_t *pkt, size_t pktlen,
+                               ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_write_handshake` performs QUIC cryptographic handshake
+ * by writing handshake packets.  It may write a packet in the given
+ * buffer pointed by |dest| whose capacity is given as |destlen|.
+ * Application must ensure that the buffer pointed by |dest| is not
+ * empty.
+ *
+ * Application should keep calling this function repeatedly until it
+ * returns zero, or negative error code.
+ *
+ * Application should call this function until
+ * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
+ * completion of handshake, `ngtcp2_conn_read_pkt` and
+ * `ngtcp2_conn_write_pkt` should be called instead.
+ *
+ * During handshake, application can send 0-RTT data (or its response)
+ * using `ngtcp2_conn_write_stream`.
+ * `ngtcp2_conn_client_write_handshake` is generally efficient because
+ * it can coalesce Handshake packet and 0-RTT packet into one UDP
+ * packet.
+ *
+ * This function returns 0 if it cannot write any frame because buffer
+ * is too small, or packet is congestion limited.  Application should
+ * keep reading and wait for congestion window to grow.
+ *
+ * This function must not be called from inside the callback
+ * functions.
+ *
+ * This function returns the number of bytes written to the buffer
+ * pointed by |dest| if it succeeds, or one of the following negative
+ * error codes: (TBD).
+ */
+ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
+                                    size_t destlen, ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_client_write_handshake` is just like
+ * `ngtcp2_conn_write_handshake`, but it is for client only, and can
+ * write 0-RTT data.  This function can coalesce handshake packet and
+ * 0-RTT packet into single UDP packet, thus it is generally more
+ * efficient than the combination of `ngtcp2_conn_write_handshake` and
+ * `ngtcp2_conn_write_stream`.
+ *
+ * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
+ * to which 0-RTT data is sent, whether it is a last data chunk in
+ * this stream, a vector of 0-RTT data, and its number of elements
+ * respectively.  If there is no 0RTT data to send, pass negative
+ * integer to |stream_id|.  The amount of 0RTT data sent is assigned
+ * to |*pdatalen|.  If no data is sent, -1 is assigned.  Note that 0
+ * length STREAM frame is allowed in QUIC, so 0 might be assigned to
+ * |*pdatalen|.
+ *
+ * This function returns 0 if it cannot write any frame because buffer
+ * is too small, or packet is congestion limited.  Application should
+ * keep reading and wait for congestion window to grow.
+ *
+ * This function returns the number of bytes written to the buffer
+ * pointed by |dest| if it succeeds, or one of the following negative
+ * error codes: (TBD).
+ */
+ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen, ssize_t *pdatalen,
+                                           uint32_t flags, int64_t stream_id,
+                                           uint8_t fin, const ngtcp2_vec *datav,
+                                           size_t datavcnt, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its

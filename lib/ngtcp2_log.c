@@ -30,6 +30,7 @@
 #endif
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
 
 #include "ngtcp2_str.h"
 #include "ngtcp2_vec.h"
@@ -519,13 +520,16 @@ void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   }
 }
 
-void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                      const ngtcp2_pkt_stateless_reset *sr) {
+void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr) {
   uint8_t buf[sizeof(sr->stateless_reset_token) * 2 + 1];
+  ngtcp2_pkt_hd shd;
+  ngtcp2_pkt_hd *hd = &shd;
 
   if (!log->log_printf) {
     return;
   }
+
+  memset(&shd, 0, sizeof(shd));
 
   log->log_printf(
       log->user_data, (NGTCP2_LOG_PKT " token=0x%s randlen=%zu\n"),
@@ -630,18 +634,17 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_ack_delay);
 }
 
-void ngtcp2_log_pkt_lost(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
-                         ngtcp2_tstamp sent_ts) {
+void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
+                         uint8_t flags, ngtcp2_tstamp sent_ts) {
   if (!log->log_printf) {
     return;
   }
 
   ngtcp2_log_info(
       log, NGTCP2_LOG_EVENT_RCV,
-      "pkn=%" PRId64 " lost type=%s(0x%02x) sent_ts=%" PRIu64, hd->pkt_num,
-      (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) ? strpkttype_long(hd->type)
-                                              : "Short",
-      hd->type, sent_ts);
+      "pkn=%" PRId64 " lost type=%s(0x%02x) sent_ts=%" PRIu64, pkt_num,
+      (flags & NGTCP2_PKT_FLAG_LONG_FORM) ? strpkttype_long(type) : "Short",
+      type, sent_ts);
 }
 
 static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

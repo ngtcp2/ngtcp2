@@ -86,11 +86,13 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
     memset(dcid->token, 0, NGTCP2_STATELESS_RESET_TOKENLEN);
   }
   ngtcp2_path_storage_zero(&dcid->ps);
+  dcid->ts_retired = UINT64_MAX;
 }
 
 void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
   ngtcp2_dcid_init(dest, src->seq, &src->cid, src->token);
   ngtcp2_path_copy(&dest->ps.path, &src->ps.path);
+  dest->ts_retired = src->ts_retired;
 }
 
 int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,

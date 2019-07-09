@@ -49,11 +49,11 @@ struct QUICError {
   uint16_t code;
 };
 
-QUICError quicErrorTransport(int liberr);
+QUICError quic_err_transport(int liberr);
 
-QUICError quicErrorTransportTLS(int alert);
+QUICError quic_err_tls(int alert);
 
-QUICError quicErrorApplication(int liberr);
+QUICError quic_err_app(int liberr);
 
 } // namespace ngtcp2
 

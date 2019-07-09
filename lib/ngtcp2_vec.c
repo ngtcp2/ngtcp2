@@ -149,13 +149,15 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
     i = 0;
   }
 
-  for (; left && *pdstcnt < maxcnt && i < *psrccnt; ++i) {
+  for (; left && i < *psrccnt; ++i) {
     a = &dst[*pdstcnt - 1];
     b = &src[i];
 
     if (left >= b->len) {
       if (a->base + a->len == b->base) {
         a->len += b->len;
+      } else if (*pdstcnt == maxcnt) {
+        break;
       } else {
         dst[(*pdstcnt)++] = *b;
       }
@@ -165,6 +167,8 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
 
     if (a->base + a->len == b->base) {
       a->len += left;
+    } else if (*pdstcnt == maxcnt) {
+      break;
     } else {
       dst[*pdstcnt].len = left;
       dst[*pdstcnt].base = b->base;
@@ -210,4 +214,8 @@ size_t ngtcp2_vec_copy(ngtcp2_vec *dst, size_t *pnwritten, size_t dstcnt,
   *pnwritten = len - left;
 
   return j;
+}
+
+void ngtcp2_vec_clone(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt) {
+  memcpy(dst, src, sizeof(ngtcp2_vec) * cnt);
 }

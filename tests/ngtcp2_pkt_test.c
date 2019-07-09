@@ -958,11 +958,17 @@ void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
 
-  CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 8));
-  CU_ASSERT(0x02ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 8));
-
+  CU_ASSERT(0xff == ngtcp2_pkt_adjust_pkt_num(0x0100, 0xff, 8));
+  CU_ASSERT(0x01ff == ngtcp2_pkt_adjust_pkt_num(0x01ff, 0xff, 8));
+  CU_ASSERT(0x0fff == ngtcp2_pkt_adjust_pkt_num(0x1000, 0xff, 8));
+  CU_ASSERT(0x80 == ngtcp2_pkt_adjust_pkt_num(0x00, 0x80, 8));
   CU_ASSERT(0x3fffffffffffffabllu ==
             ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0xab, 8));
+  CU_ASSERT(0x4000000000000000llu ==
+            ngtcp2_pkt_adjust_pkt_num(NGTCP2_MAX_PKT_NUM, 0x00, 8));
+  CU_ASSERT(250 == ngtcp2_pkt_adjust_pkt_num(255, 250, 8));
+  CU_ASSERT(8 == ngtcp2_pkt_adjust_pkt_num(50, 8, 8));
+  CU_ASSERT(0 == ngtcp2_pkt_adjust_pkt_num(-1, 0, 8));
 }
 
 void test_ngtcp2_pkt_validate_ack(void) {
@@ -1039,11 +1045,10 @@ void test_ngtcp2_pkt_write_stateless_reset(void) {
   CU_ASSERT(spktlen == p - buf);
 
   /* Not enough buffer */
-  spktlen =
-      ngtcp2_pkt_write_stateless_reset(buf,
-                                       1 + NGTCP2_MIN_STATELESS_RESET_RANDLEN -
-                                           1 + NGTCP2_STATELESS_RESET_TOKENLEN,
-                                       token, rand, sizeof(rand));
+  spktlen = ngtcp2_pkt_write_stateless_reset(
+      buf,
+      NGTCP2_MIN_STATELESS_RESET_RANDLEN - 1 + NGTCP2_STATELESS_RESET_TOKENLEN,
+      token, rand, sizeof(rand));
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }
@@ -1068,7 +1073,7 @@ void test_ngtcp2_pkt_write_retry(void) {
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY, &dcid,
-                     &scid, 0, 0, NGTCP2_PROTO_VER_D19, 0);
+                     &scid, 0, 0, NGTCP2_PROTO_VER, 0);
 
   spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &odcid, token,
                                    sizeof(token));

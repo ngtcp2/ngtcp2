@@ -39,7 +39,6 @@ OBJECTS = \
 	ngtcp2_conn_test.c \
 	ngtcp2_ringbuf_test.c \
 	ngtcp2_conv_test.c \
-	ngtcp2_psl_test.c \
 	ngtcp2_ksl_test.c \
 	ngtcp2_gaptr_test.c \
 	ngtcp2_vec_test.c \
@@ -58,7 +57,6 @@ HFILES= \
 	ngtcp2_conn_test.h \
 	ngtcp2_ringbuf_test.h \
 	ngtcp2_conv_test.h \
-	ngtcp2_psl_test.h \
 	ngtcp2_ksl_test.h \
 	ngtcp2_gaptr_test.h \
 	ngtcp2_vec_test.h \

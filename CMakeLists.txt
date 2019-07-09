@@ -23,6 +23,10 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 cmake_minimum_required(VERSION 3.1)
+
+# Allow setting VISIBILITY_PRESET on static library targets without warning.
+cmake_policy(SET CMP0063 NEW)
+
 # XXX using 0.1.90 instead of 0.1.0-DEV
 project(ngtcp2 VERSION 0.1.90)
 

@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "ngtcp2_conv.h"
 #include "ngtcp2_str.h"
@@ -129,7 +130,8 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
       len = NGTCP2_MIN_LONG_HEADERLEN - 1; /* Cut packet number field */
       break;
     default:
-      return NGTCP2_ERR_UNKNOWN_PKT_TYPE;
+      /* Unreachable */
+      assert(0);
     }
   }
 
@@ -1866,17 +1868,19 @@ int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, size_t odcil,
 
 int64_t ngtcp2_pkt_adjust_pkt_num(int64_t max_pkt_num, int64_t pkt_num,
                                   size_t n) {
-  int64_t k = max_pkt_num == NGTCP2_MAX_PKT_NUM ? max_pkt_num : max_pkt_num + 1;
-  int64_t u = k & ~(((int64_t)1 << n) - 1);
-  int64_t a = u | pkt_num;
-  int64_t b = (u + (1ll << n)) | pkt_num;
-  int64_t a1 = k < a ? a - k : k - a;
-  int64_t b1 = k < b ? b - k : k - b;
+  int64_t expected = max_pkt_num + 1;
+  int64_t win = (int64_t)1 << n;
+  int64_t hwin = win / 2;
+  int64_t mask = win - 1;
+  int64_t cand = (expected & ~mask) | pkt_num;
 
-  if (a1 < b1) {
-    return a;
+  if (cand <= expected - hwin) {
+    return cand + win;
   }
-  return b;
+  if (cand > expected + hwin && cand > win) {
+    return cand - win;
+  }
+  return cand;
 }
 
 int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
@@ -1911,8 +1915,8 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
                                          uint8_t *rand, size_t randlen) {
   uint8_t *p;
 
-  if (destlen < 1 + NGTCP2_MIN_STATELESS_RESET_RANDLEN +
-                    NGTCP2_STATELESS_RESET_TOKENLEN) {
+  if (destlen <
+      NGTCP2_MIN_STATELESS_RESET_RANDLEN + NGTCP2_STATELESS_RESET_TOKENLEN) {
     return NGTCP2_ERR_NOBUF;
   }
 
@@ -1966,11 +1970,6 @@ ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
   p = ngtcp2_cpymem(p, token, tokenlen);
 
   return p - dest;
-}
-
-int ngtcp2_pkt_handshake_pkt(const ngtcp2_pkt_hd *hd) {
-  return (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
-         (hd->type == NGTCP2_PKT_INITIAL || hd->type == NGTCP2_PKT_HANDSHAKE);
 }
 
 size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,

@@ -47,7 +47,6 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void);
 void test_ngtcp2_conn_recv_max_streams(void);
 void test_ngtcp2_conn_handshake(void);
 void test_ngtcp2_conn_handshake_error(void);
-void test_ngtcp2_conn_client_write_handshake(void);
 void test_ngtcp2_conn_retransmit_protected(void);
 void test_ngtcp2_conn_send_max_stream_data(void);
 void test_ngtcp2_conn_recv_stream_data(void);
@@ -64,5 +63,6 @@ void test_ngtcp2_conn_server_path_validation(void);
 void test_ngtcp2_conn_client_connection_migration(void);
 void test_ngtcp2_conn_recv_path_challenge(void);
 void test_ngtcp2_conn_key_update(void);
+void test_ngtcp2_conn_crypto_buffer_exceeded(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

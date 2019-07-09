@@ -177,8 +177,8 @@ client_*_traffic_secret.
 After Handshake key is available, set AEAD overhead (tag length) using
 `ngtcp2_conn_set_aead_overhead()` function.
 
-`ngtcp2_conn_write_handshake()` initiates QUIC handshake.  The Initial
-keys must be installed before calling this function.
+`ngtcp2_conn_write_pkt()` initiates QUIC handshake.  The Initial keys
+must be installed before calling this function.
 
 For client application, it first calls
 ``ngtcp2_conn_callbacks.client_initial`` callback.  The callback must
@@ -198,7 +198,7 @@ After negotiated Handshake keys are available,
 negotiated cipher suites.  If ChaCha20 based cipher suite is
 negotiated, ChaCha20 is used to protect packet header.
 
-`ngtcp2_conn_read_handshake()` reads QUIC handshake packets.
+`ngtcp2_conn_read_pkt()` reads QUIC handshake packets.
 
 For server application, it first calls
 ``ngtcp2_conn_callbacks.recv_client_initial`` callback.  The callback
@@ -218,23 +218,23 @@ acknowledges TLS messages,
 ``ngtcp2_conn_callbacks.acked_crypto_offset`` callback is called.  The
 application can throw away data acknowledged.
 
-`ngtcp2_conn_read_handshake()` and `ngtcp2_conn_write_handshake()`
-should be called until `ngtcp2_conn_get_handshake_completed()` returns
-nonzero which means QUIC handshake has completed.
+`ngtcp2_conn_read_pkt()` and `ngtcp2_conn_write_pkt()` performs QUIC
+handshake until `ngtcp2_conn_get_handshake_completed()` returns
+nonzero which means QUIC handshake has completed.  They can be used
+for post-handshake data transfer as well.  To send stream data, use
+`ngtcp2_conn_writev_stream()`.
 
 0RTT data transmission
 ----------------------
 
 In order for client to send 0RTT data, it should use
-`ngtcp2_conn_client_write_handshake()` function instead of
-`ngtcp2_conn_write_handshake()`.
-`ngtcp2_conn_client_write_handshake()` accepts 0RTT data to send.
+`ngtcp2_conn_writev_stream()` function.
 
 Client application has to load resumed TLS session.  It also has to
 set the remembered transport parameter using
 `ngtcp2_conn_set_early_remote_transport_params()` function.
 
-Before calling `ngtcp2_conn_client_write_handshake()`, client
+Before calling `ngtcp2_conn_client_writev_stream()`, client
 application has to open stream to send data using
 `ngtcp2_conn_open_bidi_stream()` (or `ngtcp2_conn_open_uni_stream()`
 for unidirectional stream).
@@ -268,27 +268,27 @@ When timer fires, it has to call some API functions.  If the current
 timestamp is equal to or larger than the value returned from
 `ngtcp2_conn_loss_detection_expiry()`, it has to call
 `ngtcp2_conn_on_loss_detection_timer()` and `ngtcp2_conn_write_pkt()`
-(or `ngtcp2_conn_write_handshake()` if handshake has not completed
-yet).  If the current timestamp is equal to or larger than the value
-returned from `ngtcp2_conn_ack_delay_expiry()`, it has to call
-`ngtcp2_conn_write_pkt()` (or `ngtcp2_conn_write_handshake()` if
-handshake has not completed yet).  After calling these functions, new
-expiry will be set.  The application should call
-`ngtcp2_conn_get_expiry()` to restart timer.
+(or `ngtcp2_conn_writev_stream()`).  If the current timestamp is equal
+to or larger than the value returned from
+`ngtcp2_conn_ack_delay_expiry()`, it has to call
+`ngtcp2_conn_cancel_expired_ack_delay_timer()` and
+`ngtcp2_conn_write_pkt()` (or `ngtcp2_conn_writev_stream()`).  After
+calling these functions, new expiry will be set.  The application
+should call `ngtcp2_conn_get_expiry()` to restart timer.
 
 
 After QUIC handshake
 --------------------
 
-After QUIC handshake completed, call `ngtcp2_conn_read_pkt()` to read
+After QUIC handshake completed, `ngtcp2_conn_read_pkt()` can read
 incoming QUIC packets.  To write QUIC packets, call
 `ngtcp2_conn_write_pkt()`.
 
 In order to send stream data, the application has to first open a
 stream.  Use `ngtcp2_conn_open_bidi_stream()` to open bidirectional
 stream.  For unidirectional stream, call
-`ngtcp2_conn_open_uni_stream()`.  Call `ngtcp2_conn_write_stream()` to
-send stream data.
+`ngtcp2_conn_open_uni_stream()`.  Call `ngtcp2_conn_writev_stream()`
+to send stream data.
 
 Closing connection
 ------------------

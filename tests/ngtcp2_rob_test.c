@@ -37,7 +37,7 @@ void test_ngtcp2_rob_push(void) {
   int rv;
   uint8_t data[256];
   ngtcp2_rob_gap *g;
-  ngtcp2_psl_it it;
+  ngtcp2_ksl_it it;
 
   /* Check range overlapping */
   ngtcp2_rob_init(&rob, 64, mem);
@@ -46,34 +46,34 @@ void test_ngtcp2_rob_push(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(0 == g->range.begin);
   CU_ASSERT(34567 == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
-  g = ngtcp2_psl_it_get(&it);
+  ngtcp2_ksl_it_next(&it);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(34567 + 145 == g->range.begin);
   CU_ASSERT(UINT64_MAX == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
+  ngtcp2_ksl_it_next(&it);
 
-  CU_ASSERT(ngtcp2_psl_it_end(&it));
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   rv = ngtcp2_rob_push(&rob, 34565, data, 1);
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(0 == g->range.begin);
   CU_ASSERT(34565 == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
-  g = ngtcp2_psl_it_get(&it);
+  ngtcp2_ksl_it_next(&it);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(34566 == g->range.begin);
   CU_ASSERT(34567 == g->range.end);
@@ -82,14 +82,14 @@ void test_ngtcp2_rob_push(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(0 == g->range.begin);
   CU_ASSERT(34563 == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
-  g = ngtcp2_psl_it_get(&it);
+  ngtcp2_ksl_it_next(&it);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(34564 == g->range.begin);
   CU_ASSERT(34565 == g->range.end);
@@ -98,21 +98,21 @@ void test_ngtcp2_rob_push(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(0 == g->range.begin);
   CU_ASSERT(34561 == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
-  g = ngtcp2_psl_it_get(&it);
+  ngtcp2_ksl_it_next(&it);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(34567 + 145 == g->range.begin);
   CU_ASSERT(UINT64_MAX == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
+  ngtcp2_ksl_it_next(&it);
 
-  CU_ASSERT(ngtcp2_psl_it_end(&it));
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_rob_free(&rob);
 
@@ -123,15 +123,15 @@ void test_ngtcp2_rob_push(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(123 == g->range.begin);
   CU_ASSERT(UINT64_MAX == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
+  ngtcp2_ksl_it_next(&it);
 
-  CU_ASSERT(ngtcp2_psl_it_end(&it));
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_rob_free(&rob);
 
@@ -142,15 +142,15 @@ void test_ngtcp2_rob_push(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(0 == g->range.begin);
   CU_ASSERT(UINT64_MAX - 123 == g->range.end);
 
-  ngtcp2_psl_it_next(&it);
+  ngtcp2_ksl_it_next(&it);
 
-  CU_ASSERT(ngtcp2_psl_it_end(&it));
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_rob_free(&rob);
 }
@@ -286,7 +286,7 @@ void test_ngtcp2_rob_data_at(void) {
   const uint8_t *p;
   size_t len;
   ngtcp2_rob_data *d;
-  ngtcp2_psl_it it;
+  ngtcp2_ksl_it it;
   ngtcp2_rob_gap *g;
 
   for (i = 0; i < sizeof(data); ++i) {
@@ -395,20 +395,20 @@ void test_ngtcp2_rob_data_at(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&rob.datapsl);
-  ngtcp2_psl_it_next(&it);
-  d = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.dataksl);
+  ngtcp2_ksl_it_next(&it);
+  d = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(16 == d->range.begin);
 
-  ngtcp2_psl_it_next(&it);
-  d = ngtcp2_psl_it_get(&it);
+  ngtcp2_ksl_it_next(&it);
+  d = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(32 == d->range.begin);
 
-  ngtcp2_psl_it_next(&it);
+  ngtcp2_ksl_it_next(&it);
 
-  CU_ASSERT(ngtcp2_psl_it_end(&it));
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_rob_free(&rob);
 
@@ -435,14 +435,14 @@ void test_ngtcp2_rob_data_at(void) {
     ngtcp2_rob_pop(&rob, i * 16, len);
   }
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(256 == g->range.begin);
 
-  it = ngtcp2_psl_begin(&rob.datapsl);
+  it = ngtcp2_ksl_begin(&rob.dataksl);
 
-  CU_ASSERT(ngtcp2_psl_it_end(&it));
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_rob_free(&rob);
 
@@ -502,7 +502,7 @@ void test_ngtcp2_rob_remove_prefix(void) {
   ngtcp2_rob rob;
   ngtcp2_rob_gap *g;
   ngtcp2_rob_data *d;
-  ngtcp2_psl_it it;
+  ngtcp2_ksl_it it;
   uint8_t data[256];
   int rv;
 
@@ -515,13 +515,13 @@ void test_ngtcp2_rob_remove_prefix(void) {
 
   ngtcp2_rob_remove_prefix(&rob, 33);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(33 == g->range.begin);
 
-  it = ngtcp2_psl_begin(&rob.datapsl);
-  d = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.dataksl);
+  d = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(32 == d->range.begin);
 
@@ -540,14 +540,14 @@ void test_ngtcp2_rob_remove_prefix(void) {
 
   ngtcp2_rob_remove_prefix(&rob, 16);
 
-  it = ngtcp2_psl_begin(&rob.gappsl);
-  g = ngtcp2_psl_it_get(&it);
+  it = ngtcp2_ksl_begin(&rob.gapksl);
+  g = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(16 == g->range.begin);
 
-  ngtcp2_psl_it_next(&it);
+  ngtcp2_ksl_it_next(&it);
 
-  CU_ASSERT(ngtcp2_psl_it_end(&it));
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_rob_free(&rob);
 }

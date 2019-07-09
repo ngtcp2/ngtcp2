@@ -37,8 +37,8 @@
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
 
-struct ngtcp2_stream_frame_chain;
-typedef struct ngtcp2_stream_frame_chain ngtcp2_stream_frame_chain;
+struct ngtcp2_frame_chain;
+typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 typedef enum {
   NGTCP2_STRM_FLAG_NONE = 0,
@@ -81,7 +81,7 @@ struct ngtcp2_strm {
        control credits have been paid when they are transmitted first
        time.  There are no restriction regarding flow control for
        retransmission. */
-    ngtcp2_pq streamfrq;
+    ngtcp2_ksl streamfrq;
     /* offset is the next offset of outgoing data.  In other words, it
        is the number of bytes sent in this stream without
        duplication. */
@@ -171,15 +171,14 @@ void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm,
-                               ngtcp2_stream_frame_chain *frc);
+int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc);
 
 /*
- * ngtcp2_strm_streamfrq_pop pops the first ngtcp2_stream_frame_chain
- * and assigns it to |*pfrc|.  This function splits into or merges
- * several ngtcp2_stream_frame_chain objects so that the returned
- * ngtcp2_stream_frame_chain has at most |left| data length.  If there
- * is no frames to send, this function returns 0 and |*pfrc| is NULL.
+ * ngtcp2_strm_streamfrq_pop pops the first ngtcp2_frame_chain and
+ * assigns it to |*pfrc|.  This function splits into or merges several
+ * ngtcp2_frame_chain objects so that the returned ngtcp2_frame_chain
+ * has at most |left| data length.  If there is no frames to send,
+ * this function returns 0 and |*pfrc| is NULL.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -187,14 +186,14 @@ int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm,
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm,
-                              ngtcp2_stream_frame_chain **pfrc, size_t left);
+int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
+                              size_t left);
 
 /*
- * ngtcp2_strm_streamfrq_top returns the first
- * ngtcp2_stream_frame_chain.  The queue must not be empty.
+ * ngtcp2_strm_streamfrq_top returns the first ngtcp2_frame_chain.
+ * The queue must not be empty.
  */
-ngtcp2_stream_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm);
+ngtcp2_frame_chain *ngtcp2_strm_streamfrq_top(ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_streamfrq_empty returns nonzero if streamfrq is empty.

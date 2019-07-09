@@ -108,6 +108,9 @@ typedef enum {
      acknowledgement for ACK which acknowledges the last handshake
      packet from client (which contains TLSv1.3 Finished message). */
   NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK = 0x80,
+  /* NGTCP2_ACKTR_FLAG_CANCEL_TIMER is set when ACK delay timer is
+     expired and canceled. */
+  NGTCP2_ACKTR_FLAG_CANCEL_TIMER = 0x0100,
 } ngtcp2_acktr_flag;
 
 /*
@@ -166,14 +169,8 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
  * ngtcp2_acktr_forget removes all entries which have the packet
  * number that is equal to or less than ent->pkt_num.  This function
  * assumes that |acktr| includes |ent|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
+void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 
 /*
  * ngtcp2_acktr_get returns the pointer to pointer to the entry which
@@ -196,16 +193,8 @@ ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr, int64_t pkt_num, int64_t largest_ack);
  * |pkt_num| is a packet number which includes |fr|.  If we receive
  * ACK which acknowledges the ACKs added by ngtcp2_acktr_add_ack,
  * ngtcp2_acktr_entry which the outgoing ACK acknowledges is removed.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr);
+void ngtcp2_acktr_recv_ack(ngtcp2_acktr *acktr, const ngtcp2_ack *fr);
 
 /*
  * ngtcp2_acktr_commit_ack tells |acktr| that ACK frame is generated.

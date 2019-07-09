@@ -164,14 +164,8 @@ public:
   int on_read();
   int on_write(bool retransmit = false);
   int write_streams();
-  int write_0rtt_streams();
   int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                 size_t datalen);
-  int do_handshake(const ngtcp2_path *path, const uint8_t *data,
-                   size_t datalen);
-  int do_handshake_read_once(const ngtcp2_path *path, const uint8_t *data,
-                             size_t datalen);
-  ssize_t do_handshake_write_once();
   void schedule_retransmit();
   int handshake_completed();
 
@@ -211,7 +205,7 @@ public:
   int send_packet();
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
                              size_t datalen);
-  int on_stream_close(int64_t stream_id);
+  int on_stream_close(int64_t stream_id, uint16_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
   void make_stream_early();
@@ -240,6 +234,8 @@ public:
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int send_stop_sending(int64_t stream_id);
+
+  void reset_idle_timer();
 
 private:
   Address local_addr_;

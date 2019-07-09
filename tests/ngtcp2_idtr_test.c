@@ -36,7 +36,7 @@ void test_ngtcp2_idtr_open(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_idtr idtr;
   int rv;
-  ngtcp2_psl_it it;
+  ngtcp2_ksl_it it;
   ngtcp2_range key;
 
   rv = ngtcp2_idtr_init(&idtr, 0, mem);
@@ -47,8 +47,8 @@ void test_ngtcp2_idtr_open(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&idtr.gap.gap);
-  key = ngtcp2_psl_it_range(&it);
+  it = ngtcp2_ksl_begin(&idtr.gap.gap);
+  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
 
   CU_ASSERT(1 == key.begin);
   CU_ASSERT(UINT64_MAX == key.end);
@@ -57,14 +57,14 @@ void test_ngtcp2_idtr_open(void) {
 
   CU_ASSERT(0 == rv);
 
-  it = ngtcp2_psl_begin(&idtr.gap.gap);
-  key = ngtcp2_psl_it_range(&it);
+  it = ngtcp2_ksl_begin(&idtr.gap.gap);
+  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
 
   CU_ASSERT(1 == key.begin);
   CU_ASSERT(1000000007 == key.end);
 
-  ngtcp2_psl_it_next(&it);
-  key = ngtcp2_psl_it_range(&it);
+  ngtcp2_ksl_it_next(&it);
+  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
 
   CU_ASSERT(1000000008 == key.begin);
   CU_ASSERT(UINT64_MAX == key.end);

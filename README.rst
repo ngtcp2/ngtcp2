@@ -36,14 +36,14 @@ The client and server under examples directory require patched OpenSSL
 as crypto backend:
 
 * Patched OpenSSL
-  (https://github.com/tatsuhiro-t/openssl/tree/quic-draft-19)
+  (https://github.com/tatsuhiro-t/openssl/tree/quic-draft-20)
 
 Build from git
 --------------
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b quic-draft-19 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b quic-draft-20 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
@@ -57,7 +57,7 @@ Build from git
    $ make -j$(nproc) check
    $ make install
    $ cd ..
-   $ git clone https://github.com/ngtcp2/ngtcp2
+   $ git clone -b draft-20 https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
    $ autoreconf -i
    $ # For Mac users who have installed libev with MacPorts, append

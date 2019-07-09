@@ -58,15 +58,16 @@ typedef enum {
   NGTCP2_PV_FLAG_NONE,
   /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of the path
      validation does not matter. */
-  NGTCP2_PV_FLAG_DONT_CARE = 0x02,
+  NGTCP2_PV_FLAG_DONT_CARE = 0x01,
   /* NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH indicates that DCID should
-     be retired after path validation finishes regardless of its
-     result. */
-  NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH = 0x04,
-  /* NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS indicates that the path
-     validation against the old path should be done after successful
-     path validation. */
-  NGTCP2_PV_FLAG_VERIFY_OLD_PATH_ON_SUCCESS = 0x08,
+     be retired after path validation is aborted or failed.  DCID is
+     not retired if path validation succeeds. */
+  NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH = 0x02,
+  /* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID
+     is available in ngtcp2_pv.  If path validation fails, fallback to
+     the fallback DCID.  If path validation succeeds, start path
+     validation against fallback DCID. */
+  NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE = 0x04,
 } ngtcp2_pv_flag;
 
 struct ngtcp2_pv;
@@ -80,6 +81,9 @@ struct ngtcp2_pv {
   ngtcp2_log *log;
   /* dcid is DCID and path this path validation uses. */
   ngtcp2_dcid dcid;
+  /* fallback_dcid is the usually validated DCID and used as a
+     fallback if this path validation fails. */
+  ngtcp2_dcid fallback_dcid;
   /* ents is the ring buffer of ngtcp2_pv_entry */
   ngtcp2_ringbuf ents;
   /* timeout is the duration within which this path validation should
