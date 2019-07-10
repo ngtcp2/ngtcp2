@@ -2289,12 +2289,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge);) {
       pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
 
-      /* PATH_RESPONSE is bound to the path that the corresponding
-         PATH_CHALLENGE is received. */
-      if (!ngtcp2_path_eq(&conn->dcid.current.ps.path, &pcent->ps.path)) {
-        break;
-      }
-
       lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
       memcpy(lfr.path_response.data, pcent->data,
              sizeof(lfr.path_response.data));
@@ -3251,50 +3245,6 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
                                      NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
 }
 
-/*
- * conn_write_path_response writes a packet which includes
- * PATH_RESPONSE frame into |dest| of length |destlen|.
- *
- * This function returns the number of bytes written to |dest|, or one
- * of the following negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- */
-static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
-                                        uint8_t *dest, size_t destlen,
-                                        ngtcp2_tstamp ts) {
-  ngtcp2_path_challenge_entry *pcent = NULL;
-  ngtcp2_frame lfr;
-  ssize_t nwrite;
-
-  if (ngtcp2_ringbuf_len(&conn->rx.path_challenge) == 0) {
-    return 0;
-  }
-
-  pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
-
-  lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
-  memcpy(lfr.path_response.data, pcent->data, sizeof(lfr.path_response.data));
-
-  if (path) {
-    ngtcp2_path_copy(path, &pcent->ps.path);
-  }
-
-  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT,
-                                       &conn->dcid.current.cid, &lfr,
-                                       NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
-  if (nwrite <= 0) {
-    return nwrite;
-  }
-
-  ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
-
-  return nwrite;
-}
-
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
                               uint8_t *dest, size_t destlen, ngtcp2_tstamp ts) {
   return ngtcp2_conn_writev_stream(
@@ -3934,12 +3884,12 @@ static void conn_recv_connection_close(ngtcp2_conn *conn) {
   conn->state = NGTCP2_CS_DRAINING;
 }
 
-static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
+static void conn_recv_path_challenge(ngtcp2_conn *conn,
                                      ngtcp2_path_challenge *fr) {
   ngtcp2_path_challenge_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&conn->rx.path_challenge);
-  ngtcp2_path_challenge_entry_init(ent, path, fr->data);
+  ngtcp2_path_challenge_entry_init(ent, fr->data);
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
@@ -6307,7 +6257,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_PATH_CHALLENGE:
-      conn_recv_path_challenge(conn, path, &fr->path_challenge);
+      conn_recv_path_challenge(conn, &fr->path_challenge);
       break;
     case NGTCP2_FRAME_PATH_RESPONSE:
       rv = conn_recv_path_response(conn, &fr->path_response, ts);
@@ -7777,17 +7727,10 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
   }
 
-  if (!ppe_pending) {
-    nwrite = conn_write_path_response(conn, path, dest, destlen, ts);
+  if (!ppe_pending && conn->pv) {
+    nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
     if (nwrite) {
       return nwrite;
-    }
-
-    if (conn->pv) {
-      nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
-      if (nwrite) {
-        return nwrite;
-      }
     }
   }
 
@@ -8554,9 +8497,7 @@ ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn) {
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
-                                      const ngtcp2_path *path,
                                       const uint8_t *data) {
-  ngtcp2_path_storage_init2(&pcent->ps, path);
   memcpy(pcent->data, data, sizeof(pcent->data));
 }
 

@@ -130,12 +130,10 @@ typedef union {
 } ngtcp2_max_frame;
 
 typedef struct {
-  ngtcp2_path_storage ps;
   uint8_t data[8];
 } ngtcp2_path_challenge_entry;
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
-                                      const ngtcp2_path *path,
                                       const uint8_t *data);
 
 typedef enum {

@@ -4139,7 +4139,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &ps.path));
+  CU_ASSERT(ngtcp2_path_eq(&conn->dcid.current.ps.path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
 
   ngtcp2_conn_del(conn);
