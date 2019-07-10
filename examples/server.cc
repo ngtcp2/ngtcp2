@@ -1654,6 +1654,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   settings.max_streams_uni = 3;
   settings.idle_timeout = config.timeout;
   settings.stateless_reset_token_present = 1;
+  settings.active_connection_id_limit = 7;
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(std::begin(settings.stateless_reset_token),

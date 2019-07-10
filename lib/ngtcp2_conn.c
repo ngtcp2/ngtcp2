@@ -559,6 +559,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                    settings->stateless_reset_token_present
                        ? settings->stateless_reset_token
                        : NULL);
+  scident->flags |= NGTCP2_SCID_FLAG_INITIAL_CID;
 
   rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL,
                          ngtcp2_ksl_key_ptr(&key, &scident->cid), scident);
@@ -567,6 +568,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   scident = NULL;
+
+  (*pconn)->scid.num_initial_id = 1;
 
   if (server && settings->preferred_address_present) {
     scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
@@ -577,6 +580,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
     ngtcp2_scid_init(scident, 1, &settings->preferred_address.cid,
                      settings->preferred_address.stateless_reset_token);
+    scident->flags |= NGTCP2_SCID_FLAG_INITIAL_CID;
 
     rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL,
                            ngtcp2_ksl_key_ptr(&key, &scident->cid), scident);
@@ -587,6 +591,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     scident = NULL;
 
     (*pconn)->scid.last_seq = 1;
+    ++(*pconn)->scid.num_initial_id;
   }
 
   ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
@@ -1969,9 +1974,25 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
  * remote endpoint.
  */
 static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
-  size_t n = ngtcp2_ksl_len(&conn->scid.set) - ngtcp2_pq_size(&conn->scid.used);
+  size_t n, left;
 
-  return n < NGTCP2_MIN_SCID_POOL_SIZE ? NGTCP2_MIN_SCID_POOL_SIZE - n : 0;
+  if (ngtcp2_ksl_len(&conn->scid.set) >= NGTCP2_MAX_SCID_POOL_SIZE) {
+    return 0;
+  }
+
+  left = NGTCP2_MAX_SCID_POOL_SIZE - ngtcp2_ksl_len(&conn->scid.set);
+
+  assert(ngtcp2_ksl_len(&conn->scid.set) >=
+         conn->scid.num_initial_id + conn->scid.num_retired);
+
+  n = ngtcp2_ksl_len(&conn->scid.set) - conn->scid.num_initial_id -
+      conn->scid.num_retired;
+
+  assert(conn->remote.settings.active_connection_id_limit >= n);
+
+  n = conn->remote.settings.active_connection_id_limit - n;
+
+  return ngtcp2_min(n, left);
 }
 
 /*
@@ -2111,6 +2132,9 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
                       ngtcp2_ksl_key_ptr(&key, &scid->cid));
     ngtcp2_pq_pop(&conn->scid.used);
     ngtcp2_mem_free(conn->mem, scid);
+
+    assert(conn->scid.num_retired);
+    --conn->scid.num_retired;
   }
 
   for (; ngtcp2_ringbuf_len(&conn->dcid.retired);) {
@@ -3374,14 +3398,6 @@ static ssize_t conn_write_path_response(ngtcp2_conn *conn, ngtcp2_path *path,
   ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
 
   return nwrite;
-}
-
-/*
- * conn_peer_has_unused_cid returns nonzero if the remote endpoint has
- * at least one unused connection ID.
- */
-static int conn_peer_has_unused_cid(ngtcp2_conn *conn) {
-  return ngtcp2_ksl_len(&conn->scid.set) - ngtcp2_pq_size(&conn->scid.used) > 0;
 }
 
 ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
@@ -5644,7 +5660,7 @@ static int conn_recv_max_streams(ngtcp2_conn *conn,
  */
 static int conn_recv_new_connection_id(ngtcp2_conn *conn,
                                        const ngtcp2_new_connection_id *fr) {
-  size_t i, len;
+  size_t i, len, max;
   ngtcp2_dcid *dcid;
   ngtcp2_pv *pv = conn->pv;
   int rv;
@@ -5701,7 +5717,9 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     }
   }
 
-  if (len >= NGTCP2_MAX_DCID_POOL_SIZE) {
+  max = ngtcp2_min(conn->local.settings.active_connection_id_limit,
+                   NGTCP2_MAX_DCID_POOL_SIZE);
+  if (len >= max) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "too many connection ID");
     return 0;
   }
@@ -5744,7 +5762,13 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
         return NGTCP2_ERR_PROTO;
       }
 
-      scid->flags |= NGTCP2_SCID_FLAG_RETIRED;
+      if (!(scid->flags & NGTCP2_SCID_FLAG_RETIRED)) {
+        scid->flags |= NGTCP2_SCID_FLAG_RETIRED;
+        ++conn->scid.num_retired;
+        if (scid->flags & NGTCP2_SCID_FLAG_INITIAL_CID) {
+          --conn->scid.num_initial_id;
+        }
+      }
 
       if (scid->pe.index != NGTCP2_PQ_BAD_INDEX) {
         ngtcp2_pq_remove(&conn->scid.used, &scid->pe);
@@ -7863,7 +7887,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
       return nwrite;
     }
 
-    if (conn->pv && conn_peer_has_unused_cid(conn)) {
+    if (conn->pv) {
       nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
       if (nwrite) {
         return nwrite;

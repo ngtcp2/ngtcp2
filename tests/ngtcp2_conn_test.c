@@ -329,6 +329,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
   settings->idle_timeout = 60;
   settings->max_packet_size = 65535;
   settings->stateless_reset_token_present = 1;
+  settings->active_connection_id_limit = 8;
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
     settings->stateless_reset_token[i] = (uint8_t)i;
   }
@@ -347,6 +348,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
   settings->idle_timeout = 60;
   settings->max_packet_size = 65535;
   settings->stateless_reset_token_present = 0;
+  settings->active_connection_id_limit = 8;
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
@@ -394,6 +396,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   (*pconn)->remote.settings.max_streams_bidi = 0;
   (*pconn)->remote.settings.max_streams_uni = 1;
   (*pconn)->remote.settings.max_data = 64 * 1024;
+  (*pconn)->remote.settings.active_connection_id_limit = 8;
   (*pconn)->local.bidi.max_streams = (*pconn)->remote.settings.max_streams_bidi;
   (*pconn)->local.uni.max_streams = (*pconn)->remote.settings.max_streams_uni;
   (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
@@ -443,6 +446,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->remote.settings.max_streams_bidi = 1;
   (*pconn)->remote.settings.max_streams_uni = 1;
   (*pconn)->remote.settings.max_data = 64 * 1024;
+  (*pconn)->remote.settings.active_connection_id_limit = 8;
   (*pconn)->local.bidi.max_streams = (*pconn)->remote.settings.max_streams_bidi;
   (*pconn)->local.uni.max_streams = (*pconn)->remote.settings.max_streams_uni;
   (*pconn)->tx.max_offset = (*pconn)->remote.settings.max_data;
@@ -3320,40 +3324,7 @@ void test_ngtcp2_conn_send_early_data(void) {
                                      1, null_data, 1024, ++t);
 
   CU_ASSERT((ssize_t)sizeof(buf) == spktlen);
-  CU_ASSERT(417 == datalen);
-
-  ngtcp2_conn_del(conn);
-
-  /* 0 length STREAM should not be written if we supply nonzero length
-     data. */
-  setup_early_client(&conn);
-
-  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
-
-  CU_ASSERT(0 == rv);
-
-  spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, 606, &datalen,
-                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
-                                     0, null_data, 10, ++t);
-
-  CU_ASSERT(spktlen > 0);
-  CU_ASSERT(-1 == datalen);
-
-  ngtcp2_conn_del(conn);
-
-  /* +1 buffer size */
-  setup_early_client(&conn);
-
-  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
-
-  CU_ASSERT(0 == rv);
-
-  spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, 607, &datalen,
-                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
-                                     0, null_data, 10, ++t);
-
-  CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == datalen);
+  CU_ASSERT(676 == datalen);
 
   ngtcp2_conn_del(conn);
 
@@ -3893,8 +3864,10 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   ngtcp2_ksl_it it;
   ngtcp2_scid *scid;
   uint64_t seq;
+  ngtcp2_cid cid;
 
   setup_default_client(&conn);
+  conn->remote.settings.active_connection_id_limit = 7;
 
   /* This will send NEW_CONNECTION_ID frames */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
@@ -3905,6 +3878,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   scid = ngtcp2_ksl_it_get(&it);
   seq = scid->seq;
 
+  CU_ASSERT(!(scid->flags & NGTCP2_SCID_FLAG_INITIAL_CID));
   CU_ASSERT(NGTCP2_SCID_FLAG_NONE == scid->flags);
   CU_ASSERT(UINT64_MAX == scid->ts_retired);
   CU_ASSERT(0 == ngtcp2_pq_size(&conn->scid.used));
@@ -3921,6 +3895,53 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   CU_ASSERT(NGTCP2_SCID_FLAG_RETIRED == scid->flags);
   CU_ASSERT(1000000010 == scid->ts_retired);
   CU_ASSERT(2 == ngtcp2_pq_size(&conn->scid.used));
+  CU_ASSERT(8 == ngtcp2_ksl_len(&conn->scid.set));
+  CU_ASSERT(1 == conn->scid.num_initial_id);
+  CU_ASSERT(1 == conn->scid.num_retired);
+
+  /* No NEW_CONNECTION_ID frames should be sent */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(8 == ngtcp2_ksl_len(&conn->scid.set));
+  CU_ASSERT(1 == conn->scid.num_initial_id);
+  CU_ASSERT(1 == conn->scid.num_retired);
+
+  /* Now time passed and NEW_CONNECTION_ID frames should be sent */
+  t += 7 * NGTCP2_DEFAULT_INITIAL_RTT;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(8 == ngtcp2_ksl_len(&conn->scid.set));
+  CU_ASSERT(1 == conn->scid.num_initial_id);
+  CU_ASSERT(0 == conn->scid.num_retired);
+
+  /* Retire initial DCID */
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+  scid = ngtcp2_ksl_it_get(&it);
+  cid = scid->cid;
+
+  fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+  fr.retire_connection_id.seq = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &cid, ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(8 == ngtcp2_ksl_len(&conn->scid.set));
+  CU_ASSERT(0 == conn->scid.num_initial_id);
+  CU_ASSERT(1 == conn->scid.num_retired);
+
+  /* NEW_CONNECTION_ID should not be sent because
+     active_connection_id_limit of peer is 7. */
+  t += 7 * NGTCP2_DEFAULT_INITIAL_RTT;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
+
+  CU_ASSERT(spktlen> 0);
+  CU_ASSERT(7 == ngtcp2_ksl_len(&conn->scid.set));
+  CU_ASSERT(0 == conn->scid.num_initial_id);
+  CU_ASSERT(0 == conn->scid.num_retired);
 
   ngtcp2_conn_del(conn);
 }

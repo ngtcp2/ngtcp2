@@ -632,6 +632,9 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                   NGTCP2_LOG_TP_HD_FIELDS, params->ack_delay_exponent);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_ack_delay=%u\n"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_ack_delay);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " active_connection_id_limit=%" PRIu64 "\n"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->active_connection_id_limit);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
