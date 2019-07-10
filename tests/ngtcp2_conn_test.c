@@ -3871,7 +3871,6 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(NULL != conn->pktns.tx.frq);
@@ -4142,7 +4141,6 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(ngtcp2_path_eq(&new_path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound));
 
   ngtcp2_conn_del(conn);
 }
