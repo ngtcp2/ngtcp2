@@ -129,8 +129,9 @@ void test_ngtcp2_encode_transport_params(void) {
   params.ack_delay_exponent = 20;
   params.disable_migration = 1;
   params.max_ack_delay = 59 * NGTCP2_MILLISECONDS;
+  params.active_connection_id_limit = 1000000007;
 
-  for (i = 0; i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5; ++i) {
+  for (i = 0; i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5 + 8; ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
@@ -159,6 +160,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
   CU_ASSERT(params.disable_migration == nparams.disable_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
+  CU_ASSERT(params.active_connection_id_limit ==
+            nparams.active_connection_id_limit);
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -190,12 +193,13 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
   params.original_connection_id_present = 1;
   params.original_connection_id = ocid;
+  params.active_connection_id_limit = 1073741824;
 
   for (i = 0;
        i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 20 + 5 + 5 +
                (4 + 4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
                 NGTCP2_STATELESS_RESET_TOKENLEN) +
-               4 + 4 + params.original_connection_id.datalen;
+               4 + 4 + params.original_connection_id.datalen + 12;
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -252,4 +256,6 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.original_connection_id_present);
   CU_ASSERT(ngtcp2_cid_eq(&params.original_connection_id,
                           &nparams.original_connection_id));
+  CU_ASSERT(params.active_connection_id_limit ==
+            nparams.active_connection_id_limit);
 }

@@ -7586,6 +7586,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
   if (src->preferred_address_present) {
     dest->preferred_address = src->preferred_address;
   }
+  dest->active_connection_id_limit = src->active_connection_id_limit;
 }
 
 /*
@@ -7616,6 +7617,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
   if (src->preferred_address_present) {
     dest->preferred_address = src->preferred_address;
   }
+  dest->active_connection_id_limit = src->active_connection_id_limit;
 }
 
 /*

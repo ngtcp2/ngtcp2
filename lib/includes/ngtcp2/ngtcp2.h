@@ -577,7 +577,8 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 0x000a,
   NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY = 0x000b,
   NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 0x000c,
-  NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 0x000d
+  NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 0x000d,
+  NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT = 0x000e
 } ngtcp2_transport_param_id;
 
 typedef enum {
@@ -646,6 +647,7 @@ typedef struct {
   uint64_t initial_max_streams_uni;
   uint64_t idle_timeout;
   uint64_t max_packet_size;
+  uint64_t active_connection_id_limit;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
   uint64_t ack_delay_exponent;
@@ -673,6 +675,7 @@ typedef struct {
   uint64_t max_streams_uni;
   uint64_t idle_timeout;
   uint64_t max_packet_size;
+  uint64_t active_connection_id_limit;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
   uint64_t ack_delay_exponent;
