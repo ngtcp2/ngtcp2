@@ -89,29 +89,13 @@ void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
 
 int ngtcp2_pv_full(ngtcp2_pv *pv) { return ngtcp2_ringbuf_full(&pv->ents); }
 
-int ngtcp2_pv_validate(ngtcp2_pv *pv, const ngtcp2_path *path,
-                       const uint8_t *data) {
+int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data) {
   size_t len = ngtcp2_ringbuf_len(&pv->ents);
   size_t i;
   ngtcp2_pv_entry *ent;
 
   if (len == 0) {
     return NGTCP2_ERR_INVALID_STATE;
-  }
-
-  /* Must validate that path which PATH_CHALLENGE is sent equals to
-     the path PATH_RESPONSE is received. */
-  if (!ngtcp2_addr_eq(&pv->dcid.ps.path.remote, &path->remote)) {
-    ngtcp2_log_info(pv->log, NGTCP2_LOG_EVENT_PTV,
-                    "remote address does not match the one that path "
-                    "validation is performed");
-    return NGTCP2_ERR_PATH_VALIDATION_FAILED;
-  }
-  if (!ngtcp2_addr_eq(&pv->dcid.ps.path.local, &path->local)) {
-    ngtcp2_log_info(pv->log, NGTCP2_LOG_EVENT_PTV,
-                    "local address does not match the one that path validation "
-                    "is performed");
-    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   for (i = 0; i < len; ++i) {

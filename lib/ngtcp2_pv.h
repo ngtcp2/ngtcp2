@@ -136,8 +136,8 @@ void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
 int ngtcp2_pv_full(ngtcp2_pv *pv);
 
 /*
- * ngtcp2_pv_validate validates that the |data| received from |path|
- * matches the one of the existing entry.
+ * ngtcp2_pv_validate validates that the received |data| matches the
+ * one of the existing entry.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -149,8 +149,7 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     |pv| does not have an entry which has |data| and |path|
  */
-int ngtcp2_pv_validate(ngtcp2_pv *pv, const ngtcp2_path *path,
-                       const uint8_t *data);
+int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data);
 
 /*
  * ngtcp2_pv_handle_entry_expiry checks expiry for each entry.

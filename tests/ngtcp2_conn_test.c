@@ -4106,7 +4106,6 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   const uint8_t data[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8};
   ngtcp2_path_storage ps;
-  ngtcp2_dcid *dcid;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -4143,11 +4142,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(ngtcp2_path_eq(&new_path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound));
-
-  dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, 0);
-
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &dcid->ps.path));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound));
 
   ngtcp2_conn_del(conn);
 }
