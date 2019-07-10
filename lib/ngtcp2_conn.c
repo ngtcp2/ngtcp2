@@ -6634,6 +6634,11 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
   return 0;
 }
 
+static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
+  conn->local.bidi.max_streams = conn->remote.settings.max_streams_bidi;
+  conn->local.uni.max_streams = conn->remote.settings.max_streams_uni;
+}
+
 /*
  * conn_handshake_completed is called once cryptographic handshake has
  * completed.
@@ -6648,6 +6653,10 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
   int rv;
 
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
+
+  conn->remote.settings = conn->remote.pending_settings;
+  conn_sync_stream_id_limit(conn);
+  conn->tx.max_offset = conn->remote.settings.max_data;
 
   rv = conn_call_handshake_completed(conn);
   if (rv != 0) {
@@ -7730,11 +7739,6 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
   return 0;
 }
 
-static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
-  conn->local.bidi.max_streams = conn->remote.settings.max_streams_bidi;
-  conn->local.uni.max_streams = conn->remote.settings.max_streams_uni;
-}
-
 int ngtcp2_conn_set_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   int rv;
@@ -7752,10 +7756,7 @@ int ngtcp2_conn_set_remote_transport_params(
                            : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
                        params);
 
-  settings_copy_from_transport_params(&conn->remote.settings, params);
-  conn_sync_stream_id_limit(conn);
-
-  conn->tx.max_offset = conn->remote.settings.max_data;
+  settings_copy_from_transport_params(&conn->remote.pending_settings, params);
 
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 

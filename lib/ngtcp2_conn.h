@@ -396,6 +396,10 @@ struct ngtcp2_conn {
 
   struct {
     ngtcp2_settings settings;
+    /* pending_settings is received transport parameters during
+       handshake.  It is copied to settings when handshake
+       completes. */
+    ngtcp2_settings pending_settings;
     struct {
       ngtcp2_idtr idtr;
       /* unsent_max_streams is the maximum number of streams of peer
