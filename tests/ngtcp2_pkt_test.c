@@ -785,10 +785,11 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   uint8_t buf[256];
   ngtcp2_new_connection_id fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
+  size_t framelen = 1 + 4 + 2 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.seq = 1000000009;
+  fr.retire_prior_to = 255;
   scid_init(&fr.cid);
   memset(fr.stateless_reset_token, 0xe1, sizeof(fr.stateless_reset_token));
 

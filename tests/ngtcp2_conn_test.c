@@ -3820,18 +3820,28 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
   size_t pktlen;
+  ssize_t spktlen;
   ngtcp2_tstamp t = 0;
   int64_t pkt_num = 0;
   ngtcp2_frame fr;
   const uint8_t cid[] = {0xf0, 0xf1, 0xf2, 0xf3};
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  const uint8_t cid2[] = {0xf0, 0xf1, 0xf2, 0xf4};
+  const uint8_t token2[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfe};
   ngtcp2_dcid *dcid;
   int rv;
+  ngtcp2_frame_chain *frc;
 
   setup_default_client(&conn);
 
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
   ngtcp2_cid_init(&fr.new_connection_id.cid, cid, sizeof(cid));
   memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
@@ -3848,6 +3858,37 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(ngtcp2_cid_eq(&fr.new_connection_id.cid, &dcid->cid));
   CU_ASSERT(0 == memcmp(fr.new_connection_id.stateless_reset_token, dcid->token,
                         sizeof(fr.new_connection_id.stateless_reset_token)));
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 2;
+  fr.new_connection_id.retire_prior_to = 2;
+  ngtcp2_cid_init(&fr.new_connection_id.cid, cid2, sizeof(cid2));
+  memcpy(fr.new_connection_id.stateless_reset_token, token2, sizeof(token2));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(2 == conn->dcid.current.seq);
+  CU_ASSERT(NULL != conn->pktns.tx.frq);
+
+  frc = conn->pktns.tx.frq;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+
+  frc = frc->next;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(NULL == frc->next);
+
+  /* This will send RETIRE_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
 
   ngtcp2_conn_del(conn);
 }
@@ -3938,7 +3979,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   t += 7 * NGTCP2_DEFAULT_INITIAL_RTT;
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
 
-  CU_ASSERT(spktlen> 0);
+  CU_ASSERT(spktlen > 0);
   CU_ASSERT(7 == ngtcp2_ksl_len(&conn->scid.set));
   CU_ASSERT(0 == conn->scid.num_initial_id);
   CU_ASSERT(0 == conn->scid.num_retired);
@@ -3971,6 +4012,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
   fr.new_connection_id.cid = cid;
   memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
@@ -4029,6 +4071,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
   fr.new_connection_id.cid = cid;
   memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 
@@ -4071,6 +4114,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
   fr.new_connection_id.cid = cid;
   memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
 

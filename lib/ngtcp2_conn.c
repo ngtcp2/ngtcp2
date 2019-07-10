@@ -2061,6 +2061,7 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
 
     nfrc->fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
     nfrc->fr.new_connection_id.seq = seq;
+    nfrc->fr.new_connection_id.retire_prior_to = 0;
     nfrc->fr.new_connection_id.cid = cid;
     memcpy(nfrc->fr.new_connection_id.stateless_reset_token, token,
            sizeof(token));
@@ -5647,6 +5648,38 @@ static int conn_recv_max_streams(ngtcp2_conn *conn,
   return 0;
 }
 
+static int conn_retire_dcid_prior_to(ngtcp2_conn *conn, ngtcp2_ringbuf *rb,
+                                     uint64_t retire_prior_to,
+                                     ngtcp2_tstamp ts) {
+  size_t i;
+  ngtcp2_dcid *dcid, *last;
+  int rv;
+
+  for (i = 0; i < ngtcp2_ringbuf_len(rb);) {
+    dcid = ngtcp2_ringbuf_get(rb, i);
+    if (dcid->seq >= retire_prior_to) {
+      ++i;
+      continue;
+    }
+
+    rv = conn_retire_dcid(conn, dcid, ts);
+    if (rv != 0) {
+      return rv;
+    }
+    if (i == 0) {
+      ngtcp2_ringbuf_pop_front(rb);
+    } else if (i == ngtcp2_ringbuf_len(rb) - 1) {
+      ngtcp2_ringbuf_pop_back(rb);
+    } else {
+      last = ngtcp2_ringbuf_get(rb, ngtcp2_ringbuf_len(rb) - 1);
+      ngtcp2_dcid_copy(dcid, last);
+      ngtcp2_ringbuf_pop_back(rb);
+    }
+  }
+
+  return 0;
+}
+
 /*
  * conn_recv_new_connection_id processes the incoming
  * NEW_CONNECTION_ID frame |fr|.
@@ -5659,13 +5692,14 @@ static int conn_recv_max_streams(ngtcp2_conn *conn,
  *     token; or DCID is zero-length.
  */
 static int conn_recv_new_connection_id(ngtcp2_conn *conn,
-                                       const ngtcp2_new_connection_id *fr) {
+                                       const ngtcp2_new_connection_id *fr,
+                                       ngtcp2_tstamp ts) {
   size_t i, len, max;
   ngtcp2_dcid *dcid;
   ngtcp2_pv *pv = conn->pv;
   int rv;
 
-  if (conn->dcid.current.cid.datalen == 0) {
+  if (conn->dcid.current.cid.datalen == 0 || fr->retire_prior_to > fr->seq) {
     return NGTCP2_ERR_PROTO;
   }
 
@@ -5717,15 +5751,41 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     }
   }
 
+  rv = conn_retire_dcid_prior_to(conn, &conn->dcid.bound, fr->retire_prior_to,
+                                 ts);
+  if (rv != 0) {
+    return rv;
+  }
+  rv = conn_retire_dcid_prior_to(conn, &conn->dcid.unused, fr->retire_prior_to,
+                                 ts);
+  if (rv != 0) {
+    return rv;
+  }
+
   max = ngtcp2_min(conn->local.settings.active_connection_id_limit,
                    NGTCP2_MAX_DCID_POOL_SIZE);
   if (len >= max) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "too many connection ID");
+    /* If active_connection_id_limit is 0, and no unused DCID is
+       present, we are going to keep current DCID even if it is under
+       retire_prior_to.  This is violation of peer because we
+       advertised active_connection_id_limit = 0. */
     return 0;
   }
 
   dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused);
   ngtcp2_dcid_init(dcid, fr->seq, &fr->cid, fr->stateless_reset_token);
+
+  if (conn->dcid.current.seq < fr->retire_prior_to) {
+    rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
+    if (rv != 0) {
+      return rv;
+    }
+
+    dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+    ngtcp2_dcid_copy(&conn->dcid.current, dcid);
+    ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
+  }
 
   return 0;
 }
@@ -6425,7 +6485,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       break;
     case NGTCP2_FRAME_NEW_CONNECTION_ID:
-      rv = conn_recv_new_connection_id(conn, &fr->new_connection_id);
+      rv = conn_recv_new_connection_id(conn, &fr->new_connection_id, ts);
       if (rv != 0) {
         return rv;
       }
