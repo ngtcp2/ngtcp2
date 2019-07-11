@@ -444,13 +444,13 @@ typedef struct {
 typedef struct {
   uint8_t type;
   int64_t stream_id;
-  uint16_t app_error_code;
+  uint64_t app_error_code;
   uint64_t final_size;
 } ngtcp2_reset_stream;
 
 typedef struct {
   uint8_t type;
-  uint16_t error_code;
+  uint64_t error_code;
   uint8_t frame_type;
   size_t reasonlen;
   uint8_t *reason;
@@ -506,7 +506,7 @@ typedef struct {
 typedef struct {
   uint8_t type;
   int64_t stream_id;
-  uint16_t app_error_code;
+  uint64_t app_error_code;
 } ngtcp2_stop_sending;
 
 typedef struct {
@@ -1244,7 +1244,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  * call return immediately.
  */
 typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, int64_t stream_id,
-                                   uint16_t app_error_code, void *user_data,
+                                   uint64_t app_error_code, void *user_data,
                                    void *stream_user_data);
 
 /**
@@ -1258,7 +1258,7 @@ typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, int64_t stream_id,
  * call return immediately.
  */
 typedef int (*ngtcp2_stream_reset)(ngtcp2_conn *conn, int64_t stream_id,
-                                   uint64_t final_size, uint16_t app_error_code,
+                                   uint64_t final_size, uint64_t app_error_code,
                                    void *user_data, void *stream_user_data);
 
 /**
@@ -2059,7 +2059,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
                                               int64_t stream_id,
-                                              uint16_t app_error_code);
+                                              uint64_t app_error_code);
 
 /**
  * @function
@@ -2081,7 +2081,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
                                                     int64_t stream_id,
-                                                    uint16_t app_error_code);
+                                                    uint64_t app_error_code);
 
 /**
  * @function
@@ -2102,7 +2102,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
                                                    int64_t stream_id,
-                                                   uint16_t app_error_code);
+                                                   uint64_t app_error_code);
 
 /**
  * @enum
@@ -2275,7 +2275,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    uint16_t error_code, ngtcp2_tstamp ts);
+    uint64_t error_code, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2310,7 +2310,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_application_close(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    uint16_t app_error_code, ngtcp2_tstamp ts);
+    uint64_t app_error_code, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2560,7 +2560,7 @@ NGTCP2_EXTERN int ngtcp2_err_is_fatal(int liberr);
  * `ngtcp2_err_infer_quic_transport_error_code` returns a QUIC
  * transport error code which corresponds to |liberr|.
  */
-NGTCP2_EXTERN uint16_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
+NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
 
 /**
  * @function

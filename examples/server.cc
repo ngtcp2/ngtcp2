@@ -1220,7 +1220,7 @@ int Handler::push_content(int64_t stream_id, const std::string &authority,
 }
 
 namespace {
-int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint64_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   if (h->on_stream_close(stream_id, app_error_code) != 0) {
@@ -1232,7 +1232,7 @@ int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
 
 namespace {
 int stream_reset(ngtcp2_conn *conn, int64_t stream_id, uint64_t final_size,
-                 uint16_t app_error_code, void *user_data,
+                 uint64_t app_error_code, void *user_data,
                  void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   if (h->on_stream_reset(stream_id) != 0) {
@@ -2486,7 +2486,7 @@ void Handler::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
   ::remove_tx_stream_data(crypto.data, crypto.acked_offset, offset + datalen);
 }
 
-int Handler::on_stream_close(int64_t stream_id, uint16_t app_error_code) {
+int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   if (!config.quiet) {
     std::cerr << "QUIC stream " << stream_id << " closed" << std::endl;
   }

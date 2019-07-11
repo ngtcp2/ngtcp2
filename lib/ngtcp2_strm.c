@@ -53,11 +53,6 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   strm->me.next = NULL;
   strm->pe.index = NGTCP2_PQ_BAD_INDEX;
   strm->mem = mem;
-  /* Initializing to 0 is a bit controversial because application
-     error code 0 is STOPPING.  But STOPPING is only sent with
-     RST_STREAM in response to STOP_SENDING, and it is not used to
-     indicate the cause of closure.  So effectively, 0 means "no
-     error." */
   strm->app_error_code = 0;
 
   rv = ngtcp2_gaptr_init(&strm->tx.acked_offset, mem);

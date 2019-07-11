@@ -133,7 +133,7 @@ static int conn_call_stream_open(ngtcp2_conn *conn, ngtcp2_strm *strm) {
 }
 
 static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                  uint16_t app_error_code) {
+                                  uint64_t app_error_code) {
   int rv;
 
   if (!conn->callbacks.stream_close) {
@@ -150,7 +150,7 @@ static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 static int conn_call_stream_reset(ngtcp2_conn *conn, int64_t stream_id,
-                                  uint64_t final_size, uint16_t app_error_code,
+                                  uint64_t final_size, uint64_t app_error_code,
                                   void *stream_user_data) {
   int rv;
 
@@ -5005,7 +5005,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
  *     Out of memory.
  */
 static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint16_t app_error_code) {
+                             uint64_t app_error_code) {
   int rv;
   ngtcp2_frame_chain *frc;
   ngtcp2_pktns *pktns = &conn->pktns;
@@ -5038,7 +5038,7 @@ static int conn_reset_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     Out of memory.
  */
 static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint16_t app_error_code) {
+                             uint64_t app_error_code) {
   int rv;
   ngtcp2_frame_chain *frc;
   ngtcp2_pktns *pktns = &conn->pktns;
@@ -7800,7 +7800,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
 
 ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
                                            uint8_t *dest, size_t destlen,
-                                           uint16_t error_code,
+                                           uint64_t error_code,
                                            ngtcp2_tstamp ts) {
   ssize_t res, nwrite;
   ngtcp2_frame fr;
@@ -7866,7 +7866,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
 ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
                                             ngtcp2_path *path, uint8_t *dest,
                                             size_t destlen,
-                                            uint16_t app_error_code,
+                                            uint64_t app_error_code,
                                             ngtcp2_tstamp ts) {
   ssize_t nwrite;
   ngtcp2_frame fr;
@@ -7914,7 +7914,7 @@ int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint16_t app_error_code) {
+                             uint64_t app_error_code) {
   int rv;
 
   if (!strm->app_error_code) {
@@ -7953,7 +7953,7 @@ fin:
 }
 
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          uint16_t app_error_code) {
+                                          uint64_t app_error_code) {
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
           NGTCP2_STRM_FLAG_SHUT_RDWR &&
       ((strm->flags & NGTCP2_STRM_FLAG_RECV_RST) ||
@@ -7978,7 +7978,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     Out of memory.
  */
 static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                      uint16_t app_error_code) {
+                                      uint64_t app_error_code) {
   if (strm->flags & NGTCP2_STRM_FLAG_SENT_RST) {
     return 0;
   }
@@ -8004,7 +8004,7 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     Out of memory.
  */
 static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                     uint16_t app_error_code) {
+                                     uint64_t app_error_code) {
   if (strm->flags &
       (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) {
     return 0;
@@ -8017,7 +8017,7 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, int64_t stream_id,
-                                uint16_t app_error_code) {
+                                uint64_t app_error_code) {
   int rv;
   ngtcp2_strm *strm;
 
@@ -8040,7 +8040,7 @@ int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, int64_t stream_id,
 }
 
 int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, int64_t stream_id,
-                                      uint16_t app_error_code) {
+                                      uint64_t app_error_code) {
   ngtcp2_strm *strm;
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
@@ -8052,7 +8052,7 @@ int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn, int64_t stream_id,
 }
 
 int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, int64_t stream_id,
-                                     uint16_t app_error_code) {
+                                     uint64_t app_error_code) {
   ngtcp2_strm *strm;
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);

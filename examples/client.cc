@@ -634,7 +634,7 @@ int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 } // namespace
 
 namespace {
-int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
+int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint64_t app_error_code,
                  void *user_data, void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -648,7 +648,7 @@ int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint16_t app_error_code,
 
 namespace {
 int stream_reset(ngtcp2_conn *conn, int64_t stream_id, uint64_t final_size,
-                 uint16_t app_error_code, void *user_data,
+                 uint64_t app_error_code, void *user_data,
                  void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
@@ -1969,7 +1969,7 @@ void Client::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
   ::remove_tx_stream_data(crypto.data, crypto.acked_offset, offset + datalen);
 }
 
-int Client::on_stream_close(int64_t stream_id, uint16_t app_error_code) {
+int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   auto it = streams_.find(stream_id);
 
   if (it == std::end(streams_)) {

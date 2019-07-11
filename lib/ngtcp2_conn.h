@@ -616,7 +616,7 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint16_t app_error_code);
+                             uint64_t app_error_code);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm| if no further
@@ -633,7 +633,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          uint16_t app_error_code);
+                                          uint64_t app_error_code);
 
 /*
  * ngtcp2_conn_update_rtt updates RTT measurements.  |rtt| is a latest

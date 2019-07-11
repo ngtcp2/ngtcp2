@@ -108,7 +108,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
 #define NGTCP2_LOG_TP_HD_FIELDS                                                \
   timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "cry"
 
-static const char *strerrorcode(uint16_t error_code) {
+static const char *strerrorcode(uint64_t error_code) {
   switch (error_code) {
   case NGTCP2_NO_ERROR:
     return "NO_ERROR";
@@ -140,7 +140,7 @@ static const char *strerrorcode(uint16_t error_code) {
   }
 }
 
-static const char *strapperrorcode(uint16_t app_error_code) {
+static const char *strapperrorcode(uint64_t app_error_code) {
   (void)app_error_code;
   return "(unknown)";
 }
@@ -247,12 +247,13 @@ static void log_fr_padding(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                 const ngtcp2_reset_stream *fr,
                                 const char *dir) {
-  log->log_printf(
-      log->user_data,
-      (NGTCP2_LOG_PKT " RESET_STREAM(0x%02x) id=0x%" PRIx64
-                      " app_error_code=%s(0x%04x) final_size=%" PRIu64 "\n"),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
-      strapperrorcode(fr->app_error_code), fr->app_error_code, fr->final_size);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_PKT " RESET_STREAM(0x%02x) id=0x%" PRIx64
+                                  " app_error_code=%s(0x%" PRIx64
+                                  ") final_size=%" PRIu64 "\n"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
+                  strapperrorcode(fr->app_error_code), fr->app_error_code,
+                  fr->final_size);
 }
 
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -260,7 +261,7 @@ static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                     const char *dir) {
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT
-                   " CONNECTION_CLOSE(0x%02x) error_code=%s(0x%04x) "
+                   " CONNECTION_CLOSE(0x%02x) error_code=%s(0x%" PRIx64 ") "
                    "frame_type=%u reason_len=%" PRIu64 "\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
                   fr->type == NGTCP2_FRAME_CONNECTION_CLOSE
@@ -347,7 +348,7 @@ static void log_fr_stop_sending(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                 const char *dir) {
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT " STOP_SENDING(0x%02x) id=0x%" PRIx64
-                                  " app_error_code=%s(0x%04x)\n"),
+                                  " app_error_code=%s(0x%" PRIx64 ")\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
                   strapperrorcode(fr->app_error_code), fr->app_error_code);
 }

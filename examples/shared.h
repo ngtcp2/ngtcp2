@@ -33,9 +33,6 @@
 
 namespace ngtcp2 {
 
-constexpr uint16_t NGTCP2_APP_NOERROR = 0xff00;
-constexpr uint16_t NGTCP2_APP_PROTO = 0xff01;
-
 enum class QUICErrorType {
   Application,
   Transport,
@@ -43,10 +40,10 @@ enum class QUICErrorType {
 };
 
 struct QUICError {
-  QUICError(QUICErrorType type, uint16_t code) : type(type), code(code) {}
+  QUICError(QUICErrorType type, uint64_t code) : type(type), code(code) {}
 
   QUICErrorType type;
-  uint16_t code;
+  uint64_t code;
 };
 
 QUICError quic_err_transport(int liberr);
