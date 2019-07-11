@@ -822,8 +822,8 @@ static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
  *     Out of memory.
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
-                                 ngtcp2_acktr *acktr, ngtcp2_tstamp ts,
-                                 uint64_t ack_delay,
+                                 ngtcp2_acktr *acktr, uint8_t type,
+                                 ngtcp2_tstamp ts, uint64_t ack_delay,
                                  uint64_t ack_delay_exponent) {
   int64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
@@ -864,10 +864,15 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ack->type = NGTCP2_FRAME_ACK;
   ack->largest_ack = rpkt->pkt_num;
   ack->first_ack_blklen = rpkt->len - 1;
-  ack->ack_delay_unscaled = ts - rpkt->tstamp;
-  ack->ack_delay = ack->ack_delay_unscaled /
-                   (NGTCP2_DURATION_TICK / NGTCP2_MICROSECONDS) /
-                   (1UL << ack_delay_exponent);
+  if (type == NGTCP2_PKT_SHORT) {
+    ack->ack_delay_unscaled = ts - rpkt->tstamp;
+    ack->ack_delay = ack->ack_delay_unscaled /
+                     (NGTCP2_DURATION_TICK / NGTCP2_MICROSECONDS) /
+                     (1UL << ack_delay_exponent);
+  } else {
+    ack->ack_delay_unscaled = 0;
+    ack->ack_delay = 0;
+  }
   ack->num_blks = 0;
 
   ngtcp2_ksl_it_next(&it);
@@ -1556,7 +1561,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts, 0 /* ack_delay */,
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
+                             0 /* ack_delay */,
                              NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
     return rv;
@@ -1680,7 +1686,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
                              NGTCP2_HS_ACK_DELAY,
                              NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
@@ -2306,7 +2312,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       /* We don't retransmit PATH_RESPONSE. */
     }
 
-    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+    rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
                                conn_compute_ack_delay(conn),
                                conn->local.settings.ack_delay_exponent);
     if (rv != 0) {
@@ -2849,7 +2855,7 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, acktr, ts,
+  rv = conn_create_ack_frame(conn, &ackfr, acktr, NGTCP2_PKT_SHORT, ts,
                              conn_compute_ack_delay(conn),
                              conn->local.settings.ack_delay_exponent);
   if (rv != 0) {
@@ -2967,7 +2973,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
     goto fail;
   }
 
-  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, ts,
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, NGTCP2_PKT_SHORT, ts,
                              conn_compute_ack_delay(conn),
                              conn->local.settings.ack_delay_exponent);
   if (rv != 0) {
