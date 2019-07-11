@@ -737,7 +737,6 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   const uint8_t *p;
   size_t reasonlen;
   size_t nreasonlen;
-  uint64_t frame_type;
   size_t n;
   uint8_t type;
 
@@ -788,13 +787,7 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
   dest->error_code = ngtcp2_get_varint(&n, p);
   p += n;
   if (type == NGTCP2_FRAME_CONNECTION_CLOSE) {
-    frame_type = ngtcp2_get_varint(&n, p);
-    /* TODO Ignore large frame type for now */
-    if (frame_type > 255) {
-      dest->frame_type = 0;
-    } else {
-      dest->frame_type = (uint8_t)frame_type;
-    }
+    dest->frame_type = ngtcp2_get_varint(&n, p);
     p += n;
   } else {
     dest->frame_type = 0;

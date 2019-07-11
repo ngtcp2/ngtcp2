@@ -262,7 +262,7 @@ static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT
                    " CONNECTION_CLOSE(0x%02x) error_code=%s(0x%" PRIx64 ") "
-                   "frame_type=%u reason_len=%" PRIu64 "\n"),
+                   "frame_type=%" PRIx64 " reason_len=%" PRIu64 "\n"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
                   fr->type == NGTCP2_FRAME_CONNECTION_CLOSE
                       ? strerrorcode(fr->error_code)

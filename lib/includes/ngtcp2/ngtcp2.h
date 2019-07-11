@@ -451,7 +451,7 @@ typedef struct {
 typedef struct {
   uint8_t type;
   uint64_t error_code;
-  uint8_t frame_type;
+  uint64_t frame_type;
   size_t reasonlen;
   uint8_t *reason;
 } ngtcp2_connection_close;
