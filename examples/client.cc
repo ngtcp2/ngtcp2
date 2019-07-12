@@ -1500,6 +1500,13 @@ int Client::write_streams() {
     for (;;) {
       auto nwrite = ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
                                           max_pktlen_, util::timestamp(loop_));
+      if (nwrite < 0) {
+        std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(nwrite)
+                  << std::endl;
+        last_error_ = quic_err_transport(nwrite);
+        disconnect();
+        return -1;
+      }
       if (nwrite == 0) {
         return 0;
       }
