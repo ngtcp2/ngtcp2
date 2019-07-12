@@ -6440,9 +6440,11 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
 
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
 
-  conn->remote.settings = conn->remote.pending_settings;
-  conn_sync_stream_id_limit(conn);
-  conn->tx.max_offset = conn->remote.settings.max_data;
+  if (!conn->server) {
+    conn->remote.settings = conn->remote.pending_settings;
+    conn_sync_stream_id_limit(conn);
+    conn->tx.max_offset = conn->remote.settings.max_data;
+  }
 
   rv = conn_call_handshake_completed(conn);
   if (rv != 0) {
@@ -7542,7 +7544,18 @@ int ngtcp2_conn_set_remote_transport_params(
                            : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
                        params);
 
-  settings_copy_from_transport_params(&conn->remote.pending_settings, params);
+  if (conn->server) {
+    /* Since server can use 1RTT packet after receiving client
+       Initial, and sending its Handshake packet, it seems to be OK to
+       set remote settings here.  Responding HTTP/3 request included
+       in 0RTT requires opening unidirectional streams and we need
+       those parameters in place. */
+    settings_copy_from_transport_params(&conn->remote.settings, params);
+    conn_sync_stream_id_limit(conn);
+    conn->tx.max_offset = conn->remote.settings.max_data;
+  } else {
+    settings_copy_from_transport_params(&conn->remote.pending_settings, params);
+  }
 
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 
