@@ -179,7 +179,7 @@ typedef struct {
 
 /* NGTCP2_MIN_STATELESS_RESET_RANDLEN is the minimum length of random
    bytes in Stateless Retry packet */
-#define NGTCP2_MIN_STATELESS_RESET_RANDLEN 23
+#define NGTCP2_MIN_STATELESS_RESET_RANDLEN 25
 
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
@@ -324,9 +324,9 @@ typedef uint64_t ngtcp2_tstamp;
 typedef uint64_t ngtcp2_duration;
 
 /* NGTCP2_MAX_CIDLEN is the maximum length of Connection ID. */
-#define NGTCP2_MAX_CIDLEN 18
+#define NGTCP2_MAX_CIDLEN 20
 /* NGTCP2_MIN_CIDLEN is the minimum length of Connection ID. */
-#define NGTCP2_MIN_CIDLEN 4
+#define NGTCP2_MIN_CIDLEN 1
 
 /**
  * @struct
@@ -797,12 +797,57 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,
 /**
  * @function
  *
+ * `ngtcp2_pkt_decode_version_cid` extracts QUIC version, Destination
+ * Connection ID and Source Connection ID from the packet pointed by
+ * |data| of length |datalen|.  This function can handle Connection ID
+ * up to 255 bytes unlike `ngtcp2_pkt_decode_hd_long` or
+ * `ngtcp2_pkt_decode_hd_short` which are only capable of handling
+ * Connection ID less than or equal to :macro:`NGTCP2_MAX_CIDLEN`.
+ * Longer Connection ID is only valid if the version is unsupported
+ * QUIC version.
+ *
+ * If the given packet is Long packet, this function extracts the
+ * version from the packet and assigns it to |*pversion|.  It also
+ * extracts the pointer to the Destination Connection ID and its
+ * length and assigns them to |*pdcid| and |*pdcidlen| respectively.
+ * Similarly, it extracts the pointer to the Source Connection ID and
+ * its length and assigns them to |*pscid| and |*pscidlen|
+ * respectively.
+ *
+ * If the given packet is Short packet, |*pversion| will be
+ * :macro:`NGTCP2_PROTO_VER`, |*pscid| will be NULL, and |*pscidlen|
+ * will be 0.  Because the Short packet does not have the length of
+ * Destination Connection ID, the caller has to pass the length in
+ * |short_dcidlen|.  This function extracts the pointer to the
+ * Destination Connection ID and assigns it to |*pdcid|.
+ * |short_dcidlen| is assigned to |*pdcidlen|.
+ *
+ * This function returns 0 or 1 if it succeeds.  It returns 1 if
+ * Version Negotiation packet should be sent.  Otherwise, one of the
+ * following negative error code:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     The function could not decode the packet header.
+ */
+NGTCP2_EXTERN int
+ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
+                              size_t *pdcidlen, const uint8_t **pscid,
+                              size_t *pscidlen, const uint8_t *data,
+                              size_t datalen, size_t short_dcidlen);
+
+/**
+ * @function
+ *
  * `ngtcp2_pkt_decode_hd_long` decodes QUIC long packet header in
  * |pkt| of length |pktlen|.  This function only parses the input just
  * before packet number field.
  *
  * This function does not verify that length field is correct.  In
  * other words, this function succeeds even if length > |pktlen|.
+ *
+ * This function can handle Connection ID up to
+ * :enum:`NGTCP2_MAX_CIDLEN`.  Consider to use
+ * `ngtcp2_pkt_decode_version_cid` to get longer Connection ID.
  *
  * This function handles Version Negotiation specially.  If version
  * field is 0, |pkt| must contain Version Negotiation packet.  Version
@@ -832,7 +877,10 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
  * |pkt| of length |pktlen|.  |dcidlen| is the length of DCID in
  * packet header.  Short packet does not encode the length of
  * connection ID, thus we need the input from the outside.  This
- * function only parses the input just before packet number field.  It
+ * function only parses the input just before packet number field.
+ * This function can handle Connection ID up to
+ * :enum:`NGTCP2_MAX_CIDLEN`.  Consider to use
+ * `ngtcp2_pkt_decode_version_cid` to get longer Connection ID.  It
  * stores the result in the object pointed by |dest|, and returns the
  * number of bytes decoded to read the packet header if it succeeds,
  * or one of the following error codes:
@@ -946,8 +994,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
  *     Buffer is too small.
  */
 NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_version_negotiation(
-    uint8_t *dest, size_t destlen, uint8_t unused_random,
-    const ngtcp2_cid *dcid, const ngtcp2_cid *scid, const uint32_t *sv,
+    uint8_t *dest, size_t destlen, uint8_t unused_random, const uint8_t *dcid,
+    size_t dcidlen, const uint8_t *scid, size_t scidlen, const uint32_t *sv,
     size_t nsv);
 
 /**

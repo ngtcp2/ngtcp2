@@ -29,6 +29,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+void test_ngtcp2_pkt_decode_version_cid(void);
 void test_ngtcp2_pkt_decode_hd_long(void);
 void test_ngtcp2_pkt_decode_hd_short(void);
 void test_ngtcp2_pkt_decode_stream_frame(void);

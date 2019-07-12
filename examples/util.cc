@@ -244,6 +244,10 @@ std::string make_cid_key(const ngtcp2_cid *cid) {
   return std::string(cid->data, cid->data + cid->datalen);
 }
 
+std::string make_cid_key(const uint8_t *cid, size_t cidlen) {
+  return std::string(cid, cid + cidlen);
+}
+
 std::string straddr(const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;

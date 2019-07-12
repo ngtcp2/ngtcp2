@@ -32,6 +32,11 @@ uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n) {
   return dest + n;
 }
 
+uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n) {
+  memset(dest, b, n);
+  return dest + n;
+}
+
 #define LOWER_XDIGITS "0123456789abcdef"
 
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {

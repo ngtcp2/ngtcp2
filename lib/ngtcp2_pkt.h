@@ -49,9 +49,9 @@
 #define NGTCP2_SR_TYPE 0x1f
 
 /* NGTCP2_MIN_LONG_HEADERLEN is the minimum length of long header.
-   That is (1|1|TT|RR|PP)<1> + VERSION<4> + (DCIL|SCIL)<1> + LENGTH<1> +
-   PKN<1> */
-#define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 1)
+   That is (1|1|TT|RR|PP)<1> + VERSION<4> + DCIL<1> + SCIL<1> +
+   LENGTH<1> + PKN<1> */
+#define NGTCP2_MIN_LONG_HEADERLEN (1 + 4 + 1 + 1 + 1 + 1)
 
 #define NGTCP2_STREAM_FIN_BIT 0x01
 #define NGTCP2_STREAM_LEN_BIT 0x02
@@ -195,8 +195,8 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
 
 /*
  * ngtcp2_pkt_decode_retry decodes Retry packet payload |payload| of
- * length |payloadlen|.  The length of ODCIL is given as |odcil|.  The
- * |payload| must start with ODCIL field.
+ * length |payloadlen|.  The |payload| must start with ODCID Len
+ * field.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -204,8 +204,8 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Payloadlen is too short.
  */
-int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, size_t odcil,
-                            const uint8_t *payload, size_t payloadlen);
+int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
+                            size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_stream_frame decodes STREAM frame from |payload|

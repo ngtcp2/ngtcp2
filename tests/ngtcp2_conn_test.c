@@ -2133,7 +2133,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
-      buf, 39, token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
+      buf, 41, token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
 
   CU_ASSERT(spktlen > 0);
 
@@ -3331,7 +3331,7 @@ void test_ngtcp2_conn_send_early_data(void) {
                                      1, null_data, 1024, ++t);
 
   CU_ASSERT((ssize_t)sizeof(buf) == spktlen);
-  CU_ASSERT(676 == datalen);
+  CU_ASSERT(674 == datalen);
 
   ngtcp2_conn_del(conn);
 

@@ -2771,19 +2771,24 @@ int Server::on_read(Endpoint &ep) {
     return 0;
   }
 
-  if (buf[0] & 0x80) {
-    rv = ngtcp2_pkt_decode_hd_long(&hd, buf.data(), nread);
-  } else {
-    // TODO For Short packet, we just need DCID.
-    rv = ngtcp2_pkt_decode_hd_short(&hd, buf.data(), nread, NGTCP2_SV_SCIDLEN);
-  }
-  if (rv < 0) {
-    std::cerr << "Could not decode QUIC packet header: " << ngtcp2_strerror(rv)
-              << std::endl;
+  uint32_t version;
+  const uint8_t *dcid, *scid;
+  size_t dcidlen, scidlen;
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf.data(), nread, NGTCP2_SV_SCIDLEN);
+  if (rv != 0) {
+    if (rv == 1) {
+      send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
+                               &su.sa, addrlen);
+      return 0;
+    }
+    std::cerr << "Could not decode version and CID from QUIC packet header: "
+              << ngtcp2_strerror(rv) << std::endl;
     return 0;
   }
 
-  auto dcid_key = util::make_cid_key(&hd.dcid);
+  auto dcid_key = util::make_cid_key(dcid, dcidlen);
 
   auto handler_it = handlers_.find(dcid_key);
   if (handler_it == std::end(handlers_)) {
@@ -2803,7 +2808,9 @@ int Server::on_read(Endpoint &ep) {
           std::cerr << "Unsupported version: Send Version Negotiation"
                     << std::endl;
         }
-        send_version_negotiation(&hd, ep, &su.sa, addrlen);
+        send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
+                                 hd.dcid.data, hd.dcid.datalen, ep, &su.sa,
+                                 addrlen);
         return 0;
       }
 
@@ -2916,19 +2923,21 @@ uint32_t generate_reserved_version(const sockaddr *sa, socklen_t salen,
 }
 } // namespace
 
-int Server::send_version_negotiation(const ngtcp2_pkt_hd *chd, Endpoint &ep,
+int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
+                                     size_t dcidlen, const uint8_t *scid,
+                                     size_t scidlen, Endpoint &ep,
                                      const sockaddr *sa, socklen_t salen) {
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
   std::array<uint32_t, 2> sv;
 
-  sv[0] = generate_reserved_version(sa, salen, chd->version);
+  sv[0] = generate_reserved_version(sa, salen, version);
   sv[1] = NGTCP2_PROTO_VER;
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
       std::uniform_int_distribution<uint8_t>(
           0, std::numeric_limits<uint8_t>::max())(randgen),
-      &chd->scid, &chd->dcid, sv.data(), sv.size());
+      dcid, dcidlen, scid, scidlen, sv.data(), sv.size());
   if (nwrite < 0) {
     std::cerr << "ngtcp2_pkt_write_version_negotiation: "
               << ngtcp2_strerror(nwrite) << std::endl;

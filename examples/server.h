@@ -328,8 +328,10 @@ public:
   void close();
 
   int on_read(Endpoint &ep);
-  int send_version_negotiation(const ngtcp2_pkt_hd *hd, Endpoint &ep,
-                               const sockaddr *sa, socklen_t salen);
+  int send_version_negotiation(uint32_t version, const uint8_t *dcid,
+                               size_t dcidlen, const uint8_t *scid,
+                               size_t scidlen, Endpoint &ep, const sockaddr *sa,
+                               socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep, const sockaddr *sa,
                  socklen_t salen);
   int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,

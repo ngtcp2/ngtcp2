@@ -42,6 +42,11 @@ typedef struct {
 uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
 
 /*
+ * ngtcp2_setmem writes a string of length |n| consisting only |b| to
+ * the buffer pointed by |dest|.  It returns dest + n;
+ */
+uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n);
+/*
  * ngtcp2_encode_hex encodes |data| of length |len| in hex string.  It
  * writes additional NULL bytes at the end of the buffer.  The buffer
  * pointed by |dest| must have at least |len| * 2 + 1 bytes space.

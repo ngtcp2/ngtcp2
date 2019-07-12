@@ -530,7 +530,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       }
       len = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
-      if ((size_t)(end - p) < len) {
+      if (len < NGTCP2_MIN_CIDLEN || len > NGTCP2_MAX_CIDLEN ||
+          (size_t)(end - p) < len) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       ngtcp2_cid_init(&params->original_connection_id, p, len);

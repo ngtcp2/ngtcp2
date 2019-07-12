@@ -142,6 +142,7 @@ bool istarts_with_l(const T &a, const CharT (&b)[N]) {
 
 // make_cid_key returns the key for |cid|.
 std::string make_cid_key(const ngtcp2_cid *cid);
+std::string make_cid_key(const uint8_t *cid, size_t cidlen);
 
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);

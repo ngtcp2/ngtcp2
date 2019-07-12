@@ -3401,7 +3401,7 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  * conn_on_retry is called when Retry packet is received.  The
  * function decodes the data in the buffer pointed by |payload| whose
  * length is |payloadlen| as Retry packet payload.  The packet header
- * is given in |hd|.  The length of ODCIL is given as |odcil|.
+ * is given in |hd|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3416,8 +3416,7 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  *     ODCID does not match; or Token is empty.
  */
 static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                         size_t odcil, const uint8_t *payload,
-                         size_t payloadlen) {
+                         const uint8_t *payload, size_t payloadlen) {
   int rv;
   ngtcp2_pkt_retry retry;
   uint8_t *p;
@@ -3430,7 +3429,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return 0;
   }
 
-  rv = ngtcp2_pkt_decode_retry(&retry, odcil, payload, payloadlen);
+  rv = ngtcp2_pkt_decode_retry(&retry, payload, payloadlen);
   if (rv != 0) {
     return rv;
   }
@@ -4131,7 +4130,6 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   size_t aead_overhead;
   ngtcp2_pktns *pktns;
   ngtcp2_strm *crypto;
-  size_t odcil;
   ngtcp2_crypto_level crypto_level;
   int invalid_reserved_bits = 0;
 
@@ -4221,11 +4219,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    odcil = pkt[0] & 0x0f;
-    if (odcil) {
-      odcil += 3;
-    }
-    rv = conn_on_retry(conn, &hd, odcil, pkt + hdpktlen, pktlen - hdpktlen);
+    rv = conn_on_retry(conn, &hd, pkt + hdpktlen, pktlen - hdpktlen);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -7166,6 +7160,9 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     if (pktlen < NGTCP2_MIN_INITIAL_PKTLEN) {
       return -1;
     }
+    if (p->tokenlen == 0 && p->dcid.datalen < 8) {
+      return -1;
+    }
     break;
   case NGTCP2_PKT_0RTT:
     /* 0-RTT packet may arrive before Initial packet due to
@@ -7855,9 +7852,12 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
     pkt_type = NGTCP2_PKT_SHORT;
   } else if (conn->hs_pktns.crypto.tx.ckm) {
     pkt_type = NGTCP2_PKT_HANDSHAKE;
-  } else {
-    assert(conn->in_pktns.crypto.tx.ckm);
+  } else if (conn->in_pktns.crypto.tx.ckm) {
     pkt_type = NGTCP2_PKT_INITIAL;
+  } else {
+    /* This branch is taken if server has not read any Initial packet
+       from client. */
+    return NGTCP2_ERR_INVALID_STATE;
   }
 
   nwrite = conn_write_single_frame_pkt(conn, dest, destlen, pkt_type,

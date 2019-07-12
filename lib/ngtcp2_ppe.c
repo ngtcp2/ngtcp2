@@ -56,7 +56,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
   }
 
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    ppe->len_offset = 1 + 4 + 1 + hd->dcid.datalen + hd->scid.datalen;
+    ppe->len_offset = 1 + 4 + 1 + hd->dcid.datalen + 1 + hd->scid.datalen;
     if (hd->type == NGTCP2_PKT_INITIAL) {
       ppe->len_offset += ngtcp2_put_varint_len(hd->tokenlen) + hd->tokenlen;
     }

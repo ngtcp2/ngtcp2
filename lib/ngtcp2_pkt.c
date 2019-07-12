@@ -57,6 +57,68 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem) {
   ngtcp2_mem_free(mem, pc);
 }
 
+int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
+                                  size_t *pdcidlen, const uint8_t **pscid,
+                                  size_t *pscidlen, const uint8_t *data,
+                                  size_t datalen, size_t short_dcidlen) {
+  size_t len;
+  uint32_t version;
+  size_t dcidlen, scidlen;
+
+  assert(datalen);
+
+  if (data[0] & NGTCP2_HEADER_FORM_BIT) {
+    len = 1 + 4 + 1 + 1;
+    if (datalen < len) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
+    dcidlen = data[5];
+    len += dcidlen;
+    if (datalen < len) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+    scidlen = data[5 + 1 + dcidlen];
+    len += scidlen;
+    if (datalen < len) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
+    version = ngtcp2_get_uint32(&data[1]);
+
+    if ((version == 0 || version == NGTCP2_PROTO_VER) &&
+        (dcidlen > NGTCP2_MAX_CIDLEN || scidlen > NGTCP2_MAX_CIDLEN)) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
+    *pversion = version;
+    *pdcid = &data[6];
+    *pdcidlen = dcidlen;
+    *pscid = &data[6 + dcidlen + 1];
+    *pscidlen = scidlen;
+
+    if (version && version != NGTCP2_PROTO_VER) {
+      return 1;
+    }
+    return 0;
+  }
+
+  assert(short_dcidlen <= NGTCP2_MAX_CIDLEN);
+
+  len = 1 + short_dcidlen;
+  if (datalen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  *pversion = NGTCP2_PROTO_VER;
+  *pdcid = &data[1];
+  *pdcidlen = short_dcidlen;
+  *pscid = NULL;
+  *pscidlen = 0;
+
+  return 0;
+}
+
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
                         int64_t pkt_num, size_t pkt_numlen, uint32_t version,
@@ -109,7 +171,7 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     type = NGTCP2_PKT_VERSION_NEGOTIATION;
     /* This must be Version Negotiation packet which lacks packet
        number and payload length fields. */
-    len = 5 + 1;
+    len = 5 + 2;
   } else {
     if (!(pkt[0] & NGTCP2_FIXED_BIT_MASK)) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -123,7 +185,7 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
       break;
     case NGTCP2_PKT_RETRY:
       /* Retry packet does not have packet number and length fields */
-      len = 5 + 1;
+      len = 5 + 2;
       break;
     case NGTCP2_PKT_HANDSHAKE:
     case NGTCP2_PKT_0RTT:
@@ -139,23 +201,31 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  dcil = pkt[5] >> 4;
-  scil = pkt[5] & 0xf;
-
-  if (dcil) {
-    dcil += 3;
+  p = &pkt[5];
+  dcil = *p;
+  if (dcil > NGTCP2_MAX_CIDLEN) {
+    /* QUIC v1 implementation never expect to receive CID length more
+       than NGTCP2_MAX_CIDLEN. */
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
-  if (scil) {
-    scil += 3;
-  }
-
-  len += dcil + scil;
+  len += dcil;
 
   if (pktlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  p = &pkt[6 + dcil + scil];
+  p += 1 + dcil;
+  scil = *p;
+  if (scil > NGTCP2_MAX_CIDLEN) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+  len += scil;
+
+  if (pktlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  p += 1 + scil;
 
   if (type == NGTCP2_PKT_INITIAL) {
     /* Token Length */
@@ -203,9 +273,8 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   dest->pkt_numlen = 0;
 
   p = &pkt[6];
-
   ngtcp2_cid_init(&dest->dcid, p, dcil);
-  p += dcil;
+  p += dcil + 1;
   ngtcp2_cid_init(&dest->scid, p, scil);
   p += scil;
 
@@ -232,6 +301,8 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                    size_t pktlen, size_t dcidlen) {
   size_t len = 1 + dcidlen;
   const uint8_t *p = pkt;
+
+  assert(dcidlen <= NGTCP2_MAX_CIDLEN);
 
   if (pktlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -288,19 +359,11 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   *p++ = NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK |
          (uint8_t)(hd->type << 4) | (uint8_t)(hd->pkt_numlen - 1);
   p = ngtcp2_put_uint32be(p, hd->version);
-  *p = 0;
-  if (hd->dcid.datalen) {
-    assert(hd->dcid.datalen > 3);
-    *p |= (uint8_t)((hd->dcid.datalen - 3) << 4);
-  }
-  if (hd->scid.datalen) {
-    assert(hd->scid.datalen > 3);
-    *p = (uint8_t)(*p | ((hd->scid.datalen - 3) & 0xf));
-  }
-  ++p;
+  *p++ = (uint8_t)hd->dcid.datalen;
   if (hd->dcid.datalen) {
     p = ngtcp2_cpymem(p, hd->dcid.data, hd->dcid.datalen);
   }
+  *p++ = (uint8_t)hd->scid.datalen;
   if (hd->scid.datalen) {
     p = ngtcp2_cpymem(p, hd->scid.data, hd->scid.datalen);
   }
@@ -1046,8 +1109,6 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
   p += n;
 
   cil = *p;
-  /* TODO This kind of validation should happen outside of this
-     function. */
   if (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN) {
     return NGTCP2_ERR_PROTO;
   }
@@ -1800,14 +1861,16 @@ ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
   return (ssize_t)len;
 }
 
-ssize_t ngtcp2_pkt_write_version_negotiation(uint8_t *dest, size_t destlen,
-                                             uint8_t unused_random,
-                                             const ngtcp2_cid *dcid,
-                                             const ngtcp2_cid *scid,
-                                             const uint32_t *sv, size_t nsv) {
-  size_t len = 1 + 4 + 1 + dcid->datalen + scid->datalen + nsv * 4;
+ssize_t ngtcp2_pkt_write_version_negotiation(
+    uint8_t *dest, size_t destlen, uint8_t unused_random, const uint8_t *dcid,
+    size_t dcidlen, const uint8_t *scid, size_t scidlen, const uint32_t *sv,
+    size_t nsv) {
+  size_t len = 1 + 4 + 1 + dcidlen + 1 + scidlen + nsv * 4;
   uint8_t *p;
   size_t i;
+
+  assert(dcidlen < 256);
+  assert(scidlen < 256);
 
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -1817,21 +1880,13 @@ ssize_t ngtcp2_pkt_write_version_negotiation(uint8_t *dest, size_t destlen,
 
   *p++ = 0x80 | unused_random;
   p = ngtcp2_put_uint32be(p, 0);
-  *p = 0;
-  if (dcid->datalen) {
-    assert(dcid->datalen > 3);
-    *p |= (uint8_t)((dcid->datalen - 3) << 4);
+  *p++ = (uint8_t)dcidlen;
+  if (dcidlen) {
+    p = ngtcp2_cpymem(p, dcid, dcidlen);
   }
-  if (scid->datalen) {
-    assert(scid->datalen > 3);
-    *p = (uint8_t)(*p | ((scid->datalen - 3) & 0xf));
-  }
-  ++p;
-  if (dcid->datalen) {
-    p = ngtcp2_cpymem(p, dcid->data, dcid->datalen);
-  }
-  if (scid->datalen) {
-    p = ngtcp2_cpymem(p, scid->data, scid->datalen);
+  *p++ = (uint8_t)scidlen;
+  if (scidlen) {
+    p = ngtcp2_cpymem(p, scid, scidlen);
   }
 
   for (i = 0; i < nsv; ++i) {
@@ -1875,14 +1930,27 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
   return 0;
 }
 
-int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, size_t odcil,
-                            const uint8_t *payload, size_t payloadlen) {
-  size_t len = 1 + odcil;
+int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
+                            size_t payloadlen) {
+  size_t len = 1;
   const uint8_t *p = payload;
+  size_t odcil;
 
   if (payloadlen < len) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
+
+  odcil = p[0];
+  if (odcil > NGTCP2_MAX_CIDLEN) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  len += odcil;
+  if (payloadlen < len) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  ++p;
 
   ngtcp2_cid_init(&dest->odcid, p, odcil);
   p += odcil;
@@ -1974,18 +2042,22 @@ ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
 
   assert(hd->flags & NGTCP2_PKT_FLAG_LONG_FORM);
   assert(hd->type == NGTCP2_PKT_RETRY);
-  /* The specification requires that the initial random connection ID
-     from client must be at least 8 octets.  But after first Retry,
-     server might choose 0 length connection ID for client. */
-  assert(odcid->datalen == 0 || odcid->datalen > 3);
   assert(tokenlen > 0);
+
+  /* Retry packet is sent at most once per one connection attempt.  In
+     the first connection attempt, client has to send random DCID
+     which is at least 8 bytes long. */
+  if (odcid->datalen < 8) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
 
   nwrite = ngtcp2_pkt_encode_hd_long(dest, destlen, hd);
   if (nwrite < 0) {
     return nwrite;
   }
 
-  if (destlen < (size_t)nwrite + 1 + odcid->datalen + tokenlen) {
+  if (destlen <
+      (size_t)nwrite + 1 /* ODCID Len */ + odcid->datalen + tokenlen) {
     return NGTCP2_ERR_NOBUF;
   }
 
@@ -1993,8 +2065,8 @@ ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
 
   p = dest + nwrite;
 
+  *p++ = (uint8_t)odcid->datalen;
   if (odcid->datalen) {
-    dest[0] |= (uint8_t)(odcid->datalen - 3);
     p = ngtcp2_cpymem(p, odcid->data, odcid->datalen);
   }
 
