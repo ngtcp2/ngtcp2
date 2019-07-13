@@ -833,6 +833,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     case 0:
     case NETWORK_ERR_CLOSE_WAIT:
     case NETWORK_ERR_SEND_BLOCKED:
+      ev_timer_stop(loop, w);
       return;
     default:
       s->remove(h);
@@ -850,6 +851,7 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     case 0:
     case NETWORK_ERR_CLOSE_WAIT:
     case NETWORK_ERR_SEND_BLOCKED:
+      ev_timer_stop(loop, w);
       return;
     default:
       s->remove(h);

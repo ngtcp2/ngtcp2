@@ -4570,11 +4570,11 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return (int)nread;
       }
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
-        return 0;
+        goto fin;
       }
       if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
           ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
-        return 0;
+        goto fin;
       }
       return (int)nread;
     }
@@ -4588,6 +4588,14 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   conn->hs_recved += origlen;
+
+fin:
+  switch (conn->state) {
+  case NGTCP2_CS_CLOSING:
+    return NGTCP2_ERR_CLOSING;
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_DRAINING;
+  }
 
   return 0;
 }
@@ -8328,6 +8336,13 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_pktns *loss_pktns = conn_get_earliest_loss_time_pktns(conn);
 
   conn->log.last_ts = ts;
+
+  switch (conn->state) {
+  case NGTCP2_CS_CLOSING:
+  case NGTCP2_CS_DRAINING:
+    rcs->loss_detection_timer = 0;
+    return 0;
+  }
 
   if (!rcs->loss_detection_timer) {
     return 0;
