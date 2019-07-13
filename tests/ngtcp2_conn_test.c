@@ -204,6 +204,13 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  179);
 
+  ngtcp2_conn_install_handshake_tx_keys(conn, null_key, sizeof(null_key),
+                                        null_iv, sizeof(null_iv), null_pn,
+                                        sizeof(null_pn));
+  ngtcp2_conn_install_handshake_rx_keys(conn, null_key, sizeof(null_key),
+                                        null_iv, sizeof(null_iv), null_pn,
+                                        sizeof(null_pn));
+
   ngtcp2_conn_install_tx_keys(conn, null_key, sizeof(null_key), null_iv,
                               sizeof(null_iv), null_pn, sizeof(null_pn));
   ngtcp2_conn_install_rx_keys(conn, null_key, sizeof(null_key), null_iv,

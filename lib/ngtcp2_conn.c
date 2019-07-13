@@ -6637,7 +6637,17 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       return rv;
     }
 
-    if (ngtcp2_rob_first_gap_offset(&conn->in_pktns.crypto.strm.rx.rob) == 0) {
+    /* TODO Attacker can send a fake 0RTT packet to create pending
+       connection and it makes server waste memory.  Might be better
+       not to buffer 0RTT packet. */
+    /* The first packet from client should include CRYPTO data which
+       allows server to derive server handshake key.  If server
+       receives re-ordered 0RTT before Initial, it should be
+       buffered. */
+    if (!conn->hs_pktns.crypto.tx.ckm) {
+      if (!conn->in_pktns.rx.buffed_pkts) {
+        return NGTCP2_ERR_PROTO;
+      }
       return 0;
     }
 
