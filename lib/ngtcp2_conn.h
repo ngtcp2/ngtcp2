@@ -75,9 +75,9 @@ typedef enum {
    unreceived data. */
 #define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
 
-/* NGTCP2_PACKET_THRESHOLD is kPacketThreshold described in
-   draft-ietf-quic-recovery-17. */
-#define NGTCP2_PACKET_THRESHOLD 3
+/* NGTCP2_PKT_THRESHOLD is kPacketThreshold described in
+   draft-ietf-quic-recovery-22. */
+#define NGTCP2_PKT_THRESHOLD 3
 
 /* NGTCP2_GRANULARITY is kGranularity described in
    draft-ietf-quic-recovery-17. */

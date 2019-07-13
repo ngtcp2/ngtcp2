@@ -435,9 +435,9 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 }
 
 static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
-                        uint64_t loss_delay, ngtcp2_tstamp lost_send_time,
-                        int64_t lost_pkt_num) {
-  if (ent->ts <= lost_send_time || ent->hd.pkt_num <= lost_pkt_num) {
+                        uint64_t loss_delay, ngtcp2_tstamp lost_send_time) {
+  if (ent->ts <= lost_send_time ||
+      rtb->largest_acked_tx_pkt_num >= ent->hd.pkt_num + NGTCP2_PKT_THRESHOLD) {
     return 1;
   }
 
@@ -468,7 +468,6 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   ngtcp2_duration loss_delay;
   ngtcp2_tstamp lost_send_time;
   ngtcp2_ksl_it it;
-  int64_t lost_pkt_num;
   ngtcp2_tstamp latest_ts, oldest_ts;
   int64_t last_lost_pkt_num;
   ngtcp2_ksl_key key;
@@ -476,14 +475,13 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   rtb->loss_time = 0;
   loss_delay = compute_pkt_loss_delay(rcs);
   lost_send_time = ts - loss_delay;
-  lost_pkt_num = rtb->largest_acked_tx_pkt_num - NGTCP2_PACKET_THRESHOLD;
 
   it = ngtcp2_ksl_lower_bound(
       &rtb->ents, ngtcp2_ksl_key_ptr(&key, &rtb->largest_acked_tx_pkt_num));
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
 
-    if (rtb_pkt_lost(rtb, ent, loss_delay, lost_send_time, lost_pkt_num)) {
+    if (rtb_pkt_lost(rtb, ent, loss_delay, lost_send_time)) {
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
       last_lost_pkt_num = ent->hd.pkt_num;
