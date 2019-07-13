@@ -1538,6 +1538,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     rv = conn_cryptofrq_pop(conn, &nfrc, pktns, left);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
+      ngtcp2_frame_chain_list_del(frq, conn->mem);
       return rv;
     }
 
@@ -1558,6 +1559,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (pkt_empty) {
+    ngtcp2_frame_chain_list_del(frq, conn->mem);
     return 0;
   }
 
@@ -1565,6 +1567,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
                              0 /* ack_delay */,
                              NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
+    ngtcp2_frame_chain_list_del(frq, conn->mem);
     return rv;
   }
 
@@ -1601,6 +1604,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   spktlen = ngtcp2_ppe_final(&ppe, NULL);
   if (spktlen < 0) {
     assert(ngtcp2_err_is_fatal((int)spktlen));
+    ngtcp2_frame_chain_list_del(frq, conn->mem);
     return spktlen;
   }
 
