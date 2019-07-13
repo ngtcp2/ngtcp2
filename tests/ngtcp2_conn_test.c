@@ -3678,10 +3678,11 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   payloadlen = read_pkt_payloadlen(buf, dcid, &conn->oscid);
   write_pkt_payloadlen(buf, dcid, &conn->oscid, payloadlen + 1);
 
-  /* The incoming packet should be ignored */
+  /* First packet which does not increase initial packet number space
+     CRYPTO offset or it gets buffered as 0RTT is an error. */
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
-  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
   CU_ASSERT(NGTCP2_CS_SERVER_INITIAL == conn->state);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
