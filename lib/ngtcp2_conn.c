@@ -4476,8 +4476,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     payloadlen -= (size_t)nread;
 
     if (fr->type == NGTCP2_FRAME_ACK) {
-      assign_recved_ack_delay_unscaled(&fr->ack,
-                                       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+      fr->ack.ack_delay = 0;
+      fr->ack.ack_delay_unscaled = 0;
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
@@ -5412,8 +5412,8 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     payloadlen -= (size_t)nread;
 
     if (fr->type == NGTCP2_FRAME_ACK) {
-      assign_recved_ack_delay_unscaled(&fr->ack,
-                                       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+      fr->ack.ack_delay = 0;
+      fr->ack.ack_delay_unscaled = 0;
     }
 
     ngtcp2_log_rx_fr(&conn->log, hd, fr);
