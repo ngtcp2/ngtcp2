@@ -7713,11 +7713,14 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     if (path) {
       ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
     }
-    nwrite = ngtcp2_conn_write_handshake(conn, dest, destlen, ts);
-    if (nwrite) {
-      return nwrite;
+    if (!ppe_pending) {
+      nwrite = ngtcp2_conn_write_handshake(conn, dest, destlen, ts);
+      if (nwrite) {
+        return nwrite;
+      }
     }
-    if (conn->state != NGTCP2_CS_POST_HANDSHAKE) {
+    if (conn->state != NGTCP2_CS_POST_HANDSHAKE &&
+        conn->pktns.crypto.tx.ckm == NULL) {
       return 0;
     }
     break;
@@ -7814,7 +7817,7 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     assert(nwrite != NGTCP2_ERR_NOBUF);
     return nwrite;
   }
-  if (nwrite == 0) {
+  if (!ppe_pending && nwrite == 0) {
     return conn_write_protected_ack_pkt(conn, dest, origlen, ts);
   }
   return nwrite;
