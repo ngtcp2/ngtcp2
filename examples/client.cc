@@ -445,7 +445,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       nstreams_done_(0),
       nkey_update_(0),
       version_(0),
-      resumption_(false) {
+      resumption_(false),
+      placeholder_created_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
@@ -2178,6 +2179,17 @@ int Client::submit_http_request(int64_t stream_id) {
   assert(0 == rv);
 
   if (nghttp3_conn_get_remote_num_placeholders(httpconn_) > 0) {
+    if (!placeholder_created_) {
+      rv = nghttp3_conn_submit_priority(
+          httpconn_, NGHTTP3_PRI_ELEM_TYPE_PLACEHOLDER, 0,
+          NGHTTP3_ELEM_DEP_TYPE_ROOT, 0, 120, /* exclusive = */ 0);
+      if (rv != 0) {
+        std::cerr << "nghttp3_conn_submit_priority: " << nghttp3_strerror(rv)
+                  << std::endl;
+        return -1;
+      }
+      placeholder_created_ = true;
+    }
     rv = nghttp3_conn_submit_priority(
         httpconn_, NGHTTP3_PRI_ELEM_TYPE_REQUEST, stream_id,
         NGHTTP3_ELEM_DEP_TYPE_PLACEHOLDER, 0, 32, /* exclusive = */ 0);
