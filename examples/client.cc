@@ -2166,14 +2166,8 @@ int Client::submit_http_request(int64_t stream_id) {
   nghttp3_data_reader dr{};
   dr.read_data = read_data;
 
-  nghttp3_priority pri, *ppri = NULL;
-  if (nghttp3_conn_get_remote_num_placeholders(httpconn_) > 0) {
-    nghttp3_priority_init(&pri, NGHTTP3_ELEM_DEP_TYPE_PLACEHOLDER, 0, 32);
-    ppri = &pri;
-  }
-
-  rv = nghttp3_conn_submit_request(httpconn_, stream_id, ppri, nva.data(),
-                                   nvlen, config.fd == -1 ? NULL : &dr, NULL);
+  rv = nghttp3_conn_submit_request(httpconn_, stream_id, nva.data(), nvlen,
+                                   config.fd == -1 ? NULL : &dr, NULL);
   if (rv != 0) {
     std::cerr << "nghttp3_conn_submit_request: " << nghttp3_strerror(rv)
               << std::endl;
@@ -2182,6 +2176,17 @@ int Client::submit_http_request(int64_t stream_id) {
 
   rv = nghttp3_conn_end_stream(httpconn_, stream_id);
   assert(0 == rv);
+
+  if (nghttp3_conn_get_remote_num_placeholders(httpconn_) > 0) {
+    rv = nghttp3_conn_submit_priority(
+        httpconn_, NGHTTP3_PRI_ELEM_TYPE_REQUEST, stream_id,
+        NGHTTP3_ELEM_DEP_TYPE_PLACEHOLDER, 0, 32, /* exclusive = */ 0);
+    if (rv != 0) {
+      std::cerr << "nghttp3_conn_submit_priority: " << nghttp3_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+  }
 
   return 0;
 }
@@ -2426,7 +2431,7 @@ int http_send_stop_sending(nghttp3_conn *conn, int64_t stream_id,
 
 int Client::send_stop_sending(int64_t stream_id) {
   auto rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id,
-                                             NGHTTP3_HTTP_PUSH_REFUSED);
+                                             NGHTTP3_HTTP_REQUEST_CANCELLED);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
               << std::endl;
