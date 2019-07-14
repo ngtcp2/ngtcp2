@@ -2432,18 +2432,18 @@ int http_end_push_promise(nghttp3_conn *conn, int64_t stream_id,
 
 namespace {
 int http_send_stop_sending(nghttp3_conn *conn, int64_t stream_id,
-                           void *user_data, void *stream_user_data) {
+                           uint64_t app_error_code, void *user_data,
+                           void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
-  if (c->send_stop_sending(stream_id) != 0) {
+  if (c->send_stop_sending(stream_id, app_error_code) != 0) {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
   return 0;
 }
 } // namespace
 
-int Client::send_stop_sending(int64_t stream_id) {
-  auto rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id,
-                                             NGHTTP3_HTTP_REQUEST_CANCELLED);
+int Client::send_stop_sending(int64_t stream_id, uint64_t app_error_code) {
+  auto rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
               << std::endl;
