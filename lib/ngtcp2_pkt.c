@@ -1724,7 +1724,6 @@ ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
                                              const ngtcp2_stop_sending *fr) {
   size_t len = 1 + ngtcp2_put_varint_len((uint64_t)fr->stream_id) +
                ngtcp2_put_varint_len(fr->app_error_code);
-  ;
   uint8_t *p;
 
   if (outlen < len) {
