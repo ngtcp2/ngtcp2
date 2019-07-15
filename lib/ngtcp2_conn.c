@@ -2314,6 +2314,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       pkt_empty = 0;
       rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
       /* We don't retransmit PATH_RESPONSE. */
+      break;
     }
 
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
@@ -3905,7 +3906,6 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
                                    ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_pv *pv = conn->pv, *npv = NULL;
-  ngtcp2_duration timeout;
 
   if (!pv) {
     return 0;
@@ -3923,13 +3923,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH;
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
-    timeout = conn_compute_pto(conn);
-    timeout = ngtcp2_max(timeout,
-                         (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
-
-    rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid, timeout,
-                       NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH, &conn->log,
-                       conn->mem);
+    rv = conn_retire_dcid(conn, &pv->fallback_dcid, ts);
     if (rv != 0) {
       return rv;
     }
@@ -5805,7 +5799,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                  "remote address has changed");
+                  "non-probing packet was received from new remote address");
 
   conn_reset_congestion_state(conn);
 

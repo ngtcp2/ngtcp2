@@ -65,8 +65,8 @@ typedef enum {
   NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH = 0x02,
   /* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID
      is available in ngtcp2_pv.  If path validation fails, fallback to
-     the fallback DCID.  If path validation succeeds, start path
-     validation against fallback DCID. */
+     the fallback DCID.  If path validation succeeds, fallback DCID is
+     retired. */
   NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE = 0x04,
 } ngtcp2_pv_flag;
 
