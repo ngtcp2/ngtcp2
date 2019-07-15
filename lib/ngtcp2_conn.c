@@ -2105,15 +2105,11 @@ static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn) {
  */
 static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
-  ngtcp2_duration timeout;
+  ngtcp2_duration timeout = conn_compute_pto(conn);
   ngtcp2_scid *scid;
   ngtcp2_ksl_key key;
   ngtcp2_dcid *dcid;
   int rv;
-
-  timeout = conn_compute_pto(conn);
-  timeout =
-      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
   for (; !ngtcp2_pq_empty(&conn->scid.used);) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
@@ -7398,15 +7394,29 @@ int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn) {
 }
 
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
-  ngtcp2_tstamp ts = UINT64_MAX;
+  if (conn->rcs.loss_detection_timer) {
+    return conn->rcs.loss_detection_timer;
+  }
+  return UINT64_MAX;
+}
+
+ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
+  ngtcp2_tstamp res = UINT64_MAX;
+  ngtcp2_duration pto = conn_compute_pto(conn);
+  ngtcp2_scid *scid;
 
   if (conn->pv) {
-    ts = ngtcp2_pv_next_expiry(conn->pv);
+    res = ngtcp2_pv_next_expiry(conn->pv);
   }
-  if (conn->rcs.loss_detection_timer) {
-    ts = ngtcp2_min(ts, conn->rcs.loss_detection_timer);
+
+  if (!ngtcp2_pq_empty(&conn->scid.used)) {
+    scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
+    if (scid->ts_retired != UINT64_MAX) {
+      res = ngtcp2_min(res, scid->ts_retired + pto);
+    }
   }
-  return ts;
+
+  return res;
 }
 
 ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
@@ -7436,7 +7446,9 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
 ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp t1 = ngtcp2_conn_loss_detection_expiry(conn);
   ngtcp2_tstamp t2 = ngtcp2_conn_ack_delay_expiry(conn);
-  return ngtcp2_min(t1, t2);
+  ngtcp2_tstamp t3 = ngtcp2_conn_internal_expiry(conn);
+  ngtcp2_tstamp res = ngtcp2_min(t1, t2);
+  return ngtcp2_min(res, t3);
 }
 
 static void acktr_cancel_expired_ack_delay_timer(ngtcp2_acktr *acktr,

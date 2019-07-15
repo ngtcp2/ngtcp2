@@ -828,17 +828,6 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
       s->remove(h);
       return;
     }
-    rv = h->on_write();
-    switch (rv) {
-    case 0:
-    case NETWORK_ERR_CLOSE_WAIT:
-    case NETWORK_ERR_SEND_BLOCKED:
-      ev_timer_stop(loop, w);
-      return;
-    default:
-      s->remove(h);
-      return;
-    }
   }
 
   if (ngtcp2_conn_ack_delay_expiry(conn) <= now) {
@@ -846,17 +835,18 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
       std::cerr << "Delayed ACK timer expired" << std::endl;
     }
     ngtcp2_conn_cancel_expired_ack_delay_timer(conn, now);
-    rv = h->on_write();
-    switch (rv) {
-    case 0:
-    case NETWORK_ERR_CLOSE_WAIT:
-    case NETWORK_ERR_SEND_BLOCKED:
-      ev_timer_stop(loop, w);
-      return;
-    default:
-      s->remove(h);
-      return;
-    }
+  }
+
+  rv = h->on_write();
+  switch (rv) {
+  case 0:
+  case NETWORK_ERR_CLOSE_WAIT:
+  case NETWORK_ERR_SEND_BLOCKED:
+    ev_timer_stop(loop, w);
+    return;
+  default:
+    s->remove(h);
+    return;
   }
 }
 } // namespace

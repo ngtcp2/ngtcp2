@@ -682,4 +682,10 @@ void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn);
  */
 int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
 
+/*
+ * ngtcp2_conn_internal_expiry returns the minimum expiry time among
+ * all timers in |conn|.
+ */
+ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
+
 #endif /* NGTCP2_CONN_H */
