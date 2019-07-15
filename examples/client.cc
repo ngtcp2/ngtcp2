@@ -518,16 +518,16 @@ int client_initial(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
-                     uint64_t offset, const uint8_t *data, size_t datalen,
-                     void *user_data) {
+int recv_crypto_data(ngtcp2_conn *conn, int crypto_level, uint64_t offset,
+                     const uint8_t *data, size_t datalen, void *user_data) {
   if (!config.quiet) {
-    debug::print_crypto_data(crypto_level, data, datalen);
+    debug::print_crypto_data(ngtcp2_crypto_level(crypto_level), data, datalen);
   }
 
   auto c = static_cast<Client *>(user_data);
 
-  if (c->write_server_handshake(crypto_level, data, datalen) != 0) {
+  if (c->write_server_handshake(ngtcp2_crypto_level(crypto_level), data,
+                                datalen) != 0) {
     return NGTCP2_ERR_CRYPTO;
   }
 
@@ -563,10 +563,10 @@ int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
 } // namespace
 
 namespace {
-int acked_crypto_offset(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
-                        uint64_t offset, size_t datalen, void *user_data) {
+int acked_crypto_offset(ngtcp2_conn *conn, int crypto_level, uint64_t offset,
+                        size_t datalen, void *user_data) {
   auto c = static_cast<Client *>(user_data);
-  c->remove_tx_crypto_data(crypto_level, offset, datalen);
+  c->remove_tx_crypto_data(ngtcp2_crypto_level(crypto_level), offset, datalen);
 
   return 0;
 }
@@ -670,7 +670,7 @@ int extend_max_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 } // namespace
 
 namespace {
-int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx,
+int rand(ngtcp2_conn *conn, uint8_t *dest, size_t destlen, int ctx,
          void *user_data) {
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
@@ -822,10 +822,10 @@ int update_key(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 namespace {
-int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
-                    ngtcp2_path_validation_result res, void *user_data) {
+int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path, int res,
+                    void *user_data) {
   if (!config.quiet) {
-    debug::path_validation(path, res);
+    debug::path_validation(path, ngtcp2_path_validation_result(res));
   }
   return 0;
 }

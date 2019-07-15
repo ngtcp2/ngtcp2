@@ -309,7 +309,7 @@ static int rtb_call_acked_stream_offset(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
           break;
         }
 
-        rv = conn->callbacks.acked_crypto_offset(conn, rtb->crypto_level,
+        rv = conn->callbacks.acked_crypto_offset(conn, (int) rtb->crypto_level,
                                                  prev_stream_offset, datalen,
                                                  conn->user_data);
         if (rv != 0) {

@@ -1093,9 +1093,9 @@ typedef enum {
  * `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.  The ngtcp2
  * library ensures that the crypto data is passed to the application
  * in the increasing order of |offset|.  |datalen| is always strictly
- * greater than 0.  |crypto_level| indicates the encryption level
- * where this data is received.  Crypto data never be received in
- * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY`.
+ * greater than 0.  |crypto_level| (`ngtcp2_crypto_level`) indicates the
+ * encryption level where this data is received.  Crypto data never be received
+ * in :enum:`NGTCP2_CRYPTO_LEVEL_EARLY`.
  *
  * The application should provide the given data to TLS stack.
  *
@@ -1106,8 +1106,7 @@ typedef enum {
  * value is returned, it is treated as
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
-typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn,
-                                       ngtcp2_crypto_level crypto_level,
+typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn, int crypto_level,
                                        uint64_t offset, const uint8_t *data,
                                        size_t datalen, void *user_data);
 
@@ -1339,8 +1338,8 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_acked_crypto_offset` is a callback function which is
  * called when crypto stream data is acknowledged, and application can
- * free the data.  |crypto_level| indicates the encryption level where
- * this data was sent.  Crypto data never be sent in
+ * free the data.  |crypto_level| (`ngtcp2_crypto_level`) indicates the
+ * encryption level where this data was sent.  Crypto data never be sent in
  * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY`.  This works like
  * :type:`ngtcp2_acked_stream_data_offset` but crypto stream has no
  * stream_id and stream_user_data, and |datalen| never become 0.
@@ -1349,8 +1348,7 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
-typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn,
-                                          ngtcp2_crypto_level crypto_level,
+typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn, int crypto_level,
                                           uint64_t offset, size_t datalen,
                                           void *user_data);
 
@@ -1406,15 +1404,15 @@ typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_rand` is a callback function to get randomized byte
  * string from application.  Application must fill random |destlen|
- * bytes to the buffer pointed by |dest|.  |ctx| provides the context
- * how the provided random byte string is used.
+ * bytes to the buffer pointed by |dest|.  |ctx| (`ngtcp2_rand_ctx`) provides
+ * the context how the provided random byte string is used.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
 typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                           ngtcp2_rand_ctx ctx, void *user_data);
+                           int ctx, void *user_data);
 
 /**
  * @functypedef
@@ -1472,7 +1470,7 @@ typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, void *user_data);
  *
  * :type:`ngtcp2_path_validation` is a callback function which tells
  * the application the outcome of path validation.  |path| is the path
- * that was validated.  If |res| is
+ * that was validated.  If |res| (`ngtcp2_path_validation_result`) is
  * :enum:`NGTCP2_PATH_VALIDATION_RESULT_SUCCESS`, the path validation
  * succeeded.  If |res| is
  * :enum:`NGTCP2_PATH_VALIDATION_RESULT_FAILURE`, the path validation
@@ -1483,8 +1481,7 @@ typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, void *user_data);
  * immediately.
  */
 typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn,
-                                      const ngtcp2_path *path,
-                                      ngtcp2_path_validation_result res,
+                                      const ngtcp2_path *path, int res,
                                       void *user_data);
 
 /**

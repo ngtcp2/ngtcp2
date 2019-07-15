@@ -104,7 +104,7 @@ static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
                                       size_t datalen) {
   int rv;
 
-  rv = conn->callbacks.recv_crypto_data(conn, crypto_level, offset, data,
+  rv = conn->callbacks.recv_crypto_data(conn, (int) crypto_level, offset, data,
                                         datalen, conn->user_data);
   switch (rv) {
   case 0:
@@ -240,7 +240,7 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
     return 0;
   }
 
-  rv = conn->callbacks.path_validation(conn, path, res, conn->user_data);
+  rv = conn->callbacks.path_validation(conn, path, (int) res, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
