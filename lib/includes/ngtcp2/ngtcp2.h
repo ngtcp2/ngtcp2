@@ -2059,9 +2059,8 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_open_bidi_stream` opens new bidirectional stream.  The
- * |stream_user_data| is the user data specific to the stream.  The
- * open stream ID is stored in |*pstream_id|.
+ * `ngtcp2_conn_open_bidi_stream` opens new bidirectional stream with id
+ * |stream_id|.  The |stream_user_data| is the user data specific to the stream.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2070,15 +2069,19 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
  *     Out of memory
  * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
  *     The remote peer does not allow |stream_id| yet.
+ * :enum:`NGTCP2_ERR_STREAM_IN_USE`
+ *     The stream has already been opened.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     The stream id is not a valid bidirectional stream id.
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
-                                               int64_t *pstream_id,
+                                               int64_t stream_id,
                                                void *stream_user_data);
 
 /**
  * @function
  *
- * `ngtcp2_conn_open_uni_stream` opens new unidirectional stream.  The
+ * `ngtcp2_conn_open_next_bidi_stream` opens new bidirectional stream.  The
  * |stream_user_data| is the user data specific to the stream.  The
  * open stream ID is stored in |*pstream_id|.
  *
@@ -2090,9 +2093,50 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
  *     The remote peer does not allow |stream_id| yet.
  */
+NGTCP2_EXTERN int ngtcp2_conn_open_next_bidi_stream(ngtcp2_conn *conn,
+                                                    int64_t *pstream_id,
+                                                    void *stream_user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_open_uni_stream` opens new unidirectional stream with id
+ * |stream_id|.  The |stream_user_data| is the user data specific to the stream.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
+ *     The remote peer does not allow |stream_id| yet.
+ * :enum:`NGTCP2_ERR_STREAM_IN_USE`
+ *     The stream has already been opened.
+ * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     The stream id is not a valid unidirectional stream id.
+ */
 NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
-                                              int64_t *pstream_id,
+                                              int64_t stream_id,
                                               void *stream_user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_open_next_uni_stream` opens new unidirectional stream.  The
+ * |stream_user_data| is the user data specific to the stream.  The
+ * open stream ID is stored in |*pstream_id|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
+ *     The remote peer does not allow |stream_id| yet.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_open_next_uni_stream(ngtcp2_conn *conn,
+                                                   int64_t *pstream_id,
+                                                   void *stream_user_data);
 
 /**
  * @function

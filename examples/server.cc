@@ -1149,7 +1149,7 @@ int Handler::push_content(int64_t stream_id, const std::string &authority,
   }
 
   int64_t push_stream_id;
-  rv = ngtcp2_conn_open_uni_stream(conn_, &push_stream_id, NULL);
+  rv = ngtcp2_conn_open_next_uni_stream(conn_, &push_stream_id, NULL);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1474,7 +1474,7 @@ int Handler::setup_httpconn() {
 
   int64_t ctrl_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, NULL);
+  rv = ngtcp2_conn_open_next_uni_stream(conn_, &ctrl_stream_id, NULL);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -1494,14 +1494,14 @@ int Handler::setup_httpconn() {
 
   int64_t qpack_enc_stream_id, qpack_dec_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_enc_stream_id, NULL);
+  rv = ngtcp2_conn_open_next_uni_stream(conn_, &qpack_enc_stream_id, NULL);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_dec_stream_id, NULL);
+  rv = ngtcp2_conn_open_next_uni_stream(conn_, &qpack_dec_stream_id, NULL);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;

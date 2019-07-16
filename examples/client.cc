@@ -2080,7 +2080,7 @@ void Client::make_stream_early() {
   ++nstreams_done_;
 
   int64_t stream_id;
-  rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
+  rv = ngtcp2_conn_open_next_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_bidi_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -2109,7 +2109,7 @@ int Client::on_extend_max_streams() {
   }
 
   for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
-    rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
+    rv = ngtcp2_conn_open_next_bidi_stream(conn_, &stream_id, nullptr);
     if (rv != 0) {
       assert(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
       break;
@@ -2515,7 +2515,7 @@ int Client::setup_httpconn() {
 
   int64_t ctrl_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, NULL);
+  rv = ngtcp2_conn_open_next_uni_stream(conn_, &ctrl_stream_id, NULL);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
@@ -2535,14 +2535,14 @@ int Client::setup_httpconn() {
 
   int64_t qpack_enc_stream_id, qpack_dec_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_enc_stream_id, NULL);
+  rv = ngtcp2_conn_open_next_uni_stream(conn_, &qpack_enc_stream_id, NULL);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_dec_stream_id, NULL);
+  rv = ngtcp2_conn_open_next_uni_stream(conn_, &qpack_dec_stream_id, NULL);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
