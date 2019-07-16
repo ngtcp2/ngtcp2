@@ -423,12 +423,12 @@ Request request_path(const std::string &uri, bool is_connect) {
 namespace {
 std::string resolve_path(const std::string &req_path) {
   auto raw_path = config.htdocs + req_path;
-  auto malloced_path = realpath(raw_path.c_str(), nullptr);
-  if (malloced_path == nullptr) {
+  std::array<char, PATH_MAX> buf;
+  auto p = realpath(raw_path.c_str(), buf.data());
+  if (p == nullptr) {
     return "";
   }
-  auto path = std::string(malloced_path);
-  free(malloced_path);
+  auto path = std::string(p);
 
   if (path.size() < config.htdocs.size() ||
       !std::equal(std::begin(config.htdocs), std::end(config.htdocs),
