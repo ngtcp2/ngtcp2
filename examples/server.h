@@ -154,7 +154,6 @@ struct Stream {
   size_t dynbuflen;
   // dynbufs stores the buffers for dynamic data response.
   std::deque<std::unique_ptr<std::vector<uint8_t>>> dynbufs;
-  EVP_MD_CTX *md_ctx;
   // mmapped is true if data points to the memory assigned by mmap.
   bool mmapped;
 };
