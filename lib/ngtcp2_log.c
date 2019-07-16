@@ -246,13 +246,12 @@ static void log_fr_padding(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                 const ngtcp2_reset_stream *fr,
                                 const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " RESET_STREAM(0x%02x) id=0x%" PRIx64
-                                  " app_error_code=%s(0x%" PRIx64
-                                  ") final_size=%" PRIu64),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
-                  strapperrorcode(fr->app_error_code), fr->app_error_code,
-                  fr->final_size);
+  log->log_printf(
+      log->user_data,
+      (NGTCP2_LOG_PKT " RESET_STREAM(0x%02x) id=0x%" PRIx64
+                      " app_error_code=%s(0x%" PRIx64 ") final_size=%" PRIu64),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
+      strapperrorcode(fr->app_error_code), fr->app_error_code, fr->final_size);
 }
 
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -288,10 +287,9 @@ static void log_fr_max_stream_data(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr_max_streams(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                const ngtcp2_max_streams *fr, const char *dir) {
-  log->log_printf(
-      log->user_data,
-      (NGTCP2_LOG_PKT " MAX_STREAMS(0x%02x) max_streams=%" PRIu64),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->max_streams);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_PKT " MAX_STREAMS(0x%02x) max_streams=%" PRIu64),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->max_streams);
 }
 
 static void log_fr_ping(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -413,10 +411,9 @@ static void log_fr_retire_connection_id(ngtcp2_log *log,
                                         const ngtcp2_pkt_hd *hd,
                                         const ngtcp2_retire_connection_id *fr,
                                         const char *dir) {
-  log->log_printf(
-      log->user_data,
-      (NGTCP2_LOG_PKT " RETIRE_CONNECTION_ID(0x%02x) seq=%" PRIu64),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_PKT " RETIRE_CONNECTION_ID(0x%02x) seq=%" PRIu64),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq);
 }
 
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -605,14 +602,12 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
     }
   }
 
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_local=%u"),
-                  NGTCP2_LOG_TP_HD_FIELDS,
-                  params->initial_max_stream_data_bidi_local);
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_stream_data_bidi_remote=%u"),
-                  NGTCP2_LOG_TP_HD_FIELDS,
-                  params->initial_max_stream_data_bidi_remote);
+  log->log_printf(
+      log->user_data, (NGTCP2_LOG_TP " initial_max_stream_data_bidi_local=%u"),
+      NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_bidi_local);
+  log->log_printf(
+      log->user_data, (NGTCP2_LOG_TP " initial_max_stream_data_bidi_remote=%u"),
+      NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_bidi_remote);
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_TP " initial_max_stream_data_uni=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_uni);
@@ -621,8 +616,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_TP " initial_max_bidi_streams=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_bidi);
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_uni_streams=%u"),
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_uni_streams=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_uni);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " idle_timeout=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->idle_timeout);
