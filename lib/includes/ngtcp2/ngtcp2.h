@@ -2216,7 +2216,10 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
  * serialized, |*pdatalen| would be 0.
  *
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
- * if it is not NULL.
+ * if it is not NULL.  The caller must keep the portion of data
+ * covered by |*pdatalen| bytes in tact until
+ * :type:`ngtcp2_acked_stream_data_offset` indicates that they are
+ * acknowledged by a remote endpoint or the stream is closed.
  *
  * If |flags| equals to :enum:`NGTCP2_WRITE_STREAM_FLAG_NONE`, this
  * function produces a single payload of UDP packet.  If the given
