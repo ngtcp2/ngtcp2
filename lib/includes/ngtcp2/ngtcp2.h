@@ -208,7 +208,11 @@ typedef struct {
    nanosecond. */
 #define NGTCP2_NANOSECONDS 1ULL
 
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_lib_error : int {
+#else
+typedef enum ngtcp2_lib_error {
+#endif
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
   NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
   NGTCP2_ERR_NOBUF = -203,
@@ -253,7 +257,11 @@ typedef enum {
   NGTCP2_PKT_FLAG_KEY_PHASE = 0x04
 } ngtcp2_pkt_flag;
 
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_pkt_type : int {
+#else
+typedef enum ngtcp2_pkt_type {
+#endif
   /* NGTCP2_PKT_VERSION_NEGOTIATION is defined by libngtcp2 for
      convenience. */
   NGTCP2_PKT_VERSION_NEGOTIATION = 0xf0,
@@ -265,7 +273,11 @@ typedef enum {
   NGTCP2_PKT_SHORT = 0x70
 } ngtcp2_pkt_type;
 
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_frame_type : uint64_t {
+#else
+typedef enum ngtcp2_frame_type {
+#endif
   NGTCP2_FRAME_PADDING = 0x00,
   NGTCP2_FRAME_PING = 0x01,
   NGTCP2_FRAME_ACK = 0x02,
@@ -292,7 +304,11 @@ typedef enum {
   NGTCP2_FRAME_TYPE_MAX = UINT64_MAX
 } ngtcp2_frame_type;
 
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_transport_error : uint64_t {
+#else
+typedef enum ngtcp2_transport_error {
+#endif
   NGTCP2_NO_ERROR = 0x0u,
   NGTCP2_INTERNAL_ERROR = 0x1u,
   NGTCP2_SERVER_BUSY = 0x2u,
@@ -309,7 +325,11 @@ typedef enum {
   NGTCP2_TRANSPORT_ERROR_MAX = UINT64_MAX
 } ngtcp2_transport_error;
 
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_path_validation_result : int {
+#else
+typedef enum ngtcp2_path_validation_result {
+#endif
   NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
   NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
 } ngtcp2_path_validation_result;
@@ -566,7 +586,11 @@ typedef union {
   ngtcp2_retire_connection_id retire_connection_id;
 } ngtcp2_frame;
 
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_transport_param_id : uint16_t {
+#else
+typedef enum ngtcp2_transport_param_id {
+#endif
   NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID = 0x0000,
   NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 0x0001,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 0x0002,
@@ -585,7 +609,11 @@ typedef enum {
   NGTCP2_TRANSPORT_PARAM_ID_MAX = UINT16_MAX
 } ngtcp2_transport_param_id;
 
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_transport_params_type : int {
+#else
+typedef enum ngtcp2_transport_params_type {
+#endif
   NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
   NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
 } ngtcp2_transport_params_type;
@@ -595,7 +623,11 @@ typedef enum {
  *
  * ngtcp2_rand_ctx is a context where generated random value is used.
  */
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_rand_ctx : int {
+#else
+typedef enum ngtcp2_rand_ctx {
+#endif
   NGTCP2_RAND_CTX_NONE,
   /**
    * NGTCP2_RAND_CTX_PATH_CHALLENGE indicates that random value is
@@ -1065,7 +1097,11 @@ typedef int (*ngtcp2_recv_client_initial)(ngtcp2_conn *conn,
  *
  * ngtcp2_crypto_level is encryption level.
  */
-typedef enum {
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_crypto_level : int {
+#else
+typedef enum ngtcp2_crypto_level {
+#endif
   /**
    * NGTCP2_CRYPTO_LEVEL_INITIAL is Initial Keys encryption level.
    */
