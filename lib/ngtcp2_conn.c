@@ -7614,11 +7614,6 @@ int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
   int rv;
   ngtcp2_strm *strm;
 
-  if (ngtcp2_ord_stream_id(conn->local.bidi.next_stream_id) >
-      conn->local.bidi.max_streams) {
-    return NGTCP2_ERR_STREAM_ID_BLOCKED;
-  }
-
   strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
   if (strm == NULL) {
     return NGTCP2_ERR_NOMEM;
@@ -7641,11 +7636,6 @@ int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn, int64_t *pstream_id,
                                 void *stream_user_data) {
   int rv;
   ngtcp2_strm *strm;
-
-  if (ngtcp2_ord_stream_id(conn->local.uni.next_stream_id) >
-      conn->local.uni.max_streams) {
-    return NGTCP2_ERR_STREAM_ID_BLOCKED;
-  }
 
   strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
   if (strm == NULL) {
@@ -7708,6 +7698,17 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   int rv;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
+
+  /* Check if we're allowed to write to the stream. */
+  if (stream_id != -1 && conn_local_stream(conn, stream_id)) {
+    if (bidi_stream(stream_id) &&
+        ngtcp2_ord_stream_id(stream_id) > conn->local.bidi.max_streams) {
+      return NGTCP2_ERR_STREAM_ID_BLOCKED;
+    } else if (!bidi_stream(stream_id) &&
+               ngtcp2_ord_stream_id(stream_id) > conn->local.uni.max_streams) {
+      return NGTCP2_ERR_STREAM_ID_BLOCKED;
+    }
+  }
 
   conn->log.last_ts = ts;
 

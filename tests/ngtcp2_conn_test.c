@@ -692,10 +692,6 @@ void test_ngtcp2_conn_stream_open_close(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(3 == stream_id);
 
-  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
-
-  CU_ASSERT(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
-
   ngtcp2_conn_del(conn);
 }
 
@@ -3822,6 +3818,18 @@ void test_ngtcp2_conn_writev_stream(void) {
   CU_ASSERT(1200 == spktlen);
 
   ngtcp2_conn_del(conn);
+
+  setup_default_client(&conn);
+  conn->local.bidi.max_streams = 0;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_writev_stream(conn, NULL, NULL, 0, NULL, 0, stream_id, 0,
+                                 NULL, 0, 0);
+
+  CU_ASSERT(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
 }
 
 void test_ngtcp2_conn_recv_new_connection_id(void) {
