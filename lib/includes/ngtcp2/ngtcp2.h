@@ -355,7 +355,7 @@ typedef uint64_t ngtcp2_duration;
  *
  * ngtcp2_cid holds a Connection ID.
  */
-typedef struct {
+typedef struct ngtcp2_cid {
   size_t datalen;
   uint8_t data[NGTCP2_MAX_CIDLEN];
 } ngtcp2_cid;
@@ -385,7 +385,7 @@ typedef struct {
 NGTCP2_EXTERN void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data,
                                    size_t datalen);
 
-typedef struct {
+typedef struct ngtcp2_pkt_hd {
   ngtcp2_cid dcid;
   ngtcp2_cid scid;
   int64_t pkt_num;
@@ -405,13 +405,13 @@ typedef struct {
   uint8_t flags;
 } ngtcp2_pkt_hd;
 
-typedef struct {
+typedef struct ngtcp2_pkt_stateless_reset {
   const uint8_t *stateless_reset_token;
   const uint8_t *rand;
   size_t randlen;
 } ngtcp2_pkt_stateless_reset;
 
-typedef struct {
+typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   const uint8_t *token;
   size_t tokenlen;
@@ -663,7 +663,7 @@ typedef enum ngtcp2_rand_ctx {
  */
 #define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS 0xffa5u
 
-typedef struct {
+typedef struct ngtcp2_preferred_addr {
   ngtcp2_cid cid;
   uint16_t ipv4_port;
   uint16_t ipv6_port;
@@ -752,7 +752,7 @@ typedef struct {
  *
  * ngtcp2_addr is the endpoint address.
  */
-typedef struct {
+typedef struct ngtcp2_addr {
   /* len is the length of addr. */
   size_t addrlen;
   /* addr points to the buffer which contains endpoint address.  It is
@@ -768,7 +768,7 @@ typedef struct {
  * ngtcp2_path is the network endpoints where a packet is sent and
  * received.
  */
-typedef struct {
+typedef struct ngtcp2_path {
   /* local is the address of local endpoint. */
   ngtcp2_addr local;
   /* remote is the address of remote endpoint. */
