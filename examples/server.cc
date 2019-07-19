@@ -1153,10 +1153,7 @@ int Handler::push_content(int64_t stream_id, const std::string &authority,
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
-    if (rv != NGTCP2_ERR_STREAM_ID_BLOCKED) {
-      return -1;
-    }
-    return 0;
+    return -1;
   }
 
   if (!config.quiet) {

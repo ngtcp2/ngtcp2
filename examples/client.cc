@@ -2111,8 +2111,7 @@ int Client::on_extend_max_streams() {
   for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
     rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
     if (rv != 0) {
-      assert(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
-      break;
+      return -1;
     }
 
     if (submit_http_request(stream_id) != 0) {

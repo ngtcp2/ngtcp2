@@ -2104,8 +2104,6 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
- * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
- *     The remote peer does not allow |stream_id| yet.
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
                                                int64_t *pstream_id,
@@ -2123,8 +2121,6 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
- * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
- *     The remote peer does not allow |stream_id| yet.
  */
 NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
                                               int64_t *pstream_id,
@@ -2307,6 +2303,8 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
  *
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory
+ * :enum:`NGTCP2_ERR_STREAM_ID_BLOCKED`
+ *     The remote peer does not allow |stream_id| yet.
  * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
  *     Stream does not exist
  * :enum:`NGTCP2_ERR_STREAM_SHUT_WR`
