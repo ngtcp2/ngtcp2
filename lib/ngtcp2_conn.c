@@ -7591,7 +7591,20 @@ int ngtcp2_conn_set_remote_transport_params(
 
 void ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
-  settings_copy_from_transport_params(&conn->remote.settings, params);
+  ngtcp2_transport_params p;
+
+  memset(&p, 0, sizeof(p));
+
+  p.initial_max_streams_bidi = params->initial_max_streams_bidi;
+  p.initial_max_streams_uni = params->initial_max_streams_uni;
+  p.initial_max_stream_data_bidi_local =
+      params->initial_max_stream_data_bidi_local;
+  p.initial_max_stream_data_bidi_remote =
+      params->initial_max_stream_data_bidi_remote;
+  p.initial_max_stream_data_uni = params->initial_max_stream_data_uni;
+  p.initial_max_data = params->initial_max_data;
+
+  settings_copy_from_transport_params(&conn->remote.settings, &p);
   conn_sync_stream_id_limit(conn);
 
   conn->tx.max_offset = conn->remote.settings.max_data;
