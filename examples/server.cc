@@ -1472,6 +1472,12 @@ int Handler::setup_httpconn() {
     return -1;
   }
 
+  ngtcp2_transport_params params;
+  ngtcp2_conn_get_local_transport_params(conn_, &params);
+
+  nghttp3_conn_set_max_client_streams_bidi(httpconn_,
+                                           params.initial_max_streams_bidi);
+
   int64_t ctrl_stream_id;
 
   rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, NULL);
