@@ -94,6 +94,201 @@
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
 #define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
 
+typedef enum {
+  NGTCP2_FRAME_PADDING = 0x00,
+  NGTCP2_FRAME_PING = 0x01,
+  NGTCP2_FRAME_ACK = 0x02,
+  NGTCP2_FRAME_ACK_ECN = 0x03,
+  NGTCP2_FRAME_RESET_STREAM = 0x04,
+  NGTCP2_FRAME_STOP_SENDING = 0x05,
+  NGTCP2_FRAME_CRYPTO = 0x06,
+  NGTCP2_FRAME_NEW_TOKEN = 0x07,
+  NGTCP2_FRAME_STREAM = 0x08,
+  NGTCP2_FRAME_MAX_DATA = 0x10,
+  NGTCP2_FRAME_MAX_STREAM_DATA = 0x11,
+  NGTCP2_FRAME_MAX_STREAMS_BIDI = 0x12,
+  NGTCP2_FRAME_MAX_STREAMS_UNI = 0x13,
+  NGTCP2_FRAME_DATA_BLOCKED = 0x14,
+  NGTCP2_FRAME_STREAM_DATA_BLOCKED = 0x15,
+  NGTCP2_FRAME_STREAMS_BLOCKED_BIDI = 0x16,
+  NGTCP2_FRAME_STREAMS_BLOCKED_UNI = 0x17,
+  NGTCP2_FRAME_NEW_CONNECTION_ID = 0x18,
+  NGTCP2_FRAME_RETIRE_CONNECTION_ID = 0x19,
+  NGTCP2_FRAME_PATH_CHALLENGE = 0x1a,
+  NGTCP2_FRAME_PATH_RESPONSE = 0x1b,
+  NGTCP2_FRAME_CONNECTION_CLOSE = 0x1c,
+  NGTCP2_FRAME_CONNECTION_CLOSE_APP = 0x1d,
+} ngtcp2_frame_type;
+
+typedef struct {
+  uint8_t type;
+  /**
+   * flags of decoded STREAM frame.  This gets ignored when encoding
+   * STREAM frame.
+   */
+  uint8_t flags;
+  uint8_t fin;
+  int64_t stream_id;
+  uint64_t offset;
+  /* datacnt is the number of elements that data contains.  Although
+     the length of data is 1 in this definition, the library may
+     allocate extra bytes to hold more elements. */
+  size_t datacnt;
+  /* data is the array of ngtcp2_vec which references data. */
+  ngtcp2_vec data[1];
+} ngtcp2_stream;
+
+typedef struct {
+  uint64_t gap;
+  uint64_t blklen;
+} ngtcp2_ack_blk;
+
+typedef struct {
+  uint8_t type;
+  int64_t largest_ack;
+  uint64_t ack_delay;
+  /**
+   * ack_delay_unscaled is an ack_delay multiplied by
+   * 2**ack_delay_component * NGTCP2_DURATION_TICK /
+   * NGTCP2_MICROSECONDS.
+   */
+  ngtcp2_duration ack_delay_unscaled;
+  uint64_t first_ack_blklen;
+  size_t num_blks;
+  ngtcp2_ack_blk blks[1];
+} ngtcp2_ack;
+
+typedef struct {
+  uint8_t type;
+  /**
+   * The length of contiguous PADDING frames.
+   */
+  size_t len;
+} ngtcp2_padding;
+
+typedef struct {
+  uint8_t type;
+  int64_t stream_id;
+  uint64_t app_error_code;
+  uint64_t final_size;
+} ngtcp2_reset_stream;
+
+typedef struct {
+  uint8_t type;
+  uint64_t error_code;
+  uint64_t frame_type;
+  size_t reasonlen;
+  uint8_t *reason;
+} ngtcp2_connection_close;
+
+typedef struct {
+  uint8_t type;
+  /**
+   * max_data is Maximum Data.
+   */
+  uint64_t max_data;
+} ngtcp2_max_data;
+
+typedef struct {
+  uint8_t type;
+  int64_t stream_id;
+  uint64_t max_stream_data;
+} ngtcp2_max_stream_data;
+
+typedef struct {
+  uint8_t type;
+  uint64_t max_streams;
+} ngtcp2_max_streams;
+
+typedef struct {
+  uint8_t type;
+} ngtcp2_ping;
+
+typedef struct {
+  uint8_t type;
+  uint64_t offset;
+} ngtcp2_data_blocked;
+
+typedef struct {
+  uint8_t type;
+  int64_t stream_id;
+  uint64_t offset;
+} ngtcp2_stream_data_blocked;
+
+typedef struct {
+  uint8_t type;
+  uint64_t stream_limit;
+} ngtcp2_streams_blocked;
+
+typedef struct {
+  uint8_t type;
+  uint64_t seq;
+  uint64_t retire_prior_to;
+  ngtcp2_cid cid;
+  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+} ngtcp2_new_connection_id;
+
+typedef struct {
+  uint8_t type;
+  int64_t stream_id;
+  uint64_t app_error_code;
+} ngtcp2_stop_sending;
+
+typedef struct {
+  uint8_t type;
+  uint8_t data[8];
+} ngtcp2_path_challenge;
+
+typedef struct {
+  uint8_t type;
+  uint8_t data[8];
+} ngtcp2_path_response;
+
+typedef struct {
+  uint8_t type;
+  uint64_t offset;
+  /* datacnt is the number of elements that data contains.  Although
+     the length of data is 1 in this definition, the library may
+     allocate extra bytes to hold more elements. */
+  size_t datacnt;
+  /* data is the array of ngtcp2_vec which references data. */
+  ngtcp2_vec data[1];
+} ngtcp2_crypto;
+
+typedef struct {
+  uint8_t type;
+  size_t tokenlen;
+  const uint8_t *token;
+} ngtcp2_new_token;
+
+typedef struct {
+  uint8_t type;
+  uint64_t seq;
+} ngtcp2_retire_connection_id;
+
+typedef union {
+  uint8_t type;
+  ngtcp2_stream stream;
+  ngtcp2_ack ack;
+  ngtcp2_padding padding;
+  ngtcp2_reset_stream reset_stream;
+  ngtcp2_connection_close connection_close;
+  ngtcp2_max_data max_data;
+  ngtcp2_max_stream_data max_stream_data;
+  ngtcp2_max_streams max_streams;
+  ngtcp2_ping ping;
+  ngtcp2_data_blocked data_blocked;
+  ngtcp2_stream_data_blocked stream_data_blocked;
+  ngtcp2_streams_blocked streams_blocked;
+  ngtcp2_new_connection_id new_connection_id;
+  ngtcp2_stop_sending stop_sending;
+  ngtcp2_path_challenge path_challenge;
+  ngtcp2_path_response path_response;
+  ngtcp2_crypto crypto;
+  ngtcp2_new_token new_token;
+  ngtcp2_retire_connection_id retire_connection_id;
+} ngtcp2_frame;
+
 struct ngtcp2_pkt_chain;
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
 
@@ -165,6 +360,35 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
  */
 ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
                                    const ngtcp2_pkt_hd *hd);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_decode_frame` decodes a QUIC frame from the buffer
+ * pointed by |payload| whose length is |payloadlen|.
+ *
+ * This function returns the number of bytes read to decode a single
+ * frame if it succeeds, or one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_FRAME_ENCODING`
+ *     Frame is badly formatted; or frame type is unknown.
+ */
+ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
+                                size_t payloadlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_encode_frame` encodes a frame |fm| into the buffer
+ * pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr);
 
 /*
  * ngtcp2_pkt_decode_version_negotiation decodes Version Negotiation

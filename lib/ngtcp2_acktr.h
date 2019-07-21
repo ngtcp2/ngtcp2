@@ -34,6 +34,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_ringbuf.h"
 #include "ngtcp2_ksl.h"
+#include "ngtcp2_pkt.h"
 
 /* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
    which ngtcp2_acktr stores. */

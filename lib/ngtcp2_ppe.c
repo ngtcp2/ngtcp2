@@ -27,7 +27,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "ngtcp2_pkt.h"
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_conn.h"
