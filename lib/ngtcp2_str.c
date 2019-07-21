@@ -53,6 +53,26 @@ uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
   return dest;
 }
 
+char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
+                                    size_t len) {
+  size_t i;
+  char *p = dest;
+  uint8_t c;
+
+  for (i = 0; i < len; ++i) {
+    c = data[i];
+    if (0x20 <= c && c <= 0x7e) {
+      *p++ = (char)c;
+    } else {
+      *p++ = '.';
+    }
+  }
+
+  *p = '\0';
+
+  return dest;
+}
+
 int ngtcp2_verify_stateless_retry_token(const uint8_t *want,
                                         const uint8_t *got) {
   size_t i;

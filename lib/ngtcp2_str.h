@@ -55,6 +55,16 @@ uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n);
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
 
 /*
+ * ngtcp2_encode_printable_ascii encodes |data| of length |len| in
+ * |dest| in the following manner: printable ascii characters are
+ * copied as is.  The other characters are converted to ".".  It
+ * writes additional NULL bytes at the end of the buffer.  |dest| must
+ * have at least |len| + 1 bytes.  This function returns |dest|.
+ */
+char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
+                                    size_t len);
+
+/*
  * ngtcp2_verify_stateless_retry_token verifies stateless retry token
  * |want| and |got|.  This function returns 0 if |want| equals |got|
  * and |got| is not all zero, or one of the following negative error

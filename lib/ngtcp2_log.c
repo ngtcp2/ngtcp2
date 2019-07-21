@@ -34,6 +34,7 @@
 
 #include "ngtcp2_str.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_macro.h"
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
@@ -257,15 +258,19 @@ static void log_fr_reset_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 static void log_fr_connection_close(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                     const ngtcp2_connection_close *fr,
                                     const char *dir) {
+  char reason[256];
+  size_t reasonlen = ngtcp2_min(sizeof(reason) - 1, fr->reasonlen);
+
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT
                    " CONNECTION_CLOSE(0x%02x) error_code=%s(0x%" PRIx64 ") "
-                   "frame_type=%" PRIx64 " reason_len=%" PRIu64),
+                   "frame_type=%" PRIx64 " reason_len=%" PRIu64 " reason=[%s]"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
                   fr->type == NGTCP2_FRAME_CONNECTION_CLOSE
                       ? strerrorcode(fr->error_code)
                       : strapperrorcode(fr->error_code),
-                  fr->error_code, fr->frame_type, fr->reasonlen);
+                  fr->error_code, fr->frame_type, fr->reasonlen,
+                  ngtcp2_encode_printable_ascii(reason, fr->reason, reasonlen));
 }
 
 static void log_fr_max_data(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
