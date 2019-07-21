@@ -6981,31 +6981,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       return res;
     }
 
-    nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
-    if (nwrite < 0) {
-      return nwrite;
-    }
-
-    res += nwrite;
-
-    if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
-      return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
-    }
-
-    rv = conn_handshake_completed(conn);
-    if (rv != 0) {
-      return (ssize_t)rv;
-    }
-    conn->state = NGTCP2_CS_POST_HANDSHAKE;
-
-    rv = conn_process_buffered_protected_pkt(conn, &conn->hs_pktns, ts);
-    if (rv != 0) {
-      return (ssize_t)rv;
-    }
-
-    conn->hs_pktns.acktr.flags |= NGTCP2_ACKTR_FLAG_PENDING_FINISHED_ACK;
-
-    return res;
+    return 0;
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
