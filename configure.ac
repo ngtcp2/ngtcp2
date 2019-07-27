@@ -75,6 +75,11 @@ AC_ARG_ENABLE(asan,
                    [Enable AddressSanitizer (ASAN)]),
     [asan=$enableval], [asan=no])
 
+AC_ARG_WITH([jemalloc],
+    [AS_HELP_STRING([--with-jemalloc],
+                    [Use jemalloc [default=check]])],
+    [request_jemalloc=$withval], [request_jemalloc=check])
+
 # Checks for programs
 AC_PROG_CC
 AC_PROG_CXX
@@ -148,6 +153,39 @@ if test "x${have_libev}" = "xyes"; then
   fi
 fi
 LIBS=$save_LIBS
+
+# jemalloc
+have_jemalloc=no
+if test "x${request_jemalloc}" != "xno"; then
+  save_LIBS=$LIBS
+  AC_SEARCH_LIBS([malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
+                 [$PTHREAD_LDFLAGS])
+
+  if test "x${have_jemalloc}" = "xyes"; then
+    jemalloc_libs=${ac_cv_search_malloc_stats_print}
+  else
+    # On Darwin, malloc_stats_print is je_malloc_stats_print
+    AC_SEARCH_LIBS([je_malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
+                   [$PTHREAD_LDFLAGS])
+
+    if test "x${have_jemalloc}" = "xyes"; then
+      jemalloc_libs=${ac_cv_search_je_malloc_stats_print}
+    fi
+  fi
+
+  LIBS=$save_LIBS
+
+  if test "x${have_jemalloc}" = "xyes" &&
+     test "x${jemalloc_libs}" != "xnone required"; then
+    JEMALLOC_LIBS=${jemalloc_libs}
+    AC_SUBST([JEMALLOC_LIBS])
+  fi
+fi
+
+if test "x${request_jemalloc}" = "xyes" &&
+   test "x${have_jemalloc}" != "xyes"; then
+  AC_MSG_ERROR([jemalloc was requested (--with-jemalloc) but not found])
+fi
 
 # Checks for header files.
 AC_CHECK_HEADERS([ \
@@ -333,4 +371,5 @@ AC_MSG_NOTICE([summary of build options:
       OpenSSL:        ${have_openssl} (CFLAGS='${OPENSSL_CFLAGS}' LIBS='${OPENSSL_LIBS}')
       Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')
       Libnghttp3:     ${have_libnghttp3} (CFLAGS='${LIBNGHTTP3_CFLAGS}' LIBS='${LIBNGHTTP3_LIBS}')
+      Jemalloc:       ${have_jemalloc} (LIBS='${JEMALLOC_LIBS}')
 ])

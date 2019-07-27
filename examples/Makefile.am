@@ -34,6 +34,7 @@ AM_CPPFLAGS = \
 AM_LDFLAGS = -no-install
 LDADD = $(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
+	@JEMALLOC_LIBS@ \
 	@OPENSSL_LIBS@ \
 	@LIBEV_LIBS@ \
 	@LIBNGHTTP3_LIBS@
