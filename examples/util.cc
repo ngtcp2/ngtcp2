@@ -37,6 +37,8 @@
 #include <chrono>
 #include <array>
 #include <iostream>
+#include <fstream>
+#include <algorithm>
 
 namespace ngtcp2 {
 
@@ -263,6 +265,43 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   res += "]:";
   res.append(port.data(), strlen(port.data()));
   return res;
+}
+
+namespace {
+constexpr bool rws(char c) { return c == '\t' || c == ' '; }
+} // namespace
+
+int read_mime_types(std::map<std::string, std::string> &dest,
+                    const char *filename) {
+  std::ifstream f(filename);
+  if (!f) {
+    return -1;
+  }
+
+  std::string line;
+  while (std::getline(f, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+
+    auto p = std::find_if(std::begin(line), std::end(line), rws);
+    if (p == std::begin(line) || p == std::end(line)) {
+      continue;
+    }
+
+    auto media_type = std::string{std::begin(line), p};
+    for (;;) {
+      auto ext = std::find_if_not(p, std::end(line), rws);
+      if (ext == std::end(line)) {
+        break;
+      }
+
+      p = std::find_if(ext, std::end(line), rws);
+      dest.emplace(std::string{ext, p}, media_type);
+    }
+  }
+
+  return 0;
 }
 
 } // namespace util

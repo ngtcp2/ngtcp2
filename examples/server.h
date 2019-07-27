@@ -62,6 +62,12 @@ struct Config {
   const char *groups;
   // htdocs is a root directory to serve documents.
   std::string htdocs;
+  // mime_types_file is a path to "MIME media types and the
+  // extensions" file.  Ubuntu mime-support package includes it in
+  // /etc/mime/types.
+  const char *mime_types_file;
+  // mime_types maps file extension to MIME media type.
+  std::map<std::string, std::string> mime_types;
   // port is the port number which server listens on for incoming
   // connections.
   uint16_t port;

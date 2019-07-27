@@ -34,6 +34,7 @@
 
 #include <string>
 #include <random>
+#include <map>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -198,6 +199,12 @@ template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
   }
   return res;
 }
+
+// read_mime_types reads "MIME media types and the extensions" file
+// denoted by |filename| and stores the mapping of extension to MIME
+// media type in |dest|.  It returns 0 if it succeeds, or -1.
+int read_mime_types(std::map<std::string, std::string> &dest,
+                    const char *filename);
 
 } // namespace util
 

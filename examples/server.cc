@@ -641,6 +641,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
   int64_t content_length = -1;
   nghttp3_data_reader dr{};
+  std::string content_type = "text/plain";
 
   if (dyn_len == -1) {
     auto path = resolve_path(req.path);
@@ -672,6 +673,18 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     }
 
     dr.read_data = read_data;
+
+    auto ext = std::end(req.path) - 1;
+    for (; ext != std::begin(req.path) && *ext != '.' && *ext != '/'; --ext)
+      ;
+    if (*ext == '.') {
+      ++ext;
+      auto it = config.mime_types.find(std::string{ext, std::end(req.path)});
+      if (it != std::end(config.mime_types)) {
+        content_type = (*it).second;
+      }
+    }
+
   } else {
     content_length = dyn_len;
     datalen = dyn_len;
@@ -679,6 +692,8 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     dyndataleft = dyn_len;
 
     dr.read_data = dyn_read_data;
+
+    content_type = "application/octet-stream";
   }
 
   if ((stream_id & 0x3) == 0 && !authority.empty()) {
@@ -694,7 +709,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   std::array<nghttp3_nv, 4> nva{
       util::make_nv(":status", "200"),
       util::make_nv("server", NGTCP2_SERVER),
-      util::make_nv("content-type", "text/html; charset=utf-8"),
+      util::make_nv("content-type", content_type),
       util::make_nv("content-length", content_length_str),
   };
 
@@ -3530,6 +3545,7 @@ void config_set_default(Config &config) {
     config.htdocs = path;
     free(path);
   }
+  config.mime_types_file = "/etc/mime.types";
 }
 } // namespace
 
@@ -3581,6 +3597,11 @@ Options:
               Specify preferred IPv6 address and port.  A numeric IPv6
               address  must   be  enclosed  by  '['   and  ']'  (e.g.,
               [::1]:8443)
+  --mime-types-file=<PATH>
+              Path  to file  that contains  MIME media  types and  the
+              extensions.
+              Default: )"
+            << config.mime_types_file << R"(
   -h, --help  Display this help and exit.
 )";
 }
@@ -3604,6 +3625,7 @@ int main(int argc, char **argv) {
         {"timeout", required_argument, &flag, 3},
         {"preferred-ipv4-addr", required_argument, &flag, 4},
         {"preferred-ipv6-addr", required_argument, &flag, 5},
+        {"mime-types-file", required_argument, &flag, 6},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3682,6 +3704,10 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         }
         break;
+      case 6:
+        // --mime-types-file
+        config.mime_types_file = optarg;
+        break;
       }
       break;
     default:
@@ -3705,6 +3731,11 @@ int main(int argc, char **argv) {
   if (errno != 0) {
     std::cerr << "port: invalid port number" << std::endl;
     exit(EXIT_FAILURE);
+  }
+
+  if (util::read_mime_types(config.mime_types, config.mime_types_file) != 0) {
+    std::cerr << "mime-types-file: Could not read MIME media types file "
+              << config.mime_types_file << std::endl;
   }
 
   auto ssl_ctx = create_ssl_ctx(private_key_file, cert_file);
