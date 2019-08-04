@@ -38,7 +38,9 @@ LDADD = $(top_builddir)/lib/libngtcp2.la \
 	@LIBEV_LIBS@ \
 	@LIBNGHTTP3_LIBS@
 
+if HAVE_NGHTTP3
 noinst_PROGRAMS = client server
+endif
 
 client_SOURCES = client.cc client.h \
 	template.h \
