@@ -139,6 +139,7 @@ PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
 if test "${have_libnghttp3}" = "xno"; then
   AC_MSG_NOTICE($LIBNGHTTP3_PKG_ERRORS)
 fi
+AM_CONDITIONAL([HAVE_NGHTTP3], [ test "x${have_libnghttp3}" = "xyes" ])
 
 # libev (for examples)
 # libev does not have pkg-config file.  Check it in an old way.
