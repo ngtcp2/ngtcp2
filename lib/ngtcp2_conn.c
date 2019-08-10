@@ -7430,6 +7430,21 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   return ngtcp2_min(res, t3);
 }
 
+int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  int rv;
+
+  ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
+
+  if (ngtcp2_conn_loss_detection_expiry(conn) <= ts) {
+    rv = ngtcp2_conn_on_loss_detection_timer(conn, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  return 0;
+}
+
 static void acktr_cancel_expired_ack_delay_timer(ngtcp2_acktr *acktr,
                                                  ngtcp2_tstamp ts) {
   if (!(acktr->flags & NGTCP2_ACKTR_FLAG_CANCEL_TIMER) &&

@@ -350,15 +350,13 @@ namespace {
 void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   int rv;
   auto c = static_cast<Client *>(w->data);
-  auto conn = c->conn();
-  auto now = util::timestamp(loop);
-  auto retransmit = ngtcp2_conn_loss_detection_expiry(conn) <= now;
 
-  if (ngtcp2_conn_ack_delay_expiry(conn) <= now) {
-    ngtcp2_conn_cancel_expired_ack_delay_timer(conn, now);
+  rv = c->handle_expiry();
+  if (rv != 0) {
+    goto fail;
   }
 
-  rv = c->on_write(retransmit);
+  rv = c->on_write();
   if (rv != 0) {
     goto fail;
   }
@@ -1328,7 +1326,21 @@ int Client::on_read() {
 
 void Client::reset_idle_timer() { ev_timer_again(loop_, &timer_); }
 
-int Client::on_write(bool retransmit) {
+int Client::handle_expiry() {
+  auto now = util::timestamp(loop_);
+  auto rv = ngtcp2_conn_handle_expiry(conn_, now);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
+              << std::endl;
+    last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
+    disconnect();
+    return -1;
+  }
+
+  return 0;
+}
+
+int Client::on_write() {
   if (sendbuf_.size() > 0) {
     auto rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
@@ -1341,18 +1353,6 @@ int Client::on_write(bool retransmit) {
   }
 
   assert(sendbuf_.left() >= max_pktlen_);
-
-  if (retransmit) {
-    auto rv =
-        ngtcp2_conn_on_loss_detection_timer(conn_, util::timestamp(loop_));
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
-                << ngtcp2_strerror(rv) << std::endl;
-      last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
-      disconnect();
-      return -1;
-    }
-  }
 
   auto rv = write_streams();
   if (rv != 0) {

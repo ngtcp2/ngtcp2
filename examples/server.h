@@ -200,6 +200,7 @@ public:
   int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                 uint8_t *data, size_t datalen);
   void schedule_retransmit();
+  int handle_expiry();
   void signal_write();
   int handshake_completed();
 

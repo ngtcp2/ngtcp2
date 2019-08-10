@@ -162,10 +162,11 @@ public:
   int tls_handshake(bool initial = false);
   int read_tls();
   int on_read();
-  int on_write(bool retransmit = false);
+  int on_write();
   int write_streams();
   int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                 size_t datalen);
+  int handle_expiry();
   void schedule_retransmit();
   int handshake_completed();
 

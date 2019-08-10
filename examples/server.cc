@@ -803,35 +803,27 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
-  auto conn = h->conn();
-  auto now = util::timestamp(loop);
 
   if (!config.quiet) {
     std::cerr << "Timer expired" << std::endl;
   }
-  if (ngtcp2_conn_loss_detection_expiry(conn) <= now) {
-    if (!config.quiet) {
-      std::cerr << "Loss detection timer expired" << std::endl;
-    }
-    rv = ngtcp2_conn_on_loss_detection_timer(conn, util::timestamp(loop));
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_on_loss_detection_timer: "
-                << ngtcp2_strerror(rv) << std::endl;
-      s->remove(h);
-      return;
-    }
-  }
 
-  if (ngtcp2_conn_ack_delay_expiry(conn) <= now) {
-    if (!config.quiet) {
-      std::cerr << "Delayed ACK timer expired" << std::endl;
-    }
-    ngtcp2_conn_cancel_expired_ack_delay_timer(conn, now);
+  rv = h->handle_expiry();
+  if (rv != 0) {
+    goto fail;
   }
 
   rv = h->on_write();
+  if (rv != 0) {
+    goto fail;
+  }
+
+  ev_timer_stop(loop, w);
+
+  return;
+
+fail:
   switch (rv) {
-  case 0:
   case NETWORK_ERR_CLOSE_WAIT:
   case NETWORK_ERR_SEND_BLOCKED:
     ev_timer_stop(loop, w);
@@ -2056,6 +2048,31 @@ int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 }
 
 void Handler::reset_idle_timer() { ev_timer_again(loop_, &timer_); }
+
+int Handler::handle_expiry() {
+  auto now = util::timestamp(loop_);
+  if (ngtcp2_conn_loss_detection_expiry(conn_) <= now) {
+    if (!config.quiet) {
+      std::cerr << "Loss detection timer expired" << std::endl;
+    }
+  }
+
+  if (ngtcp2_conn_ack_delay_expiry(conn_) <= now) {
+    if (!config.quiet) {
+      std::cerr << "Delayed ACK timer expired" << std::endl;
+    }
+  }
+
+  auto rv = ngtcp2_conn_handle_expiry(conn_, now);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
+              << std::endl;
+    last_error_ = quic_err_transport(rv);
+    return handle_error();
+  }
+
+  return 0;
+}
 
 int Handler::on_write() {
   int rv;

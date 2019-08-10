@@ -1780,13 +1780,19 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn);
  * min(ngtcp2_conn_loss_detection_expiry(conn),
  * ngtcp2_conn_ack_delay_expiry(conn), other timers in |conn|).
  *
- * Besides any special requirements for
- * `ngtcp2_conn_loss_detection_expiry()` and
- * `ngtcp2_conn_ack_delay_expiry()`, when the timer is expired,
- * `ngtcp2_conn_write_pkt` (or `ngtcp2_conn_writev_stream`) should be
- * called.
+ * Call `ngtcp2_conn_handle_expiry()` and `ngtcp2_conn_write_pkt` (or
+ * `ngtcp2_conn_writev_stream`) if expiry time is passed.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_handle_expiry` handles expired timer.  It do nothing
+ * if timer is not expired.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
+                                            ngtcp2_tstamp ts);
 
 /**
  * @function
