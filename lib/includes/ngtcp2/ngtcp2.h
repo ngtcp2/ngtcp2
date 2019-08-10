@@ -274,7 +274,7 @@ typedef enum ngtcp2_pkt_type {
 } ngtcp2_pkt_type;
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
-typedef enum ngtcp2_transport_error : uint64_t {
+typedef enum ngtcp2_transport_error : int {
 #else
 typedef enum ngtcp2_transport_error {
 #endif
@@ -290,8 +290,7 @@ typedef enum ngtcp2_transport_error {
   NGTCP2_PROTOCOL_VIOLATION = 0xau,
   NGTCP2_INVALID_MIGRATION = 0xcu,
   NGTCP2_CRYPTO_BUFFER_EXCEEDED = 0xdu,
-  NGTCP2_CRYPTO_ERROR = 0x100,
-  NGTCP2_TRANSPORT_ERROR_MAX = UINT64_MAX
+  NGTCP2_CRYPTO_ERROR = 0x100u
 } ngtcp2_transport_error;
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
