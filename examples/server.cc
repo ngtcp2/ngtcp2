@@ -3232,22 +3232,20 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf,
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
-    switch (errno) {
-    case EAGAIN:
-    case EINTR:
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
       if (wev) {
         ev_io_stop(loop_, wev);
         ev_io_set(wev, ep.fd, EV_WRITE);
         ev_io_start(loop_, wev);
       }
       return NETWORK_ERR_SEND_BLOCKED;
-    default:
-      std::cerr << "sendto: " << strerror(errno) << std::endl;
-      // TODO We have packet which is expected to fail to send (e.g.,
-      // path validation to old path).
-      buf.reset();
-      return NETWORK_ERR_OK;
     }
+
+    std::cerr << "sendto: " << strerror(errno) << std::endl;
+    // TODO We have packet which is expected to fail to send (e.g.,
+    // path validation to old path).
+    buf.reset();
+    return NETWORK_ERR_OK;
   }
 
   assert(static_cast<size_t>(nwrite) == buf.size());

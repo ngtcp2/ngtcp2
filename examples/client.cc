@@ -1887,14 +1887,11 @@ int Client::send_packet() {
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
-    switch (errno) {
-    case EAGAIN:
-    case EINTR:
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
       return NETWORK_ERR_SEND_BLOCKED;
-    default:
-      std::cerr << "send: " << strerror(errno) << std::endl;
-      return NETWORK_ERR_FATAL;
     }
+    std::cerr << "sendto: " << strerror(errno) << std::endl;
+    return NETWORK_ERR_FATAL;
   }
 
   assert(static_cast<size_t>(nwrite) == sendbuf_.size());
