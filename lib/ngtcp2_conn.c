@@ -252,7 +252,10 @@ static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
                                            ngtcp2_addr *dest) {
   int rv;
 
-  assert(conn->callbacks.select_preferred_addr);
+  if (!conn->callbacks.select_preferred_addr) {
+    return 0;
+  }
+
   assert(conn->remote.settings.preferred_address_present);
 
   rv = conn->callbacks.select_preferred_addr(
