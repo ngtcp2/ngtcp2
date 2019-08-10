@@ -508,6 +508,7 @@ typedef struct {
   uint64_t max_data;
   uint64_t max_streams_bidi;
   uint64_t max_streams_uni;
+  /* idle_timeout is specified in millisecond resolution */
   uint64_t idle_timeout;
   uint64_t max_packet_size;
   uint64_t active_connection_id_limit;
