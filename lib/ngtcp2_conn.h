@@ -564,7 +564,7 @@ ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ssize_t *pdatalen,
                                            uint32_t flags, int64_t stream_id,
-                                           uint8_t fin, const ngtcp2_vec *datav,
+                                           int fin, const ngtcp2_vec *datav,
                                            size_t datavcnt, ngtcp2_tstamp ts);
 
 /*

@@ -2187,7 +2187,7 @@ typedef enum {
  */
 static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               ssize_t *pdatalen, uint8_t type,
-                              ngtcp2_strm *data_strm, uint8_t fin,
+                              ngtcp2_strm *data_strm, int fin,
                               const ngtcp2_vec *datav, size_t datavcnt,
                               uint8_t flags, ngtcp2_tstamp ts) {
   int rv;
@@ -2614,7 +2614,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     ngtcp2_vec_clone(nfrc->fr.stream.data, data, datacnt);
 
     fin = fin && ndatalen == datalen;
-    nfrc->fr.stream.fin = fin;
+    nfrc->fr.stream.fin = (uint8_t)fin;
 
     rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
     if (rv != 0) {
@@ -3055,7 +3055,7 @@ fail:
  */
 static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                     size_t destlen, ssize_t *pdatalen,
-                                    ngtcp2_strm *strm, uint8_t fin,
+                                    ngtcp2_strm *strm, int fin,
                                     const ngtcp2_vec *datav, size_t datavcnt,
                                     ngtcp2_tstamp ts) {
   ssize_t nwrite;
@@ -7007,7 +7007,7 @@ ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ssize_t *pdatalen,
                                            uint32_t flags, int64_t stream_id,
-                                           uint8_t fin, const ngtcp2_vec *datav,
+                                           int fin, const ngtcp2_vec *datav,
                                            size_t datavcnt, ngtcp2_tstamp ts) {
   ngtcp2_strm *strm = NULL;
   int send_stream = 0;
@@ -7692,7 +7692,7 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, int64_t stream_id) {
 ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
                                  uint8_t *dest, size_t destlen,
                                  ssize_t *pdatalen, uint32_t flags,
-                                 int64_t stream_id, uint8_t fin,
+                                 int64_t stream_id, int fin,
                                  const uint8_t *data, size_t datalen,
                                  ngtcp2_tstamp ts) {
   ngtcp2_vec datav;
@@ -7707,7 +7707,7 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
 ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
                                   uint8_t *dest, size_t destlen,
                                   ssize_t *pdatalen, uint32_t flags,
-                                  int64_t stream_id, uint8_t fin,
+                                  int64_t stream_id, int fin,
                                   const ngtcp2_vec *datav, size_t datavcnt,
                                   ngtcp2_tstamp ts) {
   ngtcp2_strm *strm = NULL;

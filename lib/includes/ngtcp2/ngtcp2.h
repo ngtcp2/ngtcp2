@@ -1996,7 +1996,7 @@ typedef enum {
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ssize_t *pdatalen, uint32_t flags, int64_t stream_id, uint8_t fin,
+    ssize_t *pdatalen, uint32_t flags, int64_t stream_id, int fin,
     const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
 /**
@@ -2110,7 +2110,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
  */
 NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ssize_t *pdatalen, uint32_t flags, int64_t stream_id, uint8_t fin,
+    ssize_t *pdatalen, uint32_t flags, int64_t stream_id, int fin,
     const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
 
 /**
