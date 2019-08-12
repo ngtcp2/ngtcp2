@@ -3652,6 +3652,11 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
   if (strm->tx.max_offset < fr->max_stream_data) {
     strm->tx.max_offset = fr->max_stream_data;
 
+    /* Don't call callback if stream is half-closed local */
+    if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
+      return 0;
+    }
+
     rv = conn_call_extend_max_stream_data(conn, strm, fr->stream_id,
                                           fr->max_stream_data);
     if (rv != 0) {
