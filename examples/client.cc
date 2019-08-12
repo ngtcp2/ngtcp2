@@ -1428,7 +1428,9 @@ int Client::write_streams() {
         if (nwrite < 0) {
           switch (nwrite) {
           case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-            if (ngtcp2_conn_get_max_data_left(conn_) == 0) {
+          case NGTCP2_ERR_STREAM_SHUT_WR:
+            if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED &&
+                ngtcp2_conn_get_max_data_left(conn_) == 0) {
               return 0;
             }
 
@@ -1440,11 +1442,6 @@ int Client::write_streams() {
               disconnect();
               return -1;
             }
-            continue;
-          case NGTCP2_ERR_EARLY_DATA_REJECTED:
-          case NGTCP2_ERR_STREAM_SHUT_WR:
-          case NGTCP2_ERR_STREAM_NOT_FOUND: // This means that stream is
-                                            // closed.
             continue;
           case NGTCP2_ERR_WRITE_STREAM_MORE:
             assert(ndatalen > 0);

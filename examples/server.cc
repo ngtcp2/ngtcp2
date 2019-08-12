@@ -2168,7 +2168,9 @@ int Handler::write_streams() {
         auto should_break = false;
         switch (nwrite) {
         case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-          if (ngtcp2_conn_get_max_data_left(conn_) == 0) {
+        case NGTCP2_ERR_STREAM_SHUT_WR:
+          if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED &&
+              ngtcp2_conn_get_max_data_left(conn_) == 0) {
             return 0;
           }
 
@@ -2179,9 +2181,6 @@ int Handler::write_streams() {
             last_error_ = quic_err_app(rv);
             return handle_error();
           }
-          should_break = true;
-          break;
-        case NGTCP2_ERR_STREAM_SHUT_WR:
           should_break = true;
           break;
         case NGTCP2_ERR_WRITE_STREAM_MORE:
