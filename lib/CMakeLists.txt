@@ -54,6 +54,7 @@ set(ngtcp2_SOURCES
   ngtcp2_addr.c
   ngtcp2_path.c
   ngtcp2_pv.c
+  ngtcp2_version.c
 )
 
 set(ngtcp2_INCLUDE_DIRS
