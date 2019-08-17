@@ -4080,6 +4080,10 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                              const uint8_t *pkt, size_t pktlen,
                              ngtcp2_tstamp ts);
 
+static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
+                                               ngtcp2_pktns *pktns,
+                                               ngtcp2_tstamp ts);
+
 /*
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length is |pktlen| during handshake period.  The buffer pointed by
@@ -4146,11 +4150,17 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return (ssize_t)pktlen;
     }
 
+    if (!conn->server && conn->pktns.crypto.rx.ckm) {
+      rv = conn_process_buffered_protected_pkt(conn, &conn->pktns, ts);
+      if (rv != 0) {
+        return rv;
+      }
+      return conn_recv_pkt(conn, &conn->dcid.current.ps.path, pkt, pktlen, ts);
+    }
+
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "buffering Short packet len=%zu", pktlen);
 
-    /* TODO It would be nicer not to buffer Short packet if we have
-       1RTT key. */
     rv = conn_buffer_pkt(conn, &conn->hs_pktns, path, pkt, pktlen, ts);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
