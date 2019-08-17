@@ -6468,12 +6468,6 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
 
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
 
-  if (!conn->server) {
-    conn->remote.settings = conn->remote.pending_settings;
-    conn_sync_stream_id_limit(conn);
-    conn->tx.max_offset = conn->remote.settings.max_data;
-  }
-
   rv = conn_call_handshake_completed(conn);
   if (rv != 0) {
     return rv;
@@ -7336,7 +7330,16 @@ int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->crypto.rx.hp, pn, pnlen, conn->mem);
+  rv = ngtcp2_vec_new(&pktns->crypto.rx.hp, pn, pnlen, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  conn->remote.settings = conn->remote.pending_settings;
+  conn_sync_stream_id_limit(conn);
+  conn->tx.max_offset = conn->remote.settings.max_data;
+
+  return 0;
 }
 
 int ngtcp2_conn_update_tx_key(ngtcp2_conn *conn, const uint8_t *key,
@@ -7594,12 +7597,7 @@ int ngtcp2_conn_set_remote_transport_params(
                            : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
                        params);
 
-  if (conn->server) {
-    /* Since server can use 1RTT packet after receiving client
-       Initial, and sending its Handshake packet, it seems to be OK to
-       set remote settings here.  Responding HTTP/3 request included
-       in 0RTT requires opening unidirectional streams and we need
-       those parameters in place. */
+  if (conn->pktns.crypto.rx.ckm) {
     settings_copy_from_transport_params(&conn->remote.settings, params);
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.settings.max_data;

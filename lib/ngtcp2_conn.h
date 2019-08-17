@@ -387,8 +387,8 @@ struct ngtcp2_conn {
   struct {
     ngtcp2_settings settings;
     /* pending_settings is received transport parameters during
-       handshake.  It is copied to settings when handshake
-       completes. */
+       handshake.  It is copied to settings when 1RTT key is
+       available. */
     ngtcp2_settings pending_settings;
     struct {
       ngtcp2_idtr idtr;
