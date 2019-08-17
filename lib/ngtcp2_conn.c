@@ -4671,6 +4671,13 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   uint64_t offset;
 
   for (;;) {
+    /* Stop calling callback if application has called
+       ngtcp2_conn_shutdown_stream_read() inside the callback.
+       Because it doubly counts connection window. */
+    if (strm->flags & (NGTCP2_STRM_FLAG_STOP_SENDING)) {
+      return 0;
+    }
+
     datalen = ngtcp2_rob_data_at(&strm->rx.rob, &data, rx_offset);
     if (datalen == 0) {
       assert(rx_offset == ngtcp2_strm_rx_offset(strm));
@@ -4689,13 +4696,6 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     }
 
     ngtcp2_rob_pop(&strm->rx.rob, rx_offset - datalen, datalen);
-
-    /* Stop calling callback if application has called
-       ngtcp2_conn_shutdown_stream_read() inside the callback.
-       Because it doubly counts connection window. */
-    if (strm->flags & (NGTCP2_STRM_FLAG_STOP_SENDING)) {
-      return 0;
-    }
   }
 }
 
@@ -8077,8 +8077,11 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
  */
 static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                      uint64_t app_error_code) {
-  if (strm->flags &
-      (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) {
+  if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+    return 0;
+  }
+  if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+      ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) {
     return 0;
   }
 

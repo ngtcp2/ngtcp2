@@ -301,6 +301,24 @@ static int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
   return 0;
 }
 
+static int
+recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, int64_t stream_id,
+                                      int fin, uint64_t offset,
+                                      const uint8_t *data, size_t datalen,
+                                      void *user_data, void *stream_user_data) {
+  int rv;
+
+  recv_stream_data(conn, stream_id, fin, offset, data, datalen, user_data,
+                   stream_user_data);
+
+  rv = ngtcp2_conn_shutdown_stream_read(conn, stream_id, NGTCP2_APP_ERR01);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_pkt_retry *retry, void *user_data) {
   (void)conn;
@@ -3233,6 +3251,51 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(-1 == ud.stream_data.stream_id);
   CU_ASSERT(199 == conn->rx.unsent_max_offset - conn->local.settings.max_data);
+
+  ngtcp2_conn_del(conn);
+
+  /* ngtcp2_conn_shutdown_stream_read is called in recv_stream_data
+     callback.  Further recv_stream_data callback must not be
+     called. */
+  setup_default_server(&conn);
+  conn->callbacks.recv_stream_data = recv_stream_data_shutdown_stream_read;
+  conn->user_data = &ud;
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 599;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 1;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ud.stream_data.stream_id);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 599;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  memset(&ud, 0, sizeof(ud));
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(4 == ud.stream_data.stream_id);
+  CU_ASSERT(0 == ud.stream_data.fin);
+  CU_ASSERT(599 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
 }
