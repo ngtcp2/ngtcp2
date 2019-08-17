@@ -1624,6 +1624,76 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
+
+  /* RESET_STREAM extends connection window including buffered data */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 1;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 955;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 1, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM;
+  fr.reset_stream.stream_id = 4;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR02;
+  fr.reset_stream.final_size = 1024;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 2, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 2);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(128 * 1024 + 1024 == conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
+
+  /* Verify that connection window is properly updated when
+     RESET_STREAM is received after sending STOP_SENDING */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 4;
+  fr.stream.fin = 0;
+  fr.stream.offset = 1;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 955;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 1, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), NULL,
+                           NGTCP2_WRITE_STREAM_FLAG_NONE, 4, 0, null_data, 354,
+                           2);
+  ngtcp2_conn_shutdown_stream_read(conn, 4, NGTCP2_APP_ERR01);
+  ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), 3);
+
+  CU_ASSERT(128 * 1024 + 956 == conn->rx.unsent_max_offset);
+
+  fr.type = NGTCP2_FRAME_RESET_STREAM;
+  fr.reset_stream.stream_id = 4;
+  fr.reset_stream.app_error_code = NGTCP2_APP_ERR02;
+  fr.reset_stream.final_size = 957;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 2, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 4);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 4));
+  CU_ASSERT(128 * 1024 + 956 + 1 == conn->rx.unsent_max_offset);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_stop_sending(void) {

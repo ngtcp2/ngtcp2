@@ -4689,6 +4689,13 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     }
 
     ngtcp2_rob_pop(&strm->rx.rob, rx_offset - datalen, datalen);
+
+    /* Stop calling callback if application has called
+       ngtcp2_conn_shutdown_stream_read() inside the callback.
+       Because it doubly counts connection window. */
+    if (strm->flags & (NGTCP2_STRM_FLAG_STOP_SENDING)) {
+      return 0;
+    }
   }
 }
 
@@ -5198,6 +5205,13 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
                                 fr->app_error_code, strm->stream_user_data);
     if (rv != 0) {
       return rv;
+    }
+
+    /* Extend connection flow control window for the amount of data
+       which are not passed to application. */
+    if (!(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
+      ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
+                                              ngtcp2_strm_rx_offset(strm));
     }
   }
 
@@ -8066,6 +8080,14 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
   if (strm->flags &
       (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) {
     return 0;
+  }
+
+  /* Extend connection flow control window for the amount of data
+     which are not passed to application. */
+  if (!(strm->flags &
+        (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST))) {
+    ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
+                                            ngtcp2_strm_rx_offset(strm));
   }
 
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
