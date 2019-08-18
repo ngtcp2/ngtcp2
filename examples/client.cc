@@ -189,6 +189,13 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
                          ivlen, hp.data(), hplen);
   }
 
+  if (name == SSL_KEY_SERVER_APPLICATION_TRAFFIC) {
+    rv = setup_httpconn();
+    if (rv != 0) {
+      return -1;
+    }
+  }
+
   return 0;
 }
 
@@ -611,7 +618,7 @@ int Client::handshake_completed() {
     start_delay_stream_timer();
   }
 
-  return setup_httpconn();
+  return 0;
 }
 
 namespace {
