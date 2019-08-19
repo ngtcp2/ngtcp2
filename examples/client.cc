@@ -2841,6 +2841,7 @@ void print_help() {
   std::cout << R"(
   <ADDR>      Remote server address
   <PORT>      Remote server port
+  <URI>       Remote URI
 Options:
   -t, --tx-loss=<P>
               The probability of losing outgoing packets.  <P> must be
