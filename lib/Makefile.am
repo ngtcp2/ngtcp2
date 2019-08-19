@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2016 ngtcp2
+# Copyright (c) 2016 - 2019 ngtcp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -58,7 +58,8 @@ OBJECTS = \
 	ngtcp2_cc.c \
 	ngtcp2_addr.c \
 	ngtcp2_path.c \
-	ngtcp2_pv.c
+	ngtcp2_pv.c \
+	ngtcp2_version.c
 
 HFILES = \
 	ngtcp2_pkt.h \

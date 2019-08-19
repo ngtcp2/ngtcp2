@@ -2483,6 +2483,48 @@ NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
  */
 NGTCP2_EXTERN const ngtcp2_mem *ngtcp2_mem_default(void);
 
+/**
+ * @macro
+ *
+ * The age of :type:`ngtcp2_info`
+ */
+#define NGTCP2_VERSION_AGE 1
+
+/**
+ * @struct
+ *
+ * This struct is what `ngtcp2_version()` returns.  It holds
+ * information about the particular ngtcp2 version.
+ */
+typedef struct {
+  /**
+   * Age of this struct.  This instance of ngtcp2 sets it to
+   * :macro:`NGTCP2_VERSION_AGE` but a future version may bump it and
+   * add more struct fields at the bottom
+   */
+  int age;
+  /**
+   * the :macro:`NGTCP2_VERSION_NUM` number (since age ==1)
+   */
+  int version_num;
+  /**
+   * points to the :macro:`NGTCP2_VERSION` string (since age ==1)
+   */
+  const char *version_str;
+  /* -------- the above fields all exist when age == 1 */
+} ngtcp2_info;
+
+/**
+ * @function
+ *
+ * Returns a pointer to a ngtcp2_info struct with version information
+ * about the run-time library in use.  The |least_version| argument
+ * can be set to a 24 bit numerical value for the least accepted
+ * version number and if the condition is not met, this function will
+ * return a ``NULL``.  Pass in 0 to skip the version checking.
+ */
+NGTCP2_EXTERN ngtcp2_info *ngtcp2_version(int least_version);
+
 #ifdef __cplusplus
 }
 #endif
