@@ -157,9 +157,6 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
     }
     ngtcp2_conn_install_early_keys(conn_, key.data(), keylen, iv.data(), ivlen,
                                    hp.data(), hplen);
-    if (setup_httpconn() != 0) {
-      return -1;
-    }
     break;
   }
   case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
@@ -198,6 +195,13 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
   if (!config.quiet) {
     debug::print_secrets(secret, secretlen, key.data(), keylen, iv.data(),
                          ivlen, hp.data(), hplen);
+  }
+
+  if (name == SSL_KEY_SERVER_APPLICATION_TRAFFIC) {
+    rv = setup_httpconn();
+    if (rv != 0) {
+      return -1;
+    }
   }
 
   return 0;
@@ -921,7 +925,7 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 
 int Handler::handshake_completed() {
   rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
-  return setup_httpconn() != 0;
+  return 0;
 }
 
 namespace {

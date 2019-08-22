@@ -7313,6 +7313,12 @@ int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return rv;
   }
 
+  if (conn->server) {
+    conn->remote.settings = conn->remote.pending_settings;
+    conn_sync_stream_id_limit(conn);
+    conn->tx.max_offset = conn->remote.settings.max_data;
+  }
+
   return ngtcp2_vec_new(&pktns->crypto.tx.hp, pn, pnlen, conn->mem);
 }
 
@@ -7335,9 +7341,11 @@ int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
     return rv;
   }
 
-  conn->remote.settings = conn->remote.pending_settings;
-  conn_sync_stream_id_limit(conn);
-  conn->tx.max_offset = conn->remote.settings.max_data;
+  if (!conn->server) {
+    conn->remote.settings = conn->remote.pending_settings;
+    conn_sync_stream_id_limit(conn);
+    conn->tx.max_offset = conn->remote.settings.max_data;
+  }
 
   return 0;
 }
