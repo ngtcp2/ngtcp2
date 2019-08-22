@@ -147,7 +147,7 @@ int hkdf_expand_label(uint8_t *dest, size_t destlen, const uint8_t *secret,
                       size_t secretlen, const uint8_t *label, size_t labellen,
                       const Context &ctx);
 
-// hkdf_expand perhorms HKDF-Expand.  It returns 0 if it succeeds, or
+// hkdf_expand performs HKDF-Expand.  It returns 0 if it succeeds, or
 // -1.
 int hkdf_expand(uint8_t *dest, size_t destlen, const uint8_t *secret,
                 size_t secretlen, const uint8_t *label, size_t labellen,
