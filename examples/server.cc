@@ -1397,6 +1397,31 @@ int http_end_request_headers(nghttp3_conn *conn, int64_t stream_id,
 } // namespace
 
 int Handler::http_end_request_headers(int64_t stream_id) {
+  if (config.early_response) {
+    return start_response(stream_id);
+  }
+  return 0;
+}
+
+namespace {
+int http_end_stream(nghttp3_conn *conn, int64_t stream_id, void *user_data,
+                    void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  if (h->http_end_stream(stream_id) != 0) {
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Handler::http_end_stream(int64_t stream_id) {
+  if (!config.early_response) {
+    return start_response(stream_id);
+  }
+  return 0;
+}
+
+int Handler::start_response(int64_t stream_id) {
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
@@ -1458,6 +1483,10 @@ int Handler::setup_httpconn() {
       nullptr, // begin_push_promise
       nullptr, // recv_push_promise
       nullptr, // end_push_promise
+      nullptr, // cancel_push
+      nullptr, // send_stop_sending
+      nullptr, // push_stream
+      ::http_end_stream,
   };
   nghttp3_conn_settings settings;
   nghttp3_conn_settings_default(&settings);
@@ -3611,6 +3640,11 @@ Options:
               extensions.
               Default: )"
             << config.mime_types_file << R"(
+  --early-response
+              Start  sending response  when  it  receives HTTP  header
+              fields  without  waiting  for  request  body.   If  HTTP
+              response data is written  before receiving request body,
+              STOP_SENDING is sent.
   -h, --help  Display this help and exit.
 )";
 }
@@ -3635,6 +3669,7 @@ int main(int argc, char **argv) {
         {"preferred-ipv4-addr", required_argument, &flag, 4},
         {"preferred-ipv6-addr", required_argument, &flag, 5},
         {"mime-types-file", required_argument, &flag, 6},
+        {"early-response", no_argument, nullptr, 7},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3716,6 +3751,10 @@ int main(int argc, char **argv) {
       case 6:
         // --mime-types-file
         config.mime_types_file = optarg;
+        break;
+      case 7:
+        // --early-response
+        config.early_response = optarg;
         break;
       }
       break;

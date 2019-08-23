@@ -80,6 +80,11 @@ struct Config {
   bool show_secret;
   // validate_addr is true if server requires address validation.
   bool validate_addr;
+  // early_response is true if server starts sending response when it
+  // receives HTTP header fields without waiting for request body.  If
+  // HTTP response data is written before receiving request body,
+  // STOP_SENDING is sent.
+  bool early_response;
 };
 
 struct Buffer {
@@ -271,6 +276,8 @@ public:
   void http_recv_request_header(int64_t stream_id, int32_t token,
                                 nghttp3_rcbuf *name, nghttp3_rcbuf *value);
   int http_end_request_headers(int64_t stream_id);
+  int http_end_stream(int64_t stream_id);
+  int start_response(int64_t stream_id);
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
