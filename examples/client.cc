@@ -2171,9 +2171,6 @@ int Client::submit_http_request(int64_t stream_id) {
     return -1;
   }
 
-  rv = nghttp3_conn_end_stream(httpconn_, stream_id);
-  assert(0 == rv);
-
   if (nghttp3_conn_get_remote_num_placeholders(httpconn_) > 0) {
     if (!placeholder_created_) {
       rv = nghttp3_conn_submit_priority(

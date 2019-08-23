@@ -493,7 +493,7 @@ int read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
 
   *pdata = stream->data;
   *pdatalen = stream->datalen;
-  *pflags |= NGHTTP3_DATA_FLAG_EOF;
+  *pflags |= NGHTTP3_DATA_FLAG_EOF | NGHTTP3_DATA_FLAG_NO_END_STREAM;
 
   return 0;
 }
@@ -523,7 +523,7 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
   stream->dyndataleft -= len;
 
   if (stream->dyndataleft == 0) {
-    *pflags |= NGHTTP3_DATA_FLAG_EOF;
+    *pflags |= NGHTTP3_DATA_FLAG_EOF | NGHTTP3_DATA_FLAG_NO_END_STREAM;
     auto stream_id_str = std::to_string(stream_id);
     std::array<nghttp3_nv, 1> trailers{
         util::make_nv("x-ngtcp2-stream-id", stream_id_str),
@@ -536,9 +536,6 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
                 << std::endl;
       return NGHTTP3_ERR_CALLBACK_FAILURE;
     }
-
-    rv = nghttp3_conn_end_stream(conn, stream_id);
-    assert(0 == rv);
   }
 
   return 0;
@@ -615,9 +612,6 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
               << std::endl;
     return -1;
   }
-
-  rv = nghttp3_conn_end_stream(httpconn, stream_id);
-  assert(0 == rv);
 
   handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
 
@@ -742,9 +736,6 @@ int Stream::start_response(nghttp3_conn *httpconn) {
                 << std::endl;
       return -1;
     }
-
-    rv = nghttp3_conn_end_stream(httpconn, stream_id);
-    assert(0 == rv);
 
     handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
   }
