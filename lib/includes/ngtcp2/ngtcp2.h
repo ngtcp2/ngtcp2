@@ -190,6 +190,10 @@ typedef struct {
 /* NGTCP2_HP_MASKLEN is the length of header protection mask. */
 #define NGTCP2_HP_MASKLEN 5
 
+/* NGTCP2_HP_SAMPLELEN is the number bytes sampled when encrypting a
+   packet header. */
+#define NGTCP2_HP_SAMPLELEN 16
+
 /* NGTCP2_DURATION_TICK is a count of tick per second. */
 #define NGTCP2_DURATION_TICK 1000000000ULL
 
@@ -978,26 +982,26 @@ typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * :type:`ngtcp2_encrypt` is invoked when the ngtcp2 library asks the
  * application to encrypt packet payload.  The packet payload to
  * encrypt is passed as |plaintext| of length |plaintextlen|.  The
- * encryption key is passed as |key| of length |keylen|.  The nonce is
- * passed as |nonce| of length |noncelen|.  The ad, Additional Data to
- * AEAD, is passed as |ad| of length |adlen|.
+ * encryption key is passed as |key|.  The nonce is passed as |nonce|
+ * of length |noncelen|.  The ad, Additional Data to AEAD, is passed
+ * as |ad| of length |adlen|.
  *
  * The implementation of this callback must encrypt |plaintext| using
  * the negotiated cipher suite and write the ciphertext into the
- * buffer pointed by |dest| of length |destlen|.
+ * buffer pointed by |dest|.  |dest| has enough capacity to store the
+ * ciphertext.
  *
  * |dest| and |plaintext| may point to the same buffer.
  *
- * The callback function must return the number of bytes written to
- * |dest|, or :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the
- * library call return immediately.
+ * The callback function must return 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
+ * return immediately.
  */
-typedef ssize_t (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
-                                  size_t destlen, const uint8_t *plaintext,
-                                  size_t plaintextlen, const uint8_t *key,
-                                  size_t keylen, const uint8_t *nonce,
-                                  size_t noncelen, const uint8_t *ad,
-                                  size_t adlen, void *user_data);
+typedef int (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
+                              const uint8_t *plaintext, size_t plaintextlen,
+                              const uint8_t *key, const uint8_t *nonce,
+                              size_t noncelen, const uint8_t *ad, size_t adlen,
+                              void *user_data);
 
 /**
  * @functypedef
@@ -1011,22 +1015,21 @@ typedef ssize_t (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
  *
  * The implementation of this callback must decrypt |ciphertext| using
  * the negotiated cipher suite and write the ciphertext into the
- * buffer pointed by |dest| of length |destlen|.
+ * buffer pointed by |dest|.  |dest| has enough capacity to store the
+ * cleartext.
  *
  * |dest| and |ciphertext| may point to the same buffer.
  *
- * The callback function must return the number of bytes written to
- * |dest|.  If TLS stack fails to decrypt data, return
- * :enum:`NGTCP2_ERR_TLS_DECRYPT`.  For any other errors, return
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
- * return immediately.
+ * The callback function must return 0 if it succeeds.  If TLS stack
+ * fails to decrypt data, return :enum:`NGTCP2_ERR_TLS_DECRYPT`.  For
+ * any other errors, return :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which
+ * makes the library call return immediately.
  */
-typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
-                                  size_t destlen, const uint8_t *ciphertext,
-                                  size_t ciphertextlen, const uint8_t *key,
-                                  size_t keylen, const uint8_t *nonce,
-                                  size_t noncelen, const uint8_t *ad,
-                                  size_t adlen, void *user_data);
+typedef int (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
+                              const uint8_t *ciphertext, size_t ciphertextlen,
+                              const uint8_t *key, const uint8_t *nonce,
+                              size_t noncelen, const uint8_t *ad, size_t adlen,
+                              void *user_data);
 
 /**
  * @functypedef
@@ -1038,19 +1041,17 @@ typedef ssize_t (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
  *
  * The implementation of this callback must produce a mask using the
  * header protection cipher suite specified by QUIC specification and
- * write the result into the buffer pointed by |dest| of length
- * |destlen|.  The length of mask must be at least
- * :macro:`NGTCP2_HP_MASKLEN`.  The library ensures that |destlen| is
- * at least :macro:`NGTCP2_HP_MASKLEN`.
+ * write the result into the buffer pointed by |dest|.  The length of
+ * mask must be :macro:`NGTCP2_HP_MASKLEN`.  The library ensures that
+ * |dest| has enough capacity.
  *
- * The callback function must return the number of bytes written to
- * |dest|, or :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the
- * library call return immediately.
+ * The callback function must return 0 if it succeeds, or
+ *  :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
+ *  return immediately.
  */
-typedef ssize_t (*ngtcp2_hp_mask)(ngtcp2_conn *conn, uint8_t *dest,
-                                  size_t destlen, const uint8_t *key,
-                                  size_t keylen, const uint8_t *sample,
-                                  size_t samplelen, void *user_data);
+typedef int (*ngtcp2_hp_mask)(ngtcp2_conn *conn, uint8_t *dest,
+                              const uint8_t *key, const uint8_t *sample,
+                              void *user_data);
 
 /**
  * @functypedef

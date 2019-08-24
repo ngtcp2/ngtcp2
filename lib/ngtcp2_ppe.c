@@ -104,16 +104,15 @@ int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr) {
 }
 
 ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
-  ssize_t nwrite;
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_ctx *ctx = ppe->ctx;
   ngtcp2_conn *conn = ctx->user_data;
   uint8_t *payload = buf->begin + ppe->hdlen;
   size_t payloadlen = ngtcp2_buf_len(buf) - ppe->hdlen;
-  size_t destlen = (size_t)(buf->end - buf->begin) - ppe->hdlen;
   uint8_t mask[NGTCP2_HP_SAMPLELEN];
   uint8_t *p;
   size_t i;
+  int rv;
 
   assert(ppe->ctx->encrypt);
   assert(ppe->ctx->hp_mask);
@@ -127,23 +126,21 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   ngtcp2_crypto_create_nonce(ppe->nonce, ctx->ckm->iv.base, ctx->ckm->iv.len,
                              ppe->pkt_num);
 
-  nwrite = ppe->ctx->encrypt(conn, payload, destlen, payload, payloadlen,
-                             ctx->ckm->key.base, ctx->ckm->key.len, ppe->nonce,
-                             ctx->ckm->iv.len, buf->begin, ppe->hdlen,
-                             conn->user_data);
-  if (nwrite < 0) {
+  rv = ppe->ctx->encrypt(conn, payload, payload, payloadlen, ctx->ckm->key.base,
+                         ppe->nonce, ctx->ckm->iv.len, buf->begin, ppe->hdlen,
+                         conn->user_data);
+  if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  buf->last = payload + nwrite;
+  buf->last = payload + payloadlen + ppe->ctx->aead_overhead;
 
   /* TODO Check that we have enough space to get sample */
   assert(ppe->sample_offset + NGTCP2_HP_SAMPLELEN <= ngtcp2_buf_len(buf));
 
-  nwrite = ppe->ctx->hp_mask(conn, mask, sizeof(mask), ctx->hp->base,
-                             ctx->hp->len, buf->begin + ppe->sample_offset,
-                             NGTCP2_HP_SAMPLELEN, conn->user_data);
-  if (nwrite < NGTCP2_HP_MASKLEN) {
+  rv = ppe->ctx->hp_mask(conn, mask, ctx->hp->base,
+                         buf->begin + ppe->sample_offset, conn->user_data);
+  if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 

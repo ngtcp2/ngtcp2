@@ -701,112 +701,96 @@ int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
 } // namespace
 
 namespace {
-ssize_t do_hs_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                      const uint8_t *plaintext, size_t plaintextlen,
-                      const uint8_t *key, size_t keylen, const uint8_t *nonce,
-                      size_t noncelen, const uint8_t *ad, size_t adlen,
-                      void *user_data) {
+int do_in_encrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *plaintext,
+                  size_t plaintextlen, const uint8_t *key, const uint8_t *nonce,
+                  size_t noncelen, const uint8_t *ad, size_t adlen,
+                  void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->hs_encrypt_data(dest, destlen, plaintext, plaintextlen, key,
-                                   keylen, nonce, noncelen, ad, adlen);
-  if (nwrite < 0) {
+  if (c->in_encrypt_data(dest, plaintext, plaintextlen, key, nonce, noncelen,
+                         ad, adlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
-
-  return nwrite;
+  return 0;
 }
 } // namespace
 
 namespace {
-ssize_t do_hs_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                      const uint8_t *ciphertext, size_t ciphertextlen,
-                      const uint8_t *key, size_t keylen, const uint8_t *nonce,
-                      size_t noncelen, const uint8_t *ad, size_t adlen,
-                      void *user_data) {
+int do_in_decrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *ciphertext,
+                  size_t ciphertextlen, const uint8_t *key,
+                  const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
+                  size_t adlen, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->hs_decrypt_data(dest, destlen, ciphertext, ciphertextlen,
-                                   key, keylen, nonce, noncelen, ad, adlen);
-  if (nwrite < 0) {
+  if (c->in_decrypt_data(dest, ciphertext, ciphertextlen, key, nonce, noncelen,
+                         ad, adlen) != 0) {
     return NGTCP2_ERR_TLS_DECRYPT;
   }
-
-  return nwrite;
+  return 0;
 }
 } // namespace
 
 namespace {
-ssize_t do_encrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                   const uint8_t *plaintext, size_t plaintextlen,
-                   const uint8_t *key, size_t keylen, const uint8_t *nonce,
-                   size_t noncelen, const uint8_t *ad, size_t adlen,
-                   void *user_data) {
+int do_encrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *plaintext,
+               size_t plaintextlen, const uint8_t *key, const uint8_t *nonce,
+               size_t noncelen, const uint8_t *ad, size_t adlen,
+               void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->encrypt_data(dest, destlen, plaintext, plaintextlen, key,
-                                keylen, nonce, noncelen, ad, adlen);
-  if (nwrite < 0) {
+  if (c->encrypt_data(dest, plaintext, plaintextlen, key, nonce, noncelen, ad,
+                      adlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
-
-  return nwrite;
+  return 0;
 }
 } // namespace
 
 namespace {
-ssize_t do_decrypt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                   const uint8_t *ciphertext, size_t ciphertextlen,
-                   const uint8_t *key, size_t keylen, const uint8_t *nonce,
-                   size_t noncelen, const uint8_t *ad, size_t adlen,
-                   void *user_data) {
+int do_decrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *ciphertext,
+               size_t ciphertextlen, const uint8_t *key, const uint8_t *nonce,
+               size_t noncelen, const uint8_t *ad, size_t adlen,
+               void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->decrypt_data(dest, destlen, ciphertext, ciphertextlen, key,
-                                keylen, nonce, noncelen, ad, adlen);
-  if (nwrite < 0) {
+  if (c->decrypt_data(dest, ciphertext, ciphertextlen, key, nonce, noncelen, ad,
+                      adlen) != 0) {
     return NGTCP2_ERR_TLS_DECRYPT;
   }
-
-  return nwrite;
+  return 0;
 }
 } // namespace
 
 namespace {
-ssize_t do_in_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                      const uint8_t *key, size_t keylen, const uint8_t *sample,
-                      size_t samplelen, void *user_data) {
+int do_in_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *key,
+                  const uint8_t *sample, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->in_hp_mask(dest, destlen, key, keylen, sample, samplelen);
-  if (nwrite < 0) {
+  if (c->in_hp_mask(dest, key, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_hp_mask(dest, destlen, sample, samplelen);
+    debug::print_hp_mask(dest, NGTCP2_HP_MASKLEN, sample, NGTCP2_HP_SAMPLELEN);
   }
 
-  return nwrite;
+  return 0;
 }
 } // namespace
 
 namespace {
-ssize_t do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                   const uint8_t *key, size_t keylen, const uint8_t *sample,
-                   size_t samplelen, void *user_data) {
+int do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *key,
+               const uint8_t *sample, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  auto nwrite = c->hp_mask(dest, destlen, key, keylen, sample, samplelen);
-  if (nwrite < 0) {
+  if (c->hp_mask(dest, key, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_hp_mask(dest, destlen, sample, samplelen);
+    debug::print_hp_mask(dest, NGTCP2_HP_MASKLEN, sample, NGTCP2_HP_SAMPLELEN);
   }
 
-  return nwrite;
+  return 0;
 }
 } // namespace
 
@@ -971,8 +955,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       recv_crypto_data,
       ::handshake_completed,
       nullptr, // recv_version_negotiation
-      do_hs_encrypt,
-      do_hs_decrypt,
+      do_in_encrypt,
+      do_in_decrypt,
       do_encrypt,
       do_decrypt,
       do_in_hp_mask,
@@ -1532,76 +1516,67 @@ int Client::write_server_handshake(ngtcp2_crypto_level crypto_level,
   return 0;
 }
 
-ssize_t Client::hs_encrypt_data(uint8_t *dest, size_t destlen,
-                                const uint8_t *plaintext, size_t plaintextlen,
-                                const uint8_t *key, size_t keylen,
-                                const uint8_t *nonce, size_t noncelen,
-                                const uint8_t *ad, size_t adlen) {
+int Client::in_encrypt_data(uint8_t *dest, const uint8_t *plaintext,
+                            size_t plaintextlen, const uint8_t *key,
+                            const uint8_t *nonce, size_t noncelen,
+                            const uint8_t *ad, size_t adlen) {
   auto &aead = in_crypto_ctx.aead;
   if (ngtcp2_crypto_encrypt(dest, &aead, plaintext, plaintextlen, key, nonce,
                             noncelen, ad, adlen) != 0) {
     return -1;
   }
-  return plaintextlen + ngtcp2_crypto_aead_taglen(&aead);
+  return 0;
 }
 
-ssize_t Client::hs_decrypt_data(uint8_t *dest, size_t destlen,
-                                const uint8_t *ciphertext, size_t ciphertextlen,
-                                const uint8_t *key, size_t keylen,
-                                const uint8_t *nonce, size_t noncelen,
-                                const uint8_t *ad, size_t adlen) {
+int Client::in_decrypt_data(uint8_t *dest, const uint8_t *ciphertext,
+                            size_t ciphertextlen, const uint8_t *key,
+                            const uint8_t *nonce, size_t noncelen,
+                            const uint8_t *ad, size_t adlen) {
   auto &aead = in_crypto_ctx.aead;
   if (ngtcp2_crypto_decrypt(dest, &aead, ciphertext, ciphertextlen, key, nonce,
                             noncelen, ad, adlen) != 0) {
     return -1;
   }
-  assert(ciphertextlen >= ngtcp2_crypto_aead_taglen(&aead));
-  return ciphertextlen - ngtcp2_crypto_aead_taglen(&aead);
+  return 0;
 }
 
-ssize_t Client::encrypt_data(uint8_t *dest, size_t destlen,
-                             const uint8_t *plaintext, size_t plaintextlen,
-                             const uint8_t *key, size_t keylen,
-                             const uint8_t *nonce, size_t noncelen,
-                             const uint8_t *ad, size_t adlen) {
+int Client::encrypt_data(uint8_t *dest, const uint8_t *plaintext,
+                         size_t plaintextlen, const uint8_t *key,
+                         const uint8_t *nonce, size_t noncelen,
+                         const uint8_t *ad, size_t adlen) {
   auto &aead = crypto_ctx_.aead;
   if (ngtcp2_crypto_encrypt(dest, &aead, plaintext, plaintextlen, key, nonce,
                             noncelen, ad, adlen) != 0) {
     return -1;
   }
-  return plaintextlen + ngtcp2_crypto_aead_taglen(&aead);
+  return 0;
 }
 
-ssize_t Client::decrypt_data(uint8_t *dest, size_t destlen,
-                             const uint8_t *ciphertext, size_t ciphertextlen,
-                             const uint8_t *key, size_t keylen,
-                             const uint8_t *nonce, size_t noncelen,
-                             const uint8_t *ad, size_t adlen) {
+int Client::decrypt_data(uint8_t *dest, const uint8_t *ciphertext,
+                         size_t ciphertextlen, const uint8_t *key,
+                         const uint8_t *nonce, size_t noncelen,
+                         const uint8_t *ad, size_t adlen) {
   auto &aead = crypto_ctx_.aead;
   if (ngtcp2_crypto_decrypt(dest, &aead, ciphertext, ciphertextlen, key, nonce,
                             noncelen, ad, adlen) != 0) {
     return -1;
   }
-  assert(ciphertextlen >= ngtcp2_crypto_aead_taglen(&aead));
-  return ciphertextlen - ngtcp2_crypto_aead_taglen(&aead);
+  return 0;
 }
 
-ssize_t Client::in_hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
-                           size_t keylen, const uint8_t *sample,
-                           size_t samplelen) {
+int Client::in_hp_mask(uint8_t *dest, const uint8_t *key,
+                       const uint8_t *sample) {
   if (ngtcp2_crypto_hp_mask(dest, &in_crypto_ctx.hp, key, sample) != 0) {
     return -1;
   }
-  return 5;
+  return 0;
 }
 
-ssize_t Client::hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
-                        size_t keylen, const uint8_t *sample,
-                        size_t samplelen) {
+int Client::hp_mask(uint8_t *dest, const uint8_t *key, const uint8_t *sample) {
   if (ngtcp2_crypto_hp_mask(dest, &crypto_ctx_.hp, key, sample) != 0) {
     return -1;
   }
-  return 5;
+  return 0;
 }
 
 void Client::on_recv_retry() { setup_initial_crypto_context(); }

@@ -41,10 +41,6 @@
 /* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
 #define NGTCP2_MAX_AEAD_OVERHEAD 16
 
-/* NGTCP2_HP_SAMPLELEN is the number bytes sampled when encrypting a
-   packet header. */
-#define NGTCP2_HP_SAMPLELEN 16
-
 typedef enum {
   NGTCP2_CRYPTO_KM_FLAG_NONE,
   /* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
