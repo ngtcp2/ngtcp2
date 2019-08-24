@@ -277,25 +277,20 @@ typedef enum ngtcp2_pkt_type {
   NGTCP2_PKT_SHORT = 0x70
 } ngtcp2_pkt_type;
 
-#if defined(__cplusplus) && __cplusplus >= 201103L
-typedef enum ngtcp2_transport_error : int {
-#else
-typedef enum ngtcp2_transport_error {
-#endif
-  NGTCP2_NO_ERROR = 0x0u,
-  NGTCP2_INTERNAL_ERROR = 0x1u,
-  NGTCP2_SERVER_BUSY = 0x2u,
-  NGTCP2_FLOW_CONTROL_ERROR = 0x3u,
-  NGTCP2_STREAM_LIMIT_ERROR = 0x4u,
-  NGTCP2_STREAM_STATE_ERROR = 0x5u,
-  NGTCP2_FINAL_SIZE_ERROR = 0x6u,
-  NGTCP2_FRAME_ENCODING_ERROR = 0x7u,
-  NGTCP2_TRANSPORT_PARAMETER_ERROR = 0x8u,
-  NGTCP2_PROTOCOL_VIOLATION = 0xau,
-  NGTCP2_INVALID_MIGRATION = 0xcu,
-  NGTCP2_CRYPTO_BUFFER_EXCEEDED = 0xdu,
-  NGTCP2_CRYPTO_ERROR = 0x100u
-} ngtcp2_transport_error;
+/* QUIC transport error code. */
+#define NGTCP2_NO_ERROR 0x0u
+#define NGTCP2_INTERNAL_ERROR 0x1u
+#define NGTCP2_SERVER_BUSY 0x2u
+#define NGTCP2_FLOW_CONTROL_ERROR 0x3u
+#define NGTCP2_STREAM_LIMIT_ERROR 0x4u
+#define NGTCP2_STREAM_STATE_ERROR 0x5u
+#define NGTCP2_FINAL_SIZE_ERROR 0x6u
+#define NGTCP2_FRAME_ENCODING_ERROR 0x7u
+#define NGTCP2_TRANSPORT_PARAMETER_ERROR 0x8u
+#define NGTCP2_PROTOCOL_VIOLATION 0xau
+#define NGTCP2_INVALID_MIGRATION 0xcu
+#define NGTCP2_CRYPTO_BUFFER_EXCEEDED 0xdu
+#define NGTCP2_CRYPTO_ERROR 0x100u
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
 typedef enum ngtcp2_path_validation_result : int {
