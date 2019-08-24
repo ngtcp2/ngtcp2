@@ -34,6 +34,7 @@
 #include <map>
 
 #include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 #include <nghttp3/nghttp3.h>
 
 #include <openssl/ssl.h>
@@ -41,7 +42,6 @@
 #include <ev.h>
 
 #include "network.h"
-#include "crypto.h"
 #include "template.h"
 #include "shared.h"
 
@@ -268,8 +268,7 @@ private:
   const char *addr_;
   // port_ is the server port.
   const char *port_;
-  crypto::Context hs_crypto_ctx_;
-  crypto::Context crypto_ctx_;
+  ngtcp2_crypto_ctx crypto_ctx_;
   QUICError last_error_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
