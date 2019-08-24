@@ -48,9 +48,7 @@ client_SOURCES = client.cc client.h \
 	debug.cc debug.h \
 	util.cc util.h \
 	keylog.cc keylog.h \
-	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc
+	shared.cc shared.h
 
 server_SOURCES = server.cc server.h \
 	template.h \
@@ -58,8 +56,6 @@ server_SOURCES = server.cc server.h \
 	util.cc util.h \
 	keylog.cc keylog.h \
 	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc \
 	http.cc http.h
 
 if HAVE_CUNIT
