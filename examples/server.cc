@@ -47,7 +47,6 @@
 #include "network.h"
 #include "debug.h"
 #include "util.h"
-#include "crypto.h"
 #include "shared.h"
 #include "http.h"
 #include "keylog.h"
@@ -72,6 +71,10 @@ auto randgen = util::make_mt19937();
 
 namespace {
 Config config{};
+} // namespace
+
+namespace {
+ngtcp2_crypto_ctx in_crypto_ctx;
 } // namespace
 
 Buffer::Buffer(const uint8_t *data, size_t datalen)
@@ -118,37 +121,31 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
     return 0;
   }
 
-  // TODO We don't have to call this everytime we get key generated.
-  rv = crypto::negotiated_prf(crypto_ctx_, ssl_);
-  if (rv != 0) {
-    return -1;
+  if (crypto_ctx_.aead.native_handle == nullptr) {
+    ngtcp2_crypto_ctx_tls(&crypto_ctx_, ssl_);
+    ngtcp2_conn_set_aead_overhead(conn_,
+                                  ngtcp2_crypto_aead_taglen(&crypto_ctx_.aead));
   }
-  rv = crypto::negotiated_aead(crypto_ctx_, ssl_);
-  if (rv != 0) {
-    return -1;
-  }
+
+  auto &aead = crypto_ctx_.aead;
+  auto &md = crypto_ctx_.md;
 
   std::array<uint8_t, 64> key, iv, hp;
-  auto keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), secret, secretlen, crypto_ctx_);
-  if (keylen < 0) {
+  auto keylen = ngtcp2_crypto_aead_keylen(&aead);
+  auto ivlen = ngtcp2_crypto_packet_protection_ivlen(&aead);
+  auto hplen = keylen;
+
+  rv = ngtcp2_crypto_derive_packet_protection_key(key.data(), iv.data(), &aead,
+                                                  &md, secret, secretlen);
+  if (rv != 0) {
     return -1;
   }
 
-  auto ivlen = crypto::derive_packet_protection_iv(iv.data(), iv.size(), secret,
-                                                   secretlen, crypto_ctx_);
-  if (ivlen < 0) {
+  rv = ngtcp2_crypto_derive_header_protection_key(hp.data(), &aead, &md, secret,
+                                                  secretlen);
+  if (rv != 0) {
     return -1;
   }
-
-  auto hplen = crypto::derive_header_protection_key(
-      hp.data(), hp.size(), secret, secretlen, crypto_ctx_);
-  if (hplen < 0) {
-    return -1;
-  }
-
-  // TODO Just call this once.
-  ngtcp2_conn_set_aead_overhead(conn_, crypto::aead_max_overhead(crypto_ctx_));
 
   switch (name) {
   case SSL_KEY_CLIENT_EARLY_TRAFFIC: {
@@ -847,7 +844,6 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       scid_{},
       pscid_{},
       rcid_(*rcid),
-      hs_crypto_ctx_{},
       crypto_ctx_{},
       httpconn_{nullptr},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
@@ -1872,14 +1868,13 @@ int Handler::write_client_handshake(ngtcp2_crypto_level crypto_level,
 
 int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   int rv;
-  std::array<uint8_t, 32> initial_secret, secret;
+  std::array<uint8_t, 32> initial_secret, rx_secret, tx_secret;
 
-  rv = crypto::derive_initial_secret(
-      initial_secret.data(), initial_secret.size(), dcid,
-      reinterpret_cast<const uint8_t *>(NGTCP2_INITIAL_SALT),
-      str_size(NGTCP2_INITIAL_SALT));
+  rv = ngtcp2_crypto_derive_initial_secrets(rx_secret.data(), tx_secret.data(),
+                                            initial_secret.data(), dcid,
+                                            NGTCP2_CRYPTO_SIDE_SERVER);
   if (rv != 0) {
-    std::cerr << "crypto::derive_initial_secret() failed" << std::endl;
+    std::cerr << "ngtcp2_crypto_derive_initial_secrets() failed" << std::endl;
     return -1;
   }
 
@@ -1887,38 +1882,27 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     debug::print_initial_secret(initial_secret.data(), initial_secret.size());
   }
 
-  crypto::prf_sha256(hs_crypto_ctx_);
-  crypto::aead_aes_128_gcm(hs_crypto_ctx_);
-
-  rv = crypto::derive_server_initial_secret(secret.data(), secret.size(),
-                                            initial_secret.data(),
-                                            initial_secret.size());
-  if (rv != 0) {
-    std::cerr << "crypto::derive_server_initial_secret() failed" << std::endl;
-    return -1;
-  }
+  auto &aead = in_crypto_ctx.aead;
+  auto &md = in_crypto_ctx.md;
 
   std::array<uint8_t, 16> key, iv, hp;
-  auto keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (keylen < 0) {
+  auto keylen = ngtcp2_crypto_aead_keylen(&aead);
+  auto ivlen = ngtcp2_crypto_packet_protection_ivlen(&aead);
+  auto hplen = keylen;
+
+  rv = ngtcp2_crypto_derive_packet_protection_key(
+      key.data(), iv.data(), &aead, &md, tx_secret.data(), tx_secret.size());
+  if (rv != 0) {
     return -1;
   }
-
-  auto ivlen = crypto::derive_packet_protection_iv(
-      iv.data(), iv.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (ivlen < 0) {
-    return -1;
-  }
-
-  auto hplen = crypto::derive_header_protection_key(
-      hp.data(), hp.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (hplen < 0) {
+  rv = ngtcp2_crypto_derive_header_protection_key(
+      hp.data(), &aead, &md, tx_secret.data(), tx_secret.size());
+  if (rv != 0) {
     return -1;
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_server_in_secret(secret.data(), secret.size());
+    debug::print_server_in_secret(tx_secret.data(), tx_secret.size());
     debug::print_server_pp_key(key.data(), keylen);
     debug::print_server_pp_iv(iv.data(), ivlen);
     debug::print_server_pp_hp(hp.data(), hplen);
@@ -1927,34 +1911,19 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   ngtcp2_conn_install_initial_tx_keys(conn_, key.data(), keylen, iv.data(),
                                       ivlen, hp.data(), hplen);
 
-  rv = crypto::derive_client_initial_secret(secret.data(), secret.size(),
-                                            initial_secret.data(),
-                                            initial_secret.size());
+  rv = ngtcp2_crypto_derive_packet_protection_key(
+      key.data(), iv.data(), &aead, &md, rx_secret.data(), rx_secret.size());
   if (rv != 0) {
-    std::cerr << "crypto::derive_client_initial_secret() failed" << std::endl;
     return -1;
   }
-
-  keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (keylen < 0) {
-    return -1;
-  }
-
-  ivlen = crypto::derive_packet_protection_iv(
-      iv.data(), iv.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (ivlen < 0) {
-    return -1;
-  }
-
-  hplen = crypto::derive_header_protection_key(
-      hp.data(), hp.size(), secret.data(), secret.size(), hs_crypto_ctx_);
-  if (hplen < 0) {
+  rv = ngtcp2_crypto_derive_header_protection_key(
+      hp.data(), &aead, &md, rx_secret.data(), rx_secret.size());
+  if (rv != 0) {
     return -1;
   }
 
   if (!config.quiet && config.show_secret) {
-    debug::print_client_in_secret(secret.data(), secret.size());
+    debug::print_client_in_secret(rx_secret.data(), rx_secret.size());
     debug::print_client_pp_key(key.data(), keylen);
     debug::print_client_pp_iv(iv.data(), ivlen);
     debug::print_client_pp_hp(hp.data(), hplen);
@@ -1971,8 +1940,12 @@ ssize_t Handler::hs_encrypt_data(uint8_t *dest, size_t destlen,
                                  const uint8_t *key, size_t keylen,
                                  const uint8_t *nonce, size_t noncelen,
                                  const uint8_t *ad, size_t adlen) {
-  return crypto::encrypt(dest, destlen, plaintext, plaintextlen, hs_crypto_ctx_,
-                         key, keylen, nonce, noncelen, ad, adlen);
+  auto &aead = in_crypto_ctx.aead;
+  if (ngtcp2_crypto_encrypt(dest, &aead, plaintext, plaintextlen, key, nonce,
+                            noncelen, ad, adlen) != 0) {
+    return -1;
+  }
+  return plaintextlen + ngtcp2_crypto_aead_taglen(&aead);
 }
 
 ssize_t Handler::hs_decrypt_data(uint8_t *dest, size_t destlen,
@@ -1981,9 +1954,13 @@ ssize_t Handler::hs_decrypt_data(uint8_t *dest, size_t destlen,
                                  size_t keylen, const uint8_t *nonce,
                                  size_t noncelen, const uint8_t *ad,
                                  size_t adlen) {
-  return crypto::decrypt(dest, destlen, ciphertext, ciphertextlen,
-                         hs_crypto_ctx_, key, keylen, nonce, noncelen, ad,
-                         adlen);
+  auto &aead = in_crypto_ctx.aead;
+  if (ngtcp2_crypto_decrypt(dest, &aead, ciphertext, ciphertextlen, key, nonce,
+                            noncelen, ad, adlen) != 0) {
+    return -1;
+  }
+  assert(ciphertextlen >= ngtcp2_crypto_aead_taglen(&aead));
+  return ciphertextlen - ngtcp2_crypto_aead_taglen(&aead);
 }
 
 ssize_t Handler::encrypt_data(uint8_t *dest, size_t destlen,
@@ -1991,8 +1968,12 @@ ssize_t Handler::encrypt_data(uint8_t *dest, size_t destlen,
                               const uint8_t *key, size_t keylen,
                               const uint8_t *nonce, size_t noncelen,
                               const uint8_t *ad, size_t adlen) {
-  return crypto::encrypt(dest, destlen, plaintext, plaintextlen, crypto_ctx_,
-                         key, keylen, nonce, noncelen, ad, adlen);
+  auto &aead = crypto_ctx_.aead;
+  if (ngtcp2_crypto_encrypt(dest, &aead, plaintext, plaintextlen, key, nonce,
+                            noncelen, ad, adlen) != 0) {
+    return -1;
+  }
+  return plaintextlen + ngtcp2_crypto_aead_taglen(&aead);
 }
 
 ssize_t Handler::decrypt_data(uint8_t *dest, size_t destlen,
@@ -2000,22 +1981,31 @@ ssize_t Handler::decrypt_data(uint8_t *dest, size_t destlen,
                               const uint8_t *key, size_t keylen,
                               const uint8_t *nonce, size_t noncelen,
                               const uint8_t *ad, size_t adlen) {
-  return crypto::decrypt(dest, destlen, ciphertext, ciphertextlen, crypto_ctx_,
-                         key, keylen, nonce, noncelen, ad, adlen);
+  auto &aead = crypto_ctx_.aead;
+  if (ngtcp2_crypto_decrypt(dest, &aead, ciphertext, ciphertextlen, key, nonce,
+                            noncelen, ad, adlen) != 0) {
+    return -1;
+  }
+  assert(ciphertextlen >= ngtcp2_crypto_aead_taglen(&aead));
+  return ciphertextlen - ngtcp2_crypto_aead_taglen(&aead);
 }
 
 ssize_t Handler::in_hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
                             size_t keylen, const uint8_t *sample,
                             size_t samplelen) {
-  return crypto::hp_mask(dest, destlen, hs_crypto_ctx_, key, keylen, sample,
-                         samplelen);
+  if (ngtcp2_crypto_hp_mask(dest, &in_crypto_ctx.hp, key, sample) != 0) {
+    return -1;
+  }
+  return 5;
 }
 
 ssize_t Handler::hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
                          size_t keylen, const uint8_t *sample,
                          size_t samplelen) {
-  return crypto::hp_mask(dest, destlen, crypto_ctx_, key, keylen, sample,
-                         samplelen);
+  if (ngtcp2_crypto_hp_mask(dest, &crypto_ctx_.hp, key, sample) != 0) {
+    return -1;
+  }
+  return 5;
 }
 
 void Handler::update_endpoint(const ngtcp2_addr *addr) {
@@ -2408,29 +2398,27 @@ int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
 }
 
 int Handler::update_key() {
+  auto &aead = crypto_ctx_.aead;
+  auto &md = crypto_ctx_.md;
+
   int rv;
   std::array<uint8_t, 64> secret, key, iv;
+  auto keylen = ngtcp2_crypto_aead_keylen(&aead);
+  auto ivlen = ngtcp2_crypto_packet_protection_ivlen(&aead);
 
   ++nkey_update_;
 
-  auto secretlen = crypto::update_traffic_secret(
-      secret.data(), secret.size(), tx_secret_.data(), tx_secret_.size(),
-      crypto_ctx_);
-  if (secretlen < 0) {
+  rv = ngtcp2_crypto_update_traffic_secret(
+      secret.data(), &md, tx_secret_.data(), tx_secret_.size());
+  if (rv != 0) {
     return -1;
   }
 
-  tx_secret_.assign(std::begin(secret), std::end(secret));
+  tx_secret_.assign(std::begin(secret), std::begin(secret) + tx_secret_.size());
 
-  auto keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), secret.data(), secretlen, crypto_ctx_);
-  if (keylen < 0) {
-    return -1;
-  }
-
-  auto ivlen = crypto::derive_packet_protection_iv(
-      iv.data(), iv.size(), secret.data(), secretlen, crypto_ctx_);
-  if (ivlen < 0) {
+  rv = ngtcp2_crypto_derive_packet_protection_key(
+      key.data(), iv.data(), &aead, &md, tx_secret_.data(), tx_secret_.size());
+  if (rv != 0) {
     return -1;
   }
 
@@ -2443,28 +2431,21 @@ int Handler::update_key() {
 
   if (!config.quiet) {
     std::cerr << "server_application_traffic " << nkey_update_ << std::endl;
-    debug::print_secrets(secret.data(), secretlen, key.data(), keylen,
-                         iv.data(), ivlen);
+    debug::print_secrets(tx_secret_.data(), tx_secret_.size(), key.data(),
+                         keylen, iv.data(), ivlen);
   }
 
-  secretlen = crypto::update_traffic_secret(secret.data(), secret.size(),
-                                            rx_secret_.data(),
-                                            rx_secret_.size(), crypto_ctx_);
-  if (secretlen < 0) {
+  rv = ngtcp2_crypto_update_traffic_secret(
+      secret.data(), &md, rx_secret_.data(), rx_secret_.size());
+  if (rv != 0) {
     return -1;
   }
 
-  rx_secret_.assign(std::begin(secret), std::end(secret));
+  rx_secret_.assign(std::begin(secret), std::begin(secret) + rx_secret_.size());
 
-  keylen = crypto::derive_packet_protection_key(
-      key.data(), key.size(), secret.data(), secretlen, crypto_ctx_);
-  if (keylen < 0) {
-    return -1;
-  }
-
-  ivlen = crypto::derive_packet_protection_iv(
-      iv.data(), iv.size(), secret.data(), secretlen, crypto_ctx_);
-  if (ivlen < 0) {
+  rv = ngtcp2_crypto_derive_packet_protection_key(
+      key.data(), iv.data(), &aead, &md, rx_secret_.data(), rx_secret_.size());
+  if (rv != 0) {
     return -1;
   }
 
@@ -2477,8 +2458,8 @@ int Handler::update_key() {
 
   if (!config.quiet) {
     std::cerr << "client_application_traffic " << nkey_update_ << std::endl;
-    debug::print_secrets(secret.data(), secretlen, key.data(), keylen,
-                         iv.data(), ivlen);
+    debug::print_secrets(rx_secret_.data(), rx_secret_.size(), key.data(),
+                         keylen, iv.data(), ivlen);
   }
 
   return 0;
@@ -2562,11 +2543,11 @@ void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
 } // namespace
 
 Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
-    : loop_(loop), ssl_ctx_(ssl_ctx), token_crypto_ctx_{} {
+    : loop_(loop), ssl_ctx_(ssl_ctx) {
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 
-  crypto::aead_aes_128_gcm(token_crypto_ctx_);
-  crypto::prf_sha256(token_crypto_ctx_);
+  token_aead_.native_handle = const_cast<EVP_CIPHER *>(EVP_aes_128_gcm());
+  token_md_.native_handle = const_cast<EVP_MD *>(EVP_sha256());
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(std::begin(token_secret_), std::end(token_secret_),
@@ -3059,25 +3040,20 @@ int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
                              size_t rand_datalen) {
   std::array<uint8_t, 32> secret;
 
-  if (crypto::hkdf_extract(secret.data(), secret.size(), token_secret_.data(),
-                           token_secret_.size(), rand_data, rand_datalen,
-                           token_crypto_ctx_) != 0) {
+  if (ngtcp2_crypto_hkdf_extract(secret.data(), secret.size(), &token_md_,
+                                 token_secret_.data(), token_secret_.size(),
+                                 rand_data, rand_datalen) != 0) {
     return -1;
   }
 
-  auto slen = crypto::derive_packet_protection_key(
-      key, keylen, secret.data(), secret.size(), token_crypto_ctx_);
-  if (slen < 0) {
-    return -1;
-  }
-  keylen = slen;
+  keylen = ngtcp2_crypto_aead_keylen(&token_aead_);
+  ivlen = ngtcp2_crypto_packet_protection_ivlen(&token_aead_);
 
-  slen = crypto::derive_packet_protection_iv(iv, ivlen, secret.data(),
-                                             secret.size(), token_crypto_ctx_);
-  if (slen < 0) {
+  if (ngtcp2_crypto_derive_packet_protection_key(key, iv, &token_aead_,
+                                                 &token_md_, secret.data(),
+                                                 secret.size()) != 0) {
     return -1;
   }
-  ivlen = slen;
 
   return 0;
 }
@@ -3087,11 +3063,21 @@ int Server::generate_rand_data(uint8_t *buf, size_t len) {
   std::array<uint8_t, 32> md;
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate_n(rand.data(), rand.size(), [&dis]() { return dis(randgen); });
-  if (crypto::message_digest(md.data(), EVP_sha256(), rand.data(),
-                             rand.size()) != 0) {
+
+  auto ctx = EVP_MD_CTX_new();
+  if (ctx == nullptr) {
     return -1;
   }
-  assert(len <= md.size());
+
+  auto ctx_deleter = defer(EVP_MD_CTX_free, ctx);
+
+  unsigned int mdlen = md.size();
+  if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
+      !EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
+      !EVP_DigestFinal_ex(ctx, md.data(), &mdlen)) {
+    return -1;
+  }
+
   std::copy_n(std::begin(md), len, buf);
   return 0;
 }
@@ -3123,18 +3109,17 @@ int Server::generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
     return -1;
   }
 
-  auto n = crypto::encrypt(token, tokenlen, plaintext.data(),
-                           std::distance(std::begin(plaintext), p),
-                           token_crypto_ctx_, key.data(), keylen, iv.data(),
-                           ivlen, reinterpret_cast<const uint8_t *>(sa), salen);
-
-  if (n < 0) {
+  auto plaintextlen = std::distance(std::begin(plaintext), p);
+  if (ngtcp2_crypto_encrypt(token, &token_aead_, plaintext.data(), plaintextlen,
+                            key.data(), iv.data(), ivlen,
+                            reinterpret_cast<const uint8_t *>(sa),
+                            salen) != 0) {
     return -1;
   }
 
-  memcpy(token + n, rand_data.data(), rand_data.size());
-
-  tokenlen = n + rand_data.size();
+  tokenlen = plaintextlen + ngtcp2_crypto_aead_taglen(&token_aead_);
+  memcpy(token + tokenlen, rand_data.data(), rand_data.size());
+  tokenlen += rand_data.size();
 
   return 0;
 }
@@ -3184,25 +3169,27 @@ int Server::verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
 
   std::array<uint8_t, 4096> plaintext;
 
-  auto n = crypto::decrypt(plaintext.data(), plaintext.size(), ciphertext,
-                           ciphertextlen, token_crypto_ctx_, key.data(), keylen,
-                           iv.data(), ivlen,
-                           reinterpret_cast<const uint8_t *>(sa), salen);
-  if (n < 0) {
+  if (ngtcp2_crypto_decrypt(plaintext.data(), &token_aead_, ciphertext,
+                            ciphertextlen, key.data(), iv.data(), ivlen,
+                            reinterpret_cast<const uint8_t *>(sa),
+                            salen) != 0) {
     if (!config.quiet) {
       std::cerr << "Could not decrypt token" << std::endl;
     }
     return -1;
   }
 
-  if (static_cast<size_t>(n) < salen + sizeof(uint64_t)) {
+  assert(ciphertextlen >= ngtcp2_crypto_aead_taglen(&token_aead_));
+
+  auto plaintextlen = ciphertextlen - ngtcp2_crypto_aead_taglen(&token_aead_);
+  if (plaintextlen < salen + sizeof(uint64_t)) {
     if (!config.quiet) {
       std::cerr << "Bad token construction" << std::endl;
     }
     return -1;
   }
 
-  auto cil = static_cast<size_t>(n) - salen - sizeof(uint64_t);
+  auto cil = plaintextlen - salen - sizeof(uint64_t);
   if (cil != 0 && (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN)) {
     if (!config.quiet) {
       std::cerr << "Bad token construction" << std::endl;
@@ -3812,6 +3799,8 @@ int main(int argc, char **argv) {
       SSL_CTX_set_keylog_callback(ssl_ctx, keylog_callback);
     }
   }
+
+  ngtcp2_crypto_ctx_initial(&in_crypto_ctx);
 
   Server s(EV_DEFAULT, ssl_ctx);
   if (s.init(addr, port) != 0) {

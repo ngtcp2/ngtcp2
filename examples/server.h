@@ -36,6 +36,7 @@
 #include <deque>
 
 #include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 #include <nghttp3/nghttp3.h>
 
 #include <openssl/ssl.h>
@@ -43,7 +44,6 @@
 #include <ev.h>
 
 #include "network.h"
-#include "crypto.h"
 #include "template.h"
 #include "shared.h"
 
@@ -307,8 +307,7 @@ private:
   ngtcp2_cid scid_;
   ngtcp2_cid pscid_;
   ngtcp2_cid rcid_;
-  crypto::Context hs_crypto_ctx_;
-  crypto::Context crypto_ctx_;
+  ngtcp2_crypto_ctx crypto_ctx_;
   nghttp3_conn *httpconn_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   // common buffer used to store packet data before sending
@@ -369,7 +368,8 @@ private:
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   SSL_CTX *ssl_ctx_;
-  crypto::Context token_crypto_ctx_;
+  ngtcp2_crypto_aead token_aead_;
+  ngtcp2_crypto_md token_md_;
   std::array<uint8_t, TOKEN_SECRETLEN> token_secret_;
   ev_signal sigintev_;
 };
