@@ -24,6 +24,8 @@
  */
 #include "crypto.h"
 
+#include <iostream>
+
 #if !defined(OPENSSL_IS_BORINGSSL)
 
 #  include <cassert>

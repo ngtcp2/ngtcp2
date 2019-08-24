@@ -45,6 +45,10 @@ AC_SUBST(LT_CURRENT, 0)
 AC_SUBST(LT_REVISION, 0)
 AC_SUBST(LT_AGE, 0)
 
+AC_SUBST(CRYPTO_OPENSSL_LT_CURRENT, 0)
+AC_SUBST(CRYPTO_OPENSSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_OPENSSL_LT_AGE, 0)
+
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -132,6 +136,7 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
 if test "x${have_openssl}" = "xno"; then
   AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
 fi
+AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 
 # libnghttp3 (for examples)
 PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
@@ -337,6 +342,10 @@ AC_CONFIG_FILES([
   lib/includes/Makefile
   lib/includes/ngtcp2/version.h
   tests/Makefile
+  crypto/Makefile
+  crypto/openssl/Makefile
+  crypto/openssl/libngtcp2_crypto_openssl.pc
+  crypto/includes/Makefile
   third-party/Makefile
   examples/Makefile
 ])
@@ -366,6 +375,8 @@ AC_MSG_NOTICE([summary of build options:
     Library:
       Shared:         ${enable_shared}
       Static:         ${enable_static}
+    Crypto helper libraries:
+      libngtcp2_crypto_openssl: ${have_openssl}
     Test:
       CUnit:          ${have_cunit} (CFLAGS='${CUNIT_CFLAGS}' LIBS='${CUNIT_LIBS}')
     Debug:
