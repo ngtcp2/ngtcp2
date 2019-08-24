@@ -114,6 +114,18 @@ packet pretty small because it does not send its certificates.
 To send 0-RTT data, after making sure that resumption works, use -d
 option to specify a file which contains data to send.
 
+Crypto helper library
+---------------------
+
+In order to make TLS stack integration less painful, we provide a
+crypto helper library which offers the basic crypto operations.
+
+The header file exists under crypto/includes/ngtcp2 directory.
+
+The library file is built for a particular TLS backend.  At the
+moment, libngtcp2_crypto_openssl which uses OpenSSL as TLS backend is
+provided.
+
 License
 -------
 
