@@ -26,6 +26,8 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <assert.h>
+
 #include <ngtcp2/ngtcp2_crypto.h>
 
 #include <openssl/ssl.h>
@@ -278,4 +280,68 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, ngtcp2_crypto_cipher *hp,
   EVP_CIPHER_CTX_free(actx);
 
   return rv;
+}
+
+static OSSL_ENCRYPTION_LEVEL
+from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
+  switch (crypto_level) {
+  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+    return ssl_encryption_initial;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    return ssl_encryption_handshake;
+  case NGTCP2_CRYPTO_LEVEL_APP:
+    return ssl_encryption_application;
+  case NGTCP2_CRYPTO_LEVEL_EARLY:
+    return ssl_encryption_early_data;
+  default:
+    assert(0);
+  }
+}
+
+int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
+                                         ngtcp2_crypto_level crypto_level,
+                                         const uint8_t *data, size_t datalen) {
+  SSL *ssl = tls;
+  int rv;
+  int err;
+
+  if (SSL_provide_quic_data(ssl, from_ngtcp2_level(crypto_level), data,
+                            datalen) != 1) {
+    return -1;
+  }
+
+  if (!ngtcp2_conn_get_handshake_completed(conn)) {
+    rv = SSL_do_handshake(ssl);
+    if (rv <= 0) {
+      err = SSL_get_error(ssl, rv);
+      switch (err) {
+      case SSL_ERROR_WANT_READ:
+      case SSL_ERROR_WANT_WRITE:
+        return 0;
+      case SSL_ERROR_SSL:
+        return -1;
+      default:
+        return -1;
+      }
+    }
+
+    ngtcp2_conn_handshake_completed(conn);
+  }
+
+  rv = SSL_process_quic_post_handshake(ssl);
+  if (rv != 1) {
+    err = SSL_get_error(ssl, rv);
+    switch (err) {
+    case SSL_ERROR_WANT_READ:
+    case SSL_ERROR_WANT_WRITE:
+      return 0;
+    case SSL_ERROR_SSL:
+    case SSL_ERROR_ZERO_RETURN:
+      return -1;
+    default:
+      return -1;
+    }
+  }
+
+  return 0;
 }

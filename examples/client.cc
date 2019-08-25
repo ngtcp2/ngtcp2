@@ -452,7 +452,7 @@ namespace {
 int client_initial(ngtcp2_conn *conn, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->tls_handshake() != 0) {
+  if (c->recv_crypto_data(NGTCP2_CRYPTO_LEVEL_INITIAL, nullptr, 0) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -474,16 +474,7 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
     return NGTCP2_ERR_CRYPTO;
   }
 
-  if (!ngtcp2_conn_get_handshake_completed(c->conn())) {
-    if (c->tls_handshake() != 0) {
-      return NGTCP2_ERR_CRYPTO;
-    }
-    return 0;
-  }
-
-  // SSL_do_handshake() might not consume all data (e.g.,
-  // NewSessionTicket).
-  return c->read_tls();
+  return 0;
 }
 } // namespace
 
@@ -544,6 +535,27 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 int Client::handshake_completed() {
+  if (!config.quiet) {
+    // SSL_get_early_data_status works after handshake completes.
+    if (resumption_ &&
+        SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
+      std::cerr << "Early data was rejected by server" << std::endl;
+    }
+
+    std::cerr << "Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
+              << std::endl;
+
+    const unsigned char *alpn = nullptr;
+    unsigned int alpnlen;
+
+    SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
+    if (alpn) {
+      std::cerr << "Negotiated ALPN is ";
+      std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
+      std::cerr << std::endl;
+    }
+  }
+
   if (std::fpclassify(config.change_local_addr) == FP_NORMAL) {
     start_change_local_addr_timer();
   }
@@ -1051,88 +1063,6 @@ int Client::setup_initial_crypto_context() {
   return 0;
 }
 
-int Client::tls_handshake() {
-  ERR_clear_error();
-
-  int rv;
-
-  rv = SSL_do_handshake(ssl_);
-  if (rv <= 0) {
-    auto err = SSL_get_error(ssl_, rv);
-    switch (err) {
-    case SSL_ERROR_WANT_READ:
-    case SSL_ERROR_WANT_WRITE:
-      return 0;
-    case SSL_ERROR_SSL:
-      std::cerr << "TLS handshake error: "
-                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      return -1;
-    default:
-      std::cerr << "TLS handshake error: " << err << std::endl;
-      return -1;
-    }
-  }
-
-  // SSL_get_early_data_status works after handshake completes.
-  if (resumption_ &&
-      SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
-    std::cerr << "Early data was rejected by server" << std::endl;
-    rv = ngtcp2_conn_early_data_rejected(conn_);
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_early_data_rejected: " << ngtcp2_strerror(rv)
-                << std::endl;
-      return -1;
-    }
-  }
-
-  ngtcp2_conn_handshake_completed(conn_);
-
-  if (read_tls() != 0) {
-    return -1;
-  }
-
-  if (!config.quiet) {
-    std::cerr << "Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
-              << std::endl;
-
-    const unsigned char *alpn = nullptr;
-    unsigned int alpnlen;
-
-    SSL_get0_alpn_selected(ssl_, &alpn, &alpnlen);
-    if (alpn) {
-      std::cerr << "Negotiated ALPN is ";
-      std::cerr.write(reinterpret_cast<const char *>(alpn), alpnlen);
-      std::cerr << std::endl;
-    }
-  }
-
-  return 0;
-}
-
-int Client::read_tls() {
-  ERR_clear_error();
-
-  auto rv = SSL_process_quic_post_handshake(ssl_);
-  if (rv != 1) {
-    auto err = SSL_get_error(ssl_, 0);
-    switch (err) {
-    case SSL_ERROR_WANT_READ:
-    case SSL_ERROR_WANT_WRITE:
-      return 0;
-    case SSL_ERROR_SSL:
-    case SSL_ERROR_ZERO_RETURN:
-      std::cerr << "TLS read error: "
-                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-      return NGTCP2_ERR_CRYPTO;
-    default:
-      std::cerr << "TLS read error: " << err << std::endl;
-      return NGTCP2_ERR_CRYPTO;
-    }
-  }
-
-  return 0;
-}
-
 int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                       size_t datalen) {
   int rv;
@@ -1408,14 +1338,8 @@ void Client::write_client_handshake(ngtcp2_crypto_level level,
 
 int Client::recv_crypto_data(ngtcp2_crypto_level crypto_level,
                              const uint8_t *data, size_t datalen) {
-  if (SSL_provide_quic_data(ssl_, util::from_ngtcp2_level(crypto_level), data,
-                            datalen) != 1) {
-    std::cerr << "SSL_provide_quic_data failed: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    return -1;
-  }
-
-  return 0;
+  return ngtcp2_crypto_read_write_crypto_data(conn_, ssl_, crypto_level, data,
+                                              datalen);
 }
 
 int Client::encrypt_data(uint8_t *dest, const uint8_t *plaintext,

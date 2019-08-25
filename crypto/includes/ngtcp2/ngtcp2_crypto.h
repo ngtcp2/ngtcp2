@@ -348,6 +348,27 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
     ngtcp2_crypto_md *md, ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_read_write_crypto_data` reads CRYPTO data |data| of
+ * length |datalen| in encryption level |crypto_level| and may feed
+ * outgoing CRYPTO data to |conn|.  This function can drive handshake.
+ * This function can be also used after handshake completes.  It is
+ * allowed to call this function with datalen == 0.  In this case, no
+ * additional read operation is done.
+ *
+ * |tls| points to a implementation dependent TLS session object.  If
+ * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
+ * object.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
+                                     ngtcp2_crypto_level crypto_level,
+                                     const uint8_t *data, size_t datalen);
+
 #ifdef __cplusplus
 }
 #endif

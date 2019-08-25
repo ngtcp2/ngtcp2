@@ -159,8 +159,6 @@ public:
 
   void start_wev();
 
-  int tls_handshake();
-  int read_tls();
   int on_read();
   int on_write();
   int write_streams();
