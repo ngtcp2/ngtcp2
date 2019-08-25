@@ -25,7 +25,6 @@ AM_CPPFLAGS = -I$(top_srcdir)/lib/includes -I$(top_builddir)/lib/includes \
 	-I$(top_srcdir)/lib -DBUILDING_NGTCP2 \
 	-I$(top_srcdir)/crypto/includes -I$(top_builddir)/crypto/includes \
 	@OPENSSL_CFLAGS@
-LDADD = $(top_builddir)/lib/libngtcp2.la
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libngtcp2_crypto_openssl.pc
@@ -37,3 +36,4 @@ libngtcp2_crypto_openssl_la_SOURCES = openssl.c ../shared.c
 libngtcp2_crypto_openssl_la_LDFLAGS = -no-undefined \
 	-version-info $(CRYPTO_OPENSSL_LT_CURRENT):$(CRYPTO_OPENSSL_LT_REVISION):$(CRYPTO_OPENSSL_LT_AGE) \
 	@JEMALLOC_LIBS@ @OPENSSL_LIBS@
+libngtcp2_crypto_openssl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la
