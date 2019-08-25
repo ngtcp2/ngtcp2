@@ -304,6 +304,36 @@ int read_mime_types(std::map<std::string, std::string> &dest,
   return 0;
 }
 
+ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
+  switch (ossl_level) {
+  case ssl_encryption_initial:
+    return NGTCP2_CRYPTO_LEVEL_INITIAL;
+  case ssl_encryption_early_data:
+    return NGTCP2_CRYPTO_LEVEL_EARLY;
+  case ssl_encryption_handshake:
+    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+  case ssl_encryption_application:
+    return NGTCP2_CRYPTO_LEVEL_APP;
+  default:
+    assert(0);
+  }
+}
+
+OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
+  switch (crypto_level) {
+  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+    return ssl_encryption_initial;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    return ssl_encryption_handshake;
+  case NGTCP2_CRYPTO_LEVEL_APP:
+    return ssl_encryption_application;
+  case NGTCP2_CRYPTO_LEVEL_EARLY:
+    return ssl_encryption_early_data;
+  default:
+    assert(0);
+  }
+}
+
 } // namespace util
 
 } // namespace ngtcp2

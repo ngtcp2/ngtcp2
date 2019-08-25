@@ -36,14 +36,14 @@ The client and server under examples directory require patched OpenSSL
 as crypto backend:
 
 * Patched OpenSSL
-  (https://github.com/tatsuhiro-t/openssl/tree/quic-draft-22)
+  (https://github.com/tatsuhiro-t/openssl/tree/openssl-quic-draft-22)
 
 Build from git
 --------------
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b quic-draft-22 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b openssl-quic-draft-22 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build

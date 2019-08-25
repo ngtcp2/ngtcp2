@@ -39,6 +39,8 @@
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 
+#include <openssl/ssl.h>
+
 #include <ev.h>
 
 namespace ngtcp2 {
@@ -205,6 +207,13 @@ template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
 // media type in |dest|.  It returns 0 if it succeeds, or -1.
 int read_mime_types(std::map<std::string, std::string> &dest,
                     const char *filename);
+
+// from_ossl_level translates |ossl_level| to ngtcp2_crypto_level.
+ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
+
+// from_ngtcp2_level translates |crypto_level| to
+// OSSL_ENCRYPTION_LEVEL.
+OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level);
 
 } // namespace util
 

@@ -31,33 +31,14 @@ namespace ngtcp2 {
 
 namespace keylog {
 
-void log_secret(SSL *ssl, int name, const unsigned char *secret,
+void log_secret(SSL *ssl, const char *name, const unsigned char *secret,
                 size_t secretlen) {
   if (auto keylog_cb = SSL_CTX_get_keylog_callback(SSL_get_SSL_CTX(ssl))) {
     unsigned char crandom[32];
     if (SSL_get_client_random(ssl, crandom, 32) != 32) {
       return;
     }
-    std::string line;
-    switch (name) {
-    case SSL_KEY_CLIENT_EARLY_TRAFFIC:
-      line = "QUIC_CLIENT_EARLY_TRAFFIC_SECRET";
-      break;
-    case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
-      line = "QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET";
-      break;
-    case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
-      line = "QUIC_CLIENT_TRAFFIC_SECRET_0";
-      break;
-    case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
-      line = "QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET";
-      break;
-    case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
-      line = "QUIC_SERVER_TRAFFIC_SECRET_0";
-      break;
-    default:
-      return;
-    }
+    std::string line = name;
     line += " " + util::format_hex(crandom, 32);
     line += " " + util::format_hex(secret, secretlen);
     keylog_cb(ssl, line.c_str());

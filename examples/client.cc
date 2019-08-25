@@ -82,36 +82,76 @@ Stream::Stream(int64_t stream_id) : stream_id(stream_id) {}
 Stream::~Stream() {}
 
 namespace {
-int key_cb(SSL *ssl, int name, const unsigned char *secret, size_t secretlen,
-           void *arg) {
-  auto c = static_cast<Client *>(arg);
-
-  if (c->on_key(name, secret, secretlen) != 0) {
-    return 0;
+int write_transport_params(const char *path,
+                           const ngtcp2_transport_params *params) {
+  auto f = std::ofstream(path);
+  if (!f) {
+    return -1;
   }
 
-  keylog::log_secret(ssl, name, secret, secretlen);
+  f << "initial_max_streams_bidi=" << params->initial_max_streams_bidi << "\n"
+    << "initial_max_streams_uni=" << params->initial_max_streams_uni << "\n"
+    << "initial_max_stream_data_bidi_local="
+    << params->initial_max_stream_data_bidi_local << "\n"
+    << "initial_max_stream_data_bidi_remote="
+    << params->initial_max_stream_data_bidi_remote << "\n"
+    << "initial_max_stream_data_uni=" << params->initial_max_stream_data_uni
+    << "\n"
+    << "initial_max_data=" << params->initial_max_data << "\n";
 
-  return 1;
+  f.close();
+  if (!f) {
+    return -1;
+  }
+
+  return 0;
 }
 } // namespace
 
-int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
+namespace {
+int read_transport_params(const char *path, ngtcp2_transport_params *params) {
+  auto f = std::ifstream(path);
+  if (!f) {
+    return -1;
+  }
+
+  for (std::string line; std::getline(f, line);) {
+    if (util::istarts_with_l(line, "initial_max_streams_bidi=")) {
+      params->initial_max_streams_bidi = strtoul(
+          line.c_str() + str_size("initial_max_streams_bidi="), nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_streams_uni=")) {
+      params->initial_max_streams_uni = strtoul(
+          line.c_str() + str_size("initial_max_streams_uni="), nullptr, 10);
+    } else if (util::istarts_with_l(line,
+                                    "initial_max_stream_data_bidi_local=")) {
+      params->initial_max_stream_data_bidi_local = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_bidi_local="),
+          nullptr, 10);
+    } else if (util::istarts_with_l(line,
+                                    "initial_max_stream_data_bidi_remote=")) {
+      params->initial_max_stream_data_bidi_remote = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_bidi_remote="),
+          nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_stream_data_uni=")) {
+      params->initial_max_stream_data_uni = strtoul(
+          line.c_str() + str_size("initial_max_stream_data_uni="), nullptr, 10);
+    } else if (util::istarts_with_l(line, "initial_max_data=")) {
+      params->initial_max_data =
+          strtoul(line.c_str() + str_size("initial_max_data="), nullptr, 10);
+    }
+  }
+
+  return 0;
+}
+} // namespace
+
+int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
+                   const uint8_t *tx_secret, size_t secretlen) {
   int rv;
 
-  switch (name) {
-  case SSL_KEY_CLIENT_EARLY_TRAFFIC:
-  case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
-  case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
-    break;
-  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
-    tx_secret_.assign(secret, secret + secretlen);
-    break;
-  case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
-    rx_secret_.assign(secret, secret + secretlen);
-    break;
-  default:
-    return 0;
+  if (level == NGTCP2_CRYPTO_LEVEL_APP) {
+    rx_secret_.assign(rx_secret, rx_secret + secretlen);
+    tx_secret_.assign(tx_secret, tx_secret + secretlen);
   }
 
   if (crypto_ctx_.aead.native_handle == nullptr) {
@@ -123,178 +163,112 @@ int Client::on_key(int name, const uint8_t *secret, size_t secretlen) {
   auto aead = &crypto_ctx_.aead;
   auto md = &crypto_ctx_.md;
 
-  std::array<uint8_t, 64> key, iv, hp;
+  std::array<uint8_t, 64> rx_key, rx_iv, rx_hp, tx_key, tx_iv, tx_hp;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
   auto hplen = keylen;
 
-  if (ngtcp2_crypto_derive_packet_protection_key(
-          key.data(), iv.data(), hp.data(), aead, md, secret, secretlen) != 0) {
+  if (rx_secret && ngtcp2_crypto_derive_packet_protection_key(
+                       rx_key.data(), rx_iv.data(), rx_hp.data(), aead, md,
+                       rx_secret, secretlen) != 0) {
     return -1;
   }
 
-  switch (name) {
-  case SSL_KEY_CLIENT_EARLY_TRAFFIC:
+  if (ngtcp2_crypto_derive_packet_protection_key(tx_key.data(), tx_iv.data(),
+                                                 tx_hp.data(), aead, md,
+                                                 tx_secret, secretlen) != 0) {
+    return -1;
+  }
+
+  switch (level) {
+  case NGTCP2_CRYPTO_LEVEL_EARLY:
     if (!config.quiet) {
-      std::cerr << "client_early_traffic" << std::endl;
+      std::cerr << "early_data secret (server/client)" << std::endl;
     }
-    ngtcp2_conn_install_early_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                   hp.data(), hplen);
+    ngtcp2_conn_install_early_keys(conn_, tx_key.data(), keylen, tx_iv.data(),
+                                   ivlen, tx_hp.data(), hplen);
+
+    keylog::log_secret(ssl_, keylog::QUIC_CLIENT_EARLY_TRAFFIC_SECRET,
+                       tx_secret, secretlen);
     break;
-  case SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     if (!config.quiet) {
-      std::cerr << "client_handshake_traffic" << std::endl;
+      std::cerr << "handshake secret (server/client)" << std::endl;
     }
-    ngtcp2_conn_install_handshake_tx_keys(conn_, key.data(), keylen, iv.data(),
-                                          ivlen, hp.data(), hplen);
-    tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+    ngtcp2_conn_install_handshake_rx_keys(
+        conn_, rx_key.data(), keylen, rx_iv.data(), ivlen, rx_hp.data(), hplen);
+    ngtcp2_conn_install_handshake_tx_keys(
+        conn_, tx_key.data(), keylen, tx_iv.data(), ivlen, tx_hp.data(), hplen);
+
+    keylog::log_secret(ssl_, keylog::QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET,
+                       rx_secret, secretlen);
+    keylog::log_secret(ssl_, keylog::QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET,
+                       tx_secret, secretlen);
     break;
-  case SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+  case NGTCP2_CRYPTO_LEVEL_APP:
     if (!config.quiet) {
-      std::cerr << "client_application_traffic" << std::endl;
+      std::cerr << "application secret (server/client)" << std::endl;
     }
-    ngtcp2_conn_install_tx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                hp.data(), hplen);
+    ngtcp2_conn_install_rx_keys(conn_, rx_key.data(), keylen, rx_iv.data(),
+                                ivlen, rx_hp.data(), hplen);
+    ngtcp2_conn_install_tx_keys(conn_, tx_key.data(), keylen, tx_iv.data(),
+                                ivlen, tx_hp.data(), hplen);
+
+    keylog::log_secret(ssl_, keylog::QUIC_SERVER_TRAFFIC_SECRET_0, rx_secret,
+                       secretlen);
+    keylog::log_secret(ssl_, keylog::QUIC_CLIENT_TRAFFIC_SECRET_0, tx_secret,
+                       secretlen);
+
     break;
-  case SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
-    if (!config.quiet) {
-      std::cerr << "server_handshake_traffic" << std::endl;
-    }
-    ngtcp2_conn_install_handshake_rx_keys(conn_, key.data(), keylen, iv.data(),
-                                          ivlen, hp.data(), hplen);
-    rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
-    break;
-  case SSL_KEY_SERVER_APPLICATION_TRAFFIC:
-    if (!config.quiet) {
-      std::cerr << "server_application_traffic" << std::endl;
-    }
-    ngtcp2_conn_install_rx_keys(conn_, key.data(), keylen, iv.data(), ivlen,
-                                hp.data(), hplen);
-    rx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
-    break;
+  default:
+    assert(0);
   }
 
   if (!config.quiet) {
-    debug::print_secrets(secret, secretlen, key.data(), keylen, iv.data(),
-                         ivlen, hp.data(), hplen);
+    if (rx_secret) {
+      debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen,
+                           rx_iv.data(), ivlen, rx_hp.data(), hplen);
+    }
+    debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen,
+                         tx_iv.data(), ivlen, tx_hp.data(), hplen);
   }
 
-  if (name == SSL_KEY_SERVER_APPLICATION_TRAFFIC) {
-    rv = setup_httpconn();
+  if (level == NGTCP2_CRYPTO_LEVEL_APP) {
+    const uint8_t *tp;
+    size_t tplen;
+
+    SSL_get_peer_quic_transport_params(ssl_, &tp, &tplen);
+
+    ngtcp2_transport_params params;
+
+    rv = ngtcp2_decode_transport_params(
+        &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, tp, tplen);
     if (rv != 0) {
+      std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+
+    rv = ngtcp2_conn_set_remote_transport_params(conn_, &params);
+    if (rv != 0) {
+      std::cerr << "ngtcp2_conn_set_remote_transport_params: "
+                << ngtcp2_strerror(rv) << std::endl;
+      return -1;
+    }
+
+    if (config.tp_file &&
+        write_transport_params(config.tp_file, &params) != 0) {
+      std::cerr << "Could not write transport parameters in " << config.tp_file
+                << std::endl;
+    }
+
+    if (setup_httpconn() != 0) {
       return -1;
     }
   }
 
   return 0;
 }
-
-namespace {
-void msg_cb(int write_p, int version, int content_type, const void *buf,
-            size_t len, SSL *ssl, void *arg) {
-  if (!config.quiet) {
-    std::cerr << "msg_cb: write_p=" << write_p << " version=" << version
-              << " content_type=" << content_type << " len=" << len
-              << std::endl;
-  }
-
-  if (!write_p) {
-    return;
-  }
-
-  auto c = static_cast<Client *>(arg);
-  auto msg = reinterpret_cast<const uint8_t *>(buf);
-
-  switch (content_type) {
-  case SSL3_RT_HANDSHAKE:
-    break;
-  case SSL3_RT_ALERT:
-    assert(len == 2);
-    if (msg[0] != 2 /* FATAL */) {
-      return;
-    }
-    c->set_tls_alert(msg[1]);
-    return;
-  default:
-    return;
-  }
-
-  c->write_client_handshake(reinterpret_cast<const uint8_t *>(buf), len);
-}
-} // namespace
-
-namespace {
-int bio_write(BIO *b, const char *buf, int len) {
-  assert(0);
-  return -1;
-}
-} // namespace
-
-namespace {
-int bio_read(BIO *b, char *buf, int len) {
-  BIO_clear_retry_flags(b);
-
-  auto c = static_cast<Client *>(BIO_get_data(b));
-
-  len = c->read_server_handshake(reinterpret_cast<uint8_t *>(buf), len);
-  if (len == 0) {
-    BIO_set_retry_read(b);
-    return -1;
-  }
-
-  return len;
-}
-} // namespace
-
-namespace {
-int bio_puts(BIO *b, const char *str) { return bio_write(b, str, strlen(str)); }
-} // namespace
-
-namespace {
-int bio_gets(BIO *b, char *buf, int len) { return -1; }
-} // namespace
-
-namespace {
-long bio_ctrl(BIO *b, int cmd, long num, void *ptr) {
-  switch (cmd) {
-  case BIO_CTRL_FLUSH:
-    return 1;
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
-int bio_create(BIO *b) {
-  BIO_set_init(b, 1);
-  return 1;
-}
-} // namespace
-
-namespace {
-int bio_destroy(BIO *b) {
-  if (b == nullptr) {
-    return 0;
-  }
-
-  return 1;
-}
-} // namespace
-
-namespace {
-BIO_METHOD *create_bio_method() {
-  static auto meth = BIO_meth_new(BIO_TYPE_FD, "bio");
-  BIO_meth_set_write(meth, bio_write);
-  BIO_meth_set_read(meth, bio_read);
-  BIO_meth_set_puts(meth, bio_puts);
-  BIO_meth_set_gets(meth, bio_gets);
-  BIO_meth_set_ctrl(meth, bio_ctrl);
-  BIO_meth_set_create(meth, bio_create);
-  BIO_meth_set_destroy(meth, bio_destroy);
-  return meth;
-}
-} // namespace
 
 namespace {
 void writecb(struct ev_loop *loop, ev_io *w, int revents) {
@@ -422,9 +396,6 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_(nullptr),
       fd_(-1),
       crypto_{},
-      tx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
-      rx_crypto_level_(NGTCP2_CRYPTO_LEVEL_INITIAL),
-      nsread_(0),
       conn_(nullptr),
       httpconn_(nullptr),
       addr_(nullptr),
@@ -503,7 +474,7 @@ namespace {
 int client_initial(ngtcp2_conn *conn, void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->tls_handshake(true) != 0) {
+  if (c->tls_handshake() != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -521,7 +492,7 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
 
   auto c = static_cast<Client *>(user_data);
 
-  if (c->write_server_handshake(crypto_level, data, datalen) != 0) {
+  if (c->recv_crypto_data(crypto_level, data, datalen) != 0) {
     return NGTCP2_ERR_CRYPTO;
   }
 
@@ -595,8 +566,6 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 } // namespace
 
 int Client::handshake_completed() {
-  tx_crypto_level_ = NGTCP2_CRYPTO_LEVEL_APP;
-
   if (std::fpclassify(config.change_local_addr) == FP_NORMAL) {
     start_change_local_addr_timer();
   }
@@ -855,14 +824,8 @@ int Client::init_ssl() {
   }
 
   ssl_ = SSL_new(ssl_ctx_);
-  auto bio = BIO_new(create_bio_method());
-  BIO_set_data(bio, this);
-  SSL_set_bio(ssl_, bio, bio);
   SSL_set_app_data(ssl_, this);
   SSL_set_connect_state(ssl_);
-  SSL_set_msg_callback(ssl_, msg_cb);
-  SSL_set_msg_callback_arg(ssl_, this);
-  SSL_set_key_callback(ssl_, key_cb, this);
 
   const uint8_t *alpn = nullptr;
   size_t alpnlen;
@@ -885,6 +848,25 @@ int Client::init_ssl() {
     SSL_set_tlsext_host_name(ssl_, addr_);
   }
 
+  ngtcp2_transport_params params;
+  ngtcp2_conn_get_local_transport_params(conn_, &params);
+
+  std::array<uint8_t, 64> buf;
+
+  auto nwrite = ngtcp2_encode_transport_params(
+      buf.data(), buf.size(), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
+      &params);
+  if (nwrite < 0) {
+    std::cerr << "ngtcp2_encode_transport_params: " << ngtcp2_strerror(nwrite)
+              << std::endl;
+    return -1;
+  }
+
+  if (SSL_set_quic_transport_params(ssl_, buf.data(), nwrite) != 1) {
+    std::cerr << "SSL_set_quic_transport_params failed" << std::endl;
+    return -1;
+  }
+
   if (config.session_file) {
     auto f = BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
@@ -901,6 +883,10 @@ int Client::init_ssl() {
           std::cerr << "Could not set session" << std::endl;
         } else {
           resumption_ = true;
+
+          if (SSL_SESSION_get_max_early_data(session)) {
+            SSL_set_quic_early_data_enabled(ssl_, 1);
+          }
         }
         SSL_SESSION_free(session);
       }
@@ -933,14 +919,10 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   port_ = port;
   version_ = version;
 
-  if (init_ssl() != 0) {
-    return -1;
-  }
-
   auto callbacks = ngtcp2_conn_callbacks{
       client_initial,
       nullptr, // recv_client_initial
-      recv_crypto_data,
+      ::recv_crypto_data,
       ::handshake_completed,
       nullptr, // recv_version_negotiation
       do_in_encrypt,
@@ -1007,6 +989,10 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                               &settings, nullptr, this);
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
+    return -1;
+  }
+
+  if (init_ssl() != 0) {
     return -1;
   }
 
@@ -1087,32 +1073,10 @@ int Client::setup_initial_crypto_context() {
   return 0;
 }
 
-int Client::tls_handshake(bool initial) {
+int Client::tls_handshake() {
   ERR_clear_error();
 
   int rv;
-  /* Note that SSL_SESSION_get_max_early_data() and
-     SSL_get_max_early_data() return completely different value. */
-  if (initial && resumption_ &&
-      SSL_SESSION_get_max_early_data(SSL_get_session(ssl_))) {
-    size_t nwrite;
-    // OpenSSL returns error if SSL_write_early_data is called when
-    // resumption is not attempted.  Sending empty string is a trick
-    // to just early_data extension.
-    rv = SSL_write_early_data(ssl_, "", 0, &nwrite);
-    if (rv == 0) {
-      auto err = SSL_get_error(ssl_, rv);
-      switch (err) {
-      case SSL_ERROR_SSL:
-        std::cerr << "TLS handshake error: "
-                  << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-        return -1;
-      default:
-        std::cerr << "TLS handshake error: " << err << std::endl;
-        return -1;
-      }
-    }
-  }
 
   rv = SSL_do_handshake(ssl_);
   if (rv <= 0) {
@@ -1170,18 +1134,8 @@ int Client::tls_handshake(bool initial) {
 int Client::read_tls() {
   ERR_clear_error();
 
-  std::array<uint8_t, 4096> buf;
-  size_t nread;
-
-  for (;;) {
-    auto rv = SSL_read_ex(ssl_, buf.data(), buf.size(), &nread);
-    if (rv == 1) {
-      if (!config.quiet) {
-        std::cerr << "Read " << nread << " bytes from TLS crypto stream"
-                  << std::endl;
-      }
-      continue;
-    }
+  auto rv = SSL_process_quic_post_handshake(ssl_);
+  if (rv != 1) {
     auto err = SSL_get_error(ssl_, 0);
     switch (err) {
     case SSL_ERROR_WANT_READ:
@@ -1197,6 +1151,8 @@ int Client::read_tls() {
       return NGTCP2_ERR_CRYPTO;
     }
   }
+
+  return 0;
 }
 
 int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
@@ -1462,35 +1418,25 @@ void Client::schedule_retransmit() {
   ev_timer_again(loop_, &rttimer_);
 }
 
-void Client::write_client_handshake(const uint8_t *data, size_t datalen) {
-  write_client_handshake(crypto_[tx_crypto_level_], data, datalen);
-}
-
-void Client::write_client_handshake(Crypto &crypto, const uint8_t *data,
-                                    size_t datalen) {
+void Client::write_client_handshake(ngtcp2_crypto_level level,
+                                    const uint8_t *data, size_t datalen) {
+  auto &crypto = crypto_[level];
   crypto.data.emplace_back(data, datalen);
 
   auto &buf = crypto.data.back();
 
-  ngtcp2_conn_submit_crypto_data(conn_, tx_crypto_level_, buf.rpos(),
-                                 buf.size());
+  ngtcp2_conn_submit_crypto_data(conn_, level, buf.rpos(), buf.size());
 }
 
-size_t Client::read_server_handshake(uint8_t *buf, size_t buflen) {
-  auto n = std::min(buflen, shandshake_.size() - nsread_);
-  std::copy_n(std::begin(shandshake_) + nsread_, n, buf);
-  nsread_ += n;
-  return n;
-}
-
-int Client::write_server_handshake(ngtcp2_crypto_level crypto_level,
-                                   const uint8_t *data, size_t datalen) {
-  if (rx_crypto_level_ != crypto_level) {
-    std::cerr << "Got crypto level "
-              << ", want " << rx_crypto_level_ << std::endl;
+int Client::recv_crypto_data(ngtcp2_crypto_level crypto_level,
+                             const uint8_t *data, size_t datalen) {
+  if (SSL_provide_quic_data(ssl_, util::from_ngtcp2_level(crypto_level), data,
+                            datalen) != 1) {
+    std::cerr << "SSL_provide_quic_data failed: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     return -1;
   }
-  std::copy_n(data, datalen, std::back_inserter(shandshake_));
+
   return 0;
 }
 
@@ -1897,70 +1843,6 @@ int Client::on_stream_reset(int64_t stream_id) {
   }
   return 0;
 }
-
-namespace {
-int write_transport_params(const char *path,
-                           const ngtcp2_transport_params *params) {
-  auto f = std::ofstream(path);
-  if (!f) {
-    return -1;
-  }
-
-  f << "initial_max_streams_bidi=" << params->initial_max_streams_bidi << "\n"
-    << "initial_max_streams_uni=" << params->initial_max_streams_uni << "\n"
-    << "initial_max_stream_data_bidi_local="
-    << params->initial_max_stream_data_bidi_local << "\n"
-    << "initial_max_stream_data_bidi_remote="
-    << params->initial_max_stream_data_bidi_remote << "\n"
-    << "initial_max_stream_data_uni=" << params->initial_max_stream_data_uni
-    << "\n"
-    << "initial_max_data=" << params->initial_max_data << "\n";
-
-  f.close();
-  if (!f) {
-    return -1;
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
-int read_transport_params(const char *path, ngtcp2_transport_params *params) {
-  auto f = std::ifstream(path);
-  if (!f) {
-    return -1;
-  }
-
-  for (std::string line; std::getline(f, line);) {
-    if (util::istarts_with_l(line, "initial_max_streams_bidi=")) {
-      params->initial_max_streams_bidi = strtoul(
-          line.c_str() + str_size("initial_max_streams_bidi="), nullptr, 10);
-    } else if (util::istarts_with_l(line, "initial_max_streams_uni=")) {
-      params->initial_max_streams_uni = strtoul(
-          line.c_str() + str_size("initial_max_streams_uni="), nullptr, 10);
-    } else if (util::istarts_with_l(line,
-                                    "initial_max_stream_data_bidi_local=")) {
-      params->initial_max_stream_data_bidi_local = strtoul(
-          line.c_str() + str_size("initial_max_stream_data_bidi_local="),
-          nullptr, 10);
-    } else if (util::istarts_with_l(line,
-                                    "initial_max_stream_data_bidi_remote=")) {
-      params->initial_max_stream_data_bidi_remote = strtoul(
-          line.c_str() + str_size("initial_max_stream_data_bidi_remote="),
-          nullptr, 10);
-    } else if (util::istarts_with_l(line, "initial_max_stream_data_uni=")) {
-      params->initial_max_stream_data_uni = strtoul(
-          line.c_str() + str_size("initial_max_stream_data_uni="), nullptr, 10);
-    } else if (util::istarts_with_l(line, "initial_max_data=")) {
-      params->initial_max_data =
-          strtoul(line.c_str() + str_size("initial_max_data="), nullptr, 10);
-    }
-  }
-
-  return 0;
-}
-} // namespace
 
 void Client::make_stream_early() {
   int rv;
@@ -2456,83 +2338,6 @@ int Client::setup_httpconn() {
 }
 
 namespace {
-int transport_params_add_cb(SSL *ssl, unsigned int ext_type,
-                            unsigned int content, const unsigned char **out,
-                            size_t *outlen, X509 *x, size_t chainidx, int *al,
-                            void *add_arg) {
-  auto c = static_cast<Client *>(SSL_get_app_data(ssl));
-  auto conn = c->conn();
-
-  ngtcp2_transport_params params;
-
-  ngtcp2_conn_get_local_transport_params(conn, &params);
-
-  constexpr size_t bufsize = 64;
-  auto buf = std::make_unique<uint8_t[]>(bufsize);
-
-  auto nwrite = ngtcp2_encode_transport_params(
-      buf.get(), bufsize, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
-  if (nwrite < 0) {
-    std::cerr << "ngtcp2_encode_transport_params: " << ngtcp2_strerror(nwrite)
-              << std::endl;
-    *al = SSL_AD_INTERNAL_ERROR;
-    return -1;
-  }
-
-  *out = buf.release();
-  *outlen = static_cast<size_t>(nwrite);
-
-  return 1;
-}
-} // namespace
-
-namespace {
-void transport_params_free_cb(SSL *ssl, unsigned int ext_type,
-                              unsigned int context, const unsigned char *out,
-                              void *add_arg) {
-  delete[] const_cast<unsigned char *>(out);
-}
-} // namespace
-
-namespace {
-int transport_params_parse_cb(SSL *ssl, unsigned int ext_type,
-                              unsigned int context, const unsigned char *in,
-                              size_t inlen, X509 *x, size_t chainidx, int *al,
-                              void *parse_arg) {
-  auto c = static_cast<Client *>(SSL_get_app_data(ssl));
-  auto conn = c->conn();
-
-  int rv;
-
-  ngtcp2_transport_params params;
-
-  rv = ngtcp2_decode_transport_params(
-      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, in, inlen);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
-              << std::endl;
-    *al = SSL_AD_ILLEGAL_PARAMETER;
-    return -1;
-  }
-
-  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_set_remote_transport_params: "
-              << ngtcp2_strerror(rv) << std::endl;
-    *al = SSL_AD_ILLEGAL_PARAMETER;
-    return -1;
-  }
-
-  if (config.tp_file && write_transport_params(config.tp_file, &params) != 0) {
-    std::cerr << "Could not write transport parameters in " << config.tp_file
-              << std::endl;
-  }
-
-  return 1;
-}
-} // namespace
-
-namespace {
 int new_session_cb(SSL *ssl, SSL_SESSION *session) {
   if (SSL_SESSION_get_max_early_data(session) !=
       std::numeric_limits<uint32_t>::max()) {
@@ -2550,6 +2355,53 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
 
   return 0;
 }
+} // namespace
+
+namespace {
+int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
+                           const uint8_t *read_secret,
+                           const uint8_t *write_secret, size_t secret_len) {
+  int rv;
+  auto c = static_cast<Client *>(SSL_get_app_data(ssl));
+
+  rv = c->on_key(util::from_ossl_level(ossl_level), read_secret, write_secret,
+                 secret_len);
+  if (rv != 0) {
+    return 0;
+  }
+
+  return 1;
+}
+} // namespace
+
+namespace {
+int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
+                       const uint8_t *data, size_t len) {
+  auto c = static_cast<Client *>(SSL_get_app_data(ssl));
+  c->write_client_handshake(util::from_ossl_level(ossl_level), data, len);
+  return 1;
+}
+} // namespace
+
+namespace {
+int flush_flight(SSL *ssl) { return 1; }
+} // namespace
+
+namespace {
+int send_alert(SSL *ssl, enum ssl_encryption_level_t level, uint8_t alert) {
+  auto c = static_cast<Client *>(SSL_get_app_data(ssl));
+  c->set_tls_alert(alert);
+  return 1;
+}
+} // namespace
+
+namespace {
+auto quic_method = SSL_QUIC_METHOD{
+    set_encryption_secrets,
+    add_handshake_data,
+    flush_flight,
+    send_alert,
+};
 } // namespace
 
 namespace {
@@ -2576,18 +2428,7 @@ SSL_CTX *create_ssl_ctx() {
     exit(EXIT_FAILURE);
   }
 
-  SSL_CTX_set_mode(ssl_ctx, SSL_MODE_QUIC_HACK);
-
-  if (SSL_CTX_add_custom_ext(
-          ssl_ctx, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
-          SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS,
-          transport_params_add_cb, transport_params_free_cb, nullptr,
-          transport_params_parse_cb, nullptr) != 1) {
-    std::cerr << "SSL_CTX_add_custom_ext(NGTCP2_TLSEXT_QUIC_TRANSPORT_"
-                 "PARAMETERS) failed: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    exit(EXIT_FAILURE);
-  }
+  SSL_CTX_set_quic_method(ssl_ctx, &quic_method);
 
   if (config.session_file) {
     SSL_CTX_set_session_cache_mode(
