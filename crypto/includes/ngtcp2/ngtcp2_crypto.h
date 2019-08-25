@@ -229,26 +229,16 @@ ngtcp2_crypto_packet_protection_ivlen(ngtcp2_crypto_aead *aead);
  * ngtcp2_crypto_aead_keylen(aead) bytes long.  |iv| is
  * ngtcp2_crypto_packet_protection_ivlen(aead) bytes long.
  *
+ * If |hp| is not NULL, this function also derives packet header
+ * protection key and writes the key into the buffer pointed by |hp|.
+ * The length of key is ngtcp2_crypto_aead_keylen(aead) bytes long.
+ * |hp|, if not NULL, must have enough capacity to store the key.
+ *
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_packet_protection_key(
-    uint8_t *key, uint8_t *iv, ngtcp2_crypto_aead *aead, ngtcp2_crypto_md *md,
-    const uint8_t *secret, size_t secretlen);
-
-/**
- * @function
- *
- * `ngtcp2_crypto_derive_header_protection_key` derives packet header
- * protection key.  This function writes packet header protection key
- * into the buffer pointed by |key|.  |key| must point to the buffer
- * which is at least ngtcp2_crypto_aead_keylen(aead) bytes long.
- * |key| is ngtcp2_crypto_aead_keylen(aead) bytes long.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-NGTCP2_EXTERN int ngtcp2_crypto_derive_header_protection_key(
-    uint8_t *key, ngtcp2_crypto_aead *aead, ngtcp2_crypto_md *md,
-    const uint8_t *secret, size_t secretlen);
+    uint8_t *key, uint8_t *iv, uint8_t *hp, ngtcp2_crypto_aead *aead,
+    ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen);
 
 /**
  * @function

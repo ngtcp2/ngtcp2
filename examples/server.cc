@@ -135,15 +135,8 @@ int Handler::on_key(int name, const uint8_t *secret, size_t secretlen) {
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
   auto hplen = keylen;
 
-  rv = ngtcp2_crypto_derive_packet_protection_key(key.data(), iv.data(), aead,
-                                                  md, secret, secretlen);
-  if (rv != 0) {
-    return -1;
-  }
-
-  rv = ngtcp2_crypto_derive_header_protection_key(hp.data(), aead, md, secret,
-                                                  secretlen);
-  if (rv != 0) {
+  if (ngtcp2_crypto_derive_packet_protection_key(
+          key.data(), iv.data(), hp.data(), aead, md, secret, secretlen) != 0) {
     return -1;
   }
 
@@ -1869,14 +1862,9 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
   auto hplen = keylen;
 
-  rv = ngtcp2_crypto_derive_packet_protection_key(
-      key.data(), iv.data(), aead, md, tx_secret.data(), tx_secret.size());
-  if (rv != 0) {
-    return -1;
-  }
-  rv = ngtcp2_crypto_derive_header_protection_key(
-      hp.data(), aead, md, tx_secret.data(), tx_secret.size());
-  if (rv != 0) {
+  if (ngtcp2_crypto_derive_packet_protection_key(
+          key.data(), iv.data(), hp.data(), aead, md, tx_secret.data(),
+          tx_secret.size()) != 0) {
     return -1;
   }
 
@@ -1890,14 +1878,9 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   ngtcp2_conn_install_initial_tx_keys(conn_, key.data(), keylen, iv.data(),
                                       ivlen, hp.data(), hplen);
 
-  rv = ngtcp2_crypto_derive_packet_protection_key(
-      key.data(), iv.data(), aead, md, rx_secret.data(), rx_secret.size());
-  if (rv != 0) {
-    return -1;
-  }
-  rv = ngtcp2_crypto_derive_header_protection_key(
-      hp.data(), aead, md, rx_secret.data(), rx_secret.size());
-  if (rv != 0) {
+  if (ngtcp2_crypto_derive_packet_protection_key(
+          key.data(), iv.data(), hp.data(), aead, md, rx_secret.data(),
+          rx_secret.size()) != 0) {
     return -1;
   }
 
@@ -2342,9 +2325,9 @@ int Handler::update_key() {
 
   tx_secret_.assign(std::begin(secret), std::begin(secret) + tx_secret_.size());
 
-  rv = ngtcp2_crypto_derive_packet_protection_key(
-      key.data(), iv.data(), aead, md, tx_secret_.data(), tx_secret_.size());
-  if (rv != 0) {
+  if (ngtcp2_crypto_derive_packet_protection_key(key.data(), iv.data(), nullptr,
+                                                 aead, md, tx_secret_.data(),
+                                                 tx_secret_.size()) != 0) {
     return -1;
   }
 
@@ -2369,9 +2352,9 @@ int Handler::update_key() {
 
   rx_secret_.assign(std::begin(secret), std::begin(secret) + rx_secret_.size());
 
-  rv = ngtcp2_crypto_derive_packet_protection_key(
-      key.data(), iv.data(), aead, md, rx_secret_.data(), rx_secret_.size());
-  if (rv != 0) {
+  if (ngtcp2_crypto_derive_packet_protection_key(key.data(), iv.data(), nullptr,
+                                                 aead, md, rx_secret_.data(),
+                                                 rx_secret_.size()) != 0) {
     return -1;
   }
 
@@ -2975,7 +2958,7 @@ int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
   keylen = ngtcp2_crypto_aead_keylen(&token_aead_);
   ivlen = ngtcp2_crypto_packet_protection_ivlen(&token_aead_);
 
-  if (ngtcp2_crypto_derive_packet_protection_key(key, iv, &token_aead_,
+  if (ngtcp2_crypto_derive_packet_protection_key(key, iv, nullptr, &token_aead_,
                                                  &token_md_, secret.data(),
                                                  secret.size()) != 0) {
     return -1;

@@ -105,13 +105,12 @@ size_t ngtcp2_crypto_packet_protection_ivlen(ngtcp2_crypto_aead *aead) {
   return ngtcp2_max(8, noncelen);
 }
 
-int ngtcp2_crypto_derive_packet_protection_key(uint8_t *key, uint8_t *iv,
-                                               ngtcp2_crypto_aead *aead,
-                                               ngtcp2_crypto_md *md,
-                                               const uint8_t *secret,
-                                               size_t secretlen) {
+int ngtcp2_crypto_derive_packet_protection_key(
+    uint8_t *key, uint8_t *iv, uint8_t *hp, ngtcp2_crypto_aead *aead,
+    ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen) {
   static const uint8_t KEY_LABEL[] = "quic key";
   static const uint8_t IV_LABEL[] = "quic iv";
+  static const uint8_t HP_LABEL[] = "quic hp";
   size_t keylen = ngtcp2_crypto_aead_keylen(aead);
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
 
@@ -125,19 +124,9 @@ int ngtcp2_crypto_derive_packet_protection_key(uint8_t *key, uint8_t *iv,
     return -1;
   }
 
-  return 0;
-}
-
-int ngtcp2_crypto_derive_header_protection_key(uint8_t *key,
-                                               ngtcp2_crypto_aead *aead,
-                                               ngtcp2_crypto_md *md,
-                                               const uint8_t *secret,
-                                               size_t secretlen) {
-  static const uint8_t LABEL[] = "quic hp";
-  size_t keylen = ngtcp2_crypto_aead_keylen(aead);
-
-  if (ngtcp2_crypto_hkdf_expand_label(key, keylen, md, secret, secretlen, LABEL,
-                                      sizeof(LABEL) - 1) != 0) {
+  if (hp != NULL &&
+      ngtcp2_crypto_hkdf_expand_label(hp, keylen, md, secret, secretlen,
+                                      HP_LABEL, sizeof(HP_LABEL) - 1) != 0) {
     return -1;
   }
 
