@@ -243,6 +243,7 @@ install(FILES README.rst DESTINATION "${CMAKE_INSTALL_DOCDIR}")
 
 add_subdirectory(lib)
 add_subdirectory(tests)
+add_subdirectory(crypto)
 add_subdirectory(third-party)
 add_subdirectory(examples)
 
