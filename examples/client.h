@@ -86,7 +86,7 @@ struct Config {
   // key_update is the duration after which client initiates key
   // update.
   double key_update;
-  // delay_request is the duration after which client sends the first
+  // delay_stream is the duration after which client sends the first
   // 1-RTT stream.
   double delay_stream;
   // nat_rebinding is true if simulated NAT rebinding is enabled.
