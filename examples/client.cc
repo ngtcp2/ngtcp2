@@ -2411,10 +2411,6 @@ SSL_CTX *create_ssl_ctx() {
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
 
-  // This makes OpenSSL client not send CCS after an initial
-  // ClientHello.
-  SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
-
   SSL_CTX_set_default_verify_paths(ssl_ctx);
 
   if (SSL_CTX_set_ciphersuites(ssl_ctx, config.ciphers) != 1) {

@@ -3163,7 +3163,6 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
                             SSL_OP_NO_ANTI_REPLAY;
 
   SSL_CTX_set_options(ssl_ctx, ssl_opts);
-  SSL_CTX_clear_options(ssl_ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
 
   if (SSL_CTX_set_ciphersuites(ssl_ctx, config.ciphers) != 1) {
     std::cerr << "SSL_CTX_set_ciphersuites: "
