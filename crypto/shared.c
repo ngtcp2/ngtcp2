@@ -145,3 +145,76 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, ngtcp2_crypto_md *md,
 
   return 0;
 }
+
+int ngtcp2_crypto_derive_and_install_key(
+    ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, ngtcp2_crypto_aead *aead,
+    ngtcp2_crypto_md *md, ngtcp2_crypto_level level, const uint8_t *rx_secret,
+    const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side) {
+  uint8_t rx_keybuf[64], rx_ivbuf[64], rx_hpbuf[64];
+  uint8_t tx_keybuf[64], tx_ivbuf[64], tx_hpbuf[64];
+  size_t keylen = ngtcp2_crypto_aead_keylen(aead);
+  size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
+  size_t hplen = keylen;
+
+  if (!rx_key) {
+    rx_key = rx_keybuf;
+  }
+  if (!rx_iv) {
+    rx_iv = rx_ivbuf;
+  }
+  if (!rx_hp) {
+    rx_hp = rx_hpbuf;
+  }
+  if (!tx_key) {
+    tx_key = tx_keybuf;
+  }
+  if (!tx_iv) {
+    tx_iv = tx_ivbuf;
+  }
+  if (!tx_hp) {
+    tx_hp = tx_hpbuf;
+  }
+
+  if ((level != NGTCP2_CRYPTO_LEVEL_EARLY ||
+       side == NGTCP2_CRYPTO_SIDE_SERVER) &&
+      ngtcp2_crypto_derive_packet_protection_key(rx_key, rx_iv, rx_hp, aead, md,
+                                                 rx_secret, secretlen) != 0) {
+    return -1;
+  }
+
+  if ((level != NGTCP2_CRYPTO_LEVEL_EARLY ||
+       side == NGTCP2_CRYPTO_SIDE_CLIENT) &&
+      ngtcp2_crypto_derive_packet_protection_key(tx_key, tx_iv, tx_hp, aead, md,
+                                                 tx_secret, secretlen) != 0) {
+    return -1;
+  }
+
+  switch (level) {
+  case NGTCP2_CRYPTO_LEVEL_EARLY:
+    if (side == NGTCP2_CRYPTO_SIDE_CLIENT) {
+      ngtcp2_conn_install_early_keys(conn, tx_key, keylen, tx_iv, ivlen, tx_hp,
+                                     hplen);
+    } else {
+      ngtcp2_conn_install_early_keys(conn, rx_key, keylen, rx_iv, ivlen, rx_hp,
+                                     hplen);
+    }
+    break;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    ngtcp2_conn_install_handshake_rx_keys(conn, rx_key, keylen, rx_iv, ivlen,
+                                          rx_hp, hplen);
+    ngtcp2_conn_install_handshake_tx_keys(conn, tx_key, keylen, tx_iv, ivlen,
+                                          tx_hp, hplen);
+    break;
+  case NGTCP2_CRYPTO_LEVEL_APP:
+    ngtcp2_conn_install_rx_keys(conn, rx_key, keylen, rx_iv, ivlen, rx_hp,
+                                hplen);
+    ngtcp2_conn_install_tx_keys(conn, tx_key, keylen, tx_iv, ivlen, tx_hp,
+                                hplen);
+    break;
+  default:
+    return -1;
+  }
+
+  return 0;
+}

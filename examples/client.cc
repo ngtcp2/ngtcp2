@@ -168,57 +168,33 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
   auto hplen = keylen;
 
-  if (rx_secret && ngtcp2_crypto_derive_packet_protection_key(
-                       rx_key.data(), rx_iv.data(), rx_hp.data(), aead, md,
-                       rx_secret, secretlen) != 0) {
+  if (ngtcp2_crypto_derive_and_install_key(
+          conn_, rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
+          tx_iv.data(), tx_hp.data(), aead, md, level, rx_secret, tx_secret,
+          secretlen, NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
     return -1;
   }
 
-  if (ngtcp2_crypto_derive_packet_protection_key(tx_key.data(), tx_iv.data(),
-                                                 tx_hp.data(), aead, md,
-                                                 tx_secret, secretlen) != 0) {
-    return -1;
-  }
-
+  const char *title = nullptr;
   switch (level) {
   case NGTCP2_CRYPTO_LEVEL_EARLY:
-    if (!config.quiet) {
-      std::cerr << "early_data secret (server/client)" << std::endl;
-    }
-    ngtcp2_conn_install_early_keys(conn_, tx_key.data(), keylen, tx_iv.data(),
-                                   ivlen, tx_hp.data(), hplen);
-
+    title = "early_traffic";
     keylog::log_secret(ssl_, keylog::QUIC_CLIENT_EARLY_TRAFFIC_SECRET,
                        tx_secret, secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    if (!config.quiet) {
-      std::cerr << "handshake secret (server/client)" << std::endl;
-    }
-    ngtcp2_conn_install_handshake_rx_keys(
-        conn_, rx_key.data(), keylen, rx_iv.data(), ivlen, rx_hp.data(), hplen);
-    ngtcp2_conn_install_handshake_tx_keys(
-        conn_, tx_key.data(), keylen, tx_iv.data(), ivlen, tx_hp.data(), hplen);
-
+    title = "handshake_traffic";
     keylog::log_secret(ssl_, keylog::QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET,
                        rx_secret, secretlen);
     keylog::log_secret(ssl_, keylog::QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET,
                        tx_secret, secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
-    if (!config.quiet) {
-      std::cerr << "application secret (server/client)" << std::endl;
-    }
-    ngtcp2_conn_install_rx_keys(conn_, rx_key.data(), keylen, rx_iv.data(),
-                                ivlen, rx_hp.data(), hplen);
-    ngtcp2_conn_install_tx_keys(conn_, tx_key.data(), keylen, tx_iv.data(),
-                                ivlen, tx_hp.data(), hplen);
-
+    title = "application_traffic";
     keylog::log_secret(ssl_, keylog::QUIC_SERVER_TRAFFIC_SECRET_0, rx_secret,
                        secretlen);
     keylog::log_secret(ssl_, keylog::QUIC_CLIENT_TRAFFIC_SECRET_0, tx_secret,
                        secretlen);
-
     break;
   default:
     assert(0);
@@ -226,9 +202,11 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
 
   if (!config.quiet) {
     if (rx_secret) {
+      std::cerr << title << " rx secret" << std::endl;
       debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen,
                            rx_iv.data(), ivlen, rx_hp.data(), hplen);
     }
+    std::cerr << title << " tx secret" << std::endl;
     debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen,
                          tx_iv.data(), ivlen, tx_hp.data(), hplen);
   }

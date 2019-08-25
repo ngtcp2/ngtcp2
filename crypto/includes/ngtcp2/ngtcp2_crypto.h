@@ -306,6 +306,48 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
                                                       const uint8_t *secret,
                                                       size_t secretlen);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_derive_and_install_key` derives the rx and tx keys
+ * from |rx_secret| and |tx_secret| respectively and installs new keys
+ * to |conn|.
+ *
+ * If |rx_key| is not NULL, the derived packet protection key for
+ * decryption is written to the buffer pointed by |rx_key|.  If
+ * |rx_iv| is not NULL, the derived packet protection IV for
+ * decryption is written to the buffer pointed by |rx_iv|.  If |rx_hp|
+ * is not NULL, the derived header protection key for decryption is
+ * written to the buffer pointed by |rx_hp|.
+ *
+ * If |tx_key| is not NULL, the derived packet protection key for
+ * encryption is written to the buffer pointed by |tx_key|.  If
+ * |tx_iv| is not NULL, the derived packet protection IV for
+ * encryption is written to the buffer pointed by |tx_iv|.  If |tx_hp|
+ * is not NULL, the derived header protection key for encryption is
+ * written to the buffer pointed by |tx_hp|.
+ *
+ * |level| specifies the encryption level.  If |level| is
+ * NGTCP2_CRYPTO_LEVEL_EARLY, and if |side| is
+ * NGTCP2_CRYPTO_SIDE_CLIENT, |rx_secret| must be NULL.  If |level| is
+ * NGTCP2_CRYPTO_LEVEL_EARLY, and if |side| is
+ * NGTCP2_CRYPTO_SIDE_SERVER, |tx_secret| must be NULL.  Otherwise,
+ * |rx_secret| and |tx_secret| must not be NULL.
+ *
+ * |secretlen| specifies the length of |rx_secret| and |tx_secret|.
+ *
+ * The length of packet protection key and header protection key is
+ * ngtcp2_crypto_aead(aead).  The length of packet protection IV is
+ * ngtcp2_crypto_packet_protection_ivlen(aead).
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
+    ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, ngtcp2_crypto_aead *aead,
+    ngtcp2_crypto_md *md, ngtcp2_crypto_level level, const uint8_t *rx_secret,
+    const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side);
+
 #ifdef __cplusplus
 }
 #endif
