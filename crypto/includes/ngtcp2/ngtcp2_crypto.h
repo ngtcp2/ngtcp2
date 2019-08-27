@@ -63,7 +63,7 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
  *
  * `ngtcp2_crypto_aead_keylen` returns the length of key for |aead|.
  */
-NGTCP2_EXTERN size_t ngtcp2_crypto_aead_keylen(ngtcp2_crypto_aead *aead);
+NGTCP2_EXTERN size_t ngtcp2_crypto_aead_keylen(const ngtcp2_crypto_aead *aead);
 
 /**
  * @function
@@ -71,14 +71,15 @@ NGTCP2_EXTERN size_t ngtcp2_crypto_aead_keylen(ngtcp2_crypto_aead *aead);
  * `ngtcp2_crypto_aead_noncelen` returns the length of nonce for
  * |aead|.
  */
-NGTCP2_EXTERN size_t ngtcp2_crypto_aead_noncelen(ngtcp2_crypto_aead *aead);
+NGTCP2_EXTERN size_t
+ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead);
 
 /**
  * @function
  *
  * `ngtcp2_crypto_aead_taglen` returns the length of tag for |aead|.
  */
-NGTCP2_EXTERN size_t ngtcp2_crypto_aead_taglen(ngtcp2_crypto_aead *aead);
+NGTCP2_EXTERN size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead);
 
 /**
  * @function
@@ -89,10 +90,12 @@ NGTCP2_EXTERN size_t ngtcp2_crypto_aead_taglen(ngtcp2_crypto_aead *aead);
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int
-ngtcp2_crypto_hkdf_extract(uint8_t *dest, size_t destlen, ngtcp2_crypto_md *md,
-                           const uint8_t *secret, size_t secretlen,
-                           const uint8_t *salt, size_t saltlen);
+NGTCP2_EXTERN int ngtcp2_crypto_hkdf_extract(uint8_t *dest, size_t destlen,
+                                             const ngtcp2_crypto_md *md,
+                                             const uint8_t *secret,
+                                             size_t secretlen,
+                                             const uint8_t *salt,
+                                             size_t saltlen);
 
 /**
  * @function
@@ -103,10 +106,12 @@ ngtcp2_crypto_hkdf_extract(uint8_t *dest, size_t destlen, ngtcp2_crypto_md *md,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int
-ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen, ngtcp2_crypto_md *md,
-                          const uint8_t *secret, size_t secretlen,
-                          const uint8_t *info, size_t infolen);
+NGTCP2_EXTERN int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
+                                            const ngtcp2_crypto_md *md,
+                                            const uint8_t *secret,
+                                            size_t secretlen,
+                                            const uint8_t *info,
+                                            size_t infolen);
 
 /**
  * @function
@@ -117,9 +122,12 @@ ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen, ngtcp2_crypto_md *md,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_hkdf_expand_label(
-    uint8_t *dest, size_t destlen, ngtcp2_crypto_md *md, const uint8_t *secret,
-    size_t secretlen, const uint8_t *label, size_t labellen);
+NGTCP2_EXTERN int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
+                                                  const ngtcp2_crypto_md *md,
+                                                  const uint8_t *secret,
+                                                  size_t secretlen,
+                                                  const uint8_t *label,
+                                                  size_t labellen);
 
 /**
  * @enum
@@ -167,7 +175,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_initial_secrets(
  * used to encrypt QUIC packet.
  */
 NGTCP2_EXTERN size_t
-ngtcp2_crypto_packet_protection_ivlen(ngtcp2_crypto_aead *aead);
+ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead);
 
 /**
  * @function
@@ -190,8 +198,8 @@ ngtcp2_crypto_packet_protection_ivlen(ngtcp2_crypto_aead *aead);
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_packet_protection_key(
-    uint8_t *key, uint8_t *iv, uint8_t *hp, ngtcp2_crypto_aead *aead,
-    ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen);
+    uint8_t *key, uint8_t *iv, uint8_t *hp, const ngtcp2_crypto_aead *aead,
+    const ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen);
 
 /**
  * @function
@@ -255,10 +263,9 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
  * buffer pointed by |dest|.  |dest| must have the enough capacity to
  * store the new key.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
-                                                      ngtcp2_crypto_md *md,
-                                                      const uint8_t *secret,
-                                                      size_t secretlen);
+NGTCP2_EXTERN int
+ngtcp2_crypto_update_traffic_secret(uint8_t *dest, const ngtcp2_crypto_md *md,
+                                    const uint8_t *secret, size_t secretlen);
 
 /**
  * @function
@@ -298,8 +305,9 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
     ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, ngtcp2_crypto_aead *aead,
-    ngtcp2_crypto_md *md, ngtcp2_crypto_level level, const uint8_t *rx_secret,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
+    ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side);
 
 /**
@@ -391,9 +399,10 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_initial_key(
  */
 NGTCP2_EXTERN int ngtcp2_crypto_update_and_install_key(
     ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
-    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv, ngtcp2_crypto_aead *aead,
-    ngtcp2_crypto_md *md, const uint8_t *current_rx_secret,
-    const uint8_t *current_tx_secret, size_t secretlen);
+    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
+    const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
+    size_t secretlen);
 
 /**
  * @function

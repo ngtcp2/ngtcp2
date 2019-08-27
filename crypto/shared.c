@@ -33,9 +33,9 @@
 #include "ngtcp2_macro.h"
 
 int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
-                                    ngtcp2_crypto_md *md, const uint8_t *secret,
-                                    size_t secretlen, const uint8_t *label,
-                                    size_t labellen) {
+                                    const ngtcp2_crypto_md *md,
+                                    const uint8_t *secret, size_t secretlen,
+                                    const uint8_t *label, size_t labellen) {
   static const uint8_t LABEL[] = "tls13 ";
   uint8_t info[256];
   uint8_t *p = info;
@@ -102,14 +102,14 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
   return 0;
 }
 
-size_t ngtcp2_crypto_packet_protection_ivlen(ngtcp2_crypto_aead *aead) {
+size_t ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead) {
   size_t noncelen = ngtcp2_crypto_aead_noncelen(aead);
   return ngtcp2_max(8, noncelen);
 }
 
 int ngtcp2_crypto_derive_packet_protection_key(
-    uint8_t *key, uint8_t *iv, uint8_t *hp, ngtcp2_crypto_aead *aead,
-    ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen) {
+    uint8_t *key, uint8_t *iv, uint8_t *hp, const ngtcp2_crypto_aead *aead,
+    const ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen) {
   static const uint8_t KEY_LABEL[] = "quic key";
   static const uint8_t IV_LABEL[] = "quic iv";
   static const uint8_t HP_LABEL[] = "quic hp";
@@ -135,7 +135,8 @@ int ngtcp2_crypto_derive_packet_protection_key(
   return 0;
 }
 
-int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, ngtcp2_crypto_md *md,
+int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
+                                        const ngtcp2_crypto_md *md,
                                         const uint8_t *secret,
                                         size_t secretlen) {
   static const uint8_t LABEL[] = "traffic upd";
@@ -150,8 +151,9 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest, ngtcp2_crypto_md *md,
 
 int ngtcp2_crypto_derive_and_install_key(
     ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, ngtcp2_crypto_aead *aead,
-    ngtcp2_crypto_md *md, ngtcp2_crypto_level level, const uint8_t *rx_secret,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
+    ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side) {
   uint8_t rx_keybuf[64], rx_ivbuf[64], rx_hpbuf[64];
   uint8_t tx_keybuf[64], tx_ivbuf[64], tx_hpbuf[64];
@@ -298,9 +300,10 @@ int ngtcp2_crypto_derive_and_install_initial_key(
 
 int ngtcp2_crypto_update_and_install_key(
     ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
-    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv, ngtcp2_crypto_aead *aead,
-    ngtcp2_crypto_md *md, const uint8_t *current_rx_secret,
-    const uint8_t *current_tx_secret, size_t secretlen) {
+    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
+    const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
+    size_t secretlen) {
   uint8_t rx_keybuf[64], rx_ivbuf[64];
   uint8_t tx_keybuf[64], tx_ivbuf[64];
   size_t keylen = ngtcp2_crypto_aead_keylen(aead);
