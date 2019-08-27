@@ -1571,18 +1571,16 @@ int Handler::recv_crypto_data(ngtcp2_crypto_level crypto_level,
 }
 
 int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
-  int rv;
   std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_SECRETLEN> initial_secret,
       rx_secret, tx_secret;
   std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN> rx_key, rx_hp, tx_key,
       tx_hp;
   std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_IVLEN> rx_iv, tx_iv;
 
-  rv = ngtcp2_crypto_derive_and_install_initial_key(
-      conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
-      rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(), tx_iv.data(),
-      tx_hp.data(), dcid, NGTCP2_CRYPTO_SIDE_SERVER);
-  if (rv != 0) {
+  if (ngtcp2_crypto_derive_and_install_initial_key(
+          conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
+          rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
+          tx_iv.data(), tx_hp.data(), dcid, NGTCP2_CRYPTO_SIDE_SERVER) != 0) {
     std::cerr << "ngtcp2_crypto_derive_and_install_initial_key() failed"
               << std::endl;
     return -1;

@@ -1003,8 +1003,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 }
 
 int Client::setup_initial_crypto_context() {
-  int rv;
-
   std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_SECRETLEN> initial_secret,
       rx_secret, tx_secret;
   std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN> rx_key, rx_hp, tx_key,
@@ -1013,11 +1011,10 @@ int Client::setup_initial_crypto_context() {
 
   auto dcid = ngtcp2_conn_get_dcid(conn_);
 
-  rv = ngtcp2_crypto_derive_and_install_initial_key(
-      conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
-      rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(), tx_iv.data(),
-      tx_hp.data(), dcid, NGTCP2_CRYPTO_SIDE_CLIENT);
-  if (rv != 0) {
+  if (ngtcp2_crypto_derive_and_install_initial_key(
+          conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
+          rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
+          tx_iv.data(), tx_hp.data(), dcid, NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
     std::cerr << "ngtcp2_crypto_derive_and_install_initial_key() failed"
               << std::endl;
     return -1;
