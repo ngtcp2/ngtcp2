@@ -404,6 +404,50 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_initial_key(
 /**
  * @function
  *
+ * `ngtcp2_crypto_update_and_install_key` updates traffic keying
+ * materials and installs keys to |conn|.
+ *
+ * The new traffic secret for decryption is written to the buffer
+ * pointed by |rx_secret|.  The length of secret is |secretlen| bytes,
+ * and |rx_secret| must point to the buffer which has enough capacity.
+ *
+ * The new traffic secret for encryption is written to the buffer
+ * pointed by |tx_secret|.  The length of secret is |secretlen| bytes,
+ * and |tx_secret| must point to the buffer which has enough capacity.
+ *
+ * If |rx_key| is not NULL, the derived packet protection key for
+ * decryption is written to the buffer pointed by |rx_key|.  If
+ * |rx_iv| is not NULL, the derived packet protection IV for
+ * decryption is written to the buffer pointed by |rx_iv|.  If |rx_hp|
+ * is not NULL, the derived header protection key for decryption is
+ * written to the buffer pointed by |rx_hp|.
+ *
+ * If |tx_key| is not NULL, the derived packet protection key for
+ * encryption is written to the buffer pointed by |tx_key|.  If
+ * |tx_iv| is not NULL, the derived packet protection IV for
+ * encryption is written to the buffer pointed by |tx_iv|.  If |tx_hp|
+ * is not NULL, the derived header protection key for encryption is
+ * written to the buffer pointed by |tx_hp|.
+ *
+ * |current_rx_secret| and |current_tx_secret| are the current traffic
+ * secrets for decryption and encryption.  |secretlen| specifies the
+ * length of |rx_secret| and |tx_secret|.
+ *
+ * The length of packet protection key and header protection key is
+ * ngtcp2_crypto_aead(aead).  The length of packet protection IV is
+ * ngtcp2_crypto_packet_protection_ivlen(aead).
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_update_and_install_key(
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
+    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv, ngtcp2_crypto_aead *aead,
+    ngtcp2_crypto_md *md, const uint8_t *current_rx_secret,
+    const uint8_t *current_tx_secret, size_t secretlen);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_read_write_crypto_data` reads CRYPTO data |data| of
  * length |datalen| in encryption level |crypto_level| and may feed
  * outgoing CRYPTO data to |conn|.  This function can drive handshake.

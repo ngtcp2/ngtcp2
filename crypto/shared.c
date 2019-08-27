@@ -295,3 +295,57 @@ int ngtcp2_crypto_derive_and_install_initial_key(
 
   return 0;
 }
+
+int ngtcp2_crypto_update_and_install_key(
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
+    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv, ngtcp2_crypto_aead *aead,
+    ngtcp2_crypto_md *md, const uint8_t *current_rx_secret,
+    const uint8_t *current_tx_secret, size_t secretlen) {
+  uint8_t rx_keybuf[64], rx_ivbuf[64];
+  uint8_t tx_keybuf[64], tx_ivbuf[64];
+  size_t keylen = ngtcp2_crypto_aead_keylen(aead);
+  size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
+
+  if (!rx_key) {
+    rx_key = rx_keybuf;
+  }
+  if (!rx_iv) {
+    rx_iv = rx_ivbuf;
+  }
+  if (!tx_key) {
+    tx_key = tx_keybuf;
+  }
+  if (!tx_iv) {
+    tx_iv = tx_ivbuf;
+  }
+
+  if (ngtcp2_crypto_update_traffic_secret(rx_secret, md, current_rx_secret,
+                                          secretlen) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_crypto_derive_packet_protection_key(rx_key, rx_iv, NULL, aead, md,
+                                                 rx_secret, secretlen) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_conn_update_rx_key(conn, rx_key, keylen, rx_iv, ivlen) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_crypto_update_traffic_secret(tx_secret, md, current_tx_secret,
+                                          secretlen) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_crypto_derive_packet_protection_key(tx_key, tx_iv, NULL, aead, md,
+                                                 tx_secret, secretlen) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_conn_update_tx_key(conn, tx_key, keylen, tx_iv, ivlen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}

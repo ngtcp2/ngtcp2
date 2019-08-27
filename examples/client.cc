@@ -1495,68 +1495,35 @@ int Client::update_key() {
     std::cerr << "Updating traffic key" << std::endl;
   }
 
+  std::array<uint8_t, 64> rx_secret, tx_secret;
+  std::array<uint8_t, 64> rx_key, rx_iv, tx_key, tx_iv;
   auto aead = &crypto_ctx_.aead;
   auto md = &crypto_ctx_.md;
-
-  int rv;
-  std::array<uint8_t, 64> secret, key, iv;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
 
   ++nkey_update_;
 
-  rv = ngtcp2_crypto_update_traffic_secret(secret.data(), md, tx_secret_.data(),
-                                           tx_secret_.size());
-  if (rv != 0) {
+  if (ngtcp2_crypto_update_and_install_key(
+          conn_, rx_secret.data(), tx_secret.data(), rx_key.data(),
+          rx_iv.data(), tx_key.data(), tx_iv.data(), aead, md,
+          rx_secret_.data(), tx_secret_.data(), rx_secret_.size()) != 0) {
     return -1;
   }
 
-  tx_secret_.assign(std::begin(secret), std::begin(secret) + tx_secret_.size());
+  rx_secret_.assign(std::begin(rx_secret),
+                    std::begin(rx_secret) + rx_secret_.size());
 
-  if (ngtcp2_crypto_derive_packet_protection_key(key.data(), iv.data(), nullptr,
-                                                 aead, md, tx_secret_.data(),
-                                                 tx_secret_.size()) != 0) {
-    return -1;
-  }
+  tx_secret_.assign(std::begin(tx_secret),
+                    std::begin(tx_secret) + tx_secret_.size());
 
-  rv = ngtcp2_conn_update_tx_key(conn_, key.data(), keylen, iv.data(), ivlen);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_update_tx_key: " << ngtcp2_strerror(rv)
-              << std::endl;
-    return -1;
-  }
-
-  if (!config.quiet) {
-    std::cerr << "client_application_traffic " << nkey_update_ << std::endl;
-    debug::print_secrets(tx_secret_.data(), tx_secret_.size(), key.data(),
-                         keylen, iv.data(), ivlen);
-  }
-
-  rv = ngtcp2_crypto_update_traffic_secret(secret.data(), md, rx_secret_.data(),
-                                           rx_secret_.size());
-  if (rv != 0) {
-    return -1;
-  }
-
-  rx_secret_.assign(std::begin(secret), std::begin(secret) + rx_secret_.size());
-
-  if (ngtcp2_crypto_derive_packet_protection_key(key.data(), iv.data(), nullptr,
-                                                 aead, md, rx_secret_.data(),
-                                                 rx_secret_.size()) != 0) {
-    return -1;
-  }
-
-  rv = ngtcp2_conn_update_rx_key(conn_, key.data(), keylen, iv.data(), ivlen);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_update_rx_key: " << ngtcp2_strerror(rv)
-              << std::endl;
-    return -1;
-  }
-
-  if (!config.quiet) {
-    std::cerr << "server_application_traffic " << nkey_update_ << std::endl;
-    debug::print_secrets(rx_secret_.data(), rx_secret_.size(), key.data(),
-                         keylen, iv.data(), ivlen);
+  if (!config.quiet && config.show_secret) {
+    std::cerr << "application_traffic rx secret " << nkey_update_ << std::endl;
+    debug::print_secrets(rx_secret_.data(), rx_secret_.size(), rx_key.data(),
+                         keylen, rx_iv.data(), ivlen);
+    std::cerr << "application_traffic tx secret " << nkey_update_ << std::endl;
+    debug::print_secrets(tx_secret_.data(), tx_secret_.size(), tx_key.data(),
+                         keylen, tx_iv.data(), ivlen);
   }
 
   return 0;
