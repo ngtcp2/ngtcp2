@@ -75,7 +75,7 @@ typedef struct {
   ngtcp2_decrypt decrypt;
   ngtcp2_hp_mask hp_mask;
   void *user_data;
-} ngtcp2_crypto_ctx;
+} ngtcp2_crypto_cc;
 
 void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
                                 int64_t pkt_num);

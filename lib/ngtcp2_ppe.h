@@ -40,7 +40,7 @@
  */
 typedef struct {
   ngtcp2_buf buf;
-  ngtcp2_crypto_ctx *ctx;
+  ngtcp2_crypto_cc *cc;
   /* hdlen is the number of bytes for packet header written in buf. */
   size_t hdlen;
   /* len_offset is the offset to Length field. */
@@ -64,7 +64,7 @@ typedef struct {
  * ngtcp2_ppe_init initializes |ppe| with the given buffer.
  */
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
-                     ngtcp2_crypto_ctx *cctx);
+                     ngtcp2_crypto_cc *cc);
 
 /*
  * ngtcp2_ppe_encode_hd encodes |hd|.

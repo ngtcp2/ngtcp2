@@ -437,7 +437,7 @@ struct ngtcp2_conn {
   /* pkt contains the packet intermediate construction data to support
      NGTCP2_WRITE_STREAM_FLAG_MORE */
   struct {
-    ngtcp2_crypto_ctx ctx;
+    ngtcp2_crypto_cc cc;
     ngtcp2_pkt_hd hd;
     ngtcp2_ppe ppe;
     ngtcp2_frame_chain **pfrc;
