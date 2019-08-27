@@ -176,7 +176,7 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   return rv;
 }
 
-int ngtcp2_crypto_encrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
+int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const uint8_t *plaintext, size_t plaintextlen,
                           const uint8_t *key, const uint8_t *nonce,
                           size_t noncelen, const uint8_t *ad, size_t adlen) {
@@ -212,7 +212,7 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
   return rv;
 }
 
-int ngtcp2_crypto_decrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
+int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const uint8_t *ciphertext, size_t ciphertextlen,
                           const uint8_t *key, const uint8_t *nonce,
                           size_t noncelen, const uint8_t *ad, size_t adlen) {
@@ -258,7 +258,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
   return rv;
 }
 
-int ngtcp2_crypto_hp_mask(uint8_t *dest, ngtcp2_crypto_cipher *hp,
+int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const uint8_t *key, const uint8_t *sample) {
   static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
   const EVP_CIPHER *cipher = hp->native_handle;

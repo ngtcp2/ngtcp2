@@ -126,9 +126,9 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   ngtcp2_crypto_create_nonce(ppe->nonce, cc->ckm->iv.base, cc->ckm->iv.len,
                              ppe->pkt_num);
 
-  rv = ppe->cc->encrypt(conn, payload, payload, payloadlen, cc->ckm->key.base,
-                        ppe->nonce, cc->ckm->iv.len, buf->begin, ppe->hdlen,
-                        conn->user_data);
+  rv = ppe->cc->encrypt(conn, payload, &cc->aead, payload, payloadlen,
+                        cc->ckm->key.base, ppe->nonce, cc->ckm->iv.len,
+                        buf->begin, ppe->hdlen, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -138,7 +138,7 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   /* TODO Check that we have enough space to get sample */
   assert(ppe->sample_offset + NGTCP2_HP_SAMPLELEN <= ngtcp2_buf_len(buf));
 
-  rv = ppe->cc->hp_mask(conn, mask, cc->hp->base,
+  rv = ppe->cc->hp_mask(conn, mask, &cc->hp, cc->hp_key->base,
                         buf->begin + ppe->sample_offset, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;

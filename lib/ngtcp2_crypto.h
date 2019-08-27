@@ -68,8 +68,10 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
 void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 
 typedef struct {
+  ngtcp2_crypto_aead aead;
+  ngtcp2_crypto_cipher hp;
   const ngtcp2_crypto_km *ckm;
-  const ngtcp2_vec *hp;
+  const ngtcp2_vec *hp_key;
   size_t aead_overhead;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;

@@ -36,57 +36,6 @@ extern "C" {
 #define NGTCP2_CRYPTO_INITIAL_IVLEN 12
 
 /**
- * @struct
- *
- * `ngtcp2_crypto_md` is a wrapper around native message digest
- * object.
- *
- * If libngtcp2_crypto_openssl is linked, native_handle must be a
- * pointer to EVP_MD.
- */
-typedef struct ngtcp2_crypto_md {
-  void *native_handle;
-} ngtcp2_crypto_md;
-
-/**
- * @struct
- *
- * `ngtcp2_crypto_aead` is a wrapper around native AEAD object.
- *
- * If libngtcp2_crypto_openssl is linked, native_handle must be a
- * pointer to EVP_CIPHER.
- */
-typedef struct ngtcp2_crypto_aead {
-  void *native_handle;
-} ngtcp2_crypto_aead;
-
-/**
- * @struct
- *
- * `ngtcp2_crypto_cipher` is a wrapper around native cipher object.
- *
- * If libngtcp2_crypto_openssl is linked, native_handle must be a
- * pointer to EVP_CIPHER.
- */
-typedef struct ngtcp2_crypto_cipher {
-  void *native_handle;
-} ngtcp2_crypto_cipher;
-
-/**
- * @function
- *
- * `ngtcp2_crypto_ctx` is a convenient structure to bind all crypto
- * related objects in one place.  Use `ngtcp2_crypto_ctx_initial` to
- * initialize this struct for Initial packet encryption.  For
- * Handshake and Shortpackets, use `ngtcp2_crypto_ctx_tls`.
- */
-typedef struct ngtcp2_crypto_ctx {
-  ngtcp2_crypto_aead aead;
-  ngtcp2_crypto_md md;
-  ngtcp2_crypto_cipher hp;
-} ngtcp2_crypto_ctx;
-
-/**
  * @function
  *
  * `ngtcp2_crypto_ctx_initial` initializes |ctx| for Initial packet
@@ -256,7 +205,8 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_packet_protection_key(
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
+NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
+                                        const ngtcp2_crypto_aead *aead,
                                         const uint8_t *plaintext,
                                         size_t plaintextlen, const uint8_t *key,
                                         const uint8_t *nonce, size_t noncelen,
@@ -274,12 +224,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_decrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
-                                        const uint8_t *ciphertext,
-                                        size_t ciphertextlen,
-                                        const uint8_t *key,
-                                        const uint8_t *nonce, size_t noncelen,
-                                        const uint8_t *ad, size_t adlen);
+NGTCP2_EXTERN int
+ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                      const uint8_t *ciphertext, size_t ciphertextlen,
+                      const uint8_t *key, const uint8_t *nonce, size_t noncelen,
+                      const uint8_t *ad, size_t adlen);
 
 /**
  * @function
@@ -291,7 +240,8 @@ NGTCP2_EXTERN int ngtcp2_crypto_decrypt(uint8_t *dest, ngtcp2_crypto_aead *aead,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest, ngtcp2_crypto_cipher *hp,
+NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
+                                        const ngtcp2_crypto_cipher *hp,
                                         const uint8_t *key,
                                         const uint8_t *sample);
 

@@ -270,6 +270,7 @@ typedef struct {
     } rx;
 
     ngtcp2_strm strm;
+    ngtcp2_crypto_ctx ctx;
   } crypto;
 
   ngtcp2_acktr acktr;

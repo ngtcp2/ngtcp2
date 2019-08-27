@@ -587,6 +587,57 @@ typedef struct {
 } ngtcp2_path_storage;
 
 /**
+ * @struct
+ *
+ * `ngtcp2_crypto_md` is a wrapper around native message digest
+ * object.
+ *
+ * If libngtcp2_crypto_openssl is linked, native_handle must be a
+ * pointer to EVP_MD.
+ */
+typedef struct ngtcp2_crypto_md {
+  void *native_handle;
+} ngtcp2_crypto_md;
+
+/**
+ * @struct
+ *
+ * `ngtcp2_crypto_aead` is a wrapper around native AEAD object.
+ *
+ * If libngtcp2_crypto_openssl is linked, native_handle must be a
+ * pointer to EVP_CIPHER.
+ */
+typedef struct ngtcp2_crypto_aead {
+  void *native_handle;
+} ngtcp2_crypto_aead;
+
+/**
+ * @struct
+ *
+ * `ngtcp2_crypto_cipher` is a wrapper around native cipher object.
+ *
+ * If libngtcp2_crypto_openssl is linked, native_handle must be a
+ * pointer to EVP_CIPHER.
+ */
+typedef struct ngtcp2_crypto_cipher {
+  void *native_handle;
+} ngtcp2_crypto_cipher;
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_ctx` is a convenient structure to bind all crypto
+ * related objects in one place.  Use `ngtcp2_crypto_ctx_initial` to
+ * initialize this struct for Initial packet encryption.  For
+ * Handshake and Shortpackets, use `ngtcp2_crypto_ctx_tls`.
+ */
+typedef struct ngtcp2_crypto_ctx {
+  ngtcp2_crypto_aead aead;
+  ngtcp2_crypto_md md;
+  ngtcp2_crypto_cipher hp;
+} ngtcp2_crypto_ctx;
+
+/**
  * @function
  *
  * `ngtcp2_encode_transport_params` encodes |params| in |dest| of
@@ -993,6 +1044,7 @@ typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * return immediately.
  */
 typedef int (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
+                              const ngtcp2_crypto_aead *aead,
                               const uint8_t *plaintext, size_t plaintextlen,
                               const uint8_t *key, const uint8_t *nonce,
                               size_t noncelen, const uint8_t *ad, size_t adlen,
@@ -1021,6 +1073,7 @@ typedef int (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
  * makes the library call return immediately.
  */
 typedef int (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
+                              const ngtcp2_crypto_aead *aead,
                               const uint8_t *ciphertext, size_t ciphertextlen,
                               const uint8_t *key, const uint8_t *nonce,
                               size_t noncelen, const uint8_t *ad, size_t adlen,
@@ -1045,6 +1098,7 @@ typedef int (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
  *  return immediately.
  */
 typedef int (*ngtcp2_hp_mask)(ngtcp2_conn *conn, uint8_t *dest,
+                              const ngtcp2_crypto_cipher *hp,
                               const uint8_t *key, const uint8_t *sample,
                               void *user_data);
 
@@ -1317,16 +1371,6 @@ typedef struct {
   ngtcp2_handshake_completed handshake_completed;
   ngtcp2_recv_version_negotiation recv_version_negotiation;
   /**
-   * in_encrypt is a callback function which is invoked to encrypt
-   * Initial packets.
-   */
-  ngtcp2_encrypt in_encrypt;
-  /**
-   * in_decrypt is a callback function which is invoked to decrypt
-   * Initial packets.
-   */
-  ngtcp2_decrypt in_decrypt;
-  /**
    * encrypt is a callback function which is invoked to encrypt
    * packets other than Initial packets.
    */
@@ -1336,11 +1380,6 @@ typedef struct {
    * packets other than Initial packets.
    */
   ngtcp2_decrypt decrypt;
-  /**
-   * in_hp_mask is a callback function which is invoked to get mask to
-   * encrypt or decrypt Initial packet header.
-   */
-  ngtcp2_hp_mask in_hp_mask;
   /**
    * hp_mask is a callback function which is invoked to get mask to
    * encrypt or decrypt packet header other than Initial packets.
@@ -2406,6 +2445,48 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_local_streams_uni(ngtcp2_conn *conn);
  * this local endpoint can send in this connection.
  */
 NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_initial_crypto_ctx` sets |ctx| for Initial packet
+ * encryption.  The passed data will be passed to
+ * :type:`ngtcp2_encrypt`, :type:`ngtcp2_decrypt` and
+ * :type:`ngtcp2_hp_mask` callbacks.
+ */
+NGTCP2_EXTERN void
+ngtcp2_conn_set_initial_crypto_ctx(ngtcp2_conn *conn,
+                                   const ngtcp2_crypto_ctx *ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_initial_crypto_ctx` returns
+ * :type:`ngtcp2_crypto_ctx` object for Initial packet encryption.
+ */
+NGTCP2_EXTERN const ngtcp2_crypto_ctx *
+ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_initial_crypto_ctx` sets |ctx| for
+ * 0RTT/Handshake/Short packet encryption.  In other words, this
+ * crypto context is used for all packets except for Initial packets.
+ * The passed data will be passed to :type:`ngtcp2_encrypt`,
+ * :type:`ngtcp2_decrypt` and :type:`ngtcp2_hp_mask` callbacks.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
+                                              const ngtcp2_crypto_ctx *ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_crypto_ctx` returns :type:`ngtcp2_crypto_ctx`
+ * object for 0RTT/Handshake/Short packet encryption.
+ */
+NGTCP2_EXTERN const ngtcp2_crypto_ctx *
+ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn);
 
 /**
  * @function

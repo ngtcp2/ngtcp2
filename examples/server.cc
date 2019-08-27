@@ -73,10 +73,6 @@ namespace {
 Config config{};
 } // namespace
 
-namespace {
-ngtcp2_crypto_ctx in_crypto_ctx;
-} // namespace
-
 Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen},
       begin(buf.data()),
@@ -99,6 +95,7 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     ngtcp2_crypto_ctx_tls(&crypto_ctx_, ssl_);
     ngtcp2_conn_set_aead_overhead(conn_,
                                   ngtcp2_crypto_aead_taglen(&crypto_ctx_.aead));
+    ngtcp2_conn_set_crypto_ctx(conn_, &crypto_ctx_);
   }
 
   auto aead = &crypto_ctx_.aead;
@@ -774,12 +771,12 @@ int Handler::handshake_completed() {
 }
 
 namespace {
-int do_in_encrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *plaintext,
-                  size_t plaintextlen, const uint8_t *key, const uint8_t *nonce,
-                  size_t noncelen, const uint8_t *ad, size_t adlen,
-                  void *user_data) {
-  if (ngtcp2_crypto_encrypt(dest, &in_crypto_ctx.aead, plaintext, plaintextlen,
-                            key, nonce, noncelen, ad, adlen) != 0) {
+int do_encrypt(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
+               const uint8_t *plaintext, size_t plaintextlen,
+               const uint8_t *key, const uint8_t *nonce, size_t noncelen,
+               const uint8_t *ad, size_t adlen, void *user_data) {
+  if (ngtcp2_crypto_encrypt(dest, aead, plaintext, plaintextlen, key, nonce,
+                            noncelen, ad, adlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
@@ -787,13 +784,12 @@ int do_in_encrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *plaintext,
 } // namespace
 
 namespace {
-int do_in_decrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *ciphertext,
-                  size_t ciphertextlen, const uint8_t *key,
-                  const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
-                  size_t adlen, void *user_data) {
-  if (ngtcp2_crypto_decrypt(dest, &in_crypto_ctx.aead, ciphertext,
-                            ciphertextlen, key, nonce, noncelen, ad,
-                            adlen) != 0) {
+int do_decrypt(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
+               const uint8_t *ciphertext, size_t ciphertextlen,
+               const uint8_t *key, const uint8_t *nonce, size_t noncelen,
+               const uint8_t *ad, size_t adlen, void *user_data) {
+  if (ngtcp2_crypto_decrypt(dest, aead, ciphertext, ciphertextlen, key, nonce,
+                            noncelen, ad, adlen) != 0) {
     return NGTCP2_ERR_TLS_DECRYPT;
   }
   return 0;
@@ -801,56 +797,9 @@ int do_in_decrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *ciphertext,
 } // namespace
 
 namespace {
-int do_encrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *plaintext,
-               size_t plaintextlen, const uint8_t *key, const uint8_t *nonce,
-               size_t noncelen, const uint8_t *ad, size_t adlen,
-               void *user_data) {
-  auto h = static_cast<Handler *>(user_data);
-
-  if (h->encrypt_data(dest, plaintext, plaintextlen, key, nonce, noncelen, ad,
-                      adlen) != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int do_decrypt(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *ciphertext,
-               size_t ciphertextlen, const uint8_t *key, const uint8_t *nonce,
-               size_t noncelen, const uint8_t *ad, size_t adlen,
-               void *user_data) {
-  auto h = static_cast<Handler *>(user_data);
-
-  if (h->decrypt_data(dest, ciphertext, ciphertextlen, key, nonce, noncelen, ad,
-                      adlen) != 0) {
-    return NGTCP2_ERR_TLS_DECRYPT;
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int do_in_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *key,
-                  const uint8_t *sample, void *user_data) {
-  if (ngtcp2_crypto_hp_mask(dest, &in_crypto_ctx.hp, key, sample) != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  if (!config.quiet && config.show_secret) {
-    debug::print_hp_mask(dest, NGTCP2_HP_MASKLEN, sample, NGTCP2_HP_SAMPLELEN);
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
-int do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *key,
-               const uint8_t *sample, void *user_data) {
-  auto h = static_cast<Handler *>(user_data);
-
-  if (h->hp_mask(dest, key, sample) != 0) {
+int do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
+               const uint8_t *key, const uint8_t *sample, void *user_data) {
+  if (ngtcp2_crypto_hp_mask(dest, hp, key, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -1437,11 +1386,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       ::recv_crypto_data,
       ::handshake_completed,
       nullptr, // recv_version_negotiation
-      do_in_encrypt,
-      do_in_decrypt,
       do_encrypt,
       do_decrypt,
-      do_in_hp_mask,
       do_hp_mask,
       ::recv_stream_data,
       acked_crypto_offset,
@@ -1530,6 +1476,10 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     ngtcp2_conn_set_retry_ocid(conn_, ocid);
   }
 
+  ngtcp2_crypto_ctx in_crypto_ctx;
+  ngtcp2_crypto_ctx_initial(&in_crypto_ctx);
+  ngtcp2_conn_set_initial_crypto_ctx(conn_, &in_crypto_ctx);
+
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(conn_, &params);
 
@@ -1600,26 +1550,6 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   }
 
   return 0;
-}
-
-int Handler::encrypt_data(uint8_t *dest, const uint8_t *plaintext,
-                          size_t plaintextlen, const uint8_t *key,
-                          const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen) {
-  return ngtcp2_crypto_encrypt(dest, &crypto_ctx_.aead, plaintext, plaintextlen,
-                               key, nonce, noncelen, ad, adlen);
-}
-
-int Handler::decrypt_data(uint8_t *dest, const uint8_t *ciphertext,
-                          size_t ciphertextlen, const uint8_t *key,
-                          const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen) {
-  return ngtcp2_crypto_decrypt(dest, &crypto_ctx_.aead, ciphertext,
-                               ciphertextlen, key, nonce, noncelen, ad, adlen);
-}
-
-int Handler::hp_mask(uint8_t *dest, const uint8_t *key, const uint8_t *sample) {
-  return ngtcp2_crypto_hp_mask(dest, &crypto_ctx_.hp, key, sample);
 }
 
 void Handler::update_endpoint(const ngtcp2_addr *addr) {
@@ -3378,8 +3308,6 @@ int main(int argc, char **argv) {
       SSL_CTX_set_keylog_callback(ssl_ctx, keylog_callback);
     }
   }
-
-  ngtcp2_crypto_ctx_initial(&in_crypto_ctx);
 
   Server s(EV_DEFAULT, ssl_ctx);
   if (s.init(addr, port) != 0) {
