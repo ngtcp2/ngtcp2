@@ -141,7 +141,7 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     assert(0);
   }
 
-  if (!config.quiet) {
+  if (!config.quiet && config.show_secret) {
     std::cerr << title << " rx secret" << std::endl;
     debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen,
                          rx_iv.data(), ivlen, rx_hp.data(), hplen);
@@ -1572,59 +1572,34 @@ int Handler::recv_crypto_data(ngtcp2_crypto_level crypto_level,
 
 int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   int rv;
-  std::array<uint8_t, 32> initial_secret, rx_secret, tx_secret;
+  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_SECRETLEN> initial_secret,
+      rx_secret, tx_secret;
+  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN> rx_key, rx_hp, tx_key,
+      tx_hp;
+  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_IVLEN> rx_iv, tx_iv;
 
-  rv = ngtcp2_crypto_derive_initial_secrets(rx_secret.data(), tx_secret.data(),
-                                            initial_secret.data(), dcid,
-                                            NGTCP2_CRYPTO_SIDE_SERVER);
+  rv = ngtcp2_crypto_derive_and_install_initial_key(
+      conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
+      rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(), tx_iv.data(),
+      tx_hp.data(), dcid, NGTCP2_CRYPTO_SIDE_SERVER);
   if (rv != 0) {
-    std::cerr << "ngtcp2_crypto_derive_initial_secrets() failed" << std::endl;
+    std::cerr << "ngtcp2_crypto_derive_and_install_initial_key() failed"
+              << std::endl;
     return -1;
   }
 
   if (!config.quiet && config.show_secret) {
     debug::print_initial_secret(initial_secret.data(), initial_secret.size());
+
+    std::cerr << "initial rx secret" << std::endl;
+    debug::print_secrets(rx_secret.data(), rx_secret.size(), rx_key.data(),
+                         rx_key.size(), rx_iv.data(), rx_iv.size(),
+                         rx_hp.data(), rx_hp.size());
+    std::cerr << "initial tx secret" << std::endl;
+    debug::print_secrets(tx_secret.data(), tx_secret.size(), tx_key.data(),
+                         tx_key.size(), tx_iv.data(), tx_iv.size(),
+                         tx_hp.data(), tx_hp.size());
   }
-
-  auto aead = &in_crypto_ctx.aead;
-  auto md = &in_crypto_ctx.md;
-
-  std::array<uint8_t, 16> key, iv, hp;
-  auto keylen = ngtcp2_crypto_aead_keylen(aead);
-  auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
-  auto hplen = keylen;
-
-  if (ngtcp2_crypto_derive_packet_protection_key(
-          key.data(), iv.data(), hp.data(), aead, md, tx_secret.data(),
-          tx_secret.size()) != 0) {
-    return -1;
-  }
-
-  if (!config.quiet && config.show_secret) {
-    debug::print_server_in_secret(tx_secret.data(), tx_secret.size());
-    debug::print_server_pp_key(key.data(), keylen);
-    debug::print_server_pp_iv(iv.data(), ivlen);
-    debug::print_server_pp_hp(hp.data(), hplen);
-  }
-
-  ngtcp2_conn_install_initial_tx_keys(conn_, key.data(), keylen, iv.data(),
-                                      ivlen, hp.data(), hplen);
-
-  if (ngtcp2_crypto_derive_packet_protection_key(
-          key.data(), iv.data(), hp.data(), aead, md, rx_secret.data(),
-          rx_secret.size()) != 0) {
-    return -1;
-  }
-
-  if (!config.quiet && config.show_secret) {
-    debug::print_client_in_secret(rx_secret.data(), rx_secret.size());
-    debug::print_client_pp_key(key.data(), keylen);
-    debug::print_client_pp_iv(iv.data(), ivlen);
-    debug::print_client_pp_hp(hp.data(), hplen);
-  }
-
-  ngtcp2_conn_install_initial_rx_keys(conn_, key.data(), keylen, iv.data(),
-                                      ivlen, hp.data(), hplen);
 
   return 0;
 }

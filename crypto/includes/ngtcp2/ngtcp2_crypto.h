@@ -31,6 +31,10 @@
 extern "C" {
 #endif
 
+#define NGTCP2_CRYPTO_INITIAL_SECRETLEN 32
+#define NGTCP2_CRYPTO_INITIAL_KEYLEN 16
+#define NGTCP2_CRYPTO_INITIAL_IVLEN 12
+
 /**
  * @struct
  *
@@ -347,6 +351,55 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
     uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, ngtcp2_crypto_aead *aead,
     ngtcp2_crypto_md *md, ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_derive_and_install_initial_key` derives initial
+ * keying materials and installs keys to |conn|.
+ *
+ * If |rx_secret| is not NULL, the secret for decryption is written to
+ * the buffer pointed by |rx_secret|.  The length of secret is 32
+ * bytes, and |rx_secret| must point to the buffer which has enough
+ * capacity.
+ *
+ * If |tx_secret| is not NULL, the secret for encryption is written to
+ * the buffer pointed by |tx_secret|.  The length of secret is 32
+ * bytes, and |tx_secret| must point to the buffer which has enough
+ * capacity.
+ *
+ * If |initial_secret| is not NULL, the initial secret is written to
+ * the buffer pointed by |initial_secret|.  The length of secret is 32
+ * bytes, and |initial_secret| must point to the buffer which has
+ * enough capacity.
+ *
+ * |client_dcid| is the destination connection ID in first Initial
+ * packet of client.
+ *
+ * If |rx_key| is not NULL, the derived packet protection key for
+ * decryption is written to the buffer pointed by |rx_key|.  If
+ * |rx_iv| is not NULL, the derived packet protection IV for
+ * decryption is written to the buffer pointed by |rx_iv|.  If |rx_hp|
+ * is not NULL, the derived header protection key for decryption is
+ * written to the buffer pointed by |rx_hp|.
+ *
+ * If |tx_key| is not NULL, the derived packet protection key for
+ * encryption is written to the buffer pointed by |tx_key|.  If
+ * |tx_iv| is not NULL, the derived packet protection IV for
+ * encryption is written to the buffer pointed by |tx_iv|.  If |tx_hp|
+ * is not NULL, the derived header protection key for encryption is
+ * written to the buffer pointed by |tx_hp|.
+ *
+ * The length of packet protection key and header protection key is 16
+ * bytes long.  The length of packet protection IV is 12 bytes long.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_initial_key(
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+    uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    const ngtcp2_cid *client_dcid, ngtcp2_crypto_side side);
 
 /**
  * @function

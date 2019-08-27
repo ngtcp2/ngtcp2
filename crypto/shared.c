@@ -62,15 +62,17 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
   static const uint8_t CLABEL[] = "client in";
   static const uint8_t SLABEL[] = "server in";
   uint8_t initial_secret_buf[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
-  uint8_t *initial_secret_ptr =
-      initial_secret ? initial_secret : initial_secret_buf;
   uint8_t *client_secret;
   uint8_t *server_secret;
   ngtcp2_crypto_ctx ctx;
 
+  if (!initial_secret) {
+    initial_secret = initial_secret_buf;
+  }
+
   ngtcp2_crypto_ctx_initial(&ctx);
 
-  if (ngtcp2_crypto_hkdf_extract(initial_secret_ptr,
+  if (ngtcp2_crypto_hkdf_extract(initial_secret,
                                  NGTCP2_CRYPTO_INITIAL_SECRETLEN, &ctx.md,
                                  client_dcid->data, client_dcid->datalen,
                                  (const uint8_t *)NGTCP2_INITIAL_SALT,
@@ -88,11 +90,11 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
 
   if (ngtcp2_crypto_hkdf_expand_label(
           client_secret, NGTCP2_CRYPTO_INITIAL_SECRETLEN, &ctx.md,
-          initial_secret_ptr, NGTCP2_CRYPTO_INITIAL_SECRETLEN, CLABEL,
+          initial_secret, NGTCP2_CRYPTO_INITIAL_SECRETLEN, CLABEL,
           sizeof(CLABEL) - 1) != 0 ||
       ngtcp2_crypto_hkdf_expand_label(
           server_secret, NGTCP2_CRYPTO_INITIAL_SECRETLEN, &ctx.md,
-          initial_secret_ptr, NGTCP2_CRYPTO_INITIAL_SECRETLEN, SLABEL,
+          initial_secret, NGTCP2_CRYPTO_INITIAL_SECRETLEN, SLABEL,
           sizeof(SLABEL) - 1) != 0) {
     return -1;
   }
@@ -215,6 +217,81 @@ int ngtcp2_crypto_derive_and_install_key(
   default:
     return -1;
   }
+
+  return 0;
+}
+
+int ngtcp2_crypto_derive_and_install_initial_key(
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+    uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    const ngtcp2_cid *client_dcid, ngtcp2_crypto_side side) {
+  uint8_t rx_secretbuf[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t tx_secretbuf[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t initial_secretbuf[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t rx_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t rx_ivbuf[NGTCP2_CRYPTO_INITIAL_IVLEN];
+  uint8_t rx_hpbuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t tx_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t tx_ivbuf[NGTCP2_CRYPTO_INITIAL_IVLEN];
+  uint8_t tx_hpbuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  ngtcp2_crypto_ctx ctx;
+
+  ngtcp2_crypto_ctx_initial(&ctx);
+
+  if (!rx_secret) {
+    rx_secret = rx_secretbuf;
+  }
+  if (!tx_secret) {
+    tx_secret = tx_secretbuf;
+  }
+  if (!initial_secret) {
+    initial_secret = initial_secretbuf;
+  }
+
+  if (!rx_key) {
+    rx_key = rx_keybuf;
+  }
+  if (!rx_iv) {
+    rx_iv = rx_ivbuf;
+  }
+  if (!rx_hp) {
+    rx_hp = rx_hpbuf;
+  }
+  if (!tx_key) {
+    tx_key = tx_keybuf;
+  }
+  if (!tx_iv) {
+    tx_iv = tx_ivbuf;
+  }
+  if (!tx_hp) {
+    tx_hp = tx_hpbuf;
+  }
+
+  if (ngtcp2_crypto_derive_initial_secrets(rx_secret, tx_secret, initial_secret,
+                                           client_dcid, side) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_crypto_derive_packet_protection_key(
+          rx_key, rx_iv, rx_hp, &ctx.aead, &ctx.md, rx_secret,
+          NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
+    return -1;
+  }
+
+  ngtcp2_conn_install_initial_rx_keys(
+      conn, rx_key, NGTCP2_CRYPTO_INITIAL_KEYLEN, rx_iv,
+      NGTCP2_CRYPTO_INITIAL_IVLEN, rx_hp, NGTCP2_CRYPTO_INITIAL_KEYLEN);
+
+  if (ngtcp2_crypto_derive_packet_protection_key(
+          tx_key, tx_iv, tx_hp, &ctx.aead, &ctx.md, tx_secret,
+          NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
+    return -1;
+  }
+
+  ngtcp2_conn_install_initial_tx_keys(
+      conn, tx_key, NGTCP2_CRYPTO_INITIAL_KEYLEN, tx_iv,
+      NGTCP2_CRYPTO_INITIAL_IVLEN, tx_hp, NGTCP2_CRYPTO_INITIAL_KEYLEN);
 
   return 0;
 }
