@@ -97,11 +97,11 @@ static int fail_decrypt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 static int null_hp_mask(ngtcp2_conn *conn, uint8_t *dest,
-                        const ngtcp2_crypto_cipher *hp, const uint8_t *key,
+                        const ngtcp2_crypto_cipher *hp, const uint8_t *hp_key,
                         const uint8_t *sample, void *user_data) {
   (void)conn;
   (void)hp;
-  (void)key;
+  (void)hp_key;
   (void)user_data;
   (void)sample;
   memcpy(dest, NGTCP2_FAKE_HP_MASK, sizeof(NGTCP2_FAKE_HP_MASK) - 1);

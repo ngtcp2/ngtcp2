@@ -108,11 +108,11 @@ size_t ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead) {
 }
 
 int ngtcp2_crypto_derive_packet_protection_key(
-    uint8_t *key, uint8_t *iv, uint8_t *hp, const ngtcp2_crypto_aead *aead,
+    uint8_t *key, uint8_t *iv, uint8_t *hp_key, const ngtcp2_crypto_aead *aead,
     const ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen) {
   static const uint8_t KEY_LABEL[] = "quic key";
   static const uint8_t IV_LABEL[] = "quic iv";
-  static const uint8_t HP_LABEL[] = "quic hp";
+  static const uint8_t HP_KEY_LABEL[] = "quic hp";
   size_t keylen = ngtcp2_crypto_aead_keylen(aead);
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
 
@@ -126,9 +126,9 @@ int ngtcp2_crypto_derive_packet_protection_key(
     return -1;
   }
 
-  if (hp != NULL &&
-      ngtcp2_crypto_hkdf_expand_label(hp, keylen, md, secret, secretlen,
-                                      HP_LABEL, sizeof(HP_LABEL) - 1) != 0) {
+  if (hp_key != NULL && ngtcp2_crypto_hkdf_expand_label(
+                            hp_key, keylen, md, secret, secretlen, HP_KEY_LABEL,
+                            sizeof(HP_KEY_LABEL) - 1) != 0) {
     return -1;
   }
 
@@ -150,16 +150,15 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
 }
 
 int ngtcp2_crypto_derive_and_install_key(
-    ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp_key,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp_key,
     const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
     ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side) {
-  uint8_t rx_keybuf[64], rx_ivbuf[64], rx_hpbuf[64];
-  uint8_t tx_keybuf[64], tx_ivbuf[64], tx_hpbuf[64];
+  uint8_t rx_keybuf[64], rx_ivbuf[64], rx_hp_keybuf[64];
+  uint8_t tx_keybuf[64], tx_ivbuf[64], tx_hp_keybuf[64];
   size_t keylen = ngtcp2_crypto_aead_keylen(aead);
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
-  size_t hplen = keylen;
 
   if (!rx_key) {
     rx_key = rx_keybuf;
@@ -167,8 +166,8 @@ int ngtcp2_crypto_derive_and_install_key(
   if (!rx_iv) {
     rx_iv = rx_ivbuf;
   }
-  if (!rx_hp) {
-    rx_hp = rx_hpbuf;
+  if (!rx_hp_key) {
+    rx_hp_key = rx_hp_keybuf;
   }
   if (!tx_key) {
     tx_key = tx_keybuf;
@@ -176,41 +175,41 @@ int ngtcp2_crypto_derive_and_install_key(
   if (!tx_iv) {
     tx_iv = tx_ivbuf;
   }
-  if (!tx_hp) {
-    tx_hp = tx_hpbuf;
+  if (!tx_hp_key) {
+    tx_hp_key = tx_hp_keybuf;
   }
 
   if ((level != NGTCP2_CRYPTO_LEVEL_EARLY ||
        side == NGTCP2_CRYPTO_SIDE_SERVER) &&
-      ngtcp2_crypto_derive_packet_protection_key(rx_key, rx_iv, rx_hp, aead, md,
-                                                 rx_secret, secretlen) != 0) {
+      ngtcp2_crypto_derive_packet_protection_key(
+          rx_key, rx_iv, rx_hp_key, aead, md, rx_secret, secretlen) != 0) {
     return -1;
   }
 
   if ((level != NGTCP2_CRYPTO_LEVEL_EARLY ||
        side == NGTCP2_CRYPTO_SIDE_CLIENT) &&
-      ngtcp2_crypto_derive_packet_protection_key(tx_key, tx_iv, tx_hp, aead, md,
-                                                 tx_secret, secretlen) != 0) {
+      ngtcp2_crypto_derive_packet_protection_key(
+          tx_key, tx_iv, tx_hp_key, aead, md, tx_secret, secretlen) != 0) {
     return -1;
   }
 
   switch (level) {
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     if (side == NGTCP2_CRYPTO_SIDE_CLIENT) {
-      ngtcp2_conn_install_early_keys(conn, tx_key, keylen, tx_iv, ivlen, tx_hp,
-                                     hplen);
+      ngtcp2_conn_install_early_keys(conn, tx_key, keylen, tx_iv, ivlen,
+                                     tx_hp_key, keylen);
     } else {
-      ngtcp2_conn_install_early_keys(conn, rx_key, keylen, rx_iv, ivlen, rx_hp,
-                                     hplen);
+      ngtcp2_conn_install_early_keys(conn, rx_key, keylen, rx_iv, ivlen,
+                                     rx_hp_key, keylen);
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    ngtcp2_conn_install_handshake_keys(conn, rx_key, rx_iv, rx_hp, tx_key,
-                                       tx_iv, tx_hp, keylen, ivlen, hplen);
+    ngtcp2_conn_install_handshake_keys(conn, rx_key, rx_iv, rx_hp_key, tx_key,
+                                       tx_iv, tx_hp_key, keylen, ivlen, keylen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
-    ngtcp2_conn_install_keys(conn, rx_key, rx_iv, rx_hp, tx_key, tx_iv, tx_hp,
-                             keylen, ivlen, hplen);
+    ngtcp2_conn_install_keys(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
+                             tx_hp_key, keylen, ivlen, keylen);
     break;
   default:
     return -1;
@@ -221,18 +220,18 @@ int ngtcp2_crypto_derive_and_install_key(
 
 int ngtcp2_crypto_derive_and_install_initial_key(
     ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
-    uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv,
+    uint8_t *rx_hp_key, uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp_key,
     const ngtcp2_cid *client_dcid, ngtcp2_crypto_side side) {
   uint8_t rx_secretbuf[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
   uint8_t tx_secretbuf[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
   uint8_t initial_secretbuf[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
   uint8_t rx_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
   uint8_t rx_ivbuf[NGTCP2_CRYPTO_INITIAL_IVLEN];
-  uint8_t rx_hpbuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t rx_hp_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
   uint8_t tx_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
   uint8_t tx_ivbuf[NGTCP2_CRYPTO_INITIAL_IVLEN];
-  uint8_t tx_hpbuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t tx_hp_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
   ngtcp2_crypto_ctx ctx;
 
   ngtcp2_crypto_ctx_initial(&ctx);
@@ -253,8 +252,8 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   if (!rx_iv) {
     rx_iv = rx_ivbuf;
   }
-  if (!rx_hp) {
-    rx_hp = rx_hpbuf;
+  if (!rx_hp_key) {
+    rx_hp_key = rx_hp_keybuf;
   }
   if (!tx_key) {
     tx_key = tx_keybuf;
@@ -262,8 +261,8 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   if (!tx_iv) {
     tx_iv = tx_ivbuf;
   }
-  if (!tx_hp) {
-    tx_hp = tx_hpbuf;
+  if (!tx_hp_key) {
+    tx_hp_key = tx_hp_keybuf;
   }
 
   if (ngtcp2_crypto_derive_initial_secrets(rx_secret, tx_secret, initial_secret,
@@ -272,21 +271,21 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   }
 
   if (ngtcp2_crypto_derive_packet_protection_key(
-          rx_key, rx_iv, rx_hp, &ctx.aead, &ctx.md, rx_secret,
+          rx_key, rx_iv, rx_hp_key, &ctx.aead, &ctx.md, rx_secret,
           NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
     return -1;
   }
 
   if (ngtcp2_crypto_derive_packet_protection_key(
-          tx_key, tx_iv, tx_hp, &ctx.aead, &ctx.md, tx_secret,
+          tx_key, tx_iv, tx_hp_key, &ctx.aead, &ctx.md, tx_secret,
           NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
     return -1;
   }
 
-  ngtcp2_conn_install_initial_keys(conn, rx_key, rx_iv, rx_hp, tx_key, tx_iv,
-                                   tx_hp, NGTCP2_CRYPTO_INITIAL_KEYLEN,
-                                   NGTCP2_CRYPTO_INITIAL_IVLEN,
-                                   NGTCP2_CRYPTO_INITIAL_KEYLEN);
+  ngtcp2_conn_install_initial_keys(
+      conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key,
+      NGTCP2_CRYPTO_INITIAL_KEYLEN, NGTCP2_CRYPTO_INITIAL_IVLEN,
+      NGTCP2_CRYPTO_INITIAL_KEYLEN);
 
   return 0;
 }
@@ -376,12 +375,13 @@ int ngtcp2_crypto_decrypt_cb(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 int ngtcp2_crypto_hp_mask_cb(ngtcp2_conn *conn, uint8_t *dest,
-                             const ngtcp2_crypto_cipher *hp, const uint8_t *key,
-                             const uint8_t *sample, void *user_data) {
+                             const ngtcp2_crypto_cipher *hp,
+                             const uint8_t *hp_key, const uint8_t *sample,
+                             void *user_data) {
   (void)conn;
   (void)user_data;
 
-  if (ngtcp2_crypto_hp_mask(dest, hp, key, sample) != 0) {
+  if (ngtcp2_crypto_hp_mask(dest, hp, hp_key, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;

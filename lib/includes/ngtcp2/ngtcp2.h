@@ -1084,8 +1084,7 @@ typedef int (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
  *
  * :type:`ngtcp2_hp_mask` is invoked when the ngtcp2 library asks the
  * application to produce mask to encrypt or decrypt packet header.
- * The key is passed as |key| of length |keylen|.  The sample is
- * passed as |sample| of length |samplelen|.
+ * The key is passed as |hp_key|.  The sample is passed as |sample|.
  *
  * The implementation of this callback must produce a mask using the
  * header protection cipher suite specified by QUIC specification and
@@ -1099,7 +1098,7 @@ typedef int (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
  */
 typedef int (*ngtcp2_hp_mask)(ngtcp2_conn *conn, uint8_t *dest,
                               const ngtcp2_crypto_cipher *hp,
-                              const uint8_t *key, const uint8_t *sample,
+                              const uint8_t *hp_key, const uint8_t *sample,
                               void *user_data);
 
 /**

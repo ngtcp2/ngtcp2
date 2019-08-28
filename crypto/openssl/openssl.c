@@ -259,7 +259,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 }
 
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-                          const uint8_t *key, const uint8_t *sample) {
+                          const uint8_t *hp_key, const uint8_t *sample) {
   static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
   const EVP_CIPHER *cipher = hp->native_handle;
   EVP_CIPHER_CTX *actx;
@@ -271,7 +271,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
     return -1;
   }
 
-  if (!EVP_EncryptInit_ex(actx, cipher, NULL, key, sample) ||
+  if (!EVP_EncryptInit_ex(actx, cipher, NULL, hp_key, sample) ||
       !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT, sizeof(PLAINTEXT) - 1) ||
       !EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT) - 1, &len)) {
     rv = -1;

@@ -257,16 +257,16 @@ typedef struct {
       /* ckm is a cryptographic key, and iv to encrypt outgoing
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp is header protection key. */
-      ngtcp2_vec *hp;
+      /* hp_key is header protection key. */
+      ngtcp2_vec *hp_key;
     } tx;
 
     struct {
       /* ckm is a cryptographic key, and iv to decrypt incoming
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp is header protection key. */
-      ngtcp2_vec *hp;
+      /* hp_key is header protection key. */
+      ngtcp2_vec *hp_key;
     } rx;
 
     ngtcp2_strm strm;
@@ -361,7 +361,7 @@ struct ngtcp2_conn {
 
   struct {
     ngtcp2_crypto_km *ckm;
-    ngtcp2_vec *hp;
+    ngtcp2_vec *hp_key;
   } early;
 
   struct {
