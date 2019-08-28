@@ -7207,35 +7207,10 @@ size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn) {
   return conn->crypto.aead_overhead;
 }
 
-int ngtcp2_conn_install_initial_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                        size_t keylen, const uint8_t *iv,
-                                        size_t ivlen, const uint8_t *pn,
-                                        size_t pnlen) {
-  ngtcp2_pktns *pktns = &conn->in_pktns;
-  int rv;
-
-  if (pktns->crypto.tx.hp) {
-    ngtcp2_vec_del(pktns->crypto.tx.hp, conn->mem);
-    pktns->crypto.tx.hp = NULL;
-  }
-  if (pktns->crypto.tx.ckm) {
-    ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
-    pktns->crypto.tx.ckm = NULL;
-  }
-
-  rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, key, keylen, iv, ivlen,
-                            conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
-
-  return ngtcp2_vec_new(&pktns->crypto.tx.hp, pn, pnlen, conn->mem);
-}
-
-int ngtcp2_conn_install_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                        size_t keylen, const uint8_t *iv,
-                                        size_t ivlen, const uint8_t *pn,
-                                        size_t pnlen) {
+int ngtcp2_conn_install_initial_keys(
+    ngtcp2_conn *conn, const uint8_t *rx_key, const uint8_t *rx_iv,
+    const uint8_t *rx_hp_key, const uint8_t *tx_key, const uint8_t *tx_iv,
+    const uint8_t *tx_hp_key, size_t keylen, size_t ivlen, size_t hp_keylen) {
   ngtcp2_pktns *pktns = &conn->in_pktns;
   int rv;
 
@@ -7247,59 +7222,75 @@ int ngtcp2_conn_install_initial_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
     ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
     pktns->crypto.rx.ckm = NULL;
   }
+  if (pktns->crypto.tx.hp) {
+    ngtcp2_vec_del(pktns->crypto.tx.hp, conn->mem);
+    pktns->crypto.tx.hp = NULL;
+  }
+  if (pktns->crypto.tx.ckm) {
+    ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
+    pktns->crypto.tx.ckm = NULL;
+  }
 
-  rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, key, keylen, iv, ivlen,
+  rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, rx_key, keylen, rx_iv, ivlen,
                             conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->crypto.rx.hp, pn, pnlen, conn->mem);
+  rv = ngtcp2_vec_new(&pktns->crypto.rx.hp, rx_hp_key, hp_keylen, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, tx_key, keylen, tx_iv, ivlen,
+                            conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  return ngtcp2_vec_new(&pktns->crypto.tx.hp, tx_hp_key, hp_keylen, conn->mem);
 }
 
-int ngtcp2_conn_install_handshake_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                          size_t keylen, const uint8_t *iv,
-                                          size_t ivlen, const uint8_t *pn,
-                                          size_t pnlen) {
+int ngtcp2_conn_install_handshake_keys(
+    ngtcp2_conn *conn, const uint8_t *rx_key, const uint8_t *rx_iv,
+    const uint8_t *rx_hp_key, const uint8_t *tx_key, const uint8_t *tx_iv,
+    const uint8_t *tx_hp_key, size_t keylen, size_t ivlen, size_t hp_keylen) {
   ngtcp2_pktns *pktns = &conn->hs_pktns;
   int rv;
 
-  assert(!pktns->crypto.tx.hp && !pktns->crypto.tx.ckm);
+  assert(!pktns->crypto.rx.hp);
+  assert(!pktns->crypto.rx.ckm);
+  assert(!pktns->crypto.tx.hp);
+  assert(!pktns->crypto.tx.ckm);
 
-  rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, key, keylen, iv, ivlen,
+  rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, rx_key, keylen, rx_iv, ivlen,
                             conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->crypto.tx.hp, pn, pnlen, conn->mem);
-}
+  rv = ngtcp2_vec_new(&pktns->crypto.rx.hp, rx_hp_key, hp_keylen, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
 
-int ngtcp2_conn_install_handshake_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                          size_t keylen, const uint8_t *iv,
-                                          size_t ivlen, const uint8_t *pn,
-                                          size_t pnlen) {
-  ngtcp2_pktns *pktns = &conn->hs_pktns;
-  int rv;
-
-  assert(!pktns->crypto.rx.hp && !pktns->crypto.rx.ckm);
-
-  rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, key, keylen, iv, ivlen,
+  rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, tx_key, keylen, tx_iv, ivlen,
                             conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->crypto.rx.hp, pn, pnlen, conn->mem);
+  return ngtcp2_vec_new(&pktns->crypto.tx.hp, tx_hp_key, hp_keylen, conn->mem);
 }
 
 int ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
                                    size_t keylen, const uint8_t *iv,
-                                   size_t ivlen, const uint8_t *pn,
-                                   size_t pnlen) {
+                                   size_t ivlen, const uint8_t *hp_key,
+                                   size_t hp_keylen) {
   int rv;
 
-  assert(!conn->early.hp && !conn->early.ckm);
+  assert(!conn->early.hp);
+  assert(!conn->early.ckm);
 
   rv =
       ngtcp2_crypto_km_new(&conn->early.ckm, key, keylen, iv, ivlen, conn->mem);
@@ -7307,102 +7298,82 @@ int ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
     return rv;
   }
 
-  return ngtcp2_vec_new(&conn->early.hp, pn, pnlen, conn->mem);
+  return ngtcp2_vec_new(&conn->early.hp, hp_key, hp_keylen, conn->mem);
 }
 
-int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                size_t keylen, const uint8_t *iv, size_t ivlen,
-                                const uint8_t *pn, size_t pnlen) {
+int ngtcp2_conn_install_keys(ngtcp2_conn *conn, const uint8_t *rx_key,
+                             const uint8_t *rx_iv, const uint8_t *rx_hp_key,
+                             const uint8_t *tx_key, const uint8_t *tx_iv,
+                             const uint8_t *tx_hp_key, size_t keylen,
+                             size_t ivlen, size_t hp_keylen) {
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
-  assert(!pktns->crypto.tx.hp && !pktns->crypto.tx.ckm);
+  assert(!pktns->crypto.rx.hp);
+  assert(!pktns->crypto.rx.ckm);
+  assert(!pktns->crypto.tx.hp);
+  assert(!pktns->crypto.tx.ckm);
 
-  rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, key, keylen, iv, ivlen,
+  rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, rx_key, keylen, rx_iv, ivlen,
                             conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  if (conn->server) {
-    conn->remote.settings = conn->remote.pending_settings;
-    conn_sync_stream_id_limit(conn);
-    conn->tx.max_offset = conn->remote.settings.max_data;
+  rv = ngtcp2_vec_new(&pktns->crypto.rx.hp, rx_hp_key, hp_keylen, conn->mem);
+  if (rv != 0) {
+    return rv;
   }
 
-  return ngtcp2_vec_new(&pktns->crypto.tx.hp, pn, pnlen, conn->mem);
-}
-
-int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                size_t keylen, const uint8_t *iv, size_t ivlen,
-                                const uint8_t *pn, size_t pnlen) {
-  ngtcp2_pktns *pktns = &conn->pktns;
-  int rv;
-
-  assert(!pktns->crypto.rx.hp && !pktns->crypto.rx.ckm);
-
-  rv = ngtcp2_crypto_km_new(&pktns->crypto.rx.ckm, key, keylen, iv, ivlen,
+  rv = ngtcp2_crypto_km_new(&pktns->crypto.tx.ckm, tx_key, keylen, tx_iv, ivlen,
                             conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  rv = ngtcp2_vec_new(&pktns->crypto.rx.hp, pn, pnlen, conn->mem);
+  rv = ngtcp2_vec_new(&pktns->crypto.tx.hp, tx_hp_key, hp_keylen, conn->mem);
   if (rv != 0) {
     return rv;
   }
 
-  if (!conn->server) {
-    conn->remote.settings = conn->remote.pending_settings;
-    conn_sync_stream_id_limit(conn);
-    conn->tx.max_offset = conn->remote.settings.max_data;
-  }
+  conn->remote.settings = conn->remote.pending_settings;
+  conn_sync_stream_id_limit(conn);
+  conn->tx.max_offset = conn->remote.settings.max_data;
 
   return 0;
 }
 
-int ngtcp2_conn_update_tx_key(ngtcp2_conn *conn, const uint8_t *key,
-                              size_t keylen, const uint8_t *iv, size_t ivlen) {
+int ngtcp2_conn_update_keys(ngtcp2_conn *conn, const uint8_t *rx_key,
+                            const uint8_t *rx_iv, const uint8_t *tx_key,
+                            const uint8_t *tx_iv, size_t keylen, size_t ivlen) {
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
   if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE) ||
+      conn->crypto.key_update.new_rx_ckm ||
       conn->crypto.key_update.new_tx_ckm) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  rv = ngtcp2_crypto_km_new(&conn->crypto.key_update.new_tx_ckm, key, keylen,
-                            iv, ivlen, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
-
-  if (!(pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)) {
-    conn->crypto.key_update.new_tx_ckm->flags |=
-        NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
-  }
-
-  return 0;
-}
-
-int ngtcp2_conn_update_rx_key(ngtcp2_conn *conn, const uint8_t *key,
-                              size_t keylen, const uint8_t *iv, size_t ivlen) {
-  ngtcp2_pktns *pktns = &conn->pktns;
-  int rv;
-
-  if ((conn->flags & NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE) ||
-      conn->crypto.key_update.new_rx_ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
-
-  rv = ngtcp2_crypto_km_new(&conn->crypto.key_update.new_rx_ckm, key, keylen,
-                            iv, ivlen, conn->mem);
+  rv = ngtcp2_crypto_km_new(&conn->crypto.key_update.new_rx_ckm, rx_key, keylen,
+                            rx_iv, ivlen, conn->mem);
   if (rv != 0) {
     return rv;
   }
 
   if (!(pktns->crypto.rx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)) {
     conn->crypto.key_update.new_rx_ckm->flags |=
+        NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
+  }
+
+  rv = ngtcp2_crypto_km_new(&conn->crypto.key_update.new_tx_ckm, tx_key, keylen,
+                            tx_iv, ivlen, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (!(pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)) {
+    conn->crypto.key_update.new_tx_ckm->flags |=
         NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
   }
 

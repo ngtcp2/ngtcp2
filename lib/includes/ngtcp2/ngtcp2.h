@@ -1535,11 +1535,13 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_install_initial_tx_keys` installs packet protection
- * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
- * packet header protection key |hp| of length |hplen| to encrypt
- * outgoing Initial packets.  If they have already been set, they are
- * overwritten.
+ * `ngtcp2_conn_install_initial_keys` installs packet protection
+ * keying materials for Initial packets.  |rx_key| of length |keylen|,
+ * IV |rx_iv| of length |rx_ivlen|, and packet header protection key
+ * |rx_hp_key| of length |hp_keylen| to decrypt incoming Initial
+ * packets.  Similarly, |tx_key|, |tx_iv| and |tx_hp_key| are for
+ * encrypt outgoing packets and are the same length with the rx
+ * counterpart .  If they have already been set, they are overwritten.
  *
  * After receiving Retry packet, the DCID most likely changes.  In
  * that case, client application must generate these keying materials
@@ -1551,22 +1553,21 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_install_initial_tx_keys(
-    ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *hp, size_t hplen);
+NGTCP2_EXTERN int ngtcp2_conn_install_initial_keys(
+    ngtcp2_conn *conn, const uint8_t *rx_key, const uint8_t *rx_iv,
+    const uint8_t *rx_hp_key, const uint8_t *tx_key, const uint8_t *tx_iv,
+    const uint8_t *tx_hp_key, size_t keylen, size_t ivlen, size_t hp_keylen);
 
 /**
  * @function
  *
- * `ngtcp2_conn_install_initial_rx_keys` installs packet protection
- * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
- * packet header protection key |hp| of length |hplen| to decrypt
- * incoming Initial packets.  If they have already been set, they are
- * overwritten.
- *
- * After receiving Retry packet, the DCID most likely changes.  In
- * that case, client application must generate these keying materials
- * again based on new DCID and install them again.
+ * `ngtcp2_conn_install_handshake_keys` installs packet protection
+ * keying materials for Handshake packets.  |rx_key| of length
+ * |keylen|, IV |rx_iv| of length |rx_ivlen|, and packet header
+ * protection key |rx_hp_key| of length |hp_keylen| to decrypt
+ * incoming Handshake packets.  Similarly, |tx_key|, |tx_iv| and
+ * |tx_hp_key| are for encrypt outgoing packets and are the same
+ * length with the rx counterpart.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1574,59 +1575,10 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_tx_keys(
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_install_initial_rx_keys(
-    ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *hp, size_t hplen);
-
-/**
- * @function
- *
- * `ngtcp2_conn_install_handshake_tx_keys` installs packet protection
- * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
- * packet header protection key |hp| of length |hplen| to encrypt
- * outgoing Handshake packets.
- *
- * TLS stack generates the packet protection key and IV, and therefore
- * application don't have to generate them.  For client, they are
- * derived from client_handshake_traffic_secret.  For server, they are
- * derived from server_handshake_traffic_secret.  The packet number
- * encryption key must be generated using the method described in QUIC
- * specification.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- */
-NGTCP2_EXTERN int ngtcp2_conn_install_handshake_tx_keys(
-    ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *hp, size_t hplen);
-
-/**
- * @function
- *
- * `ngtcp2_conn_install_handshake_rx_keys` installs packet protection
- * key |key| of length |keylen| and IV |iv| of length |ivlen|, and
- * packet header protection key |hp| of length |hplen| to decrypt
- * incoming Handshake packets.
- *
- * TLS stack generates the packet protection key and IV, and therefore
- * application don't have to generate them.  For client, they are
- * derived from server_handshake_traffic_secret.  For server, they are
- * derived from client_handshake_traffic_secret.  The packet number
- * encryption key must be generated using the method described in QUIC
- * specification.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- */
-NGTCP2_EXTERN int ngtcp2_conn_install_handshake_rx_keys(
-    ngtcp2_conn *conn, const uint8_t *key, size_t keylen, const uint8_t *iv,
-    size_t ivlen, const uint8_t *hp, size_t hplen);
+NGTCP2_EXTERN int ngtcp2_conn_install_handshake_keys(
+    ngtcp2_conn *conn, const uint8_t *rx_key, const uint8_t *rx_iv,
+    const uint8_t *rx_hp_key, const uint8_t *tx_key, const uint8_t *tx_iv,
+    const uint8_t *tx_hp_key, size_t keylen, size_t ivlen, size_t hp_keylen);
 
 /**
  * @function
@@ -1651,15 +1603,10 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_install_early_rx_keys` installs packet protection key
- * |key| of length |keylen| and IV |iv| of length |ivlen|, and packet
- * header protection key |hp| of length |hplen| to encrypt or decrypt
- * 0RTT packets.
- *
- * TLS stack generates the packet protection key and IV, and therefore
- * application don't have to generate them.  They are derived from
- * client_early_traffic_secret.  The packet number encryption key must
- * be generated using the method described in QUIC specification.
+ * `ngtcp2_conn_install_early_keys` installs packet protection key
+ * |key| of length |keylen|, IV |iv| of length |ivlen|, and packet
+ * header protection key |hp_key| of length |hp_keylen| to encrypt
+ * (for client)or decrypt (for server) 0RTT packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1670,22 +1617,18 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn);
 NGTCP2_EXTERN int
 ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
                                size_t keylen, const uint8_t *iv, size_t ivlen,
-                               const uint8_t *hp, size_t hplen);
+                               const uint8_t *hp_key, size_t hp_keylen);
 
 /**
  * @function
  *
- * `ngtcp2_conn_install_tx_keys` installs packet protection key |key|
- * of length |keylen| and IV |iv| of length |ivlen|, and packet header
- * protection key |hp| of length |hplen| to encrypt outgoing Short
- * packets.
- *
- * TLS stack generates the packet protection key and IV, and therefore
- * application don't have to generate them.  For client, they are
- * derived from client_application_traffic_secret.  For server, they
- * are derived from server_application_traffic_secret.  The packet
- * number encryption key must be generated using the method described
- * in QUIC specification.
+ * `ngtcp2_conn_install_keys` installs packet protection keying
+ * materials for Short packets.  |rx_key| of length |keylen|, IV
+ * |rx_iv| of length |rx_ivlen|, and packet header protection key
+ * |rx_hp_key| of length |hp_keylen| to decrypt incoming Short
+ * packets.  Similarly, |tx_key|, |tx_iv| and |tx_hp_key| are for
+ * encrypt outgoing packets and are the same length with the rx
+ * counterpart.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1693,43 +1636,19 @@ ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_install_tx_keys(ngtcp2_conn *conn,
-                                              const uint8_t *key, size_t keylen,
-                                              const uint8_t *iv, size_t ivlen,
-                                              const uint8_t *hp, size_t hplen);
-
-/**
- * @function
- *
- * `ngtcp2_conn_install_rx_keys` installs packet protection key |key|
- * of length |keylen| and IV |iv| of length |ivlen|, and packet header
- * protection key |hp| of length |hplen| to decrypt incoming Short
- * packets.
- *
- * TLS stack generates the packet protection key and IV, and therefore
- * application don't have to generate them.  For client, they are
- * derived from server_application_traffic_secret.  For server, they
- * are derived from client_application_traffic_secret.  The packet
- * number encryption key must be generated using the method described
- * in QUIC specification.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- */
-NGTCP2_EXTERN int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn,
-                                              const uint8_t *key, size_t keylen,
-                                              const uint8_t *iv, size_t ivlen,
-                                              const uint8_t *hp, size_t hplen);
+NGTCP2_EXTERN int ngtcp2_conn_install_keys(
+    ngtcp2_conn *conn, const uint8_t *rx_key, const uint8_t *rx_iv,
+    const uint8_t *rx_hp_key, const uint8_t *tx_key, const uint8_t *tx_iv,
+    const uint8_t *tx_hp_key, size_t keylen, size_t ivlen, size_t hp_keylen);
 
 /**
  * @function
  *
  * `ngtcp2_conn_update_tx_key` installs the updated packet protection
- * key |key| of length |keylen| and IV |iv| of length |ivlen|.  They
- * are used to encrypt an outgoing packet.
+ * keying materials.  |rx_key| of length |keylen|, IV |rx_iv| of
+ * length |rx_ivlen| to decrypt incoming Short packets.  Similarly,
+ * |tx_key| and |tx_iv| are for encrypt outgoing packets and are the
+ * same length with the rx counterpart.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1739,28 +1658,10 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_keys(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_INVALID_STATE`
  *     The updated keying materials have not been synchronized yet.
  */
-NGTCP2_EXTERN int ngtcp2_conn_update_tx_key(ngtcp2_conn *conn,
-                                            const uint8_t *key, size_t keylen,
-                                            const uint8_t *iv, size_t ivlen);
-
-/**
- * @function
- *
- * `ngtcp2_conn_update_rx_key` installs the updated packet protection
- * key |key| of length |keylen| and IV |iv| of length |ivlen|.  They
- * are used to decrypt an incoming packet.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     The updated keying materials have not been synchronized yet.
- */
-NGTCP2_EXTERN int ngtcp2_conn_update_rx_key(ngtcp2_conn *conn,
-                                            const uint8_t *key, size_t keylen,
-                                            const uint8_t *iv, size_t ivlen);
+NGTCP2_EXTERN int
+ngtcp2_conn_update_keys(ngtcp2_conn *conn, const uint8_t *rx_key,
+                        const uint8_t *rx_iv, const uint8_t *tx_key,
+                        const uint8_t *tx_iv, size_t keylen, size_t ivlen);
 
 /**
  * @function

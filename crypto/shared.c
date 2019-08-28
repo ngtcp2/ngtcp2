@@ -205,16 +205,12 @@ int ngtcp2_crypto_derive_and_install_key(
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    ngtcp2_conn_install_handshake_rx_keys(conn, rx_key, keylen, rx_iv, ivlen,
-                                          rx_hp, hplen);
-    ngtcp2_conn_install_handshake_tx_keys(conn, tx_key, keylen, tx_iv, ivlen,
-                                          tx_hp, hplen);
+    ngtcp2_conn_install_handshake_keys(conn, rx_key, rx_iv, rx_hp, tx_key,
+                                       tx_iv, tx_hp, keylen, ivlen, hplen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
-    ngtcp2_conn_install_rx_keys(conn, rx_key, keylen, rx_iv, ivlen, rx_hp,
-                                hplen);
-    ngtcp2_conn_install_tx_keys(conn, tx_key, keylen, tx_iv, ivlen, tx_hp,
-                                hplen);
+    ngtcp2_conn_install_keys(conn, rx_key, rx_iv, rx_hp, tx_key, tx_iv, tx_hp,
+                             keylen, ivlen, hplen);
     break;
   default:
     return -1;
@@ -281,19 +277,16 @@ int ngtcp2_crypto_derive_and_install_initial_key(
     return -1;
   }
 
-  ngtcp2_conn_install_initial_rx_keys(
-      conn, rx_key, NGTCP2_CRYPTO_INITIAL_KEYLEN, rx_iv,
-      NGTCP2_CRYPTO_INITIAL_IVLEN, rx_hp, NGTCP2_CRYPTO_INITIAL_KEYLEN);
-
   if (ngtcp2_crypto_derive_packet_protection_key(
           tx_key, tx_iv, tx_hp, &ctx.aead, &ctx.md, tx_secret,
           NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
     return -1;
   }
 
-  ngtcp2_conn_install_initial_tx_keys(
-      conn, tx_key, NGTCP2_CRYPTO_INITIAL_KEYLEN, tx_iv,
-      NGTCP2_CRYPTO_INITIAL_IVLEN, tx_hp, NGTCP2_CRYPTO_INITIAL_KEYLEN);
+  ngtcp2_conn_install_initial_keys(conn, rx_key, rx_iv, rx_hp, tx_key, tx_iv,
+                                   tx_hp, NGTCP2_CRYPTO_INITIAL_KEYLEN,
+                                   NGTCP2_CRYPTO_INITIAL_IVLEN,
+                                   NGTCP2_CRYPTO_INITIAL_KEYLEN);
 
   return 0;
 }
@@ -332,10 +325,6 @@ int ngtcp2_crypto_update_and_install_key(
     return -1;
   }
 
-  if (ngtcp2_conn_update_rx_key(conn, rx_key, keylen, rx_iv, ivlen) != 0) {
-    return -1;
-  }
-
   if (ngtcp2_crypto_update_traffic_secret(tx_secret, md, current_tx_secret,
                                           secretlen) != 0) {
     return -1;
@@ -346,7 +335,8 @@ int ngtcp2_crypto_update_and_install_key(
     return -1;
   }
 
-  if (ngtcp2_conn_update_tx_key(conn, tx_key, keylen, tx_iv, ivlen) != 0) {
+  if (ngtcp2_conn_update_keys(conn, rx_key, rx_iv, tx_key, tx_iv, keylen,
+                              ivlen) != 0) {
     return -1;
   }
 
