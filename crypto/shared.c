@@ -197,20 +197,20 @@ int ngtcp2_crypto_derive_and_install_key(
   switch (level) {
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     if (side == NGTCP2_CRYPTO_SIDE_CLIENT) {
-      ngtcp2_conn_install_early_keys(conn, tx_key, tx_iv, tx_hp_key, keylen,
-                                     ivlen);
+      ngtcp2_conn_install_early_key(conn, tx_key, tx_iv, tx_hp_key, keylen,
+                                    ivlen);
     } else {
-      ngtcp2_conn_install_early_keys(conn, rx_key, rx_iv, rx_hp_key, keylen,
-                                     ivlen);
+      ngtcp2_conn_install_early_key(conn, rx_key, rx_iv, rx_hp_key, keylen,
+                                    ivlen);
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    ngtcp2_conn_install_handshake_keys(conn, rx_key, rx_iv, rx_hp_key, tx_key,
-                                       tx_iv, tx_hp_key, keylen, ivlen);
+    ngtcp2_conn_install_handshake_key(conn, rx_key, rx_iv, rx_hp_key, tx_key,
+                                      tx_iv, tx_hp_key, keylen, ivlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
-    ngtcp2_conn_install_keys(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
-                             tx_hp_key, keylen, ivlen);
+    ngtcp2_conn_install_key(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
+                            tx_hp_key, keylen, ivlen);
 
     rv = ngtcp2_crypto_set_remote_transport_params(conn, tls, side);
     if (rv != 0) {
@@ -289,9 +289,9 @@ int ngtcp2_crypto_derive_and_install_initial_key(
     return -1;
   }
 
-  ngtcp2_conn_install_initial_keys(
-      conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key,
-      NGTCP2_CRYPTO_INITIAL_KEYLEN, NGTCP2_CRYPTO_INITIAL_IVLEN);
+  ngtcp2_conn_install_initial_key(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
+                                  tx_hp_key, NGTCP2_CRYPTO_INITIAL_KEYLEN,
+                                  NGTCP2_CRYPTO_INITIAL_IVLEN);
 
   return 0;
 }
@@ -340,8 +340,8 @@ int ngtcp2_crypto_update_and_install_key(
     return -1;
   }
 
-  if (ngtcp2_conn_update_keys(conn, rx_key, rx_iv, tx_key, tx_iv, keylen,
-                              ivlen) != 0) {
+  if (ngtcp2_conn_update_key(conn, rx_key, rx_iv, tx_key, tx_iv, keylen,
+                             ivlen) != 0) {
     return -1;
   }
 
