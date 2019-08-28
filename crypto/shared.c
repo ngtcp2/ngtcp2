@@ -150,8 +150,8 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
 }
 
 int ngtcp2_crypto_derive_and_install_key(
-    ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp_key,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp_key,
+    ngtcp2_conn *conn, void *tls, uint8_t *rx_key, uint8_t *rx_iv,
+    uint8_t *rx_hp_key, uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp_key,
     const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
     ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side) {
@@ -159,6 +159,7 @@ int ngtcp2_crypto_derive_and_install_key(
   uint8_t tx_keybuf[64], tx_ivbuf[64], tx_hp_keybuf[64];
   size_t keylen = ngtcp2_crypto_aead_keylen(aead);
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
+  int rv;
 
   if (!rx_key) {
     rx_key = rx_keybuf;
@@ -210,6 +211,12 @@ int ngtcp2_crypto_derive_and_install_key(
   case NGTCP2_CRYPTO_LEVEL_APP:
     ngtcp2_conn_install_keys(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
                              tx_hp_key, keylen, ivlen);
+
+    rv = ngtcp2_crypto_set_remote_transport_params(conn, tls, side);
+    if (rv != 0) {
+      return -1;
+    }
+
     break;
   default:
     return -1;

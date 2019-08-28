@@ -651,9 +651,9 @@ typedef struct ngtcp2_crypto_ctx {
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`:
  *     |exttype| is invalid.
  */
-NGTCP2_EXTERN ssize_t
-ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen, uint8_t exttype,
-                               const ngtcp2_transport_params *params);
+NGTCP2_EXTERN ssize_t ngtcp2_encode_transport_params(
+    uint8_t *dest, size_t destlen, ngtcp2_transport_params_type exttype,
+    const ngtcp2_transport_params *params);
 
 /**
  * @function
@@ -676,7 +676,8 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen, uint8_t exttype,
  *     |exttype| is invalid.
  */
 NGTCP2_EXTERN int
-ngtcp2_decode_transport_params(ngtcp2_transport_params *params, uint8_t exttype,
+ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
+                               ngtcp2_transport_params_type exttype,
                                const uint8_t *data, size_t datalen);
 
 /**
@@ -1771,6 +1772,17 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
 NGTCP2_EXTERN int
 ngtcp2_conn_set_remote_transport_params(ngtcp2_conn *conn,
                                         const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_remote_transport_params` fills settings values in
+ * |params|.  original_connection_id and
+ * original_connection_id_present are always zero filled.
+ */
+NGTCP2_EXTERN void
+ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn,
+                                        ngtcp2_transport_params *params);
 
 /**
  * @function

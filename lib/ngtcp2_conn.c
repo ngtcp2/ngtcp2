@@ -7488,6 +7488,7 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
 static void
 settings_copy_from_transport_params(ngtcp2_settings *dest,
                                     const ngtcp2_transport_params *src) {
+  memset(dest, 0, sizeof(*dest));
   dest->max_stream_data_bidi_local = src->initial_max_stream_data_bidi_local;
   dest->max_stream_data_bidi_remote = src->initial_max_stream_data_bidi_remote;
   dest->max_stream_data_uni = src->initial_max_stream_data_uni;
@@ -7519,6 +7520,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
  */
 static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
                                                 const ngtcp2_settings *src) {
+  memset(dest, 0, sizeof(*dest));
   dest->initial_max_stream_data_bidi_local = src->max_stream_data_bidi_local;
   dest->initial_max_stream_data_bidi_remote = src->max_stream_data_bidi_remote;
   dest->initial_max_stream_data_uni = src->max_stream_data_uni;
@@ -7597,6 +7599,15 @@ int ngtcp2_conn_set_remote_transport_params(
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 
   return 0;
+}
+
+void ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn,
+                                             ngtcp2_transport_params *params) {
+  if (conn->pktns.crypto.rx.ckm) {
+    transport_params_copy_from_settings(params, &conn->remote.settings);
+  } else {
+    transport_params_copy_from_settings(params, &conn->remote.pending_settings);
+  }
 }
 
 void ngtcp2_conn_set_early_remote_transport_params(

@@ -143,8 +143,6 @@ int read_transport_params(const char *path, ngtcp2_transport_params *params) {
 
 int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
                    const uint8_t *tx_secret, size_t secretlen) {
-  int rv;
-
   if (level == NGTCP2_CRYPTO_LEVEL_APP) {
     rx_secret_.assign(rx_secret, rx_secret + secretlen);
     tx_secret_.assign(tx_secret, tx_secret + secretlen);
@@ -168,7 +166,7 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
   auto hplen = keylen;
 
   if (ngtcp2_crypto_derive_and_install_key(
-          conn_, rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
+          conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
           tx_iv.data(), tx_hp.data(), aead, md, level, rx_secret, tx_secret,
           secretlen, NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
     return -1;
@@ -211,32 +209,15 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
   }
 
   if (level == NGTCP2_CRYPTO_LEVEL_APP) {
-    const uint8_t *tp;
-    size_t tplen;
+    if (config.tp_file) {
+      ngtcp2_transport_params params;
 
-    SSL_get_peer_quic_transport_params(ssl_, &tp, &tplen);
+      ngtcp2_conn_get_remote_transport_params(conn_, &params);
 
-    ngtcp2_transport_params params;
-
-    rv = ngtcp2_decode_transport_params(
-        &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, tp, tplen);
-    if (rv != 0) {
-      std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
-                << std::endl;
-      return -1;
-    }
-
-    rv = ngtcp2_conn_set_remote_transport_params(conn_, &params);
-    if (rv != 0) {
-      std::cerr << "ngtcp2_conn_set_remote_transport_params: "
-                << ngtcp2_strerror(rv) << std::endl;
-      return -1;
-    }
-
-    if (config.tp_file &&
-        write_transport_params(config.tp_file, &params) != 0) {
-      std::cerr << "Could not write transport parameters in " << config.tp_file
-                << std::endl;
+      if (write_transport_params(config.tp_file, &params) != 0) {
+        std::cerr << "Could not write transport parameters in "
+                  << config.tp_file << std::endl;
+      }
     }
 
     if (setup_httpconn() != 0) {

@@ -109,7 +109,7 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
   auto hplen = keylen;
 
   if (ngtcp2_crypto_derive_and_install_key(
-          conn_, rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
+          conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
           tx_iv.data(), tx_hp.data(), aead, md, level, rx_secret, tx_secret,
           secretlen, NGTCP2_CRYPTO_SIDE_SERVER) != 0) {
     return -1;
@@ -2868,36 +2868,11 @@ auto quic_method = SSL_QUIC_METHOD{
 
 namespace {
 int client_hello_cb(SSL *ssl, int *al, void *arg) {
-  auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
-  auto conn = h->conn();
-  int rv;
-  const unsigned char *tp;
+  const uint8_t *tp;
   size_t tplen;
 
-  rv = SSL_client_hello_get0_ext(ssl, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
-                                 &tp, &tplen);
-  if (rv != 1) {
-    *al = SSL_AD_INTERNAL_ERROR;
-    return 0;
-  }
-
-  ngtcp2_transport_params params;
-
-  rv = ngtcp2_decode_transport_params(
-      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, tp, tplen);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
-              << std::endl;
-    // TODO Use proper alert
-    *al = SSL_AD_INTERNAL_ERROR;
-    return 0;
-  }
-
-  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_set_remote_transport_params: "
-              << ngtcp2_strerror(rv) << std::endl;
-    // TODO Use proper alert
+  if (!SSL_client_hello_get0_ext(ssl, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
+                                 &tp, &tplen)) {
     *al = SSL_AD_INTERNAL_ERROR;
     return 0;
   }

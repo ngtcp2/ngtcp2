@@ -349,11 +349,15 @@ ngtcp2_crypto_update_traffic_secret(uint8_t *dest, const ngtcp2_crypto_md *md,
  * ngtcp2_crypto_aead(aead).  The length of packet protection IV is
  * ngtcp2_crypto_packet_protection_ivlen(aead).
  *
+ * If |level| is NGTCP2_CRYPTO_LEVEL_APP, this function retrieves a
+ * remote QUIC transport parameters extension from |tls| and sets it
+ * to |conn|.
+ *
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
-    ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    ngtcp2_conn *conn, void *tls, uint8_t *rx_key, uint8_t *rx_iv,
+    uint8_t *rx_hp, uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
     const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
     ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side);
@@ -472,6 +476,23 @@ NGTCP2_EXTERN int
 ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
                                      ngtcp2_crypto_level crypto_level,
                                      const uint8_t *data, size_t datalen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_set_remote_transport_params` retrieves a remote QUIC
+ * transport parameters from |tls| and sets it to |conn| using
+ * `ngtcp2_conn_set_remote_transport_params`.
+ *
+ * |tls| points to a implementation dependent TLS session object.  If
+ * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
+ * object.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
+                                          ngtcp2_crypto_side side);
 
 #ifdef __cplusplus
 }

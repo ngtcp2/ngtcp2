@@ -80,7 +80,7 @@ void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
 }
 
 ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
-                                       uint8_t exttype,
+                                       ngtcp2_transport_params_type exttype,
                                        const ngtcp2_transport_params *params) {
   uint8_t *p;
   size_t len = sizeof(uint16_t);
@@ -322,8 +322,8 @@ static ssize_t decode_varint(uint64_t *pdest, const uint8_t *p,
 }
 
 int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
-                                   uint8_t exttype, const uint8_t *data,
-                                   size_t datalen) {
+                                   ngtcp2_transport_params_type exttype,
+                                   const uint8_t *data, size_t datalen) {
   const uint8_t *p, *end;
   size_t len;
   size_t tplen;
