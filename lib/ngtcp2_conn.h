@@ -357,6 +357,8 @@ struct ngtcp2_conn {
     ngtcp2_bw bw;
     /* path_challenge stores received PATH_CHALLENGE data. */
     ngtcp2_ringbuf path_challenge;
+    /* ccec is the received connection close error code. */
+    ngtcp2_connection_close_error_code ccec;
   } rx;
 
   struct {

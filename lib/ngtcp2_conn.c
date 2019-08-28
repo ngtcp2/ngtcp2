@@ -3898,8 +3898,15 @@ static int conn_emit_pending_crypto_data(ngtcp2_conn *conn,
  * conn_recv_connection_close is called when CONNECTION_CLOSE or
  * APPLICATION_CLOSE frame is received.
  */
-static void conn_recv_connection_close(ngtcp2_conn *conn) {
+static void conn_recv_connection_close(ngtcp2_conn *conn,
+                                       ngtcp2_connection_close *fr) {
   conn->state = NGTCP2_CS_DRAINING;
+  if (fr->type == NGTCP2_FRAME_CONNECTION_CLOSE) {
+    conn->rx.ccec.type = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT;
+  } else {
+    conn->rx.ccec.type = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION;
+  }
+  conn->rx.ccec.error_code = fr->error_code;
 }
 
 static void conn_recv_path_challenge(ngtcp2_conn *conn,
@@ -4514,13 +4521,13 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       require_ack = 1;
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
-      conn_recv_connection_close(conn);
+      conn_recv_connection_close(conn, &fr->connection_close);
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
       if (fr->type != NGTCP2_PKT_HANDSHAKE) {
         return NGTCP2_ERR_PROTO;
       }
-      conn_recv_connection_close(conn);
+      conn_recv_connection_close(conn, &fr->connection_close);
       break;
     default:
       return NGTCP2_ERR_PROTO;
@@ -5461,7 +5468,7 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
       if (hd->type != NGTCP2_PKT_HANDSHAKE) {
         break;
       }
-      conn_recv_connection_close(conn);
+      conn_recv_connection_close(conn, &fr->connection_close);
       break;
     case NGTCP2_FRAME_CRYPTO:
       require_ack = 1;
@@ -6296,7 +6303,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       break;
     case NGTCP2_FRAME_CONNECTION_CLOSE:
     case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
-      conn_recv_connection_close(conn);
+      conn_recv_connection_close(conn, &fr->connection_close);
       break;
     case NGTCP2_FRAME_PING:
       non_probing_pkt = 1;
@@ -8634,6 +8641,11 @@ void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
 
 const ngtcp2_crypto_ctx *ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn) {
   return &conn->pktns.crypto.ctx;
+}
+
+void ngtcp2_conn_get_connection_close_error_code(
+    ngtcp2_conn *conn, ngtcp2_connection_close_error_code *ccec) {
+  *ccec = conn->rx.ccec;
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,

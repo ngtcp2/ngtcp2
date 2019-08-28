@@ -2416,6 +2416,31 @@ NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn);
 
+typedef enum ngtcp2_connection_close_error_code_type {
+  /* NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT indicates the
+     error code is QUIC transport error code. */
+  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT,
+  /* NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION indicates the
+     error code is application error code. */
+  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION,
+} ngtcp2_connection_close_error_code_type;
+
+typedef struct ngtcp2_connection_close_error_code {
+  /* error_code is the error code for connection closure. */
+  uint64_t error_code;
+  /* type is the type of error_code. */
+  ngtcp2_connection_close_error_code_type type;
+} ngtcp2_connection_close_error_code;
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_connection_close_error_code` stores the received
+ * connection close error code in |ccec|.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_get_connection_close_error_code(
+    ngtcp2_conn *conn, ngtcp2_connection_close_error_code *ccec);
+
 /**
  * @function
  *
