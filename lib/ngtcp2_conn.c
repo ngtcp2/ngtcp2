@@ -7284,8 +7284,8 @@ int ngtcp2_conn_install_handshake_keys(
 }
 
 int ngtcp2_conn_install_early_keys(ngtcp2_conn *conn, const uint8_t *key,
-                                   size_t keylen, const uint8_t *iv,
-                                   size_t ivlen, const uint8_t *hp_key) {
+                                   const uint8_t *iv, const uint8_t *hp_key,
+                                   size_t keylen, size_t ivlen) {
   int rv;
 
   assert(!conn->early.hp_key);

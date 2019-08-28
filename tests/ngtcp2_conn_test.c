@@ -159,8 +159,8 @@ static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  217);
 
-  ngtcp2_conn_install_early_keys(conn, null_key, sizeof(null_key), null_iv,
-                                 sizeof(null_iv), null_pn);
+  ngtcp2_conn_install_early_keys(conn, null_key, null_iv, null_pn,
+                                 sizeof(null_key), sizeof(null_iv));
 
   return 0;
 }
@@ -528,8 +528,8 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_pn, null_key,
                                    null_iv, null_pn, sizeof(null_key),
                                    sizeof(null_iv));
-  ngtcp2_conn_install_early_keys(*pconn, null_key, sizeof(null_key), null_iv,
-                                 sizeof(null_iv), null_pn);
+  ngtcp2_conn_install_early_keys(*pconn, null_key, null_iv, null_pn,
+                                 sizeof(null_key), sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->remote.settings.max_stream_data_bidi_local = 64 * 1024;
   (*pconn)->remote.settings.max_stream_data_bidi_remote = 64 * 1024;

@@ -196,11 +196,11 @@ int ngtcp2_crypto_derive_and_install_key(
   switch (level) {
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     if (side == NGTCP2_CRYPTO_SIDE_CLIENT) {
-      ngtcp2_conn_install_early_keys(conn, tx_key, keylen, tx_iv, ivlen,
-                                     tx_hp_key);
+      ngtcp2_conn_install_early_keys(conn, tx_key, tx_iv, tx_hp_key, keylen,
+                                     ivlen);
     } else {
-      ngtcp2_conn_install_early_keys(conn, rx_key, keylen, rx_iv, ivlen,
-                                     rx_hp_key);
+      ngtcp2_conn_install_early_keys(conn, rx_key, rx_iv, rx_hp_key, keylen,
+                                     ivlen);
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
