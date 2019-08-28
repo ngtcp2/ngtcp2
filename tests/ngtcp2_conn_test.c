@@ -121,7 +121,7 @@ static int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
 
 static uint8_t null_key[16];
 static uint8_t null_iv[16];
-static uint8_t null_pn[16];
+static uint8_t null_hp_key[16];
 static uint8_t null_data[4096];
 static ngtcp2_path null_path = {};
 static ngtcp2_path new_path = {{1, (uint8_t *)"1", NULL},
@@ -159,7 +159,7 @@ static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  217);
 
-  ngtcp2_conn_install_early_keys(conn, null_key, null_iv, null_pn,
+  ngtcp2_conn_install_early_keys(conn, null_key, null_iv, null_hp_key,
                                  sizeof(null_key), sizeof(null_iv));
 
   return 0;
@@ -201,12 +201,13 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  179);
 
-  ngtcp2_conn_install_handshake_keys(conn, null_key, null_iv, null_pn, null_key,
-                                     null_iv, null_pn, sizeof(null_key),
-                                     sizeof(null_iv));
+  ngtcp2_conn_install_handshake_keys(conn, null_key, null_iv, null_hp_key,
+                                     null_key, null_iv, null_hp_key,
+                                     sizeof(null_key), sizeof(null_iv));
 
-  ngtcp2_conn_install_keys(conn, null_key, null_iv, null_pn, null_key, null_iv,
-                           null_pn, sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_keys(conn, null_key, null_iv, null_hp_key, null_key,
+                           null_iv, null_hp_key, sizeof(null_key),
+                           sizeof(null_iv));
 
   conn->callbacks.recv_crypto_data = recv_crypto_data;
 
@@ -386,11 +387,12 @@ static void setup_default_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_handshake_keys(*pconn, null_key, null_iv, null_pn,
-                                     null_key, null_iv, null_pn,
+  ngtcp2_conn_install_handshake_keys(*pconn, null_key, null_iv, null_hp_key,
+                                     null_key, null_iv, null_hp_key,
                                      sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_keys(*pconn, null_key, null_iv, null_pn, null_key,
-                           null_iv, null_pn, sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_keys(*pconn, null_key, null_iv, null_hp_key, null_key,
+                           null_iv, null_hp_key, sizeof(null_key),
+                           sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
@@ -429,11 +431,12 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_handshake_keys(*pconn, null_key, null_iv, null_pn,
-                                     null_key, null_iv, null_pn,
+  ngtcp2_conn_install_handshake_keys(*pconn, null_key, null_iv, null_hp_key,
+                                     null_key, null_iv, null_hp_key,
                                      sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_keys(*pconn, null_key, null_iv, null_pn, null_key,
-                           null_iv, null_pn, sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_keys(*pconn, null_key, null_iv, null_hp_key, null_key,
+                           null_iv, null_hp_key, sizeof(null_key),
+                           sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
@@ -472,11 +475,11 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_pn, null_key,
-                                   null_iv, null_pn, sizeof(null_key),
-                                   sizeof(null_iv));
-  ngtcp2_conn_install_handshake_keys(*pconn, null_key, null_iv, null_pn,
-                                     null_key, null_iv, null_pn,
+  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_hp_key,
+                                   null_key, null_iv, null_hp_key,
+                                   sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_handshake_keys(*pconn, null_key, null_iv, null_hp_key,
+                                     null_key, null_iv, null_hp_key,
                                      sizeof(null_key), sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 }
@@ -500,9 +503,9 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_pn, null_key,
-                                   null_iv, null_pn, sizeof(null_key),
-                                   sizeof(null_iv));
+  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_hp_key,
+                                   null_key, null_iv, null_hp_key,
+                                   sizeof(null_key), sizeof(null_iv));
 }
 
 static void setup_early_server(ngtcp2_conn **pconn) {
@@ -525,10 +528,10 @@ static void setup_early_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_pn, null_key,
-                                   null_iv, null_pn, sizeof(null_key),
-                                   sizeof(null_iv));
-  ngtcp2_conn_install_early_keys(*pconn, null_key, null_iv, null_pn,
+  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_hp_key,
+                                   null_key, null_iv, null_hp_key,
+                                   sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_early_keys(*pconn, null_key, null_iv, null_hp_key,
                                  sizeof(null_key), sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->remote.settings.max_stream_data_bidi_local = 64 * 1024;
@@ -562,9 +565,9 @@ static void setup_early_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_pn, null_key,
-                                   null_iv, null_pn, sizeof(null_key),
-                                   sizeof(null_iv));
+  ngtcp2_conn_install_initial_keys(*pconn, null_key, null_iv, null_hp_key,
+                                   null_key, null_iv, null_hp_key,
+                                   sizeof(null_key), sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   memset(&params, 0, sizeof(params));
