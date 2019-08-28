@@ -497,15 +497,33 @@ typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
 typedef struct {
   ngtcp2_preferred_addr preferred_address;
+  /* initial_ts is an initial timestamp given to the library. */
   ngtcp2_tstamp initial_ts;
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
+  /* max_stream_data_bidi_local is the size of flow control window of
+     locally initiated stream.  This is the number of bytes that the
+     remote endpoint can send and the local endpoint must ensure that
+     it has enough buffer to receive them. */
   uint64_t max_stream_data_bidi_local;
+  /* max_stream_data_bidi_remote is the size of flow control window of
+     remotely initiated stream.  This is the number of bytes that the
+     remote endpoint can send and the local endpoint must ensure that
+     it has enough buffer to receive them. */
   uint64_t max_stream_data_bidi_remote;
+  /* max_stream_data_uni is the size of flow control window of
+     remotely initiated unidirectional stream.  This is the number of
+     bytes that the remote endpoint can send and the local endpoint
+     must ensure that it has enough buffer to receive them. */
   uint64_t max_stream_data_uni;
+  /* max_data is the connection level flow control window. */
   uint64_t max_data;
+  /* max_streams_bidi is the number of concurrent streams that the
+     remote endpoint can create. */
   uint64_t max_streams_bidi;
+  /* max_streams_uni is the number of concurrent unidirectional
+     streams that the remote endpoint can create. */
   uint64_t max_streams_uni;
   /* idle_timeout is specified in millisecond resolution */
   uint64_t idle_timeout;
