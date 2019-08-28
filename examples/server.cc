@@ -91,15 +91,17 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     tx_secret_.assign(tx_secret, tx_secret + secretlen);
   }
 
-  if (crypto_ctx_.aead.native_handle == nullptr) {
-    ngtcp2_crypto_ctx_tls(&crypto_ctx_, ssl_);
-    ngtcp2_conn_set_aead_overhead(conn_,
-                                  ngtcp2_crypto_aead_taglen(&crypto_ctx_.aead));
-    ngtcp2_conn_set_crypto_ctx(conn_, &crypto_ctx_);
+  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  if (crypto_ctx->aead.native_handle == nullptr) {
+    ngtcp2_crypto_ctx cctx;
+    ngtcp2_crypto_ctx_tls(&cctx, ssl_);
+    ngtcp2_conn_set_aead_overhead(conn_, ngtcp2_crypto_aead_taglen(&cctx.aead));
+    ngtcp2_conn_set_crypto_ctx(conn_, &cctx);
+    crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
   }
 
-  auto aead = &crypto_ctx_.aead;
-  auto md = &crypto_ctx_.md;
+  auto aead = &crypto_ctx->aead;
+  auto md = &crypto_ctx->md;
 
   std::array<uint8_t, 64> rx_key, rx_iv, rx_hp, tx_key, tx_iv, tx_hp;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
@@ -686,7 +688,6 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       scid_{},
       pscid_{},
       rcid_(*rcid),
-      crypto_ctx_{},
       httpconn_{nullptr},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       last_error_{QUICErrorType::Transport, 0},
@@ -769,32 +770,6 @@ int Handler::handshake_completed() {
 
   return 0;
 }
-
-namespace {
-int do_encrypt(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
-               const uint8_t *plaintext, size_t plaintextlen,
-               const uint8_t *key, const uint8_t *nonce, size_t noncelen,
-               const uint8_t *ad, size_t adlen, void *user_data) {
-  if (ngtcp2_crypto_encrypt(dest, aead, plaintext, plaintextlen, key, nonce,
-                            noncelen, ad, adlen) != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int do_decrypt(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
-               const uint8_t *ciphertext, size_t ciphertextlen,
-               const uint8_t *key, const uint8_t *nonce, size_t noncelen,
-               const uint8_t *ad, size_t adlen, void *user_data) {
-  if (ngtcp2_crypto_decrypt(dest, aead, ciphertext, ciphertextlen, key, nonce,
-                            noncelen, ad, adlen) != 0) {
-    return NGTCP2_ERR_TLS_DECRYPT;
-  }
-  return 0;
-}
-} // namespace
 
 namespace {
 int do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
@@ -1386,8 +1361,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       ::recv_crypto_data,
       ::handshake_completed,
       nullptr, // recv_version_negotiation
-      do_encrypt,
-      do_decrypt,
+      ngtcp2_crypto_encrypt_cb,
+      ngtcp2_crypto_decrypt_cb,
       do_hp_mask,
       ::recv_stream_data,
       acked_crypto_offset,
@@ -1944,8 +1919,9 @@ int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
 int Handler::update_key() {
   std::array<uint8_t, 64> rx_secret, tx_secret;
   std::array<uint8_t, 64> rx_key, rx_iv, tx_key, tx_iv;
-  auto aead = &crypto_ctx_.aead;
-  auto md = &crypto_ctx_.md;
+  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  auto aead = &crypto_ctx->aead;
+  auto md = &crypto_ctx->md;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
 

@@ -223,6 +223,22 @@ NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
 /**
  * @function
  *
+ * `ngtcp2_crypto_encrypt_cb` is a wrapper function around
+ * `ngtcp2_crypto_encrypt`.  It can be directly passed to encrypt
+ * callback to ngtcp2_callbacks.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_encrypt_cb(
+    ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
+    const uint8_t *plaintext, size_t plaintextlen, const uint8_t *key,
+    const uint8_t *nonce, size_t noncelen, const uint8_t *ad, size_t adlen,
+    void *user_data);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_decrypt` decrypts |ciphertext| of length
  * |ciphertextlen| and writes the plaintext into the buffer pointed by
  * |dest|.  The length of plaintext is ciphertextlen -
@@ -241,6 +257,22 @@ ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 /**
  * @function
  *
+ * `ngtcp2_crypto_decrypt_cb` is a wrapper function around
+ * `ngtcp2_crypto_decrypt`.  It can be directly passed to decrypt
+ * callback to ngtcp2_callbacks.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_TLS_DECRYPT`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_decrypt_cb(
+    ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
+    const uint8_t *ciphertext, size_t ciphertextlen, const uint8_t *key,
+    const uint8_t *nonce, size_t noncelen, const uint8_t *ad, size_t adlen,
+    void *user_data);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_hp_mask` generates mask which is used in packet
  * header encryption.  The mask is written to the buffer pointed by
  * |dest|.  The length of mask is 5 bytes.  |dest| must have enough
@@ -252,6 +284,22 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
                                         const ngtcp2_crypto_cipher *hp,
                                         const uint8_t *key,
                                         const uint8_t *sample);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_hp_mask_cb` is a wrapper function around
+ * `ngtcp2_crypto_hp_mask`.  It can be directly passed to hp_mask
+ * callback to ngtcp2_callbacks.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_hp_mask_cb(ngtcp2_conn *conn, uint8_t *dest,
+                                           const ngtcp2_crypto_cipher *hp,
+                                           const uint8_t *key,
+                                           const uint8_t *sample,
+                                           void *user_data);
 
 /**
  * @function

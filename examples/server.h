@@ -278,7 +278,6 @@ private:
   ngtcp2_cid scid_;
   ngtcp2_cid pscid_;
   ngtcp2_cid rcid_;
-  ngtcp2_crypto_ctx crypto_ctx_;
   nghttp3_conn *httpconn_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   // common buffer used to store packet data before sending

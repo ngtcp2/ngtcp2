@@ -36,12 +36,14 @@
 #include "ngtcp2_conv.h"
 
 static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
+                        const ngtcp2_crypto_aead *aead,
                         const uint8_t *plaintext, size_t plaintextlen,
                         const uint8_t *key, const uint8_t *nonce,
                         size_t noncelen, const uint8_t *ad, size_t adlen,
                         void *user_data) {
   (void)conn;
   (void)dest;
+  (void)aead;
   (void)plaintext;
   (void)plaintextlen;
   (void)key;
@@ -54,12 +56,14 @@ static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 static int null_decrypt(ngtcp2_conn *conn, uint8_t *dest,
+                        const ngtcp2_crypto_aead *aead,
                         const uint8_t *ciphertext, size_t ciphertextlen,
                         const uint8_t *key, const uint8_t *nonce,
                         size_t noncelen, const uint8_t *ad, size_t adlen,
                         void *user_data) {
   (void)conn;
   (void)dest;
+  (void)aead;
   (void)ciphertext;
   (void)key;
   (void)nonce;
@@ -73,12 +77,14 @@ static int null_decrypt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 static int fail_decrypt(ngtcp2_conn *conn, uint8_t *dest,
+                        const ngtcp2_crypto_aead *aead,
                         const uint8_t *ciphertext, size_t ciphertextlen,
                         const uint8_t *key, const uint8_t *nonce,
                         size_t noncelen, const uint8_t *ad, size_t adlen,
                         void *user_data) {
   (void)conn;
   (void)dest;
+  (void)aead;
   (void)ciphertext;
   (void)ciphertextlen;
   (void)key;
@@ -90,9 +96,11 @@ static int fail_decrypt(ngtcp2_conn *conn, uint8_t *dest,
   return NGTCP2_ERR_TLS_DECRYPT;
 }
 
-static int null_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const uint8_t *key,
+static int null_hp_mask(ngtcp2_conn *conn, uint8_t *dest,
+                        const ngtcp2_crypto_cipher *hp, const uint8_t *key,
                         const uint8_t *sample, void *user_data) {
   (void)conn;
+  (void)hp;
   (void)key;
   (void)user_data;
   (void)sample;
@@ -374,9 +382,6 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   scid_init(&scid);
 
   memset(&cb, 0, sizeof(cb));
-  cb.in_decrypt = null_decrypt;
-  cb.in_encrypt = null_encrypt;
-  cb.in_hp_mask = null_hp_mask;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
@@ -426,9 +431,6 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   scid_init(&scid);
 
   memset(&cb, 0, sizeof(cb));
-  cb.in_decrypt = null_decrypt;
-  cb.in_encrypt = null_encrypt;
-  cb.in_hp_mask = null_hp_mask;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
@@ -478,9 +480,6 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   memset(&cb, 0, sizeof(cb));
   cb.recv_client_initial = recv_client_initial;
   cb.recv_crypto_data = recv_crypto_data_server;
-  cb.in_decrypt = null_decrypt;
-  cb.in_encrypt = null_encrypt;
-  cb.in_hp_mask = null_hp_mask;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
@@ -516,9 +515,9 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   memset(&cb, 0, sizeof(cb));
   cb.client_initial = client_initial;
   cb.recv_crypto_data = recv_crypto_data;
-  cb.in_decrypt = null_decrypt;
-  cb.in_encrypt = null_encrypt;
-  cb.in_hp_mask = null_hp_mask;
+  cb.decrypt = null_decrypt;
+  cb.encrypt = null_encrypt;
+  cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
   client_default_settings(&settings);
 
@@ -543,9 +542,6 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   memset(&cb, 0, sizeof(cb));
   cb.recv_client_initial = recv_client_initial;
   cb.recv_crypto_data = recv_crypto_data_server_early_data;
-  cb.in_decrypt = null_decrypt;
-  cb.in_encrypt = null_encrypt;
-  cb.in_hp_mask = null_hp_mask;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
@@ -587,9 +583,6 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   memset(&cb, 0, sizeof(cb));
   cb.client_initial = client_initial_early_data;
   cb.recv_crypto_data = recv_crypto_data;
-  cb.in_decrypt = null_decrypt;
-  cb.in_encrypt = null_encrypt;
-  cb.in_hp_mask = null_hp_mask;
   cb.decrypt = null_decrypt;
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;

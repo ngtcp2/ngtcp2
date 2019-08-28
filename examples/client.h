@@ -239,7 +239,6 @@ private:
   const char *addr_;
   // port_ is the server port.
   const char *port_;
-  ngtcp2_crypto_ctx crypto_ctx_;
   QUICError last_error_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
