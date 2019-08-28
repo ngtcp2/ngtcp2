@@ -197,19 +197,19 @@ int ngtcp2_crypto_derive_and_install_key(
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     if (side == NGTCP2_CRYPTO_SIDE_CLIENT) {
       ngtcp2_conn_install_early_keys(conn, tx_key, keylen, tx_iv, ivlen,
-                                     tx_hp_key, keylen);
+                                     tx_hp_key);
     } else {
       ngtcp2_conn_install_early_keys(conn, rx_key, keylen, rx_iv, ivlen,
-                                     rx_hp_key, keylen);
+                                     rx_hp_key);
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     ngtcp2_conn_install_handshake_keys(conn, rx_key, rx_iv, rx_hp_key, tx_key,
-                                       tx_iv, tx_hp_key, keylen, ivlen, keylen);
+                                       tx_iv, tx_hp_key, keylen, ivlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
     ngtcp2_conn_install_keys(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
-                             tx_hp_key, keylen, ivlen, keylen);
+                             tx_hp_key, keylen, ivlen);
     break;
   default:
     return -1;
@@ -284,8 +284,7 @@ int ngtcp2_crypto_derive_and_install_initial_key(
 
   ngtcp2_conn_install_initial_keys(
       conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key,
-      NGTCP2_CRYPTO_INITIAL_KEYLEN, NGTCP2_CRYPTO_INITIAL_IVLEN,
-      NGTCP2_CRYPTO_INITIAL_KEYLEN);
+      NGTCP2_CRYPTO_INITIAL_KEYLEN, NGTCP2_CRYPTO_INITIAL_IVLEN);
 
   return 0;
 }
