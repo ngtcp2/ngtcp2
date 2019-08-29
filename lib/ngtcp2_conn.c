@@ -7746,11 +7746,10 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
   size_t origlen = destlen;
-  size_t server_hs_tx_left;
-  ngtcp2_rcvry_stat *rcs = &conn->rcs;
   int rv;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
+  ssize_t res = 0;
 
   conn->log.last_ts = ts;
 
@@ -7758,22 +7757,28 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     *pdatalen = -1;
   }
 
+  if (path) {
+    ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
+  }
+
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-    if (path) {
-      ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
+    nwrite =
+        ngtcp2_conn_client_write_handshake(conn, dest, destlen, pdatalen, flags,
+                                           stream_id, fin, datav, datavcnt, ts);
+    if (nwrite < 0 || conn->state != NGTCP2_CS_POST_HANDSHAKE) {
+      return nwrite;
     }
-    return ngtcp2_conn_client_write_handshake(conn, dest, destlen, pdatalen,
-                                              flags, stream_id, fin, datav,
-                                              datavcnt, ts);
+    res = nwrite;
+    dest += nwrite;
+    destlen -= (size_t)nwrite;
+    /* Break here so that we can coalesces Short packets. */
+    break;
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
-    if (path) {
-      ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
-    }
     if (!ppe_pending) {
       nwrite = ngtcp2_conn_write_handshake(conn, dest, destlen, ts);
       if (nwrite) {
@@ -7795,6 +7800,8 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     return 0;
   }
 
+  assert(pktns->crypto.tx.ckm);
+
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
@@ -7815,35 +7822,31 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     }
   }
 
-  if (path) {
-    ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
-  }
-
-  if (!ppe_pending && conn->pv) {
-    nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
-    if (nwrite) {
-      return nwrite;
-    }
+  if (flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
+    wflags |= NGTCP2_WRITE_PKT_FLAG_STREAM_MORE;
   }
 
   cwnd = conn_cwnd_left(conn);
   destlen = ngtcp2_min(destlen, cwnd);
 
-  if (conn->server) {
-    server_hs_tx_left = conn_server_hs_tx_left(conn);
-    if (server_hs_tx_left == 0) {
-      assert(!ppe_pending);
-      if (rcs->loss_detection_timer) {
-        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                        "loss detection timer canceled");
-        rcs->loss_detection_timer = 0;
-      }
-      return 0;
-    }
-    destlen = ngtcp2_min(destlen, server_hs_tx_left);
+  if (ppe_pending) {
+    res = conn->pkt.hs_spktlen;
+    conn->pkt.hs_spktlen = 0;
+    /* dest and destlen have already been adjusted in ppe in the first
+       run.  They are adjusted for probe packet later. */
+    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT,
+                            strm, fin, datav, datavcnt, wflags, ts);
+    goto fin;
   }
 
-  if (!ppe_pending) {
+  if (conn->pv) {
+    nwrite = conn_write_path_challenge(conn, path, dest, origlen, ts);
+    if (nwrite) {
+      goto fin;
+    }
+  }
+
+  if (res == 0) {
     if (conn_handshake_remnants_left(conn)) {
       nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
       if (nwrite) {
@@ -7856,31 +7859,35 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     }
   }
 
-  if (flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
-    wflags |= NGTCP2_WRITE_PKT_FLAG_STREAM_MORE;
-  }
-
-  assert(pktns->crypto.tx.ckm);
-
-  if (ppe_pending) {
-    return conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT, strm,
-                          fin, datav, datavcnt, wflags, ts);
-  }
-
   if (conn->rcs.probe_pkt_left) {
-    return conn_write_probe_pkt(conn, dest, origlen, pdatalen, strm, fin, datav,
-                                datavcnt, ts);
+    nwrite = conn_write_probe_pkt(conn, dest, origlen, pdatalen, strm, fin,
+                                  datav, datavcnt, ts);
+    goto fin;
   }
 
   nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT, strm,
                           fin, datav, datavcnt, wflags, ts);
-  if (nwrite < 0) {
+  if (nwrite) {
     assert(nwrite != NGTCP2_ERR_NOBUF);
-    return nwrite;
+    goto fin;
   }
-  if (!ppe_pending && nwrite == 0) {
+
+  if (res == 0) {
     return conn_write_protected_ack_pkt(conn, dest, origlen, ts);
   }
+
+fin:
+  conn->pkt.hs_spktlen = 0;
+
+  if (nwrite >= 0) {
+    return res + nwrite;
+  }
+  /* NGTCP2_CONN_FLAG_PPE_PENDING is set in conn_write_pkt above.
+     ppe_pending cannot be used here. */
+  if (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) {
+    conn->pkt.hs_spktlen = res;
+  }
+
   return nwrite;
 }
 
