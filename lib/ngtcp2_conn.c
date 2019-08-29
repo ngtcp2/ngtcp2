@@ -7849,13 +7849,30 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   if (res == 0) {
     if (conn_handshake_remnants_left(conn)) {
       nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
-      if (nwrite) {
+      if (nwrite < 0) {
         return nwrite;
       }
+      if (nwrite > 0) {
+        res = nwrite;
+        dest += nwrite;
+        destlen -= (size_t)nwrite;
+      }
     }
-    nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
-    if (nwrite) {
-      return nwrite;
+    if (res == 0) {
+      nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
+      if (nwrite < 0) {
+        return nwrite;
+      }
+      if (nwrite > 0) {
+        res = nwrite;
+        dest += nwrite;
+        if (destlen < (size_t)nwrite) {
+          destlen = 0;
+        } else {
+          destlen -= (size_t)nwrite;
+        }
+        origlen -= (size_t)nwrite;
+      }
     }
   }
 
