@@ -2590,6 +2590,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     pfrc = conn->pkt.pfrc;
     rtb_entry_flags |= conn->pkt.rtb_entry_flags;
     pkt_empty = conn->pkt.pkt_empty;
+    hd_logged = conn->pkt.hd_logged;
   }
 
   left = ngtcp2_ppe_left(ppe);
@@ -2655,6 +2656,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     conn->pkt.pfrc = pfrc;
     conn->pkt.pkt_empty = pkt_empty;
     conn->pkt.rtb_entry_flags = rtb_entry_flags;
+    conn->pkt.hd_logged = hd_logged;
     conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
 
     if (stream_blocked) {
