@@ -152,13 +152,15 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
 int ngtcp2_crypto_derive_and_install_key(
     ngtcp2_conn *conn, void *tls, uint8_t *rx_key, uint8_t *rx_iv,
     uint8_t *rx_hp_key, uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp_key,
-    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
     ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side) {
+  const ngtcp2_crypto_ctx *ctx;
+  const ngtcp2_crypto_aead *aead;
+  const ngtcp2_crypto_md *md;
   uint8_t rx_keybuf[64], rx_ivbuf[64], rx_hp_keybuf[64];
   uint8_t tx_keybuf[64], tx_ivbuf[64], tx_hp_keybuf[64];
-  size_t keylen = ngtcp2_crypto_aead_keylen(aead);
-  size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
+  size_t keylen;
+  size_t ivlen;
   int rv;
 
   if (!rx_key) {
@@ -180,6 +182,21 @@ int ngtcp2_crypto_derive_and_install_key(
     tx_hp_key = tx_hp_keybuf;
   }
 
+  ctx = ngtcp2_conn_get_crypto_ctx(conn);
+
+  if (!ctx->aead.native_handle) {
+    ngtcp2_crypto_ctx cctx;
+    ngtcp2_crypto_ctx_tls(&cctx, tls);
+    ngtcp2_conn_set_aead_overhead(conn, ngtcp2_crypto_aead_taglen(&cctx.aead));
+    ngtcp2_conn_set_crypto_ctx(conn, &cctx);
+    ctx = ngtcp2_conn_get_crypto_ctx(conn);
+  }
+
+  aead = &ctx->aead;
+  md = &ctx->md;
+  keylen = ngtcp2_crypto_aead_keylen(aead);
+  ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
+
   if ((level != NGTCP2_CRYPTO_LEVEL_EARLY ||
        side == NGTCP2_CRYPTO_SIDE_SERVER) &&
       ngtcp2_crypto_derive_packet_protection_key(
@@ -197,20 +214,30 @@ int ngtcp2_crypto_derive_and_install_key(
   switch (level) {
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     if (side == NGTCP2_CRYPTO_SIDE_CLIENT) {
-      ngtcp2_conn_install_early_key(conn, tx_key, tx_iv, tx_hp_key, keylen,
-                                    ivlen);
+      rv = ngtcp2_conn_install_early_key(conn, tx_key, tx_iv, tx_hp_key, keylen,
+                                         ivlen);
     } else {
-      ngtcp2_conn_install_early_key(conn, rx_key, rx_iv, rx_hp_key, keylen,
-                                    ivlen);
+      rv = ngtcp2_conn_install_early_key(conn, rx_key, rx_iv, rx_hp_key, keylen,
+                                         ivlen);
+    }
+    if (rv != 0) {
+      return -1;
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    ngtcp2_conn_install_handshake_key(conn, rx_key, rx_iv, rx_hp_key, tx_key,
-                                      tx_iv, tx_hp_key, keylen, ivlen);
+    rv = ngtcp2_conn_install_handshake_key(conn, rx_key, rx_iv, rx_hp_key,
+                                           tx_key, tx_iv, tx_hp_key, keylen,
+                                           ivlen);
+    if (rv != 0) {
+      return -1;
+    }
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
-    ngtcp2_conn_install_key(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
-                            tx_hp_key, keylen, ivlen);
+    rv = ngtcp2_conn_install_key(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
+                                 tx_hp_key, keylen, ivlen);
+    if (rv != 0) {
+      return -1;
+    }
 
     rv = ngtcp2_crypto_set_remote_transport_params(conn, tls, side);
     if (rv != 0) {
@@ -240,6 +267,7 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   uint8_t tx_ivbuf[NGTCP2_CRYPTO_INITIAL_IVLEN];
   uint8_t tx_hp_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
   ngtcp2_crypto_ctx ctx;
+  int rv;
 
   ngtcp2_crypto_ctx_initial(&ctx);
 
@@ -272,6 +300,8 @@ int ngtcp2_crypto_derive_and_install_initial_key(
     tx_hp_key = tx_hp_keybuf;
   }
 
+  ngtcp2_conn_set_initial_crypto_ctx(conn, &ctx);
+
   if (ngtcp2_crypto_derive_initial_secrets(rx_secret, tx_secret, initial_secret,
                                            client_dcid, side) != 0) {
     return -1;
@@ -289,23 +319,31 @@ int ngtcp2_crypto_derive_and_install_initial_key(
     return -1;
   }
 
-  ngtcp2_conn_install_initial_key(conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv,
-                                  tx_hp_key, NGTCP2_CRYPTO_INITIAL_KEYLEN,
-                                  NGTCP2_CRYPTO_INITIAL_IVLEN);
+  rv = ngtcp2_conn_install_initial_key(
+      conn, rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key,
+      NGTCP2_CRYPTO_INITIAL_KEYLEN, NGTCP2_CRYPTO_INITIAL_IVLEN);
+  if (rv != 0) {
+    return -1;
+  }
 
   return 0;
 }
 
-int ngtcp2_crypto_update_and_install_key(
-    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
-    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
-    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
-    const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
-    size_t secretlen) {
+int ngtcp2_crypto_update_and_install_key(ngtcp2_conn *conn, uint8_t *rx_secret,
+                                         uint8_t *tx_secret, uint8_t *rx_key,
+                                         uint8_t *rx_iv, uint8_t *tx_key,
+                                         uint8_t *tx_iv,
+                                         const uint8_t *current_rx_secret,
+                                         const uint8_t *current_tx_secret,
+                                         size_t secretlen) {
+  const ngtcp2_crypto_ctx *ctx;
+  const ngtcp2_crypto_aead *aead;
+  const ngtcp2_crypto_md *md;
   uint8_t rx_keybuf[64], rx_ivbuf[64];
   uint8_t tx_keybuf[64], tx_ivbuf[64];
-  size_t keylen = ngtcp2_crypto_aead_keylen(aead);
-  size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
+  size_t keylen;
+  size_t ivlen;
+  int rv;
 
   if (!rx_key) {
     rx_key = rx_keybuf;
@@ -319,6 +357,12 @@ int ngtcp2_crypto_update_and_install_key(
   if (!tx_iv) {
     tx_iv = tx_ivbuf;
   }
+
+  ctx = ngtcp2_conn_get_crypto_ctx(conn);
+  aead = &ctx->aead;
+  md = &ctx->md;
+  keylen = ngtcp2_crypto_aead_keylen(aead);
+  ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
 
   if (ngtcp2_crypto_update_traffic_secret(rx_secret, md, current_rx_secret,
                                           secretlen) != 0) {
@@ -340,8 +384,9 @@ int ngtcp2_crypto_update_and_install_key(
     return -1;
   }
 
-  if (ngtcp2_conn_update_key(conn, rx_key, rx_iv, tx_key, tx_iv, keylen,
-                             ivlen) != 0) {
+  rv =
+      ngtcp2_conn_update_key(conn, rx_key, rx_iv, tx_key, tx_iv, keylen, ivlen);
+  if (rv != 0) {
     return -1;
   }
 

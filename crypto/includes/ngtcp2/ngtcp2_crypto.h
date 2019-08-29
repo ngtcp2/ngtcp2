@@ -346,8 +346,16 @@ ngtcp2_crypto_update_traffic_secret(uint8_t *dest, const ngtcp2_crypto_md *md,
  * |secretlen| specifies the length of |rx_secret| and |tx_secret|.
  *
  * The length of packet protection key and header protection key is
- * ngtcp2_crypto_aead(aead).  The length of packet protection IV is
- * ngtcp2_crypto_packet_protection_ivlen(aead).
+ * ngtcp2_crypto_aead(ctx->aead), and the length of packet protection
+ * IV is ngtcp2_crypto_packet_protection_ivlen(ctx->aead) where ctx
+ * can be obtained by `ngtcp2_crypto_ctx_tls`.
+ *
+ * In the first call of this function, it calls
+ * `ngtcp2_conn_set_crypto_ctx` to set negotiated AEAD and message
+ * digest algorithm.  After the successful call of this function,
+ * application can use `ngtcp2_conn_get_crypto_ctx` to get the object.
+ * It also calls `ngtcp2_conn_set_aead_overhead` to set AEAD tag
+ * length.
  *
  * If |level| is NGTCP2_CRYPTO_LEVEL_APP, this function retrieves a
  * remote QUIC transport parameters extension from |tls| and sets it
@@ -358,7 +366,6 @@ ngtcp2_crypto_update_traffic_secret(uint8_t *dest, const ngtcp2_crypto_md *md,
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
     ngtcp2_conn *conn, void *tls, uint8_t *rx_key, uint8_t *rx_iv,
     uint8_t *rx_hp, uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
-    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
     ngtcp2_crypto_level level, const uint8_t *rx_secret,
     const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side);
 
@@ -403,6 +410,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
  * The length of packet protection key and header protection key is 16
  * bytes long.  The length of packet protection IV is 12 bytes long.
  *
+ * This function calls `ngtcp2_conn_set_initial_crypto_ctx` to set
+ * initial AEAD and message digest algorithm.  After the successful
+ * call of this function, application can use
+ * `ngtcp2_conn_get_initial_crypto_ctx` to get the object.
+ *
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_initial_key(
@@ -444,15 +456,15 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_initial_key(
  * length of |rx_secret| and |tx_secret|.
  *
  * The length of packet protection key and header protection key is
- * ngtcp2_crypto_aead(aead).  The length of packet protection IV is
- * ngtcp2_crypto_packet_protection_ivlen(aead).
+ * ngtcp2_crypto_aead(ctx->aead), and the length of packet protection
+ * IV is ngtcp2_crypto_packet_protection_ivlen(ctx->aead) where ctx
+ * can be obtained by `ngtcp2_conn_get_crypto_ctx`.
  *
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_update_and_install_key(
     ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
     uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
-    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_md *md,
     const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
     size_t secretlen);
 

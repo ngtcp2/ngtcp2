@@ -148,29 +148,19 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     tx_secret_.assign(tx_secret, tx_secret + secretlen);
   }
 
-  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
-  if (crypto_ctx->aead.native_handle == nullptr) {
-    ngtcp2_crypto_ctx cctx;
-    ngtcp2_crypto_ctx_tls(&cctx, ssl_);
-    ngtcp2_conn_set_aead_overhead(conn_, ngtcp2_crypto_aead_taglen(&cctx.aead));
-    ngtcp2_conn_set_crypto_ctx(conn_, &cctx);
-    crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
-  }
-
-  auto aead = &crypto_ctx->aead;
-  auto md = &crypto_ctx->md;
-
-  std::array<uint8_t, 64> rx_key, rx_iv, rx_hp, tx_key, tx_iv, tx_hp;
-  auto keylen = ngtcp2_crypto_aead_keylen(aead);
-  auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
-  auto hplen = keylen;
+  std::array<uint8_t, 64> rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key;
 
   if (ngtcp2_crypto_derive_and_install_key(
-          conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
-          tx_iv.data(), tx_hp.data(), aead, md, level, rx_secret, tx_secret,
-          secretlen, NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
+          conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp_key.data(),
+          tx_key.data(), tx_iv.data(), tx_hp_key.data(), level, rx_secret,
+          tx_secret, secretlen, NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
     return -1;
   }
+
+  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  auto aead = &crypto_ctx->aead;
+  auto keylen = ngtcp2_crypto_aead_keylen(aead);
+  auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
 
   const char *title = nullptr;
   switch (level) {
@@ -201,11 +191,11 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     if (rx_secret) {
       std::cerr << title << " rx secret" << std::endl;
       debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen,
-                           rx_iv.data(), ivlen, rx_hp.data(), hplen);
+                           rx_iv.data(), ivlen, rx_hp_key.data(), keylen);
     }
     std::cerr << title << " tx secret" << std::endl;
     debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen,
-                         tx_iv.data(), ivlen, tx_hp.data(), hplen);
+                         tx_iv.data(), ivlen, tx_hp_key.data(), keylen);
   }
 
   if (level == NGTCP2_CRYPTO_LEVEL_APP) {
@@ -888,10 +878,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     return -1;
   }
 
-  ngtcp2_crypto_ctx in_crypto_ctx;
-  ngtcp2_crypto_ctx_initial(&in_crypto_ctx);
-  ngtcp2_conn_set_initial_crypto_ctx(conn_, &in_crypto_ctx);
-
   rv = setup_initial_crypto_context();
   if (rv != 0) {
     return -1;
@@ -1382,7 +1368,6 @@ int Client::update_key() {
   std::array<uint8_t, 64> rx_key, rx_iv, tx_key, tx_iv;
   auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
   auto aead = &crypto_ctx->aead;
-  auto md = &crypto_ctx->md;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
 
@@ -1390,8 +1375,8 @@ int Client::update_key() {
 
   if (ngtcp2_crypto_update_and_install_key(
           conn_, rx_secret.data(), tx_secret.data(), rx_key.data(),
-          rx_iv.data(), tx_key.data(), tx_iv.data(), aead, md,
-          rx_secret_.data(), tx_secret_.data(), rx_secret_.size()) != 0) {
+          rx_iv.data(), tx_key.data(), tx_iv.data(), rx_secret_.data(),
+          tx_secret_.data(), rx_secret_.size()) != 0) {
     return -1;
   }
 
