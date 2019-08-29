@@ -763,8 +763,8 @@ int Handler::handshake_completed() {
 
 namespace {
 int do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-               const uint8_t *key, const uint8_t *sample, void *user_data) {
-  if (ngtcp2_crypto_hp_mask(dest, hp, key, sample) != 0) {
+               const uint8_t *hp_key, const uint8_t *sample, void *user_data) {
+  if (ngtcp2_crypto_hp_mask(dest, hp, hp_key, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -1484,14 +1484,15 @@ int Handler::recv_crypto_data(ngtcp2_crypto_level crypto_level,
 int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
   std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_SECRETLEN> initial_secret,
       rx_secret, tx_secret;
-  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN> rx_key, rx_hp, tx_key,
-      tx_hp;
+  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN> rx_key, rx_hp_key, tx_key,
+      tx_hp_key;
   std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_IVLEN> rx_iv, tx_iv;
 
   if (ngtcp2_crypto_derive_and_install_initial_key(
           conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
-          rx_key.data(), rx_iv.data(), rx_hp.data(), tx_key.data(),
-          tx_iv.data(), tx_hp.data(), dcid, NGTCP2_CRYPTO_SIDE_SERVER) != 0) {
+          rx_key.data(), rx_iv.data(), rx_hp_key.data(), tx_key.data(),
+          tx_iv.data(), tx_hp_key.data(), dcid,
+          NGTCP2_CRYPTO_SIDE_SERVER) != 0) {
     std::cerr << "ngtcp2_crypto_derive_and_install_initial_key() failed"
               << std::endl;
     return -1;
@@ -1503,11 +1504,11 @@ int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
     std::cerr << "initial rx secret" << std::endl;
     debug::print_secrets(rx_secret.data(), rx_secret.size(), rx_key.data(),
                          rx_key.size(), rx_iv.data(), rx_iv.size(),
-                         rx_hp.data(), rx_hp.size());
+                         rx_hp_key.data(), rx_hp_key.size());
     std::cerr << "initial tx secret" << std::endl;
     debug::print_secrets(tx_secret.data(), tx_secret.size(), tx_key.data(),
                          tx_key.size(), tx_iv.data(), tx_iv.size(),
-                         tx_hp.data(), tx_hp.size());
+                         tx_hp_key.data(), tx_hp_key.size());
   }
 
   return 0;
