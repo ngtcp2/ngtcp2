@@ -647,8 +647,6 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
     goto fail;
   }
 
-  ev_timer_stop(loop, w);
-
   return;
 
 fail:
