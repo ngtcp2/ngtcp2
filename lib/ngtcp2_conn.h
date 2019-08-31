@@ -334,6 +334,11 @@ struct ngtcp2_conn {
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
     ngtcp2_pq strmq;
+    /* ack is ACK frame.  The underlying buffer is resused. */
+    ngtcp2_frame *ack;
+    /* max_ack_blks is the number of additional ngtcp2_ack_blk which
+       ack can contain. */
+    size_t max_ack_blks;
     /* offset is the offset the local endpoint has sent to the remote
        endpoint. */
     uint64_t offset;

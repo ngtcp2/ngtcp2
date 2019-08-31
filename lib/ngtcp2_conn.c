@@ -743,6 +743,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   ngtcp2_idtr_free(&conn->remote.uni.idtr);
   ngtcp2_idtr_free(&conn->remote.bidi.idtr);
+  ngtcp2_mem_free(conn->mem, conn->tx.ack);
   ngtcp2_pq_free(&conn->tx.strmq);
   ngtcp2_map_each_free(&conn->strms, delete_strms_each, (void *)conn->mem);
   ngtcp2_map_free(&conn->strms);
@@ -757,10 +758,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_ensure_ack_blks makes sure that |(*pfr)->ack.blks| can contain
- * at least |n| ngtcp2_ack_blk.  |*pfr| points to the ngtcp2_frame
- * object.  |*pnum_blks_max| is the number of ngtpc2_ack_blk which
- * |*pfr| can contain.
+ * conn_ensure_ack_blks makes sure that conn->tx.ack->ack.blks can
+ * contain at least |n| additional ngtcp2_ack_blk.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -768,23 +767,26 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static int conn_ensure_ack_blks(ngtcp2_conn *conn, ngtcp2_frame **pfr,
-                                size_t *pnum_blks_max, size_t n) {
+static int conn_ensure_ack_blks(ngtcp2_conn *conn, size_t n) {
   ngtcp2_frame *fr;
+  size_t max = conn->tx.max_ack_blks;
 
-  if (n <= *pnum_blks_max) {
+  if (n <= max) {
     return 0;
   }
 
-  *pnum_blks_max *= 2;
-  fr = ngtcp2_mem_realloc(conn->mem, *pfr,
-                          sizeof(ngtcp2_ack) +
-                              sizeof(ngtcp2_ack_blk) * (*pnum_blks_max - 1));
+  max *= 2;
+
+  assert(max >= n);
+
+  fr = ngtcp2_mem_realloc(conn->mem, conn->tx.ack,
+                          sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_blk) * max);
   if (fr == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
 
-  *pfr = fr;
+  conn->tx.ack = fr;
+  conn->tx.max_ack_blks = max;
 
   return 0;
 }
@@ -828,15 +830,14 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, uint8_t type,
                                  ngtcp2_tstamp ts, uint64_t ack_delay,
                                  uint64_t ack_delay_exponent) {
+  /* TODO Measure an actual size of ACK bloks to find the best default
+     value. */
+  const size_t initial_max_ack_blks = 8;
   int64_t last_pkt_num;
   ngtcp2_ack_blk *blk;
   ngtcp2_ksl_it it;
   ngtcp2_acktr_entry *rpkt;
-  ngtcp2_frame *fr;
   ngtcp2_ack *ack;
-  /* TODO Measure an actual size of ACK bloks to find the best default
-     value. */
-  size_t num_blks_max = 8;
   size_t blk_idx;
   int rv;
 
@@ -854,13 +855,17 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     return 0;
   }
 
-  fr = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_ack) +
-                                        sizeof(ngtcp2_ack_blk) * num_blks_max);
-  if (fr == NULL) {
-    return NGTCP2_ERR_NOMEM;
+  if (conn->tx.ack == NULL) {
+    conn->tx.ack = ngtcp2_mem_malloc(
+        conn->mem,
+        sizeof(ngtcp2_ack) + sizeof(ngtcp2_ack_blk) * initial_max_ack_blks);
+    if (conn->tx.ack == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+    conn->tx.max_ack_blks = initial_max_ack_blks;
   }
 
-  ack = &fr->ack;
+  ack = &conn->tx.ack->ack;
 
   rpkt = ngtcp2_ksl_it_get(&it);
   last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
@@ -888,12 +893,11 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     rpkt = ngtcp2_ksl_it_get(&it);
 
     blk_idx = ack->num_blks++;
-    rv = conn_ensure_ack_blks(conn, &fr, &num_blks_max, ack->num_blks);
+    rv = conn_ensure_ack_blks(conn, ack->num_blks);
     if (rv != 0) {
-      ngtcp2_mem_free(conn->mem, fr);
       return rv;
     }
-    ack = &fr->ack;
+    ack = &conn->tx.ack->ack;
     blk = &ack->blks[blk_idx];
     blk->gap = (uint64_t)(last_pkt_num - rpkt->pkt_num - 2);
     blk->blklen = rpkt->len - 1;
@@ -907,7 +911,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     ngtcp2_acktr_forget(acktr, ngtcp2_ksl_it_get(&it));
   }
 
-  *pfr = fr;
+  *pfr = conn->tx.ack;
 
   return 0;
 }
@@ -1583,8 +1587,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
       pkt_empty = 0;
     }
-    ngtcp2_mem_free(conn->mem, ackfr);
-    ackfr = NULL;
   }
 
   /* If we cannot write another packet, then we need to add padding to
@@ -1717,12 +1719,10 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   if (rv != 0) {
     assert(NGTCP2_ERR_NOBUF == rv);
-    ngtcp2_mem_free(conn->mem, ackfr);
     return 0;
   }
 
   if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
-    ngtcp2_mem_free(conn->mem, ackfr);
     return 0;
   }
 
@@ -1736,8 +1736,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_acktr_commit_ack(&pktns->acktr);
       ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
     }
-    ngtcp2_mem_free(conn->mem, ackfr);
-    ackfr = NULL;
   }
 
   if (require_padding || force_send) {
@@ -2336,8 +2334,6 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                              ackfr->ack.largest_ack);
         pkt_empty = 0;
       }
-      ngtcp2_mem_free(conn->mem, ackfr);
-      ackfr = NULL;
     }
 
     for (pfrc = &pktns->tx.frq; *pfrc;) {
@@ -2875,7 +2871,6 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   spktlen = conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT,
                                         &conn->dcid.current.cid, ackfr,
                                         NGTCP2_RTB_FLAG_NONE, ts);
-  ngtcp2_mem_free(conn->mem, ackfr);
   if (spktlen < 0) {
     return spktlen;
   }
@@ -2996,8 +2991,6 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_acktr_commit_ack(&pktns->acktr);
       ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
     }
-    ngtcp2_mem_free(conn->mem, ackfr);
-    ackfr = NULL;
   }
 
   lfr.type = NGTCP2_FRAME_PADDING;
