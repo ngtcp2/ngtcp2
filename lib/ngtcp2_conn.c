@@ -881,6 +881,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   ngtcp2_ksl_it_next(&it);
 
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
+    if (ack->num_blks == NGTCP2_MAX_ACK_BLKS) {
+      break;
+    }
+
     rpkt = ngtcp2_ksl_it_get(&it);
 
     blk_idx = ack->num_blks++;
@@ -895,10 +899,6 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     blk->blklen = rpkt->len - 1;
 
     last_pkt_num = rpkt->pkt_num - (int64_t)(rpkt->len - 1);
-
-    if (ack->num_blks == NGTCP2_MAX_ACK_BLKS) {
-      break;
-    }
   }
 
   /* TODO Just remove entries which cannot fit into a single ACK frame
