@@ -1615,14 +1615,14 @@ int Client::on_extend_max_streams() {
 }
 
 namespace {
-int read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
-              size_t *pdatalen, uint32_t *pflags, void *user_data,
-              void *stream_user_data) {
-  *pdata = config.data;
-  *pdatalen = config.datalen;
+ssize_t read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
+                  size_t veccnt, uint32_t *pflags, void *user_data,
+                  void *stream_user_data) {
+  vec[0].base = config.data;
+  vec[0].len = config.datalen;
   *pflags |= NGHTTP3_DATA_FLAG_EOF;
 
-  return 0;
+  return 1;
 }
 } // namespace
 

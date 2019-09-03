@@ -320,23 +320,23 @@ int64_t Stream::find_dyn_length(const std::string &path) {
 }
 
 namespace {
-int read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
-              size_t *pdatalen, uint32_t *pflags, void *user_data,
-              void *stream_user_data) {
+ssize_t read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
+                  size_t veccnt, uint32_t *pflags, void *user_data,
+                  void *stream_user_data) {
   auto stream = static_cast<Stream *>(stream_user_data);
 
-  *pdata = stream->data;
-  *pdatalen = stream->datalen;
+  vec[0].base = stream->data;
+  vec[0].len = stream->datalen;
   *pflags |= NGHTTP3_DATA_FLAG_EOF | NGHTTP3_DATA_FLAG_NO_END_STREAM;
 
-  return 0;
+  return 1;
 }
 } // namespace
 
 namespace {
-int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
-                  size_t *pdatalen, uint32_t *pflags, void *user_data,
-                  void *stream_user_data) {
+ssize_t dyn_read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
+                      size_t veccnt, uint32_t *pflags, void *user_data,
+                      void *stream_user_data) {
   auto stream = static_cast<Stream *>(stream_user_data);
   int rv;
 
@@ -348,8 +348,8 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
                       static_cast<size_t>(stream->dyndataleft));
   auto buf = std::make_unique<std::vector<uint8_t>>(len);
 
-  *pdata = buf->data();
-  *pdatalen = len;
+  vec[0].base = buf->data();
+  vec[0].len = len;
 
   stream->dynbuflen += len;
   stream->dynbufs.emplace_back(std::move(buf));
@@ -372,7 +372,7 @@ int dyn_read_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t **pdata,
     }
   }
 
-  return 0;
+  return 1;
 }
 } // namespace
 
