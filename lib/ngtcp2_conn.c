@@ -1234,7 +1234,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
 
   if (datalen > left) {
-    ngtcp2_vec_clone(a, fr->data, fr->datacnt);
+    ngtcp2_vec_copy(a, fr->data, fr->datacnt);
     acnt = fr->datacnt;
 
     bcnt = 0;
@@ -1254,7 +1254,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
     nfr->type = NGTCP2_FRAME_CRYPTO;
     nfr->offset = fr->offset + left;
     nfr->datacnt = bcnt;
-    ngtcp2_vec_clone(nfr->data, b, bcnt);
+    ngtcp2_vec_copy(nfr->data, b, bcnt);
 
     rv = ngtcp2_ksl_insert(&pktns->crypto.tx.frq, NULL,
                            ngtcp2_ksl_key_ptr(&key, &nfr->offset), nfrc);
@@ -1275,7 +1275,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
     nfr = &nfrc->fr.crypto;
     *nfr = *fr;
     nfr->datacnt = acnt;
-    ngtcp2_vec_clone(nfr->data, a, acnt);
+    ngtcp2_vec_copy(nfr->data, a, acnt);
 
     ngtcp2_frame_chain_del(frc, conn->mem);
 
@@ -1286,7 +1286,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
 
   left -= datalen;
 
-  ngtcp2_vec_clone(a, fr->data, fr->datacnt);
+  ngtcp2_vec_copy(a, fr->data, fr->datacnt);
   acnt = fr->datacnt;
 
   for (; left && ngtcp2_ksl_len(&pktns->crypto.tx.frq);) {
@@ -1361,7 +1361,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   nfr = &nfrc->fr.crypto;
   *nfr = *fr;
   nfr->datacnt = acnt;
-  ngtcp2_vec_clone(nfr->data, a, acnt);
+  ngtcp2_vec_copy(nfr->data, a, acnt);
 
   ngtcp2_frame_chain_del(frc, conn->mem);
 
@@ -2610,7 +2610,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     nfrc->fr.stream.stream_id = data_strm->stream_id;
     nfrc->fr.stream.offset = data_strm->tx.offset;
     nfrc->fr.stream.datacnt = datacnt;
-    ngtcp2_vec_clone(nfrc->fr.stream.data, data, datacnt);
+    ngtcp2_vec_copy(nfrc->fr.stream.data, data, datacnt);
 
     fin = fin && ndatalen == datalen;
     nfrc->fr.stream.fin = (uint8_t)fin;

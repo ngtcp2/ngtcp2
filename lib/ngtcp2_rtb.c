@@ -599,8 +599,8 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
         }
 
         nfrc->fr = frc->fr;
-        ngtcp2_vec_clone(nfrc->fr.crypto.data, frc->fr.crypto.data,
-                         frc->fr.crypto.datacnt);
+        ngtcp2_vec_copy(nfrc->fr.crypto.data, frc->fr.crypto.data,
+                        frc->fr.crypto.datacnt);
 
         frame_chain_insert(pfrc, nfrc);
       }

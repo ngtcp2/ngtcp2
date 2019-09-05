@@ -217,6 +217,6 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t *pnwritten,
   return j;
 }
 
-void ngtcp2_vec_clone(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt) {
+void ngtcp2_vec_copy(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt) {
   memcpy(dst, src, sizeof(ngtcp2_vec) * cnt);
 }

@@ -158,7 +158,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
                     ngtcp2_ksl_key_ptr(&key, &fr->offset));
 
   if (datalen > left) {
-    ngtcp2_vec_clone(a, fr->data, fr->datacnt);
+    ngtcp2_vec_copy(a, fr->data, fr->datacnt);
     acnt = fr->datacnt;
 
     bcnt = 0;
@@ -181,7 +181,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     nfr->stream_id = fr->stream_id;
     nfr->offset = fr->offset + left;
     nfr->datacnt = bcnt;
-    ngtcp2_vec_clone(nfr->data, b, bcnt);
+    ngtcp2_vec_copy(nfr->data, b, bcnt);
 
     rv = ngtcp2_ksl_insert(&strm->tx.streamfrq, NULL,
                            ngtcp2_ksl_key_ptr(&key, &nfr->offset), nfrc);
@@ -203,7 +203,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     *nfr = *fr;
     nfr->fin = 0;
     nfr->datacnt = acnt;
-    ngtcp2_vec_clone(nfr->data, a, acnt);
+    ngtcp2_vec_copy(nfr->data, a, acnt);
 
     ngtcp2_frame_chain_del(frc, strm->mem);
 
@@ -214,7 +214,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
   left -= datalen;
 
-  ngtcp2_vec_clone(a, fr->data, fr->datacnt);
+  ngtcp2_vec_copy(a, fr->data, fr->datacnt);
   acnt = fr->datacnt;
 
   for (; left && ngtcp2_ksl_len(&strm->tx.streamfrq);) {
@@ -282,7 +282,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   nfr = &nfrc->fr.stream;
   *nfr = *fr;
   nfr->datacnt = acnt;
-  ngtcp2_vec_clone(nfr->data, a, acnt);
+  ngtcp2_vec_copy(nfr->data, a, acnt);
 
   ngtcp2_frame_chain_del(frc, strm->mem);
 
