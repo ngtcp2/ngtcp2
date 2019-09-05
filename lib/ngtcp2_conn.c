@@ -2596,8 +2596,8 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                                                 data_strm->tx.offset, ndatalen,
                                                 left)) != (size_t)-1 &&
       (ndatalen || datalen == 0)) {
-    datacnt = ngtcp2_vec_copy(data, &ndatalen, NGTCP2_MAX_STREAM_DATACNT, datav,
-                              datavcnt, ndatalen);
+    datacnt = ngtcp2_vec_copy_at_most(
+        data, &ndatalen, NGTCP2_MAX_STREAM_DATACNT, datav, datavcnt, ndatalen);
 
     rv = ngtcp2_frame_chain_stream_datacnt_new(&nfrc, datacnt, conn->mem);
     if (rv != 0) {
