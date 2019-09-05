@@ -238,8 +238,6 @@ typedef enum ngtcp2_lib_error {
   NGTCP2_ERR_STREAM_SHUT_WR = -221,
   NGTCP2_ERR_STREAM_NOT_FOUND = -222,
   NGTCP2_ERR_STREAM_STATE = -226,
-  NGTCP2_ERR_NOKEY = -227,
-  NGTCP2_ERR_EARLY_DATA_REJECTED = -228,
   NGTCP2_ERR_RECV_VERSION_NEGOTIATION = -229,
   NGTCP2_ERR_CLOSING = -230,
   NGTCP2_ERR_DRAINING = -231,
@@ -2053,10 +2051,6 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
  *     Packet number is exhausted, and cannot send any more packet.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
- * :enum:`NGTCP2_ERR_NOKEY`
- *     No encryption key is available.
- * :enum:`NGTCP2_ERR_EARLY_DATA_REJECTED`
- *     Early data was rejected by server.
  * :enum:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  *     Stream is blocked because of flow control.
  * :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`

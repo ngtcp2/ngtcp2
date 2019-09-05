@@ -72,10 +72,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_STREAM_NOT_FOUND";
   case NGTCP2_ERR_STREAM_STATE:
     return "ERR_STREAM_STATE";
-  case NGTCP2_ERR_NOKEY:
-    return "ERR_NOKEY";
-  case NGTCP2_ERR_EARLY_DATA_REJECTED:
-    return "ERR_EARLY_DATA_REJECTED";
   case NGTCP2_ERR_RECV_VERSION_NEGOTIATION:
     return "ERR_RECV_VERSION_NEGOTIATION";
   case NGTCP2_ERR_CLOSING:
