@@ -31,14 +31,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-/* ngtcp2_array is a fixed size array. */
-typedef struct {
-  /* base points to the beginning of the buffer. */
-  uint8_t *base;
-  /* len is the capacity of the buffer. */
-  size_t len;
-} ngtcp2_array;
-
 uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
 
 /*

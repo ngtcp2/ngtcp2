@@ -439,7 +439,7 @@ struct ngtcp2_conn {
 
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
-    ngtcp2_array decrypt_buf;
+    ngtcp2_vec decrypt_buf;
   } crypto;
 
   /* pkt contains the packet intermediate construction data to support

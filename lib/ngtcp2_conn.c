@@ -3718,7 +3718,7 @@ static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t n) {
   uint8_t *nbuf;
   size_t len;
-  ngtcp2_array *decrypt_buf = &conn->crypto.decrypt_buf;
+  ngtcp2_vec *decrypt_buf = &conn->crypto.decrypt_buf;
 
   if (decrypt_buf->len >= n) {
     return 0;
