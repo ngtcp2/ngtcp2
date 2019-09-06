@@ -1341,7 +1341,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   ssl_ = SSL_new(ssl_ctx_);
   SSL_set_app_data(ssl_, this);
   SSL_set_accept_state(ssl_);
-  SSL_set_quic_early_data_enabled(ssl_, 1);
+  SSL_set_max_early_data(ssl_, std::numeric_limits<uint32_t>::max());
 
   auto callbacks = ngtcp2_conn_callbacks{
       nullptr, // client_initial

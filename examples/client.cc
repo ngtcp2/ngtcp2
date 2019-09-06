@@ -770,7 +770,7 @@ int Client::init_ssl() {
           resumption_ = true;
 
           if (SSL_SESSION_get_max_early_data(session)) {
-            SSL_set_quic_early_data_enabled(ssl_, 1);
+            SSL_set_max_early_data(ssl_, std::numeric_limits<uint32_t>::max());
           }
         }
         SSL_SESSION_free(session);
