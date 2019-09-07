@@ -600,6 +600,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->user_data = user_data;
   (*pconn)->local.settings = *settings;
   (*pconn)->rx.unsent_max_offset = (*pconn)->rx.max_offset = settings->max_data;
+  (*pconn)->idle_ts = settings->initial_ts;
 
   rcvry_stat_reset(&(*pconn)->rcs);
   cc_stat_reset(&(*pconn)->ccs);
@@ -1443,6 +1444,16 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
              min_payloadlen + NGTCP2_MAX_AEAD_OVERHEAD;
 }
 
+static void conn_restart_timer_on_write(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  conn->idle_ts = ts;
+  conn->flags &= ~NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
+}
+
+static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  conn->idle_ts = ts;
+  conn->flags |= NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
+}
+
 /*
  * conn_write_handshake_pkt writes handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.  |type| specifies long
@@ -1626,6 +1637,11 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (rv != 0) {
       ngtcp2_rtb_entry_del(rtbent, conn->mem);
       return rv;
+    }
+
+    if ((flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+        (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
+      conn_restart_timer_on_write(conn, ts);
     }
   }
 
@@ -2703,6 +2719,11 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       ngtcp2_rtb_entry_del(ent, conn->mem);
       return rv;
     }
+
+    if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+        (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
+      conn_restart_timer_on_write(conn, ts);
+    }
   }
 
   conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
@@ -2826,6 +2847,11 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (rv != 0) {
       ngtcp2_rtb_entry_del(rtbent, conn->mem);
       return rv;
+    }
+
+    if ((rtb_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+        (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
+      conn_restart_timer_on_write(conn, ts);
     }
   }
 
@@ -3016,6 +3042,10 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     ngtcp2_rtb_entry_del(ent, conn->mem);
     return rv;
+  }
+
+  if (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE) {
+    conn_restart_timer_on_write(conn, ts);
   }
 
   ++pktns->tx.last_pkt_num;
@@ -4560,6 +4590,8 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     return rv;
   }
 
+  conn_restart_timer_on_read(conn, ts);
+
   return conn->state == NGTCP2_CS_DRAINING ? NGTCP2_ERR_DRAINING
                                            : (ssize_t)pktlen;
 }
@@ -5482,8 +5514,14 @@ static int conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn,
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
-  return ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack,
-                               ts);
+  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  conn_restart_timer_on_read(conn, ts);
+
+  return 0;
 }
 
 /*
@@ -6381,6 +6419,8 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   if (rv != 0) {
     return rv;
   }
+
+  conn_restart_timer_on_read(conn, ts);
 
   return (ssize_t)pktlen;
 }
@@ -8626,7 +8666,7 @@ uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
   return conn->tx.max_offset - conn->tx.offset;
 }
 
-ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn) {
+ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
   ngtcp2_duration trpto;
 
   if (conn->local.settings.idle_timeout == 0) {
@@ -8635,7 +8675,8 @@ ngtcp2_duration ngtcp2_conn_get_idle_timeout(ngtcp2_conn *conn) {
 
   trpto = 3 * conn_compute_pto(conn);
 
-  return ngtcp2_max(conn->local.settings.idle_timeout * NGTCP2_MILLISECONDS,
+  return conn->idle_ts +
+         ngtcp2_max(conn->local.settings.idle_timeout * NGTCP2_MILLISECONDS,
                     trpto);
 }
 

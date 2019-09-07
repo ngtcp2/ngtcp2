@@ -985,14 +985,21 @@ int Client::on_read() {
     }
   }
 
-  timer_.repeat = static_cast<ev_tstamp>(ngtcp2_conn_get_idle_timeout(conn_)) /
-                  NGTCP2_SECONDS;
   reset_idle_timer();
 
   return 0;
 }
 
-void Client::reset_idle_timer() { ev_timer_again(loop_, &timer_); }
+void Client::reset_idle_timer() {
+  auto now = util::timestamp(loop_);
+  auto idle_expiry = ngtcp2_conn_get_idle_expiry(conn_);
+  timer_.repeat =
+      idle_expiry > now
+          ? static_cast<ev_tstamp>(idle_expiry - now) / NGTCP2_SECONDS
+          : 1e-9;
+
+  ev_timer_again(loop_, &timer_);
+}
 
 int Client::handle_expiry() {
   auto now = util::timestamp(loop_);
@@ -1055,6 +1062,7 @@ int Client::write_streams() {
       }
       sendbuf_.push(nwrite);
       update_remote_addr(&path.path.remote);
+      reset_idle_timer();
       auto rv = send_packet();
       if (rv != NETWORK_ERR_OK) {
         return rv;
@@ -1150,6 +1158,7 @@ int Client::write_streams() {
         }
 
         update_remote_addr(&path.path.remote);
+        reset_idle_timer();
 
         auto rv = send_packet();
         if (rv != NETWORK_ERR_OK) {
@@ -1173,6 +1182,7 @@ int Client::write_streams() {
       }
       sendbuf_.push(nwrite);
       update_remote_addr(&path.path.remote);
+      reset_idle_timer();
       auto rv = send_packet();
       if (rv != NETWORK_ERR_OK) {
         return rv;
@@ -1431,7 +1441,6 @@ int Client::send_packet() {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
     }
     sendbuf_.reset();
-    reset_idle_timer();
     return NETWORK_ERR_OK;
   }
 
@@ -1460,8 +1469,6 @@ int Client::send_packet() {
               << util::straddr(&remote_addr_.su.sa, remote_addr_.len) << " "
               << nwrite << " bytes" << std::endl;
   }
-
-  reset_idle_timer();
 
   return NETWORK_ERR_OK;
 }

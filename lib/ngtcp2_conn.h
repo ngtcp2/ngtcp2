@@ -183,6 +183,9 @@ typedef enum {
      NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state
      of ngtcp2_ppe is stored in pkt struct of ngtcp2_conn. */
   NGTCP2_CONN_FLAG_PPE_PENDING = 0x1000,
+  /* NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE is set when idle
+     timer should be restarted on next write. */
+  NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE = 0x2000,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -473,6 +476,8 @@ struct ngtcp2_conn {
      data" rule. */
   size_t hs_sent;
   const ngtcp2_mem *mem;
+  /* idle_ts is the time instant when idle timer started. */
+  ngtcp2_tstamp idle_ts;
   void *user_data;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */

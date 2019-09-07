@@ -1558,14 +1558,21 @@ int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     return rv;
   }
 
-  timer_.repeat = static_cast<ev_tstamp>(ngtcp2_conn_get_idle_timeout(conn_)) /
-                  NGTCP2_SECONDS;
   reset_idle_timer();
 
   return 0;
 }
 
-void Handler::reset_idle_timer() { ev_timer_again(loop_, &timer_); }
+void Handler::reset_idle_timer() {
+  auto now = util::timestamp(loop_);
+  auto idle_expiry = ngtcp2_conn_get_idle_expiry(conn_);
+  timer_.repeat =
+      idle_expiry > now
+          ? static_cast<ev_tstamp>(idle_expiry - now) / NGTCP2_SECONDS
+          : 1e-9;
+
+  ev_timer_again(loop_, &timer_);
+}
 
 int Handler::handle_expiry() {
   auto now = util::timestamp(loop_);
@@ -1605,7 +1612,6 @@ int Handler::on_write() {
     if (rv != NETWORK_ERR_OK) {
       return rv;
     }
-    reset_idle_timer();
   }
 
   assert(sendbuf_.left() >= max_pktlen_);
@@ -1664,13 +1670,13 @@ int Handler::write_streams() {
 
         update_endpoint(&path.path.local);
         update_remote_addr(&path.path.remote);
+        reset_idle_timer();
 
         auto rv =
             server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
         if (rv != NETWORK_ERR_OK) {
           return rv;
         }
-        reset_idle_timer();
       }
     }
 
@@ -1743,12 +1749,12 @@ int Handler::write_streams() {
 
       update_endpoint(&path.path.local);
       update_remote_addr(&path.path.remote);
+      reset_idle_timer();
 
       auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
       if (rv != NETWORK_ERR_OK) {
         return rv;
       }
-      reset_idle_timer();
 
       if (ndatalen > 0) {
         // TODO Returning from here instead of break decreases
