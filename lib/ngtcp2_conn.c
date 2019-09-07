@@ -1446,7 +1446,7 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
 
 static void conn_restart_timer_on_write(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->idle_ts = ts;
-  conn->flags &= ~NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
+  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
 }
 
 static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
