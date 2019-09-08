@@ -1631,12 +1631,12 @@ int Handler::on_write() {
 
 int Handler::write_streams() {
   std::array<nghttp3_vec, 16> vec;
+  PathStorage path;
   int rv;
 
   for (;;) {
     int64_t stream_id = -1;
     int fin = 0;
-
     ssize_t sveccnt = 0;
 
     if (httpconn_ && ngtcp2_conn_get_max_data_left(conn_)) {
@@ -1651,65 +1651,32 @@ int Handler::write_streams() {
     }
 
     ssize_t ndatalen;
-    PathStorage path;
     auto v = vec.data();
     auto vcnt = static_cast<size_t>(sveccnt);
-    for (;;) {
-      auto nwrite = ngtcp2_conn_writev_stream(
-          conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen,
-          NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id, fin,
-          reinterpret_cast<const ngtcp2_vec *>(v), vcnt,
-          util::timestamp(loop_));
-      if (nwrite < 0) {
-        auto should_break = false;
-        switch (nwrite) {
-        case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-        case NGTCP2_ERR_STREAM_SHUT_WR:
-          if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED &&
-              ngtcp2_conn_get_max_data_left(conn_) == 0) {
-            return 0;
-          }
 
-          rv = nghttp3_conn_block_stream(httpconn_, stream_id);
-          if (rv != 0) {
-            std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
-                      << std::endl;
-            last_error_ = quic_err_app(rv);
-            return handle_error();
-          }
-          should_break = true;
-          break;
-        case NGTCP2_ERR_WRITE_STREAM_MORE:
-          assert(ndatalen > 0);
-          rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
-          if (rv != 0) {
-            std::cerr << "nghttp3_conn_add_write_offset: "
-                      << nghttp3_strerror(rv) << std::endl;
-            last_error_ = quic_err_app(rv);
-            return handle_error();
-          }
-          should_break = true;
-          break;
+    auto nwrite = ngtcp2_conn_writev_stream(
+        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen,
+        NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id, fin,
+        reinterpret_cast<const ngtcp2_vec *>(v), vcnt, util::timestamp(loop_));
+    if (nwrite < 0) {
+      switch (nwrite) {
+      case NGTCP2_ERR_STREAM_DATA_BLOCKED:
+      case NGTCP2_ERR_STREAM_SHUT_WR:
+        if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED &&
+            ngtcp2_conn_get_max_data_left(conn_) == 0) {
+          return 0;
         }
 
-        if (should_break) {
-          break;
+        rv = nghttp3_conn_block_stream(httpconn_, stream_id);
+        if (rv != 0) {
+          std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
+                    << std::endl;
+          last_error_ = quic_err_app(rv);
+          return handle_error();
         }
-
-        std::cerr << "ngtcp2_conn_writev_stream: " << ngtcp2_strerror(nwrite)
-                  << std::endl;
-        last_error_ = quic_err_transport(nwrite);
-        return handle_error();
-      }
-
-      if (nwrite == 0) {
-        // We are congestion limited.
-        return 0;
-      }
-
-      sendbuf_.push(nwrite);
-
-      if (ndatalen >= 0) {
+        continue;
+      case NGTCP2_ERR_WRITE_STREAM_MORE:
+        assert(ndatalen > 0);
         rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
         if (rv != 0) {
           std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
@@ -1717,26 +1684,39 @@ int Handler::write_streams() {
           last_error_ = quic_err_app(rv);
           return handle_error();
         }
+        continue;
       }
 
-      update_endpoint(&path.path.local);
-      update_remote_addr(&path.path.remote);
-      reset_idle_timer();
+      std::cerr << "ngtcp2_conn_writev_stream: " << ngtcp2_strerror(nwrite)
+                << std::endl;
+      last_error_ = quic_err_transport(nwrite);
+      return handle_error();
+    }
 
-      auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-      if (rv != NETWORK_ERR_OK) {
-        return rv;
-      }
-
-      // TODO Returning from here instead of break decreases
-      // performance, but it decreases "hidden RTT" increase because
-      // server is unable to read socket timely if it is busy to
-      // write packets here.
-      auto ep = static_cast<Endpoint *>(path.path.local.user_data);
-      ev_io_stop(loop_, &wev_);
-      ev_io_set(&wev_, ep->fd, EV_WRITE);
-      ev_io_start(loop_, &wev_);
+    if (nwrite == 0) {
+      // We are congestion limited.
       return 0;
+    }
+
+    sendbuf_.push(nwrite);
+
+    if (ndatalen >= 0) {
+      rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+      if (rv != 0) {
+        std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
+                  << std::endl;
+        last_error_ = quic_err_app(rv);
+        return handle_error();
+      }
+    }
+
+    update_endpoint(&path.path.local);
+    update_remote_addr(&path.path.remote);
+    reset_idle_timer();
+
+    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
+    if (rv != NETWORK_ERR_OK) {
+      return rv;
     }
   }
 }
