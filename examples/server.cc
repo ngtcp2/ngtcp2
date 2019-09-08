@@ -1634,8 +1634,8 @@ int Handler::write_streams() {
   int rv;
 
   for (;;) {
-    int64_t stream_id;
-    int fin;
+    int64_t stream_id = -1;
+    int fin = 0;
 
     ssize_t sveccnt = 0;
 
@@ -1652,34 +1652,6 @@ int Handler::write_streams() {
 
     ssize_t ndatalen;
     PathStorage path;
-    if (sveccnt == 0) {
-      for (;;) {
-        auto nwrite =
-            ngtcp2_conn_write_pkt(conn_, &path.path, sendbuf_.wpos(),
-                                  max_pktlen_, util::timestamp(loop_));
-        if (nwrite < 0) {
-          std::cerr << "ngtcp2_conn_write_pkt: " << ngtcp2_strerror(nwrite)
-                    << std::endl;
-          last_error_ = quic_err_transport(nwrite);
-          return handle_error();
-        }
-        if (nwrite == 0) {
-          return 0;
-        }
-        sendbuf_.push(nwrite);
-
-        update_endpoint(&path.path.local);
-        update_remote_addr(&path.path.remote);
-        reset_idle_timer();
-
-        auto rv =
-            server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-        if (rv != NETWORK_ERR_OK) {
-          return rv;
-        }
-      }
-    }
-
     auto v = vec.data();
     auto vcnt = static_cast<size_t>(sveccnt);
     for (;;) {
@@ -1724,7 +1696,7 @@ int Handler::write_streams() {
           break;
         }
 
-        std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
+        std::cerr << "ngtcp2_conn_writev_stream: " << ngtcp2_strerror(nwrite)
                   << std::endl;
         last_error_ = quic_err_transport(nwrite);
         return handle_error();
@@ -1737,7 +1709,7 @@ int Handler::write_streams() {
 
       sendbuf_.push(nwrite);
 
-      if (ndatalen > 0) {
+      if (ndatalen >= 0) {
         rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
         if (rv != 0) {
           std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
@@ -1756,17 +1728,15 @@ int Handler::write_streams() {
         return rv;
       }
 
-      if (ndatalen > 0) {
-        // TODO Returning from here instead of break decreases
-        // performance, but it decreases "hidden RTT" increase because
-        // server is unable to read socket timely if it is busy to
-        // write packets here.
-        auto ep = static_cast<Endpoint *>(path.path.local.user_data);
-        ev_io_stop(loop_, &wev_);
-        ev_io_set(&wev_, ep->fd, EV_WRITE);
-        ev_io_start(loop_, &wev_);
-        return 0;
-      }
+      // TODO Returning from here instead of break decreases
+      // performance, but it decreases "hidden RTT" increase because
+      // server is unable to read socket timely if it is busy to
+      // write packets here.
+      auto ep = static_cast<Endpoint *>(path.path.local.user_data);
+      ev_io_stop(loop_, &wev_);
+      ev_io_set(&wev_, ep->fd, EV_WRITE);
+      ev_io_start(loop_, &wev_);
+      return 0;
     }
   }
 }

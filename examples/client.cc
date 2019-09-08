@@ -1089,7 +1089,7 @@ int Client::write_streams() {
           return -1;
         }
 
-        if (sveccnt == 0) {
+        if (sveccnt == 0 && stream_id == -1) {
           break;
         }
 
@@ -1146,7 +1146,7 @@ int Client::write_streams() {
 
         sendbuf_.push(nwrite);
 
-        if (ndatalen > 0) {
+        if (ndatalen >= 0) {
           rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
           if (rv != 0) {
             std::cerr << "nghttp3_conn_add_write_offset: "
