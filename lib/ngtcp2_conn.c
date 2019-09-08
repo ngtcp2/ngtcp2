@@ -7116,6 +7116,12 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       early_datalen =
           ngtcp2_min(early_datalen, conn->tx.max_offset - conn->tx.offset) +
           NGTCP2_STREAM_OVERHEAD;
+
+      if (flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
+        wflags |= NGTCP2_WRITE_PKT_FLAG_STREAM_MORE;
+      }
+    } else {
+      strm = NULL;
     }
   }
 
@@ -7143,9 +7149,6 @@ ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
   if (spktlen && was_client_initial) {
     wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
-  }
-  if (flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
-    wflags |= NGTCP2_WRITE_PKT_FLAG_STREAM_MORE;
   }
 
   cwnd = conn_cwnd_left(conn);
@@ -7855,10 +7858,10 @@ ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
       return NGTCP2_ERR_STREAM_SHUT_WR;
     }
-  }
 
-  if (flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
-    wflags |= NGTCP2_WRITE_PKT_FLAG_STREAM_MORE;
+    if (flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
+      wflags |= NGTCP2_WRITE_PKT_FLAG_STREAM_MORE;
+    }
   }
 
   cwnd = conn_cwnd_left(conn);
