@@ -184,8 +184,8 @@ typedef struct {
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
 #define NGTCP2_INITIAL_SALT                                                    \
-  "\x7f\xbc\xdb\x0e\x7c\x66\xbb\xe9\x19\x3a\x96\xcd\x21\x51\x9e\xbd\x7a\x02"   \
-  "\x64\x4a"
+  "\xc3\xee\xf7\x12\xc7\x2e\xbb\x5a\x11\xa7\xd2\x43\x2b\xb4\x63\x65\xbe\xf9"   \
+  "\xf5\x02"
 
 /* NGTCP2_HP_MASKLEN is the length of header protection mask. */
 #define NGTCP2_HP_MASKLEN 5
