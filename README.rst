@@ -19,7 +19,7 @@ only.
 
 For older draft implementations:
 
-- [draft-22](https://github.com/ngtcp2/ngtcp2/tree/draft-22)
+- `draft-22 <https://github.com/ngtcp2/ngtcp2/tree/draft-22>`_
 
 Requirements
 ------------
