@@ -3572,6 +3572,8 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  *     Out of memory
  * NGTCP2_ERR_ACK_FRAME
  *     ACK frame is malformed.
+ * NGTCP2_ERR_PROTO
+ *     |fr| acknowledges a packet this endpoint has not sent.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */
@@ -3581,6 +3583,10 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   ngtcp2_frame_chain *frc = NULL;
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
   ssize_t num_acked;
+
+  if (pktns->tx.last_pkt_num < fr->largest_ack) {
+    return NGTCP2_ERR_PROTO;
+  }
 
   rv = ngtcp2_pkt_validate_ack(fr);
   if (rv != 0) {

@@ -2402,6 +2402,8 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   /* ACK frame only */
   setup_default_client(&conn);
 
+  conn->hs_pktns.tx.last_pkt_num = 1000000009;
+
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 1000000007;
   fr.ack.ack_delay = 122;
@@ -2416,6 +2418,25 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ents));
   CU_ASSERT(!conn->hs_pktns.acktr.flags);
+
+  ngtcp2_conn_del(conn);
+
+  /* ACK frame contains a packet which the local endpoint has not
+     sent. */
+  setup_default_client(&conn);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 1000000007;
+  fr.ack.ack_delay = 122;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), 0, NGTCP2_PROTO_VER_MAX, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
 
   ngtcp2_conn_del(conn);
 }
