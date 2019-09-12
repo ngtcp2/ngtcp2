@@ -98,10 +98,6 @@ typedef enum {
    accept. */
 #define NGTCP2_MAX_RETRIES 3
 
-/* NGTCP2_HS_ACK_DELAY is the ACK delay for Initial and Handshake
-   packets. */
-#define NGTCP2_HS_ACK_DELAY NGTCP2_MILLISECONDS
-
 /* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
    connection ID the remote endpoint provides to store.  It must be
    the power of 2. */
