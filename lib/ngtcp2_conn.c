@@ -2162,6 +2162,14 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
   return 0;
 }
 
+/*
+ * conn_min_short_pktlen returns the minimum length of Short packet
+ * this endpoint sends.
+ */
+static size_t conn_min_short_pktlen(ngtcp2_conn *conn) {
+  return conn->dcid.current.cid.datalen + NGTCP2_MIN_PKT_EXPANDLEN;
+}
+
 typedef enum {
   NGTCP2_WRITE_PKT_FLAG_NONE = 0x00,
   /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet
@@ -2229,6 +2237,13 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
   int stream_more = (flags & NGTCP2_WRITE_PKT_FLAG_STREAM_MORE) != 0;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
+  size_t min_pktlen = conn_min_short_pktlen(conn);
+
+  /* Return 0 if destlen is less than minimum packet length which can
+     trigger Stateless Reset */
+  if (destlen < min_pktlen) {
+    return 0;
+  }
 
   if (data_strm) {
     ndatalen = conn_enforce_flow_control(conn, data_strm, datalen);
@@ -2689,7 +2704,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     ngtcp2_log_tx_fr(&conn->log, hd, &lfr);
   } else {
     lfr.type = NGTCP2_FRAME_PADDING;
-    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(ppe);
+    lfr.padding.len = ngtcp2_ppe_padding_size(ppe, min_pktlen);
     if (lfr.padding.len) {
       ngtcp2_log_tx_fr(&conn->log, hd, &lfr);
     }
@@ -2820,7 +2835,12 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   lfr.type = NGTCP2_FRAME_PADDING;
-  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+  if (type == NGTCP2_PKT_SHORT) {
+    lfr.padding.len =
+        ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
+  } else {
+    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+  }
   if (lfr.padding.len) {
     ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
   }
@@ -3020,7 +3040,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   lfr.type = NGTCP2_FRAME_PADDING;
-  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+  lfr.padding.len = ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
   if (lfr.padding.len) {
     ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
   }

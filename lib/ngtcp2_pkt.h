@@ -94,6 +94,11 @@
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
 #define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
 
+/* NGTCP2_MIN_PKT_EXPANDLEN is the minimum packet size expansion in
+   addition to the minimum DCID length to hide/trigger Stateless
+   Reset. */
+#define NGTCP2_MIN_PKT_EXPANDLEN 22
+
 typedef enum {
   NGTCP2_FRAME_PADDING = 0x00,
   NGTCP2_FRAME_PING = 0x01,
