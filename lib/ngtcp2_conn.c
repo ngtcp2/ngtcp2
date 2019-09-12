@@ -3942,6 +3942,21 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn,
   ngtcp2_path_challenge_entry_init(ent, fr->data);
 }
 
+/*
+ * conn_reset_congestion_state resets congestion state.
+ */
+static void conn_reset_congestion_state(ngtcp2_conn *conn) {
+  uint64_t bytes_in_flight;
+
+  bw_reset(&conn->rx.bw);
+  rcvry_stat_reset(&conn->rcs);
+  /* Keep bytes_in_flight because we have to take care of packets
+     in flight. */
+  bytes_in_flight = conn->ccs.bytes_in_flight;
+  cc_stat_reset(&conn->ccs);
+  conn->ccs.bytes_in_flight = bytes_in_flight;
+}
+
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
                                    ngtcp2_tstamp ts) {
   int rv;
@@ -3958,6 +3973,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     }
     return 0;
   }
+
+  conn_reset_congestion_state(conn);
 
   /* If validation succeeds, we don't have to throw DCID away. */
   pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH;
@@ -5813,21 +5830,6 @@ static int conn_path_validation_in_progress(ngtcp2_conn *conn,
 }
 
 /*
- * conn_reset_congestion_state resets congestion state.
- */
-static void conn_reset_congestion_state(ngtcp2_conn *conn) {
-  uint64_t bytes_in_flight;
-
-  bw_reset(&conn->rx.bw);
-  rcvry_stat_reset(&conn->rcs);
-  /* Keep bytes_in_flight because we have to take care of packets
-     in flight. */
-  bytes_in_flight = conn->ccs.bytes_in_flight;
-  cc_stat_reset(&conn->ccs);
-  conn->ccs.bytes_in_flight = bytes_in_flight;
-}
-
-/*
  * conn_recv_non_probing_pkt_on_new_path is called when non-probing
  * packet is received via new path.  It starts path validation against
  * the new path.
@@ -5874,8 +5876,6 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "non-probing packet was received from new remote address");
-
-  conn_reset_congestion_state(conn);
 
   timeout = conn_compute_pto(conn);
   timeout =
@@ -6843,8 +6843,6 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
 
   ngtcp2_addr_copy(&pv->dcid.ps.path.local, &conn->dcid.current.ps.path.local);
   ngtcp2_addr_copy(&pv->dcid.ps.path.remote, &addr);
-
-  conn_reset_congestion_state(conn);
 
   return 0;
 }
