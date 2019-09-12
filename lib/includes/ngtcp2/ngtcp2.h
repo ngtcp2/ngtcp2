@@ -178,8 +178,8 @@ typedef struct {
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
 
 /* NGTCP2_MIN_STATELESS_RESET_RANDLEN is the minimum length of random
-   bytes in Stateless Retry packet */
-#define NGTCP2_MIN_STATELESS_RESET_RANDLEN 25
+   bytes (Unpredictable Bits) in Stateless Retry packet */
+#define NGTCP2_MIN_STATELESS_RESET_RANDLEN 5
 
 /* NGTCP2_INITIAL_SALT is a salt value which is used to derive initial
    secret. */
