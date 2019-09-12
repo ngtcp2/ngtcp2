@@ -7552,7 +7552,7 @@ settings_copy_from_transport_params(ngtcp2_settings *dest,
     memset(dest->stateless_reset_token, 0, sizeof(dest->stateless_reset_token));
   }
   dest->ack_delay_exponent = src->ack_delay_exponent;
-  dest->disable_migration = src->disable_migration;
+  dest->disable_active_migration = src->disable_active_migration;
   dest->max_ack_delay = src->max_ack_delay;
   dest->preferred_address_present = src->preferred_address_present;
   if (src->preferred_address_present) {
@@ -7584,7 +7584,7 @@ static void transport_params_copy_from_settings(ngtcp2_transport_params *dest,
     memset(dest->stateless_reset_token, 0, sizeof(dest->stateless_reset_token));
   }
   dest->ack_delay_exponent = src->ack_delay_exponent;
-  dest->disable_migration = src->disable_migration;
+  dest->disable_active_migration = src->disable_active_migration;
   dest->max_ack_delay = src->max_ack_delay;
   dest->preferred_address_present = src->preferred_address_present;
   if (src->preferred_address_present) {
@@ -8629,7 +8629,7 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   conn->log.last_ts = ts;
 
-  if (conn->remote.settings.disable_migration) {
+  if (conn->remote.settings.disable_active_migration) {
     return NGTCP2_ERR_INVALID_STATE;
   }
   if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {

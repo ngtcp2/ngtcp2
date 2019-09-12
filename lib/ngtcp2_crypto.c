@@ -139,7 +139,7 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
     len += 4 + ngtcp2_put_varint_len(params->ack_delay_exponent);
   }
-  if (params->disable_migration) {
+  if (params->disable_active_migration) {
     len += 4;
   }
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
@@ -257,8 +257,8 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     p = ngtcp2_put_varint(p, params->ack_delay_exponent);
   }
 
-  if (params->disable_migration) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION);
+  if (params->disable_active_migration) {
+    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION);
     p = ngtcp2_put_uint16be(p, 0);
   }
 
@@ -359,7 +359,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->stateless_reset_token_present = 0;
   params->preferred_address_present = 0;
   memset(&params->preferred_address, 0, sizeof(params->preferred_address));
-  params->disable_migration = 0;
+  params->disable_active_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params->idle_timeout = 0;
   params->active_connection_id_limit = 0;
@@ -517,12 +517,12 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       p += sizeof(params->preferred_address.stateless_reset_token);
       params->preferred_address_present = 1;
       break;
-    case NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION:
+    case NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION:
       if (ngtcp2_get_uint16(p) != 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += sizeof(uint16_t);
-      params->disable_migration = 1;
+      params->disable_active_migration = 1;
       break;
     case NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID:
       if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {

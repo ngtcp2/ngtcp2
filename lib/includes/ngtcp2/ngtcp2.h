@@ -398,7 +398,7 @@ typedef enum ngtcp2_transport_param_id {
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI = 0x0009,
   NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT = 0x000a,
   NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY = 0x000b,
-  NGTCP2_TRANSPORT_PARAM_DISABLE_MIGRATION = 0x000c,
+  NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION = 0x000c,
   NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 0x000d,
   NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT = 0x000e,
   NGTCP2_TRANSPORT_PARAM_ID_MAX = UINT16_MAX
@@ -482,7 +482,7 @@ typedef struct {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
   uint64_t ack_delay_exponent;
-  uint8_t disable_migration;
+  uint8_t disable_active_migration;
   uint8_t original_connection_id_present;
   ngtcp2_duration max_ack_delay;
   uint8_t preferred_address_present;
@@ -529,7 +529,7 @@ typedef struct {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   uint8_t stateless_reset_token_present;
   uint64_t ack_delay_exponent;
-  uint8_t disable_migration;
+  uint8_t disable_active_migration;
   ngtcp2_duration max_ack_delay;
   uint8_t preferred_address_present;
 } ngtcp2_settings;

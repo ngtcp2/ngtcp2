@@ -74,7 +74,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
   CU_ASSERT(params.stateless_reset_token_present ==
             nparams.stateless_reset_token_present);
-  CU_ASSERT(params.disable_migration == nparams.disable_migration);
+  CU_ASSERT(params.disable_active_migration ==
+            nparams.disable_active_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
 
   memset(&params, 0, sizeof(params));
@@ -111,7 +112,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.stateless_reset_token_present ==
             nparams.stateless_reset_token_present);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
-  CU_ASSERT(params.disable_migration == nparams.disable_migration);
+  CU_ASSERT(params.disable_active_migration ==
+            nparams.disable_active_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
 
   memset(&params, 0, sizeof(params));
@@ -127,7 +129,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.idle_timeout = 1023;
   params.max_packet_size = 1400;
   params.ack_delay_exponent = 20;
-  params.disable_migration = 1;
+  params.disable_active_migration = 1;
   params.max_ack_delay = 59 * NGTCP2_MILLISECONDS;
   params.active_connection_id_limit = 1000000007;
 
@@ -158,7 +160,8 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.idle_timeout == nparams.idle_timeout);
   CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
-  CU_ASSERT(params.disable_migration == nparams.disable_migration);
+  CU_ASSERT(params.disable_active_migration ==
+            nparams.disable_active_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
   CU_ASSERT(params.active_connection_id_limit ==
             nparams.active_connection_id_limit);
@@ -189,7 +192,7 @@ void test_ngtcp2_encode_transport_params(void) {
   scid_init(&params.preferred_address.cid);
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
-  params.disable_migration = 1;
+  params.disable_active_migration = 1;
   params.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
   params.original_connection_id_present = 1;
   params.original_connection_id = ocid;
@@ -250,7 +253,8 @@ void test_ngtcp2_encode_transport_params(void) {
             memcmp(params.preferred_address.stateless_reset_token,
                    nparams.preferred_address.stateless_reset_token,
                    sizeof(params.preferred_address.stateless_reset_token)));
-  CU_ASSERT(params.disable_migration == nparams.disable_migration);
+  CU_ASSERT(params.disable_active_migration ==
+            nparams.disable_active_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
   CU_ASSERT(params.original_connection_id_present ==
             nparams.original_connection_id_present);
