@@ -32,6 +32,161 @@
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_cid.h"
+#include "ngtcp2_str.h"
+
+void test_ngtcp2_pkt_decode_version_cid(void) {
+  uint8_t buf[1024];
+  uint32_t version;
+  const uint8_t *dcid, *scid;
+  size_t dcidlen, scidlen;
+  int rv;
+  uint8_t *p;
+
+  /* Supported QUIC version */
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, NGTCP2_PROTO_VER);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
+  *p++ = NGTCP2_MAX_CIDLEN - 1;
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN - 1);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), 0);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_PROTO_VER == version);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN == dcidlen);
+  CU_ASSERT(&buf[6] == dcid);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == scidlen);
+  CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == scid);
+
+  /* Unsupported QUIC version */
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, 0xffffff00);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
+  *p++ = NGTCP2_MAX_CIDLEN - 1;
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN - 1);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), 0);
+
+  CU_ASSERT(1 == rv);
+  CU_ASSERT(0xffffff00 == version);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN == dcidlen);
+  CU_ASSERT(&buf[6] == dcid);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == scidlen);
+  CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == scid);
+
+  /* Supported QUIC version with long CID */
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, NGTCP2_PROTO_VER);
+  *p++ = NGTCP2_MAX_CIDLEN + 1;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN + 1);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), 0);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  /* Unsupported QUIC version with long CID */
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, 0xffffff00);
+  *p++ = NGTCP2_MAX_CIDLEN + 1;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN + 1);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), 0);
+
+  CU_ASSERT(1 == rv);
+  CU_ASSERT(0xffffff00 == version);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN + 1 == dcidlen);
+  CU_ASSERT(&buf[6] == dcid);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN == scidlen);
+  CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1 + 1] == scid);
+
+  /* VN */
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, 0);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
+  *p++ = NGTCP2_MAX_CIDLEN - 1;
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN - 1);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), 0);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == version);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN == dcidlen);
+  CU_ASSERT(&buf[6] == dcid);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == scidlen);
+  CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == scid);
+
+  /* VN with long CID */
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, 0);
+  *p++ = NGTCP2_MAX_CIDLEN + 1;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN + 1);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), 0);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  /* Malformed Long packet */
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, NGTCP2_PROTO_VER);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
+  *p++ = NGTCP2_MAX_CIDLEN - 1;
+  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN - 1);
+  --p;
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), 0);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  /* Short packet */
+  p = buf;
+  *p++ = 0;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), NGTCP2_MAX_CIDLEN);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_PROTO_VER == version);
+  CU_ASSERT(&buf[1] == dcid);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN == dcidlen);
+  CU_ASSERT(NULL == scid);
+  CU_ASSERT(0 == scidlen);
+
+  /* Malformed Short packet */
+  p = buf;
+  *p++ = 0;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
+  --p;
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, (size_t)(p - buf), NGTCP2_MAX_CIDLEN);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+}
 
 void test_ngtcp2_pkt_decode_hd_long(void) {
   ngtcp2_pkt_hd hd, nhd;
@@ -49,7 +204,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
-  len = 1 + 4 + 1 + dcid.datalen + scid.datalen + 2 + 4;
+  len = 1 + 4 + 1 + dcid.datalen + 1 + scid.datalen + 2 + 4;
 
   CU_ASSERT((ssize_t)len == rv);
 
@@ -71,7 +226,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
-  len = 1 + 4 + 1 + dcid.datalen + scid.datalen;
+  len = 1 + 4 + 1 + dcid.datalen + 1 + scid.datalen;
 
   CU_ASSERT((ssize_t)len == rv - 2 /* payloadlen */ - 4 /* pkt_num */);
 
@@ -521,7 +676,7 @@ void test_ngtcp2_pkt_encode_reset_stream_frame(void) {
   uint8_t buf[32];
   ngtcp2_reset_stream fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4 + 2 + 8;
+  size_t framelen = 1 + 4 + 4 + 8;
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
   fr.stream_id = 1000000007;
@@ -557,7 +712,7 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
 
-  framelen = 1 + 2 + 2 + 1;
+  framelen = 1 + 4 + 2 + 1;
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);
@@ -582,7 +737,7 @@ void test_ngtcp2_pkt_encode_connection_close_frame(void) {
   fr.connection_close.reasonlen = sizeof(reason);
   fr.connection_close.reason = reason;
 
-  framelen = 1 + 2 + 1 + 2 + sizeof(reason);
+  framelen = 1 + 4 + 1 + 2 + sizeof(reason);
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);
@@ -617,7 +772,7 @@ void test_ngtcp2_pkt_encode_connection_close_app_frame(void) {
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
 
-  framelen = 1 + 2 + 1;
+  framelen = 1 + 4 + 1;
 
   rv = ngtcp2_pkt_encode_connection_close_frame(buf, sizeof(buf),
                                                 &fr.connection_close);
@@ -785,10 +940,11 @@ void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
   uint8_t buf[256];
   ngtcp2_new_connection_id fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 4 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
+  size_t framelen = 1 + 4 + 2 + 1 + 18 + NGTCP2_STATELESS_RESET_TOKENLEN;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.seq = 1000000009;
+  fr.retire_prior_to = 255;
   scid_init(&fr.cid);
   memset(fr.stateless_reset_token, 0xe1, sizeof(fr.stateless_reset_token));
 
@@ -810,7 +966,7 @@ void test_ngtcp2_pkt_encode_stop_sending_frame(void) {
   uint8_t buf[16];
   ngtcp2_stop_sending fr, nfr;
   ssize_t rv;
-  size_t framelen = 1 + 8 + 2;
+  size_t framelen = 1 + 8 + 4;
 
   fr.type = NGTCP2_FRAME_STOP_SENDING;
   fr.stream_id = 0xf1f2f3f4u;
@@ -1090,8 +1246,7 @@ void test_ngtcp2_pkt_write_retry(void) {
   CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
 
-  rv = ngtcp2_pkt_decode_retry(&retry, odcid.datalen, buf + nread,
-                               (size_t)(spktlen - nread));
+  rv = ngtcp2_pkt_decode_retry(&retry, buf + nread, (size_t)(spktlen - nread));
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_cid_eq(&odcid, &retry.odcid));
@@ -1109,10 +1264,11 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
   dcid_init(&dcid);
   scid_init(&scid);
 
-  spktlen = ngtcp2_pkt_write_version_negotiation(buf, sizeof(buf), 133, &dcid,
-                                                 &scid, sv, arraylen(sv));
+  spktlen = ngtcp2_pkt_write_version_negotiation(
+      buf, sizeof(buf), 133, dcid.data, dcid.datalen, scid.data, scid.datalen,
+      sv, arraylen(sv));
 
-  CU_ASSERT((ssize_t)(1 + 4 + 1 + dcid.datalen + scid.datalen +
+  CU_ASSERT((ssize_t)(1 + 4 + 1 + dcid.datalen + 1 + scid.datalen +
                       arraylen(sv) * 4) == spktlen);
 
   p = buf;
@@ -1125,14 +1281,17 @@ void test_ngtcp2_pkt_write_version_negotiation(void) {
 
   p += sizeof(uint32_t);
 
-  CU_ASSERT(dcid.datalen == (size_t)((*p >> 4) + 3));
-  CU_ASSERT(scid.datalen == (size_t)((*p & 0xf) + 3));
+  CU_ASSERT(dcid.datalen == *p);
 
   ++p;
 
   CU_ASSERT(0 == memcmp(dcid.data, p, dcid.datalen));
 
   p += dcid.datalen;
+
+  CU_ASSERT(scid.datalen == *p);
+
+  ++p;
 
   CU_ASSERT(0 == memcmp(scid.data, p, scid.datalen));
 

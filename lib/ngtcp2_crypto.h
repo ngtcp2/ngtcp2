@@ -41,10 +41,6 @@
 /* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
 #define NGTCP2_MAX_AEAD_OVERHEAD 16
 
-/* NGTCP2_HP_SAMPLELEN is the number bytes sampled when encrypting a
-   packet header. */
-#define NGTCP2_HP_SAMPLELEN 16
-
 typedef enum {
   NGTCP2_CRYPTO_KM_FLAG_NONE,
   /* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
@@ -72,14 +68,16 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
 void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 
 typedef struct {
+  ngtcp2_crypto_aead aead;
+  ngtcp2_crypto_cipher hp;
   const ngtcp2_crypto_km *ckm;
-  const ngtcp2_vec *hp;
+  const ngtcp2_vec *hp_key;
   size_t aead_overhead;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
   ngtcp2_hp_mask hp_mask;
   void *user_data;
-} ngtcp2_crypto_ctx;
+} ngtcp2_crypto_cc;
 
 void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
                                 int64_t pkt_num);

@@ -65,8 +65,8 @@ typedef enum {
   NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH = 0x02,
   /* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID
      is available in ngtcp2_pv.  If path validation fails, fallback to
-     the fallback DCID.  If path validation succeeds, start path
-     validation against fallback DCID. */
+     the fallback DCID.  If path validation succeeds, fallback DCID is
+     retired. */
   NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE = 0x04,
 } ngtcp2_pv_flag;
 
@@ -136,8 +136,8 @@ void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
 int ngtcp2_pv_full(ngtcp2_pv *pv);
 
 /*
- * ngtcp2_pv_validate validates that the |data| received from |path|
- * matches the one of the existing entry.
+ * ngtcp2_pv_validate validates that the received |data| matches the
+ * one of the existing entry.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -149,8 +149,7 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     |pv| does not have an entry which has |data| and |path|
  */
-int ngtcp2_pv_validate(ngtcp2_pv *pv, const ngtcp2_path *path,
-                       const uint8_t *data);
+int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data);
 
 /*
  * ngtcp2_pv_handle_entry_expiry checks expiry for each entry.

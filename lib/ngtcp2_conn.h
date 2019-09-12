@@ -75,9 +75,9 @@ typedef enum {
    unreceived data. */
 #define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
 
-/* NGTCP2_PACKET_THRESHOLD is kPacketThreshold described in
-   draft-ietf-quic-recovery-17. */
-#define NGTCP2_PACKET_THRESHOLD 3
+/* NGTCP2_PKT_THRESHOLD is kPacketThreshold described in
+   draft-ietf-quic-recovery-22. */
+#define NGTCP2_PKT_THRESHOLD 3
 
 /* NGTCP2_GRANULARITY is kGranularity described in
    draft-ietf-quic-recovery-17. */
@@ -102,22 +102,19 @@ typedef enum {
    packets. */
 #define NGTCP2_HS_ACK_DELAY NGTCP2_MILLISECONDS
 
-/* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
-   destination connection ID which have been bound to a particular
-   path, but not yet used as primary path and path validation is not
-   performed from the local endpoint. */
-#define NGTCP2_MAX_BOUND_DCID_POOL_SIZE 4
 /* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
    connection ID the remote endpoint provides to store.  It must be
    the power of 2. */
-#define NGTCP2_MAX_DCID_POOL_SIZE 16
+#define NGTCP2_MAX_DCID_POOL_SIZE 8
 /* NGTCP2_MAX_DCID_RETIRED_SIZE is the maximum number of retired DCID
    kept to catch in-flight packet on retired path. */
 #define NGTCP2_MAX_DCID_RETIRED_SIZE 2
-/* NGTCP2_MIN_SCID_POOL_SIZE is the minimum number of source
-   connection ID the local endpoint provides to the remote endpoint.
-   It must be at least 8 as per the spec. */
-#define NGTCP2_MIN_SCID_POOL_SIZE 8
+/* NGTCP2_MAX_SCID_POOL_SIZE is the maximum number of source
+   connection ID the local endpoint provides in NEW_CONNECTION_ID to
+   the remote endpoint.  The chosen value was described in old draft.
+   Now a remote endpoint tells the maximum value.  The value can be
+   quite large, and we have to put the sane limit.*/
+#define NGTCP2_MAX_SCID_POOL_SIZE 8
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -133,12 +130,10 @@ typedef union {
 } ngtcp2_max_frame;
 
 typedef struct {
-  ngtcp2_path_storage ps;
   uint8_t data[8];
 } ngtcp2_path_challenge_entry;
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
-                                      const ngtcp2_path *path,
                                       const uint8_t *data);
 
 typedef enum {
@@ -188,6 +183,9 @@ typedef enum {
      NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state
      of ngtcp2_ppe is stored in pkt struct of ngtcp2_conn. */
   NGTCP2_CONN_FLAG_PPE_PENDING = 0x1000,
+  /* NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE is set when idle
+     timer should be restarted on next write. */
+  NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE = 0x2000,
 } ngtcp2_conn_flag;
 
 typedef struct {
@@ -262,19 +260,20 @@ typedef struct {
       /* ckm is a cryptographic key, and iv to encrypt outgoing
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp is header protection key. */
-      ngtcp2_vec *hp;
+      /* hp_key is header protection key. */
+      ngtcp2_vec *hp_key;
     } tx;
 
     struct {
       /* ckm is a cryptographic key, and iv to decrypt incoming
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp is header protection key. */
-      ngtcp2_vec *hp;
+      /* hp_key is header protection key. */
+      ngtcp2_vec *hp_key;
     } rx;
 
     ngtcp2_strm strm;
+    ngtcp2_crypto_ctx ctx;
   } crypto;
 
   ngtcp2_acktr acktr;
@@ -308,9 +307,6 @@ struct ngtcp2_conn {
   struct {
     /* current is the current destination connection ID. */
     ngtcp2_dcid current;
-    /* bound is a set of destination connection IDs which are bound to
-       particular paths.  These paths are not validated yet. */
-    ngtcp2_ringbuf bound;
     /* unused is a set of unused CID received from peer. */
     ngtcp2_ringbuf unused;
     /* retired is a set of CID retired by local endpoint.  Keep them
@@ -328,11 +324,24 @@ struct ngtcp2_conn {
     ngtcp2_pq used;
     /* last_seq is the last sequence number of connection ID. */
     uint64_t last_seq;
+    /* num_initial_id is the number of Connection ID initially offered
+       to the remote endpoint and is not retired yet.  It includes the
+       initial Connection ID used during handshake and the one in
+       preferred_address transport parameter. */
+    size_t num_initial_id;
+    /* num_retired is the number of retired Connection ID still
+       included in set. */
+    size_t num_retired;
   } scid;
 
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
     ngtcp2_pq strmq;
+    /* ack is ACK frame.  The underlying buffer is resused. */
+    ngtcp2_frame *ack;
+    /* max_ack_blks is the number of additional ngtcp2_ack_blk which
+       ack can contain. */
+    size_t max_ack_blks;
     /* offset is the offset the local endpoint has sent to the remote
        endpoint. */
     uint64_t offset;
@@ -356,11 +365,13 @@ struct ngtcp2_conn {
     ngtcp2_bw bw;
     /* path_challenge stores received PATH_CHALLENGE data. */
     ngtcp2_ringbuf path_challenge;
+    /* ccec is the received connection close error code. */
+    ngtcp2_connection_close_error_code ccec;
   } rx;
 
   struct {
     ngtcp2_crypto_km *ckm;
-    ngtcp2_vec *hp;
+    ngtcp2_vec *hp_key;
   } early;
 
   struct {
@@ -386,6 +397,10 @@ struct ngtcp2_conn {
 
   struct {
     ngtcp2_settings settings;
+    /* pending_settings is received transport parameters during
+       handshake.  It is copied to settings when 1RTT key is
+       available. */
+    ngtcp2_settings pending_settings;
     struct {
       ngtcp2_idtr idtr;
       /* unsent_max_streams is the maximum number of streams of peer
@@ -427,17 +442,18 @@ struct ngtcp2_conn {
 
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
-    ngtcp2_array decrypt_buf;
+    ngtcp2_vec decrypt_buf;
   } crypto;
 
   /* pkt contains the packet intermediate construction data to support
      NGTCP2_WRITE_STREAM_FLAG_MORE */
   struct {
-    ngtcp2_crypto_ctx ctx;
+    ngtcp2_crypto_cc cc;
     ngtcp2_pkt_hd hd;
     ngtcp2_ppe ppe;
     ngtcp2_frame_chain **pfrc;
     int pkt_empty;
+    int hd_logged;
     uint8_t rtb_entry_flags;
     int was_client_initial;
     ssize_t hs_spktlen;
@@ -460,6 +476,8 @@ struct ngtcp2_conn {
      data" rule. */
   size_t hs_sent;
   const ngtcp2_mem *mem;
+  /* idle_ts is the time instant when idle timer started. */
+  ngtcp2_tstamp idle_ts;
   void *user_data;
   uint32_t version;
   /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
@@ -560,7 +578,7 @@ ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                            size_t destlen, ssize_t *pdatalen,
                                            uint32_t flags, int64_t stream_id,
-                                           uint8_t fin, const ngtcp2_vec *datav,
+                                           int fin, const ngtcp2_vec *datav,
                                            size_t datavcnt, ngtcp2_tstamp ts);
 
 /*
@@ -612,7 +630,7 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint16_t app_error_code);
+                             uint64_t app_error_code);
 
 /*
  * ngtcp2_conn_close_stream closes stream |strm| if no further
@@ -629,7 +647,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     User-defined callback function failed.
  */
 int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          uint16_t app_error_code);
+                                          uint64_t app_error_code);
 
 /*
  * ngtcp2_conn_update_rtt updates RTT measurements.  |rtt| is a latest
@@ -677,5 +695,11 @@ void ngtcp2_conn_tx_strmq_pop(ngtcp2_conn *conn);
  *     Out of memory.
  */
 int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_conn_internal_expiry returns the minimum expiry time among
+ * all timers in |conn|.
+ */
+ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 
 #endif /* NGTCP2_CONN_H */

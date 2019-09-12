@@ -264,18 +264,11 @@ monotonic clock should work better.  It should be same clock passed to
 ``ngtcp2_setting``.
 
 `ngtcp2_conn_get_expiry()` tells an application when timer fires.
-When timer fires, it has to call some API functions.  If the current
-timestamp is equal to or larger than the value returned from
-`ngtcp2_conn_loss_detection_expiry()`, it has to call
-`ngtcp2_conn_on_loss_detection_timer()` and `ngtcp2_conn_write_pkt()`
-(or `ngtcp2_conn_writev_stream()`).  If the current timestamp is equal
-to or larger than the value returned from
-`ngtcp2_conn_ack_delay_expiry()`, it has to call
-`ngtcp2_conn_cancel_expired_ack_delay_timer()` and
-`ngtcp2_conn_write_pkt()` (or `ngtcp2_conn_writev_stream()`).  After
-calling these functions, new expiry will be set.  The application
-should call `ngtcp2_conn_get_expiry()` to restart timer.
+When timer fires, call `ngtcp2_conn_handle_expiry()` and
+`ngtcp2_conn_write_pkt()` (or `ngtcp2_conn_writev_stream()`).
 
+After calling these functions, new expiry will be set.  The
+application should call `ngtcp2_conn_get_expiry()` to restart timer.
 
 After QUIC handshake
 --------------------

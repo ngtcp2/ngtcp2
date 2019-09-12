@@ -82,15 +82,20 @@ size_t ngtcp2_vec_merge(ngtcp2_vec *dst, size_t *pdstcnt, ngtcp2_vec *src,
                         size_t *psrccnt, size_t left, size_t maxcnt);
 
 /*
- * ngtcp2_vec_copy copies |src| of length |srccnt| to |dst| of length
- * |dstcnt|.  The total number of bytes which the copied ngtcp2_vec
- * refers to is at most |left| and is assigned to |*pnwritten|.  The
- * empty elements in |src| are ignored.  This function returns the
- * number of elements copied.
+ * ngtcp2_vec_copy_at_most copies |src| of length |srccnt| to |dst| of
+ * length |dstcnt|.  The total number of bytes which the copied
+ * ngtcp2_vec refers to is at most |left| and is assigned to
+ * |*pnwritten|.  The empty elements in |src| are ignored.  This
+ * function returns the number of elements copied.
  */
-size_t ngtcp2_vec_copy(ngtcp2_vec *dst, size_t *pnwritten, size_t dstcnt,
-                       const ngtcp2_vec *src, size_t srccnt, size_t left);
+size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t *pnwritten,
+                               size_t dstcnt, const ngtcp2_vec *src,
+                               size_t srccnt, size_t left);
 
-void ngtcp2_vec_clone(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt);
+/*
+ * ngtcp2_vec_copy copies |src| of length |cnt| to |dst|.  |dst| must
+ * have sufficient capacity.
+ */
+void ngtcp2_vec_copy(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt);
 
 #endif /* NGTCP2_VEC_H */

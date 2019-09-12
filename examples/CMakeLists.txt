@@ -26,6 +26,7 @@ if(LIBEV_FOUND AND OPENSSL_FOUND AND LIBNGHTTP3_FOUND)
     ${CMAKE_SOURCE_DIR}/lib/includes
     ${CMAKE_BINARY_DIR}/lib/includes
     ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/crypto/includes
 
     ${OPENSSL_INCLUDE_DIRS}
     ${LIBEV_INCLUDE_DIRS}
@@ -33,6 +34,7 @@ if(LIBEV_FOUND AND OPENSSL_FOUND AND LIBNGHTTP3_FOUND)
   )
 
   link_libraries(
+    ngtcp2_crypto_openssl
     ngtcp2
     ${OPENSSL_LIBRARIES}
     ${LIBEV_LIBRARIES}
@@ -44,8 +46,6 @@ if(LIBEV_FOUND AND OPENSSL_FOUND AND LIBNGHTTP3_FOUND)
     debug.cc
     util.cc
     keylog.cc
-    crypto_openssl.cc
-    crypto.cc
     shared.cc
   )
 
@@ -54,8 +54,6 @@ if(LIBEV_FOUND AND OPENSSL_FOUND AND LIBNGHTTP3_FOUND)
     debug.cc
     util.cc
     keylog.cc
-    crypto_openssl.cc
-    crypto.cc
     http.cc
     shared.cc
   )

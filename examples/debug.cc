@@ -181,6 +181,8 @@ void log_printf(void *user_data, const char *fmt, ...) {
   va_start(ap, fmt);
   vfprintf(stderr, fmt, ap);
   va_end(ap);
+
+  fprintf(stderr, "\n");
 }
 
 void path_validation(const ngtcp2_path *path,

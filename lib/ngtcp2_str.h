@@ -31,16 +31,13 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-/* ngtcp2_array is a fixed size array. */
-typedef struct {
-  /* base points to the beginning of the buffer. */
-  uint8_t *base;
-  /* len is the capacity of the buffer. */
-  size_t len;
-} ngtcp2_array;
-
 uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
 
+/*
+ * ngtcp2_setmem writes a string of length |n| consisting only |b| to
+ * the buffer pointed by |dest|.  It returns dest + n;
+ */
+uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n);
 /*
  * ngtcp2_encode_hex encodes |data| of length |len| in hex string.  It
  * writes additional NULL bytes at the end of the buffer.  The buffer
@@ -48,6 +45,16 @@ uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
  * This function returns |dest|.
  */
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
+
+/*
+ * ngtcp2_encode_printable_ascii encodes |data| of length |len| in
+ * |dest| in the following manner: printable ascii characters are
+ * copied as is.  The other characters are converted to ".".  It
+ * writes additional NULL bytes at the end of the buffer.  |dest| must
+ * have at least |len| + 1 bytes.  This function returns |dest|.
+ */
+char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
+                                    size_t len);
 
 /*
  * ngtcp2_verify_stateless_retry_token verifies stateless retry token

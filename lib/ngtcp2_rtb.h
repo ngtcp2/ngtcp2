@@ -31,6 +31,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pkt.h"
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
 

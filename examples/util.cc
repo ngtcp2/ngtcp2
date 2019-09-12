@@ -37,6 +37,8 @@
 #include <chrono>
 #include <array>
 #include <iostream>
+#include <fstream>
+#include <algorithm>
 
 namespace ngtcp2 {
 
@@ -244,6 +246,10 @@ std::string make_cid_key(const ngtcp2_cid *cid) {
   return std::string(cid->data, cid->data + cid->datalen);
 }
 
+std::string make_cid_key(const uint8_t *cid, size_t cidlen) {
+  return std::string(cid, cid + cidlen);
+}
+
 std::string straddr(const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;
@@ -259,6 +265,73 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   res += "]:";
   res.append(port.data(), strlen(port.data()));
   return res;
+}
+
+namespace {
+constexpr bool rws(char c) { return c == '\t' || c == ' '; }
+} // namespace
+
+int read_mime_types(std::map<std::string, std::string> &dest,
+                    const char *filename) {
+  std::ifstream f(filename);
+  if (!f) {
+    return -1;
+  }
+
+  std::string line;
+  while (std::getline(f, line)) {
+    if (line.empty() || line[0] == '#') {
+      continue;
+    }
+
+    auto p = std::find_if(std::begin(line), std::end(line), rws);
+    if (p == std::begin(line) || p == std::end(line)) {
+      continue;
+    }
+
+    auto media_type = std::string{std::begin(line), p};
+    for (;;) {
+      auto ext = std::find_if_not(p, std::end(line), rws);
+      if (ext == std::end(line)) {
+        break;
+      }
+
+      p = std::find_if(ext, std::end(line), rws);
+      dest.emplace(std::string{ext, p}, media_type);
+    }
+  }
+
+  return 0;
+}
+
+ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
+  switch (ossl_level) {
+  case ssl_encryption_initial:
+    return NGTCP2_CRYPTO_LEVEL_INITIAL;
+  case ssl_encryption_early_data:
+    return NGTCP2_CRYPTO_LEVEL_EARLY;
+  case ssl_encryption_handshake:
+    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+  case ssl_encryption_application:
+    return NGTCP2_CRYPTO_LEVEL_APP;
+  default:
+    assert(0);
+  }
+}
+
+OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
+  switch (crypto_level) {
+  case NGTCP2_CRYPTO_LEVEL_INITIAL:
+    return ssl_encryption_initial;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    return ssl_encryption_handshake;
+  case NGTCP2_CRYPTO_LEVEL_APP:
+    return ssl_encryption_application;
+  case NGTCP2_CRYPTO_LEVEL_EARLY:
+    return ssl_encryption_early_data;
+  default:
+    assert(0);
+  }
 }
 
 } // namespace util

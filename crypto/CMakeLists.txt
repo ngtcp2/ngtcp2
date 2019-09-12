@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2016 ngtcp2 contributors
+# Copyright (c) 2019 ngtcp2
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,24 +20,10 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS = lib tests
 
-if HAVE_OPENSSL
-SUBDIRS += crypto
-endif
-
-if HAVE_NGHTTP3
-SUBDIRS += third-party examples
-endif
-
-ACLOCAL_AMFLAGS = -I m4
-
-# Format source files using clang-format.  Don't format source files
-# under third-party directory since we are not responsible for thier
-# coding style.
-clang-format:
-	CLANGFORMAT=`git config --get clangformat.binary`; \
-	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
-	$${CLANGFORMAT} -i lib/*.{c,h} lib/includes/ngtcp2/*.h \
-	crypto/*.c crypto/openssl/*.c crypto/includes/ngtcp2/*.h \
-	examples/*.{cc,h}
+if(OPENSSL_FOUND)
+  add_subdirectory(includes)
+  add_subdirectory(openssl)
+else()
+  message(WARNING "libngtcp2_crypto_openssl library is disabled due to lack of good OpenSSL")
+endif()

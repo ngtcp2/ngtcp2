@@ -36,6 +36,7 @@
 #include <deque>
 
 #include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 #include <nghttp3/nghttp3.h>
 
 #include <openssl/ssl.h>
@@ -43,7 +44,6 @@
 #include <ev.h>
 
 #include "network.h"
-#include "crypto.h"
 #include "template.h"
 #include "shared.h"
 
@@ -62,6 +62,12 @@ struct Config {
   const char *groups;
   // htdocs is a root directory to serve documents.
   std::string htdocs;
+  // mime_types_file is a path to "MIME media types and the
+  // extensions" file.  Ubuntu mime-support package includes it in
+  // /etc/mime/types.
+  const char *mime_types_file;
+  // mime_types maps file extension to MIME media type.
+  std::map<std::string, std::string> mime_types;
   // port is the port number which server listens on for incoming
   // connections.
   uint16_t port;
@@ -74,6 +80,11 @@ struct Config {
   bool show_secret;
   // validate_addr is true if server requires address validation.
   bool validate_addr;
+  // early_response is true if server starts sending response when it
+  // receives HTTP header fields without waiting for request body.  If
+  // HTTP response data is written before receiving request body,
+  // STOP_SENDING is sent.
+  bool early_response;
 };
 
 struct Buffer {
@@ -154,7 +165,6 @@ struct Stream {
   size_t dynbuflen;
   // dynbufs stores the buffers for dynamic data response.
   std::deque<std::unique_ptr<std::vector<uint8_t>>> dynbufs;
-  EVP_MD_CTX *md_ctx;
   // mmapped is true if data points to the memory assigned by mmap.
   bool mmapped;
 };
@@ -186,8 +196,6 @@ public:
   int init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
            const ngtcp2_cid *dcid, const ngtcp2_cid *ocid, uint32_t version);
 
-  int tls_handshake();
-  int read_tls();
   int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
               uint8_t *data, size_t datalen);
   int on_write();
@@ -195,40 +203,17 @@ public:
   int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                 uint8_t *data, size_t datalen);
   void schedule_retransmit();
+  int handle_expiry();
   void signal_write();
   int handshake_completed();
 
-  void write_server_handshake(const uint8_t *data, size_t datalen);
-  void write_server_handshake(Crypto &crypto, const uint8_t *data,
-                              size_t datalen);
+  void write_server_handshake(ngtcp2_crypto_level crypto_level,
+                              const uint8_t *data, size_t datalen);
 
-  size_t read_client_handshake(uint8_t *buf, size_t buflen);
-  int write_client_handshake(ngtcp2_crypto_level crypto_level,
-                             const uint8_t *data, size_t datalen);
+  int recv_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
+                       size_t datalen);
 
   int recv_client_initial(const ngtcp2_cid *dcid);
-  ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
-                          const uint8_t *plaintext, size_t plaintextlen,
-                          const uint8_t *key, size_t keylen,
-                          const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen);
-  ssize_t hs_decrypt_data(uint8_t *dest, size_t destlen,
-                          const uint8_t *ciphertext, size_t ciphertextlen,
-                          const uint8_t *key, size_t keylen,
-                          const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen);
-  ssize_t encrypt_data(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
-                       size_t plaintextlen, const uint8_t *key, size_t keylen,
-                       const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
-                       size_t adlen);
-  ssize_t decrypt_data(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
-                       size_t ciphertextlen, const uint8_t *key, size_t keylen,
-                       const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
-                       size_t adlen);
-  ssize_t in_hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
-                     size_t keylen, const uint8_t *sample, size_t samplelen);
-  ssize_t hp_mask(uint8_t *dest, size_t destlen, const uint8_t *key,
-                  size_t keylen, const uint8_t *sample, size_t samplelen);
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;
@@ -242,7 +227,7 @@ public:
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
                              size_t datalen);
   void on_stream_open(int64_t stream_id);
-  int on_stream_close(int64_t stream_id, uint16_t app_error_code);
+  int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   void start_draining_period();
   int start_closing_period();
   bool draining() const;
@@ -251,7 +236,8 @@ public:
   void update_endpoint(const ngtcp2_addr *addr);
   void update_remote_addr(const ngtcp2_addr *addr);
 
-  int on_key(int name, const uint8_t *secret, size_t secretlen);
+  int on_key(ngtcp2_crypto_level level, const uint8_t *rsecret,
+             const uint8_t *wsecret, size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
 
@@ -265,6 +251,8 @@ public:
   void http_recv_request_header(int64_t stream_id, int32_t token,
                                 nghttp3_rcbuf *name, nghttp3_rcbuf *value);
   int http_end_request_headers(int64_t stream_id);
+  int http_end_stream(int64_t stream_id);
+  int start_response(int64_t stream_id);
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
@@ -285,17 +273,11 @@ private:
   ev_io wev_;
   ev_timer timer_;
   ev_timer rttimer_;
-  std::vector<uint8_t> chandshake_;
-  size_t ncread_;
   Crypto crypto_[3];
-  ngtcp2_crypto_level tx_crypto_level_;
-  ngtcp2_crypto_level rx_crypto_level_;
   ngtcp2_conn *conn_;
   ngtcp2_cid scid_;
   ngtcp2_cid pscid_;
   ngtcp2_cid rcid_;
-  crypto::Context hs_crypto_ctx_;
-  crypto::Context crypto_ctx_;
   nghttp3_conn *httpconn_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   // common buffer used to store packet data before sending
@@ -309,9 +291,6 @@ private:
   QUICError last_error_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
-  // initial_ is initially true, and used to process first packet from
-  // client specially.  After first packet, it becomes false.
-  bool initial_;
   // draining_ becomes true when draining period starts.
   bool draining_;
 };
@@ -328,8 +307,10 @@ public:
   void close();
 
   int on_read(Endpoint &ep);
-  int send_version_negotiation(const ngtcp2_pkt_hd *hd, Endpoint &ep,
-                               const sockaddr *sa, socklen_t salen);
+  int send_version_negotiation(uint32_t version, const uint8_t *dcid,
+                               size_t dcidlen, const uint8_t *scid,
+                               size_t scidlen, Endpoint &ep, const sockaddr *sa,
+                               socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep, const sockaddr *sa,
                  socklen_t salen);
   int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
@@ -354,7 +335,8 @@ private:
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   SSL_CTX *ssl_ctx_;
-  crypto::Context token_crypto_ctx_;
+  ngtcp2_crypto_aead token_aead_;
+  ngtcp2_crypto_md token_md_;
   std::array<uint8_t, TOKEN_SECRETLEN> token_secret_;
   ev_signal sigintev_;
 };

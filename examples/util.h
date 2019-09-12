@@ -34,9 +34,12 @@
 
 #include <string>
 #include <random>
+#include <map>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
+
+#include <openssl/ssl.h>
 
 #include <ev.h>
 
@@ -142,6 +145,7 @@ bool istarts_with_l(const T &a, const CharT (&b)[N]) {
 
 // make_cid_key returns the key for |cid|.
 std::string make_cid_key(const ngtcp2_cid *cid);
+std::string make_cid_key(const uint8_t *cid, size_t cidlen);
 
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
@@ -197,6 +201,19 @@ template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
   }
   return res;
 }
+
+// read_mime_types reads "MIME media types and the extensions" file
+// denoted by |filename| and stores the mapping of extension to MIME
+// media type in |dest|.  It returns 0 if it succeeds, or -1.
+int read_mime_types(std::map<std::string, std::string> &dest,
+                    const char *filename);
+
+// from_ossl_level translates |ossl_level| to ngtcp2_crypto_level.
+ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
+
+// from_ngtcp2_level translates |crypto_level| to
+// OSSL_ENCRYPTION_LEVEL.
+OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level);
 
 } // namespace util
 

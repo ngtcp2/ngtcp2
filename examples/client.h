@@ -34,6 +34,7 @@
 #include <map>
 
 #include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 #include <nghttp3/nghttp3.h>
 
 #include <openssl/ssl.h>
@@ -41,7 +42,6 @@
 #include <ev.h>
 
 #include "network.h"
-#include "crypto.h"
 #include "template.h"
 #include "shared.h"
 
@@ -86,7 +86,7 @@ struct Config {
   // key_update is the duration after which client initiates key
   // update.
   double key_update;
-  // delay_request is the duration after which client sends the first
+  // delay_stream is the duration after which client sends the first
   // 1-RTT stream.
   double delay_stream;
   // nat_rebinding is true if simulated NAT rebinding is enabled.
@@ -159,53 +159,28 @@ public:
 
   void start_wev();
 
-  int tls_handshake(bool initial = false);
-  int read_tls();
   int on_read();
-  int on_write(bool retransmit = false);
+  int on_write();
   int write_streams();
   int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                 size_t datalen);
+  int handle_expiry();
   void schedule_retransmit();
   int handshake_completed();
 
-  void write_client_handshake(const uint8_t *data, size_t datalen);
-  void write_client_handshake(Crypto &crypto, const uint8_t *data,
+  void write_client_handshake(ngtcp2_crypto_level level, const uint8_t *data,
                               size_t datalen);
 
-  size_t read_server_handshake(uint8_t *buf, size_t buflen);
-  int write_server_handshake(ngtcp2_crypto_level crypto_level,
-                             const uint8_t *data, size_t datalen);
+  int recv_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
+                       size_t datalen);
 
   int setup_initial_crypto_context();
-  ssize_t hs_encrypt_data(uint8_t *dest, size_t destlen,
-                          const uint8_t *plaintext, size_t plaintextlen,
-                          const uint8_t *key, size_t keylen,
-                          const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen);
-  ssize_t hs_decrypt_data(uint8_t *dest, size_t destlen,
-                          const uint8_t *ciphertext, size_t ciphertextlen,
-                          const uint8_t *key, size_t keylen,
-                          const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen);
-  ssize_t encrypt_data(uint8_t *dest, size_t destlen, const uint8_t *plaintext,
-                       size_t plaintextlen, const uint8_t *key, size_t keylen,
-                       const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
-                       size_t adlen);
-  ssize_t decrypt_data(uint8_t *dest, size_t destlen, const uint8_t *ciphertext,
-                       size_t ciphertextlen, const uint8_t *key, size_t keylen,
-                       const uint8_t *nonce, size_t noncelen, const uint8_t *ad,
-                       size_t adlen);
-  ssize_t in_hp_mask(uint8_t *data, size_t destlen, const uint8_t *key,
-                     size_t keylen, const uint8_t *sample, size_t samplelen);
-  ssize_t hp_mask(uint8_t *data, size_t destlen, const uint8_t *key,
-                  size_t keylen, const uint8_t *sample, size_t samplelen);
   ngtcp2_conn *conn() const;
   void update_remote_addr(const ngtcp2_addr *addr);
   int send_packet();
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
                              size_t datalen);
-  int on_stream_close(int64_t stream_id, uint16_t app_error_code);
+  int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
   void make_stream_early();
@@ -217,7 +192,8 @@ public:
   void start_key_update_timer();
   void start_delay_stream_timer();
 
-  int on_key(int name, const uint8_t *secret, size_t secretlen);
+  int on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
+             const uint8_t *tx_secret, size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
 
@@ -233,7 +209,7 @@ public:
   void http_consume(int64_t stream_id, size_t nconsumed);
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
-  int send_stop_sending(int64_t stream_id);
+  int send_stop_sending(int64_t stream_id, uint64_t app_error_code);
 
   void reset_idle_timer();
 
@@ -255,20 +231,14 @@ private:
   int fd_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   Crypto crypto_[3];
-  ngtcp2_crypto_level tx_crypto_level_;
-  ngtcp2_crypto_level rx_crypto_level_;
-  std::vector<uint8_t> shandshake_;
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;
-  size_t nsread_;
   ngtcp2_conn *conn_;
   nghttp3_conn *httpconn_;
   // addr_ is the server host address.
   const char *addr_;
   // port_ is the server port.
   const char *port_;
-  crypto::Context hs_crypto_ctx_;
-  crypto::Context crypto_ctx_;
   QUICError last_error_;
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
@@ -279,6 +249,9 @@ private:
   uint32_t version_;
   // resumption_ is true if client attempts to resume session.
   bool resumption_;
+  // placeholder_created_ gets true if client has created a
+  // placeholder.
+  bool placeholder_created_;
 };
 
 #endif // CLIENT_H

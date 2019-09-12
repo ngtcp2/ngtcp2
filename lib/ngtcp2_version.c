@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2019 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,36 +22,18 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef SHARED_H
-#define SHARED_H
-
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif /* HAVE_CONFIG_H */
 
 #include <ngtcp2/ngtcp2.h>
 
-namespace ngtcp2 {
+static ngtcp2_info version = {NGTCP2_VERSION_AGE, NGTCP2_VERSION_NUM,
+                              NGTCP2_VERSION};
 
-enum class QUICErrorType {
-  Application,
-  Transport,
-  TransportVersionNegotiation,
-};
-
-struct QUICError {
-  QUICError(QUICErrorType type, uint64_t code) : type(type), code(code) {}
-
-  QUICErrorType type;
-  uint64_t code;
-};
-
-QUICError quic_err_transport(int liberr);
-
-QUICError quic_err_tls(int alert);
-
-QUICError quic_err_app(int liberr);
-
-} // namespace ngtcp2
-
-#endif // SHARED_H
+ngtcp2_info *ngtcp2_version(int least_version) {
+  if (least_version > NGTCP2_VERSION_NUM) {
+    return NULL;
+  }
+  return &version;
+}

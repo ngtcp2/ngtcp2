@@ -36,14 +36,14 @@ The client and server under examples directory require patched OpenSSL
 as crypto backend:
 
 * Patched OpenSSL
-  (https://github.com/tatsuhiro-t/openssl/tree/quic-draft-20)
+  (https://github.com/tatsuhiro-t/openssl/tree/openssl-quic-draft-22)
 
 Build from git
 --------------
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b quic-draft-20 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b openssl-quic-draft-22 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
@@ -57,7 +57,7 @@ Build from git
    $ make -j$(nproc) check
    $ make install
    $ cd ..
-   $ git clone -b draft-20 https://github.com/ngtcp2/ngtcp2
+   $ git clone -b draft-22 https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
    $ autoreconf -i
    $ # For Mac users who have installed libev with MacPorts, append
@@ -113,6 +113,18 @@ packet pretty small because it does not send its certificates.
 
 To send 0-RTT data, after making sure that resumption works, use -d
 option to specify a file which contains data to send.
+
+Crypto helper library
+---------------------
+
+In order to make TLS stack integration less painful, we provide a
+crypto helper library which offers the basic crypto operations.
+
+The header file exists under crypto/includes/ngtcp2 directory.
+
+The library file is built for a particular TLS backend.  At the
+moment, libngtcp2_crypto_openssl which uses OpenSSL as TLS backend is
+provided.
 
 License
 -------

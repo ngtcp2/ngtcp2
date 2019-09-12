@@ -26,14 +26,17 @@ AM_CXXFLAGS = $(WARNCXXFLAGS) $(DEBUGCFLAGS)
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/lib/includes \
 	-I$(top_builddir)/lib/includes \
+	-I$(top_srcdir)/crypto/includes \
 	-I$(top_srcdir)/third-party \
 	@OPENSSL_CFLAGS@ \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
 	@DEFS@
 AM_LDFLAGS = -no-install
-LDADD = $(top_builddir)/lib/libngtcp2.la \
+LDADD = $(top_builddir)/crypto/openssl/libngtcp2_crypto_openssl.la \
+	$(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
+	@JEMALLOC_LIBS@ \
 	@OPENSSL_LIBS@ \
 	@LIBEV_LIBS@ \
 	@LIBNGHTTP3_LIBS@
@@ -45,9 +48,7 @@ client_SOURCES = client.cc client.h \
 	debug.cc debug.h \
 	util.cc util.h \
 	keylog.cc keylog.h \
-	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc
+	shared.cc shared.h
 
 server_SOURCES = server.cc server.h \
 	template.h \
@@ -55,8 +56,6 @@ server_SOURCES = server.cc server.h \
 	util.cc util.h \
 	keylog.cc keylog.h \
 	shared.cc shared.h \
-	crypto_openssl.cc \
-	crypto.cc \
 	http.cc http.h
 
 if HAVE_CUNIT

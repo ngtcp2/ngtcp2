@@ -68,7 +68,11 @@ main_SOURCES = $(HFILES) $(OBJECTS)
 
 # With static lib disabled and symbol hiding enabled, we have to link object
 # files directly because the tests use symbols not included in public API.
+if ENABLE_SHARED
 main_LDADD = ${top_builddir}/lib/.libs/*.o
+else
+main_LDADD = ${top_builddir}/lib/.libs/libngtcp2.la
+endif
 main_LDADD += @CUNIT_LIBS@
 main_LDFLAGS = -static
 

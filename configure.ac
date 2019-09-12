@@ -45,6 +45,10 @@ AC_SUBST(LT_CURRENT, 0)
 AC_SUBST(LT_REVISION, 0)
 AC_SUBST(LT_AGE, 0)
 
+AC_SUBST(CRYPTO_OPENSSL_LT_CURRENT, 0)
+AC_SUBST(CRYPTO_OPENSSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_OPENSSL_LT_AGE, 0)
+
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -74,6 +78,11 @@ AC_ARG_ENABLE(asan,
     AS_HELP_STRING([--enable-asan],
                    [Enable AddressSanitizer (ASAN)]),
     [asan=$enableval], [asan=no])
+
+AC_ARG_WITH([jemalloc],
+    [AS_HELP_STRING([--with-jemalloc],
+                    [Use jemalloc [default=check]])],
+    [request_jemalloc=$withval], [request_jemalloc=check])
 
 # Checks for programs
 AC_PROG_CC
@@ -119,12 +128,15 @@ fi
 
 AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
 
+AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
+
 # openssl (for examples)
 PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
                   [have_openssl=yes], [have_openssl=no])
 if test "x${have_openssl}" = "xno"; then
   AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
 fi
+AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 
 # libnghttp3 (for examples)
 PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
@@ -132,6 +144,7 @@ PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
 if test "${have_libnghttp3}" = "xno"; then
   AC_MSG_NOTICE($LIBNGHTTP3_PKG_ERRORS)
 fi
+AM_CONDITIONAL([HAVE_NGHTTP3], [ test "x${have_libnghttp3}" = "xyes" ])
 
 # libev (for examples)
 # libev does not have pkg-config file.  Check it in an old way.
@@ -148,6 +161,39 @@ if test "x${have_libev}" = "xyes"; then
   fi
 fi
 LIBS=$save_LIBS
+
+# jemalloc
+have_jemalloc=no
+if test "x${request_jemalloc}" != "xno"; then
+  save_LIBS=$LIBS
+  AC_SEARCH_LIBS([malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
+                 [$PTHREAD_LDFLAGS])
+
+  if test "x${have_jemalloc}" = "xyes"; then
+    jemalloc_libs=${ac_cv_search_malloc_stats_print}
+  else
+    # On Darwin, malloc_stats_print is je_malloc_stats_print
+    AC_SEARCH_LIBS([je_malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
+                   [$PTHREAD_LDFLAGS])
+
+    if test "x${have_jemalloc}" = "xyes"; then
+      jemalloc_libs=${ac_cv_search_je_malloc_stats_print}
+    fi
+  fi
+
+  LIBS=$save_LIBS
+
+  if test "x${have_jemalloc}" = "xyes" &&
+     test "x${jemalloc_libs}" != "xnone required"; then
+    JEMALLOC_LIBS=${jemalloc_libs}
+    AC_SUBST([JEMALLOC_LIBS])
+  fi
+fi
+
+if test "x${request_jemalloc}" = "xyes" &&
+   test "x${have_jemalloc}" != "xyes"; then
+  AC_MSG_ERROR([jemalloc was requested (--with-jemalloc) but not found])
+fi
 
 # Checks for header files.
 AC_CHECK_HEADERS([ \
@@ -296,6 +342,10 @@ AC_CONFIG_FILES([
   lib/includes/Makefile
   lib/includes/ngtcp2/version.h
   tests/Makefile
+  crypto/Makefile
+  crypto/openssl/Makefile
+  crypto/openssl/libngtcp2_crypto_openssl.pc
+  crypto/includes/Makefile
   third-party/Makefile
   examples/Makefile
 ])
@@ -325,6 +375,8 @@ AC_MSG_NOTICE([summary of build options:
     Library:
       Shared:         ${enable_shared}
       Static:         ${enable_static}
+    Crypto helper libraries:
+      libngtcp2_crypto_openssl: ${have_openssl}
     Test:
       CUnit:          ${have_cunit} (CFLAGS='${CUNIT_CFLAGS}' LIBS='${CUNIT_LIBS}')
     Debug:
@@ -333,4 +385,5 @@ AC_MSG_NOTICE([summary of build options:
       OpenSSL:        ${have_openssl} (CFLAGS='${OPENSSL_CFLAGS}' LIBS='${OPENSSL_LIBS}')
       Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')
       Libnghttp3:     ${have_libnghttp3} (CFLAGS='${LIBNGHTTP3_CFLAGS}' LIBS='${LIBNGHTTP3_LIBS}')
+      Jemalloc:       ${have_jemalloc} (LIBS='${JEMALLOC_LIBS}')
 ])

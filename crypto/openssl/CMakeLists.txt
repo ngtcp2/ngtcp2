@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2016 ngtcp2 contributors
+# Copyright (c) 2019 ngtcp2
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,24 +20,39 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS = lib tests
 
-if HAVE_OPENSSL
-SUBDIRS += crypto
-endif
+add_definitions(-DBUILDING_NGTCP2)
 
-if HAVE_NGHTTP3
-SUBDIRS += third-party examples
-endif
+set(ngtcp2_crypto_openssl_SOURCES
+  openssl.c
+  ../shared.c
+)
 
-ACLOCAL_AMFLAGS = -I m4
+set(ngtcp2_crypto_openssl_INCLUDE_DIRS
+  "${CMAKE_SOURCE_DIR}/lib/includes"
+  "${CMAKE_BINARY_DIR}/lib/includes"
+  "${CMAKE_SOURCE_DIR}/lib"
+  "${CMAKE_SOURCE_DIR}/crypto/includes"
+  "${CMAKE_BINARY_DIR}/crypto/includes"
+  "${OPENSSL_INCLUDE_DIRS}"
+)
 
-# Format source files using clang-format.  Don't format source files
-# under third-party directory since we are not responsible for thier
-# coding style.
-clang-format:
-	CLANGFORMAT=`git config --get clangformat.binary`; \
-	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
-	$${CLANGFORMAT} -i lib/*.{c,h} lib/includes/ngtcp2/*.h \
-	crypto/*.c crypto/openssl/*.c crypto/includes/ngtcp2/*.h \
-	examples/*.{cc,h}
+# Public shared library
+add_library(ngtcp2_crypto_openssl ${ngtcp2_crypto_openssl_SOURCES})
+set_target_properties(ngtcp2_crypto_openssl PROPERTIES
+  COMPILE_FLAGS "${WARNCFLAGS}"
+  VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
+  C_VISIBILITY_PRESET hidden
+)
+
+target_include_directories(ngtcp2_crypto_openssl PUBLIC
+  ${ngtcp2_crypto_openssl_INCLUDE_DIRS})
+if(NOT BUILD_SHARED_LIBS)
+  target_compile_definitions(ngtcp2_crypto_openssl PUBLIC "-DNGTCP2_STATICLIB")
+endif()
+
+install(TARGETS ngtcp2_crypto_openssl
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libngtcp2_crypto_openssl.pc"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

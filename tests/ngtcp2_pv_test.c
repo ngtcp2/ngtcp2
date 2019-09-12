@@ -92,7 +92,6 @@ void test_ngtcp2_pv_validate(void) {
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
   ngtcp2_tstamp t = 1;
   ngtcp2_path path = {{1, (uint8_t *)"1", NULL}, {1, (uint8_t *)"2", NULL}};
-  ngtcp2_path alt_path = {{1, (uint8_t *)"3", NULL}, {1, (uint8_t *)"4", NULL}};
 
   dcid_init(&cid);
   ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
@@ -115,16 +114,12 @@ void test_ngtcp2_pv_validate(void) {
   ngtcp2_pv_add_entry(pv, data, 100);
 
   memset(data, 1, sizeof(data));
-  rv = ngtcp2_pv_validate(pv, &alt_path, data);
-
-  CU_ASSERT(NGTCP2_ERR_PATH_VALIDATION_FAILED == rv);
-
-  rv = ngtcp2_pv_validate(pv, &path, data);
+  rv = ngtcp2_pv_validate(pv, data);
 
   CU_ASSERT(0 == rv);
 
   memset(data, 3, sizeof(data));
-  rv = ngtcp2_pv_validate(pv, &path, data);
+  rv = ngtcp2_pv_validate(pv, data);
 
   CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 

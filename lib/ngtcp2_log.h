@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pkt.h"
+
 typedef enum {
   NGTCP2_LOG_EVENT_NONE,
   /* connection (catch-all) event */
