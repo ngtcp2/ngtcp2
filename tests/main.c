@@ -232,6 +232,8 @@ int main() {
       !CU_add_test(pSuite, "conn_key_update", test_ngtcp2_conn_key_update) ||
       !CU_add_test(pSuite, "conn_crypto_buffer_exceeded",
                    test_ngtcp2_conn_crypto_buffer_exceeded) ||
+      !CU_add_test(pSuite, "conn_handshake_probe",
+                   test_ngtcp2_conn_handshake_probe) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||

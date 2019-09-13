@@ -182,6 +182,10 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE is set when idle
      timer should be restarted on next write. */
   NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE = 0x2000,
+  /* NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED indicates that server as
+     peer verified client address.  This flag is only used by
+     client. */
+  NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED = 0x4000,
 } ngtcp2_conn_flag;
 
 typedef struct {

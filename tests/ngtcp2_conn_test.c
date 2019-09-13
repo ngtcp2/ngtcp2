@@ -4313,3 +4313,95 @@ void test_ngtcp2_conn_crypto_buffer_exceeded(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_conn_handshake_probe(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_tstamp t = 0;
+  ssize_t spktlen;
+  size_t pktlen;
+  uint8_t buf[1200];
+  ngtcp2_frame fr;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it;
+  int rv;
+
+  /* Retransmit first Initial on PTO timer */
+  setup_handshake_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->rcs.probe_pkt_left);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  /* We don't make the first packet lost */
+  CU_ASSERT(2 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(0 == conn->rcs.probe_pkt_left);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), 0, NGTCP2_PROTO_VER_MAX, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(1 == conn->rcs.probe_pkt_left);
+
+  /* This sends anti-deadlock padded Initial packet even if we have
+     nothing to send. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(0 == conn->rcs.probe_pkt_left);
+
+  it = ngtcp2_rtb_head(&conn->in_pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
+  CU_ASSERT(sizeof(buf) == ent->pktlen);
+
+  ngtcp2_conn_install_handshake_key(conn, null_key, null_iv, null_hp_key,
+                                    null_key, null_iv, null_hp_key,
+                                    sizeof(null_key), sizeof(null_iv));
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(1 == conn->rcs.probe_pkt_left);
+
+  /* This sends anti-deadlock Handshake packet even if we have nothing
+     to send. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->hs_pktns.rtb));
+  CU_ASSERT(0 == conn->rcs.probe_pkt_left);
+
+  it = ngtcp2_rtb_head(&conn->hs_pktns.rtb);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
+  CU_ASSERT(sizeof(buf) > ent->pktlen);
+
+  ngtcp2_conn_del(conn);
+}
