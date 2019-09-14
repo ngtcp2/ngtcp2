@@ -834,7 +834,7 @@ int Handler::acked_stream_data_offset(int64_t stream_id, size_t datalen) {
 
   auto rv = nghttp3_conn_add_ack_offset(httpconn_, stream_id, datalen);
   if (rv != 0) {
-    std::cerr << "nghttp3_conn_add_ack_offset: " << nghttp3_error(rv)
+    std::cerr << "nghttp3_conn_add_ack_offset: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
   }
@@ -1225,7 +1225,6 @@ int Handler::setup_httpconn() {
   nghttp3_conn_settings_default(&settings);
   settings.qpack_max_table_capacity = 4096;
   settings.qpack_blocked_streams = 100;
-  settings.num_placeholders = 100;
 
   auto mem = nghttp3_mem_default();
 

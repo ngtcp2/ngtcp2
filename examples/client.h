@@ -249,9 +249,6 @@ private:
   uint32_t version_;
   // resumption_ is true if client attempts to resume session.
   bool resumption_;
-  // placeholder_created_ gets true if client has created a
-  // placeholder.
-  bool placeholder_created_;
 };
 
 #endif // CLIENT_H
