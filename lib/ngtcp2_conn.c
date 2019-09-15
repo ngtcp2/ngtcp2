@@ -1566,7 +1566,8 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (pkt_empty) {
-    if (conn->server || conn->pktns.crypto.tx.ckm) {
+    if (conn->server || conn->pktns.crypto.tx.ckm ||
+        conn->rcs.probe_pkt_left == 0) {
       return 0;
     }
     /* In order to send ACK-eliciting packet, we send empty CRYPTO
