@@ -103,6 +103,8 @@ static void frame_chain_insert(ngtcp2_frame_chain **pfrc,
                                ngtcp2_frame_chain *frc) {
   ngtcp2_frame_chain **plast;
 
+  assert(frc);
+
   for (plast = &frc; *plast; plast = &(*plast)->next)
     ;
 
