@@ -195,27 +195,23 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
 
 static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                             ngtcp2_rtb_entry *ent) {
-  if (ent->flags & NGTCP2_RTB_FLAG_PROBE) {
-    /* We don't care if probe packet is lost. */
-  } else {
-    ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
-                        ent->ts);
+  ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
+                      ent->ts);
 
+  if (!(ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
     if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED) {
       ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                       "pkn=%" PRId64 " CRYPTO has already been retransmitted",
                       ent->hd.pkt_num);
-    }
-
-    /* PADDING only (or PADDING + ACK ) packets will have NULL
-       ent->frc. */
-    if (ent->frc &&
-        !(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED)) {
+    } else if (ent->frc) {
+      /* PADDING only (or PADDING + ACK ) packets will have NULL
+         ent->frc. */
       /* TODO Reconsider the order of pfrc */
       frame_chain_insert(pfrc, ent->frc);
       ent->frc = NULL;
     }
   }
+
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 }
 
@@ -526,25 +522,11 @@ void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc) {
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);
 
-    /* TODO Should we check NGTCP2_RTB_FLAG_PROBE here? */
-
-    ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
-                        ent->ts);
-
     rtb_on_remove(rtb, ent);
     ngtcp2_ksl_remove(&rtb->ents, &it,
                       ngtcp2_ksl_key_ptr(&key, &ent->hd.pkt_num));
 
-    if (!(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED)) {
-      frame_chain_insert(pfrc, ent->frc);
-      ent->frc = NULL;
-    } else {
-      ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                      "pkn=%" PRId64 " CRYPTO has already been retransmitted",
-                      ent->hd.pkt_num);
-    }
-
-    ngtcp2_rtb_entry_del(ent, rtb->mem);
+    rtb_on_pkt_lost(rtb, pfrc, ent);
   }
 }
 
