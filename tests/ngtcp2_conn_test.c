@@ -4472,9 +4472,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
 
-  /* TODO On retransmission, Initial and first Handshake are not
-     coalesced into 1 packet. */
-  for (i = 0; i < 4; ++i) {
+  for (i = 0; i < 3; ++i) {
     spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
     CU_ASSERT(spktlen > 0);
   }
@@ -4486,7 +4484,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   it = ngtcp2_ksl_begin(&conn->hs_pktns.rtb.ents);
   ent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(2371 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(2181 == ent->frc->fr.crypto.offset);
   CU_ASSERT(5 == ent->hd.pkt_num);
 
   fr.type = NGTCP2_FRAME_ACK;

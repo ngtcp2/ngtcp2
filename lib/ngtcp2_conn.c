@@ -7102,15 +7102,26 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         return 0;
       }
 
+      destlen = ngtcp2_min(destlen, server_hs_tx_left);
+      origlen = ngtcp2_min(origlen, server_hs_tx_left);
+
       if (conn->rcs.probe_pkt_left) {
-        nwrite = conn_write_handshake_pkts(
-            conn, dest, ngtcp2_min(origlen, server_hs_tx_left), 0, ts);
-        if (nwrite) {
+        nwrite = conn_write_handshake_pkts(conn, dest, origlen, 0, ts);
+        if (nwrite < 0) {
           return nwrite;
         }
+
+        /* Coalesce packets, because server might send Initial as
+           probe, and Handshake as non-probe. */
+        res += nwrite;
+        dest += nwrite;
+        if (destlen <= (size_t)nwrite) {
+          return nwrite;
+        }
+        destlen -= (size_t)nwrite;
+        origlen -= (size_t)nwrite;
       }
 
-      destlen = ngtcp2_min(destlen, server_hs_tx_left);
       nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
       if (nwrite < 0) {
         return nwrite;
@@ -7121,10 +7132,9 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       res += nwrite;
       dest += nwrite;
       destlen -= (size_t)nwrite;
+      origlen -= (size_t)nwrite;
 
-      nwrite = conn_write_handshake_ack_pkts(
-          conn, dest,
-          res == 0 ? ngtcp2_min(origlen, server_hs_tx_left) : destlen, ts);
+      nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
       if (nwrite < 0) {
         return nwrite;
       }
