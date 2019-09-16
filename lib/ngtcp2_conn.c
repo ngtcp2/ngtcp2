@@ -1190,12 +1190,20 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
       return rv;
     }
 
+    if (end_base_offset) {
+      ++end_idx;
+    }
+
     memmove(fr->data, fr->data + idx, sizeof(fr->data[0]) * (end_idx - idx));
 
     assert(fr->data[0].len > base_offset);
 
     fr->offset = offset + base_offset;
     fr->datacnt = end_idx - idx;
+    if (end_base_offset) {
+      assert(fr->data[fr->datacnt - 1].len > end_base_offset);
+      fr->data[fr->datacnt - 1].len = end_base_offset;
+    }
     fr->data[0].base += base_offset;
     fr->data[0].len -= base_offset;
 
@@ -1302,6 +1310,10 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
       ngtcp2_frame_chain_del(frc, conn->mem);
       return rv;
     }
+    if (nfrc == NULL) {
+      break;
+    }
+
     nfr = &nfrc->fr.crypto;
 
     nmerged = ngtcp2_vec_merge(a, &acnt, nfr->data, &nfr->datacnt, left,

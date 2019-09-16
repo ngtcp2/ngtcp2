@@ -34,6 +34,7 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_conv.h"
+#include "ngtcp2_vec.h"
 
 static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
                         const ngtcp2_crypto_aead *aead,
@@ -2485,7 +2486,6 @@ void test_ngtcp2_conn_handshake(void) {
   rcid_init(&rcid);
 
   setup_handshake_server(&conn);
-
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
@@ -4402,6 +4402,140 @@ void test_ngtcp2_conn_handshake_probe(void) {
 
   CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
   CU_ASSERT(sizeof(buf) > ent->pktlen);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_handshake_loss(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_tstamp t = 0;
+  ssize_t spktlen;
+  size_t i;
+  size_t pktlen;
+  uint8_t buf[1252];
+  ngtcp2_frame fr;
+  union {
+    ngtcp2_frame fr;
+    struct {
+      ngtcp2_frame fr;
+      ngtcp2_vec data[8];
+    } crypto;
+  } crypto;
+  ngtcp2_frame *cfr;
+  ngtcp2_cid rcid;
+  int rv;
+  int64_t pkt_num = -1;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+
+  rcid_init(&rcid);
+  setup_handshake_server(&conn);
+  conn->callbacks.recv_crypto_data = recv_crypto_data;
+
+  cfr = &crypto.fr;
+  cfr->type = NGTCP2_FRAME_CRYPTO;
+  cfr->crypto.offset= 0;
+  cfr->crypto.datacnt = 1;
+  cfr->crypto.data[0].len = 123;
+  cfr->crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, cfr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
+                                 123);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
+                                 163);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
+                                 2369);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
+                                 79);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
+                                 36);
+
+  /* Initial and first Handshake are coalesced into 1 packet. */
+  for (i = 0; i < 3; ++i) {
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+    CU_ASSERT(spktlen > 0);
+  }
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  t += 1000;
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  /* TODO On retransmission, Initial and first Handshake are not
+     coalesced into 1 packet. */
+  for (i = 0; i < 4; ++i) {
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+    CU_ASSERT(spktlen > 0);
+  }
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  it = ngtcp2_ksl_begin(&conn->hs_pktns.rtb.ents);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(2371 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(5 == ent->hd.pkt_num);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 4;
+  fr.ack.ack_delay = 0;
+  fr.ack.ack_delay_unscaled = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 1;
+  fr.ack.blks[0].gap = 0;
+  fr.ack.blks[0].blklen = 1;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
+
+  t += 8;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, t);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  it = ngtcp2_ksl_begin(&conn->hs_pktns.rtb.ents);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
+  CU_ASSERT(0 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(2 == ent->frc->fr.crypto.datacnt);
+  CU_ASSERT(991 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+                                  ent->frc->fr.crypto.datacnt));
+
+  t += 1000;
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  it = ngtcp2_ksl_begin(&conn->hs_pktns.rtb.ents);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
+  CU_ASSERT(0 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(2 == ent->frc->fr.crypto.datacnt);
+  CU_ASSERT(991 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+                                  ent->frc->fr.crypto.datacnt));
 
   ngtcp2_conn_del(conn);
 }
