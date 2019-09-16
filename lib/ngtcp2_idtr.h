@@ -47,8 +47,7 @@ typedef struct {
 } ngtcp2_idtr;
 
 /*
- * ngtcp2_idtr_init initializes |idtr|.  |chunk| is the size of buffer
- * per chunk.
+ * ngtcp2_idtr_init initializes |idtr|.
  *
  * If this object records server initiated ID (even number), set
  * |server| to nonzero.
