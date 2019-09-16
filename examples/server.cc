@@ -1932,6 +1932,9 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   assert(it != std::end(streams_));
 
   if (httpconn_) {
+    if (app_error_code == 0) {
+      app_error_code = NGHTTP3_HTTP_NO_ERROR;
+    }
     auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
     if (rv != 0) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
