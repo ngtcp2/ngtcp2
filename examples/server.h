@@ -118,8 +118,8 @@ struct Buffer {
 };
 
 struct HTTPHeader {
-  template <typename T1, typename T2>
-  HTTPHeader(const T1 &name, const T2 &value) : name(name), value(value) {}
+  HTTPHeader(const std::string &name, const std::string &value)
+      : name(name), value(value) {}
 
   std::string name;
   std::string value;
