@@ -30,7 +30,6 @@
 #endif // HAVE_CONFIG_H
 
 #include <vector>
-#include <deque>
 #include <map>
 #include <string>
 #include <deque>
