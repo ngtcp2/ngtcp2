@@ -569,7 +569,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   if (server && settings->preferred_address_present) {
     scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
-    if (scid == NULL) {
+    if (scident == NULL) {
       rv = NGTCP2_ERR_NOMEM;
       goto fail_scident;
     }
@@ -2234,7 +2234,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
                               ngtcp2_strm *data_strm, int fin,
                               const ngtcp2_vec *datav, size_t datavcnt,
                               uint8_t flags, ngtcp2_tstamp ts) {
-  int rv;
+  int rv = 0;
   ngtcp2_crypto_cc *cc = &conn->pkt.cc;
   ngtcp2_ppe *ppe = &conn->pkt.ppe;
   ngtcp2_pkt_hd *hd = &conn->pkt.hd;
@@ -2349,7 +2349,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       return 0;
     }
 
-    for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge);) {
+    if (ngtcp2_ringbuf_len(&conn->rx.path_challenge)) {
       pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
 
       lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
@@ -2359,15 +2359,13 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
       if (rv != 0) {
         assert(NGTCP2_ERR_NOBUF == rv);
-        break;
+      } else {
+        ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
+
+        pkt_empty = 0;
+        rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+        /* We don't retransmit PATH_RESPONSE. */
       }
-
-      ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
-
-      pkt_empty = 0;
-      rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
-      /* We don't retransmit PATH_RESPONSE. */
-      break;
     }
 
     rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
@@ -3382,10 +3380,10 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 
   nsv = ngtcp2_pkt_decode_version_negotiation(p, payload, payloadlen);
 
-  ngtcp2_log_rx_vn(&conn->log, hd, sv, nsv);
+  ngtcp2_log_rx_vn(&conn->log, hd, p, nsv);
 
   if (conn->callbacks.recv_version_negotiation) {
-    rv = conn->callbacks.recv_version_negotiation(conn, hd, sv, nsv,
+    rv = conn->callbacks.recv_version_negotiation(conn, hd, p, nsv,
                                                   conn->user_data);
   }
 
@@ -8414,13 +8412,14 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
   rcs->rttvar = rcs->rttvar * 3 / 4 + fabs(rcs->smoothed_rtt - (double)rtt) / 4;
   rcs->smoothed_rtt = rcs->smoothed_rtt * 7 / 8 + (double)rtt / 8;
 
-  ngtcp2_log_info(
-      &conn->log, NGTCP2_LOG_EVENT_RCV,
-      "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
-      " smoothed_rtt=%.3f rttvar=%.3f ack_delay=%" PRIu64,
-      rcs->latest_rtt / NGTCP2_MILLISECONDS, rcs->min_rtt / NGTCP2_MILLISECONDS,
-      rcs->smoothed_rtt / NGTCP2_MILLISECONDS,
-      rcs->rttvar / NGTCP2_MILLISECONDS, ack_delay / NGTCP2_MILLISECONDS);
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
+                  "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
+                  " smoothed_rtt=%.3f rttvar=%.3f ack_delay=%" PRIu64,
+                  (uint64_t)(rcs->latest_rtt / NGTCP2_MILLISECONDS),
+                  (uint64_t)(rcs->min_rtt / NGTCP2_MILLISECONDS),
+                  rcs->smoothed_rtt / NGTCP2_MILLISECONDS,
+                  rcs->rttvar / NGTCP2_MILLISECONDS,
+                  (uint64_t)(ack_delay / NGTCP2_MILLISECONDS));
 }
 
 void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
@@ -8487,7 +8486,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
                   "loss_detection_timer=%" PRIu64 " last_tx_pkt_ts=%" PRIu64
                   " timeout=%" PRIu64,
                   rcs->loss_detection_timer, rcs->last_tx_pkt_ts,
-                  timeout / NGTCP2_MILLISECONDS);
+                  (uint64_t)(timeout / NGTCP2_MILLISECONDS));
 }
 
 /*

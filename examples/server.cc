@@ -1825,7 +1825,8 @@ void Handler::schedule_retransmit() {
   auto t = expiry < now ? 1e-9
                         : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
   if (!config.quiet) {
-    std::cerr << "Set timer=" << std::fixed << t << "s" << std::endl;
+    std::cerr << "Set timer=" << std::fixed << t << "s" << std::defaultfloat
+              << std::endl;
   }
   rttimer_.repeat = t;
   ev_timer_again(loop_, &rttimer_);
@@ -2069,6 +2070,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
 
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
                  static_cast<socklen_t>(sizeof(val))) == -1) {
+    close(fd);
     return -1;
   }
 
@@ -2076,6 +2078,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
   rv = getsockname(fd, &local_addr.su.sa, &len);
   if (rv == -1) {
     std::cerr << "getsockname: " << strerror(errno) << std::endl;
+    close(fd);
     return -1;
   }
   local_addr.len = len;
@@ -2740,7 +2743,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   default:
     if (!config.quiet) {
       std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
-                << version << std::endl;
+                << version << std::dec << std::endl;
     }
     return SSL_TLSEXT_ERR_ALERT_FATAL;
   }
@@ -2969,6 +2972,7 @@ void config_set_default(Config &config) {
   config.timeout = 30000;
   {
     auto path = realpath(".", nullptr);
+    assert(path);
     config.htdocs = path;
     free(path);
   }

@@ -337,7 +337,8 @@ void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
 } // namespace
 
 Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
-    : remote_addr_{},
+    : local_addr_{},
+      remote_addr_{},
       max_pktlen_(0),
       loop_(loop),
       ssl_ctx_(ssl_ctx),
@@ -347,6 +348,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       conn_(nullptr),
       httpconn_(nullptr),
       addr_(nullptr),
+      port_(nullptr),
       last_error_{QUICErrorType::Transport, 0},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       nstreams_done_(0),
@@ -786,6 +788,10 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 
   local_addr_ = local_addr;
   remote_addr_ = remote_addr;
+  fd_ = fd;
+  addr_ = addr;
+  port_ = port;
+  version_ = version;
 
   switch (remote_addr_.su.storage.ss_family) {
   case AF_INET:
@@ -797,11 +803,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   default:
     return -1;
   }
-
-  fd_ = fd;
-  addr_ = addr;
-  port_ = port;
-  version_ = version;
 
   auto callbacks = ngtcp2_conn_callbacks{
       client_initial,
@@ -1240,6 +1241,7 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
   auto val = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
                  static_cast<socklen_t>(sizeof(val))) == -1) {
+    close(fd);
     return -1;
   }
 
