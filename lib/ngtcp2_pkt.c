@@ -1924,7 +1924,7 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
   sr->rand = p;
   sr->randlen = payloadlen - NGTCP2_STATELESS_RESET_TOKENLEN;
   p += sr->randlen;
-  sr->stateless_reset_token = p;
+  memcpy(sr->stateless_reset_token, p, NGTCP2_STATELESS_RESET_TOKENLEN);
 
   return 0;
 }

@@ -370,7 +370,7 @@ typedef struct ngtcp2_pkt_hd {
 } ngtcp2_pkt_hd;
 
 typedef struct ngtcp2_pkt_stateless_reset {
-  const uint8_t *stateless_reset_token;
+  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
   const uint8_t *rand;
   size_t randlen;
 } ngtcp2_pkt_stateless_reset;
