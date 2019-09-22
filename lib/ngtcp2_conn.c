@@ -7016,9 +7016,6 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         }
         res = nwrite;
       }
-      if (res) {
-        conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_FORCE_SEND_HANDSHAKE;
-      }
       return res;
     }
 
