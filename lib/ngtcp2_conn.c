@@ -1704,6 +1704,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
+    assert(conn->server);
     pktns = &conn->in_pktns;
     cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     immediate_ack = conn->hs_pktns.crypto.tx.ckm != NULL;
@@ -1774,11 +1775,7 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   lfr.type = NGTCP2_FRAME_PADDING;
-  if (!conn->server && type == NGTCP2_PKT_INITIAL) {
-    lfr.padding.len = ngtcp2_ppe_padding(&ppe);
-  } else {
-    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
-  }
+  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
 
   if (lfr.padding.len) {
     padded = 1;
@@ -7013,10 +7010,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       res += nwrite;
 
       if (res == 0) {
-        /* This might send PADDING only Initial packet if client has
-           nothing to send and does not have client handshake traffic
-           key to prevent server from deadlocking. */
-        nwrite = conn_write_handshake_ack_pkts(conn, dest, destlen, ts);
+        nwrite = conn_write_handshake_ack_pkts(conn, dest, origlen, ts);
         if (nwrite < 0) {
           return nwrite;
         }
