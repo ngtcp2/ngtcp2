@@ -48,7 +48,7 @@ void ngtcp2_default_cc_free(ngtcp2_default_cc *cc) { (void)cc; }
 
 static int default_cc_in_congestion_recovery(ngtcp2_default_cc *cc,
                                              ngtcp2_tstamp sent_time) {
-  return sent_time <= cc->ccs->congestion_recovery_start_time;
+  return sent_time <= cc->ccs->congestion_recovery_start_ts;
 }
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
@@ -80,7 +80,7 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
   if (!default_cc_in_congestion_recovery(cc, ts_sent)) {
     return;
   }
-  ccs->congestion_recovery_start_time = ts;
+  ccs->congestion_recovery_start_ts = ts;
   ccs->cwnd = (uint64_t)((double)ccs->cwnd * NGTCP2_LOSS_REDUCTION_FACTOR);
   ccs->cwnd = ngtcp2_max(ccs->cwnd, NGTCP2_MIN_CWND);
   ccs->ssthresh = ccs->cwnd;
