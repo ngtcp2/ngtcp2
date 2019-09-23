@@ -1675,6 +1675,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return spktlen;
 }
 
+static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                           size_t destlen, uint8_t type,
+                                           const ngtcp2_cid *dcid,
+                                           ngtcp2_frame *fr, uint8_t rtb_flags,
+                                           ngtcp2_tstamp ts);
+
 /*
  * conn_write_handshake_ack_pkt writes unprotected QUIC packet in the
  * buffer pointed by |dest| whose length is |destlen|.  The packet
@@ -1692,26 +1698,18 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, uint8_t type,
                                             ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_ppe ppe;
-  ngtcp2_pkt_hd hd;
-  ngtcp2_frame *ackfr, lfr;
-  ngtcp2_crypto_cc cc;
+  ngtcp2_frame *ackfr;
   ngtcp2_pktns *pktns;
-  ngtcp2_rtb_entry *rtbent;
-  ssize_t spktlen;
   int immediate_ack = 0;
-  int padded = 0;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
     assert(conn->server);
     pktns = &conn->in_pktns;
-    cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     immediate_ack = conn->hs_pktns.crypto.tx.ckm != NULL;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
-    cc.aead_overhead = conn->crypto.aead_overhead;
     immediate_ack = conn->pktns.crypto.tx.ckm != NULL;
     break;
   default:
@@ -1733,78 +1731,14 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (rv != 0) {
     return rv;
   }
+
   if (!ackfr) {
     return 0;
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type,
-                     &conn->dcid.current.cid, &conn->oscid,
-                     pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
-                     conn->version, 0);
-
-  cc.aead = pktns->crypto.ctx.aead;
-  cc.hp = pktns->crypto.ctx.hp;
-  cc.ckm = pktns->crypto.tx.ckm;
-  cc.hp_key = pktns->crypto.tx.hp_key;
-  cc.encrypt = conn->callbacks.encrypt;
-  cc.hp_mask = conn->callbacks.hp_mask;
-  cc.user_data = conn;
-
-  ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
-
-  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
-  if (rv != 0) {
-    assert(NGTCP2_ERR_NOBUF == rv);
-    return 0;
-  }
-
-  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
-    return 0;
-  }
-
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-
-  if (ackfr) {
-    rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
-    if (rv != 0) {
-      assert(NGTCP2_ERR_NOBUF == rv);
-    } else {
-      ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
-    }
-  }
-
-  lfr.type = NGTCP2_FRAME_PADDING;
-  lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
-
-  if (lfr.padding.len) {
-    padded = 1;
-    ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
-  }
-
-  spktlen = ngtcp2_ppe_final(&ppe, NULL);
-  if (spktlen < 0) {
-    return spktlen;
-  }
-
-  if (padded) {
-    rv = ngtcp2_rtb_entry_new(&rtbent, &hd, NULL, ts, (size_t)spktlen,
-                              NGTCP2_RTB_FLAG_NONE, conn->mem);
-    if (rv != 0) {
-      assert(ngtcp2_err_is_fatal(rv));
-      return rv;
-    }
-
-    rv = conn_on_pkt_sent(conn, &pktns->rtb, rtbent);
-    if (rv != 0) {
-      ngtcp2_rtb_entry_del(rtbent, conn->mem);
-      return rv;
-    }
-  }
-
-  ++pktns->tx.last_pkt_num;
-
-  return spktlen;
+  return conn_write_single_frame_pkt(conn, dest, destlen, type,
+                                     &conn->dcid.current.cid, ackfr,
+                                     NGTCP2_RTB_FLAG_NONE, ts);
 }
 
 /*
@@ -2789,6 +2723,7 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   uint8_t flags;
   ngtcp2_rtb_entry *rtbent;
   int padded = 0;
+  size_t pktlen;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
@@ -2854,6 +2789,15 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
   }
   if (lfr.padding.len) {
+    if (fr->type == NGTCP2_FRAME_ACK) {
+      /* If PADDING is added, the packet suddenly gets CWND
+         limited. */
+      pktlen = ngtcp2_ppe_pktlen(&ppe);
+      if (pktlen > conn_cwnd_left(conn)) {
+        return 0;
+      }
+    }
+
     padded = 1;
     ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
   }

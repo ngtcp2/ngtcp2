@@ -107,6 +107,12 @@ ssize_t ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
  */
 size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe);
 
+/*
+ * ngtcp2_ppe_pktlen returns the provisional packet length.  It
+ * includes AEAD overhead.
+ */
+size_t ngtcp2_ppe_pktlen(ngtcp2_ppe *ppe);
+
 /**
  * @function
  *
