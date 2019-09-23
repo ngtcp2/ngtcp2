@@ -2240,16 +2240,6 @@ NGTCP2_EXTERN void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn,
                                               ngtcp2_rcvry_stat *rcs);
 
 /**
- * @struct
- *
- * ngtcp2_iovec is a struct compatible to standard struct iovec.
- */
-typedef struct ngtcp2_iovec {
-  void *iov_base;
-  size_t iov_len;
-} ngtcp2_iovec;
-
-/**
  * @function
  *
  * `ngtcp2_conn_on_loss_detection_timer` should be called when a timer
