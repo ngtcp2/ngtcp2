@@ -2909,7 +2909,6 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
 static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             size_t destlen, ngtcp2_tstamp ts) {
   int rv;
-  ssize_t spktlen;
   ngtcp2_frame *ackfr;
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
 
@@ -2927,14 +2926,9 @@ static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return 0;
   }
 
-  spktlen = conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT,
-                                        &conn->dcid.current.cid, ackfr,
-                                        NGTCP2_RTB_FLAG_NONE, ts);
-  if (spktlen < 0) {
-    return spktlen;
-  }
-
-  return spktlen;
+  return conn_write_single_frame_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT,
+                                     &conn->dcid.current.cid, ackfr,
+                                     NGTCP2_RTB_FLAG_NONE, ts);
 }
 
 /*
