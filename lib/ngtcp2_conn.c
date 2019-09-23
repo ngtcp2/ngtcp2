@@ -964,7 +964,7 @@ static int conn_ppe_write_frame(ngtcp2_conn *conn, ngtcp2_ppe *ppe,
 }
 
 /*
- * conn_on_pkt_sent is called when new retransmittable packet is sent.
+ * conn_on_pkt_sent is called when new non-ACK-only packet is sent.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -977,7 +977,7 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
   int rv;
 
   /* This function implements OnPacketSent, but it handles only
-     retransmittable packet (non-ACK only packet). */
+     non-ACK-only packet. */
   rv = ngtcp2_rtb_add(rtb, ent);
   if (rv != 0) {
     return rv;

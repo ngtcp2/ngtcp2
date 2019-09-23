@@ -335,7 +335,9 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem);
  * ngtcp2_pkt_hd_init initializes |hd| with the given values.  If
  * |dcid| and/or |scid| is NULL, DCID and SCID of |hd| is empty
  * respectively.  |pkt_numlen| is the number of bytes used to encode
- * |pkt_num| and either 1, 2, or 4.
+ * |pkt_num| and either 1, 2, or 4.  |version| is QUIC version for
+ * long header.  |len| is the length field of Initial, 0RTT, and
+ * Handshake packets.
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
