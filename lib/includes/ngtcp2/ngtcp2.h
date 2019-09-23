@@ -131,7 +131,7 @@ typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *mem_user_data);
  *       ...
  *     }
  */
-typedef struct {
+typedef struct ngtcp2_mem {
   /**
    * An arbitrary user supplied data.  This is passed to each
    * allocator function.
@@ -253,7 +253,7 @@ typedef enum ngtcp2_lib_error {
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
 } ngtcp2_lib_error;
 
-typedef enum {
+typedef enum ngtcp2_pkt_flag {
   NGTCP2_PKT_FLAG_NONE = 0,
   NGTCP2_PKT_FLAG_LONG_FORM = 0x01,
   NGTCP2_PKT_FLAG_KEY_PHASE = 0x04
@@ -330,7 +330,7 @@ typedef struct ngtcp2_cid {
  * ngtcp2_vec is struct iovec compatible structure to reference
  * arbitrary array of bytes.
  */
-typedef struct {
+typedef struct ngtcp2_vec {
   /* base points to the data. */
   uint8_t *base;
   /* len is the number of bytes which the buffer pointed by base
@@ -467,7 +467,7 @@ typedef struct ngtcp2_preferred_addr {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_preferred_addr;
 
-typedef struct {
+typedef struct ngtcp2_transport_params {
   ngtcp2_preferred_addr preferred_address;
   ngtcp2_cid original_connection_id;
   uint64_t initial_max_stream_data_bidi_local;
@@ -492,7 +492,7 @@ typedef struct {
    ngtcp2_conn_server_new. */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
-typedef struct {
+typedef struct ngtcp2_settings {
   ngtcp2_preferred_addr preferred_address;
   /* initial_ts is an initial timestamp given to the library. */
   ngtcp2_tstamp initial_ts;
@@ -542,7 +542,7 @@ typedef struct {
  *
  * Everything is NGTCP2_DURATION_TICK resolution.
  */
-typedef struct {
+typedef struct ngtcp2_rcvry_stat {
   ngtcp2_duration latest_rtt;
   ngtcp2_duration min_rtt;
   double smoothed_rtt;
@@ -591,7 +591,7 @@ typedef struct ngtcp2_path {
  * ngtcp2_path_storage is a convenient struct to have buffers to store
  * the longest addresses.
  */
-typedef struct {
+typedef struct ngtcp2_path_storage {
   uint8_t local_addrbuf[128];
   uint8_t remote_addrbuf[128];
   ngtcp2_path path;
@@ -1372,7 +1372,7 @@ typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
                                             const ngtcp2_preferred_addr *paddr,
                                             void *user_data);
 
-typedef struct {
+typedef struct ngtcp2_conn_callbacks {
   ngtcp2_client_initial client_initial;
   ngtcp2_recv_client_initial recv_client_initial;
   ngtcp2_recv_crypto_data recv_crypto_data;
@@ -1935,7 +1935,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * ngtcp2_write_stream_flag defines extra behaviour for
  * `ngtcp2_conn_writev_stream()`.
  */
-typedef enum {
+typedef enum ngtcp2_write_stream_flag {
   NGTCP2_WRITE_STREAM_FLAG_NONE = 0x00,
   /**
    * NGTCP2_WRITE_STREAM_FLAG_MORE indicates that more stream data may
@@ -2244,7 +2244,7 @@ NGTCP2_EXTERN void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn,
  *
  * ngtcp2_iovec is a struct compatible to standard struct iovec.
  */
-typedef struct {
+typedef struct ngtcp2_iovec {
   void *iov_base;
   size_t iov_len;
 } ngtcp2_iovec;
@@ -2516,7 +2516,7 @@ NGTCP2_EXTERN const ngtcp2_mem *ngtcp2_mem_default(void);
  * This struct is what `ngtcp2_version()` returns.  It holds
  * information about the particular ngtcp2 version.
  */
-typedef struct {
+typedef struct ngtcp2_info {
   /**
    * Age of this struct.  This instance of ngtcp2 sets it to
    * :macro:`NGTCP2_VERSION_AGE` but a future version may bump it and
