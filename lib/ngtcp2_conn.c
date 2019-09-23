@@ -2749,12 +2749,12 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     assert(0);
   }
 
-  cc.encrypt = conn->callbacks.encrypt;
-  cc.hp_mask = conn->callbacks.hp_mask;
   cc.aead = pktns->crypto.ctx.aead;
   cc.hp = pktns->crypto.ctx.hp;
   cc.ckm = pktns->crypto.tx.ckm;
   cc.hp_key = pktns->crypto.tx.hp_key;
+  cc.encrypt = conn->callbacks.encrypt;
+  cc.hp_mask = conn->callbacks.hp_mask;
   cc.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, flags, type, dcid, &conn->oscid,
