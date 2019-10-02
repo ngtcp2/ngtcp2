@@ -7943,7 +7943,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
                                            uint8_t *dest, size_t destlen,
                                            uint64_t error_code,
                                            ngtcp2_tstamp ts) {
-  ssize_t res, nwrite;
+  ssize_t res = 0, nwrite;
   ngtcp2_frame fr;
   uint8_t pkt_type;
 
@@ -7981,25 +7981,30 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  nwrite = conn_write_single_frame_pkt(conn, dest, destlen, pkt_type,
-                                       &conn->dcid.current.cid, &fr,
-                                       NGTCP2_RTB_FLAG_NONE, ts);
-
-  if (nwrite <= 0) {
-    return nwrite;
-  }
-
-  res = nwrite;
-
   if (conn->server && pkt_type == NGTCP2_PKT_HANDSHAKE &&
       conn->in_pktns.crypto.tx.ckm) {
     nwrite = conn_write_single_frame_pkt(
-        conn, dest + nwrite, destlen - (size_t)nwrite, NGTCP2_PKT_INITIAL,
-        &conn->dcid.current.cid, &fr, NGTCP2_RTB_FLAG_NONE, ts);
+        conn, dest, destlen, NGTCP2_PKT_INITIAL, &conn->dcid.current.cid, &fr,
+        NGTCP2_RTB_FLAG_NONE, ts);
     if (nwrite < 0) {
       return nwrite;
     }
+
     res += nwrite;
+  }
+
+  nwrite = conn_write_single_frame_pkt(conn, dest + res, destlen - (size_t)res,
+                                       pkt_type, &conn->dcid.current.cid, &fr,
+                                       NGTCP2_RTB_FLAG_NONE, ts);
+
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  res += nwrite;
+
+  if (res == 0) {
+    return 0;
   }
 
   conn->state = NGTCP2_CS_CLOSING;
