@@ -4434,7 +4434,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   cfr = &crypto.fr;
   cfr->type = NGTCP2_FRAME_CRYPTO;
-  cfr->crypto.offset= 0;
+  cfr->crypto.offset = 0;
   cfr->crypto.datacnt = 1;
   cfr->crypto.data[0].len = 123;
   cfr->crypto.data[0].base = null_data;
