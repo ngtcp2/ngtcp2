@@ -158,9 +158,6 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_SADDR_VERIFIED is set when source address is
      verified. */
   NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
-  /* NGTCP2_CONN_FLAG_OCID_PRESENT is set when ocid field of
-     ngtcp2_conn is set. */
-  NGTCP2_CONN_FLAG_OCID_PRESENT = 0x80,
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
   NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
@@ -285,10 +282,6 @@ struct ngtcp2_conn {
      this connection.  Client uses this field to validate
      original_connection_id transport parameter. */
   ngtcp2_cid rcid;
-  /* ocid is a connection ID sent as original destination connection
-     ID in Retry packet.  Only server uses this field to send this CID
-     to client in original_connection_id transport parameter. */
-  ngtcp2_cid ocid;
   /* oscid is the source connection ID initially used by the local
      endpoint. */
   ngtcp2_cid oscid;
@@ -392,11 +385,13 @@ struct ngtcp2_conn {
   } local;
 
   struct {
-    ngtcp2_settings settings;
-    /* pending_settings is received transport parameters during
-       handshake.  It is copied to settings when 1RTT key is
-       available. */
-    ngtcp2_settings pending_settings;
+    /* transport_params is the received transport parameters during
+       handshake.  It is used for Short packet only. */
+    ngtcp2_transport_params transport_params;
+    /* pending_transport_params is received transport parameters
+       during handshake.  It is copied to transport_params when 1RTT
+       key is available. */
+    ngtcp2_transport_params pending_transport_params;
     struct {
       ngtcp2_idtr idtr;
       /* unsent_max_streams is the maximum number of streams of peer

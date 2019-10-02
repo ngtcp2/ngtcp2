@@ -1376,19 +1376,25 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
-  settings.max_stream_data_bidi_local = 256_k;
-  settings.max_stream_data_bidi_remote = 256_k;
-  settings.max_stream_data_uni = 256_k;
-  settings.max_data = 1_m;
-  settings.max_streams_bidi = 100;
-  settings.max_streams_uni = 3;
-  settings.idle_timeout = config.timeout;
-  settings.stateless_reset_token_present = 1;
-  settings.active_connection_id_limit = 7;
+  auto &params = settings.transport_params;
+  params.initial_max_stream_data_bidi_local = 256_k;
+  params.initial_max_stream_data_bidi_remote = 256_k;
+  params.initial_max_stream_data_uni = 256_k;
+  params.initial_max_data = 1_m;
+  params.initial_max_streams_bidi = 100;
+  params.initial_max_streams_uni = 3;
+  params.idle_timeout = config.timeout;
+  params.stateless_reset_token_present = 1;
+  params.active_connection_id_limit = 7;
+
+  if (ocid) {
+    params.original_connection_id = *ocid;
+    params.original_connection_id_present = 1;
+  }
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate(std::begin(settings.stateless_reset_token),
-                std::end(settings.stateless_reset_token),
+  std::generate(std::begin(params.stateless_reset_token),
+                std::end(params.stateless_reset_token),
                 [&dis]() { return dis(randgen); });
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;
@@ -1396,30 +1402,30 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                 [&dis]() { return dis(randgen); });
 
   if (config.preferred_ipv4_addr.len || config.preferred_ipv6_addr.len) {
-    settings.preferred_address_present = 1;
+    params.preferred_address_present = 1;
     if (config.preferred_ipv4_addr.len) {
-      auto &dest = settings.preferred_address.ipv4_addr;
+      auto &dest = params.preferred_address.ipv4_addr;
       const auto &addr = config.preferred_ipv4_addr;
       assert(sizeof(dest) == sizeof(addr.su.in.sin_addr));
       memcpy(&dest, &addr.su.in.sin_addr, sizeof(dest));
-      settings.preferred_address.ipv4_port = htons(addr.su.in.sin_port);
+      params.preferred_address.ipv4_port = htons(addr.su.in.sin_port);
     }
     if (config.preferred_ipv6_addr.len) {
-      auto &dest = settings.preferred_address.ipv6_addr;
+      auto &dest = params.preferred_address.ipv6_addr;
       const auto &addr = config.preferred_ipv6_addr;
       assert(sizeof(dest) == sizeof(addr.su.in6.sin6_addr));
       memcpy(&dest, &addr.su.in6.sin6_addr, sizeof(dest));
-      settings.preferred_address.ipv6_port = htons(addr.su.in6.sin6_port);
+      params.preferred_address.ipv6_port = htons(addr.su.in6.sin6_port);
     }
 
-    auto &token = settings.preferred_address.stateless_reset_token;
+    auto &token = params.preferred_address.stateless_reset_token;
     std::generate(std::begin(token), std::end(token),
                   [&dis]() { return dis(randgen); });
 
     pscid_.datalen = NGTCP2_SV_SCIDLEN;
     std::generate(pscid_.data, pscid_.data + pscid_.datalen,
                   [&dis]() { return dis(randgen); });
-    settings.preferred_address.cid = pscid_;
+    params.preferred_address.cid = pscid_;
   }
 
   auto path = ngtcp2_path{
@@ -1433,13 +1439,6 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
-
-  if (ocid) {
-    ngtcp2_conn_set_retry_ocid(conn_, ocid);
-  }
-
-  ngtcp2_transport_params params;
-  ngtcp2_conn_get_local_transport_params(conn_, &params);
 
   std::array<uint8_t, 512> buf;
 

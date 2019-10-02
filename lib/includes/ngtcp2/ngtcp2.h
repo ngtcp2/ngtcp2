@@ -469,23 +469,45 @@ typedef struct ngtcp2_preferred_addr {
 
 typedef struct ngtcp2_transport_params {
   ngtcp2_preferred_addr preferred_address;
+  /* original_connection_id is the client initial connection ID.
+     Server must specify this field and set
+     original_connection_id_present to nonzero if it sent Retry
+     packet. */
   ngtcp2_cid original_connection_id;
+  /* initial_max_stream_data_bidi_local is the size of flow control
+     window of locally initiated stream.  This is the number of bytes
+     that the remote endpoint can send and the local endpoint must
+     ensure that it has enough buffer to receive them. */
   uint64_t initial_max_stream_data_bidi_local;
+  /* initial_max_stream_data_bidi_remote is the size of flow control
+     window of remotely initiated stream.  This is the number of bytes
+     that the remote endpoint can send and the local endpoint must
+     ensure that it has enough buffer to receive them. */
   uint64_t initial_max_stream_data_bidi_remote;
+  /* initial_max_stream_data_uni is the size of flow control window of
+     remotely initiated unidirectional stream.  This is the number of
+     bytes that the remote endpoint can send and the local endpoint
+     must ensure that it has enough buffer to receive them. */
   uint64_t initial_max_stream_data_uni;
+  /* initial_max_data is the connection level flow control window. */
   uint64_t initial_max_data;
+  /* initial_max_streams_bidi is the number of concurrent streams that
+     the remote endpoint can create. */
   uint64_t initial_max_streams_bidi;
+  /* initial_max_streams_uni is the number of concurrent
+     unidirectional streams that the remote endpoint can create. */
   uint64_t initial_max_streams_uni;
+  /* idle_timeout is specified in millisecond resolution */
   uint64_t idle_timeout;
   uint64_t max_packet_size;
   uint64_t active_connection_id_limit;
-  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  uint8_t stateless_reset_token_present;
   uint64_t ack_delay_exponent;
+  ngtcp2_duration max_ack_delay;
+  uint8_t stateless_reset_token_present;
   uint8_t disable_active_migration;
   uint8_t original_connection_id_present;
-  ngtcp2_duration max_ack_delay;
   uint8_t preferred_address_present;
+  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_transport_params;
 
 /* user_data is the same object passed to ngtcp2_conn_client_new or
@@ -493,45 +515,13 @@ typedef struct ngtcp2_transport_params {
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
 typedef struct ngtcp2_settings {
-  ngtcp2_preferred_addr preferred_address;
+  /* transport_params is the QUIC transport parameters to send. */
+  ngtcp2_transport_params transport_params;
   /* initial_ts is an initial timestamp given to the library. */
   ngtcp2_tstamp initial_ts;
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
-  /* max_stream_data_bidi_local is the size of flow control window of
-     locally initiated stream.  This is the number of bytes that the
-     remote endpoint can send and the local endpoint must ensure that
-     it has enough buffer to receive them. */
-  uint64_t max_stream_data_bidi_local;
-  /* max_stream_data_bidi_remote is the size of flow control window of
-     remotely initiated stream.  This is the number of bytes that the
-     remote endpoint can send and the local endpoint must ensure that
-     it has enough buffer to receive them. */
-  uint64_t max_stream_data_bidi_remote;
-  /* max_stream_data_uni is the size of flow control window of
-     remotely initiated unidirectional stream.  This is the number of
-     bytes that the remote endpoint can send and the local endpoint
-     must ensure that it has enough buffer to receive them. */
-  uint64_t max_stream_data_uni;
-  /* max_data is the connection level flow control window. */
-  uint64_t max_data;
-  /* max_streams_bidi is the number of concurrent streams that the
-     remote endpoint can create. */
-  uint64_t max_streams_bidi;
-  /* max_streams_uni is the number of concurrent unidirectional
-     streams that the remote endpoint can create. */
-  uint64_t max_streams_uni;
-  /* idle_timeout is specified in millisecond resolution */
-  uint64_t idle_timeout;
-  uint64_t max_packet_size;
-  uint64_t active_connection_id_limit;
-  uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
-  uint8_t stateless_reset_token_present;
-  uint64_t ack_delay_exponent;
-  uint8_t disable_active_migration;
-  ngtcp2_duration max_ack_delay;
-  uint8_t preferred_address_present;
 } ngtcp2_settings;
 
 /**
@@ -2277,16 +2267,6 @@ NGTCP2_EXTERN int
 ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
                                ngtcp2_crypto_level crypto_level,
                                const uint8_t *data, const size_t datalen);
-
-/**
- * @function
- *
- * `ngtcp2_conn_set_retry_ocid` tells |conn| that application as a
- * server received |ocid| included in token from client.  |ocid| will
- * be sent in transport parameter.
- */
-NGTCP2_EXTERN void ngtcp2_conn_set_retry_ocid(ngtcp2_conn *conn,
-                                              const ngtcp2_cid *ocid);
 
 /**
  * @function

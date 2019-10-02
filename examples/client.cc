@@ -852,14 +852,15 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
-  settings.max_stream_data_bidi_local = 256_k;
-  settings.max_stream_data_bidi_remote = 256_k;
-  settings.max_stream_data_uni = 256_k;
-  settings.max_data = 1_m;
-  settings.max_streams_bidi = 1;
-  settings.max_streams_uni = 100;
-  settings.idle_timeout = config.timeout;
-  settings.active_connection_id_limit = 7;
+  auto &params = settings.transport_params;
+  params.initial_max_stream_data_bidi_local = 256_k;
+  params.initial_max_stream_data_bidi_remote = 256_k;
+  params.initial_max_stream_data_uni = 256_k;
+  params.initial_max_data = 1_m;
+  params.initial_max_streams_bidi = 1;
+  params.initial_max_streams_uni = 100;
+  params.idle_timeout = config.timeout;
+  params.active_connection_id_limit = 7;
 
   auto path = ngtcp2_path{
       {local_addr.len, const_cast<uint8_t *>(
