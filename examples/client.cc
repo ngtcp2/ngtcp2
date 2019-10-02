@@ -354,7 +354,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       nstreams_done_(0),
       nkey_update_(0),
       version_(0),
-      resumption_(false) {
+      early_data_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
@@ -507,7 +507,7 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
 int Client::handshake_completed() {
   if (!config.quiet) {
     // SSL_get_early_data_status works after handshake completes.
-    if (resumption_ &&
+    if (early_data_ &&
         SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
       std::cerr << "Early data was rejected by server" << std::endl;
     }
@@ -768,9 +768,8 @@ int Client::init_ssl() {
         if (!SSL_set_session(ssl_, session)) {
           std::cerr << "Could not set session" << std::endl;
         } else {
-          resumption_ = true;
-
           if (SSL_SESSION_get_max_early_data(session)) {
+            early_data_ = true;
             SSL_set_quic_early_data_enabled(ssl_, 1);
           }
         }
@@ -881,6 +880,18 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   rv = setup_initial_crypto_context();
   if (rv != 0) {
     return -1;
+  }
+
+  if (early_data_ && config.tp_file) {
+    ngtcp2_transport_params params;
+    if (read_transport_params(config.tp_file, &params) != 0) {
+      std::cerr << "Could not read transport parameters from " << config.tp_file
+                << std::endl;
+      early_data_ = false;
+    } else {
+      ngtcp2_conn_set_early_remote_transport_params(conn_, &params);
+      make_stream_early();
+    }
   }
 
   ev_io_set(&wev_, fd_, EV_WRITE);
@@ -2100,17 +2111,6 @@ int run(Client &c, const char *addr, const char *port) {
 
   if (c.init(fd, local_addr, remote_addr, addr, port, config.version) != 0) {
     return -1;
-  }
-
-  if (config.tp_file) {
-    ngtcp2_transport_params params;
-    if (read_transport_params(config.tp_file, &params) != 0) {
-      std::cerr << "Could not read transport parameters from " << config.tp_file
-                << std::endl;
-    } else {
-      ngtcp2_conn_set_early_remote_transport_params(c.conn(), &params);
-      c.make_stream_early();
-    }
   }
 
   // TODO Do we need this ?

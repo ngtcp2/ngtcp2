@@ -247,8 +247,8 @@ private:
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
   uint32_t version_;
-  // resumption_ is true if client attempts to resume session.
-  bool resumption_;
+  // early_data_ is true if client attempts to do 0RTT data transfer.
+  bool early_data_;
 };
 
 #endif // CLIENT_H
