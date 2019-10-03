@@ -7938,7 +7938,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
   res += nwrite;
 
   if (res == 0) {
-    return 0;
+    return NGTCP2_ERR_NOBUF;
   }
 
   conn->state = NGTCP2_CS_CLOSING;
@@ -7981,9 +7981,15 @@ ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
                                        &conn->dcid.current.cid, &fr,
                                        NGTCP2_RTB_FLAG_NONE, ts);
 
-  if (nwrite > 0) {
-    conn->state = NGTCP2_CS_CLOSING;
+  if (nwrite < 0) {
+    return nwrite;
   }
+
+  if (nwrite == 0) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  conn->state = NGTCP2_CS_CLOSING;
 
   return nwrite;
 }
