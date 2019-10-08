@@ -29,11 +29,11 @@ set(ngtcp2_crypto_openssl_SOURCES
 )
 
 set(ngtcp2_crypto_openssl_INCLUDE_DIRS
-  "${CMAKE_SOURCE_DIR}/lib/includes"
-  "${CMAKE_BINARY_DIR}/lib/includes"
-  "${CMAKE_SOURCE_DIR}/lib"
-  "${CMAKE_SOURCE_DIR}/crypto/includes"
-  "${CMAKE_BINARY_DIR}/crypto/includes"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../lib/includes"
+  "${CMAKE_CURRENT_BINARY_DIR}/../../lib/includes"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../crypto/includes"
+  "${CMAKE_CURRENT_BINARY_DIR}/../../crypto/includes"
   "${OPENSSL_INCLUDE_DIRS}"
 )
 
