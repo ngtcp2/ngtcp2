@@ -35,6 +35,15 @@ extern "C" {
 #define NGTCP2_CRYPTO_INITIAL_KEYLEN 16
 #define NGTCP2_CRYPTO_INITIAL_IVLEN 12
 
+#if defined(__cplusplus) && __cplusplus >= 201103L
+typedef enum ngtcp2_crypto_lib_error : int {
+#else
+typedef enum ngtcp2_crypto_lib_error {
+#endif
+  NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP = -301,
+  NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB = -302,
+} ngtcp2_crypto_lib_error;
+
 /**
  * @function
  *
