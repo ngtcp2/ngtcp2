@@ -2835,6 +2835,8 @@ int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
 
 namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
+  constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
+
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
   constexpr auto ssl_opts = (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
@@ -2882,6 +2884,8 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     goto fail;
   }
+
+  SSL_CTX_set_session_id_context(ssl_ctx, sid_ctx, sizeof(sid_ctx) - 1);
 
   if (config.verify_client) {
     SSL_CTX_set_verify(ssl_ctx,
