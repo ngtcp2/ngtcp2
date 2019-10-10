@@ -47,6 +47,12 @@
 
 using namespace ngtcp2;
 
+struct Request {
+  std::string scheme;
+  std::string authority;
+  std::string path;
+};
+
 struct Config {
   ngtcp2_cid dcid;
   // tx_loss_prob is probability of losing outgoing packet.
@@ -95,9 +101,11 @@ struct Config {
   // address offered by server.
   bool no_preferred_addr;
   std::string http_method;
-  std::string scheme;
-  std::string authority;
-  std::string path;
+  // download is a path to a directory where a downloaded file is
+  // saved.  If it is empty, no file is saved.
+  std::string download;
+  // requests contains URIs to request.
+  std::vector<Request> requests;
 };
 
 struct Buffer {
@@ -132,10 +140,14 @@ struct Buffer {
 };
 
 struct Stream {
-  Stream(int64_t stream_id);
+  Stream(const Request &req, int64_t stream_id);
   ~Stream();
 
+  int open_file(const std::string &path);
+
+  Request req;
   int64_t stream_id;
+  int fd;
 };
 
 struct Crypto {
@@ -201,12 +213,13 @@ public:
                                const ngtcp2_preferred_addr *paddr);
 
   int setup_httpconn();
-  int submit_http_request(int64_t stream_id);
+  int submit_http_request(const Stream *stream);
   int recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
                        size_t datalen);
   int acked_stream_data_offset(int64_t stream_id, size_t datalen);
   int http_acked_stream_data(int64_t stream_id, size_t datalen);
   void http_consume(int64_t stream_id, size_t nconsumed);
+  void http_write_data(int64_t stream_id, const uint8_t *data, size_t datalen);
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int send_stop_sending(int64_t stream_id, uint64_t app_error_code);
