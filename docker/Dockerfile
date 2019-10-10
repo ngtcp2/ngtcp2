@@ -4,13 +4,13 @@ RUN /usr/local/bin/clean-install \
         git g++ make binutils autoconf automake autotools-dev libtool \
 	pkg-config libev-dev libjemalloc-dev \
         libev4 libjemalloc1 ca-certificates mime-support && \
-    git clone --depth 1 -b openssl-quic-draft-22 https://github.com/tatsuhiro-t/openssl && \
+    git clone --depth 1 -b openssl-quic-draft-23 https://github.com/tatsuhiro-t/openssl && \
     cd openssl && ./config enable-tls1_3 --openssldir=/etc/ssl && make -j$(nproc) && make install_sw && cd .. && rm -rf openssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \
     ./configure --enable-lib-only && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
-    git clone --depth 1 -b draft-22 https://github.com/ngtcp2/ngtcp2 && \
+    git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
     ./configure && \
     make -j$(nproc) && make install-strip && cp examples/server examples/client /usr/local/bin && cd .. && rm -rf ngtcp2 && \
