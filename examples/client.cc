@@ -2065,7 +2065,7 @@ auto quic_method = SSL_QUIC_METHOD{
 } // namespace
 
 namespace {
-SSL_CTX *create_ssl_ctx() {
+SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
@@ -2082,6 +2082,21 @@ SSL_CTX *create_ssl_ctx() {
   if (SSL_CTX_set1_groups_list(ssl_ctx, config.groups) != 1) {
     std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
     exit(EXIT_FAILURE);
+  }
+
+  if (private_key_file && cert_file) {
+    if (SSL_CTX_use_PrivateKey_file(ssl_ctx, private_key_file,
+                                    SSL_FILETYPE_PEM) != 1) {
+      std::cerr << "SSL_CTX_use_PrivateKey_file: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (SSL_CTX_use_certificate_chain_file(ssl_ctx, cert_file) != 1) {
+      std::cerr << "SSL_CTX_use_certificate_file: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+      exit(EXIT_FAILURE);
+    }
   }
 
   SSL_CTX_set_quic_method(ssl_ctx, &quic_method);
@@ -2287,6 +2302,8 @@ Options:
 int main(int argc, char **argv) {
   config_set_default(config);
   char *data_path = nullptr;
+  const char *private_key_file = nullptr;
+  const char *cert_file = nullptr;
 
   for (;;) {
     static int flag = 0;
@@ -2311,6 +2328,8 @@ int main(int argc, char **argv) {
         {"nat-rebinding", no_argument, &flag, 9},
         {"delay-stream", required_argument, &flag, 10},
         {"no-preferred-addr", no_argument, &flag, 11},
+        {"key", required_argument, &flag, 12},
+        {"cert", required_argument, &flag, 13},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2414,6 +2433,14 @@ int main(int argc, char **argv) {
         // --no-preferred-addr
         config.no_preferred_addr = true;
         break;
+      case 12:
+        // --key
+        private_key_file = optarg;
+        break;
+      case 13:
+        // --cert
+        cert_file = optarg;
+        break;
       }
       break;
     default:
@@ -2455,7 +2482,7 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  auto ssl_ctx = create_ssl_ctx();
+  auto ssl_ctx = create_ssl_ctx(private_key_file, cert_file);
   auto ssl_ctx_d = defer(SSL_CTX_free, ssl_ctx);
 
   auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);

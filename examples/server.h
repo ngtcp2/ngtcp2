@@ -84,6 +84,9 @@ struct Config {
   // HTTP response data is written before receiving request body,
   // STOP_SENDING is sent.
   bool early_response;
+  // verify_client is true if server verifies client with X.509
+  // certificate based authentication.
+  bool verify_client;
 };
 
 struct Buffer {

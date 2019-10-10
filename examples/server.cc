@@ -2826,6 +2826,14 @@ int client_hello_cb(SSL *ssl, int *al, void *arg) {
 } // namespace
 
 namespace {
+int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
+  // We don't verify the client certificate.  Just request it for the
+  // testing purpose.
+  return 1;
+}
+} // namespace
+
+namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
@@ -2873,6 +2881,13 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
     std::cerr << "SSL_CTX_check_private_key: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     goto fail;
+  }
+
+  if (config.verify_client) {
+    SSL_CTX_set_verify(ssl_ctx,
+                       SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE |
+                           SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                       verify_cb);
   }
 
   SSL_CTX_set_max_early_data(ssl_ctx, std::numeric_limits<uint32_t>::max());
@@ -3037,6 +3052,9 @@ Options:
               fields  without  waiting  for  request  body.   If  HTTP
               response data is written  before receiving request body,
               STOP_SENDING is sent.
+  --verify-client
+              Request a  client certificate.   At the moment,  we just
+              request a certificate and no verification is done.
   -h, --help  Display this help and exit.
 )";
 }
@@ -3061,7 +3079,8 @@ int main(int argc, char **argv) {
         {"preferred-ipv4-addr", required_argument, &flag, 4},
         {"preferred-ipv6-addr", required_argument, &flag, 5},
         {"mime-types-file", required_argument, &flag, 6},
-        {"early-response", no_argument, nullptr, 7},
+        {"early-response", no_argument, &flag, 7},
+        {"verify-client", no_argument, &flag, 8},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3147,6 +3166,10 @@ int main(int argc, char **argv) {
       case 7:
         // --early-response
         config.early_response = optarg;
+        break;
+      case 8:
+        // --verify-client
+        config.verify_client = true;
         break;
       }
       break;
