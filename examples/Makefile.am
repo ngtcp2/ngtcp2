@@ -61,7 +61,8 @@ server_SOURCES = server.cc server.h \
 if HAVE_CUNIT
 check_PROGRAMS = examplestest
 examplestest_SOURCES = examplestest.cc \
-	util_test.cc util_test.h util.cc util.h
+	util_test.cc util_test.h util.cc util.h \
+	server_test.cc server_test.h server.h
 examplestest_LDADD = ${LDADD} @CUNIT_LIBS@
 
 TESTS = examplestest

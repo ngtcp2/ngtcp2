@@ -402,8 +402,8 @@ void Stream::http_acked_stream_data(size_t datalen) {
 }
 
 int Stream::send_status_response(nghttp3_conn *httpconn,
-                                 unsigned int status_code,
-                                 const std::vector<HTTPHeader> &extra_headers) {
+    unsigned int status_code,
+    const std::vector<HTTPHeaderStr> &extra_headers) {
   status_resp_body = make_status_body(status_code);
 
   auto status_code_str = std::to_string(status_code);

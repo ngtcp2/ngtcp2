@@ -117,13 +117,15 @@ struct Buffer {
   uint8_t *tail;
 };
 
+template <typename T1, typename T2>
 struct HTTPHeader {
-  template <typename T1, typename T2>
   HTTPHeader(const T1 &name, const T2 &value) : name(name), value(value) {}
 
-  std::string name;
-  std::string value;
+  T1 name;
+  T2 value;
 };
+
+using HTTPHeaderStr = HTTPHeader<std::string, std::string>;
 
 class Handler;
 
@@ -136,7 +138,7 @@ struct Stream {
   int open_file(const std::string &path);
   int map_file(size_t len);
   int send_status_response(nghttp3_conn *conn, unsigned int status_code,
-                           const std::vector<HTTPHeader> &extra_headers = {});
+      const std::vector<HTTPHeaderStr> &extra_headers = {});
   int send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
                              const std::string &path);
   int64_t find_dyn_length(const std::string &path);
