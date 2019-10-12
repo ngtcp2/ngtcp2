@@ -553,7 +553,7 @@ typedef struct ngtcp2_rcvry_stat {
  * ngtcp2_addr is the endpoint address.
  */
 typedef struct ngtcp2_addr {
-  /* len is the length of addr. */
+  /* addrlen is the length of addr. */
   size_t addrlen;
   /* addr points to the buffer which contains endpoint address.  It is
      opaque to the ngtcp2 library. */
