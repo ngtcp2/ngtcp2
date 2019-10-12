@@ -468,7 +468,7 @@ namespace {
 int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_quic_dump) {
     debug::print_crypto_data(crypto_level, data, datalen);
   }
 
@@ -486,7 +486,7 @@ namespace {
 int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_quic_dump) {
     debug::print_stream_data(stream_id, data, datalen);
   }
 
@@ -1782,7 +1782,7 @@ int Client::http_acked_stream_data(int64_t stream_id, size_t datalen) {
 namespace {
 int http_recv_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t *data,
                    size_t datalen, void *user_data, void *stream_user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_http_dump) {
     debug::print_http_data(stream_id, data, datalen);
   }
   auto c = static_cast<Client *>(user_data);
@@ -2381,6 +2381,10 @@ Options:
               The path to the directory  to save a downloaded content.
               It is  undefined if 2  concurrent requests write  to the
               same file.
+  --no-quic-dump
+              Disables printing QUIC STREAM and CRYPTO frame data out.
+  --no-http-dump
+              Disables printing HTTP response body out.
   -h, --help  Display this help and exit.
 )";
 }
@@ -2418,6 +2422,8 @@ int main(int argc, char **argv) {
         {"key", required_argument, &flag, 12},
         {"cert", required_argument, &flag, 13},
         {"download", required_argument, &flag, 14},
+        {"no-quic-dump", no_argument, &flag, 15},
+        {"no-http-dump", no_argument, &flag, 16},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2532,6 +2538,14 @@ int main(int argc, char **argv) {
       case 14:
         // --download
         config.download = optarg;
+        break;
+      case 15:
+        // --no-quic-dump
+        config.no_quic_dump = true;
+        break;
+      case 16:
+        // --no-http-dump
+        config.no_http_dump = true;
         break;
       }
       break;

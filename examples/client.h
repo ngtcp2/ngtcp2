@@ -106,6 +106,12 @@ struct Config {
   std::string download;
   // requests contains URIs to request.
   std::vector<Request> requests;
+  // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
+  // should be disabled.
+  bool no_quic_dump;
+  // no_http_dump is true if hexdump of HTTP response body should be
+  // disabled.
+  bool no_http_dump;
 };
 
 struct Buffer {
