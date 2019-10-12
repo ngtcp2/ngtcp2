@@ -11,7 +11,7 @@ RUN apt-get update && \
     cd nghttp3 && autoreconf -i && \
     ./configure --enable-lib-only && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
-    git clone --depth 1 -b interop https://github.com/ngtcp2/ngtcp2 && \
+    git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
     ./configure && \
     make -j$(nproc) && make install-strip && cp examples/server examples/client /usr/local/bin && cd .. && rm -rf ngtcp2 && \
