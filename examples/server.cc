@@ -1929,7 +1929,9 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   }
 
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
+  if (it == std::end(streams_)) {
+    return 0;
+  }
 
   if (httpconn_) {
     if (app_error_code == 0) {
