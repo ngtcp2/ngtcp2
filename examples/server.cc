@@ -1569,6 +1569,11 @@ void Handler::reset_idle_timer() {
           ? static_cast<ev_tstamp>(idle_expiry - now) / NGTCP2_SECONDS
           : 1e-9;
 
+  if (!config.quiet) {
+    std::cerr << "Set idle timer=" << std::fixed << timer_.repeat << "s"
+              << std::defaultfloat << std::endl;
+  }
+
   ev_timer_again(loop_, &timer_);
 }
 
