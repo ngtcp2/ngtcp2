@@ -2041,11 +2041,7 @@ static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn) {
       (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)
           ? conn->remote.transport_params.max_ack_delay
           : NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  ngtcp2_duration timeout =
-      (ngtcp2_duration)(rcs->smoothed_rtt + var + (double)max_ack_delay);
-  timeout *= (ngtcp2_duration)(1ULL << rcs->pto_count);
-
-  return timeout;
+  return (ngtcp2_duration)(rcs->smoothed_rtt + var) + max_ack_delay;
 }
 
 /*
@@ -8339,10 +8335,11 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
   }
 
   if (rcs->smoothed_rtt < 1e-09) {
-    timeout = (2 * NGTCP2_DEFAULT_INITIAL_RTT) * (1ULL << rcs->pto_count);
+    timeout = 2 * NGTCP2_DEFAULT_INITIAL_RTT;
   } else {
     timeout = conn_compute_pto(conn);
   }
+  timeout *= 1ULL << rcs->pto_count;
 
   rcs->loss_detection_timer = rcs->last_tx_pkt_ts + timeout;
 
