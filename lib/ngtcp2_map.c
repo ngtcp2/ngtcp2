@@ -92,9 +92,7 @@ static uint32_t hash(key_type key, uint32_t mod) {
   uint8_t *p, *end;
   uint32_t h = 0x811C9DC5u;
 
-#ifndef WORDS_BIGENDIAN
-  key = ngtcp2_bswap64(key);
-#endif /* !WORDS_BIGENDIAN */
+  key = ngtcp2_htonl64(key);
   p = (uint8_t *)&key;
   end = p + sizeof(key_type);
 

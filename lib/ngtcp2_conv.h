@@ -33,17 +33,25 @@
 #  include <arpa/inet.h>
 #endif /* HAVE_ARPA_INET_H */
 
+#ifdef HAVE_ENDIAN_H
+#  include <endian.h>
+#endif /* HAVE_ENDIAN_H */
+
+#ifdef HAVE_SYS_ENDIAN_H
+#  include <sys/endian.h>
+#endif /* HAVE_SYS_ENDIAN_H */
+
 #include <ngtcp2/ngtcp2.h>
 
-#ifdef WORDS_BIGENDIAN
-#  define ngtcp2_ntohl64(N) (N)
-#  define ngtcp2_htonl64(N) (N)
-#else /* !WORDS_BIGENDIAN */
+#if defined HAVE_BE64TOH || HAVE_DECL_BE64TOH
+#  define ngtcp2_ntohl64(N) be64toh(N)
+#  define ngtcp2_htonl64(N) htobe64(N)
+#else /* !HAVE_BE64TOH */
 #  define ngtcp2_bswap64(N)                                                    \
     ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
 #  define ngtcp2_ntohl64(N) ngtcp2_bswap64(N)
 #  define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
-#endif /* !WORDS_BIGENDIAN */
+#endif /* !HAVE_BE64TOH */
 
 /*
  * ngtcp2_get_uint64 reads 8 bytes from |p| as 64 bits unsigned
