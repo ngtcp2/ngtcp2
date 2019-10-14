@@ -1794,7 +1794,7 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
                                          ngtcp2_tstamp ts) {
   int rv;
 
-  assert(conn->callback.client_initial);
+  assert(conn->callbacks.client_initial);
 
   rv = conn->callbacks.client_initial(conn, conn->user_data);
   if (rv != 0) {
