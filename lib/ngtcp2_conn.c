@@ -104,6 +104,8 @@ static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
                                       size_t datalen) {
   int rv;
 
+  assert(conn->callbacks.recv_crypto_data);
+
   rv = conn->callbacks.recv_crypto_data(conn, crypto_level, offset, data,
                                         datalen, conn->user_data);
   switch (rv) {
@@ -1791,6 +1793,8 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
                                          size_t destlen, size_t early_datalen,
                                          ngtcp2_tstamp ts) {
   int rv;
+
+  assert(conn->callback.client_initial);
 
   rv = conn->callbacks.client_initial(conn, conn->user_data);
   if (rv != 0) {

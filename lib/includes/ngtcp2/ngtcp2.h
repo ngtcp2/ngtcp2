@@ -1363,44 +1363,172 @@ typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
                                             void *user_data);
 
 typedef struct ngtcp2_conn_callbacks {
+  /**
+   * client_initial is a callback function which is invoked when
+   * client asks TLS stack to produce first TLS cryptographic
+   * handshake message.  This callback function must be specified.
+   */
   ngtcp2_client_initial client_initial;
+  /**
+   * recv_client_initial is a callback function which is invoked when
+   * a server receives the first packet from client.  This callback
+   * function must be specified.
+   */
   ngtcp2_recv_client_initial recv_client_initial;
+  /**
+   * recv_crypto_data is a callback function which is invoked when
+   * cryptographic data (CRYPTO frame, in other words, TLS message) is
+   * received.  This callback function must be specified.
+   */
   ngtcp2_recv_crypto_data recv_crypto_data;
+  /**
+   * handshake_completed is a callback function which is invoked when
+   * QUIC cryptographic handshake has completed.  This callback
+   * function is optional.
+   */
   ngtcp2_handshake_completed handshake_completed;
+  /**
+   * recv_version_negotiation is a callback function which is invoked
+   * when Version Negotiation packet is received by a client.  This
+   * callback function is optional.
+   */
   ngtcp2_recv_version_negotiation recv_version_negotiation;
   /**
-   * encrypt is a callback function which is invoked to encrypt
-   * packets other than Initial packets.
+   * encrypt is a callback function which is invoked to encrypt a QUIC
+   * packet.  This callback function must be specified.
    */
   ngtcp2_encrypt encrypt;
   /**
-   * decrypt is a callback function which is invoked to decrypt
-   * packets other than Initial packets.
+   * decrypt is a callback function which is invoked to decrypt a QUIC
+   * packet.  This callback function must be specified.
    */
   ngtcp2_decrypt decrypt;
   /**
-   * hp_mask is a callback function which is invoked to get mask to
-   * encrypt or decrypt packet header other than Initial packets.
+   * hp_mask is a callback function which is invoked to get a mask to
+   * encrypt or decrypt packet header.  This callback function must be
+   * specified.
    */
   ngtcp2_hp_mask hp_mask;
+  /**
+   * recv_stream_data is a callback function which is invoked when
+   * STREAM data, which includes application data, is received.  This
+   * callback function is optional.
+   */
   ngtcp2_recv_stream_data recv_stream_data;
+  /**
+   * acked_crypto_offset is a callback function which is invoked when
+   * CRYPTO data is acknowledged by a remote endpoint.  It tells an
+   * application the largest offset of acknowledged CRYPTO data
+   * without a gap so that the application can free memory for the
+   * data.  This callback function is optional.
+   */
   ngtcp2_acked_crypto_offset acked_crypto_offset;
+  /**
+   * acked_stream_data_offset is a callback function which is invoked
+   * when STREAM data, which includes application data, is
+   * acknowledged by a remote endpoint.  It tells an application the
+   * largest offset of acknowledged STREAM data without a gap so that
+   * application can free memory for the data.  This callback function
+   * is optional.
+   */
   ngtcp2_acked_stream_data_offset acked_stream_data_offset;
+  /**
+   * stream_open is a callback function which is invoked when new
+   * remote stream is opened by a remote endpoint.  This callback
+   * function is optional.
+   */
   ngtcp2_stream_open stream_open;
+  /**
+   * stream_close is a callback function which is invoked when a
+   * stream is closed.  This callback function is optional.
+   */
   ngtcp2_stream_close stream_close;
+  /**
+   * recv_stateless_reset is a callback function which is invoked when
+   * Stateless Reset packet is received.  This callback function is
+   * optional.
+   */
   ngtcp2_recv_stateless_reset recv_stateless_reset;
+  /**
+   * recv_retry is a callback function which is invoked when a client
+   * receives Retry packet.  For client, this callback function must
+   * be specified.  Server never receive Retry packet.
+   */
   ngtcp2_recv_retry recv_retry;
+  /**
+   * extend_max_local_streams_bidi is a callback function which is
+   * invoked when the number of bidirectional stream which a local
+   * endpoint can open is increased.  This callback function is
+   * optional.
+   */
   ngtcp2_extend_max_streams extend_max_local_streams_bidi;
+  /**
+   * extend_max_local_streams_uni is a callback function which is
+   * invoked when the number of unidirectional stream which a local
+   * endpoint can open is increased.  This callback function is
+   * optional.
+   */
   ngtcp2_extend_max_streams extend_max_local_streams_uni;
+  /**
+   * rand is a callback function which is invoked when the library
+   * needs unpredictable sequence of random data.  This callback
+   * function must be specified.
+   */
   ngtcp2_rand rand;
+  /**
+   * get_new_connection_id is a callback function which is invoked
+   * when the library needs new connection ID.  This callback function
+   * must be specified.
+   */
   ngtcp2_get_new_connection_id get_new_connection_id;
+  /**
+   * remove_connection_id is a callback function which notifies an
+   * application that connection ID is no longer used by a remote
+   * endpoint.  This callback function is optional.
+   */
   ngtcp2_remove_connection_id remove_connection_id;
+  /**
+   * update_key is a callback function which is invoked when the
+   * library tells an application that it must update keying materials
+   * and install new keys.  This function must be specified.
+   */
   ngtcp2_update_key update_key;
+  /**
+   * path_validation is a callback function which is invoked when path
+   * validation completed.  This function is optional.
+   */
   ngtcp2_path_validation path_validation;
+  /**
+   * select_preferred_addr is a callback function which is invoked
+   * when the library asks a client to select preferred address
+   * presented by a server.  This function is optional.
+   */
   ngtcp2_select_preferred_addr select_preferred_addr;
+  /**
+   * stream_reset is a callback function which is invoked when a
+   * stream is reset by a remote endpoint.  This callback function is
+   * optional.
+   */
   ngtcp2_stream_reset stream_reset;
+  /**
+   * extend_max_remote_streams_bidi is a callback function which is
+   * invoked when the number of bidirectional streams which a remote
+   * endpoint can open is increased.  This callback function is
+   * optional.
+   */
   ngtcp2_extend_max_streams extend_max_remote_streams_bidi;
+  /**
+   * extend_max_remote_streams_uni is a callback function which is
+   * invoked when the number of unidirectional streams which a remote
+   * endpoint can open is increased.  This callback function is
+   * optional.
+   */
   ngtcp2_extend_max_streams extend_max_remote_streams_uni;
+  /**
+   * extend_max_stream_data is callback function which is invoked when
+   * the maximum offset of STREAM data that a local endpoint can send
+   * is increased.  This callback function is optional.
+   */
   ngtcp2_extend_max_stream_data extend_max_stream_data;
 } ngtcp2_conn_callbacks;
 
