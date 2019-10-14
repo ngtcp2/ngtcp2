@@ -29,6 +29,7 @@
 #include <assert.h>
 
 #include <ngtcp2/ngtcp2_crypto.h>
+#include <ngtcp2/ngtcp2_crypto_openssl.h>
 
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
