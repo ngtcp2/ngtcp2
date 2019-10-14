@@ -28,7 +28,6 @@
 #include <string.h>
 
 #include "ngtcp2_conv.h"
-#include "ngtcp2_net.h"
 
 #define INITIAL_TABLE_LENGTH 256
 

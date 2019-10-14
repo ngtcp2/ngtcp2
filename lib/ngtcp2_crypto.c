@@ -29,7 +29,6 @@
 
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
-#include "ngtcp2_net.h"
 #include "ngtcp2_conn.h"
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,

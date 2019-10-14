@@ -89,8 +89,7 @@ HFILES = \
 	ngtcp2_addr.h \
 	ngtcp2_path.h \
 	ngtcp2_pv.h \
-	ngtcp2_macro.h \
-	ngtcp2_net.h
+	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \

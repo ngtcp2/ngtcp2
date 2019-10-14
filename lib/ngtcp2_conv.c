@@ -28,7 +28,6 @@
 #include <assert.h>
 
 #include "ngtcp2_str.h"
-#include "ngtcp2_net.h"
 #include "ngtcp2_pkt.h"
 
 uint64_t ngtcp2_get_uint64(const uint8_t *p) {
