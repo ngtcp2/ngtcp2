@@ -36,10 +36,13 @@
 #include <ngtcp2/ngtcp2.h>
 
 #ifdef WORDS_BIGENDIAN
-#  define bswap64(N) (N)
+#  define ngtcp2_ntohl64(N) (N)
+#  define ngtcp2_htonl64(N) (N)
 #else /* !WORDS_BIGENDIAN */
-#  define bswap64(N)                                                           \
+#  define ngtcp2_bswap64(N)                                                    \
     ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
+#  define ngtcp2_ntohl64(N) ngtcp2_bswap64(N)
+#  define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
 #endif /* !WORDS_BIGENDIAN */
 
 /*

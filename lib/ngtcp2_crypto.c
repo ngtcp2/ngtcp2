@@ -72,7 +72,7 @@ void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
   uint64_t n;
 
   memcpy(dest, iv, ivlen);
-  n = bswap64((uint64_t)pkt_num);
+  n = ngtcp2_htonl64((uint64_t)pkt_num);
 
   for (i = 0; i < 8; ++i) {
     dest[ivlen - 8 + i] ^= ((uint8_t *)&n)[i];
