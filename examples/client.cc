@@ -2455,7 +2455,7 @@ int main(int argc, char **argv) {
       config.nstreams = strtol(optarg, nullptr, 10);
       break;
     case 'q':
-      // -quiet
+      // --quiet
       config.quiet = true;
       break;
     case 'r':
