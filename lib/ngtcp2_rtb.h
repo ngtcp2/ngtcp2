@@ -44,6 +44,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
+struct ngtcp2_qlog;
+typedef struct ngtcp2_qlog ngtcp2_qlog;
+
 struct ngtcp2_default_cc;
 typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 
@@ -200,6 +203,7 @@ typedef struct {
   ngtcp2_strm *crypto;
   ngtcp2_default_cc *cc;
   ngtcp2_log *log;
+  ngtcp2_qlog *qlog;
   const ngtcp2_mem *mem;
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
@@ -215,7 +219,7 @@ typedef struct {
  */
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
                      ngtcp2_strm *crypto, ngtcp2_default_cc *cc,
-                     ngtcp2_log *log, const ngtcp2_mem *mem);
+                     ngtcp2_log *log, ngtcp2_qlog *qlog, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.

@@ -671,6 +671,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       server_(server),
+      qlog_(nullptr),
       crypto_{},
       conn_(nullptr),
       scid_{},
@@ -708,6 +709,10 @@ Handler::~Handler() {
 
   if (ssl_) {
     SSL_free(ssl_);
+  }
+
+  if (qlog_) {
+    fclose(qlog_);
   }
 }
 
@@ -1316,9 +1321,21 @@ int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
   return 0;
 }
 
+namespace {
+void write_qlog(void *user_data, const void *data, size_t datalen) {
+  auto h = static_cast<Handler *>(user_data);
+  h->write_qlog(data, datalen);
+}
+} // namespace
+
+void Handler::write_qlog(const void *data, size_t datalen) {
+  assert(qlog_);
+  fwrite(data, 1, datalen, qlog_);
+}
+
 int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                  const ngtcp2_cid *dcid, const ngtcp2_cid *ocid,
-                  uint32_t version) {
+                  const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+                  const ngtcp2_cid *ocid, uint32_t version) {
   int rv;
 
   endpoint_ = const_cast<Endpoint *>(&ep);
@@ -1372,10 +1389,30 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       ::extend_max_stream_data,
   };
 
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+
+  scid_.datalen = NGTCP2_SV_SCIDLEN;
+  std::generate(scid_.data, scid_.data + scid_.datalen,
+                [&dis]() { return dis(randgen); });
+
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
+  if (!config.qlog_dir.empty()) {
+    auto path = config.qlog_dir;
+    path += '/';
+    path += util::format_hex(scid_.data, scid_.datalen);
+    path += ".qlog";
+    qlog_ = fopen(path.c_str(), "w");
+    if (qlog_ == nullptr) {
+      std::cerr << "Could not open qlog file " << path << ": "
+                << strerror(errno) << std::endl;
+      return -1;
+    }
+    settings.qlog.write = ::write_qlog;
+    settings.qlog.odcid = *scid;
+  }
   auto &params = settings.transport_params;
   params.initial_max_stream_data_bidi_local = 256_k;
   params.initial_max_stream_data_bidi_remote = 256_k;
@@ -1392,13 +1429,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     params.original_connection_id_present = 1;
   }
 
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(std::begin(params.stateless_reset_token),
                 std::end(params.stateless_reset_token),
-                [&dis]() { return dis(randgen); });
-
-  scid_.datalen = NGTCP2_SV_SCIDLEN;
-  std::generate(scid_.data, scid_.data + scid_.datalen,
                 [&dis]() { return dis(randgen); });
 
   if (config.preferred_ipv4_addr.len || config.preferred_ipv6_addr.len) {
@@ -2276,7 +2308,7 @@ int Server::on_read(Endpoint &ep) {
       }
 
       auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-      h->init(ep, &su.sa, addrlen, &hd.scid, pocid, hd.version);
+      h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.version);
 
       if (h->on_read(ep, &su.sa, addrlen, buf.data(), nread) != 0) {
         return 0;
@@ -3066,6 +3098,10 @@ Options:
   --verify-client
               Request a  client certificate.   At the moment,  we just
               request a certificate and no verification is done.
+  --qlog-dir=<PATH>
+              Path to  the directory where  qlog file is  stored.  The
+              file name  of each qlog  is the Source Connection  ID of
+              server.
   -h, --help  Display this help and exit.
 )";
 }
@@ -3092,6 +3128,7 @@ int main(int argc, char **argv) {
         {"mime-types-file", required_argument, &flag, 6},
         {"early-response", no_argument, &flag, 7},
         {"verify-client", no_argument, &flag, 8},
+        {"qlog-dir", required_argument, &flag, 9},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3181,6 +3218,10 @@ int main(int argc, char **argv) {
       case 8:
         // --verify-client
         config.verify_client = true;
+        break;
+      case 9:
+        // --qlog-dir
+        config.qlog_dir = optarg;
         break;
       }
       break;

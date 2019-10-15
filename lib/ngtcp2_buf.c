@@ -29,14 +29,16 @@ void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
   buf->end = begin + len;
 }
 
-size_t ngtcp2_buf_left(ngtcp2_buf *buf) {
+void ngtcp2_buf_reset(ngtcp2_buf *buf) { buf->pos = buf->last = buf->begin; }
+
+size_t ngtcp2_buf_left(const ngtcp2_buf *buf) {
   return (size_t)(buf->end - buf->last);
 }
 
-size_t ngtcp2_buf_len(ngtcp2_buf *buf) {
+size_t ngtcp2_buf_len(const ngtcp2_buf *buf) {
   return (size_t)(buf->last - buf->pos);
 }
 
-size_t ngtcp2_buf_cap(ngtcp2_buf *buf) {
+size_t ngtcp2_buf_cap(const ngtcp2_buf *buf) {
   return (size_t)(buf->end - buf->begin);
 }

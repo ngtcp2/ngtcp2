@@ -147,11 +147,13 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
 
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
                      ngtcp2_strm *crypto, ngtcp2_default_cc *cc,
-                     ngtcp2_log *log, const ngtcp2_mem *mem) {
+                     ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     const ngtcp2_mem *mem) {
   ngtcp2_ksl_init(&rtb->ents, greater, sizeof(int64_t), mem);
   rtb->crypto = crypto;
   rtb->cc = cc;
   rtb->log = log;
+  rtb->qlog = qlog;
   rtb->mem = mem;
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
@@ -197,6 +199,10 @@ static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                             ngtcp2_rtb_entry *ent) {
   ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
                       ent->ts);
+
+  if (rtb->qlog) {
+    ngtcp2_qlog_pkt_lost(rtb->qlog, ent);
+  }
 
   if (!(ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
     if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED) {

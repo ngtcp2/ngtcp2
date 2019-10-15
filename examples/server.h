@@ -87,6 +87,8 @@ struct Config {
   // verify_client is true if server verifies client with X.509
   // certificate based authentication.
   bool verify_client;
+  // qlog_dir is the path to directory where qlog is stored.
+  std::string qlog_dir;
 };
 
 struct Buffer {
@@ -196,7 +198,8 @@ public:
   ~Handler();
 
   int init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-           const ngtcp2_cid *dcid, const ngtcp2_cid *ocid, uint32_t version);
+           const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+           const ngtcp2_cid *ocid, uint32_t version);
 
   int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
               uint8_t *data, size_t datalen);
@@ -264,6 +267,8 @@ public:
 
   void reset_idle_timer();
 
+  void write_qlog(const void *data, size_t datalen);
+
 private:
   Endpoint *endpoint_;
   Address remote_addr_;
@@ -275,6 +280,7 @@ private:
   ev_io wev_;
   ev_timer timer_;
   ev_timer rttimer_;
+  FILE *qlog_;
   Crypto crypto_[3];
   ngtcp2_conn *conn_;
   ngtcp2_cid scid_;

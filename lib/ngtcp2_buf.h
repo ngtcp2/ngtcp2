@@ -52,22 +52,28 @@ typedef struct {
 void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len);
 
 /*
+ * ngtcp2_buf_reset resets pos and last fields to match begin field to
+ * make ngtcp2_buf_len(buf) return 0.
+ */
+void ngtcp2_buf_reset(ngtcp2_buf *buf);
+
+/*
  * ngtcp2_buf_left returns the number of additional bytes which can be
  * written to the underlying buffer.  In other words, it returns
  * buf->end - buf->last.
  */
-size_t ngtcp2_buf_left(ngtcp2_buf *buf);
+size_t ngtcp2_buf_left(const ngtcp2_buf *buf);
 
 /*
  * ngtcp2_buf_len returns the number of bytes left to read.  In other
  * words, it returns buf->last - buf->pos.
  */
-size_t ngtcp2_buf_len(ngtcp2_buf *buf);
+size_t ngtcp2_buf_len(const ngtcp2_buf *buf);
 
 /*
  * ngtcp2_buf_cap returns the capacity of the buffer.  In other words,
  * it returns buf->end - buf->begin.
  */
-size_t ngtcp2_buf_cap(ngtcp2_buf *buf);
+size_t ngtcp2_buf_cap(const ngtcp2_buf *buf);
 
 #endif /* NGTCP2_BUF_H */

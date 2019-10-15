@@ -112,6 +112,8 @@ struct Config {
   // no_http_dump is true if hexdump of HTTP response body should be
   // disabled.
   bool no_http_dump;
+  // qlog_file is the path to write qlog.
+  std::string qlog_file;
 };
 
 struct Buffer {
@@ -232,6 +234,8 @@ public:
 
   void reset_idle_timer();
 
+  void write_qlog(const void *data, size_t datalen);
+
 private:
   Address local_addr_;
   Address remote_addr_;
@@ -252,6 +256,7 @@ private:
   Crypto crypto_[3];
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;
+  FILE *qlog_;
   ngtcp2_conn *conn_;
   nghttp3_conn *httpconn_;
   // addr_ is the server host address.

@@ -379,6 +379,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_(nullptr),
       fd_(-1),
       crypto_{},
+      qlog_(nullptr),
       conn_(nullptr),
       httpconn_(nullptr),
       addr_(nullptr),
@@ -449,6 +450,11 @@ void Client::close() {
   if (fd_ != -1) {
     ::close(fd_);
     fd_ = -1;
+  }
+
+  if (qlog_) {
+    fclose(qlog_);
+    qlog_ = nullptr;
   }
 }
 
@@ -815,6 +821,18 @@ int Client::init_ssl() {
   return 0;
 }
 
+namespace {
+void write_qlog(void *user_data, const void *data, size_t datalen) {
+  auto c = static_cast<Client *>(user_data);
+  c->write_qlog(data, datalen);
+}
+} // namespace
+
+void Client::write_qlog(const void *data, size_t datalen) {
+  assert(qlog_);
+  fwrite(data, 1, datalen, qlog_);
+}
+
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port, uint32_t version) {
   int rv;
@@ -885,6 +903,16 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
+  if (!config.qlog_file.empty()) {
+    qlog_ = fopen(config.qlog_file.c_str(), "w");
+    if (qlog_ == nullptr) {
+      std::cerr << "Could not open qlog file " << config.qlog_file << ": "
+                << strerror(errno) << std::endl;
+      return -1;
+    }
+    settings.qlog.write = ::write_qlog;
+    settings.qlog.odcid = dcid;
+  }
   settings.initial_ts = util::timestamp(loop_);
   auto &params = settings.transport_params;
   params.initial_max_stream_data_bidi_local = 256_k;
@@ -2390,6 +2418,8 @@ Options:
               Disables printing QUIC STREAM and CRYPTO frame data out.
   --no-http-dump
               Disables printing HTTP response body out.
+  --qlog-file=<PATH>
+              The path to write qlog.
   -h, --help  Display this help and exit.
 )";
 }
@@ -2429,6 +2459,7 @@ int main(int argc, char **argv) {
         {"download", required_argument, &flag, 14},
         {"no-quic-dump", no_argument, &flag, 15},
         {"no-http-dump", no_argument, &flag, 16},
+        {"qlog-file", required_argument, &flag, 17},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2551,6 +2582,10 @@ int main(int argc, char **argv) {
       case 16:
         // --no-http-dump
         config.no_http_dump = true;
+        break;
+      case 17:
+        // --qlog-file
+        config.qlog_file = optarg;
         break;
       }
       break;

@@ -53,6 +53,7 @@ OBJECTS = \
 	ngtcp2_gaptr.c \
 	ngtcp2_ringbuf.c \
 	ngtcp2_log.c \
+	ngtcp2_qlog.c \
 	ngtcp2_cid.c \
 	ngtcp2_ksl.c \
 	ngtcp2_cc.c \
@@ -83,6 +84,7 @@ HFILES = \
 	ngtcp2_gaptr.h \
 	ngtcp2_ringbuf.h \
 	ngtcp2_log.h \
+	ngtcp2_qlog.h \
 	ngtcp2_cid.h \
 	ngtcp2_ksl.h \
 	ngtcp2_cc.h \

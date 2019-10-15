@@ -27,9 +27,9 @@
 #include <string.h>
 #include <assert.h>
 
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n) {
+void *ngtcp2_cpymem(void *dest, const void *src, size_t n) {
   memcpy(dest, src, n);
-  return dest + n;
+  return (uint8_t *)dest + n;
 }
 
 uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n) {

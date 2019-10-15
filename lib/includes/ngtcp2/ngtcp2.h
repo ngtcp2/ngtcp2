@@ -514,9 +514,22 @@ typedef struct ngtcp2_transport_params {
    ngtcp2_conn_server_new. */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
+typedef void (*ngtcp2_qlog_write)(void *user_data, const void *data,
+                                  size_t datalen);
+
+typedef struct ngtcp2_qlog_settings {
+  /* odcid is Original Destination Connection ID sent by client.  It
+     is used as group_id and ODCID fields. */
+  ngtcp2_cid odcid;
+  /* write is a callback function to write qlog.  Setting NULL
+     disables qlog. */
+  ngtcp2_qlog_write write;
+} ngtcp2_qlog_settings;
+
 typedef struct ngtcp2_settings {
   /* transport_params is the QUIC transport parameters to send. */
   ngtcp2_transport_params transport_params;
+  ngtcp2_qlog_settings qlog;
   /* initial_ts is an initial timestamp given to the library. */
   ngtcp2_tstamp initial_ts;
   /* log_printf is a function that the library uses to write logs.
