@@ -323,16 +323,6 @@ static int conn_call_extend_max_stream_data(ngtcp2_conn *conn,
   return 0;
 }
 
-/*
- * bw_reset resets |bw| to the initial state.
- */
-static void bw_reset(ngtcp2_bw *bw) {
-  bw->first_ts = 0;
-  bw->last_ts = 0;
-  bw->datalen = 0;
-  bw->value = 0.;
-}
-
 static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
                               const ngtcp2_ksl_key *rhs) {
   return *lhs->i < *rhs->i;
@@ -1945,8 +1935,10 @@ static uint64_t conn_initial_stream_rx_offset(ngtcp2_conn *conn,
  */
 static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
-  return conn_initial_stream_rx_offset(conn, strm->stream_id) / 2 <
-         strm->rx.unsent_max_offset - strm->rx.max_offset;
+  uint64_t win = conn_initial_stream_rx_offset(conn, strm->stream_id);
+  uint64_t inc = strm->rx.unsent_max_offset - strm->rx.max_offset;
+
+  return win < 2 * inc || inc >= 10 * NGTCP2_MAX_DGRAM_SIZE;
 }
 
 /*
@@ -1954,10 +1946,10 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
  * be sent.
  */
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
-  return conn->local.settings.transport_params.initial_max_data / 2 <
-             conn->rx.unsent_max_offset - conn->rx.max_offset ||
-         2 * conn->rx.bw.value * conn->rcs.smoothed_rtt >=
-             conn->rx.max_offset - conn->rx.offset;
+  uint64_t inc = conn->rx.unsent_max_offset - conn->rx.max_offset;
+
+  return conn->local.settings.transport_params.initial_max_data < 2 * inc ||
+         inc >= 10 * NGTCP2_MAX_DGRAM_SIZE;
 }
 
 /*
@@ -2210,6 +2202,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
   size_t min_pktlen = conn_min_short_pktlen(conn);
   int padded = 0;
+  int credit_expanded = 0;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -2280,6 +2273,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
       pktns->tx.frq = nfrc;
 
       conn->rx.max_offset = conn->rx.unsent_max_offset;
+      credit_expanded = 1;
     }
 
     ngtcp2_pkt_hd_init(hd, hd_flags, type, &conn->dcid.current.cid,
@@ -2527,6 +2521,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
           }
 
           pkt_empty = 0;
+          credit_expanded = 1;
           rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
           pfrc = &(*pfrc)->next;
           strm->rx.max_offset = strm->rx.unsent_max_offset;
@@ -2580,6 +2575,29 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
         if (rv != 0) {
           assert(ngtcp2_err_is_fatal(rv));
           return rv;
+        }
+      }
+    }
+
+    /* Add ACK if MAX_DATA or MAX_STREAM_DATA frame is encoded to
+       decrease packet count. */
+    if (ackfr == NULL && credit_expanded) {
+      rv = conn_create_ack_frame(
+          conn, &ackfr, &pktns->acktr, type, ts, /* ack_delay = */ 0,
+          conn->local.settings.transport_params.ack_delay_exponent);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
+
+      if (ackfr) {
+        rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, ackfr);
+        if (rv != 0) {
+          assert(NGTCP2_ERR_NOBUF == rv);
+        } else {
+          ngtcp2_acktr_commit_ack(&pktns->acktr);
+          ngtcp2_acktr_add_ack(&pktns->acktr, hd->pkt_num,
+                               ackfr->ack.largest_ack);
         }
       }
     }
@@ -3969,7 +3987,6 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn,
 static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight;
 
-  bw_reset(&conn->rx.bw);
   rcvry_stat_reset(&conn->rcs);
   /* Keep bytes_in_flight because we have to take care of packets
      in flight. */
@@ -4038,32 +4055,6 @@ fail:
   ngtcp2_pv_del(npv);
 
   return rv;
-}
-
-/*
- * conn_update_rx_bw updates rx bandwidth.
- */
-static void conn_update_rx_bw(ngtcp2_conn *conn, size_t datalen,
-                              ngtcp2_tstamp ts) {
-  /* Reset bandwidth measurement after 1 second idle time. */
-  if (conn->rx.bw.last_ts == 0 || ts - conn->rx.bw.last_ts > NGTCP2_SECONDS) {
-    conn->rx.bw.first_ts = ts;
-    conn->rx.bw.last_ts = ts;
-    conn->rx.bw.datalen = datalen;
-    conn->rx.bw.value = 0.;
-    return;
-  }
-
-  conn->rx.bw.last_ts = ts;
-  conn->rx.bw.datalen += datalen;
-
-  if (ts - conn->rx.bw.first_ts >= 25 * NGTCP2_MILLISECONDS) {
-    conn->rx.bw.value =
-        (double)conn->rx.bw.datalen / (double)(ts - conn->rx.bw.first_ts);
-
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "rx_bw=%.02fBs",
-                    conn->rx.bw.value * NGTCP2_DURATION_TICK);
-  }
 }
 
 /*
@@ -6344,8 +6335,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return rv;
       }
       non_probing_pkt = 1;
-      conn_update_rx_bw(
-          conn, ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt), ts);
       break;
     case NGTCP2_FRAME_CRYPTO:
       rv = conn_recv_crypto(conn, NGTCP2_CRYPTO_LEVEL_APP, &pktns->crypto.strm,

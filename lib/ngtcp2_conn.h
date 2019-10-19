@@ -190,23 +190,6 @@ typedef struct {
   uint8_t pkt_type;
 } ngtcp2_crypto_data;
 
-/*
- * ngtcp2_bw measures bandwidth.
- */
-typedef struct {
-  /* first_ts is a timestamp when bandwidth measurement is
-     started. */
-  ngtcp2_tstamp first_ts;
-  /* last_ts is a timestamp when bandwidth measurement was last
-     updated. */
-  ngtcp2_tstamp last_ts;
-  /* datalen is the length of STREAM data received for bandwidth
-     measurement. */
-  uint64_t datalen;
-  /* value is receiver side bandwidth. */
-  double value;
-} ngtcp2_bw;
-
 typedef struct {
   struct {
     /* last_pkt_num is the packet number which the local endpoint sent
@@ -351,8 +334,6 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that remote endpoint can
        send. */
     uint64_t max_offset;
-    /* bw is STREAM data bandwidth */
-    ngtcp2_bw bw;
     /* path_challenge stores received PATH_CHALLENGE data. */
     ngtcp2_ringbuf path_challenge;
     /* ccec is the received connection close error code. */
