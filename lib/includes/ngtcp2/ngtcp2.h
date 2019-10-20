@@ -194,9 +194,6 @@ typedef struct ngtcp2_mem {
    packet header. */
 #define NGTCP2_HP_SAMPLELEN 16
 
-/* NGTCP2_DURATION_TICK is a count of tick per second. */
-#define NGTCP2_DURATION_TICK 1000000000ULL
-
 /* NGTCP2_SECONDS is a count of tick which corresponds to 1 second. */
 #define NGTCP2_SECONDS 1000000000ULL
 

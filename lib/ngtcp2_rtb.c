@@ -456,7 +456,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
 
 /*
  * rtb_compute_pkt_loss_delay computes delay until packet is
- * considered lost in NGTCP2_DURATION_TICK resolution.
+ * considered lost in NGTCP2_MICROSECONDS resolution.
  */
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
   /* 9/8 is kTimeThreshold */
