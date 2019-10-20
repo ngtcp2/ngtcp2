@@ -3153,7 +3153,7 @@ int main(int argc, char **argv) {
       print_help();
       exit(EXIT_SUCCESS);
     case 'q':
-      // -quiet
+      // --quiet
       config.quiet = true;
       break;
     case 'r':
