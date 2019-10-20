@@ -497,8 +497,9 @@ typedef struct ngtcp2_transport_params {
   /* initial_max_streams_uni is the number of concurrent
      unidirectional streams that the remote endpoint can create. */
   uint64_t initial_max_streams_uni;
-  /* idle_timeout is specified in millisecond resolution */
-  uint64_t idle_timeout;
+  /* idle_timeout is a duration during which endpoint allows
+     quiescent. */
+  ngtcp2_duration idle_timeout;
   uint64_t max_packet_size;
   uint64_t active_connection_id_limit;
   uint64_t ack_delay_exponent;

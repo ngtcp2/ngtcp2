@@ -8676,7 +8676,7 @@ uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
 ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
   ngtcp2_duration trpto;
   ngtcp2_duration idle_timeout =
-      conn->local.settings.transport_params.idle_timeout * NGTCP2_MILLISECONDS;
+      conn->local.settings.transport_params.idle_timeout;
 
   if (idle_timeout == 0) {
     return UINT64_MAX;

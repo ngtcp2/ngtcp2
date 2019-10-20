@@ -622,13 +622,15 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_uni_streams=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_uni);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " idle_timeout=%u"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->idle_timeout);
+                  NGTCP2_LOG_TP_HD_FIELDS,
+                  params->idle_timeout / NGTCP2_MILLISECONDS);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->ack_delay_exponent);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_ack_delay=%u"),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->max_ack_delay);
+                  NGTCP2_LOG_TP_HD_FIELDS,
+                  params->max_ack_delay / NGTCP2_MILLISECONDS);
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_TP " active_connection_id_limit=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->active_connection_id_limit);

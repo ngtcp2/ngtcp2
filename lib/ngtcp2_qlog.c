@@ -1019,8 +1019,8 @@ void ngtcp2_qlog_parameters_set_transport_params(
   p = write_pair_bool(p, ngtcp2_vec_lit(&name, "disable_active_migration"),
                       params->disable_active_migration);
   *p++ = ',';
-  p = write_pair_number(p, ngtcp2_vec_lit(&name, "idle_timeout"),
-                        params->idle_timeout);
+  p = write_pair_duration(p, ngtcp2_vec_lit(&name, "idle_timeout"),
+                          params->idle_timeout);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "max_packet_size"),
                         params->max_packet_size);

@@ -921,7 +921,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.initial_max_data = 1_m;
   params.initial_max_streams_bidi = 1;
   params.initial_max_streams_uni = 100;
-  params.idle_timeout = config.timeout;
+  params.idle_timeout = config.timeout * NGTCP2_MILLISECONDS;
   params.active_connection_id_limit = 7;
 
   auto path = ngtcp2_path{

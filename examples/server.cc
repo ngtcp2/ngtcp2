@@ -1420,7 +1420,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.initial_max_data = 1_m;
   params.initial_max_streams_bidi = 100;
   params.initial_max_streams_uni = 3;
-  params.idle_timeout = config.timeout;
+  params.idle_timeout = config.timeout * NGTCP2_MILLISECONDS;
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
 
