@@ -1720,7 +1720,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
-    assert(conn->server);
     pktns = &conn->in_pktns;
     immediate_ack = conn->hs_pktns.crypto.tx.ckm != NULL;
     break;
@@ -1758,6 +1757,28 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
+ * conn_discard_initial_key discards Initial packet protection keys.
+ */
+static void conn_discard_initial_key(ngtcp2_conn *conn) {
+  ngtcp2_pktns *pktns = &conn->in_pktns;
+
+  if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED) {
+    return;
+  }
+
+  conn->flags |= NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED;
+
+  ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
+  ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
+
+  pktns->crypto.tx.ckm = NULL;
+  pktns->crypto.rx.ckm = NULL;
+
+  ngtcp2_rtb_clear(&pktns->rtb);
+  ngtcp2_acktr_commit_ack(&pktns->acktr);
+}
+
+/*
  * conn_write_handshake_ack_pkts writes packets which contain ACK
  * frame only.  This function writes at most 2 packets for each
  * Initial and Handshake packet.
@@ -1766,23 +1787,23 @@ static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
                                              size_t destlen, ngtcp2_tstamp ts) {
   ssize_t res = 0, nwrite = 0;
 
-  /* Actullay client never send ACK for server Initial.  This is
-     because once it gets server Initial, it gets Handshake tx key and
-     discards Initial key. */
-  if (conn->server) {
-    nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                          NGTCP2_PKT_INITIAL, ts);
-    if (nwrite < 0) {
-      assert(nwrite != NGTCP2_ERR_NOBUF);
-      return nwrite;
-    }
-
-    res += nwrite;
-    dest += nwrite;
-    destlen -= (size_t)nwrite;
+  nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
+                                        NGTCP2_PKT_INITIAL, ts);
+  if (nwrite < 0) {
+    assert(nwrite != NGTCP2_ERR_NOBUF);
+    return nwrite;
   }
 
+  res += nwrite;
+  dest += nwrite;
+  destlen -= (size_t)nwrite;
+
   if (conn->hs_pktns.crypto.tx.ckm) {
+    if (!conn->server) {
+      // Client discards initial key after it has sent first handshake packet
+      conn_discard_initial_key(conn);
+    }
+
     nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
                                           NGTCP2_PKT_HANDSHAKE, ts);
     if (nwrite < 0) {
@@ -4113,28 +4134,6 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num) {
   }
 
   return 0;
-}
-
-/*
- * conn_discard_initial_key discards Initial packet protection keys.
- */
-static void conn_discard_initial_key(ngtcp2_conn *conn) {
-  ngtcp2_pktns *pktns = &conn->in_pktns;
-
-  if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED) {
-    return;
-  }
-
-  conn->flags |= NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED;
-
-  ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
-  ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
-
-  pktns->crypto.tx.ckm = NULL;
-  pktns->crypto.rx.ckm = NULL;
-
-  ngtcp2_rtb_clear(&pktns->rtb);
-  ngtcp2_acktr_commit_ack(&pktns->acktr);
 }
 
 static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
@@ -6750,8 +6749,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
 
     if (hs_pktns->crypto.rx.ckm) {
-      conn_discard_initial_key(conn);
-
       rv = conn_process_buffered_handshake_pkt(conn, ts);
       if (rv != 0) {
         return rv;
