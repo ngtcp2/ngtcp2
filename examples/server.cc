@@ -2857,10 +2857,10 @@ int client_hello_cb(SSL *ssl, int *al, void *arg) {
   if (!SSL_client_hello_get0_ext(ssl, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
                                  &tp, &tplen)) {
     *al = SSL_AD_INTERNAL_ERROR;
-    return 0;
+    return SSL_CLIENT_HELLO_ERROR;
   }
 
-  return 1;
+  return SSL_CLIENT_HELLO_SUCCESS;
 }
 } // namespace
 
