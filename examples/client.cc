@@ -1124,6 +1124,7 @@ int Client::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   PathStorage path;
   int rv;
+  size_t pktcnt = 0;
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1212,6 +1213,11 @@ int Client::write_streams() {
     rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
       return rv;
+    }
+
+    if (++pktcnt == 10) {
+      ev_io_start(loop_, &wev_);
+      return 0;
     }
   }
 }
