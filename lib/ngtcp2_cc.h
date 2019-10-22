@@ -39,13 +39,6 @@
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
-typedef struct {
-  uint64_t cwnd;
-  uint64_t ssthresh;
-  ngtcp2_tstamp congestion_recovery_start_ts;
-  uint64_t bytes_in_flight;
-} ngtcp2_cc_stat;
-
 /* ngtcp2_cc_pkt is a convenient structure to include acked/lost/sent
    packet. */
 typedef struct {

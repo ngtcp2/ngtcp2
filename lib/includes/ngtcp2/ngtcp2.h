@@ -558,6 +558,13 @@ typedef struct ngtcp2_rcvry_stat {
   ngtcp2_tstamp last_tx_pkt_ts;
 } ngtcp2_rcvry_stat;
 
+typedef struct ngtcp2_cc_stat {
+  uint64_t cwnd;
+  uint64_t ssthresh;
+  ngtcp2_tstamp congestion_recovery_start_ts;
+  uint64_t bytes_in_flight;
+} ngtcp2_cc_stat;
+
 /**
  * @struct
  *
@@ -2362,11 +2369,19 @@ NGTCP2_EXTERN int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_rcvry_stat` stores recovery information in the
- * object pointed by |rcs|.
+ * `ngtcp2_conn_get_rcvry_stat` returns a pointer to the object which
+ * stores recovery information.
  */
-NGTCP2_EXTERN void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn,
-                                              ngtcp2_rcvry_stat *rcs);
+NGTCP2_EXTERN const ngtcp2_rcvry_stat *
+ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_cc_stat` returns a pointer to the object which
+ * stores congestion controller information.
+ */
+NGTCP2_EXTERN const ngtcp2_cc_stat *ngtcp2_conn_get_cc_stat(ngtcp2_conn *conn);
 
 /**
  * @function

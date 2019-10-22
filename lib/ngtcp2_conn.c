@@ -8354,8 +8354,12 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
                   (uint64_t)(ack_delay / NGTCP2_MILLISECONDS));
 }
 
-void ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn, ngtcp2_rcvry_stat *rcs) {
-  *rcs = conn->rcs;
+const ngtcp2_rcvry_stat *ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn) {
+  return &conn->rcs;
+}
+
+const ngtcp2_cc_stat *ngtcp2_conn_get_cc_stat(ngtcp2_conn *conn) {
+  return &conn->ccs;
 }
 
 static ngtcp2_pktns *conn_get_earliest_loss_time_pktns(ngtcp2_conn *conn) {
