@@ -78,11 +78,8 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
       begin(buf.data()),
       head(begin),
       tail(begin + datalen) {}
-Buffer::Buffer(uint8_t *begin, uint8_t *end)
-    : begin(begin), head(begin), tail(end) {}
 Buffer::Buffer(size_t datalen)
     : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
-Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
 int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
                     const uint8_t *tx_secret, size_t secretlen) {
