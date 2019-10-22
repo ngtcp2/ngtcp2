@@ -1865,8 +1865,6 @@ static ssize_t conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   res += nwrite;
-  dest += nwrite;
-  destlen -= (size_t)nwrite;
 
   return res;
 }
@@ -1898,8 +1896,6 @@ static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     res += nwrite;
-    dest += nwrite;
-    destlen -= (size_t)nwrite;
   }
 
   return res;
