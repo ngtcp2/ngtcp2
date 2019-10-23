@@ -50,13 +50,4 @@
     *(PD) = (T);                                                               \
   } while (0)
 
-/* ngtcp2_list_remove removes |*PT| from singly linked list.  The
-   contract is the same as ngtcp2_list_insert.  |PT| must be a pointer
-   to the pointer to the next field of the previous element of |*PT|.
-   Please be aware that |*PT|->next is not modified by this macro. */
-#define ngtcp2_list_remove(PT)                                                 \
-  do {                                                                         \
-    *(PT) = (*(PT))->next;                                                     \
-  } while (0)
-
 #endif /* NGTCP2_MACRO_H */

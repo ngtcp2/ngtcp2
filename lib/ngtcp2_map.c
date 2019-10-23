@@ -28,7 +28,6 @@
 #include <string.h>
 
 #include "ngtcp2_conv.h"
-#include "ngtcp2_net.h"
 
 #define INITIAL_TABLE_LENGTH 256
 
@@ -92,7 +91,7 @@ static uint32_t hash(key_type key, uint32_t mod) {
   uint8_t *p, *end;
   uint32_t h = 0x811C9DC5u;
 
-  key = bswap64(key);
+  key = ngtcp2_htonl64(key);
   p = (uint8_t *)&key;
   end = p + sizeof(key_type);
 

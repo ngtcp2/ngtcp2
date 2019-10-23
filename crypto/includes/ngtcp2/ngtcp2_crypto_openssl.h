@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2019 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,23 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_buf.h"
+#ifndef NGTCP2_CRYPTO_OPENSSL_H
+#define NGTCP2_CRYPTO_OPENSSL_H
 
-void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
-  buf->begin = buf->pos = buf->last = begin;
-  buf->end = begin + len;
-}
+#include <ngtcp2/ngtcp2.h>
 
-void ngtcp2_buf_reset(ngtcp2_buf *buf) { buf->pos = buf->last = buf->begin; }
+/* OpenSSL specific error codes */
+#define NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP -10001
+#define NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB -10002
 
-size_t ngtcp2_buf_left(const ngtcp2_buf *buf) {
-  return (size_t)(buf->end - buf->last);
-}
-
-size_t ngtcp2_buf_len(const ngtcp2_buf *buf) {
-  return (size_t)(buf->last - buf->pos);
-}
-
-size_t ngtcp2_buf_cap(const ngtcp2_buf *buf) {
-  return (size_t)(buf->end - buf->begin);
-}
+#endif /* NGTCP2_CRYPTO_OPENSSL_H */

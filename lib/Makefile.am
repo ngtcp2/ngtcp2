@@ -53,6 +53,7 @@ OBJECTS = \
 	ngtcp2_gaptr.c \
 	ngtcp2_ringbuf.c \
 	ngtcp2_log.c \
+	ngtcp2_qlog.c \
 	ngtcp2_cid.c \
 	ngtcp2_ksl.c \
 	ngtcp2_cc.c \
@@ -83,14 +84,14 @@ HFILES = \
 	ngtcp2_gaptr.h \
 	ngtcp2_ringbuf.h \
 	ngtcp2_log.h \
+	ngtcp2_qlog.h \
 	ngtcp2_cid.h \
 	ngtcp2_ksl.h \
 	ngtcp2_cc.h \
 	ngtcp2_addr.h \
 	ngtcp2_path.h \
 	ngtcp2_pv.h \
-	ngtcp2_macro.h \
-	ngtcp2_net.h
+	ngtcp2_macro.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \

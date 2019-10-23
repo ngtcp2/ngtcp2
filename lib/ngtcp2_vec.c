@@ -29,6 +29,12 @@
 
 #include "ngtcp2_str.h"
 
+ngtcp2_vec *ngtcp2_vec_init(ngtcp2_vec *vec, const uint8_t *base, size_t len) {
+  vec->base = (uint8_t *)base;
+  vec->len = len;
+  return vec;
+}
+
 int ngtcp2_vec_new(ngtcp2_vec **pvec, const uint8_t *data, size_t datalen,
                    const ngtcp2_mem *mem) {
   size_t len;

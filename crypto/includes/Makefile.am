@@ -22,3 +22,7 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 nobase_include_HEADERS = ngtcp2/ngtcp2_crypto.h
+
+if HAVE_OPENSSL
+nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_openssl.h
+endif

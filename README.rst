@@ -98,8 +98,6 @@ The notable options are:
 
 - ``-d``, ``--data=<PATH>``: Read data from <PATH> and send it to a
   peer.
-- ``-i``, ``--interactive``: Read data from terminal and send it to a
-  peer interactively.  This does not work with 0-RTT.  See below.
 
 Server
 ~~~~~~

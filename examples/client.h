@@ -47,6 +47,12 @@
 
 using namespace ngtcp2;
 
+struct Request {
+  std::string scheme;
+  std::string authority;
+  std::string path;
+};
+
 struct Config {
   ngtcp2_cid dcid;
   // tx_loss_prob is probability of losing outgoing packet.
@@ -95,9 +101,19 @@ struct Config {
   // address offered by server.
   bool no_preferred_addr;
   std::string http_method;
-  std::string scheme;
-  std::string authority;
-  std::string path;
+  // download is a path to a directory where a downloaded file is
+  // saved.  If it is empty, no file is saved.
+  std::string download;
+  // requests contains URIs to request.
+  std::vector<Request> requests;
+  // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
+  // should be disabled.
+  bool no_quic_dump;
+  // no_http_dump is true if hexdump of HTTP response body should be
+  // disabled.
+  bool no_http_dump;
+  // qlog_file is the path to write qlog.
+  std::string qlog_file;
 };
 
 struct Buffer {
@@ -132,10 +148,14 @@ struct Buffer {
 };
 
 struct Stream {
-  Stream(int64_t stream_id);
+  Stream(const Request &req, int64_t stream_id);
   ~Stream();
 
+  int open_file(const std::string &path);
+
+  Request req;
   int64_t stream_id;
+  int fd;
 };
 
 struct Crypto {
@@ -201,17 +221,20 @@ public:
                                const ngtcp2_preferred_addr *paddr);
 
   int setup_httpconn();
-  int submit_http_request(int64_t stream_id);
+  int submit_http_request(const Stream *stream);
   int recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
                        size_t datalen);
   int acked_stream_data_offset(int64_t stream_id, size_t datalen);
   int http_acked_stream_data(int64_t stream_id, size_t datalen);
   void http_consume(int64_t stream_id, size_t nconsumed);
+  void http_write_data(int64_t stream_id, const uint8_t *data, size_t datalen);
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int send_stop_sending(int64_t stream_id, uint64_t app_error_code);
 
   void reset_idle_timer();
+
+  void write_qlog(const void *data, size_t datalen);
 
 private:
   Address local_addr_;
@@ -233,6 +256,7 @@ private:
   Crypto crypto_[3];
   std::vector<uint8_t> tx_secret_;
   std::vector<uint8_t> rx_secret_;
+  FILE *qlog_;
   ngtcp2_conn *conn_;
   nghttp3_conn *httpconn_;
   // addr_ is the server host address.

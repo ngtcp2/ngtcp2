@@ -34,6 +34,19 @@
 #include "ngtcp2_mem.h"
 
 /*
+ * ngtcp2_vec_lit is a convenient macro to fill the object pointed by
+ * |DEST| with the literal string |LIT|.
+ */
+#define ngtcp2_vec_lit(DEST, LIT)                                              \
+  ((DEST)->base = (uint8_t *)(LIT), (DEST)->len = sizeof(LIT) - 1, (DEST))
+
+/*
+ * ngtcp2_vec_init initializes |vec| with the given parameters.  It
+ * returns |vec|.
+ */
+ngtcp2_vec *ngtcp2_vec_init(ngtcp2_vec *vec, const uint8_t *base, size_t len);
+
+/*
  * ngtcp2_vec_new allocates and initializes |*pvec| with given |data|
  * of length |datalen|.  This function allocates memory for |*pvec|
  * and the given data with a single allocation, and the contents

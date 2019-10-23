@@ -671,6 +671,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       ssl_ctx_(ssl_ctx),
       ssl_(nullptr),
       server_(server),
+      qlog_(nullptr),
       crypto_{},
       conn_(nullptr),
       scid_{},
@@ -708,6 +709,10 @@ Handler::~Handler() {
 
   if (ssl_) {
     SSL_free(ssl_);
+  }
+
+  if (qlog_) {
+    fclose(qlog_);
   }
 }
 
@@ -1316,9 +1321,21 @@ int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
   return 0;
 }
 
+namespace {
+void write_qlog(void *user_data, const void *data, size_t datalen) {
+  auto h = static_cast<Handler *>(user_data);
+  h->write_qlog(data, datalen);
+}
+} // namespace
+
+void Handler::write_qlog(const void *data, size_t datalen) {
+  assert(qlog_);
+  fwrite(data, 1, datalen, qlog_);
+}
+
 int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                  const ngtcp2_cid *dcid, const ngtcp2_cid *ocid,
-                  uint32_t version) {
+                  const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+                  const ngtcp2_cid *ocid, uint32_t version) {
   int rv;
 
   endpoint_ = const_cast<Endpoint *>(&ep);
@@ -1372,10 +1389,30 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       ::extend_max_stream_data,
   };
 
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+
+  scid_.datalen = NGTCP2_SV_SCIDLEN;
+  std::generate(scid_.data, scid_.data + scid_.datalen,
+                [&dis]() { return dis(randgen); });
+
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
+  if (!config.qlog_dir.empty()) {
+    auto path = config.qlog_dir;
+    path += '/';
+    path += util::format_hex(scid_.data, scid_.datalen);
+    path += ".qlog";
+    qlog_ = fopen(path.c_str(), "w");
+    if (qlog_ == nullptr) {
+      std::cerr << "Could not open qlog file " << path << ": "
+                << strerror(errno) << std::endl;
+      return -1;
+    }
+    settings.qlog.write = ::write_qlog;
+    settings.qlog.odcid = *scid;
+  }
   auto &params = settings.transport_params;
   params.initial_max_stream_data_bidi_local = 256_k;
   params.initial_max_stream_data_bidi_remote = 256_k;
@@ -1383,7 +1420,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.initial_max_data = 1_m;
   params.initial_max_streams_bidi = 100;
   params.initial_max_streams_uni = 3;
-  params.idle_timeout = config.timeout;
+  params.idle_timeout = config.timeout * NGTCP2_MILLISECONDS;
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
 
@@ -1392,13 +1429,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     params.original_connection_id_present = 1;
   }
 
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(std::begin(params.stateless_reset_token),
                 std::end(params.stateless_reset_token),
-                [&dis]() { return dis(randgen); });
-
-  scid_.datalen = NGTCP2_SV_SCIDLEN;
-  std::generate(scid_.data, scid_.data + scid_.datalen,
                 [&dis]() { return dis(randgen); });
 
   if (config.preferred_ipv4_addr.len || config.preferred_ipv6_addr.len) {
@@ -1569,6 +1601,11 @@ void Handler::reset_idle_timer() {
           ? static_cast<ev_tstamp>(idle_expiry - now) / NGTCP2_SECONDS
           : 1e-9;
 
+  if (!config.quiet) {
+    std::cerr << "Set idle timer=" << std::fixed << timer_.repeat << "s"
+              << std::defaultfloat << std::endl;
+  }
+
   ev_timer_again(loop_, &timer_);
 }
 
@@ -1631,6 +1668,7 @@ int Handler::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   PathStorage path;
   int rv;
+  size_t pktcnt = 0;
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1715,6 +1753,11 @@ int Handler::write_streams() {
     auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
     if (rv != NETWORK_ERR_OK) {
       return rv;
+    }
+
+    if (++pktcnt == 10) {
+      ev_io_start(loop_, &wev_);
+      return 0;
     }
   }
 }
@@ -1929,7 +1972,9 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   }
 
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
+  if (it == std::end(streams_)) {
+    return 0;
+  }
 
   if (httpconn_) {
     if (app_error_code == 0) {
@@ -2269,7 +2314,7 @@ int Server::on_read(Endpoint &ep) {
       }
 
       auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-      h->init(ep, &su.sa, addrlen, &hd.scid, pocid, hd.version);
+      h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.version);
 
       if (h->on_read(ep, &su.sa, addrlen, buf.data(), nread) != 0) {
         return 0;
@@ -2818,15 +2863,25 @@ int client_hello_cb(SSL *ssl, int *al, void *arg) {
   if (!SSL_client_hello_get0_ext(ssl, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
                                  &tp, &tplen)) {
     *al = SSL_AD_INTERNAL_ERROR;
-    return 0;
+    return SSL_CLIENT_HELLO_ERROR;
   }
 
+  return SSL_CLIENT_HELLO_SUCCESS;
+}
+} // namespace
+
+namespace {
+int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
+  // We don't verify the client certificate.  Just request it for the
+  // testing purpose.
   return 1;
 }
 } // namespace
 
 namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
+  constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
+
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
   constexpr auto ssl_opts = (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
@@ -2873,6 +2928,15 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
     std::cerr << "SSL_CTX_check_private_key: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     goto fail;
+  }
+
+  SSL_CTX_set_session_id_context(ssl_ctx, sid_ctx, sizeof(sid_ctx) - 1);
+
+  if (config.verify_client) {
+    SSL_CTX_set_verify(ssl_ctx,
+                       SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE |
+                           SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                       verify_cb);
   }
 
   SSL_CTX_set_max_early_data(ssl_ctx, std::numeric_limits<uint32_t>::max());
@@ -3037,6 +3101,13 @@ Options:
               fields  without  waiting  for  request  body.   If  HTTP
               response data is written  before receiving request body,
               STOP_SENDING is sent.
+  --verify-client
+              Request a  client certificate.   At the moment,  we just
+              request a certificate and no verification is done.
+  --qlog-dir=<PATH>
+              Path to  the directory where  qlog file is  stored.  The
+              file name  of each qlog  is the Source Connection  ID of
+              server.
   -h, --help  Display this help and exit.
 )";
 }
@@ -3061,7 +3132,9 @@ int main(int argc, char **argv) {
         {"preferred-ipv4-addr", required_argument, &flag, 4},
         {"preferred-ipv6-addr", required_argument, &flag, 5},
         {"mime-types-file", required_argument, &flag, 6},
-        {"early-response", no_argument, nullptr, 7},
+        {"early-response", no_argument, &flag, 7},
+        {"verify-client", no_argument, &flag, 8},
+        {"qlog-dir", required_argument, &flag, 9},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3086,7 +3159,7 @@ int main(int argc, char **argv) {
       print_help();
       exit(EXIT_SUCCESS);
     case 'q':
-      // -quiet
+      // --quiet
       config.quiet = true;
       break;
     case 'r':
@@ -3147,6 +3220,14 @@ int main(int argc, char **argv) {
       case 7:
         // --early-response
         config.early_response = optarg;
+        break;
+      case 8:
+        // --verify-client
+        config.verify_client = true;
+        break;
+      case 9:
+        // --qlog-dir
+        config.qlog_dir = optarg;
         break;
       }
       break;

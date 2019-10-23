@@ -29,7 +29,6 @@
 
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
-#include "ngtcp2_net.h"
 #include "ngtcp2_conn.h"
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
@@ -72,7 +71,7 @@ void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
   uint64_t n;
 
   memcpy(dest, iv, ivlen);
-  n = bswap64((uint64_t)pkt_num);
+  n = ngtcp2_htonl64((uint64_t)pkt_num);
 
   for (i = 0; i < 8; ++i) {
     dest[ivlen - 8 + i] ^= ((uint8_t *)&n)[i];
@@ -147,7 +146,8 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
         4 + ngtcp2_put_varint_len(params->max_ack_delay / NGTCP2_MILLISECONDS);
   }
   if (params->idle_timeout) {
-    len += 4 + ngtcp2_put_varint_len(params->idle_timeout);
+    len +=
+        4 + ngtcp2_put_varint_len(params->idle_timeout / NGTCP2_MILLISECONDS);
   }
   if (params->active_connection_id_limit) {
     len += 4 + ngtcp2_put_varint_len(params->active_connection_id_limit);
@@ -272,9 +272,9 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 
   if (params->idle_timeout) {
     p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->idle_timeout));
-    p = ngtcp2_put_varint(p, params->idle_timeout);
+    p = ngtcp2_put_uint16be(p, (uint16_t)ngtcp2_put_varint_len(
+                                   params->idle_timeout / NGTCP2_MILLISECONDS));
+    p = ngtcp2_put_varint(p, params->idle_timeout / NGTCP2_MILLISECONDS);
   }
 
   if (params->active_connection_id_limit) {
@@ -434,6 +434,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       if (nread < 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
+      params->idle_timeout *= NGTCP2_MILLISECONDS;
       p += nread;
       break;
     case NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE:

@@ -29,6 +29,7 @@
 #include <assert.h>
 
 #include <ngtcp2/ngtcp2_crypto.h>
+#include <ngtcp2/ngtcp2_crypto_openssl.h>
 
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
@@ -318,6 +319,10 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
       case SSL_ERROR_WANT_READ:
       case SSL_ERROR_WANT_WRITE:
         return 0;
+      case SSL_ERROR_WANT_CLIENT_HELLO_CB:
+        return NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB;
+      case SSL_ERROR_WANT_X509_LOOKUP:
+        return NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP;
       case SSL_ERROR_SSL:
         return -1;
       default:

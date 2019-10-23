@@ -77,7 +77,7 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_tstamp ts) {
   ngtcp2_cc_stat *ccs = cc->ccs;
 
-  if (!default_cc_in_congestion_recovery(cc, ts_sent)) {
+  if (default_cc_in_congestion_recovery(cc, ts_sent)) {
     return;
   }
   ccs->congestion_recovery_start_ts = ts;

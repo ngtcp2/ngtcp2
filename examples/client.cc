@@ -73,9 +73,43 @@ Buffer::Buffer(size_t datalen)
     : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
 Buffer::Buffer() : begin(buf.data()), head(begin), tail(begin) {}
 
-Stream::Stream(int64_t stream_id) : stream_id(stream_id) {}
+Stream::Stream(const Request &req, int64_t stream_id)
+    : req(req), stream_id(stream_id), fd(-1) {}
 
-Stream::~Stream() {}
+Stream::~Stream() {
+  if (fd != -1) {
+    close(fd);
+  }
+}
+
+int Stream::open_file(const std::string &path) {
+  assert(fd == -1);
+
+  auto it = std::find(std::rbegin(path), std::rend(path), '/').base();
+  if (it == std::end(path)) {
+    std::cerr << "No file name found: " << path << std::endl;
+    return -1;
+  }
+  auto b = std::string{it, std::end(path)};
+  if (b == ".." || b == ".") {
+    std::cerr << "Invalid file name: " << b << std::endl;
+    return -1;
+  }
+
+  auto fname = config.download;
+  fname += '/';
+  fname += b;
+
+  fd = open(fname.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
+            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if (fd == -1) {
+    std::cerr << "open: Could not open file " << fname << ": "
+              << strerror(errno) << std::endl;
+    return -1;
+  }
+
+  return 0;
+}
 
 namespace {
 int write_transport_params(const char *path,
@@ -345,6 +379,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       ssl_(nullptr),
       fd_(-1),
       crypto_{},
+      qlog_(nullptr),
       conn_(nullptr),
       httpconn_(nullptr),
       addr_(nullptr),
@@ -416,6 +451,11 @@ void Client::close() {
     ::close(fd_);
     fd_ = -1;
   }
+
+  if (qlog_) {
+    fclose(qlog_);
+    qlog_ = nullptr;
+  }
 }
 
 namespace {
@@ -434,7 +474,7 @@ namespace {
 int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_quic_dump) {
     debug::print_crypto_data(crypto_level, data, datalen);
   }
 
@@ -452,7 +492,7 @@ namespace {
 int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_quic_dump) {
     debug::print_stream_data(stream_id, data, datalen);
   }
 
@@ -781,6 +821,18 @@ int Client::init_ssl() {
   return 0;
 }
 
+namespace {
+void write_qlog(void *user_data, const void *data, size_t datalen) {
+  auto c = static_cast<Client *>(user_data);
+  c->write_qlog(data, datalen);
+}
+} // namespace
+
+void Client::write_qlog(const void *data, size_t datalen) {
+  assert(qlog_);
+  fwrite(data, 1, datalen, qlog_);
+}
+
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port, uint32_t version) {
   int rv;
@@ -851,6 +903,16 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
+  if (!config.qlog_file.empty()) {
+    qlog_ = fopen(config.qlog_file.c_str(), "w");
+    if (qlog_ == nullptr) {
+      std::cerr << "Could not open qlog file " << config.qlog_file << ": "
+                << strerror(errno) << std::endl;
+      return -1;
+    }
+    settings.qlog.write = ::write_qlog;
+    settings.qlog.odcid = dcid;
+  }
   settings.initial_ts = util::timestamp(loop_);
   auto &params = settings.transport_params;
   params.initial_max_stream_data_bidi_local = 256_k;
@@ -859,7 +921,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.initial_max_data = 1_m;
   params.initial_max_streams_bidi = 1;
   params.initial_max_streams_uni = 100;
-  params.idle_timeout = config.timeout;
+  params.idle_timeout = config.timeout * NGTCP2_MILLISECONDS;
   params.active_connection_id_limit = 7;
 
   auto path = ngtcp2_path{
@@ -1010,6 +1072,11 @@ void Client::reset_idle_timer() {
           ? static_cast<ev_tstamp>(idle_expiry - now) / NGTCP2_SECONDS
           : 1e-9;
 
+  if (!config.quiet) {
+    std::cerr << "Set idle timer=" << std::fixed << timer_.repeat << "s"
+              << std::defaultfloat << std::endl;
+  }
+
   ev_timer_again(loop_, &timer_);
 }
 
@@ -1057,6 +1124,7 @@ int Client::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   PathStorage path;
   int rv;
+  size_t pktcnt = 0;
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1145,6 +1213,11 @@ int Client::write_streams() {
     rv = send_packet();
     if (rv != NETWORK_ERR_OK) {
       return rv;
+    }
+
+    if (++pktcnt == 10) {
+      ev_io_start(loop_, &wev_);
+      return 0;
     }
   }
 }
@@ -1533,8 +1606,6 @@ void Client::make_stream_early() {
     return;
   }
 
-  ++nstreams_done_;
-
   int64_t stream_id;
   rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
   if (rv != 0) {
@@ -1548,12 +1619,19 @@ void Client::make_stream_early() {
     return;
   }
 
-  if (submit_http_request(stream_id) != 0) {
+  auto stream = std::make_unique<Stream>(
+      config.requests[nstreams_done_ % config.requests.size()], stream_id);
+
+  if (submit_http_request(stream.get()) != 0) {
     return;
   }
 
-  auto stream = std::make_unique<Stream>(stream_id);
+  if (!config.download.empty()) {
+    stream->open_file(stream->req.path);
+  }
   streams_.emplace(stream_id, std::move(stream));
+
+  ++nstreams_done_;
 }
 
 int Client::on_extend_max_streams() {
@@ -1571,11 +1649,16 @@ int Client::on_extend_max_streams() {
       break;
     }
 
-    if (submit_http_request(stream_id) != 0) {
+    auto stream = std::make_unique<Stream>(
+        config.requests[nstreams_done_ % config.requests.size()], stream_id);
+
+    if (submit_http_request(stream.get()) != 0) {
       break;
     }
 
-    auto stream = std::make_unique<Stream>(stream_id);
+    if (!config.download.empty()) {
+      stream->open_file(stream->req.path);
+    }
     streams_.emplace(stream_id, std::move(stream));
   }
   return 0;
@@ -1593,16 +1676,18 @@ ssize_t read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
 }
 } // namespace
 
-int Client::submit_http_request(int64_t stream_id) {
+int Client::submit_http_request(const Stream *stream) {
   int rv;
 
   std::string content_length_str;
 
+  const auto &req = stream->req;
+
   std::array<nghttp3_nv, 6> nva{
       util::make_nv(":method", config.http_method),
-      util::make_nv(":scheme", config.scheme),
-      util::make_nv(":authority", config.authority),
-      util::make_nv(":path", config.path),
+      util::make_nv(":scheme", req.scheme),
+      util::make_nv(":authority", req.authority),
+      util::make_nv(":path", req.path),
       util::make_nv("user-agent", "nghttp3/ngtcp2 client"),
   };
   size_t nvlen = 5;
@@ -1612,14 +1697,14 @@ int Client::submit_http_request(int64_t stream_id) {
   }
 
   if (!config.quiet) {
-    debug::print_http_request_headers(stream_id, nva.data(), nvlen);
+    debug::print_http_request_headers(stream->stream_id, nva.data(), nvlen);
   }
 
   nghttp3_data_reader dr{};
   dr.read_data = read_data;
 
-  rv = nghttp3_conn_submit_request(httpconn_, stream_id, nva.data(), nvlen,
-                                   config.fd == -1 ? NULL : &dr, NULL);
+  rv = nghttp3_conn_submit_request(httpconn_, stream->stream_id, nva.data(),
+                                   nvlen, config.fd == -1 ? NULL : &dr, NULL);
   if (rv != 0) {
     std::cerr << "nghttp3_conn_submit_request: " << nghttp3_strerror(rv)
               << std::endl;
@@ -1736,11 +1821,12 @@ int Client::http_acked_stream_data(int64_t stream_id, size_t datalen) {
 namespace {
 int http_recv_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t *data,
                    size_t datalen, void *user_data, void *stream_user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_http_dump) {
     debug::print_http_data(stream_id, data, datalen);
   }
   auto c = static_cast<Client *>(user_data);
   c->http_consume(stream_id, datalen);
+  c->http_write_data(stream_id, data, datalen);
   return 0;
 }
 } // namespace
@@ -1758,6 +1844,25 @@ int http_deferred_consume(nghttp3_conn *conn, int64_t stream_id,
 void Client::http_consume(int64_t stream_id, size_t nconsumed) {
   ngtcp2_conn_extend_max_stream_offset(conn_, stream_id, nconsumed);
   ngtcp2_conn_extend_max_offset(conn_, nconsumed);
+}
+
+void Client::http_write_data(int64_t stream_id, const uint8_t *data,
+                             size_t datalen) {
+  auto it = streams_.find(stream_id);
+  if (it == std::end(streams_)) {
+    return;
+  }
+
+  auto &stream = (*it).second;
+
+  if (stream->fd == -1) {
+    return;
+  }
+
+  ssize_t nwrite;
+  do {
+    nwrite = write(stream->fd, data, datalen);
+  } while (nwrite == -1 && errno == EINTR);
 }
 
 namespace {
@@ -2065,7 +2170,7 @@ auto quic_method = SSL_QUIC_METHOD{
 } // namespace
 
 namespace {
-SSL_CTX *create_ssl_ctx() {
+SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   auto ssl_ctx = SSL_CTX_new(TLS_method());
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
@@ -2082,6 +2187,21 @@ SSL_CTX *create_ssl_ctx() {
   if (SSL_CTX_set1_groups_list(ssl_ctx, config.groups) != 1) {
     std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
     exit(EXIT_FAILURE);
+  }
+
+  if (private_key_file && cert_file) {
+    if (SSL_CTX_use_PrivateKey_file(ssl_ctx, private_key_file,
+                                    SSL_FILETYPE_PEM) != 1) {
+      std::cerr << "SSL_CTX_use_PrivateKey_file: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (SSL_CTX_use_certificate_chain_file(ssl_ctx, cert_file) != 1) {
+      std::cerr << "SSL_CTX_use_certificate_file: "
+                << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+      exit(EXIT_FAILURE);
+    }
   }
 
   SSL_CTX_set_quic_method(ssl_ctx, &quic_method);
@@ -2135,7 +2255,7 @@ std::string get_string(const char *uri, const http_parser_url &u,
 } // namespace
 
 namespace {
-int parse_uri(const char *uri) {
+int parse_uri(Request &req, const char *uri) {
   http_parser_url u;
 
   http_parser_url_init(&u);
@@ -2147,28 +2267,43 @@ int parse_uri(const char *uri) {
     return -1;
   }
 
-  config.scheme = get_string(uri, u, UF_SCHEMA);
+  req.scheme = get_string(uri, u, UF_SCHEMA);
 
-  config.authority = get_string(uri, u, UF_HOST);
-  if (util::numeric_host(config.authority.c_str())) {
-    config.authority = '[' + config.authority + ']';
+  req.authority = get_string(uri, u, UF_HOST);
+  if (util::numeric_host(req.authority.c_str())) {
+    req.authority = '[' + req.authority + ']';
   }
   if (u.field_set & (1 << UF_PORT)) {
-    config.authority += ':';
-    config.authority += get_string(uri, u, UF_PORT);
+    req.authority += ':';
+    req.authority += get_string(uri, u, UF_PORT);
   }
 
   if (u.field_set & (1 << UF_PATH)) {
-    config.path = get_string(uri, u, UF_PATH);
+    req.path = get_string(uri, u, UF_PATH);
   } else {
-    config.path = "/";
+    req.path = "/";
   }
 
   if (u.field_set & (1 << UF_QUERY)) {
-    config.path += '?';
-    config.path += get_string(uri, u, UF_QUERY);
+    req.path += '?';
+    req.path += get_string(uri, u, UF_QUERY);
   }
 
+  return 0;
+}
+} // namespace
+
+namespace {
+int parse_requests(char **argv, size_t argvlen) {
+  for (size_t i = 0; i < argvlen; ++i) {
+    auto uri = argv[i];
+    Request req;
+    if (parse_uri(req, uri) != 0) {
+      std::cerr << "Could not parse URI: " << uri << std::endl;
+      return -1;
+    }
+    config.requests.emplace_back(std::move(req));
+  }
   return 0;
 }
 } // namespace
@@ -2184,7 +2319,7 @@ void keylog_callback(const SSL *ssl, const char *line) {
 
 namespace {
 void print_usage() {
-  std::cerr << "Usage: client [OPTIONS] <ADDR> <PORT> <URI>" << std::endl;
+  std::cerr << "Usage: client [OPTIONS] <ADDR> <PORT> [<URI>...]" << std::endl;
 }
 } // namespace
 
@@ -2197,7 +2332,7 @@ void config_set_default(Config &config) {
   config.ciphers = "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_"
                    "POLY1305_SHA256:TLS_AES_128_CCM_SHA256";
   config.groups = "P-256:X25519:P-384:P-521";
-  config.nstreams = 1;
+  config.nstreams = 0;
   config.data = nullptr;
   config.datalen = 0;
   config.version = NGTCP2_PROTO_VER;
@@ -2228,8 +2363,10 @@ Options:
   -d, --data=<PATH>
               Read data from <PATH>, and send them as STREAM data.
   -n, --nstreams=<N>
-              When used with --data,  this option specifies the number
-              of streams to send the data specified by --data.
+              The number of requests.  <URI>s are used in the order of
+              appearance in the command-line.   If the number of <URI>
+              list  is  less than  <N>,  <URI>  list is  wrapped.   It
+              defaults to 0 which means the number of <URI> specified.
   -v, --version=<HEX>
               Specify QUIC version to use in hex string.
               Default: )"
@@ -2279,6 +2416,16 @@ Options:
               handshake completes.
   --no-preferred-addr
               Do not try to use preferred address offered by server.
+  --download=<PATH>
+              The path to the directory  to save a downloaded content.
+              It is  undefined if 2  concurrent requests write  to the
+              same file.
+  --no-quic-dump
+              Disables printing QUIC STREAM and CRYPTO frame data out.
+  --no-http-dump
+              Disables printing HTTP response body out.
+  --qlog-file=<PATH>
+              The path to write qlog.
   -h, --help  Display this help and exit.
 )";
 }
@@ -2287,6 +2434,8 @@ Options:
 int main(int argc, char **argv) {
   config_set_default(config);
   char *data_path = nullptr;
+  const char *private_key_file = nullptr;
+  const char *cert_file = nullptr;
 
   for (;;) {
     static int flag = 0;
@@ -2311,6 +2460,12 @@ int main(int argc, char **argv) {
         {"nat-rebinding", no_argument, &flag, 9},
         {"delay-stream", required_argument, &flag, 10},
         {"no-preferred-addr", no_argument, &flag, 11},
+        {"key", required_argument, &flag, 12},
+        {"cert", required_argument, &flag, 13},
+        {"download", required_argument, &flag, 14},
+        {"no-quic-dump", no_argument, &flag, 15},
+        {"no-http-dump", no_argument, &flag, 16},
+        {"qlog-file", required_argument, &flag, 17},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2337,7 +2492,7 @@ int main(int argc, char **argv) {
       config.nstreams = strtol(optarg, nullptr, 10);
       break;
     case 'q':
-      // -quiet
+      // --quiet
       config.quiet = true;
       break;
     case 'r':
@@ -2414,6 +2569,30 @@ int main(int argc, char **argv) {
         // --no-preferred-addr
         config.no_preferred_addr = true;
         break;
+      case 12:
+        // --key
+        private_key_file = optarg;
+        break;
+      case 13:
+        // --cert
+        cert_file = optarg;
+        break;
+      case 14:
+        // --download
+        config.download = optarg;
+        break;
+      case 15:
+        // --no-quic-dump
+        config.no_quic_dump = true;
+        break;
+      case 16:
+        // --no-http-dump
+        config.no_http_dump = true;
+        break;
+      case 17:
+        // --qlog-file
+        config.qlog_file = optarg;
+        break;
       }
       break;
     default:
@@ -2421,7 +2600,7 @@ int main(int argc, char **argv) {
     };
   }
 
-  if (argc - optind < 3) {
+  if (argc - optind < 2) {
     std::cerr << "Too few arguments" << std::endl;
     print_usage();
     exit(EXIT_FAILURE);
@@ -2448,14 +2627,16 @@ int main(int argc, char **argv) {
 
   auto addr = argv[optind++];
   auto port = argv[optind++];
-  auto uri = argv[optind++];
 
-  if (parse_uri(uri) != 0) {
-    std::cerr << "Could not parse URI " << uri << std::endl;
+  if (parse_requests(&argv[optind], argc - optind) != 0) {
     exit(EXIT_FAILURE);
   }
 
-  auto ssl_ctx = create_ssl_ctx();
+  if (config.nstreams == 0) {
+    config.nstreams = config.requests.size();
+  }
+
+  auto ssl_ctx = create_ssl_ctx(private_key_file, cert_file);
   auto ssl_ctx_d = defer(SSL_CTX_free, ssl_ctx);
 
   auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);

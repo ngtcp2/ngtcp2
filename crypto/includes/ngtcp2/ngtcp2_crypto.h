@@ -482,7 +482,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_and_install_key(
  * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
  * object.
  *
- * This function returns 0 if it succeeds, or -1.
+ * This function returns 0 if it succeeds, or a negative error code.
+ * The generic error code is -1 if a specific error code is not
+ * suitable.  The error codes less than -10000 are specific to
+ * underlying TLS implementation.  For OpenSSL, the error codes are
+ * defined in ngtcp2_crypto_openssl.h.
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,

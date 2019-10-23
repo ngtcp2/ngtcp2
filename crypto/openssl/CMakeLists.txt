@@ -37,6 +37,10 @@ set(ngtcp2_crypto_openssl_INCLUDE_DIRS
   "${OPENSSL_INCLUDE_DIRS}"
 )
 
+foreach(name libngtcp2_crypto_openssl.pc)
+  configure_file("${name}.in" "${name}" @ONLY)
+endforeach()
+
 # Public shared library
 add_library(ngtcp2_crypto_openssl ${ngtcp2_crypto_openssl_SOURCES})
 set_target_properties(ngtcp2_crypto_openssl PROPERTIES

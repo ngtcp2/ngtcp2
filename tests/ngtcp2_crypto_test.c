@@ -126,7 +126,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_data = 1000000009;
   params.initial_max_streams_bidi = 909;
   params.initial_max_streams_uni = 911;
-  params.idle_timeout = 1023;
+  params.idle_timeout = 1023 * NGTCP2_MILLISECONDS;
   params.max_packet_size = 1400;
   params.ack_delay_exponent = 20;
   params.disable_active_migration = 1;
@@ -176,7 +176,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_data = 1000000009;
   params.initial_max_streams_bidi = 908;
   params.initial_max_streams_uni = 16383;
-  params.idle_timeout = 16363;
+  params.idle_timeout = 16363 * NGTCP2_MILLISECONDS;
   params.max_packet_size = 1200;
   params.stateless_reset_token_present = 1;
   memset(params.stateless_reset_token, 0xf1,

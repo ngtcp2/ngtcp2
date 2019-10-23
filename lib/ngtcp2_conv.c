@@ -28,19 +28,18 @@
 #include <assert.h>
 
 #include "ngtcp2_str.h"
-#include "ngtcp2_net.h"
 #include "ngtcp2_pkt.h"
 
 uint64_t ngtcp2_get_uint64(const uint8_t *p) {
   uint64_t n;
   memcpy(&n, p, 8);
-  return bswap64(n);
+  return ngtcp2_ntohl64(n);
 }
 
 uint64_t ngtcp2_get_uint48(const uint8_t *p) {
   uint64_t n = 0;
   memcpy(((uint8_t *)&n) + 2, p, 6);
-  return bswap64(n);
+  return ngtcp2_ntohl64(n);
 }
 
 uint32_t ngtcp2_get_uint32(const uint8_t *p) {
@@ -85,7 +84,7 @@ uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
   case 8:
     memcpy(&n, p, 8);
     n.b[0] &= 0x3f;
-    return bswap64(n.n64);
+    return ngtcp2_ntohl64(n.n64);
   }
 
   assert(0);
@@ -107,12 +106,12 @@ int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {
 }
 
 uint8_t *ngtcp2_put_uint64be(uint8_t *p, uint64_t n) {
-  n = bswap64(n);
+  n = ngtcp2_htonl64(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 
 uint8_t *ngtcp2_put_uint48be(uint8_t *p, uint64_t n) {
-  n = bswap64(n);
+  n = ngtcp2_htonl64(n);
   return ngtcp2_cpymem(p, ((const uint8_t *)&n) + 2, 6);
 }
 

@@ -48,6 +48,7 @@ set(ngtcp2_SOURCES
   ngtcp2_gaptr.c
   ngtcp2_ringbuf.c
   ngtcp2_log.c
+  ngtcp2_qlog.c
   ngtcp2_cid.c
   ngtcp2_ksl.c
   ngtcp2_cc.c

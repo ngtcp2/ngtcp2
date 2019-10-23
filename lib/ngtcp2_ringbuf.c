@@ -30,7 +30,6 @@
 #endif
 
 #include "ngtcp2_macro.h"
-#include "ngtcp2_net.h"
 
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {

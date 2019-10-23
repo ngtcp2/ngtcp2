@@ -54,7 +54,7 @@ void test_ngtcp2_rtb_add(void) {
   cc_stat_init(&ccs);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_default_cc_init(&cc, &ccs, &log);
-  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
                      1000000007, 1, NGTCP2_PROTO_VER_MAX, 0);
@@ -166,7 +166,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* no ack block */
   cc_stat_init(&ccs);
   ngtcp2_default_cc_init(&cc, &ccs, &log);
-  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   setup_rtb_fixture(&rtb, mem);
 
   CU_ASSERT(67 == ngtcp2_ksl_len(&rtb.ents));
@@ -188,7 +188,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* with ack block */
   cc_stat_init(&ccs);
   ngtcp2_default_cc_init(&cc, &ccs, &log);
-  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   setup_rtb_fixture(&rtb, mem);
 
   fr->largest_ack = 441;
@@ -216,7 +216,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* gap+blklen points to pkt_num 0 */
   cc_stat_init(&ccs);
   ngtcp2_default_cc_init(&cc, &ccs, &log);
-  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 250;
@@ -236,7 +236,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* pkt_num = 0 (first ack block) */
   cc_stat_init(&ccs);
   ngtcp2_default_cc_init(&cc, &ccs, &log);
-  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 0;
@@ -254,7 +254,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* pkt_num = 0 */
   cc_stat_init(&ccs);
   ngtcp2_default_cc_init(&cc, &ccs, &log);
-  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
   fr->largest_ack = 2;
@@ -291,7 +291,7 @@ void test_ngtcp2_rtb_clear(void) {
   cc_stat_init(&ccs);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_default_cc_init(&cc, &ccs, &log);
-  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
                      1000000007, 1, NGTCP2_PROTO_VER_MAX, 0);

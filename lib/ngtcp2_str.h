@@ -31,7 +31,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-uint8_t *ngtcp2_cpymem(uint8_t *dest, const uint8_t *src, size_t n);
+void *ngtcp2_cpymem(void *dest, const void *src, size_t n);
 
 /*
  * ngtcp2_setmem writes a string of length |n| consisting only |b| to

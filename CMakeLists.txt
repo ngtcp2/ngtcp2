@@ -99,6 +99,8 @@ check_include_file("stdint.h"      HAVE_STDINT_H)
 check_include_file("stdlib.h"      HAVE_STDLIB_H)
 check_include_file("string.h"      HAVE_STRING_H)
 check_include_file("unistd.h"      HAVE_UNISTD_H)
+check_include_file("sys/endian.h"  HAVE_SYS_ENDIAN_H)
+check_include_file("endian.h"      HAVE_ENDIAN_H)
 
 include(CheckTypeSize)
 # Checks for typedefs, structures, and compiler characteristics.
@@ -108,6 +110,15 @@ if(SIZEOF_SSIZE_T STREQUAL "")
   # ssize_t is a signed type in POSIX storing at least -1.
   # Set it to "int" to match the behavior of AC_TYPE_SSIZE_T (autotools).
   set(ssize_t int)
+endif()
+
+# Checks for symbols.
+include(CheckSymbolExists)
+if(HAVE_ENDIAN_H)
+  check_symbol_exists(be64toh "endian.h" HAVE_BE64TOH)
+endif()
+if(HAVE_SYS_ENDIAN_H)
+  check_symbol_exists(be64toh "sys/endian.h" HAVE_BE64TOH)
 endif()
 
 include(ExtractValidFlags)

@@ -33,14 +33,78 @@
 #  include <arpa/inet.h>
 #endif /* HAVE_ARPA_INET_H */
 
+#ifdef HAVE_NETINET_IN_H
+#  include <netinet/in.h>
+#endif /* HAVE_NETINET_IN_H */
+
+#ifdef HAVE_ENDIAN_H
+#  include <endian.h>
+#endif /* HAVE_ENDIAN_H */
+
+#ifdef HAVE_SYS_ENDIAN_H
+#  include <sys/endian.h>
+#endif /* HAVE_SYS_ENDIAN_H */
+
 #include <ngtcp2/ngtcp2.h>
 
-#ifdef WORDS_BIGENDIAN
-#  define bswap64(N) (N)
-#else /* !WORDS_BIGENDIAN */
-#  define bswap64(N)                                                           \
+#if defined HAVE_BE64TOH || HAVE_DECL_BE64TOH
+#  define ngtcp2_ntohl64(N) be64toh(N)
+#  define ngtcp2_htonl64(N) htobe64(N)
+#else /* !HAVE_BE64TOH */
+#  define ngtcp2_bswap64(N)                                                    \
     ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
-#endif /* !WORDS_BIGENDIAN */
+#  define ngtcp2_ntohl64(N) ngtcp2_bswap64(N)
+#  define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
+#endif /* !HAVE_BE64TOH */
+
+#if defined(WIN32)
+/* Windows requires ws2_32 library for ntonl family functions.  We
+   define inline functions for those function so that we don't have
+   dependeny on that lib. */
+
+#  ifdef _MSC_VER
+#    define STIN static __inline
+#  else
+#    define STIN static inline
+#  endif
+
+STIN uint32_t htonl(uint32_t hostlong) {
+  uint32_t res;
+  unsigned char *p = (unsigned char *)&res;
+  *p++ = hostlong >> 24;
+  *p++ = (hostlong >> 16) & 0xffu;
+  *p++ = (hostlong >> 8) & 0xffu;
+  *p = hostlong & 0xffu;
+  return res;
+}
+
+STIN uint16_t htons(uint16_t hostshort) {
+  uint16_t res;
+  unsigned char *p = (unsigned char *)&res;
+  *p++ = hostshort >> 8;
+  *p = hostshort & 0xffu;
+  return res;
+}
+
+STIN uint32_t ntohl(uint32_t netlong) {
+  uint32_t res;
+  unsigned char *p = (unsigned char *)&netlong;
+  res = *p++ << 24;
+  res += *p++ << 16;
+  res += *p++ << 8;
+  res += *p;
+  return res;
+}
+
+STIN uint16_t ntohs(uint16_t netshort) {
+  uint16_t res;
+  unsigned char *p = (unsigned char *)&netshort;
+  res = *p++ << 8;
+  res += *p;
+  return res;
+}
+
+#endif /* WIN32 */
 
 /*
  * ngtcp2_get_uint64 reads 8 bytes from |p| as 64 bits unsigned
