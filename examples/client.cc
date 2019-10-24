@@ -65,10 +65,8 @@ Config config{};
 Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen},
       begin(buf.data()),
-      head(begin),
       tail(begin + datalen) {}
-Buffer::Buffer(size_t datalen)
-    : buf(datalen), begin(buf.data()), head(begin), tail(begin) {}
+Buffer::Buffer(size_t datalen) : buf(datalen), begin(buf.data()), tail(begin) {}
 
 Stream::Stream(const Request &req, int64_t stream_id)
     : req(req), stream_id(stream_id), fd(-1) {}
