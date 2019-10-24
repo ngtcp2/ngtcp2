@@ -962,15 +962,15 @@ typedef enum ngtcp2_crypto_level {
 /**
  * @functypedef
  *
- * :type`ngtcp2_recv_crypto_data` is invoked when crypto data are
- * received.  The received data are pointed by |data|, and its length
+ * :type`ngtcp2_recv_crypto_data` is invoked when crypto data is
+ * received.  The received data is pointed to by |data|, and its length
  * is |datalen|.  The |offset| specifies the offset where |data| is
  * positioned.  |user_data| is the arbitrary pointer passed to
  * `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.  The ngtcp2
  * library ensures that the crypto data is passed to the application
  * in the increasing order of |offset|.  |datalen| is always strictly
  * greater than 0.  |crypto_level| indicates the encryption level
- * where this data is received.  Crypto data never be received in
+ * where this data is received.  Crypto data can never be received in
  * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY`.
  *
  * The application should provide the given data to TLS stack.
