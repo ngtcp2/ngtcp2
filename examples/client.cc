@@ -119,15 +119,15 @@ int write_transport_params(const char *path,
     return -1;
   }
 
-  f << "initial_max_streams_bidi=" << params->initial_max_streams_bidi << "\n"
-    << "initial_max_streams_uni=" << params->initial_max_streams_uni << "\n"
+  f << "initial_max_streams_bidi=" << params->initial_max_streams_bidi << '\n'
+    << "initial_max_streams_uni=" << params->initial_max_streams_uni << '\n'
     << "initial_max_stream_data_bidi_local="
-    << params->initial_max_stream_data_bidi_local << "\n"
+    << params->initial_max_stream_data_bidi_local << '\n'
     << "initial_max_stream_data_bidi_remote="
-    << params->initial_max_stream_data_bidi_remote << "\n"
+    << params->initial_max_stream_data_bidi_remote << '\n'
     << "initial_max_stream_data_uni=" << params->initial_max_stream_data_uni
-    << "\n"
-    << "initial_max_data=" << params->initial_max_data << "\n";
+    << '\n'
+    << "initial_max_data=" << params->initial_max_data << '\n';
 
   f.close();
   if (!f) {
