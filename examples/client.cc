@@ -884,7 +884,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 
   auto dis = std::uniform_int_distribution<uint8_t>(
       0, std::numeric_limits<uint8_t>::max());
-  auto generate_cid = [&dis] (ngtcp2_cid &cid, size_t len) {
+  auto generate_cid = [&dis](ngtcp2_cid &cid, size_t len) {
     cid.datalen = len;
     std::generate(std::begin(cid.data), std::begin(cid.data) + cid.datalen,
                   [&dis]() { return dis(randgen); });
