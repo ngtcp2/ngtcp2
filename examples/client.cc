@@ -1543,9 +1543,9 @@ namespace {
 size_t remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
                              uint64_t offset) {
   size_t len = 0;
-  for (; !d.empty() && tx_offset + d.front().bufsize() <= offset;) {
-    tx_offset += d.front().bufsize();
-    len += d.front().bufsize();
+  for (; !d.empty() && tx_offset + d.front().size() <= offset;) {
+    tx_offset += d.front().size();
+    len += d.front().size();
     d.pop_front();
   }
   return len;

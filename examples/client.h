@@ -128,7 +128,6 @@ struct Buffer {
   void reset() {
     tail = begin;
   }
-  size_t bufsize() const { return tail - begin; }
 
   std::vector<uint8_t> buf;
   // begin points to the beginning of the buffer.  This might point to
