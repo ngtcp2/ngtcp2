@@ -884,15 +884,16 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 
   auto dis = std::uniform_int_distribution<uint8_t>(
       0, std::numeric_limits<uint8_t>::max());
+  auto generate_cid = [&dis] (ngtcp2_cid &cid, size_t len) {
+    cid.datalen = len;
+    std::generate(std::begin(cid.data), std::begin(cid.data) + cid.datalen,
+                  [&dis]() { return dis(randgen); });
+  };
 
   ngtcp2_cid scid, dcid;
-  scid.datalen = 17;
-  std::generate(std::begin(scid.data), std::begin(scid.data) + scid.datalen,
-                [&dis]() { return dis(randgen); });
+  generate_cid(scid, 17);
   if (config.dcid.datalen == 0) {
-    dcid.datalen = 18;
-    std::generate(std::begin(dcid.data), std::begin(dcid.data) + dcid.datalen,
-                  [&dis]() { return dis(randgen); });
+    generate_cid(dcid, 18);
   } else {
     dcid = config.dcid;
   }
