@@ -25,7 +25,6 @@
 #include "ngtcp2_gaptr.h"
 
 #include <string.h>
-#include <assert.h>
 
 #include "ngtcp2_macro.h"
 
