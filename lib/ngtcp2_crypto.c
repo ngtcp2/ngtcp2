@@ -78,6 +78,10 @@ void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
   }
 }
 
+static void inc_len_varint(size_t *len, uint64_t param) {
+    *len += 4 + ngtcp2_put_varint_len(param);
+}
+
 ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                        ngtcp2_transport_params_type exttype,
                                        const ngtcp2_transport_params *params) {
@@ -113,44 +117,40 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   if (params->initial_max_stream_data_bidi_local) {
-    len +=
-        4 + ngtcp2_put_varint_len(params->initial_max_stream_data_bidi_local);
+    inc_len_varint(&len, params->initial_max_stream_data_bidi_local);
   }
   if (params->initial_max_stream_data_bidi_remote) {
-    len +=
-        4 + ngtcp2_put_varint_len(params->initial_max_stream_data_bidi_remote);
+    inc_len_varint(&len, params->initial_max_stream_data_bidi_remote);
   }
   if (params->initial_max_stream_data_uni) {
-    len += 4 + ngtcp2_put_varint_len(params->initial_max_stream_data_uni);
+    inc_len_varint(&len, params->initial_max_stream_data_uni);
   }
   if (params->initial_max_data) {
-    len += 4 + ngtcp2_put_varint_len(params->initial_max_data);
+    inc_len_varint(&len, params->initial_max_data);
   }
   if (params->initial_max_streams_bidi) {
-    len += 4 + ngtcp2_put_varint_len(params->initial_max_streams_bidi);
+    inc_len_varint(&len, params->initial_max_streams_bidi);
   }
   if (params->initial_max_streams_uni) {
-    len += 4 + ngtcp2_put_varint_len(params->initial_max_streams_uni);
+    inc_len_varint(&len, params->initial_max_streams_uni);
   }
   if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
-    len += 4 + ngtcp2_put_varint_len(params->max_packet_size);
+    inc_len_varint(&len, params->max_packet_size);
   }
   if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
-    len += 4 + ngtcp2_put_varint_len(params->ack_delay_exponent);
+    inc_len_varint(&len, params->ack_delay_exponent);
   }
   if (params->disable_active_migration) {
     len += 4;
   }
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
-    len +=
-        4 + ngtcp2_put_varint_len(params->max_ack_delay / NGTCP2_MILLISECONDS);
+    inc_len_varint(&len, params->max_ack_delay / NGTCP2_MILLISECONDS);
   }
   if (params->idle_timeout) {
-    len +=
-        4 + ngtcp2_put_varint_len(params->idle_timeout / NGTCP2_MILLISECONDS);
+    inc_len_varint(&len, params->idle_timeout / NGTCP2_MILLISECONDS);
   }
   if (params->active_connection_id_limit) {
-    len += 4 + ngtcp2_put_varint_len(params->active_connection_id_limit);
+    inc_len_varint(&len, params->active_connection_id_limit);
   }
 
   if (destlen < len) {
