@@ -2617,8 +2617,13 @@ int main(int argc, char **argv) {
     }
     config.fd = fd;
     config.datalen = st.st_size;
-    config.data = static_cast<uint8_t *>(
-        mmap(nullptr, config.datalen, PROT_READ, MAP_SHARED, fd, 0));
+    auto addr = mmap(nullptr, config.datalen, PROT_READ, MAP_SHARED, fd, 0);
+    if (addr == MAP_FAILED) {
+      std::cerr << "data: Could not mmap file " << data_path << ": "
+                << strerror(errno) << std::endl;
+      exit(EXIT_FAILURE);
+    }
+    config.data = static_cast<uint8_t *>(addr);
   }
 
   auto addr = argv[optind++];
