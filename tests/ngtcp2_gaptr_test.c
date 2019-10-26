@@ -67,7 +67,7 @@ void test_ngtcp2_gaptr_push(void) {
   CU_ASSERT(12389 == r.end);
 
   ngtcp2_ksl_it_next(&it);
-  r = *(ngtcp2_range*)ngtcp2_ksl_it_key(&it).ptr;
+  r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
 
   CU_ASSERT(12389 + 133 == r.begin);
   CU_ASSERT(UINT64_MAX == r.end);

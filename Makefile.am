@@ -38,6 +38,6 @@ ACLOCAL_AMFLAGS = -I m4
 clang-format:
 	CLANGFORMAT=`git config --get clangformat.binary`; \
 	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
-	$${CLANGFORMAT} -i lib/*.{c,h} lib/includes/ngtcp2/*.h \
+	$${CLANGFORMAT} -i lib/*.{c,h} tests/*.{c,h} lib/includes/ngtcp2/*.h \
 	crypto/*.c crypto/openssl/*.c crypto/includes/ngtcp2/*.h \
 	examples/*.{cc,h}
