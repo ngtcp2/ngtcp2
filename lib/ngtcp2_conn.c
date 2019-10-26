@@ -35,6 +35,7 @@
 #include "ngtcp2_vec.h"
 #include "ngtcp2_addr.h"
 #include "ngtcp2_path.h"
+#include "ngtcp2_rcvry.h"
 
 /*
  * conn_local_stream returns nonzero if |stream_id| indicates that it
@@ -530,7 +531,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     ngtcp2_buf_init(&(*pconn)->qlog.buf, buf, NGTCP2_QLOG_BUFLEN);
   }
 
-  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->ccs, &(*pconn)->log);
+  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->ccs, &(*pconn)->log,
+                         settings->initial_ts);
 
   rv = pktns_init(&(*pconn)->in_pktns, NGTCP2_CRYPTO_LEVEL_INITIAL,
                   &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
@@ -993,6 +995,8 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
   if (rv != 0) {
     return rv;
   }
+
+  ngtcp2_pipeack_update(&conn->cc.pipeack, 0, &conn->rcs, ent->ts);
 
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     conn->rcs.last_tx_pkt_ts = ent->ts;
@@ -3603,6 +3607,8 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   }
 
   ngtcp2_acktr_recv_ack(&pktns->acktr, fr);
+
+  ngtcp2_pipeack_update_value(&conn->cc.pipeack, &conn->rcs, ts);
 
   num_acked = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, conn, ts);
   if (num_acked < 0) {

@@ -53,7 +53,7 @@ void test_ngtcp2_rtb_add(void) {
   dcid_init(&dcid);
   cc_stat_init(&ccs);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_default_cc_init(&cc, &ccs, &log);
+  ngtcp2_default_cc_init(&cc, &ccs, &log, 0);
   ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
@@ -165,7 +165,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   /* no ack block */
   cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &log);
+  ngtcp2_default_cc_init(&cc, &ccs, &log, 0);
   ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   setup_rtb_fixture(&rtb, mem);
 
@@ -187,7 +187,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   /* with ack block */
   cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &log);
+  ngtcp2_default_cc_init(&cc, &ccs, &log, 0);
   ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   setup_rtb_fixture(&rtb, mem);
 
@@ -215,7 +215,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   /* gap+blklen points to pkt_num 0 */
   cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &log);
+  ngtcp2_default_cc_init(&cc, &ccs, &log, 0);
   ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
@@ -235,7 +235,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   /* pkt_num = 0 (first ack block) */
   cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &log);
+  ngtcp2_default_cc_init(&cc, &ccs, &log, 0);
   ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
@@ -253,7 +253,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   /* pkt_num = 0 */
   cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &log);
+  ngtcp2_default_cc_init(&cc, &ccs, &log, 0);
   ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
@@ -290,7 +290,7 @@ void test_ngtcp2_rtb_clear(void) {
   dcid_init(&dcid);
   cc_stat_init(&ccs);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_default_cc_init(&cc, &ccs, &log);
+  ngtcp2_default_cc_init(&cc, &ccs, &log, 0);
   ngtcp2_rtb_init(&rtb, crypto_level, &crypto, &cc, &log, NULL, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,

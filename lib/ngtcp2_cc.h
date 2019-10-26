@@ -31,6 +31,8 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include "ngtcp2_pipeack.h"
+
 #define NGTCP2_MAX_DGRAM_SIZE 1200
 #define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
 #define NGTCP2_LOSS_REDUCTION_FACTOR 0.5
@@ -57,17 +59,20 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 struct ngtcp2_default_cc {
   ngtcp2_log *log;
   ngtcp2_cc_stat *ccs;
+  ngtcp2_pipeack pipeack;
 };
 
 typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 
 void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_cc_stat *ccs,
-                            ngtcp2_log *log);
+                            ngtcp2_log *log, ngtcp2_tstamp ts);
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc);
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
-                                    const ngtcp2_cc_pkt *pkt);
+                                    const ngtcp2_cc_pkt *pkt,
+                                    const ngtcp2_rcvry_stat *rcs,
+                                    ngtcp2_tstamp ts);
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_tstamp ts_sent,

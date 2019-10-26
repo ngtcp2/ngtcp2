@@ -36,9 +36,11 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 }
 
 void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_cc_stat *ccs,
-                            ngtcp2_log *log) {
+                            ngtcp2_log *log, ngtcp2_tstamp ts) {
   cc->log = log;
   cc->ccs = ccs;
+
+  ngtcp2_pipeack_init(&cc->pipeack, ts);
 }
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc) { (void)cc; }
@@ -49,14 +51,20 @@ static int default_cc_in_congestion_recovery(ngtcp2_default_cc *cc,
 }
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
-                                    const ngtcp2_cc_pkt *pkt) {
+                                    const ngtcp2_cc_pkt *pkt,
+                                    const ngtcp2_rcvry_stat *rcs,
+                                    ngtcp2_tstamp ts) {
   ngtcp2_cc_stat *ccs = cc->ccs;
 
   if (default_cc_in_congestion_recovery(cc, pkt->ts_sent)) {
     return;
   }
 
-  /* TODO Do something if "app limited" */
+  ngtcp2_pipeack_update(&cc->pipeack, pkt->pktlen, rcs, ts);
+
+  if (cc->pipeack.value < ccs->cwnd / 2) {
+    return;
+  }
 
   if (ccs->cwnd < ccs->ssthresh) {
     ccs->cwnd += pkt->pktlen;

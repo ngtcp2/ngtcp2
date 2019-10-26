@@ -35,6 +35,7 @@
 #include "ngtcp2_cid.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_rcvry.h"
 
 static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
                         const ngtcp2_crypto_aead *aead,

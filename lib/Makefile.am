@@ -60,7 +60,8 @@ OBJECTS = \
 	ngtcp2_addr.c \
 	ngtcp2_path.c \
 	ngtcp2_pv.c \
-	ngtcp2_version.c
+	ngtcp2_version.c \
+	ngtcp2_pipeack.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -91,7 +92,9 @@ HFILES = \
 	ngtcp2_addr.h \
 	ngtcp2_path.h \
 	ngtcp2_pv.h \
-	ngtcp2_macro.h
+	ngtcp2_macro.h \
+	ngtcp2_pipeack.h \
+	ngtcp2_rcvry.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
 libngtcp2_la_LDFLAGS = -no-undefined \

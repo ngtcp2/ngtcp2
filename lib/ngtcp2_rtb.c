@@ -32,6 +32,7 @@
 #include "ngtcp2_log.h"
 #include "ngtcp2_vec.h"
 #include "ngtcp2_cc.h"
+#include "ngtcp2_rcvry.h"
 
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
@@ -337,11 +338,13 @@ static int rtb_call_acked_stream_offset(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   return 0;
 }
 
-static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
+                             const ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts) {
   ngtcp2_cc_pkt pkt;
 
   ngtcp2_default_cc_on_pkt_acked(
-      rtb->cc, ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts));
+      rtb->cc, ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts),
+      rcs, ts);
 }
 
 ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
@@ -388,7 +391,7 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
-        rtb_on_pkt_acked(rtb, ent);
+        rtb_on_pkt_acked(rtb, ent, &conn->rcs, ts);
         /* At this point, it is invalided because rtb->ents might be
            modified. */
       }
@@ -426,7 +429,7 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
-        rtb_on_pkt_acked(rtb, ent);
+        rtb_on_pkt_acked(rtb, ent, &conn->rcs, ts);
       }
       rtb_remove(rtb, &it, ent);
       ++num_acked;
