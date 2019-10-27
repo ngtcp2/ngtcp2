@@ -27,7 +27,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "ngtcp2_macro.h"
 
 int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem) {
   int rv;

@@ -30,7 +30,6 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_conv.h"
 #include "ngtcp2_conn.h"
-#include "ngtcp2_macro.h"
 
 void ngtcp2_ppe_init(ngtcp2_ppe *ppe, uint8_t *out, size_t outlen,
                      ngtcp2_crypto_cc *cc) {

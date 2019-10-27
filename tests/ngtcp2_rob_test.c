@@ -29,7 +29,6 @@
 #include "ngtcp2_rob.h"
 #include "ngtcp2_test_helper.h"
 #include "ngtcp2_mem.h"
-#include "ngtcp2_macro.h"
 
 void test_ngtcp2_rob_push(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
