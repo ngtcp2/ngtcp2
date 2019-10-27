@@ -124,9 +124,7 @@ struct Buffer {
   uint8_t *const wpos() { return tail; }
   const uint8_t *rpos() const { return begin; }
   void push(size_t len) { tail += len; }
-  void reset() {
-    tail = begin;
-  }
+  void reset() { tail = begin; }
 
   std::vector<uint8_t> buf;
   // begin points to the beginning of the buffer.  This might point to

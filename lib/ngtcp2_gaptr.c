@@ -27,7 +27,6 @@
 
 #include <string.h>
 
-
 int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem) {
   int rv;
   ngtcp2_range range = {0, UINT64_MAX};

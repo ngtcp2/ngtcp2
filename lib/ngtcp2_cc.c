@@ -23,8 +23,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "ngtcp2_cc.h"
-
-
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
 

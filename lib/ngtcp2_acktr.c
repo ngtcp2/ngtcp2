@@ -26,7 +26,6 @@
 
 #include <assert.h>
 
-
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
                            ngtcp2_tstamp tstamp, const ngtcp2_mem *mem) {
   *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));

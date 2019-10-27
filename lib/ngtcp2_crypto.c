@@ -79,7 +79,7 @@ void ngtcp2_crypto_create_nonce(uint8_t *dest, const uint8_t *iv, size_t ivlen,
 }
 
 static void inc_len_varint(size_t *len, uint64_t param) {
-    *len += 4 + ngtcp2_put_varint_len(param);
+  *len += 4 + ngtcp2_put_varint_len(param);
 }
 
 ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
