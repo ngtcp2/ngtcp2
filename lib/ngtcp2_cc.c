@@ -24,7 +24,6 @@
  */
 #include "ngtcp2_cc.h"
 
-#include <assert.h>
 
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
