@@ -195,19 +195,19 @@ typedef struct ngtcp2_mem {
 #define NGTCP2_HP_SAMPLELEN 16
 
 /* NGTCP2_SECONDS is a count of tick which corresponds to 1 second. */
-#define NGTCP2_SECONDS 1000000000ULL
+#define NGTCP2_SECONDS ((uint64_t)1000000000ULL)
 
 /* NGTCP2_MILLISECONDS is a count of tick which corresponds to 1
    millisecond. */
-#define NGTCP2_MILLISECONDS 1000000ULL
+#define NGTCP2_MILLISECONDS ((uint64_t)1000000ULL)
 
 /* NGTCP2_MICROSECONDS is a count of tick which corresponds to 1
    microsecond. */
-#define NGTCP2_MICROSECONDS 1000ULL
+#define NGTCP2_MICROSECONDS ((uint64_t)1000ULL)
 
 /* NGTCP2_NANOSECONDS is a count of tick which corresponds to 1
    nanosecond. */
-#define NGTCP2_NANOSECONDS 1ULL
+#define NGTCP2_NANOSECONDS ((uint64_t)1ULL)
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
 typedef enum ngtcp2_lib_error : int {
