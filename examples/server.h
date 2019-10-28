@@ -43,7 +43,6 @@
 #include <ev.h>
 
 #include "network.h"
-#include "template.h"
 #include "shared.h"
 
 using namespace ngtcp2;

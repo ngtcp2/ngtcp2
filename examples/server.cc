@@ -50,6 +50,7 @@
 #include "shared.h"
 #include "http.h"
 #include "keylog.h"
+#include "template.h"
 
 using namespace ngtcp2;
 
