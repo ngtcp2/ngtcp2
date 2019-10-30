@@ -4684,6 +4684,7 @@ fin:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
     return NGTCP2_ERR_DRAINING;
+  default: break;
   }
 
   return 0;
@@ -7960,6 +7961,7 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
     return NGTCP2_ERR_INVALID_STATE;
+  default: break;
   }
 
   if (path) {
@@ -8473,6 +8475,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   case NGTCP2_CS_DRAINING:
     rcs->loss_detection_timer = 0;
     return 0;
+  default: break;
   }
 
   if (!rcs->loss_detection_timer) {
