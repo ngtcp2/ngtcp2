@@ -50,7 +50,9 @@ int ngtcp2_vec_new(ngtcp2_vec **pvec, const uint8_t *data, size_t datalen,
   p = (uint8_t *)(*pvec) + sizeof(ngtcp2_vec);
   (*pvec)->base = p;
   (*pvec)->len = datalen;
-  /* p = */ ngtcp2_cpymem(p, data, datalen);
+  if (datalen) {
+    /* p = */ ngtcp2_cpymem(p, data, datalen);
+  }
 
   return 0;
 }
@@ -103,9 +105,11 @@ ssize_t ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
     }
 
     nmove = srccnt - i;
-    memmove(dst + nmove, dst, sizeof(ngtcp2_vec) * (*pdstcnt));
-    *pdstcnt += nmove;
-    memcpy(dst, src + i, sizeof(ngtcp2_vec) * nmove);
+    if (nmove) {
+      memmove(dst + nmove, dst, sizeof(ngtcp2_vec) * (*pdstcnt));
+      *pdstcnt += nmove;
+      memcpy(dst, src + i, sizeof(ngtcp2_vec) * nmove);
+    }
 
     dst[0].len -= left;
     dst[0].base += left;

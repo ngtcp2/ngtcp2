@@ -38,7 +38,9 @@ void ngtcp2_qlog_init(ngtcp2_qlog *qlog, ngtcp2_qlog_write write,
 
 static uint8_t *write_string(uint8_t *p, const ngtcp2_vec *s) {
   *p++ = '"';
-  p = ngtcp2_cpymem(p, s->base, s->len);
+  if (s->len) {
+    p = ngtcp2_cpymem(p, s->base, s->len);
+  }
   *p++ = '"';
   return p;
 }
