@@ -2888,12 +2888,12 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   if (SSL_CTX_set_ciphersuites(ssl_ctx, config.ciphers) != 1) {
     std::cerr << "SSL_CTX_set_ciphersuites: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    goto fail;
+    exit(EXIT_FAILURE);
   }
 
   if (SSL_CTX_set1_groups_list(ssl_ctx, config.groups) != 1) {
     std::cerr << "SSL_CTX_set1_groups_list failed" << std::endl;
-    goto fail;
+    exit(EXIT_FAILURE);
   }
 
   SSL_CTX_set_mode(ssl_ctx, SSL_MODE_RELEASE_BUFFERS);
@@ -2909,19 +2909,19 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
                                   SSL_FILETYPE_PEM) != 1) {
     std::cerr << "SSL_CTX_use_PrivateKey_file: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    goto fail;
+    exit(EXIT_FAILURE);
   }
 
   if (SSL_CTX_use_certificate_chain_file(ssl_ctx, cert_file) != 1) {
     std::cerr << "SSL_CTX_use_certificate_file: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    goto fail;
+    exit(EXIT_FAILURE);
   }
 
   if (SSL_CTX_check_private_key(ssl_ctx) != 1) {
     std::cerr << "SSL_CTX_check_private_key: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
-    goto fail;
+    exit(EXIT_FAILURE);
   }
 
   SSL_CTX_set_session_id_context(ssl_ctx, sid_ctx, sizeof(sid_ctx) - 1);
@@ -2938,10 +2938,6 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   SSL_CTX_set_client_hello_cb(ssl_ctx, client_hello_cb, nullptr);
 
   return ssl_ctx;
-
-fail:
-  SSL_CTX_free(ssl_ctx);
-  return nullptr;
 }
 } // namespace
 
@@ -3254,9 +3250,6 @@ int main(int argc, char **argv) {
   }
 
   auto ssl_ctx = create_ssl_ctx(private_key_file, cert_file);
-  if (ssl_ctx == nullptr) {
-    exit(EXIT_FAILURE);
-  }
 
   if (config.htdocs.back() != '/') {
     config.htdocs += '/';
