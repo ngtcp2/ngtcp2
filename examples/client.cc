@@ -2166,7 +2166,7 @@ auto quic_method = SSL_QUIC_METHOD{
 
 namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
-  auto ssl_ctx = SSL_CTX_new(TLS_method());
+  auto ssl_ctx = SSL_CTX_new(TLS_client_method());
 
   SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);

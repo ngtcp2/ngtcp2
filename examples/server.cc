@@ -2876,7 +2876,7 @@ namespace {
 SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
   constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
 
-  auto ssl_ctx = SSL_CTX_new(TLS_method());
+  auto ssl_ctx = SSL_CTX_new(TLS_server_method());
 
   constexpr auto ssl_opts = (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                             SSL_OP_SINGLE_ECDH_USE |
