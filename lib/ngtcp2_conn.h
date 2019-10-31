@@ -248,7 +248,7 @@ typedef struct {
 } ngtcp2_pktns;
 
 struct ngtcp2_conn {
-  int state;
+  ngtcp2_conn_state state;
   ngtcp2_conn_callbacks callbacks;
   /* rcid is a connection ID present in Initial or 0-RTT packet from
      client as destination connection ID.  Server uses this field to
