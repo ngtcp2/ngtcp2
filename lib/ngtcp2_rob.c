@@ -160,9 +160,8 @@ static int rob_write_data(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
         ngtcp2_rob_data_del(d, rob->mem);
         return rv;
       }
-    } else if (d->range.begin + rob->chunk <= offset) {
-      assert(0);
     }
+
     n = ngtcp2_min(len, d->range.begin + rob->chunk - offset);
     memcpy(d->begin + (offset - d->range.begin), data, n);
     offset += n;
