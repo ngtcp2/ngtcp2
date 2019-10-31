@@ -24,7 +24,6 @@
  */
 #include "ngtcp2_crypto_test.h"
 
-
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_crypto.h"
