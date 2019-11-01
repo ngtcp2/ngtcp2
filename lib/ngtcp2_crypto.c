@@ -86,6 +86,13 @@ static size_t varint_paramlen(uint64_t param) {
   return 4 + ngtcp2_put_varint_len(param);
 }
 
+static uint8_t *put_uint16_varint(uint8_t *p, ngtcp2_transport_param_id id,
+                                  uint64_t value) {
+  p = ngtcp2_put_uint16be(p, id);
+  p = ngtcp2_put_uint16be(p, (uint16_t)ngtcp2_put_varint_len(value));
+  return ngtcp2_put_varint(p, value);
+}
+
 ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                        ngtcp2_transport_params_type exttype,
                                        const ngtcp2_transport_params *params) {
@@ -202,63 +209,45 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   if (params->initial_max_stream_data_bidi_local) {
-    p = ngtcp2_put_uint16be(
-        p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL);
-    p = ngtcp2_put_uint16be(p, (uint16_t)ngtcp2_put_varint_len(
-                                   params->initial_max_stream_data_bidi_local));
-    p = ngtcp2_put_varint(p, params->initial_max_stream_data_bidi_local);
+    p = put_uint16_varint(p,
+        NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
+        params->initial_max_stream_data_bidi_local);
   }
 
   if (params->initial_max_stream_data_bidi_remote) {
-    p = ngtcp2_put_uint16be(
-        p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE);
-    p = ngtcp2_put_uint16be(p,
-                            (uint16_t)ngtcp2_put_varint_len(
-                                params->initial_max_stream_data_bidi_remote));
-    p = ngtcp2_put_varint(p, params->initial_max_stream_data_bidi_remote);
+    p = put_uint16_varint(p,
+        NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,
+        params->initial_max_stream_data_bidi_remote);
   }
 
   if (params->initial_max_stream_data_uni) {
-    p = ngtcp2_put_uint16be(p,
-                            NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI);
-    p = ngtcp2_put_uint16be(p, (uint16_t)ngtcp2_put_varint_len(
-                                   params->initial_max_stream_data_uni));
-    p = ngtcp2_put_varint(p, params->initial_max_stream_data_uni);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI,
+                          params->initial_max_stream_data_uni);
   }
 
   if (params->initial_max_data) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->initial_max_data));
-    p = ngtcp2_put_varint(p, params->initial_max_data);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA,
+                         params->initial_max_data);
   }
 
   if (params->initial_max_streams_bidi) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->initial_max_streams_bidi));
-    p = ngtcp2_put_varint(p, params->initial_max_streams_bidi);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI,
+                          params->initial_max_streams_bidi);
   }
 
   if (params->initial_max_streams_uni) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->initial_max_streams_uni));
-    p = ngtcp2_put_varint(p, params->initial_max_streams_uni);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI,
+                          params->initial_max_streams_uni);
   }
 
   if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->max_packet_size));
-    p = ngtcp2_put_varint(p, params->max_packet_size);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE,
+                          params->max_packet_size);
   }
 
   if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->ack_delay_exponent));
-    p = ngtcp2_put_varint(p, params->ack_delay_exponent);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT,
+                          params->ack_delay_exponent);
   }
 
   if (params->disable_active_migration) {
@@ -267,26 +256,18 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   if (params->max_ack_delay != NGTCP2_DEFAULT_MAX_ACK_DELAY) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY);
-    p = ngtcp2_put_uint16be(p,
-                            (uint16_t)ngtcp2_put_varint_len(
-                                params->max_ack_delay / NGTCP2_MILLISECONDS));
-    p = ngtcp2_put_varint(p, params->max_ack_delay / NGTCP2_MILLISECONDS);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY,
+                          params->max_ack_delay / NGTCP2_MILLISECONDS);
   }
 
   if (params->idle_timeout) {
-    p = ngtcp2_put_uint16be(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT);
-    p = ngtcp2_put_uint16be(p, (uint16_t)ngtcp2_put_varint_len(
-                                   params->idle_timeout / NGTCP2_MILLISECONDS));
-    p = ngtcp2_put_varint(p, params->idle_timeout / NGTCP2_MILLISECONDS);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT,
+                          params->idle_timeout / NGTCP2_MILLISECONDS);
   }
 
   if (params->active_connection_id_limit) {
-    p = ngtcp2_put_uint16be(p,
-                            NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT);
-    p = ngtcp2_put_uint16be(
-        p, (uint16_t)ngtcp2_put_varint_len(params->active_connection_id_limit));
-    p = ngtcp2_put_varint(p, params->active_connection_id_limit);
+    p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
+                          params->active_connection_id_limit);
   }
 
   assert((size_t)(p - dest) == len);
