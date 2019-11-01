@@ -867,7 +867,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       recv_retry,
       extend_max_streams_bidi,
       nullptr, // extend_max_streams_uni
-      rand,    // rand
+      rand,
       get_new_connection_id,
       remove_connection_id,
       ::update_key,
