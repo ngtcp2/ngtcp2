@@ -1379,7 +1379,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       path_validation,
       nullptr, // select_preferred_addr
       ::stream_reset,
-      ::extend_max_remote_streams_bidi, // extend_max_remote_streams_bidi,
+      ::extend_max_remote_streams_bidi,
       nullptr,                          // extend_max_remote_streams_uni,
       ::extend_max_stream_data,
   };
