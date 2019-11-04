@@ -5473,8 +5473,8 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
  */
-static int conn_on_stateless_reset(ngtcp2_conn *conn, const uint8_t *payload,
-                                   size_t payloadlen) {
+static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
+                                   const uint8_t *payload, size_t payloadlen) {
   int rv = 1;
   ngtcp2_pkt_stateless_reset sr;
 
@@ -5483,9 +5483,11 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const uint8_t *payload,
     return rv;
   }
 
-  if (ngtcp2_verify_stateless_reset_token(conn->dcid.current.token,
-                                          sr.stateless_reset_token) != 0 &&
+  if ((!ngtcp2_path_eq(&conn->dcid.current.ps.path, path) ||
+       ngtcp2_verify_stateless_reset_token(conn->dcid.current.token,
+                                           sr.stateless_reset_token) != 0) &&
       (!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
+       !ngtcp2_path_eq(&conn->pv->fallback_dcid.ps.path, path) ||
        ngtcp2_verify_stateless_reset_token(conn->pv->fallback_dcid.token,
                                            sr.stateless_reset_token) != 0)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -6578,7 +6580,8 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
                           ts);
     if (nread < 0 && !ngtcp2_err_is_fatal((int)nread)) {
-      rv = conn_on_stateless_reset(conn, (*ppc)->pkt, (*ppc)->pktlen);
+      rv = conn_on_stateless_reset(conn, &(*ppc)->path.path, (*ppc)->pkt,
+                                   (*ppc)->pktlen);
       if (rv == 0) {
         ngtcp2_pkt_chain_del(*ppc, conn->mem);
         *ppc = next;
@@ -6699,7 +6702,7 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (ngtcp2_err_is_fatal((int)nread)) {
         return (int)nread;
       }
-      rv = conn_on_stateless_reset(conn, origpkt, origpktlen);
+      rv = conn_on_stateless_reset(conn, path, origpkt, origpktlen);
       if (rv == 0) {
         return 0;
       }
