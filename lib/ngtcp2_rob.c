@@ -335,3 +335,7 @@ uint64_t ngtcp2_rob_first_gap_offset(ngtcp2_rob *rob) {
 
   return g->range.begin;
 }
+
+int ngtcp2_rob_data_buffered(ngtcp2_rob *rob) {
+  return ngtcp2_ksl_len(&rob->dataksl) != 0;
+}

@@ -195,4 +195,9 @@ void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len);
  */
 uint64_t ngtcp2_rob_first_gap_offset(ngtcp2_rob *rob);
 
+/*
+ * ngtcp2_rob_data_buffered returns nonzero if any data is buffered.
+ */
+int ngtcp2_rob_data_buffered(ngtcp2_rob *rob);
+
 #endif /* NGTCP2_ROB_H */

@@ -245,6 +245,7 @@ typedef enum ngtcp2_lib_error {
   NGTCP2_ERR_INTERNAL = -238,
   NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED = -239,
   NGTCP2_ERR_WRITE_STREAM_MORE = -240,
+  NGTCP2_ERR_RETRY = -241,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -533,6 +534,11 @@ typedef struct ngtcp2_settings {
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
+  /* token is a token received in Client Initial packet and
+     successfully validated.  Only server application may specify this
+     field.  Server then verifies that all Client Initial packets have
+     this token.  `ngtcp2_conn_server_new` makes a copy of token. */
+  ngtcp2_vec token;
 } ngtcp2_settings;
 
 /**

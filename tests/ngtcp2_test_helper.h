@@ -128,6 +128,30 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
                                         uint32_t version, ngtcp2_frame *fr);
 
 /*
+ * write_single_frame_initial_pkt writes an Initial packet containing
+ * a single frame |fr| into |out| whose capacity is |outlen|.  This
+ * function returns the number of bytes written.
+ */
+size_t write_single_frame_initial_pkt(ngtcp2_conn *conn, uint8_t *out,
+                                      size_t outlen, const ngtcp2_cid *dcid,
+                                      const ngtcp2_cid *scid, int64_t pkt_num,
+                                      uint32_t version, ngtcp2_frame *fr,
+                                      const uint8_t *token, size_t tokenlen);
+
+/*
+ * write_single_frame_0rtt_pkt writes a 0RTT packet containing a
+ * single frame |fr| into |out| whose capacity is |outlen|.  This
+ * function returns the number of bytes written.
+ */
+size_t write_single_frame_0rtt_pkt(ngtcp2_conn *conn, uint8_t *out,
+                                   size_t outlen, const ngtcp2_cid *dcid,
+                                   const ngtcp2_cid *scid, int64_t pkt_num,
+                                   uint32_t version, ngtcp2_frame *fr,
+                                   const uint8_t *key, const uint8_t *iv,
+                                   const uint8_t *hp_key, size_t keylen,
+                                   size_t ivlen);
+
+/*
  * write_handshake_pkt writes an unprotected QUIC handshake packet
  * containing |frlen| frames pointed by|fra| in |out| whose capacity
  * is |outlen|.  This function returns the number of bytes written.

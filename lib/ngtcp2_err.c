@@ -94,6 +94,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_CRYPTO_BUFFER_EXCEEDED";
   case NGTCP2_ERR_WRITE_STREAM_MORE:
     return "ERR_WRITE_STREAM_MORE";
+  case NGTCP2_ERR_RETRY:
+    return "ERR_RETRY";
   default:
     return "(unknown)";
   }

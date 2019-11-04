@@ -552,6 +552,20 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_pktns_init;
   }
 
+  (*pconn)->local.settings = *settings;
+
+  if (server && settings->token.len) {
+    buf = ngtcp2_mem_malloc(mem, settings->token.len);
+    if (buf == NULL) {
+      goto fail_token;
+    }
+    memcpy(buf, settings->token.base, settings->token.len);
+    (*pconn)->local.settings.token.base = buf;
+  } else {
+    (*pconn)->local.settings.token.base = NULL;
+    (*pconn)->local.settings.token.len = 0;
+  }
+
   scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
   if (scident == NULL) {
     rv = NGTCP2_ERR_NOMEM;
@@ -605,7 +619,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->version = version;
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
-  (*pconn)->local.settings = *settings;
   (*pconn)->rx.unsent_max_offset = (*pconn)->rx.max_offset =
       params->initial_max_data;
   (*pconn)->remote.bidi.unsent_max_streams = params->initial_max_streams_bidi;
@@ -627,6 +640,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 fail_scid_set_insert:
   ngtcp2_mem_free(mem, scident);
 fail_scident:
+  ngtcp2_mem_free(mem, (*pconn)->local.settings.token.base);
+fail_token:
   pktns_free(&(*pconn)->pktns, mem);
 fail_pktns_init:
   pktns_free(&(*pconn)->hs_pktns, mem);
@@ -734,6 +749,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   ngtcp2_mem_free(conn->mem, conn->token.begin);
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
+  ngtcp2_mem_free(conn->mem, conn->local.settings.token.base);
 
   ngtcp2_crypto_km_del(conn->crypto.key_update.old_rx_ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->crypto.key_update.new_rx_ckm, conn->mem);
@@ -4135,8 +4151,23 @@ static void conn_discard_initial_key(ngtcp2_conn *conn) {
   pktns->crypto.tx.ckm = NULL;
   pktns->crypto.rx.ckm = NULL;
 
+  delete_buffed_pkts(pktns->rx.buffed_pkts, conn->mem);
+  pktns->rx.buffed_pkts = NULL;
+
   ngtcp2_rtb_clear(&pktns->rtb);
   ngtcp2_acktr_commit_ack(&pktns->acktr);
+}
+
+/*
+ * verify_token verifies |hd| contains |token| in its token field.  It
+ * returns 0 if it succeeds, or NGTCP2_ERR_PROTO.
+ */
+static int verify_token(const ngtcp2_vec *token, const ngtcp2_pkt_hd *hd) {
+  if (token->len == hd->tokenlen &&
+      ngtcp2_cmemeq(token->base, hd->token, token->len)) {
+    return 0;
+  }
+  return NGTCP2_ERR_PROTO;
 }
 
 static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
@@ -4369,6 +4400,14 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     }
 
     if (conn->server) {
+      if (conn->local.settings.token.len) {
+        rv = verify_token(&conn->local.settings.token, &hd);
+        if (rv != 0) {
+          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                          "packet was ignored because token is invalid");
+          return NGTCP2_ERR_DISCARD_PKT;
+        }
+      }
       if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
         rv = conn_call_recv_client_initial(conn, &hd.dcid);
         if (rv != 0) {
@@ -5440,10 +5479,10 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const uint8_t *payload,
     return rv;
   }
 
-  if (ngtcp2_verify_stateless_retry_token(conn->dcid.current.token,
+  if (ngtcp2_verify_stateless_reset_token(conn->dcid.current.token,
                                           sr.stateless_reset_token) != 0 &&
       (!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
-       ngtcp2_verify_stateless_retry_token(conn->pv->fallback_dcid.token,
+       ngtcp2_verify_stateless_reset_token(conn->pv->fallback_dcid.token,
                                            sr.stateless_reset_token) != 0)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -6769,17 +6808,23 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       return rv;
     }
 
-    /* TODO Attacker can send a fake 0RTT packet to create pending
-       connection and it makes server waste memory.  Might be better
-       not to buffer 0RTT packet. */
-    /* The first packet from client has CRYPTO data but in case of
-       HRR, server does not get Handshake packet.  Ideally, we need to
-       get a signal from TLS stack that it sends HRR or not.  If not
-       HRR, then not having Handshake key is an error.  If server
-       receives re-ordered 0RTT before Initial, it should be
-       buffered. */
+    /*
+     * Client ServerHello might not fit into single Initial packet
+     * (e.g., resuming session with client authentication).  If we get
+     * Client Initial which does not increase offset or it is 0RTT
+     * packet buffered, perform address validation in order to buffer
+     * validated data only.
+     */
     if (ngtcp2_rob_first_gap_offset(&conn->in_pktns.crypto.strm.rx.rob) == 0) {
       if (!conn->in_pktns.rx.buffed_pkts) {
+        if (ngtcp2_rob_data_buffered(&conn->in_pktns.crypto.strm.rx.rob)) {
+          /* Address has been validated with token */
+          if (conn->local.settings.token.len) {
+            return 0;
+          }
+          return NGTCP2_ERR_RETRY;
+        }
+        /* If no CRYPTO is processed, just drop connection. */
         return NGTCP2_ERR_PROTO;
       }
       return 0;
@@ -6792,9 +6837,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (rv != 0) {
         return rv;
       }
-    } else {
-      delete_buffed_pkts(conn->in_pktns.rx.buffed_pkts, conn->mem);
-      conn->in_pktns.rx.buffed_pkts = NULL;
     }
 
     return 0;
@@ -6802,6 +6844,15 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
     rv = conn_recv_handshake_cpkt(conn, path, pkt, pktlen, ts);
     if (rv < 0) {
       return rv;
+    }
+
+    /* Process re-ordered 0-RTT packets which were arrived before
+       Initial packet. */
+    if (conn->early.ckm) {
+      rv = conn_process_buffered_protected_pkt(conn, &conn->in_pktns, ts);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
     if (hs_pktns->crypto.rx.ckm) {

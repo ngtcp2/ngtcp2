@@ -191,7 +191,8 @@ public:
 
   int init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
            const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-           const ngtcp2_cid *ocid, uint32_t version);
+           const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
+           uint32_t version);
 
   int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
               uint8_t *data, size_t datalen);

@@ -1330,7 +1330,8 @@ void Handler::write_qlog(const void *data, size_t datalen) {
 
 int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                   const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                  const ngtcp2_cid *ocid, uint32_t version) {
+                  const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
+                  uint32_t version) {
   int rv;
 
   endpoint_ = const_cast<Endpoint *>(&ep);
@@ -1394,6 +1395,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
+  settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
   if (!config.qlog_dir.empty()) {
     auto path = config.qlog_dir;
     path += '/';
@@ -2298,7 +2300,8 @@ int Server::on_read(Endpoint &ep) {
 
       ngtcp2_cid ocid;
       ngtcp2_cid *pocid = nullptr;
-      if (config.validate_addr && hd.type == NGTCP2_PKT_INITIAL) {
+      if (hd.type == NGTCP2_PKT_INITIAL &&
+          (config.validate_addr || hd.tokenlen)) {
         std::cerr << "Perform stateless address validation" << std::endl;
         if (hd.tokenlen == 0 ||
             verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
@@ -2309,10 +2312,18 @@ int Server::on_read(Endpoint &ep) {
       }
 
       auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-      h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.version);
+      h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.token,
+              hd.tokenlen, hd.version);
 
-      if (h->on_read(ep, &su.sa, addrlen, buf.data(), nread) != 0) {
+      rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
+      switch (rv) {
+      case 0:
+        break;
+      case NGTCP2_ERR_RETRY:
+        send_retry(&hd, ep, &su.sa, addrlen);
         return 0;
+      default:
+        assert(0);
       }
       rv = h->on_write();
       switch (rv) {

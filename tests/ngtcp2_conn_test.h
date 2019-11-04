@@ -66,5 +66,7 @@ void test_ngtcp2_conn_key_update(void);
 void test_ngtcp2_conn_crypto_buffer_exceeded(void);
 void test_ngtcp2_conn_handshake_probe(void);
 void test_ngtcp2_conn_handshake_loss(void);
+void test_ngtcp2_conn_recv_client_initial_retry(void);
+void test_ngtcp2_conn_recv_client_initial_token(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

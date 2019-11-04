@@ -57,7 +57,7 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
                                     size_t len);
 
 /*
- * ngtcp2_verify_stateless_retry_token verifies stateless retry token
+ * ngtcp2_verify_stateless_reset_token verifies stateless reset token
  * |want| and |got|.  This function returns 0 if |want| equals |got|
  * and |got| is not all zero, or one of the following negative error
  * codes:
@@ -65,7 +65,14 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     Token does not match; or token is all zero.
  */
-int ngtcp2_verify_stateless_retry_token(const uint8_t *want,
+int ngtcp2_verify_stateless_reset_token(const uint8_t *want,
                                         const uint8_t *got);
+
+/*
+ * ngtcp2_cmemeq returns nonzero if the first |n| bytes of the buffers
+ * pointed by |a| and |b| are equal.  The comparison is done in a
+ * constant time manner.
+ */
+int ngtcp2_cmemeq(const uint8_t *a, const uint8_t *b, size_t n);
 
 #endif /* NGTCP2_STR_H */
