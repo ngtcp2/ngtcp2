@@ -139,7 +139,7 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
                                         const ngtcp2_crypto_md *md,
                                         const uint8_t *secret,
                                         size_t secretlen) {
-  static const uint8_t LABEL[] = "traffic upd";
+  static const uint8_t LABEL[] = "quic ku";
 
   if (ngtcp2_crypto_hkdf_expand_label(dest, secretlen, md, secret, secretlen,
                                       LABEL, sizeof(LABEL) - 1) != 0) {
