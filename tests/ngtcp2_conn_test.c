@@ -4410,6 +4410,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   ngtcp2_conn_install_handshake_key(conn, null_key, null_iv, null_hp_key,
                                     null_key, null_iv, null_hp_key,
                                     sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_set_aead_overhead(conn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
 

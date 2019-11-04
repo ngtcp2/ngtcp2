@@ -1609,17 +1609,12 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
         conn->rcs.probe_pkt_left == 0) {
       return 0;
     }
-    /* In order to send ACK-eliciting packet, we send empty CRYPTO
-       frame.  The recovery draft-23 insists that PING should be sent,
-       but it is not allowed in Initial or Handshake packets.  Do not
-       send empty CRYPTO if client have not got acknowledgement of
-       first Initial. */
+    /* Do not send PING frame if client have not got acknowledgement
+       of first Initial. */
     if (type == NGTCP2_PKT_HANDSHAKE ||
         (!conn->hs_pktns.crypto.tx.ckm &&
          ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
-      lfr.type = NGTCP2_FRAME_CRYPTO;
-      lfr.crypto.offset = pktns->crypto.tx.offset;
-      lfr.crypto.datacnt = 0;
+      lfr.type = NGTCP2_FRAME_PING;
 
       rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
       if (rv != 0) {

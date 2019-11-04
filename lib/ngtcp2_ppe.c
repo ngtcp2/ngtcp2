@@ -198,6 +198,8 @@ size_t ngtcp2_ppe_padding_hp_sample(ngtcp2_ppe *ppe) {
   size_t max_samplelen;
   size_t len = 0;
 
+  assert(cc->aead_overhead);
+
   max_samplelen = ngtcp2_buf_len(buf) + cc->aead_overhead - ppe->sample_offset;
   if (max_samplelen < NGTCP2_HP_SAMPLELEN) {
     len = NGTCP2_HP_SAMPLELEN - max_samplelen;
