@@ -209,14 +209,14 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   }
 
   if (params->initial_max_stream_data_bidi_local) {
-    p = put_uint16_varint(p,
-        NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
+    p = put_uint16_varint(
+        p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
         params->initial_max_stream_data_bidi_local);
   }
 
   if (params->initial_max_stream_data_bidi_remote) {
-    p = put_uint16_varint(p,
-        NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,
+    p = put_uint16_varint(
+        p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,
         params->initial_max_stream_data_bidi_remote);
   }
 
@@ -227,7 +227,7 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 
   if (params->initial_max_data) {
     p = put_uint16_varint(p, NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA,
-                         params->initial_max_data);
+                          params->initial_max_data);
   }
 
   if (params->initial_max_streams_bidi) {

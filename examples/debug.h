@@ -33,7 +33,6 @@
 #define __STDC_FORMAT_MACROS
 #include <cinttypes>
 
-
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 
