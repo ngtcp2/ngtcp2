@@ -4628,6 +4628,9 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       }
       conn_recv_connection_close(conn, &fr->connection_close);
       break;
+    case NGTCP2_FRAME_PING:
+      require_ack = 1;
+      break;
     default:
       return NGTCP2_ERR_PROTO;
     }
@@ -5589,6 +5592,9 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
       conn_recv_connection_close(conn, &fr->connection_close);
       break;
     case NGTCP2_FRAME_CRYPTO:
+      require_ack = 1;
+      break;
+    case NGTCP2_FRAME_PING:
       require_ack = 1;
       break;
     default:
