@@ -19,6 +19,7 @@ only.
 
 For older draft implementations:
 
+- `draft-23 <https://github.com/ngtcp2/ngtcp2/tree/draft-23>`_
 - `draft-22 <https://github.com/ngtcp2/ngtcp2/tree/draft-22>`_
 
 Requirements
@@ -51,14 +52,14 @@ The client and server under examples directory require patched OpenSSL
 as crypto backend:
 
 * Patched OpenSSL
-  (https://github.com/tatsuhiro-t/openssl/tree/openssl-quic-draft-23)
+  (https://github.com/tatsuhiro-t/openssl/tree/openssl-quic-draft-24)
 
 Build from git
 --------------
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b openssl-quic-draft-23 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b openssl-quic-draft-24 https://github.com/tatsuhiro-t/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
