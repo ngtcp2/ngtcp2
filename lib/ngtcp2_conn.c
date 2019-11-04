@@ -3513,9 +3513,13 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                   (const char *)ngtcp2_encode_hex(cidbuf, retry.odcid.data,
                                                   retry.odcid.datalen));
 
-  if (!ngtcp2_cid_eq(&conn->dcid.current.cid, &retry.odcid) ||
-      retry.tokenlen == 0) {
+  if (retry.tokenlen == 0) {
     return NGTCP2_ERR_PROTO;
+  }
+
+  if (ngtcp2_cid_eq(&conn->dcid.current.cid, &hd->scid) ||
+      !ngtcp2_cid_eq(&conn->dcid.current.cid, &retry.odcid)) {
+    return 0;
   }
 
   /* DCID must be updated before invoking callback because client

@@ -562,9 +562,9 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   ngtcp2_conn_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
-  ngtcp2_cid dcid, scid;
+  ngtcp2_cid rcid, scid;
 
-  dcid_init(&dcid);
+  rcid_init(&rcid);
   scid_init(&scid);
 
   memset(&cb, 0, sizeof(cb));
@@ -576,7 +576,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   cb.get_new_connection_id = get_new_connection_id;
   client_default_settings(&settings);
 
-  ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
+  ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
   ngtcp2_conn_install_initial_key(*pconn, null_key, null_iv, null_hp_key,
                                   null_key, null_iv, null_hp_key,
@@ -2252,7 +2252,7 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  for (i = 0; i < 1; ++i) {
+  for (i = 0; i < 2; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
                        &conn->oscid, &dcid, 0, 0, conn->version, 0);
 
@@ -2291,6 +2291,34 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
                      &conn->oscid, &dcid, 0, 0, conn->version, 0);
+
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &dcid, token,
+                                   strsize(token));
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Retry with SCID which equals to the origin client DCID is
+     rejected */
+  setup_handshake_client(&conn);
+  conn->callbacks.recv_retry = recv_retry;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
+                     &conn->oscid, &conn->dcid.current.cid, 0, 0, conn->version,
+                     0);
 
   spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &dcid, token,
                                    strsize(token));
