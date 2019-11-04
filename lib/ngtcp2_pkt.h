@@ -631,9 +631,9 @@ ssize_t ngtcp2_pkt_decode_streams_blocked_frame(ngtcp2_streams_blocked *dest,
  * error codes:
  *
  * NGTCP2_ERR_FRAME_ENCODING
- *     Payload is too short to include NEW_CONNECTION_ID frame.
- * NGTCP2_ERR_PROTO
- *     The length of CID is strictly less than 4 or greater than 18.
+ *     Payload is too short to include NEW_CONNECTION_ID frame; or the
+ *     length of CID is strictly less than NGTCP2_MIN_CIDLEN or
+ *     greater than NGTCP2_MAX_CIDLEN.
  */
 ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
     ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);

@@ -4855,6 +4855,8 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
  *     Out of memory.
  * NGTCP2_ERR_CRYPTO
  *     TLS stack reported error.
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     The end offset exceeds the maximum value.
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
@@ -4871,7 +4873,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
   fr_end_offset = fr->offset + fr->data[0].len;
 
   if (NGTCP2_MAX_VARINT < fr_end_offset) {
-    return NGTCP2_ERR_PROTO;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   rx_offset = ngtcp2_strm_rx_offset(crypto);
@@ -5635,13 +5637,15 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     The maximum streams field exceeds the maximum value.
  */
 static int conn_recv_max_streams(ngtcp2_conn *conn,
                                  const ngtcp2_max_streams *fr) {
   uint64_t n;
 
   if (fr->max_streams > NGTCP2_MAX_STREAMS) {
-    return NGTCP2_ERR_STREAM_LIMIT;
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   n = ngtcp2_min(fr->max_streams, NGTCP2_MAX_STREAMS);
@@ -5713,8 +5717,12 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   ngtcp2_pv *pv = conn->pv;
   int rv;
 
-  if (conn->dcid.current.cid.datalen == 0 || fr->retire_prior_to > fr->seq) {
+  if (conn->dcid.current.cid.datalen == 0) {
     return NGTCP2_ERR_PROTO;
+  }
+
+  if (fr->retire_prior_to > fr->seq) {
+    return NGTCP2_ERR_FRAME_ENCODING;
   }
 
   rv = ngtcp2_dcid_verify_uniqueness(&conn->dcid.current, fr->seq, &fr->cid,
@@ -5798,6 +5806,8 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
  *     Out of memory.
  * NGTCP2_ERR_PROTO
  *     SCID is zero-length.
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Attempt to retire CID which is used as DCID to send this frame.
  */
 static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
                                           const ngtcp2_pkt_hd *hd,
@@ -5815,7 +5825,7 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
     scid = ngtcp2_ksl_it_get(&it);
     if (scid->seq == fr->seq) {
       if (ngtcp2_cid_eq(&scid->cid, &hd->dcid)) {
-        return NGTCP2_ERR_PROTO;
+        return NGTCP2_ERR_FRAME_ENCODING;
       }
 
       if (!(scid->flags & NGTCP2_SCID_FLAG_RETIRED)) {
@@ -5837,6 +5847,25 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
     }
   }
 
+  return 0;
+}
+
+/*
+ * conn_recv_new_token processes the incoming NEW_TOKEN frame |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING:
+ *     Token is empty
+ */
+static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
+  (void)conn;
+
+  if (fr->tokenlen == 0) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+  /* TODO Not implemented yet*/
   return 0;
 }
 
@@ -6454,10 +6483,16 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       non_probing_pkt = 1;
       break;
+    case NGTCP2_FRAME_NEW_TOKEN:
+      rv = conn_recv_new_token(conn, &fr->new_token);
+      if (rv != 0) {
+        return rv;
+      }
+      non_probing_pkt = 1;
+      break;
     case NGTCP2_FRAME_DATA_BLOCKED:
     case NGTCP2_FRAME_STREAMS_BLOCKED_BIDI:
     case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
-    case NGTCP2_FRAME_NEW_TOKEN:
       /* TODO Not implemented yet */
       non_probing_pkt = 1;
       break;
