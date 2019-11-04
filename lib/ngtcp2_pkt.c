@@ -744,7 +744,7 @@ size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
   dest->type = NGTCP2_FRAME_PADDING;
   dest->len = (size_t)(p - payload);
 
-  return (size_t)(p - payload);
+  return dest->len;
 }
 
 ssize_t ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
