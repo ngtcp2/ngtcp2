@@ -88,7 +88,7 @@ static size_t varint_paramlen(uint64_t param) {
 
 static uint8_t *put_uint16_varint(uint8_t *p, ngtcp2_transport_param_id id,
                                   uint64_t value) {
-  p = ngtcp2_put_uint16be(p, id);
+  p = ngtcp2_put_uint16be(p, (uint16_t)id);
   p = ngtcp2_put_uint16be(p, (uint16_t)ngtcp2_put_varint_len(value));
   return ngtcp2_put_varint(p, value);
 }
