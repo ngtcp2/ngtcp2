@@ -69,7 +69,7 @@ typedef enum {
 
 /* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
    reordered packets. */
-#define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 16
+#define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 4
 
 /* NGTCP2_MAX_REORDERED_CRYPTO_DATA is the maximum offset of crypto
    data which is not continuous.  In other words, there is a gap of
