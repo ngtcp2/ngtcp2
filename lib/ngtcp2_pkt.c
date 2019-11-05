@@ -68,6 +68,11 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
   assert(datalen);
 
   if (data[0] & NGTCP2_HEADER_FORM_BIT) {
+    /* 1 byte (Header Form, Fixed Bit, Long Packet Type, Type-Specific bits)
+     * 4 bytes Version
+     * 1 byte DCID Length
+     * 1 byte SCID Length
+     */
     len = 1 + 4 + 1 + 1;
     if (datalen < len) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
