@@ -6093,7 +6093,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int non_probing_pkt = 0;
   int key_phase_bit_changed = 0;
   int force_decrypt_failure = 0;
-  int invalid_reserved_bits = 0;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -6233,22 +6232,6 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
   }
 
-  rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
-  if (rv != 0) {
-    invalid_reserved_bits = 1;
-
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "packet has incorrect reserved bits");
-
-    /* Will return error after decrypting payload */
-  }
-
-  if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "packet was discarded because of duplicated packet number");
-    return NGTCP2_ERR_DISCARD_PKT;
-  }
-
   if (hd.type == NGTCP2_PKT_SHORT) {
     key_phase_bit_changed = conn_key_phase_changed(conn, &hd);
   }
@@ -6314,8 +6297,18 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
-  if (invalid_reserved_bits) {
+  rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
+  if (rv != 0) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet has incorrect reserved bits");
+
     return NGTCP2_ERR_PROTO;
+  }
+
+  if (pktns_pkt_num_is_duplicate(pktns, hd.pkt_num)) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "packet was discarded because of duplicated packet number");
+    return NGTCP2_ERR_DISCARD_PKT;
   }
 
   payload = conn->crypto.decrypt_buf.base;
