@@ -1649,7 +1649,9 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * just close the connection by calling
  * `ngtcp2_conn_write_connection_close` or just delete the QUIC
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
- * other library functions.
+ * other library functions.  If :enum:`NGTCP2_ERR_RETRY` is returned,
+ * application must be a server and it must perform address validation
+ * by sending Retry packet and close the connection.
  */
 NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
                                        const ngtcp2_path *path,

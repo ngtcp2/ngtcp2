@@ -3650,34 +3650,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
-  CU_ASSERT(0 == rv);
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
-
-  CU_ASSERT(0 == spktlen);
-
-  fr.type = NGTCP2_FRAME_CRYPTO;
-  fr.crypto.offset = 0;
-  fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 319;
-  fr.crypto.data[0].base = null_data;
-
-  pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid,
-      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
-
-  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
-
-  CU_ASSERT(0 == rv);
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
-
-  CU_ASSERT(spktlen > 0);
-
-  strm = ngtcp2_conn_find_stream(conn, 4);
-
-  CU_ASSERT(NULL != strm);
-  CU_ASSERT(119 == strm->rx.last_offset);
+  CU_ASSERT(NGTCP2_ERR_RETRY == rv);
 
   ngtcp2_conn_del(conn);
 

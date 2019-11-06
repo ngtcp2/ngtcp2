@@ -6867,18 +6867,20 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
      * validated data only.
      */
     if (ngtcp2_rob_first_gap_offset(&conn->in_pktns.crypto.strm.rx.rob) == 0) {
-      if (!conn->in_pktns.rx.buffed_pkts) {
-        if (ngtcp2_rob_data_buffered(&conn->in_pktns.crypto.strm.rx.rob)) {
-          /* Address has been validated with token */
-          if (conn->local.settings.token.len) {
-            return 0;
-          }
-          return NGTCP2_ERR_RETRY;
+      if (ngtcp2_rob_data_buffered(&conn->in_pktns.crypto.strm.rx.rob)) {
+        /* Address has been validated with token */
+        if (conn->local.settings.token.len) {
+          return 0;
         }
-        /* If no CRYPTO is processed, just drop connection. */
-        return NGTCP2_ERR_PROTO;
+        return NGTCP2_ERR_RETRY;
       }
-      return 0;
+      if (conn->in_pktns.rx.buffed_pkts) {
+        /* 0RTT is buffered, force retry */
+        return NGTCP2_ERR_RETRY;
+      }
+      /* If neither CRYPTO frame nor 0RTT packet is processed, just
+         drop connection. */
+      return NGTCP2_ERR_PROTO;
     }
 
     /* Process re-ordered 0-RTT packets which were arrived before

@@ -2300,15 +2300,21 @@ int Server::on_read(Endpoint &ep) {
 
       ngtcp2_cid ocid;
       ngtcp2_cid *pocid = nullptr;
-      if (hd.type == NGTCP2_PKT_INITIAL &&
-          (config.validate_addr || hd.tokenlen)) {
-        std::cerr << "Perform stateless address validation" << std::endl;
-        if (hd.tokenlen == 0 ||
-            verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
-          send_retry(&hd, ep, &su.sa, addrlen);
-          return 0;
+      switch (hd.type) {
+      case NGTCP2_PKT_INITIAL:
+        if (config.validate_addr || hd.tokenlen) {
+          std::cerr << "Perform stateless address validation" << std::endl;
+          if (hd.tokenlen == 0 ||
+              verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
+            send_retry(&hd, ep, &su.sa, addrlen);
+            return 0;
+          }
+          pocid = &ocid;
         }
-        pocid = &ocid;
+        break;
+      case NGTCP2_PKT_0RTT:
+        send_retry(&hd, ep, &su.sa, addrlen);
+        return 0;
       }
 
       auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
