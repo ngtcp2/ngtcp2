@@ -442,7 +442,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
     return -1;
   }
 
-  handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
+  handler->shutdown_read(stream_id, NGHTTP3_H3_EARLY_RESPONSE);
 
   return 0;
 }
@@ -566,7 +566,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       return -1;
     }
 
-    handler->shutdown_read(stream_id, NGHTTP3_HTTP_EARLY_RESPONSE);
+    handler->shutdown_read(stream_id, NGHTTP3_H3_EARLY_RESPONSE);
   }
 
   return 0;
@@ -1975,7 +1975,7 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
 
   if (httpconn_) {
     if (app_error_code == 0) {
-      app_error_code = NGHTTP3_HTTP_NO_ERROR;
+      app_error_code = NGHTTP3_H3_NO_ERROR;
     }
     auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
     if (rv != 0) {
