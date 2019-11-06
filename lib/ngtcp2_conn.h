@@ -155,10 +155,11 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
      have been discarded. */
   NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
-  /* NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE is set when local
-     endpoint has initiated key update and waits for the remote
-     endpoint to update key. */
-  NGTCP2_CONN_FLAG_WAIT_FOR_REMOTE_KEY_UPDATE = 0x0800,
+  /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update
+     is not confirmed by the local endpoint.  That is, it has not
+     received ACK frame which acknowledges packet which is encrypted
+     with new key. */
+  NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED = 0x0800,
   /* NGTCP2_CONN_FLAG_PPE_PENDING is set when
      NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state
      of ngtcp2_ppe is stored in pkt struct of ngtcp2_conn. */
@@ -401,6 +402,10 @@ struct ngtcp2_conn {
       ngtcp2_crypto_km *new_rx_ckm;
       /* old_rx_ckm is an old receiver 1RTT key. */
       ngtcp2_crypto_km *old_rx_ckm;
+      /* confirmed_ts is the time instant when the key update is
+         confirmed by the local endpoint last time.  UINT64_MAX means
+         undefined value. */
+      ngtcp2_tstamp confirmed_ts;
     } key_update;
 
     size_t aead_overhead;

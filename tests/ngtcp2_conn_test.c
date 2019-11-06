@@ -4320,13 +4320,17 @@ void test_ngtcp2_conn_key_update(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
   size_t pktlen;
+  ssize_t spktlen;
   ngtcp2_tstamp t = 19393;
   int64_t pkt_num = -1;
   ngtcp2_frame fr;
   int rv;
+  int64_t stream_id;
+  ssize_t nwrite;
 
   setup_default_server(&conn);
 
+  /* The remote endpoint initiates key update */
   fr.type = NGTCP2_FRAME_PING;
 
   pktlen = write_single_frame_pkt_flags(conn, buf, sizeof(buf),
@@ -4339,6 +4343,76 @@ void test_ngtcp2_conn_key_update(void) {
   CU_ASSERT(NULL != conn->crypto.key_update.old_rx_ckm);
   CU_ASSERT(NULL == conn->crypto.key_update.new_tx_ckm);
   CU_ASSERT(NULL == conn->crypto.key_update.new_rx_ckm);
+  CU_ASSERT(UINT64_MAX == conn->crypto.key_update.confirmed_ts);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+
+  t += NGTCP2_SECONDS;
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_pkt_flags(conn, buf, sizeof(buf),
+                                        NGTCP2_PKT_FLAG_KEY_PHASE, &conn->oscid,
+                                        ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(t == conn->crypto.key_update.confirmed_ts);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED));
+
+  t += ngtcp2_conn_get_pto(conn) + 1;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), t);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(NULL == conn->crypto.key_update.old_rx_ckm);
+  CU_ASSERT(NULL != conn->crypto.key_update.new_tx_ckm);
+  CU_ASSERT(NULL != conn->crypto.key_update.new_rx_ckm);
+
+  /* The local endpoint initiates key update */
+  t += ngtcp2_conn_get_pto(conn) * 2;
+
+  rv = ngtcp2_conn_initiate_key_update(conn, t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != conn->crypto.key_update.old_rx_ckm);
+  CU_ASSERT(NULL == conn->crypto.key_update.new_tx_ckm);
+  CU_ASSERT(NULL == conn->crypto.key_update.new_rx_ckm);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+
+  rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), &nwrite,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     /* fin = */ 0, null_data, 1024, ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_pkt_flags(conn, buf, sizeof(buf),
+                                        NGTCP2_PKT_FLAG_KEY_PHASE, &conn->oscid,
+                                        ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(t == conn->crypto.key_update.confirmed_ts);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED));
 
   ngtcp2_conn_del(conn);
 }

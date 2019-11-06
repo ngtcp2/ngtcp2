@@ -360,6 +360,14 @@ ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   int rtt_updated = 0;
   ngtcp2_tstamp largest_pkt_sent_ts = 0;
 
+  if (conn && (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) &&
+      largest_ack >= conn->pktns.crypto.tx.ckm->pkt_num) {
+    conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED;
+    conn->crypto.key_update.confirmed_ts = ts;
+
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_CRY, "key update confirmed");
+  }
+
   rtb->largest_acked_tx_pkt_num =
       ngtcp2_max(rtb->largest_acked_tx_pkt_num, largest_ack);
 

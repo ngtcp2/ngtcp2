@@ -1437,11 +1437,7 @@ int Client::update_key() {
 int Client::initiate_key_update() {
   int rv;
 
-  if (update_key() != 0) {
-    return -1;
-  }
-
-  rv = ngtcp2_conn_initiate_key_update(conn_);
+  rv = ngtcp2_conn_initiate_key_update(conn_, util::timestamp(loop_));
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_initiate_key_update: " << ngtcp2_strerror(rv)
               << std::endl;

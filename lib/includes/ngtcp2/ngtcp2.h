@@ -1834,7 +1834,8 @@ ngtcp2_conn_update_key(ngtcp2_conn *conn, const uint8_t *rx_key,
  *     The updated keying materials have not been synchronized yet; or
  *     updated keys are not available.
  */
-NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn);
+NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
+                                                  ngtcp2_tstamp ts);
 
 /**
  * @function
