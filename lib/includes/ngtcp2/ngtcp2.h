@@ -285,6 +285,7 @@ typedef enum ngtcp2_pkt_type {
 #define NGTCP2_TRANSPORT_PARAMETER_ERROR 0x8u
 #define NGTCP2_PROTOCOL_VIOLATION 0xau
 #define NGTCP2_CRYPTO_BUFFER_EXCEEDED 0xdu
+#define NGTCP2_KEY_UPDATE_ERROR 0xeu
 #define NGTCP2_CRYPTO_ERROR 0x100u
 
 #if defined(__cplusplus) && __cplusplus >= 201103L

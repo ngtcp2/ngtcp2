@@ -131,6 +131,10 @@ static const char *strerrorcode(uint64_t error_code) {
     return "TRANSPORT_PARAMETER_ERROR";
   case NGTCP2_PROTOCOL_VIOLATION:
     return "PROTOCOL_VIOLATION";
+  case NGTCP2_CRYPTO_BUFFER_EXCEEDED:
+    return "CRYPTO_BUFFER_EXCEEDED";
+  case NGTCP2_KEY_UPDATE_ERROR:
+    return "KEY_UPDATE_ERROR";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "CRYPTO_ERROR";
