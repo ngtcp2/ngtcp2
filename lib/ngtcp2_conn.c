@@ -4703,11 +4703,9 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         goto fin;
       }
-      if (nread != NGTCP2_ERR_CRYPTO &&
-          (pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
+      if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
           /* Not a Version Negotiation packet */
-          pktlen > 4 &&
-          ngtcp2_get_uint32(&pkt[1]) > 0 &&
+          pktlen > 4 && ngtcp2_get_uint32(&pkt[1]) > 0 &&
           ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
         goto fin;
       }
