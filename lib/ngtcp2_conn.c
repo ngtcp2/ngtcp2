@@ -3874,7 +3874,7 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
 /*
  * conn_decrypt_hp decryptes packet header.  The packet number starts
- * at |pkt| + |pkt_num_offset|.  The entire plaintext QUIC packer
+ * at |pkt| + |pkt_num_offset|.  The entire plaintext QUIC packet
  * header will be written to the buffer pointed by |dest| whose
  * capacity is |destlen|.
  *
