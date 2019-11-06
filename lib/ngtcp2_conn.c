@@ -3473,6 +3473,8 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   return 0;
 }
 
+static void conn_reset_congestion_state(ngtcp2_conn *conn);
+
 /*
  * conn_on_retry is called when Retry packet is received.  The
  * function decodes the data in the buffer pointed by |payload| whose
@@ -3570,6 +3572,8 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_cpymem(conn->token.begin, retry.token, retry.tokenlen);
   conn->token.pos = conn->token.begin;
   conn->token.last = conn->token.pos + retry.tokenlen;
+
+  conn_reset_congestion_state(conn);
 
   return 0;
 }
