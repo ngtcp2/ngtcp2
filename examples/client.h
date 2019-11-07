@@ -196,7 +196,8 @@ public:
   void on_recv_retry();
   int change_local_addr();
   void start_change_local_addr_timer();
-  int update_key();
+  int update_key(uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key,
+                 uint8_t *tx_iv);
   int initiate_key_update();
   void start_key_update_timer();
   void start_delay_stream_timer();

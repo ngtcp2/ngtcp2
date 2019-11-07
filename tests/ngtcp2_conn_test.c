@@ -220,16 +220,15 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
   return 0;
 }
 
-static int update_key(ngtcp2_conn *conn, void *user_data) {
-  uint8_t new_key[16];
-  uint8_t new_iv[16];
+static int update_key(ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv,
+                      uint8_t *tx_key, uint8_t *tx_iv, void *user_data) {
+  (void)conn;
   (void)user_data;
 
-  memset(new_key, 0xff, sizeof(new_key));
-  memset(new_iv, 0xff, sizeof(new_iv));
-
-  ngtcp2_conn_update_key(conn, new_key, new_iv, new_key, new_iv,
-                         sizeof(new_key), sizeof(new_iv));
+  memset(rx_key, 0xff, sizeof(null_key));
+  memset(rx_iv, 0xff, sizeof(null_iv));
+  memset(tx_key, 0xff, sizeof(null_key));
+  memset(tx_iv, 0xff, sizeof(null_iv));
 
   return 0;
 }

@@ -1336,17 +1336,21 @@ typedef int (*ngtcp2_remove_connection_id)(ngtcp2_conn *conn,
  * @functypedef
  *
  * :type:`ngtcp2_update_key` is a callback function which tells the
- * application that it should update and install new keys.
+ * application that it must generate new packet protection keys.
  *
- * In the callback function, the application has to generate new keys
- * for both encryption and decryption, and install them to |conn|
- * using `ngtcp2_conn_update_tx_key` and `ngtcp2_conn_update_rx_key`.
+ * The application has to generate new keys for both encryption and
+ * decryption, and write decryption key and IV to the buffer pointed
+ * by |rx_key| and |rx_iv| respectively.  Similarly, write encryption
+ * key and IV to the buffer pointed by |tx_key| and |tx_iv|.  All
+ * given buffers have the enough capacity to store key and IV.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, void *user_data);
+typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, uint8_t *rx_key,
+                                 uint8_t *rx_iv, uint8_t *tx_key,
+                                 uint8_t *tx_iv, void *user_data);
 
 /**
  * @functypedef
@@ -1798,44 +1802,14 @@ ngtcp2_conn_install_key(ngtcp2_conn *conn, const uint8_t *rx_key,
 /**
  * @function
  *
- * `ngtcp2_conn_update_key` installs the updated packet protection
- * keying materials.  |rx_key| of length |keylen|, IV |rx_iv| of
- * length |rx_ivlen| to decrypt incoming Short packets.  Similarly,
- * |tx_key| and |tx_iv| are for encrypt outgoing packets and are the
- * same length with the rx counterpart.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :enum:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     The updated keying materials have not been synchronized yet.
- */
-NGTCP2_EXTERN int
-ngtcp2_conn_update_key(ngtcp2_conn *conn, const uint8_t *rx_key,
-                       const uint8_t *rx_iv, const uint8_t *tx_key,
-                       const uint8_t *tx_iv, size_t keylen, size_t ivlen);
-
-/**
- * @function
- *
- * `ngtcp2_conn_initiate_key_update` initiates the key update.  Prior
- * to calling this function, the application has to install updated
- * keys using `ngtcp2_conn_update_tx_key` and
- * `ngtcp2_conn_update_rx_key`.
- *
- * Do not call this function if the local endpoint updates key in
- * response to the key update of the remote endpoint.  In other words,
- * don't call this function inside :type:`ngtcp2_update_key` callback
- * function.
+ * `ngtcp2_conn_initiate_key_update` initiates the key update.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     The updated keying materials have not been synchronized yet; or
- *     updated keys are not available.
+ *     The previous key update has not been confirmed yet; or key
+ *     update is too frequent; or new keys are not available yet.
  */
 NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
                                                   ngtcp2_tstamp ts);

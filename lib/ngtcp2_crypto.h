@@ -61,9 +61,21 @@ typedef struct {
   uint8_t flags;
 } ngtcp2_crypto_km;
 
+/*
+ * ngtcp2_crypto_km_new creates new ngtcp2_crypto_km object and
+ * assigns its pointer to |*pckm|.  The |key| of length |keylen| and
+ * the |iv| of length |ivlen| are copied to |*pckm|.
+ */
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
                          size_t keylen, const uint8_t *iv, size_t ivlen,
                          const ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_crypto_km_nocopy_new is similar to ngtcp2_crypto_km_new, but
+ * it does not copy key and IV.
+ */
+int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t keylen,
+                                size_t ivlen, const ngtcp2_mem *mem);
 
 void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 

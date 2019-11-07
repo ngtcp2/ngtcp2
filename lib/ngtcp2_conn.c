@@ -5896,6 +5896,10 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_tstamp confirmed_ts = conn->crypto.key_update.confirmed_ts;
   ngtcp2_duration pto = conn_compute_pto(conn);
+  ngtcp2_pktns *pktns = &conn->pktns;
+  ngtcp2_crypto_km *rx_ckm = pktns->crypto.rx.ckm;
+  ngtcp2_crypto_km *new_rx_ckm, *new_tx_ckm;
+  size_t keylen, ivlen;
 
   if ((conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
       (confirmed_ts != UINT64_MAX && confirmed_ts + pto > ts)) {
@@ -5909,19 +5913,37 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return 0;
   }
 
+  keylen = rx_ckm->key.len;
+  ivlen = rx_ckm->iv.len;
+
+  rv = ngtcp2_crypto_km_nocopy_new(&conn->crypto.key_update.new_rx_ckm, keylen,
+                                   ivlen, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = ngtcp2_crypto_km_nocopy_new(&conn->crypto.key_update.new_tx_ckm, keylen,
+                                   ivlen, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  new_rx_ckm = conn->crypto.key_update.new_rx_ckm;
+  new_tx_ckm = conn->crypto.key_update.new_tx_ckm;
+
   assert(conn->callbacks.update_key);
 
-  /*
-   * application is supposed to call ngtcp2_conn_update_key during
-   * execution of callback.
-   */
-  rv = conn->callbacks.update_key(conn, conn->user_data);
+  rv = conn->callbacks.update_key(conn, new_rx_ckm->key.base,
+                                  new_rx_ckm->iv.base, new_tx_ckm->key.base,
+                                  new_tx_ckm->iv.base, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  assert(conn->crypto.key_update.new_rx_ckm);
-  assert(conn->crypto.key_update.new_tx_ckm);
+  if (!(rx_ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)) {
+    new_rx_ckm->flags |= NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
+    new_tx_ckm->flags |= NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
+  }
 
   ngtcp2_crypto_km_del(conn->crypto.key_update.old_rx_ckm, conn->mem);
   conn->crypto.key_update.old_rx_ckm = NULL;
@@ -7559,45 +7581,6 @@ int ngtcp2_conn_install_key(ngtcp2_conn *conn, const uint8_t *rx_key,
   conn->remote.transport_params = conn->remote.pending_transport_params;
   conn_sync_stream_id_limit(conn);
   conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
-
-  return 0;
-}
-
-int ngtcp2_conn_update_key(ngtcp2_conn *conn, const uint8_t *rx_key,
-                           const uint8_t *rx_iv, const uint8_t *tx_key,
-                           const uint8_t *tx_iv, size_t keylen, size_t ivlen) {
-  ngtcp2_pktns *pktns = &conn->pktns;
-  int rv;
-
-  assert(conn->state == NGTCP2_CS_POST_HANDSHAKE);
-
-  if ((conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
-      conn->crypto.key_update.new_rx_ckm ||
-      conn->crypto.key_update.new_tx_ckm) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
-
-  rv = ngtcp2_crypto_km_new(&conn->crypto.key_update.new_rx_ckm, rx_key, keylen,
-                            rx_iv, ivlen, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
-
-  if (!(pktns->crypto.rx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)) {
-    conn->crypto.key_update.new_rx_ckm->flags |=
-        NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
-  }
-
-  rv = ngtcp2_crypto_km_new(&conn->crypto.key_update.new_tx_ckm, tx_key, keylen,
-                            tx_iv, ivlen, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
-
-  if (!(pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)) {
-    conn->crypto.key_update.new_tx_ckm->flags |=
-        NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE;
-  }
 
   return 0;
 }

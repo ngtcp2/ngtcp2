@@ -239,7 +239,8 @@ public:
 
   void set_tls_alert(uint8_t alert);
 
-  int update_key();
+  int update_key(uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key,
+                 uint8_t *tx_iv);
 
   int setup_httpconn();
   void http_consume(int64_t stream_id, size_t nconsumed);

@@ -34,6 +34,19 @@
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
                          size_t keylen, const uint8_t *iv, size_t ivlen,
                          const ngtcp2_mem *mem) {
+  int rv = ngtcp2_crypto_km_nocopy_new(pckm, keylen, ivlen, mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  memcpy((*pckm)->key.base, key, keylen);
+  memcpy((*pckm)->iv.base, iv, ivlen);
+
+  return 0;
+}
+
+int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t keylen,
+                                size_t ivlen, const ngtcp2_mem *mem) {
   size_t len;
   uint8_t *p;
 
@@ -47,10 +60,9 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *key,
   p = (uint8_t *)(*pckm) + sizeof(ngtcp2_crypto_km);
   (*pckm)->key.base = p;
   (*pckm)->key.len = keylen;
-  p = ngtcp2_cpymem(p, key, keylen);
+  p += keylen;
   (*pckm)->iv.base = p;
   (*pckm)->iv.len = ivlen;
-  /* p = */ ngtcp2_cpymem(p, iv, ivlen);
   (*pckm)->pkt_num = -1;
   (*pckm)->flags = NGTCP2_CRYPTO_KM_FLAG_NONE;
 

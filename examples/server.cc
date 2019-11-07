@@ -994,9 +994,10 @@ int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
 } // namespace
 
 namespace {
-int update_key(ngtcp2_conn *conn, void *user_data) {
+int update_key(ngtcp2_conn *conn, uint8_t *rx_key, uint8_t *rx_iv,
+               uint8_t *tx_key, uint8_t *tx_iv, void *user_data) {
   auto h = static_cast<Handler *>(user_data);
-  if (h->update_key() != 0) {
+  if (h->update_key(rx_key, rx_iv, tx_key, tx_iv) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
@@ -1896,9 +1897,9 @@ int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
   return 0;
 }
 
-int Handler::update_key() {
+int Handler::update_key(uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key,
+                        uint8_t *tx_iv) {
   std::array<uint8_t, 64> rx_secret, tx_secret;
-  std::array<uint8_t, 64> rx_key, rx_iv, tx_key, tx_iv;
   auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
   auto aead = &crypto_ctx->aead;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
@@ -1906,10 +1907,9 @@ int Handler::update_key() {
 
   ++nkey_update_;
 
-  if (ngtcp2_crypto_update_and_install_key(
-          conn_, rx_secret.data(), tx_secret.data(), rx_key.data(),
-          rx_iv.data(), tx_key.data(), tx_iv.data(), rx_secret_.data(),
-          tx_secret_.data(), rx_secret_.size()) != 0) {
+  if (ngtcp2_crypto_update_key(conn_, rx_secret.data(), tx_secret.data(),
+                               rx_key, rx_iv, tx_key, tx_iv, rx_secret_.data(),
+                               tx_secret_.data(), rx_secret_.size()) != 0) {
     return -1;
   }
 
@@ -1921,11 +1921,11 @@ int Handler::update_key() {
 
   if (!config.quiet && config.show_secret) {
     std::cerr << "application_traffic rx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(rx_secret_.data(), rx_secret_.size(), rx_key.data(),
-                         keylen, rx_iv.data(), ivlen);
+    debug::print_secrets(rx_secret_.data(), rx_secret_.size(), rx_key, keylen,
+                         rx_iv, ivlen);
     std::cerr << "application_traffic tx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(tx_secret_.data(), tx_secret_.size(), tx_key.data(),
-                         keylen, tx_iv.data(), ivlen);
+    debug::print_secrets(tx_secret_.data(), tx_secret_.size(), tx_key, keylen,
+                         tx_iv, ivlen);
   }
 
   return 0;
