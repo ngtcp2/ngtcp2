@@ -2329,7 +2329,7 @@ int Server::on_read(Endpoint &ep) {
         send_retry(&hd, ep, &su.sa, addrlen);
         return 0;
       default:
-        assert(0);
+        return rv;
       }
       rv = h->on_write();
       switch (rv) {
