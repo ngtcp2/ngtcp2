@@ -2318,8 +2318,10 @@ int Server::on_read(Endpoint &ep) {
       }
 
       auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-      h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.token,
-              hd.tokenlen, hd.version);
+      if (h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.token,
+                  hd.tokenlen, hd.version) != 0) {
+        return 0;
+      }
 
       rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
       switch (rv) {
