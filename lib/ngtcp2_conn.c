@@ -1729,17 +1729,14 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int rv;
   ngtcp2_frame *ackfr;
   ngtcp2_pktns *pktns;
-  int immediate_ack = 0;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
     assert(conn->server);
     pktns = &conn->in_pktns;
-    immediate_ack = conn->hs_pktns.crypto.tx.ckm != NULL;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
-    immediate_ack = conn->pktns.crypto.tx.ckm != NULL;
     break;
   default:
     assert(0);
@@ -1747,10 +1744,6 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (!pktns->crypto.tx.ckm) {
     return 0;
-  }
-
-  if (immediate_ack) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
   ackfr = NULL;
