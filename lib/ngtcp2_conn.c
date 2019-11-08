@@ -3892,8 +3892,8 @@ static ssize_t conn_decrypt_hp(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
                                const ngtcp2_crypto_cipher *hp,
                                const uint8_t *pkt, size_t pktlen,
                                size_t pkt_num_offset, ngtcp2_crypto_km *ckm,
-                               const ngtcp2_vec *hp_key, ngtcp2_hp_mask hp_mask,
-                               size_t aead_overhead) {
+                               const ngtcp2_vec *hp_key,
+                               ngtcp2_hp_mask hp_mask) {
   size_t sample_offset;
   uint8_t *p = dest;
   uint8_t mask[NGTCP2_HP_MASKLEN];
@@ -3902,7 +3902,6 @@ static ssize_t conn_decrypt_hp(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
 
   assert(hp_mask);
   assert(ckm);
-  assert(aead_overhead >= NGTCP2_HP_SAMPLELEN);
   assert(destlen >= pkt_num_offset + 4);
 
   if (pkt_num_offset + NGTCP2_HP_SAMPLELEN > pktlen) {
@@ -4474,8 +4473,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   assert(decrypt);
 
   nwrite = conn_decrypt_hp(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt,
-                           pktlen, (size_t)nread, ckm, hp_key, hp_mask,
-                           aead_overhead);
+                           pktlen, (size_t)nread, ckm, hp_key, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -6206,8 +6204,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   hp = &pktns->crypto.ctx.hp;
 
   nwrite = conn_decrypt_hp(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt,
-                           pktlen, (size_t)nread, ckm, hp_key, hp_mask,
-                           aead_overhead);
+                           pktlen, (size_t)nread, ckm, hp_key, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
