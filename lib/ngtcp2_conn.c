@@ -1606,7 +1606,7 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
-                             0 /* ack_delay */,
+                             /* ack_delay = */ 0,
                              NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
   if (rv != 0) {
     ngtcp2_frame_chain_list_del(frq, conn->mem);
