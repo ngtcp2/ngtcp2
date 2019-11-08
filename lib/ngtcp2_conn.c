@@ -4630,21 +4630,10 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     ngtcp2_qlog_write_frame(&conn->qlog, fr);
   }
 
-  if (conn->server) {
-    switch (hd.type) {
-    case NGTCP2_PKT_INITIAL:
-      if (ngtcp2_rob_first_gap_offset(&crypto->rx.rob) == 0) {
-        return NGTCP2_ERR_PROTO;
-      }
-      break;
-    case NGTCP2_PKT_HANDSHAKE:
-      if (conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
-        /* Successful processing of Handshake packet from client verifies
-           source address. */
-        conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
-      }
-      break;
-    }
+  if (conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
+    /* Successful processing of Handshake packet from client verifies
+       source address. */
+    conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
   }
 
   ngtcp2_qlog_pkt_received_end(&conn->qlog, &hd, pktlen);
