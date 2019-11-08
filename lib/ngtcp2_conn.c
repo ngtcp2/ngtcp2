@@ -1605,32 +1605,6 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_CRYPTO_PKT;
   }
 
-  if (pkt_empty) {
-    if (conn->server || conn->pktns.crypto.tx.ckm ||
-        conn->rcs.probe_pkt_left == 0) {
-      return 0;
-    }
-    /* Do not send PING frame if client have not got acknowledgement
-       of first Initial. */
-    if (type == NGTCP2_PKT_HANDSHAKE ||
-        (!conn->hs_pktns.crypto.tx.ckm &&
-         ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
-      lfr.type = NGTCP2_FRAME_PING;
-
-      rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
-      if (rv != 0) {
-        assert(rv == NGTCP2_ERR_NOBUF);
-      } else {
-        flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_PROBE;
-        pkt_empty = 0;
-      }
-    }
-
-    if (pkt_empty) {
-      return 0;
-    }
-  }
-
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
                              0 /* ack_delay */,
                              NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
@@ -1648,6 +1622,29 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
       pkt_empty = 0;
     }
+  }
+
+  if (!conn->server && !(flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+      !conn->pktns.crypto.tx.ckm && conn->rcs.probe_pkt_left) {
+    /* Do not send PING frame if client have not got acknowledgement
+       of first Initial. */
+    if (type == NGTCP2_PKT_HANDSHAKE ||
+        (!conn->hs_pktns.crypto.tx.ckm &&
+         ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
+      lfr.type = NGTCP2_FRAME_PING;
+
+      rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
+      if (rv != 0) {
+        assert(rv == NGTCP2_ERR_NOBUF);
+      } else {
+        flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_PROBE;
+        pkt_empty = 0;
+      }
+    }
+  }
+
+  if (pkt_empty) {
+    return 0;
   }
 
   /* If we cannot write another packet, then we need to add padding to
