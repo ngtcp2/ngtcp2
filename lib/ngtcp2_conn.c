@@ -858,7 +858,7 @@ static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
  */
 static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_acktr *acktr, uint8_t type,
-                                 ngtcp2_tstamp ts, uint64_t ack_delay,
+                                 ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
                                  uint64_t ack_delay_exponent) {
   /* TODO Measure an actual size of ACK bloks to find the best default
      value. */

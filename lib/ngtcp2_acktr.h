@@ -206,7 +206,8 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr);
  * ngtcp2_acktr_require_active_ack returns nonzero if ACK frame should
  * be generated actively.
  */
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr, uint64_t max_ack_delay,
+int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
+                                    ngtcp2_duration max_ack_delay,
                                     ngtcp2_tstamp ts);
 
 /*
