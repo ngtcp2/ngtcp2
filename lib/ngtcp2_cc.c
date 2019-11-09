@@ -86,7 +86,7 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
     return;
   }
   ccs->congestion_recovery_start_ts = ts;
-  ccs->cwnd = (uint64_t)((double)ccs->cwnd * NGTCP2_LOSS_REDUCTION_FACTOR);
+  ccs->cwnd >>= NGTCP2_LOSS_REDUCTION_FACTOR_BITS;
   ccs->cwnd = ngtcp2_max(ccs->cwnd, NGTCP2_MIN_CWND);
   ccs->ssthresh = ccs->cwnd;
 
