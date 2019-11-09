@@ -670,4 +670,25 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
  */
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 
+/*
+ * ngtcp2_conn_write_single_frame_pkt writes a packet which contains |fr|
+ * frame only in the buffer pointed by |dest| whose length if
+ * |destlen|.  |type| is a long packet type to send.  If |type| is 0,
+ * Short packet is used.  |dcid| is used as a destination connection
+ * ID.
+ *
+ * The packet written by this function will not be retransmitted.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+ngtcp2_ssize
+ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                   size_t destlen, uint8_t type,
+                                   const ngtcp2_cid *dcid, ngtcp2_frame *fr,
+                                   uint8_t rtb_flags, ngtcp2_tstamp ts);
+
 #endif /* NGTCP2_CONN_H */
