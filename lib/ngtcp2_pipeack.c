@@ -46,10 +46,10 @@ void ngtcp2_pipeack_init(ngtcp2_pipeack *pipeack, ngtcp2_tstamp ts) {
 }
 
 static ngtcp2_duration get_rtt(const ngtcp2_rcvry_stat *rcs) {
-  if (rcs->smoothed_rtt < 1e-9) {
+  if (rcs->smoothed_rtt == 0) {
     return NGTCP2_DEFAULT_INITIAL_RTT;
   }
-  return (uint64_t)rcs->smoothed_rtt;
+  return rcs->smoothed_rtt;
 }
 
 /*

@@ -1113,13 +1113,13 @@ void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
     *p++ = ',';
   }
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "smoothed_rtt"),
-                          (uint64_t)rcs->smoothed_rtt);
+                          rcs->smoothed_rtt);
   *p++ = ',';
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "latest_rtt"),
                           rcs->latest_rtt);
   *p++ = ',';
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "rtt_variance"),
-                          (uint64_t)rcs->rttvar);
+                          rcs->rttvar);
   *p++ = ',';
   /* TODO max_ack_delay? */
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "pto_count"), rcs->pto_count);

@@ -556,8 +556,8 @@ typedef struct ngtcp2_settings {
 typedef struct ngtcp2_rcvry_stat {
   ngtcp2_duration latest_rtt;
   ngtcp2_duration min_rtt;
-  double smoothed_rtt;
-  double rttvar;
+  ngtcp2_duration smoothed_rtt;
+  ngtcp2_duration rttvar;
   size_t pto_count;
   /* probe_pkt_left is the number of probe packet to sent */
   size_t probe_pkt_left;

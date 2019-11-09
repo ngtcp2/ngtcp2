@@ -828,12 +828,11 @@ static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
   ngtcp2_duration initial_delay =
       conn->local.settings.transport_params.max_ack_delay;
 
-  if (conn->rcs.smoothed_rtt < 1e-9) {
+  if (conn->rcs.smoothed_rtt == 0) {
     return initial_delay;
   }
 
-  return ngtcp2_min(initial_delay,
-                    (ngtcp2_duration)(conn->rcs.smoothed_rtt / 8));
+  return ngtcp2_min(initial_delay, conn->rcs.smoothed_rtt / 8);
 }
 
 /*
@@ -2068,12 +2067,12 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
  */
 static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
-  double var = ngtcp2_max(4 * rcs->rttvar, NGTCP2_GRANULARITY);
+  ngtcp2_duration var = ngtcp2_max(4 * rcs->rttvar, NGTCP2_GRANULARITY);
   ngtcp2_duration max_ack_delay =
       (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)
           ? conn->remote.transport_params.max_ack_delay
           : NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  return (ngtcp2_duration)(rcs->smoothed_rtt + var) + max_ack_delay;
+  return rcs->smoothed_rtt + var + max_ack_delay;
 }
 
 /*
@@ -8364,10 +8363,10 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
 
   rcs->latest_rtt = rtt;
 
-  if (rcs->smoothed_rtt < 1e-9) {
+  if (rcs->smoothed_rtt == 0) {
     rcs->min_rtt = rtt;
-    rcs->smoothed_rtt = (double)rtt;
-    rcs->rttvar = (double)rtt / 2;
+    rcs->smoothed_rtt = rtt;
+    rcs->rttvar = rtt / 2;
     return;
   }
 
@@ -8382,12 +8381,13 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, uint64_t rtt,
     rtt -= ack_delay;
   }
 
-  rcs->rttvar = rcs->rttvar * 3 / 4 + fabs(rcs->smoothed_rtt - (double)rtt) / 4;
-  rcs->smoothed_rtt = rcs->smoothed_rtt * 7 / 8 + (double)rtt / 8;
+  rcs->rttvar = (rcs->rttvar * 3 + (rcs->smoothed_rtt - rtt)) / 4;
+  rcs->smoothed_rtt = (rcs->smoothed_rtt * 7 + rtt) / 8;
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
-                  " smoothed_rtt=%.3f rttvar=%.3f ack_delay=%" PRIu64,
+                  " smoothed_rtt=%" PRIu64 " rttvar=%" PRIu64
+                  " ack_delay=%" PRIu64,
                   (uint64_t)(rcs->latest_rtt / NGTCP2_MILLISECONDS),
                   (uint64_t)(rcs->min_rtt / NGTCP2_MILLISECONDS),
                   rcs->smoothed_rtt / NGTCP2_MILLISECONDS,
@@ -8451,7 +8451,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
     return;
   }
 
-  if (rcs->smoothed_rtt < 1e-09) {
+  if (rcs->smoothed_rtt == 0) {
     timeout = 2 * NGTCP2_DEFAULT_INITIAL_RTT;
   } else {
     timeout = conn_compute_pto(conn);

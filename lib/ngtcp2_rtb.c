@@ -471,8 +471,8 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
  */
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
   /* 9/8 is kTimeThreshold */
-  ngtcp2_duration loss_delay = (ngtcp2_duration)(
-      ngtcp2_max((double)rcs->latest_rtt, rcs->smoothed_rtt) * 9 / 8);
+  ngtcp2_duration loss_delay =
+      ngtcp2_max(rcs->latest_rtt, rcs->smoothed_rtt) * 9 / 8;
   return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
 }
 
