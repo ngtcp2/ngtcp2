@@ -2407,6 +2407,10 @@ Options:
               handshake completes.
   --no-preferred-addr
               Do not try to use preferred address offered by server.
+  --key=<PATH>
+              The path to client private key PEM file.
+  --cert=<PATH>
+              The path to client certificate PEM file.
   --download=<PATH>
               The path to the directory  to save a downloaded content.
               It is  undefined if 2  concurrent requests write  to the
