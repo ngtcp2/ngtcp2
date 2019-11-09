@@ -8381,7 +8381,10 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     rtt -= ack_delay;
   }
 
-  rcs->rttvar = (rcs->rttvar * 3 + (rcs->smoothed_rtt - rtt)) / 4;
+  rcs->rttvar =
+      (rcs->rttvar * 3 + (rcs->smoothed_rtt < rtt ? rtt - rcs->smoothed_rtt
+                                                  : rcs->smoothed_rtt - rtt)) /
+      4;
   rcs->smoothed_rtt = (rcs->smoothed_rtt * 7 + rtt) / 8;
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
