@@ -150,8 +150,8 @@ void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
 
 static int has_mask(uint8_t b, uint8_t mask) { return (b & mask) == mask; }
 
-ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                  size_t pktlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                       size_t pktlen) {
   uint8_t type;
   uint32_t version;
   size_t dcil, scil;
@@ -299,11 +299,11 @@ ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   assert((size_t)(p - pkt) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                   size_t pktlen, size_t dcidlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                        size_t pktlen, size_t dcidlen) {
   size_t len = 1 + dcidlen;
   const uint8_t *p = pkt;
 
@@ -337,11 +337,11 @@ ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   assert((size_t)(p - pkt) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
-                                  const ngtcp2_pkt_hd *hd) {
+ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
+                                       const ngtcp2_pkt_hd *hd) {
   uint8_t *p;
   size_t len = NGTCP2_MIN_LONG_HEADERLEN + hd->dcid.datalen + hd->scid.datalen -
                2; /* NGTCP2_MIN_LONG_HEADERLEN includes 1 byte for
@@ -387,11 +387,11 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
-                                   const ngtcp2_pkt_hd *hd) {
+ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
+                                        const ngtcp2_pkt_hd *hd) {
   uint8_t *p;
   size_t len = 1 + hd->dcid.datalen + hd->pkt_numlen;
 
@@ -416,11 +416,11 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
-                                size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
+                                     size_t payloadlen) {
   uint8_t type;
 
   if (payloadlen == 0) {
@@ -431,8 +431,8 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
 
   switch (type) {
   case NGTCP2_FRAME_PADDING:
-    return (ssize_t)ngtcp2_pkt_decode_padding_frame(&dest->padding, payload,
-                                                    payloadlen);
+    return (ngtcp2_ssize)ngtcp2_pkt_decode_padding_frame(&dest->padding,
+                                                         payload, payloadlen);
   case NGTCP2_FRAME_RESET_STREAM:
     return ngtcp2_pkt_decode_reset_stream_frame(&dest->reset_stream, payload,
                                                 payloadlen);
@@ -492,9 +492,9 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   }
 }
 
-ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
+                                            const uint8_t *payload,
+                                            size_t payloadlen) {
   uint8_t type;
   size_t len = 1 + 1;
   const uint8_t *p;
@@ -590,11 +590,12 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
-                                    size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest,
+                                         const uint8_t *payload,
+                                         size_t payloadlen) {
   size_t num_blks, max_num_blks;
   size_t nnum_blks;
   size_t len = 1 + 1 + 1 + 1 + 1;
@@ -730,7 +731,7 @@ ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
 size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
@@ -752,9 +753,9 @@ size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
   return dest->len;
 }
 
-ssize_t ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
-                                             const uint8_t *payload,
-                                             size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
+                                                  const uint8_t *payload,
+                                                  size_t payloadlen) {
   size_t len = 1 + 1 + 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -795,12 +796,11 @@ ssize_t ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
-                                                 const uint8_t *payload,
-                                                 size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_connection_close_frame(
+    ngtcp2_connection_close *dest, const uint8_t *payload, size_t payloadlen) {
   size_t len = 1 + 1 + 1;
   const uint8_t *p;
   size_t reasonlen;
@@ -871,12 +871,12 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
-                                         const uint8_t *payload,
-                                         size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
+                                              const uint8_t *payload,
+                                              size_t payloadlen) {
   size_t len = 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -900,12 +900,11 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
-                                                const uint8_t *payload,
-                                                size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_max_stream_data_frame(
+    ngtcp2_max_stream_data *dest, const uint8_t *payload, size_t payloadlen) {
   size_t len = 1 + 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -942,12 +941,12 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
-                                            const uint8_t *payload,
-                                            size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
+                                                 const uint8_t *payload,
+                                                 size_t payloadlen) {
   size_t len = 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -971,11 +970,12 @@ ssize_t ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
-                                     size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest,
+                                          const uint8_t *payload,
+                                          size_t payloadlen) {
   (void)payload;
   (void)payloadlen;
 
@@ -983,9 +983,9 @@ ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
   return 1;
 }
 
-ssize_t ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
-                                             const uint8_t *payload,
-                                             size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
+                                                  const uint8_t *payload,
+                                                  size_t payloadlen) {
   size_t len = 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -1009,10 +1009,10 @@ ssize_t ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_decode_stream_data_blocked_frame(ngtcp2_stream_data_blocked *dest,
                                             const uint8_t *payload,
                                             size_t payloadlen) {
@@ -1052,12 +1052,11 @@ ngtcp2_pkt_decode_stream_data_blocked_frame(ngtcp2_stream_data_blocked *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_streams_blocked_frame(ngtcp2_streams_blocked *dest,
-                                                const uint8_t *payload,
-                                                size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_streams_blocked_frame(
+    ngtcp2_streams_blocked *dest, const uint8_t *payload, size_t payloadlen) {
   size_t len = 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -1081,10 +1080,10 @@ ssize_t ngtcp2_pkt_decode_streams_blocked_frame(ngtcp2_streams_blocked *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
+ngtcp2_ssize ngtcp2_pkt_decode_new_connection_id_frame(
     ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen) {
   size_t len = 1 + 1 + 1 + 1 + 16;
   const uint8_t *p;
@@ -1137,12 +1136,12 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
-                                             const uint8_t *payload,
-                                             size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
+                                                  const uint8_t *payload,
+                                                  size_t payloadlen) {
   size_t len = 1 + 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -1177,12 +1176,12 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
-                                               const uint8_t *payload,
-                                               size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
+                                                    const uint8_t *payload,
+                                                    size_t payloadlen) {
   size_t len = 1 + 8;
   const uint8_t *p;
 
@@ -1198,12 +1197,12 @@ ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
-                                              const uint8_t *payload,
-                                              size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
+                                                   const uint8_t *payload,
+                                                   size_t payloadlen) {
   size_t len = 1 + 8;
   const uint8_t *p;
 
@@ -1219,12 +1218,12 @@ ssize_t ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
+                                            const uint8_t *payload,
+                                            size_t payloadlen) {
   size_t len = 1 + 1 + 1;
   const uint8_t *p;
   size_t datalen;
@@ -1278,12 +1277,12 @@ ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
-                                          const uint8_t *payload,
-                                          size_t payloadlen) {
+ngtcp2_ssize ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
+                                               const uint8_t *payload,
+                                               size_t payloadlen) {
   size_t len = 1 + 1;
   const uint8_t *p;
   size_t n;
@@ -1317,10 +1316,10 @@ ssize_t ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
                                              const uint8_t *payload,
                                              size_t payloadlen) {
@@ -1347,10 +1346,11 @@ ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
 
   assert((size_t)(p - payload) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
+                                     ngtcp2_frame *fr) {
   switch (fr->type) {
   case NGTCP2_FRAME_STREAM:
     return ngtcp2_pkt_encode_stream_frame(out, outlen, &fr->stream);
@@ -1406,8 +1406,8 @@ ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr) {
   }
 }
 
-ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
-                                       ngtcp2_stream *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
+                                            ngtcp2_stream *fr) {
   size_t len = 1;
   uint8_t flags = NGTCP2_STREAM_LEN_BIT;
   uint8_t *p;
@@ -1458,11 +1458,11 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
-                                    ngtcp2_ack *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
+                                         ngtcp2_ack *fr) {
   size_t len = 1 + ngtcp2_put_varint_len((uint64_t)fr->largest_ack) +
                ngtcp2_put_varint_len(fr->ack_delay) +
                ngtcp2_put_varint_len(fr->num_blks) +
@@ -1497,22 +1497,23 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
-                                        const ngtcp2_padding *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
+                                             const ngtcp2_padding *fr) {
   if (outlen < fr->len) {
     return NGTCP2_ERR_NOBUF;
   }
 
   memset(out, 0, fr->len);
 
-  return (ssize_t)fr->len;
+  return (ngtcp2_ssize)fr->len;
 }
 
-ssize_t ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
-                                             const ngtcp2_reset_stream *fr) {
+ngtcp2_ssize
+ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_reset_stream *fr) {
   size_t len = 1 + ngtcp2_put_varint_len((uint64_t)fr->stream_id) +
                ngtcp2_put_varint_len(fr->app_error_code) +
                ngtcp2_put_varint_len(fr->final_size);
@@ -1531,10 +1532,10 @@ ssize_t ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_connection_close *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->error_code) +
@@ -1562,11 +1563,11 @@ ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
-                                         const ngtcp2_max_data *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
+                                              const ngtcp2_max_data *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->max_data);
   uint8_t *p;
 
@@ -1581,10 +1582,10 @@ ssize_t ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_max_stream_data *fr) {
   size_t len = 1 + ngtcp2_put_varint_len((uint64_t)fr->stream_id) +
@@ -1603,11 +1604,11 @@ ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
-                                            const ngtcp2_max_streams *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
+                                                 const ngtcp2_max_streams *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->max_streams);
   uint8_t *p;
 
@@ -1622,11 +1623,11 @@ ssize_t ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
-                                     const ngtcp2_ping *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
+                                          const ngtcp2_ping *fr) {
   (void)fr;
 
   if (outlen < 1) {
@@ -1638,8 +1639,9 @@ ssize_t ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
   return 1;
 }
 
-ssize_t ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
-                                             const ngtcp2_data_blocked *fr) {
+ngtcp2_ssize
+ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_data_blocked *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->offset);
   uint8_t *p;
 
@@ -1654,10 +1656,10 @@ ssize_t ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_stream_data_blocked_frame(
+ngtcp2_ssize ngtcp2_pkt_encode_stream_data_blocked_frame(
     uint8_t *out, size_t outlen, const ngtcp2_stream_data_blocked *fr) {
   size_t len = 1 + ngtcp2_put_varint_len((uint64_t)fr->stream_id) +
                ngtcp2_put_varint_len(fr->offset);
@@ -1675,10 +1677,10 @@ ssize_t ngtcp2_pkt_encode_stream_data_blocked_frame(
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_streams_blocked *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->stream_limit);
@@ -1695,10 +1697,10 @@ ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
                                           const ngtcp2_new_connection_id *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->seq) +
@@ -1722,11 +1724,12 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
-                                             const ngtcp2_stop_sending *fr) {
+ngtcp2_ssize
+ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_stop_sending *fr) {
   size_t len = 1 + ngtcp2_put_varint_len((uint64_t)fr->stream_id) +
                ngtcp2_put_varint_len(fr->app_error_code);
   uint8_t *p;
@@ -1743,10 +1746,10 @@ ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
                                        const ngtcp2_path_challenge *fr) {
   size_t len = 1 + 8;
@@ -1763,11 +1766,12 @@ ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
-                                              const ngtcp2_path_response *fr) {
+ngtcp2_ssize
+ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
+                                      const ngtcp2_path_response *fr) {
   size_t len = 1 + 8;
   uint8_t *p;
 
@@ -1782,11 +1786,11 @@ ssize_t ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
-                                       const ngtcp2_crypto *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
+                                            const ngtcp2_crypto *fr) {
   size_t len = 1;
   uint8_t *p;
   size_t i;
@@ -1819,11 +1823,11 @@ ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
-                                          const ngtcp2_new_token *fr) {
+ngtcp2_ssize ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
+                                               const ngtcp2_new_token *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->tokenlen) + fr->tokenlen;
   uint8_t *p;
 
@@ -1842,10 +1846,10 @@ ssize_t ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
+ngtcp2_ssize ngtcp2_pkt_encode_retire_connection_id_frame(
     uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr) {
   size_t len = 1 + ngtcp2_put_varint_len(fr->seq);
   uint8_t *p;
@@ -1862,10 +1866,10 @@ ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
 
   assert((size_t)(p - out) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-ssize_t ngtcp2_pkt_write_version_negotiation(
+ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
     uint8_t *dest, size_t destlen, uint8_t unused_random, const uint8_t *dcid,
     size_t dcidlen, const uint8_t *scid, size_t scidlen, const uint32_t *sv,
     size_t nsv) {
@@ -1899,7 +1903,7 @@ ssize_t ngtcp2_pkt_write_version_negotiation(
 
   assert((size_t)(p - dest) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
 size_t ngtcp2_pkt_decode_version_negotiation(uint32_t *dest,
@@ -2013,9 +2017,9 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
   return 0;
 }
 
-ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
-                                         uint8_t *stateless_reset_token,
-                                         uint8_t *rand, size_t randlen) {
+ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
+                                              uint8_t *stateless_reset_token,
+                                              uint8_t *rand, size_t randlen) {
   uint8_t *p;
 
   if (destlen <
@@ -2038,11 +2042,12 @@ ssize_t ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
   return p - dest;
 }
 
-ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
-                               const ngtcp2_pkt_hd *hd, const ngtcp2_cid *odcid,
-                               const uint8_t *token, size_t tokenlen) {
+ngtcp2_ssize ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
+                                    const ngtcp2_pkt_hd *hd,
+                                    const ngtcp2_cid *odcid,
+                                    const uint8_t *token, size_t tokenlen) {
   uint8_t *p;
-  ssize_t nwrite;
+  ngtcp2_ssize nwrite;
 
   assert(hd->flags & NGTCP2_PKT_FLAG_LONG_FORM);
   assert(hd->type == NGTCP2_PKT_RETRY);

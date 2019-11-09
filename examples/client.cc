@@ -1125,7 +1125,7 @@ int Client::write_streams() {
   for (;;) {
     int64_t stream_id = -1;
     int fin = 0;
-    ssize_t sveccnt = 0;
+    nghttp3_ssize sveccnt = 0;
 
     if (httpconn_ && ngtcp2_conn_get_max_data_left(conn_)) {
       sveccnt = nghttp3_conn_writev_stream(httpconn_, &stream_id, &fin,
@@ -1139,7 +1139,7 @@ int Client::write_streams() {
       }
     }
 
-    ssize_t ndatalen;
+    ngtcp2_ssize ndatalen;
     auto v = vec.data();
     auto vcnt = static_cast<size_t>(sveccnt);
 
@@ -1656,9 +1656,9 @@ int Client::on_extend_max_streams() {
 }
 
 namespace {
-ssize_t read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
-                  size_t veccnt, uint32_t *pflags, void *user_data,
-                  void *stream_user_data) {
+nghttp3_ssize read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
+                        size_t veccnt, uint32_t *pflags, void *user_data,
+                        void *stream_user_data) {
   vec[0].base = config.data;
   vec[0].len = config.datalen;
   *pflags |= NGHTTP3_DATA_FLAG_EOF;

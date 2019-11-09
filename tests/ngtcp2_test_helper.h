@@ -195,23 +195,23 @@ void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
  * |pktlen|.  This function assumes that header protection has been
  * decrypted.
  */
-ssize_t pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                           size_t pktlen);
+ngtcp2_ssize pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                size_t pktlen);
 
 /*
  * pkt_decode_hd_short decodes long packet header from |pkt| of length
  * |pktlen|.  This function assumes that header protection has been
  * decrypted.
  */
-ssize_t pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                            size_t pktlen, size_t dcidlen);
+ngtcp2_ssize pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                 size_t pktlen, size_t dcidlen);
 
 /*
  * pkt_decode_hd_short_mask decodes long packet header from |pkt| of
  * length |pktlen|.  NGTCP2_FAKE_HP_MASK is used to decrypt header
  * protection.
  */
-ssize_t pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                 size_t pktlen, size_t dcidlen);
+ngtcp2_ssize pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                      size_t pktlen, size_t dcidlen);
 
 #endif /* NGTCP2_TEST_HELPER_H */

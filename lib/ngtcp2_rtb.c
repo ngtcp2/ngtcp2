@@ -347,15 +347,15 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       rcs, ts);
 }
 
-ssize_t ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                            ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
+                                 ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   int64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
   int rv;
   ngtcp2_ksl_it it;
   ngtcp2_ksl_key key;
-  ssize_t num_acked = 0;
+  ngtcp2_ssize num_acked = 0;
   int largest_pkt_acked = 0;
   int rtt_updated = 0;
   ngtcp2_tstamp largest_pkt_sent_ts = 0;

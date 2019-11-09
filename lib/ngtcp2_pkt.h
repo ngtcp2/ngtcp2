@@ -353,8 +353,8 @@ void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too short
  */
-ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
-                                  const ngtcp2_pkt_hd *hd);
+ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
+                                       const ngtcp2_pkt_hd *hd);
 
 /*
  * ngtcp2_pkt_encode_hd_short encodes |hd| as QUIC short header into
@@ -365,8 +365,8 @@ ssize_t ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer is too short
  */
-ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
-                                   const ngtcp2_pkt_hd *hd);
+ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
+                                        const ngtcp2_pkt_hd *hd);
 
 /**
  * @function
@@ -380,8 +380,8 @@ ssize_t ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
  * :enum:`NGTCP2_ERR_FRAME_ENCODING`
  *     Frame is badly formatted; or frame type is unknown.
  */
-ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
-                                size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
+                                     size_t payloadlen);
 
 /**
  * @function
@@ -395,7 +395,8 @@ ssize_t ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen, ngtcp2_frame *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
+                                     ngtcp2_frame *fr);
 
 /*
  * ngtcp2_pkt_decode_version_negotiation decodes Version Negotiation
@@ -449,9 +450,9 @@ int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include STREAM frame.
  */
-ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
+                                            const uint8_t *payload,
+                                            size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_ack_frame decodes ACK frame from |payload| of
@@ -464,8 +465,9 @@ ssize_t ngtcp2_pkt_decode_stream_frame(ngtcp2_stream *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include ACK frame.
  */
-ssize_t ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest, const uint8_t *payload,
-                                    size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_ack_frame(ngtcp2_ack *dest,
+                                         const uint8_t *payload,
+                                         size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_padding_frame decodes contiguous PADDING frames
@@ -492,9 +494,9 @@ size_t ngtcp2_pkt_decode_padding_frame(ngtcp2_padding *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include RESET_STREAM frame.
  */
-ssize_t ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
-                                             const uint8_t *payload,
-                                             size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
+                                                  const uint8_t *payload,
+                                                  size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_connection_close_frame decodes CONNECTION_CLOSE
@@ -508,9 +510,8 @@ ssize_t ngtcp2_pkt_decode_reset_stream_frame(ngtcp2_reset_stream *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include CONNECTION_CLOSE frame.
  */
-ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
-                                                 const uint8_t *payload,
-                                                 size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_connection_close_frame(
+    ngtcp2_connection_close *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_max_data_frame decodes MAX_DATA frame from
@@ -523,9 +524,9 @@ ssize_t ngtcp2_pkt_decode_connection_close_frame(ngtcp2_connection_close *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include MAX_DATA frame.
  */
-ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
-                                         const uint8_t *payload,
-                                         size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
+                                              const uint8_t *payload,
+                                              size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_max_stream_data_frame decodes MAX_STREAM_DATA
@@ -539,9 +540,8 @@ ssize_t ngtcp2_pkt_decode_max_data_frame(ngtcp2_max_data *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include MAX_STREAM_DATA frame.
  */
-ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
-                                                const uint8_t *payload,
-                                                size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_max_stream_data_frame(
+    ngtcp2_max_stream_data *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_max_streams_frame decodes MAX_STREAMS frame from
@@ -554,9 +554,9 @@ ssize_t ngtcp2_pkt_decode_max_stream_data_frame(ngtcp2_max_stream_data *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include MAX_STREAMS frame.
  */
-ssize_t ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
-                                            const uint8_t *payload,
-                                            size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
+                                                 const uint8_t *payload,
+                                                 size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_ping_frame decodes PING frame from |payload| of
@@ -569,8 +569,9 @@ ssize_t ngtcp2_pkt_decode_max_streams_frame(ngtcp2_max_streams *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include PING frame.
  */
-ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
-                                     size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest,
+                                          const uint8_t *payload,
+                                          size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_data_blocked_frame decodes DATA_BLOCKED frame
@@ -584,9 +585,9 @@ ssize_t ngtcp2_pkt_decode_ping_frame(ngtcp2_ping *dest, const uint8_t *payload,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include DATA_BLOCKED frame.
  */
-ssize_t ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
-                                             const uint8_t *payload,
-                                             size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
+                                                  const uint8_t *payload,
+                                                  size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_stream_data_blocked_frame decodes
@@ -600,7 +601,7 @@ ssize_t ngtcp2_pkt_decode_data_blocked_frame(ngtcp2_data_blocked *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include STREAM_DATA_BLOCKED frame.
  */
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_decode_stream_data_blocked_frame(ngtcp2_stream_data_blocked *dest,
                                             const uint8_t *payload,
                                             size_t payloadlen);
@@ -617,9 +618,8 @@ ngtcp2_pkt_decode_stream_data_blocked_frame(ngtcp2_stream_data_blocked *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include STREAMS_BLOCKED frame.
  */
-ssize_t ngtcp2_pkt_decode_streams_blocked_frame(ngtcp2_streams_blocked *dest,
-                                                const uint8_t *payload,
-                                                size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_streams_blocked_frame(
+    ngtcp2_streams_blocked *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_new_connection_id_frame decodes NEW_CONNECTION_ID
@@ -635,7 +635,7 @@ ssize_t ngtcp2_pkt_decode_streams_blocked_frame(ngtcp2_streams_blocked *dest,
  *     length of CID is strictly less than NGTCP2_MIN_CIDLEN or
  *     greater than NGTCP2_MAX_CIDLEN.
  */
-ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
+ngtcp2_ssize ngtcp2_pkt_decode_new_connection_id_frame(
     ngtcp2_new_connection_id *dest, const uint8_t *payload, size_t payloadlen);
 
 /*
@@ -650,9 +650,9 @@ ssize_t ngtcp2_pkt_decode_new_connection_id_frame(
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include STOP_SENDING frame.
  */
-ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
-                                             const uint8_t *payload,
-                                             size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
+                                                  const uint8_t *payload,
+                                                  size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_path_challenge_frame decodes PATH_CHALLENGE frame
@@ -666,9 +666,9 @@ ssize_t ngtcp2_pkt_decode_stop_sending_frame(ngtcp2_stop_sending *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include PATH_CHALLENGE frame.
  */
-ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
-                                               const uint8_t *payload,
-                                               size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
+                                                    const uint8_t *payload,
+                                                    size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_path_response_frame decodes PATH_RESPONSE frame
@@ -682,9 +682,9 @@ ssize_t ngtcp2_pkt_decode_path_challenge_frame(ngtcp2_path_challenge *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include PATH_RESPONSE frame.
  */
-ssize_t ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
-                                              const uint8_t *payload,
-                                              size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
+                                                   const uint8_t *payload,
+                                                   size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_crypto_frame decodes CRYPTO frame from |payload|
@@ -697,9 +697,9 @@ ssize_t ngtcp2_pkt_decode_path_response_frame(ngtcp2_path_response *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include CRYPTO frame.
  */
-ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
-                                       const uint8_t *payload,
-                                       size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
+                                            const uint8_t *payload,
+                                            size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_new_token_frame decodes NEW_TOKEN frame from
@@ -712,9 +712,9 @@ ssize_t ngtcp2_pkt_decode_crypto_frame(ngtcp2_crypto *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include NEW_TOKEN frame.
  */
-ssize_t ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
-                                          const uint8_t *payload,
-                                          size_t payloadlen);
+ngtcp2_ssize ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
+                                               const uint8_t *payload,
+                                               size_t payloadlen);
 
 /*
  * ngtcp2_pkt_decode_retire_connection_id_frame decodes RETIRE_CONNECTION_ID
@@ -727,7 +727,7 @@ ssize_t ngtcp2_pkt_decode_new_token_frame(ngtcp2_new_token *dest,
  * NGTCP2_ERR_FRAME_ENCODING
  *     Payload is too short to include RETIRE_CONNECTION_ID frame.
  */
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
                                              const uint8_t *payload,
                                              size_t payloadlen);
@@ -745,8 +745,8 @@ ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
-                                       ngtcp2_stream *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
+                                            ngtcp2_stream *fr);
 
 /*
  * ngtcp2_pkt_encode_ack_frame encodes ACK frame |fr| into the buffer
@@ -761,8 +761,8 @@ ssize_t ngtcp2_pkt_encode_stream_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
-                                    ngtcp2_ack *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
+                                         ngtcp2_ack *fr);
 
 /*
  * ngtcp2_pkt_encode_padding_frame encodes PADDING frame |fr| into the
@@ -776,8 +776,8 @@ ssize_t ngtcp2_pkt_encode_ack_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write frame(s).
  */
-ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
-                                        const ngtcp2_padding *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
+                                             const ngtcp2_padding *fr);
 
 /*
  * ngtcp2_pkt_encode_reset_stream_frame encodes RESET_STREAM frame
@@ -789,8 +789,9 @@ ssize_t ngtcp2_pkt_encode_padding_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
-                                             const ngtcp2_reset_stream *fr);
+ngtcp2_ssize
+ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_reset_stream *fr);
 
 /*
  * ngtcp2_pkt_encode_connection_close_frame encodes CONNECTION_CLOSE
@@ -802,7 +803,7 @@ ssize_t ngtcp2_pkt_encode_reset_stream_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
                                          const ngtcp2_connection_close *fr);
 
@@ -816,8 +817,8 @@ ngtcp2_pkt_encode_connection_close_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
-                                         const ngtcp2_max_data *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
+                                              const ngtcp2_max_data *fr);
 
 /*
  * ngtcp2_pkt_encode_max_stream_data_frame encodes MAX_STREAM_DATA
@@ -829,7 +830,7 @@ ssize_t ngtcp2_pkt_encode_max_data_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_max_stream_data *fr);
 
@@ -843,8 +844,8 @@ ngtcp2_pkt_encode_max_stream_data_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
-                                            const ngtcp2_max_streams *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
+                                                 const ngtcp2_max_streams *fr);
 
 /*
  * ngtcp2_pkt_encode_ping_frame encodes PING frame |fr| into the
@@ -856,8 +857,8 @@ ssize_t ngtcp2_pkt_encode_max_streams_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
-                                     const ngtcp2_ping *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
+                                          const ngtcp2_ping *fr);
 
 /*
  * ngtcp2_pkt_encode_data_blocked_frame encodes DATA_BLOCKED frame
@@ -869,8 +870,9 @@ ssize_t ngtcp2_pkt_encode_ping_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
-                                             const ngtcp2_data_blocked *fr);
+ngtcp2_ssize
+ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_data_blocked *fr);
 
 /*
  * ngtcp2_pkt_encode_stream_data_blocked_frame encodes
@@ -883,7 +885,7 @@ ssize_t ngtcp2_pkt_encode_data_blocked_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_stream_data_blocked_frame(
+ngtcp2_ssize ngtcp2_pkt_encode_stream_data_blocked_frame(
     uint8_t *out, size_t outlen, const ngtcp2_stream_data_blocked *fr);
 
 /*
@@ -896,7 +898,7 @@ ssize_t ngtcp2_pkt_encode_stream_data_blocked_frame(
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_streams_blocked *fr);
 
@@ -910,7 +912,7 @@ ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t
+ngtcp2_ssize
 ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
                                           const ngtcp2_new_connection_id *fr);
 
@@ -924,8 +926,9 @@ ngtcp2_pkt_encode_new_connection_id_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
-                                             const ngtcp2_stop_sending *fr);
+ngtcp2_ssize
+ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
+                                     const ngtcp2_stop_sending *fr);
 
 /*
  * ngtcp2_pkt_encode_path_challenge_frame encodes PATH_CHALLENGE frame
@@ -937,8 +940,9 @@ ssize_t ngtcp2_pkt_encode_stop_sending_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
-                                               const ngtcp2_path_challenge *fr);
+ngtcp2_ssize
+ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_path_challenge *fr);
 
 /*
  * ngtcp2_pkt_encode_path_response_frame encodes PATH_RESPONSE frame
@@ -950,8 +954,9 @@ ssize_t ngtcp2_pkt_encode_path_challenge_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
-                                              const ngtcp2_path_response *fr);
+ngtcp2_ssize
+ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
+                                      const ngtcp2_path_response *fr);
 
 /*
  * ngtcp2_pkt_encode_crypto_frame encodes CRYPTO frame |fr| into the
@@ -963,8 +968,8 @@ ssize_t ngtcp2_pkt_encode_path_response_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
-                                       const ngtcp2_crypto *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
+                                            const ngtcp2_crypto *fr);
 
 /*
  * ngtcp2_pkt_encode_new_token_frame encodes NEW_TOKEN frame |fr| into
@@ -976,8 +981,8 @@ ssize_t ngtcp2_pkt_encode_crypto_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
-                                          const ngtcp2_new_token *fr);
+ngtcp2_ssize ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
+                                               const ngtcp2_new_token *fr);
 
 /*
  * ngtcp2_pkt_encode_retire_connection_id_frame encodes RETIRE_CONNECTION_ID
@@ -989,7 +994,7 @@ ssize_t ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
  * NGTCP2_ERR_NOBUF
  *     Buffer does not have enough capacity to write a frame.
  */
-ssize_t ngtcp2_pkt_encode_retire_connection_id_frame(
+ngtcp2_ssize ngtcp2_pkt_encode_retire_connection_id_frame(
     uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr);
 
 /*

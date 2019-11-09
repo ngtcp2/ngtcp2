@@ -129,7 +129,7 @@ size_t write_single_frame_pkt_flags(ngtcp2_conn *conn, uint8_t *out,
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   int rv;
-  ssize_t n;
+  ngtcp2_ssize n;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -160,7 +160,7 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   int rv;
-  ssize_t n;
+  ngtcp2_ssize n;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -192,7 +192,7 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   int rv;
-  ssize_t n;
+  ngtcp2_ssize n;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -235,7 +235,7 @@ size_t write_single_frame_initial_pkt(ngtcp2_conn *conn, uint8_t *out,
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   int rv;
-  ssize_t n;
+  ngtcp2_ssize n;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -273,7 +273,7 @@ size_t write_single_frame_0rtt_pkt(ngtcp2_conn *conn, uint8_t *out,
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   int rv;
-  ssize_t n;
+  ngtcp2_ssize n;
 
   rv = ngtcp2_crypto_km_new(&ckm, key, keylen, iv, ivlen, conn->mem);
 
@@ -312,7 +312,7 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   ngtcp2_pkt_hd hd;
   ngtcp2_frame *fr;
   int rv;
-  ssize_t n;
+  ngtcp2_ssize n;
   size_t i;
 
   memset(&cc, 0, sizeof(cc));
@@ -413,10 +413,10 @@ void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
                       (uint16_t)payloadlen);
 }
 
-ssize_t pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                           size_t pktlen) {
+ngtcp2_ssize pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                size_t pktlen) {
   const uint8_t *p;
-  ssize_t nread;
+  ngtcp2_ssize nread;
 
   nread = ngtcp2_pkt_decode_hd_long(dest, pkt, pktlen);
   if (nread < 0 || dest->type == NGTCP2_PKT_VERSION_NEGOTIATION) {
@@ -436,13 +436,13 @@ ssize_t pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   dest->pkt_num = ngtcp2_get_pkt_num(p, dest->pkt_numlen);
 
-  return nread + (ssize_t)dest->pkt_numlen;
+  return nread + (ngtcp2_ssize)dest->pkt_numlen;
 }
 
-ssize_t pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                            size_t pktlen, size_t dcidlen) {
+ngtcp2_ssize pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                 size_t pktlen, size_t dcidlen) {
   const uint8_t *p;
-  ssize_t nread;
+  ngtcp2_ssize nread;
 
   nread = ngtcp2_pkt_decode_hd_short(dest, pkt, pktlen, dcidlen);
   if (nread < 0) {
@@ -462,14 +462,14 @@ ssize_t pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   dest->pkt_num = ngtcp2_get_pkt_num(p, dest->pkt_numlen);
 
-  return nread + (ssize_t)dest->pkt_numlen;
+  return nread + (ngtcp2_ssize)dest->pkt_numlen;
 }
 
-ssize_t pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
-                                 size_t pktlen, size_t dcidlen) {
+ngtcp2_ssize pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
+                                      size_t pktlen, size_t dcidlen) {
   static const uint8_t mask[] = NGTCP2_FAKE_HP_MASK;
   const uint8_t *p;
-  ssize_t nread;
+  ngtcp2_ssize nread;
   uint8_t hb;
   uint8_t pkt_numbuf[4];
   size_t i;
@@ -498,5 +498,5 @@ ssize_t pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   dest->pkt_num = ngtcp2_get_pkt_num(pkt_numbuf, dest->pkt_numlen);
 
-  return nread + (ssize_t)dest->pkt_numlen;
+  return nread + (ngtcp2_ssize)dest->pkt_numlen;
 }

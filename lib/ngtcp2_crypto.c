@@ -109,9 +109,10 @@ static uint8_t *write_varint_param(uint8_t *p, ngtcp2_transport_param_id id,
   return ngtcp2_put_varint(p, value);
 }
 
-ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
-                                       ngtcp2_transport_params_type exttype,
-                                       const ngtcp2_transport_params *params) {
+ngtcp2_ssize
+ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
+                               ngtcp2_transport_params_type exttype,
+                               const ngtcp2_transport_params *params) {
   uint8_t *p;
   size_t len = sizeof(uint16_t);
   /* For some reason, gcc 7.3.0 requires this initialization. */
@@ -289,11 +290,11 @@ ssize_t ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
 
   assert((size_t)(p - dest) == len);
 
-  return (ssize_t)len;
+  return (ngtcp2_ssize)len;
 }
 
-static ssize_t decode_varint(uint64_t *pdest, const uint8_t *p,
-                             const uint8_t *end) {
+static ngtcp2_ssize decode_varint(uint64_t *pdest, const uint8_t *p,
+                                  const uint8_t *end) {
   uint16_t len = ngtcp2_get_uint16(p);
   size_t n;
 
@@ -320,7 +321,7 @@ static ssize_t decode_varint(uint64_t *pdest, const uint8_t *p,
 
   *pdest = ngtcp2_get_varint(&n, p);
 
-  return (ssize_t)(sizeof(uint16_t) + len);
+  return (ngtcp2_ssize)(sizeof(uint16_t) + len);
 }
 
 int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
@@ -331,7 +332,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   size_t tplen;
   uint16_t param_type;
   size_t valuelen;
-  ssize_t nread;
+  ngtcp2_ssize nread;
   uint8_t scb[8192];
   size_t scb_idx;
   size_t scb_shift;

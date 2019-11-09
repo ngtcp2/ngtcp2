@@ -79,8 +79,8 @@ size_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n);
  * bytes moved from |src| to |dst|.  If split cannot be made because
  * doing so exceeds |maxcnt|, this function returns -1.
  */
-ssize_t ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
-                         size_t *pdstcnt, size_t left, size_t maxcnt);
+ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
+                              size_t *pdstcnt, size_t left, size_t maxcnt);
 
 /*
  * ngtcp2_vec_merge merges |src| into |dst| by moving at most |left|

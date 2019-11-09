@@ -47,6 +47,7 @@ extern "C" {
 #endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
 #include <sys/types.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #include <ngtcp2/version.h>
 
@@ -65,6 +66,8 @@ extern "C" {
 #    define NGTCP2_EXTERN
 #  endif /* !BUILDING_NGTCP2 */
 #endif   /* !defined(WIN32) */
+
+typedef ptrdiff_t ngtcp2_ssize;
 
 /**
  * @functypedef
@@ -677,7 +680,7 @@ typedef struct ngtcp2_crypto_ctx {
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`:
  *     |exttype| is invalid.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_encode_transport_params(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params(
     uint8_t *dest, size_t destlen, ngtcp2_transport_params_type exttype,
     const ngtcp2_transport_params *params);
 
@@ -778,9 +781,9 @@ ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
  * :enum:`NGTCP2_ERR_UNKNOWN_PKT_TYPE`
  *     Packet type is unknown
  */
-NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
-                                                const uint8_t *pkt,
-                                                size_t pktlen);
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
+                                                     const uint8_t *pkt,
+                                                     size_t pktlen);
 
 /**
  * @function
@@ -802,9 +805,10 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
  * :enum:`NGTCP2_ERR_UNKNOWN_PKT_TYPE`
  *     Packet type is unknown
  */
-NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
-                                                 const uint8_t *pkt,
-                                                 size_t pktlen, size_t dcidlen);
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
+                                                      const uint8_t *pkt,
+                                                      size_t pktlen,
+                                                      size_t dcidlen);
 
 /**
  * @function
@@ -830,7 +834,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  *     |randlen| is strictly less than
  *     :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN`.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
     uint8_t *dest, size_t destlen, uint8_t *stateless_reset_token,
     uint8_t *rand, size_t randlen);
 
@@ -849,11 +853,11 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_stateless_reset(
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
-                                             const ngtcp2_pkt_hd *hd,
-                                             const ngtcp2_cid *odcid,
-                                             const uint8_t *token,
-                                             size_t tokenlen);
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
+                                                  const ngtcp2_pkt_hd *hd,
+                                                  const ngtcp2_cid *odcid,
+                                                  const uint8_t *token,
+                                                  size_t tokenlen);
 
 /**
  * @function
@@ -874,7 +878,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_pkt_write_version_negotiation(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
     uint8_t *dest, size_t destlen, uint8_t unused_random, const uint8_t *dcid,
     size_t dcidlen, const uint8_t *scid, size_t scidlen, const uint32_t *sv,
     size_t nsv);
@@ -1669,9 +1673,10 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
  * `ngtcp2_conn_writev_stream` without specifying stream data and
  * :enum:`NGTCP2_WRITE_STREAM_FLAG_NONE` as flags.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn,
-                                            ngtcp2_path *path, uint8_t *dest,
-                                            size_t destlen, ngtcp2_tstamp ts);
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt(ngtcp2_conn *conn,
+                                                 ngtcp2_path *path,
+                                                 uint8_t *dest, size_t destlen,
+                                                 ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2071,9 +2076,9 @@ typedef enum ngtcp2_write_stream_flag {
  * `ngtcp2_conn_writev_stream`.  The only difference is that it
  * conveniently accepts a single buffer.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ssize_t *pdatalen, uint32_t flags, int64_t stream_id, int fin,
+    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id, int fin,
     const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
 /**
@@ -2181,9 +2186,9 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_stream(
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ssize_t *pdatalen, uint32_t flags, int64_t stream_id, int fin,
+    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id, int fin,
     const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
 
 /**
@@ -2217,7 +2222,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_writev_stream(
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
     uint64_t error_code, ngtcp2_tstamp ts);
 
@@ -2252,7 +2257,7 @@ NGTCP2_EXTERN ssize_t ngtcp2_conn_write_connection_close(
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
  */
-NGTCP2_EXTERN ssize_t ngtcp2_conn_write_application_close(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_application_close(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
     uint64_t app_error_code, ngtcp2_tstamp ts);
 

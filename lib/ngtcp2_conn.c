@@ -1504,17 +1504,17 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                        size_t destlen, uint8_t type,
-                                        size_t early_datalen,
-                                        ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                             size_t destlen, uint8_t type,
+                                             size_t early_datalen,
+                                             ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame_chain *frq = NULL, **pfrc = &frq;
   ngtcp2_frame_chain *nfrc;
   ngtcp2_frame *ackfr = NULL, lfr;
-  ssize_t spktlen;
+  ngtcp2_ssize spktlen;
   ngtcp2_crypto_cc cc;
   ngtcp2_rtb_entry *rtbent;
   ngtcp2_pktns *pktns;
@@ -1704,11 +1704,11 @@ static ssize_t conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   return spktlen;
 }
 
-static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, uint8_t type,
-                                           const ngtcp2_cid *dcid,
-                                           ngtcp2_frame *fr, uint8_t rtb_flags,
-                                           ngtcp2_tstamp ts);
+static ngtcp2_ssize
+conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                            uint8_t type, const ngtcp2_cid *dcid,
+                            ngtcp2_frame *fr, uint8_t rtb_flags,
+                            ngtcp2_tstamp ts);
 
 /*
  * conn_write_handshake_ack_pkt writes unprotected QUIC packet in the
@@ -1723,9 +1723,10 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, uint8_t type,
-                                            ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_handshake_ack_pkt(ngtcp2_conn *conn,
+                                                 uint8_t *dest, size_t destlen,
+                                                 uint8_t type,
+                                                 ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_frame *ackfr;
   ngtcp2_pktns *pktns;
@@ -1768,9 +1769,10 @@ static ssize_t conn_write_handshake_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * frame only.  This function writes at most 2 packets for each
  * Initial and Handshake packet.
  */
-static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
-                                             size_t destlen, ngtcp2_tstamp ts) {
-  ssize_t res = 0, nwrite = 0;
+static ngtcp2_ssize conn_write_handshake_ack_pkts(ngtcp2_conn *conn,
+                                                  uint8_t *dest, size_t destlen,
+                                                  ngtcp2_tstamp ts) {
+  ngtcp2_ssize res = 0, nwrite = 0;
 
   /* Actullay client never send ACK for server Initial.  This is
      because once it gets server Initial, it gets Handshake tx key and
@@ -1813,9 +1815,10 @@ static ssize_t conn_write_handshake_ack_pkts(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, size_t early_datalen,
-                                         ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
+                                              size_t destlen,
+                                              size_t early_datalen,
+                                              ngtcp2_tstamp ts) {
   int rv;
 
   assert(conn->callbacks.client_initial);
@@ -1841,11 +1844,12 @@ static ssize_t conn_write_client_initial(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static ssize_t conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, size_t early_datalen,
-                                         ngtcp2_tstamp ts) {
-  ssize_t nwrite;
-  ssize_t res = 0;
+static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
+                                              size_t destlen,
+                                              size_t early_datalen,
+                                              ngtcp2_tstamp ts) {
+  ngtcp2_ssize nwrite;
+  ngtcp2_ssize res = 0;
   int probe = conn->rcs.probe_pkt_left != 0;
 
   nwrite = conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
@@ -1875,13 +1879,15 @@ static ssize_t conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
   return res;
 }
 
-static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, ngtcp2_tstamp ts);
+static ngtcp2_ssize conn_write_protected_ack_pkt(ngtcp2_conn *conn,
+                                                 uint8_t *dest, size_t destlen,
+                                                 ngtcp2_tstamp ts);
 
-static ssize_t conn_write_server_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ngtcp2_tstamp ts) {
-  ssize_t nwrite;
-  ssize_t res = 0;
+static ngtcp2_ssize conn_write_server_handshake(ngtcp2_conn *conn,
+                                                uint8_t *dest, size_t destlen,
+                                                ngtcp2_tstamp ts) {
+  ngtcp2_ssize nwrite;
+  ngtcp2_ssize res = 0;
 
   nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
   if (nwrite < 0) {
@@ -2171,17 +2177,18 @@ typedef enum {
  * NGTCP2_ERR_STREAM_DATA_BLOCKED
  *     Stream data could not be written because of flow control.
  */
-static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                              ssize_t *pdatalen, uint8_t type,
-                              ngtcp2_strm *data_strm, int fin,
-                              const ngtcp2_vec *datav, size_t datavcnt,
-                              uint8_t flags, ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                   size_t destlen, ngtcp2_ssize *pdatalen,
+                                   uint8_t type, ngtcp2_strm *data_strm,
+                                   int fin, const ngtcp2_vec *datav,
+                                   size_t datavcnt, uint8_t flags,
+                                   ngtcp2_tstamp ts) {
   int rv = 0;
   ngtcp2_crypto_cc *cc = &conn->pkt.cc;
   ngtcp2_ppe *ppe = &conn->pkt.ppe;
   ngtcp2_pkt_hd *hd = &conn->pkt.hd;
   ngtcp2_frame *ackfr = NULL, lfr;
-  ssize_t nwrite;
+  ngtcp2_ssize nwrite;
   ngtcp2_frame_chain **pfrc, *nfrc, *frc;
   ngtcp2_rtb_entry *ent;
   ngtcp2_strm *strm;
@@ -2654,7 +2661,7 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
     }
 
     if (pdatalen) {
-      *pdatalen = (ssize_t)ndatalen;
+      *pdatalen = (ngtcp2_ssize)ndatalen;
     }
   } else {
     send_stream = 0;
@@ -2759,16 +2766,16 @@ static ssize_t conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, uint8_t type,
-                                           const ngtcp2_cid *dcid,
-                                           ngtcp2_frame *fr, uint8_t rtb_flags,
-                                           ngtcp2_tstamp ts) {
+static ngtcp2_ssize
+conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                            uint8_t type, const ngtcp2_cid *dcid,
+                            ngtcp2_frame *fr, uint8_t rtb_flags,
+                            ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ngtcp2_frame lfr;
-  ssize_t nwrite;
+  ngtcp2_ssize nwrite;
   ngtcp2_crypto_cc cc;
   ngtcp2_pktns *pktns;
   uint8_t flags;
@@ -2907,8 +2914,9 @@ static ssize_t conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static ssize_t conn_write_protected_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                            size_t destlen, ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_protected_ack_pkt(ngtcp2_conn *conn,
+                                                 uint8_t *dest, size_t destlen,
+                                                 ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_frame *ackfr;
   ngtcp2_acktr *acktr = &conn->pktns.acktr;
@@ -2970,8 +2978,8 @@ static void conn_process_early_rtb(ngtcp2_conn *conn) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
-                                     size_t destlen, ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
+                                          size_t destlen, ngtcp2_tstamp ts) {
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   ngtcp2_pktns *pktns = &conn->pktns;
@@ -2980,7 +2988,7 @@ static ssize_t conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_rtb_entry *ent;
   ngtcp2_frame *ackfr = NULL, lfr;
   int rv;
-  ssize_t nwrite;
+  ngtcp2_ssize nwrite;
 
   assert(pktns->crypto.tx.ckm);
 
@@ -3115,12 +3123,12 @@ fail:
  * NGTCP2_ERR_STREAM_DATA_BLOCKED
  *     Stream data could not be written because of flow control.
  */
-static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                    size_t destlen, ssize_t *pdatalen,
-                                    ngtcp2_strm *strm, int fin,
-                                    const ngtcp2_vec *datav, size_t datavcnt,
-                                    ngtcp2_tstamp ts) {
-  ssize_t nwrite;
+static ngtcp2_ssize conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                         size_t destlen, ngtcp2_ssize *pdatalen,
+                                         ngtcp2_strm *strm, int fin,
+                                         const ngtcp2_vec *datav,
+                                         size_t datavcnt, ngtcp2_tstamp ts) {
+  ngtcp2_ssize nwrite;
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "transmit probe pkt left=%zu", conn->rcs.probe_pkt_left);
@@ -3137,7 +3145,7 @@ static ssize_t conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   --conn->rcs.probe_pkt_left;
 
-  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%zd",
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%td",
                   nwrite);
 
   return nwrite;
@@ -3270,9 +3278,10 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
-                                         uint8_t *dest, size_t destlen,
-                                         ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
+                                              ngtcp2_path *path, uint8_t *dest,
+                                              size_t destlen,
+                                              ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_tstamp expiry;
   ngtcp2_pv *pv = conn->pv;
@@ -3317,8 +3326,9 @@ static ssize_t conn_write_path_challenge(ngtcp2_conn *conn, ngtcp2_path *path,
                                      NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
 }
 
-ssize_t ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
-                              uint8_t *dest, size_t destlen, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
+                                   uint8_t *dest, size_t destlen,
+                                   ngtcp2_tstamp ts) {
   return ngtcp2_conn_writev_stream(
       conn, path, dest, destlen,
       /* pdatalen = */ NULL, NGTCP2_WRITE_STREAM_FLAG_NONE,
@@ -3605,7 +3615,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   int rv;
   ngtcp2_frame_chain *frc = NULL;
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
-  ssize_t num_acked;
+  ngtcp2_ssize num_acked;
 
   if (pktns->tx.last_pkt_num < fr->largest_ack) {
     return NGTCP2_ERR_PROTO;
@@ -3833,12 +3843,13 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t n) {
  * NGTCP2_ERR_TLS_DECRYPT
  *     TLS backend failed to decrypt data.
  */
-static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                const ngtcp2_crypto_aead *aead,
-                                const uint8_t *payload, size_t payloadlen,
-                                const uint8_t *ad, size_t adlen,
-                                int64_t pkt_num, ngtcp2_crypto_km *ckm,
-                                ngtcp2_decrypt decrypt, size_t aead_overhead) {
+static ngtcp2_ssize conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                     const ngtcp2_crypto_aead *aead,
+                                     const uint8_t *payload, size_t payloadlen,
+                                     const uint8_t *ad, size_t adlen,
+                                     int64_t pkt_num, ngtcp2_crypto_km *ckm,
+                                     ngtcp2_decrypt decrypt,
+                                     size_t aead_overhead) {
   /* TODO nonce is limited to 64 bytes. */
   uint8_t nonce[64];
   int rv;
@@ -3859,7 +3870,7 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   assert(payloadlen >= aead_overhead);
 
-  return (ssize_t)(payloadlen - aead_overhead);
+  return (ngtcp2_ssize)(payloadlen - aead_overhead);
 }
 
 /*
@@ -3877,13 +3888,12 @@ static ssize_t conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
  *     User-defined callback function failed; or it does not return
  *     expected result.
  */
-static ssize_t conn_decrypt_hp(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd,
-                               uint8_t *dest, size_t destlen,
-                               const ngtcp2_crypto_cipher *hp,
-                               const uint8_t *pkt, size_t pktlen,
-                               size_t pkt_num_offset, ngtcp2_crypto_km *ckm,
-                               const ngtcp2_vec *hp_key,
-                               ngtcp2_hp_mask hp_mask) {
+static ngtcp2_ssize
+conn_decrypt_hp(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd, uint8_t *dest,
+                size_t destlen, const ngtcp2_crypto_cipher *hp,
+                const uint8_t *pkt, size_t pktlen, size_t pkt_num_offset,
+                ngtcp2_crypto_km *ckm, const ngtcp2_vec *hp_key,
+                ngtcp2_hp_mask hp_mask) {
   size_t sample_offset;
   uint8_t *p = dest;
   uint8_t mask[NGTCP2_HP_MASKLEN];
@@ -4166,9 +4176,9 @@ static int verify_token(const ngtcp2_vec *token, const ngtcp2_pkt_hd *hd) {
 static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
                             ngtcp2_strm *strm, const ngtcp2_crypto *fr);
 
-static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
-                             const uint8_t *pkt, size_t pktlen,
-                             ngtcp2_tstamp ts);
+static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
+                                  const uint8_t *pkt, size_t pktlen,
+                                  ngtcp2_tstamp ts);
 
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_pktns *pktns,
@@ -4204,11 +4214,11 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
  * In addition to the above error codes, error codes returned from
  * conn_recv_pkt are also returned.
  */
-static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
-                                       const ngtcp2_path *path,
-                                       const uint8_t *pkt, size_t pktlen,
-                                       ngtcp2_tstamp ts) {
-  ssize_t nread;
+static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
+                                            const ngtcp2_path *path,
+                                            const uint8_t *pkt, size_t pktlen,
+                                            ngtcp2_tstamp ts) {
+  ngtcp2_ssize nread;
   ngtcp2_pkt_hd hd;
   ngtcp2_max_frame mfr;
   ngtcp2_frame *fr = &mfr.fr;
@@ -4217,7 +4227,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   size_t hdpktlen;
   const uint8_t *payload;
   size_t payloadlen;
-  ssize_t nwrite;
+  ngtcp2_ssize nwrite;
   uint8_t plain_hdpkt[1500];
   ngtcp2_crypto_aead *aead;
   ngtcp2_crypto_cipher *hp;
@@ -4239,7 +4249,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
       /* Ignore Short packet unless server's first Handshake packet
          has been transmitted. */
-      return (ssize_t)pktlen;
+      return (ngtcp2_ssize)pktlen;
     }
 
     if (!conn->server && conn->pktns.crypto.rx.ckm) {
@@ -4258,7 +4268,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
     }
-    return (ssize_t)pktlen;
+    return (ngtcp2_ssize)pktlen;
   }
 
   nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -4330,7 +4340,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       }
       return NGTCP2_ERR_DISCARD_PKT;
     }
-    return (ssize_t)pktlen;
+    return (ngtcp2_ssize)pktlen;
   }
 
   if (pktlen < (size_t)nread + hd.len) {
@@ -4360,7 +4370,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     }
     if (conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) {
       if (conn->early.ckm) {
-        ssize_t nread2;
+        ngtcp2_ssize nread2;
         /* TODO Avoid to parse header twice. */
         nread2 =
             conn_recv_pkt(conn, &conn->dcid.current.ps.path, pkt, pktlen, ts);
@@ -4370,7 +4380,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       }
 
       /* Discard 0-RTT packet if we don't have a key to decrypt it. */
-      return (ssize_t)pktlen;
+      return (ngtcp2_ssize)pktlen;
     }
 
     /* Buffer re-ordered 0-RTT packet. */
@@ -4383,13 +4393,13 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return rv;
     }
 
-    return (ssize_t)pktlen;
+    return (ngtcp2_ssize)pktlen;
   case NGTCP2_PKT_INITIAL:
     if (conn->flags & NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED) {
       ngtcp2_log_info(
           &conn->log, NGTCP2_LOG_EVENT_PKT,
           "Initial packet is discarded because keys have been discarded");
-      return (ssize_t)pktlen;
+      return (ngtcp2_ssize)pktlen;
     }
 
     if (conn->server) {
@@ -4425,7 +4435,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
         ngtcp2_log_info(
             &conn->log, NGTCP2_LOG_EVENT_PKT,
             "Handshake packet at this point is unexpected and discarded");
-        return (ssize_t)pktlen;
+        return (ngtcp2_ssize)pktlen;
       }
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                       "buffering Handshake packet len=%zu", pktlen);
@@ -4435,7 +4445,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
         assert(ngtcp2_err_is_fatal(rv));
         return rv;
       }
-      return (ssize_t)pktlen;
+      return (ngtcp2_ssize)pktlen;
     }
 
     pktns = &conn->hs_pktns;
@@ -4448,7 +4458,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
     /* unknown packet type */
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet was ignored because of unknown packet type");
-    return (ssize_t)pktlen;
+    return (ngtcp2_ssize)pktlen;
   }
 
   hp_mask = conn->callbacks.hp_mask;
@@ -4657,7 +4667,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->rcs, &conn->ccs);
 
   return conn->state == NGTCP2_CS_DRAINING ? NGTCP2_ERR_DRAINING
-                                           : (ssize_t)pktlen;
+                                           : (ngtcp2_ssize)pktlen;
 }
 
 /*
@@ -4672,7 +4682,7 @@ static ssize_t conn_recv_handshake_pkt(ngtcp2_conn *conn,
 static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                     const uint8_t *pkt, size_t pktlen,
                                     ngtcp2_tstamp ts) {
-  ssize_t nread;
+  ngtcp2_ssize nread;
   size_t origlen = pktlen;
 
   while (pktlen) {
@@ -4698,7 +4708,7 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     pktlen -= (size_t)nread;
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "read packet %zd left %zu", nread, pktlen);
+                    "read packet %td left %zu", nread, pktlen);
   }
 
   conn->hs_recved += origlen;
@@ -5520,7 +5530,7 @@ static int
 conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                                 size_t pktlen, const uint8_t *payload,
                                 size_t payloadlen, ngtcp2_tstamp ts) {
-  ssize_t nread;
+  ngtcp2_ssize nread;
   ngtcp2_max_frame mfr;
   ngtcp2_frame *fr = &mfr.fr;
   int rv;
@@ -6084,15 +6094,15 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
  * NGTCP2_ERR_FINAL_SIZE
  *     Frame has strictly larger end offset than it is permitted.
  */
-static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
-                             const uint8_t *pkt, size_t pktlen,
-                             ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
+                                  const uint8_t *pkt, size_t pktlen,
+                                  ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
   int rv = 0;
   size_t hdpktlen;
   const uint8_t *payload;
   size_t payloadlen;
-  ssize_t nread, nwrite;
+  ngtcp2_ssize nread, nwrite;
   ngtcp2_max_frame mfr;
   ngtcp2_frame *fr = &mfr.fr;
   int require_ack = 0;
@@ -6136,7 +6146,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     case NGTCP2_PKT_INITIAL:
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "delayed Initial packet was discarded");
-      return (ssize_t)pktlen;
+      return (ngtcp2_ssize)pktlen;
     case NGTCP2_PKT_HANDSHAKE:
       pktns = &conn->hs_pktns;
       ckm = pktns->crypto.rx.ckm;
@@ -6161,7 +6171,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "packet type 0x%02x was ignored", hd.type);
-      return (ssize_t)pktlen;
+      return (ngtcp2_ssize)pktlen;
     }
   } else {
     nread = ngtcp2_pkt_decode_hd_short(&hd, pkt, pktlen, conn->oscid.datalen);
@@ -6341,9 +6351,9 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         if (ngtcp2_err_is_fatal(rv)) {
           return rv;
         }
-        return (ssize_t)rv;
+        return (ngtcp2_ssize)rv;
       }
-      return (ssize_t)pktlen;
+      return (ngtcp2_ssize)pktlen;
     }
   } else {
     conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
@@ -6557,7 +6567,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->rcs, &conn->ccs);
 
-  return (ssize_t)pktlen;
+  return (ngtcp2_ssize)pktlen;
 }
 
 /*
@@ -6570,7 +6580,7 @@ static ssize_t conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_pktns *pktns,
                                                ngtcp2_tstamp ts) {
-  ssize_t nread;
+  ngtcp2_ssize nread;
   ngtcp2_pkt_chain **ppc, *next;
   int rv;
 
@@ -6614,7 +6624,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
 static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
                                                ngtcp2_tstamp ts) {
   ngtcp2_pktns *pktns = &conn->in_pktns;
-  ssize_t nread;
+  ngtcp2_ssize nread;
   ngtcp2_pkt_chain **ppc, *next;
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
@@ -6693,7 +6703,7 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
  */
 static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                           const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts) {
-  ssize_t nread;
+  ngtcp2_ssize nread;
   int rv;
   const uint8_t *origpkt = pkt;
   size_t origpktlen = pktlen;
@@ -6719,7 +6729,7 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     pktlen -= (size_t)nread;
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "read packet %zd left %zu", nread, pktlen);
+                    "read packet %td left %zu", nread, pktlen);
   }
 
   return 0;
@@ -7010,8 +7020,9 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
  * conn_retransmit_retry_early retransmits 0RTT packet after Retry is
  * received from server.
  */
-static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_retransmit_retry_early(ngtcp2_conn *conn,
+                                                uint8_t *dest, size_t destlen,
+                                                ngtcp2_tstamp ts) {
   return conn_write_pkt(conn, dest, destlen, NULL, NGTCP2_PKT_0RTT, NULL, 0,
                         NULL, 0, NGTCP2_WRITE_PKT_FLAG_NONE, ts);
 }
@@ -7039,11 +7050,11 @@ static ssize_t conn_retransmit_retry_early(ngtcp2_conn *conn, uint8_t *dest,
  * In addition to the above negative error codes, the same error codes
  * from conn_recv_pkt may also be returned.
  */
-static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                    size_t destlen, size_t early_datalen,
-                                    ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
+                                         size_t destlen, size_t early_datalen,
+                                         ngtcp2_tstamp ts) {
   int rv;
-  ssize_t res = 0, nwrite = 0, early_spktlen = 0;
+  ngtcp2_ssize res = 0, nwrite = 0, early_spktlen = 0;
   uint64_t cwnd;
   size_t origlen = destlen;
   size_t server_hs_tx_left;
@@ -7135,7 +7146,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     rv = conn_handshake_completed(conn);
     if (rv != 0) {
-      return (ssize_t)rv;
+      return (ngtcp2_ssize)rv;
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
@@ -7150,7 +7161,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     rv = conn_process_buffered_protected_pkt(conn, &conn->hs_pktns, ts);
     if (rv != 0) {
-      return (ssize_t)rv;
+      return (ngtcp2_ssize)rv;
     }
 
     if (conn->remote.transport_params.preferred_address_present) {
@@ -7161,7 +7172,7 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
          path validation */
       rv = conn_select_preferred_addr(conn);
       if (rv != 0) {
-        return (ssize_t)rv;
+        return (ngtcp2_ssize)rv;
       }
     }
 
@@ -7242,19 +7253,18 @@ static ssize_t conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   }
 }
 
-ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                    size_t destlen, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
+                                         size_t destlen, ngtcp2_tstamp ts) {
   return conn_write_handshake(conn, dest, destlen, 0, ts);
 }
 
-ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ssize_t *pdatalen,
-                                           uint32_t flags, int64_t stream_id,
-                                           int fin, const ngtcp2_vec *datav,
-                                           size_t datavcnt, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_client_write_handshake(
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
+    uint32_t flags, int64_t stream_id, int fin, const ngtcp2_vec *datav,
+    size_t datavcnt, ngtcp2_tstamp ts) {
   ngtcp2_strm *strm = NULL;
   int send_stream = 0;
-  ssize_t spktlen, early_spktlen;
+  ngtcp2_ssize spktlen, early_spktlen;
   uint64_t cwnd;
   int was_client_initial;
   size_t datalen = ngtcp2_vec_len(datav, datavcnt);
@@ -7371,7 +7381,7 @@ int ngtcp2_conn_sched_ack(ngtcp2_conn *conn, ngtcp2_acktr *acktr,
 }
 
 int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
-  ssize_t nread;
+  ngtcp2_ssize nread;
   ngtcp2_pkt_hd hd, *p;
 
   if (dest) {
@@ -7816,12 +7826,12 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, int64_t stream_id) {
   return ngtcp2_struct_of(me, ngtcp2_strm, me);
 }
 
-ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
-                                 uint8_t *dest, size_t destlen,
-                                 ssize_t *pdatalen, uint32_t flags,
-                                 int64_t stream_id, int fin,
-                                 const uint8_t *data, size_t datalen,
-                                 ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
+                                      uint8_t *dest, size_t destlen,
+                                      ngtcp2_ssize *pdatalen, uint32_t flags,
+                                      int64_t stream_id, int fin,
+                                      const uint8_t *data, size_t datalen,
+                                      ngtcp2_tstamp ts) {
   ngtcp2_vec datav;
 
   datav.len = datalen;
@@ -7831,21 +7841,21 @@ ssize_t ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
                                    stream_id, fin, &datav, 1, ts);
 }
 
-ssize_t ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
-                                  uint8_t *dest, size_t destlen,
-                                  ssize_t *pdatalen, uint32_t flags,
-                                  int64_t stream_id, int fin,
-                                  const ngtcp2_vec *datav, size_t datavcnt,
-                                  ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
+                                       uint8_t *dest, size_t destlen,
+                                       ngtcp2_ssize *pdatalen, uint32_t flags,
+                                       int64_t stream_id, int fin,
+                                       const ngtcp2_vec *datav, size_t datavcnt,
+                                       ngtcp2_tstamp ts) {
   ngtcp2_strm *strm = NULL;
-  ssize_t nwrite;
+  ngtcp2_ssize nwrite;
   uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
   size_t origlen = destlen;
   int rv;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
-  ssize_t res = 0;
+  ngtcp2_ssize res = 0;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -8019,11 +8029,12 @@ fin:
   return nwrite;
 }
 
-ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
-                                           uint8_t *dest, size_t destlen,
-                                           uint64_t error_code,
-                                           ngtcp2_tstamp ts) {
-  ssize_t res = 0, nwrite;
+ngtcp2_ssize ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
+                                                ngtcp2_path *path,
+                                                uint8_t *dest, size_t destlen,
+                                                uint64_t error_code,
+                                                ngtcp2_tstamp ts) {
+  ngtcp2_ssize res = 0, nwrite;
   ngtcp2_frame fr;
   uint8_t pkt_type;
 
@@ -8095,12 +8106,12 @@ ssize_t ngtcp2_conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_path *path,
   return res;
 }
 
-ssize_t ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
-                                            ngtcp2_path *path, uint8_t *dest,
-                                            size_t destlen,
-                                            uint64_t app_error_code,
-                                            ngtcp2_tstamp ts) {
-  ssize_t nwrite;
+ngtcp2_ssize ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
+                                                 ngtcp2_path *path,
+                                                 uint8_t *dest, size_t destlen,
+                                                 uint64_t app_error_code,
+                                                 ngtcp2_tstamp ts) {
+  ngtcp2_ssize nwrite;
   ngtcp2_frame fr;
 
   conn->log.last_ts = ts;

@@ -33,7 +33,7 @@ void test_ngtcp2_vec_split(void) {
   uint8_t nulldata[1024];
   ngtcp2_vec a[16], b[16];
   size_t acnt, bcnt;
-  ssize_t nsplit;
+  ngtcp2_ssize nsplit;
 
   /* No split occurs */
   acnt = 1;

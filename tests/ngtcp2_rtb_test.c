@@ -154,7 +154,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_cc_stat ccs;
   ngtcp2_default_cc cc;
   ngtcp2_pkt_hd hd;
-  ssize_t num_acked;
+  ngtcp2_ssize num_acked;
   ngtcp2_strm crypto;
   const ngtcp2_crypto_level crypto_level = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
 

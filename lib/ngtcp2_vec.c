@@ -72,8 +72,8 @@ size_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n) {
   return res;
 }
 
-ssize_t ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
-                         size_t *pdstcnt, size_t left, size_t maxcnt) {
+ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
+                              size_t *pdstcnt, size_t left, size_t maxcnt) {
   size_t i;
   size_t srccnt = *psrccnt;
   size_t nmove;
@@ -119,7 +119,7 @@ ssize_t ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
       extra -= left;
     }
 
-    return (ssize_t)(ngtcp2_vec_len(dst, nmove) + extra);
+    return (ngtcp2_ssize)(ngtcp2_vec_len(dst, nmove) + extra);
   }
 
   return 0;

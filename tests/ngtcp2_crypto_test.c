@@ -33,7 +33,7 @@
 void test_ngtcp2_encode_transport_params(void) {
   ngtcp2_transport_params params, nparams;
   uint8_t buf[512];
-  ssize_t nwrite;
+  ngtcp2_ssize nwrite;
   int rv;
   size_t i;
   ngtcp2_cid ocid;
@@ -139,7 +139,7 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT((ssize_t)i == nwrite);
+  CU_ASSERT((ngtcp2_ssize)i == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -210,7 +210,7 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
 
-  CU_ASSERT((ssize_t)i == nwrite);
+  CU_ASSERT((ngtcp2_ssize)i == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,

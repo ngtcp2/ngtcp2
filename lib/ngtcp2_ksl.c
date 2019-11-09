@@ -263,7 +263,7 @@ static void ksl_insert_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i,
 
 static size_t ksl_bsearch(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
                           const ngtcp2_ksl_key *key, ngtcp2_ksl_compar compar) {
-  ssize_t left = -1, right = (ssize_t)blk->n, mid;
+  ngtcp2_ssize left = -1, right = (ngtcp2_ssize)blk->n, mid;
   ngtcp2_ksl_node *node;
   ngtcp2_ksl_key node_key;
 

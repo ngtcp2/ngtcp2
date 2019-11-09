@@ -424,7 +424,7 @@ struct ngtcp2_conn {
     int hd_logged;
     uint8_t rtb_entry_flags;
     int was_client_initial;
-    ssize_t hs_spktlen;
+    ngtcp2_ssize hs_spktlen;
   } pkt;
 
   ngtcp2_map strms;
@@ -514,8 +514,8 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
  * pointed by |dest| if it succeeds, or one of the following negative
  * error codes: (TBD).
  */
-ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                    size_t destlen, ngtcp2_tstamp ts);
+ngtcp2_ssize ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
+                                         size_t destlen, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -544,11 +544,10 @@ ssize_t ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
  * pointed by |dest| if it succeeds, or one of the following negative
  * error codes: (TBD).
  */
-ssize_t ngtcp2_conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                           size_t destlen, ssize_t *pdatalen,
-                                           uint32_t flags, int64_t stream_id,
-                                           int fin, const ngtcp2_vec *datav,
-                                           size_t datavcnt, ngtcp2_tstamp ts);
+ngtcp2_ssize ngtcp2_conn_client_write_handshake(
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
+    uint32_t flags, int64_t stream_id, int fin, const ngtcp2_vec *datav,
+    size_t datavcnt, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
