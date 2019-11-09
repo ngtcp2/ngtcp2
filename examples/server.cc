@@ -778,7 +778,7 @@ namespace {
 int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_quic_dump) {
     debug::print_crypto_data(crypto_level, data, datalen);
   }
 
@@ -1034,7 +1034,7 @@ void Handler::extend_max_remote_streams_bidi(uint64_t max_streams) {
 namespace {
 int http_recv_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t *data,
                    size_t datalen, void *user_data, void *stream_user_data) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_http_dump) {
     debug::print_http_data(stream_id, data, datalen);
   }
   auto h = static_cast<Handler *>(user_data);
@@ -1874,7 +1874,7 @@ void Handler::schedule_retransmit() {
 
 int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
                               const uint8_t *data, size_t datalen) {
-  if (!config.quiet) {
+  if (!config.quiet && !config.no_quic_dump) {
     debug::print_stream_data(stream_id, data, datalen);
   }
 
@@ -3118,6 +3118,10 @@ Options:
               Path to  the directory where  qlog file is  stored.  The
               file name  of each qlog  is the Source Connection  ID of
               server.
+  --no-quic-dump
+              Disables printing QUIC STREAM and CRYPTO frame data out.
+  --no-http-dump
+              Disables printing HTTP response body out.
   -h, --help  Display this help and exit.
 )";
 }
@@ -3145,6 +3149,8 @@ int main(int argc, char **argv) {
         {"early-response", no_argument, &flag, 7},
         {"verify-client", no_argument, &flag, 8},
         {"qlog-dir", required_argument, &flag, 9},
+        {"no-quic-dump", no_argument, &flag, 10},
+        {"no-http-dump", no_argument, &flag, 11},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3238,6 +3244,14 @@ int main(int argc, char **argv) {
       case 9:
         // --qlog-dir
         config.qlog_dir = optarg;
+        break;
+      case 10:
+        // --no-quic-dump
+        config.no_quic_dump = true;
+        break;
+      case 11:
+        // --no-http-dump
+        config.no_http_dump = true;
         break;
       }
       break;

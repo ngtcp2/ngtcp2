@@ -88,6 +88,12 @@ struct Config {
   bool verify_client;
   // qlog_dir is the path to directory where qlog is stored.
   std::string qlog_dir;
+  // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
+  // should be disabled.
+  bool no_quic_dump;
+  // no_http_dump is true if hexdump of HTTP response body should be
+  // disabled.
+  bool no_http_dump;
 };
 
 struct Buffer {
