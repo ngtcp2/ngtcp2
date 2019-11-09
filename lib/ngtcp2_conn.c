@@ -8358,7 +8358,7 @@ int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
 }
 
 void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
-                            uint64_t ack_delay) {
+                            ngtcp2_duration ack_delay) {
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
 
   rcs->latest_rtt = rtt;

@@ -625,7 +625,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
  * than, or equals to |rtt|.
  */
 void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
-                            uint64_t ack_delay);
+                            ngtcp2_duration ack_delay);
 
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn);
 
