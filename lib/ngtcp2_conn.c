@@ -7680,6 +7680,8 @@ void ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   ngtcp2_transport_params *p = &conn->remote.transport_params;
 
+  assert(!conn->server);
+
   memset(p, 0, sizeof(*p));
 
   p->initial_max_streams_bidi = params->initial_max_streams_bidi;
