@@ -1705,9 +1705,9 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_write_handshake_ack_pkt writes unprotected QUIC packet in the
- * buffer pointed by |dest| whose length is |destlen|.  The packet
- * only includes ACK frame if any ack is required.
+ * conn_write_ack_pkt writes QUIC packet for type |type| which only
+ * includes ACK frame in the buffer pointed by |dest| whose length is
+ * |destlen|.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -1717,21 +1717,34 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
  */
-static ngtcp2_ssize conn_write_handshake_ack_pkt(ngtcp2_conn *conn,
-                                                 uint8_t *dest, size_t destlen,
-                                                 uint8_t type,
-                                                 ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
+                                       size_t destlen, uint8_t type,
+                                       ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_frame *ackfr;
   ngtcp2_pktns *pktns;
+  ngtcp2_duration ack_delay;
+  uint64_t ack_delay_exponent;
+
+  assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
     assert(conn->server);
     pktns = &conn->in_pktns;
+    ack_delay = 0;
+    ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = &conn->hs_pktns;
+    ack_delay = 0;
+    ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+    break;
+  case NGTCP2_PKT_SHORT:
+    pktns = &conn->pktns;
+    ack_delay = conn_compute_ack_delay(conn);
+    ack_delay_exponent =
+        conn->local.settings.transport_params.ack_delay_exponent;
     break;
   default:
     assert(0);
@@ -1742,9 +1755,8 @@ static ngtcp2_ssize conn_write_handshake_ack_pkt(ngtcp2_conn *conn,
   }
 
   ackfr = NULL;
-  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
-                             /* ack_delay = */ 0,
-                             NGTCP2_DEFAULT_ACK_DELAY_EXPONENT);
+  rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts, ack_delay,
+                             ack_delay_exponent);
   if (rv != 0) {
     return rv;
   }
@@ -1772,8 +1784,7 @@ static ngtcp2_ssize conn_write_handshake_ack_pkts(ngtcp2_conn *conn,
      because once it gets server Initial, it gets Handshake tx key and
      discards Initial key. */
   if (conn->server) {
-    nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                          NGTCP2_PKT_INITIAL, ts);
+    nwrite = conn_write_ack_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL, ts);
     if (nwrite < 0) {
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
@@ -1785,8 +1796,7 @@ static ngtcp2_ssize conn_write_handshake_ack_pkts(ngtcp2_conn *conn,
   }
 
   if (conn->hs_pktns.crypto.tx.ckm) {
-    nwrite = conn_write_handshake_ack_pkt(conn, dest, destlen,
-                                          NGTCP2_PKT_HANDSHAKE, ts);
+    nwrite = conn_write_ack_pkt(conn, dest, destlen, NGTCP2_PKT_HANDSHAKE, ts);
     if (nwrite < 0) {
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
@@ -1873,10 +1883,6 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
   return res;
 }
 
-static ngtcp2_ssize conn_write_protected_ack_pkt(ngtcp2_conn *conn,
-                                                 uint8_t *dest, size_t destlen,
-                                                 ngtcp2_tstamp ts);
-
 static ngtcp2_ssize conn_write_server_handshake(ngtcp2_conn *conn,
                                                 uint8_t *dest, size_t destlen,
                                                 ngtcp2_tstamp ts) {
@@ -1895,7 +1901,7 @@ static ngtcp2_ssize conn_write_server_handshake(ngtcp2_conn *conn,
 
   /* Acknowledge 0-RTT packet here. */
   if (conn->pktns.crypto.tx.ckm) {
-    nwrite = conn_write_protected_ack_pkt(conn, dest, destlen, ts);
+    nwrite = conn_write_ack_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT, ts);
     if (nwrite < 0) {
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
@@ -2878,45 +2884,6 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ++pktns->tx.last_pkt_num;
 
   return nwrite;
-}
-
-/*
- * conn_write_protected_ack_pkt writes QUIC Short packet which only
- * includes ACK frame in the buffer pointed by |dest| whose length is
- * |destlen|.
- *
- * This function returns the number of bytes written in |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static ngtcp2_ssize conn_write_protected_ack_pkt(ngtcp2_conn *conn,
-                                                 uint8_t *dest, size_t destlen,
-                                                 ngtcp2_tstamp ts) {
-  int rv;
-  ngtcp2_frame *ackfr;
-  ngtcp2_acktr *acktr = &conn->pktns.acktr;
-
-  assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
-
-  ackfr = NULL;
-  rv = conn_create_ack_frame(
-      conn, &ackfr, acktr, NGTCP2_PKT_SHORT, ts, conn_compute_ack_delay(conn),
-      conn->local.settings.transport_params.ack_delay_exponent);
-  if (rv != 0) {
-    return rv;
-  }
-
-  if (!ackfr) {
-    return 0;
-  }
-
-  return ngtcp2_conn_write_single_frame_pkt(
-      conn, dest, destlen, NGTCP2_PKT_SHORT, &conn->dcid.current.cid, ackfr,
-      NGTCP2_RTB_FLAG_NONE, ts);
 }
 
 /*
@@ -7990,7 +7957,7 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   if (res == 0) {
-    return conn_write_protected_ack_pkt(conn, dest, origlen, ts);
+    return conn_write_ack_pkt(conn, dest, origlen, NGTCP2_PKT_SHORT, ts);
   }
 
 fin:
