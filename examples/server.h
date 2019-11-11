@@ -131,7 +131,6 @@ struct Stream {
   Stream(int64_t stream_id, Handler *handler);
   ~Stream();
 
-  int recv_data(uint8_t fin, const uint8_t *data, size_t datalen);
   int start_response(nghttp3_conn *conn);
   int open_file(const std::string &path);
   int map_file(size_t len);
