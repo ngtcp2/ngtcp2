@@ -57,6 +57,7 @@ set(ngtcp2_SOURCES
   ngtcp2_pv.c
   ngtcp2_version.c
   ngtcp2_pipeack.c
+  ngtcp2_rst.c
 )
 
 set(ngtcp2_INCLUDE_DIRS

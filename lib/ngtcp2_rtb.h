@@ -53,6 +53,9 @@ typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 struct ngtcp2_strm;
 typedef struct ngtcp2_strm ngtcp2_strm;
 
+struct ngtcp2_rst;
+typedef struct ngtcp2_rst ngtcp2_rst;
+
 /*
  * ngtcp2_frame_chain chains frames in a single packet.
  */
@@ -166,6 +169,12 @@ struct ngtcp2_rtb_entry {
   ngtcp2_tstamp ts;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
+  struct {
+    uint64_t delivered;
+    ngtcp2_tstamp delivered_ts;
+    ngtcp2_tstamp first_sent_ts;
+    int is_app_limited;
+  } rst;
   /* flags is bitwise-OR of zero or more of ngtcp2_rtb_flag. */
   uint8_t flags;
 };
@@ -202,6 +211,7 @@ typedef struct {
   /* crypto is CRYPTO stream. */
   ngtcp2_strm *crypto;
   ngtcp2_default_cc *cc;
+  ngtcp2_rst *rst;
   ngtcp2_log *log;
   ngtcp2_qlog *qlog;
   const ngtcp2_mem *mem;

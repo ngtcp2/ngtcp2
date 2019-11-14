@@ -539,18 +539,21 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
+  (*pconn)->in_pktns.rtb.rst = &(*pconn)->rst;
 
   rv = pktns_init(&(*pconn)->hs_pktns, NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
                   &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
+  (*pconn)->hs_pktns.rtb.rst = &(*pconn)->rst;
 
   rv = pktns_init(&(*pconn)->pktns, NGTCP2_CRYPTO_LEVEL_APP, &(*pconn)->cc,
                   &(*pconn)->log, &(*pconn)->qlog, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
+  (*pconn)->pktns.rtb.rst = &(*pconn)->rst;
 
   (*pconn)->local.settings = *settings;
 

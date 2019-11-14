@@ -33,6 +33,7 @@
 #include "ngtcp2_vec.h"
 #include "ngtcp2_cc.h"
 #include "ngtcp2_rcvry.h"
+#include "ngtcp2_rst.h"
 
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem) {
   *pfrc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_frame_chain));
@@ -179,7 +180,11 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 }
 
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
+  ngtcp2_rst_on_pkt_sent(rtb->rst, ent, rtb->cc->ccs);
+
   rtb->cc->ccs->bytes_in_flight += ent->pktlen;
+
+  ngtcp2_rst_update_app_limited(rtb->rst, rtb->cc->ccs);
 
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     ++rtb->num_ack_eliciting;
@@ -342,6 +347,8 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
                              const ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts) {
   ngtcp2_cc_pkt pkt;
 
+  ngtcp2_rst_update_rate_sample(rtb->rst, ent, ts);
+
   ngtcp2_default_cc_on_pkt_acked(
       rtb->cc, ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts),
       rcs, ts);
@@ -444,6 +451,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
 
     ++i;
+  }
+
+  if (conn) {
+    ngtcp2_rst_on_ack_recv(rtb->rst, &conn->rcs);
   }
 
   return num_acked;
