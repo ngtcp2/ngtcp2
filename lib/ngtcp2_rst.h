@@ -36,15 +36,19 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
 typedef struct ngtcp2_rs {
   double delivery_rate;
-  int is_app_limited;
   ngtcp2_duration interval;
   uint64_t delivered;
   uint64_t prior_delivered;
   ngtcp2_tstamp prior_ts;
   ngtcp2_duration send_elapsed;
   ngtcp2_duration ack_elapsed;
+  int is_app_limited;
 } ngtcp2_rs;
 
+/*
+ * ngtcp2_rst implements delivery rate estimation described in
+ * https://tools.ietf.org/html/draft-cheng-iccrg-delivery-rate-estimation-00
+ */
 typedef struct ngtcp2_rst {
   uint64_t delivered;
   ngtcp2_tstamp delivered_ts;
@@ -52,6 +56,8 @@ typedef struct ngtcp2_rst {
   uint64_t app_limited;
   ngtcp2_rs rs;
 } ngtcp2_rst;
+
+void ngtcp2_rst_init(ngtcp2_rst *rst);
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_cc_stat *ccs);

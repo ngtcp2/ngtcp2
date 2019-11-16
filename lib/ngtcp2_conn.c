@@ -330,8 +330,8 @@ static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
 }
 
 static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_crypto_level crypto_level,
-                      ngtcp2_default_cc *cc, ngtcp2_log *log, ngtcp2_qlog *qlog,
-                      const ngtcp2_mem *mem) {
+                      ngtcp2_rst *rst, ngtcp2_default_cc *cc, ngtcp2_log *log,
+                      ngtcp2_qlog *qlog, const ngtcp2_mem *mem) {
   int rv;
 
   rv = ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
@@ -359,8 +359,8 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_crypto_level crypto_level,
     goto fail_tx_frq_init;
   }
 
-  ngtcp2_rtb_init(&pktns->rtb, crypto_level, &pktns->crypto.strm, cc, log, qlog,
-                  mem);
+  ngtcp2_rtb_init(&pktns->rtb, crypto_level, &pktns->crypto.strm, rst, cc, log,
+                  qlog, mem);
 
   return 0;
 
@@ -531,29 +531,30 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     ngtcp2_buf_init(&(*pconn)->qlog.buf, buf, NGTCP2_QLOG_BUFLEN);
   }
 
-  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->ccs, &(*pconn)->log,
-                         settings->initial_ts);
+  ngtcp2_rst_init(&(*pconn)->rst);
+
+  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->ccs, &(*pconn)->rst,
+                         &(*pconn)->log, settings->initial_ts);
 
   rv = pktns_init(&(*pconn)->in_pktns, NGTCP2_CRYPTO_LEVEL_INITIAL,
-                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
+                  &(*pconn)->rst, &(*pconn)->cc, &(*pconn)->log,
+                  &(*pconn)->qlog, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
-  (*pconn)->in_pktns.rtb.rst = &(*pconn)->rst;
 
   rv = pktns_init(&(*pconn)->hs_pktns, NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
-                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
+                  &(*pconn)->rst, &(*pconn)->cc, &(*pconn)->log,
+                  &(*pconn)->qlog, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
-  (*pconn)->hs_pktns.rtb.rst = &(*pconn)->rst;
 
-  rv = pktns_init(&(*pconn)->pktns, NGTCP2_CRYPTO_LEVEL_APP, &(*pconn)->cc,
-                  &(*pconn)->log, &(*pconn)->qlog, mem);
+  rv = pktns_init(&(*pconn)->pktns, NGTCP2_CRYPTO_LEVEL_APP, &(*pconn)->rst,
+                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
-  (*pconn)->pktns.rtb.rst = &(*pconn)->rst;
 
   (*pconn)->local.settings = *settings;
 

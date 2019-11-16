@@ -148,11 +148,12 @@ static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
 }
 
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
-                     ngtcp2_strm *crypto, ngtcp2_default_cc *cc,
-                     ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     ngtcp2_strm *crypto, ngtcp2_rst *rst,
+                     ngtcp2_default_cc *cc, ngtcp2_log *log, ngtcp2_qlog *qlog,
                      const ngtcp2_mem *mem) {
   ngtcp2_ksl_init(&rtb->ents, greater, sizeof(int64_t), mem);
   rtb->crypto = crypto;
+  rtb->rst = rst;
   rtb->cc = cc;
   rtb->log = log;
   rtb->qlog = qlog;
@@ -455,6 +456,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   if (conn) {
     ngtcp2_rst_on_ack_recv(rtb->rst, &conn->rcs);
+    ngtcp2_default_cc_on_ack_recv(rtb->cc,
+                                  rtt_updated ? conn->rcs.latest_rtt : 0, ts);
   }
 
   return num_acked;

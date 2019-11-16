@@ -27,6 +27,24 @@
 #include "ngtcp2_cc.h"
 #include "ngtcp2_macro.h"
 
+void ngtcp2_rst_init(ngtcp2_rst *rst) {
+  ngtcp2_rs *rs = &rst->rs;
+
+  rst->delivered = 0;
+  rst->delivered_ts = 0;
+  rst->first_sent_ts = 0;
+  rst->app_limited = 0;
+
+  rs->delivery_rate = 0.;
+  rs->interval = UINT64_MAX;
+  rs->delivered = 0;
+  rs->prior_delivered = 0;
+  rs->prior_ts = 0;
+  rs->send_elapsed = 0;
+  rs->ack_elapsed = 0;
+  rs->is_app_limited = 0;
+}
+
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_cc_stat *ccs) {
   if (ccs->bytes_in_flight == 0) {
@@ -83,12 +101,7 @@ void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
 }
 
 void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, const ngtcp2_cc_stat *ccs) {
-  uint64_t app_limited;
-
-  /* TODO We usually doesn't reach cwnd because of packet overhead.
-     This app limited condition is probably not correct. */
-  if (ccs->bytes_in_flight + NGTCP2_MAX_DGRAM_SIZE < ccs->cwnd) {
-    app_limited = rst->delivered + ccs->bytes_in_flight;
-    rst->app_limited = app_limited ? app_limited : 1;
-  }
+  (void)rst;
+  (void)ccs;
+  /* TODO Not implemented */
 }
