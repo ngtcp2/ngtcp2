@@ -168,6 +168,11 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
 void ngtcp2_rob_remove_prefix(ngtcp2_rob *rob, uint64_t offset);
 
 /*
+ * ngtcp2_rob_remove_gap removes gap from |offset| for |datalen| bytes.
+ */
+void ngtcp2_rob_remove_gap(ngtcp2_rob *rob, uint64_t offset, size_t datalen);
+
+/*
  * ngtcp2_rob_data_at stores the pointer to the buffer of stream
  * offset |offset| to |*pdest| if it is available, and returns the
  * valid length of available data.  If no data is available, it

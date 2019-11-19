@@ -53,7 +53,7 @@ before_script:
 script:
   # Now build ngtcp2 examples and test
   - make
-  - make check
+  - make check || (cat Testing/Temporary/LastTest.log && false)
   - ./ci/gen-certificate.sh
   - ./examples/server localhost 4433 cert/server.key cert/server.crt &
   - ./examples/client localhost 4433

@@ -44,7 +44,8 @@ client_SOURCES = client.cc client.h \
 	util.cc util.h \
 	shared.h \
 	crypto_openssl.cc \
-	crypto.cc
+	crypto.cc crypto.h \
+	network.h
 
 server_SOURCES = server.cc server.h \
 	template.h \
@@ -52,7 +53,8 @@ server_SOURCES = server.cc server.h \
 	util.cc util.h \
 	shared.h \
 	crypto_openssl.cc \
-	crypto.cc \
+	crypto.cc crypto.h \
+	network.h \
 	http.cc http.h
 
 if HAVE_CUNIT
