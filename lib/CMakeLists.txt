@@ -56,7 +56,6 @@ set(ngtcp2_SOURCES
   ngtcp2_path.c
   ngtcp2_pv.c
   ngtcp2_version.c
-  ngtcp2_pipeack.c
   ngtcp2_rst.c
 )
 

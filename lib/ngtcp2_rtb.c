@@ -345,14 +345,13 @@ static int rtb_call_acked_stream_offset(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 }
 
 static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
-                             const ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts) {
+                             ngtcp2_tstamp ts) {
   ngtcp2_cc_pkt pkt;
 
   ngtcp2_rst_update_rate_sample(rtb->rst, ent, ts);
 
   ngtcp2_default_cc_on_pkt_acked(
-      rtb->cc, ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts),
-      rcs, ts);
+      rtb->cc, ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts));
 }
 
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
@@ -407,7 +406,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
-        rtb_on_pkt_acked(rtb, ent, &conn->rcs, ts);
+        rtb_on_pkt_acked(rtb, ent, ts);
         /* At this point, it is invalided because rtb->ents might be
            modified. */
       }
@@ -445,7 +444,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           ngtcp2_conn_update_rtt(conn, ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
-        rtb_on_pkt_acked(rtb, ent, &conn->rcs, ts);
+        rtb_on_pkt_acked(rtb, ent, ts);
       }
       rtb_remove(rtb, &it, ent);
       ++num_acked;

@@ -44,7 +44,6 @@ OBJECTS = \
 	ngtcp2_vec_test.c \
 	ngtcp2_strm_test.c \
 	ngtcp2_pv_test.c \
-	ngtcp2_pipeack_test.c \
 	ngtcp2_test_helper.c
 HFILES= \
 	ngtcp2_pkt_test.h \
@@ -63,7 +62,6 @@ HFILES= \
 	ngtcp2_vec_test.h \
 	ngtcp2_strm_test.h \
 	ngtcp2_pv_test.h \
-	ngtcp2_pipeack_test.h \
 	ngtcp2_test_helper.h
 
 main_SOURCES = $(HFILES) $(OBJECTS)
