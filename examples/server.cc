@@ -25,6 +25,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <cassert>
+#include <cstring>
 #include <iostream>
 #include <algorithm>
 #include <memory>
@@ -38,6 +39,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <netinet/udp.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -54,6 +56,10 @@
 #include "template.h"
 
 using namespace ngtcp2;
+
+#ifdef UDP_SEGMENT
+#  define NGTCP2_ENABLE_UDP_GSO 1
+#endif // UDP_SEGMENT
 
 namespace {
 constexpr size_t NGTCP2_SV_SCIDLEN = 18;
@@ -1636,15 +1642,6 @@ int Handler::on_write() {
     return 0;
   }
 
-  if (sendbuf_.size() > 0) {
-    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-    if (rv != NETWORK_ERR_OK) {
-      return rv;
-    }
-  }
-
-  assert(sendbuf_.left() >= max_pktlen_);
-
   rv = write_streams();
   if (rv != 0) {
     if (rv == NETWORK_ERR_SEND_BLOCKED) {
@@ -1663,6 +1660,11 @@ int Handler::write_streams() {
   PathStorage path;
   int rv;
   size_t pktcnt = 0;
+  constexpr size_t max_pktcnt = 10;
+  std::array<uint8_t, std::max(NGTCP2_MAX_PKTLEN_IPV4, NGTCP2_MAX_PKTLEN_IPV6) *
+                          max_pktcnt>
+      buf;
+  uint8_t *bufpos = buf.data();
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1685,7 +1687,7 @@ int Handler::write_streams() {
     auto vcnt = static_cast<size_t>(sveccnt);
 
     auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen,
+        conn_, &path.path, bufpos, max_pktlen_, &ndatalen,
         NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id, fin,
         reinterpret_cast<const ngtcp2_vec *>(v), vcnt, util::timestamp(loop_));
     if (nwrite < 0) {
@@ -1694,6 +1696,11 @@ int Handler::write_streams() {
       case NGTCP2_ERR_STREAM_SHUT_WR:
         if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED &&
             ngtcp2_conn_get_max_data_left(conn_) == 0) {
+          if (bufpos - buf.data()) {
+            server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+                                 bufpos - buf.data(), max_pktlen_, &wev_);
+            reset_idle_timer();
+          }
           return 0;
         }
 
@@ -1724,11 +1731,16 @@ int Handler::write_streams() {
     }
 
     if (nwrite == 0) {
+      if (bufpos - buf.data()) {
+        server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+                             bufpos - buf.data(), max_pktlen_, &wev_);
+        reset_idle_timer();
+      }
       // We are congestion limited.
       return 0;
     }
 
-    sendbuf_.push(nwrite);
+    bufpos += nwrite;
 
     if (ndatalen >= 0) {
       rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
@@ -1740,21 +1752,50 @@ int Handler::write_streams() {
       }
     }
 
+#ifdef NGTCP2_ENABLE_UDP_GSO
+    if (pktcnt == 0) {
+      update_endpoint(&path.path.local);
+      update_remote_addr(&path.path.remote);
+    } else if (remote_addr_.len != path.path.remote.addrlen ||
+               0 != memcmp(&remote_addr_.su, path.path.remote.addr,
+                           path.path.remote.addrlen)) {
+      server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+                           bufpos - buf.data() - nwrite, max_pktlen_, &wev_);
+
+      update_remote_addr(&path.path.remote);
+
+      server_->send_packet(*endpoint_, remote_addr_, bufpos - nwrite, nwrite,
+                           max_pktlen_, &wev_);
+      reset_idle_timer();
+      ev_io_start(loop_, &wev_);
+      return 0;
+    }
+
+    if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < max_pktlen_) {
+      server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+                           bufpos - buf.data(), max_pktlen_, &wev_);
+      reset_idle_timer();
+      ev_io_start(loop_, &wev_);
+      return 0;
+    }
+#else  // !NGTCP2_ENABLE_UDP_GSO
     update_endpoint(&path.path.local);
     update_remote_addr(&path.path.remote);
     reset_idle_timer();
 
-    auto rv = server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
-    if (rv != NETWORK_ERR_OK) {
-      return rv;
-    }
-
-    if (++pktcnt == 10) {
+    server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+                         bufpos - buf.data(), 0, &wev_);
+    if (++pktcnt == max_pktcnt) {
       ev_io_start(loop_, &wev_);
       return 0;
     }
+
+    bufpos = buf.data();
+#endif // !NGTCP2_ENABLE_UDP_GSO
   }
 }
+
+void Handler::signal_write() { ev_io_start(loop_, &wev_); }
 
 bool Handler::draining() const { return draining_; }
 
@@ -1852,7 +1893,8 @@ int Handler::send_conn_close() {
     sendbuf_.push(conn_closebuf_->size());
   }
 
-  return server_->send_packet(*endpoint_, remote_addr_, sendbuf_, &wev_);
+  return server_->send_packet(*endpoint_, remote_addr_, sendbuf_.rpos(),
+                              sendbuf_.size(), 0, &wev_);
 }
 
 void Handler::schedule_retransmit() {
@@ -2222,178 +2264,177 @@ int Server::on_read(Endpoint &ep) {
   std::array<uint8_t, 64_k> buf;
   int rv;
   ngtcp2_pkt_hd hd;
+  size_t pktcnt = 0;
 
-  addrlen = sizeof(su);
-  auto nread =
-      recvfrom(ep.fd, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
-  if (nread == -1) {
-    if (!(errno == EAGAIN || errno == ENOTCONN)) {
-      std::cerr << "recvfrom: " << strerror(errno) << std::endl;
-    }
-    return 0;
-  }
-
-  if (!config.quiet) {
-    std::cerr << "Received packet: local="
-              << util::straddr(&ep.addr.su.sa, ep.addr.len)
-              << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
-              << " bytes" << std::endl;
-  }
-
-  if (debug::packet_lost(config.rx_loss_prob)) {
-    if (!config.quiet) {
-      std::cerr << "** Simulated incoming packet loss **" << std::endl;
-    }
-    return 0;
-  }
-
-  if (nread == 0) {
-    return 0;
-  }
-
-  uint32_t version;
-  const uint8_t *dcid, *scid;
-  size_t dcidlen, scidlen;
-
-  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
-                                     buf.data(), nread, NGTCP2_SV_SCIDLEN);
-  if (rv != 0) {
-    if (rv == 1) {
-      send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
-                               &su.sa, addrlen);
+  for (; pktcnt < 10;) {
+    addrlen = sizeof(su);
+    auto nread =
+        recvfrom(ep.fd, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
+    if (nread == -1) {
+      if (!(errno == EAGAIN || errno == ENOTCONN)) {
+        std::cerr << "recvfrom: " << strerror(errno) << std::endl;
+      }
       return 0;
     }
-    std::cerr << "Could not decode version and CID from QUIC packet header: "
-              << ngtcp2_strerror(rv) << std::endl;
-    return 0;
-  }
 
-  auto dcid_key = util::make_cid_key(dcid, dcidlen);
+    ++pktcnt;
 
-  auto handler_it = handlers_.find(dcid_key);
-  if (handler_it == std::end(handlers_)) {
-    auto ctos_it = ctos_.find(dcid_key);
-    if (ctos_it == std::end(ctos_)) {
-      rv = ngtcp2_accept(&hd, buf.data(), nread);
-      if (rv == -1) {
-        if (!config.quiet) {
-          std::cerr << "Unexpected packet received: length=" << nread
-                    << std::endl;
-        }
-        return 0;
+    if (!config.quiet) {
+      std::cerr << "Received packet: local="
+                << util::straddr(&ep.addr.su.sa, ep.addr.len)
+                << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
+                << " bytes" << std::endl;
+    }
+
+    if (debug::packet_lost(config.rx_loss_prob)) {
+      if (!config.quiet) {
+        std::cerr << "** Simulated incoming packet loss **" << std::endl;
       }
+      continue;
+    }
 
+    if (nread == 0) {
+      continue;
+    }
+
+    uint32_t version;
+    const uint8_t *dcid, *scid;
+    size_t dcidlen, scidlen;
+
+    rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid,
+                                       &scidlen, buf.data(), nread,
+                                       NGTCP2_SV_SCIDLEN);
+    if (rv != 0) {
       if (rv == 1) {
-        if (!config.quiet) {
-          std::cerr << "Unsupported version: Send Version Negotiation"
-                    << std::endl;
-        }
-        send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
-                                 hd.dcid.data, hd.dcid.datalen, ep, &su.sa,
-                                 addrlen);
-        return 0;
+        send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
+                                 &su.sa, addrlen);
+        continue;
       }
+      std::cerr << "Could not decode version and CID from QUIC packet header: "
+                << ngtcp2_strerror(rv) << std::endl;
+      continue;
+    }
 
-      ngtcp2_cid ocid;
-      ngtcp2_cid *pocid = nullptr;
-      switch (hd.type) {
-      case NGTCP2_PKT_INITIAL:
-        if (config.validate_addr || hd.tokenlen) {
-          std::cerr << "Perform stateless address validation" << std::endl;
-          if (hd.tokenlen == 0 ||
-              verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
-            send_retry(&hd, ep, &su.sa, addrlen);
-            return 0;
+    auto dcid_key = util::make_cid_key(dcid, dcidlen);
+
+    auto handler_it = handlers_.find(dcid_key);
+    if (handler_it == std::end(handlers_)) {
+      auto ctos_it = ctos_.find(dcid_key);
+      if (ctos_it == std::end(ctos_)) {
+        rv = ngtcp2_accept(&hd, buf.data(), nread);
+        if (rv == -1) {
+          if (!config.quiet) {
+            std::cerr << "Unexpected packet received: length=" << nread
+                      << std::endl;
           }
-          pocid = &ocid;
+          continue;
         }
-        break;
-      case NGTCP2_PKT_0RTT:
-        send_retry(&hd, ep, &su.sa, addrlen);
-        return 0;
-      }
 
-      auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-      if (h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.token,
-                  hd.tokenlen, hd.version) != 0) {
-        return 0;
-      }
+        if (rv == 1) {
+          if (!config.quiet) {
+            std::cerr << "Unsupported version: Send Version Negotiation"
+                      << std::endl;
+          }
+          send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
+                                   hd.dcid.data, hd.dcid.datalen, ep, &su.sa,
+                                   addrlen);
+          continue;
+        }
 
-      rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
-      switch (rv) {
-      case 0:
-        break;
-      case NGTCP2_ERR_RETRY:
-        send_retry(&hd, ep, &su.sa, addrlen);
-        return 0;
-      default:
-        return rv;
+        ngtcp2_cid ocid;
+        ngtcp2_cid *pocid = nullptr;
+        switch (hd.type) {
+        case NGTCP2_PKT_INITIAL:
+          if (config.validate_addr || hd.tokenlen) {
+            std::cerr << "Perform stateless address validation" << std::endl;
+            if (hd.tokenlen == 0 ||
+                verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
+              send_retry(&hd, ep, &su.sa, addrlen);
+              continue;
+            }
+            pocid = &ocid;
+          }
+          break;
+        case NGTCP2_PKT_0RTT:
+          send_retry(&hd, ep, &su.sa, addrlen);
+          continue;
+        }
+
+        auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
+        if (h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.token,
+                    hd.tokenlen, hd.version) != 0) {
+          continue;
+        }
+
+        rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
+        switch (rv) {
+        case 0:
+          break;
+        case NGTCP2_ERR_RETRY:
+          send_retry(&hd, ep, &su.sa, addrlen);
+          continue;
+        default:
+          continue;
+        }
+        rv = h->on_write();
+        switch (rv) {
+        case 0:
+        case NETWORK_ERR_SEND_BLOCKED:
+          break;
+        default:
+          continue;
+        }
+
+        auto scid = h->scid();
+        auto scid_key = util::make_cid_key(scid);
+        ctos_.emplace(dcid_key, scid_key);
+
+        auto pscid = h->pscid();
+        if (pscid->datalen) {
+          auto pscid_key = util::make_cid_key(pscid);
+          ctos_.emplace(pscid_key, scid_key);
+        }
+
+        handlers_.emplace(scid_key, std::move(h));
+        continue;
       }
-      rv = h->on_write();
+      if (!config.quiet) {
+        std::cerr << "Forward CID=" << util::format_hex((*ctos_it).first)
+                  << " to CID=" << util::format_hex((*ctos_it).second)
+                  << std::endl;
+      }
+      handler_it = handlers_.find((*ctos_it).second);
+      assert(handler_it != std::end(handlers_));
+    }
+
+    auto h = (*handler_it).second.get();
+    if (ngtcp2_conn_is_in_closing_period(h->conn())) {
+      // TODO do exponential backoff.
+      rv = h->send_conn_close();
       switch (rv) {
       case 0:
       case NETWORK_ERR_SEND_BLOCKED:
         break;
       default:
-        return 0;
+        remove(h);
       }
+      continue;
+    }
+    if (h->draining()) {
+      continue;
+    }
 
-      auto scid = h->scid();
-      auto scid_key = util::make_cid_key(scid);
-      ctos_.emplace(dcid_key, scid_key);
-
-      auto pscid = h->pscid();
-      if (pscid->datalen) {
-        auto pscid_key = util::make_cid_key(pscid);
-        ctos_.emplace(pscid_key, scid_key);
+    rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
+    if (rv != 0) {
+      if (rv != NETWORK_ERR_CLOSE_WAIT) {
+        remove(h);
       }
+      continue;
+    }
 
-      handlers_.emplace(scid_key, std::move(h));
-      return 0;
-    }
-    if (!config.quiet) {
-      std::cerr << "Forward CID=" << util::format_hex((*ctos_it).first)
-                << " to CID=" << util::format_hex((*ctos_it).second)
-                << std::endl;
-    }
-    handler_it = handlers_.find((*ctos_it).second);
-    assert(handler_it != std::end(handlers_));
+    h->signal_write();
   }
 
-  auto h = (*handler_it).second.get();
-  if (ngtcp2_conn_is_in_closing_period(h->conn())) {
-    // TODO do exponential backoff.
-    rv = h->send_conn_close();
-    switch (rv) {
-    case 0:
-    case NETWORK_ERR_SEND_BLOCKED:
-      break;
-    default:
-      remove(h);
-    }
-    return 0;
-  }
-  if (h->draining()) {
-    return 0;
-  }
-
-  rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
-  if (rv != 0) {
-    if (rv != NETWORK_ERR_CLOSE_WAIT) {
-      remove(h);
-    }
-    return 0;
-  }
-
-  rv = h->on_write();
-  switch (rv) {
-  case 0:
-  case NETWORK_ERR_CLOSE_WAIT:
-  case NETWORK_ERR_SEND_BLOCKED:
-    break;
-  default:
-    remove(h);
-  }
   return 0;
 }
 
@@ -2447,7 +2488,8 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
   remote_addr.len = salen;
   memcpy(&remote_addr.su.sa, sa, salen);
 
-  if (send_packet(ep, remote_addr, buf) != NETWORK_ERR_OK) {
+  if (send_packet(ep, remote_addr, buf.rpos(), buf.size(), 0) !=
+      NETWORK_ERR_OK) {
     return -1;
   }
 
@@ -2514,7 +2556,8 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   remote_addr.len = salen;
   memcpy(&remote_addr.su.sa, sa, salen);
 
-  if (send_packet(ep, remote_addr, buf) != NETWORK_ERR_OK) {
+  if (send_packet(ep, remote_addr, buf.rpos(), buf.size(), 0) !=
+      NETWORK_ERR_OK) {
     return -1;
   }
 
@@ -2710,42 +2753,52 @@ int Server::verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
-int Server::send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf,
+int Server::send_packet(Endpoint &ep, const Address &remote_addr,
+                        const uint8_t *data, size_t datalen, size_t gso_size,
                         ev_io *wev) {
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
     }
-    buf.reset();
     return NETWORK_ERR_OK;
   }
+
+  iovec msg_iov;
+  msg_iov.iov_base = const_cast<uint8_t *>(data);
+  msg_iov.iov_len = datalen;
+
+  msghdr msg{};
+  msg.msg_name = const_cast<sockaddr *>(&remote_addr.su.sa);
+  msg.msg_namelen = remote_addr.len;
+  msg.msg_iov = &msg_iov;
+  msg.msg_iovlen = 1;
+
+#ifdef NGTCP2_ENABLE_UDP_GSO
+  std::array<uint8_t, CMSG_SPACE(sizeof(uint16_t))> msg_ctrl{};
+  if (gso_size && datalen > gso_size) {
+    msg.msg_control = msg_ctrl.data();
+    msg.msg_controllen = msg_ctrl.size();
+
+    auto cm = CMSG_FIRSTHDR(&msg);
+    cm->cmsg_level = SOL_UDP;
+    cm->cmsg_type = UDP_SEGMENT;
+    cm->cmsg_len = CMSG_LEN(sizeof(uint16_t));
+    *(reinterpret_cast<uint16_t *>(CMSG_DATA(cm))) = gso_size;
+  }
+#endif // NGTCP2_ENABLE_UDP_GSO
 
   ssize_t nwrite = 0;
 
   do {
-    nwrite = sendto(ep.fd, buf.rpos(), buf.size(), MSG_DONTWAIT,
-                    &remote_addr.su.sa, remote_addr.len);
+    nwrite = sendmsg(ep.fd, &msg, 0);
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      if (wev) {
-        ev_io_stop(loop_, wev);
-        ev_io_set(wev, ep.fd, EV_WRITE);
-        ev_io_start(loop_, wev);
-      }
-      return NETWORK_ERR_SEND_BLOCKED;
-    }
-
-    std::cerr << "sendto: " << strerror(errno) << std::endl;
+    std::cerr << "sendmsg: " << strerror(errno) << std::endl;
     // TODO We have packet which is expected to fail to send (e.g.,
     // path validation to old path).
-    buf.reset();
     return NETWORK_ERR_OK;
   }
-
-  assert(static_cast<size_t>(nwrite) == buf.size());
-  buf.reset();
 
   if (!config.quiet) {
     std::cerr << "Sent packet: local="

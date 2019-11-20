@@ -267,6 +267,7 @@ public:
   void reset_idle_timer();
 
   void write_qlog(const void *data, size_t datalen);
+  void singal_write();
 
 private:
   Endpoint *endpoint_;
@@ -324,8 +325,8 @@ public:
                      socklen_t salen, const ngtcp2_cid *ocid);
   int verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                    const sockaddr *sa, socklen_t salen);
-  int send_packet(Endpoint &ep, const Address &remote_addr, Buffer &buf,
-                  ev_io *wev = nullptr);
+  int send_packet(Endpoint &ep, const Address &remote_addr, const uint8_t *data,
+                  size_t datalen, size_t gso_size, ev_io *wev = nullptr);
   void remove(const Handler *h);
 
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
