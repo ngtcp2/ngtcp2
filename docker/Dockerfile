@@ -1,4 +1,4 @@
-FROM k8s.gcr.io/debian-base-amd64:1.0.0
+FROM k8s.gcr.io/debian-base-amd64:v2.0.0
 
 RUN /usr/local/bin/clean-install \
         git g++ make binutils autoconf automake autotools-dev libtool \
