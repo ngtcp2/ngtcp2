@@ -104,6 +104,9 @@ struct Config {
   // control window for a bidirectional stream that the remote
   // endpoint initiates.
   uint64_t max_stream_data_bidi_remote;
+  // max_stream_data_uni is the initial stream-level flow control
+  // window for a unidirectional stream.
+  uint64_t max_stream_data_uni;
 };
 
 struct Buffer {

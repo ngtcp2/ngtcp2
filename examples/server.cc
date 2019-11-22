@@ -1418,7 +1418,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
   params.initial_max_stream_data_bidi_remote =
       config.max_stream_data_bidi_remote;
-  params.initial_max_stream_data_uni = 256_k;
+  params.initial_max_stream_data_uni = config.max_stream_data_uni;
   params.initial_max_data = config.max_data;
   params.initial_max_streams_bidi = 100;
   params.initial_max_streams_uni = 3;
@@ -3104,6 +3104,7 @@ void config_set_default(Config &config) {
   config.max_data = 1_m;
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
+  config.max_stream_data_uni = 256_k;
 }
 } // namespace
 
@@ -3190,6 +3191,11 @@ Options:
               bidirectional stream that the remote endpoint initiates.
               Default: )"
             << util::format_uint_iec(config.max_stream_data_bidi_remote) << R"(
+  --max-stream-data-uni=<SIZE>
+              The  initial  stream-level  flow control  window  for  a
+              unidirectional stream.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_data_uni) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -3232,6 +3238,7 @@ int main(int argc, char **argv) {
         {"max-data", required_argument, &flag, 12},
         {"max-stream-data-bidi-local", required_argument, &flag, 13},
         {"max-stream-data-bidi-remote", required_argument, &flag, 14},
+        {"max-stream-data-uni", required_argument, &flag, 15},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3366,6 +3373,15 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.max_stream_data_bidi_remote = n;
+        }
+        break;
+      case 15:
+        // --max-stream-data-uni
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-stream-data-uni: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_data_uni = n;
         }
         break;
       }
