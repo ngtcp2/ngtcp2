@@ -734,8 +734,7 @@ int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
 } // namespace
 
 int Client::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
-  auto rv = nghttp3_conn_unblock_stream(httpconn_, stream_id);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_unblock_stream(httpconn_, stream_id); rv != 0) {
     std::cerr << "nghttp3_conn_unblock_stream: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -834,8 +833,6 @@ void Client::write_qlog(const void *data, size_t datalen) {
 
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port, uint32_t version) {
-  int rv;
-
   local_addr_ = local_addr;
   remote_addr_ = remote_addr;
   fd_ = fd;
@@ -930,9 +927,9 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                            reinterpret_cast<const uint8_t *>(&local_addr.su))},
       {remote_addr.len, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(
                             &remote_addr.su))}};
-  rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version, &callbacks,
-                              &settings, nullptr, this);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version,
+                                       &callbacks, &settings, nullptr, this);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
@@ -941,8 +938,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     return -1;
   }
 
-  rv = setup_initial_crypto_context();
-  if (rv != 0) {
+  if (setup_initial_crypto_context() != 0) {
     return -1;
   }
 
@@ -1006,14 +1002,12 @@ int Client::setup_initial_crypto_context() {
 
 int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                       size_t datalen) {
-  int rv;
-
   auto path = ngtcp2_path{
       {local_addr_.len, reinterpret_cast<uint8_t *>(&local_addr_.su)},
       {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
-  rv =
-      ngtcp2_conn_read_pkt(conn_, &path, data, datalen, util::timestamp(loop_));
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
+                                     util::timestamp(loop_));
+      rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.code) {
       last_error_ = quic_err_transport(rv);
@@ -1121,7 +1115,6 @@ int Client::on_write() {
 int Client::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   PathStorage path;
-  int rv;
   size_t pktcnt = 0;
 
   for (;;) {
@@ -1158,8 +1151,8 @@ int Client::write_streams() {
           return 0;
         }
 
-        rv = nghttp3_conn_block_stream(httpconn_, stream_id);
-        if (rv != 0) {
+        if (auto rv = nghttp3_conn_block_stream(httpconn_, stream_id);
+            rv != 0) {
           std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
                     << std::endl;
           last_error_ = quic_err_app(rv);
@@ -1169,8 +1162,9 @@ int Client::write_streams() {
         continue;
       case NGTCP2_ERR_WRITE_STREAM_MORE:
         assert(ndatalen > 0);
-        rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
-        if (rv != 0) {
+        if (auto rv =
+                nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+            rv != 0) {
           std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                     << std::endl;
           last_error_ = quic_err_app(rv);
@@ -1195,8 +1189,9 @@ int Client::write_streams() {
     sendbuf_.push(nwrite);
 
     if (ndatalen >= 0) {
-      rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
-      if (rv != 0) {
+      if (auto rv =
+              nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+          rv != 0) {
         std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                   << std::endl;
         last_error_ = quic_err_app(rv);
@@ -1208,8 +1203,7 @@ int Client::write_streams() {
     update_remote_addr(&path.path.remote);
     reset_idle_timer();
 
-    rv = send_packet();
-    if (rv != NETWORK_ERR_OK) {
+    if (auto rv = send_packet(); rv != NETWORK_ERR_OK) {
       return rv;
     }
 
@@ -1251,14 +1245,12 @@ namespace {
 int bind_addr(Address &local_addr, int fd, int family) {
   addrinfo hints{};
   addrinfo *res, *rp;
-  int rv;
 
   hints.ai_family = family;
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
 
-  rv = getaddrinfo(nullptr, "0", &hints, &res);
-  if (rv != 0) {
+  if (auto rv = getaddrinfo(nullptr, "0", &hints, &res); rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
@@ -1277,8 +1269,7 @@ int bind_addr(Address &local_addr, int fd, int family) {
   }
 
   socklen_t len = sizeof(local_addr.su.storage);
-  rv = getsockname(fd, &local_addr.su.sa, &len);
-  if (rv == -1) {
+  if (getsockname(fd, &local_addr.su.sa, &len) == -1) {
     std::cerr << "getsockname: " << strerror(errno) << std::endl;
     return -1;
   }
@@ -1292,13 +1283,11 @@ namespace {
 int create_sock(Address &remote_addr, const char *addr, const char *port) {
   addrinfo hints{};
   addrinfo *res, *rp;
-  int rv;
 
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_DGRAM;
 
-  rv = getaddrinfo(addr, port, &hints, &res);
-  if (rv != 0) {
+  if (auto rv = getaddrinfo(addr, port, &hints, &res); rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
@@ -1343,7 +1332,6 @@ void Client::start_change_local_addr_timer() {
 
 int Client::change_local_addr() {
   Address remote_addr, local_addr;
-  int rv;
 
   if (!config.quiet) {
     std::cerr << "Changing local address" << std::endl;
@@ -1368,13 +1356,15 @@ int Client::change_local_addr() {
   if (config.nat_rebinding) {
     ngtcp2_addr addr;
     ngtcp2_conn_set_local_addr(
-        conn_, ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len, NULL));
+        conn_,
+        ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len, nullptr));
   } else {
     auto path = ngtcp2_path{
         {local_addr.len, reinterpret_cast<uint8_t *>(&local_addr.su)},
         {remote_addr.len, reinterpret_cast<uint8_t *>(&remote_addr.su)}};
-    rv = ngtcp2_conn_initiate_migration(conn_, &path, util::timestamp(loop_));
-    if (rv != 0) {
+    if (auto rv = ngtcp2_conn_initiate_migration(conn_, &path,
+                                                 util::timestamp(loop_));
+        rv != 0) {
       std::cerr << "ngtcp2_conn_initiate_migration: " << ngtcp2_strerror(rv)
                 << std::endl;
     }
@@ -1437,10 +1427,8 @@ int Client::update_key(uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key,
 }
 
 int Client::initiate_key_update() {
-  int rv;
-
-  rv = ngtcp2_conn_initiate_key_update(conn_, util::timestamp(loop_));
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_initiate_key_update(conn_, util::timestamp(loop_));
+      rv != 0) {
     std::cerr << "ngtcp2_conn_initiate_key_update: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
@@ -1593,15 +1581,13 @@ int Client::on_stream_reset(int64_t stream_id) {
 }
 
 void Client::make_stream_early() {
-  int rv;
-
   if (nstreams_done_ >= config.nstreams) {
     return;
   }
 
   int64_t stream_id;
-  rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_bidi_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return;
@@ -1628,7 +1614,6 @@ void Client::make_stream_early() {
 }
 
 int Client::on_extend_max_streams() {
-  int rv;
   int64_t stream_id;
 
   if (ev_is_active(&delay_stream_timer_)) {
@@ -1636,8 +1621,8 @@ int Client::on_extend_max_streams() {
   }
 
   for (; nstreams_done_ < config.nstreams; ++nstreams_done_) {
-    rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
-    if (rv != 0) {
+    if (auto rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
+        rv != 0) {
       assert(NGTCP2_ERR_STREAM_ID_BLOCKED == rv);
       break;
     }
@@ -1670,8 +1655,6 @@ nghttp3_ssize read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
 } // namespace
 
 int Client::submit_http_request(const Stream *stream) {
-  int rv;
-
   std::string content_length_str;
 
   const auto &req = stream->req;
@@ -1696,9 +1679,10 @@ int Client::submit_http_request(const Stream *stream) {
   nghttp3_data_reader dr{};
   dr.read_data = read_data;
 
-  rv = nghttp3_conn_submit_request(httpconn_, stream->stream_id, nva.data(),
-                                   nvlen, config.fd == -1 ? NULL : &dr, NULL);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_submit_request(
+          httpconn_, stream->stream_id, nva.data(), nvlen,
+          config.fd == -1 ? nullptr : &dr, nullptr);
+      rv != 0) {
     std::cerr << "nghttp3_conn_submit_request: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -1758,7 +1742,7 @@ int Client::select_preferred_address(Address &selected_addr,
   }
 
   char host[NI_MAXHOST];
-  if (inet_ntop(af, binaddr, host, sizeof(host)) == NULL) {
+  if (inet_ntop(af, binaddr, host, sizeof(host)) == nullptr) {
     std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
     return -1;
   }
@@ -1998,8 +1982,6 @@ int http_push_stream(nghttp3_conn *conn, int64_t push_id, int64_t stream_id,
 } // namespace
 
 int Client::setup_httpconn() {
-  int rv;
-
   if (httpconn_) {
     return 0;
   }
@@ -2036,8 +2018,9 @@ int Client::setup_httpconn() {
 
   auto mem = nghttp3_mem_default();
 
-  rv = nghttp3_conn_client_new(&httpconn_, &callbacks, &settings, mem, this);
-  if (rv != 0) {
+  if (auto rv =
+          nghttp3_conn_client_new(&httpconn_, &callbacks, &settings, mem, this);
+      rv != 0) {
     std::cerr << "nghttp3_conn_client_new: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -2045,15 +2028,15 @@ int Client::setup_httpconn() {
 
   int64_t ctrl_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, NULL);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = nghttp3_conn_bind_control_stream(httpconn_, ctrl_stream_id);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_bind_control_stream(httpconn_, ctrl_stream_id);
+      rv != 0) {
     std::cerr << "nghttp3_conn_bind_control_stream: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -2065,23 +2048,25 @@ int Client::setup_httpconn() {
 
   int64_t qpack_enc_stream_id, qpack_dec_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_enc_stream_id, NULL);
-  if (rv != 0) {
+  if (auto rv =
+          ngtcp2_conn_open_uni_stream(conn_, &qpack_enc_stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_dec_stream_id, NULL);
-  if (rv != 0) {
+  if (auto rv =
+          ngtcp2_conn_open_uni_stream(conn_, &qpack_dec_stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = nghttp3_conn_bind_qpack_streams(httpconn_, qpack_enc_stream_id,
-                                       qpack_dec_stream_id);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_bind_qpack_streams(httpconn_, qpack_enc_stream_id,
+                                                qpack_dec_stream_id);
+      rv != 0) {
     std::cerr << "nghttp3_conn_bind_qpack_streams: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -2120,12 +2105,10 @@ namespace {
 int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                            const uint8_t *read_secret,
                            const uint8_t *write_secret, size_t secret_len) {
-  int rv;
   auto c = static_cast<Client *>(SSL_get_app_data(ssl));
 
-  rv = c->on_key(util::from_ossl_level(ossl_level), read_secret, write_secret,
-                 secret_len);
-  if (rv != 0) {
+  if (c->on_key(util::from_ossl_level(ossl_level), read_secret, write_secret,
+                secret_len) != 0) {
     return 0;
   }
 
