@@ -336,7 +336,8 @@ OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
 }
 
 namespace {
-std::tuple<uint64_t, size_t, int> parse_uint_internal(const std::string &s) {
+std::tuple<uint64_t, size_t, int>
+parse_uint_internal(const std::string_view &s) {
   uint64_t res = 0;
 
   if (s.empty()) {
@@ -362,7 +363,7 @@ std::tuple<uint64_t, size_t, int> parse_uint_internal(const std::string &s) {
 }
 } // namespace
 
-std::pair<uint64_t, int> parse_uint(const std::string &s) {
+std::pair<uint64_t, int> parse_uint(const std::string_view &s) {
   auto [res, idx, rv] = parse_uint_internal(s);
   if (rv != 0 || idx != s.size()) {
     return {0, -1};
@@ -370,7 +371,7 @@ std::pair<uint64_t, int> parse_uint(const std::string &s) {
   return {res, 0};
 }
 
-std::pair<uint64_t, int> parse_uint_iec(const std::string &s) {
+std::pair<uint64_t, int> parse_uint_iec(const std::string_view &s) {
   auto [res, idx, rv] = parse_uint_internal(s);
   if (rv != 0) {
     return {0, rv};
@@ -407,7 +408,7 @@ std::pair<uint64_t, int> parse_uint_iec(const std::string &s) {
   return {res * m, 0};
 }
 
-std::pair<uint64_t, int> parse_duration(const std::string &s) {
+std::pair<uint64_t, int> parse_duration(const std::string_view &s) {
   auto [res, idx, rv] = parse_uint_internal(s);
   if (rv != 0) {
     return {0, rv};

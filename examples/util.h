@@ -35,6 +35,7 @@
 #include <string>
 #include <random>
 #include <map>
+#include <string_view>
 
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
@@ -274,17 +275,17 @@ template <typename T> std::string format_duration(T n) {
 
 // parse_uint parses |s| as 64-bit unsigned integer.  If it cannot
 // parse |s|, it returns -1 as the second return value.
-std::pair<uint64_t, int> parse_uint(const std::string &s);
+std::pair<uint64_t, int> parse_uint(const std::string_view &s);
 
 // parse_uint_iec parses |s| as 64-bit unsigned integer.  It accepts
 // IEC unit letter (either "G", "M", or "K") in |s|.  If it cannot
 // parse |s|, it returns -1 as the second return value.
-std::pair<uint64_t, int> parse_uint_iec(const std::string &s);
+std::pair<uint64_t, int> parse_uint_iec(const std::string_view &s);
 
 // parse_duration parses |s| as 64-bit unsigned integer.  It accepts a
 // unit (either "h", "m", "s", "ms", "us", or "ns") in |s|.  If it
 // cannot parse |s|, it returns -1 as the second return value.
-std::pair<uint64_t, int> parse_duration(const std::string &s);
+std::pair<uint64_t, int> parse_duration(const std::string_view &s);
 
 } // namespace util
 
