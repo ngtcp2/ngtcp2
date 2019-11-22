@@ -204,19 +204,19 @@ struct Request {
 };
 
 namespace {
-Request request_path(const std::string &uri, bool is_connect) {
+Request request_path(const std::string_view &uri, bool is_connect) {
   http_parser_url u;
   Request req;
 
   http_parser_url_init(&u);
 
-  auto rv = http_parser_parse_url(uri.c_str(), uri.size(), is_connect, &u);
+  auto rv = http_parser_parse_url(uri.data(), uri.size(), is_connect, &u);
   if (rv != 0) {
     return req;
   }
 
   if (u.field_set & (1 << UF_PATH)) {
-    req.path = std::string(uri.c_str() + u.field_data[UF_PATH].off,
+    req.path = std::string(uri.data() + u.field_data[UF_PATH].off,
                            u.field_data[UF_PATH].len);
     if (!req.path.empty() && req.path.back() == '/') {
       req.path += "index.html";
@@ -227,7 +227,7 @@ Request request_path(const std::string &uri, bool is_connect) {
 
   if (u.field_set & (1 << UF_QUERY)) {
     static constexpr char push_prefix[] = "push=";
-    auto q = std::string(uri.c_str() + u.field_data[UF_QUERY].off,
+    auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
                          u.field_data[UF_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
       if (!util::istarts_with(p, std::end(q), std::begin(push_prefix),
@@ -298,7 +298,7 @@ int Stream::map_file(size_t len) {
   return 0;
 }
 
-int64_t Stream::find_dyn_length(const std::string &path) {
+int64_t Stream::find_dyn_length(const std::string_view &path) {
   assert(path[0] == '/');
 
   int64_t n = 0;
@@ -455,7 +455,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
 
 int Stream::send_redirect_response(nghttp3_conn *httpconn,
                                    unsigned int status_code,
-                                   const std::string &path) {
+                                   const std::string_view &path) {
   return send_status_response(httpconn, status_code, {{"location", path}});
 }
 
@@ -863,8 +863,8 @@ void Handler::on_stream_open(int64_t stream_id) {
   streams_.emplace(stream_id, std::make_unique<Stream>(stream_id, this));
 }
 
-int Handler::push_content(int64_t stream_id, const std::string &authority,
-                          const std::string &path) {
+int Handler::push_content(int64_t stream_id, const std::string_view &authority,
+                          const std::string_view &path) {
   int rv;
 
   auto nva = std::array<nghttp3_nv, 4>{
@@ -1405,7 +1405,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   settings.initial_ts = util::timestamp(loop_);
   settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
   if (!config.qlog_dir.empty()) {
-    auto path = config.qlog_dir;
+    auto path = std::string{config.qlog_dir};
     path += '/';
     path += util::format_hex(scid_.data, scid_.datalen);
     path += ".qlog";

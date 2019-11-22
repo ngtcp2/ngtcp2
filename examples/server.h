@@ -33,6 +33,7 @@
 #include <map>
 #include <string>
 #include <deque>
+#include <string_view>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -87,7 +88,7 @@ struct Config {
   // certificate based authentication.
   bool verify_client;
   // qlog_dir is the path to directory where qlog is stored.
-  std::string qlog_dir;
+  std::string_view qlog_dir;
   // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
   // should be disabled.
   bool no_quic_dump;
@@ -140,11 +141,11 @@ struct Buffer {
 };
 
 struct HTTPHeader {
-  HTTPHeader(const std::string &name, const std::string &value)
+  HTTPHeader(const std::string_view &name, const std::string_view &value)
       : name(name), value(value) {}
 
-  std::string name;
-  std::string value;
+  std::string_view name;
+  std::string_view value;
 };
 
 class Handler;
@@ -159,8 +160,8 @@ struct Stream {
   int send_status_response(nghttp3_conn *conn, unsigned int status_code,
                            const std::vector<HTTPHeader> &extra_headers = {});
   int send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
-                             const std::string &path);
-  int64_t find_dyn_length(const std::string &path);
+                             const std::string_view &path);
+  int64_t find_dyn_length(const std::string_view &path);
   void http_acked_stream_data(size_t datalen);
 
   int64_t stream_id;
@@ -283,8 +284,8 @@ public:
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
   void http_acked_stream_data(int64_t stream_id, size_t datalen);
-  int push_content(int64_t stream_id, const std::string &authority,
-                   const std::string &path);
+  int push_content(int64_t stream_id, const std::string_view &authority,
+                   const std::string_view &path);
 
   void reset_idle_timer();
 
