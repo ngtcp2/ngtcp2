@@ -914,12 +914,13 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   }
   settings.initial_ts = util::timestamp(loop_);
   auto &params = settings.transport_params;
-  params.initial_max_stream_data_bidi_local = 256_k;
-  params.initial_max_stream_data_bidi_remote = 256_k;
-  params.initial_max_stream_data_uni = 256_k;
-  params.initial_max_data = 1_m;
-  params.initial_max_streams_bidi = 1;
-  params.initial_max_streams_uni = 100;
+  params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
+  params.initial_max_stream_data_bidi_remote =
+      config.max_stream_data_bidi_remote;
+  params.initial_max_stream_data_uni = config.max_stream_data_uni;
+  params.initial_max_data = config.max_data;
+  params.initial_max_streams_bidi = config.max_streams_bidi;
+  params.initial_max_streams_uni = config.max_streams_uni;
   params.idle_timeout = config.timeout;
   params.active_connection_id_limit = 7;
 
@@ -2332,6 +2333,12 @@ void config_set_default(Config &config) {
   config.version = NGTCP2_PROTO_VER;
   config.timeout = 30 * NGTCP2_SECONDS;
   config.http_method = "GET";
+  config.max_data = 1_m;
+  config.max_stream_data_bidi_local = 256_k;
+  config.max_stream_data_bidi_remote = 256_k;
+  config.max_stream_data_uni = 256_k;
+  config.max_streams_bidi = 1;
+  config.max_streams_uni = 100;
 }
 } // namespace
 
@@ -2424,6 +2431,33 @@ Options:
               Disables printing HTTP response body out.
   --qlog-file=<PATH>
               The path to write qlog.
+  --max-data=<SIZE>
+              The initial connection-level flow control window.
+              Default: )"
+            << util::format_uint_iec(config.max_data) << R"(
+  --max-stream-data-bidi-local=<SIZE>
+              The  initial  stream-level  flow control  window  for  a
+              bidirectional stream that the local endpoint initiates.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_data_bidi_local) << R"(
+  --max-stream-data-bidi-remote=<SIZE>
+              The  initial  stream-level  flow control  window  for  a
+              bidirectional stream that the remote endpoint initiates.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_data_bidi_remote) << R"(
+  --max-stream-data-uni=<SIZE>
+              The  initial  stream-level  flow control  window  for  a
+              unidirectional stream.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_data_uni) << R"(
+  --max-streams-bidi=<N>
+              The number of the concurrent bidirectional streams.
+              Default: )"
+            << config.max_streams_bidi << R"(
+  --max-streams-uni=<N>
+              The number of the concurrent unidirectional streams.
+              Default: )"
+            << config.max_streams_uni << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2474,6 +2508,12 @@ int main(int argc, char **argv) {
         {"no-quic-dump", no_argument, &flag, 15},
         {"no-http-dump", no_argument, &flag, 16},
         {"qlog-file", required_argument, &flag, 17},
+        {"max-data", required_argument, &flag, 18},
+        {"max-stream-data-bidi-local", required_argument, &flag, 19},
+        {"max-stream-data-bidi-remote", required_argument, &flag, 20},
+        {"max-stream-data-uni", required_argument, &flag, 21},
+        {"max-streams-bidi", required_argument, &flag, 22},
+        {"max-streams-uni", required_argument, &flag, 23},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2620,6 +2660,52 @@ int main(int argc, char **argv) {
       case 17:
         // --qlog-file
         config.qlog_file = optarg;
+        break;
+      case 18:
+        // --max-data
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-data: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_data = n;
+        }
+        break;
+      case 19:
+        // --max-stream-data-bidi-local
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-stream-data-bidi-local: invalid argument"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_data_bidi_local = n;
+        }
+        break;
+      case 20:
+        // --max-stream-data-bidi-remote
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-stream-data-bidi-remote: invalid argument"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_data_bidi_remote = n;
+        }
+        break;
+      case 21:
+        // --max-stream-data-uni
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-stream-data-uni: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_data_uni = n;
+        }
+        break;
+      case 22:
+        // --max-streams-bidi
+        config.max_streams_bidi = strtoull(optarg, nullptr, 10);
+        break;
+      case 23:
+        // --max-streams-uni
+        config.max_streams_uni = strtoull(optarg, nullptr, 10);
         break;
       }
       break;

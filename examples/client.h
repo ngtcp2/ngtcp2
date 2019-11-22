@@ -113,6 +113,25 @@ struct Config {
   bool no_http_dump;
   // qlog_file is the path to write qlog.
   std::string qlog_file;
+  // max_data is the initial connection-level flow control window.
+  uint64_t max_data;
+  // max_stream_data_bidi_local is the initial stream-level flow
+  // control window for a bidirectional stream that the local endpoint
+  // initiates.
+  uint64_t max_stream_data_bidi_local;
+  // max_stream_data_bidi_remote is the initial stream-level flow
+  // control window for a bidirectional stream that the remote
+  // endpoint initiates.
+  uint64_t max_stream_data_bidi_remote;
+  // max_stream_data_uni is the initial stream-level flow control
+  // window for a unidirectional stream.
+  uint64_t max_stream_data_uni;
+  // max_streams_bidi is the number of the concurrent bidirectional
+  // streams.
+  uint64_t max_streams_bidi;
+  // max_streams_uni is the number of the concurrent unidirectional
+  // streams.
+  uint64_t max_streams_uni;
 };
 
 struct Buffer {
