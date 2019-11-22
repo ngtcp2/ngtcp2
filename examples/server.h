@@ -113,6 +113,9 @@ struct Config {
   // max_streams_uni is the number of the concurrent unidirectional
   // streams.
   uint64_t max_streams_uni;
+  // max_dyn_length is the maximum length of dynamically generated
+  // response.
+  uint64_t max_dyn_length;
 };
 
 struct Buffer {

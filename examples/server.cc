@@ -307,8 +307,12 @@ int64_t Stream::find_dyn_length(const std::string &path) {
     if (*it < '0' || '9' < *it) {
       return -1;
     }
-    n = n * 10 + (*it - '0');
-    if (n > 20 * 1024 * 1024) {
+    auto d = *it - '0';
+    if (n > (std::numeric_limits<uint64_t>::max() - d) / 10) {
+      return -1;
+    }
+    n = n * 10 + d;
+    if (n > config.max_dyn_length) {
       return -1;
     }
   }
@@ -3107,6 +3111,7 @@ void config_set_default(Config &config) {
   config.max_stream_data_uni = 256_k;
   config.max_streams_bidi = 100;
   config.max_streams_uni = 3;
+  config.max_dyn_length = 20_m;
 }
 } // namespace
 
@@ -3206,6 +3211,10 @@ Options:
               The number of the concurrent unidirectional streams.
               Default: )"
             << config.max_streams_uni << R"(
+  --max-dyn-length=<SIZE>
+              The maximum length of a dynamically generated content.
+              Default: )"
+            << util::format_uint_iec(config.max_dyn_length) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -3251,6 +3260,7 @@ int main(int argc, char **argv) {
         {"max-stream-data-uni", required_argument, &flag, 15},
         {"max-streams-bidi", required_argument, &flag, 16},
         {"max-streams-uni", required_argument, &flag, 17},
+        {"max-dyn-length", required_argument, &flag, 18},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3403,6 +3413,15 @@ int main(int argc, char **argv) {
       case 17:
         // --max-streams-uni
         config.max_streams_uni = strtoull(optarg, nullptr, 10);
+        break;
+      case 18:
+        // --max-dyn-length
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-dyn-length: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_dyn_length = n;
+        }
         break;
       }
       break;
