@@ -73,7 +73,7 @@ struct Config {
   // messages.
   bool quiet;
   // timeout is an idle timeout for QUIC connection.
-  uint32_t timeout;
+  ngtcp2_duration timeout;
   // show_secret is true if transport secrets should be printed out.
   bool show_secret;
   // validate_addr is true if server requires address validation.

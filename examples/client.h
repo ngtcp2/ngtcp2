@@ -77,7 +77,7 @@ struct Config {
   // messages.
   bool quiet;
   // timeout is an idle timeout for QUIC connection.
-  uint32_t timeout;
+  ngtcp2_duration timeout;
   // session_file is a path to a file to write, and read TLS session.
   const char *session_file;
   // tp_file is a path to a file to write, and read QUIC transport
@@ -87,13 +87,13 @@ struct Config {
   bool show_secret;
   // change_local_addr is the duration after which client changes
   // local address.
-  double change_local_addr;
+  ngtcp2_duration change_local_addr;
   // key_update is the duration after which client initiates key
   // update.
-  double key_update;
+  ngtcp2_duration key_update;
   // delay_stream is the duration after which client sends the first
   // 1-RTT stream.
-  double delay_stream;
+  ngtcp2_duration delay_stream;
   // nat_rebinding is true if simulated NAT rebinding is enabled.
   bool nat_rebinding;
   // no_preferred_addr is true if client do not follow preferred

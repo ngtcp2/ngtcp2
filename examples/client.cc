@@ -25,7 +25,6 @@
 #include <cstdlib>
 #include <cassert>
 #include <cerrno>
-#include <cmath>
 #include <iostream>
 #include <algorithm>
 #include <memory>
@@ -388,16 +387,20 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
   rev_.data = this;
-  ev_timer_init(&timer_, timeoutcb, 0., config.timeout / 1000.);
+  ev_timer_init(&timer_, timeoutcb, 0.,
+                static_cast<double>(config.timeout) / NGTCP2_SECONDS);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
   ev_timer_init(&change_local_addr_timer_, change_local_addrcb,
-                config.change_local_addr, 0.);
+                static_cast<double>(config.change_local_addr) / NGTCP2_SECONDS,
+                0.);
   change_local_addr_timer_.data = this;
-  ev_timer_init(&key_update_timer_, key_updatecb, config.key_update, 0.);
+  ev_timer_init(&key_update_timer_, key_updatecb,
+                static_cast<double>(config.key_update) / NGTCP2_SECONDS, 0.);
   key_update_timer_.data = this;
-  ev_timer_init(&delay_stream_timer_, delay_streamcb, config.delay_stream, 0.);
+  ev_timer_init(&delay_stream_timer_, delay_streamcb,
+                static_cast<double>(config.delay_stream) / NGTCP2_SECONDS, 0.);
   delay_stream_timer_.data = this;
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
@@ -560,13 +563,13 @@ int Client::handshake_completed() {
     }
   }
 
-  if (std::fpclassify(config.change_local_addr) == FP_NORMAL) {
+  if (config.change_local_addr) {
     start_change_local_addr_timer();
   }
-  if (std::fpclassify(config.key_update) == FP_NORMAL) {
+  if (config.key_update) {
     start_key_update_timer();
   }
-  if (std::fpclassify(config.delay_stream) == FP_NORMAL) {
+  if (config.delay_stream) {
     start_delay_stream_timer();
   }
 
@@ -917,7 +920,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.initial_max_data = 1_m;
   params.initial_max_streams_bidi = 1;
   params.initial_max_streams_uni = 100;
-  params.idle_timeout = config.timeout * NGTCP2_MILLISECONDS;
+  params.idle_timeout = config.timeout;
   params.active_connection_id_limit = 7;
 
   auto path = ngtcp2_path{
@@ -2327,7 +2330,7 @@ void config_set_default(Config &config) {
   config.data = nullptr;
   config.datalen = 0;
   config.version = NGTCP2_PROTO_VER;
-  config.timeout = 30000;
+  config.timeout = 30 * NGTCP2_SECONDS;
   config.http_method = "GET";
 }
 } // namespace
@@ -2365,10 +2368,10 @@ Options:
   -q, --quiet Suppress debug output.
   -s, --show-secret
               Print out secrets unless --quiet is used.
-  --timeout=<T>
-              Specify idle timeout in milliseconds.
+  --timeout=<DURATION>
+              Specify idle timeout.
               Default: )"
-            << config.timeout << R"(
+            << util::format_duration(config.timeout) << R"(
   --ciphers=<CIPHERS>
               Specify the cipher suite list to enable.
               Default: )"
@@ -2389,21 +2392,21 @@ Options:
               Specify  initial  DCID.   <DCID> is  hex  string.   When
               decoded as binary, it should be  at least 8 bytes and at
               most 18 bytes long.
-  --change-local-addr=<T>
-              Client  changes local  address when  <T> seconds  elapse
+  --change-local-addr=<DURATION>
+              Client  changes  local  address when  <DURATION>  elapse
               after handshake completes.
   --nat-rebinding
               When   used  with   --change-local-addr,  simulate   NAT
               rebinding.   In   other  words,  client   changes  local
               address, but it does not start path validation.
-  --key-update=<T>
-              Client  initiates key  update  when  <T> seconds  elapse
-              after handshake completes.
+  --key-update=<DURATION>
+              Client initiates key update when <DURATION> elapse after
+              handshake completes.
   -m, --http-method=<METHOD>
               Specify HTTP method.  Default: )"
             << config.http_method << R"(
-  --delay-stream=<T>
-              Delay sending STREAM data in 1-RTT for <T> seconds after
+  --delay-stream=<DURATION>
+              Delay sending STREAM data  in 1-RTT for <DURATION> after
               handshake completes.
   --no-preferred-addr
               Do not try to use preferred address offered by server.
@@ -2422,7 +2425,17 @@ Options:
   --qlog-file=<PATH>
               The path to write qlog.
   -h, --help  Display this help and exit.
-)";
+
+---
+
+  The <SIZE> argument is an integer and an optional unit (e.g., 10K is
+  10 * 1024).  Units are K, M and G (powers of 1024).
+
+  The <DURATION> argument is an integer and an optional unit (e.g., 1s
+  is 1 second and 500ms is 500  milliseconds).  Units are h, m, s, ms,
+  us, or ns (hours,  minutes, seconds, milliseconds, microseconds, and
+  nanoseconds respectively).  If  a unit is omitted, a  second is used
+  as unit.)" << std::endl;
 }
 } // namespace
 
@@ -2521,7 +2534,12 @@ int main(int argc, char **argv) {
         break;
       case 3:
         // --timeout
-        config.timeout = strtol(optarg, nullptr, 10);
+        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+          std::cerr << "timeout: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.timeout = t;
+        }
         break;
       case 4:
         // --session-file
@@ -2546,11 +2564,21 @@ int main(int argc, char **argv) {
       }
       case 7:
         // --change-local-addr
-        config.change_local_addr = strtod(optarg, nullptr);
+        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+          std::cerr << "change-local-addr: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.change_local_addr = t;
+        }
         break;
       case 8:
         // --key-update
-        config.key_update = strtod(optarg, nullptr);
+        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+          std::cerr << "key-update: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.key_update = t;
+        }
         break;
       case 9:
         // --nat-rebinding
@@ -2558,7 +2586,12 @@ int main(int argc, char **argv) {
         break;
       case 10:
         // --delay-stream
-        config.delay_stream = strtod(optarg, nullptr);
+        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+          std::cerr << "delay-stream: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.delay_stream = t;
+        }
         break;
       case 11:
         // --no-preferred-addr

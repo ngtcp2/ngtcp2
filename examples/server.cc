@@ -681,7 +681,8 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       draining_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
-  ev_timer_init(&timer_, timeoutcb, 0., config.timeout / 1000.);
+  ev_timer_init(&timer_, timeoutcb, 0.,
+                static_cast<double>(config.timeout) / NGTCP2_SECONDS);
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
@@ -1420,7 +1421,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.initial_max_data = 1_m;
   params.initial_max_streams_bidi = 100;
   params.initial_max_streams_uni = 3;
-  params.idle_timeout = config.timeout * NGTCP2_MILLISECONDS;
+  params.idle_timeout = config.timeout;
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
 
@@ -3091,7 +3092,7 @@ void config_set_default(Config &config) {
   config.ciphers = "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_"
                    "POLY1305_SHA256:TLS_AES_128_CCM_SHA256";
   config.groups = "P-256:X25519:P-384:P-521";
-  config.timeout = 30000;
+  config.timeout = 30 * NGTCP2_SECONDS;
   {
     auto path = realpath(".", nullptr);
     assert(path);
@@ -3138,10 +3139,10 @@ Options:
   -q, --quiet Suppress debug output.
   -s, --show-secret
               Print out secrets unless --quiet is used.
-  --timeout=<T>
-              Specify idle timeout in milliseconds.
+  --timeout=<DURATION>
+              Specify idle timeout.
               Default: )"
-            << config.timeout << R"(
+            << util::format_duration(config.timeout) << R"(
   -V, --validate-addr
               Perform address validation.
   --preferred-ipv4-addr=<ADDR>:<PORT>
@@ -3172,7 +3173,17 @@ Options:
   --no-http-dump
               Disables printing HTTP response body out.
   -h, --help  Display this help and exit.
-)";
+
+---
+
+  The <SIZE> argument is an integer and an optional unit (e.g., 10K is
+  10 * 1024).  Units are K, M and G (powers of 1024).
+
+  The <DURATION> argument is an integer and an optional unit (e.g., 1s
+  is 1 second and 500ms is 500  milliseconds).  Units are h, m, s, ms,
+  us, or ns (hours,  minutes, seconds, milliseconds, microseconds, and
+  nanoseconds respectively).  If  a unit is omitted, a  second is used
+  as unit.)" << std::endl;
 }
 } // namespace
 
@@ -3258,7 +3269,12 @@ int main(int argc, char **argv) {
         break;
       case 3:
         // --timeout
-        config.timeout = strtol(optarg, nullptr, 10);
+        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+          std::cerr << "timeout: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.timeout = t;
+        }
         break;
       case 4:
         // --preferred-ipv4-addr
