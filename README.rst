@@ -26,9 +26,9 @@ Requirements
 ------------
 
 The libngtcp2 C library itself does not depend on any external
-libraries.  The example client, and server are written in C++14, and
-should compile with the modern C++ compilers (e.g., clang >= 6.0, or
-gcc >= 6.0).
+libraries.  The example client, and server are written in C++17, and
+should compile with the modern C++ compilers (e.g., clang >= 8.0, or
+gcc >= 8.0).
 
 The following packages are required to configure the build system:
 
