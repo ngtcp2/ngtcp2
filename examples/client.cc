@@ -903,8 +903,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
-  if (!config.qlog_file.empty()) {
-    qlog_ = fopen(config.qlog_file.c_str(), "w");
+  if (config.qlog_file) {
+    qlog_ = fopen(config.qlog_file, "w");
     if (qlog_ == nullptr) {
       std::cerr << "Could not open qlog file " << config.qlog_file << ": "
                 << strerror(errno) << std::endl;
