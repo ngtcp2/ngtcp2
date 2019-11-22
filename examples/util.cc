@@ -39,6 +39,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <limits>
 
 namespace ngtcp2 {
 
@@ -131,7 +132,7 @@ uint64_t round2even(uint64_t n) {
 }
 } // namespace
 
-std::string format_duration(uint64_t ns) {
+std::string format_durationf(uint64_t ns) {
   static constexpr const char *units[] = {"us", "ms", "s"};
   if (ns < 1000) {
     return std::to_string(ns) + "ns";
@@ -332,6 +333,132 @@ OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
   default:
     assert(0);
   }
+}
+
+namespace {
+std::tuple<uint64_t, size_t, int> parse_uint_internal(const std::string &s) {
+  uint64_t res = 0;
+
+  if (s.empty()) {
+    return {0, 0, -1};
+  }
+
+  for (size_t i = 0; i < s.size(); ++i) {
+    auto c = s[i];
+    if (c < '0' || '9' < c) {
+      return {res, i, 0};
+    }
+
+    auto d = c - '0';
+    if (res > (std::numeric_limits<uint64_t>::max() - d) / 10) {
+      return {0, i, -1};
+    }
+
+    res *= 10;
+    res += d;
+  }
+
+  return {res, s.size(), 0};
+}
+} // namespace
+
+std::pair<uint64_t, int> parse_uint(const std::string &s) {
+  auto [res, idx, rv] = parse_uint_internal(s);
+  if (rv != 0 || idx != s.size()) {
+    return {0, -1};
+  }
+  return {res, 0};
+}
+
+std::pair<uint64_t, int> parse_uint_iec(const std::string &s) {
+  auto [res, idx, rv] = parse_uint_internal(s);
+  if (rv != 0) {
+    return {0, rv};
+  }
+  if (idx == s.size()) {
+    return {res, 0};
+  }
+  if (idx + 1 != s.size()) {
+    return {0, -1};
+  }
+
+  uint64_t m;
+  switch (s[idx]) {
+  case 'G':
+  case 'g':
+    m = 1 << 30;
+    break;
+  case 'M':
+  case 'm':
+    m = 1 << 20;
+    break;
+  case 'K':
+  case 'k':
+    m = 1 << 10;
+    break;
+  default:
+    return {0, -1};
+  }
+
+  if (res > std::numeric_limits<uint64_t>::max() / m) {
+    return {0, -1};
+  }
+
+  return {res * m, 0};
+}
+
+std::pair<uint64_t, int> parse_duration(const std::string &s) {
+  auto [res, idx, rv] = parse_uint_internal(s);
+  if (rv != 0) {
+    return {0, rv};
+  }
+  if (idx == s.size()) {
+    return {res, 0};
+  }
+
+  uint64_t m;
+  if (idx + 1 == s.size()) {
+    switch (s[idx]) {
+    case 'H':
+    case 'h':
+      m = 3600 * NGTCP2_SECONDS;
+      break;
+    case 'M':
+    case 'm':
+      m = 60 * NGTCP2_SECONDS;
+      break;
+    case 'S':
+    case 's':
+      m = NGTCP2_SECONDS;
+      break;
+    default:
+      return {0, -1};
+    }
+  } else if (idx + 2 == s.size() && (s[idx + 1] == 's' || s[idx + 1] == 'S')) {
+    switch (s[idx]) {
+    case 'M':
+    case 'm':
+      m = NGTCP2_MILLISECONDS;
+      break;
+    case 'U':
+    case 'u':
+      m = NGTCP2_MICROSECONDS;
+      break;
+    case 'N':
+    case 'n':
+      return {res, 0};
+    default:
+      return {0, -1};
+    }
+  } else {
+    return {0, -1};
+  }
+
+  if (res > std::numeric_limits<uint64_t>::max() / m) {
+    return {0, -1};
+  }
+
+  return {res * m, 0};
 }
 
 } // namespace util

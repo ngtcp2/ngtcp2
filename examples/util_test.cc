@@ -24,23 +24,194 @@
  */
 #include "util_test.h"
 
+#include <limits>
+
 #include <CUnit/CUnit.h>
 
 #include "util.h"
 
 namespace ngtcp2 {
 
+void test_util_format_durationf() {
+  CU_ASSERT("0ns" == util::format_durationf(0));
+  CU_ASSERT("999ns" == util::format_durationf(999));
+  CU_ASSERT("1.00us" == util::format_durationf(1000));
+  CU_ASSERT("1.00us" == util::format_durationf(1004));
+  CU_ASSERT("1.00us" == util::format_durationf(1005));
+  CU_ASSERT("1.02us" == util::format_durationf(1015));
+  CU_ASSERT("2.00us" == util::format_durationf(1999));
+  CU_ASSERT("1.00ms" == util::format_durationf(999999));
+  CU_ASSERT("3.50ms" == util::format_durationf(3500111));
+  CU_ASSERT("9999.99s" == util::format_durationf(9999990000000llu));
+}
+
+void test_util_format_uint() {
+  CU_ASSERT("0" == util::format_uint(0));
+  CU_ASSERT("18446744073709551615" ==
+            util::format_uint(18446744073709551615ull));
+}
+
+void test_util_format_uint_iec() {
+  CU_ASSERT("0" == util::format_uint_iec(0));
+  CU_ASSERT("1023" == util::format_uint_iec((1 << 10) - 1));
+  CU_ASSERT("1K" == util::format_uint_iec(1 << 10));
+  CU_ASSERT("1M" == util::format_uint_iec(1 << 20));
+  CU_ASSERT("1G" == util::format_uint_iec(1 << 30));
+  CU_ASSERT("18446744073709551615" ==
+            util::format_uint_iec(std::numeric_limits<uint64_t>::max()));
+  CU_ASSERT("1025K" == util::format_uint_iec((1 << 20) + (1 << 10)));
+}
+
 void test_util_format_duration() {
   CU_ASSERT("0ns" == util::format_duration(0));
   CU_ASSERT("999ns" == util::format_duration(999));
-  CU_ASSERT("1.00us" == util::format_duration(1000));
-  CU_ASSERT("1.00us" == util::format_duration(1004));
-  CU_ASSERT("1.00us" == util::format_duration(1005));
-  CU_ASSERT("1.02us" == util::format_duration(1015));
-  CU_ASSERT("2.00us" == util::format_duration(1999));
-  CU_ASSERT("1.00ms" == util::format_duration(999999));
-  CU_ASSERT("3.50ms" == util::format_duration(3500111));
-  CU_ASSERT("9999.99s" == util::format_duration(9999990000000llu));
+  CU_ASSERT("1us" == util::format_duration(1000));
+  CU_ASSERT("1ms" == util::format_duration(1000000));
+  CU_ASSERT("1s" == util::format_duration(1000000000));
+  CU_ASSERT("1m" == util::format_duration(60000000000ull));
+  CU_ASSERT("1h" == util::format_duration(3600000000000ull));
+  CU_ASSERT("18446744073709551615ns" ==
+            util::format_duration(std::numeric_limits<uint64_t>::max()));
+  CU_ASSERT("61s" == util::format_duration(61000000000ull));
+}
+
+void test_util_parse_uint() {
+  {
+    auto [res, rv] = util::parse_uint("0");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(0 == res);
+  }
+  {
+    auto [res, rv] = util::parse_uint("1");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(1 == res);
+  }
+  {
+    auto [res, rv] = util::parse_uint("18446744073709551615");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(18446744073709551615ull == res);
+  }
+  {
+    auto [_, rv] = util::parse_uint("18446744073709551616");
+    CU_ASSERT(-1 == rv);
+  }
+  {
+    auto [_, rv] = util::parse_uint("a");
+    CU_ASSERT(-1 == rv);
+  }
+  {
+    auto [_, rv] = util::parse_uint("1a");
+    CU_ASSERT(-1 == rv);
+  }
+}
+
+void test_util_parse_uint_iec() {
+  {
+    auto [res, rv] = util::parse_uint_iec("0");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(0 == res);
+  }
+  {
+    auto [res, rv] = util::parse_uint_iec("1023");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(1023 == res);
+  }
+  {
+    auto [res, rv] = util::parse_uint_iec("1K");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(1 << 10 == res);
+  }
+  {
+    auto [res, rv] = util::parse_uint_iec("1M");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(1 << 20 == res);
+  }
+  {
+    auto [res, rv] = util::parse_uint_iec("1G");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(1 << 30 == res);
+  }
+  {
+    auto [res, rv] = util::parse_uint_iec("11G");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT((1ull << 30) * 11);
+  }
+  {
+    auto [_, rv] = util::parse_uint_iec("18446744073709551616");
+    CU_ASSERT(-1 == rv);
+  }
+  {
+    auto [_, rv] = util::parse_uint_iec("1x");
+    CU_ASSERT(-1 == rv);
+  }
+  {
+    auto [_, rv] = util::parse_uint_iec("1Gx");
+    CU_ASSERT(-1 == rv);
+  }
+}
+
+void test_util_parse_duration() {
+  {
+    auto [res, rv] = util::parse_duration("0");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(0 == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("0ns");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(0 == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("1ns");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(1 == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("1us");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(NGTCP2_MICROSECONDS == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("1ms");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(NGTCP2_MILLISECONDS == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("1s");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(NGTCP2_SECONDS == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("1m");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(60 * NGTCP2_SECONDS == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("1h");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(3600 * NGTCP2_SECONDS == res);
+  }
+  {
+    auto [res, rv] = util::parse_duration("2h");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(2 * 3600 * NGTCP2_SECONDS == res);
+  }
+  {
+    auto [_, rv] = util::parse_duration("18446744073709551616");
+    CU_ASSERT(-1 == rv);
+  }
+  {
+    auto [_, rv] = util::parse_duration("1x");
+    CU_ASSERT(-1 == rv);
+  }
+  {
+    auto [_, rv] = util::parse_duration("1mx");
+    CU_ASSERT(-1 == rv);
+  }
+  {
+    auto [_, rv] = util::parse_duration("1mxy");
+    CU_ASSERT(-1 == rv);
+  }
 }
 
 } // namespace ngtcp2

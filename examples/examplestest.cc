@@ -53,8 +53,18 @@ int main(int argc, char *argv[]) {
   }
 
   // add the tests to the suite
-  if (!CU_add_test(pSuite, "util_format_duration",
-                   ngtcp2::test_util_format_duration)) {
+  if (!CU_add_test(pSuite, "util_format_durationf",
+                   ngtcp2::test_util_format_durationf) ||
+      !CU_add_test(pSuite, "util_format_uint", ngtcp2::test_util_format_uint) ||
+      !CU_add_test(pSuite, "util_format_uint_iec",
+                   ngtcp2::test_util_format_uint_iec) ||
+      !CU_add_test(pSuite, "util_format_duration",
+                   ngtcp2::test_util_format_duration) ||
+      !CU_add_test(pSuite, "util_parse_uint", ngtcp2::test_util_parse_uint) ||
+      !CU_add_test(pSuite, "util_parse_uint_iec",
+                   ngtcp2::test_util_parse_uint_iec) ||
+      !CU_add_test(pSuite, "util_parse_duration",
+                   ngtcp2::test_util_parse_duration)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

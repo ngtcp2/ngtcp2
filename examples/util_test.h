@@ -31,7 +31,13 @@
 
 namespace ngtcp2 {
 
+void test_util_format_durationf();
+void test_util_format_uint();
+void test_util_format_uint_iec();
 void test_util_format_duration();
+void test_util_parse_uint();
+void test_util_parse_uint_iec();
+void test_util_parse_duration();
 
 } // namespace ngtcp2
 
