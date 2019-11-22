@@ -182,13 +182,8 @@ struct Stream {
   bool dynresp;
   // dyndataleft is the number of dynamic data left to send.
   uint64_t dyndataleft;
-  // dynackedoffset is the offset of acked data in the first element
-  // of dynbufs.
-  size_t dynackedoffset;
-  // dynbuflen is the number of bytes buffered in dybufs.
-  size_t dynbuflen;
-  // dynbufs stores the buffers for dynamic data response.
-  std::deque<std::unique_ptr<std::vector<uint8_t>>> dynbufs;
+  // dynbuflen is the number of bytes in-flight.
+  uint64_t dynbuflen;
   // mmapped is true if data points to the memory assigned by mmap.
   bool mmapped;
 };

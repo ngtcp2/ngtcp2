@@ -157,7 +157,6 @@ Stream::Stream(int64_t stream_id, Handler *handler)
       datalen(0),
       dynresp(false),
       dyndataleft(0),
-      dynackedoffset(0),
       dynbuflen(0),
       mmapped(false) {}
 
@@ -334,6 +333,8 @@ nghttp3_ssize read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
 }
 } // namespace
 
+auto dyn_buf = std::make_unique<std::array<uint8_t, 16_k>>();
+
 namespace {
 nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
                             nghttp3_vec *vec, size_t veccnt, uint32_t *pflags,
@@ -344,16 +345,13 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
     return NGHTTP3_ERR_WOULDBLOCK;
   }
 
-  auto len = std::min(static_cast<size_t>(16384),
-                      static_cast<size_t>(stream->dyndataleft));
-  auto buf = std::make_unique<std::vector<uint8_t>>(len);
+  auto len =
+      std::min(dyn_buf->size(), static_cast<size_t>(stream->dyndataleft));
 
-  vec[0].base = buf->data();
+  vec[0].base = dyn_buf->data();
   vec[0].len = len;
 
   stream->dynbuflen += len;
-  stream->dynbufs.emplace_back(std::move(buf));
-
   stream->dyndataleft -= len;
 
   if (stream->dyndataleft == 0) {
@@ -381,24 +379,9 @@ void Stream::http_acked_stream_data(size_t datalen) {
     return;
   }
 
-  datalen += dynackedoffset;
-
   assert(dynbuflen >= datalen);
-  assert(!dynbufs.empty());
 
-  for (; !dynbufs.empty() && datalen;) {
-    auto &buf = dynbufs[0];
-    if (datalen < buf->size()) {
-      dynackedoffset = datalen;
-      return;
-    }
-
-    datalen -= buf->size();
-    dynbuflen -= buf->size();
-    dynbufs.pop_front();
-  }
-
-  dynackedoffset = 0;
+  dynbuflen -= datalen;
 }
 
 int Stream::send_status_response(nghttp3_conn *httpconn,
