@@ -53,6 +53,7 @@
 #include "keylog.h"
 
 using namespace ngtcp2;
+using namespace std::literals;
 
 namespace {
 auto randgen = util::make_mt19937();
@@ -75,7 +76,7 @@ Stream::~Stream() {
   }
 }
 
-int Stream::open_file(const std::string &path) {
+int Stream::open_file(const std::string_view &path) {
   assert(fd == -1);
 
   auto it = std::find(std::rbegin(path), std::rend(path), '/').base();
@@ -83,13 +84,13 @@ int Stream::open_file(const std::string &path) {
     std::cerr << "No file name found: " << path << std::endl;
     return -1;
   }
-  auto b = std::string{it, std::end(path)};
+  auto b = std::string_view{it, static_cast<size_t>(std::end(path) - it)};
   if (b == ".." || b == ".") {
     std::cerr << "Invalid file name: " << b << std::endl;
     return -1;
   }
 
-  auto fname = config.download;
+  auto fname = std::string{config.download};
   fname += '/';
   fname += b;
 
@@ -2242,10 +2243,10 @@ int run(Client &c, const char *addr, const char *port) {
 } // namespace
 
 namespace {
-std::string get_string(const char *uri, const http_parser_url &u,
-                       http_parser_url_fields f) {
+std::string_view get_string(const char *uri, const http_parser_url &u,
+                            http_parser_url_fields f) {
   auto p = &u.field_data[f];
-  return {uri + p->off, uri + p->off + p->len};
+  return {uri + p->off, p->len};
 }
 } // namespace
 
@@ -2332,7 +2333,7 @@ void config_set_default(Config &config) {
   config.datalen = 0;
   config.version = NGTCP2_PROTO_VER;
   config.timeout = 30 * NGTCP2_SECONDS;
-  config.http_method = "GET";
+  config.http_method = "GET"sv;
   config.max_data = 1_m;
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;

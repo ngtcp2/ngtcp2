@@ -32,6 +32,7 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <string_view>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
@@ -47,7 +48,7 @@
 using namespace ngtcp2;
 
 struct Request {
-  std::string scheme;
+  std::string_view scheme;
   std::string authority;
   std::string path;
 };
@@ -99,10 +100,10 @@ struct Config {
   // no_preferred_addr is true if client do not follow preferred
   // address offered by server.
   bool no_preferred_addr;
-  std::string http_method;
+  std::string_view http_method;
   // download is a path to a directory where a downloaded file is
   // saved.  If it is empty, no file is saved.
-  std::string download;
+  std::string_view download;
   // requests contains URIs to request.
   std::vector<Request> requests;
   // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
@@ -159,7 +160,7 @@ struct Stream {
   Stream(const Request &req, int64_t stream_id);
   ~Stream();
 
-  int open_file(const std::string &path);
+  int open_file(const std::string_view &path);
 
   Request req;
   int64_t stream_id;
