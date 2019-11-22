@@ -339,7 +339,6 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
                             nghttp3_vec *vec, size_t veccnt, uint32_t *pflags,
                             void *user_data, void *stream_user_data) {
   auto stream = static_cast<Stream *>(stream_user_data);
-  int rv;
 
   if (stream->dynbuflen > MAX_DYNBUFLEN) {
     return NGHTTP3_ERR_WOULDBLOCK;
@@ -364,9 +363,9 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
         util::make_nv("x-ngtcp2-stream-id", stream_id_str),
     };
 
-    rv = nghttp3_conn_submit_trailers(conn, stream_id, trailers.data(),
-                                      trailers.size());
-    if (rv != 0) {
+    if (auto rv = nghttp3_conn_submit_trailers(conn, stream_id, trailers.data(),
+                                               trailers.size());
+        rv != 0) {
       std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
                 << std::endl;
       return NGHTTP3_ERR_CALLBACK_FAILURE;
@@ -864,8 +863,6 @@ void Handler::on_stream_open(int64_t stream_id) {
 
 int Handler::push_content(int64_t stream_id, const std::string_view &authority,
                           const std::string_view &path) {
-  int rv;
-
   auto nva = std::array<nghttp3_nv, 4>{
       util::make_nv(":method", "GET"),
       util::make_nv(":scheme", "https"),
@@ -874,9 +871,9 @@ int Handler::push_content(int64_t stream_id, const std::string_view &authority,
   };
 
   int64_t push_id;
-  rv = nghttp3_conn_submit_push_promise(httpconn_, &push_id, stream_id,
-                                        nva.data(), nva.size());
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_submit_push_promise(httpconn_, &push_id, stream_id,
+                                                 nva.data(), nva.size());
+      rv != 0) {
     std::cerr << "nghttp3_conn_submit_push_promise: " << nghttp3_strerror(rv)
               << std::endl;
     if (rv != NGHTTP3_ERR_PUSH_ID_BLOCKED) {
@@ -890,8 +887,8 @@ int Handler::push_content(int64_t stream_id, const std::string_view &authority,
   }
 
   int64_t push_stream_id;
-  rv = ngtcp2_conn_open_uni_stream(conn_, &push_stream_id, NULL);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_open_uni_stream(conn_, &push_stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     if (rv != NGTCP2_ERR_STREAM_ID_BLOCKED) {
@@ -911,8 +908,9 @@ int Handler::push_content(int64_t stream_id, const std::string_view &authority,
     streams_.emplace(push_stream_id, std::move(p));
   }
 
-  rv = nghttp3_conn_bind_push_stream(httpconn_, push_id, push_stream_id);
-  if (rv != 0) {
+  if (auto rv =
+          nghttp3_conn_bind_push_stream(httpconn_, push_id, push_stream_id);
+      rv != 0) {
     std::cerr << "nghttp3_conn_bind_push_stream: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -1195,8 +1193,6 @@ void Handler::http_acked_stream_data(int64_t stream_id, size_t datalen) {
 }
 
 int Handler::setup_httpconn() {
-  int rv;
-
   if (httpconn_) {
     return 0;
   }
@@ -1233,8 +1229,9 @@ int Handler::setup_httpconn() {
 
   auto mem = nghttp3_mem_default();
 
-  rv = nghttp3_conn_server_new(&httpconn_, &callbacks, &settings, mem, this);
-  if (rv != 0) {
+  if (auto rv =
+          nghttp3_conn_server_new(&httpconn_, &callbacks, &settings, mem, this);
+      rv != 0) {
     std::cerr << "nghttp3_conn_server_new: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -1248,15 +1245,15 @@ int Handler::setup_httpconn() {
 
   int64_t ctrl_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, NULL);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_open_uni_stream(conn_, &ctrl_stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = nghttp3_conn_bind_control_stream(httpconn_, ctrl_stream_id);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_bind_control_stream(httpconn_, ctrl_stream_id);
+      rv != 0) {
     std::cerr << "nghttp3_conn_bind_control_stream: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -1268,23 +1265,25 @@ int Handler::setup_httpconn() {
 
   int64_t qpack_enc_stream_id, qpack_dec_stream_id;
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_enc_stream_id, NULL);
-  if (rv != 0) {
+  if (auto rv =
+          ngtcp2_conn_open_uni_stream(conn_, &qpack_enc_stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = ngtcp2_conn_open_uni_stream(conn_, &qpack_dec_stream_id, NULL);
-  if (rv != 0) {
+  if (auto rv =
+          ngtcp2_conn_open_uni_stream(conn_, &qpack_dec_stream_id, nullptr);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
   }
 
-  rv = nghttp3_conn_bind_qpack_streams(httpconn_, qpack_enc_stream_id,
-                                       qpack_dec_stream_id);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_bind_qpack_streams(httpconn_, qpack_enc_stream_id,
+                                                qpack_dec_stream_id);
+      rv != 0) {
     std::cerr << "nghttp3_conn_bind_qpack_streams: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -1336,8 +1335,6 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                   const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
                   const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
                   uint32_t version) {
-  int rv;
-
   endpoint_ = const_cast<Endpoint *>(&ep);
 
   remote_addr_.len = salen;
@@ -1467,9 +1464,9 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
        const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
        const_cast<Endpoint *>(&ep)},
       {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
-  rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version, &callbacks,
-                              &settings, nullptr, this);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version,
+                                       &callbacks, &settings, nullptr, this);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
@@ -1556,17 +1553,15 @@ void Handler::update_remote_addr(const ngtcp2_addr *addr) {
 
 int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                        uint8_t *data, size_t datalen) {
-  int rv;
-
   auto path = ngtcp2_path{
       {ep.addr.len,
        const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
        const_cast<Endpoint *>(&ep)},
       {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
 
-  rv =
-      ngtcp2_conn_read_pkt(conn_, &path, data, datalen, util::timestamp(loop_));
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
+                                     util::timestamp(loop_));
+      rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (rv == NGTCP2_ERR_DRAINING) {
       start_draining_period();
@@ -1583,10 +1578,7 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 
 int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                      uint8_t *data, size_t datalen) {
-  int rv;
-
-  rv = feed_data(ep, sa, salen, data, datalen);
-  if (rv != 0) {
+  if (auto rv = feed_data(ep, sa, salen, data, datalen); rv != 0) {
     return rv;
   }
 
@@ -1636,15 +1628,12 @@ int Handler::handle_expiry() {
 }
 
 int Handler::on_write() {
-  int rv;
-
   if (ngtcp2_conn_is_in_closing_period(conn_) ||
       ngtcp2_conn_is_in_draining_period(conn_)) {
     return 0;
   }
 
-  rv = write_streams();
-  if (rv != 0) {
+  if (auto rv = write_streams(); rv != 0) {
     if (rv == NETWORK_ERR_SEND_BLOCKED) {
       schedule_retransmit();
     }
@@ -1659,7 +1648,6 @@ int Handler::on_write() {
 int Handler::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   PathStorage path;
-  int rv;
   size_t pktcnt = 0;
   constexpr size_t max_pktcnt = 10;
   std::array<uint8_t, std::max(NGTCP2_MAX_PKTLEN_IPV4, NGTCP2_MAX_PKTLEN_IPV6) *
@@ -1705,8 +1693,8 @@ int Handler::write_streams() {
           return 0;
         }
 
-        rv = nghttp3_conn_block_stream(httpconn_, stream_id);
-        if (rv != 0) {
+        if (auto rv = nghttp3_conn_block_stream(httpconn_, stream_id);
+            rv != 0) {
           std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
                     << std::endl;
           last_error_ = quic_err_app(rv);
@@ -1715,8 +1703,9 @@ int Handler::write_streams() {
         continue;
       case NGTCP2_ERR_WRITE_STREAM_MORE:
         assert(ndatalen > 0);
-        rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
-        if (rv != 0) {
+        if (auto rv =
+                nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+            rv != 0) {
           std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                     << std::endl;
           last_error_ = quic_err_app(rv);
@@ -1744,8 +1733,9 @@ int Handler::write_streams() {
     bufpos += nwrite;
 
     if (ndatalen >= 0) {
-      rv = nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
-      if (rv != 0) {
+      if (auto rv =
+              nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+          rv != 0) {
         std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                   << std::endl;
         last_error_ = quic_err_app(rv);
@@ -1866,15 +1856,11 @@ int Handler::start_closing_period() {
 }
 
 int Handler::handle_error() {
-  int rv;
-
-  rv = start_closing_period();
-  if (rv != 0) {
+  if (start_closing_period() != 0) {
     return -1;
   }
 
-  rv = send_conn_close();
-  if (rv != NETWORK_ERR_OK) {
+  if (auto rv = send_conn_close(); rv != NETWORK_ERR_OK) {
     return rv;
   }
 
@@ -2102,7 +2088,6 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
                 int family) {
   addrinfo hints{};
   addrinfo *res, *rp;
-  int rv;
   int val = 1;
 
   hints.ai_family = family;
@@ -2113,8 +2098,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
     addr = nullptr;
   }
 
-  rv = getaddrinfo(addr, port, &hints, &res);
-  if (rv != 0) {
+  if (auto rv = getaddrinfo(addr, port, &hints, &res); rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
@@ -2156,8 +2140,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
   }
 
   socklen_t len = sizeof(local_addr.su.storage);
-  rv = getsockname(fd, &local_addr.su.sa, &len);
-  if (rv == -1) {
+  if (getsockname(fd, &local_addr.su.sa, &len) == -1) {
     std::cerr << "getsockname: " << strerror(errno) << std::endl;
     close(fd);
     return -1;
@@ -2264,7 +2247,6 @@ int Server::on_read(Endpoint &ep) {
   sockaddr_union su;
   socklen_t addrlen;
   std::array<uint8_t, 64_k> buf;
-  int rv;
   ngtcp2_pkt_hd hd;
   size_t pktcnt = 0;
 
@@ -2303,10 +2285,10 @@ int Server::on_read(Endpoint &ep) {
     const uint8_t *dcid, *scid;
     size_t dcidlen, scidlen;
 
-    rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid,
-                                       &scidlen, buf.data(), nread,
-                                       NGTCP2_SV_SCIDLEN);
-    if (rv != 0) {
+    if (auto rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen,
+                                                &scid, &scidlen, buf.data(),
+                                                nread, NGTCP2_SV_SCIDLEN);
+        rv != 0) {
       if (rv == 1) {
         send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
                                  &su.sa, addrlen);
@@ -2323,16 +2305,13 @@ int Server::on_read(Endpoint &ep) {
     if (handler_it == std::end(handlers_)) {
       auto ctos_it = ctos_.find(dcid_key);
       if (ctos_it == std::end(ctos_)) {
-        rv = ngtcp2_accept(&hd, buf.data(), nread);
-        if (rv == -1) {
+        if (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv == -1) {
           if (!config.quiet) {
             std::cerr << "Unexpected packet received: length=" << nread
                       << std::endl;
           }
           continue;
-        }
-
-        if (rv == 1) {
+        } else if (rv == 1) {
           if (!config.quiet) {
             std::cerr << "Unsupported version: Send Version Negotiation"
                       << std::endl;
@@ -2368,8 +2347,7 @@ int Server::on_read(Endpoint &ep) {
           continue;
         }
 
-        rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
-        switch (rv) {
+        switch (h->on_read(ep, &su.sa, addrlen, buf.data(), nread)) {
         case 0:
           break;
         case NGTCP2_ERR_RETRY:
@@ -2378,8 +2356,8 @@ int Server::on_read(Endpoint &ep) {
         default:
           continue;
         }
-        rv = h->on_write();
-        switch (rv) {
+
+        switch (h->on_write()) {
         case 0:
         case NETWORK_ERR_SEND_BLOCKED:
           break;
@@ -2412,8 +2390,7 @@ int Server::on_read(Endpoint &ep) {
     auto h = (*handler_it).second.get();
     if (ngtcp2_conn_is_in_closing_period(h->conn())) {
       // TODO do exponential backoff.
-      rv = h->send_conn_close();
-      switch (rv) {
+      switch (h->send_conn_close()) {
       case 0:
       case NETWORK_ERR_SEND_BLOCKED:
         break;
@@ -2426,8 +2403,7 @@ int Server::on_read(Endpoint &ep) {
       continue;
     }
 
-    rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread);
-    if (rv != 0) {
+    if (auto rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread); rv != 0) {
       if (rv != NETWORK_ERR_CLOSE_WAIT) {
         remove(h);
       }
@@ -2502,11 +2478,10 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
                        const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;
-  int rv;
 
-  rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
-                   port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
-  if (rv != 0) {
+  if (auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
+                            port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
+      rv != 0) {
     std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
@@ -2535,7 +2510,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
   hd.type = NGTCP2_PKT_RETRY;
   hd.pkt_num = 0;
-  hd.token = NULL;
+  hd.token = nullptr;
   hd.tokenlen = 0;
   hd.len = 0;
   hd.dcid = chd->scid;
@@ -2659,11 +2634,10 @@ int Server::verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                          const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;
-  int rv;
 
-  rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
-                   port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
-  if (rv != 0) {
+  if (auto rv = getnameinfo(sa, salen, host.data(), host.size(), port.data(),
+                            port.size(), NI_NUMERICHOST | NI_NUMERICSERV);
+      rv != 0) {
     std::cerr << "getnameinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
