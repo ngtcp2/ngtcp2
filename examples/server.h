@@ -107,6 +107,12 @@ struct Config {
   // max_stream_data_uni is the initial stream-level flow control
   // window for a unidirectional stream.
   uint64_t max_stream_data_uni;
+  // max_streams_bidi is the number of the concurrent bidirectional
+  // streams.
+  uint64_t max_streams_bidi;
+  // max_streams_uni is the number of the concurrent unidirectional
+  // streams.
+  uint64_t max_streams_uni;
 };
 
 struct Buffer {

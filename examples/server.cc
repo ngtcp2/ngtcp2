@@ -1420,8 +1420,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       config.max_stream_data_bidi_remote;
   params.initial_max_stream_data_uni = config.max_stream_data_uni;
   params.initial_max_data = config.max_data;
-  params.initial_max_streams_bidi = 100;
-  params.initial_max_streams_uni = 3;
+  params.initial_max_streams_bidi = config.max_streams_bidi;
+  params.initial_max_streams_uni = config.max_streams_uni;
   params.idle_timeout = config.timeout;
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
@@ -3105,6 +3105,8 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
+  config.max_streams_bidi = 100;
+  config.max_streams_uni = 3;
 }
 } // namespace
 
@@ -3196,6 +3198,14 @@ Options:
               unidirectional stream.
               Default: )"
             << util::format_uint_iec(config.max_stream_data_uni) << R"(
+  --max-streams-bidi=<N>
+              The number of the concurrent bidirectional streams.
+              Default: )"
+            << config.max_streams_bidi << R"(
+  --max-streams-uni=<N>
+              The number of the concurrent unidirectional streams.
+              Default: )"
+            << config.max_streams_uni << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -3239,6 +3249,8 @@ int main(int argc, char **argv) {
         {"max-stream-data-bidi-local", required_argument, &flag, 13},
         {"max-stream-data-bidi-remote", required_argument, &flag, 14},
         {"max-stream-data-uni", required_argument, &flag, 15},
+        {"max-streams-bidi", required_argument, &flag, 16},
+        {"max-streams-uni", required_argument, &flag, 17},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3383,6 +3395,14 @@ int main(int argc, char **argv) {
         } else {
           config.max_stream_data_uni = n;
         }
+        break;
+      case 16:
+        // --max-streams-bidi
+        config.max_streams_bidi = strtoull(optarg, nullptr, 10);
+        break;
+      case 17:
+        // --max-streams-uni
+        config.max_streams_uni = strtoull(optarg, nullptr, 10);
         break;
       }
       break;
