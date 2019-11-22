@@ -134,7 +134,7 @@ void test_util_parse_uint_iec() {
   {
     auto [res, rv] = util::parse_uint_iec("11G");
     CU_ASSERT(0 == rv);
-    CU_ASSERT((1ull << 30) * 11);
+    CU_ASSERT((1ull << 30) * 11 == res);
   }
   {
     auto [_, rv] = util::parse_uint_iec("18446744073709551616");

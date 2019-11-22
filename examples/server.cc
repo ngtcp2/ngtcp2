@@ -301,14 +301,14 @@ int Stream::map_file(size_t len) {
 int64_t Stream::find_dyn_length(const std::string_view &path) {
   assert(path[0] == '/');
 
-  int64_t n = 0;
+  uint64_t n = 0;
 
   for (auto it = std::begin(path) + 1; it != std::end(path); ++it) {
     if (*it < '0' || '9' < *it) {
       return -1;
     }
     auto d = *it - '0';
-    if (n > (std::numeric_limits<uint64_t>::max() - d) / 10) {
+    if (n > (((1ull << 62) - 1) - d) / 10) {
       return -1;
     }
     n = n * 10 + d;
@@ -317,7 +317,7 @@ int64_t Stream::find_dyn_length(const std::string_view &path) {
     }
   }
 
-  return n;
+  return static_cast<int64_t>(n);
 }
 
 namespace {

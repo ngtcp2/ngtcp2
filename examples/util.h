@@ -254,24 +254,7 @@ template <typename T> std::string format_uint_iec(T n) {
 // "us" (microseconds) or "ns" (nanoseconds).  It chooses the largest
 // unit which does not drop precision.  |n| is in nanosecond
 // resolution.
-template <typename T> std::string format_duration(T n) {
-  if (n >= 3600 * NGTCP2_SECONDS && (n % (3600 * NGTCP2_SECONDS)) == 0) {
-    return format_uint(n / (3600 * NGTCP2_SECONDS)) + 'h';
-  }
-  if (n >= 60 * NGTCP2_SECONDS && (n % (60 * NGTCP2_SECONDS)) == 0) {
-    return format_uint(n / (60 * NGTCP2_SECONDS)) + 'm';
-  }
-  if (n >= NGTCP2_SECONDS && (n % NGTCP2_SECONDS) == 0) {
-    return format_uint(n / NGTCP2_SECONDS) + 's';
-  }
-  if (n >= NGTCP2_MILLISECONDS && (n % NGTCP2_MILLISECONDS) == 0) {
-    return format_uint(n / NGTCP2_MILLISECONDS) + "ms";
-  }
-  if (n >= NGTCP2_MICROSECONDS && (n % NGTCP2_MICROSECONDS) == 0) {
-    return format_uint(n / NGTCP2_MICROSECONDS) + "us";
-  }
-  return format_uint(n) + "ns";
-}
+std::string format_duration(ngtcp2_duration n);
 
 // parse_uint parses |s| as 64-bit unsigned integer.  If it cannot
 // parse |s|, it returns -1 as the second return value.
