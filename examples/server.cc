@@ -1415,8 +1415,9 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     settings.qlog.odcid = *scid;
   }
   auto &params = settings.transport_params;
-  params.initial_max_stream_data_bidi_local = 256_k;
-  params.initial_max_stream_data_bidi_remote = 256_k;
+  params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
+  params.initial_max_stream_data_bidi_remote =
+      config.max_stream_data_bidi_remote;
   params.initial_max_stream_data_uni = 256_k;
   params.initial_max_data = config.max_data;
   params.initial_max_streams_bidi = 100;
@@ -3101,6 +3102,8 @@ void config_set_default(Config &config) {
   }
   config.mime_types_file = "/etc/mime.types";
   config.max_data = 1_m;
+  config.max_stream_data_bidi_local = 256_k;
+  config.max_stream_data_bidi_remote = 256_k;
 }
 } // namespace
 
@@ -3177,6 +3180,16 @@ Options:
               The initial connection-level flow control window.
               Default: )"
             << util::format_uint_iec(config.max_data) << R"(
+  --max-stream-data-bidi-local=<SIZE>
+              The  initial  stream-level  flow control  window  for  a
+              bidirectional stream that the local endpoint initiates.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_data_bidi_local) << R"(
+  --max-stream-data-bidi-remote=<SIZE>
+              The  initial  stream-level  flow control  window  for  a
+              bidirectional stream that the remote endpoint initiates.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_data_bidi_remote) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -3217,6 +3230,8 @@ int main(int argc, char **argv) {
         {"no-quic-dump", no_argument, &flag, 10},
         {"no-http-dump", no_argument, &flag, 11},
         {"max-data", required_argument, &flag, 12},
+        {"max-stream-data-bidi-local", required_argument, &flag, 13},
+        {"max-stream-data-bidi-remote", required_argument, &flag, 14},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3331,6 +3346,26 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.max_data = n;
+        }
+        break;
+      case 13:
+        // --max-stream-data-bidi-local
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-stream-data-bidi-local: invalid argument"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_data_bidi_local = n;
+        }
+        break;
+      case 14:
+        // --max-stream-data-bidi-remote
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-stream-data-bidi-remote: invalid argument"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_data_bidi_remote = n;
         }
         break;
       }

@@ -96,6 +96,14 @@ struct Config {
   bool no_http_dump;
   // max_data is the initial connection-level flow control window.
   uint64_t max_data;
+  // max_stream_data_bidi_local is the initial stream-level flow
+  // control window for a bidirectional stream that the local endpoint
+  // initiates.
+  uint64_t max_stream_data_bidi_local;
+  // max_stream_data_bidi_remote is the initial stream-level flow
+  // control window for a bidirectional stream that the remote
+  // endpoint initiates.
+  uint64_t max_stream_data_bidi_remote;
 };
 
 struct Buffer {
