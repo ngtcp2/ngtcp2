@@ -1083,8 +1083,7 @@ void Client::reset_idle_timer() {
 
 int Client::handle_expiry() {
   auto now = util::timestamp(loop_);
-  auto rv = ngtcp2_conn_handle_expiry(conn_, now);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
     last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
@@ -1097,8 +1096,7 @@ int Client::handle_expiry() {
 
 int Client::on_write() {
   if (sendbuf_.size() > 0) {
-    auto rv = send_packet();
-    if (rv != NETWORK_ERR_OK) {
+    if (auto rv = send_packet(); rv != NETWORK_ERR_OK) {
       if (rv != NETWORK_ERR_SEND_BLOCKED) {
         last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
         disconnect();
@@ -1109,8 +1107,7 @@ int Client::on_write() {
 
   assert(sendbuf_.left() >= max_pktlen_);
 
-  auto rv = write_streams();
-  if (rv != 0) {
+  if (auto rv = write_streams(); rv != 0) {
     if (rv == NETWORK_ERR_SEND_BLOCKED) {
       schedule_retransmit();
     }
@@ -1569,8 +1566,9 @@ int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     if (app_error_code == 0) {
       app_error_code = NGHTTP3_H3_NO_ERROR;
     }
-    auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
-    if (rv != 0) {
+    if (auto rv =
+            nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
+        rv != 0) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
       last_error_ = quic_err_app(rv);
@@ -1585,8 +1583,7 @@ int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
 
 int Client::on_stream_reset(int64_t stream_id) {
   if (httpconn_) {
-    auto rv = nghttp3_conn_reset_stream(httpconn_, stream_id);
-    if (rv != 0) {
+    if (auto rv = nghttp3_conn_reset_stream(httpconn_, stream_id); rv != 0) {
       std::cerr << "nghttp3_conn_reset_stream: " << nghttp3_strerror(rv)
                 << std::endl;
       return -1;
@@ -1728,8 +1725,8 @@ int Client::recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
 }
 
 int Client::acked_stream_data_offset(int64_t stream_id, size_t datalen) {
-  auto rv = nghttp3_conn_add_ack_offset(httpconn_, stream_id, datalen);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_add_ack_offset(httpconn_, stream_id, datalen);
+      rv != 0) {
     std::cerr << "nghttp3_conn_add_ack_offset: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -1778,8 +1775,8 @@ int Client::select_preferred_address(Address &selected_addr,
   hints.ai_family = af;
   hints.ai_socktype = SOCK_DGRAM;
 
-  auto rv = getaddrinfo(host, std::to_string(port).c_str(), &hints, &res);
-  if (rv != 0) {
+  if (auto rv = getaddrinfo(host, std::to_string(port).c_str(), &hints, &res);
+      rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
@@ -1970,8 +1967,9 @@ int http_send_stop_sending(nghttp3_conn *conn, int64_t stream_id,
 } // namespace
 
 int Client::send_stop_sending(int64_t stream_id, uint64_t app_error_code) {
-  auto rv = ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
-  if (rv != 0) {
+  if (auto rv =
+          ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
+      rv != 0) {
     std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
               << std::endl;
     return -1;
@@ -2231,8 +2229,7 @@ int run(Client &c, const char *addr, const char *port) {
   }
 
   // TODO Do we need this ?
-  auto rv = c.on_write();
-  if (rv != 0) {
+  if (auto rv = c.on_write(); rv != 0) {
     return rv;
   }
 

@@ -210,8 +210,8 @@ Request request_path(const std::string_view &uri, bool is_connect) {
 
   http_parser_url_init(&u);
 
-  auto rv = http_parser_parse_url(uri.data(), uri.size(), is_connect, &u);
-  if (rv != 0) {
+  if (auto rv = http_parser_parse_url(uri.data(), uri.size(), is_connect, &u);
+      rv != 0) {
     return req;
   }
 
@@ -427,9 +427,9 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
   nghttp3_data_reader dr{};
   dr.read_data = read_data;
 
-  auto rv = nghttp3_conn_submit_response(httpconn, stream_id, nva.data(),
-                                         nva.size(), &dr);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_submit_response(httpconn, stream_id, nva.data(),
+                                             nva.size(), &dr);
+      rv != 0) {
     std::cerr << "nghttp3_conn_submit_response: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -440,9 +440,9 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
       util::make_nv("x-ngtcp2-stream-id", stream_id_str),
   };
 
-  rv = nghttp3_conn_submit_trailers(httpconn, stream_id, trailers.data(),
-                                    trailers.size());
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_submit_trailers(httpconn, stream_id,
+                                             trailers.data(), trailers.size());
+      rv != 0) {
     std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -550,9 +550,9 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     debug::print_http_response_headers(stream_id, nva.data(), nva.size());
   }
 
-  auto rv = nghttp3_conn_submit_response(httpconn, stream_id, nva.data(),
-                                         nva.size(), &dr);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_submit_response(httpconn, stream_id, nva.data(),
+                                             nva.size(), &dr);
+      rv != 0) {
     std::cerr << "nghttp3_conn_submit_response: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -564,9 +564,9 @@ int Stream::start_response(nghttp3_conn *httpconn) {
         util::make_nv("x-ngtcp2-stream-id", stream_id_str),
     };
 
-    rv = nghttp3_conn_submit_trailers(httpconn, stream_id, trailers.data(),
-                                      trailers.size());
-    if (rv != 0) {
+    if (auto rv = nghttp3_conn_submit_trailers(
+            httpconn, stream_id, trailers.data(), trailers.size());
+        rv != 0) {
       std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
                 << std::endl;
       return -1;
@@ -585,8 +585,7 @@ void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
 
-  auto rv = h->on_write();
-  switch (rv) {
+  switch (h->on_write()) {
   case 0:
   case NETWORK_ERR_CLOSE_WAIT:
   case NETWORK_ERR_SEND_BLOCKED:
@@ -839,8 +838,8 @@ int Handler::acked_stream_data_offset(int64_t stream_id, size_t datalen) {
     return 0;
   }
 
-  auto rv = nghttp3_conn_add_ack_offset(httpconn_, stream_id, datalen);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_add_ack_offset(httpconn_, stream_id, datalen);
+      rv != 0) {
     std::cerr << "nghttp3_conn_add_ack_offset: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -955,8 +954,7 @@ int stream_reset(ngtcp2_conn *conn, int64_t stream_id, uint64_t final_size,
 
 int Handler::on_stream_reset(int64_t stream_id) {
   if (httpconn_) {
-    auto rv = nghttp3_conn_reset_stream(httpconn_, stream_id);
-    if (rv != 0) {
+    if (auto rv = nghttp3_conn_reset_stream(httpconn_, stream_id); rv != 0) {
       std::cerr << "nghttp3_conn_reset_stream: " << nghttp3_strerror(rv)
                 << std::endl;
       return -1;
@@ -1188,8 +1186,7 @@ void Handler::http_acked_stream_data(int64_t stream_id, size_t datalen) {
   stream->http_acked_stream_data(datalen);
 
   if (stream->fd == -1 && stream->dynbuflen < MAX_DYNBUFLEN - 16384) {
-    auto rv = nghttp3_conn_resume_stream(httpconn_, stream_id);
-    if (rv != 0) {
+    if (auto rv = nghttp3_conn_resume_stream(httpconn_, stream_id); rv != 0) {
       // TODO Handle error
       std::cerr << "nghttp3_conn_resume_stream: " << nghttp3_strerror(rv)
                 << std::endl;
@@ -1315,8 +1312,7 @@ int extend_max_stream_data(ngtcp2_conn *conn, int64_t stream_id,
 } // namespace
 
 int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
-  auto rv = nghttp3_conn_unblock_stream(httpconn_, stream_id);
-  if (rv != 0) {
+  if (auto rv = nghttp3_conn_unblock_stream(httpconn_, stream_id); rv != 0) {
     std::cerr << "nghttp3_conn_unblock_stream: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
@@ -1629,8 +1625,7 @@ int Handler::handle_expiry() {
     }
   }
 
-  auto rv = ngtcp2_conn_handle_expiry(conn_, now);
-  if (rv != 0) {
+  if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
     last_error_ = quic_err_transport(rv);
@@ -2021,8 +2016,9 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     if (app_error_code == 0) {
       app_error_code = NGHTTP3_H3_NO_ERROR;
     }
-    auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
-    if (rv != 0) {
+    if (auto rv =
+            nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
+        rv != 0) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
       last_error_ = quic_err_app(rv);
@@ -2884,9 +2880,9 @@ int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                            const uint8_t *write_secret, size_t secret_len) {
   auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
 
-  auto rv = h->on_key(util::from_ossl_level(ossl_level), read_secret,
-                      write_secret, secret_len);
-  if (rv != 0) {
+  if (auto rv = h->on_key(util::from_ossl_level(ossl_level), read_secret,
+                          write_secret, secret_len);
+      rv != 0) {
     return 0;
   }
 
@@ -3065,8 +3061,7 @@ int parse_host_port(Address &dest, int af, const char *first,
   hints.ai_family = af;
   hints.ai_socktype = SOCK_DGRAM;
 
-  auto rv = getaddrinfo(host.data(), svc_begin, &hints, &res);
-  if (rv != 0) {
+  if (auto rv = getaddrinfo(host.data(), svc_begin, &hints, &res); rv != 0) {
     std::cerr << "getaddrinfo: [" << host.data() << "]:" << svc_begin << ": "
               << gai_strerror(rv) << std::endl;
     return -1;
