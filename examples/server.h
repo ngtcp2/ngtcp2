@@ -94,6 +94,8 @@ struct Config {
   // no_http_dump is true if hexdump of HTTP response body should be
   // disabled.
   bool no_http_dump;
+  // max_data is the initial connection-level flow control window.
+  uint64_t max_data;
 };
 
 struct Buffer {

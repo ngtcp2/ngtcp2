@@ -1418,7 +1418,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.initial_max_stream_data_bidi_local = 256_k;
   params.initial_max_stream_data_bidi_remote = 256_k;
   params.initial_max_stream_data_uni = 256_k;
-  params.initial_max_data = 1_m;
+  params.initial_max_data = config.max_data;
   params.initial_max_streams_bidi = 100;
   params.initial_max_streams_uni = 3;
   params.idle_timeout = config.timeout;
@@ -3100,6 +3100,7 @@ void config_set_default(Config &config) {
     free(path);
   }
   config.mime_types_file = "/etc/mime.types";
+  config.max_data = 1_m;
 }
 } // namespace
 
@@ -3172,6 +3173,10 @@ Options:
               Disables printing QUIC STREAM and CRYPTO frame data out.
   --no-http-dump
               Disables printing HTTP response body out.
+  --max-data=<SIZE>
+              The initial connection-level flow control window.
+              Default: )"
+            << util::format_uint_iec(config.max_data) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -3211,6 +3216,7 @@ int main(int argc, char **argv) {
         {"qlog-dir", required_argument, &flag, 9},
         {"no-quic-dump", no_argument, &flag, 10},
         {"no-http-dump", no_argument, &flag, 11},
+        {"max-data", required_argument, &flag, 12},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3317,6 +3323,15 @@ int main(int argc, char **argv) {
       case 11:
         // --no-http-dump
         config.no_http_dump = true;
+        break;
+      case 12:
+        // --max-data
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-data: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_data = n;
+        }
         break;
       }
       break;
