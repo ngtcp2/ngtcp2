@@ -26,7 +26,7 @@ if HAVE_OPENSSL
 SUBDIRS += crypto
 endif
 
-if HAVE_NGHTTP3
+if ENABLE_EXAMPLES
 SUBDIRS += third-party examples
 endif
 

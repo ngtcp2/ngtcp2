@@ -80,6 +80,11 @@ AC_ARG_ENABLE(asan,
                    [Enable AddressSanitizer (ASAN)]),
     [asan=$enableval], [asan=no])
 
+AC_ARG_ENABLE([lib-only],
+    [AS_HELP_STRING([--enable-lib-only],
+                    [Build libngtcp2 and libngtcp2_crypto only.])],
+    [lib_only=$enableval], [lib_only=no])
+
 AC_ARG_WITH([jemalloc],
     [AS_HELP_STRING([--with-jemalloc],
                     [Use jemalloc [default=check]])],
@@ -162,6 +167,15 @@ if test "x${have_libev}" = "xyes"; then
   fi
 fi
 LIBS=$save_LIBS
+
+enable_examples=no
+if test "x${lib_only}" = "xno" &&
+   test "x${have_libnghttp3}" = "xyes" &&
+   test "x${have_libev}" = "xyes"; then
+  enable_examples=yes
+fi
+
+AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
 
 # jemalloc
 have_jemalloc=no
@@ -394,4 +408,5 @@ AC_MSG_NOTICE([summary of build options:
       Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')
       Libnghttp3:     ${have_libnghttp3} (CFLAGS='${LIBNGHTTP3_CFLAGS}' LIBS='${LIBNGHTTP3_LIBS}')
       Jemalloc:       ${have_jemalloc} (LIBS='${JEMALLOC_LIBS}')
+    Examples:         ${enable_examples}
 ])
