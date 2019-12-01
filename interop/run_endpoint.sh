@@ -9,7 +9,7 @@
 # - CLIENT_PARAMS contains user-supplied command line parameters
 
 case $TESTCASE in
-    handshake|transfer|retry|resumption|http3)
+    versionnegotiation|handshake|transfer|retry|resumption|http3)
 	:
 	;;
     *)
@@ -23,6 +23,9 @@ if [ "$ROLE" == "client" ]; then
     # Wait for the simulator to start up.
     /wait-for-it.sh sim:57832 -s -t 30
     CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump"
+    if [ "$TESTCASE" == "versionnegotiation" ]; then
+        CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
+    fi
     if [ "$TESTCASE" == "resumption" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
 	REQS=($REQUESTS)
