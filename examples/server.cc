@@ -57,9 +57,13 @@
 
 using namespace ngtcp2;
 
-#ifdef UDP_SEGMENT
-#  define NGTCP2_ENABLE_UDP_GSO 1
-#endif // UDP_SEGMENT
+#ifndef NGTCP2_ENABLE_UDP_GSO
+#  ifdef UDP_SEGMENT
+#    define NGTCP2_ENABLE_UDP_GSO 1
+#  else // !UDP_SEGMENT
+#    define NGTCP2_ENABLE_UDP_GSO 0
+#  endif // !UDP_SEGMENT
+#endif   // NGTCP2_ENABLE_UDP_GSO
 
 namespace {
 constexpr size_t NGTCP2_SV_SCIDLEN = 18;
@@ -1726,7 +1730,7 @@ int Handler::write_streams() {
       }
     }
 
-#ifdef NGTCP2_ENABLE_UDP_GSO
+#if NGTCP2_ENABLE_UDP_GSO
     if (pktcnt == 0) {
       update_endpoint(&path.path.local);
       update_remote_addr(&path.path.remote);
@@ -2732,7 +2736,7 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr,
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-#ifdef NGTCP2_ENABLE_UDP_GSO
+#if NGTCP2_ENABLE_UDP_GSO
   std::array<uint8_t, CMSG_SPACE(sizeof(uint16_t))> msg_ctrl{};
   if (gso_size && datalen > gso_size) {
     msg.msg_control = msg_ctrl.data();
