@@ -5893,6 +5893,7 @@ static void conn_rotate_keys(ngtcp2_conn *conn, int64_t pkt_num) {
   assert(conn->crypto.key_update.new_rx_ckm);
   assert(conn->crypto.key_update.new_tx_ckm);
   assert(!conn->crypto.key_update.old_rx_ckm);
+  assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
 
   conn->crypto.key_update.old_rx_ckm = pktns->crypto.rx.ckm;
 
