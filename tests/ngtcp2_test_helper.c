@@ -99,6 +99,7 @@ static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
   (void)ad;
   (void)adlen;
   (void)user_data;
+  memset(dest + plaintextlen, 0, conn->crypto.aead_overhead);
   return 0;
 }
 
