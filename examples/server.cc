@@ -1474,6 +1474,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     return -1;
   }
 
+  ev_io_set(&wev_, endpoint_->fd, EV_WRITE);
   ev_timer_again(loop_, &timer_);
 
   return 0;
