@@ -276,7 +276,7 @@ size_t write_single_frame_0rtt_pkt(ngtcp2_conn *conn, uint8_t *out,
   int rv;
   ngtcp2_ssize n;
 
-  rv = ngtcp2_crypto_km_new(&ckm, key, keylen, iv, ivlen, conn->mem);
+  rv = ngtcp2_crypto_km_new(&ckm, NULL, 0, key, keylen, iv, ivlen, conn->mem);
 
   assert(rv == 0);
 

@@ -216,8 +216,10 @@ public:
   void on_recv_retry();
   int change_local_addr();
   void start_change_local_addr_timer();
-  int update_key(uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key,
-                 uint8_t *tx_iv);
+  int update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
+                 uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+                 const uint8_t *current_rx_secret,
+                 const uint8_t *current_tx_secret, size_t secretlen);
   int initiate_key_update();
   void start_key_update_timer();
   void start_delay_stream_timer();
@@ -264,8 +266,6 @@ private:
   int fd_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   Crypto crypto_[3];
-  std::vector<uint8_t> tx_secret_;
-  std::vector<uint8_t> rx_secret_;
   FILE *qlog_;
   ngtcp2_conn *conn_;
   nghttp3_conn *httpconn_;

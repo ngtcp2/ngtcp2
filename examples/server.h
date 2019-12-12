@@ -262,8 +262,10 @@ public:
 
   void set_tls_alert(uint8_t alert);
 
-  int update_key(uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key,
-                 uint8_t *tx_iv);
+  int update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
+                 uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+                 const uint8_t *current_rx_secret,
+                 const uint8_t *current_tx_secret, size_t secretlen);
 
   int setup_httpconn();
   void http_consume(int64_t stream_id, size_t nconsumed);
@@ -312,8 +314,6 @@ private:
   // This packet is repeatedly sent as a response to the incoming
   // packet in draining period.
   std::unique_ptr<Buffer> conn_closebuf_;
-  std::vector<uint8_t> tx_secret_;
-  std::vector<uint8_t> rx_secret_;
   QUICError last_error_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
