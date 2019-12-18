@@ -543,6 +543,12 @@ int Client::handshake_completed() {
     if (early_data_ &&
         SSL_get_early_data_status(ssl_) != SSL_EARLY_DATA_ACCEPTED) {
       std::cerr << "Early data was rejected by server" << std::endl;
+
+      if (auto rv = ngtcp2_conn_early_data_rejected(conn_); rv != 0) {
+        std::cerr << "ngtcp2_conn_early_data_rejected: " << ngtcp2_strerror(rv)
+                  << std::endl;
+        return -1;
+      }
     }
 
     std::cerr << "Negotiated cipher suite is " << SSL_get_cipher_name(ssl_)
