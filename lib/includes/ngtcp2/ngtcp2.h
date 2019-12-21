@@ -345,8 +345,8 @@ typedef struct ngtcp2_vec {
  *
  * `ngtcp2_cid_init` initializes Connection ID |cid| with the byte
  * string pointed by |data| and its length is |datalen|.  |datalen|
- * must be at least :enum:`NGTCP2_MIN_CDLEN`, and at most
- * :enum:`NGTCP2_MAX_CDLEN`.
+ * must be at least :enum:`NGTCP2_MIN_CIDLEN`, and at most
+ * :enum:`NGTCP2_MAX_CIDLEN`.
  */
 NGTCP2_EXTERN void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data,
                                    size_t datalen);
