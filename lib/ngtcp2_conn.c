@@ -7634,6 +7634,8 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     if (!ngtcp2_cid_eq(&conn->rcid, &params->original_connection_id)) {
       return NGTCP2_ERR_TRANSPORT_PARAM;
     }
+  } else if (params->original_connection_id_present) {
+    return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
   return 0;
