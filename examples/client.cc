@@ -378,7 +378,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       nstreams_done_(0),
       nkey_update_(0),
       version_(0),
-      early_data_(false) {
+      early_data_(false),
+      should_exit_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
@@ -1059,6 +1060,12 @@ int Client::on_read() {
     }
   }
 
+  if (should_exit_) {
+    last_error_ = quic_err_app(0);
+    disconnect();
+    return -1;
+  }
+
   reset_idle_timer();
 
   return 0;
@@ -1111,6 +1118,12 @@ int Client::on_write() {
       schedule_retransmit();
     }
     return rv;
+  }
+
+  if (should_exit_) {
+    last_error_ = quic_err_app(0);
+    disconnect();
+    return -1;
   }
 
   schedule_retransmit();
@@ -1979,6 +1992,25 @@ int http_push_stream(nghttp3_conn *conn, int64_t push_id, int64_t stream_id,
 }
 } // namespace
 
+namespace {
+int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
+                      uint64_t app_error_code, void *conn_user_data,
+                      void *stream_user_data) {
+  auto c = static_cast<Client *>(conn_user_data);
+  if (c->http_stream_close(stream_id, app_error_code) != 0) {
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
+  if (config.exit_on_first_stream_close) {
+    should_exit_ = true;
+  }
+  return 0;
+}
+
 int Client::setup_httpconn() {
   if (httpconn_) {
     return 0;
@@ -1991,22 +2023,14 @@ int Client::setup_httpconn() {
   }
 
   nghttp3_conn_callbacks callbacks{
-      ::http_acked_stream_data,
-      nullptr, // stream_close
-      ::http_recv_data,
-      ::http_deferred_consume,
-      ::http_begin_headers,
-      ::http_recv_header,
-      ::http_end_headers,
-      ::http_begin_trailers,
-      ::http_recv_trailer,
-      ::http_end_trailers,
-      ::http_begin_push_promise,
-      ::http_recv_push_promise,
-      ::http_end_push_promise,
-      ::http_cancel_push,
-      ::http_send_stop_sending,
-      ::http_push_stream,
+      ::http_acked_stream_data,  ::http_stream_close,
+      ::http_recv_data,          ::http_deferred_consume,
+      ::http_begin_headers,      ::http_recv_header,
+      ::http_end_headers,        ::http_begin_trailers,
+      ::http_recv_trailer,       ::http_end_trailers,
+      ::http_begin_push_promise, ::http_recv_push_promise,
+      ::http_end_push_promise,   ::http_cancel_push,
+      ::http_send_stop_sending,  ::http_push_stream,
   };
   nghttp3_conn_settings settings;
   nghttp3_conn_settings_default(&settings);
@@ -2437,6 +2461,8 @@ Options:
               The number of the concurrent unidirectional streams.
               Default: )"
             << config.max_streams_uni << R"(
+  --exit-on-first-stream-close
+              Exit when a first HTTP stream is closed.
   -h, --help  Display this help and exit.
 
 ---
@@ -2493,6 +2519,7 @@ int main(int argc, char **argv) {
         {"max-stream-data-uni", required_argument, &flag, 21},
         {"max-streams-bidi", required_argument, &flag, 22},
         {"max-streams-uni", required_argument, &flag, 23},
+        {"exit-on-first-stream-close", no_argument, &flag, 24},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2685,6 +2712,10 @@ int main(int argc, char **argv) {
       case 23:
         // --max-streams-uni
         config.max_streams_uni = strtoull(optarg, nullptr, 10);
+        break;
+      case 24:
+        // --exit-on-first-stream-close
+        config.exit_on_first_stream_close = true;
         break;
       }
       break;

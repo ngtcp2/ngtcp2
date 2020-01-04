@@ -133,6 +133,11 @@ struct Config {
   // max_streams_uni is the number of the concurrent unidirectional
   // streams.
   uint64_t max_streams_uni;
+  // exit_on_first_stream_close is the flag that if it is true, client
+  // exits when a first HTTP stream gets closed.  It is not
+  // necessarily the same time when the underlying QUIC stream closes
+  // due to the QPACK synchronization.
+  bool exit_on_first_stream_close;
 };
 
 struct Buffer {
@@ -243,6 +248,7 @@ public:
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int send_stop_sending(int64_t stream_id, uint64_t app_error_code);
+  int http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
   void reset_idle_timer();
 
@@ -283,6 +289,9 @@ private:
   uint32_t version_;
   // early_data_ is true if client attempts to do 0RTT data transfer.
   bool early_data_;
+  // should_exit_ is true if client should exit rather than waiting
+  // for timeout.
+  bool should_exit_;
 };
 
 #endif // CLIENT_H
