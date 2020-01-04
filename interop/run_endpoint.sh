@@ -22,7 +22,7 @@ LOG=/logs/log.txt
 if [ "$ROLE" == "client" ]; then
     # Wait for the simulator to start up.
     /wait-for-it.sh sim:57832 -s -t 30
-    CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump"
+    CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --timeout=5s"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
     fi
@@ -30,9 +30,9 @@ if [ "$ROLE" == "client" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
 	REQS=($REQUESTS)
 	REQUESTS=${REQS[0]}
-	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
+	/usr/local/bin/client $CLIENT_ARGS --exit-on-first-stream-close $REQUESTS $CLIENT_PARAMS &> $LOG
 	REQUESTS=${REQS[@]:1}
-	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
+	/usr/local/bin/client $CLIENT_ARGS --disable-early-data $REQUESTS $CLIENT_PARAMS &> $LOG
     else
 	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
     fi
