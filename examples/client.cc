@@ -811,11 +811,10 @@ int Client::init_ssl() {
       } else {
         if (!SSL_set_session(ssl_, session)) {
           std::cerr << "Could not set session" << std::endl;
-        } else {
-          if (SSL_SESSION_get_max_early_data(session)) {
-            early_data_ = true;
-            SSL_set_quic_early_data_enabled(ssl_, 1);
-          }
+        } else if (!config.disable_early_data &&
+                   SSL_SESSION_get_max_early_data(session)) {
+          early_data_ = true;
+          SSL_set_quic_early_data_enabled(ssl_, 1);
         }
         SSL_SESSION_free(session);
       }
@@ -2463,6 +2462,8 @@ Options:
             << config.max_streams_uni << R"(
   --exit-on-first-stream-close
               Exit when a first HTTP stream is closed.
+  --disable-early-data
+              Disable early data.
   -h, --help  Display this help and exit.
 
 ---
@@ -2520,6 +2521,7 @@ int main(int argc, char **argv) {
         {"max-streams-bidi", required_argument, &flag, 22},
         {"max-streams-uni", required_argument, &flag, 23},
         {"exit-on-first-stream-close", no_argument, &flag, 24},
+        {"disable-early-data", no_argument, &flag, 25},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2716,6 +2718,10 @@ int main(int argc, char **argv) {
       case 24:
         // --exit-on-first-stream-close
         config.exit_on_first_stream_close = true;
+        break;
+      case 25:
+        // --disable-early-data
+        config.disable_early_data = true;
         break;
       }
       break;

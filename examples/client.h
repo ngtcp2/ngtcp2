@@ -138,6 +138,8 @@ struct Config {
   // necessarily the same time when the underlying QUIC stream closes
   // due to the QPACK synchronization.
   bool exit_on_first_stream_close;
+  // disable_early_data disables early data.
+  bool disable_early_data;
 };
 
 struct Buffer {
