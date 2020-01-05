@@ -6685,7 +6685,7 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 }
 
 /*
- * conn_is_retired_path returns nonzero if |path| is inclued in
+ * conn_is_retired_path returns nonzero if |path| is included in
  * retired path list.
  */
 static int conn_is_retired_path(ngtcp2_conn *conn, const ngtcp2_path *path) {
