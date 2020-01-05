@@ -420,3 +420,41 @@ int ngtcp2_crypto_update_key_cb(ngtcp2_conn *conn, uint8_t *rx_secret,
   }
   return 0;
 }
+
+int ngtcp2_crypto_derive_retry_token_key(const ngtcp2_crypto_ctx& ctx,
+                                         uint8_t* token_key,
+                                         uint8_t* token_iv,
+                                         const uint8_t* rand_data,
+                                         size_t rand_datalen,
+                                         const uint8_t* token_secret,
+                                         size_t token_secretlen) {
+  int rv;
+  uint8_t secret[NGTCP2_CRYPTO_TOKEN_SECRETLEN];
+
+  rv = ngtcp2_crypto_hkdf_extract(secret, secretlen, &ctx.md, token_secret,
+                                  token_secretlen, rand_data, rand_datalen);
+  if (rv != 0)
+    return -1;
+
+  if (ngtcp2_crypto_derive_packet_protection_key(token_key, token_iv,
+        nullptr, &ctx.aead, &ctx.md, secret,
+        NGTCP2_CRYPTO_TOKEN_SECRETLEN)) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int ngtcp2_crypto_generate_stateless_reset_token(uint8_t* token,
+                                                 const uint8_t* secret,
+                                                 size_t secretlen,
+                                                 const ngtcp2_cid* cid) {
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_crypto_ctx_initial(&ctx);
+  if (ngtcp2_crypto_hkdf_extract(token, NGTCP2_STATELESS_RESET_TOKENLEN,
+                                 &ctx.md, secret, secretlen, cid->data,
+                                 cid->datalen) != 0) {
+    return -1;
+  }
+  return 0;
+}

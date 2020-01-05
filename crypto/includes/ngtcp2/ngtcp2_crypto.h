@@ -486,6 +486,34 @@ NGTCP2_EXTERN int
 ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
                                           ngtcp2_crypto_side side);
 
+/**
+ * `ngtcp2_crypto_derive_retry_token_key` derives a key for use
+ * when generating retry tokens.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_derive_retry_token_key(const ngtcp2_crypto_ctx& ctx,
+                                     uint8_t* token_key,
+                                     uint8_t* token_iv,
+                                     const uint8_t* rand_data,
+                                     size_t rand_datalen,
+                                     const uint8_t* token_secret,
+                                     size_t token_secretlen);
+
+/**
+ *  `ngtcp2_crypto_generate_stateless_reset_token` generates a stateless
+ *  reset token using HKDF extraction using the given cid and token secret
+ *  as input.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_generate_stateless_reset_token(uint8_t* token,
+                                             const uint8_t* secret,
+                                             size_t secretlen,
+                                             const ngtcp2_cid* cid);
+
 #ifdef __cplusplus
 }
 #endif
