@@ -492,6 +492,21 @@ NGTCP2_EXTERN int
 ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
                                           ngtcp2_crypto_side side);
 
+/**
+ * @function
+ *
+ *  `ngtcp2_crypto_generate_stateless_reset_token` generates a
+ *  stateless reset token using HKDF extraction with |md| using the
+ *  given |cid| and static key |secret| as input.  The token will be
+ *  written to the buffer pointed by |token| and it must have a
+ *  capacity of at least NGTCP2_STATELESS_RESET_TOKENLEN bytes.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_generate_stateless_reset_token(
+    uint8_t *token, const ngtcp2_crypto_md *md, const uint8_t *secret,
+    size_t secretlen, const ngtcp2_cid *cid);
+
 #ifdef __cplusplus
 }
 #endif
