@@ -5999,7 +5999,6 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
         "path migration is aborted because new migration has started");
     rv = conn_stop_pv(conn, ts);
     if (rv != 0) {
-      ngtcp2_pv_del(pv);
       return rv;
     }
   }
