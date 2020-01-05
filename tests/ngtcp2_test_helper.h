@@ -116,6 +116,22 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
                                               ngtcp2_frame *fr);
 
 /*
+ * write_pkt_flags writes a QUIC packet containing frames pointed by
+ * |fr| of length |frlen| in |out| whose capacity is |outlen|.  This
+ * function returns the number of bytes written.
+ */
+size_t write_pkt_flags(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
+                       uint8_t flags, const ngtcp2_cid *dcid, int64_t pkt_num,
+                       ngtcp2_frame *fr, size_t frlen);
+
+/*
+ * write_pkt is write_pkt_flags with flag = NGTCP2_PKT_FLAG_NONE.
+ */
+size_t write_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
+                 const ngtcp2_cid *dcid, int64_t pkt_num, ngtcp2_frame *fr,
+                 size_t frlen);
+
+/*
  * write_single_frame_handshake_pkt writes a unprotected QUIC
  * handshake packet containing single frame |fr| in |out| whose
  * capacity is |outlen|.  This function returns the number of bytes

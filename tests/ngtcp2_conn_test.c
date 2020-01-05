@@ -3980,10 +3980,13 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   ngtcp2_tstamp t = 0;
   int64_t pkt_num = 0;
   ngtcp2_frame fr;
+  ngtcp2_frame frs[4];
   const uint8_t cid[] = {0xf0, 0xf1, 0xf2, 0xf3};
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   const uint8_t cid2[] = {0xf0, 0xf1, 0xf2, 0xf4};
   const uint8_t token2[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfe};
+  const uint8_t cid3[] = {0xf0, 0xf1, 0xf2, 0xf5};
+  const uint8_t token3[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xfd};
   ngtcp2_dcid *dcid;
   int rv;
   ngtcp2_frame_chain *frc;
@@ -4009,6 +4012,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.unused));
 
+  assert(ngtcp2_ringbuf_len(&conn->dcid.unused));
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
   CU_ASSERT(ngtcp2_cid_eq(&fr.new_connection_id.cid, &dcid->cid));
@@ -4030,6 +4034,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(NULL != conn->pktns.tx.frq);
+  CU_ASSERT(2 == conn->dcid.retire_prior_to);
 
   frc = conn->pktns.tx.frq;
 
@@ -4044,6 +4049,261 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
+
+  ngtcp2_conn_del(conn);
+
+  /* Received connection ID is immediately retired due to packet
+     reordering */
+  setup_default_client(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 2;
+  fr.new_connection_id.retire_prior_to = 2;
+  ngtcp2_cid_init(&fr.new_connection_id.cid, cid, sizeof(cid));
+  memcpy(fr.new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(2 == conn->dcid.current.seq);
+  CU_ASSERT(2 == conn->dcid.retire_prior_to);
+
+  frc = conn->pktns.tx.frq;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(NULL == frc->next);
+
+  /* This will send RETIRE_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 1;
+  fr.new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&fr.new_connection_id.cid, cid2, sizeof(cid2));
+  memcpy(fr.new_connection_id.stateless_reset_token, token2, sizeof(token2));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(2 == conn->dcid.current.seq);
+  CU_ASSERT(2 == conn->dcid.retire_prior_to);
+
+  frc = conn->pktns.tx.frq;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(NULL == frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* ngtcp2_pv contains DCIDs that should be retired. */
+  setup_default_server(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  assert(NULL == conn->pv);
+
+  frs[0].type = NGTCP2_FRAME_PING;
+  frs[1].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[1].new_connection_id.seq = 1;
+  frs[1].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
+  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
+  frs[2].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[2].new_connection_id.seq = 2;
+  frs[2].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[2].new_connection_id.cid, cid2, sizeof(cid2));
+  memcpy(frs[2].new_connection_id.stateless_reset_token, token2,
+         sizeof(token2));
+  frs[3].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[3].new_connection_id.seq = 3;
+  frs[3].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[3].new_connection_id.cid, cid3, sizeof(cid3));
+  memcpy(frs[3].new_connection_id.stateless_reset_token, token3,
+         sizeof(token3));
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 4);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  assert(NULL != conn->pv);
+
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  CU_ASSERT(1 == conn->pv->dcid.seq);
+  CU_ASSERT(0 == conn->pv->fallback_dcid.seq);
+  CU_ASSERT(2 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 3;
+  fr.new_connection_id.retire_prior_to = 2;
+  ngtcp2_cid_init(&fr.new_connection_id.cid, cid3, sizeof(cid3));
+  memcpy(fr.new_connection_id.stateless_reset_token, token3, sizeof(token3));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  CU_ASSERT(2 == conn->pv->dcid.seq);
+  CU_ASSERT(3 == conn->pv->fallback_dcid.seq);
+
+  frc = conn->pktns.tx.frq;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(0 == frc->fr.retire_connection_id.seq);
+  frc = frc->next;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(1 == frc->fr.retire_connection_id.seq);
+  CU_ASSERT(NULL == frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* ngtcp2_pv contains DCID in fallback that should be retired and
+     there is not enough connection ID left.  */
+  setup_default_server(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  assert(NULL == conn->pv);
+
+  frs[0].type = NGTCP2_FRAME_PING;
+  frs[1].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[1].new_connection_id.seq = 1;
+  frs[1].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
+  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  assert(NULL != conn->pv);
+
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  CU_ASSERT(1 == conn->pv->dcid.seq);
+  CU_ASSERT(0 == conn->pv->fallback_dcid.seq);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 2;
+  fr.new_connection_id.retire_prior_to = 2;
+  ngtcp2_cid_init(&fr.new_connection_id.cid, cid2, sizeof(cid2));
+  memcpy(fr.new_connection_id.stateless_reset_token, token2, sizeof(token2));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(2 == conn->dcid.current.seq);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(NULL != conn->pv);
+  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE));
+
+  frc = conn->pktns.tx.frq;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(0 == frc->fr.retire_connection_id.seq);
+
+  frc = frc->next;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(1 == frc->fr.retire_connection_id.seq);
+  CU_ASSERT(NULL == frc->next);
+
+  ngtcp2_conn_del(conn);
+
+  /* ngtcp2_pv contains DCIDs that should be retired and there is not
+     enough connection ID left to continue path validation.  */
+  setup_default_server(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  assert(NULL == conn->pv);
+
+  frs[0].type = NGTCP2_FRAME_PING;
+  frs[1].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[1].new_connection_id.seq = 1;
+  frs[1].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
+  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  assert(NULL != conn->pv);
+
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  CU_ASSERT(1 == conn->pv->dcid.seq);
+  CU_ASSERT(0 == conn->pv->fallback_dcid.seq);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+
+  /* Overwrite seq in pv->dcid so that pv->dcid cannot be renewed. */
+  conn->pv->dcid.seq = 2;
+
+  fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  fr.new_connection_id.seq = 3;
+  fr.new_connection_id.retire_prior_to = 3;
+  ngtcp2_cid_init(&fr.new_connection_id.cid, cid3, sizeof(cid3));
+  memcpy(fr.new_connection_id.stateless_reset_token, token3, sizeof(token3));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(3 == conn->dcid.current.seq);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(NULL == conn->pv);
+
+  frc = conn->pktns.tx.frq;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(2 == frc->fr.retire_connection_id.seq);
+
+  frc = frc->next;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(0 == frc->fr.retire_connection_id.seq);
+
+  frc = frc->next;
+
+  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
+  CU_ASSERT(1 == frc->fr.retire_connection_id.seq);
+  CU_ASSERT(NULL == frc->next);
 
   ngtcp2_conn_del(conn);
 }
