@@ -68,5 +68,6 @@ void test_ngtcp2_conn_handshake_probe(void);
 void test_ngtcp2_conn_handshake_loss(void);
 void test_ngtcp2_conn_recv_client_initial_retry(void);
 void test_ngtcp2_conn_recv_client_initial_token(void);
+void test_ngtcp2_conn_get_active_dcid(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

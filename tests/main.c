@@ -47,6 +47,7 @@
 #include "ngtcp2_vec_test.h"
 #include "ngtcp2_strm_test.h"
 #include "ngtcp2_pv_test.h"
+#include "ngtcp2_str_test.h"
 
 static int init_suite1(void) { return 0; }
 
@@ -240,6 +241,8 @@ int main() {
                    test_ngtcp2_conn_recv_client_initial_retry) ||
       !CU_add_test(pSuite, "conn_recv_client_initial_token",
                    test_ngtcp2_conn_recv_client_initial_token) ||
+      !CU_add_test(pSuite, "conn_get_active_dcid",
+                   test_ngtcp2_conn_get_active_dcid) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||
@@ -251,7 +254,9 @@ int main() {
       !CU_add_test(pSuite, "strm_streamfrq_pop",
                    test_ngtcp2_strm_streamfrq_pop) ||
       !CU_add_test(pSuite, "pv_add_entry", test_ngtcp2_pv_add_entry) ||
-      !CU_add_test(pSuite, "pv_validate", test_ngtcp2_pv_validate)) {
+      !CU_add_test(pSuite, "pv_validate", test_ngtcp2_pv_validate) ||
+      !CU_add_test(pSuite, "check_invalid_stateless_reset_token",
+                   test_ngtcp2_check_invalid_stateless_reset_token)) {
     CU_cleanup_registry();
     return (int)CU_get_error();
   }

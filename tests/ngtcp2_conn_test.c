@@ -478,6 +478,8 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->local.uni.max_streams = params->initial_max_streams_uni;
   (*pconn)->tx.max_offset = params->initial_max_data;
   (*pconn)->odcid = dcid;
+
+  memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
 }
 
 static void setup_handshake_server(ngtcp2_conn **pconn) {
@@ -4224,8 +4226,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
-  CU_ASSERT(NULL != conn->pv);
-  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE));
+  CU_ASSERT(NULL == conn->pv);
 
   frc = conn->pktns.tx.frq;
 
@@ -4272,6 +4273,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   /* Overwrite seq in pv->dcid so that pv->dcid cannot be renewed. */
   conn->pv->dcid.seq = 2;
+  /* Internally we assume that if primary dcid and pv->dcid differ,
+     then no fallback dcid is present. */
+  conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 3;
@@ -4293,11 +4297,6 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
   CU_ASSERT(2 == frc->fr.retire_connection_id.seq);
-
-  frc = frc->next;
-
-  CU_ASSERT(NGTCP2_FRAME_RETIRE_CONNECTION_ID == frc->fr.type);
-  CU_ASSERT(0 == frc->fr.retire_connection_id.seq);
 
   frc = frc->next;
 
@@ -5011,6 +5010,28 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
   CU_ASSERT(0 ==
             ngtcp2_rob_first_gap_offset(&conn->in_pktns.crypto.strm.rx.rob));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_get_active_dcid(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_cid_token cid_token[2];
+  ngtcp2_cid dcid;
+  static uint8_t token[] = {0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1,
+                            0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1, 0xf1};
+
+  dcid_init(&dcid);
+  setup_default_client(&conn);
+
+  CU_ASSERT(1 == ngtcp2_conn_get_num_active_dcid(conn));
+  CU_ASSERT(1 == ngtcp2_conn_get_active_dcid(conn, cid_token));
+  CU_ASSERT(0 == cid_token[0].seq);
+  CU_ASSERT(ngtcp2_cid_eq(&dcid, &cid_token[0].cid));
+  CU_ASSERT(ngtcp2_path_eq(&null_path, &cid_token[0].ps.path));
+  CU_ASSERT(1 == cid_token[0].token_present);
+  CU_ASSERT(0 ==
+            memcmp(token, cid_token[0].token, NGTCP2_STATELESS_RESET_TOKENLEN));
 
   ngtcp2_conn_del(conn);
 }

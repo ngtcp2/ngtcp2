@@ -49,6 +49,7 @@ if(HAVE_CUNIT)
     ngtcp2_vec_test.c
     ngtcp2_strm_test.c
     ngtcp2_pv_test.c
+    ngtcp2_str_test.c
   )
 
   add_executable(main EXCLUDE_FROM_ALL
