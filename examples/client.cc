@@ -2776,10 +2776,6 @@ int main(int argc, char **argv) {
 
   auto ev_loop_d = defer(ev_loop_destroy, EV_DEFAULT);
 
-  if (isatty(STDOUT_FILENO)) {
-    debug::set_color_output(true);
-  }
-
   auto keylog_filename = getenv("SSLKEYLOGFILE");
   if (keylog_filename) {
     keylog_file.open(keylog_filename, std::ios_base::app);

@@ -40,8 +40,6 @@ namespace ngtcp2 {
 
 namespace debug {
 
-void set_color_output(bool f);
-
 int handshake_completed(ngtcp2_conn *conn, void *user_data);
 
 bool packet_lost(double prob);

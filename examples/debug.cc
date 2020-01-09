@@ -39,12 +39,6 @@ auto randgen = util::make_mt19937();
 } // namespace
 
 namespace {
-auto color_output = false;
-} // namespace
-
-void set_color_output(bool f) { color_output = f; }
-
-namespace {
 auto *outfile = stderr;
 } // namespace
 
