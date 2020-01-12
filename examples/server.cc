@@ -2526,7 +2526,7 @@ int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
                              size_t rand_datalen) {
   std::array<uint8_t, 32> secret;
 
-  if (ngtcp2_crypto_hkdf_extract(secret.data(), secret.size(), &token_md_,
+  if (ngtcp2_crypto_hkdf_extract(secret.data(), &token_md_,
                                  token_secret_.data(), token_secret_.size(),
                                  rand_data, rand_datalen) != 0) {
     return -1;

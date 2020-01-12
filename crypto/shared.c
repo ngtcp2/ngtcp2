@@ -68,9 +68,8 @@ int ngtcp2_crypto_derive_initial_secrets(uint8_t *rx_secret, uint8_t *tx_secret,
 
   ngtcp2_crypto_ctx_initial(&ctx);
 
-  if (ngtcp2_crypto_hkdf_extract(initial_secret,
-                                 NGTCP2_CRYPTO_INITIAL_SECRETLEN, &ctx.md,
-                                 client_dcid->data, client_dcid->datalen,
+  if (ngtcp2_crypto_hkdf_extract(initial_secret, &ctx.md, client_dcid->data,
+                                 client_dcid->datalen,
                                  (const uint8_t *)NGTCP2_INITIAL_SALT,
                                  sizeof(NGTCP2_INITIAL_SALT) - 1) != 0) {
     return -1;

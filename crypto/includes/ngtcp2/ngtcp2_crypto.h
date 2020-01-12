@@ -61,6 +61,13 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
 /**
  * @function
  *
+ * `ngtcp2_crypto_md_hashlen` returns the length of |md| output.
+ */
+NGTCP2_EXTERN size_t ngtcp2_crypto_md_hashlen(const ngtcp2_crypto_md *md);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_aead_keylen` returns the length of key for |aead|.
  */
 NGTCP2_EXTERN size_t ngtcp2_crypto_aead_keylen(const ngtcp2_crypto_aead *aead);
@@ -85,17 +92,16 @@ NGTCP2_EXTERN size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead);
  * @function
  *
  * `ngtcp2_crypto_hkdf_extract` performs HKDF extract operation.  The
- * result is |destlen| bytes long and is stored to the buffer pointed
- * by |dest|.
+ * result is the length of |md| and is stored to the buffer pointed by
+ * |dest|.  The caller is responsible to specify the buffer that can
+ * store the output.
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_hkdf_extract(uint8_t *dest, size_t destlen,
-                                             const ngtcp2_crypto_md *md,
-                                             const uint8_t *secret,
-                                             size_t secretlen,
-                                             const uint8_t *salt,
-                                             size_t saltlen);
+NGTCP2_EXTERN int
+ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
+                           const uint8_t *secret, size_t secretlen,
+                           const uint8_t *salt, size_t saltlen);
 
 /**
  * @function
