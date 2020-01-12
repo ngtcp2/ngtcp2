@@ -117,6 +117,9 @@ struct Config {
   // max_dyn_length is the maximum length of dynamically generated
   // response.
   uint64_t max_dyn_length;
+  // static_secret is used to derive keying materials for Retry and
+  // Stateless Retry token.
+  std::array<uint8_t, 32> static_secret;
 };
 
 struct Buffer {
@@ -321,8 +324,6 @@ private:
   bool draining_;
 };
 
-constexpr size_t TOKEN_SECRETLEN = 16;
-
 class Server {
 public:
   Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
@@ -349,7 +350,7 @@ public:
 
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
                        const uint8_t *rand_data, size_t rand_datalen);
-  int generate_rand_data(uint8_t *buf, size_t len);
+  void generate_rand_data(uint8_t *buf, size_t len);
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
   void dissociate_cid(const ngtcp2_cid *cid);
 
@@ -363,7 +364,6 @@ private:
   SSL_CTX *ssl_ctx_;
   ngtcp2_crypto_aead token_aead_;
   ngtcp2_crypto_md token_md_;
-  std::array<uint8_t, TOKEN_SECRETLEN> token_secret_;
   ev_signal sigintev_;
 };
 

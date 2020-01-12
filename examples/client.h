@@ -140,6 +140,9 @@ struct Config {
   bool exit_on_first_stream_close;
   // disable_early_data disables early data.
   bool disable_early_data;
+  // static_secret is used to derive keying materials for Stateless
+  // Retry token.
+  std::array<uint8_t, 32> static_secret;
 };
 
 struct Buffer {

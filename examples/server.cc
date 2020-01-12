@@ -960,7 +960,12 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
 
   std::generate_n(cid->data, cidlen, f);
   cid->datalen = cidlen;
-  std::generate_n(token, NGTCP2_STATELESS_RESET_TOKENLEN, f);
+  auto md = ngtcp2_crypto_md{const_cast<EVP_MD *>(EVP_sha256())};
+  if (ngtcp2_crypto_generate_stateless_reset_token(
+          token, &md, config.static_secret.data(), config.static_secret.size(),
+          cid) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
 
   auto h = static_cast<Handler *>(user_data);
   h->server()->associate_cid(cid, h);
@@ -2025,10 +2030,6 @@ Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
 
   token_aead_.native_handle = const_cast<EVP_CIPHER *>(EVP_aes_128_gcm());
   token_md_.native_handle = const_cast<EVP_MD *>(EVP_sha256());
-
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate(std::begin(token_secret_), std::end(token_secret_),
-                [&dis]() { return dis(randgen); });
 }
 
 Server::~Server() {
@@ -2526,9 +2527,9 @@ int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
                              size_t rand_datalen) {
   std::array<uint8_t, 32> secret;
 
-  if (ngtcp2_crypto_hkdf_extract(secret.data(), &token_md_,
-                                 token_secret_.data(), token_secret_.size(),
-                                 rand_data, rand_datalen) != 0) {
+  if (ngtcp2_crypto_hkdf_extract(
+          secret.data(), &token_md_, config.static_secret.data(),
+          config.static_secret.size(), rand_data, rand_datalen) != 0) {
     return -1;
   }
 
@@ -2544,28 +2545,9 @@ int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
   return 0;
 }
 
-int Server::generate_rand_data(uint8_t *buf, size_t len) {
-  std::array<uint8_t, 16> rand;
-  std::array<uint8_t, 32> md;
+void Server::generate_rand_data(uint8_t *buf, size_t len) {
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate_n(rand.data(), rand.size(), [&dis]() { return dis(randgen); });
-
-  auto ctx = EVP_MD_CTX_new();
-  if (ctx == nullptr) {
-    return -1;
-  }
-
-  auto ctx_deleter = defer(EVP_MD_CTX_free, ctx);
-
-  unsigned int mdlen = md.size();
-  if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
-      !EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
-      !EVP_DigestFinal_ex(ctx, md.data(), &mdlen)) {
-    return -1;
-  }
-
-  std::copy_n(std::begin(md), len, buf);
-  return 0;
+  std::generate_n(buf, len, [&dis]() { return dis(randgen); });
 }
 
 int Server::generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
@@ -2587,9 +2569,7 @@ int Server::generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
   auto keylen = key.size();
   auto ivlen = iv.size();
 
-  if (generate_rand_data(rand_data.data(), rand_data.size()) != 0) {
-    return -1;
-  }
+  generate_rand_data(rand_data.data(), rand_data.size());
   if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data.data(),
                        rand_data.size()) != 0) {
     return -1;
@@ -3420,6 +3400,12 @@ int main(int argc, char **argv) {
     if (keylog_file) {
       SSL_CTX_set_keylog_callback(ssl_ctx, keylog_callback);
     }
+  }
+
+  if (util::generate_secret(config.static_secret.data(),
+                            config.static_secret.size()) != 0) {
+    std::cerr << "Unable to generate static secret" << std::endl;
+    exit(EXIT_FAILURE);
   }
 
   Server s(EV_DEFAULT, ssl_ctx);
