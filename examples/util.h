@@ -270,6 +270,11 @@ std::pair<uint64_t, int> parse_uint_iec(const std::string_view &s);
 // cannot parse |s|, it returns -1 as the second return value.
 std::pair<uint64_t, int> parse_duration(const std::string_view &s);
 
+// generate_secret generates secret and writes it to the buffer
+// pointed by |secret| of length |secretlen|.  Currently, |secretlen|
+// must be 32.
+int generate_secret(uint8_t *secret, size_t secretlen);
+
 } // namespace util
 
 } // namespace ngtcp2
