@@ -7369,7 +7369,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         res += nwrite;
         dest += nwrite;
         if (destlen <= (size_t)nwrite) {
-          return nwrite;
+          goto server_wait_handshake_done;
         }
         destlen -= (size_t)nwrite;
         origlen -= (size_t)nwrite;
@@ -7393,6 +7393,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       }
 
       res += nwrite;
+
+    server_wait_handshake_done:
       conn->hs_sent += (size_t)res;
       return res;
     }
