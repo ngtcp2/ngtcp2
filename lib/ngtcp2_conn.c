@@ -4695,7 +4695,8 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                     const uint8_t *pkt, size_t pktlen,
                                     ngtcp2_tstamp ts) {
   ngtcp2_ssize nread;
-  size_t origlen = pktlen;
+
+  conn->hs_recved += pktlen;
 
   while (pktlen) {
     nread = conn_recv_handshake_pkt(conn, path, pkt, pktlen, ts);
@@ -4704,13 +4705,13 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return (int)nread;
       }
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
-        goto fin;
+        break;
       }
       if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
           /* Not a Version Negotiation packet */
           pktlen > 4 && ngtcp2_get_uint32(&pkt[1]) > 0 &&
           ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
-        goto fin;
+        break;
       }
       return (int)nread;
     }
@@ -4723,9 +4724,6 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                     "read packet %td left %zu", nread, pktlen);
   }
 
-  conn->hs_recved += origlen;
-
-fin:
   switch (conn->state) {
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
