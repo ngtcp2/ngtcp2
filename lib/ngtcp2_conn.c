@@ -5737,8 +5737,7 @@ static int conn_retire_dcid_prior_to(ngtcp2_conn *conn, ngtcp2_ringbuf *rb,
  *     token; or DCID is zero-length.
  */
 static int conn_recv_new_connection_id(ngtcp2_conn *conn,
-                                       const ngtcp2_new_connection_id *fr,
-                                       ngtcp2_tstamp ts) {
+                                       const ngtcp2_new_connection_id *fr) {
   size_t i, len, max;
   ngtcp2_dcid *dcid;
   ngtcp2_pv *pv = conn->pv;
@@ -5829,11 +5828,32 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     ngtcp2_dcid_init(dcid, fr->seq, &fr->cid, fr->stateless_reset_token);
   }
 
-  if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
-    return 0;
-  }
+  return 0;
+}
+
+/*
+ * conn_post_process_recv_new_connection_id handles retirement request
+ * of active DCIDs.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+static int conn_post_process_recv_new_connection_id(ngtcp2_conn *conn,
+                                                    ngtcp2_tstamp ts) {
+  ngtcp2_pv *pv = conn->pv;
+  ngtcp2_dcid *dcid;
+  int rv;
 
   if (conn->dcid.current.seq < conn->dcid.retire_prior_to) {
+    if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+      return 0;
+    }
+
     rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
     if (rv != 0) {
       return rv;
@@ -6244,6 +6264,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   int non_probing_pkt = 0;
   int key_phase_bit_changed = 0;
   int force_decrypt_failure = 0;
+  int recv_ncid = 0;
 
   if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     nread = ngtcp2_pkt_decode_hd_long(&hd, pkt, pktlen);
@@ -6618,10 +6639,11 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       break;
     case NGTCP2_FRAME_NEW_CONNECTION_ID:
-      rv = conn_recv_new_connection_id(conn, &fr->new_connection_id, ts);
+      rv = conn_recv_new_connection_id(conn, &fr->new_connection_id);
       if (rv != 0) {
         return rv;
       }
+      recv_ncid = 1;
       break;
     case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
       rv = conn_recv_retire_connection_id(conn, &hd, &fr->retire_connection_id,
@@ -6650,6 +6672,13 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   ngtcp2_qlog_pkt_received_end(&conn->qlog, &hd, pktlen);
+
+  if (recv_ncid) {
+    rv = conn_post_process_recv_new_connection_id(conn, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
 
   if (conn->server && hd.type == NGTCP2_PKT_SHORT && non_probing_pkt &&
       pktns->rx.max_pkt_num < hd.pkt_num &&
