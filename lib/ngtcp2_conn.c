@@ -5810,20 +5810,21 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     return 0;
   }
 
-  max = ngtcp2_min(
-      conn->local.settings.transport_params.active_connection_id_limit,
-      NGTCP2_MAX_DCID_POOL_SIZE);
-  len = ngtcp2_ringbuf_len(&conn->dcid.unused);
-  if (len >= max) {
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "too many connection ID");
-    /* If active_connection_id_limit is 0, and no unused DCID is
-       present, we are going to keep current DCID even if it is under
-       retire_prior_to.  This is violation of peer because we
-       advertised active_connection_id_limit = 0. */
-    return 0;
-  }
-
   if (!found) {
+    max = ngtcp2_min(
+        conn->local.settings.transport_params.active_connection_id_limit,
+        NGTCP2_MAX_DCID_POOL_SIZE);
+    len = ngtcp2_ringbuf_len(&conn->dcid.unused);
+    if (len >= max) {
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                      "too many connection ID");
+      /* If active_connection_id_limit is 0, and no unused DCID is
+         present, we are going to keep current DCID even if it is under
+         retire_prior_to.  This is violation of peer because we
+         advertised active_connection_id_limit = 0. */
+      return 0;
+    }
+
     dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused);
     ngtcp2_dcid_init(dcid, fr->seq, &fr->cid, fr->stateless_reset_token);
   }
