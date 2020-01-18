@@ -6717,6 +6717,8 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
                           ts);
     if (nread < 0 && !ngtcp2_err_is_fatal((int)nread)) {
+      /* TODO We don't know this is the first QUIC packet in a
+         datagram. */
       rv = conn_on_stateless_reset(conn, &(*ppc)->path.path, (*ppc)->pkt,
                                    (*ppc)->pktlen);
       if (rv == 0) {
@@ -6839,9 +6841,11 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (ngtcp2_err_is_fatal((int)nread)) {
         return (int)nread;
       }
-      rv = conn_on_stateless_reset(conn, path, origpkt, origpktlen);
-      if (rv == 0) {
-        return 0;
+      if (origpkt == pkt) {
+        rv = conn_on_stateless_reset(conn, path, origpkt, origpktlen);
+        if (rv == 0) {
+          return 0;
+        }
       }
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
         return 0;
