@@ -410,11 +410,11 @@ static int cycle_less(const ngtcp2_pq_entry *lhs, const ngtcp2_pq_entry *rhs) {
   ngtcp2_strm *ls = ngtcp2_struct_of(lhs, ngtcp2_strm, pe);
   ngtcp2_strm *rs = ngtcp2_struct_of(rhs, ngtcp2_strm, pe);
 
-  if (ls->cycle < rs->cycle) {
-    return rs->cycle - ls->cycle <= 1;
+  if (ls->cycle == rs->cycle) {
+    return ls->stream_id < rs->stream_id;
   }
 
-  return ls->cycle - rs->cycle > 1;
+  return rs->cycle - ls->cycle <= 1;
 }
 
 static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem) {
@@ -3412,6 +3412,17 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
   return 0;
 }
 
+static uint64_t conn_tx_strmq_first_cycle(ngtcp2_conn *conn) {
+  ngtcp2_strm *strm;
+
+  if (ngtcp2_pq_empty(&conn->tx.strmq)) {
+    return 0;
+  }
+
+  strm = ngtcp2_struct_of(ngtcp2_pq_top(&conn->tx.strmq), ngtcp2_strm, pe);
+  return strm->cycle;
+}
+
 /*
  * conn_resched_frames reschedules frames linked from |*pfrc| for
  * retransmission.
@@ -3455,6 +3466,7 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
         return rv;
       }
       if (!ngtcp2_strm_is_tx_queued(strm)) {
+        strm->cycle = conn_tx_strmq_first_cycle(conn);
         rv = ngtcp2_conn_tx_strmq_push(conn, strm);
         if (rv != 0) {
           return rv;
@@ -8555,6 +8567,7 @@ static int conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
       top = ngtcp2_conn_tx_strmq_top(conn);
       strm->cycle = top->cycle;
     }
+    strm->cycle = conn_tx_strmq_first_cycle(conn);
     return ngtcp2_conn_tx_strmq_push(conn, strm);
   }
 
