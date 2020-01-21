@@ -9,7 +9,7 @@
 # - CLIENT_PARAMS contains user-supplied command line parameters
 
 case $TESTCASE in
-    versionnegotiation|handshake|transfer|retry|resumption|http3)
+    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect)
 	:
 	;;
     *)
@@ -33,6 +33,10 @@ if [ "$ROLE" == "client" ]; then
 	/usr/local/bin/client $CLIENT_ARGS --exit-on-first-stream-close $REQUESTS $CLIENT_PARAMS &> $LOG
 	REQUESTS=${REQS[@]:1}
 	/usr/local/bin/client $CLIENT_ARGS --disable-early-data $REQUESTS $CLIENT_PARAMS &> $LOG
+    elif [ "$TESTCASE" == "multiconnect" ]; then
+	for $REQ in $REQUESTS; do
+	    /usr/local/bin/client $CLIENT_ARGS $REQ $CLIENT_PARAMS &> $LOG
+	done
     else
 	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
     fi
