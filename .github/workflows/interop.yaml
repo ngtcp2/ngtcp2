@@ -1,0 +1,22 @@
+name: interop
+
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: docker-build
+      run: |
+        cd interop
+        docker build -t docker.pkg.github.com/ngtcp2/ngtcp2/ngtcp2-interop .
+    - name: publish
+      run: |
+        docker login docker.pkg.github.com -u "nobody" -p "${{ secrets.GITHUB_TOKEN }}"
+        docker push docker.pkg.github.com/ngtcp2/ngtcp2/ngtcp2-interop
