@@ -2017,9 +2017,10 @@ int ngtcp2_pkt_validate_ack(ngtcp2_ack *fr) {
   return 0;
 }
 
-ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
-                                              uint8_t *stateless_reset_token,
-                                              uint8_t *rand, size_t randlen) {
+ngtcp2_ssize
+ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
+                                 const uint8_t *stateless_reset_token,
+                                 const uint8_t *rand, size_t randlen) {
   uint8_t *p;
 
   if (destlen <

@@ -835,8 +835,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  *     :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN`.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
-    uint8_t *dest, size_t destlen, uint8_t *stateless_reset_token,
-    uint8_t *rand, size_t randlen);
+    uint8_t *dest, size_t destlen, const uint8_t *stateless_reset_token,
+    const uint8_t *rand, size_t randlen);
 
 /**
  * @function
