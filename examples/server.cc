@@ -1410,7 +1410,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.initial_max_data = config.max_data;
   params.initial_max_streams_bidi = config.max_streams_bidi;
   params.initial_max_streams_uni = config.max_streams_uni;
-  params.idle_timeout = config.timeout;
+  params.max_idle_timeout = config.timeout;
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
 

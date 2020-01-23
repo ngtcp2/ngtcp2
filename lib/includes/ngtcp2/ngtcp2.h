@@ -391,7 +391,7 @@ typedef enum ngtcp2_transport_param_id : uint16_t {
 typedef enum ngtcp2_transport_param_id {
 #endif
   NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID = 0x0000,
-  NGTCP2_TRANSPORT_PARAM_IDLE_TIMEOUT = 0x0001,
+  NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT = 0x0001,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 0x0002,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 0x0003,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 0x0004,
@@ -501,9 +501,9 @@ typedef struct ngtcp2_transport_params {
   /* initial_max_streams_uni is the number of concurrent
      unidirectional streams that the remote endpoint can create. */
   uint64_t initial_max_streams_uni;
-  /* idle_timeout is a duration during which endpoint allows
+  /* max_idle_timeout is a duration during which endpoint allows
      quiescent. */
-  ngtcp2_duration idle_timeout;
+  ngtcp2_duration max_idle_timeout;
   uint64_t max_packet_size;
   uint64_t active_connection_id_limit;
   uint64_t ack_delay_exponent;

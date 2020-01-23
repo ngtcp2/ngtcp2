@@ -929,7 +929,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.initial_max_data = config.max_data;
   params.initial_max_streams_bidi = config.max_streams_bidi;
   params.initial_max_streams_uni = config.max_streams_uni;
-  params.idle_timeout = config.timeout;
+  params.max_idle_timeout = config.timeout;
   params.active_connection_id_limit = 7;
 
   auto path = ngtcp2_path{

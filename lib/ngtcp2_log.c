@@ -631,9 +631,9 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_bidi);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_uni_streams=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_uni);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " idle_timeout=%u"),
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_idle_timeout=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS,
-                  params->idle_timeout / NGTCP2_MILLISECONDS);
+                  params->max_idle_timeout / NGTCP2_MILLISECONDS);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u"),
