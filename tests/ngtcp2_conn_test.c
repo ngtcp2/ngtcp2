@@ -4305,6 +4305,42 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(NULL == frc->next);
 
   ngtcp2_conn_del(conn);
+
+  /* Receiving more than advertised CID is treated as error */
+  setup_default_server(&conn);
+  conn->local.settings.transport_params.active_connection_id_limit = 2;
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  assert(NULL == conn->pv);
+
+  frs[0].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[0].new_connection_id.seq = 1;
+  frs[0].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[0].new_connection_id.cid, cid, sizeof(cid));
+  memcpy(frs[0].new_connection_id.stateless_reset_token, token, sizeof(token));
+  frs[1].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[1].new_connection_id.seq = 2;
+  frs[1].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid2, sizeof(cid2));
+  memcpy(frs[1].new_connection_id.stateless_reset_token, token2,
+         sizeof(token2));
+  frs[2].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[2].new_connection_id.seq = 3;
+  frs[2].new_connection_id.retire_prior_to = 0;
+  ngtcp2_cid_init(&frs[2].new_connection_id.cid, cid3, sizeof(cid3));
+  memcpy(frs[2].new_connection_id.stateless_reset_token, token3,
+         sizeof(token3));
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 3);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_CONNECTION_ID_LIMIT == rv);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_retire_connection_id(void) {

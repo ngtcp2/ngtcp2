@@ -498,6 +498,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   const ngtcp2_transport_params *params = &settings->transport_params;
   uint8_t *buf;
 
+  assert(params->active_connection_id_limit <= NGTCP2_MAX_DCID_POOL_SIZE);
+
   if (mem == NULL) {
     mem = ngtcp2_mem_default();
   }
@@ -5754,11 +5756,12 @@ static int conn_retire_dcid_prior_to(ngtcp2_conn *conn, ngtcp2_ringbuf *rb,
  */
 static int conn_recv_new_connection_id(ngtcp2_conn *conn,
                                        const ngtcp2_new_connection_id *fr) {
-  size_t i, len, max;
+  size_t i, len;
   ngtcp2_dcid *dcid;
   ngtcp2_pv *pv = conn->pv;
   int rv;
   int found = 0;
+  size_t extra_dcid = 0;
 
   if (conn->dcid.current.cid.datalen == 0) {
     return NGTCP2_ERR_PROTO;
@@ -5826,11 +5829,27 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   }
 
   if (!found) {
-    max = ngtcp2_min(
-        conn->local.settings.transport_params.active_connection_id_limit,
-        NGTCP2_MAX_DCID_POOL_SIZE);
     len = ngtcp2_ringbuf_len(&conn->dcid.unused);
-    if (len >= max) {
+
+    if (conn->dcid.current.seq >= conn->dcid.retire_prior_to) {
+      ++extra_dcid;
+    }
+    if (pv) {
+      if (pv->dcid.seq >= conn->dcid.retire_prior_to) {
+        ++extra_dcid;
+      }
+      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+          pv->fallback_dcid.seq >= conn->dcid.retire_prior_to) {
+        ++extra_dcid;
+      }
+    }
+
+    if (conn->local.settings.transport_params.active_connection_id_limit <=
+        len + extra_dcid) {
+      return NGTCP2_ERR_CONNECTION_ID_LIMIT;
+    }
+
+    if (len >= NGTCP2_MAX_DCID_POOL_SIZE) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                       "too many connection ID");
       return 0;
