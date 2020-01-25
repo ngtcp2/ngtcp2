@@ -9141,3 +9141,65 @@ void ngtcp2_settings_default(ngtcp2_settings *settings) {
       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   settings->transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
 }
+
+/* The functions prefixed with ngtcp2_pkt_ are usually put inside
+   ngtcp2_pkt.c.  This function uses encryption construct and uses
+   test data defined only in ngtcp2_conn_test.c, so it is written
+   here. */
+ngtcp2_ssize ngtcp2_pkt_write_connection_close(
+    uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+    const ngtcp2_cid *scid, uint64_t error_code, ngtcp2_encrypt encrypt,
+    const ngtcp2_crypto_aead *aead, const uint8_t *key, const uint8_t *iv,
+    ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
+    const uint8_t *hp_key) {
+  ngtcp2_pkt_hd hd;
+  ngtcp2_crypto_km ckm;
+  ngtcp2_crypto_cc cc;
+  ngtcp2_vec hp_key_vec;
+  ngtcp2_ppe ppe;
+  ngtcp2_frame fr = {0};
+  int rv;
+
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_INITIAL, dcid,
+                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1,
+                     NGTCP2_PROTO_VER, /* len = */ 0);
+
+  ngtcp2_vec_init(&ckm.secret, NULL, 0);
+  ngtcp2_vec_init(&ckm.key, key, 16);
+  ngtcp2_vec_init(&ckm.iv, iv, 12);
+  ngtcp2_vec_init(&hp_key_vec, hp_key, 16);
+  ckm.pkt_num = 0;
+  ckm.flags = NGTCP2_CRYPTO_KM_FLAG_NONE;
+
+  cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+  cc.aead = *aead;
+  cc.hp = *hp;
+  cc.ckm = &ckm;
+  cc.hp_key = &hp_key_vec;
+  cc.encrypt = encrypt;
+  cc.hp_mask = hp_mask;
+  cc.user_data = NULL;
+
+  ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
+
+  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
+  if (rv != 0) {
+    assert(NGTCP2_ERR_NOBUF == rv);
+    return rv;
+  }
+
+  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
+  fr.connection_close.error_code = error_code;
+
+  rv = ngtcp2_ppe_encode_frame(&ppe, &fr);
+  if (rv != 0) {
+    assert(NGTCP2_ERR_NOBUF == rv);
+    return rv;
+  }
+
+  return ngtcp2_ppe_final(&ppe, NULL);
+}

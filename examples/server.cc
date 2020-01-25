@@ -2309,9 +2309,12 @@ int Server::on_read(Endpoint &ep) {
         case NGTCP2_PKT_INITIAL:
           if (config.validate_addr || hd.tokenlen) {
             std::cerr << "Perform stateless address validation" << std::endl;
-            if (hd.tokenlen == 0 ||
-                verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
+            if (hd.tokenlen == 0) {
               send_retry(&hd, ep, &su.sa, addrlen);
+              continue;
+            }
+            if (verify_token(&ocid, &hd, &su.sa, addrlen) != 0) {
+              send_stateless_connection_close(&hd, ep, &su.sa, addrlen);
               continue;
             }
             pocid = &ocid;
@@ -2505,6 +2508,32 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   if (nwrite < 0) {
     std::cerr << "ngtcp2_pkt_write_retry: " << ngtcp2_strerror(nwrite)
               << std::endl;
+    return -1;
+  }
+
+  buf.push(nwrite);
+
+  Address remote_addr;
+  remote_addr.len = salen;
+  memcpy(&remote_addr.su.sa, sa, salen);
+
+  if (send_packet(ep, remote_addr, buf.rpos(), buf.size(), 0) !=
+      NETWORK_ERR_OK) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
+                                            Endpoint &ep, const sockaddr *sa,
+                                            socklen_t salen) {
+  Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
+
+  auto nwrite = ngtcp2_crypto_write_connection_close(
+      buf.wpos(), buf.left(), &chd->scid, &chd->dcid, NGTCP2_INVALID_TOKEN);
+  if (nwrite < 0) {
+    std::cerr << "ngtcp2_crypto_write_connection_close failed" << std::endl;
     return -1;
   }
 

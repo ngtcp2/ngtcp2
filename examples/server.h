@@ -340,6 +340,8 @@ public:
                                socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep, const sockaddr *sa,
                  socklen_t salen);
+  int send_stateless_connection_close(const ngtcp2_pkt_hd *chd, Endpoint &ep,
+                                      const sockaddr *sa, socklen_t salen);
   int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
                      socklen_t salen, const ngtcp2_cid *ocid);
   int verify_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,

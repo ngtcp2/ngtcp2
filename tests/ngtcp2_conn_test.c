@@ -5047,3 +5047,26 @@ void test_ngtcp2_conn_get_active_dcid(void) {
 
   ngtcp2_conn_del(conn);
 }
+
+void test_ngtcp2_pkt_write_connection_close(void) {
+  ngtcp2_ssize spktlen;
+  uint8_t buf[1200];
+  ngtcp2_cid dcid, scid;
+  ngtcp2_crypto_aead aead = {0};
+  ngtcp2_crypto_cipher hp_mask = {0};
+
+  dcid_init(&dcid);
+  scid_init(&scid);
+
+  spktlen = ngtcp2_pkt_write_connection_close(
+      buf, sizeof(buf), &dcid, &scid, NGTCP2_INVALID_TOKEN, null_encrypt, &aead,
+      null_key, null_iv, null_hp_mask, &hp_mask, null_hp_key);
+
+  CU_ASSERT(spktlen > 0);
+
+  spktlen = ngtcp2_pkt_write_connection_close(
+      buf, 16, &dcid, &scid, NGTCP2_INVALID_TOKEN, null_encrypt, &aead,
+      null_key, null_iv, null_hp_mask, &hp_mask, null_hp_key);
+
+  CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
+}

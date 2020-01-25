@@ -243,6 +243,8 @@ int main() {
                    test_ngtcp2_conn_recv_client_initial_token) ||
       !CU_add_test(pSuite, "conn_get_active_dcid",
                    test_ngtcp2_conn_get_active_dcid) ||
+      !CU_add_test(pSuite, "pkt_write_connection_close",
+                   test_ngtcp2_pkt_write_connection_close) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
       !CU_add_test(pSuite, "map_functional", test_ngtcp2_map_functional) ||
       !CU_add_test(pSuite, "map_each_free", test_ngtcp2_map_each_free) ||

@@ -1623,6 +1623,34 @@ typedef struct ngtcp2_conn_callbacks {
   ngtcp2_connection_id_status dcid_status;
 } ngtcp2_conn_callbacks;
 
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_write_connection_close` writes Initial packet
+ * containing CONNECTION_CLOSE frame with the given |error_code| to
+ * the buffer pointed by |dest| of length |destlen|.  All encryption
+ * parameters are for Initial packet encryption.  The packet number is
+ * always 0.
+ *
+ * The primary use case of this function is for server to send
+ * CONNECTION_CLOSE frame in Initial packet to close connection
+ * without committing the state when validating Retry token fails.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE
+ *     Callback function failed.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
+    uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+    const ngtcp2_cid *scid, uint64_t error_code, ngtcp2_encrypt encrypt,
+    const ngtcp2_crypto_aead *aead, const uint8_t *key, const uint8_t *iv,
+    ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
+    const uint8_t *hp_key);
+
 /*
  * `ngtcp2_accept` is used by server implementation, and decides
  * whether packet |pkt| of length |pktlen| is acceptable for initial

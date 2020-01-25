@@ -442,3 +442,40 @@ int ngtcp2_crypto_generate_stateless_reset_token(uint8_t *token,
 
   return 0;
 }
+
+ngtcp2_ssize ngtcp2_crypto_write_connection_close(uint8_t *dest, size_t destlen,
+                                                  const ngtcp2_cid *dcid,
+                                                  const ngtcp2_cid *scid,
+                                                  uint64_t error_code) {
+  uint8_t rx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t tx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t initial_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
+  uint8_t tx_key[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  uint8_t tx_iv[NGTCP2_CRYPTO_INITIAL_IVLEN];
+  uint8_t tx_hp_key[NGTCP2_CRYPTO_INITIAL_KEYLEN];
+  ngtcp2_crypto_ctx ctx;
+  ngtcp2_ssize spktlen;
+
+  ngtcp2_crypto_ctx_initial(&ctx);
+
+  if (ngtcp2_crypto_derive_initial_secrets(rx_secret, tx_secret, initial_secret,
+                                           scid,
+                                           NGTCP2_CRYPTO_SIDE_SERVER) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_crypto_derive_packet_protection_key(
+          tx_key, tx_iv, tx_hp_key, &ctx.aead, &ctx.md, tx_secret,
+          NGTCP2_CRYPTO_INITIAL_SECRETLEN) != 0) {
+    return -1;
+  }
+
+  spktlen = ngtcp2_pkt_write_connection_close(
+      dest, destlen, dcid, scid, error_code, ngtcp2_crypto_encrypt_cb,
+      &ctx.aead, tx_key, tx_iv, ngtcp2_crypto_hp_mask_cb, &ctx.hp, tx_hp_key);
+  if (spktlen < 0) {
+    return -1;
+  }
+
+  return spktlen;
+}
