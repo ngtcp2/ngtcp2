@@ -98,10 +98,10 @@ typedef enum {
    kept to catch in-flight packet on retired path. */
 #define NGTCP2_MAX_DCID_RETIRED_SIZE 2
 /* NGTCP2_MAX_SCID_POOL_SIZE is the maximum number of source
-   connection ID the local endpoint provides in NEW_CONNECTION_ID to
-   the remote endpoint.  The chosen value was described in old draft.
-   Now a remote endpoint tells the maximum value.  The value can be
-   quite large, and we have to put the sane limit.*/
+   connection ID the local endpoint provides to the remote endpoint.
+   The chosen value was described in old draft.  Now a remote endpoint
+   tells the maximum value.  The value can be quite large, and we have
+   to put the sane limit.*/
 #define NGTCP2_MAX_SCID_POOL_SIZE 8
 
 /*
@@ -295,11 +295,6 @@ struct ngtcp2_conn {
     ngtcp2_pq used;
     /* last_seq is the last sequence number of connection ID. */
     uint64_t last_seq;
-    /* num_initial_id is the number of Connection ID initially offered
-       to the remote endpoint and is not retired yet.  It includes the
-       initial Connection ID used during handshake and the one in
-       preferred_address transport parameter. */
-    size_t num_initial_id;
     /* num_retired is the number of retired Connection ID still
        included in set. */
     size_t num_retired;

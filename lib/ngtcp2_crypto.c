@@ -373,7 +373,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->disable_active_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params->max_idle_timeout = 0;
-  params->active_connection_id_limit = 0;
+  params->active_connection_id_limit =
+      NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params->original_connection_id_present = 0;
 
   memset(scb, 0, sizeof(scb));

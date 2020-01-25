@@ -457,6 +457,14 @@ typedef enum ngtcp2_rand_ctx {
 /**
  * @macro
  *
+ * NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT is the default value of
+ * active_connection_id_limit transport parameter value if omitted.
+ */
+#define NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT 2
+
+/**
+ * @macro
+ *
  * NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS is TLS extension type of
  * quic_transport_parameters.
  */
@@ -501,10 +509,12 @@ typedef struct ngtcp2_transport_params {
   /* initial_max_streams_uni is the number of concurrent
      unidirectional streams that the remote endpoint can create. */
   uint64_t initial_max_streams_uni;
-  /* max_idle_timeout is a duration during which endpoint allows
+  /* max_idle_timeout is a duration during which sender allows
      quiescent. */
   ngtcp2_duration max_idle_timeout;
   uint64_t max_packet_size;
+  /* active_connection_id_limit is the maximum number of Connection ID
+     that sender can store. */
   uint64_t active_connection_id_limit;
   uint64_t ack_delay_exponent;
   ngtcp2_duration max_ack_delay;

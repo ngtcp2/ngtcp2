@@ -612,7 +612,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                    params->stateless_reset_token_present
                        ? params->stateless_reset_token
                        : NULL);
-  scident->flags |= NGTCP2_SCID_FLAG_INITIAL_CID;
 
   rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL,
                          ngtcp2_ksl_key_ptr(&key, &scident->cid), scident);
@@ -621,8 +620,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   scident = NULL;
-
-  (*pconn)->scid.num_initial_id = 1;
 
   if (server && params->preferred_address_present) {
     scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
@@ -633,7 +630,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
     ngtcp2_scid_init(scident, 1, &params->preferred_address.cid,
                      params->preferred_address.stateless_reset_token);
-    scident->flags |= NGTCP2_SCID_FLAG_INITIAL_CID;
 
     rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL,
                            ngtcp2_ksl_key_ptr(&key, &scident->cid), scident);
@@ -644,7 +640,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     scident = NULL;
 
     (*pconn)->scid.last_seq = 1;
-    ++(*pconn)->scid.num_initial_id;
   }
 
   ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
@@ -724,6 +719,7 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->local.bidi.next_stream_id = 0;
   (*pconn)->local.uni.next_stream_id = 2;
+
   return 0;
 }
 
@@ -734,6 +730,8 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                            const ngtcp2_settings *settings,
                            const ngtcp2_mem *mem, void *user_data) {
   int rv;
+  ngtcp2_transport_params *params;
+
   rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings, mem,
                 user_data, 1);
   if (rv != 0) {
@@ -743,6 +741,13 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   (*pconn)->local.bidi.next_stream_id = 1;
   (*pconn)->local.uni.next_stream_id = 3;
+
+  params = &(*pconn)->local.settings.transport_params;
+  if (dcid->datalen == 0) {
+    /* Client uses zero-length Connection ID */
+    params->active_connection_id_limit = 0;
+  }
+
   return 0;
 }
 
@@ -1998,25 +2003,19 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
  * remote endpoint.
  */
 static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
-  size_t n, left;
+  size_t n, len = ngtcp2_ksl_len(&conn->scid.set);
 
-  if (ngtcp2_ksl_len(&conn->scid.set) >= NGTCP2_MAX_SCID_POOL_SIZE) {
+  if (len >= NGTCP2_MAX_SCID_POOL_SIZE) {
     return 0;
   }
 
-  left = NGTCP2_MAX_SCID_POOL_SIZE - ngtcp2_ksl_len(&conn->scid.set);
+  /* len includes retired CID.  We don't provide extra CID if doing so
+     excceds NGTCP2_MAX_SCID_POOL_SIZE. */
 
-  assert(ngtcp2_ksl_len(&conn->scid.set) >=
-         conn->scid.num_initial_id + conn->scid.num_retired);
-
-  n = ngtcp2_ksl_len(&conn->scid.set) - conn->scid.num_initial_id -
+  n = conn->remote.transport_params.active_connection_id_limit +
       conn->scid.num_retired;
 
-  assert(conn->remote.transport_params.active_connection_id_limit >= n);
-
-  n = conn->remote.transport_params.active_connection_id_limit - n;
-
-  return ngtcp2_min(n, left);
+  return ngtcp2_min(NGTCP2_MAX_SCID_POOL_SIZE, n) - len;
 }
 
 /*
@@ -2267,13 +2266,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  if (conn->oscid.datalen) {
-    rv = conn_enqueue_new_connection_id(conn);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
   if (!ppe_pending) {
     switch (type) {
     case NGTCP2_PKT_SHORT:
@@ -2283,6 +2275,18 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
               : NGTCP2_PKT_FLAG_NONE;
       cc->ckm = pktns->crypto.tx.ckm;
       cc->hp_key = pktns->crypto.tx.hp_key;
+
+      /* transport parameter is only valid after handshake completion
+         which means we don't know how many connection ID that remote
+         peer can accept before handshake completion. */
+      if (conn->oscid.datalen &&
+          (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+        rv = conn_enqueue_new_connection_id(conn);
+        if (rv != 0) {
+          return rv;
+        }
+      }
+
       break;
     case NGTCP2_PKT_0RTT:
       assert(!conn->server);
@@ -5829,10 +5833,6 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     if (len >= max) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                       "too many connection ID");
-      /* If active_connection_id_limit is 0, and no unused DCID is
-         present, we are going to keep current DCID even if it is under
-         retire_prior_to.  This is violation of peer because we
-         advertised active_connection_id_limit = 0. */
       return 0;
     }
 
@@ -5981,9 +5981,6 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
       if (!(scid->flags & NGTCP2_SCID_FLAG_RETIRED)) {
         scid->flags |= NGTCP2_SCID_FLAG_RETIRED;
         ++conn->scid.num_retired;
-        if (scid->flags & NGTCP2_SCID_FLAG_INITIAL_CID) {
-          --conn->scid.num_initial_id;
-        }
       }
 
       if (scid->pe.index != NGTCP2_PQ_BAD_INDEX) {
@@ -7895,6 +7892,13 @@ int ngtcp2_conn_set_remote_transport_params(
   ngtcp2_dcid *dcid;
 
   assert(!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED));
+
+  /* Assume that ngtcp2_decode_transport_params sets default value if
+     active_connection_id_limit is omitted. */
+  if (params->active_connection_id_limit <
+      NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT) {
+    return NGTCP2_ERR_TRANSPORT_PARAM;
+  }
 
   if (!conn->server) {
     rv = conn_client_validate_transport_params(conn, params);
