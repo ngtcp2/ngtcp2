@@ -1076,8 +1076,8 @@ size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
  * ngtcp2_pkt_verify_reserved_bits verifies that the first byte |c| of
  * the packet header has the correct reserved bits.
  *
- * This function returns 0 if it succeeds, or the following negative
- * error codes:
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
  *
  * NGTCP2_ERR_PROTO
  *     Reserved bits has wrong value.

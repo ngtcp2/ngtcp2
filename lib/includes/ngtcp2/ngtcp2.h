@@ -1655,7 +1655,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
     const ngtcp2_cid *scid, const ngtcp2_cid *odcid, const uint8_t *token,
     size_t tokenlen, ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead);
 
-/*
+/**
+ * @function
+ *
  * `ngtcp2_accept` is used by server implementation, and decides
  * whether packet |pkt| of length |pktlen| is acceptable for initial
  * packet from client.
