@@ -6017,8 +6017,6 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
  *     User-defined callback function failed.
  */
 static int conn_recv_handshake_done(ngtcp2_conn *conn) {
-  int rv;
-
   if (conn->server) {
     return NGTCP2_ERR_PROTO;
   }
@@ -6030,13 +6028,6 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
 
   conn_discard_handshake_state(conn);
-
-  if (conn->remote.transport_params.preferred_address_present) {
-    rv = conn_select_preferred_addr(conn);
-    if (rv != 0) {
-      return rv;
-    }
-  }
 
   /* TODO Call handshake_done callback */
 
@@ -7326,6 +7317,13 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     rv = conn_process_buffered_protected_pkt(conn, &conn->pktns, ts);
     if (rv != 0) {
       return (ngtcp2_ssize)rv;
+    }
+
+    if (conn->remote.transport_params.preferred_address_present) {
+      rv = conn_select_preferred_addr(conn);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
     return res;
