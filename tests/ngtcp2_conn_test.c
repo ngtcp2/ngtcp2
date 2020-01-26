@@ -419,7 +419,8 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
                      NGTCP2_CONN_FLAG_SADDR_VERIFIED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   params = &(*pconn)->remote.transport_params;
   params->initial_max_stream_data_bidi_local = 64 * 1024;
   params->initial_max_stream_data_bidi_remote = 64 * 1024;
@@ -465,7 +466,8 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
-                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED;
+                     NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
+                     NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   params = &(*pconn)->remote.transport_params;
   params->initial_max_stream_data_bidi_local = 64 * 1024;
   params->initial_max_stream_data_bidi_remote = 64 * 1024;
@@ -4443,8 +4445,6 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
   setup_default_client(&conn);
-
-  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
