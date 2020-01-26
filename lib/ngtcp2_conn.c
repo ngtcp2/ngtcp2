@@ -6572,7 +6572,9 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       case NGTCP2_FRAME_STREAMS_BLOCKED_BIDI:
       case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
       case NGTCP2_FRAME_NEW_CONNECTION_ID:
+      case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
       case NGTCP2_FRAME_PATH_CHALLENGE:
+      case NGTCP2_FRAME_PATH_RESPONSE:
         break;
       default:
         return NGTCP2_ERR_PROTO;
