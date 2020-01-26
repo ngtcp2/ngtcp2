@@ -3543,9 +3543,9 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn);
 
 /*
  * conn_on_retry is called when Retry packet is received.  The
- * function decodes the data in the buffer pointed by |payload| whose
- * length is |payloadlen| as Retry packet payload.  The packet header
- * is given in |hd|.
+ * function decodes the data in the buffer pointed by |pkt| whose
+ * length is |pktlen| as Retry packet.  The length of long packet
+ * header is given in |hdpktlen|.  |pkt| includes packet header.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3560,7 +3560,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn);
  *     ODCID does not match; or Token is empty.
  */
 static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                         const uint8_t *payload, size_t payloadlen) {
+                         size_t hdpktlen, const uint8_t *pkt, size_t pktlen) {
   int rv;
   ngtcp2_pkt_retry retry;
   uint8_t *p;
@@ -3574,8 +3574,18 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return 0;
   }
 
-  rv = ngtcp2_pkt_decode_retry(&retry, payload, payloadlen);
+  rv = ngtcp2_pkt_decode_retry(&retry, pkt + hdpktlen, pktlen - hdpktlen);
   if (rv != 0) {
+    return rv;
+  }
+
+  retry.odcid = conn->dcid.current.cid;
+
+  rv = ngtcp2_pkt_verify_retry_tag(&retry, pkt, pktlen, conn->callbacks.encrypt,
+                                   &conn->crypto.retry_aead);
+  if (rv != 0) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                    "unable to verify Retry packet integrity");
     return rv;
   }
 
@@ -3587,8 +3597,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return NGTCP2_ERR_PROTO;
   }
 
-  if (ngtcp2_cid_eq(&conn->dcid.current.cid, &hd->scid) ||
-      !ngtcp2_cid_eq(&conn->dcid.current.cid, &retry.odcid)) {
+  if (ngtcp2_cid_eq(&conn->dcid.current.cid, &hd->scid)) {
     return 0;
   }
 
@@ -4391,7 +4400,7 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    rv = conn_on_retry(conn, &hd, pkt + hdpktlen, pktlen - hdpktlen);
+    rv = conn_on_retry(conn, &hd, hdpktlen, pkt, pktlen);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -9078,6 +9087,12 @@ void ngtcp2_conn_set_initial_crypto_ctx(ngtcp2_conn *conn,
 const ngtcp2_crypto_ctx *ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn) {
   assert(conn->in_pktns);
   return &conn->in_pktns->crypto.ctx;
+}
+
+void ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn,
+                                const ngtcp2_crypto_aead *aead) {
+  assert(!conn->server);
+  conn->crypto.retry_aead = *aead;
 }
 
 void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,

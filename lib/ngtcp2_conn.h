@@ -413,6 +413,8 @@ struct ngtcp2_conn {
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_vec decrypt_buf;
+    /* retry_aead is AEAD to verify Retry packet integrity. */
+    ngtcp2_crypto_aead retry_aead;
   } crypto;
 
   /* pkt contains the packet intermediate construction data to support

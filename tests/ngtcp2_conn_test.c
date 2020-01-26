@@ -54,6 +54,12 @@ static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
   (void)ad;
   (void)adlen;
   (void)user_data;
+
+  if (plaintextlen && plaintext != dest) {
+    memcpy(dest, plaintext, plaintextlen);
+  }
+  memset(dest + plaintextlen, 0, NGTCP2_FAKE_AEAD_OVERHEAD);
+
   return 0;
 }
 
@@ -517,6 +523,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   ngtcp2_conn_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid rcid, scid;
+  ngtcp2_crypto_aead retry_aead = {0};
 
   rcid_init(&rcid);
   scid_init(&scid);
@@ -535,6 +542,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   ngtcp2_conn_install_initial_key(*pconn, null_key, null_iv, null_hp_key,
                                   null_key, null_iv, null_hp_key,
                                   sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_set_retry_aead(*pconn, &retry_aead);
 }
 
 static void setup_early_server(ngtcp2_conn **pconn) {
@@ -2249,7 +2257,6 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
   ngtcp2_ssize spktlen;
-  ngtcp2_pkt_hd hd;
   uint64_t t = 0;
   ngtcp2_cid dcid;
   const uint8_t token[] = "address-validation-token";
@@ -2259,6 +2266,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   int rv;
   ngtcp2_vec datav;
   ngtcp2_strm *strm;
+  ngtcp2_crypto_aead aead = {0};
 
   dcid_init(&dcid);
   setup_handshake_client(&conn);
@@ -2268,16 +2276,13 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   CU_ASSERT(spktlen > 0);
 
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &conn->oscid, &dcid,
+                                   ngtcp2_conn_get_dcid(conn), token,
+                                   strsize(token), null_encrypt, &aead);
+
+  CU_ASSERT(spktlen > 0);
+
   for (i = 0; i < 2; ++i) {
-    ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
-                       &conn->oscid, &dcid, 0, 0, conn->version, 0);
-
-    spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd,
-                                     ngtcp2_conn_get_dcid(conn), token,
-                                     strsize(token));
-
-    CU_ASSERT(spktlen > 0);
-
     rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, ++t);
 
     CU_ASSERT(0 == rv);
@@ -2297,7 +2302,7 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* Retry with wrong ODCID is rejected */
+  /* Retry packet with non-matching tag is rejected */
   setup_handshake_client(&conn);
   conn->callbacks.recv_retry = recv_retry;
 
@@ -2305,41 +2310,14 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
-                     &conn->oscid, &dcid, 0, 0, conn->version, 0);
-
-  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &dcid, token,
-                                   strsize(token));
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &conn->oscid, &dcid,
+                                   ngtcp2_conn_get_dcid(conn), token,
+                                   strsize(token), null_encrypt, &aead);
 
   CU_ASSERT(spktlen > 0);
 
-  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, ++t);
-
-  CU_ASSERT(0 == rv);
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
-
-  CU_ASSERT(0 == spktlen);
-
-  ngtcp2_conn_del(conn);
-
-  /* Retry with SCID which equals to the origin client DCID is
-     rejected */
-  setup_handshake_client(&conn);
-  conn->callbacks.recv_retry = recv_retry;
-
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
-
-  CU_ASSERT(spktlen > 0);
-
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
-                     &conn->oscid, &conn->dcid.current.cid, 0, 0, conn->version,
-                     0);
-
-  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &hd, &dcid, token,
-                                   strsize(token));
-
-  CU_ASSERT(spktlen > 0);
+  /* Change tag */
+  buf[spktlen - 1] = 1;
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, ++t);
 
@@ -2373,11 +2351,9 @@ void test_ngtcp2_conn_recv_retry(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(119 == datalen);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY,
-                     &conn->oscid, &dcid, 0, 0, conn->version, 0);
-
-  spktlen = ngtcp2_pkt_write_retry(
-      buf, sizeof(buf), &hd, ngtcp2_conn_get_dcid(conn), token, strsize(token));
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &conn->oscid, &dcid,
+                                   ngtcp2_conn_get_dcid(conn), token,
+                                   strsize(token), null_encrypt, &aead);
 
   CU_ASSERT(spktlen > 0);
 

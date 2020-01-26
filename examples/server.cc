@@ -2488,26 +2488,18 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   }
 
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
-  ngtcp2_pkt_hd hd;
+  ngtcp2_cid scid;
 
-  hd.version = chd->version;
-  hd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
-  hd.type = NGTCP2_PKT_RETRY;
-  hd.pkt_num = 0;
-  hd.token = nullptr;
-  hd.tokenlen = 0;
-  hd.len = 0;
-  hd.dcid = chd->scid;
-  hd.scid.datalen = NGTCP2_SV_SCIDLEN;
+  scid.datalen = NGTCP2_SV_SCIDLEN;
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate(hd.scid.data, hd.scid.data + hd.scid.datalen,
+  std::generate(scid.data, scid.data + scid.datalen,
                 [&dis]() { return dis(randgen); });
 
-  auto nwrite = ngtcp2_pkt_write_retry(buf.wpos(), buf.left(), &hd, &chd->dcid,
-                                       token.data(), tokenlen);
+  auto nwrite =
+      ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), &chd->scid, &scid,
+                                &chd->dcid, token.data(), tokenlen);
   if (nwrite < 0) {
-    std::cerr << "ngtcp2_pkt_write_retry: " << ngtcp2_strerror(nwrite)
-              << std::endl;
+    std::cerr << "ngtcp2_crypto_write_retry failed" << std::endl;
     return -1;
   }
 

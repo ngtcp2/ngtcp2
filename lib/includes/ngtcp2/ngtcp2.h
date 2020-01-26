@@ -380,10 +380,14 @@ typedef struct ngtcp2_pkt_stateless_reset {
   size_t randlen;
 } ngtcp2_pkt_stateless_reset;
 
+/* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
+#define NGTCP2_RETRY_TAGLEN 16
+
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   const uint8_t *token;
   size_t tokenlen;
+  uint8_t tag[NGTCP2_RETRY_TAGLEN];
 } ngtcp2_pkt_retry;
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
@@ -850,27 +854,6 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
     uint8_t *dest, size_t destlen, const uint8_t *stateless_reset_token,
     const uint8_t *rand, size_t randlen);
-
-/**
- * @function
- *
- * `ngtcp2_pkt_write_retry` writes Retry packet in the buffer pointed
- * by |dest| whose length is |destlen|.  |hd| must be long packet
- * header, and its type must be :enum:`NGTCP2_PKT_RETRY`.  |odcid|
- * specifies Original Destination Connection ID.  |token| specifies
- * Retry Token, and |tokenlen| specifies its length.
- *
- * This function returns the number of bytes written to the buffer, or
- * one of the following negative error codes:
- *
- * :enum:`NGTCP2_ERR_NOBUF`
- *     Buffer is too small.
- */
-NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen,
-                                                  const ngtcp2_pkt_hd *hd,
-                                                  const ngtcp2_cid *odcid,
-                                                  const uint8_t *token,
-                                                  size_t tokenlen);
 
 /**
  * @function
@@ -1650,6 +1633,27 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
     const ngtcp2_crypto_aead *aead, const uint8_t *key, const uint8_t *iv,
     ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
     const uint8_t *hp_key);
+
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_write_retry` writes Retry packet in the buffer pointed
+ * by |dest| whose length is |destlen|.  |odcid| specifies Original
+ * Destination Connection ID.  |token| specifies Retry Token, and
+ * |tokenlen| specifies its length.  |aead| must be AEAD_AES_128_GCM.
+ *
+ * This function returns the number of bytes written to the buffer, or
+ * one of the following negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE
+ *     Callback function failed.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
+    uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+    const ngtcp2_cid *scid, const ngtcp2_cid *odcid, const uint8_t *token,
+    size_t tokenlen, ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead);
 
 /*
  * `ngtcp2_accept` is used by server implementation, and decides
@@ -2636,6 +2640,16 @@ ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn);
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
                                               const ngtcp2_crypto_ctx *ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_retry_aead` sets |aead| for Retry integrity tag
+ * verification.  It must be AEAD_AES_128_GCM.  This function must not
+ * be called if |conn| is initialized as server.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn,
+                                              const ngtcp2_crypto_aead *aead);
 
 /**
  * @function

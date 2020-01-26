@@ -433,7 +433,7 @@ int ngtcp2_pkt_decode_stateless_reset(ngtcp2_pkt_stateless_reset *sr,
 
 /*
  * ngtcp2_pkt_decode_retry decodes Retry packet payload |payload| of
- * length |payloadlen|.  The |payload| must start with ODCID Len
+ * length |payloadlen|.  The |payload| must start with Retry token
  * field.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -1083,5 +1083,36 @@ size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
  *     Reserved bits has wrong value.
  */
 int ngtcp2_pkt_verify_reserved_bits(uint8_t c);
+
+/*
+ * ngtcp2_pkt_encode_pseudo_retry encodes Retry pseudo-packet in the
+ * buffer pointed by |dest| of length |destlen|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_BUF
+ *     Buffer is too short.
+ */
+ngtcp2_ssize ngtcp2_pkt_encode_pseudo_retry(
+    uint8_t *dest, size_t destlen, const ngtcp2_pkt_hd *hd, uint8_t unused,
+    const ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen);
+
+/*
+ * ngtcp2_pkt_verify_retry_tag verifies Retry packet.  The buffer
+ * pointed by |pkt| of length |pktlen| must contain Retry packet
+ * including packet header.  The odcid and tag fields of |retry| must
+ * be specified.  |aead| must be AEAD_AES_128_GCM.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_PROTO
+ *     Verification failed.
+ */
+int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
+                                const uint8_t *pkt, size_t pktlen,
+                                ngtcp2_encrypt encrypt,
+                                const ngtcp2_crypto_aead *aead);
 
 #endif /* NGTCP2_PKT_H */

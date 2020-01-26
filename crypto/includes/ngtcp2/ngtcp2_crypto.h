@@ -61,6 +61,15 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
 /**
  * @function
  *
+ * `ngtcp2_crypto_aead_retry` initializes |aead| with the AEAD cipher
+ * AEAD_AES_128_GCM for Retry packet integrity protection.
+ */
+NGTCP2_EXTERN ngtcp2_crypto_aead *
+ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_md_hashlen` returns the length of |md| output.
  */
 NGTCP2_EXTERN size_t ngtcp2_crypto_md_hashlen(const ngtcp2_crypto_md *md);
@@ -528,6 +537,23 @@ NGTCP2_EXTERN int ngtcp2_crypto_generate_stateless_reset_token(
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_write_connection_close(
     uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
     const ngtcp2_cid *scid, uint64_t error_code);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_write_retry` writes Retry packet to the buffer
+ * pointed by |dest| of length |destlen|.  |odcid| specifies Original
+ * Destination Connection ID.  |token| specifies Retry Token, and
+ * |tokenlen| specifies its length.
+ *
+ * This function wraps around `ngtcp2_pkt_write_retry` for easier use.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN ngtcp2_ssize
+ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+                          const ngtcp2_cid *scid, const ngtcp2_cid *odcid,
+                          const uint8_t *token, size_t tokenlen);
 
 #ifdef __cplusplus
 }
