@@ -4318,14 +4318,6 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return (ngtcp2_ssize)pktlen;
     }
 
-    if (!conn->server && conn->pktns.crypto.rx.ckm) {
-      rv = conn_process_buffered_protected_pkt(conn, &conn->pktns, ts);
-      if (rv != 0) {
-        return rv;
-      }
-      return conn_recv_pkt(conn, &conn->dcid.current.ps.path, pkt, pktlen, ts);
-    }
-
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "buffering Short packet len=%zu", pktlen);
 
