@@ -429,6 +429,13 @@ static void log_fr_retire_connection_id(ngtcp2_log *log,
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->seq);
 }
 
+static void log_fr_handshake_done(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                                  const ngtcp2_handshake_done *fr,
+                                  const char *dir) {
+  log->log_printf(log->user_data, (NGTCP2_LOG_PKT " HANDSHAKE_DONE(0x%02x)"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type);
+}
+
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
   switch (fr->type) {
@@ -492,6 +499,9 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     break;
   case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
     log_fr_retire_connection_id(log, hd, &fr->retire_connection_id, dir);
+    break;
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    log_fr_handshake_done(log, hd, &fr->handshake_done, dir);
     break;
   default:
     assert(0);

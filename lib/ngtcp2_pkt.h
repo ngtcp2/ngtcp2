@@ -123,6 +123,7 @@ typedef enum {
   NGTCP2_FRAME_PATH_RESPONSE = 0x1b,
   NGTCP2_FRAME_CONNECTION_CLOSE = 0x1c,
   NGTCP2_FRAME_CONNECTION_CLOSE_APP = 0x1d,
+  NGTCP2_FRAME_HANDSHAKE_DONE = 0x1e,
 } ngtcp2_frame_type;
 
 typedef struct {
@@ -271,6 +272,10 @@ typedef struct {
   uint64_t seq;
 } ngtcp2_retire_connection_id;
 
+typedef struct {
+  uint8_t type;
+} ngtcp2_handshake_done;
+
 typedef union {
   uint8_t type;
   ngtcp2_stream stream;
@@ -292,6 +297,7 @@ typedef union {
   ngtcp2_crypto crypto;
   ngtcp2_new_token new_token;
   ngtcp2_retire_connection_id retire_connection_id;
+  ngtcp2_handshake_done handshake_done;
 } ngtcp2_frame;
 
 struct ngtcp2_pkt_chain;
@@ -733,6 +739,22 @@ ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
                                              size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_handshake_done_frame decodes HANDSHAKE_DONE frame
+ * from |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  HANDSHAKE_DONE frame must start at
+ * payload[0].  This function finishes when it decodes one
+ * HANDSHAKE_DONE frame, and returns the exact number of bytes read to
+ * decode a frame if it succeeds, or one of the following negative
+ * error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include HANDSHAKE_DONE frame.
+ */
+ngtcp2_ssize ngtcp2_pkt_decode_handshake_done_frame(ngtcp2_handshake_done *dest,
+                                                    const uint8_t *payload,
+                                                    size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -996,6 +1018,20 @@ ngtcp2_ssize ngtcp2_pkt_encode_new_token_frame(uint8_t *out, size_t outlen,
  */
 ngtcp2_ssize ngtcp2_pkt_encode_retire_connection_id_frame(
     uint8_t *out, size_t outlen, const ngtcp2_retire_connection_id *fr);
+
+/*
+ * ngtcp2_pkt_encode_handshake_done_frame encodes HANDSHAKE_DONE frame
+ * |fr| into the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ngtcp2_ssize
+ngtcp2_pkt_encode_handshake_done_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_handshake_done *fr);
 
 /*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for

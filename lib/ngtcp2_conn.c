@@ -6036,6 +6036,105 @@ static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
 }
 
 /*
+ * conn_select_preferred_addr asks a client application to select a
+ * server address from preferred addresses received from server.  If a
+ * client chooses the address, path validation will start.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+static int conn_select_preferred_addr(ngtcp2_conn *conn) {
+  uint8_t buf[128];
+  ngtcp2_addr addr;
+  int rv;
+  ngtcp2_duration timeout;
+  ngtcp2_pv *pv;
+  ngtcp2_dcid *dcid;
+
+  ngtcp2_addr_init(&addr, buf, 0, NULL);
+
+  if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+    return 0;
+  }
+
+  rv = conn_call_select_preferred_addr(conn, &addr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (addr.addrlen == 0 ||
+      ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &addr)) {
+    return 0;
+  }
+
+  assert(conn->pv == NULL);
+
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+  timeout = conn_compute_pto(conn);
+  timeout =
+      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
+
+  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH,
+                     &conn->log, conn->mem);
+  if (rv != 0) {
+    /* TODO Call ngtcp2_dcid_free here if it is introduced */
+    return rv;
+  }
+
+  ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
+  conn->pv = pv;
+
+  ngtcp2_addr_copy(&pv->dcid.ps.path.local, &conn->dcid.current.ps.path.local);
+  ngtcp2_addr_copy(&pv->dcid.ps.path.remote, &addr);
+
+  return conn_call_activate_dcid(conn, &pv->dcid);
+}
+
+/*
+ * conn_recv_handshake_done processes the incoming HANDSHAKE_DONE
+ * frame |fr|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_PROTO
+ *     Server received HANDSHAKE_DONE frame.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+static int conn_recv_handshake_done(ngtcp2_conn *conn) {
+  int rv;
+
+  if (conn->server) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) {
+    return 0;
+  }
+
+  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+
+  if (conn->remote.transport_params.preferred_address_present) {
+    rv = conn_select_preferred_addr(conn);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  /* TODO Call handshake_done callback */
+
+  return 0;
+}
+
+/*
  * conn_key_phase_changed returns nonzero if |hd| indicates that the
  * key phase has unexpected value.
  */
@@ -6690,6 +6789,13 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       non_probing_pkt = 1;
       break;
+    case NGTCP2_FRAME_HANDSHAKE_DONE:
+      rv = conn_recv_handshake_done(conn);
+      if (rv != 0) {
+        return rv;
+      }
+      non_probing_pkt = 1;
+      break;
     case NGTCP2_FRAME_DATA_BLOCKED:
     case NGTCP2_FRAME_STREAMS_BLOCKED_BIDI:
     case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
@@ -7019,6 +7125,29 @@ static size_t conn_server_hs_tx_left(ngtcp2_conn *conn) {
   return conn->hs_recved * 3 - conn->hs_sent;
 }
 
+/*
+ * conn_enqueue_handshake_done enqueues HANDSHAKE_DONE frame for
+ * transmission.
+ */
+static int conn_enqueue_handshake_done(ngtcp2_conn *conn) {
+  ngtcp2_pktns *pktns = &conn->pktns;
+  ngtcp2_frame_chain *nfrc;
+  int rv;
+
+  assert(conn->server);
+
+  rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  nfrc->fr.type = NGTCP2_FRAME_HANDSHAKE_DONE;
+  nfrc->next = pktns->tx.frq;
+  pktns->tx.frq = nfrc;
+
+  return 0;
+}
+
 int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
                                const uint8_t *pkt, size_t pktlen,
                                ngtcp2_tstamp ts) {
@@ -7124,6 +7253,8 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
     }
 
+    conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+
     rv = conn_handshake_completed(conn);
     if (rv != 0) {
       return rv;
@@ -7142,6 +7273,11 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     conn->hs_pktns.acktr.flags |= NGTCP2_ACKTR_FLAG_PENDING_FINISHED_ACK;
 
+    rv = conn_enqueue_handshake_done(conn);
+    if (rv != 0) {
+      return rv;
+    }
+
     return 0;
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
@@ -7150,66 +7286,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   default:
     return 0;
   }
-}
-
-/*
- * conn_select_preferred_addr asks a client application to select a
- * server address from preferred addresses received from server.  If a
- * client chooses the address, path validation will start.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- */
-static int conn_select_preferred_addr(ngtcp2_conn *conn) {
-  uint8_t buf[128];
-  ngtcp2_addr addr;
-  int rv;
-  ngtcp2_duration timeout;
-  ngtcp2_pv *pv;
-  ngtcp2_dcid *dcid;
-
-  ngtcp2_addr_init(&addr, buf, 0, NULL);
-
-  if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
-    return 0;
-  }
-
-  rv = conn_call_select_preferred_addr(conn, &addr);
-  if (rv != 0) {
-    return rv;
-  }
-
-  if (addr.addrlen == 0 ||
-      ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &addr)) {
-    return 0;
-  }
-
-  assert(conn->pv == NULL);
-
-  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
-  timeout = conn_compute_pto(conn);
-  timeout =
-      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
-
-  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH,
-                     &conn->log, conn->mem);
-  if (rv != 0) {
-    /* TODO Call ngtcp2_dcid_free here if it is introduced */
-    return rv;
-  }
-
-  ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
-  conn->pv = pv;
-
-  ngtcp2_addr_copy(&pv->dcid.ps.path.local, &conn->dcid.current.ps.path.local);
-  ngtcp2_addr_copy(&pv->dcid.ps.path.remote, &addr);
-
-  return conn_call_activate_dcid(conn, &pv->dcid);
 }
 
 /*
@@ -7359,18 +7435,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     rv = conn_process_buffered_protected_pkt(conn, &conn->hs_pktns, ts);
     if (rv != 0) {
       return (ngtcp2_ssize)rv;
-    }
-
-    if (conn->remote.transport_params.preferred_address_present) {
-      /* TODO Starting path validation against preferred address must
-         be done after dropping Handshake key which is impossible at
-         draft-18. */
-      /* TODO And client has to send NEW_CONNECTION_ID before starting
-         path validation */
-      rv = conn_select_preferred_addr(conn);
-      if (rv != 0) {
-        return (ngtcp2_ssize)rv;
-      }
     }
 
     return res;
@@ -9044,7 +9108,8 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
 
-  if (conn->remote.transport_params.disable_active_migration) {
+  if (conn->remote.transport_params.disable_active_migration ||
+      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
     return NGTCP2_ERR_INVALID_STATE;
   }
   if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {

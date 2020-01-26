@@ -484,6 +484,9 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
   case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
     return ngtcp2_pkt_decode_retire_connection_id_frame(
         &dest->retire_connection_id, payload, payloadlen);
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    return ngtcp2_pkt_decode_handshake_done_frame(&dest->handshake_done,
+                                                  payload, payloadlen);
   default:
     if (has_mask(type, NGTCP2_FRAME_STREAM)) {
       return ngtcp2_pkt_decode_stream_frame(&dest->stream, payload, payloadlen);
@@ -1349,6 +1352,16 @@ ngtcp2_pkt_decode_retire_connection_id_frame(ngtcp2_retire_connection_id *dest,
   return (ngtcp2_ssize)len;
 }
 
+ngtcp2_ssize ngtcp2_pkt_decode_handshake_done_frame(ngtcp2_handshake_done *dest,
+                                                    const uint8_t *payload,
+                                                    size_t payloadlen) {
+  (void)payload;
+  (void)payloadlen;
+
+  dest->type = NGTCP2_FRAME_HANDSHAKE_DONE;
+  return 1;
+}
+
 ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
                                      ngtcp2_frame *fr) {
   switch (fr->type) {
@@ -1401,6 +1414,9 @@ ngtcp2_ssize ngtcp2_pkt_encode_frame(uint8_t *out, size_t outlen,
   case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
     return ngtcp2_pkt_encode_retire_connection_id_frame(
         out, outlen, &fr->retire_connection_id);
+  case NGTCP2_FRAME_HANDSHAKE_DONE:
+    return ngtcp2_pkt_encode_handshake_done_frame(out, outlen,
+                                                  &fr->handshake_done);
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -1867,6 +1883,20 @@ ngtcp2_ssize ngtcp2_pkt_encode_retire_connection_id_frame(
   assert((size_t)(p - out) == len);
 
   return (ngtcp2_ssize)len;
+}
+
+ngtcp2_ssize
+ngtcp2_pkt_encode_handshake_done_frame(uint8_t *out, size_t outlen,
+                                       const ngtcp2_handshake_done *fr) {
+  (void)fr;
+
+  if (outlen < 1) {
+    return NGTCP2_ERR_NOBUF;
+  }
+
+  *out++ = NGTCP2_FRAME_HANDSHAKE_DONE;
+
+  return 1;
 }
 
 ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(

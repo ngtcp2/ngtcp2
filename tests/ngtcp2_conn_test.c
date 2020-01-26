@@ -4495,6 +4495,8 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   setup_default_client(&conn);
 
+  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 1;
   fr.new_connection_id.retire_prior_to = 0;

@@ -119,6 +119,8 @@ int main() {
                    test_ngtcp2_pkt_encode_new_token_frame) ||
       !CU_add_test(pSuite, "pkt_encode_retire_connection_id",
                    test_ngtcp2_pkt_encode_retire_connection_id) ||
+      !CU_add_test(pSuite, "pkt_encode_handshake_done",
+                   test_ngtcp2_pkt_encode_handshake_done_frame) ||
       !CU_add_test(pSuite, "pkt_adjust_pkt_num",
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "pkt_validate_ack", test_ngtcp2_pkt_validate_ack) ||

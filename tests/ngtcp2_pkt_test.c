@@ -1108,6 +1108,24 @@ void test_ngtcp2_pkt_encode_retire_connection_id(void) {
   CU_ASSERT(fr.retire_connection_id.seq == nfr.retire_connection_id.seq);
 }
 
+void test_ngtcp2_pkt_encode_handshake_done_frame(void) {
+  uint8_t buf[16];
+  ngtcp2_handshake_done fr, nfr;
+  ngtcp2_ssize rv;
+  size_t framelen = 1;
+
+  fr.type = NGTCP2_FRAME_HANDSHAKE_DONE;
+
+  rv = ngtcp2_pkt_encode_handshake_done_frame(buf, sizeof(buf), &fr);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_handshake_done_frame(&nfr, buf, framelen);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));
