@@ -156,9 +156,6 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
   NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
-  /* NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED is set when Initial keys
-     have been discarded. */
-  NGTCP2_CONN_FLAG_INITIAL_KEY_DISCARDED = 0x0400,
   /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update
      is not confirmed by the local endpoint.  That is, it has not
      received ACK frame which acknowledges packet which is encrypted
@@ -213,10 +210,10 @@ typedef struct {
      * - 0-RTT packet is only buffered in server Initial encryption
      *   level ngtcp2_pktns.
      *
-     * - Handshake packet is only buffered in client Initial encryption
-     *   level ngtcp2_pktns.
+     * - Handshake packet is only buffered in client Handshake
+     *   encryption level ngtcp2_pktns.
      *
-     * - Short packet is only buffered in Handshake encryption level
+     * - Short packet is only buffered in Short encryption level
      *   ngtcp2_pktns.
      */
     ngtcp2_pkt_chain *buffed_pkts;
@@ -268,8 +265,8 @@ struct ngtcp2_conn {
      during handshake.  It is used to receive late handshake packets
      after handshake completion. */
   ngtcp2_cid odcid;
-  ngtcp2_pktns in_pktns;
-  ngtcp2_pktns hs_pktns;
+  ngtcp2_pktns *in_pktns;
+  ngtcp2_pktns *hs_pktns;
   ngtcp2_pktns pktns;
 
   struct {

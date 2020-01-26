@@ -2287,7 +2287,7 @@ void test_ngtcp2_conn_recv_retry(void) {
       CU_ASSERT(spktlen == 0);
     } else {
       CU_ASSERT(spktlen > 0);
-      CU_ASSERT(1 == conn->in_pktns.tx.last_pkt_num);
+      CU_ASSERT(1 == conn->in_pktns->tx.last_pkt_num);
       CU_ASSERT(ngtcp2_cid_eq(&dcid, ngtcp2_conn_get_dcid(conn)));
       CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY);
     }
@@ -2413,7 +2413,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   ngtcp2_frame fr;
   int rv;
 
-  /* STREAM frame within final_hs_rx_offset */
+  /* Delayed Handshake packet is discarded */
   setup_default_client(&conn);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
@@ -2428,74 +2428,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ents));
-  CU_ASSERT(conn->hs_pktns.acktr.flags & NGTCP2_ACKTR_FLAG_ACTIVE_ACK);
-
-  ngtcp2_conn_del(conn);
-
-  /* STREAM frame beyond final_hs_rx_offset */
-  /* TODO This is not implemented yet */
-  /* setup_default_client(&conn); */
-
-  /* conn->final_hs_tx_offset = 999; */
-  /* conn->final_hs_rx_offset = 100; */
-
-  /* fr.type = NGTCP2_FRAME_STREAM; */
-  /* fr.stream.flags = 0; */
-  /* fr.stream.stream_id = 0; */
-  /* fr.stream.fin = 0; */
-  /* fr.stream.offset = 0; */
-  /* fr.stream.datalen = 567; */
-  /* fr.stream.data = null_data; */
-
-  /* pktlen = write_single_frame_handshake_pkt( */
-  /*     conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
-   * &conn->dcid, 1, */
-  /*     NGTCP2_PROTO_VER_MAX, &fr); */
-  /* rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1); */
-
-  /* CU_ASSERT(NGTCP2_ERR_PROTO == rv); */
-
-  /* ngtcp2_conn_del(conn); */
-
-  /* ACK frame only */
-  setup_default_client(&conn);
-
-  conn->hs_pktns.tx.last_pkt_num = 1000000009;
-
-  fr.type = NGTCP2_FRAME_ACK;
-  fr.ack.largest_ack = 1000000007;
-  fr.ack.ack_delay = 122;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
-
-  pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
-      ngtcp2_conn_get_dcid(conn), 0, NGTCP2_PROTO_VER_MAX, &fr);
-  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
-
-  CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns.acktr.ents));
-  CU_ASSERT(!conn->hs_pktns.acktr.flags);
-
-  ngtcp2_conn_del(conn);
-
-  /* ACK frame contains a packet which the local endpoint has not
-     sent. */
-  setup_default_client(&conn);
-
-  fr.type = NGTCP2_FRAME_ACK;
-  fr.ack.largest_ack = 1000000007;
-  fr.ack.ack_delay = 122;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
-
-  pktlen = write_single_frame_handshake_pkt(
-      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
-      ngtcp2_conn_get_dcid(conn), 0, NGTCP2_PROTO_VER_MAX, &fr);
-  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
-
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->hs_pktns->acktr.ents));
 
   ngtcp2_conn_del(conn);
 }
@@ -3747,7 +3680,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  it = ngtcp2_acktr_get(&conn->in_pktns.acktr);
+  it = ngtcp2_acktr_get(&conn->in_pktns->acktr);
   ackent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(pkt_num == ackent->pkt_num);
@@ -3788,10 +3721,10 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   CU_ASSERT(ackent->pkt_num == pkt_num);
 
-  it = ngtcp2_acktr_get(&conn->hs_pktns.acktr);
-  ackent = ngtcp2_ksl_it_get(&it);
+  /* Handshake packet should be discarded */
+  it = ngtcp2_acktr_get(&conn->hs_pktns->acktr);
 
-  CU_ASSERT(ackent->pkt_num == pkt_num - 1);
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
 }
@@ -3838,7 +3771,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen == 0);
-  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns.acktr.ents));
+  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns->acktr.ents));
 
   ngtcp2_conn_del(conn);
 }
@@ -4719,7 +4652,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
 
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
 
@@ -4730,7 +4663,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
 
   CU_ASSERT(spktlen > 0);
   /* We don't make the first packet lost */
-  CU_ASSERT(2 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(2 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
   CU_ASSERT(0 == conn->rcs.probe_pkt_left);
 
   fr.type = NGTCP2_FRAME_ACK;
@@ -4745,12 +4678,12 @@ void test_ngtcp2_conn_handshake_probe(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
 
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(0 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
   CU_ASSERT(1 == conn->rcs.probe_pkt_left);
 
   /* This sends anti-deadlock padded Initial packet even if we have
@@ -4758,10 +4691,10 @@ void test_ngtcp2_conn_handshake_probe(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
   CU_ASSERT(0 == conn->rcs.probe_pkt_left);
 
-  it = ngtcp2_rtb_head(&conn->in_pktns.rtb);
+  it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
@@ -4775,7 +4708,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns.rtb));
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
   CU_ASSERT(1 == conn->rcs.probe_pkt_left);
 
   /* This sends anti-deadlock Handshake packet even if we have nothing
@@ -4783,10 +4716,10 @@ void test_ngtcp2_conn_handshake_probe(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->hs_pktns.rtb));
+  CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->hs_pktns->rtb));
   CU_ASSERT(0 == conn->rcs.probe_pkt_left);
 
-  it = ngtcp2_rtb_head(&conn->hs_pktns.rtb);
+  it = ngtcp2_rtb_head(&conn->hs_pktns->rtb);
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
@@ -4870,7 +4803,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(0 == spktlen);
 
-  it = ngtcp2_ksl_begin(&conn->hs_pktns.rtb.ents);
+  it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(2181 == ent->frc->fr.crypto.offset);
@@ -4898,7 +4831,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  it = ngtcp2_ksl_begin(&conn->hs_pktns.rtb.ents);
+  it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
@@ -4915,7 +4848,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  it = ngtcp2_ksl_begin(&conn->hs_pktns.rtb.ents);
+  it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
@@ -4995,7 +4928,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(45 ==
-            ngtcp2_rob_first_gap_offset(&conn->in_pktns.crypto.strm.rx.rob));
+            ngtcp2_rob_first_gap_offset(&conn->in_pktns->crypto.strm.rx.rob));
 
   ngtcp2_conn_del(conn);
 
@@ -5023,7 +4956,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
 
   CU_ASSERT(NGTCP2_ERR_PROTO == rv);
   CU_ASSERT(0 ==
-            ngtcp2_rob_first_gap_offset(&conn->in_pktns.crypto.strm.rx.rob));
+            ngtcp2_rob_first_gap_offset(&conn->in_pktns->crypto.strm.rx.rob));
 
   ngtcp2_conn_del(conn);
 }
