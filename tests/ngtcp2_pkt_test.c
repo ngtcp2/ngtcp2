@@ -1084,7 +1084,7 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
                         fr.new_token.tokenlen));
 }
 
-void test_ngtcp2_pkt_encode_retire_connection_id(void) {
+void test_ngtcp2_pkt_encode_retire_connection_id_frame(void) {
   uint8_t buf[256];
   ngtcp2_frame fr, nfr;
   ngtcp2_ssize rv;
