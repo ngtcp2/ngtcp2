@@ -162,6 +162,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
   rtb->num_ack_eliciting = 0;
   rtb->loss_time = 0;
   rtb->crypto_level = crypto_level;
+  rtb->cc_pkt_num = 0;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
@@ -183,6 +184,8 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   ngtcp2_rst_on_pkt_sent(rtb->rst, ent, rtb->cc->ccs);
 
+  assert(rtb->cc_pkt_num <= ent->hd.pkt_num);
+
   rtb->cc->ccs->bytes_in_flight += ent->pktlen;
 
   ngtcp2_rst_update_app_limited(rtb->rst, rtb->cc->ccs);
@@ -198,8 +201,10 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
     --rtb->num_ack_eliciting;
   }
 
-  assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
-  rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+  if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
+    assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
+    rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+  }
 }
 
 static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
@@ -650,7 +655,10 @@ void ngtcp2_rtb_clear(ngtcp2_rtb *rtb) {
 
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
-    rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+    if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
+      assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
+      rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+    }
     ngtcp2_rtb_entry_del(ent, rtb->mem);
   }
   ngtcp2_ksl_clear(&rtb->ents);

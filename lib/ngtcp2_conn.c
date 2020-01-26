@@ -3285,6 +3285,8 @@ static int conn_stop_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   return rv;
 }
 
+static void conn_reset_congestion_state(ngtcp2_conn *conn);
+
 /*
  * conn_on_path_validation_failed is called when path validation
  * fails.  This function may delete |pv|.
@@ -3315,6 +3317,7 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
     ngtcp2_dcid_copy(&conn->dcid.current, &pv->fallback_dcid);
+    conn_reset_congestion_state(conn);
   }
 
   return conn_stop_pv(conn, ts);
@@ -3538,8 +3541,6 @@ static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
   return 0;
 }
-
-static void conn_reset_congestion_state(ngtcp2_conn *conn);
 
 /*
  * conn_on_retry is called when Retry packet is received.  The
@@ -4079,14 +4080,9 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn,
  * conn_reset_congestion_state resets congestion state.
  */
 static void conn_reset_congestion_state(ngtcp2_conn *conn) {
-  uint64_t bytes_in_flight;
-
   rcvry_stat_reset(&conn->rcs);
-  /* Keep bytes_in_flight because we have to take care of packets
-     in flight. */
-  bytes_in_flight = conn->ccs.bytes_in_flight;
   cc_stat_reset(&conn->ccs);
-  conn->ccs.bytes_in_flight = bytes_in_flight;
+  conn->pktns.rtb.cc_pkt_num = conn->pktns.tx.last_pkt_num + 1;
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
@@ -4105,8 +4101,6 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     }
     return 0;
   }
-
-  conn_reset_congestion_state(conn);
 
   /* If validation succeeds, we don't have to throw DCID away. */
   pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_RETIRE_DCID_ON_FINISH;
@@ -4127,6 +4121,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
         goto fail;
       }
       ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+      conn_reset_congestion_state(conn);
     }
 
     rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
@@ -6195,6 +6190,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
                     "path is migrated back to the original path");
     ngtcp2_dcid_copy(&conn->dcid.current, &conn->pv->fallback_dcid);
+    conn_reset_congestion_state(conn);
     rv = conn_stop_pv(conn, ts);
     if (rv != 0) {
       return rv;
@@ -6230,6 +6226,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_dcid_copy(&pv->fallback_dcid, &conn->dcid.current);
   }
   ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+  conn_reset_congestion_state(conn);
 
   if (conn->pv) {
     ngtcp2_log_info(

@@ -222,6 +222,9 @@ typedef struct {
   ngtcp2_tstamp loss_time;
   /* crypto_level is encryption level which |crypto| belongs to. */
   ngtcp2_crypto_level crypto_level;
+  /* cc_pkt_num is the smallest packet number that is contributed to
+     bytes_in_flight. */
+  int64_t cc_pkt_num;
 } ngtcp2_rtb;
 
 /*
