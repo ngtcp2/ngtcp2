@@ -4344,6 +4344,22 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   CU_ASSERT(0 == conn->scid.num_retired);
 
   ngtcp2_conn_del(conn);
+
+  /* Receiving RETIRE_CONNECTION_ID with seq which is greater than the
+     sequence number previously sent must be treated as error */
+  setup_default_server(&conn);
+
+  fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
+  fr.retire_connection_id.seq = 1;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_server_path_validation(void) {

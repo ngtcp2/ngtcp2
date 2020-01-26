@@ -5888,7 +5888,7 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
   ngtcp2_ksl_it it;
   ngtcp2_scid *scid;
 
-  if (conn->oscid.datalen == 0) {
+  if (conn->oscid.datalen == 0 || conn->scid.last_seq < fr->seq) {
     return NGTCP2_ERR_PROTO;
   }
 
