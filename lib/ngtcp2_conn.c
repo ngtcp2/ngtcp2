@@ -8671,8 +8671,9 @@ static ngtcp2_pktns *conn_get_earliest_loss_time_pktns(ngtcp2_conn *conn) {
       res = hs_pktns;
     }
   }
-  if (res == NULL || res->rtb.loss_time == 0 ||
-      (pktns->rtb.loss_time && pktns->rtb.loss_time < res->rtb.loss_time)) {
+  if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) &&
+      (res == NULL || res->rtb.loss_time == 0 ||
+       (pktns->rtb.loss_time && pktns->rtb.loss_time < res->rtb.loss_time))) {
     res = pktns;
   }
 
@@ -8687,7 +8688,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn) {
   ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_pktns *loss_pktns = conn_get_earliest_loss_time_pktns(conn);
 
-  if (loss_pktns->rtb.loss_time) {
+  if (loss_pktns && loss_pktns->rtb.loss_time) {
     rcs->loss_detection_timer = loss_pktns->rtb.loss_time;
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
@@ -8780,7 +8781,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "loss detection timer fired");
 
-  if (loss_pktns->rtb.loss_time) {
+  if (loss_pktns && loss_pktns->rtb.loss_time) {
     rv = ngtcp2_conn_detect_lost_pkt(conn, loss_pktns, rcs, ts);
     if (rv != 0) {
       return rv;
