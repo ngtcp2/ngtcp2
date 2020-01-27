@@ -220,6 +220,8 @@ typedef struct {
   int64_t largest_acked_tx_pkt_num;
   size_t num_ack_eliciting;
   ngtcp2_tstamp loss_time;
+  /* probe_pkt_left is the number of probe packet to send */
+  size_t probe_pkt_left;
   /* crypto_level is encryption level which |crypto| belongs to. */
   ngtcp2_crypto_level crypto_level;
   /* cc_pkt_num is the smallest packet number that is contributed to
@@ -314,6 +316,12 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
  * are also reset to their initial value.
  */
 void ngtcp2_rtb_clear(ngtcp2_rtb *rtb);
+
+/*
+ * ngtcp2_rtb_get_bytes_in_flight returns the sum of bytes in flight
+ * for the stored entries.
+ */
+uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_num_ack_eliciting returns the number of ACK eliciting

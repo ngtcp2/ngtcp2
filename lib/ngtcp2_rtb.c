@@ -161,6 +161,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
   rtb->loss_time = 0;
+  rtb->probe_pkt_left = 0;
   rtb->crypto_level = crypto_level;
   rtb->cc_pkt_num = 0;
 }
@@ -665,6 +666,24 @@ void ngtcp2_rtb_clear(ngtcp2_rtb *rtb) {
 
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
+  rtb->probe_pkt_left = 0;
+  rtb->cc_pkt_num = 0;
+}
+
+uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb) {
+  uint64_t bytes_in_flight = 0;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+
+  for (it = ngtcp2_ksl_begin(&rtb->ents); !ngtcp2_ksl_it_end(&it);
+       ngtcp2_ksl_it_next(&it)) {
+    ent = ngtcp2_ksl_it_get(&it);
+    if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
+      bytes_in_flight += ent->pktlen;
+    }
+  }
+
+  return bytes_in_flight;
 }
 
 size_t ngtcp2_rtb_num_ack_eliciting(ngtcp2_rtb *rtb) {

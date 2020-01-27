@@ -576,13 +576,12 @@ typedef struct ngtcp2_rcvry_stat {
   ngtcp2_duration smoothed_rtt;
   ngtcp2_duration rttvar;
   size_t pto_count;
-  /* probe_pkt_left is the number of probe packet to sent */
-  size_t probe_pkt_left;
   ngtcp2_tstamp loss_detection_timer;
   /* last_tx_pkt_ts corresponds to
      time_of_last_sent_ack_eliciting_packet in
-     draft-ietf-quic-recovery-23. */
-  ngtcp2_tstamp last_tx_pkt_ts;
+     draft-ietf-quic-recovery-25.  It is indexed by
+     ngtcp2_crypto_level.  No last_tx_pkt_ts for 0RTT packet. */
+  ngtcp2_tstamp last_tx_pkt_ts[3];
 } ngtcp2_rcvry_stat;
 
 typedef struct ngtcp2_cc_stat {

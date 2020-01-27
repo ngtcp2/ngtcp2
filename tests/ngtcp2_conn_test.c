@@ -4649,14 +4649,14 @@ void test_ngtcp2_conn_handshake_probe(void) {
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == conn->rcs.probe_pkt_left);
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
   /* We don't make the first packet lost */
   CU_ASSERT(2 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
-  CU_ASSERT(0 == conn->rcs.probe_pkt_left);
+  CU_ASSERT(0 == conn->in_pktns->rtb.probe_pkt_left);
 
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 0;
@@ -4676,7 +4676,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(0 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
-  CU_ASSERT(1 == conn->rcs.probe_pkt_left);
+  CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
 
   /* This sends anti-deadlock padded Initial packet even if we have
      nothing to send. */
@@ -4684,7 +4684,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
-  CU_ASSERT(0 == conn->rcs.probe_pkt_left);
+  CU_ASSERT(0 == conn->in_pktns->rtb.probe_pkt_left);
 
   it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
   ent = ngtcp2_ksl_it_get(&it);
@@ -4701,7 +4701,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->in_pktns->rtb));
-  CU_ASSERT(1 == conn->rcs.probe_pkt_left);
+  CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
 
   /* This sends anti-deadlock Handshake packet even if we have nothing
      to send. */
@@ -4709,7 +4709,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(1 == ngtcp2_rtb_num_ack_eliciting(&conn->hs_pktns->rtb));
-  CU_ASSERT(0 == conn->rcs.probe_pkt_left);
+  CU_ASSERT(0 == conn->hs_pktns->rtb.probe_pkt_left);
 
   it = ngtcp2_rtb_head(&conn->hs_pktns->rtb);
   ent = ngtcp2_ksl_it_get(&it);
@@ -4786,10 +4786,9 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   ngtcp2_conn_on_loss_detection_timer(conn, t);
 
-  for (i = 0; i < 3; ++i) {
-    spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
-    CU_ASSERT(spktlen > 0);
-  }
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
@@ -4798,17 +4797,15 @@ void test_ngtcp2_conn_handshake_loss(void) {
   it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
   ent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(2181 == ent->frc->fr.crypto.offset);
-  CU_ASSERT(5 == ent->hd.pkt_num);
+  CU_ASSERT(2176 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(2 == ent->hd.pkt_num);
 
   fr.type = NGTCP2_FRAME_ACK;
-  fr.ack.largest_ack = 4;
+  fr.ack.largest_ack = 2;
   fr.ack.ack_delay = 0;
   fr.ack.ack_delay_unscaled = 0;
   fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 1;
-  fr.ack.blks[0].gap = 0;
-  fr.ack.blks[0].blklen = 1;
+  fr.ack.num_blks = 0;
 
   pktlen = write_single_frame_handshake_pkt(
       conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
@@ -4829,8 +4826,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
   CU_ASSERT(0 == ent->frc->fr.crypto.offset);
   CU_ASSERT(2 == ent->frc->fr.crypto.datacnt);
-  CU_ASSERT(991 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
-                                  ent->frc->fr.crypto.datacnt));
+  CU_ASSERT(1186 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+                                   ent->frc->fr.crypto.datacnt));
 
   t += 1000;
 
@@ -4846,8 +4843,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
   CU_ASSERT(0 == ent->frc->fr.crypto.offset);
   CU_ASSERT(2 == ent->frc->fr.crypto.datacnt);
-  CU_ASSERT(991 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
-                                  ent->frc->fr.crypto.datacnt));
+  CU_ASSERT(1186 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+                                   ent->frc->fr.crypto.datacnt));
 
   ngtcp2_conn_del(conn);
 }
