@@ -262,7 +262,10 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
- * |pkt_num| is a packet number which includes |fr|.
+ * |pkt_num| is a packet number which includes |fr|.  |pkt_ts| is the
+ * timestamp when packet is received.  |ts| should be the current
+ * time.  Usually they are the same, but for buffered packets,
+ * |pkt_ts| would be earlier than |ts|.
  *
  * This function returns the number of newly acknowledged packets if
  * it succeeds, or one of the following negative error codes:
@@ -273,7 +276,8 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
  *     Out of memory
  */
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                                 ngtcp2_conn *conn, ngtcp2_tstamp ts);
+                                 ngtcp2_conn *conn, ngtcp2_tstamp pkt_ts,
+                                 ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the

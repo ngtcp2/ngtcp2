@@ -3674,7 +3674,10 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 }
 
 /*
- * conn_recv_ack processes received ACK frame |fr|.
+ * conn_recv_ack processes received ACK frame |fr|.  |pkt_ts| is the
+ * timestamp when packet is received.  |ts| should be the current
+ * time.  Usually they are the same, but for buffered packets,
+ * |pkt_ts| would be earlier than |ts|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3689,7 +3692,7 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  *     User callback failed.
  */
 static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
-                         ngtcp2_tstamp ts) {
+                         ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_frame_chain *frc = NULL;
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
@@ -3706,7 +3709,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
 
   ngtcp2_acktr_recv_ack(&pktns->acktr, fr);
 
-  num_acked = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, conn, ts);
+  num_acked = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, conn, pkt_ts, ts);
   if (num_acked < 0) {
     /* TODO assert this */
     assert(ngtcp2_err_is_fatal((int)num_acked));
@@ -4261,7 +4264,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
 
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                   const uint8_t *pkt, size_t pktlen,
-                                  ngtcp2_tstamp ts);
+                                  ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts);
 
 static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
                                                ngtcp2_pktns *pktns,
@@ -4271,7 +4274,9 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
  * conn_recv_handshake_pkt processes received packet |pkt| whose
  * length is |pktlen| during handshake period.  The buffer pointed by
  * |pkt| might contain multiple packets.  This function only processes
- * one packet.
+ * one packet.  |pkt_ts| is the timestamp when packet is received.
+ * |ts| should be the current time.  Usually they are the same, but
+ * for buffered packets, |pkt_ts| would be earlier than |ts|.
  *
  * This function returns the number of bytes it reads if it succeeds,
  * or one of the following negative error codes:
@@ -4300,6 +4305,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
 static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
                                             const ngtcp2_path *path,
                                             const uint8_t *pkt, size_t pktlen,
+                                            ngtcp2_tstamp pkt_ts,
                                             ngtcp2_tstamp ts) {
   ngtcp2_ssize nread;
   ngtcp2_pkt_hd hd;
@@ -4447,8 +4453,8 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
       if (conn->early.ckm) {
         ngtcp2_ssize nread2;
         /* TODO Avoid to parse header twice. */
-        nread2 =
-            conn_recv_pkt(conn, &conn->dcid.current.ps.path, pkt, pktlen, ts);
+        nread2 = conn_recv_pkt(conn, &conn->dcid.current.ps.path, pkt, pktlen,
+                               pkt_ts, ts);
         if (nread2 < 0) {
           return nread2;
         }
@@ -4681,7 +4687,7 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
-      rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
+      rv = conn_recv_ack(conn, pktns, &fr->ack, pkt_ts, ts);
       if (rv != 0) {
         return rv;
       }
@@ -4728,7 +4734,8 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
-  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack, ts);
+  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack,
+                             pkt_ts);
   if (rv != 0) {
     return rv;
   }
@@ -4758,7 +4765,7 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   conn->hs_recved += pktlen;
 
   while (pktlen) {
-    nread = conn_recv_handshake_pkt(conn, path, pkt, pktlen, ts);
+    nread = conn_recv_handshake_pkt(conn, path, pkt, pktlen, ts, ts);
     if (nread < 0) {
       if (ngtcp2_err_is_fatal((int)nread)) {
         return (int)nread;
@@ -6252,7 +6259,10 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 /*
  * conn_recv_pkt processes a packet contained in the buffer pointed by
  * |pkt| of length |pktlen|.  |pkt| may contain multiple QUIC packets.
- * This function only processes the first packet.
+ * This function only processes the first packet.  |pkt_ts| is the
+ * timestamp when packet is received.  |ts| should be the current
+ * time.  Usually they are the same, but for buffered packets,
+ * |pkt_ts| would be earlier than |ts|.
  *
  * This function returns the number of bytes processed if it succeeds,
  * or one of the following negative error codes:
@@ -6284,7 +6294,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
  */
 static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                   const uint8_t *pkt, size_t pktlen,
-                                  ngtcp2_tstamp ts) {
+                                  ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts) {
   ngtcp2_pkt_hd hd;
   int rv = 0;
   size_t hdpktlen;
@@ -6592,7 +6602,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
-      rv = conn_recv_ack(conn, pktns, &fr->ack, ts);
+      rv = conn_recv_ack(conn, pktns, &fr->ack, pkt_ts, ts);
       if (rv != 0) {
         return rv;
       }
@@ -6747,7 +6757,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
-  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack, ts);
+  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack,
+                             pkt_ts);
   if (rv != 0) {
     return rv;
   }
@@ -6779,7 +6790,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
   for (ppc = &pktns->rx.buffed_pkts; *ppc;) {
     next = (*ppc)->next;
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
-                          ts);
+                          (*ppc)->ts, ts);
     if (nread < 0 && !ngtcp2_err_is_fatal((int)nread)) {
       /* TODO We don't know this is the first QUIC packet in a
          datagram. */
@@ -6824,7 +6835,7 @@ static int conn_process_buffered_handshake_pkt(ngtcp2_conn *conn,
   for (ppc = &pktns->rx.buffed_pkts; *ppc;) {
     next = (*ppc)->next;
     nread = conn_recv_handshake_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt,
-                                    (*ppc)->pktlen, ts);
+                                    (*ppc)->pktlen, (*ppc)->ts, ts);
     ngtcp2_pkt_chain_del(*ppc, conn->mem);
     *ppc = next;
     if (nread < 0) {
@@ -6900,7 +6911,7 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   size_t origpktlen = pktlen;
 
   while (pktlen) {
-    nread = conn_recv_pkt(conn, path, pkt, pktlen, ts);
+    nread = conn_recv_pkt(conn, path, pkt, pktlen, ts, ts);
     if (nread < 0) {
       if (ngtcp2_err_is_fatal((int)nread)) {
         return (int)nread;
