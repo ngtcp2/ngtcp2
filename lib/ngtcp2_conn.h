@@ -104,6 +104,10 @@ typedef enum {
    to put the sane limit.*/
 #define NGTCP2_MAX_SCID_POOL_SIZE 8
 
+/* NGTCP2_MAX_NON_ACK_TX_PKT is the maximum number of continuous non
+   ACK-eliciting packets. */
+#define NGTCP2_MAX_NON_ACK_TX_PKT 10
+
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
@@ -188,6 +192,9 @@ typedef struct {
        last time.*/
     int64_t last_pkt_num;
     ngtcp2_frame_chain *frq;
+    /* num_non_ack_pkt is the number of continuous non ACK-eliciting
+       packets. */
+    size_t num_non_ack_pkt;
   } tx;
 
   struct {

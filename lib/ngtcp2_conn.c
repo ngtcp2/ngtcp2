@@ -1695,14 +1695,11 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  /* It looks like beneficial to include PING to ACK-only frame so
-     that endpoint can get RTT samples.  Don't send any PING probe if
-     client Initial has not been acknowledged yet. */
-  if (!(flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-      (!pkt_empty ||
-       (pktns->rtb.probe_pkt_left &&
-        (type != NGTCP2_PKT_INITIAL ||
-         ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))))) {
+  /* Don't send any PING frame if client Initial has not been
+     acknowledged yet. */
+  if (!(flags & NGTCP2_RTB_FLAG_ACK_ELICITING) && pktns->rtb.probe_pkt_left &&
+      (type != NGTCP2_PKT_INITIAL ||
+       ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
     lfr.type = NGTCP2_FRAME_PING;
 
     rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
@@ -1711,6 +1708,28 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     } else {
       flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_PROBE;
       pkt_empty = 0;
+    }
+  }
+
+  if (!pkt_empty) {
+    if (!(flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+      /* The intention of smaller limit is get more chance to measure
+         RTT samples in early phase. */
+      if (pktns->rtb.probe_pkt_left || pktns->tx.num_non_ack_pkt >= 1) {
+        lfr.type = NGTCP2_FRAME_PING;
+
+        rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
+        if (rv != 0) {
+          assert(rv == NGTCP2_ERR_NOBUF);
+        } else {
+          flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+          pktns->tx.num_non_ack_pkt = 0;
+        }
+      } else {
+        ++pktns->tx.num_non_ack_pkt;
+      }
+    } else {
+      pktns->tx.num_non_ack_pkt = 0;
     }
   }
 
@@ -1743,7 +1762,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, &hd, (size_t)spktlen);
 
-  if (*pfrc != frq || padded) {
+  if ((flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
     rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frq, ts, (size_t)spktlen, flags,
                               conn->mem);
     if (rv != 0) {
@@ -1764,7 +1783,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
-  if (pktns->rtb.probe_pkt_left) {
+  if (pktns->rtb.probe_pkt_left && (flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
     --pktns->rtb.probe_pkt_left;
   }
 
@@ -1925,7 +1944,6 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
                                               ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
-  int in_probe = conn->in_pktns && conn->in_pktns->rtb.probe_pkt_left != 0;
 
   nwrite = conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
                                     early_datalen, ts);
@@ -1934,7 +1952,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
     return nwrite;
   }
 
-  if (nwrite && in_probe) {
+  if (!conn->server && nwrite) {
     return nwrite;
   }
 
@@ -2771,6 +2789,25 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
+  if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+    if (pktns->rtb.probe_pkt_left ||
+        pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT) {
+      lfr.type = NGTCP2_FRAME_PING;
+
+      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
+      if (rv != 0) {
+        assert(rv == NGTCP2_ERR_NOBUF);
+      } else {
+        rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+        pktns->tx.num_non_ack_pkt = 0;
+      }
+    } else {
+      ++pktns->tx.num_non_ack_pkt;
+    }
+  } else {
+    pktns->tx.num_non_ack_pkt = 0;
+  }
+
   /* TODO Push STREAM frame back to ngtcp2_strm if there is an error
      before ngtcp2_rtb_entry is safely created and added. */
   lfr.type = NGTCP2_FRAME_PADDING;
@@ -2796,7 +2833,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, hd, (size_t)nwrite);
 
-  if (*pfrc != pktns->tx.frq || padded) {
+  if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
     rv = ngtcp2_rtb_entry_new(&ent, hd, NULL, ts, (size_t)nwrite,
                               rtb_entry_flags, conn->mem);
     if (rv != 0) {
@@ -8884,7 +8921,11 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
         return rv;
       }
       in_pktns->rtb.probe_pkt_left = 1;
-      break;
+      if (!conn->server) {
+        break;
+      }
+      /* fall through for server so that it can coalesce packets. */
+      /* fall through */
     case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
       assert(hs_pktns);
       rv = conn_on_crypto_timeout(conn, hs_pktns);
