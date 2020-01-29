@@ -649,28 +649,6 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }
 
-void ngtcp2_rtb_clear(ngtcp2_rtb *rtb) {
-  ngtcp2_ksl_it it;
-  ngtcp2_rtb_entry *ent;
-
-  it = ngtcp2_ksl_begin(&rtb->ents);
-
-  for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
-    ent = ngtcp2_ksl_it_get(&it);
-    if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
-      assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
-      rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
-    }
-    ngtcp2_rtb_entry_del(ent, rtb->mem);
-  }
-  ngtcp2_ksl_clear(&rtb->ents);
-
-  rtb->largest_acked_tx_pkt_num = -1;
-  rtb->num_ack_eliciting = 0;
-  rtb->probe_pkt_left = 0;
-  rtb->cc_pkt_num = 0;
-}
-
 uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb) {
   uint64_t bytes_in_flight = 0;
   ngtcp2_ksl_it it;

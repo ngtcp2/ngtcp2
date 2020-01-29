@@ -315,13 +315,6 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_clear removes all ngtcp2_rtb_entry objects.
- * bytes_in_flight, largest_acked_tx_pkt_num, and num_ack_eliciting
- * are also reset to their initial value.
- */
-void ngtcp2_rtb_clear(ngtcp2_rtb *rtb);
-
-/*
  * ngtcp2_rtb_get_bytes_in_flight returns the sum of bytes in flight
  * for the stored entries.
  */
