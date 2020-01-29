@@ -4123,6 +4123,10 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn,
 static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   rcvry_stat_reset(&conn->rcs);
   cc_stat_reset(&conn->ccs);
+
+  if (conn->hs_pktns) {
+    conn->hs_pktns->rtb.cc_pkt_num = conn->hs_pktns->tx.last_pkt_num + 1;
+  }
   conn->pktns.rtb.cc_pkt_num = conn->pktns.tx.last_pkt_num + 1;
 }
 
