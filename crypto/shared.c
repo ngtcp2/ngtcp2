@@ -264,6 +264,7 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   uint8_t tx_ivbuf[NGTCP2_CRYPTO_INITIAL_IVLEN];
   uint8_t tx_hp_keybuf[NGTCP2_CRYPTO_INITIAL_KEYLEN];
   ngtcp2_crypto_ctx ctx;
+  ngtcp2_crypto_aead retry_aead;
   int rv;
 
   ngtcp2_crypto_ctx_initial(&ctx);
@@ -322,6 +323,8 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   if (rv != 0) {
     return -1;
   }
+
+  ngtcp2_conn_set_retry_aead(conn, ngtcp2_crypto_aead_retry(&retry_aead));
 
   return 0;
 }

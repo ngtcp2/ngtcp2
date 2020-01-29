@@ -2666,8 +2666,9 @@ NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_set_retry_aead` sets |aead| for Retry integrity tag
- * verification.  It must be AEAD_AES_128_GCM.  This function must not
- * be called if |conn| is initialized as server.
+ * verification.  It must be AEAD_AES_128_GCM.  This function must be
+ * called if |conn| is initialized as client.  Server does not verify
+ * the tag and has no need to call this function.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn,
                                               const ngtcp2_crypto_aead *aead);

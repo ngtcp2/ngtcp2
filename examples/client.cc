@@ -948,9 +948,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     return -1;
   }
 
-  ngtcp2_crypto_aead retry_aead;
-  ngtcp2_conn_set_retry_aead(conn_, ngtcp2_crypto_aead_retry(&retry_aead));
-
   if (setup_initial_crypto_context() != 0) {
     return -1;
   }

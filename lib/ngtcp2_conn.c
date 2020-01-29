@@ -9229,7 +9229,6 @@ const ngtcp2_crypto_ctx *ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn) {
 
 void ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn,
                                 const ngtcp2_crypto_aead *aead) {
-  assert(!conn->server);
   conn->crypto.retry_aead = *aead;
 }
 
