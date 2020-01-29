@@ -1008,6 +1008,19 @@ typedef int (*ngtcp2_handshake_completed)(ngtcp2_conn *conn, void *user_data);
 /**
  * @functypedef
  *
+ * :type:`ngtcp2_handshake_confirmed` is invoked when QUIC
+ * cryptographic handshake is confirmed.  The handshake confirmation
+ * means that both endpoints agree that handshake has finished.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_handshake_confirmed)(ngtcp2_conn *conn, void *user_data);
+
+/**
+ * @functypedef
+ *
  * :type:`ngtcp2_recv_version_negotiation` is invoked when Version
  * Negotiation packet is received.  |hd| is the pointer to the QUIC
  * packet header object.  The vector |sv| of |nsv| elements contains
@@ -1603,6 +1616,13 @@ typedef struct ngtcp2_conn_callbacks {
    * destination Connection ID is now deactivated.
    */
   ngtcp2_connection_id_status dcid_status;
+  /**
+   * handshake_confirmed is a callback function which is invoked when
+   * both endpoints agree that handshake has finished.  This field is
+   * ignored by server because handshake_completed indicates the
+   * handshake confirmation for server.
+   */
+  ngtcp2_handshake_confirmed handshake_confirmed;
 } ngtcp2_conn_callbacks;
 
 /**
