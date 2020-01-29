@@ -9182,8 +9182,19 @@ uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
 
 ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
   ngtcp2_duration trpto;
-  ngtcp2_duration idle_timeout =
-      conn->local.settings.transport_params.max_idle_timeout;
+  ngtcp2_duration idle_timeout;
+
+  /* TODO Remote max_idle_timeout becomes effective after handshake
+     completion. */
+
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
+      (conn->local.settings.transport_params.max_idle_timeout &&
+       conn->local.settings.transport_params.max_idle_timeout <
+           conn->remote.transport_params.max_idle_timeout)) {
+    idle_timeout = conn->local.settings.transport_params.max_idle_timeout;
+  } else {
+    idle_timeout = conn->remote.transport_params.max_idle_timeout;
+  }
 
   if (idle_timeout == 0) {
     return UINT64_MAX;
