@@ -160,7 +160,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
   rtb->mem = mem;
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
-  rtb->loss_time = 0;
+  rtb->loss_time = UINT64_MAX;
   rtb->probe_pkt_left = 0;
   rtb->crypto_level = crypto_level;
   rtb->cc_pkt_num = 0;
@@ -476,7 +476,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, const ngtcp2_rtb_entry *ent,
     return 1;
   }
 
-  if (rtb->loss_time == 0) {
+  if (rtb->loss_time == UINT64_MAX) {
     rtb->loss_time = ent->ts + loss_delay;
   } else {
     rtb->loss_time = ngtcp2_min(rtb->loss_time, ent->ts + loss_delay);
@@ -507,7 +507,7 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   int64_t last_lost_pkt_num;
   ngtcp2_ksl_key key;
 
-  rtb->loss_time = 0;
+  rtb->loss_time = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(rcs);
   lost_send_time = ts - loss_delay;
 
