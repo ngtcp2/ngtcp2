@@ -429,7 +429,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
     return -1;
   }
 
-  handler->shutdown_read(stream_id, NGHTTP3_H3_EARLY_RESPONSE);
+  handler->shutdown_read(stream_id, NGHTTP3_H3_NO_ERROR);
 
   return 0;
 }
@@ -553,7 +553,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
       return -1;
     }
 
-    handler->shutdown_read(stream_id, NGHTTP3_H3_EARLY_RESPONSE);
+    handler->shutdown_read(stream_id, NGHTTP3_H3_NO_ERROR);
   }
 
   return 0;
