@@ -34,7 +34,7 @@ if [ "$ROLE" == "client" ]; then
 	REQUESTS=${REQS[@]:1}
 	/usr/local/bin/client $CLIENT_ARGS --disable-early-data $REQUESTS $CLIENT_PARAMS &> $LOG
     elif [ "$TESTCASE" == "multiconnect" ]; then
-	for $REQ in $REQUESTS; do
+	for REQ in $REQUESTS; do
 	    echo "multiconnect REQ: $REQ" >> $LOG
 	    /usr/local/bin/client $CLIENT_ARGS $REQ $CLIENT_PARAMS &>> $LOG
 	done
