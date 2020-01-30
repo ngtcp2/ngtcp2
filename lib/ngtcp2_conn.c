@@ -636,6 +636,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->local.settings.token.len = 0;
   }
 
+  if (params->active_connection_id_limit == 0) {
+    (*pconn)->local.settings.transport_params.active_connection_id_limit =
+        NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  }
+
   scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
   if (scident == NULL) {
     rv = NGTCP2_ERR_NOMEM;
@@ -9267,6 +9272,8 @@ void ngtcp2_settings_default(ngtcp2_settings *settings) {
   settings->transport_params.ack_delay_exponent =
       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   settings->transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  settings->transport_params.active_connection_id_limit =
+      NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
 }
 
 /* The functions prefixed with ngtcp2_pkt_ are usually put inside
