@@ -1555,9 +1555,12 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                                      util::timestamp(loop_));
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
-    if (rv == NGTCP2_ERR_DRAINING) {
+    switch (rv) {
+    case NGTCP2_ERR_DRAINING:
       start_draining_period();
       return NETWORK_ERR_CLOSE_WAIT;
+    case NGTCP2_ERR_RETRY:
+      return NETWORK_ERR_RETRY;
     }
     if (!last_error_.code) {
       last_error_ = quic_err_transport(rv);
@@ -2334,7 +2337,7 @@ int Server::on_read(Endpoint &ep) {
         switch (h->on_read(ep, &su.sa, addrlen, buf.data(), nread)) {
         case 0:
           break;
-        case NGTCP2_ERR_RETRY:
+        case NETWORK_ERR_RETRY:
           send_retry(&hd, ep, &su.sa, addrlen);
           continue;
         default:
