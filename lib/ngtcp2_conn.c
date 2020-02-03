@@ -9261,6 +9261,14 @@ void ngtcp2_conn_get_connection_close_error_code(
   *ccec = conn->rx.ccec;
 }
 
+void ngtcp2_conn_set_tls_error(ngtcp2_conn *conn, int liberr) {
+  conn->crypto.tls_error = liberr;
+}
+
+int ngtcp2_conn_get_tls_error(ngtcp2_conn *conn) {
+  return conn->crypto.tls_error;
+}
+
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const uint8_t *data) {
   memcpy(pcent->data, data, sizeof(pcent->data));

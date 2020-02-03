@@ -475,6 +475,9 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
   auto c = static_cast<Client *>(user_data);
 
   if (c->recv_crypto_data(crypto_level, data, datalen) != 0) {
+    if (auto err = ngtcp2_conn_get_tls_error(conn); err) {
+      return err;
+    }
     return NGTCP2_ERR_CRYPTO;
   }
 
