@@ -7388,13 +7388,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-    if (conn->remote.transport_params.stateless_reset_token_present &&
-        conn->dcid.current.seq == 0) {
-      memcpy(conn->dcid.current.token,
-             conn->remote.transport_params.stateless_reset_token,
-             sizeof(conn->dcid.current.token));
-    }
-
     conn_process_early_rtb(conn);
 
     rv = conn_process_buffered_protected_pkt(conn, &conn->pktns, ts);
@@ -7810,8 +7803,15 @@ int ngtcp2_conn_install_key(ngtcp2_conn *conn, const uint8_t *rx_secret,
 
   if (!conn->server) {
     /* For client, tell application that current DCID is active so
-       that we can easily process retire-prior-to in NCID from server
-       in 0.5 RTT packets. */
+      that we can easily process retire-prior-to in NCID from server
+      in 0.5 RTT packets. */
+    if (conn->remote.transport_params.stateless_reset_token_present &&
+        conn->dcid.current.seq == 0) {
+      memcpy(conn->dcid.current.token,
+             conn->remote.transport_params.stateless_reset_token,
+             sizeof(conn->dcid.current.token));
+    }
+
     rv = conn_call_activate_dcid(conn, &conn->dcid.current);
     if (rv != 0) {
       return rv;
