@@ -204,8 +204,10 @@ void print_http_begin_response_headers(int64_t stream_id) {
 }
 
 namespace {
-void print_header(const uint8_t *name, const uint8_t *value, uint8_t flags) {
-  fprintf(outfile, "[%s: %s]%s\n", name, value,
+void print_header(const uint8_t *name, size_t namelen, const uint8_t *value,
+                  size_t valuelen, uint8_t flags) {
+  fprintf(outfile, "[%.*s: %.*s]%s\n", static_cast<int>(namelen), name,
+          static_cast<int>(valuelen), value,
           (flags & NGHTTP3_NV_FLAG_NEVER_INDEX) ? "(sensitive)" : "");
 }
 } // namespace
@@ -213,14 +215,15 @@ void print_header(const uint8_t *name, const uint8_t *value, uint8_t flags) {
 namespace {
 void print_header(const nghttp3_rcbuf *name, const nghttp3_rcbuf *value,
                   uint8_t flags) {
-  print_header(nghttp3_rcbuf_get_buf(name).base,
-               nghttp3_rcbuf_get_buf(value).base, flags);
+  auto namebuf = nghttp3_rcbuf_get_buf(name);
+  auto valuebuf = nghttp3_rcbuf_get_buf(value);
+  print_header(namebuf.base, namebuf.len, valuebuf.base, valuebuf.len, flags);
 }
 } // namespace
 
 namespace {
 void print_header(const nghttp3_nv &nv) {
-  print_header(nv.name, nv.value, nv.flags);
+  print_header(nv.name, nv.namelen, nv.value, nv.valuelen, nv.flags);
 }
 } // namespace
 
