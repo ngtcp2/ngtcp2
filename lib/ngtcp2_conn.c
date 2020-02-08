@@ -3374,12 +3374,10 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
                                           ngtcp2_tstamp ts) {
   int rv;
 
-  if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
-    rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
-                                   NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
-    if (rv != 0) {
-      return rv;
-    }
+  rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
+                                 NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
+  if (rv != 0) {
+    return rv;
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
@@ -4176,21 +4174,19 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     return 0;
   }
 
-  if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
-    if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
-      rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
-      if (rv != 0) {
-        goto fail;
-      }
-      ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
-      conn_reset_congestion_state(conn);
-    }
-
-    rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
-                                   NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
+  if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
+    rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
     if (rv != 0) {
       goto fail;
     }
+    ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+    conn_reset_congestion_state(conn);
+  }
+
+  rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
+                                 NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
+  if (rv != 0) {
+    goto fail;
   }
 
 fail:
@@ -6224,8 +6220,7 @@ static int conn_path_validation_in_progress(ngtcp2_conn *conn,
                                             const ngtcp2_path *path) {
   ngtcp2_pv *pv = conn->pv;
 
-  return pv && !(pv->flags & NGTCP2_PV_FLAG_DONT_CARE) &&
-         ngtcp2_path_eq(&pv->dcid.ps.path, path);
+  return pv && ngtcp2_path_eq(&pv->dcid.ps.path, path);
 }
 
 /*
