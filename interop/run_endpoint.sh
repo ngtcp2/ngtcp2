@@ -34,7 +34,7 @@ if [ "$ROLE" == "client" ]; then
 	REQUESTS=${REQS[@]:1}
 	/usr/local/bin/client $CLIENT_ARGS --disable-early-data $REQUESTS $CLIENT_PARAMS &> $LOG
     elif [ "$TESTCASE" == "multiconnect" ]; then
-	CLIENT_ARGS="$CLIENT_ARGS --timeout=30s"
+	CLIENT_ARGS="$CLIENT_ARGS --exit-on-first-stream-close --timeout=30s"
 	for REQ in $REQUESTS; do
 	    echo "multiconnect REQ: $REQ" >> $LOG
 	    /usr/local/bin/client $CLIENT_ARGS $REQ $CLIENT_PARAMS &>> $LOG
