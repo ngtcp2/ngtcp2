@@ -4350,8 +4350,11 @@ void test_ngtcp2_conn_server_path_validation(void) {
   ngtcp2_frame fr;
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
-  ngtcp2_cid cid;
+  ngtcp2_cid cid, *new_cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  ngtcp2_path another_new_path = {{1, (uint8_t *)"1", NULL},
+                                  {1, (uint8_t *)"3", NULL}};
+  ngtcp2_ksl_it it;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -4401,6 +4404,42 @@ void test_ngtcp2_conn_server_path_validation(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.ps.path));
+  /* DCID does not change because the client does not change its
+     DCID. */
+  CU_ASSERT(!ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
+
+  /* A remote endpoint changes DCID as well */
+  fr.type = NGTCP2_FRAME_PING;
+
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  new_cid = &(((ngtcp2_scid *)ngtcp2_ksl_it_get(&it))->cid);
+
+  pktlen =
+      write_single_frame_pkt(conn, buf, sizeof(buf), new_cid, ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &another_new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != conn->pv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents) > 0);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+
+  pktlen =
+      write_single_frame_pkt(conn, buf, sizeof(buf), new_cid, ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &another_new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_path_eq(&another_new_path, &conn->dcid.current.ps.path));
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);
