@@ -7294,6 +7294,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   size_t server_hs_tx_left;
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
   size_t pending_early_datalen;
+  ngtcp2_dcid *dcid;
+  ngtcp2_preferred_addr *paddr;
 
   cwnd = conn_cwnd_left(conn);
   destlen = ngtcp2_min(destlen, cwnd);
@@ -7385,6 +7387,26 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
+
+    if (conn->remote.transport_params.preferred_address_present) {
+      assert(!ngtcp2_ringbuf_full(&conn->dcid.unused));
+
+      paddr = &conn->remote.transport_params.preferred_address;
+      dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused);
+      ngtcp2_dcid_init(dcid, 1, &paddr->cid, paddr->stateless_reset_token);
+    }
+
+    if (conn->remote.transport_params.stateless_reset_token_present) {
+      assert(conn->dcid.current.seq == 0);
+      memcpy(conn->dcid.current.token,
+             conn->remote.transport_params.stateless_reset_token,
+             sizeof(conn->dcid.current.token));
+    }
+
+    rv = conn_call_activate_dcid(conn, &conn->dcid.current);
+    if (rv != 0) {
+      return rv;
+    }
 
     conn_process_early_rtb(conn);
 
@@ -7799,23 +7821,6 @@ int ngtcp2_conn_install_key(ngtcp2_conn *conn, const uint8_t *rx_secret,
   conn_sync_stream_id_limit(conn);
   conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
 
-  if (!conn->server) {
-    /* For client, tell application that current DCID is active so
-      that we can easily process retire-prior-to in NCID from server
-      in 0.5 RTT packets. */
-    if (conn->remote.transport_params.stateless_reset_token_present &&
-        conn->dcid.current.seq == 0) {
-      memcpy(conn->dcid.current.token,
-             conn->remote.transport_params.stateless_reset_token,
-             sizeof(conn->dcid.current.token));
-    }
-
-    rv = conn_call_activate_dcid(conn, &conn->dcid.current);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
   return 0;
 }
 
@@ -7952,8 +7957,6 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
 int ngtcp2_conn_set_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   int rv;
-  const ngtcp2_preferred_addr *paddr;
-  ngtcp2_dcid *dcid;
 
   assert(!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED));
 
@@ -7989,17 +7992,6 @@ int ngtcp2_conn_set_remote_transport_params(
   }
 
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
-
-  if (!conn->server && params->preferred_address_present) {
-    /* Although transport parameters are only effective after
-       handshake succeeds, we copy CID in prams->preferred_address to
-       conn->dcid.unused now in order to make the code simpler. */
-    assert(!ngtcp2_ringbuf_full(&conn->dcid.unused));
-
-    paddr = &params->preferred_address;
-    dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused);
-    ngtcp2_dcid_init(dcid, 1, &paddr->cid, paddr->stateless_reset_token);
-  }
 
   return 0;
 }
