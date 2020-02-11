@@ -1562,27 +1562,19 @@ void Client::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
 }
 
 int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
-  auto it = streams_.find(stream_id);
-
-  if (it == std::end(streams_)) {
-    return 0;
-  }
-
   if (httpconn_) {
     if (app_error_code == 0) {
       app_error_code = NGHTTP3_H3_NO_ERROR;
     }
     if (auto rv =
             nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
-        rv != 0) {
+        rv != 0 && rv != NGHTTP3_ERR_INVALID_ARGUMENT) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
       last_error_ = quic_err_app(rv);
       return -1;
     }
   }
-
-  streams_.erase(it);
 
   return 0;
 }
@@ -2015,6 +2007,11 @@ int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
   if (config.exit_on_first_stream_close) {
     should_exit_ = true;
   }
+
+  if (auto it = streams_.find(stream_id); it != std::end(streams_)) {
+    streams_.erase(it);
+  }
+
   return 0;
 }
 
