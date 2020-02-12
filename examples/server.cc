@@ -1186,6 +1186,30 @@ void Handler::http_acked_stream_data(int64_t stream_id, size_t datalen) {
   }
 }
 
+namespace {
+int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
+                      uint64_t app_error_code, void *conn_user_data,
+                      void *stream_user_data) {
+  auto h = static_cast<Handler *>(conn_user_data);
+  h->http_stream_close(stream_id, app_error_code);
+  return 0;
+}
+} // namespace
+
+void Handler::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
+  auto it = streams_.find(stream_id);
+  if (it == std::end(streams_)) {
+    return;
+  }
+
+  if (!config.quiet) {
+    std::cerr << "HTTP/3 stream " << stream_id << " closed with error code "
+              << app_error_code << std::endl;
+  }
+
+  streams_.erase(it);
+}
+
 int Handler::setup_httpconn() {
   if (httpconn_) {
     return 0;
@@ -1199,7 +1223,7 @@ int Handler::setup_httpconn() {
 
   nghttp3_conn_callbacks callbacks{
       ::http_acked_stream_data, // acked_stream_data
-      nullptr,                  // stream_close
+      ::http_stream_close,
       ::http_recv_data,
       ::http_deferred_consume,
       ::http_begin_request_headers,
@@ -1984,26 +2008,19 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     std::cerr << "QUIC stream " << stream_id << " closed" << std::endl;
   }
 
-  auto it = streams_.find(stream_id);
-  if (it == std::end(streams_)) {
-    return 0;
-  }
-
   if (httpconn_) {
     if (app_error_code == 0) {
       app_error_code = NGHTTP3_H3_NO_ERROR;
     }
     if (auto rv =
             nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
-        rv != 0) {
+        rv != 0 && rv != NGHTTP3_ERR_INVALID_ARGUMENT) {
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
       last_error_ = quic_err_app(rv);
       return -1;
     }
   }
-
-  streams_.erase(it);
 
   return 0;
 }
