@@ -1566,9 +1566,20 @@ int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     if (app_error_code == 0) {
       app_error_code = NGHTTP3_H3_NO_ERROR;
     }
-    if (auto rv =
-            nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
-        rv != 0 && rv != NGHTTP3_ERR_INVALID_ARGUMENT) {
+    auto rv = nghttp3_conn_close_stream(httpconn_, stream_id, app_error_code);
+    switch (rv) {
+    case 0:
+      break;
+    case NGHTTP3_ERR_STREAM_NOT_FOUND:
+      // We have to handle the case when stream opened but no data is
+      // transferred.  In this case, nghttp3_conn_close_stream might
+      // return error.
+      if (!ngtcp2_is_bidi_stream(stream_id)) {
+        assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
+        ngtcp2_conn_extend_max_streams_uni(conn_, 1);
+      }
+      break;
+    default:
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
       last_error_ = quic_err_app(rv);
@@ -2006,6 +2017,11 @@ int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
 int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
   if (config.exit_on_first_stream_close) {
     should_exit_ = true;
+  }
+
+  if (!ngtcp2_is_bidi_stream(stream_id)) {
+    assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
+    ngtcp2_conn_extend_max_streams_uni(conn_, 1);
   }
 
   if (auto it = streams_.find(stream_id); it != std::end(streams_)) {

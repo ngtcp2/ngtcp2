@@ -2439,6 +2439,35 @@ NGTCP2_EXTERN void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_extend_max_streams_bidi` extends the number of maximum
+ * local bidirectional streams that a remote endpoint can open by |n|.
+ *
+ * The library does not increase maximum stream limit automatically.
+ * The exception is when a stream is closed without
+ * :type:`ngtcp2_stream_open` callback being called.  In this case,
+ * stream limit is increased automatically.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_extend_max_streams_bidi(ngtcp2_conn *conn,
+                                                       size_t n);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_extend_max_streams_uni` extends the number of maximum
+ * local unidirectional streams that a remote endpoint can open by
+ * |n|.
+ *
+ * The library does not increase maximum stream limit automatically.
+ * The exception is when a stream is closed without
+ * :type:`ngtcp2_stream_open` callback being called.  In this case,
+ * stream limit is increased automatically.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_extend_max_streams_uni(ngtcp2_conn *conn,
+                                                      size_t n);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_bytes_in_flight` returns the number of bytes which
  * is the sum of outgoing QUIC packet length in flight.  This does not
  * include a packet which only includes ACK frames.
@@ -2731,6 +2760,15 @@ NGTCP2_EXTERN void ngtcp2_conn_get_connection_close_error_code(
 /**
  * @function
  *
+ * `ngtcp2_conn_is_local_stream` returns nonzero if |stream_id| denotes the
+ * stream which a local endpoint issues.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_is_local_stream(ngtcp2_conn *conn,
+                                              int64_t stream_id);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
@@ -2841,6 +2879,14 @@ typedef struct ngtcp2_info {
  * return a ``NULL``.  Pass in 0 to skip the version checking.
  */
 NGTCP2_EXTERN ngtcp2_info *ngtcp2_version(int least_version);
+
+/**
+ * @function
+ *
+ * `ngtcp2_is_bidi_stream` returns nonzero if |stream_id| denotes
+ * bidirectional stream.
+ */
+NGTCP2_EXTERN int ngtcp2_is_bidi_stream(int64_t stream_id);
 
 #ifdef __cplusplus
 }
