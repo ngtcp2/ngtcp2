@@ -2026,7 +2026,7 @@ int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
 
   if (auto it = streams_.find(stream_id); it != std::end(streams_)) {
     if (!config.quiet) {
-      std::cerr << "HTTP/3 stream " << stream_id << " closed with error code "
+      std::cerr << "HTTP stream " << stream_id << " closed with error code "
                 << app_error_code << std::endl;
     }
     streams_.erase(it);
