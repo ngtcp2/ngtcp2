@@ -2391,7 +2391,6 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   ngtcp2_frame fr;
   int rv;
 
-  /* Delayed Handshake packet is discarded */
   setup_default_client(&conn);
 
   fr.type = NGTCP2_FRAME_CRYPTO;
@@ -2406,7 +2405,7 @@ void test_ngtcp2_conn_recv_delayed_handshake_pkt(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->hs_pktns->acktr.ents));
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns->acktr.ents));
 
   ngtcp2_conn_del(conn);
 }
@@ -3699,10 +3698,9 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
 
   CU_ASSERT(ackent->pkt_num == pkt_num);
 
-  /* Handshake packet should be discarded */
   it = ngtcp2_acktr_get(&conn->hs_pktns->acktr);
 
-  CU_ASSERT(ngtcp2_ksl_it_end(&it));
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
 }

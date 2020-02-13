@@ -6327,6 +6327,116 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 }
 
 /*
+ * conn_recv_delayed_handshake_pkt processes the received Handshake
+ * packet which is received after handshake completed.  This function
+ * does the minimal job, and its purpose is send acknowledgement of
+ * this packet to the peer.  We assume that hd->type ==
+ * NGTCP2_PKT_HANDSHAKE.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Frame is badly formatted; or frame type is unknown.
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ * NGTCP2_ERR_DISCARD_PKT
+ *     Packet was discarded.
+ * NGTCP2_ERR_ACK_FRAME
+ *     ACK frame is malformed.
+ * NGTCP2_ERR_PROTO
+ *     Frame that is not allowed in Handshake packet is received.
+ */
+static int
+conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                                size_t pktlen, const uint8_t *payload,
+                                size_t payloadlen, ngtcp2_tstamp pkt_ts,
+                                ngtcp2_tstamp ts) {
+  ngtcp2_ssize nread;
+  ngtcp2_max_frame mfr;
+  ngtcp2_frame *fr = &mfr.fr;
+  int rv;
+  int require_ack = 0;
+  ngtcp2_pktns *pktns;
+
+  assert(hd->type == NGTCP2_PKT_HANDSHAKE);
+
+  pktns = conn->hs_pktns;
+
+  if (payloadlen == 0) {
+    /* QUIC packet must contain at least one frame */
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
+
+  ngtcp2_qlog_pkt_received_start(&conn->qlog, hd);
+
+  for (; payloadlen;) {
+    nread = ngtcp2_pkt_decode_frame(fr, payload, payloadlen);
+    if (nread < 0) {
+      return (int)nread;
+    }
+
+    payload += nread;
+    payloadlen -= (size_t)nread;
+
+    if (fr->type == NGTCP2_FRAME_ACK) {
+      fr->ack.ack_delay = 0;
+      fr->ack.ack_delay_unscaled = 0;
+    }
+
+    ngtcp2_log_rx_fr(&conn->log, hd, fr);
+
+    switch (fr->type) {
+    case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
+      rv = conn_recv_ack(conn, pktns, &fr->ack, pkt_ts, ts);
+      if (rv != 0) {
+        return rv;
+      }
+      if (!conn->server) {
+        conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
+      }
+      break;
+    case NGTCP2_FRAME_PADDING:
+      break;
+    case NGTCP2_FRAME_CONNECTION_CLOSE:
+      conn_recv_connection_close(conn, &fr->connection_close);
+      break;
+    case NGTCP2_FRAME_CRYPTO:
+    case NGTCP2_FRAME_PING:
+      require_ack = 1;
+      break;
+    default:
+      return NGTCP2_ERR_PROTO;
+    }
+
+    ngtcp2_qlog_write_frame(&conn->qlog, fr);
+  }
+
+  ngtcp2_qlog_pkt_received_end(&conn->qlog, hd, pktlen);
+
+  rv = pktns_commit_recv_pkt_num(pktns, hd->pkt_num);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+    ngtcp2_acktr_immediate_ack(&pktns->acktr);
+  }
+
+  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  conn_restart_timer_on_read(conn, ts);
+
+  ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->rcs, &conn->ccs);
+
+  return 0;
+}
+
+/*
  * conn_recv_pkt processes a packet contained in the buffer pointed by
  * |pkt| of length |pktlen|.  |pkt| may contain multiple QUIC packets.
  * This function only processes the first packet.  |pkt_ts| is the
@@ -6418,9 +6528,19 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                       "delayed Initial packet was discarded");
       return (ngtcp2_ssize)pktlen;
     case NGTCP2_PKT_HANDSHAKE:
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                      "delayed Handshake packet was discarded");
-      return (ngtcp2_ssize)pktlen;
+      if (!conn->hs_pktns) {
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "delayed Handshake packet was discarded");
+        return (ngtcp2_ssize)pktlen;
+      }
+
+      pktns = conn->hs_pktns;
+      ckm = pktns->crypto.rx.ckm;
+      hp_key = pktns->crypto.rx.hp_key;
+      hp_mask = conn->callbacks.hp_mask;
+      decrypt = conn->callbacks.decrypt;
+      aead_overhead = conn->crypto.aead_overhead;
+      break;
     case NGTCP2_PKT_0RTT:
       if (!conn->server || !conn->early.ckm) {
         return NGTCP2_ERR_DISCARD_PKT;
@@ -6484,9 +6604,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    assert(hd.type == NGTCP2_PKT_0RTT);
-
-    if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
+    switch (hd.type) {
+    case NGTCP2_PKT_HANDSHAKE:
       rv = conn_verify_dcid(conn, NULL, &hd);
       if (rv != 0) {
         if (ngtcp2_err_is_fatal(rv)) {
@@ -6496,6 +6615,23 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                         "packet was ignored because of mismatched DCID");
         return NGTCP2_ERR_DISCARD_PKT;
       }
+      break;
+    case NGTCP2_PKT_0RTT:
+      if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
+        rv = conn_verify_dcid(conn, NULL, &hd);
+        if (rv != 0) {
+          if (ngtcp2_err_is_fatal(rv)) {
+            return rv;
+          }
+          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                          "packet was ignored because of mismatched DCID");
+          return NGTCP2_ERR_DISCARD_PKT;
+        }
+      }
+      break;
+    default:
+      /* Unreachable */
+      assert(0);
     }
   } else {
     rv = conn_verify_dcid(conn, &new_cid_used, &hd);
@@ -6595,7 +6731,16 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
-  if (!(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM)) {
+  if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
+    if (hd.type == NGTCP2_PKT_HANDSHAKE) {
+      rv = conn_recv_delayed_handshake_pkt(conn, &hd, pktlen, payload,
+                                           payloadlen, pkt_ts, ts);
+      if (rv < 0) {
+        return (ngtcp2_ssize)rv;
+      }
+      return (ngtcp2_ssize)pktlen;
+    }
+  } else {
     conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
   }
 
