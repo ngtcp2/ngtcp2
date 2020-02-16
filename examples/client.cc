@@ -1022,8 +1022,19 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                                      util::timestamp(loop_));
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
-    if (!last_error_.code) {
+    switch (rv) {
+    case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
+    case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
+    case NGTCP2_ERR_TRANSPORT_PARAM:
+      // If rv indicates transport_parameters related error, we should
+      // send TRANSPORT_PARAMETER_ERROR even if last_error_.code is
+      // already set.  This is because OpenSSL might set Alert.
       last_error_ = quic_err_transport(rv);
+      break;
+    default:
+      if (!last_error_.code) {
+        last_error_ = quic_err_transport(rv);
+      }
     }
     disconnect();
     return -1;

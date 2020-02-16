@@ -1596,9 +1596,18 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       return NETWORK_ERR_CLOSE_WAIT;
     case NGTCP2_ERR_RETRY:
       return NETWORK_ERR_RETRY;
-    }
-    if (!last_error_.code) {
+    case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
+    case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
+    case NGTCP2_ERR_TRANSPORT_PARAM:
+      // If rv indicates transport_parameters related error, we should
+      // send TRANSPORT_PARAMETER_ERROR even if last_error_.code is
+      // already set.  This is because OpenSSL might set Alert.
       last_error_ = quic_err_transport(rv);
+      break;
+    default:
+      if (!last_error_.code) {
+        last_error_ = quic_err_transport(rv);
+      }
     }
     return handle_error();
   }
