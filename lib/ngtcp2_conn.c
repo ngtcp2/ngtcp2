@@ -4813,9 +4813,14 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (ngtcp2_err_is_fatal((int)nread)) {
         return (int)nread;
       }
-      if (nread == NGTCP2_ERR_DISCARD_PKT) {
-        break;
+
+      switch (nread) {
+      case NGTCP2_ERR_DISCARD_PKT:
+        return 0;
+      case NGTCP2_ERR_DRAINING:
+        return NGTCP2_ERR_DRAINING;
       }
+
       if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
           /* Not a Version Negotiation packet */
           pktlen > 4 && ngtcp2_get_uint32(&pkt[1]) > 0 &&
@@ -4831,15 +4836,6 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "read packet %td left %zu", nread, pktlen);
-  }
-
-  switch (conn->state) {
-  case NGTCP2_CS_CLOSING:
-    return NGTCP2_ERR_CLOSING;
-  case NGTCP2_CS_DRAINING:
-    return NGTCP2_ERR_DRAINING;
-  default:
-    break;
   }
 
   return 0;
@@ -6970,7 +6966,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->rcs, &conn->ccs);
 
-  return (ngtcp2_ssize)pktlen;
+  return conn->state == NGTCP2_CS_DRAINING ? NGTCP2_ERR_DRAINING
+                                           : (ngtcp2_ssize)pktlen;
 }
 
 /*
@@ -6994,7 +6991,8 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
     next = (*ppc)->next;
     nread = conn_recv_pkt(conn, &(*ppc)->path.path, (*ppc)->pkt, (*ppc)->pktlen,
                           (*ppc)->ts, ts);
-    if (nread < 0 && !ngtcp2_err_is_fatal((int)nread)) {
+    if (nread < 0 && !ngtcp2_err_is_fatal((int)nread) &&
+        nread != NGTCP2_ERR_DRAINING) {
       /* TODO We don't know this is the first QUIC packet in a
          datagram. */
       rv = conn_on_stateless_reset(conn, &(*ppc)->path.path, (*ppc)->pkt,
@@ -7002,7 +7000,7 @@ static int conn_process_buffered_protected_pkt(ngtcp2_conn *conn,
       if (rv == 0) {
         ngtcp2_pkt_chain_del(*ppc, conn->mem);
         *ppc = next;
-        return 0;
+        return NGTCP2_ERR_DRAINING;
       }
     }
 
@@ -7119,10 +7117,15 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (ngtcp2_err_is_fatal((int)nread)) {
         return (int)nread;
       }
+
+      if (nread == NGTCP2_ERR_DRAINING) {
+        return NGTCP2_ERR_DRAINING;
+      }
+
       if (origpkt == pkt) {
         rv = conn_on_stateless_reset(conn, path, origpkt, origpktlen);
         if (rv == 0) {
-          return 0;
+          return NGTCP2_ERR_DRAINING;
         }
       }
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
@@ -7200,17 +7203,10 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (rv != 0) {
       return rv;
     }
-    rv = conn_recv_cpkt(conn, path, pkt, pktlen, ts);
-    if (rv != 0) {
-      break;
-    }
-    if (conn->state == NGTCP2_CS_DRAINING) {
-      return NGTCP2_ERR_DRAINING;
-    }
-    break;
+    return conn_recv_cpkt(conn, path, pkt, pktlen, ts);
+  default:
+    assert(0);
   }
-
-  return rv;
 }
 
 /*
