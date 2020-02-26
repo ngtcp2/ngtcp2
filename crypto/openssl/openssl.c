@@ -27,6 +27,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <assert.h>
+#include <string.h>
 
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <ngtcp2/ngtcp2_crypto_openssl.h>
@@ -38,7 +39,7 @@
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ctx->aead.native_handle = (void *)EVP_aes_128_gcm();
   ctx->md.native_handle = (void *)EVP_sha256();
-  ctx->hp.native_handle = (void *)EVP_aes_128_ctr();
+  ctx->hp.native_handle = (void *)EVP_aes_128_ecb();
   return ctx;
 }
 
@@ -66,9 +67,9 @@ static const EVP_CIPHER *crypto_ssl_get_hp(SSL *ssl) {
   switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
   case TLS1_3_CK_AES_128_GCM_SHA256:
   case TLS1_3_CK_AES_128_CCM_SHA256:
-    return EVP_aes_128_ctr();
+    return EVP_aes_128_ecb();
   case TLS1_3_CK_AES_256_GCM_SHA384:
-    return EVP_aes_256_ctr();
+    return EVP_aes_256_ecb();
   case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
     return EVP_chacha20();
   default:
@@ -276,6 +277,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                           const uint8_t *hp_key, const uint8_t *sample) {
   static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+  uint8_t buf[16];
   const EVP_CIPHER *cipher = hp->native_handle;
   EVP_CIPHER_CTX *actx;
   int rv = 0;
@@ -286,10 +288,22 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
     return -1;
   }
 
-  if (!EVP_EncryptInit_ex(actx, cipher, NULL, hp_key, sample) ||
-      !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT, sizeof(PLAINTEXT) - 1) ||
-      !EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT) - 1, &len)) {
-    rv = -1;
+  if (cipher == EVP_aes_128_ecb() || cipher == EVP_aes_256_ecb()) {
+    if (!EVP_EncryptInit_ex(actx, cipher, NULL, hp_key, NULL) ||
+        !EVP_CIPHER_CTX_set_padding(actx, 0) ||
+        !EVP_EncryptUpdate(actx, buf, &len, sample, 16) ||
+        !EVP_EncryptFinal_ex(actx, buf + len, &len)) {
+      rv = -1;
+    }
+    memcpy(dest, buf, 5);
+  } else if (cipher == EVP_chacha20()) {
+    if (!EVP_EncryptInit_ex(actx, cipher, NULL, hp_key, sample) ||
+        !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT, sizeof(PLAINTEXT) - 1) ||
+        !EVP_EncryptFinal_ex(actx, dest + len, &len)) {
+      rv = -1;
+    }
+  } else {
+    assert(0);
   }
 
   EVP_CIPHER_CTX_free(actx);
