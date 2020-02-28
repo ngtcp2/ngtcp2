@@ -362,6 +362,7 @@ static ngtcp2_ssize decode_varint_param(uint64_t *pdest, const uint8_t *p,
   const uint8_t *begin = p;
   ngtcp2_ssize nread;
   uint64_t valuelen;
+  size_t n;
 
   nread = decode_varint(&valuelen, p, end);
   if (nread < 0) {
@@ -378,7 +379,7 @@ static ngtcp2_ssize decode_varint_param(uint64_t *pdest, const uint8_t *p,
     return -1;
   }
 
-  *pdest = ngtcp2_get_varint(&valuelen, p);
+  *pdest = ngtcp2_get_varint(&n, p);
 
   p += valuelen;
 
