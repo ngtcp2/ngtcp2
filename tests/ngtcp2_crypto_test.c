@@ -28,7 +28,13 @@
 
 #include "ngtcp2_crypto.h"
 #include "ngtcp2_cid.h"
+#include "ngtcp2_conv.h"
 #include "ngtcp2_test_helper.h"
+
+static size_t varint_paramlen(ngtcp2_transport_param_id id, uint64_t value) {
+  size_t valuelen = ngtcp2_put_varint_len(value);
+  return ngtcp2_put_varint_len(id) + ngtcp2_put_varint_len(valuelen) + valuelen;
+}
 
 void test_ngtcp2_encode_transport_params(void) {
   ngtcp2_transport_params params, nparams;
@@ -51,7 +57,7 @@ void test_ngtcp2_encode_transport_params(void) {
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(2 == nwrite);
+  CU_ASSERT(0 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -88,7 +94,7 @@ void test_ngtcp2_encode_transport_params(void) {
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
 
-  CU_ASSERT(2 == nwrite);
+  CU_ASSERT(0 == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
@@ -131,7 +137,36 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_ack_delay = 59 * NGTCP2_MILLISECONDS;
   params.active_connection_id_limit = 1000000007;
 
-  for (i = 0; i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 5 + 4 + 5 + 8; ++i) {
+  for (i = 0;
+       i <
+       varint_paramlen(
+           NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
+           params.initial_max_stream_data_bidi_local) +
+           varint_paramlen(
+               NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,
+               params.initial_max_stream_data_bidi_remote) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI,
+                           params.initial_max_stream_data_uni) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA,
+                           params.initial_max_data) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI,
+                           params.initial_max_streams_bidi) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI,
+                           params.initial_max_streams_uni) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT,
+                           params.max_idle_timeout / NGTCP2_MILLISECONDS) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE,
+                           params.max_packet_size) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT,
+                           params.ack_delay_exponent) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION) +
+            ngtcp2_put_varint_len(0)) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY,
+                           params.max_ack_delay / NGTCP2_MILLISECONDS) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
+                           params.active_connection_id_limit);
+       ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
     CU_ASSERT(NGTCP2_ERR_NOBUF == nwrite);
@@ -197,10 +232,48 @@ void test_ngtcp2_encode_transport_params(void) {
   params.active_connection_id_limit = 1073741824;
 
   for (i = 0;
-       i < 2 + 8 * 4 + 6 * 2 + 6 + 6 + 20 + 5 + 5 +
-               (4 + 4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
-                NGTCP2_STATELESS_RESET_TOKENLEN) +
-               4 + 4 + params.original_connection_id.datalen + 12;
+       i <
+       varint_paramlen(
+           NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
+           params.initial_max_stream_data_bidi_local) +
+           varint_paramlen(
+               NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,
+               params.initial_max_stream_data_bidi_remote) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI,
+                           params.initial_max_stream_data_uni) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA,
+                           params.initial_max_data) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI,
+                           params.initial_max_streams_bidi) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI,
+                           params.initial_max_streams_uni) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT,
+                           params.max_idle_timeout / NGTCP2_MILLISECONDS) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE,
+                           params.max_packet_size) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT,
+                           params.ack_delay_exponent) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION) +
+            ngtcp2_put_varint_len(0)) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY,
+                           params.max_ack_delay / NGTCP2_MILLISECONDS) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
+                           params.active_connection_id_limit) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
+            ngtcp2_put_varint_len(NGTCP2_STATELESS_RESET_TOKENLEN) +
+            NGTCP2_STATELESS_RESET_TOKENLEN) +
+           (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
+            ngtcp2_put_varint_len(4 + 2 + 16 + 2 + 1 +
+                                  params.preferred_address.cid.datalen +
+                                  NGTCP2_STATELESS_RESET_TOKENLEN) +
+            4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
+            NGTCP2_STATELESS_RESET_TOKENLEN) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID) +
+            ngtcp2_put_varint_len(params.original_connection_id.datalen) +
+            params.original_connection_id.datalen);
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
