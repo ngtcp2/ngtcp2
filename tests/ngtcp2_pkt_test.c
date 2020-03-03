@@ -32,13 +32,11 @@
 #include "ngtcp2_cid.h"
 #include "ngtcp2_str.h"
 
-static int null_retry_encrypt(ngtcp2_conn *conn, uint8_t *dest,
-                              const ngtcp2_crypto_aead *aead,
+static int null_retry_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                               const uint8_t *plaintext, size_t plaintextlen,
                               const uint8_t *key, const uint8_t *nonce,
-                              size_t noncelen, const uint8_t *ad, size_t adlen,
-                              void *user_data) {
-  (void)conn;
+                              size_t noncelen, const uint8_t *ad,
+                              size_t adlen) {
   (void)dest;
   (void)aead;
   (void)plaintext;
@@ -48,7 +46,6 @@ static int null_retry_encrypt(ngtcp2_conn *conn, uint8_t *dest,
   (void)noncelen;
   (void)ad;
   (void)adlen;
-  (void)user_data;
 
   if (plaintextlen && plaintext != dest) {
     memcpy(dest, plaintext, plaintextlen);

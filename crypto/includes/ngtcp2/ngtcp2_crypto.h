@@ -225,11 +225,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
  * This function returns 0 if it succeeds, or
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_encrypt_cb(
-    ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
-    const uint8_t *plaintext, size_t plaintextlen, const uint8_t *key,
-    const uint8_t *nonce, size_t noncelen, const uint8_t *ad, size_t adlen,
-    void *user_data);
+NGTCP2_EXTERN int
+ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                         const uint8_t *plaintext, size_t plaintextlen,
+                         const uint8_t *key, const uint8_t *nonce,
+                         size_t noncelen, const uint8_t *ad, size_t adlen);
 
 /**
  * @function
@@ -259,11 +259,11 @@ ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * This function returns 0 if it succeeds, or
  * :enum:`NGTCP2_ERR_TLS_DECRYPT`.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_decrypt_cb(
-    ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_aead *aead,
-    const uint8_t *ciphertext, size_t ciphertextlen, const uint8_t *key,
-    const uint8_t *nonce, size_t noncelen, const uint8_t *ad, size_t adlen,
-    void *user_data);
+NGTCP2_EXTERN int
+ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                         const uint8_t *ciphertext, size_t ciphertextlen,
+                         const uint8_t *key, const uint8_t *nonce,
+                         size_t noncelen, const uint8_t *ad, size_t adlen);
 
 /**
  * @function
@@ -290,11 +290,10 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
  * This function returns 0 if it succeeds, or
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_hp_mask_cb(ngtcp2_conn *conn, uint8_t *dest,
+NGTCP2_EXTERN int ngtcp2_crypto_hp_mask_cb(uint8_t *dest,
                                            const ngtcp2_crypto_cipher *hp,
                                            const uint8_t *key,
-                                           const uint8_t *sample,
-                                           void *user_data);
+                                           const uint8_t *sample);
 
 /**
  * @function

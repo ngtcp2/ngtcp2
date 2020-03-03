@@ -671,8 +671,8 @@ int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
 } // namespace
 
 namespace {
-int do_hp_mask(ngtcp2_conn *conn, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-               const uint8_t *hp_key, const uint8_t *sample, void *user_data) {
+int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
+               const uint8_t *hp_key, const uint8_t *sample) {
   if (ngtcp2_crypto_hp_mask(dest, hp, hp_key, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }

@@ -37,13 +37,10 @@
 #include "ngtcp2_vec.h"
 #include "ngtcp2_rcvry.h"
 
-static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
-                        const ngtcp2_crypto_aead *aead,
+static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const uint8_t *plaintext, size_t plaintextlen,
                         const uint8_t *key, const uint8_t *nonce,
-                        size_t noncelen, const uint8_t *ad, size_t adlen,
-                        void *user_data) {
-  (void)conn;
+                        size_t noncelen, const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
   (void)plaintext;
@@ -53,7 +50,6 @@ static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
   (void)noncelen;
   (void)ad;
   (void)adlen;
-  (void)user_data;
 
   if (plaintextlen && plaintext != dest) {
     memcpy(dest, plaintext, plaintextlen);
@@ -63,13 +59,10 @@ static int null_encrypt(ngtcp2_conn *conn, uint8_t *dest,
   return 0;
 }
 
-static int null_decrypt(ngtcp2_conn *conn, uint8_t *dest,
-                        const ngtcp2_crypto_aead *aead,
+static int null_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const uint8_t *ciphertext, size_t ciphertextlen,
                         const uint8_t *key, const uint8_t *nonce,
-                        size_t noncelen, const uint8_t *ad, size_t adlen,
-                        void *user_data) {
-  (void)conn;
+                        size_t noncelen, const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
   (void)ciphertext;
@@ -78,19 +71,15 @@ static int null_decrypt(ngtcp2_conn *conn, uint8_t *dest,
   (void)noncelen;
   (void)ad;
   (void)adlen;
-  (void)user_data;
   assert(ciphertextlen >= NGTCP2_FAKE_AEAD_OVERHEAD);
   memmove(dest, ciphertext, ciphertextlen - NGTCP2_FAKE_AEAD_OVERHEAD);
   return 0;
 }
 
-static int fail_decrypt(ngtcp2_conn *conn, uint8_t *dest,
-                        const ngtcp2_crypto_aead *aead,
+static int fail_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const uint8_t *ciphertext, size_t ciphertextlen,
                         const uint8_t *key, const uint8_t *nonce,
-                        size_t noncelen, const uint8_t *ad, size_t adlen,
-                        void *user_data) {
-  (void)conn;
+                        size_t noncelen, const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
   (void)ciphertext;
@@ -100,17 +89,13 @@ static int fail_decrypt(ngtcp2_conn *conn, uint8_t *dest,
   (void)noncelen;
   (void)ad;
   (void)adlen;
-  (void)user_data;
   return NGTCP2_ERR_TLS_DECRYPT;
 }
 
-static int null_hp_mask(ngtcp2_conn *conn, uint8_t *dest,
-                        const ngtcp2_crypto_cipher *hp, const uint8_t *hp_key,
-                        const uint8_t *sample, void *user_data) {
-  (void)conn;
+static int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
+                        const uint8_t *hp_key, const uint8_t *sample) {
   (void)hp;
   (void)hp_key;
-  (void)user_data;
   (void)sample;
   memcpy(dest, NGTCP2_FAKE_HP_MASK, sizeof(NGTCP2_FAKE_HP_MASK) - 1);
   return 0;

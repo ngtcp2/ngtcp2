@@ -1640,7 +1640,6 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   cc.hp_key = pktns->crypto.tx.hp_key;
   cc.encrypt = conn->callbacks.encrypt;
   cc.hp_mask = conn->callbacks.hp_mask;
-  cc.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type,
                      &conn->dcid.current.cid, &conn->oscid,
@@ -2378,7 +2377,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     cc->aead_overhead = conn->crypto.aead_overhead;
     cc->encrypt = conn->callbacks.encrypt;
     cc->hp_mask = conn->callbacks.hp_mask;
-    cc->user_data = conn;
 
     /* TODO Take into account stream frames */
     if ((pktns->tx.frq || send_stream ||
@@ -2936,7 +2934,6 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   cc.hp_key = pktns->crypto.tx.hp_key;
   cc.encrypt = conn->callbacks.encrypt;
   cc.hp_mask = conn->callbacks.hp_mask;
-  cc.user_data = conn;
 
   ngtcp2_pkt_hd_init(&hd, flags, type, dcid, &conn->oscid,
                      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
@@ -3083,7 +3080,6 @@ static ngtcp2_ssize conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
   cc.hp = pktns->crypto.ctx.hp;
   cc.ckm = pktns->crypto.tx.ckm;
   cc.hp_key = pktns->crypto.tx.hp_key;
-  cc.user_data = conn;
 
   ngtcp2_pkt_hd_init(
       &hd,
@@ -3971,12 +3967,12 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t n) {
 }
 
 /*
- * conn_decrypt_pkt decrypts the data pointed by |payload| whose
- * length is |payloadlen|, and writes plaintext data to the buffer
- * pointed by |dest|.  The buffer pointed by |ad| is the Additional
- * Data, and its length is |adlen|.  |pkt_num| is used to create a
- * nonce.  |ckm| is the cryptographic key, and iv to use.  |decrypt|
- * is a callback function which actually decrypts a packet.
+ * decrypt_pkt decrypts the data pointed by |payload| whose length is
+ * |payloadlen|, and writes plaintext data to the buffer pointed by
+ * |dest|.  The buffer pointed by |ad| is the Additional Data, and its
+ * length is |adlen|.  |pkt_num| is used to create a nonce.  |ckm| is
+ * the cryptographic key, and iv to use.  |decrypt| is a callback
+ * function which actually decrypts a packet.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -3986,13 +3982,11 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t n) {
  * NGTCP2_ERR_TLS_DECRYPT
  *     TLS backend failed to decrypt data.
  */
-static ngtcp2_ssize conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                     const ngtcp2_crypto_aead *aead,
-                                     const uint8_t *payload, size_t payloadlen,
-                                     const uint8_t *ad, size_t adlen,
-                                     int64_t pkt_num, ngtcp2_crypto_km *ckm,
-                                     ngtcp2_decrypt decrypt,
-                                     size_t aead_overhead) {
+static ngtcp2_ssize decrypt_pkt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                                const uint8_t *payload, size_t payloadlen,
+                                const uint8_t *ad, size_t adlen,
+                                int64_t pkt_num, ngtcp2_crypto_km *ckm,
+                                ngtcp2_decrypt decrypt, size_t aead_overhead) {
   /* TODO nonce is limited to 64 bytes. */
   uint8_t nonce[64];
   int rv;
@@ -4001,8 +3995,8 @@ static ngtcp2_ssize conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_crypto_create_nonce(nonce, ckm->iv.base, ckm->iv.len, pkt_num);
 
-  rv = decrypt(conn, dest, aead, payload, payloadlen, ckm->key.base, nonce,
-               ckm->iv.len, ad, adlen, conn->user_data);
+  rv = decrypt(dest, aead, payload, payloadlen, ckm->key.base, nonce,
+               ckm->iv.len, ad, adlen);
 
   if (rv != 0) {
     if (rv == NGTCP2_ERR_TLS_DECRYPT) {
@@ -4017,10 +4011,10 @@ static ngtcp2_ssize conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
 }
 
 /*
- * conn_decrypt_hp decryptes packet header.  The packet number starts
- * at |pkt| + |pkt_num_offset|.  The entire plaintext QUIC packet
- * header will be written to the buffer pointed by |dest| whose
- * capacity is |destlen|.
+ * decrypt_hp decryptes packet header.  The packet number starts at
+ * |pkt| + |pkt_num_offset|.  The entire plaintext QUIC packet header
+ * will be written to the buffer pointed by |dest| whose capacity is
+ * |destlen|.
  *
  * This function returns the number of bytes written to |dest|, or one
  * of the following negative error codes:
@@ -4031,12 +4025,12 @@ static ngtcp2_ssize conn_decrypt_pkt(ngtcp2_conn *conn, uint8_t *dest,
  *     User-defined callback function failed; or it does not return
  *     expected result.
  */
-static ngtcp2_ssize
-conn_decrypt_hp(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd, uint8_t *dest,
-                size_t destlen, const ngtcp2_crypto_cipher *hp,
-                const uint8_t *pkt, size_t pktlen, size_t pkt_num_offset,
-                ngtcp2_crypto_km *ckm, const ngtcp2_vec *hp_key,
-                ngtcp2_hp_mask hp_mask) {
+static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, size_t destlen,
+                               const ngtcp2_crypto_cipher *hp,
+                               const uint8_t *pkt, size_t pktlen,
+                               size_t pkt_num_offset, ngtcp2_crypto_km *ckm,
+                               const ngtcp2_vec *hp_key,
+                               ngtcp2_hp_mask hp_mask) {
   size_t sample_offset;
   uint8_t *p = dest;
   uint8_t mask[NGTCP2_HP_MASKLEN];
@@ -4055,8 +4049,7 @@ conn_decrypt_hp(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd, uint8_t *dest,
 
   sample_offset = pkt_num_offset + 4;
 
-  rv = hp_mask(conn, mask, hp, hp_key->base, pkt + sample_offset,
-               conn->user_data);
+  rv = hp_mask(mask, hp, hp_key->base, pkt + sample_offset);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -4598,8 +4591,8 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
   assert(hp_mask);
   assert(decrypt);
 
-  nwrite = conn_decrypt_hp(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt,
-                           pktlen, (size_t)nread, ckm, hp_key, hp_mask);
+  nwrite = decrypt_hp(&hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt, pktlen,
+                      (size_t)nread, ckm, hp_key, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -4644,9 +4637,9 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
     return rv;
   }
 
-  nwrite = conn_decrypt_pkt(conn, conn->crypto.decrypt_buf.base, aead, payload,
-                            payloadlen, plain_hdpkt, hdpktlen, hd.pkt_num, ckm,
-                            decrypt, aead_overhead);
+  nwrite = decrypt_pkt(conn->crypto.decrypt_buf.base, aead, payload, payloadlen,
+                       plain_hdpkt, hdpktlen, hd.pkt_num, ckm, decrypt,
+                       aead_overhead);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -6574,8 +6567,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   aead = &pktns->crypto.ctx.aead;
   hp = &pktns->crypto.ctx.hp;
 
-  nwrite = conn_decrypt_hp(conn, &hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt,
-                           pktlen, (size_t)nread, ckm, hp_key, hp_mask);
+  nwrite = decrypt_hp(&hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt, pktlen,
+                      (size_t)nread, ckm, hp_key, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -6679,9 +6672,9 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
   }
 
-  nwrite = conn_decrypt_pkt(conn, conn->crypto.decrypt_buf.base, aead, payload,
-                            payloadlen, plain_hdpkt, hdpktlen, hd.pkt_num, ckm,
-                            decrypt, aead_overhead);
+  nwrite = decrypt_pkt(conn->crypto.decrypt_buf.base, aead, payload, payloadlen,
+                       plain_hdpkt, hdpktlen, hd.pkt_num, ckm, decrypt,
+                       aead_overhead);
 
   if (force_decrypt_failure) {
     nwrite = NGTCP2_ERR_TLS_DECRYPT;
@@ -9463,7 +9456,6 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
   cc.hp_key = &hp_key_vec;
   cc.encrypt = encrypt;
   cc.hp_mask = hp_mask;
-  cc.user_data = NULL;
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
 

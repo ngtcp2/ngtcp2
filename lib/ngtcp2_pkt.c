@@ -2094,9 +2094,8 @@ ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
   }
 
   /* OpenSSL does not like NULL plaintext. */
-  rv = encrypt(NULL, tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
-               sizeof(retry_nonce) - 1, pseudo_retry, (size_t)pseudo_retrylen,
-               NULL);
+  rv = encrypt(tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
+               sizeof(retry_nonce) - 1, pseudo_retry, (size_t)pseudo_retrylen);
   if (rv != 0) {
     return rv;
   }
@@ -2170,8 +2169,8 @@ int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
   pseudo_retrylen = (size_t)(p - pseudo_retry);
 
   /* OpenSSL does not like NULL plaintext. */
-  rv = encrypt(NULL, tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
-               sizeof(retry_nonce) - 1, pseudo_retry, pseudo_retrylen, NULL);
+  rv = encrypt(tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
+               sizeof(retry_nonce) - 1, pseudo_retry, pseudo_retrylen);
   if (rv != 0) {
     return rv;
   }

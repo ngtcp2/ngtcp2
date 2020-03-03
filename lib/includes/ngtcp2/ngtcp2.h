@@ -1079,12 +1079,10 @@ typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
  * return immediately.
  */
-typedef int (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
-                              const ngtcp2_crypto_aead *aead,
+typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                               const uint8_t *plaintext, size_t plaintextlen,
                               const uint8_t *key, const uint8_t *nonce,
-                              size_t noncelen, const uint8_t *ad, size_t adlen,
-                              void *user_data);
+                              size_t noncelen, const uint8_t *ad, size_t adlen);
 
 /**
  * @functypedef
@@ -1108,12 +1106,10 @@ typedef int (*ngtcp2_encrypt)(ngtcp2_conn *conn, uint8_t *dest,
  * any other errors, return :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which
  * makes the library call return immediately.
  */
-typedef int (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
-                              const ngtcp2_crypto_aead *aead,
+typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                               const uint8_t *ciphertext, size_t ciphertextlen,
                               const uint8_t *key, const uint8_t *nonce,
-                              size_t noncelen, const uint8_t *ad, size_t adlen,
-                              void *user_data);
+                              size_t noncelen, const uint8_t *ad, size_t adlen);
 
 /**
  * @functypedef
@@ -1132,10 +1128,8 @@ typedef int (*ngtcp2_decrypt)(ngtcp2_conn *conn, uint8_t *dest,
  *  :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
  *  return immediately.
  */
-typedef int (*ngtcp2_hp_mask)(ngtcp2_conn *conn, uint8_t *dest,
-                              const ngtcp2_crypto_cipher *hp,
-                              const uint8_t *hp_key, const uint8_t *sample,
-                              void *user_data);
+typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
+                              const uint8_t *hp_key, const uint8_t *sample);
 
 /**
  * @functypedef
