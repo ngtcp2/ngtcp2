@@ -1609,7 +1609,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_rtb_entry *rtbent;
   ngtcp2_pktns *pktns;
   size_t left;
-  uint8_t flags = NGTCP2_RTB_FLAG_NONE;
+  uint8_t rtb_entry_flags = NGTCP2_RTB_FLAG_NONE;
   int pkt_empty = 1;
   int padded = 0;
   int hd_logged = 0;
@@ -1692,7 +1692,8 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     pfrc = &(*pfrc)->next;
 
     pkt_empty = 0;
-    flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_CRYPTO_PKT;
+    rtb_entry_flags |=
+        NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_CRYPTO_PKT;
   }
 
   rv = conn_create_ack_frame(conn, &ackfr, &pktns->acktr, type, ts,
@@ -1716,7 +1717,8 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   /* Don't send any PING frame if client Initial has not been
      acknowledged yet. */
-  if (!(flags & NGTCP2_RTB_FLAG_ACK_ELICITING) && pktns->rtb.probe_pkt_left &&
+  if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+      pktns->rtb.probe_pkt_left &&
       (type != NGTCP2_PKT_INITIAL ||
        ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
     lfr.type = NGTCP2_FRAME_PING;
@@ -1725,13 +1727,13 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (rv != 0) {
       assert(rv == NGTCP2_ERR_NOBUF);
     } else {
-      flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_PROBE;
+      rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_PROBE;
       pkt_empty = 0;
     }
   }
 
   if (!pkt_empty) {
-    if (!(flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+    if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
       /* The intention of smaller limit is get more chance to measure
          RTT samples in early phase. */
       if (pktns->rtb.probe_pkt_left || pktns->tx.num_non_ack_pkt >= 1) {
@@ -1741,7 +1743,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
         if (rv != 0) {
           assert(rv == NGTCP2_ERR_NOBUF);
         } else {
-          flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+          rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
           pktns->tx.num_non_ack_pkt = 0;
         }
       } else {
@@ -1781,9 +1783,9 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, &hd, (size_t)spktlen);
 
-  if ((flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
-    rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frq, ts, (size_t)spktlen, flags,
-                              conn->mem);
+  if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
+    rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frq, ts, (size_t)spktlen,
+                              rtb_entry_flags, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       ngtcp2_frame_chain_list_del(frq, conn->mem);
@@ -1796,13 +1798,14 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
       return rv;
     }
 
-    if ((flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+    if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
         (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
       conn_restart_timer_on_write(conn, ts);
     }
   }
 
-  if (pktns->rtb.probe_pkt_left && (flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+  if (pktns->rtb.probe_pkt_left &&
+      (rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
     --pktns->rtb.probe_pkt_left;
   }
 
