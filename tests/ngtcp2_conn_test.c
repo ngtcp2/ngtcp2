@@ -4335,8 +4335,8 @@ void test_ngtcp2_conn_server_path_validation(void) {
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
   ngtcp2_cid cid, *new_cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  ngtcp2_path another_new_path = {{1, (uint8_t *)"1", NULL},
-                                  {1, (uint8_t *)"3", NULL}};
+  ngtcp2_path new_path1 = {{}, {1, (uint8_t *)"2", NULL}};
+  ngtcp2_path new_path2 = {{}, {1, (uint8_t *)"3", NULL}};
   ngtcp2_ksl_it it;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
@@ -4367,7 +4367,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != conn->pv);
@@ -4383,10 +4383,10 @@ void test_ngtcp2_conn_server_path_validation(void) {
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
                                   ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path1, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_path_eq(&new_path, &conn->dcid.current.ps.path));
+  CU_ASSERT(ngtcp2_path_eq(&new_path1, &conn->dcid.current.ps.path));
   /* DCID does not change because the client does not change its
      DCID. */
   CU_ASSERT(!ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
@@ -4403,7 +4403,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   pktlen =
       write_single_frame_pkt(conn, buf, sizeof(buf), new_cid, ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_read_pkt(conn, &another_new_path, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path2, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != conn->pv);
@@ -4419,10 +4419,10 @@ void test_ngtcp2_conn_server_path_validation(void) {
   pktlen =
       write_single_frame_pkt(conn, buf, sizeof(buf), new_cid, ++pkt_num, &fr);
 
-  rv = ngtcp2_conn_read_pkt(conn, &another_new_path, buf, pktlen, ++t);
+  rv = ngtcp2_conn_read_pkt(conn, &new_path2, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(ngtcp2_path_eq(&another_new_path, &conn->dcid.current.ps.path));
+  CU_ASSERT(ngtcp2_path_eq(&new_path2, &conn->dcid.current.ps.path));
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);

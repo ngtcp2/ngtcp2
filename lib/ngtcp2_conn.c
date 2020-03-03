@@ -6239,6 +6239,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_pv *pv;
   int rv;
   ngtcp2_duration timeout;
+  int require_new_cid;
 
   assert(conn->server);
 
@@ -6258,9 +6259,23 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     return 0;
   }
 
+  /* The transport specification draft-27 says:
+   *
+   * An endpoint MUST use a new connection ID if it initiates
+   * connection migration as described in Section 9.2 or probes a new
+   * network path as described in Section 9.1. An endpoint MUST use a
+   * new connection ID in response to a change in the address of a
+   * peer if the packet with the new peer address uses an active
+   * connection ID that has not been previously used by the peer.
+   */
+  require_new_cid =
+      (new_cid_used &&
+       !ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &path->remote)) ||
+      !ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
+
   /* If the remote endpoint uses new DCID, server has to change its
      DCID as well. */
-  if (new_cid_used && ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+  if (require_new_cid && ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
     return NGTCP2_ERR_CONN_ID_BLOCKED;
   }
 
@@ -6271,7 +6286,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   timeout =
       ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
-  if (new_cid_used) {
+  if (require_new_cid) {
     dcid = *(ngtcp2_dcid *)ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
     ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
 
