@@ -37,7 +37,7 @@
  * Skip List using single key instead of range.
  */
 
-#define NGTCP2_KSL_DEGR 8
+#define NGTCP2_KSL_DEGR 16
 /* NGTCP2_KSL_MAX_NBLK is the maximum number of nodes which a single
    block can contain. */
 #define NGTCP2_KSL_MAX_NBLK (2 * NGTCP2_KSL_DEGR - 1)
