@@ -508,9 +508,11 @@ void ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
       if (i > 0 &&
           ksl_nth_node(ksl, blk, i - 1)->blk->n > NGTCP2_KSL_MIN_NBLK) {
         ksl_shift_right(ksl, blk, i - 1);
+        blk = node->blk;
       } else if (i + 1 < blk->n &&
                  ksl_nth_node(ksl, blk, i + 1)->blk->n > NGTCP2_KSL_MIN_NBLK) {
         ksl_shift_left(ksl, blk, i + 1);
+        blk = node->blk;
       } else if (i > 0) {
         blk = ksl_merge_node(ksl, blk, i - 1);
       } else {
