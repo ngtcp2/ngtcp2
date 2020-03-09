@@ -1022,7 +1022,10 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     ngtcp2_acktr_forget(acktr, ngtcp2_ksl_it_get(&it));
   }
 
-  *pfr = conn->tx.ack;
+  // Avoid sending ack frames without any ack ranges
+  if (ack->num_blks > 0) {
+    *pfr = conn->tx.ack;
+  }
 
   return 0;
 }
