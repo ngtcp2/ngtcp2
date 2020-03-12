@@ -48,7 +48,7 @@ void test_ngtcp2_idtr_open(void) {
   CU_ASSERT(0 == rv);
 
   it = ngtcp2_ksl_begin(&idtr.gap.gap);
-  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
+  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
   CU_ASSERT(1 == key.begin);
   CU_ASSERT(UINT64_MAX == key.end);
@@ -58,13 +58,13 @@ void test_ngtcp2_idtr_open(void) {
   CU_ASSERT(0 == rv);
 
   it = ngtcp2_ksl_begin(&idtr.gap.gap);
-  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
+  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
   CU_ASSERT(1 == key.begin);
   CU_ASSERT(1000000007 == key.end);
 
   ngtcp2_ksl_it_next(&it);
-  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it).ptr;
+  key = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
   CU_ASSERT(1000000008 == key.begin);
   CU_ASSERT(UINT64_MAX == key.end);
