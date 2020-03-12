@@ -2676,6 +2676,24 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_streams_bidi_left` returns the number of
+ * bidirectional streams which the local endpoint can open without
+ * violating stream concurrency limit.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_get_streams_bidi_left(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_streams_uni_left` returns the number of
+ * unidirectional streams which the local endpoint can open without
+ * violating stream concurrency limit.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_get_streams_uni_left(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_set_initial_crypto_ctx` sets |ctx| for Initial packet
  * encryption.  The passed data will be passed to
  * :type:`ngtcp2_encrypt`, :type:`ngtcp2_decrypt` and
