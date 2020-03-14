@@ -260,8 +260,8 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 }
 
-static int rtb_call_acked_stream_offset(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
-                                        ngtcp2_conn *conn) {
+static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
+                                 ngtcp2_conn *conn) {
   ngtcp2_frame_chain *frc;
   uint64_t prev_stream_offset, stream_offset;
   ngtcp2_strm *strm;
@@ -394,7 +394,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     if (min_ack <= pkt_num && pkt_num <= largest_ack) {
       ent = ngtcp2_ksl_it_get(&it);
       if (conn) {
-        rv = rtb_call_acked_stream_offset(rtb, ent, conn);
+        rv = rtb_process_acked_pkt(rtb, ent, conn);
         if (rv != 0) {
           return rv;
         }
@@ -435,7 +435,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       }
       ent = ngtcp2_ksl_it_get(&it);
       if (conn) {
-        rv = rtb_call_acked_stream_offset(rtb, ent, conn);
+        rv = rtb_process_acked_pkt(rtb, ent, conn);
         if (rv != 0) {
           return rv;
         }
