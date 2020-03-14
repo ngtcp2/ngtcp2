@@ -341,6 +341,10 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
         return rv;
       }
       break;
+    case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
+      assert(conn->dcid.num_retire_queued);
+      --conn->dcid.num_retire_queued;
+      break;
     }
   }
   return 0;

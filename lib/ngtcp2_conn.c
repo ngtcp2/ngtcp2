@@ -2500,11 +2500,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
         break;
       }
 
-      if ((*pfrc)->fr.type == NGTCP2_FRAME_RETIRE_CONNECTION_ID) {
-        assert(conn->dcid.num_retire_queued);
-        --conn->dcid.num_retire_queued;
-      }
-
       pkt_empty = 0;
       rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
       pfrc = &(*pfrc)->next;
