@@ -4786,7 +4786,7 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
       switch (nread) {
       case NGTCP2_ERR_DISCARD_PKT:
-        return 0;
+        return (int)nread;
       case NGTCP2_ERR_DRAINING:
         return NGTCP2_ERR_DRAINING;
       }
@@ -7256,6 +7256,9 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_cpkt(conn, path, pkt, pktlen, ts);
     if (rv < 0) {
+      if (rv == NGTCP2_ERR_DISCARD_PKT) {
+        return 0;
+      }
       return rv;
     }
 
@@ -7279,6 +7282,9 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_SERVER_INITIAL:
     rv = conn_recv_handshake_cpkt(conn, path, pkt, pktlen, ts);
     if (rv < 0) {
+      if (rv == NGTCP2_ERR_DISCARD_PKT) {
+        return 0;
+      }
       return rv;
     }
 
@@ -7321,6 +7327,9 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_cpkt(conn, path, pkt, pktlen, ts);
     if (rv < 0) {
+      if (rv == NGTCP2_ERR_DISCARD_PKT) {
+        return 0;
+      }
       return rv;
     }
 
