@@ -26,7 +26,7 @@ if [ "$ROLE" == "client" ]; then
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
     fi
-    if [ "$TESTCASE" == "resumption" ]; then
+    if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
 	REQS=($REQUESTS)
 	REQUESTS=${REQS[0]}
