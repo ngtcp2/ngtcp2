@@ -1986,7 +1986,7 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_handle_expiry` handles expired timer.  It do nothing
+ * `ngtcp2_conn_handle_expiry` handles expired timer.  It does nothing
  * if timer is not expired.
  */
 NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
