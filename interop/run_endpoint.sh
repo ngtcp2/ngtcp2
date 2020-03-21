@@ -9,7 +9,7 @@
 # - CLIENT_PARAMS contains user-supplied command line parameters
 
 case $TESTCASE in
-    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect)
+    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect|zerortt)
 	:
 	;;
     *)
