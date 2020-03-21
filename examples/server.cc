@@ -569,7 +569,6 @@ void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   switch (h->on_write()) {
   case 0:
   case NETWORK_ERR_CLOSE_WAIT:
-  case NETWORK_ERR_SEND_BLOCKED:
     return;
   default:
     s->remove(h);
@@ -633,7 +632,6 @@ void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
 fail:
   switch (rv) {
   case NETWORK_ERR_CLOSE_WAIT:
-  case NETWORK_ERR_SEND_BLOCKED:
     ev_timer_stop(loop, w);
     return;
   default:
@@ -1673,9 +1671,6 @@ int Handler::on_write() {
   }
 
   if (auto rv = write_streams(); rv != 0) {
-    if (rv == NETWORK_ERR_SEND_BLOCKED) {
-      schedule_retransmit();
-    }
     return rv;
   }
 
@@ -2391,7 +2386,6 @@ int Server::on_read(Endpoint &ep) {
 
         switch (h->on_write()) {
         case 0:
-        case NETWORK_ERR_SEND_BLOCKED:
           break;
         default:
           continue;
@@ -2424,7 +2418,6 @@ int Server::on_read(Endpoint &ep) {
       // TODO do exponential backoff.
       switch (h->send_conn_close()) {
       case 0:
-      case NETWORK_ERR_SEND_BLOCKED:
         break;
       default:
         remove(h);
