@@ -46,6 +46,9 @@ elif [ "$ROLE" == "server" ]; then
     SERVER_ARGS="0.0.0.0 443 /etc/ngtcp2/server.key /etc/ngtcp2/server.crt -s -d /www"
     if [ "$TESTCASE" == "retry" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
+    elif [ "$TESTCASE" == "multiconnect" ]; then
+	SERVER_ARGS="$SERVER_ARGS --timeout=180s"
     fi
+
     /usr/local/bin/server $SERVER_ARGS $SERVER_PARAMS &> $LOG
 fi
