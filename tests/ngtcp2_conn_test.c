@@ -2492,7 +2492,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_CRYPTO == rv);
+  CU_ASSERT(0 == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -2512,7 +2512,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_CRYPTO == rv);
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
 
   ngtcp2_conn_del(conn);
 }
@@ -3728,7 +3728,7 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
      error.  But it is unsecured Initial, so we just ignore it. */
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
-  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
   CU_ASSERT(NGTCP2_CS_SERVER_INITIAL == conn->state);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
@@ -4960,7 +4960,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
-  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
   CU_ASSERT(0 ==
             ngtcp2_rob_first_gap_offset(&conn->in_pktns->crypto.strm.rx.rob));
 

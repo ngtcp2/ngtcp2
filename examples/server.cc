@@ -1602,6 +1602,8 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       // already set.  This is because OpenSSL might set Alert.
       last_error_ = quic_err_transport(rv);
       break;
+    case NGTCP2_ERR_DROP_CONN:
+      return NETWORK_ERR_DROP_CONN;
     default:
       if (!last_error_.code) {
         last_error_ = quic_err_transport(rv);

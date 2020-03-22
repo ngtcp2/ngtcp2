@@ -4784,19 +4784,29 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return (int)nread;
       }
 
-      switch (nread) {
-      case NGTCP2_ERR_DISCARD_PKT:
-        return (int)nread;
-      case NGTCP2_ERR_DRAINING:
+      if (nread == NGTCP2_ERR_DRAINING) {
         return NGTCP2_ERR_DRAINING;
       }
 
-      if (nread != NGTCP2_ERR_CRYPTO && (pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
+      if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
           /* Not a Version Negotiation packet */
           pktlen > 4 && ngtcp2_get_uint32(&pkt[1]) > 0 &&
           ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
-        break;
+        /* If server discards first Initial, then drop connection
+           state.  This is because SCID in packet might be corrupted
+           and the current connection state might wrongly discard
+           valid packet and prevent the handshake from completing. */
+        if (conn->server && conn->in_pktns &&
+            conn->in_pktns->rx.max_pkt_num == -1) {
+          return NGTCP2_ERR_DROP_CONN;
+        }
+        return 0;
       }
+
+      if (nread == NGTCP2_ERR_DISCARD_PKT) {
+        return 0;
+      }
+
       return (int)nread;
     }
 
@@ -7256,9 +7266,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_cpkt(conn, path, pkt, pktlen, ts);
     if (rv < 0) {
-      if (rv == NGTCP2_ERR_DISCARD_PKT) {
-        return 0;
-      }
       return rv;
     }
 
@@ -7282,9 +7289,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_SERVER_INITIAL:
     rv = conn_recv_handshake_cpkt(conn, path, pkt, pktlen, ts);
     if (rv < 0) {
-      if (rv == NGTCP2_ERR_DISCARD_PKT) {
-        return 0;
-      }
       return rv;
     }
 
@@ -7327,9 +7331,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     rv = conn_recv_handshake_cpkt(conn, path, pkt, pktlen, ts);
     if (rv < 0) {
-      if (rv == NGTCP2_ERR_DISCARD_PKT) {
-        return 0;
-      }
       return rv;
     }
 

@@ -52,6 +52,7 @@ enum network_error {
   NETWORK_ERR_SEND_BLOCKED = -11,
   NETWORK_ERR_CLOSE_WAIT = -12,
   NETWORK_ERR_RETRY = -13,
+  NETWORK_ERR_DROP_CONN = -14,
 };
 
 union sockaddr_union {

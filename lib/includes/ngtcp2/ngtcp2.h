@@ -250,6 +250,7 @@ typedef enum ngtcp2_lib_error {
   NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED = -239,
   NGTCP2_ERR_WRITE_STREAM_MORE = -240,
   NGTCP2_ERR_RETRY = -241,
+  NGTCP2_ERR_DROP_CONN = -242,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -1764,7 +1765,10 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.  If :enum:`NGTCP2_ERR_RETRY` is returned,
  * application must be a server and it must perform address validation
- * by sending Retry packet and close the connection.
+ * by sending Retry packet and close the connection.  If
+ * :enum:`NGTCP2_ERR_DROP_CONN` is returned, server application must
+ * drop the connection silently (without sending any CONNECTION_CLOSE
+ * frame) and discard connection state.
  */
 NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
                                        const ngtcp2_path *path,
