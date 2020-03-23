@@ -1182,7 +1182,6 @@ int Client::write_streams() {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
       case NGTCP2_ERR_STREAM_SHUT_WR:
-        assert(ndatalen == -1);
         if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED &&
             ngtcp2_conn_get_max_data_left(conn_) == 0) {
           return 0;
@@ -1211,8 +1210,6 @@ int Client::write_streams() {
         continue;
       }
 
-      assert(ndatalen == -1);
-
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
                 << std::endl;
       last_error_ = quic_err_transport(nwrite);
@@ -1226,6 +1223,18 @@ int Client::write_streams() {
     }
 
     sendbuf_.push(nwrite);
+
+    if (ndatalen >= 0) {
+      if (auto rv =
+              nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+          rv != 0) {
+        std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
+                  << std::endl;
+        last_error_ = quic_err_app(rv);
+        disconnect();
+        return -1;
+      }
+    }
 
     update_remote_addr(&path.path.remote);
     reset_idle_timer();
