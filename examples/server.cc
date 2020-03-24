@@ -672,7 +672,7 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
 
 Handler::~Handler() {
   if (!config.quiet) {
-    std::cerr << "Closing QUIC connection" << std::endl;
+    std::cerr << scid_ << " Closing QUIC connection " << std::endl;
   }
 
   ev_timer_stop(loop_, &rttimer_);

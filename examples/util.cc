@@ -516,4 +516,8 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
 
 } // namespace util
 
+std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
+  return os << "0x" << util::format_hex(cid.data, cid.datalen);
+}
+
 } // namespace ngtcp2
