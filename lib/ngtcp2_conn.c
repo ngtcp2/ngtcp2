@@ -4792,13 +4792,19 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
           /* Not a Version Negotiation packet */
           pktlen > 4 && ngtcp2_get_uint32(&pkt[1]) > 0 &&
           ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
-        /* If server discards first Initial, then drop connection
-           state.  This is because SCID in packet might be corrupted
-           and the current connection state might wrongly discard
-           valid packet and prevent the handshake from completing. */
-        if (conn->server && conn->in_pktns &&
-            conn->in_pktns->rx.max_pkt_num == -1) {
-          return NGTCP2_ERR_DROP_CONN;
+        if (conn->server) {
+          /* If server discards first Initial, then drop connection
+             state.  This is because SCID in packet might be corrupted
+             and the current connection state might wrongly discard
+             valid packet and prevent the handshake from
+             completing. */
+          if (conn->in_pktns && conn->in_pktns->rx.max_pkt_num == -1) {
+            return NGTCP2_ERR_DROP_CONN;
+          }
+        } else if (nread == NGTCP2_ERR_CRYPTO) {
+          /* If client gets crypto error from TLS stack, it is
+             unrecoverable, therefore drop connection. */
+          return (int)nread;
         }
         return 0;
       }

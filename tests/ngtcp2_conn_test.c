@@ -2492,7 +2492,7 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
-  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_ERR_CRYPTO == rv);
 
   ngtcp2_conn_del(conn);
 
