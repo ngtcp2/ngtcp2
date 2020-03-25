@@ -22,6 +22,14 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 SUBDIRS =
 
+if HAVE_CRYPTO
+SUBDIRS += includes
+endif
+
 if HAVE_OPENSSL
-SUBDIRS += includes openssl
+SUBDIRS += openssl
+endif
+
+if HAVE_GNUTLS
+SUBDIRS += gnutls
 endif
