@@ -175,7 +175,7 @@ ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead);
 /**
  * @function
  *
- * `ngtcp2_crypto_derive_packet_protection_key` dervies packet
+ * `ngtcp2_crypto_derive_packet_protection_key` derives packet
  * protection key.  This function writes packet protection key into
  * the buffer pointed by |key|.  |key| must point to the buffer which
  * is at least ngtcp2_crypto_aead_keylen(aead) bytes long.  This
@@ -237,7 +237,7 @@ ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * `ngtcp2_crypto_decrypt` decrypts |ciphertext| of length
  * |ciphertextlen| and writes the plaintext into the buffer pointed by
  * |dest|.  The length of plaintext is ciphertextlen -
- * ngtcp2_crypto_aead_taglen(aead) bytes log.  |dest| must have enough
+ * ngtcp2_crypto_aead_taglen(aead) bytes long.  |dest| must have enough
  * capacity to store the plaintext.  It is allowed to specify the same
  * value to |dest| and |ciphertext|.
  *
