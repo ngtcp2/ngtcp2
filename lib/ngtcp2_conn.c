@@ -3734,7 +3734,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
                          ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_frame_chain *frc = NULL;
-  ngtcp2_rcvry_stat *rcs = &conn->rcs;
   ngtcp2_ssize num_acked;
 
   if (pktns->tx.last_pkt_num < fr->largest_ack) {
@@ -3765,7 +3764,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return rv;
   }
 
-  rcs->pto_count = 0;
   pktns->rtb.probe_pkt_left = 0;
 
   ngtcp2_conn_set_loss_detection_timer(conn, ts);
@@ -7587,6 +7585,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
           ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                           "loss detection timer canceled");
           rcs->loss_detection_timer = 0;
+          rcs->pto_count = 0;
         }
         return 0;
       }
@@ -8981,6 +8980,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                       "loss detection timer canceled");
       rcs->loss_detection_timer = 0;
+      rcs->pto_count = 0;
     }
     return;
   }
@@ -9052,6 +9052,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
     rcs->loss_detection_timer = 0;
+    rcs->pto_count = 0;
     return 0;
   default:
     break;
