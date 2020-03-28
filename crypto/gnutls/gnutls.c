@@ -302,8 +302,9 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
   return 0;
 }
 
-int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
-                                              ngtcp2_crypto_side side) {
+int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
+  (void)conn;
+  (void)tls;
   /* Nothing to do; GnuTLS applications are supposed to register the
      quic_transport_parameters extension with
      gnutls_session_ext_register. */

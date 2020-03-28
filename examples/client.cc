@@ -173,10 +173,15 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
                    const uint8_t *tx_secret, size_t secretlen) {
   std::array<uint8_t, 64> rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key;
 
-  if (ngtcp2_crypto_derive_and_install_key(
-          conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp_key.data(),
-          tx_key.data(), tx_iv.data(), tx_hp_key.data(), level, rx_secret,
-          tx_secret, secretlen, NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
+  if (level != NGTCP2_CRYPTO_LEVEL_EARLY &&
+      ngtcp2_crypto_derive_and_install_rx_key(
+          conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp_key.data(), level,
+          rx_secret, secretlen) != 0) {
+    return -1;
+  }
+  if (ngtcp2_crypto_derive_and_install_tx_key(
+          conn_, ssl_, tx_key.data(), tx_iv.data(), tx_hp_key.data(), level,
+          tx_secret, secretlen) != 0) {
     return -1;
   }
 
@@ -990,8 +995,7 @@ int Client::setup_initial_crypto_context() {
   if (ngtcp2_crypto_derive_and_install_initial_key(
           conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
           rx_key.data(), rx_iv.data(), rx_hp_key.data(), tx_key.data(),
-          tx_iv.data(), tx_hp_key.data(), dcid,
-          NGTCP2_CRYPTO_SIDE_CLIENT) != 0) {
+          tx_iv.data(), tx_hp_key.data(), dcid) != 0) {
     std::cerr << "ngtcp2_crypto_derive_and_install_initial_key() failed"
               << std::endl;
     return -1;

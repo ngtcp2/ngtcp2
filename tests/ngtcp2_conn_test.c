@@ -199,14 +199,14 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  179);
 
-  ngtcp2_conn_install_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                    null_key, null_iv, null_hp_key,
-                                    sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(conn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
 
-  ngtcp2_conn_install_key(conn, null_secret, null_secret, null_key, null_iv,
-                          null_hp_key, null_key, null_iv, null_hp_key,
-                          sizeof(null_secret), sizeof(null_key),
-                          sizeof(null_iv));
+  ngtcp2_conn_install_tx_key(conn, null_secret, null_key, null_iv, null_hp_key,
+                             sizeof(null_secret), sizeof(null_key),
+                             sizeof(null_iv));
 
   conn->callbacks.recv_crypto_data = recv_crypto_data;
 
@@ -398,13 +398,16 @@ static void setup_default_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                    null_key, null_iv, null_hp_key,
-                                    sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_key(*pconn, null_secret, null_secret, null_key, null_iv,
-                          null_hp_key, null_key, null_iv, null_hp_key,
-                          sizeof(null_secret), sizeof(null_key),
-                          sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_tx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_rx_key(*pconn, null_secret, null_key, null_iv,
+                             null_hp_key, sizeof(null_secret), sizeof(null_key),
+                             sizeof(null_iv));
+  ngtcp2_conn_install_tx_key(*pconn, null_secret, null_key, null_iv,
+                             null_hp_key, sizeof(null_secret), sizeof(null_key),
+                             sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
@@ -446,13 +449,16 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                    null_key, null_iv, null_hp_key,
-                                    sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_key(*pconn, null_secret, null_secret, null_key, null_iv,
-                          null_hp_key, null_key, null_iv, null_hp_key,
-                          sizeof(null_secret), sizeof(null_key),
-                          sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_tx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_rx_key(*pconn, null_secret, null_key, null_iv,
+                             null_hp_key, sizeof(null_secret), sizeof(null_key),
+                             sizeof(null_iv));
+  ngtcp2_conn_install_tx_key(*pconn, null_secret, null_key, null_iv,
+                             null_hp_key, sizeof(null_secret), sizeof(null_key),
+                             sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
@@ -498,9 +504,10 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_install_initial_key(*pconn, null_key, null_iv, null_hp_key,
                                   null_key, null_iv, null_hp_key,
                                   sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                    null_key, null_iv, null_hp_key,
-                                    sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_tx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 }
 
@@ -4716,9 +4723,10 @@ void test_ngtcp2_conn_handshake_probe(void) {
   CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
   CU_ASSERT(sizeof(buf) == ent->pktlen);
 
-  ngtcp2_conn_install_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                    null_key, null_iv, null_hp_key,
-                                    sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(conn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(conn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);

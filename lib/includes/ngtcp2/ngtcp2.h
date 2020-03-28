@@ -1832,13 +1832,11 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
 /**
  * @function
  *
- * `ngtcp2_conn_install_handshake_key` installs packet protection
- * keying materials for Handshake packets.  |rx_key| of length
- * |keylen|, IV |rx_iv| of length |rx_ivlen|, and packet header
- * protection key |rx_hp_key| of length |keylen| to decrypt incoming
- * Handshake packets.  Similarly, |tx_key|, |tx_iv| and |tx_hp_key|
- * are for encrypt outgoing packets and are the same length with the
- * rx counterpart.
+ * `ngtcp2_conn_install_rx_handshake_key` installs packet protection
+ * keying materials for decrypting incoming Handshake packets.  |key|
+ * of length |keylen|, IV |iv| of length |ivlen|, and packet header
+ * protection key |hp_key| of length |keylen| to decrypt incoming
+ * Handshake packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1846,10 +1844,30 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_install_handshake_key(
-    ngtcp2_conn *conn, const uint8_t *rx_key, const uint8_t *rx_iv,
-    const uint8_t *rx_hp_key, const uint8_t *tx_key, const uint8_t *tx_iv,
-    const uint8_t *tx_hp_key, size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int
+ngtcp2_conn_install_rx_handshake_key(ngtcp2_conn *conn, const uint8_t *key,
+                                     const uint8_t *iv, const uint8_t *hp_key,
+                                     size_t keylen, size_t ivlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_install_tx_handshake_key` installs packet protection
+ * keying materials for encrypting outgoing Handshake packets.  |key|
+ * of length |keylen|, IV |iv| of length |ivlen|, and packet header
+ * protection key |hp_key| of length |keylen| to encrypt outgoing
+ * Handshake packets.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_install_tx_handshake_key(ngtcp2_conn *conn, const uint8_t *key,
+                                     const uint8_t *iv, const uint8_t *hp_key,
+                                     size_t keylen, size_t ivlen);
 
 /**
  * @function
@@ -1894,14 +1912,12 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_install_key` installs packet protection keying
- * materials for Short packets.  |rx_secret| of length |secretlen| is
- * the decryption secret.  |rx_key| of length |keylen|, IV |rx_iv| of
- * length |rx_ivlen|, and packet header protection key |rx_hp_key| of
- * length |keylen| to decrypt incoming Short packets.  Similarly,
- * |tx_secret| of length |secretlen| is the encryption secret.
- * |tx_key|, |tx_iv| and |tx_hp_key| are used to encrypt outgoing
- * packets and are the same length with the rx counterpart.
+ * `ngtcp2_conn_install_rx_key` installs packet protection keying
+ * materials for decrypting Short packets.  |secret| of length
+ * |secretlen| is the decryption secret which is used to derive keying
+ * materials passed to this function.  |key| of length |keylen|, IV
+ * |iv| of length |ivlen|, and packet header protection key |hp_key|
+ * of length |keylen| to decrypt incoming Short packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1909,11 +1925,33 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_install_key(
-    ngtcp2_conn *conn, const uint8_t *rx_secret, const uint8_t *tx_secret,
-    const uint8_t *rx_key, const uint8_t *rx_iv, const uint8_t *rx_hp_key,
-    const uint8_t *tx_key, const uint8_t *tx_iv, const uint8_t *tx_hp_key,
-    size_t secretlen, size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int
+ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
+                           const uint8_t *key, const uint8_t *iv,
+                           const uint8_t *hp_key, size_t secretlen,
+                           size_t keylen, size_t ivlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_install_tx_key` installs packet protection keying
+ * materials for encrypting Short packets.  |secret| of length
+ * |secretlen| is the encryption secret which is used to derive keying
+ * materials passed to this function.  |key| of length |keylen|, IV
+ * |iv| of length |ivlen|, and packet header protection key |hp_key|
+ * of length |keylen| to encrypt outgoing Short packets.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
+                           const uint8_t *key, const uint8_t *iv,
+                           const uint8_t *hp_key, size_t secretlen,
+                           size_t keylen, size_t ivlen);
 
 /**
  * @function
