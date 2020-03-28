@@ -28,11 +28,14 @@ if [ "$ROLE" == "client" ]; then
     fi
     if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
+	if [ "$TESTCASE" == "resumption" ]; then
+	    CLIENT_ARGS="$CLIENT_ARGS --disable-early-data"
+	fi
 	REQS=($REQUESTS)
 	REQUESTS=${REQS[0]}
 	/usr/local/bin/client $CLIENT_ARGS --exit-on-first-stream-close $REQUESTS $CLIENT_PARAMS &> $LOG
 	REQUESTS=${REQS[@]:1}
-	/usr/local/bin/client $CLIENT_ARGS --disable-early-data $REQUESTS $CLIENT_PARAMS &> $LOG
+	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
     elif [ "$TESTCASE" == "multiconnect" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --exit-on-first-stream-close --timeout=180s"
 	for REQ in $REQUESTS; do
