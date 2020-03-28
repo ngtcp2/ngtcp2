@@ -9426,6 +9426,8 @@ int ngtcp2_conn_is_local_stream(ngtcp2_conn *conn, int64_t stream_id) {
   return conn_local_stream(conn, stream_id);
 }
 
+int ngtcp2_conn_is_server(ngtcp2_conn *conn) { return conn->server; }
+
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const uint8_t *data) {
   memcpy(pcent->data, data, sizeof(pcent->data));

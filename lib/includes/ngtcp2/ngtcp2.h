@@ -2785,6 +2785,14 @@ NGTCP2_EXTERN int ngtcp2_conn_is_local_stream(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_is_server` returns nonzero if |conn| is initialized as
+ * server.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_is_server(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
