@@ -70,12 +70,12 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   gnutls_cipher_algorithm_t hp_cipher;
 
   cipher = gnutls_cipher_get(session);
-  if (cipher != GNUTLS_CIPHER_UNKNOWN || cipher != GNUTLS_CIPHER_NULL) {
+  if (cipher != GNUTLS_CIPHER_UNKNOWN && cipher != GNUTLS_CIPHER_NULL) {
     ctx->aead.native_handle = (void *)cipher;
   }
 
   hash = gnutls_prf_hash_get(session);
-  if (hash != GNUTLS_DIG_UNKNOWN || hash != GNUTLS_DIG_NULL) {
+  if (hash != GNUTLS_DIG_UNKNOWN && hash != GNUTLS_DIG_NULL) {
     ctx->md.native_handle = (void *)hash;
   }
 
