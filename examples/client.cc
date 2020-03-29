@@ -1244,6 +1244,10 @@ int Client::write_streams() {
     reset_idle_timer();
 
     if (auto rv = send_packet(); rv != NETWORK_ERR_OK) {
+      if (rv != NETWORK_ERR_SEND_BLOCKED) {
+        last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
+        disconnect();
+      }
       return rv;
     }
 
