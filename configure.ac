@@ -49,6 +49,10 @@ AC_SUBST(CRYPTO_OPENSSL_LT_CURRENT, 0)
 AC_SUBST(CRYPTO_OPENSSL_LT_REVISION, 0)
 AC_SUBST(CRYPTO_OPENSSL_LT_AGE, 0)
 
+AC_SUBST(CRYPTO_GNUTLS_LT_CURRENT, 0)
+AC_SUBST(CRYPTO_GNUTLS_LT_REVISION, 0)
+AC_SUBST(CRYPTO_GNUTLS_LT_AGE, 0)
+
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -143,6 +147,16 @@ if test "x${have_openssl}" = "xno"; then
   AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
 fi
 AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
+
+# GnuTLS (for examples)
+PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.11],
+                  [have_gnutls=yes], [have_gnutls=no])
+if test "x${have_gnutls}" = "xno"; then
+  AC_MSG_NOTICE($GNUTLS_PKG_ERRORS)
+fi
+AM_CONDITIONAL([HAVE_GNUTLS], [ test "x${have_gnutls}" = "xyes" ])
+
+AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_openssl}" = "xyes" || test "x${have_gnutls}" = "xyes" ])
 
 # libnghttp3 (for examples)
 PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
@@ -368,6 +382,8 @@ AC_CONFIG_FILES([
   crypto/openssl/Makefile
   crypto/openssl/libngtcp2_crypto_openssl.pc
   crypto/includes/Makefile
+  crypto/gnutls/Makefile
+  crypto/gnutls/libngtcp2_crypto_gnutls.pc
   third-party/Makefile
   examples/Makefile
 ])
@@ -399,6 +415,7 @@ AC_MSG_NOTICE([summary of build options:
       Static:         ${enable_static}
     Crypto helper libraries:
       libngtcp2_crypto_openssl: ${have_openssl}
+      libngtcp2_crypto_gnutls:  ${have_gnutls}
     Test:
       CUnit:          ${have_cunit} (CFLAGS='${CUNIT_CFLAGS}' LIBS='${CUNIT_LIBS}')
     Debug:
@@ -408,5 +425,6 @@ AC_MSG_NOTICE([summary of build options:
       Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')
       Libnghttp3:     ${have_libnghttp3} (CFLAGS='${LIBNGHTTP3_CFLAGS}' LIBS='${LIBNGHTTP3_LIBS}')
       Jemalloc:       ${have_jemalloc} (LIBS='${JEMALLOC_LIBS}')
+      GnuTLS:         ${have_gnutls} (CFLAGS='${GNUTLS_CFLAGS}' LIBS='${GNUTLS_LIBS}')
     Examples:         ${enable_examples}
 ])

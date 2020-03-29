@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2016 ngtcp2 contributors
+# Copyright (c) 2020 ngtcp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,24 +20,20 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS = lib tests
+AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS) $(EXTRACFLAG)
+AM_CPPFLAGS = -I$(top_srcdir)/lib/includes -I$(top_builddir)/lib/includes \
+	-I$(top_srcdir)/lib -DBUILDING_NGTCP2 \
+	-I$(top_srcdir)/crypto/includes -I$(top_builddir)/crypto/includes \
+	@GNUTLS_CFLAGS@
 
-if HAVE_CRYPTO
-SUBDIRS += crypto
-endif
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libngtcp2_crypto_gnutls.pc
+DISTCLEANFILES = $(pkgconfig_DATA)
 
-if ENABLE_EXAMPLES
-SUBDIRS += third-party examples
-endif
+lib_LTLIBRARIES = libngtcp2_crypto_gnutls.la
 
-ACLOCAL_AMFLAGS = -I m4
-
-# Format source files using clang-format.  Don't format source files
-# under third-party directory since we are not responsible for thier
-# coding style.
-clang-format:
-	CLANGFORMAT=`git config --get clangformat.binary`; \
-	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
-	$${CLANGFORMAT} -i lib/*.{c,h} tests/*.{c,h} lib/includes/ngtcp2/*.h \
-	crypto/*.c crypto/openssl/*.c crypto/includes/ngtcp2/*.h \
-	examples/*.{cc,h}
+libngtcp2_crypto_gnutls_la_SOURCES = gnutls.c ../shared.c ../shared.h
+libngtcp2_crypto_gnutls_la_LDFLAGS = -no-undefined \
+	-version-info $(CRYPTO_GNUTLS_LT_CURRENT):$(CRYPTO_GNUTLS_LT_REVISION):$(CRYPTO_GNUTLS_LT_AGE) \
+	@JEMALLOC_LIBS@ @GNUTLS_LIBS@
+libngtcp2_crypto_gnutls_la_LIBADD = $(top_builddir)/lib/libngtcp2.la
