@@ -110,8 +110,8 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *secret, size_t secretlen,
                                const uint8_t *salt, size_t saltlen) {
   gnutls_mac_algorithm_t prf = (gnutls_mac_algorithm_t)md->native_handle;
-  gnutls_datum_t _secret = {(void *)secret, secretlen};
-  gnutls_datum_t _salt = {(void *)salt, saltlen};
+  gnutls_datum_t _secret = {(void *)secret, (unsigned int)secretlen};
+  gnutls_datum_t _salt = {(void *)salt, (unsigned int)saltlen};
 
   if (gnutls_hkdf_extract(prf, &_secret, &_salt, dest) != 0) {
     return -1;
@@ -125,8 +125,8 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
                               size_t secretlen, const uint8_t *info,
                               size_t infolen) {
   gnutls_mac_algorithm_t prf = (gnutls_mac_algorithm_t)md->native_handle;
-  gnutls_datum_t _secret = {(void *)secret, secretlen};
-  gnutls_datum_t _info = {(void *)info, infolen};
+  gnutls_datum_t _secret = {(void *)secret, (unsigned int)secretlen};
+  gnutls_datum_t _info = {(void *)info, (unsigned int)infolen};
 
   if (gnutls_hkdf_expand(prf, &_secret, &_info, dest, destlen) != 0) {
     return -1;
@@ -148,7 +148,7 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   int rv = 0;
 
   _key.data = (void *)key;
-  _key.size = ngtcp2_crypto_aead_keylen(aead);
+  _key.size = (unsigned int)ngtcp2_crypto_aead_keylen(aead);
 
   if (gnutls_aead_cipher_init(&hd, cipher, &_key) != 0 ||
       gnutls_aead_cipher_encrypt(hd, nonce, noncelen, ad, adlen, taglen,
@@ -181,7 +181,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   plaintextlen = ciphertextlen - taglen;
 
   _key.data = (void *)key;
-  _key.size = ngtcp2_crypto_aead_keylen(aead);
+  _key.size = (unsigned int)ngtcp2_crypto_aead_keylen(aead);
 
   if (gnutls_aead_cipher_init(&hd, cipher, &_key) != 0 ||
       gnutls_aead_cipher_decrypt(hd, nonce, noncelen, ad, adlen, taglen,
@@ -211,7 +211,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
     uint8_t buf[16];
 
     _hp_key.data = (void *)hp_key;
-    _hp_key.size = gnutls_cipher_get_key_size(cipher);
+    _hp_key.size = (unsigned int)gnutls_cipher_get_key_size(cipher);
 
     /* Emulate one block AES-ECB by invalidating the effect of IV */
     memset(iv, 0, sizeof(iv));
@@ -236,7 +236,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
     size_t buflen = sizeof(buf);
 
     _hp_key.data = (void *)hp_key;
-    _hp_key.size = gnutls_cipher_get_key_size(cipher);
+    _hp_key.size = (unsigned int)gnutls_cipher_get_key_size(cipher);
 
     _iv.data = (void *)sample;
     _iv.size = 16;
