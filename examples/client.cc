@@ -1188,7 +1188,13 @@ int Client::write_streams() {
       case NGTCP2_ERR_STREAM_SHUT_WR:
         if (nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED &&
             ngtcp2_conn_get_max_data_left(conn_) == 0) {
-          return 0;
+          /* Call ngtcp2_conn_writev_stream to ensure that a complete
+             packet is written to the buffer. */
+          nwrite = ngtcp2_conn_writev_stream(
+              conn_, &path.path, sendbuf_.wpos(), max_pktlen_, NULL,
+              NGTCP2_WRITE_STREAM_FLAG_NONE, /* stream_id = */ 0, /* fin = */ 0,
+              NULL, 0, util::timestamp(loop_));
+          break;
         }
 
         if (auto rv = nghttp3_conn_block_stream(httpconn_, stream_id);
@@ -1214,11 +1220,13 @@ int Client::write_streams() {
         continue;
       }
 
-      std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
-                << std::endl;
-      last_error_ = quic_err_transport(nwrite);
-      disconnect();
-      return -1;
+      if (nwrite < 0) {
+        std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
+                  << std::endl;
+        last_error_ = quic_err_transport(nwrite);
+        disconnect();
+        return -1;
+      }
     }
 
     if (nwrite == 0) {
