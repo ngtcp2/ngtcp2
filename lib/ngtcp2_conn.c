@@ -3607,13 +3607,15 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   uint8_t *p;
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
-  ngtcp2_rtb *in_rtb = &in_pktns->rtb;
+  ngtcp2_rtb *in_rtb;
   uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
   ngtcp2_frame_chain *frc = NULL;
 
-  if (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
+  if (!in_pktns || conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
     return 0;
   }
+
+  in_rtb = &in_pktns->rtb;
 
   rv = ngtcp2_pkt_decode_retry(&retry, pkt + hdpktlen, pktlen - hdpktlen);
   if (rv != 0) {
