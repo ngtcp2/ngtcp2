@@ -2770,10 +2770,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     if (rv == 0 && stream_blocked) {
       return NGTCP2_ERR_STREAM_DATA_BLOCKED;
     }
-    return 0;
-  }
 
-  if (stream_more) {
+    if (conn->pktns.rtb.probe_pkt_left == 0) {
+      return 0;
+    }
+  } else if (stream_more) {
     conn->pkt.pfrc = pfrc;
     conn->pkt.pkt_empty = pkt_empty;
     conn->pkt.rtb_entry_flags = rtb_entry_flags;
@@ -2796,8 +2797,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
       if (rv != 0) {
         assert(rv == NGTCP2_ERR_NOBUF);
+        /* TODO If buffer is too small, PING cannot be written if
+           packet is still empty. */
       } else {
         rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+        if (pktns->rtb.probe_pkt_left) {
+          rtb_entry_flags |= NGTCP2_RTB_FLAG_PROBE;
+        }
         pktns->tx.num_non_ack_pkt = 0;
       }
     } else {
@@ -3023,194 +3029,6 @@ static void conn_process_early_rtb(ngtcp2_conn *conn) {
     ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
     ent->hd.type = NGTCP2_PKT_SHORT;
   }
-}
-
-/*
- * conn_write_probe_ping writes probe packet containing PING frame
- * (and optionally ACK frame) to the buffer pointed by |dest| of
- * length |destlen|.  Probe packet is always Short packet.  This
- * function might return 0 if it cannot write packet (e.g., |destlen|
- * is too small).
- *
- * This function returns the number of bytes written to |dest|, or one
- * of the following negative error codes:
- *
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static ngtcp2_ssize conn_write_probe_ping(ngtcp2_conn *conn, uint8_t *dest,
-                                          size_t destlen, ngtcp2_tstamp ts) {
-  ngtcp2_ppe ppe;
-  ngtcp2_pkt_hd hd;
-  ngtcp2_pktns *pktns = &conn->pktns;
-  ngtcp2_crypto_cc cc;
-  ngtcp2_frame_chain *frc = NULL;
-  ngtcp2_rtb_entry *ent;
-  ngtcp2_frame *ackfr = NULL, lfr;
-  int rv;
-  ngtcp2_ssize nwrite;
-
-  assert(pktns->crypto.tx.ckm);
-
-  cc.aead_overhead = conn->crypto.aead_overhead;
-  cc.encrypt = conn->callbacks.encrypt;
-  cc.hp_mask = conn->callbacks.hp_mask;
-  cc.aead = pktns->crypto.ctx.aead;
-  cc.hp = pktns->crypto.ctx.hp;
-  cc.ckm = pktns->crypto.tx.ckm;
-  cc.hp_key = pktns->crypto.tx.hp_key;
-
-  ngtcp2_pkt_hd_init(
-      &hd,
-      (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
-          ? NGTCP2_PKT_FLAG_KEY_PHASE
-          : NGTCP2_PKT_FLAG_NONE,
-      NGTCP2_PKT_SHORT, &conn->dcid.current.cid, NULL,
-      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns), conn->version,
-      0);
-
-  ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
-
-  rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
-  if (rv != 0) {
-    assert(NGTCP2_ERR_NOBUF == rv);
-    return 0;
-  }
-
-  if (!ngtcp2_ppe_ensure_hp_sample(&ppe)) {
-    return 0;
-  }
-
-  ngtcp2_log_tx_pkt_hd(&conn->log, &hd);
-  ngtcp2_qlog_pkt_sent_start(&conn->qlog, &hd);
-
-  rv = ngtcp2_frame_chain_new(&frc, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
-
-  frc->fr.type = NGTCP2_FRAME_PING;
-
-  rv = conn_ppe_write_frame(conn, &ppe, &hd, &frc->fr);
-  if (rv != 0) {
-    assert(NGTCP2_ERR_NOBUF == rv);
-    rv = 0;
-    goto fail;
-  }
-
-  rv = conn_create_ack_frame(
-      conn, &ackfr, &pktns->acktr, NGTCP2_PKT_SHORT, ts,
-      conn_compute_ack_delay(conn),
-      conn->local.settings.transport_params.ack_delay_exponent);
-  if (rv != 0) {
-    goto fail;
-  }
-
-  if (ackfr) {
-    rv = conn_ppe_write_frame(conn, &ppe, &hd, ackfr);
-    if (rv != 0) {
-      assert(NGTCP2_ERR_NOBUF == rv);
-    } else {
-      ngtcp2_acktr_commit_ack(&pktns->acktr);
-      ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, ackfr->ack.largest_ack);
-    }
-  }
-
-  lfr.type = NGTCP2_FRAME_PADDING;
-  lfr.padding.len = ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
-  if (lfr.padding.len) {
-    ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
-    ngtcp2_qlog_write_frame(&conn->qlog, &lfr);
-  }
-
-  nwrite = ngtcp2_ppe_final(&ppe, NULL);
-  if (nwrite < 0) {
-    rv = (int)nwrite;
-    goto fail;
-  }
-
-  ngtcp2_qlog_pkt_sent_end(&conn->qlog, &hd, (size_t)nwrite);
-
-  rv = ngtcp2_rtb_entry_new(
-      &ent, &hd, frc, ts, (size_t)nwrite,
-      NGTCP2_RTB_FLAG_PROBE | NGTCP2_RTB_FLAG_ACK_ELICITING, conn->mem);
-  if (rv != 0) {
-    goto fail;
-  }
-
-  rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
-  if (rv != 0) {
-    ngtcp2_rtb_entry_del(ent, conn->mem);
-    return rv;
-  }
-
-  if (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE) {
-    conn_restart_timer_on_write(conn, ts);
-  }
-
-  ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->rcs, &conn->ccs);
-
-  ++pktns->tx.last_pkt_num;
-
-  return nwrite;
-
-fail:
-  ngtcp2_frame_chain_del(frc, conn->mem);
-
-  return rv;
-}
-
-/*
- * conn_write_probe_pkt writes a QUIC Short packet as probe packet.
- * The packet is written to the buffer pointed by |dest| of length
- * |destlen|.  This function can send new stream data.  In order to
- * send stream data, specify the underlying stream to |strm|.  If
- * |fin| is set to nonzero, it signals that the given data is the
- * final portion of the stream.  |datav| vector of length |datavcnt|
- * specify stream data to send.  If no stream data to send, set |strm|
- * to NULL.  The number of bytes sent to the stream is assigned to
- * |*pdatalen|.  If 0 length STREAM data is sent, 0 is assigned to
- * |*pdatalen|.  The caller should initialize |*pdatalen| to -1.
- *
- * This function returns the number of bytes written to the buffer
- * pointed by |dest|, or one of the following negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- * NGTCP2_ERR_CALLBACK_FAILURE
- *     User-defined callback function failed.
- * NGTCP2_ERR_STREAM_DATA_BLOCKED
- *     Stream data could not be written because of flow control.
- */
-static ngtcp2_ssize conn_write_probe_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, ngtcp2_ssize *pdatalen,
-                                         ngtcp2_strm *strm, int fin,
-                                         const ngtcp2_vec *datav,
-                                         size_t datavcnt, ngtcp2_tstamp ts) {
-  ngtcp2_ssize nwrite;
-
-  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                  "transmit probe pkt left=%zu",
-                  conn->pktns.rtb.probe_pkt_left);
-
-  /* a probe packet is not blocked by cwnd. */
-  nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT, strm,
-                          fin, datav, datavcnt, NGTCP2_WRITE_PKT_FLAG_NONE, ts);
-  if (nwrite == 0 || nwrite == NGTCP2_ERR_STREAM_DATA_BLOCKED) {
-    nwrite = conn_write_probe_ping(conn, dest, destlen, ts);
-  }
-  if (nwrite <= 0) {
-    return nwrite;
-  }
-
-  --conn->pktns.rtb.probe_pkt_left;
-
-  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%td",
-                  nwrite);
-
-  return nwrite;
 }
 
 /*
@@ -8384,8 +8202,9 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     conn->pkt.hs_spktlen = 0;
     /* dest and destlen have already been adjusted in ppe in the first
        run.  They are adjusted for probe packet later. */
-    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT,
-                            strm, fin, datav, datavcnt, wflags, ts);
+    nwrite = conn_write_pkt(
+        conn, dest, conn->pktns.rtb.probe_pkt_left ? origlen : destlen,
+        pdatalen, NGTCP2_PKT_SHORT, strm, fin, datav, datavcnt, wflags, ts);
     goto fin;
   }
 
@@ -8419,8 +8238,19 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   if (conn->pktns.rtb.probe_pkt_left) {
-    nwrite = conn_write_probe_pkt(conn, dest, origlen, pdatalen, strm, fin,
-                                  datav, datavcnt, ts);
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                    "transmit probe pkt left=%zu",
+                    conn->pktns.rtb.probe_pkt_left);
+
+    nwrite = conn_write_pkt(conn, dest, origlen, pdatalen, NGTCP2_PKT_SHORT,
+                            strm, fin, datav, datavcnt, wflags, ts);
+    if (nwrite > 0) {
+      --conn->pktns.rtb.probe_pkt_left;
+
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%td",
+                      nwrite);
+    }
+
     goto fin;
   }
 
