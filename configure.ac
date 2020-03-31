@@ -94,6 +94,16 @@ AC_ARG_WITH([jemalloc],
                     [Use jemalloc [default=check]])],
     [request_jemalloc=$withval], [request_jemalloc=check])
 
+AC_ARG_WITH([openssl],
+    [AS_HELP_STRING([--with-openssl],
+                    [Use openssl [default=check]])],
+    [request_openssl=$withval], [request_openssl=check])
+
+AC_ARG_WITH([gnutls],
+    [AS_HELP_STRING([--with-gnutls],
+                    [Use gnutls [default=check]])],
+    [request_gnutls=$withval], [request_gnutls=check])
+
 # Checks for programs
 AC_PROG_CC
 AC_PROG_CXX
@@ -141,19 +151,37 @@ AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
 
 # openssl (for examples)
-PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
-                  [have_openssl=yes], [have_openssl=no])
-if test "x${have_openssl}" = "xno"; then
-  AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
+have_openssl=no
+if test "x${request_openssl}" != "xno"; then
+  PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
+                    [have_openssl=yes], [have_openssl=no])
+  if test "x${have_openssl}" = "xno"; then
+    AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
+  fi
 fi
+
+if test "x${request_openssl}" = "xyes" &&
+   test "x${have_openssl}" != "xyes"; then
+  AC_MSG_ERROR([openssl was requested (--with-openssl) but not found])
+fi
+
 AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 
 # GnuTLS (for examples)
-PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.11],
-                  [have_gnutls=yes], [have_gnutls=no])
-if test "x${have_gnutls}" = "xno"; then
-  AC_MSG_NOTICE($GNUTLS_PKG_ERRORS)
+have_gnutls=no
+if test "x${request_gnutls}" != "xno"; then
+  PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.11],
+                    [have_gnutls=yes], [have_gnutls=no])
+  if test "x${have_gnutls}" = "xno"; then
+    AC_MSG_NOTICE($GNUTLS_PKG_ERRORS)
+  fi
 fi
+
+if test "x${request_gnutls}" = "xyes" &&
+   test "x${have_gnutls}" != "xyes"; then
+  AC_MSG_ERROR([gnutls was requested (--with-gnutls) but not found])
+fi
+
 AM_CONDITIONAL([HAVE_GNUTLS], [ test "x${have_gnutls}" = "xyes" ])
 
 AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_openssl}" = "xyes" || test "x${have_gnutls}" = "xyes" ])
