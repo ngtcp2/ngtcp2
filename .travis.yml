@@ -57,13 +57,13 @@ before_script:
   - export PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
   - |
     if [ "$CI_BUILD" == "autotools" ]; then
-      autoreconf -i && ./configure --enable-werror $AUTOTOOLS_OPTS
+      autoreconf -i && ./configure --enable-werror $AUTOTOOLS_OPTS --without-gnutls
     fi
   # Set CMAKE_LIBRARY_ARCHITECTURE to workaround failure to parse
   # implicit link information from GCC 5
   - |
     if [ "$CI_BUILD" == "cmake" ]; then
-      cmake $CMAKE_OPTS -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu
+      cmake $CMAKE_OPTS -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu -DWITHOUT_GNUTLS=1
     fi
 script:
   # Now build ngtcp2 examples and test
