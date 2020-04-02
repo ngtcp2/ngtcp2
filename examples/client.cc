@@ -1191,9 +1191,9 @@ int Client::write_streams() {
           /* Call ngtcp2_conn_writev_stream to ensure that a complete
              packet is written to the buffer. */
           nwrite = ngtcp2_conn_writev_stream(
-              conn_, &path.path, sendbuf_.wpos(), max_pktlen_, NULL,
+              conn_, &path.path, sendbuf_.wpos(), max_pktlen_, nullptr,
               NGTCP2_WRITE_STREAM_FLAG_NONE, /* stream_id = */ 0, /* fin = */ 0,
-              NULL, 0, util::timestamp(loop_));
+              nullptr, 0, util::timestamp(loop_));
           break;
         }
 

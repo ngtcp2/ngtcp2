@@ -1728,9 +1728,9 @@ int Handler::write_streams() {
           /* Call ngtcp2_conn_writev_stream to ensure that a complete
              packet is written to the buffer. */
           nwrite = ngtcp2_conn_writev_stream(
-              conn_, &path.path, bufpos, max_pktlen_, NULL,
+              conn_, &path.path, bufpos, max_pktlen_, nullptr,
               NGTCP2_WRITE_STREAM_FLAG_NONE, /* stream_id = */ -1,
-              /* fin = */ 0, NULL, 0, util::timestamp(loop_));
+              /* fin = */ 0, nullptr, 0, util::timestamp(loop_));
           break;
         }
 

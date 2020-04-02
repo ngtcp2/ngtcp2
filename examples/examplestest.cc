@@ -38,7 +38,7 @@ static int init_suite1(void) { return 0; }
 static int clean_suite1(void) { return 0; }
 
 int main(int argc, char *argv[]) {
-  CU_pSuite pSuite = NULL;
+  CU_pSuite pSuite = nullptr;
   unsigned int num_tests_failed;
 
   // initialize the CUnit test registry
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
   // add a suite to the registry
   pSuite = CU_add_suite("TestSuite", init_suite1, clean_suite1);
-  if (NULL == pSuite) {
+  if (nullptr == pSuite) {
     CU_cleanup_registry();
     return CU_get_error();
   }
