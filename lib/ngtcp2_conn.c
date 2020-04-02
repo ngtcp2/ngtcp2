@@ -1130,22 +1130,17 @@ static size_t pktns_select_pkt_numlen(ngtcp2_pktns *pktns) {
 }
 
 /*
- * conn_cwnd_left returns the number of bytes the local endpoint can
- * sent at this time.
+ * conn_cwnd_is_zero returns nonzero if the number of bytes the local
+ * endpoint can sent at this time is zero.
  */
-static uint64_t conn_cwnd_left(ngtcp2_conn *conn) {
+static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight = ngtcp2_conn_get_bytes_in_flight(conn);
   uint64_t cwnd =
       conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
           ? NGTCP2_MIN_CWND
           : conn->ccs.cwnd;
 
-  /* We might send more than bytes_in_flight if probe packets are
-     involved. */
-  if (bytes_in_flight >= cwnd) {
-    return 0;
-  }
-  return cwnd - bytes_in_flight;
+  return bytes_in_flight >= cwnd;
 }
 
 /*
@@ -2889,7 +2884,6 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   uint8_t flags;
   ngtcp2_rtb_entry *rtbent;
   int padded = 0;
-  size_t pktlen;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
@@ -2955,15 +2949,6 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
     lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
   }
   if (lfr.padding.len) {
-    if (fr->type == NGTCP2_FRAME_ACK) {
-      /* If PADDING is added, the packet suddenly gets CWND
-         limited. */
-      pktlen = ngtcp2_ppe_pktlen(&ppe);
-      if (pktlen > conn_cwnd_left(conn)) {
-        return 0;
-      }
-    }
-
     padded = 1;
     ngtcp2_log_tx_fr(&conn->log, &hd, &lfr);
     ngtcp2_qlog_write_frame(&conn->qlog, &lfr);
@@ -7251,7 +7236,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
                                          ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ssize res = 0, nwrite = 0, early_spktlen = 0;
-  uint64_t cwnd;
   size_t origlen = destlen;
   size_t server_hs_tx_left;
   ngtcp2_rcvry_stat *rcs = &conn->rcs;
@@ -7259,8 +7243,9 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_dcid *dcid;
   ngtcp2_preferred_addr *paddr;
 
-  cwnd = conn_cwnd_left(conn);
-  destlen = ngtcp2_min(destlen, cwnd);
+  if (conn_cwnd_is_zero(conn)) {
+    destlen = 0;
+  }
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
@@ -7477,7 +7462,6 @@ ngtcp2_ssize ngtcp2_conn_client_write_handshake(
   ngtcp2_strm *strm = NULL;
   int send_stream = 0;
   ngtcp2_ssize spktlen, early_spktlen;
-  uint64_t cwnd;
   int was_client_initial;
   size_t datalen = ngtcp2_vec_len(datav, datavcnt);
   size_t early_datalen = 0;
@@ -7545,11 +7529,12 @@ ngtcp2_ssize ngtcp2_conn_client_write_handshake(
     wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
   }
 
-  cwnd = conn_cwnd_left(conn);
-
   dest += spktlen;
   destlen -= (size_t)spktlen;
-  destlen = ngtcp2_min(destlen, cwnd);
+
+  if (conn_cwnd_is_zero(conn)) {
+    return spktlen;
+  }
 
   early_spktlen = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_0RTT,
                                  strm, fin, datav, datavcnt, wflags, ts);
@@ -8103,7 +8088,6 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
                                        ngtcp2_tstamp ts) {
   ngtcp2_strm *strm = NULL;
   ngtcp2_ssize nwrite;
-  uint64_t cwnd;
   ngtcp2_pktns *pktns = &conn->pktns;
   size_t origlen = destlen;
   int rv;
@@ -8194,8 +8178,9 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     }
   }
 
-  cwnd = conn_cwnd_left(conn);
-  destlen = ngtcp2_min(destlen, cwnd);
+  if (conn_cwnd_is_zero(conn)) {
+    destlen = 0;
+  }
 
   if (ppe_pending) {
     res = conn->pkt.hs_spktlen;

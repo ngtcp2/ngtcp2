@@ -872,7 +872,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   ngtcp2_conn_del(conn);
 
-  /* CWND is too small */
+  /* CWND left is round up to the maximum UDP packet size */
   setup_default_client(&conn);
 
   conn->ccs.cwnd = 1;
@@ -885,8 +885,8 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
                                      1, null_data, 1024, 1);
 
-  CU_ASSERT(0 == spktlen);
-  CU_ASSERT(-1 == nwrite);
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(1024 == nwrite);
 
   ngtcp2_conn_del(conn);
 }
