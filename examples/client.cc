@@ -968,7 +968,9 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       early_data_ = false;
     } else {
       ngtcp2_conn_set_early_remote_transport_params(conn_, &params);
-      make_stream_early();
+      if (make_stream_early() != 0) {
+        return -1;
+      }
     }
   }
 
@@ -1606,37 +1608,12 @@ int Client::on_stream_reset(int64_t stream_id) {
   return 0;
 }
 
-void Client::make_stream_early() {
-  if (nstreams_done_ >= config.nstreams) {
-    return;
-  }
-
-  int64_t stream_id;
-  if (auto rv = ngtcp2_conn_open_bidi_stream(conn_, &stream_id, nullptr);
-      rv != 0) {
-    std::cerr << "ngtcp2_conn_open_bidi_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
-    return;
-  }
-
-  // TODO Handle error
+int Client::make_stream_early() {
   if (setup_httpconn() != 0) {
-    return;
+    return -1;
   }
 
-  auto stream = std::make_unique<Stream>(
-      config.requests[nstreams_done_ % config.requests.size()], stream_id);
-
-  if (submit_http_request(stream.get()) != 0) {
-    return;
-  }
-
-  if (!config.download.empty()) {
-    stream->open_file(stream->req.path);
-  }
-  streams_.emplace(stream_id, std::move(stream));
-
-  ++nstreams_done_;
+  return on_extend_max_streams();
 }
 
 int Client::on_extend_max_streams() {

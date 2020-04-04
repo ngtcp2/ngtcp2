@@ -218,7 +218,7 @@ public:
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
-  void make_stream_early();
+  int make_stream_early();
   void on_recv_retry();
   int change_local_addr();
   void start_change_local_addr_timer();
