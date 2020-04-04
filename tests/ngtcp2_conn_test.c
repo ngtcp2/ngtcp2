@@ -1028,7 +1028,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
                                      0, null_data, 1024, 4);
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_DATA_BLOCKED == spktlen);
+  CU_ASSERT(spktlen == 0);
   CU_ASSERT(-1 == nwrite);
 
   fr.type = NGTCP2_FRAME_MAX_DATA;

@@ -2762,7 +2762,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (pkt_empty) {
     assert(rv == 0 || NGTCP2_ERR_NOBUF == rv);
-    if (rv == 0 && stream_blocked) {
+    if (rv == 0 && stream_blocked && ngtcp2_conn_get_max_data_left(conn)) {
       return NGTCP2_ERR_STREAM_DATA_BLOCKED;
     }
 
@@ -2776,11 +2776,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     conn->pkt.hd_logged = hd_logged;
     conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
 
-    if (stream_blocked) {
-      return NGTCP2_ERR_STREAM_DATA_BLOCKED;
-    }
-    if (send_stream) {
-      return NGTCP2_ERR_WRITE_STREAM_MORE;
+    if (ngtcp2_conn_get_max_data_left(conn)) {
+      if (stream_blocked) {
+        return NGTCP2_ERR_STREAM_DATA_BLOCKED;
+      }
+      if (send_stream) {
+        return NGTCP2_ERR_WRITE_STREAM_MORE;
+      }
     }
   }
 
