@@ -681,15 +681,6 @@ void *ngtcp2_ksl_it_get(const ngtcp2_ksl_it *it) {
   return ksl_nth_node(it->ksl, it->blk, it->i)->data;
 }
 
-void ngtcp2_ksl_it_next(ngtcp2_ksl_it *it) {
-  assert(!ngtcp2_ksl_it_end(it));
-
-  if (++it->i == it->blk->n && it->blk->next) {
-    it->blk = it->blk->next;
-    it->i = 0;
-  }
-}
-
 void ngtcp2_ksl_it_prev(ngtcp2_ksl_it *it) {
   assert(!ngtcp2_ksl_it_begin(it));
 

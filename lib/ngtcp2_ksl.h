@@ -272,7 +272,10 @@ void *ngtcp2_ksl_it_get(const ngtcp2_ksl_it *it);
  * if this function is called when ngtcp2_ksl_it_end(it) returns
  * nonzero.
  */
-void ngtcp2_ksl_it_next(ngtcp2_ksl_it *it);
+#define ngtcp2_ksl_it_next(IT)                                                 \
+  (++(IT)->i == (IT)->blk->n && (IT)->blk->next                                \
+       ? ((IT)->blk = (IT)->blk->next, (IT)->i = 0)                            \
+       : 0)
 
 /*
  * ngtcp2_ksl_it_prev moves backward the iterator by one.  It is
