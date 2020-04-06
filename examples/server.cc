@@ -204,12 +204,19 @@ std::string make_status_body(unsigned int status_code) {
 struct Request {
   std::string path;
   std::vector<std::string> pushes;
+  struct {
+    int32_t urgency;
+    int inc;
+  } pri;
 };
 
 namespace {
 Request request_path(const std::string_view &uri, bool is_connect) {
   http_parser_url u;
   Request req;
+
+  req.pri.urgency = -1;
+  req.pri.inc = -1;
 
   http_parser_url_init(&u);
 
@@ -230,28 +237,58 @@ Request request_path(const std::string_view &uri, bool is_connect) {
 
   if (u.field_set & (1 << UF_QUERY)) {
     static constexpr char push_prefix[] = "push=";
+    static constexpr char urgency_prefix[] = "u=";
+    static constexpr char inc_prefix[] = "i=";
     auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
                          u.field_data[UF_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
-      if (!util::istarts_with(p, std::end(q), std::begin(push_prefix),
-                              std::end(push_prefix) - 1)) {
-        p = std::find(p, std::end(q), '&');
-        if (p == std::end(q)) {
+      if (util::istarts_with(p, std::end(q), std::begin(push_prefix),
+                             std::end(push_prefix) - 1)) {
+        auto path_start = p + sizeof(push_prefix) - 1;
+        auto path_end = std::find(path_start, std::end(q), '&');
+        if (path_start != path_end && *path_start == '/') {
+          req.pushes.emplace_back(path_start, path_end);
+        }
+        if (path_end == std::end(q)) {
           break;
         }
-        ++p;
+        p = path_end + 1;
+        continue;
+      }
+      if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
+                             std::end(urgency_prefix) - 1)) {
+        auto urgency_start = p + sizeof(urgency_prefix) - 1;
+        auto urgency_end = std::find(urgency_start, std::end(q), '&');
+        if (urgency_start + 1 == urgency_end && '0' <= *urgency_start &&
+            *urgency_start <= '7') {
+          req.pri.urgency = *urgency_start - '0';
+        }
+        if (urgency_end == std::end(q)) {
+          break;
+        }
+        p = urgency_end + 1;
+        continue;
+      }
+      if (util::istarts_with(p, std::end(q), std::begin(inc_prefix),
+                             std::end(inc_prefix) - 1)) {
+        auto inc_start = p + sizeof(inc_prefix) - 1;
+        auto inc_end = std::find(inc_start, std::end(q), '&');
+        if (inc_start + 1 == inc_end &&
+            (*inc_start == '0' || *inc_start == '1')) {
+          req.pri.inc = *inc_start - '0';
+        }
+        if (inc_end == std::end(q)) {
+          break;
+        }
+        p = inc_end + 1;
         continue;
       }
 
-      auto path_start = p + sizeof(push_prefix) - 1;
-      auto path_end = std::find(path_start, std::end(q), '&');
-      if (path_start != path_end && *path_start == '/') {
-        req.pushes.emplace_back(path_start, path_end);
-      }
-      if (path_end == std::end(q)) {
+      p = std::find(p, std::end(q), '&');
+      if (p == std::end(q)) {
         break;
       }
-      p = path_end + 1;
+      ++p;
     }
   }
   return req;
@@ -525,19 +562,57 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
   auto content_length_str = std::to_string(content_length);
 
-  std::array<nghttp3_nv, 4> nva{
+  std::array<nghttp3_nv, 5> nva{
       util::make_nv(":status", "200"),
       util::make_nv("server", NGTCP2_SERVER),
       util::make_nv("content-type", content_type),
       util::make_nv("content-length", content_length_str),
   };
 
+  size_t nvlen = 4;
+
+  std::string prival;
+
+  if (req.pri.urgency != -1 || req.pri.inc != -1) {
+    nghttp3_pri pri;
+
+    if (auto rv = nghttp3_conn_get_stream_priority(httpconn, &pri, stream_id);
+        rv != 0) {
+      std::cerr << "nghttp3_conn_get_stream_priority: " << nghttp3_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+
+    if (req.pri.urgency != -1) {
+      pri.urgency = req.pri.urgency;
+    }
+    if (req.pri.inc != -1) {
+      pri.inc = req.pri.inc;
+    }
+
+    if (auto rv = nghttp3_conn_set_stream_priority(httpconn, stream_id, &pri);
+        rv != 0) {
+      std::cerr << "nghttp3_conn_set_stream_priority: " << nghttp3_strerror(rv)
+                << std::endl;
+      return -1;
+    }
+
+    prival = "u=";
+    prival += pri.urgency + '0';
+    prival += ",i";
+    if (!pri.inc) {
+      prival += "=?0";
+    }
+
+    nva[nvlen++] = util::make_nv("priority", prival);
+  }
+
   if (!config.quiet) {
-    debug::print_http_response_headers(stream_id, nva.data(), nva.size());
+    debug::print_http_response_headers(stream_id, nva.data(), nvlen);
   }
 
   if (auto rv = nghttp3_conn_submit_response(httpconn, stream_id, nva.data(),
-                                             nva.size(), &dr);
+                                             nvlen, &dr);
       rv != 0) {
     std::cerr << "nghttp3_conn_submit_response: " << nghttp3_strerror(rv)
               << std::endl;
