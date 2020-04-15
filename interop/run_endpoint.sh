@@ -35,7 +35,7 @@ if [ "$ROLE" == "client" ]; then
 	REQUESTS=${REQS[0]}
 	/usr/local/bin/client $CLIENT_ARGS --exit-on-first-stream-close $REQUESTS $CLIENT_PARAMS &> $LOG
 	REQUESTS=${REQS[@]:1}
-	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
+	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &>> $LOG
     elif [ "$TESTCASE" == "multiconnect" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --exit-on-first-stream-close --timeout=180s"
 	for REQ in $REQUESTS; do
