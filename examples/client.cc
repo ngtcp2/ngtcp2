@@ -918,10 +918,19 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
-  if (config.qlog_file) {
-    qlog_ = fopen(config.qlog_file, "w");
+  if (!config.qlog_file.empty() || !config.qlog_dir.empty()) {
+    std::string path;
+    if (!config.qlog_file.empty()) {
+      path = config.qlog_file;
+    } else {
+      path = std::string{config.qlog_dir};
+      path += '/';
+      path += util::format_hex(scid.data, scid.datalen);
+      path += ".qlog";
+    }
+    qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {
-      std::cerr << "Could not open qlog file " << config.qlog_file << ": "
+      std::cerr << "Could not open qlog file " << path << ": "
                 << strerror(errno) << std::endl;
       return -1;
     }
@@ -2439,7 +2448,13 @@ Options:
   --no-http-dump
               Disables printing HTTP response body out.
   --qlog-file=<PATH>
-              The path to write qlog.
+              The path to write qlog.   This option and --qlog-dir are
+              mutually exclusive.
+  --qlog-dir=<PATH>
+              Path to  the directory where  qlog file is  stored.  The
+              file name  of each qlog  is the Source Connection  ID of
+              client.   This  option   and  --qlog-file  are  mutually
+              exclusive.
   --max-data=<SIZE>
               The initial connection-level flow control window.
               Default: )"
@@ -2529,6 +2544,7 @@ int main(int argc, char **argv) {
         {"max-streams-uni", required_argument, &flag, 23},
         {"exit-on-first-stream-close", no_argument, &flag, 24},
         {"disable-early-data", no_argument, &flag, 25},
+        {"qlog-dir", required_argument, &flag, 26},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2730,6 +2746,9 @@ int main(int argc, char **argv) {
         // --disable-early-data
         config.disable_early_data = true;
         break;
+      case 26:
+        // --qlog-dir
+        config.qlog_dir = optarg;
       }
       break;
     default:
@@ -2740,6 +2759,11 @@ int main(int argc, char **argv) {
   if (argc - optind < 2) {
     std::cerr << "Too few arguments" << std::endl;
     print_usage();
+    exit(EXIT_FAILURE);
+  }
+
+  if (!config.qlog_file.empty() && !config.qlog_dir.empty()) {
+    std::cerr << "qlog-file and qlog-dir are mutually exclusive" << std::endl;
     exit(EXIT_FAILURE);
   }
 

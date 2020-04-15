@@ -113,7 +113,10 @@ struct Config {
   // disabled.
   bool no_http_dump;
   // qlog_file is the path to write qlog.
-  const char *qlog_file;
+  std::string_view qlog_file;
+  // qlog_dir is the path to directory where qlog is stored.  qlog_dir
+  // and qlog_file are mutually exclusive.
+  std::string_view qlog_dir;
   // max_data is the initial connection-level flow control window.
   uint64_t max_data;
   // max_stream_data_bidi_local is the initial stream-level flow
