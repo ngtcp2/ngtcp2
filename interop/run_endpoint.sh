@@ -22,7 +22,7 @@ LOG=/logs/log.txt
 if [ "$ROLE" == "client" ]; then
     # Wait for the simulator to start up.
     /wait-for-it.sh sim:57832 -s -t 30
-    CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --timeout=5s"
+    CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --timeout=5s --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
     fi
@@ -46,7 +46,7 @@ if [ "$ROLE" == "client" ]; then
 	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
     fi
 elif [ "$ROLE" == "server" ]; then
-    SERVER_ARGS="0.0.0.0 443 /etc/ngtcp2/server.key /etc/ngtcp2/server.crt -s -d /www"
+    SERVER_ARGS="0.0.0.0 443 /etc/ngtcp2/server.key /etc/ngtcp2/server.crt -s -d /www --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "retry" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
     elif [ "$TESTCASE" == "multiconnect" ]; then
