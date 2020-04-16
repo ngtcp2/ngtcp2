@@ -1993,17 +1993,6 @@ static ngtcp2_ssize conn_write_server_handshake(ngtcp2_conn *conn,
   dest += nwrite;
   destlen -= (size_t)nwrite;
 
-  /* Acknowledge 0-RTT packet here. */
-  if (conn->pktns.crypto.tx.ckm) {
-    nwrite = conn_write_ack_pkt(conn, dest, destlen, NGTCP2_PKT_SHORT, ts);
-    if (nwrite < 0) {
-      assert(nwrite != NGTCP2_ERR_NOBUF);
-      return nwrite;
-    }
-
-    res += nwrite;
-  }
-
   return res;
 }
 
@@ -7423,18 +7412,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         res += nwrite;
         dest += nwrite;
         origlen -= (size_t)nwrite;
-
-        /* Acknowledge 0-RTT packet here. */
-        if (conn->pktns.crypto.tx.ckm) {
-          nwrite =
-              conn_write_ack_pkt(conn, dest, origlen, NGTCP2_PKT_SHORT, ts);
-          if (nwrite < 0) {
-            assert(nwrite != NGTCP2_ERR_NOBUF);
-            return nwrite;
-          }
-
-          res += nwrite;
-        }
       }
 
       conn->hs_sent += (size_t)res;
