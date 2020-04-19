@@ -4024,6 +4024,7 @@ static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   assert(conn->ccs.bytes_in_flight >= bytes_in_flight);
 
   conn->ccs.bytes_in_flight -= bytes_in_flight;
+  conn->rcs.pto_count = 0;
 
   pktns_del(pktns, conn->mem);
 }
