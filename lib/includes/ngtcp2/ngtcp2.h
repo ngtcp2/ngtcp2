@@ -563,6 +563,19 @@ typedef struct ngtcp2_settings {
   ngtcp2_vec token;
 } ngtcp2_settings;
 
+typedef enum ngtcp2_pktns_id {
+  /* NGTCP2_PKTNS_ID_INITIAL is the Initial packet number space. */
+  NGTCP2_PKTNS_ID_INITIAL,
+  /* NGTCP2_PKTNS_ID_INITIAL is the Handshake packet number space. */
+  NGTCP2_PKTNS_ID_HANDSHAKE,
+  /* NGTCP2_PKTNS_ID_INITIAL is the Application data packet number
+     space. */
+  NGTCP2_PKTNS_ID_APP,
+  /* NGTCP2_PKTNS_ID_MAX is defined to get the number of packet number
+     spaces. */
+  NGTCP2_PKTNS_ID_MAX
+} ngtcp2_pktns_id;
+
 /**
  * @struct
  *
@@ -580,9 +593,9 @@ typedef struct ngtcp2_rcvry_stat {
   ngtcp2_tstamp loss_detection_timer;
   /* last_tx_pkt_ts corresponds to
      time_of_last_sent_ack_eliciting_packet in
-     draft-ietf-quic-recovery-25.  It is indexed by
-     ngtcp2_crypto_level.  No last_tx_pkt_ts for 0RTT packet. */
-  ngtcp2_tstamp last_tx_pkt_ts[3];
+     draft-ietf-quic-recovery-25. */
+  ngtcp2_tstamp last_tx_pkt_ts[NGTCP2_PKTNS_ID_MAX];
+  ngtcp2_tstamp loss_time[NGTCP2_PKTNS_ID_MAX];
 } ngtcp2_rcvry_stat;
 
 typedef struct ngtcp2_cc_stat {

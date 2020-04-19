@@ -219,11 +219,10 @@ typedef struct {
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
   size_t num_ack_eliciting;
-  ngtcp2_tstamp loss_time;
   /* probe_pkt_left is the number of probe packet to send */
   size_t probe_pkt_left;
-  /* crypto_level is encryption level which |crypto| belongs to. */
-  ngtcp2_crypto_level crypto_level;
+  /* pktns_id is the identifier of packet number space. */
+  ngtcp2_pktns_id pktns_id;
   /* cc_pkt_num is the smallest packet number that is contributed to
      bytes_in_flight. */
   int64_t cc_pkt_num;
@@ -232,7 +231,7 @@ typedef struct {
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
                      ngtcp2_strm *crypto, ngtcp2_rst *rst,
                      ngtcp2_default_cc *cc, ngtcp2_log *log, ngtcp2_qlog *qlog,
                      const ngtcp2_mem *mem);
