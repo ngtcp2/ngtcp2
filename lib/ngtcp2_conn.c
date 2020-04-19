@@ -5862,7 +5862,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static int conn_recv_handshake_done(ngtcp2_conn *conn) {
+static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
 
   if (conn->server) {
@@ -5883,6 +5883,10 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn) {
       return NGTCP2_ERR_CALLBACK_FAILURE;
     }
   }
+
+  /* Re-arm loss detection timer after handshake has been
+     confirmed. */
+  ngtcp2_conn_set_loss_detection_timer(conn, ts);
 
   return 0;
 }
@@ -6692,7 +6696,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_HANDSHAKE_DONE:
-      rv = conn_recv_handshake_done(conn);
+      rv = conn_recv_handshake_done(conn, ts);
       if (rv != 0) {
         return rv;
       }
@@ -7177,6 +7181,10 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (rv != 0) {
       return rv;
     }
+
+    /* Re-arm loss detection timer here after handshake has been
+       confirmed. */
+    ngtcp2_conn_set_loss_detection_timer(conn, ts);
 
     return 0;
   case NGTCP2_CS_CLOSING:
@@ -8695,7 +8703,7 @@ static ngtcp2_pktns *conn_get_earliest_loss_time_pktns(ngtcp2_conn *conn) {
       (res == NULL || hs_pktns->rtb.loss_time < res->rtb.loss_time)) {
     res = hs_pktns;
   }
-  if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) &&
+  if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
       pktns->rtb.loss_time != UINT64_MAX &&
       (res == NULL || pktns->rtb.loss_time < res->rtb.loss_time)) {
     res = pktns;
@@ -8715,7 +8723,7 @@ static ngtcp2_tstamp conn_get_earliest_last_tx_pkt_ts(ngtcp2_conn *conn) {
     if (rcs->last_tx_pkt_ts[i] != UINT64_MAX &&
         (!pktns || rcs->last_tx_pkt_ts[i] < earliest_ts) &&
         (i != NGTCP2_CRYPTO_LEVEL_APP ||
-         (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED))) {
+         (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED))) {
       earliest_ts = rcs->last_tx_pkt_ts[i];
       pktns = ns[i];
     }
@@ -8736,7 +8744,7 @@ conn_get_earliest_non_null_last_tx_pktns(ngtcp2_conn *conn) {
         (rcs->last_tx_pkt_ts[i] != UINT64_MAX &&
          (earliest_ts == UINT64_MAX || rcs->last_tx_pkt_ts[i] < earliest_ts) &&
          (i != NGTCP2_CRYPTO_LEVEL_APP ||
-          (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)))) {
+          (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
       earliest_ts = rcs->last_tx_pkt_ts[i];
       res = ns[i];
     }
