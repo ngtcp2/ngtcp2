@@ -229,6 +229,11 @@ static void rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       frame_chain_insert(pfrc, ent->frc);
       ent->frc = NULL;
     }
+  } else {
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                    "pkn=%" PRId64
+                    " is a probe packet, no retransmission is necessary",
+                    ent->hd.pkt_num);
   }
 
   ngtcp2_rtb_entry_del(ent, rtb->mem);
