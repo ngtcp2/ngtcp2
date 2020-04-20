@@ -2059,16 +2059,13 @@ const Address &Handler::remote_addr() const { return remote_addr_; }
 ngtcp2_conn *Handler::conn() const { return conn_; }
 
 namespace {
-size_t remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
+void remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
                              uint64_t offset) {
-  size_t len = 0;
   for (; !d.empty() && tx_offset + d.front().size() <= offset;) {
     auto &v = d.front();
-    len += v.size();
     tx_offset += v.size();
     d.pop_front();
   }
-  return len;
 }
 } // namespace
 
