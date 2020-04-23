@@ -241,11 +241,10 @@ size_t ngtcp2_ksl_len(ngtcp2_ksl *ksl);
 void ngtcp2_ksl_clear(ngtcp2_ksl *ksl);
 
 /*
- * ngtcp2_ksl_nth_node returns the |n|th node under |blk|.  This
- * function is provided for unit testing.
+ * ngtcp2_ksl_nth_node returns the |n|th node under |blk|.
  */
-ngtcp2_ksl_node *ngtcp2_ksl_nth_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
-                                     size_t n);
+#define ngtcp2_ksl_nth_node(KSL, BLK, N)                                       \
+  ((ngtcp2_ksl_node *)(void *)((BLK)->nodes + (KSL)->nodelen * (N)))
 
 /*
  * ngtcp2_ksl_print prints its internal state in stderr.  It assumes
@@ -304,10 +303,7 @@ int ngtcp2_ksl_it_begin(const ngtcp2_ksl_it *it);
  * returns nonzero.
  */
 #define ngtcp2_ksl_it_key(IT)                                                  \
-  ((ngtcp2_ksl_key *)((ngtcp2_ksl_node *)(void *)((IT)->blk->nodes +           \
-                                                  (IT)->ksl->nodelen *         \
-                                                      (IT)->i))                \
-       ->key)
+  ((ngtcp2_ksl_key *)ngtcp2_ksl_nth_node((IT)->ksl, (IT)->blk, (IT)->i)->key)
 
 /*
  * ngtcp2_ksl_range_compar is an implementation of ngtcp2_ksl_compar.
