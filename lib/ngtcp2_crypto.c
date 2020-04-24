@@ -394,9 +394,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   uint64_t param_type;
   uint64_t valuelen;
   ngtcp2_ssize nread;
-  uint8_t scb[8192];
-  size_t scb_idx;
-  size_t scb_shift;
 
   p = data;
   end = data + datalen;
@@ -423,8 +420,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     return 0;
   }
 
-  memset(scb, 0, sizeof(scb));
-
   for (; (size_t)(end - p) >= 2;) {
     nread = decode_varint(&param_type, p, end);
     if (nread < 0) {
@@ -432,13 +427,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
     }
     p += nread;
 
-    scb_idx = param_type / 8;
-    scb_shift = param_type % 8;
-
-    if (scb[scb_idx] & (1 << scb_shift)) {
-      return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
-    }
-    scb[scb_idx] |= (uint8_t)(1 << scb_shift);
     switch (param_type) {
     case NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
       nread = decode_varint_param(&params->initial_max_stream_data_bidi_local,
