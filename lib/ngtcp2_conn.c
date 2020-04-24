@@ -4599,7 +4599,7 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                in order to send CONNECTION_CLOSE with TLS alert (e.g.,
                no_application_protocol). */
             if (nread == NGTCP2_ERR_CRYPTO) {
-              return nread;
+              return (int)nread;
             }
             return NGTCP2_ERR_DROP_CONN;
           }
