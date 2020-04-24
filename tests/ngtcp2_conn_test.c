@@ -2519,6 +2519,26 @@ void test_ngtcp2_conn_handshake_error(void) {
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
+  CU_ASSERT(NGTCP2_ERR_CRYPTO == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* server side; wrong version */
+  setup_handshake_server(&conn);
+  conn->callbacks.recv_crypto_data = recv_crypto_handshake_error;
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 551;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, 0xffff, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
   CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
 
   ngtcp2_conn_del(conn);

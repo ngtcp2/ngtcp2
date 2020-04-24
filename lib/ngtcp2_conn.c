@@ -4595,6 +4595,12 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
              valid packet and prevent the handshake from
              completing. */
           if (conn->in_pktns && conn->in_pktns->rx.max_pkt_num == -1) {
+            /* If this is crypto related error, then return normally
+               in order to send CONNECTION_CLOSE with TLS alert (e.g.,
+               no_application_protocol). */
+            if (nread == NGTCP2_ERR_CRYPTO) {
+              return nread;
+            }
             return NGTCP2_ERR_DROP_CONN;
           }
         } else if (nread == NGTCP2_ERR_CRYPTO) {
