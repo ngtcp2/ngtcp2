@@ -1565,7 +1565,7 @@ int Client::handle_error() {
 
 namespace {
 void remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
-                             uint64_t offset) {
+                           uint64_t offset) {
   for (; !d.empty() && tx_offset + d.front().size() <= offset;) {
     tx_offset += d.front().size();
     d.pop_front();
