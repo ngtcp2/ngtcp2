@@ -1061,6 +1061,7 @@ int Client::on_read() {
   std::array<uint8_t, 65536> buf;
   sockaddr_union su;
   socklen_t addrlen;
+  size_t pktcnt = 0;
 
   for (;;) {
     addrlen = sizeof(su);
@@ -1090,6 +1091,10 @@ int Client::on_read() {
 
     if (feed_data(&su.sa, addrlen, buf.data(), nread) != 0) {
       return -1;
+    }
+
+    if (++pktcnt >= 10) {
+      break;
     }
   }
 
