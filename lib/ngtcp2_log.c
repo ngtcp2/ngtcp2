@@ -200,13 +200,13 @@ static uint64_t timestamp_cast(uint64_t ns) { return ns / NGTCP2_MILLISECONDS; }
 
 static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                           const ngtcp2_stream *fr, const char *dir) {
-  log->log_printf(
-      log->user_data,
-      (NGTCP2_LOG_PKT " STREAM(0x%02x) id=0x%" PRIx64 " fin=%d offset=%" PRIu64
-                      " len=%" PRIu64 " uni=%d"),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type | fr->flags, fr->stream_id,
-      fr->fin, fr->offset, ngtcp2_vec_len(fr->data, fr->datacnt),
-      (fr->stream_id & 0x2) != 0);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_PKT " STREAM(0x%02x) id=0x%" PRIx64
+                                  " fin=%d offset=%" PRIu64 " len=%zu uni=%d"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type | fr->flags,
+                  fr->stream_id, fr->fin, fr->offset,
+                  ngtcp2_vec_len(fr->data, fr->datacnt),
+                  (fr->stream_id & 0x2) != 0);
 }
 
 static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -245,8 +245,7 @@ static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr_padding(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                            const ngtcp2_padding *fr, const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " PADDING(0x%02x) len=%" PRIu64),
+  log->log_printf(log->user_data, (NGTCP2_LOG_PKT " PADDING(0x%02x) len=%zu"),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->len);
 }
 
@@ -323,7 +322,8 @@ static void log_fr_stream_data_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_PKT " STREAM_DATA_BLOCKED(0x%02x) id=0x%" PRIx64
                                   " offset=%" PRIu64),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->stream_id, fr->offset);
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_id,
+                  fr->offset);
 }
 
 static void log_fr_streams_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -626,29 +626,33 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   }
 
   log->log_printf(
-      log->user_data, (NGTCP2_LOG_TP " initial_max_stream_data_bidi_local=%u"),
+      log->user_data,
+      (NGTCP2_LOG_TP " initial_max_stream_data_bidi_local=%" PRIu64),
       NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_bidi_local);
   log->log_printf(
-      log->user_data, (NGTCP2_LOG_TP " initial_max_stream_data_bidi_remote=%u"),
+      log->user_data,
+      (NGTCP2_LOG_TP " initial_max_stream_data_bidi_remote=%" PRIu64),
       NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_bidi_remote);
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_stream_data_uni=%u"),
+                  (NGTCP2_LOG_TP " initial_max_stream_data_uni=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_stream_data_uni);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_data=%u"),
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_data=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_data);
   log->log_printf(log->user_data,
-                  (NGTCP2_LOG_TP " initial_max_bidi_streams=%u"),
+                  (NGTCP2_LOG_TP " initial_max_bidi_streams=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_bidi);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " initial_max_uni_streams=%u"),
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " initial_max_uni_streams=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->initial_max_streams_uni);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_idle_timeout=%u"),
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_idle_timeout=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS,
                   params->max_idle_timeout / NGTCP2_MILLISECONDS);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%u"),
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " ack_delay_exponent=%u"),
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " ack_delay_exponent=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->ack_delay_exponent);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_ack_delay=%u"),
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_ack_delay=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS,
                   params->max_ack_delay / NGTCP2_MILLISECONDS);
   log->log_printf(log->user_data,
