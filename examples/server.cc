@@ -2060,7 +2060,7 @@ ngtcp2_conn *Handler::conn() const { return conn_; }
 
 namespace {
 void remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
-                             uint64_t offset) {
+                           uint64_t offset) {
   for (; !d.empty() && tx_offset + d.front().size() <= offset;) {
     auto &v = d.front();
     tx_offset += v.size();
