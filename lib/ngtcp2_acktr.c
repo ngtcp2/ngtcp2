@@ -195,6 +195,11 @@ ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr) {
   return ngtcp2_ksl_begin(&acktr->ents);
 }
 
+int ngtcp2_acktr_empty(ngtcp2_acktr *acktr) {
+  ngtcp2_ksl_it it = ngtcp2_ksl_begin(&acktr->ents);
+  return ngtcp2_ksl_it_end(&it);
+}
+
 ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
                                              int64_t pkt_num,
                                              int64_t largest_ack) {
