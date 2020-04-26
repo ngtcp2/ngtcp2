@@ -8692,25 +8692,24 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     rcs->min_rtt = rtt;
     rcs->smoothed_rtt = rtt;
     rcs->rttvar = rtt / 2;
-    return;
-  }
-
-  rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
-  if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
-    ack_delay =
-        ngtcp2_min(ack_delay, conn->remote.transport_params.max_ack_delay);
   } else {
-    ack_delay = ngtcp2_min(ack_delay, NGTCP2_DEFAULT_MAX_ACK_DELAY);
-  }
-  if (rtt > rcs->min_rtt + ack_delay) {
-    rtt -= ack_delay;
-  }
+    rcs->min_rtt = ngtcp2_min(rcs->min_rtt, rtt);
+    if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+      ack_delay =
+          ngtcp2_min(ack_delay, conn->remote.transport_params.max_ack_delay);
+    } else {
+      ack_delay = ngtcp2_min(ack_delay, NGTCP2_DEFAULT_MAX_ACK_DELAY);
+    }
+    if (rtt > rcs->min_rtt + ack_delay) {
+      rtt -= ack_delay;
+    }
 
-  rcs->rttvar =
-      (rcs->rttvar * 3 + (rcs->smoothed_rtt < rtt ? rtt - rcs->smoothed_rtt
-                                                  : rcs->smoothed_rtt - rtt)) /
-      4;
-  rcs->smoothed_rtt = (rcs->smoothed_rtt * 7 + rtt) / 8;
+    rcs->rttvar = (rcs->rttvar * 3 + (rcs->smoothed_rtt < rtt
+                                          ? rtt - rcs->smoothed_rtt
+                                          : rcs->smoothed_rtt - rtt)) /
+                  4;
+    rcs->smoothed_rtt = (rcs->smoothed_rtt * 7 + rtt) / 8;
+  }
 
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                   "latest_rtt=%" PRIu64 " min_rtt=%" PRIu64
