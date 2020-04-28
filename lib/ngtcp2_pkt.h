@@ -155,8 +155,7 @@ typedef struct {
   uint64_t ack_delay;
   /**
    * ack_delay_unscaled is an ack_delay multiplied by
-   * 2**ack_delay_component * NGTCP2_DURATION_TICK /
-   * NGTCP2_MICROSECONDS.
+   * 2**ack_delay_component * NGTCP2_MICROSECONDS.
    */
   ngtcp2_duration ack_delay_unscaled;
   uint64_t first_ack_blklen;

@@ -305,13 +305,12 @@ typedef enum ngtcp2_path_validation_result {
 } ngtcp2_path_validation_result;
 
 /*
- * ngtcp2_tstamp is a timestamp with NGTCP2_DURATION_TICK resolution.
+ * ngtcp2_tstamp is a timestamp with nanosecond resolution.
  */
 typedef uint64_t ngtcp2_tstamp;
 
 /*
- * ngtcp2_duration is a period of time in NGTCP2_DURATION_TICK
- * resolution.
+ * ngtcp2_duration is a period of time in nanosecond resolution.
  */
 typedef uint64_t ngtcp2_duration;
 
@@ -581,8 +580,6 @@ typedef enum ngtcp2_pktns_id {
  *
  * ngtcp2_rcvry_stat holds various statistics, and computed data for
  * recovery from packet loss.
- *
- * Everything is NGTCP2_DURATION_TICK resolution.
  */
 typedef struct ngtcp2_rcvry_stat {
   ngtcp2_duration latest_rtt;
