@@ -8205,25 +8205,20 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     }
   }
 
-  if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
+  if (ppe_pending) {
+    res = conn->pkt.hs_spktlen;
+    conn->pkt.hs_spktlen = 0;
+    /* dest and destlen have already been adjusted in ppe in the first
+       run.  They are adjusted for probe packet later. */
+    nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT,
+                            strm, fin, datav, datavcnt, wflags, ts);
+    goto fin;
+  } else if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
     destlen = 0;
-    assert(!ppe_pending);
-  } else {
-    if (ppe_pending) {
-      res = conn->pkt.hs_spktlen;
-      conn->pkt.hs_spktlen = 0;
-      /* dest and destlen have already been adjusted in ppe in the first
-         run.  They are adjusted for probe packet later. */
-      nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT,
-                              strm, fin, datav, datavcnt, wflags, ts);
+  } else if (conn->pv) {
+    nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
+    if (nwrite) {
       goto fin;
-    }
-
-    if (conn->pv) {
-      nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
-      if (nwrite) {
-        goto fin;
-      }
     }
   }
 
