@@ -1127,7 +1127,7 @@ static size_t pktns_select_pkt_numlen(ngtcp2_pktns *pktns) {
  * endpoint can sent at this time is zero.
  */
 static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
-  uint64_t bytes_in_flight = ngtcp2_conn_get_bytes_in_flight(conn);
+  uint64_t bytes_in_flight = conn->cstat.bytes_in_flight;
   uint64_t cwnd =
       conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
           ? NGTCP2_MIN_CWND
@@ -8637,10 +8637,6 @@ void ngtcp2_conn_extend_max_streams_bidi(ngtcp2_conn *conn, size_t n) {
 
 void ngtcp2_conn_extend_max_streams_uni(ngtcp2_conn *conn, size_t n) {
   handle_max_remote_streams_extension(&conn->remote.uni.unsent_max_streams, n);
-}
-
-size_t ngtcp2_conn_get_bytes_in_flight(ngtcp2_conn *conn) {
-  return conn->cstat.bytes_in_flight;
 }
 
 const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn) {

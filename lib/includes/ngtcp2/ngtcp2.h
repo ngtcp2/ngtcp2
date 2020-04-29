@@ -2513,15 +2513,6 @@ NGTCP2_EXTERN void ngtcp2_conn_extend_max_streams_uni(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_bytes_in_flight` returns the number of bytes which
- * is the sum of outgoing QUIC packet length in flight.  This does not
- * include a packet which only includes ACK frames.
- */
-NGTCP2_EXTERN size_t ngtcp2_conn_get_bytes_in_flight(ngtcp2_conn *conn);
-
-/**
- * @function
- *
  * `ngtcp2_conn_get_dcid` returns the non-NULL pointer to destination
  * connection ID.  If no destination connection ID is present, the
  * return value is not ``NULL``, and its datalen field is 0.
