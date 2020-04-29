@@ -28,7 +28,6 @@
 #endif // HAVE_CONFIG_H
 
 #include <stdio.h>
-#include <string.h>
 #include <CUnit/Basic.h>
 // include test cases' include files here
 #include "util_test.h"
