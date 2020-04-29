@@ -29,7 +29,6 @@
 #  include <unistd.h>
 #endif
 #include <assert.h>
-#include <errno.h>
 #include <string.h>
 
 #include "ngtcp2_str.h"
