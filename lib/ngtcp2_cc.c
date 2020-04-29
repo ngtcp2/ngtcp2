@@ -36,10 +36,9 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
   return pkt;
 }
 
-void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_conn_stat *cstat,
-                            ngtcp2_rst *rst, ngtcp2_log *log) {
+void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_rst *rst,
+                            ngtcp2_log *log) {
   cc->log = log;
-  cc->cstat = cstat;
   cc->rst = rst;
   cc->max_delivery_rate = 0.;
   cc->min_rtt = 0;
@@ -49,16 +48,15 @@ void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc) { (void)cc; }
 
-static int default_cc_in_congestion_recovery(ngtcp2_default_cc *cc,
-                                             ngtcp2_tstamp sent_time) {
-  return sent_time <= cc->cstat->congestion_recovery_start_ts;
+static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
+                                  ngtcp2_tstamp sent_time) {
+  return sent_time <= cstat->congestion_recovery_start_ts;
 }
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
+                                    ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt) {
-  ngtcp2_conn_stat *cstat = cc->cstat;
-
-  if (default_cc_in_congestion_recovery(cc, pkt->ts_sent)) {
+  if (in_congestion_recovery(cstat, pkt->ts_sent)) {
     return;
   }
 
@@ -78,11 +76,10 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
 }
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
+                                        ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp ts_sent,
                                         ngtcp2_tstamp ts) {
-  ngtcp2_conn_stat *cstat = cc->cstat;
-
-  if (default_cc_in_congestion_recovery(cc, ts_sent)) {
+  if (in_congestion_recovery(cstat, ts_sent)) {
     return;
   }
   cstat->congestion_recovery_start_ts = ts;
@@ -95,9 +92,9 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
 }
 
 void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
+                                                    ngtcp2_conn_stat *cstat,
                                                     ngtcp2_duration loss_window,
                                                     ngtcp2_duration pto) {
-  ngtcp2_conn_stat *cstat = cc->cstat;
   ngtcp2_duration congestion_period =
       pto * NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 

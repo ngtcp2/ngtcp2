@@ -59,7 +59,6 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 /* ngtcp2_default_cc is the default congestion controller. */
 struct ngtcp2_default_cc {
   ngtcp2_log *log;
-  ngtcp2_conn_stat *cstat;
   ngtcp2_rst *rst;
   double max_delivery_rate;
   ngtcp2_duration min_rtt;
@@ -69,19 +68,22 @@ struct ngtcp2_default_cc {
 
 typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 
-void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_conn_stat *cstat,
-                            ngtcp2_rst *rst, ngtcp2_log *log);
+void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_rst *rst,
+                            ngtcp2_log *log);
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc);
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
+                                    ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt);
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
+                                        ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp ts_sent,
                                         ngtcp2_tstamp ts);
 
 void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
+                                                    ngtcp2_conn_stat *cstat,
                                                     ngtcp2_duration loss_window,
                                                     ngtcp2_duration pto);
 

@@ -250,7 +250,8 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
+                   ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_head returns the iterator which points to the entry
@@ -275,8 +276,8 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
  *     Out of memory
  */
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                                 ngtcp2_conn *conn, ngtcp2_tstamp pkt_ts,
-                                 ngtcp2_tstamp ts);
+                                 ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
+                                 ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
@@ -293,7 +294,8 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
  * all frames to |*pfrc|.  Even when this function fails, some frames
  * might be prepended to |*pfrc| and the caller should handle them.
  */
-void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                           ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_on_crypto_timeout copies all unacknowledged CRYPTO
@@ -306,7 +308,8 @@ void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                                 ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.

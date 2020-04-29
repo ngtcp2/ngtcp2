@@ -598,8 +598,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_rst_init(&(*pconn)->rst);
 
-  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->cstat, &(*pconn)->rst,
-                         &(*pconn)->log);
+  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->rst, &(*pconn)->log);
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
@@ -1081,7 +1080,7 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
 
   /* This function implements OnPacketSent, but it handles only
      non-ACK-only packet. */
-  rv = ngtcp2_rtb_add(rtb, ent);
+  rv = ngtcp2_rtb_add(rtb, ent, &conn->cstat);
   if (rv != 0) {
     return rv;
   }
@@ -3522,7 +3521,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   /* Just freeing memory is dangerous because we might free twice. */
 
-  ngtcp2_rtb_remove_all(rtb, &frc);
+  ngtcp2_rtb_remove_all(rtb, &frc, &conn->cstat);
 
   rv = conn_resched_frames(conn, &conn->pktns, &frc);
   if (rv != 0) {
@@ -3532,7 +3531,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   }
 
   frc = NULL;
-  ngtcp2_rtb_remove_all(in_rtb, &frc);
+  ngtcp2_rtb_remove_all(in_rtb, &frc, &conn->cstat);
 
   rv = conn_resched_frames(conn, in_pktns, &frc);
   if (rv != 0) {
@@ -3610,7 +3609,8 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
 
   ngtcp2_acktr_recv_ack(&pktns->acktr, fr);
 
-  num_acked = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, conn, pkt_ts, ts);
+  num_acked =
+      ngtcp2_rtb_recv_ack(&pktns->rtb, fr, &conn->cstat, conn, pkt_ts, ts);
   if (num_acked < 0) {
     /* TODO assert this */
     assert(ngtcp2_err_is_fatal((int)num_acked));
@@ -8659,7 +8659,7 @@ int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
 
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
 
-  ngtcp2_rtb_remove_all(rtb, &frc);
+  ngtcp2_rtb_remove_all(rtb, &frc, &conn->cstat);
 
   rv = conn_resched_frames(conn, pktns, &frc);
   if (rv != 0) {
@@ -8811,7 +8811,7 @@ static int conn_on_crypto_timeout(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   ngtcp2_frame_chain *frc = NULL;
   int rv;
 
-  rv = ngtcp2_rtb_on_crypto_timeout(&pktns->rtb, &frc);
+  rv = ngtcp2_rtb_on_crypto_timeout(&pktns->rtb, &frc, &conn->cstat);
   if (rv != 0) {
     assert(ngtcp2_err_is_fatal(rv));
     ngtcp2_frame_chain_list_del(frc, conn->mem);
