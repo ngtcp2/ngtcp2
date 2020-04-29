@@ -182,13 +182,13 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
 }
 
 static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
-  ngtcp2_rst_on_pkt_sent(rtb->rst, ent, rtb->cc->ccs);
+  ngtcp2_rst_on_pkt_sent(rtb->rst, ent, rtb->cc->cstat);
 
   assert(rtb->cc_pkt_num <= ent->hd.pkt_num);
 
-  rtb->cc->ccs->bytes_in_flight += ent->pktlen;
+  rtb->cc->cstat->bytes_in_flight += ent->pktlen;
 
-  ngtcp2_rst_update_app_limited(rtb->rst, rtb->cc->ccs);
+  ngtcp2_rst_update_app_limited(rtb->rst, rtb->cc->cstat);
 
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     ++rtb->num_ack_eliciting;
@@ -202,8 +202,8 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent) {
   }
 
   if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
-    assert(rtb->cc->ccs->bytes_in_flight >= ent->pktlen);
-    rtb->cc->ccs->bytes_in_flight -= ent->pktlen;
+    assert(rtb->cc->cstat->bytes_in_flight >= ent->pktlen);
+    rtb->cc->cstat->bytes_in_flight -= ent->pktlen;
   }
 }
 
@@ -379,7 +379,7 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
   if (!(ent->flags & NGTCP2_RTB_FLAG_PROBE) &&
       (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
-    conn->rcs.pto_count = 0;
+    conn->cstat.pto_count = 0;
   }
 }
 
@@ -482,15 +482,15 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   }
 
   if (conn) {
-    ngtcp2_rst_on_ack_recv(rtb->rst, &conn->rcs);
+    ngtcp2_rst_on_ack_recv(rtb->rst, &conn->cstat);
     ngtcp2_default_cc_on_ack_recv(rtb->cc,
-                                  rtt_updated ? conn->rcs.latest_rtt : 0, ts);
+                                  rtt_updated ? conn->cstat.latest_rtt : 0, ts);
   }
 
   return num_acked;
 }
 
-static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
+static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
                         const ngtcp2_rtb_entry *ent, uint64_t loss_delay,
                         ngtcp2_tstamp lost_send_time) {
   ngtcp2_tstamp loss_time;
@@ -500,7 +500,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
     return 1;
   }
 
-  loss_time = rcs->loss_time[rtb->pktns_id];
+  loss_time = cstat->loss_time[rtb->pktns_id];
 
   if (loss_time == UINT64_MAX) {
     loss_time = ent->ts + loss_delay;
@@ -508,7 +508,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
     loss_time = ngtcp2_min(loss_time, ent->ts + loss_delay);
   }
 
-  rcs->loss_time[rtb->pktns_id] = loss_time;
+  cstat->loss_time[rtb->pktns_id] = loss_time;
 
   return 0;
 }
@@ -517,15 +517,15 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_rcvry_stat *rcs,
  * rtb_compute_pkt_loss_delay computes delay until packet is
  * considered lost in NGTCP2_MICROSECONDS resolution.
  */
-static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_rcvry_stat *rcs) {
+static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   /* 9/8 is kTimeThreshold */
   ngtcp2_duration loss_delay =
-      ngtcp2_max(rcs->latest_rtt, rcs->smoothed_rtt) * 9 / 8;
+      ngtcp2_max(cstat->latest_rtt, cstat->smoothed_rtt) * 9 / 8;
   return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
 }
 
 void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                                ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
+                                ngtcp2_conn_stat *cstat, ngtcp2_duration pto,
                                 ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_duration loss_delay;
@@ -534,15 +534,15 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   ngtcp2_tstamp latest_ts, oldest_ts;
   int64_t last_lost_pkt_num;
 
-  rcs->loss_time[rtb->pktns_id] = UINT64_MAX;
-  loss_delay = compute_pkt_loss_delay(rcs);
+  cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
+  loss_delay = compute_pkt_loss_delay(cstat);
   lost_send_time = ts - loss_delay;
 
   it = ngtcp2_ksl_lower_bound(&rtb->ents, &rtb->largest_acked_tx_pkt_num);
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
 
-    if (rtb_pkt_lost(rtb, rcs, ent, loss_delay, lost_send_time)) {
+    if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, lost_send_time)) {
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
       last_lost_pkt_num = ent->hd.pkt_num;

@@ -875,7 +875,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
   /* CWND left is round up to the maximum UDP packet size */
   setup_default_client(&conn);
 
-  conn->ccs.cwnd = 1;
+  conn->cstat.cwnd = 1;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -2567,7 +2567,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
-  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->rcs, ++t);
+  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
@@ -2598,7 +2598,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
-  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->rcs, ++t);
+  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, (size_t)(spktlen - 1), ++t);
 
   CU_ASSERT(spktlen > 0);

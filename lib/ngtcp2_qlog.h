@@ -121,8 +121,7 @@ void ngtcp2_qlog_parameters_set_transport_params(
  * recovery category.
  */
 void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
-                                 const ngtcp2_rcvry_stat *rcs,
-                                 ngtcp2_cc_stat *ccs);
+                                 const ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_qlog_pkt_lost writes packet_lost event.

@@ -46,8 +46,8 @@ void ngtcp2_rst_init(ngtcp2_rst *rst) {
 }
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
-                            const ngtcp2_cc_stat *ccs) {
-  if (ccs->bytes_in_flight == 0) {
+                            const ngtcp2_conn_stat *cstat) {
+  if (cstat->bytes_in_flight == 0) {
     rst->first_sent_ts = rst->delivered_ts = ent->ts;
   }
   ent->rst.first_sent_ts = rst->first_sent_ts;
@@ -56,7 +56,7 @@ void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
   ent->rst.is_app_limited = rst->app_limited != 0;
 }
 
-int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_rcvry_stat *rcs) {
+int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_conn_stat *cstat) {
   ngtcp2_rs *rs = &rst->rs;
 
   if (rst->app_limited && rst->delivered > rst->app_limited) {
@@ -71,7 +71,7 @@ int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_rcvry_stat *rcs) {
 
   rs->delivered = rst->delivered - rs->prior_delivered;
 
-  if (rs->interval < rcs->min_rtt) {
+  if (rs->interval < cstat->min_rtt) {
     rs->interval = UINT64_MAX;
     return 0;
   }
@@ -100,8 +100,9 @@ void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
   }
 }
 
-void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, const ngtcp2_cc_stat *ccs) {
+void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst,
+                                   const ngtcp2_conn_stat *cstat) {
   (void)rst;
-  (void)ccs;
+  (void)cstat;
   /* TODO Not implemented */
 }

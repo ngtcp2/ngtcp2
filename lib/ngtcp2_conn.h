@@ -441,8 +441,7 @@ struct ngtcp2_conn {
   } pkt;
 
   ngtcp2_map strms;
-  ngtcp2_rcvry_stat rcs;
-  ngtcp2_cc_stat ccs;
+  ngtcp2_conn_stat cstat;
   ngtcp2_pv *pv;
   ngtcp2_log log;
   ngtcp2_qlog qlog;
@@ -653,7 +652,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts);
  *     Out of memory.
  */
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                                ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts);
+                                ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_tx_strmq_top returns the ngtcp2_strm which sits on the

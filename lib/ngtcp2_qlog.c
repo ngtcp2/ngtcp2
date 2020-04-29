@@ -1115,8 +1115,7 @@ void ngtcp2_qlog_parameters_set_transport_params(
 }
 
 void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
-                                 const ngtcp2_rcvry_stat *rcs,
-                                 ngtcp2_cc_stat *ccs) {
+                                 const ngtcp2_conn_stat *cstat) {
   uint8_t buf[1024];
   uint8_t *p = buf;
   ngtcp2_vec name, value;
@@ -1134,30 +1133,33 @@ void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
   *p++ = ',';
   *p++ = '{';
 
-  if (rcs->min_rtt != UINT64_MAX) {
-    p = write_pair_duration(p, ngtcp2_vec_lit(&name, "min_rtt"), rcs->min_rtt);
+  if (cstat->min_rtt != UINT64_MAX) {
+    p = write_pair_duration(p, ngtcp2_vec_lit(&name, "min_rtt"),
+                            cstat->min_rtt);
     *p++ = ',';
   }
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "smoothed_rtt"),
-                          rcs->smoothed_rtt);
+                          cstat->smoothed_rtt);
   *p++ = ',';
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "latest_rtt"),
-                          rcs->latest_rtt);
+                          cstat->latest_rtt);
   *p++ = ',';
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "rtt_variance"),
-                          rcs->rttvar);
+                          cstat->rttvar);
   *p++ = ',';
   /* TODO max_ack_delay? */
-  p = write_pair_number(p, ngtcp2_vec_lit(&name, "pto_count"), rcs->pto_count);
+  p = write_pair_number(p, ngtcp2_vec_lit(&name, "pto_count"),
+                        cstat->pto_count);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "congestion_window"),
-                        ccs->cwnd);
+                        cstat->cwnd);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "bytes_in_flight"),
-                        ccs->bytes_in_flight);
-  if (ccs->ssthresh != UINT64_MAX) {
+                        cstat->bytes_in_flight);
+  if (cstat->ssthresh != UINT64_MAX) {
     *p++ = ',';
-    p = write_pair_number(p, ngtcp2_vec_lit(&name, "ssthresh"), ccs->ssthresh);
+    p = write_pair_number(p, ngtcp2_vec_lit(&name, "ssthresh"),
+                          cstat->ssthresh);
   }
 
   *p++ = '}';

@@ -578,10 +578,10 @@ typedef enum ngtcp2_pktns_id {
 /**
  * @struct
  *
- * ngtcp2_rcvry_stat holds various statistics, and computed data for
- * recovery from packet loss.
+ * ngtcp2_conn_stat holds various connection statistics, and computed
+ * data for recovery and congestion controller.
  */
-typedef struct ngtcp2_rcvry_stat {
+typedef struct ngtcp2_conn_stat {
   ngtcp2_duration latest_rtt;
   ngtcp2_duration min_rtt;
   ngtcp2_duration smoothed_rtt;
@@ -593,14 +593,11 @@ typedef struct ngtcp2_rcvry_stat {
      draft-ietf-quic-recovery-25. */
   ngtcp2_tstamp last_tx_pkt_ts[NGTCP2_PKTNS_ID_MAX];
   ngtcp2_tstamp loss_time[NGTCP2_PKTNS_ID_MAX];
-} ngtcp2_rcvry_stat;
-
-typedef struct ngtcp2_cc_stat {
   uint64_t cwnd;
   uint64_t ssthresh;
   ngtcp2_tstamp congestion_recovery_start_ts;
   uint64_t bytes_in_flight;
-} ngtcp2_cc_stat;
+} ngtcp2_conn_stat;
 
 /**
  * @struct
@@ -2608,19 +2605,11 @@ NGTCP2_EXTERN int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_get_rcvry_stat` returns a pointer to the object which
- * stores recovery information.
+ * `ngtcp2_conn_get_conn_stat` assigns connection statistics data to
+ * |*cstat|.
  */
-NGTCP2_EXTERN const ngtcp2_rcvry_stat *
-ngtcp2_conn_get_rcvry_stat(ngtcp2_conn *conn);
-
-/**
- * @function
- *
- * `ngtcp2_conn_get_cc_stat` returns a pointer to the object which
- * stores congestion controller information.
- */
-NGTCP2_EXTERN const ngtcp2_cc_stat *ngtcp2_conn_get_cc_stat(ngtcp2_conn *conn);
+NGTCP2_EXTERN void ngtcp2_conn_get_conn_stat(ngtcp2_conn *conn,
+                                             ngtcp2_conn_stat *cstat);
 
 /**
  * @function

@@ -60,10 +60,11 @@ typedef struct ngtcp2_rst {
 void ngtcp2_rst_init(ngtcp2_rst *rst);
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
-                            const ngtcp2_cc_stat *ccs);
-int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_rcvry_stat *rcs);
+                            const ngtcp2_conn_stat *cstat);
+int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_conn_stat *cstat);
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts);
-void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, const ngtcp2_cc_stat *ccs);
+void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst,
+                                   const ngtcp2_conn_stat *cstat);
 
 #endif /* NGTCP2_RST_H */

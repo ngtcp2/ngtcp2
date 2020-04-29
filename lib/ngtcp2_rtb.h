@@ -285,7 +285,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * handle them.  |pto| is PTO.
  */
 void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                                ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
+                                ngtcp2_conn_stat *cstat, ngtcp2_duration pto,
                                 ngtcp2_tstamp ts);
 
 /*

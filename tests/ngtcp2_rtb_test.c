@@ -31,8 +31,8 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_pkt.h"
 
-static void cc_stat_init(ngtcp2_cc_stat *ccs) {
-  memset(ccs, 0, sizeof(ngtcp2_cc_stat));
+static void conn_stat_init(ngtcp2_conn_stat *cstat) {
+  memset(cstat, 0, sizeof(*cstat));
 }
 
 void test_ngtcp2_rtb_add(void) {
@@ -44,7 +44,7 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_log log;
   ngtcp2_cid dcid;
   ngtcp2_ksl_it it;
-  ngtcp2_cc_stat ccs;
+  ngtcp2_conn_stat cstat;
   ngtcp2_default_cc cc;
   ngtcp2_strm crypto;
   const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_HANDSHAKE;
@@ -52,10 +52,10 @@ void test_ngtcp2_rtb_add(void) {
 
   ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
   dcid_init(&dcid);
-  cc_stat_init(&ccs);
+  conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_default_cc_init(&cc, &ccs, &rst, &log);
+  ngtcp2_default_cc_init(&cc, &cstat, &rst, &log);
   ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
@@ -153,7 +153,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_ack *fr = &mfr.ackfr.ack;
   ngtcp2_ack_blk *blks;
   ngtcp2_log log;
-  ngtcp2_cc_stat ccs;
+  ngtcp2_conn_stat cstat;
   ngtcp2_default_cc cc;
   ngtcp2_pkt_hd hd;
   ngtcp2_ssize num_acked;
@@ -167,9 +167,9 @@ void test_ngtcp2_rtb_recv_ack(void) {
                      1, NGTCP2_PROTO_VER_MAX, 0);
 
   /* no ack block */
-  cc_stat_init(&ccs);
+  conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
-  ngtcp2_default_cc_init(&cc, &ccs, &rst, &log);
+  ngtcp2_default_cc_init(&cc, &cstat, &rst, &log);
   ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
   setup_rtb_fixture(&rtb, mem);
 
@@ -190,8 +190,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_default_cc_free(&cc);
 
   /* with ack block */
-  cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &rst, &log);
+  conn_stat_init(&cstat);
+  ngtcp2_default_cc_init(&cc, &cstat, &rst, &log);
   ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
   setup_rtb_fixture(&rtb, mem);
 
@@ -218,8 +218,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_default_cc_free(&cc);
 
   /* gap+blklen points to pkt_num 0 */
-  cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &rst, &log);
+  conn_stat_init(&cstat);
+  ngtcp2_default_cc_init(&cc, &cstat, &rst, &log);
   ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
@@ -238,8 +238,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_default_cc_free(&cc);
 
   /* pkt_num = 0 (first ack block) */
-  cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &rst, &log);
+  conn_stat_init(&cstat);
+  ngtcp2_default_cc_init(&cc, &cstat, &rst, &log);
   ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
@@ -256,8 +256,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_default_cc_free(&cc);
 
   /* pkt_num = 0 */
-  cc_stat_init(&ccs);
-  ngtcp2_default_cc_init(&cc, &ccs, &rst, &log);
+  conn_stat_init(&cstat);
+  ngtcp2_default_cc_init(&cc, &cstat, &rst, &log);
   ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
   add_rtb_entry_range(&rtb, 0, 1, mem);
 
