@@ -8716,7 +8716,8 @@ static ngtcp2_pktns *conn_get_earliest_pktns(ngtcp2_conn *conn,
                                              const ngtcp2_tstamp *times) {
   ngtcp2_pktns *ns[] = {conn->in_pktns, conn->hs_pktns, &conn->pktns};
   ngtcp2_pktns *res = ns[0];
-  size_t i, earliest_ts = times[NGTCP2_PKTNS_ID_INITIAL];
+  size_t i;
+  ngtcp2_tstamp earliest_ts = times[NGTCP2_PKTNS_ID_INITIAL];
 
   for (i = NGTCP2_PKTNS_ID_HANDSHAKE; i < NGTCP2_PKTNS_ID_MAX; ++i) {
     if (res == NULL ||
