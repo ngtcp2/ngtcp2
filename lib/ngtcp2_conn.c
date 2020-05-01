@@ -7468,11 +7468,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   }
 }
 
-ngtcp2_ssize ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, ngtcp2_tstamp ts) {
-  return conn_write_handshake(conn, dest, destlen, 0, ts);
-}
-
 ngtcp2_ssize ngtcp2_conn_client_write_handshake(
     ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
     uint32_t flags, int64_t stream_id, int fin, const ngtcp2_vec *datav,
@@ -8143,7 +8138,7 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     if (!ppe_pending) {
-      nwrite = ngtcp2_conn_write_handshake(conn, dest, destlen, ts);
+      nwrite = conn_write_handshake(conn, dest, destlen, 0, ts);
       if (nwrite < 0) {
         return nwrite;
       }

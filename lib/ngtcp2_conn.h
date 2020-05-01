@@ -496,43 +496,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
 /**
  * @function
  *
- * `ngtcp2_conn_write_handshake` performs QUIC cryptographic handshake
- * by writing handshake packets.  It may write a packet in the given
- * buffer pointed by |dest| whose capacity is given as |destlen|.
- * Application must ensure that the buffer pointed by |dest| is not
- * empty.
- *
- * Application should keep calling this function repeatedly until it
- * returns zero, or negative error code.
- *
- * Application should call this function until
- * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
- * completion of handshake, `ngtcp2_conn_read_pkt` and
- * `ngtcp2_conn_write_pkt` should be called instead.
- *
- * During handshake, application can send 0-RTT data (or its response)
- * using `ngtcp2_conn_write_stream`.
- * `ngtcp2_conn_client_write_handshake` is generally efficient because
- * it can coalesce Handshake packet and 0-RTT packet into one UDP
- * packet.
- *
- * This function returns 0 if it cannot write any frame because buffer
- * is too small, or packet is congestion limited.  Application should
- * keep reading and wait for congestion window to grow.
- *
- * This function must not be called from inside the callback
- * functions.
- *
- * This function returns the number of bytes written to the buffer
- * pointed by |dest| if it succeeds, or one of the following negative
- * error codes: (TBD).
- */
-ngtcp2_ssize ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, ngtcp2_tstamp ts);
-
-/**
- * @function
- *
  * `ngtcp2_conn_client_write_handshake` is just like
  * `ngtcp2_conn_write_handshake`, but it is for client only, and can
  * write 0-RTT data.  This function can coalesce handshake packet and
