@@ -7429,9 +7429,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         return 0;
       }
 
-      destlen = ngtcp2_min(destlen, server_hs_tx_left);
-      origlen = ngtcp2_min(origlen, server_hs_tx_left);
-
       if (conn_handshake_probe_left(conn) || !conn_cwnd_is_zero(conn)) {
         nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
         if (nwrite < 0) {
@@ -8107,6 +8104,7 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
   ngtcp2_ssize res = 0;
+  size_t server_hs_tx_left;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -8138,10 +8136,21 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     if (!ppe_pending) {
+      if (!(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED)) {
+        server_hs_tx_left = conn_server_hs_tx_left(conn);
+        destlen = ngtcp2_min(destlen, server_hs_tx_left);
+      }
       nwrite = conn_write_handshake(conn, dest, destlen, 0, ts);
       if (nwrite < 0) {
         return nwrite;
       }
+
+      if (conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED) {
+        destlen = origlen;
+      } else {
+        origlen = destlen;
+      }
+
       res = nwrite;
       dest += nwrite;
       destlen -= (size_t)nwrite;
@@ -8253,13 +8262,14 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   if (res == 0) {
-    return conn_write_ack_pkt(conn, dest, origlen, NGTCP2_PKT_SHORT, ts);
+    nwrite = conn_write_ack_pkt(conn, dest, origlen, NGTCP2_PKT_SHORT, ts);
   }
 
 fin:
   conn->pkt.hs_spktlen = 0;
 
   if (nwrite >= 0) {
+    conn->hs_sent += (size_t)nwrite;
     return res + nwrite;
   }
   /* NGTCP2_CONN_FLAG_PPE_PENDING is set in conn_write_pkt above.

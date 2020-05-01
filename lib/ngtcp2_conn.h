@@ -451,11 +451,13 @@ struct ngtcp2_conn {
   ngtcp2_buf token;
   /* hs_recved is the number of bytes received from client before its
      address is validated.  This field is only used by server to
-     ensure "3 times received data" rule. */
+     ensure "3 times received data" rule (anti-amplification
+     factor). */
   size_t hs_recved;
-  /* hs_sent is the number of bytes sent from server during handshake.
-     This field is only used by server to ensure "3 times received
-     data" rule. */
+  /* hs_sent is the number of bytes sent from server before client
+     source address is validated.  This field is only used by server
+     to ensure "3 times received data" rule (anti-amplification
+     factor). */
   size_t hs_sent;
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */

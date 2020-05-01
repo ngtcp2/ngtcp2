@@ -4820,6 +4820,9 @@ void test_ngtcp2_conn_handshake_loss(void) {
 
   CU_ASSERT(0 == rv);
 
+  /* Increase anti-amplification factor for easier testing */
+  conn->hs_recved += 10000;
+
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  123);
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
