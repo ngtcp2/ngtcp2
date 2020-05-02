@@ -273,7 +273,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   uint64_t prev_stream_offset, stream_offset;
   ngtcp2_strm *strm;
   int rv;
-  size_t datalen;
+  uint64_t datalen;
   ngtcp2_strm *crypto = rtb->crypto;
   ngtcp2_crypto_level crypto_level;
 

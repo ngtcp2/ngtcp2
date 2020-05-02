@@ -1223,11 +1223,9 @@ typedef int (*ngtcp2_stream_reset)(ngtcp2_conn *conn, int64_t stream_id,
  * Returning :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
-typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
-                                               int64_t stream_id,
-                                               uint64_t offset, size_t datalen,
-                                               void *user_data,
-                                               void *stream_user_data);
+typedef int (*ngtcp2_acked_stream_data_offset)(
+    ngtcp2_conn *conn, int64_t stream_id, uint64_t offset, uint64_t datalen,
+    void *user_data, void *stream_user_data);
 
 /**
  * @functypedef
@@ -1246,7 +1244,7 @@ typedef int (*ngtcp2_acked_stream_data_offset)(ngtcp2_conn *conn,
  */
 typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn,
                                           ngtcp2_crypto_level crypto_level,
-                                          uint64_t offset, size_t datalen,
+                                          uint64_t offset, uint64_t datalen,
                                           void *user_data);
 
 /**
@@ -2470,7 +2468,7 @@ NGTCP2_EXTERN int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn);
  */
 NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
                                                        int64_t stream_id,
-                                                       size_t datalen);
+                                                       uint64_t datalen);
 
 /**
  * @function
@@ -2479,7 +2477,7 @@ NGTCP2_EXTERN int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn,
  * |datalen|.
  */
 NGTCP2_EXTERN void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn,
-                                                 size_t datalen);
+                                                 uint64_t datalen);
 
 /**
  * @function

@@ -788,7 +788,7 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * the given stream.  Both connection and stream level flow control
  * credits are considered.
  */
-static size_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
+static uint64_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   return ngtcp2_min(strm->tx.max_offset - strm->tx.offset,
                     conn->tx.max_offset - conn->tx.offset);
 }
@@ -800,8 +800,8 @@ static size_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
  */
 static size_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                         size_t len) {
-  size_t fc_credits = conn_fc_credits(conn, strm);
-  return ngtcp2_min(len, fc_credits);
+  uint64_t fc_credits = conn_fc_credits(conn, strm);
+  return (size_t)ngtcp2_min((uint64_t)len, fc_credits);
 }
 
 static int delete_strms_each(ngtcp2_map_entry *ent, void *ptr) {
@@ -1181,7 +1181,7 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   ngtcp2_crypto *fr, *nfr;
   uint64_t offset, end_offset;
   size_t idx, end_idx;
-  size_t base_offset, end_base_offset;
+  uint64_t base_offset, end_base_offset;
   ngtcp2_ksl_it gapit;
   ngtcp2_range gap;
   ngtcp2_rtb *rtb = &pktns->rtb;
@@ -1252,7 +1252,7 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
       fr->offset = offset + base_offset;
       fr->datacnt = end_idx - idx;
       fr->data[0].base += base_offset;
-      fr->data[0].len -= base_offset;
+      fr->data[0].len -= (size_t)base_offset;
 
       *pfrc = frc;
       return 0;
@@ -1274,7 +1274,7 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     nfr->offset = end_offset + end_base_offset;
     nfr->datacnt = fr->datacnt - end_idx;
     nfr->data[0].base += end_base_offset;
-    nfr->data[0].len -= end_base_offset;
+    nfr->data[0].len -= (size_t)end_base_offset;
 
     rv = ngtcp2_ksl_insert(&pktns->crypto.tx.frq, NULL, &nfr->offset, nfrc);
     if (rv != 0) {
@@ -1296,10 +1296,10 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     fr->datacnt = end_idx - idx;
     if (end_base_offset) {
       assert(fr->data[fr->datacnt - 1].len > end_base_offset);
-      fr->data[fr->datacnt - 1].len = end_base_offset;
+      fr->data[fr->datacnt - 1].len = (size_t)end_base_offset;
     }
     fr->data[0].base += base_offset;
-    fr->data[0].len -= base_offset;
+    fr->data[0].len -= (size_t)base_offset;
 
     *pfrc = frc;
     return 0;
@@ -2114,7 +2114,8 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
  * remote endpoint.
  */
 static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
-  size_t n, len = ngtcp2_ksl_len(&conn->scid.set);
+  uint64_t n;
+  size_t len = ngtcp2_ksl_len(&conn->scid.set);
 
   if (len >= NGTCP2_MAX_SCID_POOL_SIZE) {
     return 0;
@@ -2126,7 +2127,7 @@ static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
   n = conn->remote.transport_params.active_connection_id_limit +
       conn->scid.num_retired;
 
-  return ngtcp2_min(NGTCP2_MAX_SCID_POOL_SIZE, n) - len;
+  return (size_t)ngtcp2_min(NGTCP2_MAX_SCID_POOL_SIZE, n) - len;
 }
 
 /*
@@ -4813,7 +4814,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
      error because key is generated after consuming all data in the
      previous encryption level. */
   if (fr->offset <= rx_offset) {
-    size_t ncut = rx_offset - fr->offset;
+    size_t ncut = (size_t)(rx_offset - fr->offset);
     const uint8_t *data = fr->data[0].base + ncut;
     size_t datalen = fr->data[0].len - ncut;
     uint64_t offset = rx_offset;
@@ -4850,7 +4851,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
  * conn_max_data_violated returns nonzero if receiving |datalen|
  * violates connection flow control on local endpoint.
  */
-static int conn_max_data_violated(ngtcp2_conn *conn, size_t datalen) {
+static int conn_max_data_violated(ngtcp2_conn *conn, uint64_t datalen) {
   return conn->rx.max_offset - conn->rx.offset < datalen;
 }
 
@@ -4957,7 +4958,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   }
 
   if (strm->rx.last_offset < fr_end_offset) {
-    size_t len = fr_end_offset - strm->rx.last_offset;
+    uint64_t len = fr_end_offset - strm->rx.last_offset;
 
     if (conn_max_data_violated(conn, len)) {
       return NGTCP2_ERR_FLOW_CONTROL;
@@ -5026,7 +5027,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   }
 
   if (fr->offset <= rx_offset) {
-    size_t ncut = rx_offset - fr->offset;
+    size_t ncut = (size_t)(rx_offset - fr->offset);
     uint64_t offset = rx_offset;
     const uint8_t *data;
     int fin;
@@ -5141,7 +5142,13 @@ static int conn_stop_sending(ngtcp2_conn *conn, ngtcp2_strm *strm,
 static void
 handle_max_remote_streams_extension(uint64_t *punsent_max_remote_streams,
                                     size_t n) {
-  if (*punsent_max_remote_streams < NGTCP2_MAX_STREAMS - n) {
+  if (
+#if SIZE_MAX > UINT32_MAX
+      NGTCP2_MAX_STREAMS < n ||
+#endif /* SIZE_MAX > UINT32_MAX */
+      *punsent_max_remote_streams > (uint64_t)(NGTCP2_MAX_STREAMS - n)) {
+    *punsent_max_remote_streams = NGTCP2_MAX_STREAMS;
+  } else {
     *punsent_max_remote_streams += n;
   }
 }
@@ -7499,10 +7506,11 @@ ngtcp2_ssize ngtcp2_conn_client_write_handshake(
                    (datalen > 0 && (strm->tx.max_offset - strm->tx.offset) &&
                     (conn->tx.max_offset - conn->tx.offset)));
     if (send_stream) {
+      early_datalen = (size_t)ngtcp2_min((uint64_t)datalen,
+                                         strm->tx.max_offset - strm->tx.offset);
       early_datalen =
-          ngtcp2_min(datalen, strm->tx.max_offset - strm->tx.offset);
-      early_datalen =
-          ngtcp2_min(early_datalen, conn->tx.max_offset - conn->tx.offset) +
+          (size_t)ngtcp2_min((uint64_t)early_datalen,
+                             conn->tx.max_offset - conn->tx.offset) +
           NGTCP2_STREAM_OVERHEAD;
 
       if (flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
@@ -8590,10 +8598,11 @@ int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn, int64_t stream_id,
  *     Out of memory.
  */
 static int conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                         size_t datalen) {
+                                         uint64_t datalen) {
   ngtcp2_strm *top;
 
-  if (strm->rx.unsent_max_offset > NGTCP2_MAX_VARINT - datalen) {
+  if (datalen > NGTCP2_MAX_VARINT ||
+      strm->rx.unsent_max_offset > NGTCP2_MAX_VARINT - datalen) {
     strm->rx.unsent_max_offset = NGTCP2_MAX_VARINT;
   } else {
     strm->rx.unsent_max_offset += datalen;
@@ -8615,7 +8624,7 @@ static int conn_extend_max_stream_offset(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, int64_t stream_id,
-                                         size_t datalen) {
+                                         uint64_t datalen) {
   ngtcp2_strm *strm;
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);
@@ -8626,8 +8635,8 @@ int ngtcp2_conn_extend_max_stream_offset(ngtcp2_conn *conn, int64_t stream_id,
   return conn_extend_max_stream_offset(conn, strm, datalen);
 }
 
-void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, size_t datalen) {
-  if (NGTCP2_MAX_VARINT < (uint64_t)datalen ||
+void ngtcp2_conn_extend_max_offset(ngtcp2_conn *conn, uint64_t datalen) {
+  if (NGTCP2_MAX_VARINT < datalen ||
       conn->rx.unsent_max_offset > NGTCP2_MAX_VARINT - datalen) {
     conn->rx.unsent_max_offset = NGTCP2_MAX_VARINT;
     return;

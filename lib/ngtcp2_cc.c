@@ -67,8 +67,8 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
   if (cstat->cwnd < cstat->ssthresh) {
     cstat->cwnd += pkt->pktlen;
     ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
-                    "pkn=%" PRId64 " acked, slow start cwnd=%lu", pkt->pkt_num,
-                    cstat->cwnd);
+                    "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
+                    pkt->pkt_num, cstat->cwnd);
     return;
   }
 
@@ -88,7 +88,8 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
   cstat->ssthresh = cstat->cwnd;
 
   ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
-                  "reduce cwnd because of packet loss cwnd=%lu", cstat->cwnd);
+                  "reduce cwnd because of packet loss cwnd=%" PRIu64,
+                  cstat->cwnd);
 }
 
 void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
@@ -126,9 +127,9 @@ void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
         (uint64_t)(2.89 * cc->max_delivery_rate * (double)cc->min_rtt);
     cc->target_cwnd = ngtcp2_max(NGTCP2_MIN_CWND, target_cwnd);
 
-    ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
-                    "target_cwnd=%lu max_delivery_rate=%.02f min_rtt=%lu",
-                    cc->target_cwnd, cc->max_delivery_rate * 1000000000,
-                    cc->min_rtt);
+    ngtcp2_log_info(
+        cc->log, NGTCP2_LOG_EVENT_RCV,
+        "target_cwnd=%" PRIu64 " max_delivery_rate=%.02f min_rtt=%" PRIu64,
+        cc->target_cwnd, cc->max_delivery_rate * 1000000000, cc->min_rtt);
   }
 }

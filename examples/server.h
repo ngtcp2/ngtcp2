@@ -243,13 +243,13 @@ public:
   ngtcp2_conn *conn() const;
   int recv_stream_data(int64_t stream_id, uint8_t fin, const uint8_t *data,
                        size_t datalen);
-  int acked_stream_data_offset(int64_t stream_id, size_t datalen);
+  int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
   const ngtcp2_cid *scid() const;
   const ngtcp2_cid *pscid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
-                             size_t datalen);
+                             uint64_t datalen);
   void on_stream_open(int64_t stream_id);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   void start_draining_period();

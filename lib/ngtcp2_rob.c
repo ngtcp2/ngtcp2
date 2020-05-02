@@ -157,7 +157,7 @@ static int rob_write_data(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
       }
     }
 
-    n = ngtcp2_min(len, d->range.begin + rob->chunk - offset);
+    n = (size_t)ngtcp2_min((uint64_t)len, d->range.begin + rob->chunk - offset);
     memcpy(d->begin + (offset - d->range.begin), data, n);
     offset += n;
     data += n;
@@ -188,7 +188,7 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
       ngtcp2_ksl_remove(&rob->gapksl, &it, &g->range);
       ngtcp2_rob_gap_del(g, rob->mem);
       rv = rob_write_data(rob, m.begin, data + (m.begin - offset),
-                          ngtcp2_range_len(&m));
+                          (size_t)ngtcp2_range_len(&m));
       if (rv != 0) {
         return rv;
       }
@@ -217,7 +217,7 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
       g->range = r;
     }
     rv = rob_write_data(rob, m.begin, data + (m.begin - offset),
-                        ngtcp2_range_len(&m));
+                        (size_t)ngtcp2_range_len(&m));
     if (rv != 0) {
       return rv;
     }
@@ -288,7 +288,8 @@ size_t ngtcp2_rob_data_at(ngtcp2_rob *rob, const uint8_t **pdest,
 
   *pdest = d->begin + (offset - d->range.begin);
 
-  return ngtcp2_min(g->range.begin, d->range.begin + rob->chunk) - offset;
+  return (size_t)(ngtcp2_min(g->range.begin, d->range.begin + rob->chunk) -
+                  offset);
 }
 
 void ngtcp2_rob_pop(ngtcp2_rob *rob, uint64_t offset, size_t len) {

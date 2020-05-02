@@ -217,7 +217,7 @@ public:
   void update_remote_addr(const ngtcp2_addr *addr);
   int send_packet();
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
-                             size_t datalen);
+                             uint64_t datalen);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
@@ -245,7 +245,7 @@ public:
   int submit_http_request(const Stream *stream);
   int recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
                        size_t datalen);
-  int acked_stream_data_offset(int64_t stream_id, size_t datalen);
+  int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
   int http_acked_stream_data(int64_t stream_id, size_t datalen);
   void http_consume(int64_t stream_id, size_t nconsumed);
   void http_write_data(int64_t stream_id, const uint8_t *data, size_t datalen);

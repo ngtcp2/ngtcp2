@@ -595,7 +595,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
           (size_t)(end - p) < valuelen) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      ngtcp2_cid_init(&params->original_connection_id, p, valuelen);
+      ngtcp2_cid_init(&params->original_connection_id, p, (size_t)valuelen);
       params->original_connection_id_present = 1;
       p += valuelen;
       break;

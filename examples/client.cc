@@ -510,7 +510,7 @@ int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
 
 namespace {
 int acked_crypto_offset(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
-                        uint64_t offset, size_t datalen, void *user_data) {
+                        uint64_t offset, uint64_t datalen, void *user_data) {
   auto c = static_cast<Client *>(user_data);
   c->remove_tx_crypto_data(crypto_level, offset, datalen);
 
@@ -520,7 +520,7 @@ int acked_crypto_offset(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
 
 namespace {
 int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
-                             uint64_t offset, size_t datalen, void *user_data,
+                             uint64_t offset, uint64_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
   if (c->acked_stream_data_offset(stream_id, datalen) != 0) {
@@ -1574,7 +1574,7 @@ void remove_tx_stream_data(std::deque<Buffer> &d, uint64_t &tx_offset,
 } // namespace
 
 void Client::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
-                                   uint64_t offset, size_t datalen) {
+                                   uint64_t offset, uint64_t datalen) {
   auto &crypto = crypto_[crypto_level];
   ::remove_tx_stream_data(crypto.data, crypto.acked_offset, offset + datalen);
 }
@@ -1722,7 +1722,7 @@ int Client::recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
   return 0;
 }
 
-int Client::acked_stream_data_offset(int64_t stream_id, size_t datalen) {
+int Client::acked_stream_data_offset(int64_t stream_id, uint64_t datalen) {
   if (auto rv = nghttp3_conn_add_ack_offset(httpconn_, stream_id, datalen);
       rv != 0) {
     std::cerr << "nghttp3_conn_add_ack_offset: " << nghttp3_strerror(rv)

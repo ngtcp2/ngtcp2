@@ -266,7 +266,7 @@ void test_ngtcp2_rob_push_random(void) {
   ngtcp2_rob_init(&rob, 1024 * 1024, mem);
   for (i = 0; i < arraylen(randkeys); ++i) {
     rv = ngtcp2_rob_push(&rob, randkeys[i].begin, &data[0],
-                         ngtcp2_range_len(&randkeys[i]));
+                         (size_t)ngtcp2_range_len(&randkeys[i]));
 
     CU_ASSERT(0 == rv);
   }
