@@ -138,10 +138,11 @@ crypto helper library which offers the basic crypto operations.
 
 The header file exists under crypto/includes/ngtcp2 directory.
 
-The library file is built for a particular TLS backend.  At the
-moment, libngtcp2_crypto_openssl which uses OpenSSL as TLS backend is
-provided.
+Each library file is built for a particular TLS backend.  The
+available crypto helper libraries are:
 
+* libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
+* libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
 
 Configuring Wireshark for QUIC
 ------------------------------
