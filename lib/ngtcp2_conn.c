@@ -2203,21 +2203,22 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
 /*
  * conn_compute_pto computes the current PTO.
  */
-static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn) {
+static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
+                                        ngtcp2_pktns *pktns) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_duration var = ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY);
   ngtcp2_duration max_ack_delay =
-      (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)
+      pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APP
           ? conn->remote.transport_params.max_ack_delay
-          : NGTCP2_DEFAULT_MAX_ACK_DELAY;
+          : 0;
   return cstat->smoothed_rtt + var + max_ack_delay;
 }
 
 /*
  * conn_remove_retired_connection_id removes the already retired
- * connection ID.  It waits RTT * 2 before actually removing a
- * connection ID after it receives RETIRE_CONNECTION_ID from peer to
- * catch reordered packets.
+ * connection ID.  It waits PTO before actually removing a connection
+ * ID after it receives RETIRE_CONNECTION_ID from peer to catch
+ * reordered packets.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2229,7 +2230,7 @@ static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn) {
  */
 static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
-  ngtcp2_duration timeout = conn_compute_pto(conn);
+  ngtcp2_duration timeout = conn_compute_pto(conn, &conn->pktns);
   ngtcp2_scid *scid;
   ngtcp2_dcid *dcid;
   int rv;
@@ -3558,7 +3559,7 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                 ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
   ngtcp2_frame_chain *frc = NULL;
   int rv;
-  ngtcp2_duration pto = conn_compute_pto(conn);
+  ngtcp2_duration pto = conn_compute_pto(conn, pktns);
 
   ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, &frc, cstat, pto, ts);
 
@@ -5865,7 +5866,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   assert(conn->pv == NULL);
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
-  timeout = conn_compute_pto(conn);
+  timeout = 3 * conn_compute_pto(conn, &conn->pktns);
   timeout =
       ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
@@ -5945,7 +5946,7 @@ static int conn_key_phase_changed(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
 static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_tstamp confirmed_ts = conn->crypto.key_update.confirmed_ts;
-  ngtcp2_duration pto = conn_compute_pto(conn);
+  ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
   ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_crypto_km *rx_ckm = pktns->crypto.rx.ckm;
   ngtcp2_crypto_km *tx_ckm = pktns->crypto.tx.ckm;
@@ -6107,7 +6108,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "non-probing packet was received from new remote address");
 
-  timeout = conn_compute_pto(conn);
+  timeout = 3 * conn_compute_pto(conn, &conn->pktns);
   timeout =
       ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
 
@@ -7826,7 +7827,7 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
 
 int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_tstamp confirmed_ts = conn->crypto.key_update.confirmed_ts;
-  ngtcp2_duration pto = conn_compute_pto(conn);
+  ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
 
   assert(conn->state == NGTCP2_CS_POST_HANDSHAKE);
 
@@ -7852,7 +7853,7 @@ ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
 
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp res = UINT64_MAX;
-  ngtcp2_duration pto = conn_compute_pto(conn);
+  ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
   ngtcp2_scid *scid;
   ngtcp2_dcid *dcid;
 
@@ -8774,6 +8775,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   ngtcp2_pktns *pktns = &conn->pktns;
+  ngtcp2_pktns *earliest_pktns;
   ngtcp2_tstamp earliest_loss_time;
   ngtcp2_tstamp last_tx_pkt_ts;
 
@@ -8804,13 +8806,16 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  timeout = conn_compute_pto(conn) * (1ULL << cstat->pto_count);
+  earliest_pktns =
+      conn_get_earliest_pktns(conn, &last_tx_pkt_ts, cstat->last_tx_pkt_ts);
 
-  conn_get_earliest_pktns(conn, &last_tx_pkt_ts, cstat->last_tx_pkt_ts);
+  assert(earliest_pktns);
 
   if (last_tx_pkt_ts == UINT64_MAX) {
     last_tx_pkt_ts = ts;
   }
+
+  timeout = conn_compute_pto(conn, earliest_pktns) * (1ULL << cstat->pto_count);
 
   cstat->loss_detection_timer = last_tx_pkt_ts + timeout;
 
@@ -9206,13 +9211,19 @@ ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
     return UINT64_MAX;
   }
 
-  trpto = 3 * conn_compute_pto(conn);
+  trpto = 3 * conn_compute_pto(
+                  conn, (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)
+                            ? &conn->pktns
+                            : conn->hs_pktns);
 
   return conn->idle_ts + ngtcp2_max(idle_timeout, trpto);
 }
 
 ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn) {
-  return conn_compute_pto(conn);
+  return conn_compute_pto(conn,
+                          (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)
+                              ? &conn->pktns
+                              : conn->hs_pktns);
 }
 
 void ngtcp2_conn_set_initial_crypto_ctx(ngtcp2_conn *conn,
