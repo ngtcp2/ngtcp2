@@ -7190,26 +7190,29 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       conn_discard_initial_state(conn);
     }
 
-    /* If server hits amplification limit, it cancels loss detection
-       timer.  If server receives a packet from client, the limit is
-       increased and server can send more.  If server has
-       ack-eliciting Initial or Handshake packets, it should resend it
-       if timer fired but timer is not armed in this case.  So instead
-       of resending Initial/Handshake packets, if server has 1RTT data
-       to send, it might send them and then might hit amplification
-       limit again until it hits stream data limit.  Initial/Handshake
-       data is not resent.  In order to avoid this situation, try to
-       arm loss detection and check the expiry here so that on next
-       write call, we can resend Initial/Handshake first. */
-    ngtcp2_conn_set_loss_detection_timer(conn, ts);
-    if (ngtcp2_conn_loss_detection_expiry(conn) <= ts) {
-      rv = ngtcp2_conn_on_loss_detection_timer(conn, ts);
-      if (rv != 0) {
-        return rv;
-      }
-    }
-
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+      /* If server hits amplification limit, it cancels loss detection
+         timer.  If server receives a packet from client, the limit is
+         increased and server can send more.  If server has
+         ack-eliciting Initial or Handshake packets, it should resend
+         it if timer fired but timer is not armed in this case.  So
+         instead of resending Initial/Handshake packets, if server has
+         1RTT data to send, it might send them and then might hit
+         amplification limit again until it hits stream data limit.
+         Initial/Handshake data is not resent.  In order to avoid this
+         situation, try to arm loss detection and check the expiry
+         here so that on next write call, we can resend
+         Initial/Handshake first. */
+      if (!conn->cstat.loss_detection_timer) {
+        ngtcp2_conn_set_loss_detection_timer(conn, ts);
+        if (ngtcp2_conn_loss_detection_expiry(conn) <= ts) {
+          rv = ngtcp2_conn_on_loss_detection_timer(conn, ts);
+          if (rv != 0) {
+            return rv;
+          }
+        }
+      }
+
       return 0;
     }
 
