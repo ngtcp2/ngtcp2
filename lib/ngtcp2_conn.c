@@ -900,14 +900,8 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, size_t n) {
  * ACK.
  */
 static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
-  ngtcp2_duration initial_delay =
-      conn->local.settings.transport_params.max_ack_delay;
-
-  if (conn->cstat.smoothed_rtt == 0) {
-    return initial_delay;
-  }
-
-  return ngtcp2_min(initial_delay, conn->cstat.smoothed_rtt / 8);
+  return ngtcp2_min(conn->local.settings.transport_params.max_ack_delay,
+                    conn->cstat.smoothed_rtt / 8);
 }
 
 /*
@@ -8810,12 +8804,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  if (cstat->smoothed_rtt == 0) {
-    timeout = 2 * NGTCP2_DEFAULT_INITIAL_RTT;
-  } else {
-    timeout = conn_compute_pto(conn);
-  }
-  timeout *= 1ULL << cstat->pto_count;
+  timeout = conn_compute_pto(conn) * (1ULL << cstat->pto_count);
 
   conn_get_earliest_pktns(conn, &last_tx_pkt_ts, cstat->last_tx_pkt_ts);
 
