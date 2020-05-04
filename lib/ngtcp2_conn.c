@@ -501,6 +501,8 @@ static int ts_retired_less(const ngtcp2_pq_entry *lhs,
 
 static void conn_stat_reset(ngtcp2_conn_stat *cstat) {
   memset(cstat, 0, sizeof(*cstat));
+  cstat->smoothed_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+  cstat->rttvar = NGTCP2_DEFAULT_INITIAL_RTT / 2;
   cstat->min_rtt = UINT64_MAX;
   // Initializes them with UINT64_MAX.
   memset(cstat->last_tx_pkt_ts, 0xff, sizeof(cstat->last_tx_pkt_ts));
@@ -8706,7 +8708,7 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
 
   cstat->latest_rtt = rtt;
 
-  if (cstat->smoothed_rtt == 0) {
+  if (cstat->min_rtt == UINT64_MAX) {
     cstat->min_rtt = rtt;
     cstat->smoothed_rtt = rtt;
     cstat->rttvar = rtt / 2;
