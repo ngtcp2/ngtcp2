@@ -158,6 +158,13 @@ if test "x${request_openssl}" != "xno"; then
   if test "x${have_openssl}" = "xno"; then
     AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
   fi
+  # Until OpenSSL gains mainline support for QUIC, check for a patched version.
+  AC_CHECK_LIB([ssl], [SSL_is_quic], [have_openssl_quic=yes],
+               [have_openssl_quic=no], [$OPENSSL_LIBS])
+  if test "x${have_openssl}${have_openssl_quic}" = "xyesno"; then
+    AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
+    have_openssl=no
+  fi
 fi
 
 if test "x${request_openssl}" = "xyes" &&
@@ -174,6 +181,13 @@ if test "x${request_gnutls}" != "xno"; then
                     [have_gnutls=yes], [have_gnutls=no])
   if test "x${have_gnutls}" = "xno"; then
     AC_MSG_NOTICE($GNUTLS_PKG_ERRORS)
+  fi
+  # Until GnuTLS gains mainline support for QUIC, check for a patched version.
+  AC_CHECK_LIB([gnutls], [gnutls_handshake_write], [have_gnutls_quic=yes],
+               [have_gnutls_quic=no], [$GNUTLS_LIBS])
+  if test "x${have_gnutls}${have_gnutls_quic}" = "xyesno"; then
+    AC_MSG_NOTICE([gnutls does not have QUIC interface, disabling it])
+    have_gnutls=no
   fi
 fi
 
