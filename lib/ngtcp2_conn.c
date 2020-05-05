@@ -6948,6 +6948,8 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   const uint8_t *origpkt = pkt;
   size_t origpktlen = pktlen;
 
+  conn->hs_recved += pktlen;
+
   while (pktlen) {
     nread = conn_recv_pkt(conn, path, pkt, pktlen, ts, ts);
     if (nread < 0) {
@@ -7343,7 +7345,10 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
 
-    return nwrite + early_spktlen;
+    res = nwrite + early_spktlen;
+    conn->hs_sent += (size_t)res;
+
+    return res;
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
     if (!conn_handshake_probe_left(conn) && conn_cwnd_is_zero(conn)) {
       destlen = 0;
@@ -7381,6 +7386,9 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         }
         res = nwrite;
       }
+
+      conn->hs_sent += (size_t)res;
+
       return res;
     }
 
@@ -7428,6 +7436,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         return rv;
       }
     }
+
+    conn->hs_sent += (size_t)res;
 
     return res;
   case NGTCP2_CS_SERVER_INITIAL:
@@ -7587,6 +7597,8 @@ ngtcp2_ssize ngtcp2_conn_client_write_handshake(
     }
     return early_spktlen;
   }
+
+  conn->hs_sent += (size_t)early_spktlen;
 
   return spktlen + early_spktlen;
 }
