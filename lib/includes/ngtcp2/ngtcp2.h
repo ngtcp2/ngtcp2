@@ -597,6 +597,13 @@ typedef struct ngtcp2_conn_stat {
   uint64_t ssthresh;
   ngtcp2_tstamp congestion_recovery_start_ts;
   uint64_t bytes_in_flight;
+  /* bytes_sent is the number of bytes sent in this particular
+     connection.  It only includes data written by
+     `ngtcp2_conn_writev_stream()` .*/
+  uint64_t bytes_sent;
+  /* bytes_recv is the number of bytes received in this particular
+     connection, including discarded packets. */
+  uint64_t bytes_recv;
 } ngtcp2_conn_stat;
 
 /**

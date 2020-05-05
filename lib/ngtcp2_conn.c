@@ -4595,7 +4595,7 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                     ngtcp2_tstamp ts) {
   ngtcp2_ssize nread;
 
-  conn->hs_recved += pktlen;
+  conn->cstat.bytes_recv += pktlen;
 
   while (pktlen) {
     nread = conn_recv_handshake_pkt(conn, path, pkt, pktlen, ts, ts);
@@ -6948,7 +6948,7 @@ static int conn_recv_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   const uint8_t *origpkt = pkt;
   size_t origpktlen = pktlen;
 
-  conn->hs_recved += pktlen;
+  conn->cstat.bytes_recv += pktlen;
 
   while (pktlen) {
     nread = conn_recv_pkt(conn, path, pkt, pktlen, ts, ts);
@@ -7072,7 +7072,7 @@ static size_t conn_server_hs_tx_left(ngtcp2_conn *conn) {
   /* From QUIC spec: Prior to validating the client address, servers
      MUST NOT send more than three times as many bytes as the number
      of bytes they have received. */
-  return conn->hs_recved * 3 - conn->hs_sent;
+  return conn->cstat.bytes_recv * 3 - conn->cstat.bytes_sent;
 }
 
 /*
@@ -7346,7 +7346,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     conn->state = NGTCP2_CS_CLIENT_WAIT_HANDSHAKE;
 
     res = nwrite + early_spktlen;
-    conn->hs_sent += (size_t)res;
+    cstat->bytes_sent += (size_t)res;
 
     return res;
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
@@ -7387,7 +7387,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         res = nwrite;
       }
 
-      conn->hs_sent += (size_t)res;
+      cstat->bytes_sent += (size_t)res;
 
       return res;
     }
@@ -7437,7 +7437,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       }
     }
 
-    conn->hs_sent += (size_t)res;
+    cstat->bytes_sent += (size_t)res;
 
     return res;
   case NGTCP2_CS_SERVER_INITIAL:
@@ -7448,7 +7448,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     if (nwrite) {
       conn->state = NGTCP2_CS_SERVER_WAIT_HANDSHAKE;
-      conn->hs_sent += (size_t)nwrite;
+      cstat->bytes_sent += (size_t)nwrite;
     }
 
     return nwrite;
@@ -7487,7 +7487,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
         origlen -= (size_t)nwrite;
       }
 
-      conn->hs_sent += (size_t)res;
+      cstat->bytes_sent += (size_t)res;
       return res;
     }
 
@@ -7598,7 +7598,7 @@ ngtcp2_ssize ngtcp2_conn_client_write_handshake(
     return early_spktlen;
   }
 
-  conn->hs_sent += (size_t)early_spktlen;
+  conn->cstat.bytes_sent += (size_t)early_spktlen;
 
   return spktlen + early_spktlen;
 }
@@ -8308,7 +8308,7 @@ fin:
   conn->pkt.hs_spktlen = 0;
 
   if (nwrite >= 0) {
-    conn->hs_sent += (size_t)nwrite;
+    conn->cstat.bytes_sent += (size_t)nwrite;
     return res + nwrite;
   }
   /* NGTCP2_CONN_FLAG_PPE_PENDING is set in conn_write_pkt above.
