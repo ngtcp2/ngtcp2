@@ -696,7 +696,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   conn_stat_reset(&(*pconn)->cstat);
 
-  ngtcp2_qlog_start(&(*pconn)->qlog, &settings->qlog.odcid, server);
+  ngtcp2_qlog_start(&(*pconn)->qlog, server ? &settings->qlog.odcid : dcid,
+                    server);
   ngtcp2_qlog_parameters_set_transport_params(
       &(*pconn)->qlog, &(*pconn)->local.settings.transport_params,
       /* local = */ 1);

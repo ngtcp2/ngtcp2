@@ -935,7 +935,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       return -1;
     }
     settings.qlog.write = ::write_qlog;
-    settings.qlog.odcid = dcid;
   }
   settings.initial_ts = util::timestamp(loop_);
   auto &params = settings.transport_params;

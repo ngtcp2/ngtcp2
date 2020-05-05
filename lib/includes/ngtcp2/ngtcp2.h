@@ -539,7 +539,8 @@ typedef void (*ngtcp2_qlog_write)(void *user_data, const void *data,
 
 typedef struct ngtcp2_qlog_settings {
   /* odcid is Original Destination Connection ID sent by client.  It
-     is used as group_id and ODCID fields. */
+     is used as group_id and ODCID fields.  Client ignores this field
+     and uses dcid parameter passed to `ngtcp2_conn_client_new()`. */
   ngtcp2_cid odcid;
   /* write is a callback function to write qlog.  Setting NULL
      disables qlog. */
