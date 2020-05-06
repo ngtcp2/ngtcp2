@@ -2356,7 +2356,6 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
-  config.max_streams_bidi = 1;
   config.max_streams_uni = 100;
 }
 } // namespace
