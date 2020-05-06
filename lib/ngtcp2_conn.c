@@ -8176,10 +8176,9 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
     if (!ppe_pending) {
-      if (!(conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED)) {
-        server_hs_tx_left = conn_server_hs_tx_left(conn);
-        destlen = ngtcp2_min(destlen, server_hs_tx_left);
-      }
+      server_hs_tx_left = conn_server_hs_tx_left(conn);
+      destlen = ngtcp2_min(destlen, server_hs_tx_left);
+
       nwrite = conn_write_handshake(conn, dest, destlen, 0, ts);
       if (nwrite < 0) {
         return nwrite;
