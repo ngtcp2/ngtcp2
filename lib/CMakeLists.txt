@@ -64,7 +64,7 @@ set(ngtcp2_INCLUDE_DIRS
   "${CMAKE_CURRENT_BINARY_DIR}/includes"
 )
 
-# Public shared library
+# Public shared or static library
 add_library(ngtcp2 ${ngtcp2_SOURCES})
 set_target_properties(ngtcp2 PROPERTIES
   COMPILE_FLAGS "${WARNCFLAGS}"
@@ -79,7 +79,7 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 if(HAVE_CUNIT)
-  # Static library (for unittests because of symbol visibility)
+  # Private static library (for unittests because of symbol visibility)
   add_library(ngtcp2_static STATIC ${ngtcp2_SOURCES})
   set_target_properties(ngtcp2_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"

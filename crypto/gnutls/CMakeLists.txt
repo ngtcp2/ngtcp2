@@ -41,7 +41,7 @@ foreach(name libngtcp2_crypto_gnutls.pc)
   configure_file("${name}.in" "${name}" @ONLY)
 endforeach()
 
-# Public shared library
+# Public shared or static library
 add_library(ngtcp2_crypto_gnutls ${ngtcp2_crypto_gnutls_SOURCES})
 set_target_properties(ngtcp2_crypto_gnutls PROPERTIES
   COMPILE_FLAGS "${WARNCFLAGS}"

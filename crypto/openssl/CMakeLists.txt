@@ -41,7 +41,7 @@ foreach(name libngtcp2_crypto_openssl.pc)
   configure_file("${name}.in" "${name}" @ONLY)
 endforeach()
 
-# Public shared library
+# Public shared or static library
 add_library(ngtcp2_crypto_openssl ${ngtcp2_crypto_openssl_SOURCES})
 set_target_properties(ngtcp2_crypto_openssl PROPERTIES
   COMPILE_FLAGS "${WARNCFLAGS}"
