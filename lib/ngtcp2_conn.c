@@ -365,7 +365,7 @@ static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
 }
 
 static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
-                      ngtcp2_rst *rst, ngtcp2_default_cc *cc, ngtcp2_log *log,
+                      ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
                       ngtcp2_qlog *qlog, const ngtcp2_mem *mem) {
   int rv;
 
@@ -412,7 +412,7 @@ fail_acktr_init:
 }
 
 static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
-                     ngtcp2_rst *rst, ngtcp2_default_cc *cc, ngtcp2_log *log,
+                     ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
                      ngtcp2_qlog *qlog, const ngtcp2_mem *mem) {
   int rv;
 
@@ -485,6 +485,17 @@ static void pktns_del(ngtcp2_pktns *pktns, const ngtcp2_mem *mem) {
   pktns_free(pktns, mem);
 
   ngtcp2_mem_free(mem, pktns);
+}
+
+static void cc_del(ngtcp2_cc *cc, ngtcp2_cc_algo cc_algo,
+                   const ngtcp2_mem *mem) {
+  switch (cc_algo) {
+  case NGTCP2_CC_ALGO_DEFAULT:
+    ngtcp2_cc_default_cc_free(cc, mem);
+    break;
+  default:
+    break;
+  }
 }
 
 static int cid_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
@@ -604,7 +615,23 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_rst_init(&(*pconn)->rst);
 
-  ngtcp2_default_cc_init(&(*pconn)->cc, &(*pconn)->rst, &(*pconn)->log);
+  (*pconn)->cc_algo = settings->cc_algo;
+
+  switch (settings->cc_algo) {
+  case NGTCP2_CC_ALGO_DEFAULT:
+    rv = ngtcp2_cc_default_cc_init(&(*pconn)->cc, &(*pconn)->rst,
+                                   &(*pconn)->log, mem);
+    if (rv != 0) {
+      goto fail_default_cc;
+    }
+    break;
+  case NGTCP2_CC_ALGO_CUSTOM:
+    assert(settings->cc);
+    (*pconn)->cc = *settings->cc;
+    break;
+  default:
+    assert(0);
+  }
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
@@ -723,7 +750,8 @@ fail_pktns_init:
 fail_hs_pktns_init:
   pktns_del((*pconn)->in_pktns, mem);
 fail_in_pktns_init:
-  ngtcp2_default_cc_free(&(*pconn)->cc);
+  cc_del(&(*pconn)->cc, settings->cc_algo, mem);
+fail_default_cc:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
 fail_qlog_buf:
   ngtcp2_ringbuf_free(&(*pconn)->rx.path_challenge);
@@ -846,7 +874,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   pktns_del(conn->hs_pktns, conn->mem);
   pktns_del(conn->in_pktns, conn->mem);
 
-  ngtcp2_default_cc_free(&conn->cc);
+  cc_del(&conn->cc, conn->cc_algo, conn->mem);
 
   ngtcp2_mem_free(conn->mem, conn->qlog.buf.begin);
 

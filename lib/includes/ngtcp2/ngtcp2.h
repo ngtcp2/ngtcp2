@@ -535,43 +535,7 @@ typedef struct ngtcp2_transport_params {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_transport_params;
 
-/* user_data is the same object passed to ngtcp2_conn_client_new or
-   ngtcp2_conn_server_new. */
-typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
-
-typedef void (*ngtcp2_qlog_write)(void *user_data, const void *data,
-                                  size_t datalen);
-
-typedef struct ngtcp2_qlog_settings {
-  /* odcid is Original Destination Connection ID sent by client.  It
-     is used as group_id and ODCID fields.  Client ignores this field
-     and uses dcid parameter passed to `ngtcp2_conn_client_new()`. */
-  ngtcp2_cid odcid;
-  /* write is a callback function to write qlog.  Setting NULL
-     disables qlog. */
-  ngtcp2_qlog_write write;
-} ngtcp2_qlog_settings;
-
-typedef struct ngtcp2_settings {
-  /* transport_params is the QUIC transport parameters to send. */
-  ngtcp2_transport_params transport_params;
-  ngtcp2_qlog_settings qlog;
-  /* initial_ts is an initial timestamp given to the library. */
-  ngtcp2_tstamp initial_ts;
-  /* log_printf is a function that the library uses to write logs.
-     NULL means no logging output. */
-  ngtcp2_printf log_printf;
-  /* max_packet_size is the maximum size of UDP datagram payload that
-     this endpoint transmits.  It is used by congestion controller to
-     compute congestion window.  If it is set to 0, it defaults to
-     NGTCP2_DEFAULT_MAX_PKT_SIZE. */
-  size_t max_packet_size;
-  /* token is a token received in Client Initial packet and
-     successfully validated.  Only server application may specify this
-     field.  Server then verifies that all Client Initial packets have
-     this token.  `ngtcp2_conn_server_new` makes a copy of token. */
-  ngtcp2_vec token;
-} ngtcp2_settings;
+typedef struct ngtcp2_log ngtcp2_log;
 
 typedef enum ngtcp2_pktns_id {
   /* NGTCP2_PKTNS_ID_INITIAL is the Initial packet number space. */
@@ -620,6 +584,92 @@ typedef struct ngtcp2_conn_stat {
      connection, including discarded packets. */
   uint64_t bytes_recv;
 } ngtcp2_conn_stat;
+
+typedef enum ngtcp2_cc_algo {
+  NGTCP2_CC_ALGO_DEFAULT = 0x00,
+  NGTCP2_CC_ALGO_CUSTOM = 0xff
+} ngtcp2_cc_algo;
+
+typedef struct ngtcp2_cc_base {
+  ngtcp2_log *log;
+} ngtcp2_cc_base;
+
+/* ngtcp2_cc_pkt is a convenient structure to include acked/lost/sent
+   packet. */
+typedef struct {
+  /* pkt_num is the packet number */
+  int64_t pkt_num;
+  /* pktlen is the length of packet. */
+  size_t pktlen;
+  /* ts_sent is the timestamp when packet is sent. */
+  ngtcp2_tstamp ts_sent;
+} ngtcp2_cc_pkt;
+
+typedef struct ngtcp2_cc ngtcp2_cc;
+
+typedef void (*ngtcp2_cc_on_pkt_acked)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                       const ngtcp2_cc_pkt *pkt,
+                                       ngtcp2_tstamp ts);
+
+typedef void (*ngtcp2_cc_congestion_event)(ngtcp2_cc *cc,
+                                           ngtcp2_conn_stat *cstat,
+                                           ngtcp2_tstamp ts_sent,
+                                           ngtcp2_tstamp ts);
+
+typedef void (*ngtcp2_cc_on_persistent_congestion)(ngtcp2_cc *cc,
+                                                   ngtcp2_conn_stat *cstat,
+                                                   ngtcp2_tstamp ts);
+
+typedef void (*ngtcp2_cc_on_ack_recv)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                      ngtcp2_tstamp ts);
+
+typedef struct ngtcp2_cc {
+  ngtcp2_cc_base *ccb;
+  ngtcp2_cc_on_pkt_acked on_pkt_acked;
+  ngtcp2_cc_congestion_event congestion_event;
+  ngtcp2_cc_on_persistent_congestion on_persistent_congestion;
+  ngtcp2_cc_on_ack_recv on_ack_recv;
+} ngtcp2_cc;
+
+/* user_data is the same object passed to ngtcp2_conn_client_new or
+   ngtcp2_conn_server_new. */
+typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
+
+typedef void (*ngtcp2_qlog_write)(void *user_data, const void *data,
+                                  size_t datalen);
+
+typedef struct ngtcp2_qlog_settings {
+  /* odcid is Original Destination Connection ID sent by client.  It
+     is used as group_id and ODCID fields.  Client ignores this field
+     and uses dcid parameter passed to `ngtcp2_conn_client_new()`. */
+  ngtcp2_cid odcid;
+  /* write is a callback function to write qlog.  Setting NULL
+     disables qlog. */
+  ngtcp2_qlog_write write;
+} ngtcp2_qlog_settings;
+
+typedef struct ngtcp2_settings {
+  /* transport_params is the QUIC transport parameters to send. */
+  ngtcp2_transport_params transport_params;
+  ngtcp2_qlog_settings qlog;
+  ngtcp2_cc_algo cc_algo;
+  ngtcp2_cc *cc;
+  /* initial_ts is an initial timestamp given to the library. */
+  ngtcp2_tstamp initial_ts;
+  /* log_printf is a function that the library uses to write logs.
+     NULL means no logging output. */
+  ngtcp2_printf log_printf;
+  /* max_packet_size is the maximum size of UDP datagram payload that
+     this endpoint transmits.  It is used by congestion controller to
+     compute congestion window.  If it is set to 0, it defaults to
+     NGTCP2_DEFAULT_MAX_PKT_SIZE. */
+  size_t max_packet_size;
+  /* token is a token received in Client Initial packet and
+     successfully validated.  Only server application may specify this
+     field.  Server then verifies that all Client Initial packets have
+     this token.  `ngtcp2_conn_server_new` makes a copy of token. */
+  ngtcp2_vec token;
+} ngtcp2_settings;
 
 /**
  * @struct

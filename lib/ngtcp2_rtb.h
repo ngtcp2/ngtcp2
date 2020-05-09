@@ -47,9 +47,6 @@ typedef struct ngtcp2_log ngtcp2_log;
 struct ngtcp2_qlog;
 typedef struct ngtcp2_qlog ngtcp2_qlog;
 
-struct ngtcp2_default_cc;
-typedef struct ngtcp2_default_cc ngtcp2_default_cc;
-
 struct ngtcp2_strm;
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -211,7 +208,7 @@ typedef struct {
   /* crypto is CRYPTO stream. */
   ngtcp2_strm *crypto;
   ngtcp2_rst *rst;
-  ngtcp2_default_cc *cc;
+  ngtcp2_cc *cc;
   ngtcp2_log *log;
   ngtcp2_qlog *qlog;
   const ngtcp2_mem *mem;
@@ -232,9 +229,8 @@ typedef struct {
  * ngtcp2_rtb_init initializes |rtb|.
  */
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
-                     ngtcp2_strm *crypto, ngtcp2_rst *rst,
-                     ngtcp2_default_cc *cc, ngtcp2_log *log, ngtcp2_qlog *qlog,
-                     const ngtcp2_mem *mem);
+                     ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
+                     ngtcp2_log *log, ngtcp2_qlog *qlog, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.

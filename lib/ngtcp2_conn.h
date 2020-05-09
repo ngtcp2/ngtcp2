@@ -446,7 +446,8 @@ struct ngtcp2_conn {
   ngtcp2_log log;
   ngtcp2_qlog qlog;
   ngtcp2_rst rst;
-  ngtcp2_default_cc cc;
+  ngtcp2_cc_algo cc_algo;
+  ngtcp2_cc cc;
   /* token is an address validation token received from server. */
   ngtcp2_buf token;
   const ngtcp2_mem *mem;

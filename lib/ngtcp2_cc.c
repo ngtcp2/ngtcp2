@@ -26,6 +26,7 @@
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
 #include "ngtcp2_rst.h"
+#include "ngtcp2_mem.h"
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_tstamp ts_sent) {
@@ -38,7 +39,7 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 
 void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_rst *rst,
                             ngtcp2_log *log) {
-  cc->log = log;
+  cc->ccb.log = log;
   cc->rst = rst;
   cc->max_delivery_rate = 0.;
   cc->target_cwnd = 0;
@@ -46,15 +47,43 @@ void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_rst *rst,
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc) { (void)cc; }
 
+int ngtcp2_cc_default_cc_init(ngtcp2_cc *cc, ngtcp2_rst *rst, ngtcp2_log *log,
+                              const ngtcp2_mem *mem) {
+  ngtcp2_default_cc *default_cc;
+
+  default_cc = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_default_cc));
+  if (default_cc == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  ngtcp2_default_cc_init(default_cc, rst, log);
+
+  cc->ccb = &default_cc->ccb;
+  cc->on_pkt_acked = ngtcp2_cc_default_cc_on_pkt_acked;
+  cc->congestion_event = ngtcp2_cc_default_cc_congestion_event;
+  cc->on_persistent_congestion = ngtcp2_cc_default_cc_on_persistent_congestion;
+  cc->on_ack_recv = ngtcp2_cc_default_cc_on_ack_recv;
+
+  return 0;
+}
+
+void ngtcp2_cc_default_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem) {
+  ngtcp2_default_cc *default_cc =
+      ngtcp2_struct_of(cc->ccb, ngtcp2_default_cc, ccb);
+
+  ngtcp2_default_cc_free(default_cc);
+  ngtcp2_mem_free(mem, default_cc);
+}
+
 static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
                                   ngtcp2_tstamp sent_time) {
   return sent_time <= cstat->congestion_recovery_start_ts;
 }
 
-void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
-                                    ngtcp2_conn_stat *cstat,
-                                    const ngtcp2_cc_pkt *pkt,
-                                    ngtcp2_tstamp ts) {
+void ngtcp2_cc_default_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                                       const ngtcp2_cc_pkt *pkt,
+                                       ngtcp2_tstamp ts) {
+  ngtcp2_default_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_default_cc, ccb);
   (void)ts;
 
   if (in_congestion_recovery(cstat, pkt->ts_sent)) {
@@ -67,7 +96,7 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
 
   if (cstat->cwnd < cstat->ssthresh) {
     cstat->cwnd += pkt->pktlen;
-    ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
+    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                     "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
                     pkt->pkt_num, cstat->cwnd);
     return;
@@ -76,10 +105,11 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
   cstat->cwnd += cstat->max_packet_size * pkt->pktlen / cstat->cwnd;
 }
 
-void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
-                                        ngtcp2_conn_stat *cstat,
-                                        ngtcp2_tstamp ts_sent,
-                                        ngtcp2_tstamp ts) {
+void ngtcp2_cc_default_cc_congestion_event(ngtcp2_cc *ccx,
+                                           ngtcp2_conn_stat *cstat,
+                                           ngtcp2_tstamp ts_sent,
+                                           ngtcp2_tstamp ts) {
+  ngtcp2_default_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_default_cc, ccb);
   uint64_t min_cwnd;
 
   if (in_congestion_recovery(cstat, ts_sent)) {
@@ -92,22 +122,23 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
   cstat->cwnd = ngtcp2_max(cstat->cwnd, min_cwnd);
   cstat->ssthresh = cstat->cwnd;
 
-  ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
+  ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                   "reduce cwnd because of packet loss cwnd=%" PRIu64,
                   cstat->cwnd);
 }
 
-void ngtcp2_default_cc_on_persistent_congestion(ngtcp2_default_cc *cc,
-                                                ngtcp2_conn_stat *cstat,
-                                                ngtcp2_tstamp ts) {
-  (void)cc;
+void ngtcp2_cc_default_cc_on_persistent_congestion(ngtcp2_cc *ccx,
+                                                   ngtcp2_conn_stat *cstat,
+                                                   ngtcp2_tstamp ts) {
+  (void)ccx;
   (void)ts;
 
   cstat->cwnd = 2 * cstat->max_packet_size;
 }
 
-void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
-                                   ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
+void ngtcp2_cc_default_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                                      ngtcp2_tstamp ts) {
+  ngtcp2_default_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_default_cc, ccb);
   uint64_t target_cwnd, min_cwnd;
   (void)ts;
 
@@ -123,7 +154,7 @@ void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
     cc->target_cwnd = ngtcp2_max(min_cwnd, target_cwnd);
 
     ngtcp2_log_info(
-        cc->log, NGTCP2_LOG_EVENT_RCV,
+        cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
         "target_cwnd=%" PRIu64 " max_delivery_rate=%.02f min_rtt=%" PRIu64,
         cc->target_cwnd, cc->max_delivery_rate * 1000000000, cstat->min_rtt);
   }
