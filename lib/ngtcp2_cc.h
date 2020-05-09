@@ -78,11 +78,9 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_tstamp ts_sent,
                                         ngtcp2_tstamp ts);
 
-void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
-                                                    ngtcp2_conn_stat *cstat,
-                                                    ngtcp2_duration loss_window,
-                                                    ngtcp2_duration pto,
-                                                    ngtcp2_tstamp ts);
+void ngtcp2_default_cc_on_persistent_congestion(ngtcp2_default_cc *cc,
+                                                ngtcp2_conn_stat *cstat,
+                                                ngtcp2_tstamp ts);
 
 void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
                                    ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts);

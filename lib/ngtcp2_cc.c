@@ -97,23 +97,13 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                   cstat->cwnd);
 }
 
-void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
-                                                    ngtcp2_conn_stat *cstat,
-                                                    ngtcp2_duration loss_window,
-                                                    ngtcp2_duration pto,
-                                                    ngtcp2_tstamp ts) {
-  ngtcp2_duration congestion_period =
-      pto * NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
+void ngtcp2_default_cc_on_persistent_congestion(ngtcp2_default_cc *cc,
+                                                ngtcp2_conn_stat *cstat,
+                                                ngtcp2_tstamp ts) {
+  (void)cc;
   (void)ts;
 
-  if (loss_window >= congestion_period) {
-    ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
-                    "persistent congestion loss_window=%" PRIu64
-                    " congestion_period=%" PRIu64,
-                    loss_window, congestion_period);
-
-    cstat->cwnd = 2 * cstat->max_packet_size;
-  }
+  cstat->cwnd = 2 * cstat->max_packet_size;
 }
 
 void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
