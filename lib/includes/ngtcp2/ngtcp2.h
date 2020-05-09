@@ -176,6 +176,11 @@ typedef struct ngtcp2_mem {
    packet sent by client which contains its first Initial packet. */
 #define NGTCP2_MIN_INITIAL_PKTLEN 1200
 
+/* NGTCP2_DEFAULT_MAX_PKT_SIZE is the default maximum size of UDP
+   datagram payload that this endpoint transmits.  It is used by
+   congestion controller to compute congestion window. */
+#define NGTCP2_DEFAULT_MAX_PKT_SIZE 1200
+
 /* NGTCP2_STATELESS_RESET_TOKENLEN is the length of Stateless Reset
    Token. */
 #define NGTCP2_STATELESS_RESET_TOKENLEN 16
@@ -556,6 +561,11 @@ typedef struct ngtcp2_settings {
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
+  /* max_packet_size is the maximum size of UDP datagram payload that
+     this endpoint transmits.  It is used by congestion controller to
+     compute congestion window.  If it is set to 0, it defaults to
+     NGTCP2_DEFAULT_MAX_PKT_SIZE. */
+  size_t max_packet_size;
   /* token is a token received in Client Initial packet and
      successfully validated.  Only server application may specify this
      field.  Server then verifies that all Client Initial packets have
@@ -598,6 +608,10 @@ typedef struct ngtcp2_conn_stat {
   uint64_t ssthresh;
   ngtcp2_tstamp congestion_recovery_start_ts;
   uint64_t bytes_in_flight;
+  /* max_packet_size is the maximum size of UDP datagram payload that
+     this endpoint transmits.  It is used by congestion controller to
+     compute congestion window. */
+  size_t max_packet_size;
   /* bytes_sent is the number of bytes sent in this particular
      connection.  It only includes data written by
      `ngtcp2_conn_writev_stream()` .*/

@@ -31,8 +31,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-#define NGTCP2_MAX_DGRAM_SIZE 1200
-#define NGTCP2_MIN_CWND (2 * NGTCP2_MAX_DGRAM_SIZE)
 #define NGTCP2_LOSS_REDUCTION_FACTOR_BITS 1
 #define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 3
 
@@ -61,8 +59,6 @@ struct ngtcp2_default_cc {
   ngtcp2_log *log;
   ngtcp2_rst *rst;
   double max_delivery_rate;
-  ngtcp2_duration min_rtt;
-  ngtcp2_tstamp min_rtt_ts;
   uint64_t target_cwnd;
 };
 
@@ -88,7 +84,6 @@ void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
                                                     ngtcp2_duration pto);
 
 void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
-                                   ngtcp2_duration latest_rtt,
-                                   ngtcp2_tstamp ts);
+                                   ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_CC_H */

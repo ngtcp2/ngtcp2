@@ -41,8 +41,6 @@ void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_rst *rst,
   cc->log = log;
   cc->rst = rst;
   cc->max_delivery_rate = 0.;
-  cc->min_rtt = 0;
-  cc->min_rtt_ts = 0;
   cc->target_cwnd = 0;
 }
 
@@ -72,19 +70,23 @@ void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
     return;
   }
 
-  cstat->cwnd += NGTCP2_MAX_DGRAM_SIZE * pkt->pktlen / cstat->cwnd;
+  cstat->cwnd += cstat->max_packet_size * pkt->pktlen / cstat->cwnd;
 }
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp ts_sent,
                                         ngtcp2_tstamp ts) {
+  uint64_t min_cwnd;
+
   if (in_congestion_recovery(cstat, ts_sent)) {
     return;
   }
+
   cstat->congestion_recovery_start_ts = ts;
   cstat->cwnd >>= NGTCP2_LOSS_REDUCTION_FACTOR_BITS;
-  cstat->cwnd = ngtcp2_max(cstat->cwnd, NGTCP2_MIN_CWND);
+  min_cwnd = 2 * cstat->max_packet_size;
+  cstat->cwnd = ngtcp2_max(cstat->cwnd, min_cwnd);
   cstat->ssthresh = cstat->cwnd;
 
   ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,
@@ -105,31 +107,29 @@ void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
                     " congestion_period=%" PRIu64,
                     loss_window, congestion_period);
 
-    cstat->cwnd = NGTCP2_MIN_CWND;
+    cstat->cwnd = 2 * cstat->max_packet_size;
   }
 }
 
 void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
-                                   ngtcp2_duration latest_rtt,
-                                   ngtcp2_tstamp ts) {
-  /* TODO Use sliding window */
-  if (latest_rtt && (cc->min_rtt == 0 || cc->min_rtt > latest_rtt)) {
-    cc->min_rtt = latest_rtt;
-    cc->min_rtt_ts = ts;
-  }
+                                   ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
+  uint64_t target_cwnd, min_cwnd;
+  (void)ts;
 
+  /* TODO Use sliding window for min rtt measurement */
   /* TODO Use sliding window */
   cc->max_delivery_rate =
       ngtcp2_max(cc->max_delivery_rate, cc->rst->rs.delivery_rate);
 
-  if (cc->min_rtt && cc->max_delivery_rate > 1e-9) {
-    uint64_t target_cwnd =
-        (uint64_t)(2.89 * cc->max_delivery_rate * (double)cc->min_rtt);
-    cc->target_cwnd = ngtcp2_max(NGTCP2_MIN_CWND, target_cwnd);
+  if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate > 1e-9) {
+    target_cwnd =
+        (uint64_t)(2.89 * cc->max_delivery_rate * (double)cstat->min_rtt);
+    min_cwnd = 2 * cstat->max_packet_size;
+    cc->target_cwnd = ngtcp2_max(min_cwnd, target_cwnd);
 
     ngtcp2_log_info(
         cc->log, NGTCP2_LOG_EVENT_RCV,
         "target_cwnd=%" PRIu64 " max_delivery_rate=%.02f min_rtt=%" PRIu64,
-        cc->target_cwnd, cc->max_delivery_rate * 1000000000, cc->min_rtt);
+        cc->target_cwnd, cc->max_delivery_rate * 1000000000, cstat->min_rtt);
   }
 }

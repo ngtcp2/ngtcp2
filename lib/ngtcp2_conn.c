@@ -499,7 +499,9 @@ static int ts_retired_less(const ngtcp2_pq_entry *lhs,
   return a->ts_retired < b->ts_retired;
 }
 
-static void conn_stat_reset(ngtcp2_conn_stat *cstat) {
+static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
+  uint64_t cwnd, min_cwnd;
+
   memset(cstat, 0, sizeof(*cstat));
   cstat->smoothed_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   cstat->rttvar = NGTCP2_DEFAULT_INITIAL_RTT / 2;
@@ -507,8 +509,10 @@ static void conn_stat_reset(ngtcp2_conn_stat *cstat) {
   // Initializes them with UINT64_MAX.
   memset(cstat->last_tx_pkt_ts, 0xff, sizeof(cstat->last_tx_pkt_ts));
   memset(cstat->loss_time, 0xff, sizeof(cstat->loss_time));
-  cstat->cwnd = ngtcp2_min(10 * NGTCP2_MAX_DGRAM_SIZE,
-                           ngtcp2_max(2 * NGTCP2_MAX_DGRAM_SIZE, 14720));
+  cstat->max_packet_size = conn->local.settings.max_packet_size;
+  min_cwnd = 2 * cstat->max_packet_size;
+  cwnd = ngtcp2_max(min_cwnd, 14720);
+  cstat->cwnd = ngtcp2_min(10 * cstat->max_packet_size, cwnd);
   cstat->ssthresh = UINT64_MAX;
 }
 
@@ -639,6 +643,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
         NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   }
 
+  if (settings->max_packet_size == 0) {
+    (*pconn)->local.settings.max_packet_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
+  }
+
   scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
   if (scident == NULL) {
     rv = NGTCP2_ERR_NOMEM;
@@ -694,7 +702,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->idle_ts = settings->initial_ts;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
 
-  conn_stat_reset(&(*pconn)->cstat);
+  conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
 
   ngtcp2_qlog_start(&(*pconn)->qlog, server ? &settings->qlog.odcid : dcid,
                     server);
@@ -1127,7 +1135,7 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight = conn->cstat.bytes_in_flight;
   uint64_t cwnd =
       conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
-          ? NGTCP2_MIN_CWND
+          ? /* min_cwnd = */ 2 * conn->cstat.max_packet_size
           : conn->cstat.cwnd;
 
   return bytes_in_flight >= cwnd;
@@ -2091,7 +2099,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
   uint64_t win = conn_initial_stream_rx_offset(conn, strm->stream_id);
   uint64_t inc = strm->rx.unsent_max_offset - strm->rx.max_offset;
 
-  return win < 2 * inc || inc >= 10 * NGTCP2_MAX_DGRAM_SIZE;
+  return win < 2 * inc || inc >= 10 * conn->cstat.max_packet_size;
 }
 
 /*
@@ -2102,7 +2110,7 @@ static int conn_should_send_max_data(ngtcp2_conn *conn) {
   uint64_t inc = conn->rx.unsent_max_offset - conn->rx.max_offset;
 
   return conn->local.settings.transport_params.initial_max_data < 2 * inc ||
-         inc >= 10 * NGTCP2_MAX_DGRAM_SIZE;
+         inc >= 10 * conn->cstat.max_packet_size;
 }
 
 /*
@@ -3980,7 +3988,7 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn,
  * conn_reset_congestion_state resets congestion state.
  */
 static void conn_reset_congestion_state(ngtcp2_conn *conn) {
-  conn_stat_reset(&conn->cstat);
+  conn_reset_conn_stat(conn, &conn->cstat);
 
   if (conn->hs_pktns) {
     conn->hs_pktns->rtb.cc_pkt_num = conn->hs_pktns->tx.last_pkt_num + 1;

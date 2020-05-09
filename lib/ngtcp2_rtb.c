@@ -487,8 +487,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   if (conn) {
     ngtcp2_rst_on_ack_recv(rtb->rst, cstat);
-    ngtcp2_default_cc_on_ack_recv(rtb->cc, rtt_updated ? cstat->latest_rtt : 0,
-                                  ts);
+    ngtcp2_default_cc_on_ack_recv(rtb->cc, cstat, ts);
   }
 
   return num_acked;
