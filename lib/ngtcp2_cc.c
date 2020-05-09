@@ -53,7 +53,10 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
                                     ngtcp2_conn_stat *cstat,
-                                    const ngtcp2_cc_pkt *pkt) {
+                                    const ngtcp2_cc_pkt *pkt,
+                                    ngtcp2_tstamp ts) {
+  (void)ts;
+
   if (in_congestion_recovery(cstat, pkt->ts_sent)) {
     return;
   }
@@ -97,9 +100,11 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
 void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
                                                     ngtcp2_conn_stat *cstat,
                                                     ngtcp2_duration loss_window,
-                                                    ngtcp2_duration pto) {
+                                                    ngtcp2_duration pto,
+                                                    ngtcp2_tstamp ts) {
   ngtcp2_duration congestion_period =
       pto * NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
+  (void)ts;
 
   if (loss_window >= congestion_period) {
     ngtcp2_log_info(cc->log, NGTCP2_LOG_EVENT_RCV,

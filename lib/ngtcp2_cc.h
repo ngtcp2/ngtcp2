@@ -71,7 +71,7 @@ void ngtcp2_default_cc_free(ngtcp2_default_cc *cc);
 
 void ngtcp2_default_cc_on_pkt_acked(ngtcp2_default_cc *cc,
                                     ngtcp2_conn_stat *cstat,
-                                    const ngtcp2_cc_pkt *pkt);
+                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
 
 void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
                                         ngtcp2_conn_stat *cstat,
@@ -81,7 +81,8 @@ void ngtcp2_default_cc_congestion_event(ngtcp2_default_cc *cc,
 void ngtcp2_default_cc_handle_persistent_congestion(ngtcp2_default_cc *cc,
                                                     ngtcp2_conn_stat *cstat,
                                                     ngtcp2_duration loss_window,
-                                                    ngtcp2_duration pto);
+                                                    ngtcp2_duration pto,
+                                                    ngtcp2_tstamp ts);
 
 void ngtcp2_default_cc_on_ack_recv(ngtcp2_default_cc *cc,
                                    ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts);

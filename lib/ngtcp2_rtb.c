@@ -379,7 +379,7 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
   ngtcp2_default_cc_on_pkt_acked(
       rtb->cc, cstat,
-      ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts));
+      ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->ts), ts);
 
   if (!(ent->flags & NGTCP2_RTB_FLAG_PROBE) &&
       (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
@@ -569,7 +569,7 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
       if (last_lost_pkt_num != -1) {
         ngtcp2_default_cc_handle_persistent_congestion(
-            rtb->cc, cstat, latest_ts - oldest_ts, pto);
+            rtb->cc, cstat, latest_ts - oldest_ts, pto, ts);
       }
 
       return;
