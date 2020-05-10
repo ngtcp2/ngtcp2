@@ -2955,6 +2955,14 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
 
+  if (pktns->rtb.probe_pkt_left &&
+      (rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+    --pktns->rtb.probe_pkt_left;
+
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%td",
+                    nwrite);
+  }
+
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
   ++pktns->tx.last_pkt_num;
@@ -8320,12 +8328,6 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
 
     nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT,
                             strm, fin, datav, datavcnt, wflags, ts);
-    if (nwrite > 0) {
-      --conn->pktns.rtb.probe_pkt_left;
-
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%td",
-                      nwrite);
-    }
 
     goto fin;
   }
