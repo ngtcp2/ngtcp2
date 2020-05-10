@@ -604,6 +604,7 @@ typedef struct ngtcp2_conn_stat {
 
 typedef enum ngtcp2_cc_algo {
   NGTCP2_CC_ALGO_DEFAULT = 0x00,
+  NGTCP2_CC_ALGO_CUBIC = 0x01,
   NGTCP2_CC_ALGO_CUSTOM = 0xff
 } ngtcp2_cc_algo;
 
@@ -640,12 +641,22 @@ typedef void (*ngtcp2_cc_on_persistent_congestion)(ngtcp2_cc *cc,
 typedef void (*ngtcp2_cc_on_ack_recv)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                       ngtcp2_tstamp ts);
 
+typedef enum ngtcp2_cc_event_type {
+  /* NGTCP2_CC_EVENT_TX_START occurs when ack-eliciting packet is sent
+     and no other ack-eliciting packet is present. */
+  NGTCP2_CC_EVENT_TYPE_TX_START
+} ngtcp2_cc_event_type;
+
+typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
+
 typedef struct ngtcp2_cc {
   ngtcp2_cc_base *ccb;
   ngtcp2_cc_on_pkt_acked on_pkt_acked;
   ngtcp2_cc_congestion_event congestion_event;
   ngtcp2_cc_on_persistent_congestion on_persistent_congestion;
   ngtcp2_cc_on_ack_recv on_ack_recv;
+  ngtcp2_cc_event event;
 } ngtcp2_cc;
 
 /* user_data is the same object passed to ngtcp2_conn_client_new or

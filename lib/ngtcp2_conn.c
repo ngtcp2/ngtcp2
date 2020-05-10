@@ -493,6 +493,9 @@ static void cc_del(ngtcp2_cc *cc, ngtcp2_cc_algo cc_algo,
   case NGTCP2_CC_ALGO_DEFAULT:
     ngtcp2_cc_default_cc_free(cc, mem);
     break;
+  case NGTCP2_CC_ALGO_CUBIC:
+    ngtcp2_cc_cubic_cc_free(cc, mem);
+    break;
   default:
     break;
   }
@@ -648,7 +651,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   case NGTCP2_CC_ALGO_DEFAULT:
     rv = ngtcp2_cc_default_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
     if (rv != 0) {
-      goto fail_default_cc;
+      goto fail_cc_init;
+    }
+    break;
+  case NGTCP2_CC_ALGO_CUBIC:
+    rv = ngtcp2_cc_cubic_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
+    if (rv != 0) {
+      goto fail_cc_init;
     }
     break;
   case NGTCP2_CC_ALGO_CUSTOM:
@@ -752,7 +761,7 @@ fail_hs_pktns_init:
   pktns_del((*pconn)->in_pktns, mem);
 fail_in_pktns_init:
   cc_del(&(*pconn)->cc, settings->cc_algo, mem);
-fail_default_cc:
+fail_cc_init:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
 fail_qlog_buf:
   ngtcp2_ringbuf_free(&(*pconn)->rx.path_challenge);
@@ -2938,6 +2947,12 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
       ent->frc = pktns->tx.frq;
       pktns->tx.frq = *pfrc;
       *pfrc = NULL;
+    }
+
+    if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+        ngtcp2_rtb_num_ack_eliciting(&pktns->rtb) == 0 && conn->cc.event) {
+      conn->cc.event(&conn->cc, &conn->cstat, NGTCP2_CC_EVENT_TYPE_TX_START,
+                     ts);
     }
 
     rv = conn_on_pkt_sent(conn, &pktns->rtb, ent);
@@ -8754,6 +8769,8 @@ int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
 void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
                             ngtcp2_duration ack_delay) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
+
+  rtt = ngtcp2_max(rtt, NGTCP2_NANOSECONDS);
 
   cstat->latest_rtt = rtt;
 
