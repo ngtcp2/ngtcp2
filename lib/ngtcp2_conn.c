@@ -525,6 +525,8 @@ static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
   cwnd = ngtcp2_max(min_cwnd, 14720);
   cstat->cwnd = ngtcp2_min(10 * cstat->max_packet_size, cwnd);
   cstat->ssthresh = UINT64_MAX;
+
+  ngtcp2_rs_init(&cstat->rs);
 }
 
 static void delete_scid(ngtcp2_ksl *scids, const ngtcp2_mem *mem) {
@@ -613,14 +615,38 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     ngtcp2_buf_init(&(*pconn)->qlog.buf, buf, NGTCP2_QLOG_BUFLEN);
   }
 
+  (*pconn)->local.settings = *settings;
+
+  if (server && settings->token.len) {
+    buf = ngtcp2_mem_malloc(mem, settings->token.len);
+    if (buf == NULL) {
+      goto fail_token;
+    }
+    memcpy(buf, settings->token.base, settings->token.len);
+    (*pconn)->local.settings.token.base = buf;
+  } else {
+    (*pconn)->local.settings.token.base = NULL;
+    (*pconn)->local.settings.token.len = 0;
+  }
+
+  if (params->active_connection_id_limit == 0) {
+    (*pconn)->local.settings.transport_params.active_connection_id_limit =
+        NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  }
+
+  if (settings->max_packet_size == 0) {
+    (*pconn)->local.settings.max_packet_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
+  }
+
+  conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
+
   ngtcp2_rst_init(&(*pconn)->rst);
 
   (*pconn)->cc_algo = settings->cc_algo;
 
   switch (settings->cc_algo) {
   case NGTCP2_CC_ALGO_DEFAULT:
-    rv = ngtcp2_cc_default_cc_init(&(*pconn)->cc, &(*pconn)->rst,
-                                   &(*pconn)->log, mem);
+    rv = ngtcp2_cc_default_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
     if (rv != 0) {
       goto fail_default_cc;
     }
@@ -649,29 +675,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                   &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
   if (rv != 0) {
     goto fail_pktns_init;
-  }
-
-  (*pconn)->local.settings = *settings;
-
-  if (server && settings->token.len) {
-    buf = ngtcp2_mem_malloc(mem, settings->token.len);
-    if (buf == NULL) {
-      goto fail_token;
-    }
-    memcpy(buf, settings->token.base, settings->token.len);
-    (*pconn)->local.settings.token.base = buf;
-  } else {
-    (*pconn)->local.settings.token.base = NULL;
-    (*pconn)->local.settings.token.len = 0;
-  }
-
-  if (params->active_connection_id_limit == 0) {
-    (*pconn)->local.settings.transport_params.active_connection_id_limit =
-        NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
-  }
-
-  if (settings->max_packet_size == 0) {
-    (*pconn)->local.settings.max_packet_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
   }
 
   scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
@@ -728,8 +731,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->remote.uni.max_streams = params->initial_max_streams_uni;
   (*pconn)->idle_ts = settings->initial_ts;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
-
-  conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
 
   ngtcp2_qlog_start(&(*pconn)->qlog, server ? &settings->qlog.odcid : dcid,
                     server);

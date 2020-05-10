@@ -37,29 +37,24 @@
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
-struct ngtcp2_rst;
-typedef struct ngtcp2_rst ngtcp2_rst;
-
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_tstamp ts_sent);
 
 /* ngtcp2_default_cc is the default congestion controller. */
 struct ngtcp2_default_cc {
   ngtcp2_cc_base ccb;
-  ngtcp2_rst *rst;
   double max_delivery_rate;
   uint64_t target_cwnd;
 };
 
 typedef struct ngtcp2_default_cc ngtcp2_default_cc;
 
-int ngtcp2_cc_default_cc_init(ngtcp2_cc *cc, ngtcp2_rst *rst, ngtcp2_log *log,
+int ngtcp2_cc_default_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
                               const ngtcp2_mem *mem);
 
 void ngtcp2_cc_default_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
 
-void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_rst *rst,
-                            ngtcp2_log *log);
+void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_log *log);
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc);
 

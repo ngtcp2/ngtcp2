@@ -27,14 +27,7 @@
 #include "ngtcp2_cc.h"
 #include "ngtcp2_macro.h"
 
-void ngtcp2_rst_init(ngtcp2_rst *rst) {
-  ngtcp2_rs *rs = &rst->rs;
-
-  rst->delivered = 0;
-  rst->delivered_ts = 0;
-  rst->first_sent_ts = 0;
-  rst->app_limited = 0;
-
+void ngtcp2_rs_init(ngtcp2_rs *rs) {
   rs->delivery_rate = 0.;
   rs->interval = UINT64_MAX;
   rs->delivered = 0;
@@ -43,6 +36,13 @@ void ngtcp2_rst_init(ngtcp2_rst *rst) {
   rs->send_elapsed = 0;
   rs->ack_elapsed = 0;
   rs->is_app_limited = 0;
+}
+
+void ngtcp2_rst_init(ngtcp2_rst *rst) {
+  rst->delivered = 0;
+  rst->delivered_ts = 0;
+  rst->first_sent_ts = 0;
+  rst->app_limited = 0;
 }
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
@@ -56,8 +56,8 @@ void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
   ent->rst.is_app_limited = rst->app_limited != 0;
 }
 
-int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_conn_stat *cstat) {
-  ngtcp2_rs *rs = &rst->rs;
+int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
+  ngtcp2_rs *rs = &cstat->rs;
 
   if (rst->app_limited && rst->delivered > rst->app_limited) {
     rst->app_limited = 0;
@@ -83,9 +83,10 @@ int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_conn_stat *cstat) {
   return 1;
 }
 
-void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
+void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat,
+                                   const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts) {
-  ngtcp2_rs *rs = &rst->rs;
+  ngtcp2_rs *rs = &cstat->rs;
 
   rst->delivered += ent->pktlen;
   rst->delivered_ts = ts;
@@ -100,8 +101,7 @@ void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
   }
 }
 
-void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst,
-                                   const ngtcp2_conn_stat *cstat) {
+void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
   (void)rst;
   (void)cstat;
   /* TODO Not implemented */

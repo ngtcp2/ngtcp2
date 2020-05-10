@@ -553,6 +553,22 @@ typedef enum ngtcp2_pktns_id {
 /**
  * @struct
  *
+ * ngtcp2_rs contains connection state for delivery rate estimation.
+ */
+typedef struct ngtcp2_rs {
+  double delivery_rate;
+  ngtcp2_duration interval;
+  uint64_t delivered;
+  uint64_t prior_delivered;
+  ngtcp2_tstamp prior_ts;
+  ngtcp2_duration send_elapsed;
+  ngtcp2_duration ack_elapsed;
+  int is_app_limited;
+} ngtcp2_rs;
+
+/**
+ * @struct
+ *
  * ngtcp2_conn_stat holds various connection statistics, and computed
  * data for recovery and congestion controller.
  */
@@ -583,6 +599,7 @@ typedef struct ngtcp2_conn_stat {
   /* bytes_recv is the number of bytes received in this particular
      connection, including discarded packets. */
   uint64_t bytes_recv;
+  ngtcp2_rs rs;
 } ngtcp2_conn_stat;
 
 typedef enum ngtcp2_cc_algo {

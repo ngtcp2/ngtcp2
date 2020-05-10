@@ -34,16 +34,7 @@
 struct ngtcp2_rtb_entry;
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
-typedef struct ngtcp2_rs {
-  double delivery_rate;
-  ngtcp2_duration interval;
-  uint64_t delivered;
-  uint64_t prior_delivered;
-  ngtcp2_tstamp prior_ts;
-  ngtcp2_duration send_elapsed;
-  ngtcp2_duration ack_elapsed;
-  int is_app_limited;
-} ngtcp2_rs;
+void ngtcp2_rs_init(ngtcp2_rs *rs);
 
 /*
  * ngtcp2_rst implements delivery rate estimation described in
@@ -54,17 +45,16 @@ typedef struct ngtcp2_rst {
   ngtcp2_tstamp delivered_ts;
   ngtcp2_tstamp first_sent_ts;
   uint64_t app_limited;
-  ngtcp2_rs rs;
 } ngtcp2_rst;
 
 void ngtcp2_rst_init(ngtcp2_rst *rst);
 
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_conn_stat *cstat);
-int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, const ngtcp2_conn_stat *cstat);
-void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
+int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
+void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat,
+                                   const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts);
-void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst,
-                                   const ngtcp2_conn_stat *cstat);
+void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
 
 #endif /* NGTCP2_RST_H */

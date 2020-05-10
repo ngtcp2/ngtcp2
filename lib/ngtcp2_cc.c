@@ -25,7 +25,6 @@
 #include "ngtcp2_cc.h"
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
-#include "ngtcp2_rst.h"
 #include "ngtcp2_mem.h"
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
@@ -37,17 +36,15 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
   return pkt;
 }
 
-void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_rst *rst,
-                            ngtcp2_log *log) {
+void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_log *log) {
   cc->ccb.log = log;
-  cc->rst = rst;
   cc->max_delivery_rate = 0.;
   cc->target_cwnd = 0;
 }
 
 void ngtcp2_default_cc_free(ngtcp2_default_cc *cc) { (void)cc; }
 
-int ngtcp2_cc_default_cc_init(ngtcp2_cc *cc, ngtcp2_rst *rst, ngtcp2_log *log,
+int ngtcp2_cc_default_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
                               const ngtcp2_mem *mem) {
   ngtcp2_default_cc *default_cc;
 
@@ -56,7 +53,7 @@ int ngtcp2_cc_default_cc_init(ngtcp2_cc *cc, ngtcp2_rst *rst, ngtcp2_log *log,
     return NGTCP2_ERR_NOMEM;
   }
 
-  ngtcp2_default_cc_init(default_cc, rst, log);
+  ngtcp2_default_cc_init(default_cc, log);
 
   cc->ccb = &default_cc->ccb;
   cc->on_pkt_acked = ngtcp2_cc_default_cc_on_pkt_acked;
@@ -145,7 +142,7 @@ void ngtcp2_cc_default_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   /* TODO Use sliding window for min rtt measurement */
   /* TODO Use sliding window */
   cc->max_delivery_rate =
-      ngtcp2_max(cc->max_delivery_rate, cc->rst->rs.delivery_rate);
+      ngtcp2_max(cc->max_delivery_rate, cstat->rs.delivery_rate);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate > 1e-9) {
     target_cwnd =
