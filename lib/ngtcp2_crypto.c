@@ -371,6 +371,10 @@ static ngtcp2_ssize decode_varint_param(uint64_t *pdest, const uint8_t *p,
 
   p += nread;
 
+  if (p == end) {
+    return -1;
+  }
+
   if ((uint64_t)(end - p) < valuelen) {
     return -1;
   }
