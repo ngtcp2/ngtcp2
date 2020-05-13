@@ -2976,9 +2976,12 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * values.  First this function fills |settings| with 0 and set the
  * default value to the following fields:
  *
- * * max_packet_size = NGTCP2_MAX_PKT_SIZE
- * * ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
- * * max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY
+ * * cc_algo = NGTCP2_CC_ALGO_CUBIC
+ * * transport_params.max_packet_size = NGTCP2_MAX_PKT_SIZE
+ * * transport_params.ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
+ * * transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY
+ * * transport_params.active_connection_id_limit =
+ *   NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT
  */
 NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
 
