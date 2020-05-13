@@ -490,8 +490,8 @@ static void pktns_del(ngtcp2_pktns *pktns, const ngtcp2_mem *mem) {
 static void cc_del(ngtcp2_cc *cc, ngtcp2_cc_algo cc_algo,
                    const ngtcp2_mem *mem) {
   switch (cc_algo) {
-  case NGTCP2_CC_ALGO_DEFAULT:
-    ngtcp2_cc_default_cc_free(cc, mem);
+  case NGTCP2_CC_ALGO_RENO:
+    ngtcp2_cc_reno_cc_free(cc, mem);
     break;
   case NGTCP2_CC_ALGO_CUBIC:
     ngtcp2_cc_cubic_cc_free(cc, mem);
@@ -648,8 +648,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->cc_algo = settings->cc_algo;
 
   switch (settings->cc_algo) {
-  case NGTCP2_CC_ALGO_DEFAULT:
-    rv = ngtcp2_cc_default_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
+  case NGTCP2_CC_ALGO_RENO:
+    rv = ngtcp2_cc_reno_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
     if (rv != 0) {
       goto fail_cc_init;
     }

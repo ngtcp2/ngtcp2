@@ -40,39 +40,37 @@ typedef struct ngtcp2_log ngtcp2_log;
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_tstamp ts_sent);
 
-/* ngtcp2_default_cc is the default congestion controller. */
-struct ngtcp2_default_cc {
+/* ngtcp2_reno_cc is the RENO congestion controller. */
+struct ngtcp2_reno_cc {
   ngtcp2_cc_base ccb;
   double max_delivery_rate;
   uint64_t target_cwnd;
 };
 
-typedef struct ngtcp2_default_cc ngtcp2_default_cc;
+typedef struct ngtcp2_reno_cc ngtcp2_reno_cc;
 
-int ngtcp2_cc_default_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                              const ngtcp2_mem *mem);
+int ngtcp2_cc_reno_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
+                           const ngtcp2_mem *mem);
 
-void ngtcp2_cc_default_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
+void ngtcp2_cc_reno_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
 
-void ngtcp2_default_cc_init(ngtcp2_default_cc *cc, ngtcp2_log *log);
+void ngtcp2_reno_cc_init(ngtcp2_reno_cc *cc, ngtcp2_log *log);
 
-void ngtcp2_default_cc_free(ngtcp2_default_cc *cc);
+void ngtcp2_reno_cc_free(ngtcp2_reno_cc *cc);
 
-void ngtcp2_cc_default_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                       const ngtcp2_cc_pkt *pkt,
-                                       ngtcp2_tstamp ts);
+void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
 
-void ngtcp2_cc_default_cc_congestion_event(ngtcp2_cc *cc,
-                                           ngtcp2_conn_stat *cstat,
-                                           ngtcp2_tstamp ts_sent,
-                                           ngtcp2_tstamp ts);
+void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                        ngtcp2_tstamp ts_sent,
+                                        ngtcp2_tstamp ts);
 
-void ngtcp2_cc_default_cc_on_persistent_congestion(ngtcp2_cc *cc,
-                                                   ngtcp2_conn_stat *cstat,
-                                                   ngtcp2_tstamp ts);
+void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
+                                                ngtcp2_conn_stat *cstat,
+                                                ngtcp2_tstamp ts);
 
-void ngtcp2_cc_default_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                      ngtcp2_tstamp ts);
+void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                   ngtcp2_tstamp ts);
 
 /* ngtcp2_cubic_cc is CUBIC congestion controller. */
 typedef struct ngtcp2_cubic_cc {

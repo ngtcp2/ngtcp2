@@ -603,7 +603,7 @@ typedef struct ngtcp2_conn_stat {
 } ngtcp2_conn_stat;
 
 typedef enum ngtcp2_cc_algo {
-  NGTCP2_CC_ALGO_DEFAULT = 0x00,
+  NGTCP2_CC_ALGO_RENO = 0x00,
   NGTCP2_CC_ALGO_CUBIC = 0x01,
   NGTCP2_CC_ALGO_CUSTOM = 0xff
 } ngtcp2_cc_algo;
