@@ -56,6 +56,7 @@
 #include "template.h"
 
 using namespace ngtcp2;
+using namespace std::literals;
 
 #ifndef NGTCP2_ENABLE_UDP_GSO
 #  ifdef UDP_SEGMENT
@@ -1501,7 +1502,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
-  settings.cc_algo = NGTCP2_CC_ALGO_CUBIC;
+  settings.cc_algo =
+      config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
     path += '/';
@@ -3164,6 +3166,7 @@ void config_set_default(Config &config) {
   config.max_streams_bidi = 100;
   config.max_streams_uni = 3;
   config.max_dyn_length = 20_m;
+  config.cc = "cubic"sv;
 }
 } // namespace
 
@@ -3267,6 +3270,8 @@ Options:
               The maximum length of a dynamically generated content.
               Default: )"
             << util::format_uint_iec(config.max_dyn_length) << R"(
+  --cc=(<cubic>|<reno>)
+              The name of congestion controller algorithm.
   -h, --help  Display this help and exit.
 
 ---
@@ -3313,6 +3318,7 @@ int main(int argc, char **argv) {
         {"max-streams-bidi", required_argument, &flag, 16},
         {"max-streams-uni", required_argument, &flag, 17},
         {"max-dyn-length", required_argument, &flag, 18},
+        {"cc", required_argument, &flag, 19},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3475,6 +3481,14 @@ int main(int argc, char **argv) {
           config.max_dyn_length = n;
         }
         break;
+      case 19:
+        // --cc
+        if (strcmp("cubic", optarg) == 0 || strcmp("reno", optarg) == 0) {
+          config.cc = optarg;
+          break;
+        }
+        std::cerr << "cc: specify cubic or reno" << std::endl;
+        exit(EXIT_FAILURE);
       }
       break;
     default:

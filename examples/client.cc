@@ -936,6 +936,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
     settings.qlog.write = ::write_qlog;
   }
+  settings.cc_algo =
+      config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
   settings.initial_ts = util::timestamp(loop_);
   auto &params = settings.transport_params;
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
@@ -2357,6 +2359,7 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
   config.max_streams_uni = 100;
+  config.cc = "cubic"sv;
 }
 } // namespace
 
@@ -2486,6 +2489,8 @@ Options:
               Exit when a first HTTP stream is closed.
   --disable-early-data
               Disable early data.
+  --cc=(<cubic>|<reno>)
+              The name of congestion controller algorithm.
   -h, --help  Display this help and exit.
 
 ---
@@ -2545,6 +2550,7 @@ int main(int argc, char **argv) {
         {"exit-on-first-stream-close", no_argument, &flag, 24},
         {"disable-early-data", no_argument, &flag, 25},
         {"qlog-dir", required_argument, &flag, 26},
+        {"cc", required_argument, &flag, 27},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2749,6 +2755,15 @@ int main(int argc, char **argv) {
       case 26:
         // --qlog-dir
         config.qlog_dir = optarg;
+        break;
+      case 27:
+        // --cc
+        if (strcmp("cubic", optarg) == 0 || strcmp("reno", optarg) == 0) {
+          config.cc = optarg;
+          break;
+        }
+        std::cerr << "cc: specify cubic or reno" << std::endl;
+        exit(EXIT_FAILURE);
       }
       break;
     default:
