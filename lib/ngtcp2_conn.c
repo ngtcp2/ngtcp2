@@ -663,6 +663,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   case NGTCP2_CC_ALGO_CUSTOM:
     assert(settings->cc);
     (*pconn)->cc = *settings->cc;
+    (*pconn)->cc.ccb->log = &(*pconn)->log;
     break;
   default:
     assert(0);
