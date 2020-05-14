@@ -202,7 +202,7 @@ void ngtcp2_cc_cubic_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem) {
 
 static uint64_t ngtcp2_cbrt(uint64_t n) {
   int d = __builtin_clzll(n);
-  uint64_t a = 1 << ((64 - d) / 3 + 1);
+  uint64_t a = 1ULL << ((64 - d) / 3 + 1);
   int i;
   for (i = 0; a * a * a > n; ++i) {
     a = (2 * a + n / a / a) / 3;
