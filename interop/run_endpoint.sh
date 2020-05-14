@@ -9,7 +9,7 @@
 # - CLIENT_PARAMS contains user-supplied command line parameters
 
 case $TESTCASE in
-    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect|zerortt)
+    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect|zerortt|chacha20)
 	:
 	;;
     *)
@@ -25,6 +25,9 @@ if [ "$ROLE" == "client" ]; then
     CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --timeout=5s --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
+    fi
+    if [ "$TESTCASE" == "chacha20" ]; then
+	CLIENT_ARGS="$CLIENT_ARGS --ciphers=TLS_CHACHA20_POLY1305_SHA256"
     fi
     if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
