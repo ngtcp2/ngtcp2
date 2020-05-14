@@ -936,6 +936,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
     settings.qlog.write = ::write_qlog;
   }
+  settings.max_packet_size = max_pktlen_;
   settings.cc_algo =
       config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
   settings.initial_ts = util::timestamp(loop_);

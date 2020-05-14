@@ -1502,6 +1502,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
+  settings.max_packet_size = max_pktlen_;
   settings.cc_algo =
       config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
   if (!config.qlog_dir.empty()) {
