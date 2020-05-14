@@ -250,10 +250,11 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     }
 
     cc->w_tcp = cstat->cwnd;
-  }
 
-  if (cstat->cwnd > cc->target_cwnd) {
-    return;
+    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+                    "cubic-ca epoch_start=%" PRIu64 " k=%" PRIu64
+                    " origin_point=%" PRIu64,
+                    cc->epoch_start, cc->k, cc->origin_point);
   }
 
   min_rtt = cstat->min_rtt == UINT64_MAX ? NGTCP2_DEFAULT_INITIAL_RTT
@@ -281,8 +282,9 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 
   ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
-                  "pkn=%" PRId64 " acked, cubic-ca cwnd=%" PRIu64, pkt->pkt_num,
-                  cstat->cwnd);
+                  "pkn=%" PRId64 " acked, cubic-ca cwnd=%" PRIu64 " t=%" PRIu64
+                  " d=%" PRId64 " target=%" PRIu64 " w_tcp=%" PRIu64,
+                  pkt->pkt_num, cstat->cwnd, t, d, target, cc->w_tcp);
 }
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
