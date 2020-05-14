@@ -1832,6 +1832,8 @@ int Handler::write_streams() {
       return handle_error();
     }
 
+    assert(ndatalen == -1);
+
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
         server_->send_packet(*endpoint_, remote_addr_, buf.data(),

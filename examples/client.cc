@@ -1237,6 +1237,8 @@ int Client::write_streams() {
       return -1;
     }
 
+    assert(ndatalen == -1);
+
     if (nwrite == 0) {
       // We are congestion limited.
       return 0;
