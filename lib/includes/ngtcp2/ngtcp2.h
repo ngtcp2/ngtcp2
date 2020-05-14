@@ -3043,6 +3043,30 @@ NGTCP2_EXTERN ngtcp2_info *ngtcp2_version(int least_version);
  */
 NGTCP2_EXTERN int ngtcp2_is_bidi_stream(int64_t stream_id);
 
+typedef enum {
+  NGTCP2_LOG_EVENT_NONE,
+  /* connection (catch-all) event */
+  NGTCP2_LOG_EVENT_CON,
+  /* packet event */
+  NGTCP2_LOG_EVENT_PKT,
+  /* frame event */
+  NGTCP2_LOG_EVENT_FRM,
+  /* recovery event */
+  NGTCP2_LOG_EVENT_RCV,
+  /* crypto event */
+  NGTCP2_LOG_EVENT_CRY,
+  /* path validation event */
+  NGTCP2_LOG_EVENT_PTV,
+} ngtcp2_log_event;
+
+/**
+ * @function
+ *
+ * `ngtcp2_log_info` writes info level log.
+ */
+NGTCP2_EXTERN void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev,
+                                   const char *fmt, ...);
+
 #ifdef __cplusplus
 }
 #endif
