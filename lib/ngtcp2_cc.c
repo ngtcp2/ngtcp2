@@ -144,7 +144,7 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   /* TODO Use sliding window for min rtt measurement */
   /* TODO Use sliding window */
   cc->max_delivery_rate =
-      ngtcp2_max(cc->max_delivery_rate, cstat->rs.delivery_rate);
+      ngtcp2_max(cc->max_delivery_rate, cstat->delivery_rate);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate > 1e-9) {
     target_cwnd =
@@ -333,7 +333,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   /* TODO Use sliding window for min rtt measurement */
   /* TODO Use sliding window */
   cc->max_delivery_rate =
-      ngtcp2_max(cc->max_delivery_rate, cstat->rs.delivery_rate);
+      ngtcp2_max(cc->max_delivery_rate, cstat->delivery_rate);
 
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate > 1e-9) {
     target_cwnd =

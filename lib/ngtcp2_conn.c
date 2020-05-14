@@ -528,8 +528,6 @@ static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
   cwnd = ngtcp2_max(min_cwnd, 14720);
   cstat->cwnd = ngtcp2_min(10 * cstat->max_packet_size, cwnd);
   cstat->ssthresh = UINT64_MAX;
-
-  ngtcp2_rs_init(&cstat->rs);
 }
 
 static void delete_scid(ngtcp2_ksl *scids, const ngtcp2_mem *mem) {

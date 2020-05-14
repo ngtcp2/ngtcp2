@@ -28,7 +28,6 @@
 #include "ngtcp2_macro.h"
 
 void ngtcp2_rs_init(ngtcp2_rs *rs) {
-  rs->delivery_rate = 0.;
   rs->interval = UINT64_MAX;
   rs->delivered = 0;
   rs->prior_delivered = 0;
@@ -39,6 +38,7 @@ void ngtcp2_rs_init(ngtcp2_rs *rs) {
 }
 
 void ngtcp2_rst_init(ngtcp2_rst *rst) {
+  ngtcp2_rs_init(&rst->rs);
   rst->delivered = 0;
   rst->delivered_ts = 0;
   rst->first_sent_ts = 0;
@@ -57,7 +57,7 @@ void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
 }
 
 int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
-  ngtcp2_rs *rs = &cstat->rs;
+  ngtcp2_rs *rs = &rst->rs;
 
   if (rst->app_limited && rst->delivered > rst->app_limited) {
     rst->app_limited = 0;
@@ -77,16 +77,15 @@ int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
   }
 
   if (rs->interval) {
-    rs->delivery_rate = (double)rs->delivered / (double)rs->interval;
+    cstat->delivery_rate = (double)rs->delivered / (double)rs->interval;
   }
 
   return 1;
 }
 
-void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat,
-                                   const ngtcp2_rtb_entry *ent,
+void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts) {
-  ngtcp2_rs *rs = &cstat->rs;
+  ngtcp2_rs *rs = &rst->rs;
 
   rst->delivered += ent->pktlen;
   rst->delivered_ts = ts;

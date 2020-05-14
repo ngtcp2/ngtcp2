@@ -34,6 +34,21 @@
 struct ngtcp2_rtb_entry;
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
+/**
+ * @struct
+ *
+ * ngtcp2_rs contains connection state for delivery rate estimation.
+ */
+typedef struct ngtcp2_rs {
+  ngtcp2_duration interval;
+  uint64_t delivered;
+  uint64_t prior_delivered;
+  ngtcp2_tstamp prior_ts;
+  ngtcp2_duration send_elapsed;
+  ngtcp2_duration ack_elapsed;
+  int is_app_limited;
+} ngtcp2_rs;
+
 void ngtcp2_rs_init(ngtcp2_rs *rs);
 
 /*
@@ -41,6 +56,7 @@ void ngtcp2_rs_init(ngtcp2_rs *rs);
  * https://tools.ietf.org/html/draft-cheng-iccrg-delivery-rate-estimation-00
  */
 typedef struct ngtcp2_rst {
+  ngtcp2_rs rs;
   uint64_t delivered;
   ngtcp2_tstamp delivered_ts;
   ngtcp2_tstamp first_sent_ts;
@@ -52,8 +68,7 @@ void ngtcp2_rst_init(ngtcp2_rst *rst);
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_conn_stat *cstat);
 int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
-void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat,
-                                   const ngtcp2_rtb_entry *ent,
+void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,
                                    ngtcp2_tstamp ts);
 void ngtcp2_rst_update_app_limited(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
 

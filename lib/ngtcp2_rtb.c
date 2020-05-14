@@ -376,7 +376,7 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   ngtcp2_cc *cc = rtb->cc;
   ngtcp2_cc_pkt pkt;
 
-  ngtcp2_rst_update_rate_sample(rtb->rst, cstat, ent, ts);
+  ngtcp2_rst_update_rate_sample(rtb->rst, ent, ts);
 
   cc->on_pkt_acked(
       cc, cstat,
