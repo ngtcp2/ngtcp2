@@ -241,7 +241,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   if (cc->epoch_start == 0) {
     cc->epoch_start = ts;
     if (cstat->cwnd < cc->w_last_max) {
-      cc->k = ngtcp2_cbrt((cc->w_last_max - cstat->cwnd) * 3 / 4 /
+      cc->k = ngtcp2_cbrt((cc->w_last_max - cstat->cwnd) * 10 / 4 /
                           cstat->max_packet_size);
       cc->origin_point = cc->w_last_max;
     } else {
@@ -261,7 +261,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                          : cstat->min_rtt;
 
   t = ts + min_rtt - cc->epoch_start;
-  d = (int64_t)((t << 4) / NGTCP2_SECONDS) - (int64_t)(cc->k << 4);
+  d = (int64_t)((t << 8) / NGTCP2_SECONDS) - (int64_t)(cc->k << 4);
   target = (uint64_t)((int64_t)cc->origin_point +
                       (int64_t)cstat->max_packet_size *
                           ((((d * d) >> 4) * d) >> 8) * 4 / 10);
@@ -275,7 +275,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cstat->cwnd += cstat->max_packet_size / (100 * cstat->cwnd);
   }
 
-  cc->w_tcp += cstat->max_packet_size * t / min_rtt * 9 / 17;
+  cc->w_tcp += cstat->max_packet_size * pkt->pktlen * 9 / 17 / cwnd;
 
   if (cc->w_tcp > cwnd && cc->w_tcp > target) {
     cstat->cwnd = cwnd + cstat->max_packet_size * (cc->w_tcp - cwnd) / cwnd;
