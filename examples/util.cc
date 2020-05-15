@@ -166,7 +166,9 @@ std::mt19937 make_mt19937() {
 }
 
 ngtcp2_tstamp timestamp(struct ev_loop *loop) {
-  return ev_now(loop) * NGTCP2_SECONDS;
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
 }
 
 bool numeric_host(const char *hostname) {
