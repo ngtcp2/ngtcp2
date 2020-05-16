@@ -216,7 +216,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   ngtcp2_duration t, min_rtt;
   uint64_t target, cwnd;
-  int64_t d;
+  uint64_t tx, kx, time_delta, delta;
   (void)ts;
 
   if (in_congestion_recovery(cstat, pkt->ts_sent)) {
@@ -261,10 +261,25 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                          : cstat->min_rtt;
 
   t = ts + min_rtt - cc->epoch_start;
-  d = (int64_t)((t << 8) / NGTCP2_SECONDS) - (int64_t)(cc->k << 4);
-  target = (uint64_t)((int64_t)cc->origin_point +
-                      (int64_t)cstat->max_packet_size *
-                          ((((d * d) >> 4) * d) >> 8) * 4 / 10);
+
+  tx = (t << 4) / NGTCP2_SECONDS;
+  kx = (cc->k << 4);
+
+  if (tx > kx) {
+    time_delta = tx - kx;
+  } else {
+    time_delta = kx - tx;
+  }
+
+  delta = cstat->max_packet_size *
+          ((((time_delta * time_delta) >> 4) * time_delta) >> 8) * 4 / 10;
+
+  if (tx > kx) {
+    target = cc->origin_point + delta;
+  } else {
+    target = cc->origin_point - delta;
+  }
+
   cwnd = cstat->cwnd;
 
   if (target > cstat->cwnd) {
@@ -275,16 +290,18 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cstat->cwnd += cstat->max_packet_size / (100 * cstat->cwnd);
   }
 
-  cc->w_tcp += cstat->max_packet_size * pkt->pktlen * 9 / 17 / cwnd;
+  cc->w_tcp += cstat->max_packet_size * pkt->pktlen / cc->w_tcp;
 
-  if (cc->w_tcp > cwnd && cc->w_tcp > target) {
-    cstat->cwnd = cwnd + cstat->max_packet_size * (cc->w_tcp - cwnd) / cwnd;
+  if (cc->w_tcp > cstat->cwnd) {
+    cstat->cwnd = cc->w_tcp;
   }
 
   ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                   "pkn=%" PRId64 " acked, cubic-ca cwnd=%" PRIu64 " t=%" PRIu64
-                  " d=%" PRId64 " target=%" PRIu64 " w_tcp=%" PRIu64,
-                  pkt->pkt_num, cstat->cwnd, t, d, target, cc->w_tcp);
+                  " k=%" PRIi64 " time_delta=%" PRIu64 " delta=%" PRIu64
+                  " target=%" PRIu64 " w_tcp=%" PRIu64,
+                  pkt->pkt_num, cstat->cwnd, t, cc->k, time_delta >> 4, delta,
+                  target, cc->w_tcp);
 }
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
