@@ -89,7 +89,7 @@
 
 /* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
    blocks which this library can create, or decode. */
-#define NGTCP2_MAX_ACK_BLKS 255
+#define NGTCP2_MAX_ACK_BLKS 32
 
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
 #define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
