@@ -22,7 +22,7 @@ LOG=/logs/log.txt
 if [ "$ROLE" == "client" ]; then
     # Wait for the simulator to start up.
     /wait-for-it.sh sim:57832 -s -t 30
-    CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --timeout=5s --qlog-dir $QLOGDIR"
+    CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
     fi
@@ -36,11 +36,11 @@ if [ "$ROLE" == "client" ]; then
 	fi
 	REQS=($REQUESTS)
 	REQUESTS=${REQS[0]}
-	/usr/local/bin/client $CLIENT_ARGS --exit-on-first-stream-close $REQUESTS $CLIENT_PARAMS &> $LOG
+	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
 	REQUESTS=${REQS[@]:1}
 	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &>> $LOG
     elif [ "$TESTCASE" == "multiconnect" ]; then
-	CLIENT_ARGS="$CLIENT_ARGS --exit-on-first-stream-close --timeout=180s"
+	CLIENT_ARGS="$CLIENT_ARGS --timeout=180s"
 	for REQ in $REQUESTS; do
 	    echo "multiconnect REQ: $REQ" >> $LOG
 	    /usr/local/bin/client $CLIENT_ARGS $REQ $CLIENT_PARAMS &>> $LOG
