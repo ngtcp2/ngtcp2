@@ -9265,6 +9265,7 @@ ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
      completion. */
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
+      conn->remote.transport_params.max_idle_timeout == 0 ||
       (conn->local.settings.transport_params.max_idle_timeout &&
        conn->local.settings.transport_params.max_idle_timeout <
            conn->remote.transport_params.max_idle_timeout)) {
