@@ -437,7 +437,7 @@ std::pair<uint64_t, int> parse_duration(const std::string_view &s) {
     return {0, rv};
   }
   if (idx == s.size()) {
-    return {res, 0};
+    return {res * NGTCP2_SECONDS, 0};
   }
 
   uint64_t m;

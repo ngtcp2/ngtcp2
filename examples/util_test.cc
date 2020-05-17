@@ -157,6 +157,11 @@ void test_util_parse_duration() {
     CU_ASSERT(0 == res);
   }
   {
+    auto [res, rv] = util::parse_duration("1");
+    CU_ASSERT(0 == rv);
+    CU_ASSERT(NGTCP2_SECONDS == res);
+  }
+  {
     auto [res, rv] = util::parse_duration("0ns");
     CU_ASSERT(0 == rv);
     CU_ASSERT(0 == res);

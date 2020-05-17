@@ -266,8 +266,9 @@ std::pair<uint64_t, int> parse_uint(const std::string_view &s);
 std::pair<uint64_t, int> parse_uint_iec(const std::string_view &s);
 
 // parse_duration parses |s| as 64-bit unsigned integer.  It accepts a
-// unit (either "h", "m", "s", "ms", "us", or "ns") in |s|.  If it
-// cannot parse |s|, it returns -1 as the second return value.
+// unit (either "h", "m", "s", "ms", "us", or "ns") in |s|.  If no
+// unit is present, the unit "s" is assumed.  If it cannot parse |s|,
+// it returns -1 as the second return value.
 std::pair<uint64_t, int> parse_duration(const std::string_view &s);
 
 // generate_secret generates secret and writes it to the buffer
