@@ -292,9 +292,9 @@ private:
   // common buffer used to store packet data before sending
   Buffer sendbuf_;
   // nstreams_done_ is the number of streams opened.
-  uint64_t nstreams_done_;
+  size_t nstreams_done_;
   // nstreams_closed_ is the number of streams get closed.
-  uint64_t nstreams_closed_;
+  size_t nstreams_closed_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
   uint32_t version_;
