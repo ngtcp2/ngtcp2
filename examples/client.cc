@@ -381,6 +381,7 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       last_error_{QUICErrorType::Transport, 0},
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       nstreams_done_(0),
+      nstreams_closed_(0),
       nkey_update_(0),
       version_(0),
       early_data_(false),
@@ -2016,6 +2017,13 @@ int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
     should_exit_ = true;
   }
 
+  ++nstreams_closed_;
+
+  if (config.exit_on_all_streams_close && config.nstreams == nstreams_done_ &&
+      nstreams_closed_ == nstreams_done_) {
+    should_exit_ = true;
+  }
+
   if (!ngtcp2_is_bidi_stream(stream_id)) {
     assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
     ngtcp2_conn_extend_max_streams_uni(conn_, 1);
@@ -2490,6 +2498,8 @@ Options:
             << config.max_streams_uni << R"(
   --exit-on-first-stream-close
               Exit when a first HTTP stream is closed.
+  --exit-on-all-streams-close
+              Exit when all HTTP streams are closed.
   --disable-early-data
               Disable early data.
   --cc=(<cubic>|<reno>)
@@ -2554,6 +2564,7 @@ int main(int argc, char **argv) {
         {"disable-early-data", no_argument, &flag, 25},
         {"qlog-dir", required_argument, &flag, 26},
         {"cc", required_argument, &flag, 27},
+        {"exit-on-all-streams-close", no_argument, &flag, 28},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2767,6 +2778,10 @@ int main(int argc, char **argv) {
         }
         std::cerr << "cc: specify cubic or reno" << std::endl;
         exit(EXIT_FAILURE);
+      case 28:
+        // --exit-on-all-streams-close
+        config.exit_on_all_streams_close = true;
+        break;
       }
       break;
     default:
@@ -2782,6 +2797,13 @@ int main(int argc, char **argv) {
 
   if (!config.qlog_file.empty() && !config.qlog_dir.empty()) {
     std::cerr << "qlog-file and qlog-dir are mutually exclusive" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (config.exit_on_first_stream_close && config.exit_on_all_streams_close) {
+    std::cerr << "exit-on-first-stream-close and exit-on-all-streams-close are "
+                 "mutually exclusive"
+              << std::endl;
     exit(EXIT_FAILURE);
   }
 

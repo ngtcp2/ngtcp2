@@ -141,6 +141,9 @@ struct Config {
   // necessarily the same time when the underlying QUIC stream closes
   // due to the QPACK synchronization.
   bool exit_on_first_stream_close;
+  // exit_on_all_streams_close is the flag that if it is true, client
+  // exits when all HTTP streams get closed.
+  bool exit_on_all_streams_close;
   // disable_early_data disables early data.
   bool disable_early_data;
   // static_secret is used to derive keying materials for Stateless
@@ -290,6 +293,8 @@ private:
   Buffer sendbuf_;
   // nstreams_done_ is the number of streams opened.
   uint64_t nstreams_done_;
+  // nstreams_closed_ is the number of streams get closed.
+  uint64_t nstreams_closed_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
   uint32_t version_;
