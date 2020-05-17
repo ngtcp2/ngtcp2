@@ -738,7 +738,6 @@ Handler::Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
       pscid_{},
       rcid_(*rcid),
       httpconn_{nullptr},
-      sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
       last_error_{QUICErrorType::Transport, 0},
       nkey_update_(0),
       draining_(false) {
@@ -1924,9 +1923,6 @@ int Handler::start_closing_period() {
               << std::endl;
   }
 
-  sendbuf_.reset();
-  assert(sendbuf_.left() >= max_pktlen_);
-
   conn_closebuf_ = std::make_unique<Buffer>(NGTCP2_MAX_PKTLEN_IPV4);
 
   PathStorage path;
@@ -1977,14 +1973,8 @@ int Handler::send_conn_close() {
 
   assert(conn_closebuf_ && conn_closebuf_->size());
 
-  if (sendbuf_.size() == 0) {
-    std::copy_n(conn_closebuf_->rpos(), conn_closebuf_->size(),
-                sendbuf_.wpos());
-    sendbuf_.push(conn_closebuf_->size());
-  }
-
-  return server_->send_packet(*endpoint_, remote_addr_, sendbuf_.rpos(),
-                              sendbuf_.size(), 0, &wev_);
+  return server_->send_packet(*endpoint_, remote_addr_, conn_closebuf_->rpos(),
+                              conn_closebuf_->size(), 0, &wev_);
 }
 
 void Handler::schedule_retransmit() {

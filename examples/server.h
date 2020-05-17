@@ -314,8 +314,6 @@ private:
   ngtcp2_cid rcid_;
   nghttp3_conn *httpconn_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
-  // common buffer used to store packet data before sending
-  Buffer sendbuf_;
   // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.
   // This packet is repeatedly sent as a response to the incoming
   // packet in draining period.
