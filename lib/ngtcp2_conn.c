@@ -1964,7 +1964,7 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
 static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   uint64_t bytes_in_flight;
 
-  bytes_in_flight = ngtcp2_rtb_get_bytes_in_flight(&pktns->rtb);
+  bytes_in_flight = ngtcp2_rtb_get_cc_bytes_in_flight(&pktns->rtb);
 
   assert(conn->cstat.bytes_in_flight >= bytes_in_flight);
 
@@ -4099,9 +4099,10 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   conn->cc.reset(&conn->cc);
 
   if (conn->hs_pktns) {
-    conn->hs_pktns->rtb.cc_pkt_num = conn->hs_pktns->tx.last_pkt_num + 1;
+    ngtcp2_rtb_reset_cc_state(&conn->hs_pktns->rtb,
+                              conn->hs_pktns->tx.last_pkt_num + 1);
   }
-  conn->pktns.rtb.cc_pkt_num = conn->pktns.tx.last_pkt_num + 1;
+  ngtcp2_rtb_reset_cc_state(&conn->pktns.rtb, conn->pktns.tx.last_pkt_num + 1);
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,

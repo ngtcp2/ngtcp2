@@ -163,6 +163,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
   rtb->probe_pkt_left = 0;
   rtb->pktns_id = pktns_id;
   rtb->cc_pkt_num = 0;
+  rtb->cc_bytes_in_flight = 0;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
@@ -188,6 +189,7 @@ static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   assert(rtb->cc_pkt_num <= ent->hd.pkt_num);
 
   cstat->bytes_in_flight += ent->pktlen;
+  rtb->cc_bytes_in_flight += ent->pktlen;
 
   ngtcp2_rst_update_app_limited(rtb->rst, cstat);
 
@@ -206,6 +208,9 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
     assert(cstat->bytes_in_flight >= ent->pktlen);
     cstat->bytes_in_flight -= ent->pktlen;
+
+    assert(rtb->cc_bytes_in_flight >= ent->pktlen);
+    rtb->cc_bytes_in_flight -= ent->pktlen;
   }
 }
 
@@ -499,9 +504,12 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
                         const ngtcp2_rtb_entry *ent, uint64_t loss_delay,
                         ngtcp2_tstamp lost_send_time) {
   ngtcp2_tstamp loss_time;
+  uint64_t pkt_thres = rtb->cc_bytes_in_flight / cstat->max_packet_size / 2;
+
+  pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
 
   if (ent->ts <= lost_send_time ||
-      rtb->largest_acked_tx_pkt_num >= ent->hd.pkt_num + NGTCP2_PKT_THRESHOLD) {
+      rtb->largest_acked_tx_pkt_num >= ent->hd.pkt_num + (int64_t)pkt_thres) {
     return 1;
   }
 
@@ -687,22 +695,15 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }
 
-uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb) {
-  uint64_t bytes_in_flight = 0;
-  ngtcp2_ksl_it it;
-  ngtcp2_rtb_entry *ent;
-
-  for (it = ngtcp2_ksl_begin(&rtb->ents); !ngtcp2_ksl_it_end(&it);
-       ngtcp2_ksl_it_next(&it)) {
-    ent = ngtcp2_ksl_it_get(&it);
-    if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
-      bytes_in_flight += ent->pktlen;
-    }
-  }
-
-  return bytes_in_flight;
+uint64_t ngtcp2_rtb_get_cc_bytes_in_flight(ngtcp2_rtb *rtb) {
+  return rtb->cc_bytes_in_flight;
 }
 
 size_t ngtcp2_rtb_num_ack_eliciting(ngtcp2_rtb *rtb) {
   return rtb->num_ack_eliciting;
+}
+
+void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num) {
+  rtb->cc_pkt_num = cc_pkt_num;
+  rtb->cc_bytes_in_flight = 0;
 }

@@ -221,8 +221,11 @@ typedef struct {
   /* pktns_id is the identifier of packet number space. */
   ngtcp2_pktns_id pktns_id;
   /* cc_pkt_num is the smallest packet number that is contributed to
-     bytes_in_flight. */
+     ngtcp2_conn_stat.bytes_in_flight. */
   int64_t cc_pkt_num;
+  /* cc_bytes_in_flight is the number of in-flight bytes that is
+     contributed to ngtcp2_conn_stat.bytes_in_flight. */
+  uint64_t cc_bytes_in_flight;
 } ngtcp2_rtb;
 
 /*
@@ -313,15 +316,23 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_get_bytes_in_flight returns the sum of bytes in flight
- * for the stored entries.
+ * ngtcp2_rtb_get_cc_bytes_in_flight returns the sum of bytes
+ * in-flight for the stored entries.  It only includes the bytes after
+ * congestion state is reset.
  */
-uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb);
+uint64_t ngtcp2_rtb_get_cc_bytes_in_flight(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_num_ack_eliciting returns the number of ACK eliciting
  * entries.
  */
 size_t ngtcp2_rtb_num_ack_eliciting(ngtcp2_rtb *rtb);
+
+/*
+ * ngtcp2_rtb_reset_cc_state resets congestion state in |rtb|.
+ * |cc_pkt_num| is the next outbound packet number which is sent under
+ * new congestion state.
+ */
+void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num);
 
 #endif /* NGTCP2_RTB_H */
