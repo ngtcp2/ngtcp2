@@ -338,6 +338,14 @@ struct ngtcp2_conn {
     ngtcp2_ringbuf path_challenge;
     /* ccec is the received connection close error code. */
     ngtcp2_connection_close_error_code ccec;
+    struct {
+      /* start_ts is the time instant when receiving rate measurement
+         is started. */
+      ngtcp2_tstamp start_ts;
+      /* received is the number of bytes received in the current
+         measurement period. */
+      uint64_t received;
+    } rate;
   } rx;
 
   struct {

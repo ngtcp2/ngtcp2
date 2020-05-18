@@ -585,6 +585,9 @@ typedef struct ngtcp2_conn_stat {
   uint64_t bytes_recv;
   /* delivery_rate is the current sending rate. */
   double delivery_rate;
+  /* recv_rate_sec is the current receiving rate of application data
+     measured in per second. */
+  uint64_t recv_rate_sec;
 } ngtcp2_conn_stat;
 
 typedef enum ngtcp2_cc_algo {
