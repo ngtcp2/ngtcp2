@@ -166,7 +166,7 @@ void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log) {
   cc->k = 0;
   cc->w_last_max = 0;
   cc->w_tcp = 0;
-  cc->epoch_start = 0;
+  cc->epoch_start = UINT64_MAX;
   cc->origin_point = 0;
 }
 
@@ -238,7 +238,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
   /* congestion avoidance */
 
-  if (cc->epoch_start == 0) {
+  if (cc->epoch_start == UINT64_MAX) {
     cc->epoch_start = ts;
     if (cstat->cwnd < cc->w_last_max) {
       cc->k = ngtcp2_cbrt((cc->w_last_max - cstat->cwnd) * 10 / 4 /
@@ -315,7 +315,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
 
   cstat->congestion_recovery_start_ts = ts;
 
-  cc->epoch_start = 0;
+  cc->epoch_start = UINT64_MAX;
   if (cstat->cwnd < cc->w_last_max) {
     cc->w_last_max = cstat->cwnd * 17 / 10 / 2;
   } else {
@@ -371,7 +371,7 @@ void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   ngtcp2_tstamp last_ts;
 
-  if (event != NGTCP2_CC_EVENT_TYPE_TX_START || cc->epoch_start == 0) {
+  if (event != NGTCP2_CC_EVENT_TYPE_TX_START || cc->epoch_start == UINT64_MAX) {
     return;
   }
 
