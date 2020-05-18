@@ -95,7 +95,8 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  if (cc->target_cwnd && cstat->cwnd >= cc->target_cwnd) {
+  /* If sending rate is too small, it interferes cwnd growth badly. */
+  if (cc->target_cwnd > 256 * 1024 && cstat->cwnd >= cc->target_cwnd) {
     return;
   }
 
@@ -232,13 +233,13 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   ngtcp2_duration t, min_rtt;
   uint64_t target;
   uint64_t tx, kx, time_delta, delta;
-  (void)ts;
 
   if (in_congestion_recovery(cstat, pkt->ts_sent)) {
     return;
   }
 
-  if (cc->target_cwnd && cstat->cwnd >= cc->target_cwnd) {
+  /* If sending rate is too small, it interferes cwnd growth badly. */
+  if (cc->target_cwnd > 256 * 1024 && cstat->cwnd >= cc->target_cwnd) {
     return;
   }
 
@@ -396,7 +397,7 @@ void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 
   last_ts = cstat->last_tx_pkt_ts[NGTCP2_PKTNS_ID_APP];
-  if (last_ts == UINT64_MAX) {
+  if (last_ts == UINT64_MAX || last_ts <= cc->epoch_start) {
     return;
   }
 
