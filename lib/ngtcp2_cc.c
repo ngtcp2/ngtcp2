@@ -215,7 +215,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                      ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   ngtcp2_duration t, min_rtt;
-  uint64_t target, cwnd;
+  uint64_t target;
   uint64_t tx, kx, time_delta, delta;
   (void)ts;
 
@@ -279,8 +279,6 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   } else {
     target = cc->origin_point - delta;
   }
-
-  cwnd = cstat->cwnd;
 
   if (target > cstat->cwnd) {
     cstat->cwnd +=
