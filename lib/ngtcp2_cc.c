@@ -40,10 +40,14 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
   return pkt;
 }
 
-void ngtcp2_reno_cc_init(ngtcp2_reno_cc *cc, ngtcp2_log *log) {
-  cc->ccb.log = log;
+static void reno_cc_reset(ngtcp2_reno_cc *cc) {
   cc->max_delivery_rate = 0.;
   cc->target_cwnd = 0;
+}
+
+void ngtcp2_reno_cc_init(ngtcp2_reno_cc *cc, ngtcp2_log *log) {
+  cc->ccb.log = log;
+  reno_cc_reset(cc);
 }
 
 void ngtcp2_reno_cc_free(ngtcp2_reno_cc *cc) { (void)cc; }
@@ -64,6 +68,7 @@ int ngtcp2_cc_reno_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
   cc->congestion_event = ngtcp2_cc_reno_cc_congestion_event;
   cc->on_persistent_congestion = ngtcp2_cc_reno_cc_on_persistent_congestion;
   cc->on_ack_recv = ngtcp2_cc_reno_cc_on_ack_recv;
+  cc->reset = ngtcp2_cc_reno_cc_reset;
 
   return 0;
 }
@@ -159,15 +164,24 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 }
 
-void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log) {
-  cc->ccb.log = log;
+void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *ccx) {
+  ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
+  reno_cc_reset(cc);
+}
+
+static void cubic_cc_reset(ngtcp2_cubic_cc *cc) {
   cc->max_delivery_rate = 0.;
   cc->target_cwnd = 0;
-  cc->k = 0;
   cc->w_last_max = 0;
   cc->w_tcp = 0;
-  cc->epoch_start = UINT64_MAX;
   cc->origin_point = 0;
+  cc->epoch_start = UINT64_MAX;
+  cc->k = 0;
+}
+
+void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log) {
+  cc->ccb.log = log;
+  cubic_cc_reset(cc);
 }
 
 void ngtcp2_cubic_cc_free(ngtcp2_cubic_cc *cc) { (void)cc; }
@@ -188,6 +202,7 @@ int ngtcp2_cc_cubic_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
   cc->congestion_event = ngtcp2_cc_cubic_cc_congestion_event;
   cc->on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion;
   cc->on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
+  cc->reset = ngtcp2_cc_cubic_cc_reset;
   cc->event = ngtcp2_cc_cubic_cc_event;
 
   return 0;
@@ -364,6 +379,11 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
         "target_cwnd=%" PRIu64 " max_delivery_rate=%.02f min_rtt=%" PRIu64,
         cc->target_cwnd, cc->max_delivery_rate * 1000000000, cstat->min_rtt);
   }
+}
+
+void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx) {
+  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
+  cubic_cc_reset(cc);
 }
 
 void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,

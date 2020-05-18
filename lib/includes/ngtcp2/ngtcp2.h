@@ -629,6 +629,8 @@ typedef void (*ngtcp2_cc_on_persistent_congestion)(ngtcp2_cc *cc,
 typedef void (*ngtcp2_cc_on_ack_recv)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                       ngtcp2_tstamp ts);
 
+typedef void (*ngtcp2_cc_reset)(ngtcp2_cc *cc);
+
 typedef enum ngtcp2_cc_event_type {
   /* NGTCP2_CC_EVENT_TX_START occurs when ack-eliciting packet is sent
      and no other ack-eliciting packet is present. */
@@ -644,6 +646,7 @@ typedef struct ngtcp2_cc {
   ngtcp2_cc_congestion_event congestion_event;
   ngtcp2_cc_on_persistent_congestion on_persistent_congestion;
   ngtcp2_cc_on_ack_recv on_ack_recv;
+  ngtcp2_cc_reset reset;
   ngtcp2_cc_event event;
 } ngtcp2_cc;
 

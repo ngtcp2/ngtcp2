@@ -4096,6 +4096,8 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
 
   conn_reset_rx_rate(conn);
 
+  conn->cc.reset(&conn->cc);
+
   if (conn->hs_pktns) {
     conn->hs_pktns->rtb.cc_pkt_num = conn->hs_pktns->tx.last_pkt_num + 1;
   }

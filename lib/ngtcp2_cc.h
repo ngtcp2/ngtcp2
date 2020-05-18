@@ -72,6 +72,8 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
 void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                    ngtcp2_tstamp ts);
 
+void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc);
+
 /* ngtcp2_cubic_cc is CUBIC congestion controller. */
 typedef struct ngtcp2_cubic_cc {
   ngtcp2_cc_base ccb;
@@ -107,6 +109,8 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     ngtcp2_tstamp ts);
+
+void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *cc);
 
 void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
