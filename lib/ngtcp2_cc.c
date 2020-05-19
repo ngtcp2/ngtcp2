@@ -96,10 +96,6 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 
   if (cstat->cwnd < cstat->ssthresh) {
-    if (cc->target_cwnd && cstat->cwnd >= cc->target_cwnd) {
-      return;
-    }
-
     cstat->cwnd += pkt->pktlen;
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                     "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
@@ -238,10 +234,6 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 
   if (cstat->cwnd < cstat->ssthresh) {
-    if (cc->target_cwnd && cstat->cwnd >= cc->target_cwnd) {
-      return;
-    }
-
     /* slow-start */
     cstat->cwnd += pkt->pktlen;
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
