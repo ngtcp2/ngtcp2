@@ -583,8 +583,9 @@ typedef struct ngtcp2_conn_stat {
   /* bytes_recv is the number of bytes received in this particular
      connection, including discarded packets. */
   uint64_t bytes_recv;
-  /* delivery_rate is the current sending rate. */
-  double delivery_rate;
+  /* delivery_rate_sec is the current sending rate measured per
+     second. */
+  uint64_t delivery_rate_sec;
   /* recv_rate_sec is the current receiving rate of application data
      measured in per second. */
   uint64_t recv_rate_sec;

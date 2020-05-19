@@ -41,7 +41,7 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 }
 
 static void reno_cc_reset(ngtcp2_reno_cc *cc) {
-  cc->max_delivery_rate = 0.;
+  cc->max_delivery_rate_sec = 0;
   cc->target_cwnd = 0;
 }
 
@@ -148,19 +148,19 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
   /* TODO Use sliding window for min rtt measurement */
   /* TODO Use sliding window */
-  cc->max_delivery_rate =
-      ngtcp2_max(cc->max_delivery_rate, cstat->delivery_rate);
+  cc->max_delivery_rate_sec =
+      ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
-  if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate > 1e-9) {
+  if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
     target_cwnd =
-        (uint64_t)(2.89 * cc->max_delivery_rate * (double)cstat->min_rtt);
+        cc->max_delivery_rate_sec * cstat->min_rtt * 289 / NGTCP2_SECONDS / 100;
     min_cwnd = 2 * cstat->max_packet_size;
     cc->target_cwnd = ngtcp2_max(min_cwnd, target_cwnd);
 
-    ngtcp2_log_info(
-        cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
-        "target_cwnd=%" PRIu64 " max_delivery_rate=%.02f min_rtt=%" PRIu64,
-        cc->target_cwnd, cc->max_delivery_rate * 1000000000, cstat->min_rtt);
+    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+                    "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
+                    " min_rtt=%" PRIu64,
+                    cc->target_cwnd, cc->max_delivery_rate_sec, cstat->min_rtt);
   }
 }
 
@@ -170,7 +170,7 @@ void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *ccx) {
 }
 
 static void cubic_cc_reset(ngtcp2_cubic_cc *cc) {
-  cc->max_delivery_rate = 0.;
+  cc->max_delivery_rate_sec = 0;
   cc->target_cwnd = 0;
   cc->w_last_max = 0;
   cc->w_tcp = 0;
@@ -363,20 +363,20 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
   /* TODO Use sliding window for min rtt measurement */
   /* TODO Use sliding window */
-  cc->max_delivery_rate =
-      ngtcp2_max(cc->max_delivery_rate, cstat->delivery_rate);
+  cc->max_delivery_rate_sec =
+      ngtcp2_max(cc->max_delivery_rate_sec, cstat->delivery_rate_sec);
 
-  if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate > 1e-9) {
+  if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
     target_cwnd =
-        (uint64_t)(2.89 * cc->max_delivery_rate * (double)cstat->min_rtt);
+        cc->max_delivery_rate_sec * cstat->min_rtt * 289 / NGTCP2_SECONDS / 100;
 
     min_cwnd = 2 * cstat->max_packet_size;
     cc->target_cwnd = ngtcp2_max(min_cwnd, target_cwnd);
 
-    ngtcp2_log_info(
-        cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
-        "target_cwnd=%" PRIu64 " max_delivery_rate=%.02f min_rtt=%" PRIu64,
-        cc->target_cwnd, cc->max_delivery_rate * 1000000000, cstat->min_rtt);
+    ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+                    "target_cwnd=%" PRIu64 " max_delivery_rate_sec=%" PRIu64
+                    " min_rtt=%" PRIu64,
+                    cc->target_cwnd, cc->max_delivery_rate_sec, cstat->min_rtt);
   }
 }
 

@@ -43,7 +43,7 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 /* ngtcp2_reno_cc is the RENO congestion controller. */
 struct ngtcp2_reno_cc {
   ngtcp2_cc_base ccb;
-  double max_delivery_rate;
+  uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
 };
 
@@ -77,7 +77,7 @@ void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc);
 /* ngtcp2_cubic_cc is CUBIC congestion controller. */
 typedef struct ngtcp2_cubic_cc {
   ngtcp2_cc_base ccb;
-  double max_delivery_rate;
+  uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
   uint64_t w_last_max;
   uint64_t w_tcp;
