@@ -682,6 +682,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   (*pconn)->local.settings.transport_params.initial_scid = *scid;
 
+  if (scid->datalen == 0) {
+    (*pconn)->local.settings.transport_params.preferred_address_present = 0;
+  }
+
   if (settings->max_packet_size == 0) {
     (*pconn)->local.settings.max_packet_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
   }
@@ -8077,7 +8081,11 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
  * negative error codes:
  *
  * NGTCP2_ERR_PROTO
- *     Transport parameters are invalid.
+ *     Validation against either of original_dcid and retry_scid is
+ *     failed.
+ * NGTCP2_ERR_TRANSPORT_PARAM
+ *     params contains preferred address but server chose zero-length
+ *     connection ID.
  */
 static int
 conn_client_validate_transport_params(ngtcp2_conn *conn,
@@ -8101,6 +8109,11 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     /* draft explicitly specifies that this is
        PROTOCOL_VIOLATION. */
     return NGTCP2_ERR_PROTO;
+  }
+
+  if (params->preferred_address_present &&
+      conn->dcid.current.cid.datalen == 0) {
+    return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
   return 0;

@@ -169,8 +169,7 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
           NGTCP2_STATELESS_RESET_TOKENLEN;
     }
     if (params->preferred_address_present) {
-      assert(params->preferred_address.cid.datalen == 0 ||
-             params->preferred_address.cid.datalen >= NGTCP2_MIN_CIDLEN);
+      assert(params->preferred_address.cid.datalen >= NGTCP2_MIN_CIDLEN);
       assert(params->preferred_address.cid.datalen <= NGTCP2_MAX_CIDLEN);
       preferred_addrlen = 4 /* ipv4Address */ + 2 /* ipv4Port */ +
                           16 /* ipv6Address */ + 2 /* ipv6Port */
@@ -635,8 +634,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       len += params->preferred_address.cid.datalen;
       if (valuelen != len ||
           params->preferred_address.cid.datalen > NGTCP2_MAX_CIDLEN ||
-          (params->preferred_address.cid.datalen != 0 &&
-           params->preferred_address.cid.datalen < NGTCP2_MIN_CIDLEN)) {
+          params->preferred_address.cid.datalen < NGTCP2_MIN_CIDLEN) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       if (params->preferred_address.cid.datalen) {
