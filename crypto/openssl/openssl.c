@@ -35,6 +35,8 @@
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
 
+#include "shared.h"
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ctx->aead.native_handle = (void *)EVP_aes_128_gcm();
   ctx->md.native_handle = (void *)EVP_sha256();
@@ -387,6 +389,15 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
   if (rv != 0) {
     ngtcp2_conn_set_tls_error(conn, rv);
+    return -1;
+  }
+
+  return 0;
+}
+
+int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
+                                             size_t len) {
+  if (SSL_set_quic_transport_params(tls, buf, len) != 1) {
     return -1;
   }
 

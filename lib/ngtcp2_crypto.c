@@ -118,6 +118,33 @@ static uint8_t *write_varint_param(uint8_t *p, ngtcp2_transport_param_id id,
   return ngtcp2_put_varint(p, value);
 }
 
+/*
+ * cid_paramlen returns the length of a single transport parameter
+ * which has |cid| as value.
+ */
+static size_t cid_paramlen(ngtcp2_transport_param_id id,
+                           const ngtcp2_cid *cid) {
+  return ngtcp2_put_varint_len(id) + ngtcp2_put_varint_len(cid->datalen) +
+         cid->datalen;
+}
+
+/*
+ * write_cid_param writes parameter |id| of the given |cid|.  It
+ * returns p + the number of bytes written.
+ */
+static uint8_t *write_cid_param(uint8_t *p, ngtcp2_transport_param_id id,
+                                const ngtcp2_cid *cid) {
+  assert(cid->datalen == 0 || cid->datalen >= NGTCP2_MIN_CIDLEN);
+  assert(cid->datalen <= NGTCP2_MAX_CIDLEN);
+
+  p = ngtcp2_put_varint(p, id);
+  p = ngtcp2_put_varint(p, cid->datalen);
+  if (cid->datalen) {
+    p = ngtcp2_cpymem(p, cid->data, cid->datalen);
+  }
+  return p;
+}
+
 ngtcp2_ssize
 ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                ngtcp2_transport_params_type exttype,
@@ -131,6 +158,10 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
     break;
   case NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS:
+    len +=
+        cid_paramlen(NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID,
+                     &params->original_dcid);
+
     if (params->stateless_reset_token_present) {
       len +=
           ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
@@ -149,16 +180,17 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
       len += ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
              ngtcp2_put_varint_len(preferred_addrlen) + preferred_addrlen;
     }
-    if (params->original_connection_id_present) {
-      len +=
-          ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID) +
-          ngtcp2_put_varint_len(params->original_connection_id.datalen) +
-          params->original_connection_id.datalen;
+    if (params->retry_scid_present) {
+      len += cid_paramlen(NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID,
+                          &params->retry_scid);
     }
     break;
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
+
+  len += cid_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID,
+                      &params->initial_scid);
 
   if (params->initial_max_stream_data_bidi_local) {
     len += varint_paramlen(
@@ -221,6 +253,10 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
   p = dest;
 
   if (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
+    p = write_cid_param(
+        p, NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID,
+        &params->original_dcid);
+
     if (params->stateless_reset_token_present) {
       p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN);
       p = ngtcp2_put_varint(p, sizeof(params->stateless_reset_token));
@@ -248,13 +284,14 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
           p, params->preferred_address.stateless_reset_token,
           sizeof(params->preferred_address.stateless_reset_token));
     }
-    if (params->original_connection_id_present) {
-      p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID);
-      p = ngtcp2_put_varint(p, params->original_connection_id.datalen);
-      p = ngtcp2_cpymem(p, params->original_connection_id.data,
-                        params->original_connection_id.datalen);
+    if (params->retry_scid_present) {
+      p = write_cid_param(p, NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID,
+                          &params->retry_scid);
     }
   }
+
+  p = write_cid_param(p, NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID,
+                      &params->initial_scid);
 
   if (params->initial_max_stream_data_bidi_local) {
     p = write_varint_param(
@@ -390,6 +427,37 @@ static ngtcp2_ssize decode_varint_param(uint64_t *pdest, const uint8_t *p,
   return (ngtcp2_ssize)(p - begin);
 }
 
+/*
+ * decode_cid_param decodes length prefixed ngtcp2_cid from the buffer
+ * pointed by |p| of length |end - p|.  The length is encoded in
+ * varint form.  If it decodes a value successfully, it stores the
+ * value in |*pdest| and returns the number of bytes read.  Otherwise
+ * it returns -1.
+ */
+static ngtcp2_ssize decode_cid_param(ngtcp2_cid *pdest, const uint8_t *p,
+                                     const uint8_t *end) {
+  const uint8_t *begin = p;
+  uint64_t valuelen;
+  ngtcp2_ssize nread = decode_varint(&valuelen, p, end);
+
+  if (nread < 0) {
+    return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+  }
+
+  p += nread;
+
+  if ((valuelen != 0 && valuelen < NGTCP2_MIN_CIDLEN) ||
+      valuelen > NGTCP2_MAX_CIDLEN || (size_t)(end - p) < valuelen) {
+    return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+  }
+
+  ngtcp2_cid_init(pdest, p, (size_t)valuelen);
+
+  p += valuelen;
+
+  return (ngtcp2_ssize)(p - begin);
+}
+
 int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
                                    ngtcp2_transport_params_type exttype,
                                    const uint8_t *data, size_t datalen) {
@@ -398,6 +466,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   uint64_t param_type;
   uint64_t valuelen;
   ngtcp2_ssize nread;
+  int initial_scid_present = 0;
+  int original_dcid_present = 0;
 
   p = data;
   end = data + datalen;
@@ -418,7 +488,10 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->max_idle_timeout = 0;
   params->active_connection_id_limit =
       NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
-  params->original_connection_id_present = 0;
+  params->retry_scid_present = 0;
+  memset(&params->retry_scid, 0, sizeof(params->retry_scid));
+  memset(&params->initial_scid, 0, sizeof(params->initial_scid));
+  memset(&params->original_dcid, 0, sizeof(params->original_dcid));
 
   if (datalen == 0) {
     return 0;
@@ -586,22 +659,35 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       p += nread;
       params->disable_active_migration = 1;
       break;
-    case NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID:
+    case NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID:
       if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      nread = decode_varint(&valuelen, p, end);
+      nread = decode_cid_param(&params->original_dcid, p, end);
       if (nread < 0) {
-        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+        return (int)nread;
       }
+      original_dcid_present = 1;
       p += nread;
-      if (valuelen < NGTCP2_MIN_CIDLEN || valuelen > NGTCP2_MAX_CIDLEN ||
-          (size_t)(end - p) < valuelen) {
+      break;
+    case NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID:
+      if (exttype != NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
-      ngtcp2_cid_init(&params->original_connection_id, p, (size_t)valuelen);
-      params->original_connection_id_present = 1;
-      p += valuelen;
+      nread = decode_cid_param(&params->retry_scid, p, end);
+      if (nread < 0) {
+        return (int)nread;
+      }
+      params->retry_scid_present = 1;
+      p += nread;
+      break;
+    case NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID:
+      nread = decode_cid_param(&params->initial_scid, p, end);
+      if (nread < 0) {
+        return (int)nread;
+      }
+      initial_scid_present = 1;
+      p += nread;
       break;
     case NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY:
       nread = decode_varint_param(&params->max_ack_delay, p, end);
@@ -635,6 +721,12 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
 
   if (end - p != 0) {
     return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+  }
+
+  if (!initial_scid_present ||
+      (exttype == NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS &&
+       !original_dcid_present)) {
+    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
   }
 
   return 0;

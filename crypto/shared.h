@@ -69,4 +69,35 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
                                         const uint8_t *secret,
                                         size_t secretlen);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_set_local_transport_params` sets QUIC transport
+ * parameter, which is encoded in wire format and stored in the buffer
+ * pointed by |buf| of length |len|, to the native handle |tls|.
+ *
+ * |tls| points to a implementation dependent TLS session object.  If
+ * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
+ * object.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
+                                             size_t len);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_set_remote_transport_params` retrieves a remote QUIC
+ * transport parameters from |tls| and sets it to |conn| using
+ * `ngtcp2_conn_set_remote_transport_params`.
+ *
+ * |tls| points to a implementation dependent TLS session object.  If
+ * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
+ * object.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls);
+
 #endif /* NGTCP2_SHARED_H */

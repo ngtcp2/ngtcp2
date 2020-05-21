@@ -173,8 +173,7 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
                    const uint8_t *tx_secret, size_t secretlen) {
   std::array<uint8_t, 64> rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key;
 
-  if (level != NGTCP2_CRYPTO_LEVEL_EARLY &&
-      ngtcp2_crypto_derive_and_install_rx_key(
+  if (ngtcp2_crypto_derive_and_install_rx_key(
           conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp_key.data(), level,
           rx_secret, secretlen) != 0) {
     return -1;
@@ -459,18 +458,6 @@ void Client::close() {
 }
 
 namespace {
-int client_initial(ngtcp2_conn *conn, void *user_data) {
-  auto c = static_cast<Client *>(user_data);
-
-  if (c->recv_crypto_data(NGTCP2_CRYPTO_LEVEL_INITIAL, nullptr, 0) != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
 int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data) {
@@ -587,19 +574,6 @@ int Client::handshake_completed() {
 
   return 0;
 }
-
-namespace {
-int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-               const ngtcp2_pkt_retry *retry, void *user_data) {
-  // Re-generate handshake secrets here because connection ID might
-  // change.
-  auto c = static_cast<Client *>(user_data);
-
-  c->on_recv_retry();
-
-  return 0;
-}
-} // namespace
 
 namespace {
 int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint64_t app_error_code,
@@ -792,25 +766,6 @@ int Client::init_ssl() {
     SSL_set_tlsext_host_name(ssl_, addr_);
   }
 
-  ngtcp2_transport_params params;
-  ngtcp2_conn_get_local_transport_params(conn_, &params);
-
-  std::array<uint8_t, 64> buf;
-
-  auto nwrite = ngtcp2_encode_transport_params(
-      buf.data(), buf.size(), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
-      &params);
-  if (nwrite < 0) {
-    std::cerr << "ngtcp2_encode_transport_params: " << ngtcp2_strerror(nwrite)
-              << std::endl;
-    return -1;
-  }
-
-  if (SSL_set_quic_transport_params(ssl_, buf.data(), nwrite) != 1) {
-    std::cerr << "SSL_set_quic_transport_params failed" << std::endl;
-    return -1;
-  }
-
   if (config.session_file) {
     auto f = BIO_new_file(config.session_file, "r");
     if (f == nullptr) {
@@ -871,7 +826,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   }
 
   auto callbacks = ngtcp2_conn_callbacks{
-      client_initial,
+      ngtcp2_crypto_client_initial_cb,
       nullptr, // recv_client_initial
       ::recv_crypto_data,
       ::handshake_completed,
@@ -885,7 +840,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // stream_open
       stream_close,
       nullptr, // recv_stateless_reset
-      recv_retry,
+      ngtcp2_crypto_recv_retry_cb,
       extend_max_streams_bidi,
       nullptr, // extend_max_streams_uni
       rand,
@@ -968,9 +923,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     return -1;
   }
 
-  if (setup_initial_crypto_context() != 0) {
-    return -1;
-  }
+  ngtcp2_conn_set_tls(conn_, ssl_);
 
   if (early_data_ && config.tp_file) {
     ngtcp2_transport_params params;
@@ -997,40 +950,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   return 0;
 }
 
-int Client::setup_initial_crypto_context() {
-  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_SECRETLEN> initial_secret,
-      rx_secret, tx_secret;
-  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN> rx_key, rx_hp_key, tx_key,
-      tx_hp_key;
-  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_IVLEN> rx_iv, tx_iv;
-
-  auto dcid = ngtcp2_conn_get_dcid(conn_);
-
-  if (ngtcp2_crypto_derive_and_install_initial_key(
-          conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
-          rx_key.data(), rx_iv.data(), rx_hp_key.data(), tx_key.data(),
-          tx_iv.data(), tx_hp_key.data(), dcid) != 0) {
-    std::cerr << "ngtcp2_crypto_derive_and_install_initial_key() failed"
-              << std::endl;
-    return -1;
-  }
-
-  if (!config.quiet && config.show_secret) {
-    debug::print_initial_secret(initial_secret.data(), initial_secret.size());
-
-    std::cerr << "initial rx secret" << std::endl;
-    debug::print_secrets(rx_secret.data(), rx_secret.size(), rx_key.data(),
-                         rx_key.size(), rx_iv.data(), rx_iv.size(),
-                         rx_hp_key.data(), rx_hp_key.size());
-    std::cerr << "initial tx secret" << std::endl;
-    debug::print_secrets(tx_secret.data(), tx_secret.size(), tx_key.data(),
-                         tx_key.size(), tx_iv.data(), tx_iv.size(),
-                         tx_hp_key.data(), tx_hp_key.size());
-  }
-
-  return 0;
-}
-
 int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                       size_t datalen) {
   auto path = ngtcp2_path{
@@ -1044,6 +963,7 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
     case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
     case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
     case NGTCP2_ERR_TRANSPORT_PARAM:
+    case NGTCP2_ERR_PROTO: // with failed TP validation, we get this.
       // If rv indicates transport_parameters related error, we should
       // send TRANSPORT_PARAMETER_ERROR even if last_error_.code is
       // already set.  This is because OpenSSL might set Alert.
@@ -1289,8 +1209,6 @@ int Client::recv_crypto_data(ngtcp2_crypto_level crypto_level,
   return ngtcp2_crypto_read_write_crypto_data(conn_, ssl_, crypto_level, data,
                                               datalen);
 }
-
-void Client::on_recv_retry() { setup_initial_crypto_context(); }
 
 namespace {
 int bind_addr(Address &local_addr, int fd, int family) {

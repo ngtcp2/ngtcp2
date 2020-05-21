@@ -239,7 +239,6 @@ public:
   int recv_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
                        size_t datalen);
 
-  int recv_client_initial(const ngtcp2_cid *dcid);
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;

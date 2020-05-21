@@ -477,6 +477,55 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
 /**
  * @function
  *
+ * `ngtcp2_crypto_client_initial_cb` installs initial secrets and
+ * encryption keys and sets QUIC transport parameters.
+ *
+ * This function can be directly passed to client_initial field in
+ * ngtcp2_callbacks.  It is only used by client.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn,
+                                                  void *user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_recv_retry_cb` re-installs initial secrets in
+ * response to incoming Retry packet.
+ *
+ * This function can be directly passed to recv_retry field in
+ * ngtcp2_callbacks.  It is only used by client.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn,
+                                              const ngtcp2_pkt_hd *hd,
+                                              const ngtcp2_pkt_retry *retry,
+                                              void *user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_recv_client_initial_cb` installs initial secrets in
+ * response to an incoming Initial packet from client, and sets QUIC
+ * transport parameters.
+ *
+ * This function can be directly passed to recv_client_initial field
+ * in ngtcp2_callbacks.  It is only used by server.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
+                                                       const ngtcp2_cid *dcid,
+                                                       void *user_data);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_read_write_crypto_data` reads CRYPTO data |data| of
  * length |datalen| in encryption level |crypto_level| and may feed
  * outgoing CRYPTO data to |conn|.  This function can drive handshake.
@@ -498,22 +547,6 @@ NGTCP2_EXTERN int
 ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
                                      ngtcp2_crypto_level crypto_level,
                                      const uint8_t *data, size_t datalen);
-
-/**
- * @function
- *
- * `ngtcp2_crypto_set_remote_transport_params` retrieves a remote QUIC
- * transport parameters from |tls| and sets it to |conn| using
- * `ngtcp2_conn_set_remote_transport_params`.
- *
- * |tls| points to a implementation dependent TLS session object.  If
- * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
- * object.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-NGTCP2_EXTERN int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn,
-                                                            void *tls);
 
 /**
  * @function

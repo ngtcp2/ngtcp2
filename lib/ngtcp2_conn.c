@@ -680,6 +680,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
         NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   }
 
+  (*pconn)->local.settings.transport_params.initial_scid = *scid;
+
   if (settings->max_packet_size == 0) {
     (*pconn)->local.settings.max_packet_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
   }
@@ -791,6 +793,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                     server);
   ngtcp2_qlog_parameters_set_transport_params(
       &(*pconn)->qlog, &(*pconn)->local.settings.transport_params,
+      (*pconn)->server,
       /* local = */ 1);
 
   return 0;
@@ -3618,6 +3621,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   /* DCID must be updated before invoking callback because client
      generates new initial keys there. */
   conn->dcid.current.cid = hd->scid;
+  conn->retry_scid = hd->scid;
 
   conn->flags |= NGTCP2_CONN_FLAG_RECV_RETRY;
 
@@ -4446,6 +4450,12 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
         }
       }
       if ((conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED) == 0) {
+        /* Set rcid here so that it is available to callback.  If this
+           packet is discarded later in this function and no packet is
+           processed in this connection attempt so far, connection
+           will be dropped. */
+        conn->rcid = hd.dcid;
+
         rv = conn_call_recv_client_initial(conn, &hd.dcid);
         if (rv != 0) {
           return rv;
@@ -4609,9 +4619,7 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
   if (hd.type == NGTCP2_PKT_INITIAL &&
       !(conn->flags & NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED)) {
     conn->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED;
-    if (conn->server) {
-      conn->rcid = hd.dcid;
-    } else {
+    if (!conn->server) {
       conn->dcid.current.cid = hd.scid;
     }
     conn->odcid = hd.scid;
@@ -8068,21 +8076,31 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_TRANSPORT_PARAM
+ * NGTCP2_ERR_PROTO
  *     Transport parameters are invalid.
  */
 static int
 conn_client_validate_transport_params(ngtcp2_conn *conn,
                                       const ngtcp2_transport_params *params) {
+  if (!ngtcp2_cid_eq(&conn->rcid, &params->original_dcid)) {
+    return NGTCP2_ERR_PROTO;
+  }
+
   if (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
-    if (!params->original_connection_id_present) {
-      return NGTCP2_ERR_TRANSPORT_PARAM;
+    if (!params->retry_scid_present) {
+      /* draft explicitly specifies that this is
+         PROTOCOL_VIOLATION. */
+      return NGTCP2_ERR_PROTO;
     }
-    if (!ngtcp2_cid_eq(&conn->rcid, &params->original_connection_id)) {
-      return NGTCP2_ERR_TRANSPORT_PARAM;
+    if (!ngtcp2_cid_eq(&conn->retry_scid, &params->retry_scid)) {
+      /* draft explicitly specifies that this is
+         PROTOCOL_VIOLATION. */
+      return NGTCP2_ERR_PROTO;
     }
-  } else if (params->original_connection_id_present) {
-    return NGTCP2_ERR_TRANSPORT_PARAM;
+  } else if (params->retry_scid_present) {
+    /* draft explicitly specifies that this is
+       PROTOCOL_VIOLATION. */
+    return NGTCP2_ERR_PROTO;
   }
 
   return 0;
@@ -8101,6 +8119,13 @@ int ngtcp2_conn_set_remote_transport_params(
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
+  /* We assume that conn->dcid.current.cid is still the initial one.
+     This requires that transport parameter must be fed into
+     ngtcp2_conn as early as possible. */
+  if (!ngtcp2_cid_eq(&conn->dcid.current.cid, &params->initial_scid)) {
+    return NGTCP2_ERR_PROTO;
+  }
+
   if (!conn->server) {
     rv = conn_client_validate_transport_params(conn, params);
     if (rv != 0) {
@@ -8114,7 +8139,7 @@ int ngtcp2_conn_set_remote_transport_params(
                            : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
                        params);
 
-  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params,
+  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
                                               /* local = */ 0);
 
   if (conn->pktns.crypto.tx.ckm) {
@@ -8160,13 +8185,21 @@ void ngtcp2_conn_set_early_remote_transport_params(
 
   conn->tx.max_offset = p->initial_max_data;
 
-  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, p,
+  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, p, conn->server,
                                               /* local = */ 0);
 }
 
 void ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
                                             ngtcp2_transport_params *params) {
   *params = conn->local.settings.transport_params;
+
+  /* If params->retry_scid_present is set by application then it
+     should also specify original_dcid because the destination
+     connection ID from client after Retry is not what we want
+     here. */
+  if (conn->server && !params->retry_scid_present) {
+    params->original_dcid = conn->rcid;
+  }
 }
 
 int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
@@ -9380,6 +9413,12 @@ void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
 
 const ngtcp2_crypto_ctx *ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn) {
   return &conn->pktns.crypto.ctx;
+}
+
+void *ngtcp2_conn_get_tls(ngtcp2_conn *conn) { return conn->crypto.tls; }
+
+void ngtcp2_conn_set_tls(ngtcp2_conn *conn, void *tls) {
+  conn->crypto.tls = tls;
 }
 
 void ngtcp2_conn_get_connection_close_error_code(

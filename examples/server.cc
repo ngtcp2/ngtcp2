@@ -99,8 +99,7 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
           rx_secret, secretlen) != 0) {
     return -1;
   }
-  if (level != NGTCP2_CRYPTO_LEVEL_EARLY &&
-      ngtcp2_crypto_derive_and_install_tx_key(
+  if (ngtcp2_crypto_derive_and_install_tx_key(
           conn_, ssl_, tx_key.data(), tx_iv.data(), tx_hp_key.data(), level,
           tx_secret, secretlen) != 0) {
     return -1;
@@ -777,19 +776,6 @@ Handler::~Handler() {
 }
 
 namespace {
-int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
-                        void *user_data) {
-  auto h = static_cast<Handler *>(user_data);
-
-  if (h->recv_client_initial(dcid) != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
 int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   auto h = static_cast<Handler *>(user_data);
 
@@ -1462,7 +1448,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 
   auto callbacks = ngtcp2_conn_callbacks{
       nullptr, // client_initial
-      ::recv_client_initial,
+      ngtcp2_crypto_recv_client_initial_cb,
       ::recv_crypto_data,
       ::handshake_completed,
       nullptr, // recv_version_negotiation
@@ -1531,8 +1517,9 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.active_connection_id_limit = 7;
 
   if (ocid) {
-    params.original_connection_id = *ocid;
-    params.original_connection_id_present = 1;
+    params.original_dcid = *ocid;
+    params.retry_scid = *scid;
+    params.retry_scid_present = 1;
   }
 
   std::generate(std::begin(params.stateless_reset_token),
@@ -1578,21 +1565,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     return -1;
   }
 
-  std::array<uint8_t, 512> buf;
-
-  auto nwrite = ngtcp2_encode_transport_params(
-      buf.data(), buf.size(), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-      &params);
-  if (nwrite < 0) {
-    std::cerr << "ngtcp2_encode_transport_params: " << ngtcp2_strerror(nwrite)
-              << std::endl;
-    return -1;
-  }
-
-  if (SSL_set_quic_transport_params(ssl_, buf.data(), nwrite) != 1) {
-    std::cerr << "SSL_set_quic_transport_params failed" << std::endl;
-    return -1;
-  }
+  ngtcp2_conn_set_tls(conn_, ssl_);
 
   ev_io_set(&wev_, endpoint_->fd, EV_WRITE);
   ev_timer_again(loop_, &timer_);
@@ -1614,38 +1587,6 @@ int Handler::recv_crypto_data(ngtcp2_crypto_level crypto_level,
                               const uint8_t *data, size_t datalen) {
   return ngtcp2_crypto_read_write_crypto_data(conn_, ssl_, crypto_level, data,
                                               datalen);
-}
-
-int Handler::recv_client_initial(const ngtcp2_cid *dcid) {
-  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_SECRETLEN> initial_secret,
-      rx_secret, tx_secret;
-  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_KEYLEN> rx_key, rx_hp_key, tx_key,
-      tx_hp_key;
-  std::array<uint8_t, NGTCP2_CRYPTO_INITIAL_IVLEN> rx_iv, tx_iv;
-
-  if (ngtcp2_crypto_derive_and_install_initial_key(
-          conn_, rx_secret.data(), tx_secret.data(), initial_secret.data(),
-          rx_key.data(), rx_iv.data(), rx_hp_key.data(), tx_key.data(),
-          tx_iv.data(), tx_hp_key.data(), dcid) != 0) {
-    std::cerr << "ngtcp2_crypto_derive_and_install_initial_key() failed"
-              << std::endl;
-    return -1;
-  }
-
-  if (!config.quiet && config.show_secret) {
-    debug::print_initial_secret(initial_secret.data(), initial_secret.size());
-
-    std::cerr << "initial rx secret" << std::endl;
-    debug::print_secrets(rx_secret.data(), rx_secret.size(), rx_key.data(),
-                         rx_key.size(), rx_iv.data(), rx_iv.size(),
-                         rx_hp_key.data(), rx_hp_key.size());
-    std::cerr << "initial tx secret" << std::endl;
-    debug::print_secrets(tx_secret.data(), tx_secret.size(), tx_key.data(),
-                         tx_key.size(), tx_iv.data(), tx_iv.size(),
-                         tx_hp_key.data(), tx_hp_key.size());
-  }
-
-  return 0;
 }
 
 void Handler::update_endpoint(const ngtcp2_addr *addr) {

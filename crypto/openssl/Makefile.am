@@ -24,6 +24,7 @@ AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS) $(EXTRACFLAG)
 AM_CPPFLAGS = -I$(top_srcdir)/lib/includes -I$(top_builddir)/lib/includes \
 	-I$(top_srcdir)/lib -DBUILDING_NGTCP2 \
 	-I$(top_srcdir)/crypto/includes -I$(top_builddir)/crypto/includes \
+	-I$(top_srcdir)/crypto -I$(top_builddir)/crypto \
 	@OPENSSL_CFLAGS@
 
 pkgconfigdir = $(libdir)/pkgconfig

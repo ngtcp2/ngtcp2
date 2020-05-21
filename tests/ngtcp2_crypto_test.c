@@ -41,10 +41,12 @@ void test_ngtcp2_encode_transport_params(void) {
   uint8_t buf[512];
   ngtcp2_ssize nwrite;
   int rv;
-  size_t i;
-  ngtcp2_cid ocid;
+  size_t i, len;
+  ngtcp2_cid rcid, scid, dcid;
 
-  dcid_init(&ocid);
+  rcid_init(&rcid);
+  scid_init(&scid);
+  dcid_init(&dcid);
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -53,11 +55,17 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  params.initial_scid = scid;
+
+  len = (ngtcp2_put_varint_len(
+             NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID) +
+         ngtcp2_put_varint_len(params.initial_scid.datalen) +
+         params.initial_scid.datalen);
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
 
-  CU_ASSERT(0 == nwrite);
+  CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, buf, (size_t)nwrite);
@@ -81,6 +89,7 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.disable_active_migration ==
             nparams.disable_active_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
+  CU_ASSERT(ngtcp2_cid_eq(&params.initial_scid, &nparams.initial_scid));
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -89,12 +98,23 @@ void test_ngtcp2_encode_transport_params(void) {
   params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  params.original_dcid = dcid;
+  params.initial_scid = scid;
+
+  len = (ngtcp2_put_varint_len(
+             NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID) +
+         ngtcp2_put_varint_len(params.original_dcid.datalen) +
+         params.original_dcid.datalen) +
+        (ngtcp2_put_varint_len(
+             NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID) +
+         ngtcp2_put_varint_len(params.initial_scid.datalen) +
+         params.initial_scid.datalen);
 
   nwrite = ngtcp2_encode_transport_params(
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
       &params);
 
-  CU_ASSERT(0 == nwrite);
+  CU_ASSERT((ngtcp2_ssize)len == nwrite);
 
   rv = ngtcp2_decode_transport_params(
       &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
@@ -119,6 +139,9 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.disable_active_migration ==
             nparams.disable_active_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
+  CU_ASSERT(ngtcp2_cid_eq(&params.original_dcid, &nparams.original_dcid));
+  CU_ASSERT(ngtcp2_cid_eq(&params.initial_scid, &nparams.initial_scid));
+  CU_ASSERT(params.retry_scid_present == nparams.retry_scid_present);
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -135,6 +158,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.ack_delay_exponent = 20;
   params.disable_active_migration = 1;
   params.max_ack_delay = 59 * NGTCP2_MILLISECONDS;
+  params.initial_scid = scid;
   params.active_connection_id_limit = 1000000007;
 
   for (i = 0;
@@ -165,7 +189,11 @@ void test_ngtcp2_encode_transport_params(void) {
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY,
                            params.max_ack_delay / NGTCP2_MILLISECONDS) +
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
-                           params.active_connection_id_limit);
+                           params.active_connection_id_limit) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID) +
+            ngtcp2_put_varint_len(params.initial_scid.datalen) +
+            params.initial_scid.datalen);
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
@@ -227,8 +255,10 @@ void test_ngtcp2_encode_transport_params(void) {
          sizeof(params.preferred_address.stateless_reset_token));
   params.disable_active_migration = 1;
   params.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
-  params.original_connection_id_present = 1;
-  params.original_connection_id = ocid;
+  params.retry_scid_present = 1;
+  params.retry_scid = rcid;
+  params.original_dcid = dcid;
+  params.initial_scid = scid;
   params.active_connection_id_limit = 1073741824;
 
   for (i = 0;
@@ -271,9 +301,17 @@ void test_ngtcp2_encode_transport_params(void) {
             4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
             NGTCP2_STATELESS_RESET_TOKENLEN) +
            (ngtcp2_put_varint_len(
-                NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID) +
-            ngtcp2_put_varint_len(params.original_connection_id.datalen) +
-            params.original_connection_id.datalen);
+                NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID) +
+            ngtcp2_put_varint_len(params.retry_scid.datalen) +
+            params.retry_scid.datalen) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID) +
+            ngtcp2_put_varint_len(params.original_dcid.datalen) +
+            params.original_dcid.datalen) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID) +
+            ngtcp2_put_varint_len(params.initial_scid.datalen) +
+            params.initial_scid.datalen);
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -327,10 +365,10 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.disable_active_migration ==
             nparams.disable_active_migration);
   CU_ASSERT(params.max_ack_delay == nparams.max_ack_delay);
-  CU_ASSERT(params.original_connection_id_present ==
-            nparams.original_connection_id_present);
-  CU_ASSERT(ngtcp2_cid_eq(&params.original_connection_id,
-                          &nparams.original_connection_id));
+  CU_ASSERT(params.retry_scid_present == nparams.retry_scid_present);
+  CU_ASSERT(ngtcp2_cid_eq(&params.retry_scid, &nparams.retry_scid));
+  CU_ASSERT(ngtcp2_cid_eq(&params.initial_scid, &nparams.initial_scid));
+  CU_ASSERT(ngtcp2_cid_eq(&params.original_dcid, &nparams.original_dcid));
   CU_ASSERT(params.active_connection_id_limit ==
             nparams.active_connection_id_limit);
 }

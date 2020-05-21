@@ -262,12 +262,18 @@ struct ngtcp2_conn {
   /* rcid is a connection ID present in Initial or 0-RTT packet from
      client as destination connection ID.  Server uses this field to
      check that duplicated Initial or 0-RTT packet are indeed sent to
-     this connection.  Client uses this field to validate
-     original_connection_id transport parameter. */
+     this connection.  It is also sent to client as
+     original_destination_connection_id transport parameter.  Client
+     uses this field to validate original_destination_connection_id
+     transport parameter if no Retry packet is involved. */
   ngtcp2_cid rcid;
   /* oscid is the source connection ID initially used by the local
      endpoint. */
   ngtcp2_cid oscid;
+  /* retry_scid is the source connection ID from Retry packet.  Client
+     records it in order to verify retry_source_connection_id
+     transport parameter.  Server does not use this field. */
+  ngtcp2_cid retry_scid;
   /* odcid is the destination connection ID initially negotiated
      during handshake.  It is used to receive late handshake packets
      after handshake completion. */
@@ -425,6 +431,8 @@ struct ngtcp2_conn {
       ngtcp2_tstamp confirmed_ts;
     } key_update;
 
+    /* tls is a native handle to TLS session object. */
+    void *tls;
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_vec decrypt_buf;

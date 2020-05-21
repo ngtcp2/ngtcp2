@@ -217,7 +217,6 @@ public:
   int recv_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
                        size_t datalen);
 
-  int setup_initial_crypto_context();
   ngtcp2_conn *conn() const;
   void update_remote_addr(const ngtcp2_addr *addr);
   int send_packet();
@@ -227,7 +226,6 @@ public:
   int on_extend_max_streams();
   int handle_error();
   int make_stream_early();
-  void on_recv_retry();
   int change_local_addr();
   void start_change_local_addr_timer();
   int update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,

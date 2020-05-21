@@ -35,6 +35,8 @@
 #include <gnutls/crypto.h>
 #include <string.h>
 
+#include "shared.h"
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ctx->aead.native_handle = (void *)GNUTLS_CIPHER_AES_128_GCM;
   ctx->md.native_handle = (void *)GNUTLS_DIG_SHA256;

@@ -396,11 +396,11 @@ typedef struct ngtcp2_pkt_retry {
 } ngtcp2_pkt_retry;
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
-typedef enum ngtcp2_transport_param_id : uint16_t {
+typedef enum ngtcp2_transport_param_id : int {
 #else
 typedef enum ngtcp2_transport_param_id {
 #endif
-  NGTCP2_TRANSPORT_PARAM_ORIGINAL_CONNECTION_ID = 0x0000,
+  NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID = 0x0000,
   NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT = 0x0001,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 0x0002,
   NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 0x0003,
@@ -415,7 +415,8 @@ typedef enum ngtcp2_transport_param_id {
   NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION = 0x000c,
   NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 0x000d,
   NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT = 0x000e,
-  NGTCP2_TRANSPORT_PARAM_ID_MAX = UINT16_MAX
+  NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID = 0x000f,
+  NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID = 0x0010
 } ngtcp2_transport_param_id;
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
@@ -491,11 +492,25 @@ typedef struct ngtcp2_preferred_addr {
 
 typedef struct ngtcp2_transport_params {
   ngtcp2_preferred_addr preferred_address;
-  /* original_connection_id is the client initial connection ID.
-     Server must specify this field and set
-     original_connection_id_present to nonzero if it sent Retry
-     packet. */
-  ngtcp2_cid original_connection_id;
+  /* original_dcid is the Destination Connection ID field from the
+     first Initial packet from client.  Server must specify this
+     field.  If application specifies retry_scid_present to nonzero,
+     then it must also specify this field.  It is expected that
+     application knows the original Destination Connection ID, for
+     example, by including it in retry token.  Otherwise, application
+     should not specify this field. */
+  ngtcp2_cid original_dcid;
+  /* initial_scid is the Source Connection ID field from the first
+     Initial packet the endpoint sends.  Application should not
+     specify this field. */
+  ngtcp2_cid initial_scid;
+  /* retry_scid is the Source Connection ID field from Retry packet.
+     Only server uses this field.  If server application received
+     Initial packet with retry token from client and server verified
+     its token, server application must set Destination Connection ID
+     field from the Initial packet to this field and set
+     retry_scid_present to nonzero. */
+  ngtcp2_cid retry_scid;
   /* initial_max_stream_data_bidi_local is the size of flow control
      window of locally initiated stream.  This is the number of bytes
      that the remote endpoint can send and the local endpoint must
@@ -530,7 +545,7 @@ typedef struct ngtcp2_transport_params {
   ngtcp2_duration max_ack_delay;
   uint8_t stateless_reset_token_present;
   uint8_t disable_active_migration;
-  uint8_t original_connection_id_present;
+  uint8_t retry_scid_present;
   uint8_t preferred_address_present;
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_transport_params;
@@ -2847,6 +2862,22 @@ ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn);
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
                                               const ngtcp2_crypto_ctx *ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_tls` returns TLS native handle set by
+ * `ngtcp2_conn_set_tls()`.
+ */
+NGTCP2_EXTERN void *ngtcp2_conn_get_tls(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_tls` sets TLS native handle |tls| to |conn|.
+ * Internally, |tls| is used as an opaque pointer.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_tls(ngtcp2_conn *conn, void *tls);
 
 /**
  * @function

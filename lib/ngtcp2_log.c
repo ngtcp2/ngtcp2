@@ -614,15 +614,27 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
               sizeof(params->preferred_address.stateless_reset_token)));
     }
 
-    if (params->original_connection_id_present) {
-      log->log_printf(log->user_data,
-                      (NGTCP2_LOG_TP " original_connection_id=0x%s"),
-                      NGTCP2_LOG_TP_HD_FIELDS,
-                      (const char *)ngtcp2_encode_hex(
-                          cid, params->original_connection_id.data,
-                          params->original_connection_id.datalen));
+    log->log_printf(
+        log->user_data,
+        (NGTCP2_LOG_TP " original_destination_connection_id=0x%s"),
+        NGTCP2_LOG_TP_HD_FIELDS,
+        (const char *)ngtcp2_encode_hex(cid, params->original_dcid.data,
+                                        params->original_dcid.datalen));
+
+    if (params->retry_scid_present) {
+      log->log_printf(
+          log->user_data, (NGTCP2_LOG_TP " retry_source_connection_id=0x%s"),
+          NGTCP2_LOG_TP_HD_FIELDS,
+          (const char *)ngtcp2_encode_hex(cid, params->retry_scid.data,
+                                          params->retry_scid.datalen));
     }
   }
+
+  log->log_printf(
+      log->user_data, (NGTCP2_LOG_TP " initial_source_connection_id=0x%s"),
+      NGTCP2_LOG_TP_HD_FIELDS,
+      (const char *)ngtcp2_encode_hex(cid, params->initial_scid.data,
+                                      params->initial_scid.datalen));
 
   log->log_printf(
       log->user_data,
