@@ -8490,8 +8490,6 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
   ngtcp2_ssize res = 0, nwrite;
   ngtcp2_frame fr;
   uint8_t pkt_type;
-  int bundle = 0;
-  uint8_t bundle_pkt_type;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -8530,29 +8528,37 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  if (conn->server && pkt_type == NGTCP2_PKT_HANDSHAKE && in_pktns) {
-    bundle = 1;
-    bundle_pkt_type = NGTCP2_PKT_INITIAL;
-  } else if (pkt_type == NGTCP2_PKT_SHORT && hs_pktns &&
-             !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
-    bundle = 1;
-    bundle_pkt_type = NGTCP2_PKT_HANDSHAKE;
-  }
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
+    if (pkt_type != NGTCP2_PKT_INITIAL && in_pktns && conn->server) {
+      nwrite = ngtcp2_conn_write_single_frame_pkt(
+          conn, dest, destlen, NGTCP2_PKT_INITIAL, &conn->dcid.current.cid, &fr,
+          NGTCP2_RTB_FLAG_NONE, ts);
+      if (nwrite < 0) {
+        return nwrite;
+      }
 
-  if (bundle) {
-    nwrite = ngtcp2_conn_write_single_frame_pkt(
-        conn, dest, destlen, bundle_pkt_type, &conn->dcid.current.cid, &fr,
-        NGTCP2_RTB_FLAG_NONE, ts);
-    if (nwrite < 0) {
-      return nwrite;
+      dest += nwrite;
+      destlen -= (size_t)nwrite;
+      res += nwrite;
     }
 
-    res += nwrite;
+    if (pkt_type != NGTCP2_PKT_HANDSHAKE && hs_pktns) {
+      nwrite = ngtcp2_conn_write_single_frame_pkt(
+          conn, dest, destlen, NGTCP2_PKT_HANDSHAKE, &conn->dcid.current.cid,
+          &fr, NGTCP2_RTB_FLAG_NONE, ts);
+      if (nwrite < 0) {
+        return nwrite;
+      }
+
+      dest += nwrite;
+      destlen -= (size_t)nwrite;
+      res += nwrite;
+    }
   }
 
-  nwrite = ngtcp2_conn_write_single_frame_pkt(
-      conn, dest + res, destlen - (size_t)res, pkt_type,
-      &conn->dcid.current.cid, &fr, NGTCP2_RTB_FLAG_NONE, ts);
+  nwrite = ngtcp2_conn_write_single_frame_pkt(conn, dest, destlen, pkt_type,
+                                              &conn->dcid.current.cid, &fr,
+                                              NGTCP2_RTB_FLAG_NONE, ts);
 
   if (nwrite < 0) {
     return nwrite;
