@@ -134,6 +134,8 @@ static const char *strerrorcode(uint64_t error_code) {
     return "PROTOCOL_VIOLATION";
   case NGTCP2_INVALID_TOKEN:
     return "INVALID_TOKEN";
+  case NGTCP2_APPLICATION_ERROR:
+    return "APPLICATION_ERROR";
   case NGTCP2_CRYPTO_BUFFER_EXCEEDED:
     return "CRYPTO_BUFFER_EXCEEDED";
   case NGTCP2_KEY_UPDATE_ERROR:
