@@ -1183,8 +1183,10 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
 
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     conn->cstat.last_tx_pkt_ts[rtb->pktns_id] = ent->ts;
+    /* I think pseudo code is wrong; timer should be set when
+       ack-eliciting packet is sent. */
+    ngtcp2_conn_set_loss_detection_timer(conn, ent->ts);
   }
-  ngtcp2_conn_set_loss_detection_timer(conn, ent->ts);
 
   return 0;
 }
