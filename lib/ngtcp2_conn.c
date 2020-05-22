@@ -683,7 +683,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   if (settings->max_udp_payload_size == 0) {
-    (*pconn)->local.settings.max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
+    (*pconn)->local.settings.max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
   }
 
   conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
