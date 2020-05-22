@@ -4631,7 +4631,6 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
     if (!conn->server) {
       conn->dcid.current.cid = hd.scid;
     }
-    conn->odcid = hd.scid;
   }
 
   ngtcp2_qlog_pkt_received_start(&conn->qlog, &hd);
@@ -6486,7 +6485,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     /* Quoted from spec: if subsequent packets of those types include
        a different Source Connection ID, they MUST be discarded. */
-    if (!ngtcp2_cid_eq(&conn->odcid, &hd.scid)) {
+    if (!ngtcp2_cid_eq(&conn->dcid.current.cid, &hd.scid)) {
       ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "packet was ignored because of mismatched SCID");

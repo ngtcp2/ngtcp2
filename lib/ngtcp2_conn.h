@@ -274,10 +274,6 @@ struct ngtcp2_conn {
      records it in order to verify retry_source_connection_id
      transport parameter.  Server does not use this field. */
   ngtcp2_cid retry_scid;
-  /* odcid is the destination connection ID initially negotiated
-     during handshake.  It is used to receive late handshake packets
-     after handshake completion. */
-  ngtcp2_cid odcid;
   ngtcp2_pktns *in_pktns;
   ngtcp2_pktns *hs_pktns;
   ngtcp2_pktns pktns;

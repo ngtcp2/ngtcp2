@@ -426,7 +426,6 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   (*pconn)->local.bidi.max_streams = params->initial_max_streams_bidi;
   (*pconn)->local.uni.max_streams = params->initial_max_streams_uni;
   (*pconn)->tx.max_offset = params->initial_max_data;
-  (*pconn)->odcid = dcid;
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
@@ -476,7 +475,6 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->local.bidi.max_streams = params->initial_max_streams_bidi;
   (*pconn)->local.uni.max_streams = params->initial_max_streams_uni;
   (*pconn)->tx.max_offset = params->initial_max_data;
-  (*pconn)->odcid = dcid;
 
   memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
 }
