@@ -750,8 +750,8 @@ int Client::init_ssl() {
 
   switch (version_) {
   case NGTCP2_PROTO_VER:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_H3);
-    alpnlen = str_size(NGTCP2_ALPN_H3);
+    alpn = reinterpret_cast<const uint8_t *>(NGHTTP3_ALPN_H3);
+    alpnlen = str_size(NGHTTP3_ALPN_H3);
     break;
   }
   if (alpn) {

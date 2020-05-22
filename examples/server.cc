@@ -2839,8 +2839,8 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
 
   switch (version) {
   case NGTCP2_PROTO_VER:
-    alpn = reinterpret_cast<const uint8_t *>(NGTCP2_ALPN_H3);
-    alpnlen = str_size(NGTCP2_ALPN_H3);
+    alpn = reinterpret_cast<const uint8_t *>(NGHTTP3_ALPN_H3);
+    alpnlen = str_size(NGHTTP3_ALPN_H3);
     break;
   default:
     if (!config.quiet) {
@@ -2859,7 +2859,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &NGTCP2_ALPN_H3[1]
+    std::cerr << "Client did not present ALPN " << &NGHTTP3_ALPN_H3[1]
               << std::endl;
   }
 
