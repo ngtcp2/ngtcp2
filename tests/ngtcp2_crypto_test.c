@@ -52,7 +52,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* CH, required parameters only */
-  params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE;
+  params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params.initial_scid = scid;
@@ -95,7 +95,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* EE, required parameters only */
-  params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE;
+  params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params.original_dcid = dcid;

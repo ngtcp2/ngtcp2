@@ -9469,7 +9469,8 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 void ngtcp2_settings_default(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
-  settings->transport_params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE;
+  settings->transport_params.max_udp_payload_size =
+      NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
   settings->transport_params.ack_delay_exponent =
       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   settings->transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;

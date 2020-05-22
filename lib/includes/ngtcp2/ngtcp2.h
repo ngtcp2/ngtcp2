@@ -447,7 +447,11 @@ typedef enum ngtcp2_rand_ctx {
   NGTCP2_RAND_CTX_PATH_CHALLENGE
 } ngtcp2_rand_ctx;
 
-#define NGTCP2_MAX_PKT_SIZE 65527
+/*
+ * NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE is the default value of
+ * max_udp_payload_size transport parameter.
+ */
+#define NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE 65527
 
 /**
  * @macro
@@ -3001,7 +3005,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * default value to the following fields:
  *
  * * cc_algo = NGTCP2_CC_ALGO_CUBIC
- * * transport_params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE
+ * * transport_params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE
  * * transport_params.ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
  * * transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY
  * * transport_params.active_connection_id_limit =
