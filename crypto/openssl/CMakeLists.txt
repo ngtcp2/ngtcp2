@@ -34,6 +34,8 @@ set(ngtcp2_crypto_openssl_INCLUDE_DIRS
   "${CMAKE_CURRENT_SOURCE_DIR}/../../lib"
   "${CMAKE_CURRENT_SOURCE_DIR}/../../crypto/includes"
   "${CMAKE_CURRENT_BINARY_DIR}/../../crypto/includes"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../crypto"
+  "${CMAKE_CURRENT_BINARY_DIR}/../../crypto"
   "${OPENSSL_INCLUDE_DIRS}"
 )
 
