@@ -1970,7 +1970,9 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                             NGTCP2_RTB_FLAG_NONE, ts);
 }
 
-static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
+static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns **ppktns,
+                               ngtcp2_tstamp ts) {
+  ngtcp2_pktns *pktns = *ppktns;
   uint64_t bytes_in_flight;
 
   bytes_in_flight = ngtcp2_rtb_get_cc_bytes_in_flight(&pktns->rtb);
@@ -1983,32 +1985,33 @@ static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
   conn->cstat.loss_time[pktns->rtb.pktns_id] = UINT64_MAX;
 
   pktns_del(pktns, conn->mem);
+  *ppktns = NULL;
+
+  ngtcp2_conn_set_loss_detection_timer(conn, ts);
 }
 
 /*
  * conn_discard_initial_state discards state for Initial packet number
  * space.
  */
-static void conn_discard_initial_state(ngtcp2_conn *conn) {
+static void conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if (!conn->in_pktns) {
     return;
   }
 
-  conn_discard_pktns(conn, conn->in_pktns);
-  conn->in_pktns = NULL;
+  conn_discard_pktns(conn, &conn->in_pktns, ts);
 }
 
 /*
  * conn_discard_handshake_state discards state for Handshake packet
  * number space.
  */
-static void conn_discard_handshake_state(ngtcp2_conn *conn) {
+static void conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if (!conn->hs_pktns) {
     return;
   }
 
-  conn_discard_pktns(conn, conn->hs_pktns);
-  conn->hs_pktns = NULL;
+  conn_discard_pktns(conn, &conn->hs_pktns, ts);
 }
 
 /*
@@ -2049,7 +2052,7 @@ static ngtcp2_ssize conn_write_handshake_ack_pkts(ngtcp2_conn *conn,
     res += nwrite;
 
     if (!conn->server && nwrite) {
-      conn_discard_initial_state(conn);
+      conn_discard_initial_state(conn, ts);
     }
   }
 
@@ -2108,7 +2111,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
       !ngtcp2_acktr_empty(&conn->hs_pktns->acktr)) {
     /* Discard Initial state here so that Handshake packet is not
        padded. */
-    conn_discard_initial_state(conn);
+    conn_discard_initial_state(conn, ts);
   } else {
     nwrite = conn_write_handshake_pkt(conn, dest, destlen, NGTCP2_PKT_INITIAL,
                                       early_datalen, ts);
@@ -2135,7 +2138,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
     /* We don't need to send further Initial packet if we have
        Handshake key and sent something with it.  So discard initial
        state here. */
-    conn_discard_initial_state(conn);
+    conn_discard_initial_state(conn, ts);
   }
 
   return res;
@@ -6048,7 +6051,7 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
 
-  conn_discard_handshake_state(conn);
+  conn_discard_handshake_state(conn, ts);
 
   if (conn->callbacks.handshake_confirmed) {
     rv = conn->callbacks.handshake_confirmed(conn, conn->user_data);
@@ -7321,7 +7324,7 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
 
     if (conn->hs_pktns->rx.max_pkt_num != -1) {
-      conn_discard_initial_state(conn);
+      conn_discard_initial_state(conn, ts);
     }
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
@@ -7372,7 +7375,7 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       return rv;
     }
 
-    conn_discard_handshake_state(conn);
+    conn_discard_handshake_state(conn, ts);
 
     rv = conn_enqueue_handshake_done(conn);
     if (rv != 0) {
