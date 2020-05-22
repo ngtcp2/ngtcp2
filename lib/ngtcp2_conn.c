@@ -514,8 +514,6 @@ static int ts_retired_less(const ngtcp2_pq_entry *lhs,
 }
 
 static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
-  uint64_t cwnd, min_cwnd;
-
   memset(cstat, 0, sizeof(*cstat));
   cstat->smoothed_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   cstat->rttvar = NGTCP2_DEFAULT_INITIAL_RTT / 2;
@@ -524,9 +522,7 @@ static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
   memset(cstat->last_tx_pkt_ts, 0xff, sizeof(cstat->last_tx_pkt_ts));
   memset(cstat->loss_time, 0xff, sizeof(cstat->loss_time));
   cstat->max_packet_size = conn->local.settings.max_packet_size;
-  min_cwnd = 2 * cstat->max_packet_size;
-  cwnd = ngtcp2_max(min_cwnd, 14720);
-  cstat->cwnd = ngtcp2_min(10 * cstat->max_packet_size, cwnd);
+  cstat->cwnd = ngtcp2_cc_compute_initcwnd(cstat->max_packet_size);
   cstat->ssthresh = UINT64_MAX;
 }
 
@@ -1228,7 +1224,7 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight = conn->cstat.bytes_in_flight;
   uint64_t cwnd =
       conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
-          ? /* min_cwnd = */ 2 * conn->cstat.max_packet_size
+          ? ngtcp2_cc_compute_initcwnd(conn->cstat.max_packet_size)
           : conn->cstat.cwnd;
 
   return bytes_in_flight >= cwnd;
@@ -8888,7 +8884,7 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
                             ngtcp2_duration ack_delay) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
 
-  rtt = ngtcp2_max(rtt, NGTCP2_NANOSECONDS);
+  rtt = ngtcp2_max(rtt, NGTCP2_GRANULARITY);
 
   cstat->latest_rtt = rtt;
 

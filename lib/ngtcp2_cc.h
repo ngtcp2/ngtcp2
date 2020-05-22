@@ -37,6 +37,11 @@
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
+/*
+ * ngtcp2_cc_compute_initcwnd computes initial cwnd.
+ */
+uint64_t ngtcp2_cc_compute_initcwnd(size_t max_packet_size);
+
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_tstamp ts_sent);
 

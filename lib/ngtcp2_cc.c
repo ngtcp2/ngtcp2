@@ -31,6 +31,12 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
 
+uint64_t ngtcp2_cc_compute_initcwnd(size_t max_packet_size) {
+  uint64_t n = 2 * max_packet_size;
+  n = ngtcp2_max(n, 14720);
+  return ngtcp2_min(10 * max_packet_size, n);
+}
+
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_tstamp ts_sent) {
   pkt->pkt_num = pkt_num;
@@ -95,6 +101,10 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     return;
   }
 
+  if (cc->target_cwnd && cc->target_cwnd < cstat->cwnd) {
+    return;
+  }
+
   if (cstat->cwnd < cstat->ssthresh) {
     cstat->cwnd += pkt->pktlen;
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
@@ -150,7 +160,8 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   if (cstat->min_rtt != UINT64_MAX && cc->max_delivery_rate_sec) {
     target_cwnd =
         cc->max_delivery_rate_sec * cstat->min_rtt * 289 / NGTCP2_SECONDS / 100;
-    min_cwnd = 2 * cstat->max_packet_size;
+
+    min_cwnd = ngtcp2_cc_compute_initcwnd(cstat->max_packet_size) * 289 / 100;
     cc->target_cwnd = ngtcp2_max(min_cwnd, target_cwnd);
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
@@ -230,6 +241,10 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   uint64_t tx, kx, time_delta, delta;
 
   if (in_congestion_recovery(cstat, pkt->ts_sent)) {
+    return;
+  }
+
+  if (cc->target_cwnd && cc->target_cwnd < cstat->cwnd) {
     return;
   }
 
@@ -362,7 +377,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     target_cwnd =
         cc->max_delivery_rate_sec * cstat->min_rtt * 289 / NGTCP2_SECONDS / 100;
 
-    min_cwnd = 2 * cstat->max_packet_size;
+    min_cwnd = ngtcp2_cc_compute_initcwnd(cstat->max_packet_size) * 289 / 100;
     cc->target_cwnd = ngtcp2_max(min_cwnd, target_cwnd);
 
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,

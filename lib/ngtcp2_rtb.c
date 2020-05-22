@@ -446,6 +446,9 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
+
+        ngtcp2_rst_on_ack_recv(rtb->rst, cstat);
+        cc->on_ack_recv(cc, cstat, ts);
         rtb_on_pkt_acked(rtb, ent, cstat, ts);
         /* At this point, it is invalided because rtb->ents might be
            modified. */
@@ -483,6 +486,9 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
           ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
                                  fr->ack_delay_unscaled);
         }
+
+        ngtcp2_rst_on_ack_recv(rtb->rst, cstat);
+        cc->on_ack_recv(cc, cstat, ts);
         rtb_on_pkt_acked(rtb, ent, cstat, ts);
       }
       rtb_remove(rtb, &it, ent, cstat);
@@ -490,11 +496,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
 
     ++i;
-  }
-
-  if (conn) {
-    ngtcp2_rst_on_ack_recv(rtb->rst, cstat);
-    cc->on_ack_recv(cc, cstat, ts);
   }
 
   return num_acked;
