@@ -505,7 +505,8 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
                         const ngtcp2_rtb_entry *ent, uint64_t loss_delay,
                         ngtcp2_tstamp lost_send_time) {
   ngtcp2_tstamp loss_time;
-  uint64_t pkt_thres = rtb->cc_bytes_in_flight / cstat->max_packet_size / 2;
+  uint64_t pkt_thres =
+      rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
 
   pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
 

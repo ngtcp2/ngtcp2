@@ -52,7 +52,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* CH, required parameters only */
-  params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params.initial_scid = scid;
@@ -82,7 +82,7 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.initial_max_streams_bidi);
   CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.max_idle_timeout == nparams.max_idle_timeout);
-  CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
+  CU_ASSERT(params.max_udp_payload_size == nparams.max_udp_payload_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
   CU_ASSERT(params.stateless_reset_token_present ==
             nparams.stateless_reset_token_present);
@@ -95,7 +95,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(&nparams, 0, sizeof(nparams));
 
   /* EE, required parameters only */
-  params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE;
   params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params.original_dcid = dcid;
@@ -132,7 +132,7 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.initial_max_streams_bidi);
   CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.max_idle_timeout == nparams.max_idle_timeout);
-  CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
+  CU_ASSERT(params.max_udp_payload_size == nparams.max_udp_payload_size);
   CU_ASSERT(params.stateless_reset_token_present ==
             nparams.stateless_reset_token_present);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
@@ -154,7 +154,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_streams_bidi = 909;
   params.initial_max_streams_uni = 911;
   params.max_idle_timeout = 1023 * NGTCP2_MILLISECONDS;
-  params.max_packet_size = 1400;
+  params.max_udp_payload_size = 1400;
   params.ack_delay_exponent = 20;
   params.disable_active_migration = 1;
   params.max_ack_delay = 59 * NGTCP2_MILLISECONDS;
@@ -179,8 +179,8 @@ void test_ngtcp2_encode_transport_params(void) {
                            params.initial_max_streams_uni) +
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT,
                            params.max_idle_timeout / NGTCP2_MILLISECONDS) +
-           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE,
-                           params.max_packet_size) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE,
+                           params.max_udp_payload_size) +
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT,
                            params.ack_delay_exponent) +
            (ngtcp2_put_varint_len(
@@ -219,7 +219,7 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.initial_max_streams_bidi);
   CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.max_idle_timeout == nparams.max_idle_timeout);
-  CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
+  CU_ASSERT(params.max_udp_payload_size == nparams.max_udp_payload_size);
   CU_ASSERT(params.ack_delay_exponent == nparams.ack_delay_exponent);
   CU_ASSERT(params.disable_active_migration ==
             nparams.disable_active_migration);
@@ -238,7 +238,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_max_streams_bidi = 908;
   params.initial_max_streams_uni = 16383;
   params.max_idle_timeout = 16363 * NGTCP2_MILLISECONDS;
-  params.max_packet_size = 1200;
+  params.max_udp_payload_size = 1200;
   params.stateless_reset_token_present = 1;
   memset(params.stateless_reset_token, 0xf1,
          sizeof(params.stateless_reset_token));
@@ -279,8 +279,8 @@ void test_ngtcp2_encode_transport_params(void) {
                            params.initial_max_streams_uni) +
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT,
                            params.max_idle_timeout / NGTCP2_MILLISECONDS) +
-           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE,
-                           params.max_packet_size) +
+           varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE,
+                           params.max_udp_payload_size) +
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT,
                            params.ack_delay_exponent) +
            (ngtcp2_put_varint_len(
@@ -339,7 +339,7 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.initial_max_streams_bidi);
   CU_ASSERT(params.initial_max_streams_uni == nparams.initial_max_streams_uni);
   CU_ASSERT(params.max_idle_timeout == nparams.max_idle_timeout);
-  CU_ASSERT(params.max_packet_size == nparams.max_packet_size);
+  CU_ASSERT(params.max_udp_payload_size == nparams.max_udp_payload_size);
   CU_ASSERT(0 == memcmp(params.stateless_reset_token,
                         nparams.stateless_reset_token,
                         sizeof(params.stateless_reset_token)));

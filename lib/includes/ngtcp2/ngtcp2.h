@@ -404,7 +404,7 @@ typedef enum ngtcp2_transport_param_id {
   NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID = 0x0000,
   NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT = 0x0001,
   NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN = 0x0002,
-  NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE = 0x0003,
+  NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE = 0x0003,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA = 0x0004,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL = 0x0005,
   NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0006,
@@ -538,7 +538,7 @@ typedef struct ngtcp2_transport_params {
   /* max_idle_timeout is a duration during which sender allows
      quiescent. */
   ngtcp2_duration max_idle_timeout;
-  uint64_t max_packet_size;
+  uint64_t max_udp_payload_size;
   /* active_connection_id_limit is the maximum number of Connection ID
      that sender can store. */
   uint64_t active_connection_id_limit;
@@ -588,10 +588,10 @@ typedef struct ngtcp2_conn_stat {
   uint64_t ssthresh;
   ngtcp2_tstamp congestion_recovery_start_ts;
   uint64_t bytes_in_flight;
-  /* max_packet_size is the maximum size of UDP datagram payload that
-     this endpoint transmits.  It is used by congestion controller to
-     compute congestion window. */
-  size_t max_packet_size;
+  /* max_udp_payload_size is the maximum size of UDP datagram payload
+     that this endpoint transmits.  It is used by congestion
+     controller to compute congestion window. */
+  size_t max_udp_payload_size;
   /* bytes_sent is the number of bytes sent in this particular
      connection.  It only includes data written by
      `ngtcp2_conn_writev_stream()` .*/
@@ -695,11 +695,11 @@ typedef struct ngtcp2_settings {
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
-  /* max_packet_size is the maximum size of UDP datagram payload that
-     this endpoint transmits.  It is used by congestion controller to
-     compute congestion window.  If it is set to 0, it defaults to
-     NGTCP2_DEFAULT_MAX_PKT_SIZE. */
-  size_t max_packet_size;
+  /* max_udp_payload_size is the maximum size of UDP datagram payload
+     that this endpoint transmits.  It is used by congestion
+     controller to compute congestion window.  If it is set to 0, it
+     defaults to NGTCP2_DEFAULT_MAX_PKT_SIZE. */
+  size_t max_udp_payload_size;
   /* token is a token received in Client Initial packet and
      successfully validated.  Only server application may specify this
      field.  Server then verifies that all Client Initial packets have
@@ -3001,7 +3001,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * default value to the following fields:
  *
  * * cc_algo = NGTCP2_CC_ALGO_CUBIC
- * * transport_params.max_packet_size = NGTCP2_MAX_PKT_SIZE
+ * * transport_params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE
  * * transport_params.ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
  * * transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY
  * * transport_params.active_connection_id_limit =

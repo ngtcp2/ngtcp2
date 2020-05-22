@@ -521,8 +521,8 @@ static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
   // Initializes them with UINT64_MAX.
   memset(cstat->last_tx_pkt_ts, 0xff, sizeof(cstat->last_tx_pkt_ts));
   memset(cstat->loss_time, 0xff, sizeof(cstat->loss_time));
-  cstat->max_packet_size = conn->local.settings.max_packet_size;
-  cstat->cwnd = ngtcp2_cc_compute_initcwnd(cstat->max_packet_size);
+  cstat->max_udp_payload_size = conn->local.settings.max_udp_payload_size;
+  cstat->cwnd = ngtcp2_cc_compute_initcwnd(cstat->max_udp_payload_size);
   cstat->ssthresh = UINT64_MAX;
 }
 
@@ -682,8 +682,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->local.settings.transport_params.preferred_address_present = 0;
   }
 
-  if (settings->max_packet_size == 0) {
-    (*pconn)->local.settings.max_packet_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
+  if (settings->max_udp_payload_size == 0) {
+    (*pconn)->local.settings.max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKT_SIZE;
   }
 
   conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
@@ -1224,7 +1224,7 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight = conn->cstat.bytes_in_flight;
   uint64_t cwnd =
       conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
-          ? ngtcp2_cc_compute_initcwnd(conn->cstat.max_packet_size)
+          ? ngtcp2_cc_compute_initcwnd(conn->cstat.max_udp_payload_size)
           : conn->cstat.cwnd;
 
   return bytes_in_flight >= cwnd;
@@ -9469,7 +9469,7 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 void ngtcp2_settings_default(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
-  settings->transport_params.max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  settings->transport_params.max_udp_payload_size = NGTCP2_MAX_PKT_SIZE;
   settings->transport_params.ack_delay_exponent =
       NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   settings->transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;

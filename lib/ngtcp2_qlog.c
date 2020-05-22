@@ -1060,8 +1060,8 @@ void ngtcp2_qlog_parameters_set_transport_params(
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "max_idle_timeout"),
                           params->max_idle_timeout);
   *p++ = ',';
-  p = write_pair_number(p, ngtcp2_vec_lit(&name, "max_packet_size"),
-                        params->max_packet_size);
+  p = write_pair_number(p, ngtcp2_vec_lit(&name, "max_udp_payload_size"),
+                        params->max_udp_payload_size);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "ack_delay_exponent"),
                         params->ack_delay_exponent);

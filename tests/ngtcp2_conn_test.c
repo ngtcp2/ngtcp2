@@ -351,7 +351,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
   params->initial_max_streams_bidi = 3;
   params->initial_max_streams_uni = 2;
   params->max_idle_timeout = 60;
-  params->max_packet_size = 65535;
+  params->max_udp_payload_size = 65535;
   params->stateless_reset_token_present = 1;
   params->active_connection_id_limit = 8;
   for (i = 0; i < NGTCP2_STATELESS_RESET_TOKENLEN; ++i) {
@@ -372,7 +372,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
   params->initial_max_streams_bidi = 0;
   params->initial_max_streams_uni = 2;
   params->max_idle_timeout = 60;
-  params->max_packet_size = 65535;
+  params->max_udp_payload_size = 65535;
   params->stateless_reset_token_present = 0;
   params->active_connection_id_limit = 8;
 }

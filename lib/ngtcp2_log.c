@@ -660,8 +660,9 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_idle_timeout=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS,
                   params->max_idle_timeout / NGTCP2_MILLISECONDS);
-  log->log_printf(log->user_data, (NGTCP2_LOG_TP " max_packet_size=%" PRIu64),
-                  NGTCP2_LOG_TP_HD_FIELDS, params->max_packet_size);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " max_udp_payload_size=%" PRIu64),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->max_udp_payload_size);
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_TP " ack_delay_exponent=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->ack_delay_exponent);

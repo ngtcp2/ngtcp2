@@ -217,9 +217,9 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI,
                            params->initial_max_streams_uni);
   }
-  if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
-    len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE,
-                           params->max_packet_size);
+  if (params->max_udp_payload_size != NGTCP2_MAX_PKT_SIZE) {
+    len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE,
+                           params->max_udp_payload_size);
   }
   if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT,
@@ -325,9 +325,9 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                            params->initial_max_streams_uni);
   }
 
-  if (params->max_packet_size != NGTCP2_MAX_PKT_SIZE) {
-    p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE,
-                           params->max_packet_size);
+  if (params->max_udp_payload_size != NGTCP2_MAX_PKT_SIZE) {
+    p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE,
+                           params->max_udp_payload_size);
   }
 
   if (params->ack_delay_exponent != NGTCP2_DEFAULT_ACK_DELAY_EXPONENT) {
@@ -477,7 +477,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->initial_max_stream_data_bidi_local = 0;
   params->initial_max_stream_data_bidi_remote = 0;
   params->initial_max_stream_data_uni = 0;
-  params->max_packet_size = NGTCP2_MAX_PKT_SIZE;
+  params->max_udp_payload_size = NGTCP2_MAX_PKT_SIZE;
   params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params->stateless_reset_token_present = 0;
   params->preferred_address_present = 0;
@@ -562,8 +562,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       params->max_idle_timeout *= NGTCP2_MILLISECONDS;
       p += nread;
       break;
-    case NGTCP2_TRANSPORT_PARAM_MAX_PACKET_SIZE:
-      nread = decode_varint_param(&params->max_packet_size, p, end);
+    case NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE:
+      nread = decode_varint_param(&params->max_udp_payload_size, p, end);
       if (nread < 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
