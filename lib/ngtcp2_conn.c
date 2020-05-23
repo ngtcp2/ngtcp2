@@ -4898,6 +4898,8 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 }
 
+static int conn_on_crypto_timeout(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
+
 /*
  * conn_recv_crypto is called when CRYPTO frame |fr| is received.
  * |rx_offset_base| is the offset in the entire TLS handshake stream.
@@ -4939,6 +4941,29 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
   rx_offset = ngtcp2_strm_rx_offset(crypto);
 
   if (fr_end_offset <= rx_offset) {
+    if (conn->server && crypto_level == NGTCP2_CRYPTO_LEVEL_INITIAL) {
+      /* recovery draft: Speeding Up Handshake Completion
+
+         When a server receives an Initial packet containing duplicate
+         CRYPTO data, it can assume the client did not receive all of
+         the server's CRYPTO data sent in Initial packets, or the
+         client's estimated RTT is too small.  ...  To speed up
+         handshake completion under these conditions, an endpoint MAY
+         send a packet containing unacknowledged CRYPTO data earlier
+         than the PTO expiry, subject to address validation limits;
+         ... */
+      rv = conn_on_crypto_timeout(conn, conn->in_pktns);
+      if (rv != 0) {
+        return rv;
+      }
+      conn->in_pktns->rtb.probe_pkt_left = 1;
+
+      rv = conn_on_crypto_timeout(conn, conn->hs_pktns);
+      if (rv != 0) {
+        return rv;
+      }
+      conn->hs_pktns->rtb.probe_pkt_left = 1;
+    }
     return 0;
   }
 
