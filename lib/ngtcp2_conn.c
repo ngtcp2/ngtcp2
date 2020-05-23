@@ -2461,6 +2461,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
   size_t min_pktlen = conn_min_short_pktlen(conn);
   int padded = 0;
   int credit_expanded = 0;
+  ngtcp2_cc_pkt cc_pkt;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -3022,9 +3023,17 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
       return rv;
     }
 
-    if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-        (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
-      conn_restart_timer_on_write(conn, ts);
+    if (rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
+      if (conn->cc.on_pkt_sent) {
+        conn->cc.on_pkt_sent(&conn->cc, &conn->cstat,
+                             ngtcp2_cc_pkt_init(&cc_pkt, hd->pkt_num,
+                                                (size_t)nwrite,
+                                                NGTCP2_PKTNS_ID_APP, ts));
+      }
+
+      if (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE) {
+        conn_restart_timer_on_write(conn, ts);
+      }
     }
   }
 
@@ -4126,6 +4135,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
                               conn->hs_pktns->tx.last_pkt_num + 1);
   }
   ngtcp2_rtb_reset_cc_state(&conn->pktns.rtb, conn->pktns.tx.last_pkt_num + 1);
+  ngtcp2_rst_init(&conn->rst);
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
@@ -8919,9 +8929,8 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
 
   rtt = ngtcp2_max(rtt, NGTCP2_GRANULARITY);
 
-  cstat->latest_rtt = rtt;
-
   if (cstat->min_rtt == UINT64_MAX) {
+    cstat->latest_rtt = rtt;
     cstat->min_rtt = rtt;
     cstat->smoothed_rtt = rtt;
     cstat->rttvar = rtt / 2;
@@ -8936,6 +8945,8 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     if (rtt > cstat->min_rtt + ack_delay) {
       rtt -= ack_delay;
     }
+
+    cstat->latest_rtt = rtt;
 
     cstat->rttvar = (cstat->rttvar * 3 + (cstat->smoothed_rtt < rtt
                                               ? rtt - cstat->smoothed_rtt

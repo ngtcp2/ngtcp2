@@ -623,6 +623,9 @@ typedef struct {
   int64_t pkt_num;
   /* pktlen is the length of packet. */
   size_t pktlen;
+  /* pktns_id is the ID of packet number space which this packet
+     belongs to. */
+  ngtcp2_pktns_id pktns_id;
   /* ts_sent is the timestamp when packet is sent. */
   ngtcp2_tstamp ts_sent;
 } ngtcp2_cc_pkt;
@@ -645,6 +648,12 @@ typedef void (*ngtcp2_cc_on_persistent_congestion)(ngtcp2_cc *cc,
 typedef void (*ngtcp2_cc_on_ack_recv)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                       ngtcp2_tstamp ts);
 
+typedef void (*ngtcp2_cc_on_pkt_sent)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                      const ngtcp2_cc_pkt *pkt);
+
+typedef void (*ngtcp2_cc_new_rtt_sample)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                         ngtcp2_tstamp ts);
+
 typedef void (*ngtcp2_cc_reset)(ngtcp2_cc *cc);
 
 typedef enum ngtcp2_cc_event_type {
@@ -662,6 +671,8 @@ typedef struct ngtcp2_cc {
   ngtcp2_cc_congestion_event congestion_event;
   ngtcp2_cc_on_persistent_congestion on_persistent_congestion;
   ngtcp2_cc_on_ack_recv on_ack_recv;
+  ngtcp2_cc_on_pkt_sent on_pkt_sent;
+  ngtcp2_cc_new_rtt_sample new_rtt_sample;
   ngtcp2_cc_reset reset;
   ngtcp2_cc_event event;
 } ngtcp2_cc;

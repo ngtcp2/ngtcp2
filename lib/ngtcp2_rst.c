@@ -80,7 +80,7 @@ int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
     cstat->delivery_rate_sec = rs->delivered * NGTCP2_SECONDS / rs->interval;
   }
 
-  return 1;
+  return 0;
 }
 
 void ngtcp2_rst_update_rate_sample(ngtcp2_rst *rst, const ngtcp2_rtb_entry *ent,

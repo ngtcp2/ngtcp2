@@ -38,9 +38,11 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
 }
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
-                                  size_t pktlen, ngtcp2_tstamp ts_sent) {
+                                  size_t pktlen, ngtcp2_pktns_id pktns_id,
+                                  ngtcp2_tstamp ts_sent) {
   pkt->pkt_num = pkt_num;
   pkt->pktlen = pktlen;
+  pkt->pktns_id = pktns_id;
   pkt->ts_sent = ts_sent;
 
   return pkt;
@@ -182,6 +184,11 @@ static void cubic_cc_reset(ngtcp2_cubic_cc *cc) {
   cc->origin_point = 0;
   cc->epoch_start = UINT64_MAX;
   cc->k = 0;
+
+  cc->rtt_sample_count = 0;
+  cc->current_round_min_rtt = UINT64_MAX;
+  cc->last_round_min_rtt = UINT64_MAX;
+  cc->window_end = -1;
 }
 
 void ngtcp2_cubic_cc_init(ngtcp2_cubic_cc *cc, ngtcp2_log *log) {
@@ -207,6 +214,8 @@ int ngtcp2_cc_cubic_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
   cc->congestion_event = ngtcp2_cc_cubic_cc_congestion_event;
   cc->on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion;
   cc->on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
+  cc->on_pkt_sent = ngtcp2_cc_cubic_cc_on_pkt_sent;
+  cc->new_rtt_sample = ngtcp2_cc_cubic_cc_new_rtt_sample;
   cc->reset = ngtcp2_cc_cubic_cc_reset;
   cc->event = ngtcp2_cc_cubic_cc_event;
 
@@ -230,13 +239,24 @@ static uint64_t ngtcp2_cbrt(uint64_t n) {
   return a;
 }
 
+/* HyStart++ constants */
+#define NGTCP2_HS_MIN_SSTHRESH 16
+#define NGTCP2_HS_N_RTT_SAMPLE 8
+#define NGTCP2_HS_MIN_ETA (4 * NGTCP2_MILLISECONDS)
+#define NGTCP2_HS_MAX_ETA (16 * NGTCP2_MILLISECONDS)
+
 void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                      const ngtcp2_cc_pkt *pkt,
                                      ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
-  ngtcp2_duration t, min_rtt;
+  ngtcp2_duration t, min_rtt, eta;
   uint64_t target;
   uint64_t tx, kx, time_delta, delta;
+
+  if (pkt->pktns_id == NGTCP2_PKTNS_ID_APP && cc->window_end != -1 &&
+      cc->window_end <= pkt->pkt_num) {
+    cc->window_end = -1;
+  }
 
   if (in_congestion_recovery(cstat, pkt->ts_sent)) {
     return;
@@ -249,9 +269,32 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   if (cstat->cwnd < cstat->ssthresh) {
     /* slow-start */
     cstat->cwnd += pkt->pktlen;
+
     ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                     "pkn=%" PRId64 " acked, slow start cwnd=%" PRIu64,
                     pkt->pkt_num, cstat->cwnd);
+
+    if (cc->last_round_min_rtt != UINT64_MAX &&
+        cc->current_round_min_rtt != UINT64_MAX &&
+        cstat->cwnd >= NGTCP2_HS_MIN_SSTHRESH * cstat->max_udp_payload_size &&
+        cc->rtt_sample_count >= NGTCP2_HS_N_RTT_SAMPLE) {
+      eta = cc->last_round_min_rtt / 8;
+
+      if (eta < NGTCP2_HS_MIN_ETA) {
+        eta = NGTCP2_HS_MIN_ETA;
+      } else if (eta > NGTCP2_HS_MAX_ETA) {
+        eta = NGTCP2_HS_MAX_ETA;
+      }
+
+      if (cc->current_round_min_rtt >= cc->last_round_min_rtt + eta) {
+        ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+                        "HyStart++ exit slow start");
+
+        cc->w_last_max = cstat->cwnd;
+        cstat->ssthresh = cstat->cwnd;
+      }
+    }
+
     return;
   }
 
@@ -381,6 +424,35 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                     " min_rtt=%" PRIu64,
                     cc->target_cwnd, cc->max_delivery_rate_sec, cstat->min_rtt);
   }
+}
+
+void ngtcp2_cc_cubic_cc_on_pkt_sent(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                                    const ngtcp2_cc_pkt *pkt) {
+  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
+  (void)cstat;
+
+  if (pkt->pktns_id != NGTCP2_PKTNS_ID_APP || cc->window_end != -1) {
+    return;
+  }
+
+  cc->window_end = pkt->pkt_num;
+  cc->last_round_min_rtt = cc->current_round_min_rtt;
+  cc->current_round_min_rtt = UINT64_MAX;
+  cc->rtt_sample_count = 0;
+}
+
+void ngtcp2_cc_cubic_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                                       ngtcp2_tstamp ts) {
+  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
+  (void)ts;
+
+  if (cc->window_end == -1) {
+    return;
+  }
+
+  cc->current_round_min_rtt =
+      ngtcp2_min(cc->current_round_min_rtt, cstat->latest_rtt);
+  ++cc->rtt_sample_count;
 }
 
 void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx) {
