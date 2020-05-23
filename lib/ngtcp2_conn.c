@@ -9042,7 +9042,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 }
 
 /*
- * conn_handshake_pkt_lost is called when handshake packets which
+ * conn_on_crypto_timeout is called when handshake packets which
  * belong to |pktns| are lost.
  *
  * This function returns 0 if it succeeds, or one of the following
