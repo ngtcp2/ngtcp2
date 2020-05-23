@@ -6578,48 +6578,6 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
-  if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    switch (hd.type) {
-    case NGTCP2_PKT_HANDSHAKE:
-      rv = conn_verify_dcid(conn, NULL, &hd);
-      if (rv != 0) {
-        if (ngtcp2_err_is_fatal(rv)) {
-          return rv;
-        }
-        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                        "packet was ignored because of mismatched DCID");
-        return NGTCP2_ERR_DISCARD_PKT;
-      }
-      break;
-    case NGTCP2_PKT_0RTT:
-      if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
-        rv = conn_verify_dcid(conn, NULL, &hd);
-        if (rv != 0) {
-          if (ngtcp2_err_is_fatal(rv)) {
-            return rv;
-          }
-          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                          "packet was ignored because of mismatched DCID");
-          return NGTCP2_ERR_DISCARD_PKT;
-        }
-      }
-      break;
-    default:
-      /* Unreachable */
-      assert(0);
-    }
-  } else {
-    rv = conn_verify_dcid(conn, &new_cid_used, &hd);
-    if (rv != 0) {
-      if (ngtcp2_err_is_fatal(rv)) {
-        return rv;
-      }
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                      "packet was ignored because of mismatched DCID");
-      return NGTCP2_ERR_DISCARD_PKT;
-    }
-  }
-
   if (hd.type == NGTCP2_PKT_SHORT) {
     key_phase_bit_changed = conn_key_phase_changed(conn, &hd);
   }
@@ -6707,15 +6665,53 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
-    if (hd.type == NGTCP2_PKT_HANDSHAKE) {
+    switch (hd.type) {
+    case NGTCP2_PKT_HANDSHAKE:
+      rv = conn_verify_dcid(conn, NULL, &hd);
+      if (rv != 0) {
+        if (ngtcp2_err_is_fatal(rv)) {
+          return rv;
+        }
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "packet was ignored because of mismatched DCID");
+        return NGTCP2_ERR_DISCARD_PKT;
+      }
+
       rv = conn_recv_delayed_handshake_pkt(conn, &hd, pktlen, payload,
                                            payloadlen, pkt_ts, ts);
       if (rv < 0) {
         return (ngtcp2_ssize)rv;
       }
+
       return (ngtcp2_ssize)pktlen;
+    case NGTCP2_PKT_0RTT:
+      if (!ngtcp2_cid_eq(&conn->rcid, &hd.dcid)) {
+        rv = conn_verify_dcid(conn, NULL, &hd);
+        if (rv != 0) {
+          if (ngtcp2_err_is_fatal(rv)) {
+            return rv;
+          }
+          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                          "packet was ignored because of mismatched DCID");
+          return NGTCP2_ERR_DISCARD_PKT;
+        }
+      }
+      break;
+    default:
+      /* Unreachable */
+      assert(0);
     }
   } else {
+    rv = conn_verify_dcid(conn, &new_cid_used, &hd);
+    if (rv != 0) {
+      if (ngtcp2_err_is_fatal(rv)) {
+        return rv;
+      }
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "packet was ignored because of mismatched DCID");
+      return NGTCP2_ERR_DISCARD_PKT;
+    }
+
     conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
   }
 
