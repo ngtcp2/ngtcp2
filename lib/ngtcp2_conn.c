@@ -4659,12 +4659,12 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
+      if (!conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
+        conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
+      }
       rv = conn_recv_ack(conn, pktns, &fr->ack, pkt_ts, ts);
       if (rv != 0) {
         return rv;
-      }
-      if (!conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
-        conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
       }
       break;
     case NGTCP2_FRAME_PADDING:
@@ -6078,7 +6078,8 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return 0;
   }
 
-  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+  conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED |
+                 NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
 
   conn_discard_handshake_state(conn, ts);
 
@@ -6389,12 +6390,12 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
+      if (!conn->server) {
+        conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
+      }
       rv = conn_recv_ack(conn, pktns, &fr->ack, pkt_ts, ts);
       if (rv != 0) {
         return rv;
-      }
-      if (!conn->server) {
-        conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
       }
       break;
     case NGTCP2_FRAME_PADDING:
@@ -6803,12 +6804,12 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     switch (fr->type) {
     case NGTCP2_FRAME_ACK:
     case NGTCP2_FRAME_ACK_ECN:
+      if (!conn->server) {
+        conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
+      }
       rv = conn_recv_ack(conn, pktns, &fr->ack, pkt_ts, ts);
       if (rv != 0) {
         return rv;
-      }
-      if (!conn->server) {
-        conn->flags |= NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
       }
       non_probing_pkt = 1;
       break;
