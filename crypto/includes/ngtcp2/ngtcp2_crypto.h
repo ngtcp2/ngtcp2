@@ -325,7 +325,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask_cb(uint8_t *dest,
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
-    ngtcp2_conn *conn, void *tls, uint8_t *key, uint8_t *iv, uint8_t *hp,
+    ngtcp2_conn *conn, uint8_t *key, uint8_t *iv, uint8_t *hp,
     ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen);
 
 /**
@@ -362,7 +362,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_tx_key(
-    ngtcp2_conn *conn, void *tls, uint8_t *key, uint8_t *iv, uint8_t *hp,
+    ngtcp2_conn *conn, uint8_t *key, uint8_t *iv, uint8_t *hp,
     ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen);
 
 /**
@@ -533,10 +533,6 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
  * allowed to call this function with datalen == 0.  In this case, no
  * additional read operation is done.
  *
- * |tls| points to a implementation dependent TLS session object.  If
- * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
- * object.
- *
  * This function returns 0 if it succeeds, or a negative error code.
  * The generic error code is -1 if a specific error code is not
  * suitable.  The error codes less than -10000 are specific to
@@ -544,7 +540,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
  * defined in ngtcp2_crypto_openssl.h.
  */
 NGTCP2_EXTERN int
-ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
+ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
                                      ngtcp2_crypto_level crypto_level,
                                      const uint8_t *data, size_t datalen);
 

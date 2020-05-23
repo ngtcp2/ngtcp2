@@ -275,10 +275,10 @@ from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
   }
 }
 
-int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
+int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
                                          ngtcp2_crypto_level crypto_level,
                                          const uint8_t *data, size_t datalen) {
-  gnutls_session_t session = tls;
+  gnutls_session_t session = ngtcp2_conn_get_tls(conn);
   int rv;
 
   if (datalen > 0) {

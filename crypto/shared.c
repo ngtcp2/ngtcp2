@@ -145,12 +145,15 @@ int ngtcp2_crypto_update_traffic_secret(uint8_t *dest,
   return 0;
 }
 
-int ngtcp2_crypto_derive_and_install_rx_key(
-    ngtcp2_conn *conn, void *tls, uint8_t *key, uint8_t *iv, uint8_t *hp_key,
-    ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen) {
+int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
+                                            uint8_t *iv, uint8_t *hp_key,
+                                            ngtcp2_crypto_level level,
+                                            const uint8_t *secret,
+                                            size_t secretlen) {
   const ngtcp2_crypto_ctx *ctx;
   const ngtcp2_crypto_aead *aead;
   const ngtcp2_crypto_md *md;
+  void *tls = ngtcp2_conn_get_tls(conn);
   uint8_t keybuf[64], ivbuf[64], hp_keybuf[64];
   size_t keylen;
   size_t ivlen;
@@ -226,12 +229,15 @@ int ngtcp2_crypto_derive_and_install_rx_key(
   return 0;
 }
 
-int ngtcp2_crypto_derive_and_install_tx_key(
-    ngtcp2_conn *conn, void *tls, uint8_t *key, uint8_t *iv, uint8_t *hp_key,
-    ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen) {
+int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
+                                            uint8_t *iv, uint8_t *hp_key,
+                                            ngtcp2_crypto_level level,
+                                            const uint8_t *secret,
+                                            size_t secretlen) {
   const ngtcp2_crypto_ctx *ctx;
   const ngtcp2_crypto_aead *aead;
   const ngtcp2_crypto_md *md;
+  void *tls = ngtcp2_conn_get_tls(conn);
   uint8_t keybuf[64], ivbuf[64], hp_keybuf[64];
   size_t keylen;
   size_t ivlen;
@@ -580,8 +586,10 @@ static int crypto_set_local_transport_params(ngtcp2_conn *conn, void *tls) {
  * crypto_setup_initial_crypto establishes the initial secrets and
  * encryption keys, and prepares local QUIC transport parameters.
  */
-static int crypto_setup_initial_crypto(ngtcp2_conn *conn, void *tls,
+static int crypto_setup_initial_crypto(ngtcp2_conn *conn,
                                        const ngtcp2_cid *dcid) {
+  void *tls = ngtcp2_conn_get_tls(conn);
+
   if (ngtcp2_crypto_derive_and_install_initial_key(conn, NULL, NULL, NULL, NULL,
                                                    NULL, NULL, NULL, NULL, NULL,
                                                    dcid) != 0) {
@@ -593,17 +601,14 @@ static int crypto_setup_initial_crypto(ngtcp2_conn *conn, void *tls,
 
 int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn, void *user_data) {
   const ngtcp2_cid *dcid = ngtcp2_conn_get_dcid(conn);
-  void *tls = ngtcp2_conn_get_tls(conn);
   (void)user_data;
 
-  assert(tls);
-
-  if (crypto_setup_initial_crypto(conn, tls, dcid) != 0) {
+  if (crypto_setup_initial_crypto(conn, dcid) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  if (ngtcp2_crypto_read_write_crypto_data(
-          conn, tls, NGTCP2_CRYPTO_LEVEL_INITIAL, NULL, 0) != 0) {
+  if (ngtcp2_crypto_read_write_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL,
+                                           NULL, 0) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -628,12 +633,9 @@ int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
                                          const ngtcp2_cid *dcid,
                                          void *user_data) {
-  void *tls = ngtcp2_conn_get_tls(conn);
   (void)user_data;
 
-  assert(tls);
-
-  if (crypto_setup_initial_crypto(conn, tls, dcid) != 0) {
+  if (crypto_setup_initial_crypto(conn, dcid) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 

@@ -95,12 +95,12 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
   std::array<uint8_t, 64> rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key;
 
   if (ngtcp2_crypto_derive_and_install_rx_key(
-          conn_, ssl_, rx_key.data(), rx_iv.data(), rx_hp_key.data(), level,
+          conn_, rx_key.data(), rx_iv.data(), rx_hp_key.data(), level,
           rx_secret, secretlen) != 0) {
     return -1;
   }
   if (ngtcp2_crypto_derive_and_install_tx_key(
-          conn_, ssl_, tx_key.data(), tx_iv.data(), tx_hp_key.data(), level,
+          conn_, tx_key.data(), tx_iv.data(), tx_hp_key.data(), level,
           tx_secret, secretlen) != 0) {
     return -1;
   }
@@ -1585,7 +1585,7 @@ void Handler::write_server_handshake(ngtcp2_crypto_level level,
 
 int Handler::recv_crypto_data(ngtcp2_crypto_level crypto_level,
                               const uint8_t *data, size_t datalen) {
-  return ngtcp2_crypto_read_write_crypto_data(conn_, ssl_, crypto_level, data,
+  return ngtcp2_crypto_read_write_crypto_data(conn_, crypto_level, data,
                                               datalen);
 }
 
