@@ -9112,9 +9112,16 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   if (!conn->server && !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
     if (hs_pktns->crypto.tx.ckm) {
+      rv = conn_on_crypto_timeout(conn, hs_pktns);
+      if (rv != 0) {
+        return rv;
+      }
       hs_pktns->rtb.probe_pkt_left = 1;
     } else {
-      conn_on_crypto_timeout(conn, in_pktns);
+      rv = conn_on_crypto_timeout(conn, in_pktns);
+      if (rv != 0) {
+        return rv;
+      }
       in_pktns->rtb.probe_pkt_left = 1;
     }
   } else {
