@@ -5025,6 +5025,63 @@ void test_ngtcp2_conn_get_active_dcid(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_recv_version_negotiation(void) {
+  ngtcp2_conn *conn;
+  const ngtcp2_cid *dcid;
+  ngtcp2_ssize spktlen;
+  uint8_t buf[1500];
+  uint32_t nsv[3];
+  int rv;
+  ngtcp2_tstamp t = 0;
+
+  setup_handshake_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  dcid = ngtcp2_conn_get_dcid(conn);
+
+  nsv[0] = 0xffffffff;
+
+  spktlen = ngtcp2_pkt_write_version_negotiation(
+      buf, sizeof(buf), 0xfe, conn->oscid.data, conn->oscid.datalen, dcid->data,
+      dcid->datalen, nsv, 1);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_RECV_VERSION_NEGOTIATION == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* Ignore Version Negotiation if it contains version selected by
+     client */
+  setup_handshake_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  dcid = ngtcp2_conn_get_dcid(conn);
+
+  nsv[0] = 0xfffffff0;
+  nsv[1] = conn->version;
+
+  spktlen = ngtcp2_pkt_write_version_negotiation(
+      buf, sizeof(buf), 0x50, conn->oscid.data, conn->oscid.datalen, dcid->data,
+      dcid->datalen, nsv, 2);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, (size_t)spktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];

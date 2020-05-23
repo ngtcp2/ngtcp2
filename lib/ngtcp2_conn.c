@@ -3438,6 +3438,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
   uint32_t *p;
   int rv = 0;
   size_t nsv;
+  size_t i;
 
   if (payloadlen % sizeof(uint32_t)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -3452,28 +3453,41 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
     p = sv;
   }
 
-  /* TODO Just move to the terminal state for now in order not to send
-     CONNECTION_CLOSE frame. */
-  conn->state = NGTCP2_CS_DRAINING;
-
   nsv = ngtcp2_pkt_decode_version_negotiation(p, payload, payloadlen);
 
   ngtcp2_log_rx_vn(&conn->log, hd, p, nsv);
 
+  for (i = 0; i < nsv; ++i) {
+    if (sv[i] == conn->version) {
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                      "ignore Version Negotiation because it contains version "
+                      "selected by client");
+
+      rv = NGTCP2_ERR_INVALID_ARGUMENT;
+      goto fin;
+    }
+  }
+
   if (conn->callbacks.recv_version_negotiation) {
     rv = conn->callbacks.recv_version_negotiation(conn, hd, p, nsv,
                                                   conn->user_data);
+    if (rv != 0) {
+      rv = NGTCP2_ERR_CALLBACK_FAILURE;
+    }
   }
 
+  if (rv == 0) {
+    /* TODO Just move to the terminal state for now in order not to
+       send CONNECTION_CLOSE frame. */
+    conn->state = NGTCP2_CS_DRAINING;
+  }
+
+fin:
   if (p != sv) {
     ngtcp2_mem_free(conn->mem, p);
   }
 
-  if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
+  return rv;
 }
 
 static uint64_t conn_tx_strmq_first_cycle(ngtcp2_conn *conn) {
@@ -4333,12 +4347,7 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    /* TODO Do not change state here? */
-    rv = conn_verify_dcid(conn, NULL, &hd);
-    if (rv != 0) {
-      if (ngtcp2_err_is_fatal(rv)) {
-        return rv;
-      }
+    if (!ngtcp2_cid_eq(&conn->oscid, &hd.dcid)) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "packet was ignored because of mismatched DCID");
       return NGTCP2_ERR_DISCARD_PKT;
