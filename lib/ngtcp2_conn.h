@@ -427,8 +427,8 @@ struct ngtcp2_conn {
       ngtcp2_tstamp confirmed_ts;
     } key_update;
 
-    /* tls is a native handle to TLS session object. */
-    void *tls;
+    /* tls_native_handle is a native handle to TLS session object. */
+    void *tls_native_handle;
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_vec decrypt_buf;

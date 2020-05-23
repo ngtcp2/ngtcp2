@@ -9476,10 +9476,13 @@ const ngtcp2_crypto_ctx *ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn) {
   return &conn->pktns.crypto.ctx;
 }
 
-void *ngtcp2_conn_get_tls(ngtcp2_conn *conn) { return conn->crypto.tls; }
+void *ngtcp2_conn_get_tls_native_handle(ngtcp2_conn *conn) {
+  return conn->crypto.tls_native_handle;
+}
 
-void ngtcp2_conn_set_tls(ngtcp2_conn *conn, void *tls) {
-  conn->crypto.tls = tls;
+void ngtcp2_conn_set_tls_native_handle(ngtcp2_conn *conn,
+                                       void *tls_native_handle) {
+  conn->crypto.tls_native_handle = tls_native_handle;
 }
 
 void ngtcp2_conn_get_connection_close_error_code(

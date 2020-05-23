@@ -1565,7 +1565,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     return -1;
   }
 
-  ngtcp2_conn_set_tls(conn_, ssl_);
+  ngtcp2_conn_set_tls_native_handle(conn_, ssl_);
 
   ev_io_set(&wev_, endpoint_->fd, EV_WRITE);
   ev_timer_again(loop_, &timer_);

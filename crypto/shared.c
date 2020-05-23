@@ -153,7 +153,7 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
   const ngtcp2_crypto_ctx *ctx;
   const ngtcp2_crypto_aead *aead;
   const ngtcp2_crypto_md *md;
-  void *tls = ngtcp2_conn_get_tls(conn);
+  void *tls = ngtcp2_conn_get_tls_native_handle(conn);
   uint8_t keybuf[64], ivbuf[64], hp_keybuf[64];
   size_t keylen;
   size_t ivlen;
@@ -237,7 +237,7 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
   const ngtcp2_crypto_ctx *ctx;
   const ngtcp2_crypto_aead *aead;
   const ngtcp2_crypto_md *md;
-  void *tls = ngtcp2_conn_get_tls(conn);
+  void *tls = ngtcp2_conn_get_tls_native_handle(conn);
   uint8_t keybuf[64], ivbuf[64], hp_keybuf[64];
   size_t keylen;
   size_t ivlen;
@@ -588,7 +588,7 @@ static int crypto_set_local_transport_params(ngtcp2_conn *conn, void *tls) {
  */
 static int crypto_setup_initial_crypto(ngtcp2_conn *conn,
                                        const ngtcp2_cid *dcid) {
-  void *tls = ngtcp2_conn_get_tls(conn);
+  void *tls = ngtcp2_conn_get_tls_native_handle(conn);
 
   if (ngtcp2_crypto_derive_and_install_initial_key(conn, NULL, NULL, NULL, NULL,
                                                    NULL, NULL, NULL, NULL, NULL,

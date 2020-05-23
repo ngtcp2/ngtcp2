@@ -923,7 +923,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     return -1;
   }
 
-  ngtcp2_conn_set_tls(conn_, ssl_);
+  ngtcp2_conn_set_tls_native_handle(conn_, ssl_);
 
   if (early_data_ && config.tp_file) {
     ngtcp2_transport_params params;

@@ -2866,18 +2866,20 @@ NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_tls` returns TLS native handle set by
- * `ngtcp2_conn_set_tls()`.
+ * `ngtcp2_conn_get_tls_native_handle` returns TLS native handle set by
+ * `ngtcp2_conn_set_tls_native_handle()`.
  */
-NGTCP2_EXTERN void *ngtcp2_conn_get_tls(ngtcp2_conn *conn);
+NGTCP2_EXTERN void *ngtcp2_conn_get_tls_native_handle(ngtcp2_conn *conn);
 
 /**
  * @function
  *
- * `ngtcp2_conn_set_tls` sets TLS native handle |tls| to |conn|.
- * Internally, |tls| is used as an opaque pointer.
+ * `ngtcp2_conn_set_tls_native_handle` sets TLS native handle
+ * |tls_native_handle| to |conn|.  Internally, it is used as an opaque
+ * pointer.
  */
-NGTCP2_EXTERN void ngtcp2_conn_set_tls(ngtcp2_conn *conn, void *tls);
+NGTCP2_EXTERN void ngtcp2_conn_set_tls_native_handle(ngtcp2_conn *conn,
+                                                     void *tls_native_handle);
 
 /**
  * @function
