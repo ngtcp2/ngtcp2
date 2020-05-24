@@ -312,3 +312,14 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
      gnutls_session_ext_register. */
   return 0;
 }
+
+int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
+                                             size_t len) {
+  (void)tls;
+  (void)buf;
+  (void)len;
+  /* Nothing to do; GnuTLS applications are supposed to register the
+     quic_transport_parameters extension with
+     gnutls_session_ext_register. */
+  return 0;
+}
