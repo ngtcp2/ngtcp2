@@ -548,7 +548,7 @@ static void conn_update_recv_rate(ngtcp2_conn *conn, size_t datalen,
   window = conn->cstat.min_rtt == UINT64_MAX ? NGTCP2_DEFAULT_INITIAL_RTT
                                              : conn->cstat.min_rtt * 2;
 
-  if (conn->rx.rate.start_ts + window > ts) {
+  if (window > ts - conn->rx.rate.start_ts) {
     return;
   }
 
