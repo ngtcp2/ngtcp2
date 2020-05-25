@@ -509,7 +509,10 @@ typedef struct ngtcp2_transport_params {
      Initial packet with retry token from client and server verified
      its token, server application must set Destination Connection ID
      field from the Initial packet to this field and set
-     retry_scid_present to nonzero. */
+     retry_scid_present to nonzero.  Server application must verify
+     that the Destination Connection ID from Initial packet was sent
+     in Retry packet by, for example, including the Connection ID in a
+     token, or including it in AAD when encrypting a token. */
   ngtcp2_cid retry_scid;
   /* initial_max_stream_data_bidi_local is the size of flow control
      window of locally initiated stream.  This is the number of bytes
