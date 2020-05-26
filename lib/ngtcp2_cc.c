@@ -252,6 +252,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   ngtcp2_duration t, min_rtt, eta;
   uint64_t target;
   uint64_t tx, kx, time_delta, delta;
+  uint64_t add, tcp_add;
 
   if (pkt->pktns_id == NGTCP2_PKTNS_ID_APP && cc->window_end != -1 &&
       cc->window_end <= pkt->pkt_num) {
@@ -343,18 +344,23 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 
   if (target > cstat->cwnd) {
-    cstat->cwnd +=
-        cstat->max_udp_payload_size * (target - cstat->cwnd) / cstat->cwnd;
+    add = cstat->max_udp_payload_size * (target - cstat->cwnd) / cstat->cwnd;
   } else {
     /* TODO too small, no increment at all */
-    cstat->cwnd += cstat->max_udp_payload_size / (100 * cstat->cwnd);
+    add = cstat->max_udp_payload_size / (100 * cstat->cwnd);
   }
 
-  cc->w_tcp += cstat->max_udp_payload_size * pkt->pktlen / cc->w_tcp;
+  cc->w_tcp += cstat->max_udp_payload_size * pkt->pktlen * 9 / 17 / cstat->cwnd;
 
   if (cc->w_tcp > cstat->cwnd) {
-    cstat->cwnd = cc->w_tcp;
+    tcp_add =
+        cstat->max_udp_payload_size * (cc->w_tcp - cstat->cwnd) / cstat->cwnd;
+    if (tcp_add > add) {
+      add = tcp_add;
+    }
   }
+
+  cstat->cwnd += add;
 
   ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                   "pkn=%" PRId64 " acked, cubic-ca cwnd=%" PRIu64 " t=%" PRIu64
