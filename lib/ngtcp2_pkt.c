@@ -141,8 +141,8 @@ void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
     ngtcp2_cid_zero(&hd->scid);
   }
   hd->pkt_num = pkt_num;
-  hd->token = NULL;
-  hd->tokenlen = 0;
+  hd->token.base = NULL;
+  hd->token.len = 0;
   hd->pkt_numlen = pkt_numlen;
   hd->version = version;
   hd->len = len;
@@ -284,8 +284,8 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   ngtcp2_cid_init(&dest->scid, p, scil);
   p += scil;
 
-  dest->token = (uint8_t *)token;
-  dest->tokenlen = tokenlen;
+  dest->token.base = (uint8_t *)token;
+  dest->token.len = tokenlen;
   p += ntokenlen + tokenlen;
 
   switch (type) {
@@ -357,7 +357,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   }
 
   if (hd->type == NGTCP2_PKT_INITIAL) {
-    len += ngtcp2_put_varint_len(hd->tokenlen) + hd->tokenlen;
+    len += ngtcp2_put_varint_len(hd->token.len) + hd->token.len;
   }
 
   if (outlen < len) {
@@ -379,9 +379,9 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   }
 
   if (hd->type == NGTCP2_PKT_INITIAL) {
-    p = ngtcp2_put_varint(p, hd->tokenlen);
-    if (hd->tokenlen) {
-      p = ngtcp2_cpymem(p, hd->token, hd->tokenlen);
+    p = ngtcp2_put_varint(p, hd->token.len);
+    if (hd->token.len) {
+      p = ngtcp2_cpymem(p, hd->token.base, hd->token.len);
     }
   }
 

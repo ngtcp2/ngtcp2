@@ -279,8 +279,8 @@ size_t write_single_frame_initial_pkt(ngtcp2_conn *conn, uint8_t *out,
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_INITIAL, dcid,
                      scid, pkt_num, 4, version, 0);
-  hd.token = (uint8_t *)token;
-  hd.tokenlen = tokenlen;
+  hd.token.base = (uint8_t *)token;
+  hd.token.len = tokenlen;
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);

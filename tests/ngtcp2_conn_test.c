@@ -5123,8 +5123,8 @@ void test_ngtcp2_conn_send_initial_token(void) {
   shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(sizeof(token) == hd.tokenlen);
-  CU_ASSERT(0 == memcmp(token, hd.token, sizeof(token)));
+  CU_ASSERT(sizeof(token) == hd.token.len);
+  CU_ASSERT(0 == memcmp(token, hd.token.base, sizeof(token)));
 
   ngtcp2_conn_del(conn);
 }

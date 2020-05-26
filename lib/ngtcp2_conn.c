@@ -1736,8 +1736,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   if (!conn->server && type == NGTCP2_PKT_INITIAL &&
       conn->local.settings.token.len) {
-    hd.token = conn->local.settings.token.base;
-    hd.tokenlen = conn->local.settings.token.len;
+    hd.token = conn->local.settings.token;
   }
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
@@ -4243,8 +4242,8 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num) {
  * returns 0 if it succeeds, or NGTCP2_ERR_PROTO.
  */
 static int verify_token(const ngtcp2_vec *token, const ngtcp2_pkt_hd *hd) {
-  if (token->len == hd->tokenlen &&
-      ngtcp2_cmemeq(token->base, hd->token, token->len)) {
+  if (token->len == hd->token.len &&
+      ngtcp2_cmemeq(token->base, hd->token.base, token->len)) {
     return 0;
   }
   return NGTCP2_ERR_PROTO;
@@ -4492,7 +4491,7 @@ static ngtcp2_ssize conn_recv_handshake_pkt(ngtcp2_conn *conn,
           return rv;
         }
       }
-    } else if (hd.tokenlen != 0) {
+    } else if (hd.token.len != 0) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "packet was ignored because token is not empty");
       return NGTCP2_ERR_DISCARD_PKT;
@@ -7846,7 +7845,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     if (pktlen < NGTCP2_MIN_INITIAL_PKTLEN) {
       return -1;
     }
-    if (p->tokenlen == 0 && p->dcid.datalen < 8) {
+    if (p->token.len == 0 && p->dcid.datalen < 8) {
       return -1;
     }
     break;

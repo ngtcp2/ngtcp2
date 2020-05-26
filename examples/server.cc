@@ -2383,14 +2383,19 @@ int Server::on_read(Endpoint &ep) {
         ngtcp2_cid *pocid = nullptr;
         switch (hd.type) {
         case NGTCP2_PKT_INITIAL:
-          if (config.validate_addr || hd.tokenlen) {
+          if (config.validate_addr || hd.token.len) {
             std::cerr << "Perform stateless address validation" << std::endl;
-            if (hd.tokenlen == 0) {
+            if (hd.token.len == 0) {
               send_retry(&hd, ep, &su.sa, addrlen);
               continue;
             }
 
-            switch (hd.token[0]) {
+            if (hd.token.base[0] != RETRY_TOKEN_MAGIC && hd.dcid.datalen < 8) {
+              send_stateless_connection_close(&hd, ep, &su.sa, addrlen);
+              continue;
+            }
+
+            switch (hd.token.base[0]) {
             case RETRY_TOKEN_MAGIC:
               if (verify_retry_token(&ocid, &hd, &su.sa, addrlen) != 0) {
                 send_stateless_connection_close(&hd, ep, &su.sa, addrlen);
@@ -2405,8 +2410,8 @@ int Server::on_read(Endpoint &ep) {
                   continue;
                 }
 
-                hd.token = nullptr;
-                hd.tokenlen = 0;
+                hd.token.base = nullptr;
+                hd.token.len = 0;
               }
               break;
             default:
@@ -2418,8 +2423,8 @@ int Server::on_read(Endpoint &ep) {
                 continue;
               }
 
-              hd.token = nullptr;
-              hd.tokenlen = 0;
+              hd.token.base = nullptr;
+              hd.token.len = 0;
               break;
             }
           }
@@ -2430,8 +2435,8 @@ int Server::on_read(Endpoint &ep) {
         }
 
         auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-        if (h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid, hd.token,
-                    hd.tokenlen, hd.version) != 0) {
+        if (h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid,
+                    hd.token.base, hd.token.len, hd.version) != 0) {
           continue;
         }
 
@@ -2750,28 +2755,28 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
   if (!config.quiet) {
     std::cerr << "Verifying Retry token from [" << host.data()
               << "]:" << port.data() << std::endl;
-    util::hexdump(stderr, hd->token, hd->tokenlen);
+    util::hexdump(stderr, hd->token.base, hd->token.len);
   }
 
   /* 1 for RETRY_TOKEN_MAGIC */
-  if (hd->tokenlen < TOKEN_RAND_DATALEN + 1) {
+  if (hd->token.len < TOKEN_RAND_DATALEN + 1) {
     if (!config.quiet) {
       std::cerr << "Token is too short" << std::endl;
     }
     return -1;
   }
-  if (hd->tokenlen > MAX_RETRY_TOKENLEN) {
+  if (hd->token.len > MAX_RETRY_TOKENLEN) {
     if (!config.quiet) {
       std::cerr << "Token is too long" << std::endl;
     }
     return -1;
   }
 
-  assert(hd->token[0] == RETRY_TOKEN_MAGIC);
+  assert(hd->token.base[0] == RETRY_TOKEN_MAGIC);
 
-  auto rand_data = hd->token + hd->tokenlen - TOKEN_RAND_DATALEN;
-  auto ciphertext = hd->token + 1;
-  auto ciphertextlen = hd->tokenlen - TOKEN_RAND_DATALEN - 1;
+  auto rand_data = hd->token.base + hd->token.len - TOKEN_RAND_DATALEN;
+  auto ciphertext = hd->token.base + 1;
+  auto ciphertextlen = hd->token.len - TOKEN_RAND_DATALEN - 1;
 
   std::array<uint8_t, 32> key, iv;
   auto keylen = key.size();
@@ -2928,31 +2933,31 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
   if (!config.quiet) {
     std::cerr << "Verifying token from [" << host.data() << "]:" << port.data()
               << std::endl;
-    util::hexdump(stderr, hd->token, hd->tokenlen);
+    util::hexdump(stderr, hd->token.base, hd->token.len);
   }
 
   /* 1 for TOKEN_MAGIC */
-  if (hd->tokenlen < TOKEN_RAND_DATALEN + 1) {
+  if (hd->token.len < TOKEN_RAND_DATALEN + 1) {
     if (!config.quiet) {
       std::cerr << "Token is too short" << std::endl;
     }
     return -1;
   }
-  if (hd->tokenlen > MAX_TOKENLEN) {
+  if (hd->token.len > MAX_TOKENLEN) {
     if (!config.quiet) {
       std::cerr << "Token is too long" << std::endl;
     }
     return -1;
   }
 
-  assert(hd->token[0] == TOKEN_MAGIC);
+  assert(hd->token.base[0] == TOKEN_MAGIC);
 
   std::array<uint8_t, 256> aad;
   auto aadlen = generate_token_aad(aad.data(), aad.size(), sa, salen);
 
-  auto rand_data = hd->token + hd->tokenlen - TOKEN_RAND_DATALEN;
-  auto ciphertext = hd->token + 1;
-  auto ciphertextlen = hd->tokenlen - TOKEN_RAND_DATALEN - 1;
+  auto rand_data = hd->token.base + hd->token.len - TOKEN_RAND_DATALEN;
+  auto ciphertext = hd->token.base + 1;
+  auto ciphertextlen = hd->token.len - TOKEN_RAND_DATALEN - 1;
 
   std::array<uint8_t, 32> key, iv;
   auto keylen = key.size();
