@@ -460,8 +460,6 @@ struct ngtcp2_conn {
   ngtcp2_rst rst;
   ngtcp2_cc_algo cc_algo;
   ngtcp2_cc cc;
-  /* token is an address validation token received from server. */
-  ngtcp2_buf token;
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;

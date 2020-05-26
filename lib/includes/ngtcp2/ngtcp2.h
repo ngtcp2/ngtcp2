@@ -713,10 +713,18 @@ typedef struct ngtcp2_settings {
      controller to compute congestion window.  If it is set to 0, it
      defaults to NGTCP2_DEFAULT_MAX_PKTLEN. */
   size_t max_udp_payload_size;
-  /* token is a token received in Client Initial packet and
-     successfully validated.  Only server application may specify this
-     field.  Server then verifies that all Client Initial packets have
-     this token.  `ngtcp2_conn_server_new` makes a copy of token. */
+  /**
+   * token is a token from Retry packet or NEW_TOKEN frame.
+   *
+   * Server sets this field if it received the token in Client Initial
+   * packet and successfully validated.
+   *
+   * Client sets this field if it intends to send token in its Initial
+   * packet.
+   *
+   * `ngtcp2_conn_server_new` and `ngtcp2_conn_client_new` make a copy
+   * of token.
+   */
   ngtcp2_vec token;
 } ngtcp2_settings;
 
@@ -1563,6 +1571,21 @@ typedef int (*ngtcp2_connection_id_status)(ngtcp2_conn *conn, int type,
                                            const uint8_t *token,
                                            void *user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_new_token` is a callback function which is
+ * called when new token is received from server.
+ *
+ * |token| is the received token.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_recv_new_token)(ngtcp2_conn *conn, const ngtcp2_vec *token,
+                                     void *user_data);
+
 typedef struct ngtcp2_conn_callbacks {
   /**
    * client_initial is a callback function which is invoked when
@@ -1744,6 +1767,11 @@ typedef struct ngtcp2_conn_callbacks {
    * handshake confirmation for server.
    */
   ngtcp2_handshake_confirmed handshake_confirmed;
+  /**
+   * recv_new_token is a callback function which is invoked when new
+   * token is received from server.  This field is ignored by server.
+   */
+  ngtcp2_recv_new_token recv_new_token;
 } ngtcp2_conn_callbacks;
 
 /**
@@ -2759,6 +2787,25 @@ NGTCP2_EXTERN int
 ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
                                ngtcp2_crypto_level crypto_level,
                                const uint8_t *data, const size_t datalen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_submit_new_token` submits address validation token.
+ * It is sent in NEW_TOKEN frame.  Only server can call this function.
+ * |token| must not be empty.
+ *
+ * This function makes a copy of the buffer pointed by |token|->base
+ * of length |token|->len.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn,
+                                               const ngtcp2_vec *token);
 
 /**
  * @function

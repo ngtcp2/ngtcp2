@@ -736,6 +736,22 @@ int Client::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
   return 0;
 }
 
+namespace {
+int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
+                   void *user_data) {
+  auto f = BIO_new_file(config.token_file.data(), "w");
+  if (f == nullptr) {
+    std::cerr << "Could not write token in " << config.token_file << std::endl;
+    return 0;
+  }
+
+  PEM_write_bio(f, "QUIC TOKEN", "", token->base, token->len);
+  BIO_free(f);
+
+  return 0;
+}
+} // namespace
+
 int Client::init_ssl() {
   if (ssl_) {
     SSL_free(ssl_);
@@ -853,6 +869,9 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // extend_max_remote_streams_bidi,
       nullptr, // extend_max_remote_streams_uni,
       ::extend_max_stream_data,
+      nullptr, // dcid_status
+      nullptr, // handshake_confirmed
+      ::recv_new_token,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -896,6 +915,32 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.cc_algo =
       config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
   settings.initial_ts = util::timestamp(loop_);
+
+  if (!config.token_file.empty()) {
+    std::cerr << "Reading token file " << config.token_file << std::endl;
+    auto f = BIO_new_file(config.token_file.data(), "r");
+    if (f == nullptr) {
+      std::cerr << "Could not open token file " << config.token_file
+                << std::endl;
+    } else {
+      char *name, *header;
+      unsigned char *data;
+      long datalen;
+      if (PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
+        std::cerr << "Could not read token file " << config.token_file
+                  << std::endl;
+      } else {
+        settings.token.base = data;
+        settings.token.len = datalen;
+
+        OPENSSL_free(name);
+        OPENSSL_free(header);
+      }
+
+      BIO_free(f);
+    }
+  }
+
   auto &params = settings.transport_params;
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
   params.initial_max_stream_data_bidi_remote =
@@ -912,9 +957,14 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                            reinterpret_cast<const uint8_t *>(&local_addr.su))},
       {remote_addr.len, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(
                             &remote_addr.su))}};
-  if (auto rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version,
-                                       &callbacks, &settings, nullptr, this);
-      rv != 0) {
+  auto rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version,
+                                   &callbacks, &settings, nullptr, this);
+
+  if (settings.token.base) {
+    OPENSSL_free(settings.token.base);
+  }
+
+  if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
@@ -2422,6 +2472,9 @@ Options:
               Disable early data.
   --cc=(<cubic>|<reno>)
               The name of congestion controller algorithm.
+  --token-file=<PATH>
+              Read/write token from/to <PATH>.  Token is obtained from
+              NEW_TOKEN frame from server.
   -h, --help  Display this help and exit.
 
 ---
@@ -2483,6 +2536,7 @@ int main(int argc, char **argv) {
         {"qlog-dir", required_argument, &flag, 26},
         {"cc", required_argument, &flag, 27},
         {"exit-on-all-streams-close", no_argument, &flag, 28},
+        {"token-file", required_argument, &flag, 29},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2699,6 +2753,10 @@ int main(int argc, char **argv) {
       case 28:
         // --exit-on-all-streams-close
         config.exit_on_all_streams_close = true;
+        break;
+      case 29:
+        // --token-file
+        config.token_file = optarg;
         break;
       }
       break;

@@ -151,6 +151,9 @@ struct Config {
   std::array<uint8_t, 32> static_secret;
   // cc is the congestion controller algorithm.
   std::string_view cc;
+  // token_file is a path to file to read or write token from
+  // NEW_TOKEN frame.
+  std::string_view token_file;
 };
 
 struct Buffer {

@@ -447,14 +447,17 @@ static uint8_t *write_new_token_frame(uint8_t *p, const ngtcp2_new_token *fr) {
   (void)fr;
 
   /*
-   * {"frame_type":"new_token"}
+   * {"frame_type":"new_token","length":0000000000000000000,"token":""}
    */
-#define NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD 26
+#define NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD 66
 
   *p++ = '{';
   p = write_pair(p, ngtcp2_vec_lit(&name, "frame_type"),
                  ngtcp2_vec_lit(&value, "new_token"));
-  /* TODO Write token here */
+  *p++ = ',';
+  p = write_pair_number(p, ngtcp2_vec_lit(&name, "length"), fr->token.len);
+  *p++ = ',';
+  p = write_pair_hex(p, ngtcp2_vec_lit(&name, "token"), &fr->token);
   *p++ = '}';
 
   return p;
@@ -870,7 +873,8 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     p = write_crypto_frame(p, &fr->crypto);
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
-    if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD + 1 +
+    if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD +
+                                          fr->new_token.token.len * 2 + 1 +
                                           NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD) {
       return;
     }

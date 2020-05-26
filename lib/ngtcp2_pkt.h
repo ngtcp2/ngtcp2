@@ -262,8 +262,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  size_t tokenlen;
-  const uint8_t *token;
+  ngtcp2_vec token;
 } ngtcp2_new_token;
 
 typedef struct {

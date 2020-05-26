@@ -659,7 +659,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   (*pconn)->local.settings = *settings;
 
-  if (server && settings->token.len) {
+  if (settings->token.len) {
     buf = ngtcp2_mem_malloc(mem, settings->token.len);
     if (buf == NULL) {
       goto fail_token;
@@ -924,7 +924,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
 
   ngtcp2_qlog_end(&conn->qlog);
 
-  ngtcp2_mem_free(conn->mem, conn->token.begin);
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
   ngtcp2_mem_free(conn->mem, conn->local.settings.token.base);
 
@@ -1735,9 +1734,10 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
                      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
                      conn->version, 0);
 
-  if (type == NGTCP2_PKT_INITIAL && ngtcp2_buf_len(&conn->token)) {
-    hd.token = conn->token.pos;
-    hd.tokenlen = ngtcp2_buf_len(&conn->token);
+  if (!conn->server && type == NGTCP2_PKT_INITIAL &&
+      conn->local.settings.token.len) {
+    hd.token = conn->local.settings.token.base;
+    hd.tokenlen = conn->local.settings.token.len;
   }
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
@@ -3611,12 +3611,12 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                          size_t hdpktlen, const uint8_t *pkt, size_t pktlen) {
   int rv;
   ngtcp2_pkt_retry retry;
-  uint8_t *p;
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_rtb *in_rtb;
   uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
   ngtcp2_frame_chain *frc = NULL;
+  ngtcp2_vec *token;
 
   if (!in_pktns || conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
     return 0;
@@ -3688,17 +3688,19 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return rv;
   }
 
-  assert(conn->token.begin == NULL);
+  token = &conn->local.settings.token;
 
-  p = ngtcp2_mem_malloc(conn->mem, retry.tokenlen);
-  if (p == NULL) {
+  ngtcp2_mem_free(conn->mem, token->base);
+  token->base = NULL;
+  token->len = 0;
+
+  token->base = ngtcp2_mem_malloc(conn->mem, retry.tokenlen);
+  if (token->base == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
-  ngtcp2_buf_init(&conn->token, p, retry.tokenlen);
+  token->len = retry.tokenlen;
 
-  ngtcp2_cpymem(conn->token.begin, retry.token, retry.tokenlen);
-  conn->token.pos = conn->token.begin;
-  conn->token.last = conn->token.pos + retry.tokenlen;
+  ngtcp2_cpymem(token->base, retry.token, retry.tokenlen);
 
   conn_reset_congestion_state(conn);
 
@@ -5995,16 +5997,29 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_FRAME_ENCODING:
+ * NGTCP2_ERR_FRAME_ENCODING
  *     Token is empty
+ * NGTCP2_ERR_PROTO:
+ *     Server received NEW_TOKEN.
  */
 static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
-  (void)conn;
+  int rv;
 
-  if (fr->tokenlen == 0) {
+  if (conn->server) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  if (fr->token.len == 0) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }
-  /* TODO Not implemented yet*/
+
+  if (conn->callbacks.recv_new_token) {
+    rv = conn->callbacks.recv_new_token(conn, &fr->token, conn->user_data);
+    if (rv != 0) {
+      return NGTCP2_ERR_CALLBACK_FAILURE;
+    }
+  }
+
   return 0;
 }
 
@@ -9233,6 +9248,33 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
 
   pktns->crypto.strm.tx.offset += datalen;
   pktns->crypto.tx.offset += datalen;
+
+  return 0;
+}
+
+int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token) {
+  int rv;
+  ngtcp2_frame_chain *nfrc;
+  uint8_t *p;
+
+  assert(conn->server);
+  assert(token->base);
+  assert(token->len);
+
+  rv = ngtcp2_frame_chain_extralen_new(&nfrc, token->len, conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  nfrc->fr.type = NGTCP2_FRAME_NEW_TOKEN;
+
+  p = (uint8_t *)nfrc + sizeof(*nfrc);
+  memcpy(p, token->base, token->len);
+
+  ngtcp2_vec_init(&nfrc->fr.new_token.token, p, token->len);
+
+  nfrc->next = conn->pktns.tx.frq;
+  conn->pktns.tx.frq = nfrc;
 
   return 0;
 }

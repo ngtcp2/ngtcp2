@@ -31,6 +31,7 @@
 #include "ngtcp2_conv.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_str.h"
+#include "ngtcp2_vec.h"
 
 static int null_retry_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                               const uint8_t *plaintext, size_t plaintextlen,
@@ -1089,8 +1090,7 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
   size_t framelen;
 
   fr.type = NGTCP2_FRAME_NEW_TOKEN;
-  fr.new_token.tokenlen = strsize(token);
-  fr.new_token.token = token;
+  ngtcp2_vec_init(&fr.new_token.token, token, strsize(token));
 
   framelen = 1 + 1 + strsize(token);
 
@@ -1102,9 +1102,9 @@ void test_ngtcp2_pkt_encode_new_token_frame(void) {
 
   CU_ASSERT((ngtcp2_ssize)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(fr.new_token.tokenlen == nfr.new_token.tokenlen);
-  CU_ASSERT(0 == memcmp(fr.new_token.token, nfr.new_token.token,
-                        fr.new_token.tokenlen));
+  CU_ASSERT(fr.new_token.token.len == nfr.new_token.token.len);
+  CU_ASSERT(0 == memcmp(fr.new_token.token.base, nfr.new_token.token.base,
+                        fr.new_token.token.len));
 }
 
 void test_ngtcp2_pkt_encode_retire_connection_id_frame(void) {

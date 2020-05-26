@@ -5082,6 +5082,53 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_send_initial_token(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ngtcp2_conn_callbacks cb;
+  ngtcp2_settings settings;
+  ngtcp2_cid rcid, scid;
+  ngtcp2_crypto_aead retry_aead = {0};
+  uint8_t token[] = "this is token";
+  ngtcp2_ssize spktlen, shdlen;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_pkt_hd hd;
+
+  rcid_init(&rcid);
+  scid_init(&scid);
+
+  memset(&cb, 0, sizeof(cb));
+  cb.client_initial = client_initial;
+  cb.recv_crypto_data = recv_crypto_data;
+  cb.decrypt = null_decrypt;
+  cb.encrypt = null_encrypt;
+  cb.hp_mask = null_hp_mask;
+  cb.get_new_connection_id = get_new_connection_id;
+  client_default_settings(&settings);
+
+  settings.token.base = token;
+  settings.token.len = sizeof(token);
+
+  ngtcp2_conn_client_new(&conn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
+                         &cb, &settings, /* mem = */ NULL, NULL);
+  ngtcp2_conn_install_initial_key(conn, null_key, null_iv, null_hp_key,
+                                  null_key, null_iv, null_hp_key,
+                                  sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_set_retry_aead(conn, &retry_aead);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(sizeof(token) == hd.tokenlen);
+  CU_ASSERT(0 == memcmp(token, hd.token, sizeof(token)));
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];

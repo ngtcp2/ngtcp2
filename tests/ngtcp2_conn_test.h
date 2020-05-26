@@ -70,6 +70,7 @@ void test_ngtcp2_conn_recv_client_initial_retry(void);
 void test_ngtcp2_conn_recv_client_initial_token(void);
 void test_ngtcp2_conn_get_active_dcid(void);
 void test_ngtcp2_conn_recv_version_negotiation(void);
+void test_ngtcp2_conn_send_initial_token(void);
 void test_ngtcp2_pkt_write_connection_close(void);
 
 #endif /* NGTCP2_CONN_TEST_H */
