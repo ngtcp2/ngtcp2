@@ -1988,9 +1988,9 @@ int ngtcp2_pkt_decode_retry(ngtcp2_pkt_retry *dest, const uint8_t *payload,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  dest->token = payload;
-  dest->tokenlen = (size_t)(payloadlen - NGTCP2_RETRY_TAGLEN);
-  ngtcp2_cpymem(dest->tag, payload + dest->tokenlen, NGTCP2_RETRY_TAGLEN);
+  dest->token.base = (uint8_t *)payload;
+  dest->token.len = (size_t)(payloadlen - NGTCP2_RETRY_TAGLEN);
+  ngtcp2_cpymem(dest->tag, payload + dest->token.len, NGTCP2_RETRY_TAGLEN);
 
   return 0;
 }

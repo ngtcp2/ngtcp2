@@ -385,8 +385,7 @@ typedef struct ngtcp2_pkt_stateless_reset {
 
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
-  const uint8_t *token;
-  size_t tokenlen;
+  ngtcp2_vec token;
   uint8_t tag[NGTCP2_RETRY_TAGLEN];
 } ngtcp2_pkt_retry;
 

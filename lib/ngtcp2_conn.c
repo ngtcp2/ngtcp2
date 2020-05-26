@@ -3642,7 +3642,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
                   (const char *)ngtcp2_encode_hex(cidbuf, retry.odcid.data,
                                                   retry.odcid.datalen));
 
-  if (retry.tokenlen == 0) {
+  if (retry.token.len == 0) {
     return NGTCP2_ERR_PROTO;
   }
 
@@ -3693,13 +3693,13 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   token->base = NULL;
   token->len = 0;
 
-  token->base = ngtcp2_mem_malloc(conn->mem, retry.tokenlen);
+  token->base = ngtcp2_mem_malloc(conn->mem, retry.token.len);
   if (token->base == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
-  token->len = retry.tokenlen;
+  token->len = retry.token.len;
 
-  ngtcp2_cpymem(token->base, retry.token, retry.tokenlen);
+  ngtcp2_cpymem(token->base, retry.token.base, retry.token.len);
 
   conn_reset_congestion_state(conn);
 

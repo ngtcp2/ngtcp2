@@ -1288,7 +1288,8 @@ void test_ngtcp2_pkt_write_retry(void) {
   rv = ngtcp2_pkt_decode_retry(&retry, buf + nread, (size_t)(spktlen - nread));
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == memcmp(token, retry.token, sizeof(token)));
+  CU_ASSERT(sizeof(token) == retry.token.len);
+  CU_ASSERT(0 == memcmp(token, retry.token.base, sizeof(token)));
   CU_ASSERT(0 == memcmp(tag, retry.tag, sizeof(tag)));
 }
 
