@@ -318,10 +318,9 @@ recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, int64_t stream_id,
 }
 
 static int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                      const ngtcp2_pkt_retry *retry, void *user_data) {
+                      void *user_data) {
   (void)conn;
   (void)hd;
-  (void)retry;
   (void)user_data;
   return 0;
 }

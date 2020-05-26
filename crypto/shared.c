@@ -616,9 +616,7 @@ int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn, void *user_data) {
 }
 
 int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                                const ngtcp2_pkt_retry *retry,
                                 void *user_data) {
-  (void)retry;
   (void)user_data;
 
   if (ngtcp2_crypto_derive_and_install_initial_key(conn, NULL, NULL, NULL, NULL,

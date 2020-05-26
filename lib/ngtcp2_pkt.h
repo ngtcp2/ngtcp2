@@ -99,6 +99,15 @@
    Reset. */
 #define NGTCP2_MIN_PKT_EXPANDLEN 22
 
+/* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
+#define NGTCP2_RETRY_TAGLEN 16
+
+typedef struct ngtcp2_pkt_retry {
+  ngtcp2_cid odcid;
+  ngtcp2_vec token;
+  uint8_t tag[NGTCP2_RETRY_TAGLEN];
+} ngtcp2_pkt_retry;
+
 typedef enum {
   NGTCP2_FRAME_PADDING = 0x00,
   NGTCP2_FRAME_PING = 0x01,

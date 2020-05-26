@@ -3659,7 +3659,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   assert(conn->callbacks.recv_retry);
 
-  rv = conn->callbacks.recv_retry(conn, hd, &retry, conn->user_data);
+  rv = conn->callbacks.recv_retry(conn, hd, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }

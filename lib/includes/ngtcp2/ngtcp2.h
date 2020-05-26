@@ -385,15 +385,6 @@ typedef struct ngtcp2_pkt_stateless_reset {
   size_t randlen;
 } ngtcp2_pkt_stateless_reset;
 
-/* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
-#define NGTCP2_RETRY_TAGLEN 16
-
-typedef struct ngtcp2_pkt_retry {
-  ngtcp2_cid odcid;
-  ngtcp2_vec token;
-  uint8_t tag[NGTCP2_RETRY_TAGLEN];
-} ngtcp2_pkt_retry;
-
 #if defined(__cplusplus) && __cplusplus >= 201103L
 typedef enum ngtcp2_transport_param_id : int {
 #else
@@ -1195,7 +1186,6 @@ typedef int (*ngtcp2_recv_version_negotiation)(ngtcp2_conn *conn,
  * immediately.
  */
 typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                                 const ngtcp2_pkt_retry *retry,
                                  void *user_data);
 
 /**

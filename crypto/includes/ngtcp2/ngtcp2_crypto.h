@@ -449,7 +449,6 @@ NGTCP2_EXTERN int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn,
                                               const ngtcp2_pkt_hd *hd,
-                                              const ngtcp2_pkt_retry *retry,
                                               void *user_data);
 
 /**
