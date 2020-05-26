@@ -2786,10 +2786,10 @@ ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_submit_new_token` submits address validation token.
  * It is sent in NEW_TOKEN frame.  Only server can call this function.
- * |token| must not be empty.
+ * |tokenlen| must not be 0.
  *
- * This function makes a copy of the buffer pointed by |token|->base
- * of length |token|->len.
+ * This function makes a copy of the buffer pointed by |token| of
+ * length |tokenlen|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2798,7 +2798,8 @@ ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
  *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn,
-                                               const ngtcp2_vec *token);
+                                               const uint8_t *token,
+                                               size_t tokenlen);
 
 /**
  * @function

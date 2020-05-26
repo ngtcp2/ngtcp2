@@ -822,10 +822,10 @@ int Handler::handshake_completed() {
     }
   }
 
-  std::array<uint8_t, MAX_TOKENLEN> tokenbuf;
-  size_t tokenlen = tokenbuf.size();
+  std::array<uint8_t, MAX_TOKENLEN> token;
+  size_t tokenlen = token.size();
 
-  if (server_->generate_token(tokenbuf.data(), tokenlen, &remote_addr_.su.sa,
+  if (server_->generate_token(token.data(), tokenlen, &remote_addr_.su.sa,
                               remote_addr_.len) != 0) {
     if (!config.quiet) {
       std::cerr << "Unable to generate token" << std::endl;
@@ -833,9 +833,8 @@ int Handler::handshake_completed() {
     return 0;
   }
 
-  ngtcp2_vec token{tokenbuf.data(), tokenlen};
-
-  if (auto rv = ngtcp2_conn_submit_new_token(conn_, &token); rv != 0) {
+  if (auto rv = ngtcp2_conn_submit_new_token(conn_, token.data(), tokenlen);
+      rv != 0) {
     if (!config.quiet) {
       std::cerr << "ngtcp2_conn_submit_new_token: " << ngtcp2_strerror(rv)
                 << std::endl;

@@ -9251,16 +9251,17 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token) {
+int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const uint8_t *token,
+                                 size_t tokenlen) {
   int rv;
   ngtcp2_frame_chain *nfrc;
   uint8_t *p;
 
   assert(conn->server);
-  assert(token->base);
-  assert(token->len);
+  assert(token);
+  assert(tokenlen);
 
-  rv = ngtcp2_frame_chain_extralen_new(&nfrc, token->len, conn->mem);
+  rv = ngtcp2_frame_chain_extralen_new(&nfrc, tokenlen, conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -9268,9 +9269,9 @@ int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token) {
   nfrc->fr.type = NGTCP2_FRAME_NEW_TOKEN;
 
   p = (uint8_t *)nfrc + sizeof(*nfrc);
-  memcpy(p, token->base, token->len);
+  memcpy(p, token, tokenlen);
 
-  ngtcp2_vec_init(&nfrc->fr.new_token.token, p, token->len);
+  ngtcp2_vec_init(&nfrc->fr.new_token.token, p, tokenlen);
 
   nfrc->next = conn->pktns.tx.frq;
   conn->pktns.tx.frq = nfrc;
