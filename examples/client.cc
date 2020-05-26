@@ -739,6 +739,10 @@ int Client::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
 namespace {
 int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
                    void *user_data) {
+  if (config.token_file.empty()) {
+    return 0;
+  }
+
   auto f = BIO_new_file(config.token_file.data(), "w");
   if (f == nullptr) {
     std::cerr << "Could not write token in " << config.token_file << std::endl;
