@@ -878,6 +878,11 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     params->active_connection_id_limit = 0;
   }
 
+  if ((*pconn)->local.settings.token.len) {
+    /* Usage of token lifts amplification limit */
+    (*pconn)->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
+  }
+
   return 0;
 }
 
