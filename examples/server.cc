@@ -2390,7 +2390,8 @@ int Server::on_read(Endpoint &ep) {
               continue;
             }
 
-            if (hd.token.base[0] != RETRY_TOKEN_MAGIC && hd.dcid.datalen < 8) {
+            if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
+                hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
               send_stateless_connection_close(&hd, ep, &su.sa, addrlen);
               continue;
             }

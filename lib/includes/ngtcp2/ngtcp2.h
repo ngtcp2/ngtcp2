@@ -320,6 +320,11 @@ typedef uint64_t ngtcp2_duration;
 /* NGTCP2_MIN_CIDLEN is the minimum length of Connection ID. */
 #define NGTCP2_MIN_CIDLEN 1
 
+/* NGTCP2_MIN_INITIAL_DCIDLEN is the minimum length of Destination
+   Connection ID in Client Initial packet if it does not bear token
+   from Retry packet. */
+#define NGTCP2_MIN_INITIAL_DCIDLEN 8
+
 /**
  * @struct
  *

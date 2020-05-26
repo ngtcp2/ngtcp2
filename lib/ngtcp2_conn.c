@@ -7845,7 +7845,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     if (pktlen < NGTCP2_MIN_INITIAL_PKTLEN) {
       return -1;
     }
-    if (p->token.len == 0 && p->dcid.datalen < 8) {
+    if (p->token.len == 0 && p->dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
       return -1;
     }
     break;
