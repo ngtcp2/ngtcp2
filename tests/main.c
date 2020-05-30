@@ -248,6 +248,8 @@ int main() {
                    test_ngtcp2_conn_recv_version_negotiation) ||
       !CU_add_test(pSuite, "conn_send_initial_token",
                    test_ngtcp2_conn_send_initial_token) ||
+      !CU_add_test(pSuite, "conn_set_remote_transport_params",
+                   test_ngtcp2_conn_set_remote_transport_params) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
                    test_ngtcp2_pkt_write_connection_close) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||

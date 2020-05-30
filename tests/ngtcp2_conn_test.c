@@ -5128,6 +5128,106 @@ void test_ngtcp2_conn_send_initial_token(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_set_remote_transport_params(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_transport_params params;
+  int rv;
+  ngtcp2_cid dcid;
+
+  dcid_init(&dcid);
+
+  /* client: Successful case */
+  setup_handshake_client(&conn);
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: Wrong original_dcid */
+  setup_handshake_client(&conn);
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.initial_scid = conn->dcid.current.cid;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: Wrong initial_scid */
+  setup_handshake_client(&conn);
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.original_dcid = conn->rcid;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: Receiving retry_scid when retry is not attempted */
+  setup_handshake_client(&conn);
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+  params.retry_scid_present = 1;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: Receiving retry_scid */
+  setup_handshake_client(&conn);
+
+  conn->flags |= NGTCP2_CONN_FLAG_RECV_RETRY;
+  conn->retry_scid = dcid;
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+  params.retry_scid_present = 1;
+  params.retry_scid = dcid;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: Not receiving retry_scid when retry is attempted */
+  setup_handshake_client(&conn);
+
+  conn->flags |= NGTCP2_CONN_FLAG_RECV_RETRY;
+  conn->retry_scid = dcid;
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];
