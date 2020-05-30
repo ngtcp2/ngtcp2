@@ -3746,6 +3746,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   int rv;
   ngtcp2_frame_chain *frc = NULL;
   ngtcp2_ssize num_acked;
+  ngtcp2_conn_stat *cstat = &conn->cstat;
 
   if (pktns->tx.last_pkt_num < fr->largest_ack) {
     return NGTCP2_ERR_PROTO;
@@ -3777,6 +3778,13 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   }
 
   pktns->rtb.probe_pkt_left = 0;
+
+  if (cstat->pto_count &&
+      (conn->server || (conn->flags & NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED))) {
+    /* Reset PTO count but no less than 2 to avoid frequent probe
+       packet transmission. */
+    cstat->pto_count = ngtcp2_min(cstat->pto_count, 2);
+  }
 
   ngtcp2_conn_set_loss_detection_timer(conn, ts);
 
