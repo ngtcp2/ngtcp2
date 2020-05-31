@@ -5228,6 +5228,182 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_write_connection_close(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[1200];
+  ngtcp2_ssize spktlen, shdlen;
+  ngtcp2_pkt_hd hd;
+  const uint8_t *p;
+
+  /* Client only Initial key */
+  setup_handshake_client(&conn);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
+                                               NGTCP2_NO_ERROR, 0);
+
+  CU_ASSERT(spktlen > 0);
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_INITIAL == hd.type);
+  CU_ASSERT(shdlen + (ngtcp2_ssize)hd.len == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Client has Initial and Handshake keys */
+  setup_handshake_client(&conn);
+
+  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_set_aead_overhead(conn, NGTCP2_FAKE_AEAD_OVERHEAD);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
+                                               NGTCP2_NO_ERROR, 0);
+
+  CU_ASSERT(spktlen > 0);
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_HANDSHAKE == hd.type);
+  CU_ASSERT(shdlen + (ngtcp2_ssize)hd.len == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Client has all keys and has not confirmed handshake */
+  setup_handshake_client(&conn);
+
+  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
+                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_tx_key(conn, null_secret, null_key, null_iv, null_hp_key,
+                             sizeof(null_secret), sizeof(null_key),
+                             sizeof(null_iv));
+  ngtcp2_conn_set_aead_overhead(conn, NGTCP2_FAKE_AEAD_OVERHEAD);
+
+  conn->state = NGTCP2_CS_POST_HANDSHAKE;
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
+                                               NGTCP2_NO_ERROR, 0);
+
+  CU_ASSERT(spktlen > 0);
+
+  p = buf;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_HANDSHAKE == hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
+                                      conn->dcid.current.cid.datalen);
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+
+  ngtcp2_conn_del(conn);
+
+  /* Client has confirmed handshake */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
+                                               NGTCP2_NO_ERROR, 0);
+
+  CU_ASSERT(spktlen > 0);
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen,
+                                      conn->dcid.current.cid.datalen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server has Initial and Handshake key */
+  setup_handshake_server(&conn);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
+                                               NGTCP2_NO_ERROR, 0);
+
+  CU_ASSERT(spktlen > 0);
+
+  p = buf;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_INITIAL == hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_HANDSHAKE == hd.type);
+  CU_ASSERT(shdlen + (ngtcp2_ssize)hd.len == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server has all keys and has not confirmed handshake */
+  setup_handshake_server(&conn);
+
+  ngtcp2_conn_install_tx_key(conn, null_secret, null_key, null_iv, null_hp_key,
+                             sizeof(null_secret), sizeof(null_key),
+                             sizeof(null_iv));
+
+  conn->state = NGTCP2_CS_POST_HANDSHAKE;
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
+                                               NGTCP2_NO_ERROR, 0);
+
+  CU_ASSERT(spktlen > 0);
+
+  p = buf;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_INITIAL == hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
+  shdlen = ngtcp2_pkt_decode_hd_long(&hd, p, (size_t)spktlen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_HANDSHAKE == hd.type);
+
+  p += shdlen + (ngtcp2_ssize)hd.len;
+  spktlen -= shdlen + (ngtcp2_ssize)hd.len;
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
+                                      conn->dcid.current.cid.datalen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+
+  ngtcp2_conn_del(conn);
+
+  /* Server has confirmed handshake */
+  setup_default_server(&conn);
+
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
+                                               NGTCP2_NO_ERROR, 0);
+
+  CU_ASSERT(spktlen > 0);
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen,
+                                      conn->dcid.current.cid.datalen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];
