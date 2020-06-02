@@ -7275,6 +7275,8 @@ static size_t conn_server_hs_tx_left(ngtcp2_conn *conn) {
   /* From QUIC spec: Prior to validating the client address, servers
      MUST NOT send more than three times as many bytes as the number
      of bytes they have received. */
+  assert(conn->cstat.bytes_recv * 3 >= conn->cstat.bytes_sent);
+
   return conn->cstat.bytes_recv * 3 - conn->cstat.bytes_sent;
 }
 
