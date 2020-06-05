@@ -117,7 +117,8 @@ static uint8_t null_key[16];
 static uint8_t null_iv[16];
 static uint8_t null_hp_key[16];
 static uint8_t null_data[4096];
-static ngtcp2_path null_path = {};
+static ngtcp2_path null_path = {{1, (uint8_t *)"0", NULL},
+                                {1, (uint8_t *)"0", NULL}};
 static ngtcp2_path new_path = {{1, (uint8_t *)"1", NULL},
                                {1, (uint8_t *)"2", NULL}};
 
@@ -4361,8 +4362,10 @@ void test_ngtcp2_conn_server_path_validation(void) {
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
   ngtcp2_cid cid, *new_cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
-  ngtcp2_path new_path1 = {{}, {1, (uint8_t *)"2", NULL}};
-  ngtcp2_path new_path2 = {{}, {1, (uint8_t *)"3", NULL}};
+  ngtcp2_path new_path1 = {{1, (uint8_t *)"0", NULL},
+                           {1, (uint8_t *)"2", NULL}};
+  ngtcp2_path new_path2 = {{1, (uint8_t *)"0", NULL},
+                           {1, (uint8_t *)"3", NULL}};
   ngtcp2_ksl_it it;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));

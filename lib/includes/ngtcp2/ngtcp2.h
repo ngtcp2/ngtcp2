@@ -731,7 +731,7 @@ typedef struct ngtcp2_addr {
   /* addrlen is the length of addr. */
   size_t addrlen;
   /* addr points to the buffer which contains endpoint address.  It is
-     opaque to the ngtcp2 library. */
+     opaque to the ngtcp2 library.  It must not be NULL. */
   uint8_t *addr;
   /* user_data is an arbitrary data and opaque to the library. */
   void *user_data;
