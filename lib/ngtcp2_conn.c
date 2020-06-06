@@ -2144,25 +2144,6 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn, uint8_t *dest,
   return res;
 }
 
-static ngtcp2_ssize conn_write_server_handshake(ngtcp2_conn *conn,
-                                                uint8_t *dest, size_t destlen,
-                                                ngtcp2_tstamp ts) {
-  ngtcp2_ssize nwrite;
-  ngtcp2_ssize res = 0;
-
-  nwrite = conn_write_handshake_pkts(conn, dest, destlen, 0, ts);
-  if (nwrite < 0) {
-    assert(nwrite != NGTCP2_ERR_NOBUF);
-    return nwrite;
-  }
-
-  res += nwrite;
-  dest += nwrite;
-  destlen -= (size_t)nwrite;
-
-  return res;
-}
-
 /*
  * conn_initial_stream_rx_offset returns the initial maximum offset of
  * data for a stream denoted by |stream_id|.
@@ -7646,7 +7627,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
 
     return res;
   case NGTCP2_CS_SERVER_INITIAL:
-    nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
+    nwrite = conn_write_handshake_pkts(conn, dest, destlen,
+                                       /* early_datalen = */ 0, ts);
     if (nwrite < 0) {
       return nwrite;
     }
@@ -7671,7 +7653,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       }
 
       if (conn_handshake_probe_left(conn) || !conn_cwnd_is_zero(conn)) {
-        nwrite = conn_write_server_handshake(conn, dest, destlen, ts);
+        nwrite = conn_write_handshake_pkts(conn, dest, destlen,
+                                           /* early_datalen = */ 0, ts);
         if (nwrite < 0) {
           return nwrite;
         }
