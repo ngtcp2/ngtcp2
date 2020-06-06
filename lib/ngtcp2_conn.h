@@ -470,32 +470,6 @@ struct ngtcp2_conn {
   int server;
 };
 
-/**
- * @function
- *
- * `ngtcp2_conn_read_handshake` performs QUIC cryptographic handshake
- * by reading given data.  |pkt| points to the buffer to read and
- * |pktlen| is the length of the buffer.  |path| is the network path.
- *
- * The application should call `ngtcp2_conn_write_handshake` (or
- * `ngtcp2_conn_client_write_handshake` for client session) to make
- * handshake go forward after calling this function.
- *
- * Application should call this function until
- * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
- * completion of handshake, `ngtcp2_conn_read_pkt` and
- * `ngtcp2_conn_write_pkt` should be called instead.
- *
- * This function must not be called from inside the callback
- * functions.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes: (TBD).
- */
-int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
-                               const uint8_t *pkt, size_t pktlen,
-                               ngtcp2_tstamp ts);
-
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
  * reception timestamp |ts| in order to send its ACK.

@@ -7186,81 +7186,6 @@ static int conn_is_retired_path(ngtcp2_conn *conn, const ngtcp2_path *path) {
   return 0;
 }
 
-int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
-                         const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts) {
-  int rv = 0;
-
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
-
-  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
-                  pktlen);
-
-  if (pktlen == 0) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
-  }
-
-  /* client does not expect a packet from unknown path. */
-  if (!conn->server && !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
-      (!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path)) &&
-      !conn_is_retired_path(conn, path)) {
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                    "ignore packet from unknown path");
-    return 0;
-  }
-
-  switch (conn->state) {
-  case NGTCP2_CS_CLIENT_INITIAL:
-  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-  case NGTCP2_CS_SERVER_INITIAL:
-  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
-    return ngtcp2_conn_read_handshake(conn, path, pkt, pktlen, ts);
-  case NGTCP2_CS_CLOSING:
-    return NGTCP2_ERR_CLOSING;
-  case NGTCP2_CS_DRAINING:
-    return NGTCP2_ERR_DRAINING;
-  case NGTCP2_CS_POST_HANDSHAKE:
-    rv = conn_prepare_key_update(conn, ts);
-    if (rv != 0) {
-      return rv;
-    }
-    return conn_recv_cpkt(conn, path, pkt, pktlen, ts);
-  default:
-    assert(0);
-  }
-}
-
-/*
- * conn_check_pkt_num_exhausted returns nonzero if packet number is
- * exhausted in at least one of packet number space.
- */
-static int conn_check_pkt_num_exhausted(ngtcp2_conn *conn) {
-  ngtcp2_pktns *in_pktns = conn->in_pktns;
-  ngtcp2_pktns *hs_pktns = conn->hs_pktns;
-
-  return (in_pktns && in_pktns->tx.last_pkt_num == NGTCP2_MAX_PKT_NUM) ||
-         (hs_pktns && hs_pktns->tx.last_pkt_num == NGTCP2_MAX_PKT_NUM) ||
-         conn->pktns.tx.last_pkt_num == NGTCP2_MAX_PKT_NUM;
-}
-
-/*
- * conn_server_hs_tx_left returns the maximum number of bytes that
- * server is allowed to send during handshake.
- */
-static size_t conn_server_hs_tx_left(ngtcp2_conn *conn) {
-  if (conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED) {
-    return SIZE_MAX;
-  }
-  /* From QUIC spec: Prior to validating the client address, servers
-     MUST NOT send more than three times as many bytes as the number
-     of bytes they have received. */
-  assert(conn->cstat.bytes_recv * 3 >= conn->cstat.bytes_sent);
-
-  return conn->cstat.bytes_recv * 3 - conn->cstat.bytes_sent;
-}
-
 /*
  * conn_enqueue_handshake_done enqueues HANDSHAKE_DONE frame for
  * transmission.
@@ -7284,7 +7209,17 @@ static int conn_enqueue_handshake_done(ngtcp2_conn *conn) {
   return 0;
 }
 
-int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
+/**
+ * @function
+ *
+ * `conn_read_handshake` performs QUIC cryptographic handshake by
+ * reading given data.  |pkt| points to the buffer to read and
+ * |pktlen| is the length of the buffer.  |path| is the network path.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes: (TBD).
+ */
+static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
                                const uint8_t *pkt, size_t pktlen,
                                ngtcp2_tstamp ts) {
   int rv;
@@ -7440,6 +7375,81 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
   default:
     return 0;
   }
+}
+
+int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
+                         const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts) {
+  int rv = 0;
+
+  conn->log.last_ts = ts;
+  conn->qlog.last_ts = ts;
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "recv packet len=%zu",
+                  pktlen);
+
+  if (pktlen == 0) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  /* client does not expect a packet from unknown path. */
+  if (!conn->server && !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
+      (!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path)) &&
+      !conn_is_retired_path(conn, path)) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                    "ignore packet from unknown path");
+    return 0;
+  }
+
+  switch (conn->state) {
+  case NGTCP2_CS_CLIENT_INITIAL:
+  case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
+  case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
+  case NGTCP2_CS_SERVER_INITIAL:
+  case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
+  case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+    return conn_read_handshake(conn, path, pkt, pktlen, ts);
+  case NGTCP2_CS_CLOSING:
+    return NGTCP2_ERR_CLOSING;
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_DRAINING;
+  case NGTCP2_CS_POST_HANDSHAKE:
+    rv = conn_prepare_key_update(conn, ts);
+    if (rv != 0) {
+      return rv;
+    }
+    return conn_recv_cpkt(conn, path, pkt, pktlen, ts);
+  default:
+    assert(0);
+  }
+}
+
+/*
+ * conn_check_pkt_num_exhausted returns nonzero if packet number is
+ * exhausted in at least one of packet number space.
+ */
+static int conn_check_pkt_num_exhausted(ngtcp2_conn *conn) {
+  ngtcp2_pktns *in_pktns = conn->in_pktns;
+  ngtcp2_pktns *hs_pktns = conn->hs_pktns;
+
+  return (in_pktns && in_pktns->tx.last_pkt_num == NGTCP2_MAX_PKT_NUM) ||
+         (hs_pktns && hs_pktns->tx.last_pkt_num == NGTCP2_MAX_PKT_NUM) ||
+         conn->pktns.tx.last_pkt_num == NGTCP2_MAX_PKT_NUM;
+}
+
+/*
+ * conn_server_hs_tx_left returns the maximum number of bytes that
+ * server is allowed to send during handshake.
+ */
+static size_t conn_server_hs_tx_left(ngtcp2_conn *conn) {
+  if (conn->flags & NGTCP2_CONN_FLAG_SADDR_VERIFIED) {
+    return SIZE_MAX;
+  }
+  /* From QUIC spec: Prior to validating the client address, servers
+     MUST NOT send more than three times as many bytes as the number
+     of bytes they have received. */
+  assert(conn->cstat.bytes_recv * 3 >= conn->cstat.bytes_sent);
+
+  return conn->cstat.bytes_recv * 3 - conn->cstat.bytes_sent;
 }
 
 /*
