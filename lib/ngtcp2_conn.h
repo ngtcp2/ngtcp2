@@ -496,38 +496,6 @@ int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
                                const uint8_t *pkt, size_t pktlen,
                                ngtcp2_tstamp ts);
 
-/**
- * @function
- *
- * `ngtcp2_conn_client_write_handshake` is just like
- * `ngtcp2_conn_write_handshake`, but it is for client only, and can
- * write 0-RTT data.  This function can coalesce handshake packet and
- * 0-RTT packet into single UDP packet, thus it is generally more
- * efficient than the combination of `ngtcp2_conn_write_handshake` and
- * `ngtcp2_conn_write_stream`.
- *
- * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
- * to which 0-RTT data is sent, whether it is a last data chunk in
- * this stream, a vector of 0-RTT data, and its number of elements
- * respectively.  If there is no 0RTT data to send, pass negative
- * integer to |stream_id|.  The amount of 0RTT data sent is assigned
- * to |*pdatalen|.  If no data is sent, -1 is assigned.  Note that 0
- * length STREAM frame is allowed in QUIC, so 0 might be assigned to
- * |*pdatalen|.
- *
- * This function returns 0 if it cannot write any frame because buffer
- * is too small, or packet is congestion limited.  Application should
- * keep reading and wait for congestion window to grow.
- *
- * This function returns the number of bytes written to the buffer
- * pointed by |dest| if it succeeds, or one of the following negative
- * error codes: (TBD).
- */
-ngtcp2_ssize ngtcp2_conn_client_write_handshake(
-    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
-    uint32_t flags, int64_t stream_id, int fin, const ngtcp2_vec *datav,
-    size_t datavcnt, ngtcp2_tstamp ts);
-
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
  * reception timestamp |ts| in order to send its ACK.

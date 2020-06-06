@@ -7689,10 +7689,34 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
   }
 }
 
-ngtcp2_ssize ngtcp2_conn_client_write_handshake(
-    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
-    uint32_t flags, int64_t stream_id, int fin, const ngtcp2_vec *datav,
-    size_t datavcnt, ngtcp2_tstamp ts) {
+/**
+ * @function
+ *
+ * `conn_client_write_handshake` writes client side handshake data and
+ * 0RTT packet.
+ *
+ * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
+ * to which 0-RTT data is sent, whether it is a last data chunk in
+ * this stream, a vector of 0-RTT data, and its number of elements
+ * respectively.  If there is no 0RTT data to send, pass negative
+ * integer to |stream_id|.  The amount of 0RTT data sent is assigned
+ * to |*pdatalen|.  If no data is sent, -1 is assigned.  Note that 0
+ * length STREAM frame is allowed in QUIC, so 0 might be assigned to
+ * |*pdatalen|.
+ *
+ * This function returns 0 if it cannot write any frame because buffer
+ * is too small, or packet is congestion limited.  Application should
+ * keep reading and wait for congestion window to grow.
+ *
+ * This function returns the number of bytes written to the buffer
+ * pointed by |dest| if it succeeds, or one of the following negative
+ * error codes: (TBD).
+ */
+static ngtcp2_ssize
+conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
+                            ngtcp2_ssize *pdatalen, uint32_t flags,
+                            int64_t stream_id, int fin, const ngtcp2_vec *datav,
+                            size_t datavcnt, ngtcp2_tstamp ts) {
   ngtcp2_strm *strm = NULL;
   int send_stream = 0;
   ngtcp2_ssize spktlen, early_spktlen;
@@ -8382,9 +8406,8 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-    nwrite =
-        ngtcp2_conn_client_write_handshake(conn, dest, destlen, pdatalen, flags,
-                                           stream_id, fin, datav, datavcnt, ts);
+    nwrite = conn_client_write_handshake(conn, dest, destlen, pdatalen, flags,
+                                         stream_id, fin, datav, datavcnt, ts);
     if (nwrite < 0 || conn->state != NGTCP2_CS_POST_HANDSHAKE) {
       return nwrite;
     }
