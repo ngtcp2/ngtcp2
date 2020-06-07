@@ -1975,7 +1975,7 @@ static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns **ppktns,
   ngtcp2_pktns *pktns = *ppktns;
   uint64_t bytes_in_flight;
 
-  bytes_in_flight = ngtcp2_rtb_get_cc_bytes_in_flight(&pktns->rtb);
+  bytes_in_flight = pktns->rtb.cc_bytes_in_flight;
 
   assert(conn->cstat.bytes_in_flight >= bytes_in_flight);
 
@@ -2996,7 +2996,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-        ngtcp2_rtb_num_ack_eliciting(&pktns->rtb) == 0 && conn->cc.event) {
+        pktns->rtb.num_ack_eliciting == 0 && conn->cc.event) {
       conn->cc.event(&conn->cc, &conn->cstat, NGTCP2_CC_EVENT_TYPE_TX_START,
                      ts);
     }
@@ -3196,9 +3196,9 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
 
   return !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
-         (in_pktns && (ngtcp2_rtb_num_ack_eliciting(&in_pktns->rtb) ||
+         (in_pktns && (in_pktns->rtb.num_ack_eliciting ||
                        ngtcp2_ksl_len(&in_pktns->crypto.tx.frq))) ||
-         (hs_pktns && (ngtcp2_rtb_num_ack_eliciting(&hs_pktns->rtb) ||
+         (hs_pktns && (hs_pktns->rtb.num_ack_eliciting ||
                        ngtcp2_ksl_len(&hs_pktns->crypto.tx.frq)));
 }
 
@@ -9061,9 +9061,9 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  if ((!in_pktns || ngtcp2_rtb_num_ack_eliciting(&in_pktns->rtb) == 0) &&
-      (!hs_pktns || ngtcp2_rtb_num_ack_eliciting(&hs_pktns->rtb) == 0) &&
-      (ngtcp2_rtb_num_ack_eliciting(&pktns->rtb) == 0 ||
+  if ((!in_pktns || in_pktns->rtb.num_ack_eliciting == 0) &&
+      (!hs_pktns || hs_pktns->rtb.num_ack_eliciting == 0) &&
+      (pktns->rtb.num_ack_eliciting == 0 ||
        !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) &&
       (conn->server ||
        (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |

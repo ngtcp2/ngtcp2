@@ -703,14 +703,6 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }
 
-uint64_t ngtcp2_rtb_get_cc_bytes_in_flight(ngtcp2_rtb *rtb) {
-  return rtb->cc_bytes_in_flight;
-}
-
-size_t ngtcp2_rtb_num_ack_eliciting(ngtcp2_rtb *rtb) {
-  return rtb->num_ack_eliciting;
-}
-
 void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num) {
   rtb->cc_pkt_num = cc_pkt_num;
   rtb->cc_bytes_in_flight = 0;
