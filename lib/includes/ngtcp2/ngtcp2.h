@@ -2406,7 +2406,12 @@ typedef enum ngtcp2_write_stream_flag {
    * NGTCP2_WRITE_STREAM_FLAG_MORE indicates that more stream data may
    * come and should be coalesced into the same packet if possible.
    */
-  NGTCP2_WRITE_STREAM_FLAG_MORE = 0x01
+  NGTCP2_WRITE_STREAM_FLAG_MORE = 0x01,
+  /**
+   * NGTCP2_WRITE_STREAM_FLAG_FIN indicates that the passed data is
+   * the final part of a stream.
+   */
+  NGTCP2_WRITE_STREAM_FLAG_FIN = 0x02
 } ngtcp2_write_stream_flag;
 
 /**
@@ -2418,7 +2423,7 @@ typedef enum ngtcp2_write_stream_flag {
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id, int fin,
+    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id,
     const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
 /**
@@ -2438,15 +2443,16 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * nothing is written to |dest|.
  *
  * If the all given data is encoded as STREAM frame in |dest|, and if
- * |fin| is nonzero, fin flag is set in outgoing STREAM frame.
- * Otherwise, fin flag in STREAM frame is not set.
+ * |flags| & NGTCP2_WRITE_STREAM_FLAG_FIN is nonzero, fin flag is set
+ * to outgoing STREAM frame.  Otherwise, fin flag in STREAM frame is
+ * not set.
  *
  * This packet may contain frames other than STREAM frame.  The packet
  * might not contain STREAM frame if other frames occupy the packet.
  * In that case, |*pdatalen| would be -1 if |pdatalen| is not NULL.
  *
- * If |fin| is nonzero, and 0 length STREAM frame is successfully
- * serialized, |*pdatalen| would be 0.
+ * If |flags| & NGTCP2_WRITE_STREAM_FLAG_FIN is nonzero, and 0 length
+ * STREAM frame is successfully serialized, |*pdatalen| would be 0.
  *
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
  * if it is not NULL.  The caller must keep the portion of data
@@ -2530,7 +2536,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id, int fin,
+    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id,
     const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
 
 /**

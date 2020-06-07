@@ -3401,11 +3401,11 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 ngtcp2_ssize ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
                                    uint8_t *dest, size_t destlen,
                                    ngtcp2_tstamp ts) {
-  return ngtcp2_conn_writev_stream(
-      conn, path, dest, destlen,
-      /* pdatalen = */ NULL, NGTCP2_WRITE_STREAM_FLAG_NONE,
-      /* stream_id = */ -1,
-      /* fin = */ 0, /* datav = */ NULL, /* datavcnt = */ 0, ts);
+  return ngtcp2_conn_writev_stream(conn, path, dest, destlen,
+                                   /* pdatalen = */ NULL,
+                                   NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                   /* stream_id = */ -1,
+                                   /* datav = */ NULL, /* datavcnt = */ 0, ts);
 }
 
 /*
@@ -8390,22 +8390,21 @@ ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, int64_t stream_id) {
 ngtcp2_ssize ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
                                       uint8_t *dest, size_t destlen,
                                       ngtcp2_ssize *pdatalen, uint32_t flags,
-                                      int64_t stream_id, int fin,
-                                      const uint8_t *data, size_t datalen,
-                                      ngtcp2_tstamp ts) {
+                                      int64_t stream_id, const uint8_t *data,
+                                      size_t datalen, ngtcp2_tstamp ts) {
   ngtcp2_vec datav;
 
   datav.len = datalen;
   datav.base = (uint8_t *)data;
 
   return ngtcp2_conn_writev_stream(conn, path, dest, destlen, pdatalen, flags,
-                                   stream_id, fin, &datav, 1, ts);
+                                   stream_id, &datav, 1, ts);
 }
 
 ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
                                        uint8_t *dest, size_t destlen,
                                        ngtcp2_ssize *pdatalen, uint32_t flags,
-                                       int64_t stream_id, int fin,
+                                       int64_t stream_id,
                                        const ngtcp2_vec *datav, size_t datavcnt,
                                        ngtcp2_tstamp ts) {
   ngtcp2_strm *strm = NULL;
@@ -8417,6 +8416,7 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
   ngtcp2_ssize res = 0;
   size_t server_hs_tx_left;
+  int fin = flags & NGTCP2_WRITE_STREAM_FLAG_FIN;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;

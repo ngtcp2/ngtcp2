@@ -1171,10 +1171,15 @@ int Client::write_streams() {
     auto v = vec.data();
     auto vcnt = static_cast<size_t>(sveccnt);
 
+    uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
+    if (fin) {
+      flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
+    }
+
     auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen,
-        NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id, fin,
-        reinterpret_cast<const ngtcp2_vec *>(v), vcnt, util::timestamp(loop_));
+        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen, flags,
+        stream_id, reinterpret_cast<const ngtcp2_vec *>(v), vcnt,
+        util::timestamp(loop_));
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
