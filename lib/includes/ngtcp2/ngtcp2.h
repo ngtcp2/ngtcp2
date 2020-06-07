@@ -1277,7 +1277,7 @@ typedef enum ngtcp2_stream_data_flag {
   /**
    * NGTCP2_STREAM_DATA_FLAG_0RTT indicates that this chunk of data
    * contains data received in 0RTT packet and the handshake has not
-   * been completed yet, which means that the data might be replayed.
+   * completed yet, which means that the data might be replayed.
    */
   NGTCP2_STREAM_DATA_FLAG_0RTT = 0x02
 } ngtcp2_stream_data_flag;
