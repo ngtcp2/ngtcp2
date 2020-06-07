@@ -249,7 +249,7 @@ public:
 
   int setup_httpconn();
   int submit_http_request(const Stream *stream);
-  int recv_stream_data(int64_t stream_id, int fin, const uint8_t *data,
+  int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
                        size_t datalen);
   int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
   int http_acked_stream_data(int64_t stream_id, size_t datalen);

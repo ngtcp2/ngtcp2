@@ -134,7 +134,7 @@ typedef struct {
      recv_stream_data callback. */
   struct {
     int64_t stream_id;
-    int fin;
+    uint32_t flags;
     size_t datalen;
   } stream_data;
 } my_user_data;
@@ -281,10 +281,10 @@ static int recv_crypto_data_server(ngtcp2_conn *conn,
   return 0;
 }
 
-static int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
-                            uint64_t offset, const uint8_t *data,
-                            size_t datalen, void *user_data,
-                            void *stream_user_data) {
+static int recv_stream_data(ngtcp2_conn *conn, uint32_t flags,
+                            int64_t stream_id, uint64_t offset,
+                            const uint8_t *data, size_t datalen,
+                            void *user_data, void *stream_user_data) {
   my_user_data *ud = user_data;
   (void)conn;
   (void)offset;
@@ -293,7 +293,7 @@ static int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
 
   if (ud) {
     ud->stream_data.stream_id = stream_id;
-    ud->stream_data.fin = fin;
+    ud->stream_data.flags = flags;
     ud->stream_data.datalen = datalen;
   }
 
@@ -301,13 +301,13 @@ static int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
 }
 
 static int
-recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, int64_t stream_id,
-                                      int fin, uint64_t offset,
+recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, uint32_t flags,
+                                      int64_t stream_id, uint64_t offset,
                                       const uint8_t *data, size_t datalen,
                                       void *user_data, void *stream_user_data) {
   int rv;
 
-  recv_stream_data(conn, stream_id, fin, offset, data, datalen, user_data,
+  recv_stream_data(conn, flags, stream_id, offset, data, datalen, user_data,
                    stream_user_data);
 
   rv = ngtcp2_conn_shutdown_stream_read(conn, stream_id, NGTCP2_APP_ERR01);
@@ -2789,7 +2789,8 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(0 == ud.stream_data.fin);
+  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN));
+  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_0RTT));
   CU_ASSERT(111 == ud.stream_data.datalen);
 
   fr.type = NGTCP2_FRAME_STREAM;
@@ -2808,7 +2809,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(1 == ud.stream_data.fin);
+  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   CU_ASSERT(99 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
@@ -2835,7 +2836,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(0 == ud.stream_data.fin);
+  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN));
   CU_ASSERT(111 == ud.stream_data.datalen);
 
   fr.type = NGTCP2_FRAME_STREAM;
@@ -2852,7 +2853,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(1 == ud.stream_data.fin);
+  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   CU_ASSERT(0 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
@@ -2880,7 +2881,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(1 == ud.stream_data.fin);
+  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   CU_ASSERT(111 == ud.stream_data.datalen);
 
   pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
@@ -2891,7 +2892,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(0 == ud.stream_data.stream_id);
-  CU_ASSERT(0 == ud.stream_data.fin);
+  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN));
   CU_ASSERT(0 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
@@ -2933,7 +2934,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(1 == ud.stream_data.fin);
+  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   CU_ASSERT(599 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
@@ -2976,7 +2977,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(1 == ud.stream_data.fin);
+  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   CU_ASSERT(599 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
@@ -3002,7 +3003,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(3 == ud.stream_data.stream_id);
-  CU_ASSERT(0 == ud.stream_data.fin);
+  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN));
   CU_ASSERT(911 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
@@ -3255,7 +3256,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(0 == ud.stream_data.fin);
+  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN));
   CU_ASSERT(599 == ud.stream_data.datalen);
 
   ngtcp2_conn_del(conn);
@@ -3515,10 +3516,13 @@ void test_ngtcp2_conn_recv_early_data(void) {
   ngtcp2_strm *strm;
   ngtcp2_cid rcid;
   int rv;
+  my_user_data ud;
 
   rcid_init(&rcid);
 
   setup_early_server(&conn);
+  conn->callbacks.recv_stream_data = recv_stream_data;
+  conn->user_data = &ud;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
@@ -3551,9 +3555,12 @@ void test_ngtcp2_conn_recv_early_data(void) {
       conn->version, &fr, null_key, null_iv, null_hp_key, sizeof(null_key),
       sizeof(null_iv));
 
+  memset(&ud, 0, sizeof(ud));
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(4 == ud.stream_data.stream_id);
+  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_0RTT);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 

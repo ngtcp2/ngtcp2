@@ -1262,22 +1262,45 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                               const uint8_t *hp_key, const uint8_t *sample);
 
 /**
+ * @enum
+ *
+ * ngtcp2_stream_data_flag defines the properties of the data emitted
+ * via :type:`ngtcp2_recv_stream_data` callback function.
+ */
+typedef enum ngtcp2_stream_data_flag {
+  NGTCP2_STREAM_DATA_FLAG_NONE = 0x00,
+  /**
+   * NGTCP2_STREAM_DATA_FLAG_FIN indicates that this chunk of data is
+   * final piece of an incoming stream.
+   */
+  NGTCP2_STREAM_DATA_FLAG_FIN = 0x01,
+  /**
+   * NGTCP2_STREAM_DATA_FLAG_0RTT indicates that this chunk of data
+   * contains data received in 0RTT packet and the handshake has not
+   * been completed yet, which means that the data might be replayed.
+   */
+  NGTCP2_STREAM_DATA_FLAG_0RTT = 0x02
+} ngtcp2_stream_data_flag;
+
+/**
  * @functypedef
  *
  * :type:`ngtcp2_recv_stream_data` is invoked when stream data is
- * received.  The stream is specified by |stream_id|.  If |fin| is
- * nonzero, this portion of the data is the last data in this stream.
- * |offset| is the offset where this data begins.  The library ensures
- * that data is passed to the application in the non-decreasing order
- * of |offset|.  The data is passed as |data| of length |datalen|.
- * |datalen| may be 0 if and only if |fin| is nonzero.
+ * received.  The stream is specified by |stream_id|.  |flags| is the
+ * bitwise-OR of zero or more of ngtcp2_stream_data_flag.  If |flags|
+ * & :enum:`NGTCP2_STREAM_DATA_FLAG_FIN` is nonzero, this portion of
+ * the data is the last data in this stream.  |offset| is the offset
+ * where this data begins.  The library ensures that data is passed to
+ * the application in the non-decreasing order of |offset|.  The data
+ * is passed as |data| of length |datalen|.  |datalen| may be 0 if and
+ * only if |fin| is nonzero.
  *
  * The callback function must return 0 if it succeeds, or
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library return
  * immediately.
  */
-typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, int64_t stream_id,
-                                       int fin, uint64_t offset,
+typedef int (*ngtcp2_recv_stream_data)(ngtcp2_conn *conn, uint32_t flags,
+                                       int64_t stream_id, uint64_t offset,
                                        const uint8_t *data, size_t datalen,
                                        void *user_data, void *stream_user_data);
 

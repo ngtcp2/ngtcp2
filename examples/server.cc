@@ -882,12 +882,12 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
 } // namespace
 
 namespace {
-int recv_stream_data(ngtcp2_conn *conn, int64_t stream_id, int fin,
+int recv_stream_data(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
                      uint64_t offset, const uint8_t *data, size_t datalen,
                      void *user_data, void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
 
-  if (h->recv_stream_data(stream_id, fin, data, datalen) != 0) {
+  if (h->recv_stream_data(flags, stream_id, data, datalen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -1966,7 +1966,7 @@ void Handler::schedule_retransmit() {
   ev_timer_again(loop_, &rttimer_);
 }
 
-int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
+int Handler::recv_stream_data(uint32_t flags, int64_t stream_id,
                               const uint8_t *data, size_t datalen) {
   if (!config.quiet && !config.no_quic_dump) {
     debug::print_stream_data(stream_id, data, datalen);
@@ -1976,8 +1976,8 @@ int Handler::recv_stream_data(int64_t stream_id, uint8_t fin,
     return 0;
   }
 
-  auto nconsumed =
-      nghttp3_conn_read_stream(httpconn_, stream_id, data, datalen, fin);
+  auto nconsumed = nghttp3_conn_read_stream(
+      httpconn_, stream_id, data, datalen, flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   if (nconsumed < 0) {
     std::cerr << "nghttp3_conn_read_stream: " << nghttp3_strerror(nconsumed)
               << std::endl;

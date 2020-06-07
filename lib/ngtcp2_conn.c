@@ -81,7 +81,7 @@ static int conn_call_handshake_completed(ngtcp2_conn *conn) {
 }
 
 static int conn_call_recv_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                      int fin, uint64_t offset,
+                                      uint32_t flags, uint64_t offset,
                                       const uint8_t *data, size_t datalen) {
   int rv;
 
@@ -89,7 +89,7 @@ static int conn_call_recv_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     return 0;
   }
 
-  rv = conn->callbacks.recv_stream_data(conn, strm->stream_id, fin, offset,
+  rv = conn->callbacks.recv_stream_data(conn, flags, strm->stream_id, offset,
                                         data, datalen, conn->user_data,
                                         strm->stream_user_data);
   if (rv != 0) {
@@ -4873,6 +4873,8 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   const uint8_t *data;
   int rv;
   uint64_t offset;
+  uint32_t sdflags;
+  int handshake_completed = conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED;
 
   for (;;) {
     /* Stop calling callback if application has called
@@ -4891,10 +4893,16 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     offset = rx_offset;
     rx_offset += datalen;
 
-    rv = conn_call_recv_stream_data(conn, strm,
-                                    (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-                                        rx_offset == strm->rx.last_offset,
-                                    offset, data, datalen);
+    sdflags = NGTCP2_STREAM_DATA_FLAG_NONE;
+    if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
+        rx_offset == strm->rx.last_offset) {
+      sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
+    }
+    if (!handshake_completed) {
+      sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
+    }
+
+    rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data, datalen);
     if (rv != 0) {
       return rv;
     }
@@ -5054,6 +5062,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
   int local_stream;
   int bidi;
   size_t datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
+  uint32_t sdflags = NGTCP2_STREAM_DATA_FLAG_NONE;
 
   local_stream = conn_local_stream(conn, fr->stream_id);
   bidi = bidi_stream(fr->stream_id);
@@ -5167,7 +5176,8 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
       }
 
       if (fr_end_offset == rx_offset) {
-        rv = conn_call_recv_stream_data(conn, strm, 1, rx_offset, NULL, 0);
+        rv = conn_call_recv_stream_data(conn, strm, NGTCP2_STREAM_DATA_FLAG_FIN,
+                                        rx_offset, NULL, 0);
         if (rv != 0) {
           return rv;
         }
@@ -5219,7 +5229,14 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
           rx_offset == strm->rx.last_offset;
 
     if (fin || datalen) {
-      rv = conn_call_recv_stream_data(conn, strm, fin, offset, data, datalen);
+      if (fin) {
+        sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
+      }
+      if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+        sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
+      }
+      rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
+                                      datalen);
       if (rv != 0) {
         return rv;
       }

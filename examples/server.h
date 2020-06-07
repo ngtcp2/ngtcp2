@@ -242,7 +242,7 @@ public:
   Server *server() const;
   const Address &remote_addr() const;
   ngtcp2_conn *conn() const;
-  int recv_stream_data(int64_t stream_id, uint8_t fin, const uint8_t *data,
+  int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
                        size_t datalen);
   int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
   const ngtcp2_cid *scid() const;
