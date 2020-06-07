@@ -5174,16 +5174,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
         return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
                                                      strm->app_error_code);
       }
-
-      if (fr_end_offset == rx_offset) {
-        rv = conn_call_recv_stream_data(conn, strm, NGTCP2_STREAM_DATA_FLAG_FIN,
-                                        rx_offset, NULL, 0);
-        if (rv != 0) {
-          return rv;
-        }
-        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
-                                                     NGTCP2_NO_ERROR);
-      }
     }
   } else {
     if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
