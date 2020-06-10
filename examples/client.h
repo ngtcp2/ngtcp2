@@ -264,6 +264,8 @@ public:
 
   void write_qlog(const void *data, size_t datalen);
 
+  void idle_timeout();
+
 private:
   Address local_addr_;
   Address remote_addr_;

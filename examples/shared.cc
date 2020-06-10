@@ -36,6 +36,10 @@ QUICError quic_err_transport(int liberr) {
           ngtcp2_err_infer_quic_transport_error_code(liberr)};
 }
 
+QUICError quic_err_idle_timeout() {
+  return {QUICErrorType::TransportIdleTimeout, 0};
+}
+
 QUICError quic_err_tls(int alert) {
   return {QUICErrorType::Transport,
           static_cast<uint64_t>(NGTCP2_CRYPTO_ERROR | alert)};

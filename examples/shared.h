@@ -37,6 +37,7 @@ enum class QUICErrorType {
   Application,
   Transport,
   TransportVersionNegotiation,
+  TransportIdleTimeout,
 };
 
 struct QUICError {
@@ -47,6 +48,8 @@ struct QUICError {
 };
 
 QUICError quic_err_transport(int liberr);
+
+QUICError quic_err_idle_timeout();
 
 QUICError quic_err_tls(int alert);
 

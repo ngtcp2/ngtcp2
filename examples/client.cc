@@ -288,9 +288,14 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
     std::cerr << "Timeout" << std::endl;
   }
 
-  c->disconnect();
+  c->idle_timeout();
 }
 } // namespace
+
+void Client::idle_timeout() {
+  last_error_ = quic_err_idle_timeout();
+  disconnect();
+}
 
 namespace {
 void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
@@ -1513,7 +1518,8 @@ int Client::handle_error() {
   sendbuf_.reset();
   assert(sendbuf_.left() >= max_pktlen_);
 
-  if (last_error_.type == QUICErrorType::TransportVersionNegotiation) {
+  if (last_error_.type == QUICErrorType::TransportVersionNegotiation ||
+      last_error_.type == QUICErrorType::TransportIdleTimeout) {
     return 0;
   }
 
