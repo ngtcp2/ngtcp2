@@ -8594,6 +8594,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
   }
 
   switch (conn->state) {
+  case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
     return NGTCP2_ERR_INVALID_STATE;

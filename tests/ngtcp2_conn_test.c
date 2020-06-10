@@ -5243,6 +5243,10 @@ void test_ngtcp2_conn_write_connection_close(void) {
   /* Client only Initial key */
   setup_handshake_client(&conn);
 
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), 0);
+
+  CU_ASSERT(spktlen > 0);
+
   spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
                                                NGTCP2_NO_ERROR, 0);
 
@@ -5258,6 +5262,10 @@ void test_ngtcp2_conn_write_connection_close(void) {
 
   /* Client has Initial and Handshake keys */
   setup_handshake_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), 0);
+
+  CU_ASSERT(spktlen > 0);
 
   ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
                                        sizeof(null_key), sizeof(null_iv));
