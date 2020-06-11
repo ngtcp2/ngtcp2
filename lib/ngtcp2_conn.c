@@ -7345,8 +7345,6 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
     }
 
-    conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
-
     rv = conn_handshake_completed(conn);
     if (rv != 0) {
       return rv;
@@ -7834,6 +7832,9 @@ conn_client_write_handshake(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
 
 void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn) {
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED;
+  if (conn->server) {
+    conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+  }
 }
 
 int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn) {
@@ -9032,13 +9033,25 @@ static ngtcp2_pktns *conn_get_earliest_pktns(ngtcp2_conn *conn,
   ngtcp2_tstamp earliest_ts = times[NGTCP2_PKTNS_ID_INITIAL];
 
   for (i = NGTCP2_PKTNS_ID_HANDSHAKE; i < NGTCP2_PKTNS_ID_MAX; ++i) {
-    if (res == NULL ||
-        (times[i] != UINT64_MAX &&
-         (earliest_ts == UINT64_MAX || times[i] < earliest_ts) &&
-         (i != NGTCP2_PKTNS_ID_APP ||
-          (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
-      earliest_ts = times[i];
-      res = ns[i];
+    if (ns[i] == NULL || ns[i]->rtb.num_ack_eliciting == 0 ||
+        (times[i] == UINT64_MAX ||
+         (earliest_ts != UINT64_MAX && times[i] >= earliest_ts) ||
+         (i == NGTCP2_PKTNS_ID_APP &&
+          !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
+      continue;
+    }
+
+    earliest_ts = times[i];
+    res = ns[i];
+  }
+
+  if (res == NULL && !conn->server) {
+    earliest_ts = UINT64_MAX;
+
+    if (conn->hs_pktns && conn->hs_pktns->crypto.tx.ckm) {
+      res = conn->hs_pktns;
+    } else {
+      res = conn->in_pktns;
     }
   }
 
