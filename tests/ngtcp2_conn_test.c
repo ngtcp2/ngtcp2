@@ -5164,7 +5164,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  CU_ASSERT(NGTCP2_ERR_TRANSPORT_PARAM == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -5177,7 +5177,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  CU_ASSERT(NGTCP2_ERR_TRANSPORT_PARAM == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -5192,7 +5192,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  CU_ASSERT(NGTCP2_ERR_TRANSPORT_PARAM == rv);
 
   ngtcp2_conn_del(conn);
 
@@ -5228,7 +5228,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
-  CU_ASSERT(NGTCP2_ERR_PROTO == rv);
+  CU_ASSERT(NGTCP2_ERR_TRANSPORT_PARAM == rv);
 
   ngtcp2_conn_del(conn);
 }

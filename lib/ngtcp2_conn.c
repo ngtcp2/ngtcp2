@@ -8188,24 +8188,18 @@ static int
 conn_client_validate_transport_params(ngtcp2_conn *conn,
                                       const ngtcp2_transport_params *params) {
   if (!ngtcp2_cid_eq(&conn->rcid, &params->original_dcid)) {
-    return NGTCP2_ERR_PROTO;
+    return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
   if (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
     if (!params->retry_scid_present) {
-      /* draft explicitly specifies that this is
-         PROTOCOL_VIOLATION. */
-      return NGTCP2_ERR_PROTO;
+      return NGTCP2_ERR_TRANSPORT_PARAM;
     }
     if (!ngtcp2_cid_eq(&conn->retry_scid, &params->retry_scid)) {
-      /* draft explicitly specifies that this is
-         PROTOCOL_VIOLATION. */
-      return NGTCP2_ERR_PROTO;
+      return NGTCP2_ERR_TRANSPORT_PARAM;
     }
   } else if (params->retry_scid_present) {
-    /* draft explicitly specifies that this is
-       PROTOCOL_VIOLATION. */
-    return NGTCP2_ERR_PROTO;
+    return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
   if (params->preferred_address_present &&
@@ -8233,7 +8227,7 @@ int ngtcp2_conn_set_remote_transport_params(
      This requires that transport parameter must be fed into
      ngtcp2_conn as early as possible. */
   if (!ngtcp2_cid_eq(&conn->dcid.current.cid, &params->initial_scid)) {
-    return NGTCP2_ERR_PROTO;
+    return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
   if (!conn->server) {
