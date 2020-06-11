@@ -281,7 +281,7 @@ typedef enum ngtcp2_pkt_type {
 /* QUIC transport error code. */
 #define NGTCP2_NO_ERROR 0x0u
 #define NGTCP2_INTERNAL_ERROR 0x1u
-#define NGTCP2_SERVER_BUSY 0x2u
+#define NGTCP2_CONNECTION_REFUSED 0x2u
 #define NGTCP2_FLOW_CONTROL_ERROR 0x3u
 #define NGTCP2_STREAM_LIMIT_ERROR 0x4u
 #define NGTCP2_STREAM_STATE_ERROR 0x5u

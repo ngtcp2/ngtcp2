@@ -114,8 +114,8 @@ static const char *strerrorcode(uint64_t error_code) {
     return "NO_ERROR";
   case NGTCP2_INTERNAL_ERROR:
     return "INTERNAL_ERROR";
-  case NGTCP2_SERVER_BUSY:
-    return "SERVER_BUSY";
+  case NGTCP2_CONNECTION_REFUSED:
+    return "CONNECTION_REFUSED";
   case NGTCP2_FLOW_CONTROL_ERROR:
     return "FLOW_CONTROL_ERROR";
   case NGTCP2_STREAM_LIMIT_ERROR:
