@@ -159,7 +159,7 @@ typedef struct ngtcp2_mem {
 } ngtcp2_mem;
 
 /* NGTCP2_PROTO_VER is the supported QUIC protocol version. */
-#define NGTCP2_PROTO_VER 0xff00001cu
+#define NGTCP2_PROTO_VER 0xff00001du
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
 #define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER
