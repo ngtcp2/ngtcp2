@@ -72,6 +72,7 @@ int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
   (*pckm)->iv.base = p;
   (*pckm)->iv.len = ivlen;
   (*pckm)->pkt_num = -1;
+  (*pckm)->use_count = 0;
   (*pckm)->flags = NGTCP2_CRYPTO_KM_FLAG_NONE;
 
   return 0;

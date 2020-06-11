@@ -811,6 +811,12 @@ typedef struct ngtcp2_crypto_ctx {
   ngtcp2_crypto_aead aead;
   ngtcp2_crypto_md md;
   ngtcp2_crypto_cipher hp;
+  /* max_encryption is the number of encryption which this key can be
+     used with. */
+  uint64_t max_encryption;
+  /* max_decryption_failure is the number of decryption failure with
+     this key. */
+  uint64_t max_decryption_failure;
 } ngtcp2_crypto_ctx;
 
 /**

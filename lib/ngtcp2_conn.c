@@ -2979,6 +2979,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     return nwrite;
   }
 
+  ++cc->ckm->use_count;
+
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, hd, (size_t)nwrite);
 
   if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
@@ -3128,6 +3130,8 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
   if (nwrite < 0) {
     return nwrite;
   }
+
+  ++cc.ckm->use_count;
 
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, &hd, (size_t)nwrite);
 
@@ -6146,6 +6150,12 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_crypto_km *new_rx_ckm, *new_tx_ckm;
   size_t secretlen, keylen, ivlen;
 
+  if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
+      (tx_ckm->use_count >= pktns->crypto.ctx.max_encryption ||
+       rx_ckm->use_count >= pktns->crypto.ctx.max_decryption_failure)) {
+    ngtcp2_conn_initiate_key_update(conn, ts);
+  }
+
   if ((conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
       (confirmed_ts != UINT64_MAX && confirmed_ts + pto > ts)) {
     return 0;
@@ -6681,6 +6691,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
 
     assert(NGTCP2_ERR_TLS_DECRYPT == nwrite);
+
+    ++ckm->use_count;
 
     if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
@@ -8471,13 +8483,6 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
   }
 
-  if (conn->state == NGTCP2_CS_POST_HANDSHAKE) {
-    rv = conn_prepare_key_update(conn, ts);
-    if (rv != 0) {
-      return rv;
-    }
-  }
-
   rv = conn_remove_retired_connection_id(conn, ts);
   if (rv != 0) {
     return rv;
@@ -8506,12 +8511,21 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
     nwrite = conn_write_pkt(conn, dest, destlen, pdatalen, NGTCP2_PKT_SHORT,
                             strm, fin, datav, datavcnt, wflags, ts);
     goto fin;
-  } else if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
-    destlen = 0;
-  } else if (conn->pv) {
-    nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
-    if (nwrite) {
-      goto fin;
+  } else {
+    if (conn->state == NGTCP2_CS_POST_HANDSHAKE) {
+      rv = conn_prepare_key_update(conn, ts);
+      if (rv != 0) {
+        return rv;
+      }
+    }
+
+    if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
+      destlen = 0;
+    } else if (conn->pv) {
+      nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
+      if (nwrite) {
+        goto fin;
+      }
     }
   }
 

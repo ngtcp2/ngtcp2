@@ -31,6 +31,16 @@
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
+/* Maximum key usage (encryption) limits */
+#define NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM (23726566ULL)
+#define NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305 (1ULL << 62)
+#define NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_CCM (1ULL << 23)
+
+/* Maximum authentication failure (decryption) limits */
+#define NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM (1ULL << 36)
+#define NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_CHACHA20_POLY1305 (1ULL << 36)
+#define NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_CCM (11863283ULL)
+
 /**
  * @function
  *
