@@ -41,6 +41,8 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ctx->aead.native_handle = (void *)GNUTLS_CIPHER_AES_128_GCM;
   ctx->md.native_handle = (void *)GNUTLS_DIG_SHA256;
   ctx->hp.native_handle = (void *)GNUTLS_CIPHER_AES_128_CBC;
+  ctx->max_encryption = 0;
+  ctx->max_decryption_failure = 0;
   return ctx;
 }
 
@@ -61,6 +63,38 @@ static gnutls_cipher_algorithm_t crypto_get_hp(gnutls_session_t session) {
     return GNUTLS_CIPHER_CHACHA20_32;
   default:
     return GNUTLS_CIPHER_UNKNOWN;
+  }
+}
+
+static uint64_t
+crypto_get_aead_max_encryption(gnutls_cipher_algorithm_t cipher) {
+  switch (cipher) {
+  case GNUTLS_CIPHER_AES_128_GCM:
+  case GNUTLS_CIPHER_AES_256_GCM:
+    return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM;
+  case GNUTLS_CIPHER_CHACHA20_POLY1305:
+    return NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305;
+  case GNUTLS_CIPHER_AES_128_CCM:
+  case GNUTLS_CIPHER_AES_256_CCM:
+    return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_CCM;
+  default:
+    return 0;
+  }
+}
+
+static uint64_t
+crypto_get_aead_max_decryption_failure(gnutls_cipher_algorithm_t cipher) {
+  switch (cipher) {
+  case GNUTLS_CIPHER_AES_128_GCM:
+  case GNUTLS_CIPHER_AES_256_GCM:
+    return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM;
+  case GNUTLS_CIPHER_CHACHA20_POLY1305:
+    return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_CHACHA20_POLY1305;
+  case GNUTLS_CIPHER_AES_128_CCM:
+  case GNUTLS_CIPHER_AES_256_CCM:
+    return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_CCM;
+  default:
+    return 0;
   }
 }
 
@@ -85,6 +119,9 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   if (hp_cipher != GNUTLS_CIPHER_UNKNOWN) {
     ctx->hp.native_handle = (void *)hp_cipher;
   }
+
+  ctx->max_encryption = crypto_get_aead_max_encryption(cipher);
+  ctx->max_decryption_failure = crypto_get_aead_max_decryption_failure(cipher);
 
   return ctx;
 }
