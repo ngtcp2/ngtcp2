@@ -473,6 +473,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   end = data + datalen;
 
   /* Set default values */
+  memset(params, 0, sizeof(*params));
   params->initial_max_streams_bidi = 0;
   params->initial_max_streams_uni = 0;
   params->initial_max_stream_data_bidi_local = 0;
@@ -482,7 +483,6 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params->stateless_reset_token_present = 0;
   params->preferred_address_present = 0;
-  memset(&params->preferred_address, 0, sizeof(params->preferred_address));
   params->disable_active_migration = 0;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params->max_idle_timeout = 0;
