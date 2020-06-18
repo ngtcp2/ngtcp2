@@ -514,16 +514,22 @@ static int ts_retired_less(const ngtcp2_pq_entry *lhs,
 }
 
 static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
-  memset(cstat, 0, sizeof(*cstat));
+  cstat->latest_rtt = 0;
+  cstat->min_rtt = UINT64_MAX;
   cstat->smoothed_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   cstat->rttvar = NGTCP2_DEFAULT_INITIAL_RTT / 2;
-  cstat->min_rtt = UINT64_MAX;
+  cstat->pto_count = 0;
+  cstat->loss_detection_timer = 0;
   // Initializes them with UINT64_MAX.
-  memset(cstat->last_tx_pkt_ts, 0xff, sizeof(cstat->last_tx_pkt_ts));
   memset(cstat->loss_time, 0xff, sizeof(cstat->loss_time));
-  cstat->max_udp_payload_size = conn->local.settings.max_udp_payload_size;
-  cstat->cwnd = ngtcp2_cc_compute_initcwnd(cstat->max_udp_payload_size);
+  cstat->cwnd =
+      ngtcp2_cc_compute_initcwnd(conn->local.settings.max_udp_payload_size);
   cstat->ssthresh = UINT64_MAX;
+  cstat->congestion_recovery_start_ts = 0;
+  cstat->bytes_in_flight = 0;
+  cstat->max_udp_payload_size = conn->local.settings.max_udp_payload_size;
+  cstat->delivery_rate_sec = 0;
+  cstat->recv_rate_sec = 0;
 }
 
 static void conn_reset_rx_rate(ngtcp2_conn *conn) {
