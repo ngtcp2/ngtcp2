@@ -280,6 +280,9 @@ if test "x${request_jemalloc}" = "xyes" &&
   AC_MSG_ERROR([jemalloc was requested (--with-jemalloc) but not found])
 fi
 
+AC_ARG_VAR([LIBTOOL_LDFLAGS],
+           [libtool specific flags (e.g., -static-libtool-libs)])
+
 # Checks for header files.
 AC_CHECK_HEADERS([ \
   arpa/inet.h \
@@ -469,6 +472,8 @@ AC_MSG_NOTICE([summary of build options:
     Library:
       Shared:         ${enable_shared}
       Static:         ${enable_static}
+    Libtool:
+      LIBTOOL_LDFLAGS: ${LIBTOOL_LDFLAGS}
     Crypto helper libraries:
       libngtcp2_crypto_openssl: ${have_openssl}
       libngtcp2_crypto_gnutls:  ${have_gnutls}

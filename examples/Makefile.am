@@ -32,7 +32,8 @@ AM_CPPFLAGS = \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
 	@DEFS@
-AM_LDFLAGS = -no-install
+AM_LDFLAGS = -no-install \
+	@LIBTOOL_LDFLAGS@
 LDADD = $(top_builddir)/crypto/openssl/libngtcp2_crypto_openssl.la \
 	$(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \

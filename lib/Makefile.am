@@ -24,6 +24,7 @@ SUBDIRS = includes
 
 AM_CFLAGS = $(WARNCFLAGS) $(DEBUGCFLAGS) $(EXTRACFLAG)
 AM_CPPFLAGS = -I$(srcdir)/includes -I$(builddir)/includes -DBUILDING_NGTCP2
+AM_LDFLAGS = ${LIBTOOL_LDFLAGS}
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libngtcp2.pc
