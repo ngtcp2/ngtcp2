@@ -14,11 +14,12 @@ RUN apt-get update && \
     git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
     ./configure \
+        LIBTOOL_LDFLAGS="-static-libtool-libs" \
         LIBS="-ldl -pthread" \
         OPENSSL_LIBS="-l:libssl.a -l:libcrypto.a" \
         LIBEV_LIBS="-l:libev.a" \
         JEMALLOC_LIBS="-l:libjemalloc.a" && \
-    make -j$(nproc) LDFLAGS="-static-libtool-libs" && \
+    make -j$(nproc) && \
     strip examples/client examples/server && \
     cp examples/client examples/server /usr/local/bin && \
     cd .. && rm -rf ngtcp2 && \
