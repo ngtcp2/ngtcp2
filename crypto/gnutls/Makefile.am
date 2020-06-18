@@ -35,6 +35,6 @@ lib_LTLIBRARIES = libngtcp2_crypto_gnutls.la
 
 libngtcp2_crypto_gnutls_la_SOURCES = gnutls.c ../shared.c ../shared.h
 libngtcp2_crypto_gnutls_la_LDFLAGS = -no-undefined \
-	-version-info $(CRYPTO_GNUTLS_LT_CURRENT):$(CRYPTO_GNUTLS_LT_REVISION):$(CRYPTO_GNUTLS_LT_AGE)
-
+	-version-info $(CRYPTO_GNUTLS_LT_CURRENT):$(CRYPTO_GNUTLS_LT_REVISION):$(CRYPTO_GNUTLS_LT_AGE) \
+	@JEMALLOC_LIBS@ @GNUTLS_LIBS@
 libngtcp2_crypto_gnutls_la_LIBADD = $(top_builddir)/lib/libngtcp2.la
