@@ -35,6 +35,6 @@ lib_LTLIBRARIES = libngtcp2_crypto_openssl.la
 
 libngtcp2_crypto_openssl_la_SOURCES = openssl.c ../shared.c ../shared.h
 libngtcp2_crypto_openssl_la_LDFLAGS = -no-undefined \
-	-version-info $(CRYPTO_OPENSSL_LT_CURRENT):$(CRYPTO_OPENSSL_LT_REVISION):$(CRYPTO_OPENSSL_LT_AGE) \
-	@JEMALLOC_LIBS@ @OPENSSL_LIBS@
+	-version-info $(CRYPTO_OPENSSL_LT_CURRENT):$(CRYPTO_OPENSSL_LT_REVISION):$(CRYPTO_OPENSSL_LT_AGE)
+
 libngtcp2_crypto_openssl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la
