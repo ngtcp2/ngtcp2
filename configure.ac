@@ -208,21 +208,28 @@ if test "${have_libnghttp3}" = "xno"; then
 fi
 AM_CONDITIONAL([HAVE_NGHTTP3], [ test "x${have_libnghttp3}" = "xyes" ])
 
+AC_ARG_VAR([LIBEV_CFLAGS], [C compiler flags for libev, skipping any checks])
+AC_ARG_VAR([LIBEV_LIBS], [linker flags for libev, skipping any checks])
+
 # libev (for examples)
-# libev does not have pkg-config file.  Check it in an old way.
-save_LIBS=$LIBS
-# android requires -lm for floor
-AC_CHECK_LIB([ev], [ev_time], [have_libev=yes], [have_libev=no], [-lm])
-if test "x${have_libev}" = "xyes"; then
-  AC_CHECK_HEADER([ev.h], [have_libev=yes], [have_libev=no])
+if test "x${LIBEV_LIBS}" = "x" && test "x${LIBEV_CFLAGS}" = "x"; then
+  # libev does not have pkg-config file.  Check it in an old way.
+  save_LIBS=$LIBS
+  # android requires -lm for floor
+  AC_CHECK_LIB([ev], [ev_time], [have_libev=yes], [have_libev=no], [-lm])
   if test "x${have_libev}" = "xyes"; then
-    LIBEV_LIBS=-lev
-    LIBEV_CFLAGS=
-    AC_SUBST([LIBEV_LIBS])
-    AC_SUBST([LIBEV_CFLAGS])
+    AC_CHECK_HEADER([ev.h], [have_libev=yes], [have_libev=no])
+    if test "x${have_libev}" = "xyes"; then
+      LIBEV_LIBS=-lev
+      LIBEV_CFLAGS=
+      AC_SUBST([LIBEV_LIBS])
+      AC_SUBST([LIBEV_CFLAGS])
+    fi
   fi
+  LIBS=$save_LIBS
+else
+  have_libev=yes
 fi
-LIBS=$save_LIBS
 
 enable_examples=no
 if test "x${lib_only}" = "xno" &&
@@ -233,31 +240,38 @@ fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
 
+AC_ARG_VAR([JEMALLOC_CFLAGS], [C compiler flags for jemalloc, skipping any checks])
+AC_ARG_VAR([JEMALLOC_LIBS], [linker flags for jemalloc, skipping any checks])
+
 # jemalloc
 have_jemalloc=no
 if test "x${request_jemalloc}" != "xno"; then
-  save_LIBS=$LIBS
-  AC_SEARCH_LIBS([malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
-                 [$PTHREAD_LDFLAGS])
-
-  if test "x${have_jemalloc}" = "xyes"; then
-    jemalloc_libs=${ac_cv_search_malloc_stats_print}
-  else
-    # On Darwin, malloc_stats_print is je_malloc_stats_print
-    AC_SEARCH_LIBS([je_malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
+  if test "x${JEMALLOC_LIBS}" = "x" && test "x${JEMALLOC_CFLAGS}" = "x"; then
+    save_LIBS=$LIBS
+    AC_SEARCH_LIBS([malloc_stats_print], [jemalloc], [have_jemalloc=yes], [],
                    [$PTHREAD_LDFLAGS])
 
     if test "x${have_jemalloc}" = "xyes"; then
-      jemalloc_libs=${ac_cv_search_je_malloc_stats_print}
+      jemalloc_libs=${ac_cv_search_malloc_stats_print}
+    else
+      # On Darwin, malloc_stats_print is je_malloc_stats_print
+      AC_SEARCH_LIBS([je_malloc_stats_print], [jemalloc], [have_jemalloc=yes],
+                     [], [$PTHREAD_LDFLAGS])
+
+      if test "x${have_jemalloc}" = "xyes"; then
+        jemalloc_libs=${ac_cv_search_je_malloc_stats_print}
+      fi
     fi
-  fi
 
-  LIBS=$save_LIBS
+    LIBS=$save_LIBS
 
-  if test "x${have_jemalloc}" = "xyes" &&
-     test "x${jemalloc_libs}" != "xnone required"; then
-    JEMALLOC_LIBS=${jemalloc_libs}
-    AC_SUBST([JEMALLOC_LIBS])
+    if test "x${have_jemalloc}" = "xyes" &&
+       test "x${jemalloc_libs}" != "xnone required"; then
+      JEMALLOC_LIBS=${jemalloc_libs}
+      AC_SUBST([JEMALLOC_LIBS])
+    fi
+  else
+    have_jemalloc=yes
   fi
 fi
 
