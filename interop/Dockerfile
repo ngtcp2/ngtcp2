@@ -1,7 +1,7 @@
 FROM martenseemann/quic-network-simulator-endpoint:latest
 
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         git g++ make binutils autoconf automake autotools-dev libtool \
 	pkg-config libev-dev libjemalloc-dev \
         libev4 libjemalloc2 ca-certificates mime-support && \
