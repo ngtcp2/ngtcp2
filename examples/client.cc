@@ -783,7 +783,9 @@ int Client::init_ssl() {
     SSL_set_alpn_protos(ssl_, alpn, alpnlen);
   }
 
-  if (util::numeric_host(addr_)) {
+  if (!config.sni.empty()) {
+    SSL_set_tlsext_host_name(ssl_, config.sni.data());
+  } else if (util::numeric_host(addr_)) {
     // If remote host is numeric address, just send "localhost" as SNI
     // for now.
     SSL_set_tlsext_host_name(ssl_, "localhost");
@@ -2491,6 +2493,9 @@ Options:
   --token-file=<PATH>
               Read/write token from/to <PATH>.  Token is obtained from
               NEW_TOKEN frame from server.
+  --sni=<DNSNAME>
+              Send  <DNSNAME>  in TLS  SNI,  overriding  the DNS  name
+              specified in <HOST>.
   -h, --help  Display this help and exit.
 
 ---
@@ -2553,6 +2558,7 @@ int main(int argc, char **argv) {
         {"cc", required_argument, &flag, 27},
         {"exit-on-all-streams-close", no_argument, &flag, 28},
         {"token-file", required_argument, &flag, 29},
+        {"sni", required_argument, &flag, 30},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2773,6 +2779,10 @@ int main(int argc, char **argv) {
       case 29:
         // --token-file
         config.token_file = optarg;
+        break;
+      case 30:
+        // --sni
+        config.sni = optarg;
         break;
       }
       break;

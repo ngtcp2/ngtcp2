@@ -154,6 +154,9 @@ struct Config {
   // token_file is a path to file to read or write token from
   // NEW_TOKEN frame.
   std::string_view token_file;
+  // sni is the value sent in TLS SNI, overriding DNS name of the
+  // remote host.
+  std::string_view sni;
 };
 
 struct Buffer {
