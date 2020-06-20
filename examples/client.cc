@@ -2329,7 +2329,7 @@ void keylog_callback(const SSL *ssl, const char *line) {
 
 namespace {
 void print_usage() {
-  std::cerr << "Usage: client [OPTIONS] <ADDR> <PORT> [<URI>...]" << std::endl;
+  std::cerr << "Usage: client [OPTIONS] <HOST> <PORT> [<URI>...]" << std::endl;
 }
 } // namespace
 
@@ -2364,7 +2364,8 @@ void print_help() {
   config_set_default(config);
 
   std::cout << R"(
-  <ADDR>      Remote server address
+  <HOST>      Remote server host (DNS name or IP address).  In case of
+              DNS name, it will be sent in TLS SNI extension.
   <PORT>      Remote server port
   <URI>       Remote URI
 Options:
