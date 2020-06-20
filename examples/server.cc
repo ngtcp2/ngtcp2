@@ -825,8 +825,8 @@ int Handler::handshake_completed() {
   std::array<uint8_t, MAX_TOKENLEN> token;
   size_t tokenlen = token.size();
 
-  if (server_->generate_token(token.data(), tokenlen, &remote_addr_.su.sa,
-                              remote_addr_.len) != 0) {
+  if (server_->generate_token(token.data(), tokenlen, &remote_addr_.su.sa) !=
+      0) {
     if (!config.quiet) {
       std::cerr << "Unable to generate token" << std::endl;
     }
@@ -2849,8 +2849,7 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
 }
 
 namespace {
-size_t generate_token_aad(uint8_t *dest, size_t destlen, const sockaddr *sa,
-                          socklen_t salen) {
+size_t generate_token_aad(uint8_t *dest, size_t destlen, const sockaddr *sa) {
   const uint8_t *addr;
   size_t addrlen;
 
@@ -2879,8 +2878,8 @@ size_t generate_token_aad(uint8_t *dest, size_t destlen, const sockaddr *sa,
 }
 } // namespace
 
-int Server::generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
-                           socklen_t salen) {
+int Server::generate_token(uint8_t *token, size_t &tokenlen,
+                           const sockaddr *sa) {
   std::array<uint8_t, 8> plaintext;
 
   uint64_t t = std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -2888,7 +2887,7 @@ int Server::generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
                    .count();
 
   std::array<uint8_t, 256> aad;
-  auto aadlen = generate_token_aad(aad.data(), aad.size(), sa, salen);
+  auto aadlen = generate_token_aad(aad.data(), aad.size(), sa);
 
   auto p = std::begin(plaintext);
   // Host byte order
@@ -2957,7 +2956,7 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
   assert(hd->token.base[0] == TOKEN_MAGIC);
 
   std::array<uint8_t, 256> aad;
-  auto aadlen = generate_token_aad(aad.data(), aad.size(), sa, salen);
+  auto aadlen = generate_token_aad(aad.data(), aad.size(), sa);
 
   auto rand_data = hd->token.base + hd->token.len - TOKEN_RAND_DATALEN;
   auto ciphertext = hd->token.base + 1;
