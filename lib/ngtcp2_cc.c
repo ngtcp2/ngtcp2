@@ -31,6 +31,15 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
 
+#ifdef _MSC_VER
+// __builtin_clzll is not available by default in _MSC_VER but
+// the alternative intrinsic __lzcnt64 can be used instead.
+#include <intrin.h>
+static inline int __builtin_clzll(unsigned long long x) {
+  return (int)__lzcnt64(x);
+}
+#endif
+
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
   n = ngtcp2_max(n, 14720);
