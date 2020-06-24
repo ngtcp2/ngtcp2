@@ -26,6 +26,10 @@
 
 #include <assert.h>
 
+#if defined(_MSC_VER)
+#  include <intrin.h>
+#endif
+
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
 #include "ngtcp2_mem.h"
@@ -238,7 +242,19 @@ static uint64_t ngtcp2_cbrt(uint64_t n) {
     return 0;
   }
 
+#if defined(_MSC_VER)
+#  if defined(_M_X64)
+  d = (int)__lzcnt64(n);
+#  else
+  if ((n >> 32) != 0) {
+    d = __lzcnt((unsigned int)(n >> 32));
+  } else {
+    d = 32 + __lzcnt((unsigned int)n);
+  }
+#  endif
+#else
   d = __builtin_clzll(n);
+#endif
   a = 1ULL << ((64 - d) / 3 + 1);
 
   for (i = 0; a * a * a > n; ++i) {
