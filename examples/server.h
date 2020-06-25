@@ -347,8 +347,7 @@ public:
                            const ngtcp2_cid *ocid);
   int verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                          const sockaddr *sa, socklen_t salen);
-  int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
-                     socklen_t salen);
+  int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa);
   int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                    socklen_t salen);
   int send_packet(Endpoint &ep, const Address &remote_addr, const uint8_t *data,
