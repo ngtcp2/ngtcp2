@@ -1279,18 +1279,42 @@ static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_cryptofrq_top returns the element which sits on top of the
- * queue.  The queue must not be empty.
+ * conn_cryptofrq_unacked_offset returns the CRYPTO frame offset by
+ * taking into account acknowledged offset.  If there is no data to
+ * send, this function returns (size_t)-1.
  */
-static ngtcp2_frame_chain *conn_cryptofrq_top(ngtcp2_conn *conn,
-                                              ngtcp2_pktns *pktns) {
+static size_t conn_cryptofrq_unacked_offset(ngtcp2_conn *conn,
+                                            ngtcp2_pktns *pktns) {
+  ngtcp2_frame_chain *frc;
+  ngtcp2_crypto *fr;
+  ngtcp2_ksl_it gapit;
+  ngtcp2_range *gap;
+  ngtcp2_rtb *rtb = &pktns->rtb;
   ngtcp2_ksl_it it;
+  size_t datalen;
+
   (void)conn;
 
-  assert(ngtcp2_ksl_len(&pktns->crypto.tx.frq));
+  for (it = ngtcp2_ksl_begin(&pktns->crypto.tx.frq); !ngtcp2_ksl_it_end(&it);
+       ngtcp2_ksl_it_next(&it)) {
+    frc = ngtcp2_ksl_it_get(&it);
+    fr = &frc->fr.crypto;
 
-  it = ngtcp2_ksl_begin(&pktns->crypto.tx.frq);
-  return ngtcp2_ksl_it_get(&it);
+    gapit = ngtcp2_gaptr_get_first_gap_after(&rtb->crypto->tx.acked_offset,
+                                             fr->offset);
+    gap = ngtcp2_ksl_it_key(&gapit);
+
+    datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
+
+    if (gap->begin <= fr->offset) {
+      return fr->offset;
+    }
+    if (gap->begin < fr->offset + datalen) {
+      return gap->begin;
+    }
+  }
+
+  return (size_t)-1;
 }
 
 static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
@@ -1721,6 +1745,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int pkt_empty = 1;
   int padded = 0;
   int hd_logged = 0;
+  uint64_t crypto_offset;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
@@ -1792,9 +1817,13 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   for (; ngtcp2_ksl_len(&pktns->crypto.tx.frq);) {
     left = ngtcp2_ppe_left(&ppe);
-    left = ngtcp2_pkt_crypto_max_datalen(
-        conn_cryptofrq_top(conn, pktns)->fr.crypto.offset, left, left);
 
+    crypto_offset = conn_cryptofrq_unacked_offset(conn, pktns);
+    if (crypto_offset == (size_t)-1) {
+      break;
+    }
+
+    left = ngtcp2_pkt_crypto_max_datalen(crypto_offset, left, left);
     if (left == (size_t)-1) {
       break;
     }
@@ -2467,6 +2496,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int padded = 0;
   int credit_expanded = 0;
   ngtcp2_cc_pkt cc_pkt;
+  uint64_t crypto_offset;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -2671,8 +2701,12 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
       for (; ngtcp2_ksl_len(&pktns->crypto.tx.frq);) {
         left = ngtcp2_ppe_left(ppe);
 
-        left = ngtcp2_pkt_crypto_max_datalen(
-            conn_cryptofrq_top(conn, pktns)->fr.crypto.offset, left, left);
+        crypto_offset = conn_cryptofrq_unacked_offset(conn, pktns);
+        if (crypto_offset == (size_t)-1) {
+          break;
+        }
+
+        left = ngtcp2_pkt_crypto_max_datalen(crypto_offset, left, left);
 
         if (left == (size_t)-1) {
           break;

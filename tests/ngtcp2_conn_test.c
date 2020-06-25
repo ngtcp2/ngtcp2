@@ -4965,6 +4965,119 @@ void test_ngtcp2_conn_handshake_loss(void) {
                                    ent->frc->fr.crypto.datacnt));
 
   ngtcp2_conn_del(conn);
+
+  /* Retransmission changes CRYPTO offset */
+  setup_handshake_server(&conn);
+  conn->callbacks.recv_crypto_data = recv_crypto_data;
+
+  cfr = &crypto.fr;
+  cfr->type = NGTCP2_FRAME_CRYPTO;
+  cfr->crypto.offset = 0;
+  cfr->crypto.datacnt = 1;
+  cfr->crypto.data[0].len = 123;
+  cfr->crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, cfr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  /* Increase anti-amplification factor for easier testing */
+  conn->cstat.bytes_recv += 10000;
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
+                                 123);
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
+                                 3000);
+
+  /* Initial and first Handshake are coalesced into 1 packet. */
+  for (i = 0; i < 3; ++i) {
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+    CU_ASSERT(spktlen > 0);
+  }
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
+  CU_ASSERT(2176 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(824 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+                                  ent->frc->fr.crypto.datacnt));
+
+  t += 1000;
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  /* On retransmission, the first HANDSHAKE CRYPTO has additional 5
+     bytes of data because Initial packet does not contain ACK
+     frame. */
+  for (i = 0; i < 3; ++i) {
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+    CU_ASSERT(spktlen > 0);
+  }
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
+  CU_ASSERT(2181 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(819 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+                                  ent->frc->fr.crypto.datacnt));
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.ack_delay_unscaled = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
+
+  t += 8;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, t);
+
+  CU_ASSERT(0 == rv);
+
+  t += 1000;
+
+  ngtcp2_conn_on_loss_detection_timer(conn, t);
+
+  /* Receiving Handshake ACK discards Initial packet number space.
+     The first Handshake CRYPTO is acknowledged, but
+     conn->hs_pktns->crypto.tx.frq still has offset without taking
+     into account this ACK.  When calculating the available space for
+     CRYPTO data to send, we must consider the acknowledged data and
+     compute correct CRYPTO offset. */
+  for (i = 0; i < 2; ++i) {
+    spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+    CU_ASSERT(spktlen > 0);
+  }
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+  CU_ASSERT(0 == spktlen);
+
+  it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
+  CU_ASSERT(2176 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(824 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+                                  ent->frc->fr.crypto.datacnt));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_client_initial_retry(void) {
