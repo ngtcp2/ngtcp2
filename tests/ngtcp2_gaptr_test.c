@@ -112,3 +112,22 @@ void test_ngtcp2_gaptr_is_pushed(void) {
 
   ngtcp2_gaptr_free(&gaptr);
 }
+
+void test_ngtcp2_gaptr_drop_first_gap(void) {
+  ngtcp2_gaptr gaptr;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  int rv;
+
+  ngtcp2_gaptr_init(&gaptr, mem);
+
+  rv = ngtcp2_gaptr_push(&gaptr, 113245, 12);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_gaptr_drop_first_gap(&gaptr);
+
+  CU_ASSERT(ngtcp2_gaptr_is_pushed(&gaptr, 0, 1));
+  CU_ASSERT(113245 + 12 == ngtcp2_gaptr_first_gap_offset(&gaptr));
+
+  ngtcp2_gaptr_free(&gaptr);
+}
