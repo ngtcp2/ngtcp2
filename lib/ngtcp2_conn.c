@@ -621,6 +621,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_dcid_retired_init;
   }
 
+  rv = ngtcp2_gaptr_init(&(*pconn)->dcid.seqgap, mem);
+  if (rv != 0) {
+    goto fail_seqgap_init;
+  }
+
   rv = ngtcp2_ksl_init(&(*pconn)->scid.set, cid_less, sizeof(ngtcp2_cid), mem);
   if (rv != 0) {
     goto fail_scid_set_init;
@@ -781,6 +786,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
   ngtcp2_path_copy(&(*pconn)->dcid.current.ps.path, path);
 
+  rv = ngtcp2_gaptr_push(&(*pconn)->dcid.seqgap, 0, 1);
+  if (rv != 0) {
+    goto fail_seqgap_push;
+  }
+
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
   (*pconn)->version = version;
@@ -804,6 +814,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   return 0;
 
+fail_seqgap_push:
 fail_scid_set_insert:
   ngtcp2_mem_free(mem, scident);
 fail_scident:
@@ -830,6 +841,8 @@ fail_strms_init:
   delete_scid(&(*pconn)->scid.set, mem);
   ngtcp2_ksl_free(&(*pconn)->scid.set);
 fail_scid_set_init:
+  ngtcp2_gaptr_free(&(*pconn)->dcid.seqgap);
+fail_seqgap_init:
   ngtcp2_ringbuf_free(&(*pconn)->dcid.retired);
 fail_dcid_retired_init:
   ngtcp2_ringbuf_free(&(*pconn)->dcid.unused);
@@ -961,6 +974,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_pq_free(&conn->scid.used);
   delete_scid(&conn->scid.set, conn->mem);
   ngtcp2_ksl_free(&conn->scid.set);
+  ngtcp2_gaptr_free(&conn->dcid.seqgap);
   ngtcp2_ringbuf_free(&conn->dcid.retired);
   ngtcp2_ringbuf_free(&conn->dcid.unused);
 
@@ -5804,6 +5818,19 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
   }
 
   if (!found) {
+    if (ngtcp2_gaptr_is_pushed(&conn->dcid.seqgap, fr->seq, 1)) {
+      return 0;
+    }
+
+    rv = ngtcp2_gaptr_push(&conn->dcid.seqgap, fr->seq, 1);
+    if (rv != 0) {
+      return rv;
+    }
+
+    if (ngtcp2_ksl_len(&conn->dcid.seqgap.gap) > 32) {
+      ngtcp2_gaptr_drop_first_gap(&conn->dcid.seqgap);
+    }
+
     len = ngtcp2_ringbuf_len(&conn->dcid.unused);
 
     if (conn->dcid.current.seq >= conn->dcid.retire_prior_to) {
@@ -7628,6 +7655,11 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
       paddr = &conn->remote.transport_params.preferred_address;
       dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused);
       ngtcp2_dcid_init(dcid, 1, &paddr->cid, paddr->stateless_reset_token);
+
+      rv = ngtcp2_gaptr_push(&conn->dcid.seqgap, 1, 1);
+      if (rv != 0) {
+        return (ngtcp2_ssize)rv;
+      }
     }
 
     if (conn->remote.transport_params.stateless_reset_token_present) {

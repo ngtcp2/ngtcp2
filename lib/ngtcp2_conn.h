@@ -286,6 +286,9 @@ struct ngtcp2_conn {
     /* retired is a set of CID retired by local endpoint.  Keep them
        in 3*PTO to catch packets in flight along the old path. */
     ngtcp2_ringbuf retired;
+    /* seqgap tracks received sequence numbers in order to ignore
+       retransmitted duplicated NEW_CONNECTION_ID frame. */
+    ngtcp2_gaptr seqgap;
     /* retire_prior_to is the largest retire_prior_to received so
        far. */
     uint64_t retire_prior_to;

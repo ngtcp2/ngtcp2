@@ -4264,6 +4264,67 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(NGTCP2_ERR_CONNECTION_ID_LIMIT == rv);
 
   ngtcp2_conn_del(conn);
+
+  /* Receiving duplicated NEW_CONNECTION_ID frame */
+  setup_default_server(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  frs[0].type = NGTCP2_FRAME_PING;
+
+  frs[1].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[1].new_connection_id.seq = 1;
+  frs[1].new_connection_id.retire_prior_to = 1;
+  ngtcp2_cid_init(&frs[1].new_connection_id.cid, cid, sizeof(cid));
+  memcpy(frs[1].new_connection_id.stateless_reset_token, token, sizeof(token));
+
+  frs[2].type = NGTCP2_FRAME_NEW_CONNECTION_ID;
+  frs[2].new_connection_id.seq = 2;
+  frs[2].new_connection_id.retire_prior_to = 1;
+  ngtcp2_cid_init(&frs[2].new_connection_id.cid, cid2, sizeof(cid2));
+  memcpy(frs[2].new_connection_id.stateless_reset_token, token2,
+         sizeof(token2));
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 3);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(2 == conn->dcid.current.seq);
+  CU_ASSERT(NULL != conn->pv);
+  CU_ASSERT(ngtcp2_cid_eq(&frs[1].new_connection_id.cid,
+                          &conn->pv->fallback_dcid.cid));
+
+  /* This will send PATH_CHALLENGE frame */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == conn->pv);
+
+  /* Receive NEW_CONNECTION_ID seq=1 again, which should be ignored. */
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(2 == conn->dcid.current.seq);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_recv_retire_connection_id(void) {

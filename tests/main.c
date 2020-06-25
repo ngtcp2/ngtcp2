@@ -260,6 +260,8 @@ int main() {
       !CU_add_test(pSuite, "map_clear", test_ngtcp2_map_clear) ||
       !CU_add_test(pSuite, "gaptr_push", test_ngtcp2_gaptr_push) ||
       !CU_add_test(pSuite, "gaptr_is_pushed", test_ngtcp2_gaptr_is_pushed) ||
+      !CU_add_test(pSuite, "gaptr_drop_first_gap",
+                   test_ngtcp2_gaptr_drop_first_gap) ||
       !CU_add_test(pSuite, "vec_split", test_ngtcp2_vec_split) ||
       !CU_add_test(pSuite, "vec_merge", test_ngtcp2_vec_merge) ||
       !CU_add_test(pSuite, "strm_streamfrq_pop",
