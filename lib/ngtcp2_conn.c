@@ -5813,51 +5813,52 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     return 0;
   }
 
-  if (!found) {
-    if (ngtcp2_gaptr_is_pushed(&conn->dcid.seqgap, fr->seq, 1)) {
-      return 0;
-    }
+  if (found) {
+    return 0;
+  }
 
-    rv = ngtcp2_gaptr_push(&conn->dcid.seqgap, fr->seq, 1);
-    if (rv != 0) {
-      return rv;
-    }
+  if (ngtcp2_gaptr_is_pushed(&conn->dcid.seqgap, fr->seq, 1)) {
+    return 0;
+  }
 
-    if (ngtcp2_ksl_len(&conn->dcid.seqgap.gap) > 32) {
-      ngtcp2_gaptr_drop_first_gap(&conn->dcid.seqgap);
-    }
+  rv = ngtcp2_gaptr_push(&conn->dcid.seqgap, fr->seq, 1);
+  if (rv != 0) {
+    return rv;
+  }
 
-    len = ngtcp2_ringbuf_len(&conn->dcid.unused);
+  if (ngtcp2_ksl_len(&conn->dcid.seqgap.gap) > 32) {
+    ngtcp2_gaptr_drop_first_gap(&conn->dcid.seqgap);
+  }
 
-    if (conn->dcid.current.seq >= conn->dcid.retire_prior_to) {
+  len = ngtcp2_ringbuf_len(&conn->dcid.unused);
+
+  if (conn->dcid.current.seq >= conn->dcid.retire_prior_to) {
+    ++extra_dcid;
+  }
+  if (pv) {
+    if (pv->dcid.seq != conn->dcid.current.seq &&
+        pv->dcid.seq >= conn->dcid.retire_prior_to) {
       ++extra_dcid;
     }
-    if (pv) {
-      if (pv->dcid.seq != conn->dcid.current.seq &&
-          pv->dcid.seq >= conn->dcid.retire_prior_to) {
-        ++extra_dcid;
-      }
-      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
-          pv->fallback_dcid.seq != conn->dcid.current.seq &&
-          pv->fallback_dcid.seq >= conn->dcid.retire_prior_to) {
-        ++extra_dcid;
-      }
+    if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+        pv->fallback_dcid.seq != conn->dcid.current.seq &&
+        pv->fallback_dcid.seq >= conn->dcid.retire_prior_to) {
+      ++extra_dcid;
     }
-
-    if (conn->local.settings.transport_params.active_connection_id_limit <=
-        len + extra_dcid) {
-      return NGTCP2_ERR_CONNECTION_ID_LIMIT;
-    }
-
-    if (len >= NGTCP2_MAX_DCID_POOL_SIZE) {
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                      "too many connection ID");
-      return 0;
-    }
-
-    dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused);
-    ngtcp2_dcid_init(dcid, fr->seq, &fr->cid, fr->stateless_reset_token);
   }
+
+  if (conn->local.settings.transport_params.active_connection_id_limit <=
+      len + extra_dcid) {
+    return NGTCP2_ERR_CONNECTION_ID_LIMIT;
+  }
+
+  if (len >= NGTCP2_MAX_DCID_POOL_SIZE) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "too many connection ID");
+    return 0;
+  }
+
+  dcid = ngtcp2_ringbuf_push_back(&conn->dcid.unused);
+  ngtcp2_dcid_init(dcid, fr->seq, &fr->cid, fr->stateless_reset_token);
 
   return 0;
 }
