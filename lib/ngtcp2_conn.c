@@ -4226,8 +4226,6 @@ static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, int64_t pkt_num) {
  */
 static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num) {
   int rv;
-  ngtcp2_ksl_it it;
-  ngtcp2_range range;
 
   if (pktns->rx.max_pkt_num + 1 != pkt_num) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
@@ -4242,9 +4240,7 @@ static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num) {
   }
 
   if (ngtcp2_ksl_len(&pktns->rx.pngap.gap) > 256) {
-    it = ngtcp2_ksl_begin(&pktns->rx.pngap.gap);
-    range = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
-    ngtcp2_ksl_remove(&pktns->rx.pngap.gap, NULL, &range);
+    ngtcp2_gaptr_drop_first_gap(&pktns->rx.pngap);
   }
 
   return 0;
