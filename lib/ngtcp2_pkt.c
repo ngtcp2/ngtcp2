@@ -2229,7 +2229,9 @@ size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
 size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left) {
   size_t n = 1 /* type */ + ngtcp2_put_varint_len(offset);
 
-  if (left <= n) {
+  /* CRYPTO frame must contain nonzero length data.  Return -1 if
+     there is no space to write crypto data. */
+  if (left <= n + 1) {
     return (size_t)-1;
   }
 
