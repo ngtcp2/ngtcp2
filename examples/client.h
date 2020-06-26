@@ -157,6 +157,8 @@ struct Config {
   // sni is the value sent in TLS SNI, overriding DNS name of the
   // remote host.
   std::string_view sni;
+  // initial_rtt is an initial RTT.
+  ngtcp2_duration initial_rtt;
 };
 
 struct Buffer {

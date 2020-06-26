@@ -122,6 +122,8 @@ struct Config {
   std::array<uint8_t, 32> static_secret;
   // cc is the congestion controller algorithm.
   std::string_view cc;
+  // initial_rtt is an initial RTT.
+  ngtcp2_duration initial_rtt;
 };
 
 struct Buffer {

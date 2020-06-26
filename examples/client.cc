@@ -926,6 +926,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.cc_algo =
       config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
   settings.initial_ts = util::timestamp(loop_);
+  settings.initial_rtt = config.initial_rtt;
 
   if (!config.token_file.empty()) {
     std::cerr << "Reading token file " << config.token_file << std::endl;
@@ -2356,6 +2357,7 @@ void config_set_default(Config &config) {
   config.max_stream_data_uni = 256_k;
   config.max_streams_uni = 100;
   config.cc = "cubic"sv;
+  config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
 }
 } // namespace
 
@@ -2496,6 +2498,10 @@ Options:
   --sni=<DNSNAME>
               Send  <DNSNAME>  in TLS  SNI,  overriding  the DNS  name
               specified in <HOST>.
+  --initial-rtt=<DURATION>
+              Set an initial RTT.
+              Default: )"
+            << util::format_duration(config.initial_rtt) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2559,6 +2565,7 @@ int main(int argc, char **argv) {
         {"exit-on-all-streams-close", no_argument, &flag, 28},
         {"token-file", required_argument, &flag, 29},
         {"sni", required_argument, &flag, 30},
+        {"initial-rtt", required_argument, &flag, 31},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2783,6 +2790,15 @@ int main(int argc, char **argv) {
       case 30:
         // --sni
         config.sni = optarg;
+        break;
+      case 31:
+        // --initial-rtt
+        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+          std::cerr << "initial-rtt: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.initial_rtt = t;
+        }
         break;
       }
       break;

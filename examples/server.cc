@@ -1525,6 +1525,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   settings.max_udp_payload_size = max_pktlen_;
   settings.cc_algo =
       config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
+  settings.initial_rtt = config.initial_rtt;
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
     path += '/';
@@ -3367,6 +3368,7 @@ void config_set_default(Config &config) {
   config.max_streams_uni = 3;
   config.max_dyn_length = 20_m;
   config.cc = "cubic"sv;
+  config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
 }
 } // namespace
 
@@ -3472,6 +3474,10 @@ Options:
             << util::format_uint_iec(config.max_dyn_length) << R"(
   --cc=(<cubic>|<reno>)
               The name of congestion controller algorithm.
+  --initial-rtt=<DURATION>
+              Set an initial RTT.
+              Default: )"
+            << util::format_duration(config.initial_rtt) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -3519,6 +3525,7 @@ int main(int argc, char **argv) {
         {"max-streams-uni", required_argument, &flag, 17},
         {"max-dyn-length", required_argument, &flag, 18},
         {"cc", required_argument, &flag, 19},
+        {"initial-rtt", required_argument, &flag, 20},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3689,6 +3696,15 @@ int main(int argc, char **argv) {
         }
         std::cerr << "cc: specify cubic or reno" << std::endl;
         exit(EXIT_FAILURE);
+      case 20:
+        // --initial-rtt
+        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+          std::cerr << "initial-rtt: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.initial_rtt = t;
+        }
+        break;
       }
       break;
     default:
