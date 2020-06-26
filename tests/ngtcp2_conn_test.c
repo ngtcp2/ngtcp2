@@ -344,6 +344,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
   settings->initial_ts = 0;
+  settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   params->initial_max_stream_data_bidi_local = 65535;
   params->initial_max_stream_data_bidi_remote = 65535;
   params->initial_max_stream_data_uni = 65535;
@@ -365,6 +366,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
   settings->initial_ts = 0;
+  settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   params->initial_max_stream_data_bidi_local = 65535;
   params->initial_max_stream_data_bidi_remote = 65535;
   params->initial_max_stream_data_uni = 65535;

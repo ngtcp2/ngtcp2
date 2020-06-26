@@ -516,8 +516,8 @@ static int ts_retired_less(const ngtcp2_pq_entry *lhs,
 static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
   cstat->latest_rtt = 0;
   cstat->min_rtt = UINT64_MAX;
-  cstat->smoothed_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  cstat->rttvar = NGTCP2_DEFAULT_INITIAL_RTT / 2;
+  cstat->smoothed_rtt = conn->local.settings.initial_rtt;
+  cstat->rttvar = conn->local.settings.initial_rtt / 2;
   cstat->pto_count = 0;
   cstat->loss_detection_timer = 0;
   // Initializes them with UINT64_MAX.
@@ -551,7 +551,7 @@ static void conn_update_recv_rate(ngtcp2_conn *conn, size_t datalen,
 
   assert(conn->cstat.min_rtt);
 
-  window = conn->cstat.min_rtt == UINT64_MAX ? NGTCP2_DEFAULT_INITIAL_RTT
+  window = conn->cstat.min_rtt == UINT64_MAX ? conn->cstat.initial_rtt
                                              : conn->cstat.min_rtt * 2;
 
   if (window > ts - conn->rx.rate.start_ts) {
@@ -698,6 +698,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
+  (*pconn)->cstat.initial_rtt = settings->initial_rtt;
 
   ngtcp2_rst_init(&(*pconn)->rst);
 
@@ -3447,7 +3448,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   /* TODO reconsider this.  This might get larger pretty quickly than
      validation timeout which is just around 3*PTO. */
-  expiry = ts + 6ULL * NGTCP2_DEFAULT_INITIAL_RTT * (1ULL << pv->loss_count);
+  expiry = ts + 6ULL * conn->cstat.initial_rtt * (1ULL << pv->loss_count);
 
   ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry);
 
@@ -6127,8 +6128,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
   timeout = 3 * conn_compute_pto(conn, &conn->pktns);
-  timeout =
-      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
+  timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
 
   rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
                      conn->mem);
@@ -6376,8 +6376,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
                   "non-probing packet was received from new remote address");
 
   timeout = 3 * conn_compute_pto(conn, &conn->pktns);
-  timeout =
-      ngtcp2_max(timeout, (ngtcp2_duration)(6ULL * NGTCP2_DEFAULT_INITIAL_RTT));
+  timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
 
   if (require_new_cid) {
     dcid = *(ngtcp2_dcid *)ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
@@ -9694,6 +9693,7 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 void ngtcp2_settings_default(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
+  settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->transport_params.max_udp_payload_size =
       NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
   settings->transport_params.ack_delay_exponent =

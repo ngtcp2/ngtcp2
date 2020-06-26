@@ -212,6 +212,9 @@ typedef struct ngtcp2_mem {
    nanosecond. */
 #define NGTCP2_NANOSECONDS ((uint64_t)1ULL)
 
+/* NGTCP2_DEFAULT_INITIAL_RTT is a default initial RTT. */
+#define NGTCP2_DEFAULT_INITIAL_RTT (333 * NGTCP2_MILLISECONDS)
+
 #if defined(__cplusplus) && __cplusplus >= 201103L
 typedef enum ngtcp2_lib_error : int {
 #else
@@ -573,6 +576,7 @@ typedef struct ngtcp2_conn_stat {
   ngtcp2_duration min_rtt;
   ngtcp2_duration smoothed_rtt;
   ngtcp2_duration rttvar;
+  ngtcp2_duration initial_rtt;
   size_t pto_count;
   ngtcp2_tstamp loss_detection_timer;
   /* last_tx_pkt_ts corresponds to
@@ -699,6 +703,8 @@ typedef struct ngtcp2_settings {
   ngtcp2_cc *cc;
   /* initial_ts is an initial timestamp given to the library. */
   ngtcp2_tstamp initial_ts;
+  /* initial_rtt is an initial RTT. */
+  ngtcp2_duration initial_rtt;
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
@@ -3092,6 +3098,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * default value to the following fields:
  *
  * * cc_algo = NGTCP2_CC_ALGO_CUBIC
+ * * initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT
  * * transport_params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE
  * * transport_params.ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
  * * transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY

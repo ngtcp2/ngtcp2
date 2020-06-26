@@ -343,8 +343,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                     cc->epoch_start, cc->k, cc->origin_point);
   }
 
-  min_rtt = cstat->min_rtt == UINT64_MAX ? NGTCP2_DEFAULT_INITIAL_RTT
-                                         : cstat->min_rtt;
+  min_rtt = cstat->min_rtt == UINT64_MAX ? cstat->initial_rtt : cstat->min_rtt;
 
   t = ts + min_rtt - cc->epoch_start;
 
