@@ -236,16 +236,16 @@ typedef struct {
       /* ckm is a cryptographic key, and iv to encrypt outgoing
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp_key is header protection key. */
-      ngtcp2_vec *hp_key;
+      /* hp_ctx is cipher context for packet header protection. */
+      ngtcp2_crypto_cipher_ctx hp_ctx;
     } tx;
 
     struct {
       /* ckm is a cryptographic key, and iv to decrypt incoming
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp_key is header protection key. */
-      ngtcp2_vec *hp_key;
+      /* hp_ctx is cipher context for packet header protection. */
+      ngtcp2_crypto_cipher_ctx hp_ctx;
     } rx;
 
     ngtcp2_strm strm;
@@ -355,7 +355,7 @@ struct ngtcp2_conn {
 
   struct {
     ngtcp2_crypto_km *ckm;
-    ngtcp2_vec *hp_key;
+    ngtcp2_crypto_cipher_ctx hp_ctx;
   } early;
 
   struct {
@@ -435,8 +435,12 @@ struct ngtcp2_conn {
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_vec decrypt_buf;
-    /* retry_aead is AEAD to verify Retry packet integrity. */
+    /* retry_aead is AEAD to verify Retry packet integrity.  It is
+       used by client only. */
     ngtcp2_crypto_aead retry_aead;
+    /* retry_aead_ctx is AEAD cipher context to verify Retry packet
+       integrity.  It is used by client only. */
+    ngtcp2_crypto_aead_ctx retry_aead_ctx;
     /* tls_error is TLS related error. */
     int tls_error;
   } crypto;

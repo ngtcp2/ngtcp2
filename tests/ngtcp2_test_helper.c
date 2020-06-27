@@ -83,14 +83,15 @@ size_t ngtcp2_t_encode_ack_frame(uint8_t *out, uint64_t largest_ack,
 }
 
 static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                        const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *plaintext, size_t plaintextlen,
-                        const uint8_t *key, const uint8_t *nonce,
-                        size_t noncelen, const uint8_t *ad, size_t adlen) {
+                        const uint8_t *nonce, size_t noncelen,
+                        const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
+  (void)aead_ctx;
   (void)plaintext;
   (void)plaintextlen;
-  (void)key;
   (void)nonce;
   (void)noncelen;
   (void)ad;
@@ -100,9 +101,10 @@ static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 }
 
 static int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-                        const uint8_t *hp_key, const uint8_t *sample) {
+                        const ngtcp2_crypto_cipher_ctx *hp_ctx,
+                        const uint8_t *sample) {
   (void)hp;
-  (void)hp_key;
+  (void)hp_ctx;
   (void)sample;
   memcpy(dest, NGTCP2_FAKE_HP_MASK, sizeof(NGTCP2_FAKE_HP_MASK) - 1);
   return 0;
@@ -129,7 +131,6 @@ size_t write_single_frame_pkt_flags(ngtcp2_conn *conn, uint8_t *out,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = conn->pktns.crypto.rx.ckm;
-  cc.hp_key = conn->pktns.crypto.rx.hp_key;
   cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
@@ -167,7 +168,6 @@ size_t write_pkt_flags(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = conn->pktns.crypto.rx.ckm;
-  cc.hp_key = conn->pktns.crypto.rx.hp_key;
   cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
@@ -201,7 +201,6 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = conn->pktns.crypto.rx.ckm;
-  cc.hp_key = conn->pktns.crypto.rx.hp_key;
   cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL,
@@ -234,12 +233,10 @@ size_t write_single_frame_handshake_pkt(ngtcp2_conn *conn, uint8_t *out,
   switch (pkt_type) {
   case NGTCP2_PKT_INITIAL:
     cc.ckm = conn->in_pktns->crypto.rx.ckm;
-    cc.hp_key = conn->in_pktns->crypto.rx.hp_key;
     cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     cc.ckm = conn->hs_pktns->crypto.rx.ckm;
-    cc.hp_key = conn->hs_pktns->crypto.rx.hp_key;
     cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   default:
@@ -274,7 +271,6 @@ size_t write_single_frame_initial_pkt(ngtcp2_conn *conn, uint8_t *out,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = conn->in_pktns->crypto.rx.ckm;
-  cc.hp_key = conn->in_pktns->crypto.rx.hp_key;
   cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_INITIAL, dcid,
@@ -296,18 +292,15 @@ size_t write_single_frame_0rtt_pkt(ngtcp2_conn *conn, uint8_t *out,
                                    size_t outlen, const ngtcp2_cid *dcid,
                                    const ngtcp2_cid *scid, int64_t pkt_num,
                                    uint32_t version, ngtcp2_frame *fr,
-                                   const uint8_t *key, const uint8_t *iv,
-                                   const uint8_t *hp_key, size_t keylen,
-                                   size_t ivlen) {
+                                   const uint8_t *iv, size_t ivlen) {
   ngtcp2_crypto_km *ckm;
-  ngtcp2_vec hp_keyv;
   ngtcp2_crypto_cc cc;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
   int rv;
   ngtcp2_ssize n;
 
-  rv = ngtcp2_crypto_km_new(&ckm, NULL, 0, key, keylen, iv, ivlen, conn->mem);
+  rv = ngtcp2_crypto_km_new(&ckm, NULL, 0, NULL, iv, ivlen, conn->mem);
 
   assert(rv == 0);
 
@@ -315,7 +308,6 @@ size_t write_single_frame_0rtt_pkt(ngtcp2_conn *conn, uint8_t *out,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = ckm;
-  cc.hp_key = ngtcp2_vec_init(&hp_keyv, hp_key, keylen);
   cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_0RTT, dcid,
@@ -352,17 +344,14 @@ size_t write_handshake_pkt(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   switch (pkt_type) {
   case NGTCP2_PKT_INITIAL:
     cc.ckm = conn->in_pktns->crypto.rx.ckm;
-    cc.hp_key = conn->in_pktns->crypto.rx.hp_key;
     cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     cc.ckm = conn->hs_pktns->crypto.rx.ckm;
-    cc.hp_key = conn->hs_pktns->crypto.rx.hp_key;
     cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_0RTT:
     cc.ckm = conn->early.ckm;
-    cc.hp_key = conn->early.hp_key;
     cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   default:

@@ -38,14 +38,15 @@
 #include "ngtcp2_rcvry.h"
 
 static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                        const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *plaintext, size_t plaintextlen,
-                        const uint8_t *key, const uint8_t *nonce,
-                        size_t noncelen, const uint8_t *ad, size_t adlen) {
+                        const uint8_t *nonce, size_t noncelen,
+                        const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
+  (void)aead_ctx;
   (void)plaintext;
   (void)plaintextlen;
-  (void)key;
   (void)nonce;
   (void)noncelen;
   (void)ad;
@@ -60,13 +61,14 @@ static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 }
 
 static int null_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                        const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *ciphertext, size_t ciphertextlen,
-                        const uint8_t *key, const uint8_t *nonce,
-                        size_t noncelen, const uint8_t *ad, size_t adlen) {
+                        const uint8_t *nonce, size_t noncelen,
+                        const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
+  (void)aead_ctx;
   (void)ciphertext;
-  (void)key;
   (void)nonce;
   (void)noncelen;
   (void)ad;
@@ -77,14 +79,15 @@ static int null_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 }
 
 static int fail_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                        const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *ciphertext, size_t ciphertextlen,
-                        const uint8_t *key, const uint8_t *nonce,
-                        size_t noncelen, const uint8_t *ad, size_t adlen) {
+                        const uint8_t *nonce, size_t noncelen,
+                        const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
+  (void)aead_ctx;
   (void)ciphertext;
   (void)ciphertextlen;
-  (void)key;
   (void)nonce;
   (void)noncelen;
   (void)ad;
@@ -93,9 +96,10 @@ static int fail_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 }
 
 static int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-                        const uint8_t *hp_key, const uint8_t *sample) {
+                        const ngtcp2_crypto_cipher_ctx *hp_ctx,
+                        const uint8_t *sample) {
   (void)hp;
-  (void)hp_key;
+  (void)hp_ctx;
   (void)sample;
   memcpy(dest, NGTCP2_FAKE_HP_MASK, sizeof(NGTCP2_FAKE_HP_MASK) - 1);
   return 0;
@@ -113,9 +117,7 @@ static int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid,
 }
 
 static uint8_t null_secret[32];
-static uint8_t null_key[16];
 static uint8_t null_iv[16];
-static uint8_t null_hp_key[16];
 static uint8_t null_data[4096];
 static ngtcp2_path null_path = {{1, (uint8_t *)"0", NULL},
                                 {1, (uint8_t *)"0", NULL}};
@@ -149,25 +151,31 @@ static int client_initial(ngtcp2_conn *conn, void *user_data) {
 }
 
 static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+
   (void)user_data;
 
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  217);
 
-  ngtcp2_conn_install_early_key(conn, null_key, null_iv, null_hp_key,
-                                sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_early_key(conn, &aead_ctx, null_iv, sizeof(null_iv),
+                                &hp_ctx);
 
   return 0;
 }
 
 static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
                                void *user_data) {
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+
   (void)conn;
   (void)dcid;
   (void)user_data;
 
-  ngtcp2_conn_install_early_key(conn, null_key, null_iv, null_hp_key,
-                                sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_early_key(conn, &aead_ctx, null_iv, sizeof(null_iv),
+                                &hp_ctx);
 
   return 0;
 }
@@ -189,6 +197,9 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
                                               uint64_t offset,
                                               const uint8_t *data,
                                               size_t datalen, void *user_data) {
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+
   (void)offset;
   (void)crypto_level;
   (void)data;
@@ -200,14 +211,13 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  179);
 
-  ngtcp2_conn_install_rx_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
 
-  ngtcp2_conn_install_tx_key(conn, null_secret, null_key, null_iv, null_hp_key,
-                             sizeof(null_secret), sizeof(null_key),
-                             sizeof(null_iv));
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
 
   conn->callbacks.recv_crypto_data = recv_crypto_data;
 
@@ -215,8 +225,9 @@ static int recv_crypto_data_server_early_data(ngtcp2_conn *conn,
 }
 
 static int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
-                      uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key,
-                      uint8_t *tx_iv, const uint8_t *current_rx_secret,
+                      ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+                      ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
+                      const uint8_t *current_rx_secret,
                       const uint8_t *current_tx_secret, size_t secretlen,
                       void *user_data) {
   (void)conn;
@@ -228,9 +239,9 @@ static int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 
   memset(rx_secret, 0xff, sizeof(null_secret));
   memset(tx_secret, 0xff, sizeof(null_secret));
-  memset(rx_key, 0xff, sizeof(null_key));
+  rx_aead_ctx->native_handle = NULL;
   memset(rx_iv, 0xff, sizeof(null_iv));
-  memset(tx_key, 0xff, sizeof(null_key));
+  tx_aead_ctx->native_handle = NULL;
   memset(tx_iv, 0xff, sizeof(null_iv));
 
   return 0;
@@ -384,6 +395,8 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
   ngtcp2_cid dcid, scid;
   ngtcp2_transport_params *params;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   dcid_init(&dcid);
   scid_init(&scid);
@@ -400,16 +413,14 @@ static void setup_default_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_rx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_tx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_rx_key(*pconn, null_secret, null_key, null_iv,
-                             null_hp_key, sizeof(null_secret), sizeof(null_key),
-                             sizeof(null_iv));
-  ngtcp2_conn_install_tx_key(*pconn, null_secret, null_key, null_iv,
-                             null_hp_key, sizeof(null_secret), sizeof(null_key),
-                             sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_handshake_key(*pconn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_rx_key(*pconn, null_secret, sizeof(null_secret),
+                             &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(*pconn, null_secret, sizeof(null_secret),
+                             &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
@@ -435,6 +446,8 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
   ngtcp2_cid dcid, scid;
   ngtcp2_transport_params *params;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   dcid_init(&dcid);
   scid_init(&scid);
@@ -450,16 +463,14 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_rx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_tx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_rx_key(*pconn, null_secret, null_key, null_iv,
-                             null_hp_key, sizeof(null_secret), sizeof(null_key),
-                             sizeof(null_iv));
-  ngtcp2_conn_install_tx_key(*pconn, null_secret, null_key, null_iv,
-                             null_hp_key, sizeof(null_secret), sizeof(null_key),
-                             sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_handshake_key(*pconn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_rx_key(*pconn, null_secret, sizeof(null_secret),
+                             &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(*pconn, null_secret, sizeof(null_secret),
+                             &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   (*pconn)->state = NGTCP2_CS_POST_HANDSHAKE;
   (*pconn)->flags |= NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED |
@@ -485,6 +496,8 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid dcid, scid;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   dcid_init(&dcid);
   scid_init(&scid);
@@ -501,13 +514,12 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_key(*pconn, null_key, null_iv, null_hp_key,
-                                  null_key, null_iv, null_hp_key,
-                                  sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_rx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_tx_handshake_key(*pconn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
+                                  &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_handshake_key(*pconn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 }
 
@@ -516,6 +528,8 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
   ngtcp2_cid rcid, scid;
   ngtcp2_crypto_aead retry_aead = {0};
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   rcid_init(&rcid);
   scid_init(&scid);
@@ -531,10 +545,9 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_key(*pconn, null_key, null_iv, null_hp_key,
-                                  null_key, null_iv, null_hp_key,
-                                  sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_set_retry_aead(*pconn, &retry_aead);
+  ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
+                                  &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
+  ngtcp2_conn_set_retry_aead(*pconn, &retry_aead, &aead_ctx);
 }
 
 static void setup_early_server(ngtcp2_conn **pconn) {
@@ -542,6 +555,8 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
   ngtcp2_transport_params *params;
   ngtcp2_cid dcid, scid;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   dcid_init(&dcid);
   scid_init(&scid);
@@ -558,9 +573,8 @@ static void setup_early_server(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_key(*pconn, null_key, null_iv, null_hp_key,
-                                  null_key, null_iv, null_hp_key,
-                                  sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
+                                  &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
   params = &(*pconn)->remote.transport_params;
   params->initial_max_stream_data_bidi_local = 64 * 1024;
@@ -579,6 +593,8 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_cid rcid, scid;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   rcid_init(&rcid);
   scid_init(&scid);
@@ -594,9 +610,8 @@ static void setup_early_client(ngtcp2_conn **pconn) {
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_key(*pconn, null_key, null_iv, null_hp_key,
-                                  null_key, null_iv, null_hp_key,
-                                  sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
+                                  &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
   ngtcp2_conn_set_aead_overhead(*pconn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   memset(&params, 0, sizeof(params));
@@ -2254,6 +2269,7 @@ void test_ngtcp2_conn_recv_retry(void) {
   ngtcp2_vec datav;
   ngtcp2_strm *strm;
   ngtcp2_crypto_aead aead = {0};
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
 
   dcid_init(&dcid);
   setup_handshake_client(&conn);
@@ -2263,9 +2279,9 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &conn->oscid, &dcid,
-                                   ngtcp2_conn_get_dcid(conn), token,
-                                   strsize(token), null_encrypt, &aead);
+  spktlen = ngtcp2_pkt_write_retry(
+      buf, sizeof(buf), &conn->oscid, &dcid, ngtcp2_conn_get_dcid(conn), token,
+      strsize(token), null_encrypt, &aead, &aead_ctx);
 
   CU_ASSERT(spktlen > 0);
 
@@ -2297,9 +2313,9 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &conn->oscid, &dcid,
-                                   ngtcp2_conn_get_dcid(conn), token,
-                                   strsize(token), null_encrypt, &aead);
+  spktlen = ngtcp2_pkt_write_retry(
+      buf, sizeof(buf), &conn->oscid, &dcid, ngtcp2_conn_get_dcid(conn), token,
+      strsize(token), null_encrypt, &aead, &aead_ctx);
 
   CU_ASSERT(spktlen > 0);
 
@@ -2338,9 +2354,9 @@ void test_ngtcp2_conn_recv_retry(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(119 == datalen);
 
-  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &conn->oscid, &dcid,
-                                   ngtcp2_conn_get_dcid(conn), token,
-                                   strsize(token), null_encrypt, &aead);
+  spktlen = ngtcp2_pkt_write_retry(
+      buf, sizeof(buf), &conn->oscid, &dcid, ngtcp2_conn_get_dcid(conn), token,
+      strsize(token), null_encrypt, &aead, &aead_ctx);
 
   CU_ASSERT(spktlen > 0);
 
@@ -3549,8 +3565,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   pktlen = write_single_frame_0rtt_pkt(
       conn, buf, sizeof(buf), &rcid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
-      conn->version, &fr, null_key, null_iv, null_hp_key, sizeof(null_key),
-      sizeof(null_iv));
+      conn->version, &fr, null_iv, sizeof(null_iv));
 
   memset(&ud, 0, sizeof(ud));
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
@@ -3583,8 +3598,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   pktlen = write_single_frame_0rtt_pkt(
       conn, buf, sizeof(buf), &rcid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
-      conn->version, &fr, null_key, null_iv, null_hp_key, sizeof(null_key),
-      sizeof(null_iv));
+      conn->version, &fr, null_iv, sizeof(null_iv));
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
@@ -3613,10 +3627,10 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.stream.data[0].len = 999;
   fr.stream.data[0].base = null_data;
 
-  pktlen += write_single_frame_0rtt_pkt(
-      conn, buf + pktlen, sizeof(buf) - pktlen, &rcid,
-      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr, null_key,
-      null_iv, null_hp_key, sizeof(null_key), sizeof(null_iv));
+  pktlen +=
+      write_single_frame_0rtt_pkt(conn, buf + pktlen, sizeof(buf) - pktlen,
+                                  &rcid, ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                                  conn->version, &fr, null_iv, sizeof(null_iv));
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
@@ -4753,6 +4767,8 @@ void test_ngtcp2_conn_handshake_probe(void) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_ksl_it it;
   int rv;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   /* Retransmit first Initial on PTO timer */
   setup_handshake_client(&conn);
@@ -4808,10 +4824,10 @@ void test_ngtcp2_conn_handshake_probe(void) {
   CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
   CU_ASSERT(sizeof(buf) == ent->pktlen);
 
-  ngtcp2_conn_install_rx_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_set_aead_overhead(conn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
@@ -5273,6 +5289,8 @@ void test_ngtcp2_conn_send_initial_token(void) {
   ngtcp2_ssize spktlen, shdlen;
   ngtcp2_tstamp t = 0;
   ngtcp2_pkt_hd hd;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   rcid_init(&rcid);
   scid_init(&scid);
@@ -5291,10 +5309,9 @@ void test_ngtcp2_conn_send_initial_token(void) {
 
   ngtcp2_conn_client_new(&conn, &rcid, &scid, &null_path, NGTCP2_PROTO_VER_MAX,
                          &cb, &settings, /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_key(conn, null_key, null_iv, null_hp_key,
-                                  null_key, null_iv, null_hp_key,
-                                  sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_set_retry_aead(conn, &retry_aead);
+  ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx, &aead_ctx,
+                                  null_iv, &hp_ctx, sizeof(null_iv));
+  ngtcp2_conn_set_retry_aead(conn, &retry_aead, &aead_ctx);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
@@ -5415,6 +5432,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_ssize spktlen, shdlen;
   ngtcp2_pkt_hd hd;
   const uint8_t *p;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   /* Client only Initial key */
   setup_handshake_client(&conn);
@@ -5443,8 +5462,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
 
   CU_ASSERT(spktlen > 0);
 
-  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
+  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_set_aead_overhead(conn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   spktlen = ngtcp2_conn_write_connection_close(conn, NULL, buf, sizeof(buf),
@@ -5463,11 +5482,10 @@ void test_ngtcp2_conn_write_connection_close(void) {
   /* Client has all keys and has not confirmed handshake */
   setup_handshake_client(&conn);
 
-  ngtcp2_conn_install_tx_handshake_key(conn, null_key, null_iv, null_hp_key,
-                                       sizeof(null_key), sizeof(null_iv));
-  ngtcp2_conn_install_tx_key(conn, null_secret, null_key, null_iv, null_hp_key,
-                             sizeof(null_secret), sizeof(null_key),
-                             sizeof(null_iv));
+  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_set_aead_overhead(conn, NGTCP2_FAKE_AEAD_OVERHEAD);
 
   conn->state = NGTCP2_CS_POST_HANDSHAKE;
@@ -5539,9 +5557,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   /* Server has all keys and has not confirmed handshake */
   setup_handshake_server(&conn);
 
-  ngtcp2_conn_install_tx_key(conn, null_secret, null_key, null_iv, null_hp_key,
-                             sizeof(null_secret), sizeof(null_key),
-                             sizeof(null_iv));
+  ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
+                             null_iv, sizeof(null_iv), &hp_ctx);
 
   conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
@@ -5599,19 +5616,21 @@ void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_cid dcid, scid;
   ngtcp2_crypto_aead aead = {0};
   ngtcp2_crypto_cipher hp_mask = {0};
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   dcid_init(&dcid);
   scid_init(&scid);
 
   spktlen = ngtcp2_pkt_write_connection_close(
       buf, sizeof(buf), &dcid, &scid, NGTCP2_INVALID_TOKEN, null_encrypt, &aead,
-      null_key, null_iv, null_hp_mask, &hp_mask, null_hp_key);
+      &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
 
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_pkt_write_connection_close(
       buf, 16, &dcid, &scid, NGTCP2_INVALID_TOKEN, null_encrypt, &aead,
-      null_key, null_iv, null_hp_mask, &hp_mask, null_hp_key);
+      &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }

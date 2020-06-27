@@ -847,8 +847,8 @@ int Handler::handshake_completed() {
 
 namespace {
 int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-               const uint8_t *hp_key, const uint8_t *sample) {
-  if (ngtcp2_crypto_hp_mask(dest, hp, hp_key, sample) != 0) {
+               const ngtcp2_crypto_cipher_ctx *hp_ctx, const uint8_t *sample) {
+  if (ngtcp2_crypto_hp_mask(dest, hp, hp_ctx, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -1090,13 +1090,15 @@ int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
 
 namespace {
 int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
-               uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+               ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+               ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
                const uint8_t *current_rx_secret,
                const uint8_t *current_tx_secret, size_t secretlen,
                void *user_data) {
   auto h = static_cast<Handler *>(user_data);
-  if (h->update_key(rx_secret, tx_secret, rx_key, rx_iv, tx_key, tx_iv,
-                    current_rx_secret, current_tx_secret, secretlen) != 0) {
+  if (h->update_key(rx_secret, tx_secret, rx_aead_ctx, rx_iv, tx_aead_ctx,
+                    tx_iv, current_rx_secret, current_tx_secret,
+                    secretlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
@@ -1507,8 +1509,13 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       nullptr, // select_preferred_addr
       ::stream_reset,
       ::extend_max_remote_streams_bidi,
-      nullptr, // extend_max_remote_streams_uni,
+      nullptr, // extend_max_remote_streams_uni
       ::extend_max_stream_data,
+      nullptr, // dcid_status
+      nullptr, // handshake_confirmed
+      nullptr, // recv_new_token
+      ngtcp2_crypto_delete_crypto_aead_ctx_cb,
+      ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
@@ -1996,8 +2003,9 @@ int Handler::recv_stream_data(uint32_t flags, int64_t stream_id,
   return 0;
 }
 
-int Handler::update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
-                        uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+int Handler::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
+                        ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+                        ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
                         const uint8_t *current_rx_secret,
                         const uint8_t *current_tx_secret, size_t secretlen) {
   auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
@@ -2007,17 +2015,22 @@ int Handler::update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
 
   ++nkey_update_;
 
-  if (ngtcp2_crypto_update_key(conn_, rx_secret, tx_secret, rx_key, rx_iv,
-                               tx_key, tx_iv, current_rx_secret,
-                               current_tx_secret, secretlen) != 0) {
+  std::array<uint8_t, 64> rx_key, tx_key;
+
+  if (ngtcp2_crypto_update_key(conn_, rx_secret, tx_secret, rx_aead_ctx,
+                               rx_key.data(), rx_iv, tx_aead_ctx, tx_key.data(),
+                               tx_iv, current_rx_secret, current_tx_secret,
+                               secretlen) != 0) {
     return -1;
   }
 
   if (!config.quiet && config.show_secret) {
     std::cerr << "application_traffic rx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(rx_secret, secretlen, rx_key, keylen, rx_iv, ivlen);
+    debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen, rx_iv,
+                         ivlen);
     std::cerr << "application_traffic tx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(tx_secret, secretlen, tx_key, keylen, tx_iv, ivlen);
+    debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen, tx_iv,
+                         ivlen);
   }
 
   return 0;
@@ -2731,9 +2744,20 @@ int Server::generate_retry_token(uint8_t *token, size_t &tokenlen,
       generate_retry_token_aad(aad.data(), aad.size(), sa, salen, retry_scid);
 
   token[0] = RETRY_TOKEN_MAGIC;
-  if (ngtcp2_crypto_encrypt(token + 1, &token_aead_, plaintext.data(),
-                            plaintextlen, key.data(), iv.data(), ivlen,
-                            aad.data(), aadlen) != 0) {
+
+  ngtcp2_crypto_aead_ctx aead_ctx;
+  if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &token_aead_, key.data(),
+                                          ivlen) != 0) {
+    return -1;
+  }
+
+  auto rv = ngtcp2_crypto_encrypt(token + 1, &token_aead_, &aead_ctx,
+                                  plaintext.data(), plaintextlen, iv.data(),
+                                  ivlen, aad.data(), aadlen);
+
+  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  if (rv != 0) {
     return -1;
   }
 
@@ -2796,11 +2820,21 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
   auto aadlen =
       generate_retry_token_aad(aad.data(), aad.size(), sa, salen, &hd->dcid);
 
+  ngtcp2_crypto_aead_ctx aead_ctx;
+  if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, &token_aead_, key.data(),
+                                          ivlen) != 0) {
+    return -1;
+  }
+
   std::array<uint8_t, MAX_RETRY_TOKENLEN> plaintext;
 
-  if (ngtcp2_crypto_decrypt(plaintext.data(), &token_aead_, ciphertext,
-                            ciphertextlen, key.data(), iv.data(), ivlen,
-                            aad.data(), aadlen) != 0) {
+  auto rv = ngtcp2_crypto_decrypt(plaintext.data(), &token_aead_, &aead_ctx,
+                                  ciphertext, ciphertextlen, iv.data(), ivlen,
+                                  aad.data(), aadlen);
+
+  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  if (rv != 0) {
     if (!config.quiet) {
       std::cerr << "Could not decrypt token" << std::endl;
     }
@@ -2907,10 +2941,20 @@ int Server::generate_token(uint8_t *token, size_t &tokenlen,
 
   auto plaintextlen = std::distance(std::begin(plaintext), p);
 
+  ngtcp2_crypto_aead_ctx aead_ctx;
+  if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &token_aead_, key.data(),
+                                          ivlen) != 0) {
+    return -1;
+  }
+
   token[0] = TOKEN_MAGIC;
-  if (ngtcp2_crypto_encrypt(token + 1, &token_aead_, plaintext.data(),
-                            plaintextlen, key.data(), iv.data(), ivlen,
-                            aad.data(), aadlen) != 0) {
+  auto rv = ngtcp2_crypto_encrypt(token + 1, &token_aead_, &aead_ctx,
+                                  plaintext.data(), plaintextlen, iv.data(),
+                                  ivlen, aad.data(), aadlen);
+
+  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  if (rv != 0) {
     return -1;
   }
 
@@ -2972,11 +3016,21 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
     return -1;
   }
 
+  ngtcp2_crypto_aead_ctx aead_ctx;
+  if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, &token_aead_, key.data(),
+                                          ivlen) != 0) {
+    return -1;
+  }
+
   std::array<uint8_t, MAX_TOKENLEN> plaintext;
 
-  if (ngtcp2_crypto_decrypt(plaintext.data(), &token_aead_, ciphertext,
-                            ciphertextlen, key.data(), iv.data(), ivlen,
-                            aad.data(), aadlen) != 0) {
+  auto rv = ngtcp2_crypto_decrypt(plaintext.data(), &token_aead_, &aead_ctx,
+                                  ciphertext, ciphertextlen, iv.data(), ivlen,
+                                  aad.data(), aadlen);
+
+  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
+
+  if (rv != 0) {
     if (!config.quiet) {
       std::cerr << "Could not decrypt token" << std::endl;
     }

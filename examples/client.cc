@@ -657,8 +657,8 @@ int remove_connection_id(ngtcp2_conn *conn, const ngtcp2_cid *cid,
 
 namespace {
 int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-               const uint8_t *hp_key, const uint8_t *sample) {
-  if (ngtcp2_crypto_hp_mask(dest, hp, hp_key, sample) != 0) {
+               const ngtcp2_crypto_cipher_ctx *hp_ctx, const uint8_t *sample) {
+  if (ngtcp2_crypto_hp_mask(dest, hp, hp_ctx, sample) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -672,14 +672,16 @@ int do_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 
 namespace {
 int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
-               uint8_t *rx_key, uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+               ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+               ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
                const uint8_t *current_rx_secret,
                const uint8_t *current_tx_secret, size_t secretlen,
                void *user_data) {
   auto c = static_cast<Client *>(user_data);
 
-  if (c->update_key(rx_secret, tx_secret, rx_key, rx_iv, tx_key, tx_iv,
-                    current_rx_secret, current_tx_secret, secretlen) != 0) {
+  if (c->update_key(rx_secret, tx_secret, rx_aead_ctx, rx_iv, tx_aead_ctx,
+                    tx_iv, current_rx_secret, current_tx_secret,
+                    secretlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
@@ -883,6 +885,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // dcid_status
       nullptr, // handshake_confirmed
       ::recv_new_token,
+      ngtcp2_crypto_delete_crypto_aead_ctx_cb,
+      ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(
@@ -1424,8 +1428,9 @@ void Client::start_key_update_timer() {
   ev_timer_start(loop_, &key_update_timer_);
 }
 
-int Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
-                       uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+int Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
+                       ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+                       ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
                        const uint8_t *current_rx_secret,
                        const uint8_t *current_tx_secret, size_t secretlen) {
   if (!config.quiet) {
@@ -1439,17 +1444,22 @@ int Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
 
   ++nkey_update_;
 
-  if (ngtcp2_crypto_update_key(conn_, rx_secret, tx_secret, rx_key, rx_iv,
-                               tx_key, tx_iv, current_rx_secret,
-                               current_tx_secret, secretlen) != 0) {
+  std::array<uint8_t, 64> rx_key, tx_key;
+
+  if (ngtcp2_crypto_update_key(conn_, rx_secret, tx_secret, rx_aead_ctx,
+                               rx_key.data(), rx_iv, tx_aead_ctx, tx_key.data(),
+                               tx_iv, current_rx_secret, current_tx_secret,
+                               secretlen) != 0) {
     return -1;
   }
 
   if (!config.quiet && config.show_secret) {
     std::cerr << "application_traffic rx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(rx_secret, secretlen, rx_key, keylen, rx_iv, ivlen);
+    debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen, rx_iv,
+                         ivlen);
     std::cerr << "application_traffic tx secret " << nkey_update_ << std::endl;
-    debug::print_secrets(tx_secret, secretlen, tx_key, keylen, tx_iv, ivlen);
+    debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen, tx_iv,
+                         ivlen);
   }
 
   return 0;

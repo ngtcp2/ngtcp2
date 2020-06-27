@@ -145,6 +145,82 @@ size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead) {
       (gnutls_cipher_algorithm_t)aead->native_handle);
 }
 
+int ngtcp2_crypto_aead_ctx_encrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
+                                        const ngtcp2_crypto_aead *aead,
+                                        const uint8_t *key, size_t noncelen) {
+  gnutls_cipher_algorithm_t cipher =
+      (gnutls_cipher_algorithm_t)aead->native_handle;
+  gnutls_aead_cipher_hd_t hd;
+  gnutls_datum_t _key;
+
+  (void)noncelen;
+
+  _key.data = (void *)key;
+  _key.size = (unsigned int)ngtcp2_crypto_aead_keylen(aead);
+
+  if (gnutls_aead_cipher_init(&hd, cipher, &_key) != 0) {
+    return -1;
+  }
+
+  aead_ctx->native_handle = hd;
+
+  return 0;
+}
+
+int ngtcp2_crypto_aead_ctx_decrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
+                                        const ngtcp2_crypto_aead *aead,
+                                        const uint8_t *key, size_t noncelen) {
+  gnutls_cipher_algorithm_t cipher =
+      (gnutls_cipher_algorithm_t)aead->native_handle;
+  gnutls_aead_cipher_hd_t hd;
+  gnutls_datum_t _key;
+
+  (void)noncelen;
+
+  _key.data = (void *)key;
+  _key.size = (unsigned int)ngtcp2_crypto_aead_keylen(aead);
+
+  if (gnutls_aead_cipher_init(&hd, cipher, &_key) != 0) {
+    return -1;
+  }
+
+  aead_ctx->native_handle = hd;
+
+  return 0;
+}
+
+void ngtcp2_crypto_aead_ctx_free(ngtcp2_crypto_aead_ctx *aead_ctx) {
+  if (aead_ctx->native_handle) {
+    gnutls_aead_cipher_deinit(aead_ctx->native_handle);
+  }
+}
+
+int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
+                                          const ngtcp2_crypto_cipher *cipher,
+                                          const uint8_t *key) {
+  gnutls_cipher_algorithm_t _cipher =
+      (gnutls_cipher_algorithm_t)cipher->native_handle;
+  gnutls_cipher_hd_t hd;
+  gnutls_datum_t _key;
+
+  _key.data = (void *)key;
+  _key.size = (unsigned int)gnutls_cipher_get_key_size(_cipher);
+
+  if (gnutls_cipher_init(&hd, _cipher, &_key, NULL) != 0) {
+    return -1;
+  }
+
+  cipher_ctx->native_handle = hd;
+
+  return 0;
+}
+
+void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx) {
+  if (cipher_ctx->native_handle) {
+    gnutls_cipher_deinit(cipher_ctx->native_handle);
+  }
+}
+
 int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *secret, size_t secretlen,
                                const uint8_t *salt, size_t saltlen) {
@@ -175,42 +251,34 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
 }
 
 int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                          const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *plaintext, size_t plaintextlen,
-                          const uint8_t *key, const uint8_t *nonce,
-                          size_t noncelen, const uint8_t *ad, size_t adlen) {
+                          const uint8_t *nonce, size_t noncelen,
+                          const uint8_t *ad, size_t adlen) {
   gnutls_cipher_algorithm_t cipher =
       (gnutls_cipher_algorithm_t)aead->native_handle;
-  gnutls_aead_cipher_hd_t hd = NULL;
-  gnutls_datum_t _key;
-  size_t taglen = ngtcp2_crypto_aead_taglen(aead);
+  gnutls_aead_cipher_hd_t hd = aead_ctx->native_handle;
+  size_t taglen = gnutls_cipher_get_tag_size(cipher);
   size_t ciphertextlen = plaintextlen + taglen;
-  int rv = 0;
 
-  _key.data = (void *)key;
-  _key.size = (unsigned int)ngtcp2_crypto_aead_keylen(aead);
-
-  if (gnutls_aead_cipher_init(&hd, cipher, &_key) != 0 ||
-      gnutls_aead_cipher_encrypt(hd, nonce, noncelen, ad, adlen, taglen,
+  if (gnutls_aead_cipher_encrypt(hd, nonce, noncelen, ad, adlen, taglen,
                                  plaintext, plaintextlen, dest,
                                  &ciphertextlen) != 0) {
-    rv = -1;
+    return -1;
   }
 
-  gnutls_aead_cipher_deinit(hd);
-
-  return rv;
+  return 0;
 }
 
 int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                          const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *ciphertext, size_t ciphertextlen,
-                          const uint8_t *key, const uint8_t *nonce,
-                          size_t noncelen, const uint8_t *ad, size_t adlen) {
+                          const uint8_t *nonce, size_t noncelen,
+                          const uint8_t *ad, size_t adlen) {
   gnutls_cipher_algorithm_t cipher =
       (gnutls_cipher_algorithm_t)aead->native_handle;
+  gnutls_aead_cipher_hd_t hd = aead_ctx->native_handle;
   size_t taglen = gnutls_cipher_get_tag_size(cipher);
-  gnutls_aead_cipher_hd_t hd = NULL;
-  gnutls_datum_t _key;
-  int rv = 0;
   size_t plaintextlen;
 
   if (taglen > ciphertextlen) {
@@ -219,81 +287,59 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 
   plaintextlen = ciphertextlen - taglen;
 
-  _key.data = (void *)key;
-  _key.size = (unsigned int)ngtcp2_crypto_aead_keylen(aead);
-
-  if (gnutls_aead_cipher_init(&hd, cipher, &_key) != 0 ||
-      gnutls_aead_cipher_decrypt(hd, nonce, noncelen, ad, adlen, taglen,
+  if (gnutls_aead_cipher_decrypt(hd, nonce, noncelen, ad, adlen, taglen,
                                  ciphertext, ciphertextlen, dest,
                                  &plaintextlen) != 0) {
-    rv = -1;
+    return -1;
   }
 
-  gnutls_aead_cipher_deinit(hd);
-
-  return rv;
+  return 0;
 }
 
 int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-                          const uint8_t *hp_key, const uint8_t *sample) {
+                          const ngtcp2_crypto_cipher_ctx *hp_ctx,
+                          const uint8_t *sample) {
   gnutls_cipher_algorithm_t cipher =
       (gnutls_cipher_algorithm_t)hp->native_handle;
-  int rv = 0;
+  gnutls_cipher_hd_t hd = hp_ctx->native_handle;
 
   switch (cipher) {
   case GNUTLS_CIPHER_AES_128_CBC:
   case GNUTLS_CIPHER_AES_256_CBC: {
-    gnutls_cipher_hd_t hd = NULL;
-    gnutls_datum_t _hp_key;
     uint8_t iv[16];
-    gnutls_datum_t _iv;
     uint8_t buf[16];
-
-    _hp_key.data = (void *)hp_key;
-    _hp_key.size = (unsigned int)gnutls_cipher_get_key_size(cipher);
 
     /* Emulate one block AES-ECB by invalidating the effect of IV */
     memset(iv, 0, sizeof(iv));
-    _iv.data = iv;
-    _iv.size = 16;
 
-    if (gnutls_cipher_init(&hd, cipher, &_hp_key, &_iv) != 0 ||
-        gnutls_cipher_encrypt2(hd, sample, 16, buf, sizeof(buf)) != 0) {
-      rv = -1;
+    gnutls_cipher_set_iv(hd, iv, sizeof(iv));
+
+    if (gnutls_cipher_encrypt2(hd, sample, 16, buf, sizeof(buf)) != 0) {
+      return -1;
     }
 
     memcpy(dest, buf, 5);
-    gnutls_cipher_deinit(hd);
   } break;
 
   case GNUTLS_CIPHER_CHACHA20_32: {
-    gnutls_cipher_hd_t hd = NULL;
     static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
-    gnutls_datum_t _hp_key;
-    gnutls_datum_t _iv;
     uint8_t buf[5 + 16];
     size_t buflen = sizeof(buf);
 
-    _hp_key.data = (void *)hp_key;
-    _hp_key.size = (unsigned int)gnutls_cipher_get_key_size(cipher);
+    gnutls_cipher_set_iv(hd, (void *)sample, 16);
 
-    _iv.data = (void *)sample;
-    _iv.size = 16;
-
-    if (gnutls_cipher_init(&hd, cipher, &_hp_key, &_iv) != 0 ||
-        gnutls_cipher_encrypt2(hd, PLAINTEXT, sizeof(PLAINTEXT) - 1, buf,
+    if (gnutls_cipher_encrypt2(hd, PLAINTEXT, sizeof(PLAINTEXT) - 1, buf,
                                buflen) != 0) {
-      rv = -1;
+      return -1;
     }
 
     memcpy(dest, buf, 5);
-    gnutls_cipher_deinit(hd);
   } break;
   default:
     assert(0);
   }
 
-  return rv;
+  return 0;
 }
 
 static gnutls_record_encryption_level_t

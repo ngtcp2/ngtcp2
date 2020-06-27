@@ -268,8 +268,9 @@ public:
 
   void set_tls_alert(uint8_t alert);
 
-  int update_key(uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
-                 uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+  int update_key(uint8_t *rx_secret, uint8_t *tx_secret,
+                 ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+                 ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
                  const uint8_t *current_rx_secret,
                  const uint8_t *current_tx_secret, size_t secretlen);
 

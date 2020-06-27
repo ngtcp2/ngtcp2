@@ -34,15 +34,15 @@
 #include "ngtcp2_vec.h"
 
 static int null_retry_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                              const ngtcp2_crypto_aead_ctx *aead_ctx,
                               const uint8_t *plaintext, size_t plaintextlen,
-                              const uint8_t *key, const uint8_t *nonce,
-                              size_t noncelen, const uint8_t *ad,
-                              size_t adlen) {
+                              const uint8_t *nonce, size_t noncelen,
+                              const uint8_t *ad, size_t adlen) {
   (void)dest;
   (void)aead;
+  (void)aead_ctx;
   (void)plaintext;
   (void)plaintextlen;
-  (void)key;
   (void)nonce;
   (void)noncelen;
   (void)ad;
@@ -1259,6 +1259,7 @@ void test_ngtcp2_pkt_write_retry(void) {
   ngtcp2_ssize nread;
   int rv;
   ngtcp2_crypto_aead aead = {0};
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
   uint8_t tag[NGTCP2_RETRY_TAGLEN] = {0};
 
   scid_init(&scid);
@@ -1269,9 +1270,9 @@ void test_ngtcp2_pkt_write_retry(void) {
     token[i] = (uint8_t)i;
   }
 
-  spktlen =
-      ngtcp2_pkt_write_retry(buf, sizeof(buf), &dcid, &scid, &odcid, token,
-                             sizeof(token), null_retry_encrypt, &aead);
+  spktlen = ngtcp2_pkt_write_retry(buf, sizeof(buf), &dcid, &scid, &odcid,
+                                   token, sizeof(token), null_retry_encrypt,
+                                   &aead, &aead_ctx);
 
   CU_ASSERT(spktlen > 0);
 
