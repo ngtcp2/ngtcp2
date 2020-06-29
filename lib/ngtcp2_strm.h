@@ -95,7 +95,11 @@ struct ngtcp2_strm {
     /* rob is the reorder buffer for incoming stream data.  The data
        received in out of order is buffered and sorted by its offset
        in this object. */
-    ngtcp2_rob rob;
+    ngtcp2_rob *rob;
+    /* cont_offset is the largest offset of consecutive data.  It is
+       used until the endpoint receives out-of-order data.  After
+       that, rob is used to track the offset and data. */
+    uint64_t cont_offset;
     /* last_offset is the largest offset of stream data received for
        this stream. */
     uint64_t last_offset;
@@ -154,6 +158,15 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm);
  */
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
                                 size_t datalen, uint64_t offset);
+
+/*
+ * ngtcp2_strm_update_rx_offset tells that data up to offset bytes are
+ * received in order.
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+int ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset);
 
 /*
  * ngtcp2_strm_shutdown shutdowns |strm|.  |flags| should be

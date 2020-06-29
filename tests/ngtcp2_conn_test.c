@@ -5165,8 +5165,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(45 ==
-            ngtcp2_rob_first_gap_offset(&conn->in_pktns->crypto.strm.rx.rob));
+  CU_ASSERT(45 == ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm));
 
   ngtcp2_conn_del(conn);
 
@@ -5193,8 +5192,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path, buf, pktlen, ++t);
 
   CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
-  CU_ASSERT(0 ==
-            ngtcp2_rob_first_gap_offset(&conn->in_pktns->crypto.strm.rx.rob));
+  CU_ASSERT(0 == ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm));
 
   ngtcp2_conn_del(conn);
 }
