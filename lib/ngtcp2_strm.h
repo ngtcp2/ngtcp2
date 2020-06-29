@@ -81,7 +81,7 @@ struct ngtcp2_strm {
        control credits have been paid when they are transmitted first
        time.  There are no restriction regarding flow control for
        retransmission. */
-    ngtcp2_ksl streamfrq;
+    ngtcp2_ksl *streamfrq;
     /* offset is the next offset of outgoing data.  In other words, it
        is the number of bytes sent in this stream without
        duplication. */
