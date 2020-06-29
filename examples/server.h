@@ -124,6 +124,9 @@ struct Config {
   std::string_view cc;
   // initial_rtt is an initial RTT.
   ngtcp2_duration initial_rtt;
+  // max_udp_payload_size is the maximum UDP payload size that server
+  // transmits.  If it is 0, the default value is chosen.
+  size_t max_udp_payload_size;
 };
 
 struct Buffer {

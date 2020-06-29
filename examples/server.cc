@@ -1467,15 +1467,19 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   remote_addr_.len = salen;
   memcpy(&remote_addr_.su.sa, sa, salen);
 
-  switch (remote_addr_.su.storage.ss_family) {
-  case AF_INET:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
-    break;
-  case AF_INET6:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
-    break;
-  default:
-    return -1;
+  if (config.max_udp_payload_size) {
+    max_pktlen_ = config.max_udp_payload_size;
+  } else {
+    switch (remote_addr_.su.storage.ss_family) {
+    case AF_INET:
+      max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
+      break;
+    case AF_INET6:
+      max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
+      break;
+    default:
+      return -1;
+    }
   }
 
   ssl_ = SSL_new(ssl_ctx_);
@@ -1751,10 +1755,9 @@ int Handler::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   PathStorage path;
   size_t pktcnt = 0;
-  constexpr size_t max_pktcnt = 10;
-  std::array<uint8_t, std::max(NGTCP2_MAX_PKTLEN_IPV4, NGTCP2_MAX_PKTLEN_IPV6) *
-                          max_pktcnt>
-      buf;
+  size_t max_pktcnt = std::min(static_cast<size_t>(10),
+                               static_cast<size_t>(64_k / max_pktlen_));
+  std::array<uint8_t, 64_k> buf;
   uint8_t *bufpos = buf.data();
 
   for (;;) {
@@ -1911,7 +1914,7 @@ int Handler::start_closing_period() {
               << std::endl;
   }
 
-  conn_closebuf_ = std::make_unique<Buffer>(NGTCP2_MAX_PKTLEN_IPV4);
+  conn_closebuf_ = std::make_unique<Buffer>(max_pktlen_);
 
   PathStorage path;
   if (last_error_.type == QUICErrorType::Transport) {
@@ -3532,6 +3535,11 @@ Options:
               Set an initial RTT.
               Default: )"
             << util::format_duration(config.initial_rtt) << R"(
+  --max-udp-payload-size=<SIZE>
+              Override maximum UDP payload size that server transmits.
+              Default: )"
+            << NGTCP2_MAX_PKTLEN_IPV4 << R"( for IPv4, )"
+            << NGTCP2_MAX_PKTLEN_IPV6 << R"( for IPv6
   -h, --help  Display this help and exit.
 
 ---
@@ -3580,6 +3588,7 @@ int main(int argc, char **argv) {
         {"max-dyn-length", required_argument, &flag, 18},
         {"cc", required_argument, &flag, 19},
         {"initial-rtt", required_argument, &flag, 20},
+        {"max-udp-payload-size", required_argument, &flag, 21},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3757,6 +3766,19 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.initial_rtt = t;
+        }
+        break;
+      case 21:
+        // --max-udp-payload-size
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-udp-payload-size: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (n > 64_k) {
+          std::cerr << "max-udp-payload-size: must not exceed 65536"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_udp_payload_size = n;
         }
         break;
       }
