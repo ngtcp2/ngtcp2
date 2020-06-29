@@ -1366,8 +1366,7 @@ static size_t conn_cryptofrq_unacked_offset(ngtcp2_conn *conn,
                                             ngtcp2_pktns *pktns) {
   ngtcp2_frame_chain *frc;
   ngtcp2_crypto *fr;
-  ngtcp2_ksl_it gapit;
-  ngtcp2_range *gap;
+  ngtcp2_range gap;
   ngtcp2_rtb *rtb = &pktns->rtb;
   ngtcp2_ksl_it it;
   size_t datalen;
@@ -1379,17 +1378,15 @@ static size_t conn_cryptofrq_unacked_offset(ngtcp2_conn *conn,
     frc = ngtcp2_ksl_it_get(&it);
     fr = &frc->fr.crypto;
 
-    gapit = ngtcp2_gaptr_get_first_gap_after(&rtb->crypto->tx.acked_offset,
-                                             fr->offset);
-    gap = ngtcp2_ksl_it_key(&gapit);
+    gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->offset);
 
     datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
 
-    if (gap->begin <= fr->offset) {
+    if (gap.begin <= fr->offset) {
       return fr->offset;
     }
-    if (gap->begin < fr->offset + datalen) {
-      return gap->begin;
+    if (gap.begin < fr->offset + datalen) {
+      return gap.begin;
     }
   }
 
@@ -1403,7 +1400,6 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   uint64_t offset, end_offset;
   size_t idx, end_idx;
   uint64_t base_offset, end_base_offset;
-  ngtcp2_ksl_it gapit;
   ngtcp2_range gap;
   ngtcp2_rtb *rtb = &pktns->rtb;
   ngtcp2_vec *v;
@@ -1422,9 +1418,7 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     offset = fr->offset;
     base_offset = 0;
 
-    gapit =
-        ngtcp2_gaptr_get_first_gap_after(&rtb->crypto->tx.acked_offset, offset);
-    gap = *(ngtcp2_range *)ngtcp2_ksl_it_key(&gapit);
+    gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, offset);
     if (gap.begin < offset) {
       gap.begin = offset;
     }

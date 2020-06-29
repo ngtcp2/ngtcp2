@@ -76,7 +76,12 @@ struct ngtcp2_strm {
 
   struct {
     /* acked_offset tracks acknowledged outgoing data. */
-    ngtcp2_gaptr acked_offset;
+    ngtcp2_gaptr *acked_offset;
+    /* cont_acked_offset is the offset that all data up to this offset
+       is acknowledged by a remote endpoint.  It is used until the
+       remote endpoint acknowledges data in out-of-order.  After that,
+       acked_offset is used instead. */
+    uint64_t cont_acked_offset;
     /* streamfrq contains STREAM frame for retransmission.  The flow
        control credits have been paid when they are transmitted first
        time.  There are no restriction regarding flow control for
@@ -228,5 +233,25 @@ int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm);
  * data for |strm| which have sent so far have been acknowledged.
  */
 int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_strm_get_unacked_range_after returns the range that is not
+ * acknowledged yet and intersects or comes after |offset|.
+ */
+ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
+                                                 uint64_t offset);
+
+/*
+ * ngtcp2_strm_get_acked_offset returns offset, that is the data up to
+ * this offset have been acknowledged by a remote endpoint.  It
+ * returns 0 if no data is acknowledged.
+ */
+uint64_t ngtcp2_strm_get_acked_offset(ngtcp2_strm *strm);
+
+/*
+ * ngtcp2_strm_ack_data tells |strm| that the data [offset,
+ * offset+len) is acknowledged by a remote endpoint.
+ */
+int ngtcp2_strm_ack_data(ngtcp2_strm *strm, uint64_t offset, uint64_t len);
 
 #endif /* NGTCP2_STRM_H */

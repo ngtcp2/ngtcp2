@@ -289,17 +289,16 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       if (strm == NULL) {
         break;
       }
-      prev_stream_offset =
-          ngtcp2_gaptr_first_gap_offset(&strm->tx.acked_offset);
-      rv = ngtcp2_gaptr_push(
-          &strm->tx.acked_offset, frc->fr.stream.offset,
+      prev_stream_offset = ngtcp2_strm_get_acked_offset(strm);
+      rv = ngtcp2_strm_ack_data(
+          strm, frc->fr.stream.offset,
           ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
       if (rv != 0) {
         return rv;
       }
 
       if (conn->callbacks.acked_stream_data_offset) {
-        stream_offset = ngtcp2_gaptr_first_gap_offset(&strm->tx.acked_offset);
+        stream_offset = ngtcp2_strm_get_acked_offset(strm);
         datalen = stream_offset - prev_stream_offset;
         if (datalen == 0 && !frc->fr.stream.fin) {
           break;
@@ -319,17 +318,16 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       }
       break;
     case NGTCP2_FRAME_CRYPTO:
-      prev_stream_offset =
-          ngtcp2_gaptr_first_gap_offset(&crypto->tx.acked_offset);
-      rv = ngtcp2_gaptr_push(
-          &crypto->tx.acked_offset, frc->fr.crypto.offset,
+      prev_stream_offset = ngtcp2_strm_get_acked_offset(crypto);
+      rv = ngtcp2_strm_ack_data(
+          crypto, frc->fr.crypto.offset,
           ngtcp2_vec_len(frc->fr.crypto.data, frc->fr.crypto.datacnt));
       if (rv != 0) {
         return rv;
       }
 
       if (conn->callbacks.acked_crypto_offset) {
-        stream_offset = ngtcp2_gaptr_first_gap_offset(&crypto->tx.acked_offset);
+        stream_offset = ngtcp2_strm_get_acked_offset(crypto);
         datalen = stream_offset - prev_stream_offset;
         if (datalen == 0) {
           break;
@@ -628,7 +626,6 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   ngtcp2_ksl_it it;
   ngtcp2_frame_chain *nfrc;
   ngtcp2_frame_chain *frc;
-  ngtcp2_ksl_it gapit;
   ngtcp2_range gap, range;
   ngtcp2_crypto *fr;
   int all_acked;
@@ -654,9 +651,7 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
       /* Don't resend CRYPTO frame if the whole region it contains has
          been acknowledged */
-      gapit = ngtcp2_gaptr_get_first_gap_after(&rtb->crypto->tx.acked_offset,
-                                               fr->offset);
-      gap = *(ngtcp2_range *)ngtcp2_ksl_it_key(&gapit);
+      gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->offset);
 
       range.begin = fr->offset;
       range.end = fr->offset + ngtcp2_vec_len(fr->data, fr->datacnt);

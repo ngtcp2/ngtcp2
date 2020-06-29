@@ -39,6 +39,8 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                      uint64_t max_rx_offset, uint64_t max_tx_offset,
                      void *stream_user_data, const ngtcp2_mem *mem) {
   strm->cycle = 0;
+  strm->tx.acked_offset = NULL;
+  strm->tx.cont_acked_offset = 0;
   strm->tx.streamfrq = NULL;
   strm->tx.offset = 0;
   strm->tx.max_offset = max_tx_offset;
@@ -55,7 +57,7 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   strm->mem = mem;
   strm->app_error_code = 0;
 
-  return ngtcp2_gaptr_init(&strm->tx.acked_offset, mem);
+  return 0;
 }
 
 void ngtcp2_strm_free(ngtcp2_strm *strm) {
@@ -72,10 +74,13 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
     }
 
     ngtcp2_ksl_free(strm->tx.streamfrq);
+    ngtcp2_mem_free(strm->mem, strm->tx.streamfrq);
   }
 
   ngtcp2_rob_free(strm->rx.rob);
-  ngtcp2_gaptr_free(&strm->tx.acked_offset);
+  ngtcp2_mem_free(strm->mem, strm->rx.rob);
+  ngtcp2_gaptr_free(strm->tx.acked_offset);
+  ngtcp2_mem_free(strm->mem, strm->tx.acked_offset);
 }
 
 static int strm_rob_init(ngtcp2_strm *strm) {
@@ -371,6 +376,77 @@ int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm) {
 }
 
 int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
-  return ngtcp2_gaptr_first_gap_offset(&strm->tx.acked_offset) ==
+  if (strm->tx.acked_offset == NULL) {
+    return strm->tx.cont_acked_offset == strm->tx.offset;
+  }
+
+  return ngtcp2_gaptr_first_gap_offset(strm->tx.acked_offset) ==
          strm->tx.offset;
+}
+
+ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
+                                                 uint64_t offset) {
+  ngtcp2_ksl_it gapit;
+  ngtcp2_range gap;
+
+  if (strm->tx.acked_offset == NULL) {
+    gap.begin = strm->tx.cont_acked_offset;
+    gap.end = UINT64_MAX;
+    return gap;
+  }
+
+  gapit = ngtcp2_gaptr_get_first_gap_after(strm->tx.acked_offset, offset);
+  return *(ngtcp2_range *)ngtcp2_ksl_it_key(&gapit);
+}
+
+uint64_t ngtcp2_strm_get_acked_offset(ngtcp2_strm *strm) {
+  if (strm->tx.acked_offset == NULL) {
+    return strm->tx.cont_acked_offset;
+  }
+
+  return ngtcp2_gaptr_first_gap_offset(strm->tx.acked_offset);
+}
+
+static int strm_acked_offset_init(ngtcp2_strm *strm) {
+  int rv;
+  ngtcp2_gaptr *acked_offset =
+      ngtcp2_mem_malloc(strm->mem, sizeof(*acked_offset));
+
+  if (acked_offset == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  rv = ngtcp2_gaptr_init(acked_offset, strm->mem);
+  if (rv != 0) {
+    ngtcp2_mem_free(strm->mem, acked_offset);
+    return rv;
+  }
+
+  strm->tx.acked_offset = acked_offset;
+
+  return 0;
+}
+
+int ngtcp2_strm_ack_data(ngtcp2_strm *strm, uint64_t offset, uint64_t len) {
+  int rv;
+
+  if (strm->tx.acked_offset == NULL) {
+    if (strm->tx.cont_acked_offset == offset) {
+      strm->tx.cont_acked_offset += len;
+      return 0;
+    }
+
+    rv = strm_acked_offset_init(strm);
+    if (rv != 0) {
+      return rv;
+    }
+
+    rv =
+        ngtcp2_gaptr_push(strm->tx.acked_offset, 0, strm->tx.cont_acked_offset);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  return ngtcp2_gaptr_push(strm->tx.acked_offset, offset, len);
 }
