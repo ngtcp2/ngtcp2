@@ -6636,7 +6636,8 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
-  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack, ts);
+  rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack,
+                             pkt_ts);
   if (rv != 0) {
     return rv;
   }
