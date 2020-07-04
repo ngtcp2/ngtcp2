@@ -1447,7 +1447,8 @@ int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
 }
 
 namespace {
-void write_qlog(void *user_data, const void *data, size_t datalen) {
+void write_qlog(void *user_data, uint32_t flags, const void *data,
+                size_t datalen) {
   auto h = static_cast<Handler *>(user_data);
   h->write_qlog(data, datalen);
 }

@@ -823,7 +823,8 @@ int Client::init_ssl() {
 }
 
 namespace {
-void write_qlog(void *user_data, const void *data, size_t datalen) {
+void write_qlog(void *user_data, uint32_t flags, const void *data,
+                size_t datalen) {
   auto c = static_cast<Client *>(user_data);
   c->write_qlog(data, datalen);
 }

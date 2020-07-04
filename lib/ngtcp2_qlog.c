@@ -230,7 +230,8 @@ void ngtcp2_qlog_start(ngtcp2_qlog *qlog, const ngtcp2_cid *odcid, int server) {
   p = write_event_fields(p);
   p = write_events_start(p);
 
-  qlog->write(qlog->user_data, buf, (size_t)(p - buf));
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
+              (size_t)(p - buf));
 }
 
 void ngtcp2_qlog_end(ngtcp2_qlog *qlog) {
@@ -245,7 +246,8 @@ void ngtcp2_qlog_end(ngtcp2_qlog *qlog) {
   p = write_trace_end(p);
   *p++ = '}';
 
-  qlog->write(qlog->user_data, buf, (size_t)(p - buf));
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_FIN, buf,
+              (size_t)(p - buf));
 }
 
 static uint8_t *write_pkt_hd(uint8_t *p, const ngtcp2_pkt_hd *hd,
@@ -814,7 +816,8 @@ static void qlog_pkt_write_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 
   qlog->buf.last = p;
 
-  qlog->write(qlog->user_data, qlog->buf.pos, ngtcp2_buf_len(&qlog->buf));
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, qlog->buf.pos,
+              ngtcp2_buf_len(&qlog->buf));
 }
 
 void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
@@ -1126,7 +1129,8 @@ void ngtcp2_qlog_parameters_set_transport_params(
   *p++ = ']';
   *p++ = ',';
 
-  qlog->write(qlog->user_data, buf, (size_t)(p - buf));
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
+              (size_t)(p - buf));
 }
 
 void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
@@ -1181,7 +1185,8 @@ void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
   *p++ = ']';
   *p++ = ',';
 
-  qlog->write(qlog->user_data, buf, (size_t)(p - buf));
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
+              (size_t)(p - buf));
 }
 
 void ngtcp2_qlog_pkt_lost(ngtcp2_qlog *qlog, ngtcp2_rtb_entry *ent) {
@@ -1215,5 +1220,6 @@ void ngtcp2_qlog_pkt_lost(ngtcp2_qlog *qlog, ngtcp2_rtb_entry *ent) {
   *p++ = ']';
   *p++ = ',';
 
-  qlog->write(qlog->user_data, buf, (size_t)(p - buf));
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
+              (size_t)(p - buf));
 }

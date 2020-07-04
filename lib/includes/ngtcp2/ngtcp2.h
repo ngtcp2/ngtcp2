@@ -691,8 +691,30 @@ typedef struct ngtcp2_cc {
    ngtcp2_conn_server_new. */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
-typedef void (*ngtcp2_qlog_write)(void *user_data, const void *data,
-                                  size_t datalen);
+/**
+ * @enum
+ *
+ * :type:`ngtcp2_qlog_write_flag` defines the set of flags passed to
+ * :type:`ngtcp2_qlog_write` callback.
+ */
+typedef enum ngtcp2_qlog_write_flag {
+  NGTCP2_QLOG_WRITE_FLAG_NONE = 0,
+  /**
+   * NGTCP2_QLOG_WRITE_FLAG_FIN indicates that this is the final call
+   * to :type:`ngtcp2_qlog_write` in the current connection.
+   */
+  NGTCP2_QLOG_WRITE_FLAG_FIN = 0x01
+} ngtcp2_qlog_write_flag;
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_qlog_write` is a callback function which is called to
+ * write qlog |data| of length |datalen| bytes.  |flags| is bitwise OR
+ * of zero or more of :type:`ngtcp2_qlog_write_flag`.
+ */
+typedef void (*ngtcp2_qlog_write)(void *user_data, uint32_t flags,
+                                  const void *data, size_t datalen);
 
 typedef struct ngtcp2_qlog_settings {
   /* odcid is Original Destination Connection ID sent by client.  It
