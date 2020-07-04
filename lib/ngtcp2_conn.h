@@ -203,6 +203,9 @@ typedef struct {
     ngtcp2_gaptr pngap;
     /* max_pkt_num is the largest packet number received so far. */
     int64_t max_pkt_num;
+    /* max_pkt_ts is the timestamp when max_pkt_num packet is
+       received. */
+    ngtcp2_tstamp max_pkt_ts;
     /*
      * buffed_pkts is buffered packets which cannot be decrypted with
      * the current encryption level.
