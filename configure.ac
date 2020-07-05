@@ -294,6 +294,7 @@ AC_CHECK_HEADERS([ \
   unistd.h \
   sys/endian.h \
   endian.h \
+  byteswap.h \
 ])
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -329,6 +330,10 @@ AC_CHECK_DECLS([be64toh], [], [], [[
 #ifdef HAVE_SYS_ENDIAN_H
 #  include <sys/endian.h>
 #endif
+]])
+
+AC_CHECK_DECLS([bswap_64], [], [], [[
+#include <byteswap.h>
 ]])
 
 # More compiler flags from nghttp2.

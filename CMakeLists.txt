@@ -142,6 +142,7 @@ check_include_file("string.h"      HAVE_STRING_H)
 check_include_file("unistd.h"      HAVE_UNISTD_H)
 check_include_file("sys/endian.h"  HAVE_SYS_ENDIAN_H)
 check_include_file("endian.h"      HAVE_ENDIAN_H)
+check_include_file("byteswap.h"    HAVE_BYTESWAP_H)
 
 include(CheckTypeSize)
 # Checks for typedefs, structures, and compiler characteristics.
@@ -160,6 +161,8 @@ endif()
 if(HAVE_SYS_ENDIAN_H)
   check_symbol_exists(be64toh "sys/endian.h" HAVE_BE64TOH)
 endif()
+
+check_symbol_exists(bswap_64 "byteswap.h" HAVE_BSWAP_64)
 
 include(ExtractValidFlags)
 set(WARNCFLAGS)
