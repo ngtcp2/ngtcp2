@@ -70,6 +70,7 @@
 #    define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
 #  endif /* !WORDS_BIGENDIAN */
 #endif   /* !HAVE_BE64TOH */
+
 #if defined(WIN32)
 /* Windows requires ws2_32 library for ntonl family functions.  We
    define inline functions for those function so that we don't have
