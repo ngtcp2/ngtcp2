@@ -282,15 +282,15 @@ public:
   void extend_max_remote_streams_bidi(uint64_t max_streams);
   Stream *find_stream(int64_t stream_id);
   void http_begin_request_headers(int64_t stream_id);
-  void http_recv_request_header(int64_t stream_id, int32_t token,
+  void http_recv_request_header(Stream *stream, int32_t token,
                                 nghttp3_rcbuf *name, nghttp3_rcbuf *value);
-  int http_end_request_headers(int64_t stream_id);
-  int http_end_stream(int64_t stream_id);
-  int start_response(int64_t stream_id);
+  int http_end_request_headers(Stream *stream);
+  int http_end_stream(Stream *stream);
+  int start_response(Stream *stream);
   int on_stream_reset(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
-  void http_acked_stream_data(int64_t stream_id, size_t datalen);
+  void http_acked_stream_data(Stream *stream, size_t datalen);
   int push_content(int64_t stream_id, const std::string_view &authority,
                    const std::string_view &path);
   void http_stream_close(int64_t stream_id, uint64_t app_error_code);
