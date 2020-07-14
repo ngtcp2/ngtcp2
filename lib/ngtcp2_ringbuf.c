@@ -101,6 +101,4 @@ void *ngtcp2_ringbuf_get(ngtcp2_ringbuf *rb, size_t offset) {
   return &rb->buf[offset * rb->size];
 }
 
-size_t ngtcp2_ringbuf_len(ngtcp2_ringbuf *rb) { return rb->len; }
-
 int ngtcp2_ringbuf_full(ngtcp2_ringbuf *rb) { return rb->len == rb->nmemb; }
