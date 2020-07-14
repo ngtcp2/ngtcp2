@@ -91,11 +91,12 @@ void test_ngtcp2_pv_validate(void) {
   uint8_t data[8];
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
   ngtcp2_tstamp t = 1;
-  ngtcp2_path path = {{1, (uint8_t *)"1", NULL}, {1, (uint8_t *)"2", NULL}};
+  ngtcp2_path_storage path;
 
+  path_init(&path, 1, 0, 2, 0);
   dcid_init(&cid);
   ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
-  ngtcp2_path_copy(&dcid.ps.path, &path);
+  ngtcp2_path_copy(&dcid.ps.path, &path.path);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);

@@ -228,4 +228,11 @@ ngtcp2_ssize pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 ngtcp2_ssize pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                       size_t pktlen, size_t dcidlen);
 
+/*
+ * path_init initializes |path| with the given arguments.  They form
+ * IPv4 addresses.
+ */
+void path_init(ngtcp2_path_storage *path, uint32_t local_addr,
+               uint16_t local_port, uint32_t remote_addr, uint16_t remote_port);
+
 #endif /* NGTCP2_TEST_HELPER_H */

@@ -69,13 +69,13 @@ struct Address {
 
 struct PathStorage {
   PathStorage() {
-    path.local.addr = local_addrbuf.data();
-    path.remote.addr = remote_addrbuf.data();
+    path.local.addr = reinterpret_cast<sockaddr *>(&local_addrbuf);
+    path.remote.addr = reinterpret_cast<sockaddr *>(&remote_addrbuf);
   }
 
   ngtcp2_path path;
-  std::array<uint8_t, sizeof(sockaddr_storage)> local_addrbuf;
-  std::array<uint8_t, sizeof(sockaddr_storage)> remote_addrbuf;
+  sockaddr_storage local_addrbuf;
+  sockaddr_storage remote_addrbuf;
 };
 
 } // namespace ngtcp2

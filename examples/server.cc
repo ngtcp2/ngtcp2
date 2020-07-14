@@ -1595,11 +1595,9 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     params.preferred_address.cid = pscid_;
   }
 
-  auto path = ngtcp2_path{
-      {ep.addr.len,
-       const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
-       const_cast<Endpoint *>(&ep)},
-      {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
+  auto path = ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa),
+                           const_cast<Endpoint *>(&ep)},
+                          {salen, const_cast<sockaddr *>(sa)}};
   if (auto rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version,
                                        &callbacks, &settings, nullptr, this);
       rv != 0) {
@@ -1643,11 +1641,9 @@ void Handler::update_remote_addr(const ngtcp2_addr *addr) {
 
 int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                        uint8_t *data, size_t datalen) {
-  auto path = ngtcp2_path{
-      {ep.addr.len,
-       const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(&ep.addr.su)),
-       const_cast<Endpoint *>(&ep)},
-      {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
+  auto path = ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa),
+                           const_cast<Endpoint *>(&ep)},
+                          {salen, const_cast<sockaddr *>(sa)}};
 
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
                                      util::timestamp(loop_));

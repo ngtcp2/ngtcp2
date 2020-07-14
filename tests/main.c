@@ -68,6 +68,8 @@ int main() {
     return (int)CU_get_error();
   }
 
+  init_static_path();
+
   /* add the tests to the suite */
   if (!CU_add_test(pSuite, "pkt_decode_version_cid",
                    test_ngtcp2_pkt_decode_version_cid) ||

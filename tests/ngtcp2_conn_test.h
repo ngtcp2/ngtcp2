@@ -29,6 +29,8 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+void init_static_path(void);
+
 void test_ngtcp2_conn_stream_open_close(void);
 void test_ngtcp2_conn_stream_rx_flow_control(void);
 void test_ngtcp2_conn_stream_rx_flow_control_error(void);

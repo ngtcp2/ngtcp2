@@ -970,10 +970,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.active_connection_id_limit = 7;
 
   auto path = ngtcp2_path{
-      {local_addr.len, const_cast<uint8_t *>(
-                           reinterpret_cast<const uint8_t *>(&local_addr.su))},
-      {remote_addr.len, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(
-                            &remote_addr.su))}};
+      {local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)},
+      {remote_addr.len, const_cast<sockaddr *>(&remote_addr.su.sa)}};
   auto rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version,
                                    &callbacks, &settings, nullptr, this);
 
@@ -1019,9 +1017,9 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 
 int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
                       size_t datalen) {
-  auto path = ngtcp2_path{
-      {local_addr_.len, reinterpret_cast<uint8_t *>(&local_addr_.su)},
-      {salen, const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(sa))}};
+  auto path =
+      ngtcp2_path{{local_addr_.len, const_cast<sockaddr *>(&local_addr_.su.sa)},
+                  {salen, const_cast<sockaddr *>(sa)}};
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
                                      util::timestamp(loop_));
       rv != 0) {
@@ -1398,11 +1396,10 @@ int Client::change_local_addr() {
     ngtcp2_addr addr;
     ngtcp2_conn_set_local_addr(
         conn_,
-        ngtcp2_addr_init(&addr, &local_addr.su, local_addr.len, nullptr));
+        ngtcp2_addr_init(&addr, &local_addr.su.sa, local_addr.len, nullptr));
   } else {
-    auto path = ngtcp2_path{
-        {local_addr.len, reinterpret_cast<uint8_t *>(&local_addr.su)},
-        {remote_addr.len, reinterpret_cast<uint8_t *>(&remote_addr.su)}};
+    auto path = ngtcp2_path{{local_addr.len, &local_addr.su.sa},
+                            {remote_addr.len, &remote_addr.su.sa}};
     if (auto rv = ngtcp2_conn_initiate_migration(conn_, &path,
                                                  util::timestamp(loop_));
         rv != 0) {

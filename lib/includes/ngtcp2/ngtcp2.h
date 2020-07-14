@@ -46,6 +46,7 @@ extern "C" {
 #  include <inttypes.h>
 #endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <stdarg.h>
 #include <stddef.h>
 
@@ -767,9 +768,9 @@ typedef struct ngtcp2_settings {
 typedef struct ngtcp2_addr {
   /* addrlen is the length of addr. */
   size_t addrlen;
-  /* addr points to the buffer which contains endpoint address.  It is
-     opaque to the ngtcp2 library.  It must not be NULL. */
-  uint8_t *addr;
+  /* addr points to the buffer which contains endpoint address.  It
+     must not be NULL. */
+  struct sockaddr *addr;
   /* user_data is an arbitrary data and opaque to the library. */
   void *user_data;
 } ngtcp2_addr;
@@ -794,8 +795,8 @@ typedef struct ngtcp2_path {
  * the longest addresses.
  */
 typedef struct ngtcp2_path_storage {
-  uint8_t local_addrbuf[128];
-  uint8_t remote_addrbuf[128];
+  struct sockaddr_storage local_addrbuf;
+  struct sockaddr_storage remote_addrbuf;
   ngtcp2_path path;
 } ngtcp2_path_storage;
 
@@ -3219,7 +3220,8 @@ NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
  * `ngtcp2_addr_init` initializes |dest| with the given arguments and
  * returns |dest|.
  */
-NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr,
+NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
+                                            const struct sockaddr *addr,
                                             size_t addrlen, void *user_data);
 
 /**
@@ -3228,11 +3230,13 @@ NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr,
  * `ngtcp2_path_storage_init` initializes |ps| with the given
  * arguments.  This function copies |local_addr| and |remote_addr|.
  */
-NGTCP2_EXTERN void
-ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
-                         size_t local_addrlen, void *local_user_data,
-                         const void *remote_addr, size_t remote_addrlen,
-                         void *remote_user_data);
+NGTCP2_EXTERN void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
+                                            const struct sockaddr *local_addr,
+                                            size_t local_addrlen,
+                                            void *local_user_data,
+                                            const struct sockaddr *remote_addr,
+                                            size_t remote_addrlen,
+                                            void *remote_user_data);
 
 /**
  * @function

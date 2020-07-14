@@ -6204,14 +6204,14 @@ static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
  *     User-defined callback function failed.
  */
 static int conn_select_preferred_addr(ngtcp2_conn *conn) {
-  uint8_t buf[128];
+  struct sockaddr_storage buf;
   ngtcp2_addr addr;
   int rv;
   ngtcp2_duration timeout;
   ngtcp2_pv *pv;
   ngtcp2_dcid *dcid;
 
-  ngtcp2_addr_init(&addr, buf, 0, NULL);
+  ngtcp2_addr_init(&addr, (struct sockaddr *)&buf, 0, NULL);
 
   if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
     return 0;
