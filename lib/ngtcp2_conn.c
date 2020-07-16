@@ -6279,6 +6279,13 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   conn_discard_handshake_state(conn, ts);
 
+  if (conn->remote.transport_params.preferred_address_present) {
+    rv = conn_select_preferred_addr(conn);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
   if (conn->callbacks.handshake_confirmed) {
     rv = conn->callbacks.handshake_confirmed(conn, conn->user_data);
     if (rv != 0) {
@@ -7824,13 +7831,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
     rv = conn_process_buffered_protected_pkt(conn, &conn->pktns, ts);
     if (rv != 0) {
       return (ngtcp2_ssize)rv;
-    }
-
-    if (conn->remote.transport_params.preferred_address_present) {
-      rv = conn_select_preferred_addr(conn);
-      if (rv != 0) {
-        return rv;
-      }
     }
 
     cstat->bytes_sent += (size_t)res;
