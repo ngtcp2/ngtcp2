@@ -2692,8 +2692,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  * @function
  *
  * `ngtcp2_conn_write_connection_close` writes a packet which contains
- * a CONNECTION_CLOSE frame in the buffer pointed by |dest| whose
- * capacity is |datalen|.
+ * a CONNECTION_CLOSE frame (type 0x1c) in the buffer pointed by
+ * |dest| whose capacity is |datalen|.
  *
  * If |path| is not NULL, this function stores the network path with
  * which the packet should be sent.  Each addr field must point to the
@@ -2727,14 +2727,18 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  * @function
  *
  * `ngtcp2_conn_write_application_close` writes a packet which
- * contains a APPLICATION_CLOSE frame in the buffer pointed by |dest|
- * whose capacity is |datalen|.
+ * contains a CONNECTION_CLOSE frame (type 0x1d) in the buffer pointed
+ * by |dest| whose capacity is |datalen|.
  *
  * If |path| is not NULL, this function stores the network path with
  * which the packet should be sent.  Each addr field must point to the
  * buffer which is at least 128 bytes.  ``sizeof(struct
  * sockaddr_storage)`` is enough.  The assignment might not be done if
  * nothing is written to |dest|.
+ *
+ * If handshake has not been confirmed yet, CONNECTION_CLOSE (type
+ * 0x1c) with error code :macro:`NGTCP2_APPLICATION_ERROR` is written
+ * instead.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2748,7 +2752,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small
  * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     The current state does not allow sending APPLICATION_CLOSE.
+ *     The current state does not allow sending CONNECTION_CLOSE.
  * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
  *     Packet number is exhausted, and cannot send any more packet.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`

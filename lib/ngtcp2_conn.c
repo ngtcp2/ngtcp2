@@ -8876,6 +8876,11 @@ ngtcp2_ssize ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
   ngtcp2_ssize nwrite;
   ngtcp2_frame fr;
 
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
+    return ngtcp2_conn_write_connection_close(conn, path, dest, destlen,
+                                              NGTCP2_APPLICATION_ERROR, ts);
+  }
+
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
 
