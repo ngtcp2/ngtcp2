@@ -1818,7 +1818,7 @@ int Handler::write_streams() {
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
         server_->send_packet(*endpoint_, remote_addr_, buf.data(),
-                             bufpos - buf.data(), max_pktlen_, &wev_);
+                             bufpos - buf.data(), max_pktlen_);
         reset_idle_timer();
       }
       // We are congestion limited.
@@ -1835,12 +1835,12 @@ int Handler::write_streams() {
                0 != memcmp(&remote_addr_.su, path.path.remote.addr,
                            path.path.remote.addrlen)) {
       server_->send_packet(*endpoint_, remote_addr_, buf.data(),
-                           bufpos - buf.data() - nwrite, max_pktlen_, &wev_);
+                           bufpos - buf.data() - nwrite, max_pktlen_);
 
       update_remote_addr(&path.path.remote);
 
       server_->send_packet(*endpoint_, remote_addr_, bufpos - nwrite, nwrite,
-                           max_pktlen_, &wev_);
+                           max_pktlen_);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
       return 0;
@@ -1848,7 +1848,7 @@ int Handler::write_streams() {
 
     if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < max_pktlen_) {
       server_->send_packet(*endpoint_, remote_addr_, buf.data(),
-                           bufpos - buf.data(), max_pktlen_, &wev_);
+                           bufpos - buf.data(), max_pktlen_);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
       return 0;
@@ -1859,7 +1859,7 @@ int Handler::write_streams() {
     reset_idle_timer();
 
     server_->send_packet(*endpoint_, remote_addr_, buf.data(),
-                         bufpos - buf.data(), 0, &wev_);
+                         bufpos - buf.data(), 0);
     if (++pktcnt == max_pktcnt) {
       ev_io_start(loop_, &wev_);
       return 0;
@@ -1956,7 +1956,7 @@ int Handler::send_conn_close() {
   assert(conn_closebuf_ && conn_closebuf_->size());
 
   return server_->send_packet(*endpoint_, remote_addr_, conn_closebuf_->rpos(),
-                              conn_closebuf_->size(), 0, &wev_);
+                              conn_closebuf_->size(), 0);
 }
 
 void Handler::schedule_retransmit() {
@@ -3064,8 +3064,7 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
 }
 
 int Server::send_packet(Endpoint &ep, const Address &remote_addr,
-                        const uint8_t *data, size_t datalen, size_t gso_size,
-                        ev_io *wev) {
+                        const uint8_t *data, size_t datalen, size_t gso_size) {
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;

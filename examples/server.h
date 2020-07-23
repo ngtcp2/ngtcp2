@@ -357,7 +357,7 @@ public:
   int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                    socklen_t salen);
   int send_packet(Endpoint &ep, const Address &remote_addr, const uint8_t *data,
-                  size_t datalen, size_t gso_size, ev_io *wev = nullptr);
+                  size_t datalen, size_t gso_size);
   void remove(const Handler *h);
 
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
