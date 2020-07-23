@@ -3107,6 +3107,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
      before ngtcp2_rtb_entry is safely created and added. */
   lfr.type = NGTCP2_FRAME_PADDING;
   if ((require_padding ||
+       /* Making full sized packet will help GSO a bit */
+       ngtcp2_ppe_left(ppe) < 10 ||
        (type == NGTCP2_PKT_0RTT && conn->state == NGTCP2_CS_CLIENT_INITIAL)) &&
       ngtcp2_ppe_left(ppe)) {
     lfr.padding.len = ngtcp2_ppe_padding(ppe);
