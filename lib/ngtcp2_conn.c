@@ -9184,8 +9184,9 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
 
   rtt = ngtcp2_max(rtt, NGTCP2_GRANULARITY);
 
+  cstat->latest_rtt = rtt;
+
   if (cstat->min_rtt == UINT64_MAX) {
-    cstat->latest_rtt = rtt;
     cstat->min_rtt = rtt;
     cstat->smoothed_rtt = rtt;
     cstat->rttvar = rtt / 2;
@@ -9200,8 +9201,6 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     if (rtt > cstat->min_rtt + ack_delay) {
       rtt -= ack_delay;
     }
-
-    cstat->latest_rtt = rtt;
 
     cstat->rttvar = (cstat->rttvar * 3 + (cstat->smoothed_rtt < rtt
                                               ? rtt - cstat->smoothed_rtt
