@@ -9817,6 +9817,19 @@ int ngtcp2_conn_after_retry(ngtcp2_conn *conn) {
   return (conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) != 0;
 }
 
+int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
+                                     void *stream_user_data) {
+  ngtcp2_strm *strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  if (strm == NULL) {
+    return NGTCP2_ERR_STREAM_NOT_FOUND;
+  }
+
+  strm->stream_user_data = stream_user_data;
+
+  return 0;
+}
+
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const uint8_t *data) {
   memcpy(pcent->data, data, sizeof(pcent->data));

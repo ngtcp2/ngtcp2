@@ -3199,6 +3199,22 @@ NGTCP2_EXTERN int ngtcp2_conn_after_retry(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_set_stream_user_data` sets |stream_user_data| to the
+ * stream identified by |stream_id|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *     Stream does not exist
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
+                                                   int64_t stream_id,
+                                                   void *stream_user_data);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
