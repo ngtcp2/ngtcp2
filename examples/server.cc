@@ -383,7 +383,10 @@ nghttp3_ssize read_data(nghttp3_conn *conn, int64_t stream_id, nghttp3_vec *vec,
 
   vec[0].base = stream->data;
   vec[0].len = stream->datalen;
-  *pflags |= NGHTTP3_DATA_FLAG_EOF | NGHTTP3_DATA_FLAG_NO_END_STREAM;
+  *pflags |= NGHTTP3_DATA_FLAG_EOF;
+  if (config.send_trailers) {
+    *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
+  }
 
   return 1;
 }
@@ -411,18 +414,21 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
   stream->dyndataleft -= len;
 
   if (stream->dyndataleft == 0) {
-    *pflags |= NGHTTP3_DATA_FLAG_EOF | NGHTTP3_DATA_FLAG_NO_END_STREAM;
-    auto stream_id_str = std::to_string(stream_id);
-    std::array<nghttp3_nv, 1> trailers{
-        util::make_nv("x-ngtcp2-stream-id", stream_id_str),
-    };
+    *pflags |= NGHTTP3_DATA_FLAG_EOF;
+    if (config.send_trailers) {
+      *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
+      auto stream_id_str = std::to_string(stream_id);
+      std::array<nghttp3_nv, 1> trailers{
+          util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+      };
 
-    if (auto rv = nghttp3_conn_submit_trailers(conn, stream_id, trailers.data(),
-                                               trailers.size());
-        rv != 0) {
-      std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
-                << std::endl;
-      return NGHTTP3_ERR_CALLBACK_FAILURE;
+      if (auto rv = nghttp3_conn_submit_trailers(
+              conn, stream_id, trailers.data(), trailers.size());
+          rv != 0) {
+        std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
+                  << std::endl;
+        return NGHTTP3_ERR_CALLBACK_FAILURE;
+      }
     }
   }
 
@@ -473,17 +479,19 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
     return -1;
   }
 
-  auto stream_id_str = std::to_string(stream_id);
-  std::array<nghttp3_nv, 1> trailers{
-      util::make_nv("x-ngtcp2-stream-id", stream_id_str),
-  };
+  if (config.send_trailers) {
+    auto stream_id_str = std::to_string(stream_id);
+    std::array<nghttp3_nv, 1> trailers{
+        util::make_nv("x-ngtcp2-stream-id", stream_id_str),
+    };
 
-  if (auto rv = nghttp3_conn_submit_trailers(httpconn, stream_id,
-                                             trailers.data(), trailers.size());
-      rv != 0) {
-    std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
-              << std::endl;
-    return -1;
+    if (auto rv = nghttp3_conn_submit_trailers(
+            httpconn, stream_id, trailers.data(), trailers.size());
+        rv != 0) {
+      std::cerr << "nghttp3_conn_submit_trailers: " << nghttp3_strerror(rv)
+                << std::endl;
+      return -1;
+    }
   }
 
   handler->shutdown_read(stream_id, NGHTTP3_H3_NO_ERROR);
@@ -634,7 +642,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     return -1;
   }
 
-  if (dyn_len == -1) {
+  if (config.send_trailers && dyn_len == -1) {
     auto stream_id_str = std::to_string(stream_id);
     std::array<nghttp3_nv, 1> trailers{
         util::make_nv("x-ngtcp2-stream-id", stream_id_str),
@@ -3532,6 +3540,8 @@ Options:
               Default: )"
             << NGTCP2_MAX_PKTLEN_IPV4 << R"( for IPv4, )"
             << NGTCP2_MAX_PKTLEN_IPV6 << R"( for IPv6
+  --send-trailers
+              Send trailer fields.
   -h, --help  Display this help and exit.
 
 ---
@@ -3581,6 +3591,7 @@ int main(int argc, char **argv) {
         {"cc", required_argument, &flag, 19},
         {"initial-rtt", required_argument, &flag, 20},
         {"max-udp-payload-size", required_argument, &flag, 21},
+        {"send-trailer", no_argument, &flag, 22},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3772,6 +3783,10 @@ int main(int argc, char **argv) {
         } else {
           config.max_udp_payload_size = n;
         }
+        break;
+      case 22:
+        // --send-trailers
+        config.send_trailers = true;
         break;
       }
       break;

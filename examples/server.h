@@ -127,6 +127,9 @@ struct Config {
   // max_udp_payload_size is the maximum UDP payload size that server
   // transmits.  If it is 0, the default value is chosen.
   size_t max_udp_payload_size;
+  // send_trailers controls whether server sends trailer fields or
+  // not.
+  bool send_trailers;
 };
 
 struct Buffer {
