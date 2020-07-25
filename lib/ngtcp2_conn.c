@@ -901,8 +901,6 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                            const ngtcp2_settings *settings,
                            const ngtcp2_mem *mem, void *user_data) {
   int rv;
-  ngtcp2_transport_params *params;
-
   rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings, mem,
                 user_data, 1);
   if (rv != 0) {
@@ -911,12 +909,6 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   (*pconn)->local.bidi.next_stream_id = 1;
   (*pconn)->local.uni.next_stream_id = 3;
-
-  params = &(*pconn)->local.settings.transport_params;
-  if (dcid->datalen == 0) {
-    /* Client uses zero-length Connection ID */
-    params->active_connection_id_limit = 0;
-  }
 
   if ((*pconn)->local.settings.token.len) {
     /* Usage of token lifts amplification limit */
