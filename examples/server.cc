@@ -3591,7 +3591,7 @@ int main(int argc, char **argv) {
         {"cc", required_argument, &flag, 19},
         {"initial-rtt", required_argument, &flag, 20},
         {"max-udp-payload-size", required_argument, &flag, 21},
-        {"send-trailer", no_argument, &flag, 22},
+        {"send-trailers", no_argument, &flag, 22},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
