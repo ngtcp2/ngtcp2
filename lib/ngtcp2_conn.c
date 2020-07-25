@@ -702,17 +702,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->local.settings.token.len = 0;
   }
 
-  if (params->active_connection_id_limit == 0) {
-    (*pconn)->local.settings.transport_params.active_connection_id_limit =
-        NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
-  }
-
-  (*pconn)->local.settings.transport_params.initial_scid = *scid;
-
-  if (scid->datalen == 0) {
-    (*pconn)->local.settings.transport_params.preferred_address_present = 0;
-  }
-
   if (settings->max_udp_payload_size == 0) {
     (*pconn)->local.settings.max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
   }
@@ -772,10 +761,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_scident;
   }
 
-  ngtcp2_scid_init(scident, 0, scid,
-                   params->stateless_reset_token_present
-                       ? params->stateless_reset_token
-                       : NULL);
+  /* Set stateless reset token later if it is available in the local
+     transport parameters */
+  ngtcp2_scid_init(scident, 0, scid, NULL);
 
   rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL, &scident->cid, scident);
   if (rv != 0) {
@@ -783,26 +771,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   scident = NULL;
-
-  if (server && params->preferred_address_present) {
-    scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
-    if (scident == NULL) {
-      rv = NGTCP2_ERR_NOMEM;
-      goto fail_scident;
-    }
-
-    ngtcp2_scid_init(scident, 1, &params->preferred_address.cid,
-                     params->preferred_address.stateless_reset_token);
-
-    rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL, &scident->cid, scident);
-    if (rv != 0) {
-      goto fail_scid_set_insert;
-    }
-
-    scident = NULL;
-
-    (*pconn)->scid.last_seq = 1;
-  }
 
   ngtcp2_dcid_init(&(*pconn)->dcid.current, 0, dcid, NULL);
   ngtcp2_path_copy(&(*pconn)->dcid.current.ps.path, path);
@@ -818,21 +786,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->version = version;
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
-  (*pconn)->rx.unsent_max_offset = (*pconn)->rx.max_offset =
-      params->initial_max_data;
-  (*pconn)->remote.bidi.unsent_max_streams = params->initial_max_streams_bidi;
-  (*pconn)->remote.bidi.max_streams = params->initial_max_streams_bidi;
-  (*pconn)->remote.uni.unsent_max_streams = params->initial_max_streams_uni;
-  (*pconn)->remote.uni.max_streams = params->initial_max_streams_uni;
   (*pconn)->idle_ts = settings->initial_ts;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
 
   ngtcp2_qlog_start(&(*pconn)->qlog, server ? &settings->qlog.odcid : dcid,
                     server);
-
-  ngtcp2_qlog_parameters_set_transport_params(
-      &(*pconn)->qlog, &(*pconn)->local.settings.transport_params, server,
-      NGTCP2_QLOG_SIDE_LOCAL);
 
   return 0;
 
@@ -890,6 +848,16 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->local.bidi.next_stream_id = 0;
   (*pconn)->local.uni.next_stream_id = 2;
+
+  rv = ngtcp2_conn_commit_local_transport_params(*pconn);
+  if (rv != 0) {
+    ngtcp2_conn_del(*pconn);
+    return rv;
+  }
+
+  ngtcp2_qlog_parameters_set_transport_params(
+      &(*pconn)->qlog, &(*pconn)->local.settings.transport_params,
+      (*pconn)->server, NGTCP2_QLOG_SIDE_LOCAL);
 
   return 0;
 }
@@ -8192,6 +8160,10 @@ int ngtcp2_conn_install_tx_handshake_key(
 
   pktns->crypto.tx.hp_ctx = *hp_ctx;
 
+  if (conn->server) {
+    return ngtcp2_conn_commit_local_transport_params(conn);
+  }
+
   return 0;
 }
 
@@ -8487,6 +8459,80 @@ void ngtcp2_conn_set_early_remote_transport_params(
 
   ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, p, conn->server,
                                               NGTCP2_QLOG_SIDE_REMOTE);
+}
+
+int ngtcp2_conn_set_local_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
+  assert(conn->server);
+  assert(params->active_connection_id_limit <= NGTCP2_MAX_DCID_POOL_SIZE);
+
+  if (conn->hs_pktns == NULL || conn->hs_pktns->crypto.tx.ckm) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  conn->local.settings.transport_params = *params;
+
+  return 0;
+}
+
+int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
+  const ngtcp2_mem *mem = conn->mem;
+  ngtcp2_transport_params *params = &conn->local.settings.transport_params;
+  ngtcp2_scid *scident;
+  ngtcp2_ksl_it it;
+  int rv;
+
+  assert(1 == ngtcp2_ksl_len(&conn->scid.set));
+
+  if (params->active_connection_id_limit == 0) {
+    params->active_connection_id_limit =
+        NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  }
+
+  params->initial_scid = conn->oscid;
+
+  if (conn->oscid.datalen == 0) {
+    params->preferred_address_present = 0;
+  }
+
+  if (conn->server) {
+    if (params->stateless_reset_token_present) {
+      it = ngtcp2_ksl_begin(&conn->scid.set);
+      scident = ngtcp2_ksl_it_get(&it);
+
+      memcpy(scident->token, params->stateless_reset_token,
+             NGTCP2_STATELESS_RESET_TOKENLEN);
+    }
+
+    if (params->preferred_address_present) {
+      scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
+      if (scident == NULL) {
+        return NGTCP2_ERR_NOMEM;
+      }
+
+      ngtcp2_scid_init(scident, 1, &params->preferred_address.cid,
+                       params->preferred_address.stateless_reset_token);
+
+      rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scident->cid, scident);
+      if (rv != 0) {
+        ngtcp2_mem_free(mem, scident);
+        return rv;
+      }
+
+      conn->scid.last_seq = 1;
+    }
+  }
+
+  conn->rx.unsent_max_offset = conn->rx.max_offset = params->initial_max_data;
+  conn->remote.bidi.unsent_max_streams = params->initial_max_streams_bidi;
+  conn->remote.bidi.max_streams = params->initial_max_streams_bidi;
+  conn->remote.uni.unsent_max_streams = params->initial_max_streams_uni;
+  conn->remote.uni.max_streams = params->initial_max_streams_uni;
+
+  ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
+                                              NGTCP2_QLOG_SIDE_LOCAL);
+
+  return 0;
 }
 
 void ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,

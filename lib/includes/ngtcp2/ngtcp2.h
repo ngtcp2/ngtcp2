@@ -2430,6 +2430,27 @@ NGTCP2_EXTERN void ngtcp2_conn_set_early_remote_transport_params(
 /**
  * @function
  *
+ * `ngtcp2_conn_set_local_transport_params` sets the local transport
+ * parameters |params|.  This function can only be called by server.
+ * Although the local transport parameters are passed to
+ * `ngtcp2_conn_server_new`, server might want to update them after
+ * ALPN is chosen.  In that case, server can update the transport
+ * parameter with this function.  Server must call this function
+ * before calling `ngtcp2_conn_install_tx_handshake_key`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     `ngtcp2_conn_install_tx_handshake_key` has been called.
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_set_local_transport_params(ngtcp2_conn *conn,
+                                       const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_local_transport_params` fills settings values in
  * |params|.
  */

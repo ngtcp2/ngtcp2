@@ -622,4 +622,20 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                    const ngtcp2_cid *dcid, ngtcp2_frame *fr,
                                    uint8_t rtb_flags, ngtcp2_tstamp ts);
 
+/*
+ * ngtcp2_conn_commit_local_transport_params commits the local
+ * transport parameters, which is currently set to
+ * conn->local.settings.transport_params.  This function will do some
+ * amends on transport parameters for adjusting default values.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     CID in preferred address equals to the original SCID.
+ */
+int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn);
+
 #endif /* NGTCP2_CONN_H */

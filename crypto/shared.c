@@ -245,6 +245,35 @@ fail:
   return -1;
 }
 
+/*
+ * crypto_set_local_transport_params gets local QUIC transport
+ * parameters from |conn| and sets it to |tls|.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+static int crypto_set_local_transport_params(ngtcp2_conn *conn, void *tls) {
+  ngtcp2_transport_params_type exttype =
+      ngtcp2_conn_is_server(conn)
+          ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
+          : NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO;
+  ngtcp2_transport_params params;
+  ngtcp2_ssize nwrite;
+  uint8_t buf[256];
+
+  ngtcp2_conn_get_local_transport_params(conn, &params);
+
+  nwrite = ngtcp2_encode_transport_params(buf, sizeof(buf), exttype, &params);
+  if (nwrite < 0) {
+    return -1;
+  }
+
+  if (ngtcp2_crypto_set_local_transport_params(tls, buf, (size_t)nwrite) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
 int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
                                             uint8_t *iv, uint8_t *hp_key,
                                             ngtcp2_crypto_level level,
@@ -311,18 +340,23 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
     }
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    if (ngtcp2_conn_is_server(conn)) {
-      rv = ngtcp2_crypto_set_remote_transport_params(conn, tls);
-      if (rv != 0) {
-        goto fail;
-      }
-    }
-
     rv = ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, iv, ivlen,
                                               &hp_ctx);
     if (rv != 0) {
       goto fail;
     }
+
+    if (ngtcp2_conn_is_server(conn)) {
+      rv = ngtcp2_crypto_set_remote_transport_params(conn, tls);
+      if (rv != 0) {
+        goto fail;
+      }
+
+      if (crypto_set_local_transport_params(conn, tls) != 0) {
+        goto fail;
+      }
+    }
+
     break;
   case NGTCP2_CRYPTO_LEVEL_APP:
     rv = ngtcp2_conn_install_tx_key(conn, secret, secretlen, &aead_ctx, iv,
@@ -679,56 +713,25 @@ ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
 }
 
 /*
- * crypto_set_local_transport_params gets local QUIC transport
- * parameters from |conn| and sets it to |tls|.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-static int crypto_set_local_transport_params(ngtcp2_conn *conn, void *tls) {
-  ngtcp2_transport_params_type exttype =
-      ngtcp2_conn_is_server(conn)
-          ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-          : NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO;
-  ngtcp2_transport_params params;
-  ngtcp2_ssize nwrite;
-  uint8_t buf[256];
-
-  ngtcp2_conn_get_local_transport_params(conn, &params);
-
-  nwrite = ngtcp2_encode_transport_params(buf, sizeof(buf), exttype, &params);
-  if (nwrite < 0) {
-    return -1;
-  }
-
-  if (ngtcp2_crypto_set_local_transport_params(tls, buf, (size_t)nwrite) != 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-/*
  * crypto_setup_initial_crypto establishes the initial secrets and
  * encryption keys, and prepares local QUIC transport parameters.
  */
 static int crypto_setup_initial_crypto(ngtcp2_conn *conn,
                                        const ngtcp2_cid *dcid) {
-  void *tls = ngtcp2_conn_get_tls_native_handle(conn);
-
-  if (ngtcp2_crypto_derive_and_install_initial_key(conn, NULL, NULL, NULL, NULL,
-                                                   NULL, NULL, NULL, NULL, NULL,
-                                                   dcid) != 0) {
-    return -1;
-  }
-
-  return crypto_set_local_transport_params(conn, tls);
+  return ngtcp2_crypto_derive_and_install_initial_key(
+      conn, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, dcid);
 }
 
 int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn, void *user_data) {
   const ngtcp2_cid *dcid = ngtcp2_conn_get_dcid(conn);
+  void *tls = ngtcp2_conn_get_tls_native_handle(conn);
   (void)user_data;
 
   if (crypto_setup_initial_crypto(conn, dcid) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  if (crypto_set_local_transport_params(conn, tls) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
