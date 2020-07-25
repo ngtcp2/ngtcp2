@@ -812,6 +812,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_seqgap_push;
   }
 
+  (*pconn)->server = server;
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
   (*pconn)->version = version;
@@ -828,10 +829,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_qlog_start(&(*pconn)->qlog, server ? &settings->qlog.odcid : dcid,
                     server);
+
   ngtcp2_qlog_parameters_set_transport_params(
-      &(*pconn)->qlog, &(*pconn)->local.settings.transport_params,
-      (*pconn)->server,
-      /* local = */ 1);
+      &(*pconn)->qlog, &(*pconn)->local.settings.transport_params, server,
+      NGTCP2_QLOG_SIDE_LOCAL);
 
   return 0;
 
@@ -907,7 +908,6 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if (rv != 0) {
     return rv;
   }
-  (*pconn)->server = 1;
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   (*pconn)->local.bidi.next_stream_id = 1;
   (*pconn)->local.uni.next_stream_id = 3;
@@ -8444,7 +8444,7 @@ int ngtcp2_conn_set_remote_transport_params(
                        params);
 
   ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
-                                              /* local = */ 0);
+                                              NGTCP2_QLOG_SIDE_REMOTE);
 
   if (conn->pktns.crypto.tx.ckm) {
     conn->remote.transport_params = *params;
@@ -8490,20 +8490,12 @@ void ngtcp2_conn_set_early_remote_transport_params(
   conn->tx.max_offset = p->initial_max_data;
 
   ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, p, conn->server,
-                                              /* local = */ 0);
+                                              NGTCP2_QLOG_SIDE_REMOTE);
 }
 
 void ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
                                             ngtcp2_transport_params *params) {
   *params = conn->local.settings.transport_params;
-
-  /* If params->retry_scid_present is set by application then it
-     should also specify original_dcid because the destination
-     connection ID from client after Retry is not what we want
-     here. */
-  if (conn->server && !params->retry_scid_present) {
-    params->original_dcid = conn->rcid;
-  }
 }
 
 int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,

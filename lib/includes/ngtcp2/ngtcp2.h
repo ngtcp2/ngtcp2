@@ -501,9 +501,8 @@ typedef struct ngtcp2_transport_params {
   ngtcp2_preferred_addr preferred_address;
   /* original_dcid is the Destination Connection ID field from the
      first Initial packet from client.  Server must specify this
-     field.  If application specifies retry_scid_present to nonzero,
-     then it must also specify this field.  It is expected that
-     application knows the original Destination Connection ID, for
+     field.  It is expected that application knows the original
+     Destination Connection ID even if it sends Retry packet, for
      example, by including it in retry token.  Otherwise, application
      should not specify this field. */
   ngtcp2_cid original_dcid;

@@ -1562,6 +1562,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     params.original_dcid = *ocid;
     params.retry_scid = *scid;
     params.retry_scid_present = 1;
+  } else {
+    params.original_dcid = *scid;
   }
 
   std::generate(std::begin(params.stateless_reset_token),

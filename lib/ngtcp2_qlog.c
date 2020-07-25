@@ -1018,7 +1018,7 @@ void ngtcp2_qlog_pkt_sent_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 
 void ngtcp2_qlog_parameters_set_transport_params(
     ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
-    int local) {
+    ngtcp2_qlog_side side) {
   uint8_t buf[1024];
   uint8_t *p = buf;
   ngtcp2_vec name, value;
@@ -1037,20 +1037,20 @@ void ngtcp2_qlog_parameters_set_transport_params(
   *p++ = ',';
   *p++ = '{';
   p = write_pair(p, ngtcp2_vec_lit(&name, "owner"),
-                 local ? ngtcp2_vec_lit(&value, "local")
-                       : ngtcp2_vec_lit(&value, "remote"));
+                 side == NGTCP2_QLOG_SIDE_LOCAL
+                     ? ngtcp2_vec_lit(&value, "local")
+                     : ngtcp2_vec_lit(&value, "remote"));
   *p++ = ',';
   p = write_pair_cid(p, ngtcp2_vec_lit(&name, "initial_source_connection_id"),
                      &params->initial_scid);
   *p++ = ',';
-  if (!server == !local) {
+  if (side == (server ? NGTCP2_QLOG_SIDE_LOCAL : NGTCP2_QLOG_SIDE_REMOTE)) {
     p = write_pair_cid(
         p, ngtcp2_vec_lit(&name, "original_destination_connection_id"),
         &params->original_dcid);
     *p++ = ',';
   }
   if (params->retry_scid_present) {
-    assert(!server);
     p = write_pair_cid(p, ngtcp2_vec_lit(&name, "retry_source_connection_id"),
                        &params->retry_scid);
     *p++ = ',';
