@@ -126,12 +126,15 @@ void test_ngtcp2_map_functional(void) {
   for (i = 0; i < NUM_ENT; ++i) {
     CU_ASSERT(0 == ngtcp2_map_insert(&map, &arr[order[i] - 1].map_entry));
   }
+
+  CU_ASSERT(NUM_ENT == ngtcp2_map_size(&map));
+
   /* traverse */
   ngtcp2_map_each(&map, eachfun, NULL);
   /* find */
   shuffle(order, NUM_ENT);
   for (i = 0; i < NUM_ENT; ++i) {
-    ngtcp2_map_find(&map, (key_type)order[i]);
+    CU_ASSERT(NULL != ngtcp2_map_find(&map, (key_type)order[i]));
   }
   /* remove */
   shuffle(order, NUM_ENT);

@@ -152,6 +152,7 @@ int main() {
       !CU_add_test(pSuite, "ksl_range", test_ngtcp2_ksl_range) ||
       !CU_add_test(pSuite, "ksl_update_key_range",
                    test_ngtcp2_ksl_update_key_range) ||
+      !CU_add_test(pSuite, "ksl_dup", test_ngtcp2_ksl_dup) ||
       !CU_add_test(pSuite, "rob_push", test_ngtcp2_rob_push) ||
       !CU_add_test(pSuite, "rob_push_random", test_ngtcp2_rob_push_random) ||
       !CU_add_test(pSuite, "rob_data_at", test_ngtcp2_rob_data_at) ||
