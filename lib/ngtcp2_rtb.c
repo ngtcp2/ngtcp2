@@ -164,6 +164,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
   rtb->pktns_id = pktns_id;
   rtb->cc_pkt_num = 0;
   rtb->cc_bytes_in_flight = 0;
+  rtb->persistent_congestion_start_ts = UINT64_MAX;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
@@ -572,21 +573,29 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
         ent = ngtcp2_ksl_it_get(&it);
         ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
 
-        if (last_lost_pkt_num == ent->hd.pkt_num + 1) {
+        if (last_lost_pkt_num == ent->hd.pkt_num + 1 &&
+            ent->ts >= rtb->persistent_congestion_start_ts) {
           last_lost_pkt_num = ent->hd.pkt_num;
+          oldest_ts = ent->ts;
         } else {
           last_lost_pkt_num = -1;
         }
 
-        oldest_ts = ent->ts;
         rtb_on_remove(rtb, ent, cstat);
         rtb_on_pkt_lost(rtb, pfrc, ent);
       }
 
       cc->congestion_event(cc, cstat, latest_ts, ts);
 
-      if (last_lost_pkt_num != -1) {
-        loss_window = latest_ts - oldest_ts;
+      loss_window = latest_ts - oldest_ts;
+      /* Persistent congestion situation is only evaluated for app
+       * packet number space and for the packets sent after handshake
+       * is confirmed.  During handshake, there is not much packets
+       * sent and also people seem to do lots of effort not to trigger
+       * persistent congestion there, then it is a lot easier to just
+       * not enable it during handshake.
+       */
+      if (rtb->pktns_id == NGTCP2_PKTNS_ID_APP && loss_window > 0) {
         congestion_period = pto * NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
         if (loss_window >= congestion_period) {
           ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,

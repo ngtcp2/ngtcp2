@@ -6271,6 +6271,8 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED |
                  NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED;
 
+  conn->pktns.rtb.persistent_congestion_start_ts = ts;
+
   conn_discard_handshake_state(conn, ts);
 
   if (conn->remote.transport_params.preferred_address_present) {
@@ -7558,6 +7560,8 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (rv != 0) {
       return rv;
     }
+
+    conn->pktns.rtb.persistent_congestion_start_ts = ts;
 
     /* Re-arm loss detection timer here after handshake has been
        confirmed. */

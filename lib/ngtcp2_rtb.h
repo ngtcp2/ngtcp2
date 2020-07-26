@@ -228,6 +228,10 @@ typedef struct {
      contributed to ngtcp2_conn_stat.bytes_in_flight.  It only
      includes the bytes after congestion state is reset. */
   uint64_t cc_bytes_in_flight;
+  /* persistent_congestion_start_ts is the time when persistent
+     congestion evaluation is started.  It happens roughly after
+     handshake is confirmed. */
+  ngtcp2_tstamp persistent_congestion_start_ts;
 } ngtcp2_rtb;
 
 /*
