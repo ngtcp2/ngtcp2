@@ -64,6 +64,7 @@ typedef enum {
   /* NGTCP2_STRM_FLAG_RST_ACKED indicates that the outgoing RST_STREAM
      is acknowledged by peer. */
   NGTCP2_STRM_FLAG_RST_ACKED = 0x20,
+  NGTCP2_STRM_FLAG_FIN_ACKED = 0x40,
 } ngtcp2_strm_flags;
 
 struct ngtcp2_strm;
@@ -206,6 +207,8 @@ int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc);
  */
 int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
                               size_t left);
+
+uint64_t ngtcp2_strm_streamfrq_unacked_offset(ngtcp2_strm *strm);
 
 /*
  * ngtcp2_strm_streamfrq_top returns the first ngtcp2_frame_chain.

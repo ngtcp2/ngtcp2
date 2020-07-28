@@ -28,6 +28,7 @@
 
 #include "ngtcp2_strm.h"
 #include "ngtcp2_test_helper.h"
+#include "ngtcp2_vec.h"
 
 static uint8_t nulldata[1024];
 
@@ -286,6 +287,248 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(1 == frc->fr.stream.fin);
   CU_ASSERT(1 == frc->fr.stream.datacnt);
+
+  ngtcp2_frame_chain_del(frc, mem);
+  ngtcp2_strm_free(&strm);
+}
+
+void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
+  ngtcp2_strm strm;
+  ngtcp2_frame_chain *frc;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_vec *data;
+
+  /* Everything acknowledged including fin */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_FIN_ACKED, 0, 0, NULL, mem);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 0;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 17;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 1;
+  frc->fr.stream.offset = 443;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 971;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 443 + 971);
+
+  CU_ASSERT((uint64_t)-1 == ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+
+  /* Everything acknowledged but fin */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 0;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 17;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 1;
+  frc->fr.stream.offset = 443;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 971;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 443 + 971);
+
+  CU_ASSERT(443 + 971 == ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+
+  /* Unacked gap starts in the middle of stream to resend */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 0;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 971;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 443);
+
+  CU_ASSERT(443 == ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+
+  /* Unacked gap starts after stream to resend */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 0;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 971;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 971);
+
+  CU_ASSERT((uint64_t)-1 == ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+
+  /* Unacked gap and stream overlap and gap starts before stream */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 977;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 971;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 971);
+
+  CU_ASSERT(977 == ngtcp2_strm_streamfrq_unacked_offset(&strm));
+
+  ngtcp2_strm_free(&strm);
+}
+
+void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
+  ngtcp2_strm strm;
+  ngtcp2_frame_chain *frc;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_vec *data;
+  int rv;
+
+  /* Everything acknowledged including fin */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_FIN_ACKED, 0, 0, NULL, mem);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 307;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 149;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 1;
+  frc->fr.stream.offset = 457;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 307;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 764);
+
+  frc = NULL;
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == frc);
+
+  ngtcp2_strm_free(&strm);
+
+  /* Everything acknowledged but fin */
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 0;
+  frc->fr.stream.offset = 307;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 149;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_frame_chain_new(&frc, mem);
+  frc->fr.stream.type = NGTCP2_FRAME_STREAM;
+  frc->fr.stream.fin = 1;
+  frc->fr.stream.offset = 457;
+  frc->fr.stream.datacnt = 1;
+  data = frc->fr.stream.data;
+  data[0].len = 307;
+  data[0].base = nulldata;
+
+  ngtcp2_strm_streamfrq_push(&strm, frc);
+
+  ngtcp2_strm_ack_data(&strm, 0, 764);
+
+  frc = NULL;
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == frc->fr.stream.fin);
+  CU_ASSERT(764 == frc->fr.stream.offset);
+  CU_ASSERT(0 == ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+
+  ngtcp2_frame_chain_del(frc, mem);
+  ngtcp2_strm_free(&strm);
+
+  /* Remove leading acknowledged data */
+  setup_strm_streamfrq_fixture(&strm, mem);
+
+  ngtcp2_strm_ack_data(&strm, 0, 12);
+
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 43);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == frc->fr.stream.fin);
+  CU_ASSERT(12 == frc->fr.stream.offset);
+  CU_ASSERT(1 == frc->fr.stream.datacnt);
+  CU_ASSERT(43 == ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
+
+  ngtcp2_frame_chain_del(frc, mem);
+  ngtcp2_strm_free(&strm);
+
+  /* Creating a gap of acknowledged data */
+  setup_strm_streamfrq_fixture(&strm, mem);
+
+  ngtcp2_strm_ack_data(&strm, 32, 1);
+
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 43);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == frc->fr.stream.fin);
+  CU_ASSERT(0 == frc->fr.stream.offset);
+  CU_ASSERT(2 == frc->fr.stream.datacnt);
+  CU_ASSERT(32 == ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
 
   ngtcp2_frame_chain_del(frc, mem);
   ngtcp2_strm_free(&strm);

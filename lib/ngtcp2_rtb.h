@@ -53,11 +53,30 @@ typedef struct ngtcp2_strm ngtcp2_strm;
 struct ngtcp2_rst;
 typedef struct ngtcp2_rst ngtcp2_rst;
 
+typedef enum ngtcp2_frame_chain_binder_flag {
+  NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE = 0x00,
+  /* NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK indicates that an information
+     which a frame carries has been acknowledged. */
+  NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK = 0x01,
+} ngtcp2_frame_chain_binder_flag;
+
+typedef struct ngtcp2_frame_chain_binder {
+  size_t refcount;
+  uint32_t flags;
+} ngtcp2_frame_chain_binder;
+
+int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
+                                  const ngtcp2_mem *mem);
+
+int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
+                             const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_frame_chain chains frames in a single packet.
  */
 struct ngtcp2_frame_chain {
   ngtcp2_frame_chain *next;
+  ngtcp2_frame_chain_binder *binder;
   ngtcp2_frame fr;
 };
 
@@ -111,6 +130,10 @@ int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem);
 
+int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
+                                     const ngtcp2_vec *token,
+                                     const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
  * memory pointed by |frc|.
@@ -143,6 +166,9 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED indicates that the
      CRYPTO frames have been retransmitted. */
   NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED = 0x08,
+  /* NGTCP2_RTB_FLAG_LOST_RETRANSMITTED indicates that the entry has
+     been marked lost and scheduled to retransmit. */
+  NGTCP2_RTB_FLAG_LOST_RETRANSMITTED = 0x10,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -164,6 +190,7 @@ struct ngtcp2_rtb_entry {
   /* ts is the time point when a packet included in this entry is sent
      to a peer. */
   ngtcp2_tstamp ts;
+  ngtcp2_tstamp lost_ts;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
   struct {
@@ -290,9 +317,9 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * some frames might be prepended to |*pfrc| and the caller should
  * handle them.  |pto| is PTO.
  */
-void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                                ngtcp2_conn_stat *cstat, ngtcp2_duration pto,
-                                ngtcp2_tstamp ts);
+int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                               ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
+                               ngtcp2_duration pto, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends

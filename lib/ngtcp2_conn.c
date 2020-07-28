@@ -1335,10 +1335,10 @@ static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
 /*
  * conn_cryptofrq_unacked_offset returns the CRYPTO frame offset by
  * taking into account acknowledged offset.  If there is no data to
- * send, this function returns (size_t)-1.
+ * send, this function returns (uint64_t)-1.
  */
-static size_t conn_cryptofrq_unacked_offset(ngtcp2_conn *conn,
-                                            ngtcp2_pktns *pktns) {
+static uint64_t conn_cryptofrq_unacked_offset(ngtcp2_conn *conn,
+                                              ngtcp2_pktns *pktns) {
   ngtcp2_frame_chain *frc;
   ngtcp2_crypto *fr;
   ngtcp2_range gap;
@@ -1365,7 +1365,7 @@ static size_t conn_cryptofrq_unacked_offset(ngtcp2_conn *conn,
     }
   }
 
-  return (size_t)-1;
+  return (uint64_t)-1;
 }
 
 static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
@@ -2550,6 +2550,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int credit_expanded = 0;
   ngtcp2_cc_pkt cc_pkt;
   uint64_t crypto_offset;
+  uint64_t stream_offset;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -2683,6 +2684,14 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
 
     for (pfrc = &pktns->tx.frq; *pfrc;) {
+      if ((*pfrc)->binder &&
+          ((*pfrc)->binder->flags & NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK)) {
+        frc = *pfrc;
+        *pfrc = (*pfrc)->next;
+        ngtcp2_frame_chain_del(frc, conn->mem);
+        continue;
+      }
+
       switch ((*pfrc)->fr.type) {
       case NGTCP2_FRAME_STOP_SENDING:
         strm =
@@ -2887,11 +2896,17 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
           continue;
         }
 
+        stream_offset = ngtcp2_strm_streamfrq_unacked_offset(strm);
+        if (stream_offset == (uint64_t)-1) {
+          ngtcp2_strm_streamfrq_clear(strm);
+          ngtcp2_conn_tx_strmq_pop(conn);
+          continue;
+        }
+
         left = ngtcp2_ppe_left(ppe);
 
-        left = ngtcp2_pkt_stream_max_datalen(
-            strm->stream_id, ngtcp2_strm_streamfrq_top(strm)->fr.stream.offset,
-            left, left);
+        left = ngtcp2_pkt_stream_max_datalen(strm->stream_id, stream_offset,
+                                             left, left);
 
         if (left == (size_t)-1) {
           break;
@@ -3807,7 +3822,11 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   int rv;
   ngtcp2_duration pto = conn_compute_pto(conn, pktns);
 
-  ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, &frc, cstat, pto, ts);
+  rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, &frc, cstat, conn, pto, ts);
+  if (rv != 0) {
+    ngtcp2_frame_chain_list_del(frc, conn->mem);
+    return rv;
+  }
 
   rv = conn_resched_frames(conn, pktns, &frc);
   if (rv != 0) {

@@ -30,5 +30,7 @@
 #endif /* HAVE_CONFIG_H */
 
 void test_ngtcp2_strm_streamfrq_pop(void);
+void test_ngtcp2_strm_streamfrq_unacked_offset(void);
+void test_ngtcp2_strm_streamfrq_unacked_pop(void);
 
 #endif /* NGTCP2_STRM_TEST_H */
