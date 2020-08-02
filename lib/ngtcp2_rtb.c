@@ -935,8 +935,9 @@ ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb) {
   return ent->lost_ts;
 }
 
-static void rtb_on_pkt_lost2(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                             ngtcp2_rtb_entry *ent) {
+static void rtb_on_pkt_lost_no_reclaim(ngtcp2_rtb *rtb,
+                                       ngtcp2_frame_chain **pfrc,
+                                       ngtcp2_rtb_entry *ent) {
   ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
                       ent->ts);
 
@@ -988,7 +989,7 @@ void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
     rtb_on_remove(rtb, ent, cstat);
     ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
 
-    rtb_on_pkt_lost2(rtb, pfrc, ent);
+    rtb_on_pkt_lost_no_reclaim(rtb, pfrc, ent);
   }
 }
 
