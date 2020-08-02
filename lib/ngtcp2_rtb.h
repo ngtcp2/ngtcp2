@@ -60,6 +60,12 @@ typedef enum ngtcp2_frame_chain_binder_flag {
   NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK = 0x01,
 } ngtcp2_frame_chain_binder_flag;
 
+/*
+ * ngtcp2_frame_chain_binder binds 2 or more of ngtcp2_frame_chain to
+ * share the acknowledgement state.  In general, all
+ * ngtcp2_frame_chains bound to the same binder must have the same
+ * information.
+ */
 typedef struct ngtcp2_frame_chain_binder {
   size_t refcount;
   uint32_t flags;
@@ -68,6 +74,17 @@ typedef struct ngtcp2_frame_chain_binder {
 int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
                                   const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_bind_frame_chains binds two frame chains |a| and |b| using
+ * new or existing ngtcp2_frame_chain_binder.  |a| might have non-NULL
+ * a->binder.  |b| must not have non-NULL b->binder.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
 int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
                              const ngtcp2_mem *mem);
 
@@ -191,6 +208,7 @@ struct ngtcp2_rtb_entry {
   /* ts is the time point when a packet included in this entry is sent
      to a peer. */
   ngtcp2_tstamp ts;
+  /* lost_ts is the time when this entry is marked lost. */
   ngtcp2_tstamp lost_ts;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
