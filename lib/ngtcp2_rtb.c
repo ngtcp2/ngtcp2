@@ -241,6 +241,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
   rtb->cc_pkt_num = 0;
   rtb->cc_bytes_in_flight = 0;
   rtb->persistent_congestion_start_ts = UINT64_MAX;
+  rtb->num_lost_pkts = 0;
 }
 
 void ngtcp2_rtb_free(ngtcp2_rtb *rtb) {
@@ -321,6 +322,8 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
       ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
       ent->lost_ts = ts;
+
+      ++rtb->num_lost_pkts;
 
       ngtcp2_ksl_it_next(it);
 
@@ -430,6 +433,8 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       if (*pfrc != first) {
         ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
         ent->lost_ts = ts;
+
+        ++rtb->num_lost_pkts;
 
         ngtcp2_ksl_it_next(it);
 
@@ -720,12 +725,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
 static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
                         const ngtcp2_rtb_entry *ent, uint64_t loss_delay,
-                        ngtcp2_tstamp lost_send_time) {
+                        ngtcp2_tstamp lost_send_time, uint64_t pkt_thres) {
   ngtcp2_tstamp loss_time;
-  uint64_t pkt_thres =
-      rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
-
-  pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
 
   if (ent->ts <= lost_send_time ||
       rtb->largest_acked_tx_pkt_num >= ent->hd.pkt_num + (int64_t)pkt_thres) {
@@ -768,7 +769,10 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   ngtcp2_duration loss_window, congestion_period;
   ngtcp2_cc *cc = rtb->cc;
   int rv;
+  uint64_t pkt_thres =
+      rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
 
+  pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
   cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(cstat);
   lost_send_time = ts - loss_delay;
@@ -781,7 +785,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       break;
     }
 
-    if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, lost_send_time)) {
+    if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, lost_send_time, pkt_thres)) {
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
       last_lost_pkt_num = ent->hd.pkt_num;
@@ -840,10 +844,29 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
     }
   }
 
-  /* TODO Limit the number of LOST_RETRANSMITTED entries under maximum
-     reordering threshold. */
+  ngtcp2_rtb_remove_excessive_lost_pkt(rtb, pkt_thres);
 
   return 0;
+}
+
+void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
+  ngtcp2_ksl_it it = ngtcp2_ksl_end(&rtb->ents);
+  ngtcp2_rtb_entry *ent;
+
+  for (; rtb->num_lost_pkts > n;) {
+    assert(ngtcp2_ksl_it_end(&it));
+    ngtcp2_ksl_it_prev(&it);
+    ent = ngtcp2_ksl_it_get(&it);
+
+    assert(ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED);
+
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                    "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
+
+    --rtb->num_lost_pkts;
+    ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    ngtcp2_rtb_entry_del(ent, rtb->mem);
+  }
 }
 
 void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
@@ -871,6 +894,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                     "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
 
+    --rtb->num_lost_pkts;
     ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
     ngtcp2_rtb_entry_del(ent, rtb->mem);
 
@@ -909,6 +933,10 @@ static void rtb_on_pkt_lost2(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   }
 
   if (!(ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
+    if (ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED) {
+      --rtb->num_lost_pkts;
+    }
+
     if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED) {
       ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                       "pkn=%" PRId64 " CRYPTO has already been retransmitted",

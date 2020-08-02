@@ -367,3 +367,45 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   ngtcp2_cc_reno_cc_free(&cc, mem);
   ngtcp2_strm_free(&crypto);
 }
+
+void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
+  ngtcp2_rtb rtb;
+  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APP;
+  ngtcp2_strm crypto;
+  ngtcp2_log log;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_cc cc;
+  ngtcp2_rst rst;
+  ngtcp2_conn_stat cstat;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  size_t i;
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+
+  conn_stat_init(&cstat);
+  ngtcp2_rst_init(&rst);
+  ngtcp2_cc_reno_cc_init(&cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+
+  add_rtb_entry_range(&rtb, 0, 7, &cstat, mem);
+
+  it = ngtcp2_ksl_end(&rtb.ents);
+
+  for (i = 0; i < 5; ++i) {
+    ngtcp2_ksl_it_prev(&it);
+    ent = ngtcp2_ksl_it_get(&it);
+    ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
+    ent->lost_ts = 16777217;
+    ++rtb.num_lost_pkts;
+  }
+
+  ngtcp2_rtb_remove_excessive_lost_pkt(&rtb, 2);
+
+  CU_ASSERT(4 == ngtcp2_ksl_len(&rtb.ents));
+
+  ngtcp2_rtb_free(&rtb);
+  ngtcp2_cc_reno_cc_free(&cc, mem);
+  ngtcp2_strm_free(&crypto);
+}

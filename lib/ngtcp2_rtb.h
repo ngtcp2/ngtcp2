@@ -259,6 +259,9 @@ typedef struct {
      congestion evaluation is started.  It happens roughly after
      handshake is confirmed. */
   ngtcp2_tstamp persistent_congestion_start_ts;
+  /* num_lost_pkts is the number entries in ents which has
+     NGTCP2_RTB_FLAG_LOST_RETRANSMITTED flag set. */
+  size_t num_lost_pkts;
 } ngtcp2_rtb;
 
 /*
@@ -367,5 +370,11 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
  * new congestion state.
  */
 void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num);
+
+/*
+ * ngtcp2_rtb_remove_expired_lost_pkt ensures that the number of lost
+ * packets at most |n|.
+ */
+void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
 
 #endif /* NGTCP2_RTB_H */
