@@ -24,6 +24,8 @@
  */
 #include "ngtcp2_rtb_test.h"
 
+#include <assert.h>
+
 #include <CUnit/CUnit.h>
 
 #include "ngtcp2_rtb.h"
@@ -278,6 +280,88 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
   CU_ASSERT(1 == num_acked);
   assert_rtb_entry_not_found(&rtb, 0);
+
+  ngtcp2_rtb_free(&rtb);
+  ngtcp2_cc_reno_cc_free(&cc, mem);
+  ngtcp2_strm_free(&crypto);
+}
+
+void test_ngtcp2_rtb_lost_pkt_ts(void) {
+  ngtcp2_rtb rtb;
+  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APP;
+  ngtcp2_strm crypto;
+  ngtcp2_log log;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_cc cc;
+  ngtcp2_rst rst;
+  ngtcp2_conn_stat cstat;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+
+  conn_stat_init(&cstat);
+  ngtcp2_rst_init(&rst);
+  ngtcp2_cc_reno_cc_init(&cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+
+  add_rtb_entry_range(&rtb, 0, 1, &cstat, mem);
+
+  CU_ASSERT(UINT64_MAX == ngtcp2_rtb_lost_pkt_ts(&rtb));
+
+  it = ngtcp2_ksl_end(&rtb.ents);
+  ngtcp2_ksl_it_prev(&it);
+  ent = ngtcp2_ksl_it_get(&it);
+  ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
+  ent->lost_ts = 16777217;
+
+  CU_ASSERT(16777217 == ngtcp2_rtb_lost_pkt_ts(&rtb));
+
+  ngtcp2_rtb_free(&rtb);
+  ngtcp2_cc_reno_cc_free(&cc, mem);
+  ngtcp2_strm_free(&crypto);
+}
+
+void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
+  ngtcp2_rtb rtb;
+  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APP;
+  ngtcp2_strm crypto;
+  ngtcp2_log log;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_cc cc;
+  ngtcp2_rst rst;
+  ngtcp2_conn_stat cstat;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  size_t i;
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
+
+  conn_stat_init(&cstat);
+  ngtcp2_rst_init(&rst);
+  ngtcp2_cc_reno_cc_init(&cc, &log, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+
+  add_rtb_entry_range(&rtb, 0, 7, &cstat, mem);
+
+  it = ngtcp2_ksl_end(&rtb.ents);
+
+  for (i = 0; i < 5; ++i) {
+    ngtcp2_ksl_it_prev(&it);
+    ent = ngtcp2_ksl_it_get(&it);
+    ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
+    ent->lost_ts = 16777217 + i;
+  }
+
+  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777219);
+
+  CU_ASSERT(5 == ngtcp2_ksl_len(&rtb.ents));
+
+  ngtcp2_rtb_remove_expired_lost_pkt(&rtb, 1, 16777223);
+
+  CU_ASSERT(2 == ngtcp2_ksl_len(&rtb.ents));
 
   ngtcp2_rtb_free(&rtb);
   ngtcp2_cc_reno_cc_free(&cc, mem);

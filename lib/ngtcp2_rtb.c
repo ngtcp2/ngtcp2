@@ -840,31 +840,63 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
     }
   }
 
+  /* TODO Limit the number of LOST_RETRANSMITTED entries under maximum
+     reordering threshold. */
+
+  return 0;
+}
+
+void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
+                                        ngtcp2_tstamp ts) {
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+
   if (ngtcp2_ksl_len(&rtb->ents) == 0) {
-    return 0;
+    return;
   }
 
   it = ngtcp2_ksl_end(&rtb->ents);
 
   for (;;) {
+    assert(ngtcp2_ksl_it_end(&it));
+
     ngtcp2_ksl_it_prev(&it);
     ent = ngtcp2_ksl_it_get(&it);
 
     if (!(ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED) ||
         ts - ent->lost_ts < pto) {
-      return 0;
+      return;
     }
 
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                    "removing stale lost packet pkn=%" PRId64, ent->hd.pkt_num);
+                    "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
 
     ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
     ngtcp2_rtb_entry_del(ent, rtb->mem);
 
     if (ngtcp2_ksl_len(&rtb->ents) == 0) {
-      return 0;
+      return;
     }
   }
+}
+
+ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb) {
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+
+  if (ngtcp2_ksl_len(&rtb->ents) == 0) {
+    return UINT64_MAX;
+  }
+
+  it = ngtcp2_ksl_end(&rtb->ents);
+  ngtcp2_ksl_it_prev(&it);
+  ent = ngtcp2_ksl_it_get(&it);
+
+  if (!(ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED)) {
+    return UINT64_MAX;
+  }
+
+  return ent->lost_ts;
 }
 
 static void rtb_on_pkt_lost2(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,

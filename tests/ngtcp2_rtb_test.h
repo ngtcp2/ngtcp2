@@ -31,5 +31,7 @@
 
 void test_ngtcp2_rtb_add(void);
 void test_ngtcp2_rtb_recv_ack(void);
+void test_ngtcp2_rtb_lost_pkt_ts(void);
+void test_ngtcp2_rtb_remove_expired_lost_pkt(void);
 
 #endif /* NGTCP2_RTB_TEST_H */

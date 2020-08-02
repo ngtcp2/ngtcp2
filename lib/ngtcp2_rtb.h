@@ -322,6 +322,19 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                                ngtcp2_duration pto, ngtcp2_tstamp ts);
 
 /*
+ * ngtcp2_rtb_remove_expired_lost_pkt removes expired lost packet.
+ */
+void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
+                                        ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_rtb_lost_pkt_ts returns the earliest time when the still
+ * retained packet was lost.  It returns UINT64_MAX if no such packet
+ * exists.
+ */
+ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb);
+
+/*
  * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends
  * all frames to |*pfrc|.  Even when this function fails, some frames
  * might be prepended to |*pfrc| and the caller should handle them.

@@ -166,6 +166,9 @@ int main() {
                    test_ngtcp2_encode_transport_params) ||
       !CU_add_test(pSuite, "rtb_add", test_ngtcp2_rtb_add) ||
       !CU_add_test(pSuite, "rtb_recv_ack", test_ngtcp2_rtb_recv_ack) ||
+      !CU_add_test(pSuite, "rtb_lost_pkt_ts", test_ngtcp2_rtb_lost_pkt_ts) ||
+      !CU_add_test(pSuite, "rtb_remove_expired_lost_pkt",
+                   test_ngtcp2_rtb_remove_expired_lost_pkt) ||
       !CU_add_test(pSuite, "idtr_open", test_ngtcp2_idtr_open) ||
       !CU_add_test(pSuite, "ringbuf_push_front",
                    test_ngtcp2_ringbuf_push_front) ||

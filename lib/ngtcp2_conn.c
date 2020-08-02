@@ -8319,14 +8319,18 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp t1 = ngtcp2_conn_loss_detection_expiry(conn);
   ngtcp2_tstamp t2 = ngtcp2_conn_ack_delay_expiry(conn);
   ngtcp2_tstamp t3 = ngtcp2_conn_internal_expiry(conn);
+  ngtcp2_tstamp t4 = ngtcp2_conn_lost_pkt_expiry(conn);
   ngtcp2_tstamp res = ngtcp2_min(t1, t2);
-  return ngtcp2_min(res, t3);
+  res = ngtcp2_min(res, t3);
+  return ngtcp2_min(res, t4);
 }
 
 int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
 
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
+
+  ngtcp2_conn_remove_lost_pkt(conn, ts);
 
   if (ngtcp2_conn_loss_detection_expiry(conn) <= ts) {
     rv = ngtcp2_conn_on_loss_detection_timer(conn, ts);
@@ -8355,6 +8359,49 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
     acktr_cancel_expired_ack_delay_timer(&conn->hs_pktns->acktr, ts);
   }
   acktr_cancel_expired_ack_delay_timer(&conn->pktns.acktr, ts);
+}
+
+ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn) {
+  ngtcp2_tstamp res = UINT64_MAX, ts;
+
+  if (conn->in_pktns) {
+    ts = ngtcp2_rtb_lost_pkt_ts(&conn->in_pktns->rtb);
+    if (ts != UINT64_MAX) {
+      ts += conn_compute_pto(conn, conn->in_pktns);
+      res = ngtcp2_min(res, ts);
+    }
+  }
+
+  if (conn->hs_pktns) {
+    ts = ngtcp2_rtb_lost_pkt_ts(&conn->hs_pktns->rtb);
+    if (ts != UINT64_MAX) {
+      ts += conn_compute_pto(conn, conn->hs_pktns);
+      res = ngtcp2_min(res, ts);
+    }
+  }
+
+  ts = ngtcp2_rtb_lost_pkt_ts(&conn->pktns.rtb);
+  if (ts != UINT64_MAX) {
+    ts += conn_compute_pto(conn, &conn->pktns);
+    res = ngtcp2_min(res, ts);
+  }
+
+  return res;
+}
+
+void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  ngtcp2_tstamp pto;
+
+  if (conn->in_pktns) {
+    pto = conn_compute_pto(conn, conn->in_pktns);
+    ngtcp2_rtb_remove_expired_lost_pkt(&conn->in_pktns->rtb, pto, ts);
+  }
+  if (conn->hs_pktns) {
+    pto = conn_compute_pto(conn, conn->hs_pktns);
+    ngtcp2_rtb_remove_expired_lost_pkt(&conn->hs_pktns->rtb, pto, ts);
+  }
+  pto = conn_compute_pto(conn, &conn->pktns);
+  ngtcp2_rtb_remove_expired_lost_pkt(&conn->pktns.rtb, pto, ts);
 }
 
 /*

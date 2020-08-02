@@ -638,4 +638,15 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
  */
 int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn);
 
+/*
+ * ngtcp2_conn_lost_pkt_expiry returns the earliest expiry time of
+ * lost packet.
+ */
+ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn);
+
+/*
+ * ngtcp2_conn_remove_lost_pkt removes the expired lost packet.
+ */
+void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
 #endif /* NGTCP2_CONN_H */
