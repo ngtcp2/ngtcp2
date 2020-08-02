@@ -2513,9 +2513,6 @@ static size_t conn_min_short_pktlen(ngtcp2_conn *conn) {
   return conn->dcid.current.cid.datalen + NGTCP2_MIN_PKT_EXPANDLEN;
 }
 
-static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                               ngtcp2_frame_chain **pfrc);
-
 typedef enum {
   NGTCP2_WRITE_PKT_FLAG_NONE = 0x00,
   /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet
@@ -3001,7 +2998,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
         return rv;
       }
       if (frc) {
-        rv = conn_resched_frames(conn, pktns, &frc);
+        rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
         if (rv != 0) {
           ngtcp2_frame_chain_list_del(frc, conn->mem);
           return rv;
@@ -3684,17 +3681,7 @@ static uint64_t conn_tx_strmq_first_cycle(ngtcp2_conn *conn) {
   return strm->cycle;
 }
 
-/*
- * conn_resched_frames reschedules frames linked from |*pfrc| for
- * retransmission.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                ngtcp2_frame_chain **pfrc) {
   ngtcp2_frame_chain **first = pfrc;
   ngtcp2_frame_chain *frc;
@@ -3841,7 +3828,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   ngtcp2_rtb_remove_all(rtb, &frc, &conn->cstat);
 
-  rv = conn_resched_frames(conn, &conn->pktns, &frc);
+  rv = ngtcp2_conn_resched_frames(conn, &conn->pktns, &frc);
   if (rv != 0) {
     assert(ngtcp2_err_is_fatal(rv));
     ngtcp2_frame_chain_list_del(frc, conn->mem);
@@ -3851,7 +3838,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   frc = NULL;
   ngtcp2_rtb_remove_all(in_rtb, &frc, &conn->cstat);
 
-  rv = conn_resched_frames(conn, in_pktns, &frc);
+  rv = ngtcp2_conn_resched_frames(conn, in_pktns, &frc);
   if (rv != 0) {
     assert(ngtcp2_err_is_fatal(rv));
     ngtcp2_frame_chain_list_del(frc, conn->mem);
@@ -3890,7 +3877,7 @@ int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     return rv;
   }
 
-  rv = conn_resched_frames(conn, pktns, &frc);
+  rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
   if (rv != 0) {
     ngtcp2_frame_chain_list_del(frc, conn->mem);
     return rv;
@@ -9330,7 +9317,7 @@ int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
 
   ngtcp2_rtb_remove_all(rtb, &frc, &conn->cstat);
 
-  rv = conn_resched_frames(conn, pktns, &frc);
+  rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
   if (rv != 0) {
     assert(ngtcp2_err_is_fatal(rv));
     ngtcp2_frame_chain_list_del(frc, conn->mem);
@@ -9501,7 +9488,7 @@ static int conn_on_crypto_timeout(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
     return rv;
   }
 
-  rv = conn_resched_frames(conn, pktns, &frc);
+  rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
   if (rv != 0) {
     ngtcp2_frame_chain_list_del(frc, conn->mem);
     return rv;

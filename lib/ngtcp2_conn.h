@@ -649,4 +649,17 @@ ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn);
  */
 void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
+/*
+ * ngtcp2_conn_resched_frames reschedules frames linked from |*pfrc|
+ * for retransmission.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                               ngtcp2_frame_chain **pfrc);
+
 #endif /* NGTCP2_CONN_H */
