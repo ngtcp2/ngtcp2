@@ -290,6 +290,17 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
 
   ngtcp2_frame_chain_del(frc, mem);
   ngtcp2_strm_free(&strm);
+
+  /* left == 0 and there is outstanding data */
+  setup_strm_streamfrq_fixture(&strm, mem);
+
+  frc = NULL;
+  rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 0);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL == frc);
+
+  ngtcp2_strm_free(&strm);
 }
 
 void test_ngtcp2_strm_streamfrq_unacked_offset(void) {

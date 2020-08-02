@@ -367,6 +367,12 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   if (left == 0) {
     /* datalen could be zero if 0 length STREAM has been sent */
     if (datalen || ngtcp2_ksl_len(strm->tx.streamfrq) > 1) {
+      rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &fr->offset, frc);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        ngtcp2_frame_chain_del(frc, strm->mem);
+        return rv;
+      }
       *pfrc = NULL;
       return 0;
     }
