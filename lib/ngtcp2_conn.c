@@ -708,6 +708,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
   (*pconn)->cstat.initial_rtt = settings->initial_rtt;
+  memset((*pconn)->cstat.last_tx_pkt_ts, 0xff,
+         sizeof((*pconn)->cstat.last_tx_pkt_ts));
 
   ngtcp2_rst_init(&(*pconn)->rst);
 
@@ -2490,6 +2492,9 @@ static size_t conn_min_short_pktlen(ngtcp2_conn *conn) {
   return conn->dcid.current.cid.datalen + NGTCP2_MIN_PKT_EXPANDLEN;
 }
 
+static int conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                               ngtcp2_frame_chain **pfrc);
+
 typedef enum {
   NGTCP2_WRITE_PKT_FLAG_NONE = 0x00,
   /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet
@@ -2696,6 +2701,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
       }
     }
 
+  build_pkt:
     for (pfrc = &pktns->tx.frq; *pfrc;) {
       if ((*pfrc)->binder &&
           ((*pfrc)->binder->flags & NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK)) {
@@ -2960,6 +2966,26 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
           assert(ngtcp2_err_is_fatal(rv));
           return rv;
         }
+      }
+    }
+
+    if (rv != NGTCP2_ERR_NOBUF &&
+        !(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+        pktns->tx.frq == NULL && pktns->rtb.probe_pkt_left) {
+      frc = NULL;
+      rv = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, &frc, conn,
+                                     pktns->rtb.probe_pkt_left);
+      if (rv != 0) {
+        ngtcp2_frame_chain_list_del(frc, conn->mem);
+        return rv;
+      }
+      if (frc) {
+        rv = conn_resched_frames(conn, pktns, &frc);
+        if (rv != 0) {
+          ngtcp2_frame_chain_list_del(frc, conn->mem);
+          return rv;
+        }
+        goto build_pkt;
       }
     }
 

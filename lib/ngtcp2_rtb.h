@@ -163,9 +163,10 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
      acknowledgement. */
   NGTCP2_RTB_FLAG_ACK_ELICITING = 0x04,
-  /* NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED indicates that the
-     CRYPTO frames have been retransmitted. */
-  NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED = 0x08,
+  /* NGTCP2_RTB_FLAG_PTO_RECLAIMED indicates that the packet has been
+     reclaimed on PTO.  It is not marked lost yet and still consumes
+     congestion window. */
+  NGTCP2_RTB_FLAG_PTO_RECLAIMED = 0x08,
   /* NGTCP2_RTB_FLAG_LOST_RETRANSMITTED indicates that the entry has
      been marked lost and scheduled to retransmit. */
   NGTCP2_RTB_FLAG_LOST_RETRANSMITTED = 0x10,
@@ -376,5 +377,19 @@ void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num);
  * packets at most |n|.
  */
 void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
+
+/*
+ * ngtcp2_rtb_reclaim_on_pto reclaims up to |num_pkts| packets which
+ * are in-flight and not marked lost to send them in PTO probe.  The
+ * reclaimed frames are chained to |*pfrc|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+int ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                              ngtcp2_conn *conn, size_t num_pkts);
 
 #endif /* NGTCP2_RTB_H */

@@ -5619,6 +5619,57 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  int64_t stream_id;
+  uint8_t buf[2048];
+  ngtcp2_ssize nwrite;
+  ngtcp2_ssize spktlen;
+  size_t i;
+  size_t num_reclaim_pkt;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it;
+
+  setup_default_client(&conn);
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  for (i = 0; i < 5; ++i) {
+    spktlen = ngtcp2_conn_write_stream(conn, NULL, buf, sizeof(buf), &nwrite,
+                                       NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                       null_data, 1024, 1);
+
+    CU_ASSERT(0 < spktlen);
+  }
+
+  CU_ASSERT(5 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, 3 * NGTCP2_SECONDS);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen =
+      ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), 3 * NGTCP2_SECONDS);
+
+  CU_ASSERT(spktlen > 0);
+
+  it = ngtcp2_ksl_begin(&conn->pktns.rtb.ents);
+  num_reclaim_pkt = 0;
+  for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
+    ent = ngtcp2_ksl_it_get(&it);
+    if (ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED) {
+      ++num_reclaim_pkt;
+    }
+  }
+
+  CU_ASSERT(2 == num_reclaim_pkt);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];

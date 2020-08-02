@@ -296,13 +296,116 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   }
 }
 
+static int rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                             ngtcp2_rtb_entry *ent, ngtcp2_conn *conn) {
+  ngtcp2_frame_chain *frc, *nfrc;
+  ngtcp2_frame *fr;
+  ngtcp2_strm *strm;
+  ngtcp2_range gap, range;
+  int rv;
+
+  /* PADDING only (or PADDING + ACK ) packets will have NULL
+     ent->frc. */
+  /* TODO Reconsider the order of pfrc */
+  for (frc = ent->frc; frc; frc = frc->next) {
+    fr = &frc->fr;
+    /* Check that a late ACK acknowledged this frame. */
+    if (frc->binder &&
+        (frc->binder->flags & NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK)) {
+      continue;
+    }
+    switch (frc->fr.type) {
+    case NGTCP2_FRAME_STREAM:
+      strm = ngtcp2_conn_find_stream(conn, fr->stream.stream_id);
+      if (strm == NULL) {
+        continue;
+      }
+
+      gap = ngtcp2_strm_get_unacked_range_after(strm, fr->stream.offset);
+
+      range.begin = fr->stream.offset;
+      range.end = fr->stream.offset +
+                  ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
+      range = ngtcp2_range_intersect(&range, &gap);
+      if (ngtcp2_range_len(&range) == 0 &&
+          (!fr->stream.fin || (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED))) {
+        continue;
+      }
+
+      rv = ngtcp2_frame_chain_stream_datacnt_new(&nfrc, fr->stream.datacnt,
+                                                 rtb->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      nfrc->fr = *fr;
+      ngtcp2_vec_copy(nfrc->fr.stream.data, fr->stream.data,
+                      fr->stream.datacnt);
+
+      break;
+    case NGTCP2_FRAME_CRYPTO:
+      /* Don't resend CRYPTO frame if the whole region it contains has
+         been acknowledged */
+      gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->crypto.offset);
+
+      range.begin = fr->crypto.offset;
+      range.end = fr->crypto.offset +
+                  ngtcp2_vec_len(fr->crypto.data, fr->crypto.datacnt);
+      range = ngtcp2_range_intersect(&range, &gap);
+      if (ngtcp2_range_len(&range) == 0) {
+        continue;
+      }
+
+      rv = ngtcp2_frame_chain_crypto_datacnt_new(&nfrc, fr->crypto.datacnt,
+                                                 rtb->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      nfrc->fr = *fr;
+      ngtcp2_vec_copy(nfrc->fr.crypto.data, fr->crypto.data,
+                      fr->crypto.datacnt);
+
+      break;
+    case NGTCP2_FRAME_NEW_TOKEN:
+      rv = ngtcp2_frame_chain_new_token_new(&nfrc, &fr->new_token.token,
+                                            rtb->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      break;
+    default:
+      rv = ngtcp2_frame_chain_new(&nfrc, rtb->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      nfrc->fr = *fr;
+
+      rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
+      if (rv != 0) {
+        return rv;
+      }
+
+      break;
+    }
+
+    frame_chain_insert(pfrc, nfrc);
+  }
+
+  return 0;
+}
+
 static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
                            ngtcp2_ksl_it *it, ngtcp2_rtb_entry *ent,
                            ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  ngtcp2_frame_chain *first = *pfrc, *frc, *nfrc;
-  ngtcp2_frame *fr;
-  ngtcp2_range gap, range;
-  ngtcp2_strm *strm;
+  ngtcp2_frame_chain *first = *pfrc;
   int rv;
 
   ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
@@ -313,9 +416,9 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
   }
 
   if (!(ent->flags & NGTCP2_RTB_FLAG_PROBE)) {
-    if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED) {
+    if (ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED) {
       ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                      "pkn=%" PRId64 " CRYPTO has already been retransmitted",
+                      "pkn=%" PRId64 " has already been reclaimed on PTO",
                       ent->hd.pkt_num);
       assert(!(ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED));
       assert(UINT64_MAX == ent->lost_ts);
@@ -334,100 +437,9 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       assert(!(ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED));
       assert(UINT64_MAX == ent->lost_ts);
 
-      /* PADDING only (or PADDING + ACK ) packets will have NULL
-         ent->frc. */
-      /* TODO Reconsider the order of pfrc */
-      for (frc = ent->frc; frc; frc = frc->next) {
-        fr = &frc->fr;
-        /* Check that a late ACK acknowledged this frame. */
-        if (frc->binder &&
-            (frc->binder->flags & NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK)) {
-          continue;
-        }
-        switch (frc->fr.type) {
-        case NGTCP2_FRAME_STREAM:
-          strm = ngtcp2_conn_find_stream(conn, fr->stream.stream_id);
-          if (strm == NULL) {
-            continue;
-          }
-
-          gap = ngtcp2_strm_get_unacked_range_after(strm, fr->stream.offset);
-
-          range.begin = fr->stream.offset;
-          range.end = fr->stream.offset +
-                      ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
-          range = ngtcp2_range_intersect(&range, &gap);
-          if (ngtcp2_range_len(&range) == 0 &&
-              (!fr->stream.fin || (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED))) {
-            continue;
-          }
-
-          rv = ngtcp2_frame_chain_stream_datacnt_new(&nfrc, fr->stream.datacnt,
-                                                     rtb->mem);
-          if (rv != 0) {
-            return rv;
-          }
-
-          nfrc->fr = *fr;
-          ngtcp2_vec_copy(nfrc->fr.stream.data, fr->stream.data,
-                          fr->stream.datacnt);
-
-          break;
-        case NGTCP2_FRAME_CRYPTO:
-          /* Don't resend CRYPTO frame if the whole region it contains has
-             been acknowledged */
-          gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto,
-                                                    fr->crypto.offset);
-
-          range.begin = fr->crypto.offset;
-          range.end = fr->crypto.offset +
-                      ngtcp2_vec_len(fr->crypto.data, fr->crypto.datacnt);
-          range = ngtcp2_range_intersect(&range, &gap);
-          if (ngtcp2_range_len(&range) == 0) {
-            continue;
-          }
-
-          rv = ngtcp2_frame_chain_crypto_datacnt_new(&nfrc, fr->crypto.datacnt,
-                                                     rtb->mem);
-          if (rv != 0) {
-            return rv;
-          }
-
-          nfrc->fr = *fr;
-          ngtcp2_vec_copy(nfrc->fr.crypto.data, fr->crypto.data,
-                          fr->crypto.datacnt);
-
-          break;
-        case NGTCP2_FRAME_NEW_TOKEN:
-          rv = ngtcp2_frame_chain_new_token_new(&nfrc, &fr->new_token.token,
-                                                rtb->mem);
-          if (rv != 0) {
-            return rv;
-          }
-
-          rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
-          if (rv != 0) {
-            return rv;
-          }
-
-          break;
-        default:
-          rv = ngtcp2_frame_chain_new(&nfrc, rtb->mem);
-          if (rv != 0) {
-            return rv;
-          }
-
-          nfrc->fr = *fr;
-
-          rv = ngtcp2_bind_frame_chains(frc, nfrc, rtb->mem);
-          if (rv != 0) {
-            return rv;
-          }
-
-          break;
-        }
-
-        frame_chain_insert(pfrc, nfrc);
+      rv = rtb_reclaim_frame(rtb, pfrc, ent, conn);
+      if (rv != 0) {
+        return rv;
       }
 
       if (*pfrc != first) {
@@ -937,9 +949,9 @@ static void rtb_on_pkt_lost2(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       --rtb->num_lost_pkts;
     }
 
-    if (ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED) {
+    if (ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED) {
       ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                      "pkn=%" PRId64 " CRYPTO has already been retransmitted",
+                      "pkn=%" PRId64 " has already been reclaimed on PTO",
                       ent->hd.pkt_num);
     } else if (ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED) {
       ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
@@ -1022,7 +1034,7 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
 
       all_acked = 0;
 
-      if (!(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED)) {
+      if (!(ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED)) {
         rv = ngtcp2_frame_chain_crypto_datacnt_new(
             &nfrc, frc->fr.crypto.datacnt, rtb->mem);
         if (rv != 0) {
@@ -1046,7 +1058,7 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
       continue;
     }
 
-    ent->flags |= NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED;
+    ent->flags |= NGTCP2_RTB_FLAG_PTO_RECLAIMED;
 
     ngtcp2_ksl_it_next(&it);
   }
@@ -1061,4 +1073,38 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
 void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num) {
   rtb->cc_pkt_num = cc_pkt_num;
   rtb->cc_bytes_in_flight = 0;
+}
+
+int ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                              ngtcp2_conn *conn, size_t num_pkts) {
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_frame_chain *frc;
+  int rv;
+
+  it = ngtcp2_ksl_end(&rtb->ents);
+  for (; !ngtcp2_ksl_it_begin(&it) && num_pkts >= 1;) {
+    ngtcp2_ksl_it_prev(&it);
+    ent = ngtcp2_ksl_it_get(&it);
+
+    if ((ent->flags & (NGTCP2_RTB_FLAG_LOST_RETRANSMITTED |
+                       NGTCP2_RTB_FLAG_PTO_RECLAIMED)) ||
+        ent->frc == NULL) {
+      continue;
+    }
+
+    frc = *pfrc;
+    rv = rtb_reclaim_frame(rtb, pfrc, ent, conn);
+    if (rv != 0) {
+      return rv;
+    }
+
+    ent->flags |= NGTCP2_RTB_FLAG_PTO_RECLAIMED;
+
+    if (*pfrc != frc) {
+      --num_pkts;
+    }
+  }
+
+  return 0;
 }
