@@ -1332,6 +1332,18 @@ static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
   return 0;
 }
 
+static void conn_cryptofrq_clear(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
+  ngtcp2_frame_chain *frc;
+  ngtcp2_ksl_it it;
+
+  for (it = ngtcp2_ksl_begin(&pktns->crypto.tx.frq); !ngtcp2_ksl_it_end(&it);
+       ngtcp2_ksl_it_next(&it)) {
+    frc = ngtcp2_ksl_it_get(&it);
+    ngtcp2_frame_chain_del(frc, conn->mem);
+  }
+  ngtcp2_ksl_clear(&pktns->crypto.tx.frq);
+}
+
 /*
  * conn_cryptofrq_unacked_offset returns the CRYPTO frame offset by
  * taking into account acknowledged offset.  If there is no data to
@@ -1868,6 +1880,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
     crypto_offset = conn_cryptofrq_unacked_offset(conn, pktns);
     if (crypto_offset == (size_t)-1) {
+      conn_cryptofrq_clear(conn, pktns);
       break;
     }
 
@@ -2765,6 +2778,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
         crypto_offset = conn_cryptofrq_unacked_offset(conn, pktns);
         if (crypto_offset == (size_t)-1) {
+          conn_cryptofrq_clear(conn, pktns);
           break;
         }
 
