@@ -1829,6 +1829,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
   int padded = 0;
   int hd_logged = 0;
   uint64_t crypto_offset;
+  ngtcp2_ssize num_reclaimed;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
@@ -1898,6 +1899,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     }
   }
 
+build_pkt:
   for (; ngtcp2_ksl_len(&pktns->crypto.tx.frq);) {
     left = ngtcp2_ppe_left(&ppe);
 
@@ -1932,8 +1934,20 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn, uint8_t *dest,
     pfrc = &(*pfrc)->next;
 
     pkt_empty = 0;
-    rtb_entry_flags |=
-        NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_CRYPTO_PKT;
+    rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+  }
+
+  if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+      pktns->rtb.probe_pkt_left) {
+    num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns,
+                                              pktns->rtb.probe_pkt_left + 1);
+    if (num_reclaimed < 0) {
+      ngtcp2_frame_chain_list_del(frq, conn->mem);
+      return rv;
+    }
+    if (num_reclaimed) {
+      goto build_pkt;
+    }
   }
 
   /* Don't send any PING frame if client Initial has not been
@@ -5086,8 +5100,6 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 }
 
-static int conn_on_crypto_timeout(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
-
 /*
  * conn_recv_crypto is called when CRYPTO frame |fr| is received.
  * |rx_offset_base| is the offset in the entire TLS handshake stream.
@@ -5140,16 +5152,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
          send a packet containing unacknowledged CRYPTO data earlier
          than the PTO expiry, subject to address validation limits;
          ... */
-      rv = conn_on_crypto_timeout(conn, conn->in_pktns);
-      if (rv != 0) {
-        return rv;
-      }
       conn->in_pktns->rtb.probe_pkt_left = 1;
-
-      rv = conn_on_crypto_timeout(conn, conn->hs_pktns);
-      if (rv != 0) {
-        return rv;
-      }
       conn->hs_pktns->rtb.probe_pkt_left = 1;
     }
     return 0;
@@ -9449,36 +9452,6 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                   (uint64_t)(timeout / NGTCP2_MILLISECONDS));
 }
 
-/*
- * conn_on_crypto_timeout is called when handshake packets which
- * belong to |pktns| are lost.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-static int conn_on_crypto_timeout(ngtcp2_conn *conn, ngtcp2_pktns *pktns) {
-  ngtcp2_frame_chain *frc = NULL;
-  int rv;
-
-  rv = ngtcp2_rtb_on_crypto_timeout(&pktns->rtb, &frc, &conn->cstat);
-  if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
-    return rv;
-  }
-
-  rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
-  if (rv != 0) {
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
-    return rv;
-  }
-
-  return 0;
-}
-
 int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
   int rv;
@@ -9520,16 +9493,8 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   if (!conn->server && !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
     if (hs_pktns->crypto.tx.ckm) {
-      rv = conn_on_crypto_timeout(conn, hs_pktns);
-      if (rv != 0) {
-        return rv;
-      }
       hs_pktns->rtb.probe_pkt_left = 1;
     } else {
-      rv = conn_on_crypto_timeout(conn, in_pktns);
-      if (rv != 0) {
-        return rv;
-      }
       in_pktns->rtb.probe_pkt_left = 1;
     }
   } else {
@@ -9540,10 +9505,6 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     switch (earliest_pktns->rtb.pktns_id) {
     case NGTCP2_PKTNS_ID_INITIAL:
       assert(in_pktns);
-      rv = conn_on_crypto_timeout(conn, in_pktns);
-      if (rv != 0) {
-        return rv;
-      }
       in_pktns->rtb.probe_pkt_left = 1;
       if (!conn->server) {
         break;
@@ -9552,10 +9513,6 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       /* fall through */
     case NGTCP2_PKTNS_ID_HANDSHAKE:
       assert(hs_pktns);
-      rv = conn_on_crypto_timeout(conn, hs_pktns);
-      if (rv != 0) {
-        return rv;
-      }
       hs_pktns->rtb.probe_pkt_left = 1;
       break;
     case NGTCP2_PKTNS_ID_APP:

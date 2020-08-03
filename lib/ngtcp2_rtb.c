@@ -282,7 +282,8 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     return;
   }
 
-  if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
+  if ((ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+      !(ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED)) {
     assert(rtb->num_ack_eliciting);
     --rtb->num_ack_eliciting;
   }
@@ -1093,80 +1094,6 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   return 0;
 }
 
-int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                                 ngtcp2_conn_stat *cstat) {
-  ngtcp2_rtb_entry *ent;
-  ngtcp2_ksl_it it;
-  ngtcp2_frame_chain *nfrc;
-  ngtcp2_frame_chain *frc;
-  ngtcp2_range gap, range;
-  ngtcp2_crypto *fr;
-  int all_acked;
-  int rv;
-
-  it = ngtcp2_ksl_begin(&rtb->ents);
-
-  for (; !ngtcp2_ksl_it_end(&it);) {
-    ent = ngtcp2_ksl_it_get(&it);
-
-    if ((ent->flags & NGTCP2_RTB_FLAG_PROBE) ||
-        !(ent->flags & NGTCP2_RTB_FLAG_CRYPTO_PKT)) {
-      ngtcp2_ksl_it_next(&it);
-      continue;
-    }
-
-    all_acked = 1;
-
-    for (frc = ent->frc; frc; frc = frc->next) {
-      assert(frc->fr.type == NGTCP2_FRAME_CRYPTO);
-
-      fr = &frc->fr.crypto;
-
-      /* Don't resend CRYPTO frame if the whole region it contains has
-         been acknowledged */
-      gap = ngtcp2_strm_get_unacked_range_after(rtb->crypto, fr->offset);
-
-      range.begin = fr->offset;
-      range.end = fr->offset + ngtcp2_vec_len(fr->data, fr->datacnt);
-      range = ngtcp2_range_intersect(&range, &gap);
-      if (ngtcp2_range_len(&range) == 0) {
-        continue;
-      }
-
-      all_acked = 0;
-
-      if (!(ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED)) {
-        rv = ngtcp2_frame_chain_crypto_datacnt_new(
-            &nfrc, frc->fr.crypto.datacnt, rtb->mem);
-        if (rv != 0) {
-          return rv;
-        }
-
-        nfrc->fr = frc->fr;
-        ngtcp2_vec_copy(nfrc->fr.crypto.data, frc->fr.crypto.data,
-                        frc->fr.crypto.datacnt);
-
-        frame_chain_insert(pfrc, nfrc);
-      }
-    }
-
-    if (all_acked) {
-      /* If the frames that ent contains have been acknowledged,
-         remove it from rtb.  Otherwise crypto timer keeps firing. */
-      rtb_on_remove(rtb, ent, cstat);
-      ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
-      ngtcp2_rtb_entry_del(ent, rtb->mem);
-      continue;
-    }
-
-    ent->flags |= NGTCP2_RTB_FLAG_PTO_RECLAIMED;
-
-    ngtcp2_ksl_it_next(&it);
-  }
-
-  return 0;
-}
-
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }
@@ -1203,6 +1130,9 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     /* Mark reclaimed even if reclaimed == 0 so that we can skip it in
        the next run. */
     ent->flags |= NGTCP2_RTB_FLAG_PTO_RECLAIMED;
+
+    assert(rtb->num_ack_eliciting);
+    --rtb->num_ack_eliciting;
 
     if (reclaimed) {
       --num_pkts;
