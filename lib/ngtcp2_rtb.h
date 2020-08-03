@@ -38,6 +38,8 @@
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
+typedef struct ngtcp2_pktns ngtcp2_pktns;
+
 struct ngtcp2_frame_chain;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
@@ -339,8 +341,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * some frames might be prepended to |*pfrc| and the caller should
  * handle them.  |pto| is PTO.
  */
-int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                               ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
+int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                               ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
                                ngtcp2_duration pto, ngtcp2_tstamp ts);
 
 /*
@@ -361,8 +363,8 @@ ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb);
  * all frames to |*pfrc|.  Even when this function fails, some frames
  * might be prepended to |*pfrc| and the caller should handle them.
  */
-void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                           ngtcp2_conn_stat *cstat);
+int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                          ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_on_crypto_timeout copies all unacknowledged CRYPTO
@@ -401,13 +403,13 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
  * are in-flight and not marked lost to send them in PTO probe.  The
  * reclaimed frames are chained to |*pfrc|.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the number of packets reclaimed if it
+ * succeeds, or one of the following negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                              ngtcp2_conn *conn, size_t num_pkts);
+ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                                       ngtcp2_pktns *pktns, size_t num_pkts);
 
 #endif /* NGTCP2_RTB_H */

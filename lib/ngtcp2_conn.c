@@ -2587,6 +2587,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
   ngtcp2_cc_pkt cc_pkt;
   uint64_t crypto_offset;
   uint64_t stream_offset;
+  ngtcp2_ssize num_reclaimed;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -2987,22 +2988,15 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
       }
     }
 
-    if (rv != NGTCP2_ERR_NOBUF &&
+    if (rv != NGTCP2_ERR_NOBUF && !send_stream &&
         !(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
         pktns->tx.frq == NULL && pktns->rtb.probe_pkt_left) {
-      frc = NULL;
-      rv = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, &frc, conn,
-                                     pktns->rtb.probe_pkt_left);
-      if (rv != 0) {
-        ngtcp2_frame_chain_list_del(frc, conn->mem);
+      num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns,
+                                                pktns->rtb.probe_pkt_left);
+      if (num_reclaimed < 0) {
         return rv;
       }
-      if (frc) {
-        rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
-        if (rv != 0) {
-          ngtcp2_frame_chain_list_del(frc, conn->mem);
-          return rv;
-        }
+      if (num_reclaimed) {
         goto build_pkt;
       }
     }
@@ -3681,6 +3675,17 @@ static uint64_t conn_tx_strmq_first_cycle(ngtcp2_conn *conn) {
   return strm->cycle;
 }
 
+uint64_t ngtcp2_conn_tx_strmq_first_cycle(ngtcp2_conn *conn) {
+  ngtcp2_strm *strm;
+
+  if (ngtcp2_pq_empty(&conn->tx.strmq)) {
+    return 0;
+  }
+
+  strm = ngtcp2_struct_of(ngtcp2_pq_top(&conn->tx.strmq), ngtcp2_strm, pe);
+  return strm->cycle;
+}
+
 int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                ngtcp2_frame_chain **pfrc) {
   ngtcp2_frame_chain **first = pfrc;
@@ -3771,7 +3776,6 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
   ngtcp2_rtb *in_rtb;
   uint8_t cidbuf[sizeof(retry.odcid.data) * 2 + 1];
-  ngtcp2_frame_chain *frc = NULL;
   ngtcp2_vec *token;
 
   if (!in_pktns || conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY) {
@@ -3826,22 +3830,13 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   /* Just freeing memory is dangerous because we might free twice. */
 
-  ngtcp2_rtb_remove_all(rtb, &frc, &conn->cstat);
-
-  rv = ngtcp2_conn_resched_frames(conn, &conn->pktns, &frc);
+  rv = ngtcp2_rtb_remove_all(rtb, conn, &conn->pktns, &conn->cstat);
   if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
     return rv;
   }
 
-  frc = NULL;
-  ngtcp2_rtb_remove_all(in_rtb, &frc, &conn->cstat);
-
-  rv = ngtcp2_conn_resched_frames(conn, in_pktns, &frc);
+  rv = ngtcp2_rtb_remove_all(in_rtb, conn, in_pktns, &conn->cstat);
   if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
     return rv;
   }
 
@@ -3867,19 +3862,11 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                 ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
-  ngtcp2_frame_chain *frc = NULL;
   int rv;
   ngtcp2_duration pto = conn_compute_pto(conn, pktns);
 
-  rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, &frc, cstat, conn, pto, ts);
+  rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, conn, pktns, cstat, pto, ts);
   if (rv != 0) {
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
-    return rv;
-  }
-
-  rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
-  if (rv != 0) {
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
     return rv;
   }
 
@@ -9310,17 +9297,12 @@ uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn) {
 int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_rtb *rtb = &conn->pktns.rtb;
-  ngtcp2_frame_chain *frc = NULL;
   int rv;
 
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
 
-  ngtcp2_rtb_remove_all(rtb, &frc, &conn->cstat);
-
-  rv = ngtcp2_conn_resched_frames(conn, pktns, &frc);
+  rv = ngtcp2_rtb_remove_all(rtb, conn, pktns, &conn->cstat);
   if (rv != 0) {
-    assert(ngtcp2_err_is_fatal(rv));
-    ngtcp2_frame_chain_list_del(frc, conn->mem);
     return rv;
   }
 

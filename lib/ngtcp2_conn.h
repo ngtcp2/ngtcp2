@@ -186,7 +186,7 @@ typedef struct {
   uint8_t pkt_type;
 } ngtcp2_crypto_data;
 
-typedef struct {
+typedef struct ngtcp2_pktns {
   struct {
     /* last_pkt_num is the packet number which the local endpoint sent
        last time.*/
@@ -661,5 +661,7 @@ void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts);
  */
 int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                ngtcp2_frame_chain **pfrc);
+
+uint64_t ngtcp2_conn_tx_strmq_first_cycle(ngtcp2_conn *conn);
 
 #endif /* NGTCP2_CONN_H */
