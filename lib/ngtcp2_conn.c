@@ -1110,8 +1110,8 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_pktns *pktns, uint8_t type,
                                  ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
                                  uint64_t ack_delay_exponent) {
-  /* TODO Measure an actual size of ACK bloks to find the best default
-     value. */
+  /* TODO Measure an actual size of ACK blocks to find the best
+     default value. */
   const size_t initial_max_ack_blks = 8;
   int64_t last_pkt_num;
   ngtcp2_acktr *acktr = &pktns->acktr;

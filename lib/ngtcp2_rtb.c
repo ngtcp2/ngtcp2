@@ -798,8 +798,7 @@ static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
 }
 
 /*
- * rtb_compute_pkt_loss_delay computes delay until packet is
- * considered lost in NGTCP2_MICROSECONDS resolution.
+ * rtb_compute_pkt_loss_delay computes loss delay.
  */
 static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   /* 9/8 is kTimeThreshold */
