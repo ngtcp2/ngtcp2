@@ -236,6 +236,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
   rtb->mem = mem;
   rtb->largest_acked_tx_pkt_num = -1;
   rtb->num_ack_eliciting = 0;
+  rtb->num_retransmittable = 0;
   rtb->probe_pkt_left = 0;
   rtb->pktns_id = pktns_id;
   rtb->cc_pkt_num = 0;
@@ -274,6 +275,9 @@ static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     ++rtb->num_ack_eliciting;
   }
+  if (ent->flags & NGTCP2_RTB_FLAG_RETRANSMITTABLE) {
+    ++rtb->num_retransmittable;
+  }
 }
 
 static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
@@ -282,10 +286,15 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     return;
   }
 
-  if ((ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-      !(ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED)) {
+  if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     assert(rtb->num_ack_eliciting);
     --rtb->num_ack_eliciting;
+  }
+
+  if ((ent->flags & NGTCP2_RTB_FLAG_RETRANSMITTABLE) &&
+      !(ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED)) {
+    assert(rtb->num_retransmittable);
+    --rtb->num_retransmittable;
   }
 
   if (rtb->cc_pkt_num <= ent->hd.pkt_num) {
@@ -1118,9 +1127,11 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
     if ((ent->flags & (NGTCP2_RTB_FLAG_LOST_RETRANSMITTED |
                        NGTCP2_RTB_FLAG_PTO_RECLAIMED)) ||
-        ent->frc == NULL) {
+        !(ent->flags & NGTCP2_RTB_FLAG_RETRANSMITTABLE)) {
       continue;
     }
+
+    assert(ent->frc);
 
     rv = rtb_reclaim_frame(rtb, &reclaimed, conn, pktns, ent);
     if (rv != 0) {
@@ -1131,8 +1142,8 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
        the next run. */
     ent->flags |= NGTCP2_RTB_FLAG_PTO_RECLAIMED;
 
-    assert(rtb->num_ack_eliciting);
-    --rtb->num_ack_eliciting;
+    assert(rtb->num_retransmittable);
+    --rtb->num_retransmittable;
 
     if (reclaimed) {
       --num_pkts;

@@ -106,7 +106,7 @@ typedef enum {
 
 /* NGTCP2_MAX_NON_ACK_TX_PKT is the maximum number of continuous non
    ACK-eliciting packets. */
-#define NGTCP2_MAX_NON_ACK_TX_PKT 10
+#define NGTCP2_MAX_NON_ACK_TX_PKT 3
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK

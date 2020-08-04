@@ -4796,7 +4796,8 @@ void test_ngtcp2_conn_handshake_probe(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == conn->in_pktns->rtb.num_ack_eliciting);
+  CU_ASSERT(1 == conn->in_pktns->rtb.num_retransmittable);
+  CU_ASSERT(2 == conn->in_pktns->rtb.num_ack_eliciting);
   CU_ASSERT(0 == conn->in_pktns->rtb.probe_pkt_left);
 
   fr.type = NGTCP2_FRAME_ACK;
@@ -4816,6 +4817,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == conn->in_pktns->rtb.num_retransmittable);
   CU_ASSERT(1 == conn->in_pktns->rtb.num_ack_eliciting);
   CU_ASSERT(1 == conn->in_pktns->rtb.probe_pkt_left);
 
@@ -4824,7 +4826,8 @@ void test_ngtcp2_conn_handshake_probe(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(1 == conn->in_pktns->rtb.num_ack_eliciting);
+  CU_ASSERT(0 == conn->in_pktns->rtb.num_retransmittable);
+  CU_ASSERT(2 == conn->in_pktns->rtb.num_ack_eliciting);
   CU_ASSERT(0 == conn->in_pktns->rtb.probe_pkt_left);
 
   it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
@@ -4842,7 +4845,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   rv = ngtcp2_conn_on_loss_detection_timer(conn, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == conn->in_pktns->rtb.num_ack_eliciting);
+  CU_ASSERT(2 == conn->in_pktns->rtb.num_ack_eliciting);
   CU_ASSERT(1 == conn->hs_pktns->rtb.probe_pkt_left);
 
   /* This sends anti-deadlock Handshake packet even if we have nothing
@@ -4850,6 +4853,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(0 == conn->hs_pktns->rtb.num_retransmittable);
   CU_ASSERT(1 == conn->hs_pktns->rtb.num_ack_eliciting);
   CU_ASSERT(0 == conn->hs_pktns->rtb.probe_pkt_left);
 
@@ -5674,7 +5678,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
     }
   }
 
-  CU_ASSERT(2 == num_reclaim_pkt);
+  CU_ASSERT(3 == num_reclaim_pkt);
 
   ngtcp2_conn_del(conn);
 }

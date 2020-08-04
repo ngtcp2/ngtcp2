@@ -176,6 +176,13 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
   NGTCP2_RTB_FLAG_PROBE = 0x01,
+  /* NGTCP2_RTB_FLAG_RETRANSMITTABLE indicates that the entry includes
+     a frame which must be retransmitted until it is acknowledged.  In
+     most cases, this flag is used along with
+     NGTCP2_RTB_FLAG_ACK_ELICITING.  We have these 2 flags because
+     NGTCP2_RTB_FLAG_RETRANSMITTABLE triggers PTO, but just
+     NGTCP2_RTB_FLAG_ACK_ELICITING does not. */
+  NGTCP2_RTB_FLAG_RETRANSMITTABLE = 0x02,
   /* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
      acknowledgement. */
   NGTCP2_RTB_FLAG_ACK_ELICITING = 0x04,
@@ -262,6 +269,9 @@ typedef struct {
   int64_t largest_acked_tx_pkt_num;
   /* num_ack_eliciting is the number of ACK eliciting entries. */
   size_t num_ack_eliciting;
+  /* num_retransmittable is the number of packets which contain frames
+     that must be retransmitted on loss. */
+  size_t num_retransmittable;
   /* probe_pkt_left is the number of probe packet to send */
   size_t probe_pkt_left;
   /* pktns_id is the identifier of packet number space. */

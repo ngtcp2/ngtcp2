@@ -1280,10 +1280,9 @@ static int conn_on_pkt_sent(ngtcp2_conn *conn, ngtcp2_rtb *rtb,
 
   if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
     conn->cstat.last_tx_pkt_ts[rtb->pktns_id] = ent->ts;
-    /* I think pseudo code is wrong; timer should be set when
-       ack-eliciting packet is sent. */
-    ngtcp2_conn_set_loss_detection_timer(conn, ent->ts);
   }
+
+  ngtcp2_conn_set_loss_detection_timer(conn, ent->ts);
 
   return 0;
 }
@@ -1934,11 +1933,12 @@ build_pkt:
     pfrc = &(*pfrc)->next;
 
     pkt_empty = 0;
-    rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+    rtb_entry_flags |=
+        NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
   }
 
   if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-      pktns->rtb.probe_pkt_left) {
+      pktns->rtb.num_retransmittable && pktns->rtb.probe_pkt_left) {
     num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns,
                                               pktns->rtb.probe_pkt_left + 1);
     if (num_reclaimed < 0) {
@@ -1947,6 +1947,19 @@ build_pkt:
     }
     if (num_reclaimed) {
       goto build_pkt;
+    }
+    /* We had pktns->rtb.num_retransmittable > 0 but the contents of
+       those packets have been acknowledged (i.e., retransmission in
+       another packet).  For server, in this case, we don't have to
+       send any probe packet.  Client needs to send probe packets
+       until it knows that server has completed address validation or
+       handshake has been confirmed. */
+    if (pktns->rtb.num_retransmittable == 0 &&
+        (conn->server ||
+         (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
+                         NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
+      pktns->rtb.probe_pkt_left = 0;
+      ngtcp2_conn_set_loss_detection_timer(conn, ts);
     }
   }
 
@@ -2807,7 +2820,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
       }
 
       pkt_empty = 0;
-      rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+      rtb_entry_flags |=
+          NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
       pfrc = &(*pfrc)->next;
     }
 
@@ -2846,7 +2860,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
         pfrc = &(*pfrc)->next;
 
         pkt_empty = 0;
-        rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+        rtb_entry_flags |=
+            NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
       }
     }
 
@@ -2877,7 +2892,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
         assert(NGTCP2_ERR_NOBUF == rv);
       } else {
         pkt_empty = 0;
-        rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+        rtb_entry_flags |=
+            NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
         pfrc = &(*pfrc)->next;
       }
     }
@@ -2908,7 +2924,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
           assert(NGTCP2_ERR_NOBUF == rv);
         } else {
           pkt_empty = 0;
-          rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+          rtb_entry_flags |=
+              NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
           pfrc = &(*pfrc)->next;
         }
       }
@@ -2939,7 +2956,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
           pkt_empty = 0;
           credit_expanded = 1;
-          rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+          rtb_entry_flags |=
+              NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
           pfrc = &(*pfrc)->next;
           strm->rx.max_offset = strm->rx.unsent_max_offset;
         }
@@ -2985,7 +3003,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
         pfrc = &(*pfrc)->next;
 
         pkt_empty = 0;
-        rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+        rtb_entry_flags |=
+            NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
 
         if (ngtcp2_strm_streamfrq_empty(strm)) {
           ngtcp2_conn_tx_strmq_pop(conn);
@@ -3004,14 +3023,24 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
     if (rv != NGTCP2_ERR_NOBUF && !send_stream &&
         !(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-        pktns->tx.frq == NULL && pktns->rtb.probe_pkt_left) {
+        pktns->rtb.num_retransmittable && pktns->tx.frq == NULL &&
+        pktns->rtb.probe_pkt_left) {
       num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns,
-                                                pktns->rtb.probe_pkt_left);
+                                                pktns->rtb.probe_pkt_left + 1);
       if (num_reclaimed < 0) {
         return rv;
       }
       if (num_reclaimed) {
         goto build_pkt;
+      }
+
+      /* We had pktns->rtb.num_retransmittable > 0 but the contents of
+         those packets have been acknowledged (i.e., retransmission in
+         another packet).  In this case, we don't have to send any
+         probe packet. */
+      if (pktns->rtb.num_retransmittable == 0) {
+        pktns->rtb.probe_pkt_left = 0;
+        ngtcp2_conn_set_loss_detection_timer(conn, ts);
       }
     }
 
@@ -3079,7 +3108,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
     pfrc = &(*pfrc)->next;
 
     pkt_empty = 0;
-    rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+    rtb_entry_flags |=
+        NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
 
     data_strm->tx.offset += ndatalen;
     conn->tx.offset += ndatalen;
@@ -3121,8 +3151,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
   }
 
   if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
-    if (pktns->rtb.probe_pkt_left ||
-        pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT) {
+    if (pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT) {
       lfr.type = NGTCP2_FRAME_PING;
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
@@ -3132,9 +3161,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
            packet is still empty. */
       } else {
         rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
-        if (pktns->rtb.probe_pkt_left) {
-          rtb_entry_flags |= NGTCP2_RTB_FLAG_PROBE;
-        }
         pktns->tx.num_non_ack_pkt = 0;
       }
     } else {
@@ -3173,6 +3199,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, uint8_t *dest,
 
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, hd, (size_t)nwrite);
 
+  /* TODO ack-eliciting vs needs-tracking */
+  /* probe packet needs tracking but it does not need ACK, could be lost. */
   if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
     rv = ngtcp2_rtb_entry_new(&ent, hd, NULL, ts, (size_t)nwrite,
                               rtb_entry_flags, conn->mem);
@@ -3390,9 +3418,9 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
 
   return !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
-         (in_pktns && (in_pktns->rtb.num_ack_eliciting ||
+         (in_pktns && (in_pktns->rtb.num_retransmittable ||
                        ngtcp2_ksl_len(&in_pktns->crypto.tx.frq))) ||
-         (hs_pktns && (hs_pktns->rtb.num_ack_eliciting ||
+         (hs_pktns && (hs_pktns->rtb.num_retransmittable ||
                        ngtcp2_ksl_len(&hs_pktns->crypto.tx.frq)));
 }
 
@@ -9367,7 +9395,7 @@ static ngtcp2_pktns *conn_get_earliest_pktns(ngtcp2_conn *conn,
   ngtcp2_tstamp earliest_ts = times[NGTCP2_PKTNS_ID_INITIAL];
 
   for (i = NGTCP2_PKTNS_ID_HANDSHAKE; i < NGTCP2_PKTNS_ID_MAX; ++i) {
-    if (ns[i] == NULL || ns[i]->rtb.num_ack_eliciting == 0 ||
+    if (ns[i] == NULL || ns[i]->rtb.num_retransmittable == 0 ||
         (times[i] == UINT64_MAX ||
          (earliest_ts != UINT64_MAX && times[i] >= earliest_ts) ||
          (i == NGTCP2_PKTNS_ID_APP &&
@@ -9416,9 +9444,9 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  if ((!in_pktns || in_pktns->rtb.num_ack_eliciting == 0) &&
-      (!hs_pktns || hs_pktns->rtb.num_ack_eliciting == 0) &&
-      (pktns->rtb.num_ack_eliciting == 0 ||
+  if ((!in_pktns || in_pktns->rtb.num_retransmittable == 0) &&
+      (!hs_pktns || hs_pktns->rtb.num_retransmittable == 0) &&
+      (pktns->rtb.num_retransmittable == 0 ||
        !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) &&
       (conn->server ||
        (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
