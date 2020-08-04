@@ -379,10 +379,10 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cc->pending_add = m % (100 * cstat->cwnd);
   }
 
-  m = cc->pending_w_add + cstat->max_udp_payload_size * pkt->pktlen * 9;
+  m = cc->pending_w_add + cstat->max_udp_payload_size * pkt->pktlen;
 
-  cc->w_tcp += m / (17 * cstat->cwnd);
-  cc->pending_w_add = m % (17 * cstat->cwnd);
+  cc->w_tcp += m / cstat->cwnd;
+  cc->pending_w_add = m % cstat->cwnd;
 
   if (cc->w_tcp > cstat->cwnd) {
     tcp_add =
