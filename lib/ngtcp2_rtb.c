@@ -143,19 +143,6 @@ void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
   }
 }
 
-static void frame_chain_insert(ngtcp2_frame_chain **pfrc,
-                               ngtcp2_frame_chain *frc) {
-  ngtcp2_frame_chain **plast;
-
-  assert(frc);
-
-  for (plast = &frc; *plast; plast = &(*plast)->next)
-    ;
-
-  *plast = *pfrc;
-  *pfrc = frc;
-}
-
 int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
                                   const ngtcp2_mem *mem) {
   *pbinder = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_frame_chain_binder));
@@ -435,7 +422,10 @@ static int rtb_reclaim_frame(ngtcp2_rtb *rtb, int *preclaimed,
     }
 
     *preclaimed = 1;
-    frame_chain_insert(pfrc, nfrc);
+
+    nfrc->next = *pfrc;
+    *pfrc = nfrc;
+    pfrc = &nfrc->next;
   }
 
   return 0;
