@@ -261,7 +261,7 @@ typedef enum ngtcp2_lib_error {
   NGTCP2_ERR_CONN_ID_BLOCKED = -237,
   NGTCP2_ERR_INTERNAL = -238,
   NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED = -239,
-  NGTCP2_ERR_WRITE_STREAM_MORE = -240,
+  NGTCP2_ERR_WRITE_MORE = -240,
   NGTCP2_ERR_RETRY = -241,
   NGTCP2_ERR_DROP_CONN = -242,
   NGTCP2_ERR_FATAL = -500,
@@ -2646,8 +2646,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *   packet is nearly full and the library decided to make a complete
  *   packet.  In this case, |*pdatalen| == -1 is asserted.
  *
- * - The function returns :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`.  In
- *   this case, |*pdatalen| >= 0 is asserted.  This indicates that
+ * - The function returns :enum:`NGTCP2_ERR_WRITE_MORE`.  In this
+ *   case, |*pdatalen| >= 0 is asserted.  This indicates that
  *   application can call this function with different stream data to
  *   pack them into the same packet.  Application has to specify the
  *   same |conn|, |path|, |dest|, |destlen|, |pdatalen|, and |ts|
@@ -2660,14 +2660,14 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * - The other error might be returned just like without
  *   :enum:`NGTCP2_WRITE_STREAM_FLAG_MORE`.
  *
- * When application sees :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`, it must
- * not call other ngtcp2 API functions (application can still call
+ * When application sees :enum:`NGTCP2_ERR_WRITE_MORE`, it must not
+ * call other ngtcp2 API functions (application can still call
  * `ngtcp2_conn_write_connection_close` or
  * `ngtcp2_conn_write_application_close` to handle error from this
  * function).  Just keep calling `ngtcp2_conn_writev_stream` or
  * `ngtcp2_conn_write_pkt` until it returns a positive number (which
  * indicates a complete packet is ready).  If |*pdatalen| >= 0, the
- * function always return :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`.
+ * function always return :enum:`NGTCP2_ERR_WRITE_MORE`.
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
@@ -2691,7 +2691,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *     User callback failed
  * :enum:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  *     Stream is blocked because of flow control.
- * :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`
+ * :enum:`NGTCP2_ERR_WRITE_MORE`
  *     (Only when :enum:`NGTCP2_WRITE_STREAM_FLAG_MORE` is specified)
  *     Application can call this function to pack more stream data
  *     into the same packet.  See above to know how it works.

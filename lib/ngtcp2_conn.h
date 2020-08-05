@@ -480,6 +480,25 @@ struct ngtcp2_conn {
   int server;
 };
 
+typedef enum ngtcp2_vmsg_type {
+  NGTCP2_VMSG_TYPE_STREAM,
+} ngtcp2_vmsg_type;
+
+typedef struct ngtcp2_vmsg_stream {
+  ngtcp2_strm *strm;
+  uint32_t flags;
+  const ngtcp2_vec *data;
+  size_t datacnt;
+  ngtcp2_ssize *pdatalen;
+} ngtcp2_vmsg_stream;
+
+typedef struct ngtcp2_vmsg {
+  ngtcp2_vmsg_type type;
+  union {
+    ngtcp2_vmsg_stream stream;
+  };
+} ngtcp2_vmsg;
+
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
  * reception timestamp |ts| in order to send its ACK.
@@ -600,6 +619,10 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
  * all timers in |conn|.
  */
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
+
+ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
+                                    uint8_t *dest, size_t destlen,
+                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains |fr|

@@ -3863,7 +3863,7 @@ void test_ngtcp2_conn_writev_stream(void) {
                                       NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
                                       &datav, 1, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_WRITE_STREAM_MORE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
   CU_ASSERT(10 == datalen);
 
   left = ngtcp2_ppe_left(&conn->pkt.ppe);
@@ -3876,7 +3876,7 @@ void test_ngtcp2_conn_writev_stream(void) {
                                       NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
                                       &datav, 1, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_WRITE_STREAM_MORE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
   CU_ASSERT(10 == datalen);
   CU_ASSERT(ngtcp2_ppe_left(&conn->pkt.ppe) < left);
 
@@ -3898,7 +3898,7 @@ void test_ngtcp2_conn_writev_stream(void) {
                                       NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
                                       &datav, 1, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_WRITE_STREAM_MORE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
   CU_ASSERT(10 == datalen);
 
   left = ngtcp2_ppe_left(&conn->pkt.ppe);
@@ -3911,7 +3911,7 @@ void test_ngtcp2_conn_writev_stream(void) {
                                       NGTCP2_WRITE_STREAM_FLAG_MORE, stream_id,
                                       &datav, 1, ++t);
 
-  CU_ASSERT(NGTCP2_ERR_WRITE_STREAM_MORE == spktlen);
+  CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
   CU_ASSERT(10 == datalen);
   CU_ASSERT(ngtcp2_ppe_left(&conn->pkt.ppe) < left);
 

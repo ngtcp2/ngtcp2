@@ -1205,7 +1205,7 @@ int Client::write_streams() {
           return -1;
         }
         continue;
-      case NGTCP2_ERR_WRITE_STREAM_MORE:
+      case NGTCP2_ERR_WRITE_MORE:
         assert(ndatalen > 0);
         if (auto rv =
                 nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
