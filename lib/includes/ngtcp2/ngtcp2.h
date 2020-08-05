@@ -1525,8 +1525,7 @@ typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                           ngtcp2_rand_ctx ctx, void *user_data);
+typedef int (*ngtcp2_rand)(uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx);
 
 /**
  * @functypedef
