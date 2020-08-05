@@ -485,10 +485,18 @@ typedef enum ngtcp2_vmsg_type {
 } ngtcp2_vmsg_type;
 
 typedef struct ngtcp2_vmsg_stream {
+  /* strm is a stream that data is sent to. */
   ngtcp2_strm *strm;
+  /* flags is bitwise OR of zero or more of
+     ngtcp2_write_stream_flag. */
   uint32_t flags;
+  /* data is the pointer to ngtcp2_vec array which contains the stream
+     data to send. */
   const ngtcp2_vec *data;
+  /* datacnt is the number of ngtcp2_vec pointed by data. */
   size_t datacnt;
+  /* *pdatalen is the pointer to the variable which the number of
+     bytes written is assigned to if pdatalen is not NULL. */
   ngtcp2_ssize *pdatalen;
 } ngtcp2_vmsg_stream;
 

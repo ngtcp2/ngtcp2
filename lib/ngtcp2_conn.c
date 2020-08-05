@@ -2556,13 +2556,14 @@ typedef enum {
  * packet.  It can be NGTCP2_PKT_SHORT or NGTCP2_PKT_0RTT.
  *
  * This function can send new stream data.  In order to send stream
- * data, specify the underlying stream to |data_strm|.  If |fin| is
- * set to nonzero, it signals that the given data is the final portion
- * of the stream.  |datav| vector of length |datavcnt| specify stream
- * data to send.  If no stream data to send, set |strm| to NULL.  The
- * number of bytes sent to the stream is assigned to |*pdatalen|.  If
- * 0 length STREAM data is sent, 0 is assigned to |*pdatalen|.  The
- * caller should initialize |*pdatalen| to -1.
+ * data, specify the underlying stream and parameters to
+ * |vmsg|->stream.  If |vmsg|->stream.fin is set to nonzero, it
+ * signals that the given data is the final portion of the stream.
+ * |vmsg|->stream.data vector of length |vmsg|->stream.datacnt
+ * specifies stream data to send.  The number of bytes sent to the
+ * stream is assigned to *|vmsg|->stream.pdatalen.  If 0 length STREAM
+ * data is sent, 0 is assigned to it.  The caller should initialize
+ * *|vmsg|->stream.pdatalen to -1.
  *
  * If |require_padding| is nonzero, padding bytes are added to occupy
  * the remaining packet payload.
@@ -7965,14 +7966,15 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
  * `conn_client_write_handshake` writes client side handshake data and
  * 0RTT packet.
  *
- * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
- * to which 0-RTT data is sent, whether it is a last data chunk in
- * this stream, a vector of 0-RTT data, and its number of elements
- * respectively.  If there is no 0RTT data to send, pass negative
- * integer to |stream_id|.  The amount of 0RTT data sent is assigned
- * to |*pdatalen|.  If no data is sent, -1 is assigned.  Note that 0
- * length STREAM frame is allowed in QUIC, so 0 might be assigned to
- * |*pdatalen|.
+ * In order to send STREAM data in 0RTT packet, specify
+ * |vmsg|->stream.  |vmsg|->stream.strm, |vmsg|->stream.fin,
+ * |vmsg|->stream.data, and |vmsg|->stream.datacnt are stream to which
+ * 0-RTT data is sent, whether it is a last data chunk in this stream,
+ * a vector of 0-RTT data, and its number of elements respectively.
+ * The amount of 0RTT data sent is assigned to
+ * *|vmsg|->stream.pdatalen.  If no data is sent, -1 is assigned.
+ * Note that 0 length STREAM frame is allowed in QUIC, so 0 might be
+ * assigned to *|vmsg|->stream.pdatalen.
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
