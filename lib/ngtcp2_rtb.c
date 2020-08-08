@@ -489,7 +489,9 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
                     ent->hd.pkt_num);
   }
 
-  ngtcp2_ksl_remove(&rtb->ents, it, &ent->hd.pkt_num);
+  rv = ngtcp2_ksl_remove(&rtb->ents, it, &ent->hd.pkt_num);
+  assert(0 == rv);
+
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 
   return 0;
@@ -517,7 +519,9 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb) {
 
 static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
                        ngtcp2_rtb_entry *ent, ngtcp2_conn_stat *cstat) {
-  ngtcp2_ksl_remove(&rtb->ents, it, &ent->hd.pkt_num);
+  int rv;
+  rv = ngtcp2_ksl_remove(&rtb->ents, it, &ent->hd.pkt_num);
+  assert(0 == rv);
   rtb_on_remove(rtb, ent, cstat);
   ngtcp2_rtb_entry_del(ent, rtb->mem);
 }
@@ -892,6 +896,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
   ngtcp2_ksl_it it = ngtcp2_ksl_end(&rtb->ents);
   ngtcp2_rtb_entry *ent;
+  int rv;
 
   for (; rtb->num_lost_pkts > n;) {
     assert(ngtcp2_ksl_it_end(&it));
@@ -904,7 +909,8 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
                     "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
 
     --rtb->num_lost_pkts;
-    ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    rv = ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    assert(0 == rv);
     ngtcp2_rtb_entry_del(ent, rtb->mem);
   }
 }
@@ -913,6 +919,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
                                         ngtcp2_tstamp ts) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
+  int rv;
 
   if (ngtcp2_ksl_len(&rtb->ents) == 0) {
     return;
@@ -935,7 +942,8 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
                     "removing stale lost pkn=%" PRId64, ent->hd.pkt_num);
 
     --rtb->num_lost_pkts;
-    ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    rv = ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    assert(0 == rv);
     ngtcp2_rtb_entry_del(ent, rtb->mem);
 
     if (ngtcp2_ksl_len(&rtb->ents) == 0) {
@@ -1080,7 +1088,8 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     ent = ngtcp2_ksl_it_get(&it);
 
     rtb_on_remove(rtb, ent, cstat);
-    ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    rv = ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    assert(0 == rv);
 
     rv = rtb_on_pkt_lost_resched_move(rtb, conn, pktns, ent);
     ngtcp2_rtb_entry_del(ent, rtb->mem);
