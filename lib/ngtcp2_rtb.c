@@ -293,16 +293,20 @@ static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   }
 }
 
-static int rtb_reclaim_frame(ngtcp2_rtb *rtb, int *preclaimed,
-                             ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                             ngtcp2_rtb_entry *ent) {
+/*
+ * rtb_reclaim_frame queues unacknowledged frames included in |ent|
+ * for retransmission.  The re-queued frames are not deleted from
+ * |ent|.  It returns the number of frames queued.
+ */
+static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                                      ngtcp2_pktns *pktns,
+                                      ngtcp2_rtb_entry *ent) {
   ngtcp2_frame_chain *frc, *nfrc, **pfrc = &pktns->tx.frq;
   ngtcp2_frame *fr;
   ngtcp2_strm *strm;
   ngtcp2_range gap, range;
+  size_t num_reclaimed = 0;
   int rv;
-
-  *preclaimed = 0;
 
   /* PADDING only (or PADDING + ACK ) packets will have NULL
      ent->frc. */
@@ -355,7 +359,7 @@ static int rtb_reclaim_frame(ngtcp2_rtb *rtb, int *preclaimed,
         }
       }
 
-      *preclaimed = 1;
+      ++num_reclaimed;
 
       continue;
     case NGTCP2_FRAME_CRYPTO:
@@ -389,7 +393,7 @@ static int rtb_reclaim_frame(ngtcp2_rtb *rtb, int *preclaimed,
         return rv;
       }
 
-      *preclaimed = 1;
+      ++num_reclaimed;
 
       continue;
     case NGTCP2_FRAME_NEW_TOKEN:
@@ -421,21 +425,21 @@ static int rtb_reclaim_frame(ngtcp2_rtb *rtb, int *preclaimed,
       break;
     }
 
-    *preclaimed = 1;
+    ++num_reclaimed;
 
     nfrc->next = *pfrc;
     *pfrc = nfrc;
     pfrc = &nfrc->next;
   }
 
-  return 0;
+  return (ngtcp2_ssize)num_reclaimed;
 }
 
 static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
                            ngtcp2_rtb_entry *ent, ngtcp2_conn *conn,
                            ngtcp2_pktns *pktns, ngtcp2_tstamp ts) {
   int rv;
-  int reclaimed;
+  ngtcp2_ssize reclaimed;
 
   ngtcp2_log_pkt_lost(rtb->log, ent->hd.pkt_num, ent->hd.type, ent->hd.flags,
                       ent->ts);
@@ -466,9 +470,9 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
       assert(!(ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED));
       assert(UINT64_MAX == ent->lost_ts);
 
-      rv = rtb_reclaim_frame(rtb, &reclaimed, conn, pktns, ent);
-      if (rv != 0) {
-        return rv;
+      reclaimed = rtb_reclaim_frame(rtb, conn, pktns, ent);
+      if (reclaimed < 0) {
+        return (int)reclaimed;
       }
 
       if (reclaimed) {
@@ -1114,8 +1118,7 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                        ngtcp2_pktns *pktns, size_t num_pkts) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
-  int rv;
-  int reclaimed;
+  ngtcp2_ssize reclaimed;
   size_t atmost = num_pkts;
 
   it = ngtcp2_ksl_end(&rtb->ents);
@@ -1131,9 +1134,9 @@ ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
     assert(ent->frc);
 
-    rv = rtb_reclaim_frame(rtb, &reclaimed, conn, pktns, ent);
-    if (rv != 0) {
-      return rv;
+    reclaimed = rtb_reclaim_frame(rtb, conn, pktns, ent);
+    if (reclaimed < 0) {
+      return reclaimed;
     }
 
     /* Mark reclaimed even if reclaimed == 0 so that we can skip it in
