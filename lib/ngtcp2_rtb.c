@@ -668,9 +668,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   int rv;
   ngtcp2_ksl_it it;
   ngtcp2_ssize num_acked = 0;
-  int largest_pkt_acked = 0;
   int rtt_updated = 0;
-  ngtcp2_tstamp largest_pkt_sent_ts = 0;
+  ngtcp2_tstamp largest_pkt_sent_ts = UINT64_MAX;
   int64_t pkt_num;
   ngtcp2_cc *cc = rtb->cc;
 
@@ -704,9 +703,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         }
         if (largest_ack == pkt_num) {
           largest_pkt_sent_ts = ent->ts;
-          largest_pkt_acked = 1;
         }
-        if (!rtt_updated && largest_pkt_acked &&
+        if (!rtt_updated && largest_pkt_sent_ts != UINT64_MAX &&
             (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
           rtt_updated = 1;
           ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
@@ -747,7 +745,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         if (rv != 0) {
           return rv;
         }
-        if (!rtt_updated && largest_pkt_acked &&
+        if (!rtt_updated && largest_pkt_sent_ts != UINT64_MAX &&
             (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
           rtt_updated = 1;
           ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
