@@ -694,35 +694,38 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     pkt_num = *(int64_t *)ngtcp2_ksl_it_key(&it);
-    if (min_ack <= pkt_num && pkt_num <= largest_ack) {
-      ent = ngtcp2_ksl_it_get(&it);
-      if (conn) {
-        rv = rtb_process_acked_pkt(rtb, ent, conn);
-        if (rv != 0) {
-          return rv;
-        }
-        if (largest_ack == pkt_num) {
-          largest_pkt_sent_ts = ent->ts;
-        }
-        if (!rtt_updated && largest_pkt_sent_ts != UINT64_MAX &&
-            (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
-          rtt_updated = 1;
-          ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
-                                 fr->ack_delay_unscaled);
-          if (cc->new_rtt_sample) {
-            cc->new_rtt_sample(cc, cstat, ts);
-          }
-        }
 
-        rtb_on_pkt_acked(rtb, ent, cstat, ts);
-        /* At this point, it is invalided because rtb->ents might be
-           modified. */
-      }
-      rtb_remove(rtb, &it, ent, cstat);
-      ++num_acked;
-      continue;
+    assert(pkt_num <= largest_ack);
+
+    if (pkt_num < min_ack) {
+      break;
     }
-    break;
+
+    ent = ngtcp2_ksl_it_get(&it);
+    if (conn) {
+      rv = rtb_process_acked_pkt(rtb, ent, conn);
+      if (rv != 0) {
+        return rv;
+      }
+      if (largest_ack == pkt_num) {
+        largest_pkt_sent_ts = ent->ts;
+      }
+      if (!rtt_updated && largest_pkt_sent_ts != UINT64_MAX &&
+          (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+        rtt_updated = 1;
+        ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
+                               fr->ack_delay_unscaled);
+        if (cc->new_rtt_sample) {
+          cc->new_rtt_sample(cc, cstat, ts);
+        }
+      }
+
+      rtb_on_pkt_acked(rtb, ent, cstat, ts);
+      /* At this point, it is invalided because rtb->ents might be
+         modified. */
+    }
+    rtb_remove(rtb, &it, ent, cstat);
+    ++num_acked;
   }
 
   for (i = 0; i < fr->num_blks;) {
