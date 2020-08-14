@@ -162,14 +162,14 @@ struct HTTPHeader {
 };
 
 class Handler;
+struct FileEntry;
 
 struct Stream {
   Stream(int64_t stream_id, Handler *handler);
-  ~Stream();
 
   int start_response(nghttp3_conn *conn);
-  int open_file(const std::string &path);
-  int map_file(size_t len);
+  std::pair<FileEntry, int> open_file(const std::string &path);
+  void map_file(const FileEntry &fe);
   int send_status_response(nghttp3_conn *conn, unsigned int status_code,
                            const std::vector<HTTPHeader> &extra_headers = {});
   int send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
@@ -183,9 +183,6 @@ struct Stream {
   std::string uri;
   std::string method;
   std::string authority;
-  // fd is a file descriptor to read file to send its content to a
-  // client.
-  int fd;
   std::string status_resp_body;
   // data is a pointer to the memory which maps file denoted by fd.
   uint8_t *data;
@@ -197,8 +194,6 @@ struct Stream {
   uint64_t dyndataleft;
   // dynbuflen is the number of bytes in-flight.
   uint64_t dynbuflen;
-  // mmapped is true if data points to the memory assigned by mmap.
-  bool mmapped;
 };
 
 class Server;

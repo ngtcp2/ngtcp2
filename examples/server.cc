@@ -171,22 +171,11 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
 Stream::Stream(int64_t stream_id, Handler *handler)
     : stream_id(stream_id),
       handler(handler),
-      fd(-1),
       data(nullptr),
       datalen(0),
       dynresp(false),
       dyndataleft(0),
-      dynbuflen(0),
-      mmapped(false) {}
-
-Stream::~Stream() {
-  if (mmapped) {
-    munmap(data, datalen);
-  }
-  if (fd != -1) {
-    close(fd);
-  }
-}
+      dynbuflen(0) {}
 
 namespace {
 constexpr char NGTCP2_SERVER[] = "nghttp3/ngtcp2 server";
@@ -312,45 +301,67 @@ Request request_path(const std::string_view &uri, bool is_connect) {
 
 namespace {
 std::string resolve_path(const std::string &req_path) {
-  auto raw_path = config.htdocs + req_path;
-  std::array<char, PATH_MAX> buf;
-  auto p = realpath(raw_path.c_str(), buf.data());
-  if (p == nullptr) {
-    return "";
-  }
-  auto path = std::string(p);
-
-  if (path.size() < config.htdocs.size() ||
-      !std::equal(std::begin(config.htdocs), std::end(config.htdocs),
-                  std::begin(path))) {
-    return "";
-  }
-  return path;
+  auto path = util::normalize_path(req_path);
+  return config.htdocs + path;
 }
 } // namespace
 
-int Stream::open_file(const std::string &path) {
-  fd = open(path.c_str(), O_RDONLY);
-  if (fd == -1) {
-    return -1;
+enum FileEntryFlag {
+  FILE_ENTRY_TYPE_DIR = 0x1,
+};
+
+struct FileEntry {
+  uint64_t len;
+  void *map;
+  int fd;
+  uint8_t flags;
+};
+
+namespace {
+std::unordered_map<std::string, FileEntry> file_cache;
+} // namespace
+
+std::pair<FileEntry, int> Stream::open_file(const std::string &path) {
+  auto it = file_cache.find(path);
+  if (it != std::end(file_cache)) {
+    return {(*it).second, 0};
   }
 
-  return 0;
+  auto fd = open(path.c_str(), O_RDONLY);
+  if (fd == -1) {
+    return {{}, -1};
+  }
+
+  struct stat st {};
+  if (fstat(fd, &st) != 0) {
+    close(fd);
+    return {{}, -1};
+  }
+
+  FileEntry fe{};
+  if (st.st_mode & S_IFDIR) {
+    fe.flags |= FILE_ENTRY_TYPE_DIR;
+    fe.fd = -1;
+    close(fd);
+  } else {
+    fe.fd = fd;
+    fe.len = st.st_size;
+    fe.map = mmap(nullptr, fe.len, PROT_READ, MAP_SHARED, fd, 0);
+    if (fe.map == MAP_FAILED) {
+      std::cerr << "mmap: " << strerror(errno) << std::endl;
+      close(fd);
+      return {{}, -1};
+    }
+  }
+
+  file_cache.emplace(path, fe);
+
+  return {std::move(fe), 0};
 }
 
-int Stream::map_file(size_t len) {
-  if (len == 0) {
-    return 0;
-  }
-  data =
-      static_cast<uint8_t *>(mmap(nullptr, len, PROT_READ, MAP_SHARED, fd, 0));
-  if (data == MAP_FAILED) {
-    std::cerr << "mmap: " << strerror(errno) << std::endl;
-    return -1;
-  }
-  datalen = len;
-  mmapped = true;
-  return 0;
+void Stream::map_file(const FileEntry &fe) {
+  data = static_cast<uint8_t *>(fe.map);
+  datalen = fe.len;
 }
 
 int64_t Stream::find_dyn_length(const std::string_view &path) {
@@ -524,31 +535,26 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
   if (dyn_len == -1) {
     auto path = resolve_path(req.path);
-    if (path.empty() || open_file(path) != 0) {
+    if (path.empty()) {
+      send_status_response(httpconn, 404);
+      return 0;
+    }
+    auto [fe, rv] = open_file(path);
+    if (rv != 0) {
       send_status_response(httpconn, 404);
       return 0;
     }
 
-    struct stat st {};
-
-    if (fstat(fd, &st) == 0) {
-      if (st.st_mode & S_IFDIR) {
-        send_redirect_response(httpconn, 308,
-                               path.substr(config.htdocs.size() - 1) + '/');
-        return 0;
-      }
-      content_length = st.st_size;
-    } else {
-      send_status_response(httpconn, 404);
+    if (fe.flags & FILE_ENTRY_TYPE_DIR) {
+      send_redirect_response(httpconn, 308,
+                             path.substr(config.htdocs.size() - 1) + '/');
       return 0;
     }
 
-    if (method == "HEAD") {
-      close(fd);
-      fd = -1;
-    } else if (map_file(content_length) != 0) {
-      send_status_response(httpconn, 500);
-      return 0;
+    content_length = fe.len;
+
+    if (method != "HEAD") {
+      map_file(fe);
     }
 
     dr.read_data = read_data;
@@ -1281,7 +1287,7 @@ int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
 void Handler::http_acked_stream_data(Stream *stream, size_t datalen) {
   stream->http_acked_stream_data(datalen);
 
-  if (stream->fd == -1 && stream->dynbuflen < MAX_DYNBUFLEN - 16384) {
+  if (stream->dynresp && stream->dynbuflen < MAX_DYNBUFLEN - 16384) {
     if (auto rv = nghttp3_conn_resume_stream(httpconn_, stream->stream_id);
         rv != 0) {
       // TODO Handle error

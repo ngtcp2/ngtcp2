@@ -516,6 +516,96 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
   return 0;
 }
 
+namespace {
+template <typename InputIt> InputIt eat_file(InputIt first, InputIt last) {
+  if (first == last) {
+    *first++ = '/';
+    return first;
+  }
+
+  if (*(last - 1) == '/') {
+    return last;
+  }
+
+  auto p = last;
+  for (; p != first && *(p - 1) != '/'; --p)
+    ;
+  if (p == first) {
+    // this should not happened in normal case, where we expect path
+    // starts with '/'
+    *first++ = '/';
+    return first;
+  }
+
+  return p;
+}
+} // namespace
+
+namespace {
+template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
+  auto p = eat_file(first, last);
+
+  --p;
+
+  assert(*p == '/');
+
+  return eat_file(first, p);
+}
+} // namespace
+
+std::string normalize_path(const std::string &path) {
+  assert(path.size() <= 1024);
+  assert(path.size() > 0);
+  assert(path[0] == '/');
+
+  std::array<char, 1024> res;
+  auto p = res.data();
+
+  auto first = std::begin(path);
+  auto last = std::end(path);
+
+  *p++ = '/';
+  ++first;
+  for (; first != last && *first == '/'; ++first)
+    ;
+
+  for (; first != last;) {
+    if (*first == '.') {
+      if (first + 1 == last) {
+        break;
+      }
+      if (*(first + 1) == '/') {
+        first += 2;
+        continue;
+      }
+      if (*(first + 1) == '.') {
+        if (first + 2 == last) {
+          p = eat_dir(res.data(), p);
+          break;
+        }
+        if (*(first + 2) == '/') {
+          p = eat_dir(res.data(), p);
+          first += 3;
+          continue;
+        }
+      }
+    }
+    if (*(p - 1) != '/') {
+      p = eat_file(res.data(), p);
+    }
+    auto slash = std::find(first, last, '/');
+    if (slash == last) {
+      p = std::copy(first, last, p);
+      break;
+    }
+    p = std::copy(first, slash + 1, p);
+    first = slash + 1;
+    for (; first != last && *first == '/'; ++first)
+      ;
+  }
+  return std::string{res.data(), p};
+}
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {

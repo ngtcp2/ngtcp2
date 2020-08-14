@@ -63,7 +63,9 @@ int main(int argc, char *argv[]) {
       !CU_add_test(pSuite, "util_parse_uint_iec",
                    ngtcp2::test_util_parse_uint_iec) ||
       !CU_add_test(pSuite, "util_parse_duration",
-                   ngtcp2::test_util_parse_duration)) {
+                   ngtcp2::test_util_parse_duration) ||
+      !CU_add_test(pSuite, "util_normalize_path",
+                   ngtcp2::test_util_normalize_path)) {
     CU_cleanup_registry();
     return CU_get_error();
   }

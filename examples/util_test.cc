@@ -219,4 +219,19 @@ void test_util_parse_duration() {
   }
 }
 
+void test_util_normalize_path() {
+  CU_ASSERT("/" == util::normalize_path("/"));
+  CU_ASSERT("/" == util::normalize_path("//"));
+  CU_ASSERT("/foo" == util::normalize_path("/foo"));
+  CU_ASSERT("/foo/bar/" == util::normalize_path("/foo/bar/"));
+  CU_ASSERT("/foo/bar/" == util::normalize_path("/foo/abc/../bar/"));
+  CU_ASSERT("/foo/bar/" == util::normalize_path("/../foo/abc/../bar/"));
+  CU_ASSERT("/foo/bar/" ==
+            util::normalize_path("/./foo/././abc///.././bar/./"));
+  CU_ASSERT("/foo/" == util::normalize_path("/foo/."));
+  CU_ASSERT("/foo/bar" == util::normalize_path("/foo/./bar"));
+  CU_ASSERT("/bar" == util::normalize_path("/foo/./../bar"));
+  CU_ASSERT("/bar" == util::normalize_path("/../../bar"));
+}
+
 } // namespace ngtcp2

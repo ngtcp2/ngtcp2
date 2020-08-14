@@ -276,6 +276,11 @@ std::pair<uint64_t, int> parse_duration(const std::string_view &s);
 // must be 32.
 int generate_secret(uint8_t *secret, size_t secretlen);
 
+// normalize_path removes ".." by consuming a previous path component.
+// It also removes ".".  It assumes that |path| starts with "/".  If
+// it cannot consume a previous path component, it just removes "..".
+std::string normalize_path(const std::string &path);
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);

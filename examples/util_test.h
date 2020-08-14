@@ -38,6 +38,7 @@ void test_util_format_duration();
 void test_util_parse_uint();
 void test_util_parse_uint_iec();
 void test_util_parse_duration();
+void test_util_normalize_path();
 
 } // namespace ngtcp2
 
