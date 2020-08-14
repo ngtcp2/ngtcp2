@@ -281,6 +281,51 @@ int generate_secret(uint8_t *secret, size_t secretlen);
 // it cannot consume a previous path component, it just removes "..".
 std::string normalize_path(const std::string &path);
 
+constexpr bool is_digit(const char c) { return '0' <= c && c <= '9'; }
+
+constexpr bool is_hex_digit(const char c) {
+  return is_digit(c) || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f');
+}
+
+// Returns integer corresponding to hex notation |c|.  If
+// is_hex_digit(c) is false, it returns 256.
+constexpr uint32_t hex_to_uint(char c) {
+  if (c <= '9') {
+    return c - '0';
+  }
+  if (c <= 'Z') {
+    return c - 'A' + 10;
+  }
+  if (c <= 'z') {
+    return c - 'a' + 10;
+  }
+  return 256;
+}
+
+template <typename InputIt>
+std::string percent_decode(InputIt first, InputIt last) {
+  std::string result;
+  result.resize(last - first);
+  auto p = std::begin(result);
+  for (; first != last; ++first) {
+    if (*first != '%') {
+      *p++ = *first;
+      continue;
+    }
+
+    if (first + 1 != last && first + 2 != last && is_hex_digit(*(first + 1)) &&
+        is_hex_digit(*(first + 2))) {
+      *p++ = (hex_to_uint(*(first + 1)) << 4) + hex_to_uint(*(first + 2));
+      first += 2;
+      continue;
+    }
+
+    *p++ = *first;
+  }
+  result.resize(p - std::begin(result));
+  return result;
+}
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
