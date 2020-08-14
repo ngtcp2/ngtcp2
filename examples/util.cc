@@ -261,7 +261,7 @@ namespace {
 constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace
 
-int read_mime_types(std::map<std::string, std::string> &dest,
+int read_mime_types(std::unordered_map<std::string, std::string> &dest,
                     const char *filename) {
   std::ifstream f(filename);
   if (!f) {

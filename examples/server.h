@@ -30,7 +30,7 @@
 #endif // HAVE_CONFIG_H
 
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <deque>
 #include <string_view>
@@ -66,7 +66,7 @@ struct Config {
   // /etc/mime/types.
   const char *mime_types_file;
   // mime_types maps file extension to MIME media type.
-  std::map<std::string, std::string> mime_types;
+  std::unordered_map<std::string, std::string> mime_types;
   // port is the port number which server listens on for incoming
   // connections.
   uint16_t port;
@@ -316,7 +316,7 @@ private:
   ngtcp2_cid pscid_;
   ngtcp2_cid rcid_;
   nghttp3_conn *httpconn_;
-  std::map<int64_t, std::unique_ptr<Stream>> streams_;
+  std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;
   // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.
   // This packet is repeatedly sent as a response to the incoming
   // packet in draining period.
@@ -365,10 +365,10 @@ public:
   void dissociate_cid(const ngtcp2_cid *cid);
 
 private:
-  std::map<std::string, std::unique_ptr<Handler>> handlers_;
+  std::unordered_map<std::string, std::unique_ptr<Handler>> handlers_;
   // ctos_ is a mapping between client's initial destination
   // connection ID, and server source connection ID.
-  std::map<std::string, std::string> ctos_;
+  std::unordered_map<std::string, std::string> ctos_;
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   SSL_CTX *ssl_ctx_;
