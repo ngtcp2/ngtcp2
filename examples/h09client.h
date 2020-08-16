@@ -266,7 +266,8 @@ public:
   int submit_http_request(Stream *stream);
   int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
                        size_t datalen);
-  int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
+  int acked_stream_data_offset(int64_t stream_id, uint64_t offset,
+                               uint64_t datalen);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
 
   void reset_idle_timer();

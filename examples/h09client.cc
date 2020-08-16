@@ -510,7 +510,7 @@ int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
                              uint64_t offset, uint64_t datalen, void *user_data,
                              void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
-  if (c->acked_stream_data_offset(stream_id, datalen) != 0) {
+  if (c->acked_stream_data_offset(stream_id, offset, datalen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
@@ -1651,12 +1651,13 @@ int Client::recv_stream_data(uint32_t flags, int64_t stream_id,
   return 0;
 }
 
-int Client::acked_stream_data_offset(int64_t stream_id, uint64_t datalen) {
+int Client::acked_stream_data_offset(int64_t stream_id, uint64_t offset,
+                                     uint64_t datalen) {
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
-  assert(static_cast<uint64_t>(stream->reqbuf.end - stream->reqbuf.begin) <=
-         datalen);
+  assert(static_cast<uint64_t>(stream->reqbuf.end - stream->reqbuf.begin) >=
+         offset + datalen);
   return 0;
 }
 
