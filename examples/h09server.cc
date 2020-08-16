@@ -233,6 +233,11 @@ Request request_path(const std::string_view &uri) {
     req.path = "/index.html";
   }
 
+  req.path = util::normalize_path(req.path);
+  if (req.path == "/") {
+    req.path = "/index.html";
+  }
+
   if (u.field_set & (1 << UF_QUERY)) {
     static constexpr char push_prefix[] = "push=";
     static constexpr char urgency_prefix[] = "u=";
@@ -290,13 +295,6 @@ Request request_path(const std::string_view &uri) {
     }
   }
   return req;
-}
-} // namespace
-
-namespace {
-std::string resolve_path(const std::string &req_path) {
-  auto path = util::normalize_path(req_path);
-  return config.htdocs + path;
 }
 } // namespace
 
@@ -381,11 +379,7 @@ int Stream::start_response() {
     return send_status_response(400);
   }
 
-  auto path = resolve_path(req.path);
-  if (path.empty()) {
-    send_status_response(404);
-    return 0;
-  }
+  auto path = config.htdocs + req.path;
   auto [fe, rv] = open_file(path);
   if (rv != 0) {
     send_status_response(404);

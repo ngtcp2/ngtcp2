@@ -242,6 +242,11 @@ Request request_path(const std::string_view &uri, bool is_connect) {
     req.path = "/index.html";
   }
 
+  req.path = util::normalize_path(req.path);
+  if (req.path == "/") {
+    req.path = "/index.html";
+  }
+
   if (u.field_set & (1 << UF_QUERY)) {
     static constexpr char push_prefix[] = "push=";
     static constexpr char urgency_prefix[] = "u=";
@@ -299,13 +304,6 @@ Request request_path(const std::string_view &uri, bool is_connect) {
     }
   }
   return req;
-}
-} // namespace
-
-namespace {
-std::string resolve_path(const std::string &req_path) {
-  auto path = util::normalize_path(req_path);
-  return config.htdocs + path;
 }
 } // namespace
 
@@ -369,6 +367,10 @@ void Stream::map_file(const FileEntry &fe) {
 
 int64_t Stream::find_dyn_length(const std::string_view &path) {
   assert(path[0] == '/');
+
+  if (path.size() == 1) {
+    return -1;
+  }
 
   uint64_t n = 0;
 
@@ -537,11 +539,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   std::string content_type = "text/plain";
 
   if (dyn_len == -1) {
-    auto path = resolve_path(req.path);
-    if (path.empty()) {
-      send_status_response(httpconn, 404);
-      return 0;
-    }
+    auto path = config.htdocs + req.path;
     auto [fe, rv] = open_file(path);
     if (rv != 0) {
       send_status_response(httpconn, 404);
