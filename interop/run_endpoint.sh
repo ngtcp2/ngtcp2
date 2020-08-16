@@ -54,6 +54,11 @@ if [ "$ROLE" == "client" ]; then
 	$CLIENT_BIN $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
     fi
 elif [ "$ROLE" == "server" ]; then
+    if [ "$TESTCASE" == "http3" ]; then
+	SERVER_BIN="/usr/local/bin/server"
+    else
+	SERVER_BIN="/usr/local/bin/h09server"
+    fi
     SERVER_ARGS="0.0.0.0 443 /etc/ngtcp2/server.key /etc/ngtcp2/server.crt -s -d /www --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "retry" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
@@ -61,5 +66,5 @@ elif [ "$ROLE" == "server" ]; then
 	SERVER_ARGS="$SERVER_ARGS --timeout=180s"
     fi
 
-    /usr/local/bin/server $SERVER_ARGS $SERVER_PARAMS &> $LOG
+    $SERVER_BIN $SERVER_ARGS $SERVER_PARAMS &> $LOG
 fi

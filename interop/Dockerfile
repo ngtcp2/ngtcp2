@@ -15,7 +15,7 @@ RUN apt-get update && \
     cd ngtcp2 && autoreconf -i && \
     ./configure CXXFLAGS=-DNGTCP2_ENABLE_UDP_GSO=0 && \
     make -j$(nproc) && make install-strip && \
-    cp examples/server examples/client examples/h09client /usr/local/bin && \
+    cp examples/server examples/client examples/h09server examples/h09client /usr/local/bin && \
     cd .. && \
     rm -rf ngtcp2 && \
     strip /usr/local/lib/*.so.*.* /usr/local/lib/engines-*/*.so && \
