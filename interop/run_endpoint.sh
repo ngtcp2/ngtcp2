@@ -22,6 +22,11 @@ LOG=/logs/log.txt
 if [ "$ROLE" == "client" ]; then
     # Wait for the simulator to start up.
     /wait-for-it.sh sim:57832 -s -t 30
+    if [ "$TESTCASE" == "http3" ]; then
+	CLIENT_BIN="/usr/local/bin/client"
+    else
+	CLIENT_BIN="/usr/local/bin/h09client"
+    fi
     CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
@@ -36,17 +41,17 @@ if [ "$ROLE" == "client" ]; then
 	fi
 	REQS=($REQUESTS)
 	REQUESTS=${REQS[0]}
-	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
+	$CLIENT_BIN $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
 	REQUESTS=${REQS[@]:1}
-	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &>> $LOG
+	$CLIENT_BIN $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &>> $LOG
     elif [ "$TESTCASE" == "multiconnect" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --timeout=180s"
 	for REQ in $REQUESTS; do
 	    echo "multiconnect REQ: $REQ" >> $LOG
-	    /usr/local/bin/client $CLIENT_ARGS $REQ $CLIENT_PARAMS &>> $LOG
+	    $CLIENT_BIN $CLIENT_ARGS $REQ $CLIENT_PARAMS &>> $LOG
 	done
     else
-	/usr/local/bin/client $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
+	$CLIENT_BIN $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
     fi
 elif [ "$ROLE" == "server" ]; then
     SERVER_ARGS="0.0.0.0 443 /etc/ngtcp2/server.key /etc/ngtcp2/server.crt -s -d /www --qlog-dir $QLOGDIR"
