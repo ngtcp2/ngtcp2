@@ -67,10 +67,6 @@ using namespace std::literals;
 #endif   // NGTCP2_ENABLE_UDP_GSO
 
 namespace {
-constexpr uint8_t HQ_ALPN[] = "\x05hq-29";
-} // namespace
-
-namespace {
 constexpr size_t NGTCP2_SV_SCIDLEN = 18;
 } // namespace
 

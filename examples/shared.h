@@ -33,6 +33,8 @@
 
 namespace ngtcp2 {
 
+constexpr uint8_t HQ_ALPN[] = "\x05hq-29";
+
 enum class QUICErrorType {
   Application,
   Transport,

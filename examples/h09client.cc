@@ -56,10 +56,6 @@ using namespace ngtcp2;
 using namespace std::literals;
 
 namespace {
-constexpr uint8_t HQ_ALPN[] = "\x05hq-29";
-} // namespace
-
-namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
