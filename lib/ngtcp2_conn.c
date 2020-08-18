@@ -1490,6 +1490,7 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     }
 
     nfr = &nfrc->fr.crypto;
+    nfr->type = NGTCP2_FRAME_CRYPTO;
     memcpy(nfr->data, fr->data + end_idx,
            sizeof(nfr->data[0]) * (fr->datacnt - end_idx));
 

@@ -228,19 +228,12 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
           return 0;
         }
 
-        rv = ngtcp2_frame_chain_new(&nfrc, strm->mem);
-        if (rv != 0) {
-          ngtcp2_frame_chain_del(frc, strm->mem);
-          return rv;
-        }
+        fr->offset = fr->offset + ngtcp2_vec_len(fr->data, fr->datacnt);
+        fr->datacnt = 0;
 
-        nfr = &nfrc->fr.stream;
-        nfr->fin = 1;
-        nfr->stream_id = fr->stream_id;
-        nfr->offset = fr->offset + ngtcp2_vec_len(fr->data, fr->datacnt);
-        nfr->datacnt = 0;
+        *pfrc = frc;
 
-        *pfrc = nfrc;
+        return 0;
       }
       ngtcp2_frame_chain_del(frc, strm->mem);
       continue;
@@ -294,6 +287,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
 
     assert(nfr->data[0].len > end_base_offset);
 
+    nfr->type = NGTCP2_FRAME_STREAM;
     nfr->flags = 0;
     nfr->fin = fr->fin;
     nfr->stream_id = fr->stream_id;

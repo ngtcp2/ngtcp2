@@ -505,6 +505,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_FRAME_STREAM == frc->fr.type);
   CU_ASSERT(1 == frc->fr.stream.fin);
   CU_ASSERT(764 == frc->fr.stream.offset);
   CU_ASSERT(0 == ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
@@ -520,6 +521,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 43);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_FRAME_STREAM == frc->fr.type);
   CU_ASSERT(0 == frc->fr.stream.fin);
   CU_ASSERT(12 == frc->fr.stream.offset);
   CU_ASSERT(1 == frc->fr.stream.datacnt);
@@ -536,6 +538,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 43);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_FRAME_STREAM == frc->fr.type);
   CU_ASSERT(0 == frc->fr.stream.fin);
   CU_ASSERT(0 == frc->fr.stream.offset);
   CU_ASSERT(2 == frc->fr.stream.datacnt);
