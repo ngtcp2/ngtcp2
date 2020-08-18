@@ -26,7 +26,18 @@
 
 #include <string.h>
 #include <assert.h>
-#include <netinet/ip.h>
+
+#ifdef WIN32
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#else
+#  include <sys/types.h>
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <netinet/ip.h>
+#  include <netinet/tcp.h>
+#  include <arpa/inet.h>
+#endif
 
 ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const struct sockaddr *addr,
                               size_t addrlen, void *user_data) {

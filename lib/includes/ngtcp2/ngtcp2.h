@@ -46,9 +46,14 @@ extern "C" {
 #  include <inttypes.h>
 #endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <stdarg.h>
 #include <stddef.h>
+
+#ifdef WIN32
+#  include <winsock2.h>
+#else
+#  include <sys/socket.h>
+#endif
 
 #include <ngtcp2/version.h>
 
