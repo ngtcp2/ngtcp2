@@ -82,7 +82,7 @@
 #    define STIN static inline
 #  endif
 
-STIN uint32_t htonl(uint32_t hostlong) {
+STIN uint32_t ngtcp2_htonl(uint32_t hostlong) {
   uint32_t res;
   unsigned char *p = (unsigned char *)&res;
   *p++ = hostlong >> 24;
@@ -92,7 +92,7 @@ STIN uint32_t htonl(uint32_t hostlong) {
   return res;
 }
 
-STIN uint16_t htons(uint16_t hostshort) {
+STIN uint16_t ngtcp2_htons(uint16_t hostshort) {
   uint16_t res;
   unsigned char *p = (unsigned char *)&res;
   *p++ = hostshort >> 8;
@@ -100,7 +100,7 @@ STIN uint16_t htons(uint16_t hostshort) {
   return res;
 }
 
-STIN uint32_t ntohl(uint32_t netlong) {
+STIN uint32_t ngtcp2_ntohl(uint32_t netlong) {
   uint32_t res;
   unsigned char *p = (unsigned char *)&netlong;
   res = *p++ << 24;
@@ -110,13 +110,20 @@ STIN uint32_t ntohl(uint32_t netlong) {
   return res;
 }
 
-STIN uint16_t ntohs(uint16_t netshort) {
+STIN uint16_t ngtcp2_ntohs(uint16_t netshort) {
   uint16_t res;
   unsigned char *p = (unsigned char *)&netshort;
   res = *p++ << 8;
   res += *p;
   return res;
 }
+
+#else /* WIN32 */
+
+#define ngtcp2_htonl htonl
+#define ngtcp2_htons htons
+#define ngtcp2_ntohl ntohl
+#define ngtcp2_ntohs ntohs
 
 #endif /* WIN32 */
 
