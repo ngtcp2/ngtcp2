@@ -115,6 +115,17 @@ The notable options are:
 
 - ``-V``, ``--validate-addr``: Enforce stateless address validation.
 
+H09client/H09server
+-------------------
+
+There are h09client and h09server which speak HTTP/0.9.  They are
+written just for `quic-interop-runner
+<https://github.com/marten-seemann/quic-interop-runner>`_.  They share
+the basic functionalities with HTTP/3 client and server but have less
+functions (e.g., h09client does not have a capability to send request
+body, and h09server does not understand numeric request path, like
+/1000).
+
 Resumption and 0-RTT
 --------------------
 
