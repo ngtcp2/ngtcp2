@@ -97,7 +97,7 @@ Client
 
 .. code-block:: text
 
-   $ examples/client [OPTIONS] <ADDR> <PORT> <URI>
+   $ examples/client [OPTIONS] <HOST> <PORT> [<URI>...]
 
 The notable options are:
 
