@@ -159,40 +159,41 @@ available crypto helper libraries are:
 
 Configuring Wireshark for QUIC
 ------------------------------
+
 `Wireshark <https://www.wireshark.org/download.html>`_ can be configured to
 analyze QUIC traffic using the following steps:
 
-**1.** Set *SSLKEYLOGFILE* environment variable:
+1. Set *SSLKEYLOGFILE* environment variable:
 
    .. code-block:: text
 
-        $ export SSLKEYLOGFILE=quic_keylog_file
+      $ export SSLKEYLOGFILE=quic_keylog_file
 
-**2.** Set the port that QUIC uses
+2. Set the port that QUIC uses
 
-   Go to *Preferences->Protocols->QUIC* and set the port the program listens to.
-   In the case of the example application this would be the port specified on the
-   command line.
+   Go to *Preferences->Protocols->QUIC* and set the port the program
+   listens to.  In the case of the example application this would be
+   the port specified on the command line.
 
-**3.** Set Pre-Master-Secret logfile
+3. Set Pre-Master-Secret logfile
 
-   Go to *Preferences->Protocols->TLS* add set the *Pre-Master-Secret log file*
-   to the same value that was specified for *SSLKEYLOGFILE*.
+   Go to *Preferences->Protocols->TLS* add set the *Pre-Master-Secret
+   log file* to the same value that was specified for *SSLKEYLOGFILE*.
 
-**4.** Choose the correct network interface for capturing
+4. Choose the correct network interface for capturing
 
-   Make sure you choose the correct network interface for capturing. For example,
-   if using localhost choose the *loopback* network inteface on macos.
+   Make sure you choose the correct network interface for
+   capturing. For example, if using localhost choose the *loopback*
+   network interface on macos.
 
-**5.** Create a filter
+5. Create a filter
 
-   Create A filter for the udp.port and set the port to the port the application
-   is listening to. For example:
+   Create A filter for the udp.port and set the port to the port the
+   application is listening to. For example:
 
    .. code-block:: text
 
-        udp.port == 7777
-
+      udp.port == 7777
 
 License
 -------
