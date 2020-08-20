@@ -75,6 +75,7 @@ void test_ngtcp2_conn_recv_version_negotiation(void);
 void test_ngtcp2_conn_send_initial_token(void);
 void test_ngtcp2_conn_set_remote_transport_params(void);
 void test_ngtcp2_conn_write_connection_close(void);
+void test_ngtcp2_conn_write_application_close(void);
 void test_ngtcp2_conn_rtb_reclaim_on_pto(void);
 void test_ngtcp2_pkt_write_connection_close(void);
 

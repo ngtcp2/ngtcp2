@@ -8964,54 +8964,21 @@ fin:
   return nwrite;
 }
 
-ngtcp2_ssize ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
-                                                ngtcp2_path *path,
+static ngtcp2_ssize conn_write_connection_close(ngtcp2_conn *conn,
                                                 uint8_t *dest, size_t destlen,
+                                                uint8_t pkt_type,
                                                 uint64_t error_code,
                                                 ngtcp2_tstamp ts) {
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   ngtcp2_ssize res = 0, nwrite;
   ngtcp2_frame fr;
-  uint8_t pkt_type;
-
-  conn->log.last_ts = ts;
-  conn->qlog.last_ts = ts;
-
-  if (conn_check_pkt_num_exhausted(conn)) {
-    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
-  }
-
-  switch (conn->state) {
-  case NGTCP2_CS_CLIENT_INITIAL:
-  case NGTCP2_CS_CLOSING:
-  case NGTCP2_CS_DRAINING:
-    return NGTCP2_ERR_INVALID_STATE;
-  default:
-    break;
-  }
-
-  if (path) {
-    ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
-  }
 
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
   fr.connection_close.error_code = error_code;
   fr.connection_close.frame_type = 0;
   fr.connection_close.reasonlen = 0;
   fr.connection_close.reason = NULL;
-
-  if (conn->state == NGTCP2_CS_POST_HANDSHAKE) {
-    pkt_type = NGTCP2_PKT_SHORT;
-  } else if (hs_pktns && hs_pktns->crypto.tx.ckm) {
-    pkt_type = NGTCP2_PKT_HANDSHAKE;
-  } else if (in_pktns && in_pktns->crypto.tx.ckm) {
-    pkt_type = NGTCP2_PKT_INITIAL;
-  } else {
-    /* This branch is taken if server has not read any Initial packet
-       from client. */
-    return NGTCP2_ERR_INVALID_STATE;
-  }
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
       pkt_type != NGTCP2_PKT_INITIAL) {
@@ -9057,23 +9024,18 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
     return NGTCP2_ERR_NOBUF;
   }
 
-  conn->state = NGTCP2_CS_CLOSING;
-
   return res;
 }
 
-ngtcp2_ssize ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
-                                                 ngtcp2_path *path,
-                                                 uint8_t *dest, size_t destlen,
-                                                 uint64_t app_error_code,
-                                                 ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_write_connection_close(ngtcp2_conn *conn,
+                                                ngtcp2_path *path,
+                                                uint8_t *dest, size_t destlen,
+                                                uint64_t error_code,
+                                                ngtcp2_tstamp ts) {
+  ngtcp2_pktns *in_pktns = conn->in_pktns;
+  ngtcp2_pktns *hs_pktns = conn->hs_pktns;
+  uint8_t pkt_type;
   ngtcp2_ssize nwrite;
-  ngtcp2_frame fr;
-
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
-    return ngtcp2_conn_write_connection_close(conn, path, dest, destlen,
-                                              NGTCP2_APPLICATION_ERROR, ts);
-  }
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -9083,11 +9045,90 @@ ngtcp2_ssize ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
   }
 
   switch (conn->state) {
-  case NGTCP2_CS_POST_HANDSHAKE:
-    break;
+  case NGTCP2_CS_CLIENT_INITIAL:
+  case NGTCP2_CS_CLOSING:
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_INVALID_STATE;
   default:
+    break;
+  }
+
+  if (path) {
+    ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
+  }
+
+  if (conn->state == NGTCP2_CS_POST_HANDSHAKE ||
+      (conn->server && conn->pktns.crypto.tx.ckm)) {
+    pkt_type = NGTCP2_PKT_SHORT;
+  } else if (hs_pktns && hs_pktns->crypto.tx.ckm) {
+    pkt_type = NGTCP2_PKT_HANDSHAKE;
+  } else if (in_pktns && in_pktns->crypto.tx.ckm) {
+    pkt_type = NGTCP2_PKT_INITIAL;
+  } else {
+    /* This branch is taken if server has not read any Initial packet
+       from client. */
     return NGTCP2_ERR_INVALID_STATE;
   }
+
+  nwrite = conn_write_connection_close(conn, dest, destlen, pkt_type,
+                                       error_code, ts);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  conn->state = NGTCP2_CS_CLOSING;
+
+  return nwrite;
+}
+
+ngtcp2_ssize ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
+                                                 ngtcp2_path *path,
+                                                 uint8_t *dest, size_t destlen,
+                                                 uint64_t app_error_code,
+                                                 ngtcp2_tstamp ts) {
+  ngtcp2_ssize nwrite;
+  ngtcp2_ssize res = 0;
+  ngtcp2_frame fr;
+
+  conn->log.last_ts = ts;
+  conn->qlog.last_ts = ts;
+
+  if (conn_check_pkt_num_exhausted(conn)) {
+    return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
+  }
+
+  switch (conn->state) {
+  case NGTCP2_CS_CLIENT_INITIAL:
+  case NGTCP2_CS_CLOSING:
+  case NGTCP2_CS_DRAINING:
+    return NGTCP2_ERR_INVALID_STATE;
+  default:
+    break;
+  }
+
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
+    nwrite = conn_write_connection_close(conn, dest, destlen,
+                                         conn->hs_pktns->crypto.tx.ckm
+                                             ? NGTCP2_PKT_HANDSHAKE
+                                             : NGTCP2_PKT_INITIAL,
+                                         NGTCP2_APPLICATION_ERROR, ts);
+    if (nwrite < 0) {
+      return nwrite;
+    }
+    res = nwrite;
+    dest += nwrite;
+    destlen -= (size_t)nwrite;
+  }
+
+  if (conn->state != NGTCP2_CS_POST_HANDSHAKE) {
+    assert(res);
+
+    if (!conn->server || !conn->pktns.crypto.tx.ckm) {
+      return res;
+    }
+  }
+
+  assert(conn->pktns.crypto.tx.ckm);
 
   if (path) {
     ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
@@ -9107,13 +9148,15 @@ ngtcp2_ssize ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
     return nwrite;
   }
 
-  if (nwrite == 0) {
+  res += (size_t)nwrite;
+
+  if (res == 0) {
     return NGTCP2_ERR_NOBUF;
   }
 
   conn->state = NGTCP2_CS_CLOSING;
 
-  return nwrite;
+  return res;
 }
 
 int ngtcp2_conn_is_in_closing_period(ngtcp2_conn *conn) {

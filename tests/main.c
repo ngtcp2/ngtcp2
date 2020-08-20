@@ -260,6 +260,8 @@ int main() {
                    test_ngtcp2_conn_set_remote_transport_params) ||
       !CU_add_test(pSuite, "conn_write_connection_close",
                    test_ngtcp2_conn_write_connection_close) ||
+      !CU_add_test(pSuite, "conn_write_application_close",
+                   test_ngtcp2_conn_write_application_close) ||
       !CU_add_test(pSuite, "conn_rtb_reclaim_on_pto",
                    test_ngtcp2_conn_rtb_reclaim_on_pto) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
