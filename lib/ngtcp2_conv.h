@@ -118,14 +118,14 @@ STIN uint16_t ngtcp2_ntohs(uint16_t netshort) {
   return res;
 }
 
-#else /* WIN32 */
+#else /* !WIN32 */
 
-#define ngtcp2_htonl htonl
-#define ngtcp2_htons htons
-#define ngtcp2_ntohl ntohl
-#define ngtcp2_ntohs ntohs
+#  define ngtcp2_htonl htonl
+#  define ngtcp2_htons htons
+#  define ngtcp2_ntohl ntohl
+#  define ngtcp2_ntohs ntohs
 
-#endif /* WIN32 */
+#endif /* !WIN32 */
 
 /*
  * ngtcp2_get_uint64 reads 8 bytes from |p| as 64 bits unsigned
