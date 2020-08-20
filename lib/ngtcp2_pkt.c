@@ -474,6 +474,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     return ngtcp2_pkt_decode_stop_sending_frame(&dest->stop_sending, payload,
                                                 payloadlen);
   case NGTCP2_FRAME_ACK:
+  case NGTCP2_FRAME_ACK_ECN:
     return ngtcp2_pkt_decode_ack_frame(&dest->ack, payload, payloadlen);
   case NGTCP2_FRAME_PATH_CHALLENGE:
     return ngtcp2_pkt_decode_path_challenge_frame(&dest->path_challenge,
