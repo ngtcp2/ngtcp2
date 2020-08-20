@@ -9148,7 +9148,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close(ngtcp2_conn *conn,
     return nwrite;
   }
 
-  res += (size_t)nwrite;
+  res += nwrite;
 
   if (res == 0) {
     return NGTCP2_ERR_NOBUF;
