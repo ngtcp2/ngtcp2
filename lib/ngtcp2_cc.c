@@ -244,6 +244,14 @@ static uint64_t ngtcp2_cbrt(uint64_t n) {
 #if defined(_MSC_VER)
 #  if defined(_M_X64)
   d = (int)__lzcnt64(n);
+#  elif defined(_M_ARM64)
+  {
+    unsigned long index;
+    d = sizeof(uint64_t) * CHAR_BIT;
+    if (_BitScanReverse64(&index, n)) {
+      d = d - 1 - index;
+    }
+  }
 #  else
   if ((n >> 32) != 0) {
     d = __lzcnt((unsigned int)(n >> 32));

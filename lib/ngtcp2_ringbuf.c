@@ -31,6 +31,16 @@
 
 #include "ngtcp2_macro.h"
 
+#if defined(_MSC_VER) && defined(_M_ARM64)
+unsigned int __popcnt(unsigned int x) {
+  unsigned int c = 0;
+  for (; x; ++c) {
+    x &= x - 1;
+  }
+  return c;
+}
+#endif
+
 int ngtcp2_ringbuf_init(ngtcp2_ringbuf *rb, size_t nmemb, size_t size,
                         const ngtcp2_mem *mem) {
 #ifdef WIN32
