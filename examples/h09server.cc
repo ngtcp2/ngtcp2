@@ -1547,7 +1547,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
 
-  if (strcmp("addr", "*") == 0) {
+  if (strcmp(addr, "*") == 0) {
     addr = nullptr;
   }
 
