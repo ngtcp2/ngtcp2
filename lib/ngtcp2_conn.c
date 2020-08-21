@@ -595,6 +595,12 @@ static void conn_update_recv_rate(ngtcp2_conn *conn, size_t datalen,
   window = conn->cstat.min_rtt == UINT64_MAX ? conn->cstat.initial_rtt
                                              : conn->cstat.min_rtt * 2;
 
+  /* If settings.initial_rtt is zero for whatever reason then window
+     can be zero and we can end up with a division by zero error when
+     bps is set below. If this assert fails, check that
+     settings.initial_rtt is not zero. */
+  assert(window);
+
   if (window > ts - conn->rx.rate.start_ts) {
     return;
   }
