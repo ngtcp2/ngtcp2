@@ -2558,8 +2558,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &NGHTTP3_ALPN_H3[1]
-              << std::endl;
+    std::cerr << "Client did not present ALPN " << &HQ_ALPN[1] << std::endl;
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;
