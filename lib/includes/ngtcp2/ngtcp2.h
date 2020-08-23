@@ -439,20 +439,20 @@ typedef enum ngtcp2_transport_params_type {
 /**
  * @enum
  *
- * ngtcp2_rand_ctx is a context where generated random value is used.
+ * ngtcp2_rand_usage describes the usage of the generated random data.
  */
 #if defined(__cplusplus) && __cplusplus >= 201103L
-typedef enum ngtcp2_rand_ctx : int {
+typedef enum ngtcp2_rand_usage : int {
 #else
-typedef enum ngtcp2_rand_ctx {
+typedef enum ngtcp2_rand_usage {
 #endif
-  NGTCP2_RAND_CTX_NONE,
+  NGTCP2_RAND_USAGE_NONE,
   /**
-   * NGTCP2_RAND_CTX_PATH_CHALLENGE indicates that random value is
+   * NGTCP2_RAND_USAGE_PATH_CHALLENGE indicates that random value is
    * used for PATH_CHALLENGE.
    */
-  NGTCP2_RAND_CTX_PATH_CHALLENGE
-} ngtcp2_rand_ctx;
+  NGTCP2_RAND_USAGE_PATH_CHALLENGE
+} ngtcp2_rand_usage;
 
 /*
  * NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE is the default value of
@@ -1523,14 +1523,15 @@ typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_rand` is a callback function to get randomized byte
  * string from application.  Application must fill random |destlen|
- * bytes to the buffer pointed by |dest|.  |ctx| provides the context
- * how the provided random byte string is used.
+ * bytes to the buffer pointed by |dest|.  |usage| provides the usage
+ * of the generated random data.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_rand)(uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx);
+typedef int (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
+                           ngtcp2_rand_usage usage);
 
 /**
  * @functypedef
