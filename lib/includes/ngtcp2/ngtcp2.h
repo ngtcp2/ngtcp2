@@ -712,6 +712,18 @@ typedef enum ngtcp2_qlog_write_flag {
 } ngtcp2_qlog_write_flag;
 
 /**
+ * @struct
+ *
+ * `ngtcp2_rand_ctx` is a wrapper around native random number
+ * generator.  It is opaque to the ngtcp2 library.  This might be
+ * useful if application needs to specify random number generator per
+ * thread or per connection.
+ */
+typedef struct ngtcp2_rand_ctx {
+  void *native_handle;
+} ngtcp2_rand_ctx;
+
+/**
  * @functypedef
  *
  * :type:`ngtcp2_qlog_write` is a callback function which is called to
@@ -762,6 +774,11 @@ typedef struct ngtcp2_settings {
    * of token.
    */
   ngtcp2_vec token;
+  /**
+   * rand_ctx is an optional random number generator to be passed to
+   * :type:`ngtcp2_rand` callback.
+   */
+  ngtcp2_rand_ctx rand_ctx;
 } ngtcp2_settings;
 
 /**
@@ -1531,6 +1548,7 @@ typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
  * immediately.
  */
 typedef int (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
+                           const ngtcp2_rand_ctx *rand_ctx,
                            ngtcp2_rand_usage usage);
 
 /**

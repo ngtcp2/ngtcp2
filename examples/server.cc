@@ -1064,7 +1064,8 @@ int Handler::on_stream_reset(int64_t stream_id) {
 }
 
 namespace {
-int rand(uint8_t *dest, size_t destlen, ngtcp2_rand_usage usage) {
+int rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx,
+         ngtcp2_rand_usage usage) {
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
   return 0;

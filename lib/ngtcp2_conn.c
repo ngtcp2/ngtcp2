@@ -3616,9 +3616,9 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   }
 
   assert(conn->callbacks.rand);
-  rv = conn->callbacks.rand(lfr.path_challenge.data,
-                            sizeof(lfr.path_challenge.data),
-                            NGTCP2_RAND_USAGE_PATH_CHALLENGE);
+  rv = conn->callbacks.rand(
+      lfr.path_challenge.data, sizeof(lfr.path_challenge.data),
+      &conn->local.settings.rand_ctx, NGTCP2_RAND_USAGE_PATH_CHALLENGE);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
