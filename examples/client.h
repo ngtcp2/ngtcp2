@@ -213,8 +213,8 @@ public:
   int on_read();
   int on_write();
   int write_streams();
-  int feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
-                size_t datalen);
+  int feed_data(const sockaddr *sa, socklen_t salen, const ngtcp2_pkt_info *pi,
+                uint8_t *data, size_t datalen);
   int handle_expiry();
   void schedule_retransmit();
   int handshake_completed();
@@ -226,7 +226,7 @@ public:
                        size_t datalen);
 
   ngtcp2_conn *conn() const;
-  void update_remote_addr(const ngtcp2_addr *addr);
+  void update_remote_addr(const ngtcp2_addr *addr, const ngtcp2_pkt_info *pi);
   int send_packet();
   void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
                              uint64_t datalen);
@@ -275,6 +275,7 @@ public:
 private:
   Address local_addr_;
   Address remote_addr_;
+  unsigned int ecn_;
   size_t max_pktlen_;
   ev_io wev_;
   ev_io rev_;

@@ -167,6 +167,11 @@ typedef struct {
    * 2**ack_delay_component * NGTCP2_MICROSECONDS.
    */
   ngtcp2_duration ack_delay_unscaled;
+  struct {
+    uint64_t ect0;
+    uint64_t ect1;
+    uint64_t ce;
+  } ecn;
   uint64_t first_ack_blklen;
   size_t num_blks;
   ngtcp2_ack_blk blks[1];
@@ -315,6 +320,7 @@ typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
  */
 struct ngtcp2_pkt_chain {
   ngtcp2_path_storage path;
+  ngtcp2_pkt_info pi;
   ngtcp2_pkt_chain *next;
   uint8_t *pkt;
   size_t pktlen;
@@ -335,7 +341,8 @@ struct ngtcp2_pkt_chain {
  *     Out of memory.
  */
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
-                         const uint8_t *pkt, size_t pktlen, ngtcp2_tstamp ts,
+                         const ngtcp2_pkt_info *pi, const uint8_t *pkt,
+                         size_t pktlen, ngtcp2_tstamp ts,
                          const ngtcp2_mem *mem);
 
 /*

@@ -230,6 +230,24 @@ typedef struct ngtcp2_mem {
 /* NGTCP2_DEFAULT_INITIAL_RTT is a default initial RTT. */
 #define NGTCP2_DEFAULT_INITIAL_RTT (333 * NGTCP2_MILLISECONDS)
 
+typedef enum ngtcp2_ecn {
+  NGTCP2_ECN_NOT_ECT = 0x0,
+  NGTCP2_ECN_ECT_1 = 0x1,
+  NGTCP2_ECN_ECT_0 = 0x2,
+  NGTCP2_ECN_CE = 0x3,
+  NGTCP2_ECN_MASK = 0x3
+} ngtcp2_ecn;
+
+typedef struct ngtcp2_pkt_info {
+  /**
+   * ecn is ECN marking and when passing `ngtcp2_conn_read_pkt()`, it
+   * should be either :enum:`NGTCP2_ECN_NOT_ECT`,
+   * :enum:`NGTCP2_ECN_ECT_1`, :enum:`NGTCP2_ECN_ECT_0`, or
+   * :enum:`NGTCP2_ECN_CE`.
+   */
+  uint32_t ecn;
+} ngtcp2_pkt_info;
+
 #if defined(__cplusplus) && __cplusplus >= 201103L
 typedef enum ngtcp2_lib_error : int {
 #else
@@ -2054,8 +2072,9 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_read_pkt` decrypts QUIC packet given in |pkt| of
  * length |pktlen| and processes it.  |path| is the network path the
- * packet is delivered and must not be NULL.  This function performs
- * QUIC handshake as well.
+ * packet is delivered and must not be NULL.  |pi| is packet metadata
+ * and must not be NULL. This function performs QUIC handshake as
+ * well.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2075,6 +2094,7 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  */
 NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
                                        const ngtcp2_path *path,
+                                       const ngtcp2_pkt_info *pi,
                                        const uint8_t *pkt, size_t pktlen,
                                        ngtcp2_tstamp ts);
 
@@ -2087,6 +2107,7 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt(ngtcp2_conn *conn,
                                                  ngtcp2_path *path,
+                                                 ngtcp2_pkt_info *pi,
                                                  uint8_t *dest, size_t destlen,
                                                  ngtcp2_tstamp ts);
 
@@ -2614,8 +2635,8 @@ typedef enum ngtcp2_write_stream_flag {
  * conveniently accepts a single buffer.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
-    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id,
+    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+    size_t destlen, ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id,
     const uint8_t *data, size_t datalen, ngtcp2_tstamp ts);
 
 /**
@@ -2633,6 +2654,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * buffer which is at least 128 bytes.  ``sizeof(struct
  * sockaddr_storage)`` is enough.  The assignment might not be done if
  * nothing is written to |dest|.
+ *
+ * If |pi| is not NULL, this function stores packet metadata in it if
+ * it succeeds.  The metadata includes ECN markings.
  *
  * If the all given data is encoded as STREAM frame in |dest|, and if
  * |flags| & NGTCP2_WRITE_STREAM_FLAG_FIN is nonzero, fin flag is set
@@ -2727,8 +2751,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * other library functions.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
-    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id,
+    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+    size_t destlen, ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id,
     const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
 
 /**

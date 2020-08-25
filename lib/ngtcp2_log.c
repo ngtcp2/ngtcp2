@@ -242,6 +242,14 @@ static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                     NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, largest_ack,
                     min_ack, blk->gap, blk->blklen);
   }
+
+  if (fr->type == NGTCP2_FRAME_ACK_ECN) {
+    log->log_printf(log->user_data,
+                    (NGTCP2_LOG_PKT " ACK(0x%02x) ect0=%" PRIu64
+                                    " ect1=%" PRIu64 " ce=%" PRIu64),
+                    NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->ecn.ect0,
+                    fr->ecn.ect1, fr->ecn.ce);
+  }
 }
 
 static void log_fr_padding(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,

@@ -108,6 +108,10 @@ typedef enum {
    ACK-eliciting packets. */
 #define NGTCP2_MAX_NON_ACK_TX_PKT 3
 
+/* NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS is the maximum number of ECN marked
+   packets sent in NGTCP2_ECN_STATE_TESTING period. */
+#define NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS 10
+
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
@@ -195,6 +199,12 @@ typedef struct ngtcp2_pktns {
     /* num_non_ack_pkt is the number of continuous non ACK-eliciting
        packets. */
     size_t num_non_ack_pkt;
+
+    struct {
+      /* ect0 is the number of QUIC packets, not UDP datagram, which
+         are sent in UDP datagram with ECT0 marking. */
+      size_t ect0;
+    } ecn;
   } tx;
 
   struct {
@@ -227,6 +237,21 @@ typedef struct ngtcp2_pktns {
      *   ngtcp2_pktns.
      */
     ngtcp2_pkt_chain *buffed_pkts;
+
+    struct {
+      /* ect0, ect1, and ce are the number of QUIC packets received
+         with those markings. */
+      size_t ect0;
+      size_t ect1;
+      size_t ce;
+      struct {
+        /* ect0, ect1, ce are the ECN counts received in the latest
+           ACK frame. */
+        size_t ect0;
+        size_t ect1;
+        size_t ce;
+      } ack;
+    } ecn;
   } rx;
 
   struct {
@@ -258,6 +283,13 @@ typedef struct ngtcp2_pktns {
   ngtcp2_acktr acktr;
   ngtcp2_rtb rtb;
 } ngtcp2_pktns;
+
+typedef enum ngtcp2_ecn_state {
+  NGTCP2_ECN_STATE_TESTING,
+  NGTCP2_ECN_STATE_UNKNOWN,
+  NGTCP2_ECN_STATE_FAILED,
+  NGTCP2_ECN_STATE_CAPABLE,
+} ngtcp2_ecn_state;
 
 struct ngtcp2_conn {
   ngtcp2_conn_state state;
@@ -329,6 +361,23 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that local endpoint can
        send. */
     uint64_t max_offset;
+
+    struct {
+      /* state is the state of ECN validation */
+      ngtcp2_ecn_state state;
+      /* validation_start_ts is the timestamp when ECN validation is
+         started.  It is UINT64_MAX if it has not started yet. */
+      ngtcp2_tstamp validation_start_ts;
+      /* start_pkt_num is the lowest packet number that are sent
+         during ECN validation period. */
+      int64_t start_pkt_num;
+      /* dgram_sent is the number of UDP datagram sent during ECN
+         validation period. */
+      size_t dgram_sent;
+      /* dgram_lost is the number of UDP datagram lost during ECN
+         validation period. */
+      size_t dgram_lost;
+    } ecn;
   } tx;
 
   struct {
@@ -629,8 +678,9 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
-                                    uint8_t *dest, size_t destlen,
-                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
+                                    ngtcp2_pkt_info *pi, uint8_t *dest,
+                                    size_t destlen, ngtcp2_vmsg *vmsg,
+                                    ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains |fr|

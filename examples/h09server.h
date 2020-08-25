@@ -198,6 +198,8 @@ struct Endpoint {
   ev_io rev;
   Server *server;
   int fd;
+  // ecn is the last ECN bits set to fd.
+  unsigned int ecn;
 };
 
 struct Crypto {
@@ -220,11 +222,11 @@ public:
            uint32_t version);
 
   int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-              uint8_t *data, size_t datalen);
+              const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen);
   int on_write();
   int write_streams();
   int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                uint8_t *data, size_t datalen);
+                const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen);
   void schedule_retransmit();
   int handle_expiry();
   void signal_write();
@@ -257,7 +259,7 @@ public:
   int handle_error();
   int send_conn_close();
   void update_endpoint(const ngtcp2_addr *addr);
-  void update_remote_addr(const ngtcp2_addr *addr);
+  void update_remote_addr(const ngtcp2_addr *addr, const ngtcp2_pkt_info *pi);
 
   int on_key(ngtcp2_crypto_level level, const uint8_t *rsecret,
              const uint8_t *wsecret, size_t secretlen);
@@ -283,6 +285,7 @@ public:
 private:
   Endpoint *endpoint_;
   Address remote_addr_;
+  unsigned int ecn_;
   size_t max_pktlen_;
   struct ev_loop *loop_;
   SSL_CTX *ssl_ctx_;
@@ -336,8 +339,8 @@ public:
   int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa);
   int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                    socklen_t salen);
-  int send_packet(Endpoint &ep, const Address &remote_addr, const uint8_t *data,
-                  size_t datalen, size_t gso_size);
+  int send_packet(Endpoint &ep, const Address &remote_addr, unsigned int ecn,
+                  const uint8_t *data, size_t datalen, size_t gso_size);
   void remove(const Handler *h);
 
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,

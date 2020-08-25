@@ -371,6 +371,7 @@ void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
 Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
     : local_addr_{},
       remote_addr_{},
+      ecn_(0),
       max_pktlen_(0),
       loop_(loop),
       ssl_ctx_(ssl_ctx),
@@ -1015,12 +1016,13 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   return 0;
 }
 
-int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
+int Client::feed_data(const sockaddr *sa, socklen_t salen,
+                      const ngtcp2_pkt_info *pi, uint8_t *data,
                       size_t datalen) {
   auto path =
       ngtcp2_path{{local_addr_.len, const_cast<sockaddr *>(&local_addr_.su.sa)},
                   {salen, const_cast<sockaddr *>(sa)}};
-  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
+  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
                                      util::timestamp(loop_));
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
@@ -1048,13 +1050,26 @@ int Client::feed_data(const sockaddr *sa, socklen_t salen, uint8_t *data,
 int Client::on_read() {
   std::array<uint8_t, 65536> buf;
   sockaddr_union su;
-  socklen_t addrlen;
   size_t pktcnt = 0;
+  ngtcp2_pkt_info pi;
+
+  iovec msg_iov;
+  msg_iov.iov_base = buf.data();
+  msg_iov.iov_len = buf.size();
+
+  msghdr msg{};
+  msg.msg_name = &su;
+  msg.msg_iov = &msg_iov;
+  msg.msg_iovlen = 1;
+
+  std::array<uint8_t, CMSG_SPACE(sizeof(uint8_t))> msg_ctrl;
+  msg.msg_control = msg_ctrl.data();
 
   for (;;) {
-    addrlen = sizeof(su);
-    auto nread =
-        recvfrom(fd_, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
+    msg.msg_namelen = sizeof(su);
+    msg.msg_controllen = msg_ctrl.size();
+
+    auto nread = recvmsg(fd_, &msg, MSG_DONTWAIT);
 
     if (nread == -1) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -1063,10 +1078,13 @@ int Client::on_read() {
       break;
     }
 
+    pi.ecn = msghdr_get_ecn(&msg, su.storage.ss_family);
+
     if (!config.quiet) {
       std::cerr << "Received packet: local="
                 << util::straddr(&local_addr_.su.sa, local_addr_.len)
-                << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
+                << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
+                << " ecn=0x" << std::hex << pi.ecn << std::dec << " " << nread
                 << " bytes" << std::endl;
     }
 
@@ -1077,7 +1095,7 @@ int Client::on_read() {
       break;
     }
 
-    if (feed_data(&su.sa, addrlen, buf.data(), nread) != 0) {
+    if (feed_data(&su.sa, msg.msg_namelen, &pi, buf.data(), nread) != 0) {
       return -1;
     }
 
@@ -1187,8 +1205,10 @@ int Client::write_streams() {
       flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
     }
 
+    ngtcp2_pkt_info pi;
+
     auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, &ndatalen, flags,
+        conn_, &path.path, &pi, sendbuf_.wpos(), max_pktlen_, &ndatalen, flags,
         stream_id, reinterpret_cast<const ngtcp2_vec *>(v), vcnt,
         util::timestamp(loop_));
     if (nwrite < 0) {
@@ -1237,7 +1257,7 @@ int Client::write_streams() {
 
     sendbuf_.push(nwrite);
 
-    update_remote_addr(&path.path.remote);
+    update_remote_addr(&path.path.remote, &pi);
     reset_idle_timer();
 
     if (auto rv = send_packet(); rv != NETWORK_ERR_OK) {
@@ -1355,6 +1375,8 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
     close(fd);
     return -1;
   }
+
+  fd_set_recv_ecn(fd, rp->ai_family);
 
   remote_addr.len = rp->ai_addrlen;
   memcpy(&remote_addr.su, rp->ai_addr, rp->ai_addrlen);
@@ -1478,9 +1500,15 @@ void Client::start_delay_stream_timer() {
   ev_timer_start(loop_, &delay_stream_timer_);
 }
 
-void Client::update_remote_addr(const ngtcp2_addr *addr) {
+void Client::update_remote_addr(const ngtcp2_addr *addr,
+                                const ngtcp2_pkt_info *pi) {
   remote_addr_.len = addr->addrlen;
   memcpy(&remote_addr_.su, addr->addr, addr->addrlen);
+  if (pi) {
+    ecn_ = pi->ecn;
+  } else {
+    ecn_ = 0;
+  }
 }
 
 int Client::send_packet() {
@@ -1492,11 +1520,22 @@ int Client::send_packet() {
     return NETWORK_ERR_OK;
   }
 
+  iovec msg_iov;
+  msg_iov.iov_base = const_cast<uint8_t *>(sendbuf_.rpos());
+  msg_iov.iov_len = sendbuf_.size();
+
+  msghdr msg{};
+  msg.msg_name = const_cast<sockaddr *>(&remote_addr_.su.sa);
+  msg.msg_namelen = remote_addr_.len;
+  msg.msg_iov = &msg_iov;
+  msg.msg_iovlen = 1;
+
+  fd_set_ecn(fd_, remote_addr_.su.storage.ss_family, ecn_);
+
   ssize_t nwrite = 0;
 
   do {
-    nwrite = sendto(fd_, sendbuf_.rpos(), sendbuf_.size(), MSG_DONTWAIT,
-                    &remote_addr_.su.sa, remote_addr_.len);
+    nwrite = sendmsg(fd_, &msg, MSG_DONTWAIT);
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
@@ -1514,8 +1553,9 @@ int Client::send_packet() {
     std::cerr << "Sent packet: local="
               << util::straddr(&local_addr_.su.sa, local_addr_.len)
               << " remote="
-              << util::straddr(&remote_addr_.su.sa, remote_addr_.len) << " "
-              << nwrite << " bytes" << std::endl;
+              << util::straddr(&remote_addr_.su.sa, remote_addr_.len)
+              << " ecn=0x" << std::hex << ecn_ << std::dec << " " << nwrite
+              << " bytes" << std::endl;
   }
 
   return NETWORK_ERR_OK;
@@ -1557,7 +1597,7 @@ int Client::handle_error() {
     sendbuf_.push(n);
   }
 
-  update_remote_addr(&path.path.remote);
+  update_remote_addr(&path.path.remote, nullptr);
 
   return send_packet();
 }

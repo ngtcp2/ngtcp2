@@ -57,6 +57,18 @@ QUICError quic_err_tls(int alert);
 
 QUICError quic_err_app(int liberr);
 
+// msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
+// family from which packet is received.
+unsigned int msghdr_get_ecn(msghdr *msg, int family);
+
+// fd_set_ecn sets ECN bits |ecn| to |fd|.  |family| is the address
+// family of |fd|.
+void fd_set_ecn(int fd, int family, unsigned int ecn);
+
+// fd_set_recv_ecn sets socket option to |fd| so that it can receive
+// ECN bits.
+void fd_set_recv_ecn(int fd, int family);
+
 } // namespace ngtcp2
 
 #endif // SHARED_H

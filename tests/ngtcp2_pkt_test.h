@@ -37,6 +37,7 @@ void test_ngtcp2_pkt_decode_ack_frame(void);
 void test_ngtcp2_pkt_decode_padding_frame(void);
 void test_ngtcp2_pkt_encode_stream_frame(void);
 void test_ngtcp2_pkt_encode_ack_frame(void);
+void test_ngtcp2_pkt_encode_ack_ecn_frame(void);
 void test_ngtcp2_pkt_encode_reset_stream_frame(void);
 void test_ngtcp2_pkt_encode_connection_close_frame(void);
 void test_ngtcp2_pkt_encode_connection_close_app_frame(void);

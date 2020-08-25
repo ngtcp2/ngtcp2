@@ -328,9 +328,13 @@ static uint8_t *write_ack_frame(uint8_t *p, const ngtcp2_ack *fr) {
    *
    * each range:
    * ["0000000000000000000","0000000000000000000"],
+   *
+   * ecn:
+   * ,"ect1":"0000000000000000000","ect0":"0000000000000000000","ce":"0000000000000000000"
    */
 #define NGTCP2_QLOG_ACK_FRAME_BASE_OVERHEAD 70
 #define NGTCP2_QLOG_ACK_FRAME_RANGE_OVERHEAD 46
+#define NGTCP2_QLOG_ACK_FRAME_ECN_OVERHEAD 85
 
   *p++ = '{';
   /* TODO Handle ACK ECN */
@@ -370,6 +374,16 @@ static uint8_t *write_ack_frame(uint8_t *p, const ngtcp2_ack *fr) {
   }
 
   *p++ = ']';
+
+  if (fr->type == NGTCP2_FRAME_ACK_ECN) {
+    *p++ = ',';
+    p = write_pair_numstr(p, ngtcp2_vec_lit(&name, "ect1"), fr->ecn.ect1);
+    *p++ = ',';
+    p = write_pair_numstr(p, ngtcp2_vec_lit(&name, "ect0"), fr->ecn.ect0);
+    *p++ = ',';
+    p = write_pair_numstr(p, ngtcp2_vec_lit(&name, "ce"), fr->ecn.ce);
+  }
+
   *p++ = '}';
 
   return p;
@@ -846,6 +860,9 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
   case NGTCP2_FRAME_ACK_ECN:
     if (ngtcp2_buf_left(&qlog->buf) <
         NGTCP2_QLOG_ACK_FRAME_BASE_OVERHEAD +
+            (size_t)(fr->type == NGTCP2_FRAME_ACK_ECN
+                         ? NGTCP2_QLOG_ACK_FRAME_ECN_OVERHEAD
+                         : 0) +
             NGTCP2_QLOG_ACK_FRAME_RANGE_OVERHEAD * (1 + fr->ack.num_blks) + 1 +
             NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD) {
       return;

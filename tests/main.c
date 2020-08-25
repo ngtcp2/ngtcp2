@@ -87,6 +87,8 @@ int main() {
                    test_ngtcp2_pkt_encode_stream_frame) ||
       !CU_add_test(pSuite, "pkt_encode_ack_frame",
                    test_ngtcp2_pkt_encode_ack_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_ack_ecn_frame",
+                   test_ngtcp2_pkt_encode_ack_ecn_frame) ||
       !CU_add_test(pSuite, "pkt_encode_reset_stream_frame",
                    test_ngtcp2_pkt_encode_reset_stream_frame) ||
       !CU_add_test(pSuite, "pkt_encode_connection_close_frame",
@@ -264,6 +266,8 @@ int main() {
                    test_ngtcp2_conn_write_application_close) ||
       !CU_add_test(pSuite, "conn_rtb_reclaim_on_pto",
                    test_ngtcp2_conn_rtb_reclaim_on_pto) ||
+      !CU_add_test(pSuite, "conn_validate_ecn",
+                   test_ngtcp2_conn_validate_ecn) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
                    test_ngtcp2_pkt_write_connection_close) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||

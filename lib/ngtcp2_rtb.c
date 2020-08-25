@@ -662,9 +662,35 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   }
 }
 
+static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                            const ngtcp2_ack *fr, size_t ecn_acked) {
+  if (conn->tx.ecn.state == NGTCP2_ECN_STATE_FAILED) {
+    return;
+  }
+
+  if ((ecn_acked && fr->type == NGTCP2_FRAME_ACK) ||
+      pktns->rx.ecn.ack.ect0 > fr->ecn.ect0 ||
+      pktns->rx.ecn.ack.ect1 > fr->ecn.ect1 ||
+      pktns->rx.ecn.ack.ce > fr->ecn.ce ||
+      (fr->ecn.ect0 - pktns->rx.ecn.ack.ect0) +
+              (fr->ecn.ce - pktns->rx.ecn.ack.ce) <
+          ecn_acked) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                    "path is not ECN capable");
+    conn->tx.ecn.state = NGTCP2_ECN_STATE_FAILED;
+    return;
+  }
+
+  if (conn->tx.ecn.state != NGTCP2_ECN_STATE_CAPABLE && ecn_acked) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "path is ECN capable");
+    conn->tx.ecn.state = NGTCP2_ECN_STATE_CAPABLE;
+  }
+}
+
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                                  ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
-                                 ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts) {
+                                 ngtcp2_pktns *pktns, ngtcp2_tstamp pkt_ts,
+                                 ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   int64_t largest_ack = fr->largest_ack, min_ack;
   size_t i;
@@ -676,6 +702,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   ngtcp2_cc *cc = rtb->cc;
   ngtcp2_rtb_entry *acked_ent = NULL;
   int ack_eliciting_pkt_acked = 0;
+  size_t ecn_acked = 0;
+  int verify_ecn = 0;
 
   if (conn && (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) &&
       largest_ack >= conn->pktns.crypto.tx.ckm->pkt_num) {
@@ -685,8 +713,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_CRY, "key update confirmed");
   }
 
-  rtb->largest_acked_tx_pkt_num =
-      ngtcp2_max(rtb->largest_acked_tx_pkt_num, largest_ack);
+  if (rtb->largest_acked_tx_pkt_num < largest_ack) {
+    rtb->largest_acked_tx_pkt_num = largest_ack;
+    verify_ecn = 1;
+  }
 
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   it = ngtcp2_ksl_lower_bound(&rtb->ents, &largest_ack);
@@ -758,6 +788,11 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   if (conn) {
     for (ent = acked_ent; ent; ent = acked_ent) {
+      if (ent->hd.pkt_num >= conn->tx.ecn.start_pkt_num &&
+          (ent->flags & NGTCP2_RTB_FLAG_ECN)) {
+        ++ecn_acked;
+      }
+
       rv = rtb_process_acked_pkt(rtb, ent, conn);
       if (rv != 0) {
         goto fail;
@@ -766,6 +801,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       rtb_on_pkt_acked(rtb, ent, cstat, ts);
       acked_ent = ent->next;
       ngtcp2_rtb_entry_del(ent, rtb->mem);
+    }
+
+    if (verify_ecn) {
+      conn_verify_ecn(conn, pktns, fr, ecn_acked);
     }
   } else {
     /* For unit tests */
@@ -836,6 +875,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   int rv;
   uint64_t pkt_thres =
       rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
+  size_t ecn_dgram_lost = 0;
 
   pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
   cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
@@ -877,11 +917,38 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
           continue;
         }
 
+        if (ent->hd.pkt_num >= conn->tx.ecn.start_pkt_num &&
+            (ent->flags & NGTCP2_RTB_FLAG_ECN)) {
+          ++ecn_dgram_lost;
+        }
+
         rtb_on_remove(rtb, ent, cstat);
         rv = rtb_on_pkt_lost(rtb, &it, ent, conn, pktns, ts);
         if (rv != 0) {
           return rv;
         }
+      }
+
+      switch (conn->tx.ecn.state) {
+      case NGTCP2_ECN_STATE_TESTING:
+        if (conn->tx.ecn.validation_start_ts == UINT64_MAX) {
+          break;
+        }
+        if (ts - conn->tx.ecn.validation_start_ts < 3 * cstat->smoothed_rtt) {
+          conn->tx.ecn.dgram_lost += ecn_dgram_lost;
+          break;
+        }
+        conn->tx.ecn.state = NGTCP2_ECN_STATE_UNKNOWN;
+        /* fall through */
+      case NGTCP2_ECN_STATE_UNKNOWN:
+        conn->tx.ecn.dgram_lost += ecn_dgram_lost;
+        assert(conn->tx.ecn.dgram_sent >= conn->tx.ecn.dgram_lost);
+        if (conn->tx.ecn.dgram_sent == conn->tx.ecn.dgram_lost) {
+          conn->tx.ecn.state = NGTCP2_ECN_STATE_FAILED;
+        }
+        break;
+      default:
+        break;
       }
 
       cc->congestion_event(cc, cstat, latest_ts, ts);

@@ -193,6 +193,9 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_LOST_RETRANSMITTED indicates that the entry has
      been marked lost and scheduled to retransmit. */
   NGTCP2_RTB_FLAG_LOST_RETRANSMITTED = 0x10,
+  /* NGTCP2_RTB_FLAG_ECN indicates that the entry is included in a UDP
+     datagram with ECN marking. */
+  NGTCP2_RTB_FLAG_ECN = 0x20,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -340,7 +343,8 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
  */
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                                  ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
-                                 ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts);
+                                 ngtcp2_pktns *pktns, ngtcp2_tstamp pkt_ts,
+                                 ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the

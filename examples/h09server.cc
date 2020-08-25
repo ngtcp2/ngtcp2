@@ -990,18 +990,26 @@ void Handler::update_endpoint(const ngtcp2_addr *addr) {
   assert(endpoint_);
 }
 
-void Handler::update_remote_addr(const ngtcp2_addr *addr) {
+void Handler::update_remote_addr(const ngtcp2_addr *addr,
+                                 const ngtcp2_pkt_info *pi) {
   remote_addr_.len = addr->addrlen;
   memcpy(&remote_addr_.su, addr->addr, addr->addrlen);
+
+  if (pi) {
+    ecn_ = pi->ecn;
+  } else {
+    ecn_ = 0;
+  }
 }
 
 int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                       uint8_t *data, size_t datalen) {
+                       const ngtcp2_pkt_info *pi, uint8_t *data,
+                       size_t datalen) {
   auto path = ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa),
                            const_cast<Endpoint *>(&ep)},
                           {salen, const_cast<sockaddr *>(sa)}};
 
-  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, data, datalen,
+  if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
                                      util::timestamp(loop_));
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
@@ -1033,8 +1041,8 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 }
 
 int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                     uint8_t *data, size_t datalen) {
-  if (auto rv = feed_data(ep, sa, salen, data, datalen); rv != 0) {
+                     const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen) {
+  if (auto rv = feed_data(ep, sa, salen, pi, data, datalen); rv != 0) {
     return rv;
   }
 
@@ -1106,6 +1114,7 @@ int Handler::write_streams() {
                                static_cast<size_t>(64_k / max_pktlen_));
   std::array<uint8_t, 64_k> buf;
   uint8_t *bufpos = buf.data();
+  ngtcp2_pkt_info pi;
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1126,8 +1135,8 @@ int Handler::write_streams() {
     ngtcp2_ssize ndatalen;
 
     auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, bufpos, max_pktlen_, &ndatalen, flags, stream_id,
-        &vec, vcnt, util::timestamp(loop_));
+        conn_, &path.path, &pi, bufpos, max_pktlen_, &ndatalen, flags,
+        stream_id, &vec, vcnt, util::timestamp(loop_));
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -1156,7 +1165,7 @@ int Handler::write_streams() {
 
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
-        server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+        server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
                              bufpos - buf.data(), max_pktlen_);
         reset_idle_timer();
       }
@@ -1169,24 +1178,26 @@ int Handler::write_streams() {
 #if NGTCP2_ENABLE_UDP_GSO
     if (pktcnt == 0) {
       update_endpoint(&path.path.local);
-      update_remote_addr(&path.path.remote);
+      update_remote_addr(&path.path.remote, &pi);
     } else if (remote_addr_.len != path.path.remote.addrlen ||
                0 != memcmp(&remote_addr_.su, path.path.remote.addr,
-                           path.path.remote.addrlen)) {
-      server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+                           path.path.remote.addrlen) ||
+               endpoint_ != path.path.local.user_data || ecn_ != pi.ecn) {
+      server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
                            bufpos - buf.data() - nwrite, max_pktlen_);
 
-      update_remote_addr(&path.path.remote);
+      update_endpoint(&path.path.local);
+      update_remote_addr(&path.path.remote, &pi);
 
-      server_->send_packet(*endpoint_, remote_addr_, bufpos - nwrite, nwrite,
-                           max_pktlen_);
+      server_->send_packet(*endpoint_, remote_addr_, ecn_, bufpos - nwrite,
+                           nwrite, max_pktlen_);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
       return 0;
     }
 
     if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < max_pktlen_) {
-      server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+      server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
                            bufpos - buf.data(), max_pktlen_);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
@@ -1194,10 +1205,10 @@ int Handler::write_streams() {
     }
 #else  // !NGTCP2_ENABLE_UDP_GSO
     update_endpoint(&path.path.local);
-    update_remote_addr(&path.path.remote);
+    update_remote_addr(&path.path.remote, &pi);
     reset_idle_timer();
 
-    server_->send_packet(*endpoint_, remote_addr_, buf.data(),
+    server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
                          bufpos - buf.data(), 0);
     if (++pktcnt == max_pktcnt) {
       ev_io_start(loop_, &wev_);
@@ -1270,7 +1281,7 @@ int Handler::start_closing_period() {
   }
 
   update_endpoint(&path.path.local);
-  update_remote_addr(&path.path.remote);
+  update_remote_addr(&path.path.remote, nullptr);
 
   return 0;
 }
@@ -1294,8 +1305,9 @@ int Handler::send_conn_close() {
 
   assert(conn_closebuf_ && conn_closebuf_->size());
 
-  return server_->send_packet(*endpoint_, remote_addr_, conn_closebuf_->rpos(),
-                              conn_closebuf_->size(), 0);
+  return server_->send_packet(*endpoint_, remote_addr_, 0,
+                              conn_closebuf_->rpos(), conn_closebuf_->size(),
+                              0);
 }
 
 void Handler::schedule_retransmit() {
@@ -1593,6 +1605,8 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
     return -1;
   }
 
+  fd_set_recv_ecn(fd, rp->ai_family);
+
   socklen_t len = sizeof(local_addr.su.storage);
   if (getsockname(fd, &local_addr.su.sa, &len) == -1) {
     std::cerr << "getsockname: " << strerror(errno) << std::endl;
@@ -1648,6 +1662,14 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
     return -1;
   }
 
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
+                 static_cast<socklen_t>(sizeof(val))) == -1) {
+    close(fd);
+    return -1;
+  }
+
+  fd_set_recv_ecn(fd, addr.su.sa.sa_family);
+
   endpoints.emplace_back(Endpoint{});
   auto &ep = endpoints.back();
   ep.addr = addr;
@@ -1699,15 +1721,28 @@ int Server::init(const char *addr, const char *port) {
 
 int Server::on_read(Endpoint &ep) {
   sockaddr_union su;
-  socklen_t addrlen;
   std::array<uint8_t, 64_k> buf;
   ngtcp2_pkt_hd hd;
   size_t pktcnt = 0;
+  ngtcp2_pkt_info pi;
+
+  iovec msg_iov;
+  msg_iov.iov_base = buf.data();
+  msg_iov.iov_len = buf.size();
+
+  msghdr msg{};
+  msg.msg_name = &su;
+  msg.msg_iov = &msg_iov;
+  msg.msg_iovlen = 1;
+
+  std::array<uint8_t, CMSG_SPACE(sizeof(uint8_t))> msg_ctrl;
+  msg.msg_control = msg_ctrl.data();
 
   for (; pktcnt < 10;) {
-    addrlen = sizeof(su);
-    auto nread =
-        recvfrom(ep.fd, buf.data(), buf.size(), MSG_DONTWAIT, &su.sa, &addrlen);
+    msg.msg_namelen = sizeof(su);
+    msg.msg_controllen = msg_ctrl.size();
+
+    auto nread = recvmsg(ep.fd, &msg, MSG_DONTWAIT);
     if (nread == -1) {
       if (!(errno == EAGAIN || errno == ENOTCONN)) {
         std::cerr << "recvfrom: " << strerror(errno) << std::endl;
@@ -1717,10 +1752,13 @@ int Server::on_read(Endpoint &ep) {
 
     ++pktcnt;
 
+    pi.ecn = msghdr_get_ecn(&msg, su.storage.ss_family);
+
     if (!config.quiet) {
       std::cerr << "Received packet: local="
                 << util::straddr(&ep.addr.su.sa, ep.addr.len)
-                << " remote=" << util::straddr(&su.sa, addrlen) << " " << nread
+                << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
+                << " ecn=0x" << std::hex << pi.ecn << std::dec << " " << nread
                 << " bytes" << std::endl;
     }
 
@@ -1745,7 +1783,7 @@ int Server::on_read(Endpoint &ep) {
         rv != 0) {
       if (rv == 1) {
         send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
-                                 &su.sa, addrlen);
+                                 &su.sa, msg.msg_namelen);
         continue;
       }
       std::cerr << "Could not decode version and CID from QUIC packet header: "
@@ -1772,7 +1810,7 @@ int Server::on_read(Endpoint &ep) {
           }
           send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
                                    hd.dcid.data, hd.dcid.datalen, ep, &su.sa,
-                                   addrlen);
+                                   msg.msg_namelen);
           continue;
         }
 
@@ -1783,28 +1821,30 @@ int Server::on_read(Endpoint &ep) {
           if (config.validate_addr || hd.token.len) {
             std::cerr << "Perform stateless address validation" << std::endl;
             if (hd.token.len == 0) {
-              send_retry(&hd, ep, &su.sa, addrlen);
+              send_retry(&hd, ep, &su.sa, msg.msg_namelen);
               continue;
             }
 
             if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
                 hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
-              send_stateless_connection_close(&hd, ep, &su.sa, addrlen);
+              send_stateless_connection_close(&hd, ep, &su.sa, msg.msg_namelen);
               continue;
             }
 
             switch (hd.token.base[0]) {
             case RETRY_TOKEN_MAGIC:
-              if (verify_retry_token(&ocid, &hd, &su.sa, addrlen) != 0) {
-                send_stateless_connection_close(&hd, ep, &su.sa, addrlen);
+              if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) !=
+                  0) {
+                send_stateless_connection_close(&hd, ep, &su.sa,
+                                                msg.msg_namelen);
                 continue;
               }
               pocid = &ocid;
               break;
             case TOKEN_MAGIC:
-              if (verify_token(&hd, &su.sa, addrlen) != 0) {
+              if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
                 if (config.validate_addr) {
-                  send_retry(&hd, ep, &su.sa, addrlen);
+                  send_retry(&hd, ep, &su.sa, msg.msg_namelen);
                   continue;
                 }
 
@@ -1817,7 +1857,7 @@ int Server::on_read(Endpoint &ep) {
                 std::cerr << "Ignore unrecognized token" << std::endl;
               }
               if (config.validate_addr) {
-                send_retry(&hd, ep, &su.sa, addrlen);
+                send_retry(&hd, ep, &su.sa, msg.msg_namelen);
                 continue;
               }
 
@@ -1828,21 +1868,22 @@ int Server::on_read(Endpoint &ep) {
           }
           break;
         case NGTCP2_PKT_0RTT:
-          send_retry(&hd, ep, &su.sa, addrlen);
+          send_retry(&hd, ep, &su.sa, msg.msg_namelen);
           continue;
         }
 
         auto h = std::make_unique<Handler>(loop_, ssl_ctx_, this, &hd.dcid);
-        if (h->init(ep, &su.sa, addrlen, &hd.scid, &hd.dcid, pocid,
+        if (h->init(ep, &su.sa, msg.msg_namelen, &hd.scid, &hd.dcid, pocid,
                     hd.token.base, hd.token.len, hd.version) != 0) {
           continue;
         }
 
-        switch (h->on_read(ep, &su.sa, addrlen, buf.data(), nread)) {
+        switch (
+            h->on_read(ep, &su.sa, msg.msg_namelen, &pi, buf.data(), nread)) {
         case 0:
           break;
         case NETWORK_ERR_RETRY:
-          send_retry(&hd, ep, &su.sa, addrlen);
+          send_retry(&hd, ep, &su.sa, msg.msg_namelen);
           continue;
         default:
           continue;
@@ -1892,7 +1933,9 @@ int Server::on_read(Endpoint &ep) {
       continue;
     }
 
-    if (auto rv = h->on_read(ep, &su.sa, addrlen, buf.data(), nread); rv != 0) {
+    if (auto rv =
+            h->on_read(ep, &su.sa, msg.msg_namelen, &pi, buf.data(), nread);
+        rv != 0) {
       if (rv != NETWORK_ERR_CLOSE_WAIT) {
         remove(h);
       }
@@ -1955,7 +1998,7 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
   remote_addr.len = salen;
   memcpy(&remote_addr.su.sa, sa, salen);
 
-  if (send_packet(ep, remote_addr, buf.rpos(), buf.size(), 0) !=
+  if (send_packet(ep, remote_addr, 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -2016,7 +2059,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   remote_addr.len = salen;
   memcpy(&remote_addr.su.sa, sa, salen);
 
-  if (send_packet(ep, remote_addr, buf.rpos(), buf.size(), 0) !=
+  if (send_packet(ep, remote_addr, 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -2042,7 +2085,7 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
   remote_addr.len = salen;
   memcpy(&remote_addr.su.sa, sa, salen);
 
-  if (send_packet(ep, remote_addr, buf.rpos(), buf.size(), 0) !=
+  if (send_packet(ep, remote_addr, 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -2450,7 +2493,8 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
 }
 
 int Server::send_packet(Endpoint &ep, const Address &remote_addr,
-                        const uint8_t *data, size_t datalen, size_t gso_size) {
+                        unsigned int ecn, const uint8_t *data, size_t datalen,
+                        size_t gso_size) {
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
@@ -2482,6 +2526,11 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr,
   }
 #endif // NGTCP2_ENABLE_UDP_GSO
 
+  if (ep.ecn != ecn) {
+    ep.ecn = ecn;
+    fd_set_ecn(ep.fd, ep.addr.su.storage.ss_family, ecn);
+  }
+
   ssize_t nwrite = 0;
 
   do {
@@ -2498,8 +2547,9 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr,
   if (!config.quiet) {
     std::cerr << "Sent packet: local="
               << util::straddr(&ep.addr.su.sa, ep.addr.len) << " remote="
-              << util::straddr(&remote_addr.su.sa, remote_addr.len) << " "
-              << nwrite << " bytes" << std::endl;
+              << util::straddr(&remote_addr.su.sa, remote_addr.len) << " ecn=0x"
+              << std::hex << ecn << std::dec << " " << nwrite << " bytes"
+              << std::endl;
   }
 
   return NETWORK_ERR_OK;

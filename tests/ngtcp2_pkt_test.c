@@ -694,6 +694,85 @@ void test_ngtcp2_pkt_encode_ack_frame(void) {
   memset(&nmfr, 0, sizeof(nmfr));
 }
 
+void test_ngtcp2_pkt_encode_ack_ecn_frame(void) {
+  uint8_t buf[256];
+  ngtcp2_max_frame mfr, nmfr;
+  ngtcp2_frame *fr = &mfr.fr, *nfr = &nmfr.fr;
+  ngtcp2_ssize rv;
+  size_t framelen;
+  size_t i;
+  ngtcp2_ack_blk *blks;
+
+  /* 0 Num Blocks */
+  fr->type = NGTCP2_FRAME_ACK_ECN;
+  fr->ack.largest_ack = 0xf1f2f3f4llu;
+  fr->ack.first_ack_blklen = 0;
+  fr->ack.ack_delay = 0;
+  fr->ack.num_blks = 0;
+  fr->ack.ecn.ect0 = 64;
+  fr->ack.ecn.ect1 = 16384;
+  fr->ack.ecn.ce = 1073741824;
+
+  framelen = 1 + 8 + 1 + 1 + 1 + 2 + 4 + 8;
+
+  rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fr->ack);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_ack_frame(&nfr->ack, buf, framelen);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+  CU_ASSERT(fr->type == nfr->type);
+  CU_ASSERT(fr->ack.largest_ack == nfr->ack.largest_ack);
+  CU_ASSERT(fr->ack.ack_delay == nfr->ack.ack_delay);
+  CU_ASSERT(fr->ack.num_blks == nfr->ack.num_blks);
+  CU_ASSERT(fr->ack.ecn.ect0 == nfr->ack.ecn.ect0);
+  CU_ASSERT(fr->ack.ecn.ect1 == nfr->ack.ecn.ect1);
+  CU_ASSERT(fr->ack.ecn.ce == nfr->ack.ecn.ce);
+
+  memset(&nmfr, 0, sizeof(nmfr));
+
+  /* 2 Num Blocks */
+  fr->type = NGTCP2_FRAME_ACK_ECN;
+  fr->ack.largest_ack = 0xf1f2f3f4llu;
+  fr->ack.first_ack_blklen = 0xe1e2e3e4llu;
+  fr->ack.ack_delay = 0xf1f2;
+  fr->ack.num_blks = 2;
+  blks = fr->ack.blks;
+  blks[0].gap = 255;
+  blks[0].blklen = 0xd1d2d3d4llu;
+  blks[1].gap = 1;
+  blks[1].blklen = 0xd1d2d3d4llu;
+  fr->ack.ecn.ect0 = 0;
+  fr->ack.ecn.ect1 = 64;
+  fr->ack.ecn.ce = 16384;
+
+  framelen = 1 + 8 + 4 + 1 + 8 + (2 + 8) + (1 + 8) + 1 + 2 + 4;
+
+  rv = ngtcp2_pkt_encode_ack_frame(buf, sizeof(buf), &fr->ack);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_ack_frame(&nfr->ack, buf, framelen);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+  CU_ASSERT(fr->type == nfr->type);
+  CU_ASSERT(fr->ack.largest_ack == nfr->ack.largest_ack);
+  CU_ASSERT(fr->ack.ack_delay == nfr->ack.ack_delay);
+  CU_ASSERT(fr->ack.num_blks == nfr->ack.num_blks);
+
+  for (i = 0; i < fr->ack.num_blks; ++i) {
+    CU_ASSERT(fr->ack.blks[i].gap == nfr->ack.blks[i].gap);
+    CU_ASSERT(fr->ack.blks[i].blklen == nfr->ack.blks[i].blklen);
+  }
+
+  CU_ASSERT(fr->ack.ecn.ect0 == nfr->ack.ecn.ect0);
+  CU_ASSERT(fr->ack.ecn.ect1 == nfr->ack.ecn.ect1);
+  CU_ASSERT(fr->ack.ecn.ce == nfr->ack.ecn.ce);
+
+  memset(&nmfr, 0, sizeof(nmfr));
+}
+
 void test_ngtcp2_pkt_encode_reset_stream_frame(void) {
   uint8_t buf[32];
   ngtcp2_reset_stream fr, nfr;
