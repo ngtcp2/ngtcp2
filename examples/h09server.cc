@@ -1735,12 +1735,12 @@ int Server::on_read(Endpoint &ep) {
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  std::array<uint8_t, CMSG_SPACE(sizeof(uint8_t))> msg_ctrl;
-  msg.msg_control = msg_ctrl.data();
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t))];
+  msg.msg_control = msg_ctrl;
 
   for (; pktcnt < 10;) {
     msg.msg_namelen = sizeof(su);
-    msg.msg_controllen = msg_ctrl.size();
+    msg.msg_controllen = sizeof(msg_ctrl);
 
     auto nread = recvmsg(ep.fd, &msg, MSG_DONTWAIT);
     if (nread == -1) {
