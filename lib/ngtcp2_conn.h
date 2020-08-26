@@ -350,7 +350,7 @@ struct ngtcp2_conn {
   struct {
     /* strmq contains ngtcp2_strm which has frames to send. */
     ngtcp2_pq strmq;
-    /* ack is ACK frame.  The underlying buffer is resused. */
+    /* ack is ACK frame.  The underlying buffer is reused. */
     ngtcp2_frame *ack;
     /* max_ack_blks is the number of additional ngtcp2_ack_blk which
        ack can contain. */
