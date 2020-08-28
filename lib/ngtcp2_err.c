@@ -30,8 +30,6 @@ const char *ngtcp2_strerror(int liberr) {
     return "NO_ERROR";
   case NGTCP2_ERR_INVALID_ARGUMENT:
     return "ERR_INVALID_ARGUMENT";
-  case NGTCP2_ERR_UNKNOWN_PKT_TYPE:
-    return "ERR_UNKNOWN_PKT_TYPE";
   case NGTCP2_ERR_NOBUF:
     return "ERR_NOBUF";
   case NGTCP2_ERR_PROTO:
