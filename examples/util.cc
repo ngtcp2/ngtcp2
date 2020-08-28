@@ -34,6 +34,7 @@
 #include <netdb.h>
 
 #include <cassert>
+#include <cstring>
 #include <chrono>
 #include <array>
 #include <iostream>
