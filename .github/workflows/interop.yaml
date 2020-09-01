@@ -20,3 +20,4 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
         repository: ngtcp2/ngtcp2-interop
         add_git_labels: true
+        tags: latest
