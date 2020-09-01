@@ -254,7 +254,6 @@ typedef enum ngtcp2_lib_error : int {
 typedef enum ngtcp2_lib_error {
 #endif
   NGTCP2_ERR_INVALID_ARGUMENT = -201,
-  NGTCP2_ERR_UNKNOWN_PKT_TYPE = -202,
   NGTCP2_ERR_NOBUF = -203,
   NGTCP2_ERR_PROTO = -205,
   NGTCP2_ERR_INVALID_STATE = -206,
@@ -1032,8 +1031,6 @@ ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
  *
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Packet is too short; or it is not a long header
- * :enum:`NGTCP2_ERR_UNKNOWN_PKT_TYPE`
- *     Packet type is unknown
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
                                                      const uint8_t *pkt,
@@ -1056,8 +1053,6 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest,
  *
  * :enum:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     Packet is too short; or it is not a short header
- * :enum:`NGTCP2_ERR_UNKNOWN_PKT_TYPE`
- *     Packet type is unknown
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
                                                       const uint8_t *pkt,
