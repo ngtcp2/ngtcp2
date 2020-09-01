@@ -1,0 +1,77 @@
+name: build
+
+on: push
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, macos-10.15]
+        compiler: [gcc, clang]
+        buildtool: [autotools, cmake]
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: Linux setup
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt install \
+          g++-8 \
+          autoconf \
+          automake \
+          autotools-dev \
+          libtool \
+          pkg-config \
+          libcunit1-dev \
+          libssl-dev \
+          libev-dev \
+          cmake \
+          cmake-data
+    - name: MacOS setup
+      if: runner.os == 'macOS'
+      run: |
+        brew install libev cunit autoconf automake pkg-config libtool
+    - name: Setup clang
+      if: matrix.compiler == 'clang'
+      run: |
+        echo '::set-env name=CC::clang'
+        echo '::set-env name=CXX::clang++'
+    - name: Setup gcc
+      if: runner.os == 'Linux' && matrix.compiler == 'gcc'
+      run: |
+        echo '::set-env name=CC::gcc-8'
+        echo '::set-env name=CXX::g++-8'
+    - name: Build OpenSSL
+      run: |
+        ./ci/build_openssl.sh
+    - name: Build nghttp3
+      run: |
+        ./ci/build_nghttp3.sh
+    - name: Setup environment variables
+      run: |
+        PKG_CONFIG_PATH="$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig"
+        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
+
+        echo '::set-env name=PKG_CONFIG_PATH::'"$PKG_CONFIG_PATH"
+        echo '::set-env name=LDFLAGS::'"$LDFLAGS"
+    - name: Configure autotools
+      if: matrix.buildtool == 'autotools'
+      run: |
+        autoreconf -i && ./configure --enable-werror $AUTOTOOLS_OPTS
+    - name: Configure cmake
+      if: matrix.buildtool == 'cmake'
+      # Set CMAKE_LIBRARY_ARCHITECTURE to workaround failure to parse
+      # implicit link information from GCC 5
+      run: |
+        cmake $CMAKE_OPTS -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu
+    - name: Build ngtcp2
+      run: |
+        make
+        make check
+    - name: Integration test
+      run: |
+        ./ci/gen-certificate.sh
+        ./examples/server localhost 4433 cert/server.key cert/server.crt &
+        ./examples/client localhost 4433 https://localhost/
