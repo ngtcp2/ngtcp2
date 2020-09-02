@@ -15,9 +15,10 @@ jobs:
     - name: Build and publish interop docker image
       uses: docker/build-push-action@v1
       with:
+        registry: ghcr.io
         path: interop
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        username: ${{ secrets.GHCR_USERNAME }}
+        password: ${{ secrets.GHCR_PASSWORD }}
         repository: ngtcp2/ngtcp2-interop
         add_git_labels: true
         tags: latest
