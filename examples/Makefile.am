@@ -33,14 +33,16 @@ AM_CPPFLAGS = \
 	@LIBNGHTTP3_CFLAGS@ \
 	@DEFS@
 AM_LDFLAGS = -no-install \
-	@LIBTOOL_LDFLAGS@
+	@LIBTOOL_LDFLAGS@ \
+	-pthread
 LDADD = $(top_builddir)/crypto/openssl/libngtcp2_crypto_openssl.la \
 	$(top_builddir)/lib/libngtcp2.la \
 	$(top_builddir)/third-party/libhttp-parser.la \
 	@JEMALLOC_LIBS@ \
 	@OPENSSL_LIBS@ \
 	@LIBEV_LIBS@ \
-	@LIBNGHTTP3_LIBS@
+	@LIBNGHTTP3_LIBS@ \
+	-lbpf
 
 noinst_PROGRAMS = client server h09client h09server
 

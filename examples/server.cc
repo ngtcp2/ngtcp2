@@ -30,6 +30,8 @@
 #include <algorithm>
 #include <memory>
 #include <fstream>
+#include <future>
+#include <thread>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -40,6 +42,14 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <netinet/udp.h>
+#include <signal.h>
+
+#include <linux/bpf.h>
+
+enum bpf_stats_type {};
+
+#include <bpf/libbpf.h>
+#include <bpf/bpf.h>
 
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -101,9 +111,77 @@ namespace {
 Config config{};
 } // namespace
 
+namespace {
+int prog_fd;
+int reuseport_array;
+} // namespace
+
 Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen}, begin(buf.data()), tail(begin + datalen) {}
 Buffer::Buffer(size_t datalen) : buf(datalen), begin(buf.data()), tail(begin) {}
+
+namespace {
+void sha256(uint8_t *dest, const uint8_t *kpad, const uint8_t *b, size_t blen) {
+  auto ctx = EVP_MD_CTX_new();
+  assert(ctx);
+
+  auto ctx_deleter = defer(EVP_MD_CTX_free, ctx);
+
+  unsigned int mdlen = 32;
+  if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
+      !EVP_DigestUpdate(ctx, kpad, 64) || !EVP_DigestUpdate(ctx, b, blen) ||
+      !EVP_DigestFinal_ex(ctx, dest, &mdlen)) {
+    assert(0);
+  }
+}
+} // namespace
+
+namespace {
+constexpr size_t HMACLEN = 4;
+std::array<uint8_t, 64> kopad, kipad;
+} // namespace
+
+namespace {
+void hmac256_32(uint32_t *dest, const uint8_t *src, size_t srclen) {
+  uint8_t h[32];
+
+  sha256(h, kipad.data(), src, srclen);
+  sha256(h, kopad.data(), h, sizeof(h));
+
+  memcpy(dest, h, HMACLEN);
+}
+} // namespace
+
+namespace {
+void generate_authenticated_cid(uint8_t *dest, size_t destlen,
+                                uint32_t svindex) {
+  // - Connection ID is NGTCP2_SV_SCIDLEN bytes in total.
+  //   Connection
+  //
+  // - ID is authenticated with HMAC-SHA256-32 to reliably embed
+  //   svindex in it.
+  //
+  // - The last 4 bytes are digest.  Thus 14 bytes are available.
+  //
+  // - For now, encode svindex in the first (most significant) byte.
+
+  assert(destlen == NGTCP2_SV_SCIDLEN);
+  assert(svindex < 256);
+
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  auto f = [&dis]() { return dis(randgen); };
+  auto len = NGTCP2_SV_SCIDLEN - HMACLEN;
+
+  std::generate_n(dest, len, f);
+  // TODO Encode svindex elsewhere other than first byte.
+  dest[0] = static_cast<uint8_t>(svindex);
+
+  uint32_t hmac;
+  hmac256_32(&hmac, dest, len);
+
+  memcpy(dest + len, &hmac, sizeof(hmac));
+}
+} // namespace
 
 int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
                     const uint8_t *tx_secret, size_t secretlen) {
@@ -1075,11 +1153,12 @@ int rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx,
 namespace {
 int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
                           size_t cidlen, void *user_data) {
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  auto f = [&dis]() { return dis(randgen); };
+  auto h = static_cast<Handler *>(user_data);
+  auto server = h->server();
 
-  std::generate_n(cid->data, cidlen, f);
   cid->datalen = cidlen;
+  generate_authenticated_cid(cid->data, cidlen, server->get_svindex());
+
   auto md = ngtcp2_crypto_md{const_cast<EVP_MD *>(EVP_sha256())};
   if (ngtcp2_crypto_generate_stateless_reset_token(
           token, &md, config.static_secret.data(), config.static_secret.size(),
@@ -1087,8 +1166,7 @@ int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  auto h = static_cast<Handler *>(user_data);
-  h->server()->associate_cid(cid, h);
+  server->associate_cid(cid, h);
 
   return 0;
 }
@@ -1591,8 +1669,8 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;
-  std::generate(scid_.data, scid_.data + scid_.datalen,
-                [&dis]() { return dis(randgen); });
+  generate_authenticated_cid(scid_.data, NGTCP2_SV_SCIDLEN,
+                             server_->get_svindex());
 
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
@@ -2183,14 +2261,32 @@ void sreadcb(struct ev_loop *loop, ev_io *w, int revents) {
 } // namespace
 
 namespace {
+std::vector<std::unique_ptr<Server>> servers;
+} // namespace
+
+namespace {
 void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
+  std::cerr << "siginthandler" << std::endl;
+  for (auto &sv : servers) {
+    sv->request_stop();
+  }
+
+  std::cerr << "Stopping default loop" << std::endl;
   ev_break(loop, EVBREAK_ALL);
 }
 } // namespace
 
-Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
-    : loop_(loop), ssl_ctx_(ssl_ctx) {
-  ev_signal_init(&sigintev_, siginthandler, SIGINT);
+namespace {
+void stopcb(struct ev_loop *loop, ev_async *w, int revents) {
+  auto sv = static_cast<Server *>(w->data);
+  sv->stop();
+}
+} // namespace
+
+Server::Server(uint32_t svindex, struct ev_loop *loop, SSL_CTX *ssl_ctx)
+    : svindex_(svindex), loop_(loop), ssl_ctx_(ssl_ctx) {
+  ev_async_init(&stopev_, stopcb);
+  stopev_.data = this;
 
   token_aead_.native_handle = const_cast<EVP_CIPHER *>(EVP_aes_128_gcm());
   token_md_.native_handle = const_cast<EVP_MD *>(EVP_sha256());
@@ -2208,7 +2304,7 @@ void Server::disconnect() {
     ev_io_stop(loop_, &ep.rev);
   }
 
-  ev_signal_stop(loop_, &sigintev_);
+  ev_async_stop(loop_, &stopev_);
 
   while (!handlers_.empty()) {
     auto it = std::begin(handlers_);
@@ -2228,9 +2324,15 @@ void Server::close() {
   endpoints_.clear();
 }
 
+void Server::start() { ev_run(loop_); }
+
+void Server::stop() { ev_break(loop_, EVBREAK_ALL); }
+
+void Server::request_stop() { ev_async_send(loop_, &stopev_); }
+
 namespace {
 int create_sock(Address &local_addr, const char *addr, const char *port,
-                int family) {
+                int family, uint32_t svindex) {
   addrinfo hints{};
   addrinfo *res, *rp;
   int val = 1;
@@ -2272,9 +2374,31 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
       continue;
     }
 
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      close(fd);
+      continue;
+    }
+
+    if (svindex == 0 &&
+        setsockopt(fd, SOL_SOCKET, SO_ATTACH_REUSEPORT_EBPF, &prog_fd,
+                   static_cast<socklen_t>(sizeof(prog_fd))) == -1) {
+      std::cerr << "Unable to attach bpf prog: " << strerror(errno)
+                << std::endl;
+      close(fd);
+      continue;
+    }
+
     fd_set_recv_ecn(fd, rp->ai_family);
 
     if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
+      if (bpf_map_update_elem(reuseport_array, &svindex, &fd, BPF_NOEXIST) !=
+          0) {
+        std::cerr << "bpf_map_update_elem: " << strerror(errno) << std::endl;
+        close(fd);
+        continue;
+      }
+
       break;
     }
 
@@ -2301,9 +2425,9 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
 
 namespace {
 int add_endpoint(std::vector<Endpoint> &endpoints, const char *addr,
-                 const char *port, int af) {
+                 const char *port, int af, uint32_t svindex) {
   Address dest;
-  auto fd = create_sock(dest, addr, port, af);
+  auto fd = create_sock(dest, addr, port, af, svindex);
   if (fd == -1) {
     return -1;
   }
@@ -2364,11 +2488,11 @@ int Server::init(const char *addr, const char *port) {
 
   auto ready = false;
   if (!util::numeric_host(addr, AF_INET6) &&
-      add_endpoint(endpoints_, addr, port, AF_INET) == 0) {
+      add_endpoint(endpoints_, addr, port, AF_INET, svindex_) == 0) {
     ready = true;
   }
   if (!util::numeric_host(addr, AF_INET) &&
-      add_endpoint(endpoints_, addr, port, AF_INET6) == 0) {
+      add_endpoint(endpoints_, addr, port, AF_INET6, svindex_) == 0) {
     ready = true;
   }
   if (!ready) {
@@ -2393,7 +2517,7 @@ int Server::init(const char *addr, const char *port) {
     ev_io_start(loop_, &ep.rev);
   }
 
-  ev_signal_start(loop_, &sigintev_);
+  ev_async_start(loop_, &stopev_);
 
   return 0;
 }
@@ -3265,6 +3389,8 @@ void Server::remove(const Handler *h) {
   handlers_.erase(util::make_cid_key(h->scid()));
 }
 
+uint32_t Server::get_svindex() const { return svindex_; }
+
 namespace {
 int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
                          unsigned char *outlen, const unsigned char *in,
@@ -3986,15 +4112,80 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  Server s(EV_DEFAULT, ssl_ctx);
-  if (s.init(addr, port) != 0) {
+  bpf_object *obj;
+  if (bpf_prog_load("reuseport_kern.o", BPF_PROG_TYPE_SK_REUSEPORT, &obj,
+                    &prog_fd) != 0) {
+    std::cerr << "bpf_prog_load: " << strerror(errno) << std::endl;
     exit(EXIT_FAILURE);
   }
 
+  auto map = bpf_object__find_map_by_name(obj, "reuseport_array");
+  if (!map) {
+    std::cerr << "failed to find reuseport_array" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  reuseport_array = bpf_map__fd(map);
+
+  // TODO Infer number of threads to bpf prog.
+  // TODO Embed svindex in Connection ID.
+  // TODO Authenticate Connection ID with HMAC-SHA256-32
+
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, SIGINT);
+  if (auto err = pthread_sigmask(SIG_BLOCK, &set, nullptr); err) {
+    std::cerr << "pthread_sigmask: " << strerror(err) << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  std::array<uint8_t, 32> secret;
+  util::generate_secret(secret.data(), secret.size());
+
+  for (size_t i = 0; i < secret.size(); ++i) {
+    kipad[i] = secret[i] ^ 0x36;
+    kopad[i] = secret[i] ^ 0x5c;
+  }
+  std::fill(std::begin(kipad) + secret.size(), std::end(kipad), 0x36);
+  std::fill(std::begin(kopad) + secret.size(), std::end(kopad), 0x5c);
+
+  constexpr size_t nthreads = 4;
+
+  for (size_t i = 0; i < nthreads; ++i) {
+    auto loop = ev_loop_new(0);
+    auto sv = std::make_unique<Server>(i, loop, ssl_ctx);
+    if (sv->init(addr, port) != 0) {
+      exit(EXIT_FAILURE);
+    }
+    servers.emplace_back(std::move(sv));
+  }
+
+  std::vector<std::future<void>> futures;
+
+  for (auto &sv : servers) {
+    futures.emplace_back(std::async(std::launch::async, [&sv]() {
+      sv->start();
+      sv->disconnect();
+      sv->close();
+    }));
+  }
+
+  if (auto err = pthread_sigmask(SIG_UNBLOCK, &set, nullptr); err) {
+    std::cerr << "pthread_sigmask: " << strerror(err) << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
+  ev_signal sigintev;
+  ev_signal_init(&sigintev, siginthandler, SIGINT);
+  ev_signal_start(EV_DEFAULT, &sigintev);
+
+  std::cerr << "Running main thread" << std::endl;
+
   ev_run(EV_DEFAULT, 0);
 
-  s.disconnect();
-  s.close();
+  for (auto &f : futures) {
+    f.wait();
+  }
 
   return EXIT_SUCCESS;
 }

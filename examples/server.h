@@ -341,12 +341,15 @@ private:
 
 class Server {
 public:
-  Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
+  Server(uint32_t svindex, struct ev_loop *loop, SSL_CTX *ssl_ctx);
   ~Server();
 
   int init(const char *addr, const char *port);
   void disconnect();
   void close();
+  void start();
+  void stop();
+  void request_stop();
 
   int on_read(Endpoint &ep);
   int send_version_negotiation(uint32_t version, const uint8_t *dcid,
@@ -374,8 +377,10 @@ public:
   void generate_rand_data(uint8_t *buf, size_t len);
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
   void dissociate_cid(const ngtcp2_cid *cid);
+  uint32_t get_svindex() const;
 
 private:
+  uint32_t svindex_;
   std::unordered_map<std::string, std::unique_ptr<Handler>> handlers_;
   // ctos_ is a mapping between client's initial destination
   // connection ID, and server source connection ID.
@@ -385,7 +390,7 @@ private:
   SSL_CTX *ssl_ctx_;
   ngtcp2_crypto_aead token_aead_;
   ngtcp2_crypto_md token_md_;
-  ev_signal sigintev_;
+  ev_async stopev_;
 };
 
 #endif // SERVER_H
