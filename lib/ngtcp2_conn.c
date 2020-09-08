@@ -7702,7 +7702,7 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       /* If neither CRYPTO frame nor 0RTT packet is processed, just
          drop connection. */
-      return NGTCP2_ERR_PROTO;
+      return NGTCP2_ERR_DROP_CONN;
     }
 
     /* Process re-ordered 0-RTT packets which arrived before Initial
