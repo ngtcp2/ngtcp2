@@ -648,7 +648,10 @@ static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     ++pktns->tx.ecn.validation_pkt_sent;
 
-    *prtb_entry_flags |= NGTCP2_RTB_FLAG_ECN;
+    if (prtb_entry_flags) {
+      *prtb_entry_flags |= NGTCP2_RTB_FLAG_ECN;
+    }
+
     ++pktns->tx.ecn.ect0;
 
     return;
@@ -683,7 +686,9 @@ static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     pi->ecn = NGTCP2_ECN_ECT_0;
 
-    *prtb_entry_flags |= NGTCP2_RTB_FLAG_ECN;
+    if (prtb_entry_flags) {
+      *prtb_entry_flags |= NGTCP2_RTB_FLAG_ECN;
+    }
 
     ++pktns->tx.ecn.ect0;
     break;
@@ -2157,6 +2162,8 @@ build_pkt:
         (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
       conn_restart_timer_on_write(conn, ts);
     }
+  } else if (conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
+    conn_handle_tx_ecn(conn, pi, NULL, pktns, &hd, ts);
   }
 
   if (pktns->rtb.probe_pkt_left &&
@@ -3363,6 +3370,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn_restart_timer_on_write(conn, ts);
       }
     }
+  } else if (conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
+    conn_handle_tx_ecn(conn, pi, NULL, pktns, hd, ts);
   }
 
   conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
@@ -3503,6 +3512,8 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
       conn_restart_timer_on_write(conn, ts);
     }
+  } else if (pi && conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
+    conn_handle_tx_ecn(conn, pi, NULL, pktns, &hd, ts);
   }
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
