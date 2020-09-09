@@ -85,9 +85,11 @@ uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
     memcpy(&n, p, 8);
     n.b[0] &= 0x3f;
     return ngtcp2_ntohl64(n.n64);
+  default:
+    assert(0);
   }
 
-  assert(0);
+  return 0;
 }
 
 int64_t ngtcp2_get_pkt_num(const uint8_t *p, size_t pkt_numlen) {

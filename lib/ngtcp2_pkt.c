@@ -368,8 +368,8 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK |
-         (uint8_t)(hd->type << 4) | (uint8_t)(hd->pkt_numlen - 1);
+  *p++ = (uint8_t)(NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK |
+                   (hd->type << 4) | (uint8_t)(hd->pkt_numlen - 1));
   p = ngtcp2_put_uint32be(p, hd->version);
   *p++ = (uint8_t)hd->dcid.datalen;
   if (hd->dcid.datalen) {
