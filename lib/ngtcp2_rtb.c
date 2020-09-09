@@ -788,7 +788,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   if (conn) {
     for (ent = acked_ent; ent; ent = acked_ent) {
-      if (ent->hd.pkt_num >= conn->tx.ecn.start_pkt_num &&
+      if (ent->hd.pkt_num >= pktns->tx.ecn.start_pkt_num &&
           (ent->flags & NGTCP2_RTB_FLAG_ECN)) {
         ++ecn_acked;
       }
@@ -861,6 +861,22 @@ static ngtcp2_duration compute_pkt_loss_delay(const ngtcp2_conn_stat *cstat) {
   return ngtcp2_max(loss_delay, NGTCP2_GRANULARITY);
 }
 
+/*
+ * conn_all_ecn_pkt_lost returns nonzero if all ECN QUIC packets are
+ * lost during validation period.
+ */
+static int conn_all_ecn_pkt_lost(ngtcp2_conn *conn) {
+  ngtcp2_pktns *in_pktns = conn->in_pktns;
+  ngtcp2_pktns *hs_pktns = conn->hs_pktns;
+  ngtcp2_pktns *pktns = &conn->pktns;
+
+  return (!in_pktns || in_pktns->tx.ecn.validation_pkt_sent ==
+                           in_pktns->tx.ecn.validation_pkt_lost) &&
+         (!hs_pktns || hs_pktns->tx.ecn.validation_pkt_sent ==
+                           hs_pktns->tx.ecn.validation_pkt_lost) &&
+         pktns->tx.ecn.validation_pkt_sent == pktns->tx.ecn.validation_pkt_lost;
+}
+
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
                                ngtcp2_duration pto, ngtcp2_tstamp ts) {
@@ -875,7 +891,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   int rv;
   uint64_t pkt_thres =
       rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
-  size_t ecn_dgram_lost = 0;
+  size_t ecn_pkt_lost = 0;
 
   pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
   cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
@@ -917,9 +933,9 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
           continue;
         }
 
-        if (ent->hd.pkt_num >= conn->tx.ecn.start_pkt_num &&
+        if (ent->hd.pkt_num >= pktns->tx.ecn.start_pkt_num &&
             (ent->flags & NGTCP2_RTB_FLAG_ECN)) {
-          ++ecn_dgram_lost;
+          ++ecn_pkt_lost;
         }
 
         rtb_on_remove(rtb, ent, cstat);
@@ -935,15 +951,18 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
           break;
         }
         if (ts - conn->tx.ecn.validation_start_ts < 3 * cstat->smoothed_rtt) {
-          conn->tx.ecn.dgram_lost += ecn_dgram_lost;
+          pktns->tx.ecn.validation_pkt_lost += ecn_pkt_lost;
+          assert(pktns->tx.ecn.validation_pkt_sent >=
+                 pktns->tx.ecn.validation_pkt_lost);
           break;
         }
         conn->tx.ecn.state = NGTCP2_ECN_STATE_UNKNOWN;
         /* fall through */
       case NGTCP2_ECN_STATE_UNKNOWN:
-        conn->tx.ecn.dgram_lost += ecn_dgram_lost;
-        assert(conn->tx.ecn.dgram_sent >= conn->tx.ecn.dgram_lost);
-        if (conn->tx.ecn.dgram_sent == conn->tx.ecn.dgram_lost) {
+        pktns->tx.ecn.validation_pkt_lost += ecn_pkt_lost;
+        assert(pktns->tx.ecn.validation_pkt_sent >=
+               pktns->tx.ecn.validation_pkt_lost);
+        if (conn_all_ecn_pkt_lost(conn)) {
           conn->tx.ecn.state = NGTCP2_ECN_STATE_FAILED;
         }
         break;

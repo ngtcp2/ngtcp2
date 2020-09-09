@@ -5902,7 +5902,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
   CU_ASSERT(NGTCP2_ECN_ECT_0 == pi.ecn);
   CU_ASSERT(NGTCP2_ECN_STATE_TESTING == conn->tx.ecn.state);
   CU_ASSERT(1 == conn->tx.ecn.validation_start_ts);
-  CU_ASSERT(0 == conn->tx.ecn.start_pkt_num);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.start_pkt_num);
 
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 0;
@@ -5965,7 +5965,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
   CU_ASSERT(NGTCP2_ECN_ECT_0 == pi.ecn);
   CU_ASSERT(NGTCP2_ECN_STATE_TESTING == conn->tx.ecn.state);
   CU_ASSERT(1 == conn->tx.ecn.validation_start_ts);
-  CU_ASSERT(0 == conn->tx.ecn.start_pkt_num);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.start_pkt_num);
 
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 0;
@@ -5999,7 +5999,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
 
   CU_ASSERT(NGTCP2_ECN_STATE_TESTING == conn->tx.ecn.state);
   CU_ASSERT(2 == conn->tx.ecn.validation_start_ts);
-  CU_ASSERT(0 == conn->tx.ecn.start_pkt_num);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.start_pkt_num);
 
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 1;
@@ -6029,7 +6029,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
   CU_ASSERT(NGTCP2_ECN_ECT_0 == pi.ecn);
   CU_ASSERT(NGTCP2_ECN_STATE_TESTING == conn->tx.ecn.state);
   CU_ASSERT(1 == conn->tx.ecn.validation_start_ts);
-  CU_ASSERT(0 == conn->tx.ecn.start_pkt_num);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.start_pkt_num);
 
   fr.type = NGTCP2_FRAME_ACK_ECN;
   fr.ack.largest_ack = 0;
@@ -6075,9 +6075,9 @@ void test_ngtcp2_conn_validate_ecn(void) {
   CU_ASSERT(NGTCP2_ECN_NOT_ECT == pi.ecn);
   CU_ASSERT(NGTCP2_ECN_STATE_UNKNOWN == conn->tx.ecn.state);
   CU_ASSERT(0 == conn->tx.ecn.validation_start_ts);
-  CU_ASSERT(0 == conn->tx.ecn.start_pkt_num);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.start_pkt_num);
   CU_ASSERT(NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS == conn->tx.ecn.dgram_sent);
-  CU_ASSERT(0 == conn->tx.ecn.dgram_lost);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.validation_pkt_lost);
 
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS;
@@ -6091,7 +6091,8 @@ void test_ngtcp2_conn_validate_ecn(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_ECN_STATE_FAILED == conn->tx.ecn.state);
-  CU_ASSERT(NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS == conn->tx.ecn.dgram_lost);
+  CU_ASSERT(NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS ==
+            conn->pktns.tx.ecn.validation_pkt_lost);
 
   ngtcp2_conn_del(conn);
 
@@ -6123,9 +6124,9 @@ void test_ngtcp2_conn_validate_ecn(void) {
   CU_ASSERT(NGTCP2_ECN_NOT_ECT == pi.ecn);
   CU_ASSERT(NGTCP2_ECN_STATE_UNKNOWN == conn->tx.ecn.state);
   CU_ASSERT(0 == conn->tx.ecn.validation_start_ts);
-  CU_ASSERT(0 == conn->tx.ecn.start_pkt_num);
-  CU_ASSERT(2 == conn->tx.ecn.dgram_sent);
-  CU_ASSERT(0 == conn->tx.ecn.dgram_lost);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.start_pkt_num);
+  CU_ASSERT(2 == conn->pktns.tx.ecn.validation_pkt_sent);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.validation_pkt_lost);
 
   fr.type = NGTCP2_FRAME_ACK;
   fr.ack.largest_ack = 2;
@@ -6139,7 +6140,7 @@ void test_ngtcp2_conn_validate_ecn(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_ECN_STATE_FAILED == conn->tx.ecn.state);
-  CU_ASSERT(2 == conn->tx.ecn.dgram_lost);
+  CU_ASSERT(2 == conn->pktns.tx.ecn.validation_pkt_lost);
 
   ngtcp2_conn_del(conn);
 }

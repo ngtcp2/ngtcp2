@@ -204,6 +204,15 @@ typedef struct ngtcp2_pktns {
       /* ect0 is the number of QUIC packets, not UDP datagram, which
          are sent in UDP datagram with ECT0 marking. */
       size_t ect0;
+      /* start_pkt_num is the lowest packet number that are sent
+         during ECN validation period. */
+      int64_t start_pkt_num;
+      /* validation_pkt_sent is the number of QUIC packets sent during
+         validation period. */
+      size_t validation_pkt_sent;
+      /* validation_pkt_lost is the number of QUIC packets lost during
+         validation period. */
+      size_t validation_pkt_lost;
     } ecn;
   } tx;
 
@@ -368,15 +377,9 @@ struct ngtcp2_conn {
       /* validation_start_ts is the timestamp when ECN validation is
          started.  It is UINT64_MAX if it has not started yet. */
       ngtcp2_tstamp validation_start_ts;
-      /* start_pkt_num is the lowest packet number that are sent
-         during ECN validation period. */
-      int64_t start_pkt_num;
       /* dgram_sent is the number of UDP datagram sent during ECN
          validation period. */
       size_t dgram_sent;
-      /* dgram_lost is the number of UDP datagram lost during ECN
-         validation period. */
-      size_t dgram_lost;
     } ecn;
   } tx;
 
@@ -698,8 +701,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
  *     User-defined callback function failed.
  */
 ngtcp2_ssize
-ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
-                                   size_t destlen, uint8_t type,
+ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
+                                   uint8_t *dest, size_t destlen, uint8_t type,
                                    const ngtcp2_cid *dcid, ngtcp2_frame *fr,
                                    uint8_t rtb_flags, ngtcp2_tstamp ts);
 
