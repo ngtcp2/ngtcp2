@@ -52,6 +52,24 @@ void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const struct sockaddr *addr,
  */
 int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b);
 
+typedef enum ngtcp2_addr_compare_flag {
+  NGTCP2_ADDR_COMPARE_FLAG_NONE = 0x0,
+  /* NGTCP2_ADDR_COMPARE_FLAG_ADDR indicates IP addresses do not
+     match. */
+  NGTCP2_ADDR_COMPARE_FLAG_ADDR = 0x1,
+  /* NGTCP2_ADDR_COMPARE_FLAG_PORT indicates ports do not match. */
+  NGTCP2_ADDR_COMPARE_FLAG_PORT = 0x2,
+  /* NGTCP2_ADDR_COMPARE_FLAG_FAMILY indicates address families do not
+     match. */
+  NGTCP2_ADDR_COMPARE_FLAG_FAMILY = 0x4,
+} ngtcp2_addr_compare_flag;
+
+/*
+ * ngtcp2_addr_compare compares address and port between |a| and |b|,
+ * and returns zero or more of ngtcp2_addr_compare_flag.
+ */
+uint32_t ngtcp2_addr_compare(const ngtcp2_addr *a, const ngtcp2_addr *b);
+
 /*
  * ngtcp2_addr_empty returns nonzero if |addr| has zero length
  * address.

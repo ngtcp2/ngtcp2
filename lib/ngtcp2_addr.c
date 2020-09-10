@@ -89,4 +89,41 @@ int ngtcp2_addr_eq(const ngtcp2_addr *a, const ngtcp2_addr *b) {
          sockaddr_eq(a->addr, b->addr);
 }
 
+uint32_t ngtcp2_addr_compare(const ngtcp2_addr *aa, const ngtcp2_addr *bb) {
+  uint32_t flags = NGTCP2_ADDR_COMPARE_FLAG_NONE;
+  const struct sockaddr *a = aa->addr;
+  const struct sockaddr *b = bb->addr;
+
+  if (a->sa_family != b->sa_family) {
+    return NGTCP2_ADDR_COMPARE_FLAG_FAMILY;
+  }
+
+  switch (a->sa_family) {
+  case AF_INET: {
+    const struct sockaddr_in *ai = (const struct sockaddr_in *)(void *)a,
+                             *bi = (const struct sockaddr_in *)(void *)b;
+    if (memcmp(&ai->sin_addr, &bi->sin_addr, sizeof(ai->sin_addr))) {
+      flags |= NGTCP2_ADDR_COMPARE_FLAG_ADDR;
+    }
+    if (ai->sin_port != bi->sin_port) {
+      flags |= NGTCP2_ADDR_COMPARE_FLAG_PORT;
+    }
+    return flags;
+  }
+  case AF_INET6: {
+    const struct sockaddr_in6 *ai = (const struct sockaddr_in6 *)(void *)a,
+                              *bi = (const struct sockaddr_in6 *)(void *)b;
+    if (memcmp(&ai->sin6_addr, &bi->sin6_addr, sizeof(ai->sin6_addr))) {
+      flags |= NGTCP2_ADDR_COMPARE_FLAG_ADDR;
+    }
+    if (ai->sin6_port != bi->sin6_port) {
+      flags |= NGTCP2_ADDR_COMPARE_FLAG_PORT;
+    }
+    return flags;
+  }
+  default:
+    assert(0);
+  }
+}
+
 int ngtcp2_addr_empty(const ngtcp2_addr *addr) { return addr->addrlen == 0; }

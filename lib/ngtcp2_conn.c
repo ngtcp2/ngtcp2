@@ -6672,6 +6672,8 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   int rv;
   ngtcp2_duration timeout;
   int require_new_cid;
+  int local_addr_eq;
+  uint32_t remote_addr_cmp;
 
   assert(conn->server);
 
@@ -6692,6 +6694,11 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     return 0;
   }
 
+  remote_addr_cmp =
+      ngtcp2_addr_compare(&conn->dcid.current.ps.path.remote, &path->remote);
+  local_addr_eq =
+      ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
+
   /* The transport specification draft-27 says:
    *
    * An endpoint MUST use a new connection ID if it initiates
@@ -6701,10 +6708,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
    * peer if the packet with the new peer address uses an active
    * connection ID that has not been previously used by the peer.
    */
-  require_new_cid =
-      (new_cid_used &&
-       !ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &path->remote)) ||
-      !ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
+  require_new_cid = (new_cid_used && remote_addr_cmp) || !local_addr_eq;
 
   /* If the remote endpoint uses new DCID, server has to change its
      DCID as well. */
@@ -6748,7 +6752,10 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);
 
-  conn_reset_congestion_state(conn);
+  if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_COMPARE_FLAG_ADDR |
+                                            NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
+    conn_reset_congestion_state(conn);
+  }
   conn_reset_ecn_validation_state(conn);
 
   if (conn->pv) {
