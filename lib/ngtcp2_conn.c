@@ -9619,11 +9619,9 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     cstat->rttvar = rtt / 2;
   } else {
     cstat->min_rtt = ngtcp2_min(cstat->min_rtt, rtt);
-    if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+    if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) {
       ack_delay =
           ngtcp2_min(ack_delay, conn->remote.transport_params.max_ack_delay);
-    } else {
-      ack_delay = ngtcp2_min(ack_delay, NGTCP2_DEFAULT_MAX_ACK_DELAY);
     }
     if (rtt > cstat->min_rtt + ack_delay) {
       rtt -= ack_delay;
