@@ -989,7 +989,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
           /* Reset min_rtt, srtt, and rttvar here.  Next new RTT
              sample will be used to recalculate these values. */
-          cstat->min_rtt = INT64_MAX;
+          cstat->min_rtt = UINT64_MAX;
           cstat->smoothed_rtt = conn->local.settings.initial_rtt;
           cstat->rttvar = conn->local.settings.initial_rtt / 2;
 
