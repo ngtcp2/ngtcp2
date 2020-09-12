@@ -225,6 +225,9 @@ typedef struct ngtcp2_pktns {
     /* max_pkt_ts is the timestamp when max_pkt_num packet is
        received. */
     ngtcp2_tstamp max_pkt_ts;
+    /* max_ack_eliciting_pkt_num is the largest ack-eliciting packet
+       number received so far. */
+    int64_t max_ack_eliciting_pkt_num;
     /*
      * buffed_pkts is buffered packets which cannot be decrypted with
      * the current encryption level.

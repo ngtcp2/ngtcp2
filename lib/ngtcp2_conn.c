@@ -401,6 +401,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
 
   pktns->tx.last_pkt_num = -1;
   pktns->rx.max_pkt_num = -1;
+  pktns->rx.max_ack_eliciting_pkt_num = -1;
 
   rv = ngtcp2_acktr_init(&pktns->acktr, log, mem);
   if (rv != 0) {
@@ -4563,15 +4564,18 @@ static int pktns_pkt_num_is_duplicate(ngtcp2_pktns *pktns, int64_t pkt_num) {
  * received.
  */
 static int pktns_commit_recv_pkt_num(ngtcp2_pktns *pktns, int64_t pkt_num,
-                                     ngtcp2_tstamp ts) {
+                                     int ack_eliciting, ngtcp2_tstamp ts) {
   int rv;
 
-  if (pktns->rx.max_pkt_num + 1 != pkt_num) {
+  if (ack_eliciting && pktns->rx.max_ack_eliciting_pkt_num + 1 != pkt_num) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
   if (pktns->rx.max_pkt_num < pkt_num) {
     pktns->rx.max_pkt_num = pkt_num;
     pktns->rx.max_pkt_ts = ts;
+  }
+  if (ack_eliciting && pktns->rx.max_ack_eliciting_pkt_num < pkt_num) {
+    pktns->rx.max_ack_eliciting_pkt_num = pkt_num;
   }
 
   rv = ngtcp2_gaptr_push(&pktns->rx.pngap, (uint64_t)pkt_num, 1);
@@ -5078,7 +5082,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_qlog_pkt_received_end(&conn->qlog, &hd, pktlen);
 
-  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, pkt_ts);
+  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, require_ack, pkt_ts);
   if (rv != 0) {
     return rv;
   }
@@ -6862,7 +6866,7 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   ngtcp2_qlog_pkt_received_end(&conn->qlog, hd, pktlen);
 
-  rv = pktns_commit_recv_pkt_num(pktns, hd->pkt_num, pkt_ts);
+  rv = pktns_commit_recv_pkt_num(pktns, hd->pkt_num, require_ack, pkt_ts);
   if (rv != 0) {
     return rv;
   }
@@ -7400,7 +7404,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
   }
 
-  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, pkt_ts);
+  rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, require_ack, pkt_ts);
   if (rv != 0) {
     return rv;
   }
