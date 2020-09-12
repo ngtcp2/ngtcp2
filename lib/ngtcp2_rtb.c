@@ -778,7 +778,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   if (largest_pkt_sent_ts != UINT64_MAX && ack_eliciting_pkt_acked) {
     ngtcp2_conn_update_rtt(conn, pkt_ts - largest_pkt_sent_ts,
-                           fr->ack_delay_unscaled);
+                           fr->ack_delay_unscaled, ts);
     if (cc->new_rtt_sample) {
       cc->new_rtt_sample(cc, cstat, ts);
     }
@@ -892,6 +892,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   uint64_t pkt_thres =
       rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
   size_t ecn_pkt_lost = 0;
+  ngtcp2_tstamp start_ts;
 
   pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
   cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
@@ -916,11 +917,13 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                            conn->remote.transport_params.max_ack_delay) *
                           NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
+      start_ts = ngtcp2_max(rtb->persistent_congestion_start_ts,
+                            cstat->first_rtt_sample_ts);
+
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);
 
-        if (last_lost_pkt_num == ent->hd.pkt_num + 1 &&
-            ent->ts >= rtb->persistent_congestion_start_ts) {
+        if (last_lost_pkt_num == ent->hd.pkt_num + 1 && ent->ts >= start_ts) {
           last_lost_pkt_num = ent->hd.pkt_num;
           oldest_ts = ent->ts;
         } else {
@@ -983,8 +986,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
        * persistent congestion there, then it is a lot easier to just
        * not enable it during handshake.
        */
-      if (cstat->min_rtt != UINT64_MAX &&
-          rtb->pktns_id == NGTCP2_PKTNS_ID_APP && loss_window > 0) {
+      if (rtb->pktns_id == NGTCP2_PKTNS_ID_APP && loss_window > 0) {
         if (loss_window >= congestion_period) {
           ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                           "persistent congestion loss_window=%" PRIu64
@@ -996,6 +998,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
           cstat->min_rtt = UINT64_MAX;
           cstat->smoothed_rtt = conn->local.settings.initial_rtt;
           cstat->rttvar = conn->local.settings.initial_rtt / 2;
+          cstat->first_rtt_sample_ts = UINT64_MAX;
 
           cc->on_persistent_congestion(cc, cstat, ts);
         }

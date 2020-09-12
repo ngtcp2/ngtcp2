@@ -608,6 +608,7 @@ typedef struct ngtcp2_conn_stat {
   ngtcp2_duration smoothed_rtt;
   ngtcp2_duration rttvar;
   ngtcp2_duration initial_rtt;
+  ngtcp2_tstamp first_rtt_sample_ts;
   size_t pto_count;
   ngtcp2_tstamp loss_detection_timer;
   /* last_tx_pkt_ts corresponds to

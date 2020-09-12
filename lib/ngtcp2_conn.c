@@ -543,6 +543,7 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->min_rtt = UINT64_MAX;
   cstat->smoothed_rtt = conn->local.settings.initial_rtt;
   cstat->rttvar = conn->local.settings.initial_rtt / 2;
+  cstat->first_rtt_sample_ts = UINT64_MAX;
   cstat->pto_count = 0;
   cstat->loss_detection_timer = 0;
   cstat->cwnd =
@@ -9614,7 +9615,7 @@ int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
 }
 
 void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
-                            ngtcp2_duration ack_delay) {
+                            ngtcp2_duration ack_delay, ngtcp2_tstamp ts) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_duration min_rtt;
 
@@ -9626,6 +9627,7 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
     cstat->min_rtt = rtt;
     cstat->smoothed_rtt = rtt;
     cstat->rttvar = rtt / 2;
+    cstat->first_rtt_sample_ts = ts;
   } else {
     min_rtt = ngtcp2_min(cstat->min_rtt, rtt);
     if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) {
