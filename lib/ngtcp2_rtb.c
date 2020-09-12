@@ -663,7 +663,10 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 }
 
 static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                            const ngtcp2_ack *fr, size_t ecn_acked) {
+                            ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                            const ngtcp2_ack *fr, size_t ecn_acked,
+                            ngtcp2_tstamp largest_acked_sent_ts,
+                            ngtcp2_tstamp ts) {
   if (conn->tx.ecn.state == NGTCP2_ECN_STATE_FAILED) {
     return;
   }
@@ -685,6 +688,17 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "path is ECN capable");
     conn->tx.ecn.state = NGTCP2_ECN_STATE_CAPABLE;
   }
+
+  if (fr->type == NGTCP2_FRAME_ACK_ECN) {
+    if (largest_acked_sent_ts != UINT64_MAX &&
+        fr->ecn.ce > pktns->rx.ecn.ack.ce) {
+      cc->congestion_event(cc, cstat, largest_acked_sent_ts, ts);
+    }
+
+    pktns->rx.ecn.ack.ect0 = fr->ecn.ect0;
+    pktns->rx.ecn.ack.ect1 = fr->ecn.ect1;
+    pktns->rx.ecn.ack.ce = fr->ecn.ce;
+  }
 }
 
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
@@ -698,6 +712,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   ngtcp2_ksl_it it;
   ngtcp2_ssize num_acked = 0;
   ngtcp2_tstamp largest_pkt_sent_ts = UINT64_MAX;
+  ngtcp2_tstamp largest_acked_sent_ts = UINT64_MAX;
   int64_t pkt_num;
   ngtcp2_cc *cc = rtb->cc;
   ngtcp2_rtb_entry *acked_ent = NULL;
@@ -721,6 +736,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   /* Assume that ngtcp2_pkt_validate_ack(fr) returns 0 */
   it = ngtcp2_ksl_lower_bound(&rtb->ents, &largest_ack);
   if (ngtcp2_ksl_it_end(&it)) {
+    if (verify_ecn) {
+      conn_verify_ecn(conn, pktns, rtb->cc, cstat, fr, ecn_acked,
+                      /* largest_acked_sent_ts = */ UINT64_MAX, ts);
+    }
     return 0;
   }
 
@@ -739,6 +758,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
     if (largest_ack == pkt_num) {
       largest_pkt_sent_ts = ent->ts;
+    }
+
+    if (largest_acked_sent_ts == UINT64_MAX) {
+      largest_acked_sent_ts = ent->ts;
     }
 
     if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
@@ -764,6 +787,10 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         break;
       }
       ent = ngtcp2_ksl_it_get(&it);
+
+      if (largest_acked_sent_ts == UINT64_MAX) {
+        largest_acked_sent_ts = ent->ts;
+      }
 
       if (ent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
         ack_eliciting_pkt_acked = 1;
@@ -804,7 +831,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
 
     if (verify_ecn) {
-      conn_verify_ecn(conn, pktns, fr, ecn_acked);
+      conn_verify_ecn(conn, pktns, rtb->cc, cstat, fr, ecn_acked,
+                      largest_acked_sent_ts, ts);
     }
   } else {
     /* For unit tests */

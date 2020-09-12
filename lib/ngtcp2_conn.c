@@ -4098,12 +4098,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
     return (int)num_acked;
   }
 
-  if (fr->type == NGTCP2_FRAME_ACK_ECN) {
-    pktns->rx.ecn.ack.ect0 = fr->ecn.ect0;
-    pktns->rx.ecn.ack.ect1 = fr->ecn.ect1;
-    pktns->rx.ecn.ack.ce = fr->ecn.ce;
-  }
-
   if (num_acked == 0) {
     return 0;
   }
