@@ -55,6 +55,7 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 static void reno_cc_reset(ngtcp2_reno_cc *cc) {
   cc->max_delivery_rate_sec = 0;
   cc->target_cwnd = 0;
+  cc->pending_add = 0;
 }
 
 void ngtcp2_reno_cc_init(ngtcp2_reno_cc *cc, ngtcp2_log *log) {
@@ -102,6 +103,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt,
                                     ngtcp2_tstamp ts) {
   ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
+  uint64_t m;
   (void)ts;
 
   if (in_congestion_recovery(cstat, pkt->ts_sent)) {
@@ -120,7 +122,10 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  cstat->cwnd += cstat->max_udp_payload_size * pkt->pktlen / cstat->cwnd;
+  m = cstat->max_udp_payload_size * pkt->pktlen + cc->pending_add;
+  cc->pending_add = m % cstat->cwnd;
+
+  cstat->cwnd += m / cstat->cwnd;
 }
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
@@ -138,6 +143,8 @@ void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   min_cwnd = 2 * cstat->max_udp_payload_size;
   cstat->cwnd = ngtcp2_max(cstat->cwnd, min_cwnd);
   cstat->ssthresh = cstat->cwnd;
+
+  cc->pending_add = 0;
 
   ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                   "reduce cwnd because of packet loss cwnd=%" PRIu64,

@@ -51,6 +51,7 @@ struct ngtcp2_reno_cc {
   ngtcp2_cc_base ccb;
   uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
+  uint64_t pending_add;
 };
 
 typedef struct ngtcp2_reno_cc ngtcp2_reno_cc;
