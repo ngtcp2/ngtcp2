@@ -6357,7 +6357,7 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
     scid = ngtcp2_ksl_it_get(&it);
     if (scid->seq == fr->seq) {
       if (ngtcp2_cid_eq(&scid->cid, &hd->dcid)) {
-        return NGTCP2_ERR_FRAME_ENCODING;
+        return NGTCP2_ERR_PROTO;
       }
 
       if (!(scid->flags & NGTCP2_SCID_FLAG_RETIRED)) {
