@@ -4044,10 +4044,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                 ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
-  int rv;
-  ngtcp2_duration pto = conn_compute_pto(conn, pktns);
-
-  rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, conn, pktns, cstat, pto, ts);
+  int rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, conn, pktns, cstat, ts);
   if (rv != 0) {
     return rv;
   }

@@ -350,11 +350,11 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
  * frames contained them to |*pfrc|.  Even when this function fails,
  * some frames might be prepended to |*pfrc| and the caller should
- * handle them.  |pto| is PTO.
+ * handle them.
  */
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
-                               ngtcp2_duration pto, ngtcp2_tstamp ts);
+                               ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_remove_expired_lost_pkt removes expired lost packet.

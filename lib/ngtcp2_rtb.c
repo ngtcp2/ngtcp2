@@ -879,7 +879,7 @@ static int conn_all_ecn_pkt_lost(ngtcp2_conn *conn) {
 
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
-                               ngtcp2_duration pto, ngtcp2_tstamp ts) {
+                               ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_duration loss_delay;
   ngtcp2_tstamp lost_send_time;
@@ -911,7 +911,10 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       latest_ts = oldest_ts = ent->ts;
       last_lost_pkt_num = ent->hd.pkt_num;
 
-      congestion_period = pto * NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
+      congestion_period = (cstat->smoothed_rtt +
+                           ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY) +
+                           conn->remote.transport_params.max_ack_delay) *
+                          NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
       for (; !ngtcp2_ksl_it_end(&it);) {
         ent = ngtcp2_ksl_it_get(&it);
@@ -980,7 +983,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
        * persistent congestion there, then it is a lot easier to just
        * not enable it during handshake.
        */
-      if (rtb->pktns_id == NGTCP2_PKTNS_ID_APP && loss_window > 0) {
+      if (cstat->min_rtt != UINT64_MAX &&
+          rtb->pktns_id == NGTCP2_PKTNS_ID_APP && loss_window > 0) {
         if (loss_window >= congestion_period) {
           ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                           "persistent congestion loss_window=%" PRIu64
