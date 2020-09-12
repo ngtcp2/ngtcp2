@@ -549,7 +549,7 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->cwnd =
       ngtcp2_cc_compute_initcwnd(conn->local.settings.max_udp_payload_size);
   cstat->ssthresh = UINT64_MAX;
-  cstat->congestion_recovery_start_ts = 0;
+  cstat->congestion_recovery_start_ts = UINT64_MAX;
   cstat->bytes_in_flight = 0;
   cstat->delivery_rate_sec = 0;
   cstat->recv_rate_sec = 0;

@@ -94,7 +94,8 @@ void ngtcp2_cc_reno_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem) {
 
 static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
                                   ngtcp2_tstamp sent_time) {
-  return sent_time <= cstat->congestion_recovery_start_ts;
+  return cstat->congestion_recovery_start_ts != UINT64_MAX &&
+         sent_time <= cstat->congestion_recovery_start_ts;
 }
 
 void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
@@ -150,6 +151,7 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *ccx,
   (void)ts;
 
   cstat->cwnd = 2 * cstat->max_udp_payload_size;
+  cstat->congestion_recovery_start_ts = UINT64_MAX;
 }
 
 void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
@@ -447,6 +449,7 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *ccx,
   (void)ts;
 
   cstat->cwnd = 2 * cstat->max_udp_payload_size;
+  cstat->congestion_recovery_start_ts = UINT64_MAX;
 }
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
