@@ -3483,7 +3483,9 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     return nwrite;
   }
 
-  ++cc.ckm->use_count;
+  if (type == NGTCP2_PKT_SHORT) {
+    ++cc.ckm->use_count;
+  }
 
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, &hd, (size_t)nwrite);
 
@@ -6542,8 +6544,13 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
       (tx_ckm->use_count >= pktns->crypto.ctx.max_encryption ||
-       rx_ckm->use_count >= pktns->crypto.ctx.max_decryption_failure)) {
-    ngtcp2_conn_initiate_key_update(conn, ts);
+       conn->crypto.decryption_failure_count >=
+           pktns->crypto.ctx.max_decryption_failure)) {
+    if (ngtcp2_conn_initiate_key_update(conn, ts) != 0) {
+      /* TODO Use NGTCP2_ERR_AEAD_LIMIT_REACHED when a correct value
+         is assigned to it. */
+      return NGTCP2_ERR_INTERNAL;
+    }
   }
 
   if ((conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
@@ -7101,7 +7108,9 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     assert(NGTCP2_ERR_TLS_DECRYPT == nwrite);
 
-    ++ckm->use_count;
+    if (hd.type == NGTCP2_PKT_SHORT) {
+      ++conn->crypto.decryption_failure_count;
+    }
 
     if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,

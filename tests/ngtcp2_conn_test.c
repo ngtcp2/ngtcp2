@@ -353,6 +353,12 @@ static int genrand(uint8_t *dest, size_t destlen,
   return 0;
 }
 
+static void init_crypto_ctx(ngtcp2_crypto_ctx *ctx) {
+  memset(ctx, 0, sizeof(*ctx));
+  ctx->max_encryption = 9999;
+  ctx->max_decryption_failure = 8888;
+}
+
 static void server_default_settings(ngtcp2_settings *settings) {
   size_t i;
   ngtcp2_transport_params *params = &settings->transport_params;
@@ -402,9 +408,12 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_transport_params *params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_crypto_ctx crypto_ctx;
 
   dcid_init(&dcid);
   scid_init(&scid);
+
+  init_crypto_ctx(&crypto_ctx);
 
   memset(&cb, 0, sizeof(cb));
   cb.decrypt = null_decrypt;
@@ -419,6 +428,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
                          NULL);
+  ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_install_tx_handshake_key(*pconn, &aead_ctx, null_iv,
@@ -454,9 +464,12 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_transport_params *params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_crypto_ctx crypto_ctx;
 
   dcid_init(&dcid);
   scid_init(&scid);
+
+  init_crypto_ctx(&crypto_ctx);
 
   memset(&cb, 0, sizeof(cb));
   cb.decrypt = null_decrypt;
@@ -470,6 +483,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
                          NULL);
+  ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_install_tx_handshake_key(*pconn, &aead_ctx, null_iv,

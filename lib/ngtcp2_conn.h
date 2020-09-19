@@ -501,6 +501,9 @@ struct ngtcp2_conn {
     ngtcp2_crypto_aead_ctx retry_aead_ctx;
     /* tls_error is TLS related error. */
     int tls_error;
+    /* decryption_failure_count is the number of received packets that
+       fail authentication. */
+    uint64_t decryption_failure_count;
   } crypto;
 
   /* pkt contains the packet intermediate construction data to support
