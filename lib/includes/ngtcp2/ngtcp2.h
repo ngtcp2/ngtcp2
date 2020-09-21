@@ -2783,8 +2783,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  *     User callback failed
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
-    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    uint64_t error_code, ngtcp2_tstamp ts);
+    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+    size_t destlen, uint64_t error_code, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -2822,8 +2822,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  *     User callback failed
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_application_close(
-    ngtcp2_conn *conn, ngtcp2_path *path, uint8_t *dest, size_t destlen,
-    uint64_t app_error_code, ngtcp2_tstamp ts);
+    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+    size_t destlen, uint64_t app_error_code, ngtcp2_tstamp ts);
 
 /**
  * @function

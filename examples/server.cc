@@ -1937,9 +1937,10 @@ int Handler::start_closing_period() {
   conn_closebuf_ = std::make_unique<Buffer>(max_pktlen_);
 
   PathStorage path;
+  ngtcp2_pkt_info pi;
   if (last_error_.type == QUICErrorType::Transport) {
     auto n = ngtcp2_conn_write_connection_close(
-        conn_, &path.path, conn_closebuf_->wpos(), max_pktlen_,
+        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_pktlen_,
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
@@ -1949,7 +1950,7 @@ int Handler::start_closing_period() {
     conn_closebuf_->push(n);
   } else {
     auto n = ngtcp2_conn_write_application_close(
-        conn_, &path.path, conn_closebuf_->wpos(), max_pktlen_,
+        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_pktlen_,
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: " << ngtcp2_strerror(n)
@@ -1960,7 +1961,7 @@ int Handler::start_closing_period() {
   }
 
   update_endpoint(&path.path.local);
-  update_remote_addr(&path.path.remote, nullptr);
+  update_remote_addr(&path.path.remote, &pi);
 
   return 0;
 }

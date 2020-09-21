@@ -1532,9 +1532,10 @@ int Client::handle_error() {
   }
 
   PathStorage path;
+  ngtcp2_pkt_info pi;
   if (last_error_.type == QUICErrorType::Transport) {
     auto n = ngtcp2_conn_write_connection_close(
-        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, last_error_.code,
+        conn_, &path.path, &pi, sendbuf_.wpos(), max_pktlen_, last_error_.code,
         util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
@@ -1544,7 +1545,7 @@ int Client::handle_error() {
     sendbuf_.push(n);
   } else {
     auto n = ngtcp2_conn_write_application_close(
-        conn_, &path.path, sendbuf_.wpos(), max_pktlen_, last_error_.code,
+        conn_, &path.path, &pi, sendbuf_.wpos(), max_pktlen_, last_error_.code,
         util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: " << ngtcp2_strerror(n)
@@ -1554,7 +1555,7 @@ int Client::handle_error() {
     sendbuf_.push(n);
   }
 
-  update_remote_addr(&path.path.remote, nullptr);
+  update_remote_addr(&path.path.remote, &pi);
 
   return send_packet();
 }
