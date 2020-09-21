@@ -26,6 +26,5 @@ RUN apt-get update && \
     rm -rf /var/log/*
 
 COPY run_endpoint.sh .
-COPY server.key server.crt /etc/ngtcp2/
 RUN chmod +x run_endpoint.sh
 ENTRYPOINT [ "./run_endpoint.sh" ]
