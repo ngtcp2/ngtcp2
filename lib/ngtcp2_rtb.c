@@ -271,6 +271,8 @@ static void rtb_on_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 static void rtb_on_remove(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
                           ngtcp2_conn_stat *cstat) {
   if (ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED) {
+    assert(rtb->num_lost_pkts);
+    --rtb->num_lost_pkts;
     return;
   }
 
