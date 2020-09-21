@@ -630,6 +630,7 @@ int ngtcp2_crypto_generate_stateless_reset_token(uint8_t *token,
 }
 
 ngtcp2_ssize ngtcp2_crypto_write_connection_close(uint8_t *dest, size_t destlen,
+                                                  uint32_t version,
                                                   const ngtcp2_cid *dcid,
                                                   const ngtcp2_cid *scid,
                                                   uint64_t error_code) {
@@ -670,7 +671,7 @@ ngtcp2_ssize ngtcp2_crypto_write_connection_close(uint8_t *dest, size_t destlen,
   }
 
   spktlen = ngtcp2_pkt_write_connection_close(
-      dest, destlen, dcid, scid, error_code, ngtcp2_crypto_encrypt_cb,
+      dest, destlen, version, dcid, scid, error_code, ngtcp2_crypto_encrypt_cb,
       &ctx.aead, &aead_ctx, tx_iv, ngtcp2_crypto_hp_mask_cb, &ctx.hp, &hp_ctx);
   if (spktlen < 0) {
     spktlen = -1;
@@ -684,7 +685,7 @@ end:
 }
 
 ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
-                                       const ngtcp2_cid *dcid,
+                                       uint32_t version, const ngtcp2_cid *dcid,
                                        const ngtcp2_cid *scid,
                                        const ngtcp2_cid *odcid,
                                        const uint8_t *token, size_t tokenlen) {
@@ -700,9 +701,9 @@ ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
     return -1;
   }
 
-  spktlen =
-      ngtcp2_pkt_write_retry(dest, destlen, dcid, scid, odcid, token, tokenlen,
-                             ngtcp2_crypto_encrypt_cb, &aead, &aead_ctx);
+  spktlen = ngtcp2_pkt_write_retry(dest, destlen, version, dcid, scid, odcid,
+                                   token, tokenlen, ngtcp2_crypto_encrypt_cb,
+                                   &aead, &aead_ctx);
   if (spktlen < 0) {
     spktlen = -1;
   }

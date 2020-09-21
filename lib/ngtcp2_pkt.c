@@ -93,7 +93,8 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
 
     version = ngtcp2_get_uint32(&data[1]);
 
-    if ((version == 0 || version == NGTCP2_PROTO_VER) &&
+    if ((version == 0 || (NGTCP2_PROTO_VER_MIN <= version &&
+                          version <= NGTCP2_PROTO_VER_MAX)) &&
         (dcidlen > NGTCP2_MAX_CIDLEN || scidlen > NGTCP2_MAX_CIDLEN)) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
@@ -104,7 +105,8 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
     *pscid = &data[6 + dcidlen + 1];
     *pscidlen = scidlen;
 
-    if (version && version != NGTCP2_PROTO_VER) {
+    if (version &&
+        (version < NGTCP2_PROTO_VER_MIN || NGTCP2_PROTO_VER_MAX < version)) {
       return 1;
     }
     return 0;
@@ -117,7 +119,7 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  *pversion = NGTCP2_PROTO_VER;
+  *pversion = 0;
   *pdcid = &data[1];
   *pdcidlen = short_dcidlen;
   *pscid = NULL;
@@ -2085,12 +2087,11 @@ ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
   return p - dest;
 }
 
-ngtcp2_ssize
-ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
-                       const ngtcp2_cid *scid, const ngtcp2_cid *odcid,
-                       const uint8_t *token, size_t tokenlen,
-                       ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead,
-                       const ngtcp2_crypto_aead_ctx *aead_ctx) {
+ngtcp2_ssize ngtcp2_pkt_write_retry(
+    uint8_t *dest, size_t destlen, uint32_t version, const ngtcp2_cid *dcid,
+    const ngtcp2_cid *scid, const ngtcp2_cid *odcid, const uint8_t *token,
+    size_t tokenlen, ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead,
+    const ngtcp2_crypto_aead_ctx *aead_ctx) {
   ngtcp2_pkt_hd hd;
   uint8_t pseudo_retry[1500];
   ngtcp2_ssize pseudo_retrylen;
@@ -2110,8 +2111,8 @@ ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_RETRY, dcid,
-                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1,
-                     NGTCP2_PROTO_VER, /* len = */ 0);
+                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1, version,
+                     /* len = */ 0);
 
   pseudo_retrylen =
       ngtcp2_pkt_encode_pseudo_retry(pseudo_retry, sizeof(pseudo_retry), &hd,

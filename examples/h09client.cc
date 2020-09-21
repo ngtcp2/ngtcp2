@@ -775,18 +775,10 @@ int Client::init_ssl() {
   SSL_set_app_data(ssl_, this);
   SSL_set_connect_state(ssl_);
 
-  const uint8_t *alpn = nullptr;
-  size_t alpnlen;
+  auto alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN);
+  auto alpnlen = str_size(HQ_ALPN);
 
-  switch (version_) {
-  case NGTCP2_PROTO_VER:
-    alpn = HQ_ALPN;
-    alpnlen = str_size(HQ_ALPN);
-    break;
-  }
-  if (alpn) {
-    SSL_set_alpn_protos(ssl_, alpn, alpnlen);
-  }
+  SSL_set_alpn_protos(ssl_, alpn, alpnlen);
 
   if (!config.sni.empty()) {
     SSL_set_tlsext_host_name(ssl_, config.sni.data());
@@ -2017,7 +2009,7 @@ void config_set_default(Config &config) {
   config.nstreams = 0;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER;
+  config.version = NGTCP2_PROTO_VER_MIN;
   config.timeout = 30 * NGTCP2_SECONDS;
   config.http_method = "GET"sv;
   config.max_data = 1_m;

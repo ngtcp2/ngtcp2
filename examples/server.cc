@@ -2609,10 +2609,17 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
                                      size_t scidlen, Endpoint &ep,
                                      const sockaddr *sa, socklen_t salen) {
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
-  std::array<uint32_t, 2> sv;
+  std::array<uint32_t, 16> sv;
+
+  static_assert(sv.size() >=
+                1 + (NGTCP2_PROTO_VER_MAX - NGTCP2_PROTO_VER_MIN + 1));
 
   sv[0] = generate_reserved_version(sa, salen, version);
-  sv[1] = NGTCP2_PROTO_VER;
+
+  size_t i = 1;
+  for (auto v = NGTCP2_PROTO_VER_MIN; v < NGTCP2_PROTO_VER_MAX; ++v) {
+    sv[i++] = v;
+  }
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
@@ -2678,9 +2685,9 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
 
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
 
-  auto nwrite =
-      ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), &chd->scid, &scid,
-                                &chd->dcid, token.data(), tokenlen);
+  auto nwrite = ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), chd->version,
+                                          &chd->scid, &scid, &chd->dcid,
+                                          token.data(), tokenlen);
   if (nwrite < 0) {
     std::cerr << "ngtcp2_crypto_write_retry failed" << std::endl;
     return -1;
@@ -2706,7 +2713,8 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
 
   auto nwrite = ngtcp2_crypto_write_connection_close(
-      buf.wpos(), buf.left(), &chd->scid, &chd->dcid, NGTCP2_INVALID_TOKEN);
+      buf.wpos(), buf.left(), chd->version, &chd->scid, &chd->dcid,
+      NGTCP2_INVALID_TOKEN);
   if (nwrite < 0) {
     std::cerr << "ngtcp2_crypto_write_connection_close failed" << std::endl;
     return -1;
@@ -3221,9 +3229,13 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   auto version = ngtcp2_conn_get_negotiated_version(h->conn());
 
   switch (version) {
-  case NGTCP2_PROTO_VER:
-    alpn = reinterpret_cast<const uint8_t *>(NGHTTP3_ALPN_H3);
-    alpnlen = str_size(NGHTTP3_ALPN_H3);
+  case QUIC_VER_DRAFT29:
+    alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_DRAFT29);
+    alpnlen = str_size(H3_ALPN_DRAFT29);
+    break;
+  case QUIC_VER_DRAFT30:
+    alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_DRAFT30);
+    alpnlen = str_size(H3_ALPN_DRAFT30);
     break;
   default:
     if (!config.quiet) {
@@ -3242,8 +3254,7 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
   }
 
   if (!config.quiet) {
-    std::cerr << "Client did not present ALPN " << &NGHTTP3_ALPN_H3[1]
-              << std::endl;
+    std::cerr << "Client did not present ALPN " << &alpn[1] << std::endl;
   }
 
   return SSL_TLSEXT_ERR_ALERT_FATAL;

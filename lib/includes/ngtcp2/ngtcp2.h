@@ -164,11 +164,12 @@ typedef struct ngtcp2_mem {
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
 
-/* NGTCP2_PROTO_VER is the supported QUIC protocol version. */
-#define NGTCP2_PROTO_VER 0xff00001du
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER
+#define NGTCP2_PROTO_VER_MAX 0xff00001eu
+/* NGTCP2_PROTO_VER_MIN is the lowest QUIC version the library
+   supports. */
+#define NGTCP2_PROTO_VER_MIN 0xff00001du
 
 #define NGTCP2_MAX_PKTLEN_IPV4 1252
 #define NGTCP2_MAX_PKTLEN_IPV6 1232
@@ -983,13 +984,13 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
  * its length and assigns them to |*pscid| and |*pscidlen|
  * respectively.
  *
- * If the given packet is Short packet, |*pversion| will be
- * :macro:`NGTCP2_PROTO_VER`, |*pscid| will be NULL, and |*pscidlen|
- * will be 0.  Because the Short packet does not have the length of
- * Destination Connection ID, the caller has to pass the length in
- * |short_dcidlen|.  This function extracts the pointer to the
- * Destination Connection ID and assigns it to |*pdcid|.
- * |short_dcidlen| is assigned to |*pdcidlen|.
+ * If the given packet is Short packet, |*pversion| will be 0,
+ * |*pscid| will be NULL, and |*pscidlen| will be 0.  Because the
+ * Short packet does not have the length of Destination Connection ID,
+ * the caller has to pass the length in |short_dcidlen|.  This
+ * function extracts the pointer to the Destination Connection ID and
+ * assigns it to |*pdcid|.  |short_dcidlen| is assigned to
+ * |*pdcidlen|.
  *
  * This function returns 0 or 1 if it succeeds.  It returns 1 if
  * Version Negotiation packet should be sent.  Otherwise, one of the
@@ -1956,7 +1957,7 @@ typedef struct ngtcp2_conn_callbacks {
  *     Callback function failed.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
-    uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+    uint8_t *dest, size_t destlen, uint32_t version, const ngtcp2_cid *dcid,
     const ngtcp2_cid *scid, uint64_t error_code, ngtcp2_encrypt encrypt,
     const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_aead_ctx *aead_ctx,
     const uint8_t *iv, ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
@@ -1981,7 +1982,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
  *     Callback function failed.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
-    uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+    uint8_t *dest, size_t destlen, uint32_t version, const ngtcp2_cid *dcid,
     const ngtcp2_cid *scid, const ngtcp2_cid *odcid, const uint8_t *token,
     size_t tokenlen, ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead,
     const ngtcp2_crypto_aead_ctx *aead_ctx);

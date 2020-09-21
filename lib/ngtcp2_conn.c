@@ -8336,10 +8336,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     return -1;
   }
 
-  switch (p->version) {
-  case NGTCP2_PROTO_VER:
-    break;
-  default:
+  if (p->version < NGTCP2_PROTO_VER_MIN || NGTCP2_PROTO_VER_MAX < p->version) {
     return 1;
   }
 
@@ -10267,7 +10264,7 @@ void ngtcp2_settings_default(ngtcp2_settings *settings) {
    test data defined only in ngtcp2_conn_test.c, so it is written
    here. */
 ngtcp2_ssize ngtcp2_pkt_write_connection_close(
-    uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
+    uint8_t *dest, size_t destlen, uint32_t version, const ngtcp2_cid *dcid,
     const ngtcp2_cid *scid, uint64_t error_code, ngtcp2_encrypt encrypt,
     const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_aead_ctx *aead_ctx,
     const uint8_t *iv, ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
@@ -10280,8 +10277,8 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
   int rv;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_INITIAL, dcid,
-                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1,
-                     NGTCP2_PROTO_VER, /* len = */ 0);
+                     scid, /* pkt_num = */ 0, /* pkt_numlen = */ 1, version,
+                     /* len = */ 0);
 
   ngtcp2_vec_init(&ckm.secret, NULL, 0);
   ngtcp2_vec_init(&ckm.iv, iv, 12);
