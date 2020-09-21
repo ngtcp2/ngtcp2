@@ -42,6 +42,8 @@ namespace debug {
 
 int handshake_completed(ngtcp2_conn *conn, void *user_data);
 
+int handshake_confirmed(ngtcp2_conn *conn, void *user_data);
+
 bool packet_lost(double prob);
 
 void print_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,

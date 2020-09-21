@@ -218,6 +218,7 @@ public:
   int handle_expiry();
   void schedule_retransmit();
   int handshake_completed();
+  int handshake_confirmed();
 
   void write_client_handshake(ngtcp2_crypto_level level, const uint8_t *data,
                               size_t datalen);
@@ -313,6 +314,9 @@ private:
   // should_exit_ is true if client should exit rather than waiting
   // for timeout.
   bool should_exit_;
+  // handshake_confirmed_ gets true after handshake has been
+  // confirmed.
+  bool handshake_confirmed_;
 };
 
 #endif // CLIENT_H

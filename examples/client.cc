@@ -390,7 +390,8 @@ Client::Client(struct ev_loop *loop, SSL_CTX *ssl_ctx)
       nkey_update_(0),
       version_(0),
       early_data_(false),
-      should_exit_(false) {
+      should_exit_(false),
+      handshake_confirmed_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   ev_io_init(&rev_, readcb, 0, EV_READ);
   wev_.data = this;
@@ -567,6 +568,28 @@ int Client::handshake_completed() {
       std::cerr << std::endl;
     }
   }
+
+  return 0;
+}
+
+namespace {
+int handshake_confirmed(ngtcp2_conn *conn, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  if (!config.quiet) {
+    debug::handshake_confirmed(conn, user_data);
+  }
+
+  if (c->handshake_confirmed() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+int Client::handshake_confirmed() {
+  handshake_confirmed_ = true;
 
   if (config.change_local_addr) {
     start_change_local_addr_timer();
@@ -885,7 +908,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // extend_max_remote_streams_uni,
       ::extend_max_stream_data,
       nullptr, // dcid_status
-      nullptr, // handshake_confirmed
+      ::handshake_confirmed,
       ::recv_new_token,
       ngtcp2_crypto_delete_crypto_aead_ctx_cb,
       ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
@@ -1486,6 +1509,10 @@ int Client::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
 }
 
 int Client::initiate_key_update() {
+  if (!config.quiet) {
+    std::cerr << "Initiate key update" << std::endl;
+  }
+
   if (auto rv = ngtcp2_conn_initiate_key_update(conn_, util::timestamp(loop_));
       rv != 0) {
     std::cerr << "ngtcp2_conn_initiate_key_update: " << ngtcp2_strerror(rv)
@@ -1670,7 +1697,8 @@ int Client::make_stream_early() {
 int Client::on_extend_max_streams() {
   int64_t stream_id;
 
-  if (ev_is_active(&delay_stream_timer_)) {
+  if ((config.delay_stream && !handshake_confirmed_) ||
+      ev_is_active(&delay_stream_timer_)) {
     return 0;
   }
 

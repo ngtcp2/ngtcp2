@@ -47,6 +47,11 @@ int handshake_completed(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 
+int handshake_confirmed(ngtcp2_conn *conn, void *user_data) {
+  fprintf(outfile, "QUIC handshake has been confirmed\n");
+  return 0;
+}
+
 bool packet_lost(double prob) {
   auto p = std::uniform_real_distribution<>(0, 1)(randgen);
   return p < prob;
