@@ -34,6 +34,9 @@ if [ "$ROLE" == "client" ]; then
     if [ "$TESTCASE" == "chacha20" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --ciphers=TLS_CHACHA20_POLY1305_SHA256"
     fi
+    if [ "$TESTCASE" == "keyupdate" ]; then
+	CLIENT_ARGS="$CLIENT_ARGS --delay-stream 10ms --key-update 1ms"
+    fi
     if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
 	if [ "$TESTCASE" == "resumption" ]; then
