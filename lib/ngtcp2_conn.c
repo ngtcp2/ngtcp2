@@ -4800,9 +4800,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (conn->early.ckm) {
         ngtcp2_ssize nread2;
         /* TODO Avoid to parse header twice. */
-        /* TODO Why we use conn->dcid.current.ps.path here? */
-        nread2 = conn_recv_pkt(conn, &conn->dcid.current.ps.path, pi, pkt,
-                               pktlen, pkt_ts, ts);
+        nread2 = conn_recv_pkt(conn, path, pi, pkt, pktlen, pkt_ts, ts);
         if (nread2 < 0) {
           return nread2;
         }
