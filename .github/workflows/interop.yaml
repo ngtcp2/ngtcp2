@@ -23,4 +23,5 @@ jobs:
       with:
         context: interop
         file: interop/Dockerfile
+        push: true
         tags: ghcr.io/ngtcp2/ngtcp2-interop:latest
