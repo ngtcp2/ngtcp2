@@ -2765,6 +2765,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  * sockaddr_storage)`` is enough.  The assignment might not be done if
  * nothing is written to |dest|.
  *
+ * If |pi| is not NULL, this function stores packet metadata in it if
+ * it succeeds.  The metadata includes ECN markings.
+ *
  * This function must not be called from inside the callback
  * functions.
  *
@@ -2799,6 +2802,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  * buffer which is at least 128 bytes.  ``sizeof(struct
  * sockaddr_storage)`` is enough.  The assignment might not be done if
  * nothing is written to |dest|.
+ *
+ * If |pi| is not NULL, this function stores packet metadata in it if
+ * it succeeds.  The metadata includes ECN markings.
  *
  * If handshake has not been confirmed yet, CONNECTION_CLOSE (type
  * 0x1c) with error code :macro:`NGTCP2_APPLICATION_ERROR` is written
