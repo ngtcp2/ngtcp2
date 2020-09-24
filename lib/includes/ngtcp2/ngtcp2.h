@@ -2648,9 +2648,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *
  * If |path| is not NULL, this function stores the network path with
  * which the packet should be sent.  Each addr field must point to the
- * buffer which is at least 128 bytes.  ``sizeof(struct
- * sockaddr_storage)`` is enough.  The assignment might not be done if
- * nothing is written to |dest|.
+ * buffer which should be at least ``sizeof(struct sockaddr_storage)``
+ * bytes long.  The assignment might not be done if nothing is written
+ * to |dest|.
  *
  * If |pi| is not NULL, this function stores packet metadata in it if
  * it succeeds.  The metadata includes ECN markings.
@@ -2761,9 +2761,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  *
  * If |path| is not NULL, this function stores the network path with
  * which the packet should be sent.  Each addr field must point to the
- * buffer which is at least 128 bytes.  ``sizeof(struct
- * sockaddr_storage)`` is enough.  The assignment might not be done if
- * nothing is written to |dest|.
+ * buffer which should be at least ``sizeof(struct sockaddr_storage)``
+ * bytes long.  The assignment might not be done if nothing is written
+ * to |dest|.
  *
  * If |pi| is not NULL, this function stores packet metadata in it if
  * it succeeds.  The metadata includes ECN markings.
@@ -2799,9 +2799,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  *
  * If |path| is not NULL, this function stores the network path with
  * which the packet should be sent.  Each addr field must point to the
- * buffer which is at least 128 bytes.  ``sizeof(struct
- * sockaddr_storage)`` is enough.  The assignment might not be done if
- * nothing is written to |dest|.
+ * buffer which should be at least ``sizeof(struct sockaddr_storage)``
+ * bytes long.  The assignment might not be done if nothing is written
+ * to |dest|.
  *
  * If |pi| is not NULL, this function stores packet metadata in it if
  * it succeeds.  The metadata includes ECN markings.
