@@ -2310,8 +2310,9 @@ void test_ngtcp2_conn_recv_retry(void) {
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_pkt_write_retry(
-      buf, sizeof(buf), &conn->oscid, &dcid, ngtcp2_conn_get_dcid(conn), token,
-      strsize(token), null_encrypt, &aead, &aead_ctx);
+      buf, sizeof(buf), NGTCP2_PROTO_VER_MAX, &conn->oscid, &dcid,
+      ngtcp2_conn_get_dcid(conn), token, strsize(token), null_encrypt, &aead,
+      &aead_ctx);
 
   CU_ASSERT(spktlen > 0);
 
@@ -2345,8 +2346,9 @@ void test_ngtcp2_conn_recv_retry(void) {
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_pkt_write_retry(
-      buf, sizeof(buf), &conn->oscid, &dcid, ngtcp2_conn_get_dcid(conn), token,
-      strsize(token), null_encrypt, &aead, &aead_ctx);
+      buf, sizeof(buf), NGTCP2_PROTO_VER_MAX, &conn->oscid, &dcid,
+      ngtcp2_conn_get_dcid(conn), token, strsize(token), null_encrypt, &aead,
+      &aead_ctx);
 
   CU_ASSERT(spktlen > 0);
 
@@ -2389,8 +2391,9 @@ void test_ngtcp2_conn_recv_retry(void) {
   CU_ASSERT(119 == datalen);
 
   spktlen = ngtcp2_pkt_write_retry(
-      buf, sizeof(buf), &conn->oscid, &dcid, ngtcp2_conn_get_dcid(conn), token,
-      strsize(token), null_encrypt, &aead, &aead_ctx);
+      buf, sizeof(buf), NGTCP2_PROTO_VER_MAX, &conn->oscid, &dcid,
+      ngtcp2_conn_get_dcid(conn), token, strsize(token), null_encrypt, &aead,
+      &aead_ctx);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6172,14 +6175,15 @@ void test_ngtcp2_pkt_write_connection_close(void) {
   scid_init(&scid);
 
   spktlen = ngtcp2_pkt_write_connection_close(
-      buf, sizeof(buf), &dcid, &scid, NGTCP2_INVALID_TOKEN, null_encrypt, &aead,
-      &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
+      buf, sizeof(buf), NGTCP2_PROTO_VER_MAX, &dcid, &scid,
+      NGTCP2_INVALID_TOKEN, null_encrypt, &aead, &aead_ctx, null_iv,
+      null_hp_mask, &hp_mask, &hp_ctx);
 
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_pkt_write_connection_close(
-      buf, 16, &dcid, &scid, NGTCP2_INVALID_TOKEN, null_encrypt, &aead,
-      &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
+      buf, 16, NGTCP2_PROTO_VER_MAX, &dcid, &scid, NGTCP2_INVALID_TOKEN,
+      null_encrypt, &aead, &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }
