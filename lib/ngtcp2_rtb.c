@@ -674,12 +674,14 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   }
 
   if ((ecn_acked && fr->type == NGTCP2_FRAME_ACK) ||
-      pktns->rx.ecn.ack.ect0 > fr->ecn.ect0 ||
-      pktns->rx.ecn.ack.ect1 > fr->ecn.ect1 ||
-      pktns->rx.ecn.ack.ce > fr->ecn.ce ||
-      (fr->ecn.ect0 - pktns->rx.ecn.ack.ect0) +
-              (fr->ecn.ce - pktns->rx.ecn.ack.ce) <
-          ecn_acked) {
+      (fr->type == NGTCP2_FRAME_ACK_ECN &&
+       (pktns->rx.ecn.ack.ect0 > fr->ecn.ect0 ||
+        pktns->rx.ecn.ack.ect1 > fr->ecn.ect1 ||
+        pktns->rx.ecn.ack.ce > fr->ecn.ce ||
+        (fr->ecn.ect0 - pktns->rx.ecn.ack.ect0) +
+                (fr->ecn.ce - pktns->rx.ecn.ack.ce) <
+            ecn_acked ||
+        fr->ecn.ect0 > pktns->tx.ecn.ect0 || fr->ecn.ect1))) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "path is not ECN capable");
     conn->tx.ecn.state = NGTCP2_ECN_STATE_FAILED;

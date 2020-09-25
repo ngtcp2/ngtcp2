@@ -6065,6 +6065,35 @@ void test_ngtcp2_conn_validate_ecn(void) {
 
   ngtcp2_conn_del(conn);
 
+  /* If ECT count is larger than the number of ECT marked packet, ECN
+     validation fails. */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), 1);
+
+  CU_ASSERT(0 < spktlen);
+  CU_ASSERT(NGTCP2_ECN_ECT_0 == pi.ecn);
+  CU_ASSERT(NGTCP2_ECN_STATE_TESTING == conn->tx.ecn.state);
+  CU_ASSERT(1 == conn->tx.ecn.validation_start_ts);
+  CU_ASSERT(0 == conn->pktns.tx.ecn.start_pkt_num);
+
+  fr.type = NGTCP2_FRAME_ACK_ECN;
+  fr.ack.largest_ack = 0;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+  fr.ack.ecn.ect0 = 2;
+  fr.ack.ecn.ect1 = 0;
+  fr.ack.ecn.ce = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 0, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 2);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_ECN_STATE_FAILED == conn->tx.ecn.state);
+
+  ngtcp2_conn_del(conn);
+
   /* ECN validation fails if all ECN marked packets are lost */
   setup_default_client(&conn);
 
