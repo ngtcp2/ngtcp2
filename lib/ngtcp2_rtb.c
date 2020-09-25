@@ -906,7 +906,7 @@ static int conn_all_ecn_pkt_lost(ngtcp2_conn *conn) {
 
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
-                               ngtcp2_tstamp ts) {
+                               ngtcp2_duration pto, ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_duration loss_delay;
   ngtcp2_tstamp lost_send_time;
@@ -983,7 +983,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
         if (conn->tx.ecn.validation_start_ts == UINT64_MAX) {
           break;
         }
-        if (ts - conn->tx.ecn.validation_start_ts < 3 * cstat->smoothed_rtt) {
+        if (ts - conn->tx.ecn.validation_start_ts < 3 * pto) {
           pktns->tx.ecn.validation_pkt_lost += ecn_pkt_lost;
           assert(pktns->tx.ecn.validation_pkt_sent >=
                  pktns->tx.ecn.validation_pkt_lost);

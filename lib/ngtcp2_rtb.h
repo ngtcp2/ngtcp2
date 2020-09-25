@@ -354,7 +354,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  */
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
-                               ngtcp2_tstamp ts);
+                               ngtcp2_duration pto, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_remove_expired_lost_pkt removes expired lost packet.

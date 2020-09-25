@@ -635,6 +635,20 @@ static void delete_scid(ngtcp2_ksl *scids, const ngtcp2_mem *mem) {
   }
 }
 
+/*
+ * conn_compute_pto computes the current PTO.
+ */
+static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
+                                        ngtcp2_pktns *pktns) {
+  ngtcp2_conn_stat *cstat = &conn->cstat;
+  ngtcp2_duration var = ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY);
+  ngtcp2_duration max_ack_delay =
+      pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APP
+          ? conn->remote.transport_params.max_ack_delay
+          : 0;
+  return cstat->smoothed_rtt + var + max_ack_delay;
+}
+
 static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                                uint8_t *prtb_entry_flags, ngtcp2_pktns *pktns,
                                const ngtcp2_pkt_hd *hd, ngtcp2_tstamp ts) {
@@ -667,7 +681,7 @@ static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
       conn->tx.ecn.validation_start_ts = ts;
     } else if (ts - conn->tx.ecn.validation_start_ts >=
-               3 * conn->cstat.smoothed_rtt) {
+               3 * conn_compute_pto(conn, pktns)) {
       conn->tx.ecn.state = NGTCP2_ECN_STATE_UNKNOWN;
       break;
     }
@@ -2580,20 +2594,6 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_compute_pto computes the current PTO.
- */
-static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
-                                        ngtcp2_pktns *pktns) {
-  ngtcp2_conn_stat *cstat = &conn->cstat;
-  ngtcp2_duration var = ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY);
-  ngtcp2_duration max_ack_delay =
-      pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APP
-          ? conn->remote.transport_params.max_ack_delay
-          : 0;
-  return cstat->smoothed_rtt + var + max_ack_delay;
-}
-
-/*
  * conn_remove_retired_connection_id removes the already retired
  * connection ID.  It waits PTO before actually removing a connection
  * ID after it receives RETIRE_CONNECTION_ID from peer to catch
@@ -4047,7 +4047,8 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                 ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
-  int rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, conn, pktns, cstat, ts);
+  ngtcp2_duration pto = conn_compute_pto(conn, pktns);
+  int rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, conn, pktns, cstat, pto, ts);
   if (rv != 0) {
     return rv;
   }
