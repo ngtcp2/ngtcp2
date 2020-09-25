@@ -98,6 +98,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_RETRY";
   case NGTCP2_ERR_DROP_CONN:
     return "ERR_DROP_CONN";
+  case NGTCP2_ERR_AEAD_LIMIT_REACHED:
+    return "ERR_AEAD_LIMIT_REACHED";
   default:
     return "(unknown)";
   }
@@ -130,6 +132,8 @@ uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
     return NGTCP2_STREAM_STATE_ERROR;
   case NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED:
     return NGTCP2_CRYPTO_BUFFER_EXCEEDED;
+  case NGTCP2_ERR_AEAD_LIMIT_REACHED:
+    return NGTCP2_AEAD_LIMIT_REACHED;
   default:
     return NGTCP2_PROTOCOL_VIOLATION;
   }

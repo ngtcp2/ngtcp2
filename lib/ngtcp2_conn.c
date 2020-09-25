@@ -6546,9 +6546,7 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
        conn->crypto.decryption_failure_count >=
            pktns->crypto.ctx.max_decryption_failure)) {
     if (ngtcp2_conn_initiate_key_update(conn, ts) != 0) {
-      /* TODO Use NGTCP2_ERR_AEAD_LIMIT_REACHED when a correct value
-         is assigned to it. */
-      return NGTCP2_ERR_INTERNAL;
+      return NGTCP2_ERR_AEAD_LIMIT_REACHED;
     }
   }
 

@@ -287,6 +287,7 @@ typedef enum ngtcp2_lib_error {
   NGTCP2_ERR_WRITE_MORE = -240,
   NGTCP2_ERR_RETRY = -241,
   NGTCP2_ERR_DROP_CONN = -242,
+  NGTCP2_ERR_AEAD_LIMIT_REACHED = -243,
   NGTCP2_ERR_FATAL = -500,
   NGTCP2_ERR_NOMEM = -501,
   NGTCP2_ERR_CALLBACK_FAILURE = -502,
@@ -330,6 +331,7 @@ typedef enum ngtcp2_pkt_type {
 #define NGTCP2_APPLICATION_ERROR 0xcu
 #define NGTCP2_CRYPTO_BUFFER_EXCEEDED 0xdu
 #define NGTCP2_KEY_UPDATE_ERROR 0xeu
+#define NGTCP2_AEAD_LIMIT_REACHED 0xfu
 #define NGTCP2_CRYPTO_ERROR 0x100u
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
