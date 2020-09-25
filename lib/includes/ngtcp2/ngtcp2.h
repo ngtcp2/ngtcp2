@@ -166,7 +166,7 @@ typedef struct ngtcp2_mem {
 
 /* NGTCP2_PROTO_VER_MAX is the highest QUIC version the library
    supports. */
-#define NGTCP2_PROTO_VER_MAX 0xff00001eu
+#define NGTCP2_PROTO_VER_MAX 0xff00001fu
 /* NGTCP2_PROTO_VER_MIN is the lowest QUIC version the library
    supports. */
 #define NGTCP2_PROTO_VER_MIN 0xff00001du
