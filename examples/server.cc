@@ -2616,16 +2616,16 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
 
   sv[0] = generate_reserved_version(sa, salen, version);
 
-  size_t i = 1;
-  for (auto v = NGTCP2_PROTO_VER_MIN; v < NGTCP2_PROTO_VER_MAX; ++v) {
-    sv[i++] = v;
+  size_t svlen = 1;
+  for (auto v = NGTCP2_PROTO_VER_MIN; v <= NGTCP2_PROTO_VER_MAX; ++v) {
+    sv[svlen++] = v;
   }
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
       std::uniform_int_distribution<uint8_t>(
           0, std::numeric_limits<uint8_t>::max())(randgen),
-      dcid, dcidlen, scid, scidlen, sv.data(), sv.size());
+      dcid, dcidlen, scid, scidlen, sv.data(), svlen);
   if (nwrite < 0) {
     std::cerr << "ngtcp2_pkt_write_version_negotiation: "
               << ngtcp2_strerror(nwrite) << std::endl;
