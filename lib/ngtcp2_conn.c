@@ -6542,12 +6542,9 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   size_t secretlen, ivlen;
 
   if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
-      (tx_ckm->use_count >= pktns->crypto.ctx.max_encryption ||
-       conn->crypto.decryption_failure_count >=
-           pktns->crypto.ctx.max_decryption_failure)) {
-    if (ngtcp2_conn_initiate_key_update(conn, ts) != 0) {
-      return NGTCP2_ERR_AEAD_LIMIT_REACHED;
-    }
+      tx_ckm->use_count >= pktns->crypto.ctx.max_encryption &&
+      ngtcp2_conn_initiate_key_update(conn, ts) != 0) {
+    return NGTCP2_ERR_AEAD_LIMIT_REACHED;
   }
 
   if ((conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
@@ -7105,8 +7102,10 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     assert(NGTCP2_ERR_TLS_DECRYPT == nwrite);
 
-    if (hd.type == NGTCP2_PKT_SHORT) {
-      ++conn->crypto.decryption_failure_count;
+    if (hd.type == NGTCP2_PKT_SHORT &&
+        ++conn->crypto.decryption_failure_count >=
+            pktns->crypto.ctx.max_decryption_failure) {
+      return NGTCP2_ERR_AEAD_LIMIT_REACHED;
     }
 
     if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
