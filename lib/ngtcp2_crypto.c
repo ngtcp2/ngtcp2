@@ -541,7 +541,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       if (params->initial_max_streams_bidi > NGTCP2_MAX_STREAMS) {
-        return NGTCP2_ERR_FRAME_ENCODING;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += nread;
       break;
@@ -551,7 +551,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       if (params->initial_max_streams_uni > NGTCP2_MAX_STREAMS) {
-        return NGTCP2_ERR_FRAME_ENCODING;
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += nread;
       break;
