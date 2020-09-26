@@ -7690,6 +7690,15 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
     }
 
+    if ((conn->flags & (NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
+                        NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED)) ==
+        NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) {
+      rv = conn_handshake_completed(conn);
+      if (rv != 0) {
+        return rv;
+      }
+    }
+
     return 0;
   case NGTCP2_CS_SERVER_INITIAL:
     rv = conn_recv_handshake_cpkt(conn, path, pi, pkt, pktlen, ts);
@@ -8036,11 +8045,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
-    }
-
-    rv = conn_handshake_completed(conn);
-    if (rv != 0) {
-      return (ngtcp2_ssize)rv;
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
