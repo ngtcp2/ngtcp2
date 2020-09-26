@@ -2508,6 +2508,15 @@ ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
  * |stream_user_data| is the user data specific to the stream.  The
  * open stream ID is stored in |*pstream_id|.
  *
+ * Application can call this function before handshake completes.  For
+ * 0RTT packet, application can call this function after calling
+ * `ngtcp2_conn_set_early_remote_transport_params`.  For 1RTT packet,
+ * application can call this function after calling
+ * `ngtcp2_conn_set_remote_transport_params` and
+ * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
+ * used, application can call this function after calling
+ * `ngtcp2_crypto_derive_and_install_tx_key` for 1RTT packet.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -2526,6 +2535,15 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  * `ngtcp2_conn_open_uni_stream` opens new unidirectional stream.  The
  * |stream_user_data| is the user data specific to the stream.  The
  * open stream ID is stored in |*pstream_id|.
+ *
+ * Application can call this function before handshake completes.  For
+ * 0RTT packet, application can call this function after calling
+ * `ngtcp2_conn_set_early_remote_transport_params`.  For 1RTT packet,
+ * application can call this function after calling
+ * `ngtcp2_conn_set_remote_transport_params` and
+ * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
+ * used, application can call this function after calling
+ * `ngtcp2_crypto_derive_and_install_tx_key` for 1RTT packet.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
