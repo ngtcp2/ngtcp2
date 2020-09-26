@@ -7550,20 +7550,6 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
     }
   }
 
-  switch (conn->tx.ecn.state) {
-  case NGTCP2_ECN_STATE_TESTING:
-  case NGTCP2_ECN_STATE_UNKNOWN:
-    /* We might not have sufficient ECN marked packet in 1RTT packets.
-       In this case, we might wrongly conclude that the path is not
-       ECN capable.  Validate it again. */
-    if (conn->pktns.tx.ecn.ect0 < 3) {
-      conn_reset_ecn_validation_state(conn);
-    }
-    break;
-  default:
-    break;
-  }
-
   return 0;
 }
 
