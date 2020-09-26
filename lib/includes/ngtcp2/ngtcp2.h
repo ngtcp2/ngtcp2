@@ -2655,7 +2655,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * to |dest|.
  *
  * If |pi| is not NULL, this function stores packet metadata in it if
- * it succeeds.  The metadata includes ECN markings.
+ * it succeeds.  The metadata includes ECN markings.  When calling
+ * this function again after it returns :enum:`NGTCP2_ERR_WRITE_MORE`,
+ * caller must pass the same |pi| to this function.
  *
  * If the all given data is encoded as STREAM frame in |dest|, and if
  * |flags| & NGTCP2_WRITE_STREAM_FLAG_FIN is nonzero, fin flag is set

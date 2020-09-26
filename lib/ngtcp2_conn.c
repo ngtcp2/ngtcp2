@@ -2158,7 +2158,9 @@ build_pkt:
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, &hd, (size_t)spktlen);
 
   if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
-    conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, &hd, ts);
+    if (pi) {
+      conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, &hd, ts);
+    }
 
     rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frq, ts, (size_t)spktlen,
                               rtb_entry_flags, conn->mem);
@@ -2178,7 +2180,7 @@ build_pkt:
         (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
       conn_restart_timer_on_write(conn, ts);
     }
-  } else if (conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
+  } else if (pi && conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
     conn_handle_tx_ecn(conn, pi, NULL, pktns, &hd, ts);
   }
 
@@ -3332,7 +3334,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   /* TODO ack-eliciting vs needs-tracking */
   /* probe packet needs tracking but it does not need ACK, could be lost. */
   if ((rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
-    conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, hd, ts);
+    if (pi) {
+      conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, hd, ts);
+    }
 
     rv = ngtcp2_rtb_entry_new(&ent, hd, NULL, ts, (size_t)nwrite,
                               rtb_entry_flags, conn->mem);
@@ -3372,7 +3376,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn_restart_timer_on_write(conn, ts);
       }
     }
-  } else if (conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
+  } else if (pi && conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
     conn_handle_tx_ecn(conn, pi, NULL, pktns, hd, ts);
   }
 
@@ -8980,7 +8984,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
   ngtcp2_ssize res = 0;
   size_t server_hs_tx_left;
-  ngtcp2_pkt_info phpi;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -8989,10 +8992,9 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
   }
 
-  if (!pi) {
-    pi = &phpi;
+  if (!ppe_pending && pi) {
+    pi->ecn = NGTCP2_ECN_NOT_ECT;
   }
-  pi->ecn = NGTCP2_ECN_NOT_ECT;
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
@@ -9221,7 +9223,6 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close(
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   uint8_t pkt_type;
   ngtcp2_ssize nwrite;
-  ngtcp2_pkt_info phpi;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -9243,10 +9244,9 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close(
     ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
   }
 
-  if (!pi) {
-    pi = &phpi;
+  if (pi) {
+    pi->ecn = NGTCP2_ECN_NOT_ECT;
   }
-  pi->ecn = NGTCP2_ECN_NOT_ECT;
 
   if (conn->state == NGTCP2_CS_POST_HANDSHAKE ||
       (conn->server && conn->pktns.crypto.tx.ckm)) {
@@ -9278,7 +9278,6 @@ ngtcp2_ssize ngtcp2_conn_write_application_close(
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
   ngtcp2_frame fr;
-  ngtcp2_pkt_info phpi;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -9300,10 +9299,9 @@ ngtcp2_ssize ngtcp2_conn_write_application_close(
     ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
   }
 
-  if (!pi) {
-    pi = &phpi;
+  if (pi) {
+    pi->ecn = NGTCP2_ECN_NOT_ECT;
   }
-  pi->ecn = NGTCP2_ECN_NOT_ECT;
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
     nwrite = conn_write_connection_close(conn, pi, dest, destlen,
