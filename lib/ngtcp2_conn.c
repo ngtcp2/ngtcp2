@@ -9725,7 +9725,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if ((!in_pktns || in_pktns->rtb.num_retransmittable == 0) &&
       (!hs_pktns || hs_pktns->rtb.num_retransmittable == 0) &&
       (pktns->rtb.num_retransmittable == 0 ||
-       !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) &&
+       !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) &&
       (conn->server ||
        (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
                        NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
