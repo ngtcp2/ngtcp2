@@ -236,6 +236,8 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
                   << config.tp_file << std::endl;
       }
     }
+
+    on_extend_max_streams();
   }
 
   return 0;
