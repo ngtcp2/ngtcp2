@@ -42,7 +42,7 @@
 
 /* NGTCP2_NUM_IMMEDIATE_ACK_PKT is the maximum number of received
    packets which triggers the immediate ACK. */
-#define NGTCP2_NUM_IMMEDIATE_ACK_PKT 2
+#define NGTCP2_NUM_IMMEDIATE_ACK_PKT 10
 
 struct ngtcp2_acktr_entry;
 typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
