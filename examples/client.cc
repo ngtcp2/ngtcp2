@@ -1088,7 +1088,7 @@ int Client::on_read() {
 
     if (nread == -1) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        std::cerr << "recvfrom: " << strerror(errno) << std::endl;
+        std::cerr << "recvmsg: " << strerror(errno) << std::endl;
       }
       break;
     }
@@ -1561,7 +1561,7 @@ int Client::send_packet() {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       return NETWORK_ERR_SEND_BLOCKED;
     }
-    std::cerr << "sendto: " << strerror(errno) << std::endl;
+    std::cerr << "sendmsg: " << strerror(errno) << std::endl;
     return NETWORK_ERR_FATAL;
   }
 

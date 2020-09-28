@@ -1746,7 +1746,7 @@ int Server::on_read(Endpoint &ep) {
     auto nread = recvmsg(ep.fd, &msg, MSG_DONTWAIT);
     if (nread == -1) {
       if (!(errno == EAGAIN || errno == ENOTCONN)) {
-        std::cerr << "recvfrom: " << strerror(errno) << std::endl;
+        std::cerr << "recvmsg: " << strerror(errno) << std::endl;
       }
       return 0;
     }
