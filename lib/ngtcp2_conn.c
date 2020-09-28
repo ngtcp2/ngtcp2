@@ -2477,12 +2477,8 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
   uint64_t win = conn_initial_stream_rx_offset(conn, strm->stream_id);
   uint64_t inc = strm->rx.unsent_max_offset - strm->rx.max_offset;
-  ngtcp2_conn_stat *cstat = &conn->cstat;
 
-  return win < 2 * inc ||
-         (cstat->min_rtt != UINT64_MAX &&
-          2 * cstat->recv_rate_sec * cstat->min_rtt / NGTCP2_SECONDS >
-              win - inc);
+  return win < 2 * inc;
 }
 
 /*
@@ -2491,12 +2487,8 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
  */
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   uint64_t inc = conn->rx.unsent_max_offset - conn->rx.max_offset;
-  ngtcp2_conn_stat *cstat = &conn->cstat;
 
-  return conn->local.settings.transport_params.initial_max_data < 2 * inc ||
-         (cstat->min_rtt != UINT64_MAX &&
-          2 * cstat->recv_rate_sec * cstat->min_rtt / NGTCP2_SECONDS >
-              conn->local.settings.transport_params.initial_max_data - inc);
+  return conn->local.settings.transport_params.initial_max_data < 2 * inc;
 }
 
 /*
