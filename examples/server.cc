@@ -75,7 +75,7 @@ constexpr size_t TOKEN_RAND_DATALEN = 16;
 } // namespace
 
 namespace {
-constexpr size_t MAX_DYNBUFLEN = 1024 * 1024;
+constexpr size_t MAX_DYNBUFLEN = 10 * 1024 * 1024;
 } // namespace
 
 namespace {
