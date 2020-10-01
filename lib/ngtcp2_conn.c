@@ -3486,9 +3486,12 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   ngtcp2_qlog_pkt_sent_end(&conn->qlog, &hd, (size_t)nwrite);
 
   /* Do this when we are sure that there is no error. */
-  if (fr->type == NGTCP2_FRAME_ACK) {
+  switch (fr->type) {
+  case NGTCP2_FRAME_ACK:
+  case NGTCP2_FRAME_ACK_ECN:
     ngtcp2_acktr_commit_ack(&pktns->acktr);
     ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, fr->ack.largest_ack);
+    break;
   }
 
   if ((rtb_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
@@ -5023,9 +5026,12 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     payload += nread;
     payloadlen -= (size_t)nread;
 
-    if (fr->type == NGTCP2_FRAME_ACK) {
+    switch (fr->type) {
+    case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
       fr->ack.ack_delay = 0;
       fr->ack.ack_delay_unscaled = 0;
+      break;
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
@@ -6819,9 +6825,12 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     payload += nread;
     payloadlen -= (size_t)nread;
 
-    if (fr->type == NGTCP2_FRAME_ACK) {
+    switch (fr->type) {
+    case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
       fr->ack.ack_delay = 0;
       fr->ack.ack_delay_unscaled = 0;
+      break;
     }
 
     ngtcp2_log_rx_fr(&conn->log, hd, fr);
@@ -7199,13 +7208,16 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     payload += nread;
     payloadlen -= (size_t)nread;
 
-    if (fr->type == NGTCP2_FRAME_ACK) {
+    switch (fr->type) {
+    case NGTCP2_FRAME_ACK:
+    case NGTCP2_FRAME_ACK_ECN:
       if ((hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
           hd.type == NGTCP2_PKT_0RTT) {
         return NGTCP2_ERR_PROTO;
       }
       assign_recved_ack_delay_unscaled(
           &fr->ack, conn->remote.transport_params.ack_delay_exponent);
+      break;
     }
 
     ngtcp2_log_rx_fr(&conn->log, &hd, fr);
