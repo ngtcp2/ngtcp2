@@ -2220,6 +2220,14 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
       }
     }
 
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      close(fd);
+      continue;
+    }
+
+    fd_set_recv_ecn(fd, rp->ai_family);
+
     if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
       break;
     }
@@ -2231,14 +2239,6 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
     std::cerr << "Could not bind" << std::endl;
     return -1;
   }
-
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
-                 static_cast<socklen_t>(sizeof(val))) == -1) {
-    close(fd);
-    return -1;
-  }
-
-  fd_set_recv_ecn(fd, rp->ai_family);
 
   socklen_t len = sizeof(local_addr.su.storage);
   if (getsockname(fd, &local_addr.su.sa, &len) == -1) {
@@ -2289,12 +2289,6 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
     return -1;
   }
 
-  if (bind(fd, &addr.su.sa, addr.len) == -1) {
-    std::cerr << "bind: " << strerror(errno) << std::endl;
-    close(fd);
-    return -1;
-  }
-
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
                  static_cast<socklen_t>(sizeof(val))) == -1) {
     close(fd);
@@ -2302,6 +2296,12 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
   }
 
   fd_set_recv_ecn(fd, addr.su.sa.sa_family);
+
+  if (bind(fd, &addr.su.sa, addr.len) == -1) {
+    std::cerr << "bind: " << strerror(errno) << std::endl;
+    close(fd);
+    return -1;
+  }
 
   endpoints.emplace_back(Endpoint{});
   auto &ep = endpoints.back();
