@@ -37,6 +37,13 @@
 #include "ngtcp2_path.h"
 #include "ngtcp2_rcvry.h"
 
+/* NGTCP2_FLOW_WINDOW_RTT_FACTOR is the factor of RTT when flow
+   control window auto-tuning is triggered. */
+#define NGTCP2_FLOW_WINDOW_RTT_FACTOR 2
+/* NGTCP2_FLOW_WINDOW_SCALING_FACTOR is the growth factor of flow
+   control window. */
+#define NGTCP2_FLOW_WINDOW_SCALING_FACTOR 2
+
 /*
  * conn_local_stream returns nonzero if |stream_id| indicates that it
  * is the stream initiated by local endpoint.
@@ -752,7 +759,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   const ngtcp2_transport_params *params = &settings->transport_params;
   uint8_t *buf;
 
+  assert(settings->max_window <= NGTCP2_MAX_VARINT);
+  assert(settings->max_stream_window <= NGTCP2_MAX_VARINT);
   assert(params->active_connection_id_limit <= NGTCP2_MAX_DCID_POOL_SIZE);
+  assert(params->initial_max_data <= NGTCP2_MAX_VARINT);
+  assert(params->initial_max_stream_data_bidi_local <= NGTCP2_MAX_VARINT);
+  assert(params->initial_max_stream_data_bidi_remote <= NGTCP2_MAX_VARINT);
+  assert(params->initial_max_stream_data_uni <= NGTCP2_MAX_VARINT);
 
   if (mem == NULL) {
     mem = ngtcp2_mem_default();
@@ -926,6 +939,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->user_data = user_data;
   (*pconn)->idle_ts = settings->initial_ts;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
+  (*pconn)->tx.last_max_data_ts = UINT64_MAX;
 
   conn_reset_ecn_validation_state(*pconn);
 
@@ -2475,10 +2489,10 @@ static uint64_t conn_initial_stream_rx_offset(ngtcp2_conn *conn,
  */
 static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
                                             ngtcp2_strm *strm) {
-  uint64_t win = conn_initial_stream_rx_offset(conn, strm->stream_id);
   uint64_t inc = strm->rx.unsent_max_offset - strm->rx.max_offset;
+  (void)conn;
 
-  return win < 2 * inc;
+  return strm->rx.window < 2 * inc;
 }
 
 /*
@@ -2488,7 +2502,7 @@ static int conn_should_send_max_stream_data(ngtcp2_conn *conn,
 static int conn_should_send_max_data(ngtcp2_conn *conn) {
   uint64_t inc = conn->rx.unsent_max_offset - conn->rx.max_offset;
 
-  return conn->local.settings.transport_params.initial_max_data < 2 * inc;
+  return conn->rx.window < 2 * inc;
 }
 
 /*
@@ -2730,6 +2744,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t stream_offset;
   ngtcp2_ssize num_reclaimed;
   int fin;
+  uint64_t target_max_data;
+  ngtcp2_conn_stat *cstat = &conn->cstat;
+  uint64_t delta;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -2796,21 +2813,41 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     cc->encrypt = conn->callbacks.encrypt;
     cc->hp_mask = conn->callbacks.hp_mask;
 
-    /* TODO Take into account stream frames */
-    if ((pktns->tx.frq || send_stream ||
-         ngtcp2_ringbuf_len(&conn->rx.path_challenge) ||
-         conn_should_send_max_data(conn)) &&
-        conn->rx.unsent_max_offset > conn->rx.max_offset) {
+    if (conn_should_send_max_data(conn)) {
       rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
       if (rv != 0) {
         return rv;
       }
+
+      if (conn->local.settings.max_window &&
+          conn->tx.last_max_data_ts != UINT64_MAX &&
+          ts - conn->tx.last_max_data_ts <
+              NGTCP2_FLOW_WINDOW_RTT_FACTOR * cstat->smoothed_rtt &&
+          conn->local.settings.max_window > conn->rx.window) {
+        target_max_data = NGTCP2_FLOW_WINDOW_SCALING_FACTOR * conn->rx.window;
+        if (target_max_data > conn->local.settings.max_window) {
+          target_max_data = conn->local.settings.max_window;
+        }
+
+        delta = target_max_data - conn->rx.window;
+        if (conn->rx.unsent_max_offset + delta > NGTCP2_MAX_VARINT) {
+          delta = NGTCP2_MAX_VARINT - conn->rx.unsent_max_offset;
+        }
+
+        conn->rx.window = target_max_data;
+      } else {
+        delta = 0;
+      }
+
+      conn->tx.last_max_data_ts = ts;
+
       nfrc->fr.type = NGTCP2_FRAME_MAX_DATA;
-      nfrc->fr.max_data.max_data = conn->rx.unsent_max_offset;
+      nfrc->fr.max_data.max_data = conn->rx.unsent_max_offset + delta;
       nfrc->next = pktns->tx.frq;
       pktns->tx.frq = nfrc;
 
-      conn->rx.max_offset = conn->rx.unsent_max_offset;
+      conn->rx.max_offset = conn->rx.unsent_max_offset =
+          nfrc->fr.max_data.max_data;
       credit_expanded = 1;
     }
 
@@ -3058,15 +3095,40 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         strm = ngtcp2_conn_tx_strmq_top(conn);
 
         if (!(strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-            strm->rx.max_offset < strm->rx.unsent_max_offset) {
+            conn_should_send_max_stream_data(conn, strm)) {
           rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
           if (rv != 0) {
             assert(ngtcp2_err_is_fatal(rv));
             return rv;
           }
+
+          if (conn->local.settings.max_stream_window &&
+              strm->tx.last_max_stream_data_ts != UINT64_MAX &&
+              ts - strm->tx.last_max_stream_data_ts <
+                  NGTCP2_FLOW_WINDOW_RTT_FACTOR * cstat->smoothed_rtt &&
+              conn->local.settings.max_stream_window > strm->rx.window) {
+            target_max_data =
+                NGTCP2_FLOW_WINDOW_SCALING_FACTOR * strm->rx.window;
+            if (target_max_data > conn->local.settings.max_stream_window) {
+              target_max_data = conn->local.settings.max_stream_window;
+            }
+
+            delta = target_max_data - strm->rx.window;
+            if (strm->rx.unsent_max_offset + delta > NGTCP2_MAX_VARINT) {
+              delta = NGTCP2_MAX_VARINT - strm->rx.unsent_max_offset;
+            }
+
+            strm->rx.window = target_max_data;
+          } else {
+            delta = 0;
+          }
+
+          strm->tx.last_max_stream_data_ts = ts;
+
           nfrc->fr.type = NGTCP2_FRAME_MAX_STREAM_DATA;
           nfrc->fr.max_stream_data.stream_id = strm->stream_id;
-          nfrc->fr.max_stream_data.max_stream_data = strm->rx.unsent_max_offset;
+          nfrc->fr.max_stream_data.max_stream_data =
+              strm->rx.unsent_max_offset + delta;
           ngtcp2_list_insert(nfrc, pfrc);
 
           rv =
@@ -3081,7 +3143,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           rtb_entry_flags |=
               NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
           pfrc = &(*pfrc)->next;
-          strm->rx.max_offset = strm->rx.unsent_max_offset;
+          strm->rx.max_offset = strm->rx.unsent_max_offset =
+              nfrc->fr.max_stream_data.max_stream_data;
         }
 
         if (ngtcp2_strm_streamfrq_empty(strm)) {
@@ -8852,7 +8915,8 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
     }
   }
 
-  conn->rx.unsent_max_offset = conn->rx.max_offset = params->initial_max_data;
+  conn->rx.window = conn->rx.unsent_max_offset = conn->rx.max_offset =
+      params->initial_max_data;
   conn->remote.bidi.unsent_max_streams = params->initial_max_streams_bidi;
   conn->remote.bidi.max_streams = params->initial_max_streams_bidi;
   conn->remote.uni.unsent_max_streams = params->initial_max_streams_uni;

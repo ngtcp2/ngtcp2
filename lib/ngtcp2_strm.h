@@ -97,6 +97,9 @@ struct ngtcp2_strm {
     /* max_tx_offset is the maximum offset that local endpoint can
        send for this stream. */
     uint64_t max_offset;
+    /* last_max_stream_data_ts is the timestamp when last
+       MAX_STREAM_DATA frame is sent. */
+    ngtcp2_tstamp last_max_stream_data_ts;
   } tx;
 
   struct {
@@ -118,6 +121,8 @@ struct ngtcp2_strm {
        can send to this stream, and it is not notified to the remote
        endpoint.  unsent_max_offset >= max_offset must be hold. */
     uint64_t unsent_max_offset;
+    /* window is the stream-level flow control window size. */
+    uint64_t window;
   } rx;
 
   const ngtcp2_mem *mem;

@@ -373,6 +373,9 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that local endpoint can
        send. */
     uint64_t max_offset;
+    /* last_max_data_ts is the timestamp when last MAX_DATA frame is
+       sent. */
+    ngtcp2_tstamp last_max_data_ts;
 
     struct {
       /* state is the state of ECN validation */
@@ -397,6 +400,8 @@ struct ngtcp2_conn {
     /* max_offset is the maximum offset that remote endpoint can
        send. */
     uint64_t max_offset;
+    /* window is the connection-level flow control window size. */
+    uint64_t window;
     /* path_challenge stores received PATH_CHALLENGE data. */
     ngtcp2_ringbuf path_challenge;
     /* ccec is the received connection close error code. */

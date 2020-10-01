@@ -942,6 +942,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
   setup_default_server(&conn);
 
   conn->local.settings.transport_params.initial_max_data = 1024;
+  conn->rx.window = 1024;
   conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
 
@@ -1001,6 +1002,7 @@ void test_ngtcp2_conn_rx_flow_control_error(void) {
   setup_default_server(&conn);
 
   conn->local.settings.transport_params.initial_max_data = 1024;
+  conn->rx.window = 1024;
   conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
 

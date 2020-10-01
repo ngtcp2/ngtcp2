@@ -800,6 +800,27 @@ typedef struct ngtcp2_settings {
    * :type:`ngtcp2_rand` callback.
    */
   ngtcp2_rand_ctx rand_ctx;
+  /**
+   * max_window is the maximum connection-level flow control window if
+   * connection-level window auto-tuning is enabled.  The
+   * connection-level window auto tuning is enabled if nonzero value
+   * is specified in this field.  The initial value of window size is
+   * initial_max_data in transport_params.  The window size is scaled
+   * up to the value specified in this field.
+   */
+  uint64_t max_window;
+  /**
+   * max_stream_window is the maximum stream-level flow control window
+   * if stream-level window auto-tuning is enabled.  The stream-level
+   * window auto-tuning is enabled if nonzero value is specified in
+   * this field.  The initial value of window size is
+   * initial_max_stream_data_bidi_remote,
+   * initial_max_stream_data_bidi_local, or
+   * initial_max_stream_data_uni in transport_params, depending on the
+   * type of stream.  The window size is scaled up to the value
+   * specified in this field.
+   */
+  uint64_t max_stream_window;
 } ngtcp2_settings;
 
 /**
