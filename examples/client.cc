@@ -948,6 +948,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
   settings.initial_ts = util::timestamp(loop_);
   settings.initial_rtt = config.initial_rtt;
+  settings.max_window = config.max_window;
+  settings.max_stream_window = config.max_stream_window;
 
   if (!config.token_file.empty()) {
     std::cerr << "Reading token file " << config.token_file << std::endl;
@@ -2424,6 +2426,8 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_local = 256_k;
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
+  config.max_window = 6_m;
+  config.max_stream_window = 6_m;
   config.max_streams_uni = 100;
   config.cc = "cubic"sv;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
@@ -2571,6 +2575,18 @@ Options:
               Set an initial RTT.
               Default: )"
             << util::format_duration(config.initial_rtt) << R"(
+  --max-window=<SIZE>
+              Maximum connection-level flow  control window size.  The
+              window auto-tuning is enabled if nonzero value is given,
+              and window size is scaled up to this value.
+              Default: )"
+            << util::format_uint_iec(config.max_window) << R"(
+  --max-stream-window=<SIZE>
+              Maximum stream-level flow control window size.  The
+              window auto-tuning is enabled if nonzero value is given,
+              and window size is scaled up to this value.
+              Default: )"
+            << util::format_uint_iec(config.max_stream_window) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2635,6 +2651,8 @@ int main(int argc, char **argv) {
         {"token-file", required_argument, &flag, 29},
         {"sni", required_argument, &flag, 30},
         {"initial-rtt", required_argument, &flag, 31},
+        {"max-window", required_argument, &flag, 32},
+        {"max-stream-window", required_argument, &flag, 33},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2867,6 +2885,24 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.initial_rtt = t;
+        }
+        break;
+      case 32:
+        // --max-window
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-window: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_window = n;
+        }
+        break;
+      case 33:
+        // --max-stream-window
+        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+          std::cerr << "max-stream-window: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_stream_window = n;
         }
         break;
       }
