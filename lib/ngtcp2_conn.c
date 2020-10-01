@@ -6794,10 +6794,10 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
  *     Frame that is not allowed in Handshake packet is received.
  */
 static int
-conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                                size_t pktlen, const uint8_t *payload,
-                                size_t payloadlen, ngtcp2_tstamp pkt_ts,
-                                ngtcp2_tstamp ts) {
+conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
+                                const ngtcp2_pkt_hd *hd, size_t pktlen,
+                                const uint8_t *payload, size_t payloadlen,
+                                ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts) {
   ngtcp2_ssize nread;
   ngtcp2_max_frame mfr;
   ngtcp2_frame *fr = &mfr.fr;
@@ -6869,7 +6869,10 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return rv;
   }
 
-  if (require_ack && ++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT) {
+  pktns_increase_ecn_counts(pktns, pi);
+
+  if (require_ack && (++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT ||
+                      (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
@@ -7159,7 +7162,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return NGTCP2_ERR_DISCARD_PKT;
       }
 
-      rv = conn_recv_delayed_handshake_pkt(conn, &hd, pktlen, payload,
+      rv = conn_recv_delayed_handshake_pkt(conn, pi, &hd, pktlen, payload,
                                            payloadlen, pkt_ts, ts);
       if (rv < 0) {
         return (ngtcp2_ssize)rv;
