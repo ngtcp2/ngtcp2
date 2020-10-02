@@ -7867,6 +7867,11 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
+    if (conn->server && !ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
+      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                      "ignore packet from unknown path during handshake");
+      return 0;
+    }
     return conn_read_handshake(conn, path, pi, pkt, pktlen, ts);
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
