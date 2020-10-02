@@ -114,6 +114,12 @@ struct Config {
   // max_streams_uni is the number of the concurrent unidirectional
   // streams.
   uint64_t max_streams_uni;
+  // max_window is the maximum connection-level flow control window
+  // size if auto-tuning is enabled.
+  uint64_t max_window;
+  // max_stream_window is the maximum stream-level flow control window
+  // size if auto-tuning is enabled.
+  uint64_t max_stream_window;
   // max_dyn_length is the maximum length of dynamically generated
   // response.
   uint64_t max_dyn_length;
