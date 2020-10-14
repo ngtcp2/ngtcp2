@@ -1138,6 +1138,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   conn_call_delete_crypto_aead_ctx(conn, &conn->crypto.retry_aead_ctx);
 
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
+  ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_hp_buf.base);
   ngtcp2_mem_free(conn->mem, conn->local.settings.token.base);
 
   ngtcp2_crypto_km_del(conn->crypto.key_update.old_rx_ckm, conn->mem);
@@ -4327,6 +4328,42 @@ static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   return 0;
 }
 
+static int ensure_decrypt_buffer(ngtcp2_vec *vec, size_t n, size_t initial,
+                                 const ngtcp2_mem *mem) {
+  uint8_t *nbuf;
+  size_t len;
+
+  if (vec->len >= n) {
+    return 0;
+  }
+
+  len = vec->len == 0 ? initial : vec->len * 2;
+  for (; len < n; len *= 2)
+    ;
+  nbuf = ngtcp2_mem_realloc(mem, vec->base, len);
+  if (nbuf == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+  vec->base = nbuf;
+  vec->len = len;
+
+  return 0;
+}
+
+/*
+ * conn_ensure_decrypt_hp_buffer ensures that
+ * conn->crypto.decrypt_hp_buf has at least |n| bytes space.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+static int conn_ensure_decrypt_hp_buffer(ngtcp2_conn *conn, size_t n) {
+  return ensure_decrypt_buffer(&conn->crypto.decrypt_hp_buf, n, 256, conn->mem);
+}
+
 /*
  * conn_ensure_decrypt_buffer ensures that conn->crypto.decrypt_buf
  * has at least |n| bytes space.
@@ -4338,25 +4375,7 @@ static int conn_buffer_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  *     Out of memory.
  */
 static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t n) {
-  uint8_t *nbuf;
-  size_t len;
-  ngtcp2_vec *decrypt_buf = &conn->crypto.decrypt_buf;
-
-  if (decrypt_buf->len >= n) {
-    return 0;
-  }
-
-  len = decrypt_buf->len == 0 ? 2048 : decrypt_buf->len * 2;
-  for (; len < n; len *= 2)
-    ;
-  nbuf = ngtcp2_mem_realloc(conn->mem, decrypt_buf->base, len);
-  if (nbuf == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-  decrypt_buf->base = nbuf;
-  decrypt_buf->len = len;
-
-  return 0;
+  return ensure_decrypt_buffer(&conn->crypto.decrypt_buf, n, 2048, conn->mem);
 }
 
 /*
@@ -4418,7 +4437,7 @@ static ngtcp2_ssize decrypt_pkt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  *     User-defined callback function failed; or it does not return
  *     expected result.
  */
-static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, size_t destlen,
+static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest,
                                const ngtcp2_crypto_cipher *hp,
                                const uint8_t *pkt, size_t pktlen,
                                size_t pkt_num_offset, ngtcp2_crypto_km *ckm,
@@ -4432,7 +4451,6 @@ static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, size_t destlen,
 
   assert(hp_mask);
   assert(ckm);
-  assert(destlen >= pkt_num_offset + 4);
 
   if (pkt_num_offset + 4 + NGTCP2_HP_SAMPLELEN > pktlen) {
     return NGTCP2_ERR_PROTO;
@@ -4732,7 +4750,6 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   const uint8_t *payload;
   size_t payloadlen;
   ngtcp2_ssize nwrite;
-  uint8_t plain_hdpkt[1500];
   ngtcp2_crypto_aead *aead;
   ngtcp2_crypto_cipher *hp;
   ngtcp2_crypto_km *ckm;
@@ -4970,7 +4987,12 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   assert(hp_mask);
   assert(decrypt);
 
-  nwrite = decrypt_hp(&hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt, pktlen,
+  rv = conn_ensure_decrypt_hp_buffer(conn, (size_t)nread + 4);
+  if (rv != 0) {
+    return rv;
+  }
+
+  nwrite = decrypt_hp(&hd, conn->crypto.decrypt_hp_buf.base, hp, pkt, pktlen,
                       (size_t)nread, ckm, hp_ctx, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
@@ -4995,7 +5017,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
-  rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
+  rv = ngtcp2_pkt_verify_reserved_bits(conn->crypto.decrypt_hp_buf.base[0]);
   if (rv != 0) {
     invalid_reserved_bits = 1;
 
@@ -5017,8 +5039,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   nwrite = decrypt_pkt(conn->crypto.decrypt_buf.base, aead, payload, payloadlen,
-                       plain_hdpkt, hdpktlen, hd.pkt_num, ckm, decrypt,
-                       aead_overhead);
+                       conn->crypto.decrypt_hp_buf.base, hdpktlen, hd.pkt_num,
+                       ckm, decrypt, aead_overhead);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -7005,7 +7027,6 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_crypto_cipher *hp;
   ngtcp2_crypto_km *ckm;
   ngtcp2_crypto_cipher_ctx *hp_ctx;
-  uint8_t plain_hdpkt[1500];
   ngtcp2_hp_mask hp_mask;
   ngtcp2_decrypt decrypt;
   size_t aead_overhead;
@@ -7095,7 +7116,12 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   aead = &pktns->crypto.ctx.aead;
   hp = &pktns->crypto.ctx.hp;
 
-  nwrite = decrypt_hp(&hd, plain_hdpkt, sizeof(plain_hdpkt), hp, pkt, pktlen,
+  rv = conn_ensure_decrypt_hp_buffer(conn, (size_t)nread + 4);
+  if (rv != 0) {
+    return rv;
+  }
+
+  nwrite = decrypt_hp(&hd, conn->crypto.decrypt_hp_buf.base, hp, pkt, pktlen,
                       (size_t)nread, ckm, hp_ctx, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
@@ -7159,8 +7185,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   nwrite = decrypt_pkt(conn->crypto.decrypt_buf.base, aead, payload, payloadlen,
-                       plain_hdpkt, hdpktlen, hd.pkt_num, ckm, decrypt,
-                       aead_overhead);
+                       conn->crypto.decrypt_hp_buf.base, hdpktlen, hd.pkt_num,
+                       ckm, decrypt, aead_overhead);
 
   if (force_decrypt_failure) {
     nwrite = NGTCP2_ERR_TLS_DECRYPT;
@@ -7190,7 +7216,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
-  rv = ngtcp2_pkt_verify_reserved_bits(plain_hdpkt[0]);
+  rv = ngtcp2_pkt_verify_reserved_bits(conn->crypto.decrypt_hp_buf.base[0]);
   if (rv != 0) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "packet has incorrect reserved bits");
