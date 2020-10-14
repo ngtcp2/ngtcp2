@@ -22,12 +22,14 @@ LOG=/logs/log.txt
 if [ "$ROLE" == "client" ]; then
     # Wait for the simulator to start up.
     /wait-for-it.sh sim:57832 -s -t 30
+    REQS=($REQUESTS)
+    SERVER=$(echo ${REQS[0]} | sed -re 's|^https://([^/]+)/.*$|\1|')
     if [ "$TESTCASE" == "http3" ]; then
 	CLIENT_BIN="/usr/local/bin/client"
     else
 	CLIENT_BIN="/usr/local/bin/h09client"
     fi
-    CLIENT_ARGS="server 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR"
+    CLIENT_ARGS="$SERVER 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
     fi
@@ -42,7 +44,6 @@ if [ "$ROLE" == "client" ]; then
 	if [ "$TESTCASE" == "resumption" ]; then
 	    CLIENT_ARGS="$CLIENT_ARGS --disable-early-data"
 	fi
-	REQS=($REQUESTS)
 	REQUESTS=${REQS[0]}
 	$CLIENT_BIN $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &> $LOG
 	REQUESTS=${REQS[@]:1}
