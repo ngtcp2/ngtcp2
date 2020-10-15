@@ -23,7 +23,7 @@ if [ "$ROLE" == "client" ]; then
     # Wait for the simulator to start up.
     /wait-for-it.sh sim:57832 -s -t 30
     REQS=($REQUESTS)
-    SERVER=$(echo ${REQS[0]} | sed -re 's|^https://([^/]+)/.*$|\1|')
+    SERVER=$(echo ${REQS[0]} | sed -re 's|^https://([^/:]+)(:[0-9]+)?/.*$|\1|')
     if [ "$TESTCASE" == "http3" ]; then
 	CLIENT_BIN="/usr/local/bin/client"
     else
