@@ -63,7 +63,7 @@ elif [ "$ROLE" == "server" ]; then
     else
 	SERVER_BIN="/usr/local/bin/h09server"
     fi
-    SERVER_ARGS="0.0.0.0 443 /certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR"
+    SERVER_ARGS="'*' 443 /certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "retry" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
     elif [ "$TESTCASE" == "multiconnect" ]; then
