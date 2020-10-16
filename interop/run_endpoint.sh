@@ -63,12 +63,12 @@ elif [ "$ROLE" == "server" ]; then
     else
 	SERVER_BIN="/usr/local/bin/h09server"
     fi
-    SERVER_ARGS="'*' 443 /certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR"
+    SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "retry" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
     elif [ "$TESTCASE" == "multiconnect" ]; then
 	SERVER_ARGS="$SERVER_ARGS --timeout=180s"
     fi
 
-    $SERVER_BIN $SERVER_ARGS $SERVER_PARAMS &> $LOG
+    $SERVER_BIN '*' 443 $SERVER_ARGS $SERVER_PARAMS &> $LOG
 fi
