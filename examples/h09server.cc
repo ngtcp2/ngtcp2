@@ -2609,6 +2609,10 @@ int alpn_select_proto_cb(SSL *ssl, const unsigned char **out,
     alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_DRAFT31);
     alpnlen = str_size(HQ_ALPN_DRAFT31);
     break;
+  case QUIC_VER_DRAFT32:
+    alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_DRAFT32);
+    alpnlen = str_size(HQ_ALPN_DRAFT32);
+    break;
   default:
     if (!config.quiet) {
       std::cerr << "Unexpected quic protocol version: " << std::hex << "0x"
