@@ -90,6 +90,11 @@ typedef enum {
    accept. */
 #define NGTCP2_MAX_RETRIES 3
 
+/* NGTCP2_MAX_BOUND_DCID_POOL_SIZE is the maximum number of
+   destination connection ID which have been bound to a particular
+   path, but not yet used as primary path and path validation is not
+   performed from the local endpoint. */
+#define NGTCP2_MAX_BOUND_DCID_POOL_SIZE 4
 /* NGTCP2_MAX_DCID_POOL_SIZE is the maximum number of destination
    connection ID the remote endpoint provides to store.  It must be
    the power of 2. */
@@ -126,10 +131,12 @@ typedef union {
 } ngtcp2_max_frame;
 
 typedef struct {
+  ngtcp2_path_storage ps;
   uint8_t data[8];
 } ngtcp2_path_challenge_entry;
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
+                                      const ngtcp2_path *path,
                                       const uint8_t *data);
 
 typedef enum {
@@ -328,6 +335,9 @@ struct ngtcp2_conn {
   struct {
     /* current is the current destination connection ID. */
     ngtcp2_dcid current;
+    /* bound is a set of destination connection IDs which are bound to
+       particular paths.  These paths are not validated yet. */
+    ngtcp2_ringbuf bound;
     /* unused is a set of unused CID received from peer. */
     ngtcp2_ringbuf unused;
     /* retired is a set of CID retired by local endpoint.  Keep them

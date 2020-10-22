@@ -777,6 +777,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_conn;
   }
 
+  rv = ngtcp2_ringbuf_init(&(*pconn)->dcid.bound,
+                           NGTCP2_MAX_BOUND_DCID_POOL_SIZE, sizeof(ngtcp2_dcid),
+                           mem);
+  if (rv != 0) {
+    goto fail_dcid_bound_init;
+  }
+
   rv = ngtcp2_ringbuf_init(&(*pconn)->dcid.unused, NGTCP2_MAX_DCID_POOL_SIZE,
                            sizeof(ngtcp2_dcid), mem);
   if (rv != 0) {
@@ -981,6 +988,8 @@ fail_seqgap_init:
 fail_dcid_retired_init:
   ngtcp2_ringbuf_free(&(*pconn)->dcid.unused);
 fail_dcid_unused_init:
+  ngtcp2_ringbuf_free(&(*pconn)->dcid.bound);
+fail_dcid_bound_init:
   ngtcp2_mem_free(mem, *pconn);
 fail_conn:
   return rv;
@@ -1171,6 +1180,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_gaptr_free(&conn->dcid.seqgap);
   ngtcp2_ringbuf_free(&conn->dcid.retired);
   ngtcp2_ringbuf_free(&conn->dcid.unused);
+  ngtcp2_ringbuf_free(&conn->dcid.bound);
 
   ngtcp2_mem_free(conn->mem, conn);
 }
@@ -2871,20 +2881,24 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (ngtcp2_ringbuf_len(&conn->rx.path_challenge)) {
       pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
 
-      lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
-      memcpy(lfr.path_response.data, pcent->data,
-             sizeof(lfr.path_response.data));
+      /* PATH_RESPONSE is bound to the path that the corresponding
+         PATH_CHALLENGE is received. */
+      if (ngtcp2_path_eq(&conn->dcid.current.ps.path, &pcent->ps.path)) {
+        lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
+        memcpy(lfr.path_response.data, pcent->data,
+               sizeof(lfr.path_response.data));
 
-      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
-      if (rv != 0) {
-        assert(NGTCP2_ERR_NOBUF == rv);
-      } else {
-        ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
+        rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
+        if (rv != 0) {
+          assert(NGTCP2_ERR_NOBUF == rv);
+        } else {
+          ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
 
-        pkt_empty = 0;
-        rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
-        require_padding = 1;
-        /* We don't retransmit PATH_RESPONSE. */
+          pkt_empty = 0;
+          rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+          require_padding = 1;
+          /* We don't retransmit PATH_RESPONSE. */
+        }
       }
     }
 
@@ -3527,13 +3541,18 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   lfr.type = NGTCP2_FRAME_PADDING;
-  if (fr->type == NGTCP2_FRAME_PATH_CHALLENGE) {
+  switch (fr->type) {
+  case NGTCP2_FRAME_PATH_CHALLENGE:
+  case NGTCP2_FRAME_PATH_RESPONSE:
     lfr.padding.len = ngtcp2_ppe_padding(&ppe);
-  } else if (type == NGTCP2_PKT_SHORT) {
-    lfr.padding.len =
-        ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
-  } else {
-    lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+    break;
+  default:
+    if (type == NGTCP2_PKT_SHORT) {
+      lfr.padding.len =
+          ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
+    } else {
+      lfr.padding.len = ngtcp2_ppe_padding_hp_sample(&ppe);
+    }
   }
   if (lfr.padding.len) {
     padded = 1;
@@ -3695,6 +3714,66 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
 }
 
 /*
+ * conn_bind_dcid stores the DCID to |*pdcid| bound to |path|.  If
+ * such DCID is not found, bind the new DCID to |path| and stores it
+ * to |*pdcid|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CONN_ID_BLOCKED
+ *     No unused DCID is available
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
+                          const ngtcp2_path *path, ngtcp2_tstamp ts) {
+  ngtcp2_pv *pv = conn->pv;
+  ngtcp2_dcid *dcid, *ndcid;
+  size_t i, len;
+  int rv;
+
+  assert(!ngtcp2_path_eq(&conn->dcid.current.ps.path, path));
+  assert(!pv || !ngtcp2_path_eq(&pv->dcid.ps.path, path));
+  assert(!pv || !(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
+         !ngtcp2_path_eq(&pv->fallback_dcid.ps.path, path));
+
+  len = ngtcp2_ringbuf_len(&conn->dcid.bound);
+  for (i = 0; i < len; ++i) {
+    dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, i);
+
+    if (ngtcp2_path_eq(&dcid->ps.path, path)) {
+      *pdcid = dcid;
+      return 0;
+    }
+  }
+
+  if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+    return NGTCP2_ERR_CONN_ID_BLOCKED;
+  }
+
+  if (ngtcp2_ringbuf_full(&conn->dcid.bound)) {
+    dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, 0);
+    rv = conn_retire_dcid(conn, dcid, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+  ndcid = ngtcp2_ringbuf_push_back(&conn->dcid.bound);
+
+  ngtcp2_dcid_copy(ndcid, dcid);
+  ngtcp2_path_copy(&ndcid->ps.path, path);
+
+  ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
+
+  *pdcid = ndcid;
+
+  return 0;
+}
+
+/*
  * conn_stop_pv stops the path validation which is currently running.
  * This function does nothing if no path validation is currently being
  * performed.
@@ -3785,6 +3864,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
                                               size_t destlen,
                                               ngtcp2_tstamp ts) {
   int rv;
+  ngtcp2_ssize nwrite;
   ngtcp2_tstamp expiry;
   ngtcp2_pv *pv = conn->pv;
   ngtcp2_frame lfr;
@@ -3803,10 +3883,6 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
     return 0;
   }
 
-  if (path) {
-    ngtcp2_path_copy(path, &pv->dcid.ps.path);
-  }
-
   assert(conn->callbacks.rand);
   rv = conn->callbacks.rand(
       lfr.path_challenge.data, sizeof(lfr.path_challenge.data),
@@ -3823,9 +3899,107 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry);
 
-  return ngtcp2_conn_write_single_frame_pkt(
+  nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, NULL, dest, destlen, NGTCP2_PKT_SHORT, &pv->dcid.cid, &lfr,
       NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
+  if (nwrite <= 0) {
+    return nwrite;
+  }
+
+  if (path) {
+    ngtcp2_path_copy(path, &pv->dcid.ps.path);
+  }
+
+  return nwrite;
+}
+
+/*
+ * conn_write_path_response writes a packet which includes
+ * PATH_RESPONSE frame into |dest| of length |destlen|.
+ *
+ * This function returns the number of bytes written to |dest|, or one
+ * of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
+                                             ngtcp2_path *path, uint8_t *dest,
+                                             size_t destlen, ngtcp2_tstamp ts) {
+  ngtcp2_pv *pv = conn->pv;
+  ngtcp2_path_challenge_entry *pcent = NULL;
+  ngtcp2_dcid *dcid = NULL;
+  ngtcp2_frame lfr;
+  ngtcp2_ssize nwrite;
+  int rv;
+
+  for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge);) {
+    pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
+
+    if (ngtcp2_path_eq(&conn->dcid.current.ps.path, &pcent->ps.path)) {
+      /* Send PATH_RESPONSE from conn_write_pkt. */
+      return 0;
+    }
+
+    if (pv) {
+      if (ngtcp2_path_eq(&pv->dcid.ps.path, &pcent->ps.path)) {
+        dcid = &pv->dcid;
+        break;
+      }
+      if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
+          ngtcp2_path_eq(&pv->fallback_dcid.ps.path, &pcent->ps.path)) {
+        dcid = &pv->fallback_dcid;
+        break;
+      }
+    }
+
+    if (conn->server) {
+      break;
+    }
+
+    /* Client does not expect to respond to path validation against
+       unknown path */
+    ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
+    pcent = NULL;
+  }
+
+  if (pcent == NULL) {
+    return 0;
+  }
+
+  if (dcid == NULL) {
+    /* client is expected to have |path| in conn->dcid.current or
+       conn->pv. */
+    assert(conn->server);
+
+    rv = conn_bind_dcid(conn, &dcid, &pcent->ps.path, ts);
+    if (rv != 0) {
+      if (ngtcp2_err_is_fatal(rv)) {
+        return rv;
+      }
+      return 0;
+    }
+  }
+
+  lfr.type = NGTCP2_FRAME_PATH_RESPONSE;
+  memcpy(lfr.path_response.data, pcent->data, sizeof(lfr.path_response.data));
+
+  nwrite = ngtcp2_conn_write_single_frame_pkt(
+      conn, NULL, dest, destlen, NGTCP2_PKT_SHORT, &dcid->cid, &lfr,
+      NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
+  if (nwrite <= 0) {
+    return nwrite;
+  }
+
+  if (path) {
+    ngtcp2_path_copy(path, &pcent->ps.path);
+  }
+
+  ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
+
+  return nwrite;
 }
 
 ngtcp2_ssize ngtcp2_conn_write_pkt(ngtcp2_conn *conn, ngtcp2_path *path,
@@ -4547,12 +4721,12 @@ static void conn_recv_connection_close(ngtcp2_conn *conn,
   conn->rx.ccec.error_code = fr->error_code;
 }
 
-static void conn_recv_path_challenge(ngtcp2_conn *conn,
+static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
                                      ngtcp2_path_challenge *fr) {
   ngtcp2_path_challenge_entry *ent;
 
   ent = ngtcp2_ringbuf_push_front(&conn->rx.path_challenge);
-  ngtcp2_path_challenge_entry_init(ent, fr->data);
+  ngtcp2_path_challenge_entry_init(ent, path, fr->data);
 }
 
 /*
@@ -6081,7 +6255,17 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
 
     if (i == len) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      len = ngtcp2_ringbuf_len(&conn->dcid.bound);
+      for (i = 0; i < len; ++i) {
+        dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, i);
+        if (check_stateless_reset(dcid, path, &sr)) {
+          break;
+        }
+      }
+
+      if (i == len) {
+        return NGTCP2_ERR_INVALID_ARGUMENT;
+      }
     }
   }
 
@@ -6218,6 +6402,20 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     }
   }
 
+  len = ngtcp2_ringbuf_len(&conn->dcid.bound);
+
+  for (i = 0; i < len; ++i) {
+    dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, i);
+    rv = ngtcp2_dcid_verify_uniqueness(dcid, fr->seq, &fr->cid,
+                                       fr->stateless_reset_token);
+    if (rv != 0) {
+      return NGTCP2_ERR_PROTO;
+    }
+    if (ngtcp2_cid_eq(&dcid->cid, &fr->cid)) {
+      found = 1;
+    }
+  }
+
   len = ngtcp2_ringbuf_len(&conn->dcid.unused);
 
   for (i = 0; i < len; ++i) {
@@ -6234,6 +6432,12 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
 
   if (conn->dcid.retire_prior_to < fr->retire_prior_to) {
     conn->dcid.retire_prior_to = fr->retire_prior_to;
+
+    rv =
+        conn_retire_dcid_prior_to(conn, &conn->dcid.bound, fr->retire_prior_to);
+    if (rv != 0) {
+      return rv;
+    }
 
     rv = conn_retire_dcid_prior_to(conn, &conn->dcid.unused,
                                    conn->dcid.retire_prior_to);
@@ -6754,13 +6958,14 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
                                                  int new_cid_used,
                                                  ngtcp2_tstamp ts) {
 
-  ngtcp2_dcid dcid;
+  ngtcp2_dcid dcid, *bound_dcid, *last;
   ngtcp2_pv *pv;
   int rv;
   ngtcp2_duration timeout;
   int require_new_cid;
   int local_addr_eq;
   uint32_t remote_addr_cmp;
+  size_t len, i;
 
   assert(conn->server);
 
@@ -6797,30 +7002,58 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
    */
   require_new_cid = (new_cid_used && remote_addr_cmp) || !local_addr_eq;
 
-  /* If the remote endpoint uses new DCID, server has to change its
-     DCID as well. */
-  if (require_new_cid && ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
-    return NGTCP2_ERR_CONN_ID_BLOCKED;
-  }
-
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "non-probing packet was received from new remote address");
 
   timeout = 3 * conn_compute_pto(conn, &conn->pktns);
   timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
 
-  if (require_new_cid) {
-    dcid = *(ngtcp2_dcid *)ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
-    ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
+  len = ngtcp2_ringbuf_len(&conn->dcid.bound);
 
-    rv = conn_call_activate_dcid(conn, &dcid);
-    if (rv != 0) {
-      return rv;
+  for (i = 0; i < len; ++i) {
+    bound_dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, i);
+    if (ngtcp2_path_eq(&bound_dcid->ps.path, path)) {
+      ngtcp2_log_info(
+          &conn->log, NGTCP2_LOG_EVENT_CON,
+          "Found DCID which has already been bound to the new path");
+
+      ngtcp2_dcid_copy(&dcid, bound_dcid);
+      if (i == 0) {
+        ngtcp2_ringbuf_pop_front(&conn->dcid.bound);
+      } else if (i == ngtcp2_ringbuf_len(&conn->dcid.bound) - 1) {
+        ngtcp2_ringbuf_pop_back(&conn->dcid.bound);
+      } else {
+        last = ngtcp2_ringbuf_get(&conn->dcid.bound, len - 1);
+        ngtcp2_dcid_copy(bound_dcid, last);
+        ngtcp2_ringbuf_pop_back(&conn->dcid.bound);
+      }
+      require_new_cid = 0;
+
+      rv = conn_call_activate_dcid(conn, &dcid);
+      if (rv != 0) {
+        return rv;
+      }
+      break;
     }
-  } else {
-    /* Use the current DCID if a remote endpoint does not change
-       DCID. */
-    dcid = conn->dcid.current;
+  }
+
+  if (i == len) {
+    if (require_new_cid) {
+      if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+        return NGTCP2_ERR_CONN_ID_BLOCKED;
+      }
+      ngtcp2_dcid_copy(&dcid, ngtcp2_ringbuf_get(&conn->dcid.unused, 0));
+      ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
+
+      rv = conn_call_activate_dcid(conn, &dcid);
+      if (rv != 0) {
+        return rv;
+      }
+    } else {
+      /* Use the current DCID if a remote endpoint does not change
+         DCID. */
+      ngtcp2_dcid_copy(&dcid, &conn->dcid.current);
+    }
   }
 
   ngtcp2_path_copy(&dcid.ps.path, path);
@@ -7423,7 +7656,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_PATH_CHALLENGE:
-      conn_recv_path_challenge(conn, &fr->path_challenge);
+      conn_recv_path_challenge(conn, path, &fr->path_challenge);
       break;
     case NGTCP2_FRAME_PATH_RESPONSE:
       rv = conn_recv_path_response(conn, &fr->path_response, ts);
@@ -9199,10 +9432,17 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 
     if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
       destlen = 0;
-    } else if (conn->pv) {
-      nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
+    } else {
+      nwrite = conn_write_path_response(conn, path, dest, destlen, ts);
       if (nwrite) {
         goto fin;
+      }
+
+      if (conn->pv) {
+        nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
+        if (nwrite) {
+          goto fin;
+        }
       }
     }
   }
@@ -10331,7 +10571,9 @@ int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
+                                      const ngtcp2_path *path,
                                       const uint8_t *data) {
+  ngtcp2_path_storage_init2(&pcent->ps, path);
   memcpy(pcent->data, data, sizeof(pcent->data));
 }
 

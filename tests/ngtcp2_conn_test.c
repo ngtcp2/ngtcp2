@@ -4015,6 +4015,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(NULL != conn->pktns.tx.frq);
@@ -4631,7 +4632,10 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_cid cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   const uint8_t data[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8};
+  const uint8_t data2[] = {0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf9};
   ngtcp2_path_storage ps;
+  ngtcp2_ssize shdlen;
+  ngtcp2_pkt_hd hd;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -4666,8 +4670,40 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ngtcp2_path_eq(&conn->dcid.current.ps.path, &ps.path));
+  CU_ASSERT(ngtcp2_path_eq(&new_path.path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound));
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen, cid.datalen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &hd.dcid));
+
+  /* Use same bound DCID for PATH_CHALLENGE from the same path. */
+  fr.type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memcpy(fr.path_challenge.data, data2, sizeof(fr.path_challenge.data));
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
+                                  ++pkt_num, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->rx.path_challenge) > 0);
+
+  ngtcp2_path_storage_zero(&ps);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(ngtcp2_path_eq(&new_path.path, &ps.path));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound));
+
+  shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen, cid.datalen);
+
+  CU_ASSERT(shdlen > 0);
+  CU_ASSERT(ngtcp2_cid_eq(&cid, &hd.dcid));
 
   ngtcp2_conn_del(conn);
 }
