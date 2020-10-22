@@ -2496,11 +2496,12 @@ void test_ngtcp2_conn_handshake(void) {
 
   rcid_init(&rcid);
 
+  /* Make sure server Initial is padded */
   setup_handshake_server(&conn);
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 45;
+  fr.crypto.data[0].len = 1200;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -2513,7 +2514,34 @@ void test_ngtcp2_conn_handshake(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen >= 1200);
+
+  ngtcp2_conn_del(conn);
+
+  /* Make sure server Handshake is padded when ack-eliciting Initial
+     is coalesced. */
+  setup_handshake_server(&conn);
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      conn, buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
+                                 91);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+  CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns->rtb.ents));
 
   ngtcp2_conn_del(conn);
 }

@@ -1901,30 +1901,43 @@ static int conn_verify_dcid(ngtcp2_conn *conn, int *pnew_cid_used,
  * in the next, coalesced 0-RTT packet.
  */
 static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
-                               size_t early_datalen) {
+                               size_t early_datalen, int ack_eliciting) {
   size_t min_payloadlen;
 
   if (conn->server) {
-    return 0;
-  }
+    if (type != NGTCP2_PKT_INITIAL || !ack_eliciting) {
+      return 0;
+    }
 
-  if (type == NGTCP2_PKT_HANDSHAKE) {
-    return conn->in_pktns != NULL;
-  }
-
-  if (conn->hs_pktns->crypto.tx.ckm &&
-      (conn->hs_pktns->rtb.probe_pkt_left ||
-       ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
-       !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
-    /* If we have something to send in Handshake packet, then add
-       PADDING in Handshake packet. */
-    min_payloadlen = 128;
-  } else if (!conn->early.ckm || early_datalen == 0) {
-    return 1;
+    if (conn->hs_pktns->crypto.tx.ckm &&
+        (conn->hs_pktns->rtb.probe_pkt_left ||
+         ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
+         !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
+      /* If we have something to send in Handshake packet, then add
+         PADDING in Handshake packet. */
+      min_payloadlen = 128;
+    } else {
+      return 1;
+    }
   } else {
-    /* If we have something to send in 0RTT packet, then add PADDING
-       in 0RTT packet. */
-    min_payloadlen = ngtcp2_min(early_datalen, 128);
+    if (type == NGTCP2_PKT_HANDSHAKE) {
+      return conn->in_pktns != NULL;
+    }
+
+    if (conn->hs_pktns->crypto.tx.ckm &&
+        (conn->hs_pktns->rtb.probe_pkt_left ||
+         ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
+         !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
+      /* If we have something to send in Handshake packet, then add
+         PADDING in Handshake packet. */
+      min_payloadlen = 128;
+    } else if (!conn->early.ckm || early_datalen == 0) {
+      return 1;
+    } else {
+      /* If we have something to send in 0RTT packet, then add PADDING
+         in 0RTT packet. */
+      min_payloadlen = ngtcp2_min(early_datalen, 128);
+    }
   }
 
   return left <
@@ -1944,6 +1957,16 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->flags |= NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
 }
 
+typedef enum {
+  NGTCP2_WRITE_PKT_FLAG_NONE = 0x00,
+  /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet
+     should be padded */
+  NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING = 0x01,
+  /* NGTCP2_WRITE_PKT_FLAG_MORE indicates that more frames might come
+     and it should be encoded into the current packet. */
+  NGTCP2_WRITE_PKT_FLAG_MORE = 0x02,
+} ngtcp2_write_pkt_flag;
+
 /*
  * conn_write_handshake_pkt writes handshake packet in the buffer
  * pointed by |dest| whose length is |destlen|.  |type| specifies long
@@ -1958,11 +1981,10 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn,
-                                             ngtcp2_pkt_info *pi, uint8_t *dest,
-                                             size_t destlen, uint8_t type,
-                                             size_t early_datalen,
-                                             ngtcp2_tstamp ts) {
+static ngtcp2_ssize
+conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
+                         size_t destlen, uint8_t type, uint8_t flags,
+                         size_t early_datalen, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -1975,6 +1997,7 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn,
   ngtcp2_pktns *pktns;
   size_t left;
   uint8_t rtb_entry_flags = NGTCP2_RTB_FLAG_NONE;
+  int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
   int pkt_empty = 1;
   int padded = 0;
   int hd_logged = 0;
@@ -2049,107 +2072,113 @@ static ngtcp2_ssize conn_write_handshake_pkt(ngtcp2_conn *conn,
     }
   }
 
-build_pkt:
-  for (; ngtcp2_ksl_len(&pktns->crypto.tx.frq);) {
-    left = ngtcp2_ppe_left(&ppe);
+  /* Server requires at least NGTCP2_DEFAULT_MAX_PKTLEN bytes in order
+     to send ack-eliciting Initial packet. */
+  if (!conn->server || type != NGTCP2_PKT_INITIAL ||
+      destlen >= NGTCP2_DEFAULT_MAX_PKTLEN) {
+  build_pkt:
+    for (; ngtcp2_ksl_len(&pktns->crypto.tx.frq);) {
+      left = ngtcp2_ppe_left(&ppe);
 
-    crypto_offset = conn_cryptofrq_unacked_offset(conn, pktns);
-    if (crypto_offset == (size_t)-1) {
-      conn_cryptofrq_clear(conn, pktns);
-      break;
-    }
+      crypto_offset = conn_cryptofrq_unacked_offset(conn, pktns);
+      if (crypto_offset == (size_t)-1) {
+        conn_cryptofrq_clear(conn, pktns);
+        break;
+      }
 
-    left = ngtcp2_pkt_crypto_max_datalen(crypto_offset, left, left);
-    if (left == (size_t)-1) {
-      break;
-    }
+      left = ngtcp2_pkt_crypto_max_datalen(crypto_offset, left, left);
+      if (left == (size_t)-1) {
+        break;
+      }
 
-    rv = conn_cryptofrq_pop(conn, &nfrc, pktns, left);
-    if (rv != 0) {
-      assert(ngtcp2_err_is_fatal(rv));
-      ngtcp2_frame_chain_list_del(frq, conn->mem);
-      return rv;
-    }
+      rv = conn_cryptofrq_pop(conn, &nfrc, pktns, left);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        ngtcp2_frame_chain_list_del(frq, conn->mem);
+        return rv;
+      }
 
-    if (nfrc == NULL) {
-      break;
-    }
+      if (nfrc == NULL) {
+        break;
+      }
 
-    rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &nfrc->fr);
-    if (rv != 0) {
-      assert(0);
-    }
+      rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &nfrc->fr);
+      if (rv != 0) {
+        assert(0);
+      }
 
-    *pfrc = nfrc;
-    pfrc = &(*pfrc)->next;
+      *pfrc = nfrc;
+      pfrc = &(*pfrc)->next;
 
-    pkt_empty = 0;
-    rtb_entry_flags |=
-        NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
-  }
-
-  if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-      pktns->rtb.num_retransmittable && pktns->rtb.probe_pkt_left) {
-    num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns,
-                                              pktns->rtb.probe_pkt_left + 1);
-    if (num_reclaimed < 0) {
-      ngtcp2_frame_chain_list_del(frq, conn->mem);
-      return rv;
-    }
-    if (num_reclaimed) {
-      goto build_pkt;
-    }
-    /* We had pktns->rtb.num_retransmittable > 0 but the contents of
-       those packets have been acknowledged (i.e., retransmission in
-       another packet).  For server, in this case, we don't have to
-       send any probe packet.  Client needs to send probe packets
-       until it knows that server has completed address validation or
-       handshake has been confirmed. */
-    if (pktns->rtb.num_retransmittable == 0 &&
-        (conn->server ||
-         (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
-                         NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
-      pktns->rtb.probe_pkt_left = 0;
-      ngtcp2_conn_set_loss_detection_timer(conn, ts);
-    }
-  }
-
-  /* Don't send any PING frame if client Initial has not been
-     acknowledged yet. */
-  if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
-      pktns->rtb.probe_pkt_left &&
-      (type != NGTCP2_PKT_INITIAL ||
-       ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
-    lfr.type = NGTCP2_FRAME_PING;
-
-    rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
-    if (rv != 0) {
-      assert(rv == NGTCP2_ERR_NOBUF);
-    } else {
-      rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_PROBE;
       pkt_empty = 0;
+      rtb_entry_flags |=
+          NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_RETRANSMITTABLE;
     }
-  }
 
-  if (!pkt_empty) {
-    if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
-      /* The intention of smaller limit is get more chance to measure
-         RTT samples in early phase. */
-      if (pktns->rtb.probe_pkt_left || pktns->tx.num_non_ack_pkt >= 1) {
-        lfr.type = NGTCP2_FRAME_PING;
+    if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+        pktns->rtb.num_retransmittable && pktns->rtb.probe_pkt_left) {
+      num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns,
+                                                pktns->rtb.probe_pkt_left + 1);
+      if (num_reclaimed < 0) {
+        ngtcp2_frame_chain_list_del(frq, conn->mem);
+        return rv;
+      }
+      if (num_reclaimed) {
+        goto build_pkt;
+      }
+      /* We had pktns->rtb.num_retransmittable > 0 but the contents of
+         those packets have been acknowledged (i.e., retransmission in
+         another packet).  For server, in this case, we don't have to
+         send any probe packet.  Client needs to send probe packets
+         until it knows that server has completed address validation or
+         handshake has been confirmed. */
+      if (pktns->rtb.num_retransmittable == 0 &&
+          (conn->server ||
+           (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
+                           NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
+        pktns->rtb.probe_pkt_left = 0;
+        ngtcp2_conn_set_loss_detection_timer(conn, ts);
+      }
+    }
 
-        rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
-        if (rv != 0) {
-          assert(rv == NGTCP2_ERR_NOBUF);
+    /* Don't send any PING frame if client Initial has not been
+       acknowledged yet. */
+    if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) &&
+        pktns->rtb.probe_pkt_left &&
+        (type != NGTCP2_PKT_INITIAL ||
+         ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
+      lfr.type = NGTCP2_FRAME_PING;
+
+      rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
+      if (rv != 0) {
+        assert(rv == NGTCP2_ERR_NOBUF);
+      } else {
+        rtb_entry_flags |=
+            NGTCP2_RTB_FLAG_ACK_ELICITING | NGTCP2_RTB_FLAG_PROBE;
+        pkt_empty = 0;
+      }
+    }
+
+    if (!pkt_empty) {
+      if (!(rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+        /* The intention of smaller limit is get more chance to measure
+           RTT samples in early phase. */
+        if (pktns->rtb.probe_pkt_left || pktns->tx.num_non_ack_pkt >= 1) {
+          lfr.type = NGTCP2_FRAME_PING;
+
+          rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
+          if (rv != 0) {
+            assert(rv == NGTCP2_ERR_NOBUF);
+          } else {
+            rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+            pktns->tx.num_non_ack_pkt = 0;
+          }
         } else {
-          rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
-          pktns->tx.num_non_ack_pkt = 0;
+          ++pktns->tx.num_non_ack_pkt;
         }
       } else {
-        ++pktns->tx.num_non_ack_pkt;
+        pktns->tx.num_non_ack_pkt = 0;
       }
-    } else {
-      pktns->tx.num_non_ack_pkt = 0;
     }
   }
 
@@ -2159,7 +2188,10 @@ build_pkt:
 
   /* If we cannot write another packet, then we need to add padding to
      Initial here. */
-  if (conn_should_pad_pkt(conn, type, ngtcp2_ppe_left(&ppe), early_datalen)) {
+  if (require_padding ||
+      conn_should_pad_pkt(conn, type, ngtcp2_ppe_left(&ppe), early_datalen,
+                          (rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) !=
+                              0)) {
     lfr.type = NGTCP2_FRAME_PADDING;
     lfr.padding.len = ngtcp2_ppe_padding(&ppe);
   } else {
@@ -2411,7 +2443,8 @@ static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn,
   }
 
   return conn_write_handshake_pkt(conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
-                                  early_datalen, ts);
+                                  NGTCP2_WRITE_PKT_FLAG_NONE, early_datalen,
+                                  ts);
 }
 
 /*
@@ -2433,27 +2466,61 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
                                               ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
+  int64_t prev_pkt_num = -1;
+  ngtcp2_rtb_entry *rtbent;
+  uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
+  ngtcp2_ksl_it it;
 
   if (!conn->server && conn->hs_pktns->crypto.tx.ckm &&
       !ngtcp2_acktr_empty(&conn->hs_pktns->acktr)) {
     /* Discard Initial state here so that Handshake packet is not
        padded. */
     conn_discard_initial_state(conn, ts);
-  } else {
-    nwrite = conn_write_handshake_pkt(conn, pi, dest, destlen,
-                                      NGTCP2_PKT_INITIAL, early_datalen, ts);
+  } else if (conn->in_pktns) {
+    if (conn->server) {
+      it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+      if (!ngtcp2_ksl_it_end(&it)) {
+        rtbent = ngtcp2_ksl_it_get(&it);
+        prev_pkt_num = rtbent->hd.pkt_num;
+      }
+    }
+
+    nwrite =
+        conn_write_handshake_pkt(conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
+                                 NGTCP2_WRITE_PKT_FLAG_NONE, early_datalen, ts);
     if (nwrite < 0) {
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
     }
 
-    res += nwrite;
-    dest += nwrite;
-    destlen -= (size_t)nwrite;
+    if (nwrite == 0) {
+      if (conn->server && (conn->in_pktns->rtb.probe_pkt_left ||
+                           ngtcp2_ksl_len(&conn->in_pktns->crypto.tx.frq))) {
+        return 0;
+      }
+    } else {
+      res += nwrite;
+      dest += nwrite;
+      destlen -= (size_t)nwrite;
+
+      if (conn->server && destlen) {
+        it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+        if (!ngtcp2_ksl_it_end(&it)) {
+          rtbent = ngtcp2_ksl_it_get(&it);
+          if (rtbent->hd.pkt_num != prev_pkt_num &&
+              (rtbent->flags & NGTCP2_RTB_FLAG_ACK_ELICITING)) {
+            /* We might have already added padding to Initial, but in
+               that case, we should have destlen == 0 and no Handshake
+               packet will be written. */
+            wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+          }
+        }
+      }
+    }
   }
 
   nwrite = conn_write_handshake_pkt(conn, pi, dest, destlen,
-                                    NGTCP2_PKT_HANDSHAKE, 0, ts);
+                                    NGTCP2_PKT_HANDSHAKE, wflags, 0, ts);
   if (nwrite < 0) {
     assert(nwrite != NGTCP2_ERR_NOBUF);
     return nwrite;
@@ -2679,16 +2746,6 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
 static size_t conn_min_short_pktlen(ngtcp2_conn *conn) {
   return conn->dcid.current.cid.datalen + NGTCP2_MIN_PKT_EXPANDLEN;
 }
-
-typedef enum {
-  NGTCP2_WRITE_PKT_FLAG_NONE = 0x00,
-  /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet
-     should be padded */
-  NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING = 0x01,
-  /* NGTCP2_WRITE_PKT_FLAG_MORE indicates that more frames might come
-     and it should be encoded into the current packet. */
-  NGTCP2_WRITE_PKT_FLAG_MORE = 0x02,
-} ngtcp2_write_pkt_flag;
 
 /*
  * conn_write_pkt writes a protected packet in the buffer pointed by
@@ -8317,8 +8374,9 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         return nwrite;
       }
     } else {
-      nwrite = conn_write_handshake_pkt(conn, pi, dest, destlen,
-                                        NGTCP2_PKT_INITIAL, early_datalen, ts);
+      nwrite = conn_write_handshake_pkt(
+          conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
+          NGTCP2_WRITE_PKT_FLAG_NONE, early_datalen, ts);
       if (nwrite < 0) {
         return nwrite;
       }
