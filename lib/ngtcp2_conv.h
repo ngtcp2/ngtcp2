@@ -56,7 +56,8 @@
 #  define ngtcp2_bswap64 bswap_64
 #else /* !HAVE_BSWAP_64 */
 #  define ngtcp2_bswap64(N)                                                    \
-    ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
+    ((uint64_t)(ngtcp2_ntohl((uint32_t)(N))) << 32 |                           \
+     ngtcp2_ntohl((uint32_t)((N) >> 32)))
 #endif /* !HAVE_BSWAP_64 */
 
 #if defined(HAVE_BE64TOH) ||                                                   \
