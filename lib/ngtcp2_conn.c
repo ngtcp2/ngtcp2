@@ -5599,7 +5599,9 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
   rx_offset = ngtcp2_strm_rx_offset(crypto);
 
   if (fr_end_offset <= rx_offset) {
-    if (conn->server && crypto_level == NGTCP2_CRYPTO_LEVEL_INITIAL) {
+    if (conn->server &&
+        !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT) &&
+        crypto_level == NGTCP2_CRYPTO_LEVEL_INITIAL) {
       /* recovery draft: Speeding Up Handshake Completion
 
          When a server receives an Initial packet containing duplicate
@@ -5610,6 +5612,7 @@ static int conn_recv_crypto(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
          send a packet containing unacknowledged CRYPTO data earlier
          than the PTO expiry, subject to address validation limits;
          ... */
+      conn->flags |= NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT;
       conn->in_pktns->rtb.probe_pkt_left = 1;
       conn->hs_pktns->rtb.probe_pkt_left = 1;
     }

@@ -171,6 +171,10 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
      library transitions its state to "post handshake". */
   NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
+  /* NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT is set when the early
+     handshake retransmission has done when server receives
+     overlapping Initial crypto data. */
+  NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT = 0x0200,
   /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update
      is not confirmed by the local endpoint.  That is, it has not
      received ACK frame which acknowledges packet which is encrypted
