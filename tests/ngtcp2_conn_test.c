@@ -4390,7 +4390,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   /* This will send PATH_CHALLENGE frame */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen >= 1200);
 
   fr.type = NGTCP2_FRAME_PATH_RESPONSE;
   memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
@@ -4697,7 +4697,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, &ps.path, NULL, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen >= 1200);
   CU_ASSERT(ngtcp2_path_eq(&new_path.path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
   CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound));
