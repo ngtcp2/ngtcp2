@@ -2883,6 +2883,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         pkt_empty = 0;
         rtb_entry_flags |= NGTCP2_RTB_FLAG_ACK_ELICITING;
+        require_padding = 1;
         /* We don't retransmit PATH_RESPONSE. */
       }
     }
@@ -3526,7 +3527,9 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   lfr.type = NGTCP2_FRAME_PADDING;
-  if (type == NGTCP2_PKT_SHORT) {
+  if (fr->type == NGTCP2_FRAME_PATH_CHALLENGE) {
+    lfr.padding.len = ngtcp2_ppe_padding(&ppe);
+  } else if (type == NGTCP2_PKT_SHORT) {
     lfr.padding.len =
         ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
   } else {
