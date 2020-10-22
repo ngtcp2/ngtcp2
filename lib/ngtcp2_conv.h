@@ -51,14 +51,16 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-#if defined(HAVE_BSWAP_64) || (defined(HAVE_DECL_BSWAP_64) && HAVE_DECL_BSWAP_64 > 0)
+#if defined(HAVE_BSWAP_64) ||                                                  \
+    (defined(HAVE_DECL_BSWAP_64) && HAVE_DECL_BSWAP_64 > 0)
 #  define ngtcp2_bswap64 bswap_64
 #else /* !HAVE_BSWAP_64 */
 #  define ngtcp2_bswap64(N)                                                    \
     ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
 #endif /* !HAVE_BSWAP_64 */
 
-#if defined(HAVE_BE64TOH) || (defined(HAVE_DECL_BE64TOH) && HAVE_DECL_BE64TOH > 0)
+#if defined(HAVE_BE64TOH) ||                                                   \
+    (defined(HAVE_DECL_BE64TOH) && HAVE_DECL_BE64TOH > 0)
 #  define ngtcp2_ntohl64(N) be64toh(N)
 #  define ngtcp2_htonl64(N) htobe64(N)
 #else /* !HAVE_BE64TOH */
