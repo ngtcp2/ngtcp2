@@ -1328,6 +1328,61 @@ void Handler::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
   }
 }
 
+namespace {
+int http_send_stop_sending(nghttp3_conn *conn, int64_t stream_id,
+                           uint64_t app_error_code, void *user_data,
+                           void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  if (h->http_send_stop_sending(stream_id, app_error_code) != 0) {
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Handler::http_send_stop_sending(int64_t stream_id,
+                                    uint64_t app_error_code) {
+  if (auto rv =
+          ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
+      rv != 0) {
+    std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+    if (rv == NGTCP2_ERR_STREAM_NOT_FOUND) {
+      return 0;
+    }
+    return -1;
+  }
+  return 0;
+}
+
+namespace {
+int http_reset_stream(nghttp3_conn *conn, int64_t stream_id,
+                      uint64_t app_error_code, void *user_data,
+                      void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  if (h->http_reset_stream(stream_id, app_error_code) != 0) {
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Handler::http_reset_stream(int64_t stream_id, uint64_t app_error_code) {
+  if (auto rv =
+          ngtcp2_conn_shutdown_stream_write(conn_, stream_id, app_error_code);
+      rv != 0) {
+    std::cerr << "ngtcp2_conn_shutdown_stream_write: " << ngtcp2_strerror(rv)
+              << std::endl;
+    return -1;
+    if (rv == NGTCP2_ERR_STREAM_NOT_FOUND) {
+      return 0;
+    }
+    return -1;
+  }
+  return 0;
+}
+
 int Handler::setup_httpconn() {
   if (httpconn_) {
     return 0;
@@ -1354,9 +1409,10 @@ int Handler::setup_httpconn() {
       nullptr, // recv_push_promise
       nullptr, // end_push_promise
       nullptr, // cancel_push
-      nullptr, // send_stop_sending
+      ::http_send_stop_sending,
       nullptr, // push_stream
       ::http_end_stream,
+      ::http_reset_stream,
   };
   nghttp3_conn_settings settings;
   nghttp3_conn_settings_default(&settings);

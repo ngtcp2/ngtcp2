@@ -300,6 +300,8 @@ public:
   int push_content(int64_t stream_id, const std::string_view &authority,
                    const std::string_view &path);
   void http_stream_close(int64_t stream_id, uint64_t app_error_code);
+  int http_send_stop_sending(int64_t stream_id, uint64_t app_error_code);
+  int http_reset_stream(int64_t stream_id, uint64_t app_error_code);
 
   void reset_idle_timer();
 
