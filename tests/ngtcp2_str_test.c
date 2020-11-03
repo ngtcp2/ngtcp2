@@ -37,3 +37,61 @@ void test_ngtcp2_check_invalid_stateless_reset_token(void) {
   CU_ASSERT(ngtcp2_check_invalid_stateless_reset_token(invalid_token));
   CU_ASSERT(!ngtcp2_check_invalid_stateless_reset_token(good_token));
 }
+
+void test_ngtcp2_encode_ipv4(void) {
+  uint8_t buf[16];
+
+  CU_ASSERT(0 == strcmp("192.168.0.1",
+                        (const char *)ngtcp2_encode_ipv4(
+                            buf, (const uint8_t *)"\xc0\xa8\x00\x01")));
+  CU_ASSERT(0 ==
+            strcmp("127.0.0.1", (const char *)ngtcp2_encode_ipv4(
+                                    buf, (const uint8_t *)"\x7f\x00\x00\x01")));
+}
+
+void test_ngtcp2_encode_ipv6(void) {
+  uint8_t buf[32 + 7 + 1];
+
+  CU_ASSERT(
+      0 ==
+      strcmp("2001:db8::2:1",
+             (const char *)ngtcp2_encode_ipv6(
+                 buf, (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x00\x00"
+                                       "\x00\x00\x00\x00\x02\x00\x01")));
+  CU_ASSERT(
+      0 ==
+      strcmp("2001:db8:0:1:1:1:1:1",
+             (const char *)ngtcp2_encode_ipv6(
+                 buf, (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x01\x00"
+                                       "\x01\x00\x01\x00\x01\x00\x01")));
+  CU_ASSERT(
+      0 ==
+      strcmp("2001:db8::1:0:0:1",
+             (const char *)ngtcp2_encode_ipv6(
+                 buf, (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x00\x00"
+                                       "\x01\x00\x00\x00\x00\x00\x01")));
+  CU_ASSERT(
+      0 ==
+      strcmp("2001:db8::8:800:200c:417a",
+             (const char *)ngtcp2_encode_ipv6(
+                 buf, (const uint8_t *)"\x20\x01\x0d\xb8\x00\x00\x00\x00\x00"
+                                       "\x08\x08\x00\x20\x0C\x41\x7a")));
+  CU_ASSERT(
+      0 ==
+      strcmp("ff01::101",
+             (const char *)ngtcp2_encode_ipv6(
+                 buf, (const uint8_t *)"\xff\x01\x00\x00\x00\x00\x00\x00\x00"
+                                       "\x00\x00\x00\x00\x00\x01\x01")));
+  CU_ASSERT(
+      0 ==
+      strcmp("::1",
+             (const char *)ngtcp2_encode_ipv6(
+                 buf, (const uint8_t *)"\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                                       "\x00\x00\x00\x00\x00\x00\x01")));
+  CU_ASSERT(
+      0 ==
+      strcmp("::",
+             (const char *)ngtcp2_encode_ipv6(
+                 buf, (const uint8_t *)"\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+                                       "\x00\x00\x00\x00\x00\x00\x00")));
+}

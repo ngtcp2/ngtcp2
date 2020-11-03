@@ -47,6 +47,27 @@ uint8_t *ngtcp2_setmem(uint8_t *dest, uint8_t b, size_t n);
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len);
 
 /*
+ * ngtcp2_encode_ipv4 encodes binary form IPv4 address stored in
+ * |addr| to human readable text form in the buffer pointed by |dest|.
+ * The capacity of buffer must have enough length to store a text form
+ * plus a terminating NULL byte.  The resulting text form ends with
+ * NULL byte.  The function returns |dest|.
+ */
+uint8_t *ngtcp2_encode_ipv4(uint8_t *dest, const uint8_t *addr);
+
+/*
+ * ngtcp2_encode_ipv6 encodes binary form IPv6 address stored in
+ * |addr| to human readable text form in the buffer pointed by |dest|.
+ * The capacity of buffer must have enough length to store a text form
+ * plus a terminating NULL byte.  The resulting text form ends with
+ * NULL byte.  The function produces the canonical form of IPv6 text
+ * representation described in
+ * https://tools.ietf.org/html/rfc5952#section-4.  The function
+ * returns |dest|.
+ */
+uint8_t *ngtcp2_encode_ipv6(uint8_t *dest, const uint8_t *addr);
+
+/*
  * ngtcp2_encode_printable_ascii encodes |data| of length |len| in
  * |dest| in the following manner: printable ascii characters are
  * copied as is.  The other characters are converted to ".".  It
