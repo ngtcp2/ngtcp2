@@ -3040,6 +3040,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           continue;
         }
         break;
+      case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
+        ++conn->dcid.num_retire_queued;
+        break;
       case NGTCP2_FRAME_CRYPTO:
         assert(0);
         break;
@@ -3732,8 +3735,6 @@ static int conn_retire_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
   nfrc->fr.retire_connection_id.seq = seq;
   nfrc->next = pktns->tx.frq;
   pktns->tx.frq = nfrc;
-
-  ++conn->dcid.num_retire_queued;
 
   return 0;
 }
@@ -6513,6 +6514,9 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
        For example, a peer might send seq = 50000 and retire_prior_to
        = 50000.  Then send NEW_CONNECTION_ID frames with seq <
        50000. */
+    /* TODO we might queue lots of RETIRE_CONNECTION_ID frame here
+       because conn->dcid.num_retire_queued is incremented when the
+       frame is serialized. */
     if (conn->dcid.num_retire_queued < NGTCP2_MAX_DCID_POOL_SIZE * 2) {
       return conn_retire_dcid_seq(conn, fr->seq);
     }
