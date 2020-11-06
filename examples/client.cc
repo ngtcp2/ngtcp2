@@ -915,7 +915,11 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   };
 
   ngtcp2_cid scid, dcid;
-  generate_cid(scid, 17);
+  if (config.scid_present) {
+    scid = config.scid;
+  } else {
+    generate_cid(scid, 17);
+  }
   if (config.dcid.datalen == 0) {
     generate_cid(dcid, 18);
   } else {
@@ -2495,6 +2499,10 @@ Options:
               Specify  initial  DCID.   <DCID> is  hex  string.   When
               decoded as binary, it should be  at least 8 bytes and at
               most 18 bytes long.
+  --scid=<SCID>
+              Specify source connection ID.  <SCID> is hex string.  If
+              an empty string  is given, zero length  connection ID is
+              assumed.
   --change-local-addr=<DURATION>
               Client  changes  local  address when  <DURATION>  elapse
               after handshake completes.
@@ -2656,6 +2664,7 @@ int main(int argc, char **argv) {
         {"initial-rtt", required_argument, &flag, 31},
         {"max-window", required_argument, &flag, 32},
         {"max-stream-window", required_argument, &flag, 33},
+        {"scid", required_argument, &flag, 34},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2908,6 +2917,15 @@ int main(int argc, char **argv) {
           config.max_stream_window = n;
         }
         break;
+      case 34: {
+        // --scid
+        auto scid = util::decode_hex(optarg);
+        ngtcp2_cid_init(&config.scid,
+                        reinterpret_cast<const uint8_t *>(scid.c_str()),
+                        scid.size());
+        config.scid_present = true;
+        break;
+      }
       }
       break;
     default:

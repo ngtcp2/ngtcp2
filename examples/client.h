@@ -55,6 +55,8 @@ struct Request {
 
 struct Config {
   ngtcp2_cid dcid;
+  ngtcp2_cid scid;
+  bool scid_present;
   // tx_loss_prob is probability of losing outgoing packet.
   double tx_loss_prob;
   // rx_loss_prob is probability of losing incoming packet.
