@@ -4865,7 +4865,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
     /* Unset the flag bit so that conn_stop_pv does not retire
        DCID. */
-    pv->flags &= ~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
+    pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
 
     rv = conn_stop_pv(conn, ts);
     if (rv != 0) {
