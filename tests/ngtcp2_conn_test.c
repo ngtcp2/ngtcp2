@@ -4408,7 +4408,9 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(NULL == conn->pv);
+  /* Server starts probing old path */
+  CU_ASSERT(NULL != conn->pv);
+  CU_ASSERT(ngtcp2_path_eq(&null_path.path, &conn->pv->dcid.ps.path));
 
   /* Receive NEW_CONNECTION_ID seq=1 again, which should be ignored. */
   pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2);

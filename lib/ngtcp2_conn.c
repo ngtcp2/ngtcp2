@@ -4816,7 +4816,8 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
                                    ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_pv *pv = conn->pv;
+  ngtcp2_duration timeout;
+  ngtcp2_pv *pv = conn->pv, *npv;
 
   if (!pv) {
     return 0;
@@ -4831,21 +4832,50 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
-    assert(conn->dcid.current.cid.datalen);
+    if (pv->dcid.seq != conn->dcid.current.seq) {
+      assert(conn->dcid.current.cid.datalen);
 
-    rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
-    if (rv != 0) {
-      goto fail;
+      rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
+      if (rv != 0) {
+        goto fail;
+      }
+      ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
     }
-    ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
     conn_reset_congestion_state(conn);
     conn_reset_ecn_validation_state(conn);
   }
 
-  rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
-                                 NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
-  if (rv != 0) {
-    goto fail;
+  if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
+    rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
+                                   NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
+    if (rv != 0) {
+      goto fail;
+    }
+  }
+
+  if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
+    timeout = 3 * conn_compute_pto(conn, &conn->pktns);
+    timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
+
+    rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid, timeout,
+                       NGTCP2_PV_FLAG_DONT_CARE, &conn->log, conn->mem);
+    if (rv != 0) {
+      goto fail;
+    }
+
+    /* Unset the flag bit so that conn_stop_pv does not retire
+       DCID. */
+    pv->flags &= ~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
+
+    rv = conn_stop_pv(conn, ts);
+    if (rv != 0) {
+      ngtcp2_pv_del(npv);
+      return rv;
+    }
+
+    conn->pv = npv;
+
+    return 0;
   }
 
 fail:
