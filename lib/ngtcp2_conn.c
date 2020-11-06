@@ -3754,6 +3754,8 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
   ngtcp2_dcid *dest, *stale_dcid;
   int rv;
 
+  assert(dcid->cid.datalen);
+
   if (ngtcp2_ringbuf_full(rb)) {
     stale_dcid = ngtcp2_ringbuf_get(rb, 0);
     rv = conn_call_deactivate_dcid(conn, stale_dcid);
@@ -3774,7 +3776,8 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
 /*
  * conn_bind_dcid stores the DCID to |*pdcid| bound to |path|.  If
  * such DCID is not found, bind the new DCID to |path| and stores it
- * to |*pdcid|.
+ * to |*pdcid|.  If a remote endpoint uses zero-length connection ID,
+ * the pointer to conn->dcid.current is assigned to |*pdcid|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3795,6 +3798,11 @@ static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
   assert(!pv || !ngtcp2_path_eq(&pv->dcid.ps.path, path));
   assert(!pv || !(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
          !ngtcp2_path_eq(&pv->fallback_dcid.ps.path, path));
+
+  if (conn->dcid.current.cid.datalen == 0) {
+    *pdcid = &conn->dcid.current;
+    return 0;
+  }
 
   len = ngtcp2_ringbuf_len(&conn->dcid.bound);
   for (i = 0; i < len; ++i) {
@@ -4823,6 +4831,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
+    assert(conn->dcid.current.cid.datalen);
+
     rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
     if (rv != 0) {
       goto fail;
@@ -7072,51 +7082,55 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   timeout = 3 * conn_compute_pto(conn, &conn->pktns);
   timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
 
-  len = ngtcp2_ringbuf_len(&conn->dcid.bound);
+  if (conn->dcid.current.cid.datalen == 0) {
+    ngtcp2_dcid_copy(&dcid, &conn->dcid.current);
+  } else {
+    len = ngtcp2_ringbuf_len(&conn->dcid.bound);
 
-  for (i = 0; i < len; ++i) {
-    bound_dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, i);
-    if (ngtcp2_path_eq(&bound_dcid->ps.path, path)) {
-      ngtcp2_log_info(
-          &conn->log, NGTCP2_LOG_EVENT_CON,
-          "Found DCID which has already been bound to the new path");
+    for (i = 0; i < len; ++i) {
+      bound_dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, i);
+      if (ngtcp2_path_eq(&bound_dcid->ps.path, path)) {
+        ngtcp2_log_info(
+            &conn->log, NGTCP2_LOG_EVENT_CON,
+            "Found DCID which has already been bound to the new path");
 
-      ngtcp2_dcid_copy(&dcid, bound_dcid);
-      if (i == 0) {
-        ngtcp2_ringbuf_pop_front(&conn->dcid.bound);
-      } else if (i == ngtcp2_ringbuf_len(&conn->dcid.bound) - 1) {
-        ngtcp2_ringbuf_pop_back(&conn->dcid.bound);
-      } else {
-        last = ngtcp2_ringbuf_get(&conn->dcid.bound, len - 1);
-        ngtcp2_dcid_copy(bound_dcid, last);
-        ngtcp2_ringbuf_pop_back(&conn->dcid.bound);
+        ngtcp2_dcid_copy(&dcid, bound_dcid);
+        if (i == 0) {
+          ngtcp2_ringbuf_pop_front(&conn->dcid.bound);
+        } else if (i == ngtcp2_ringbuf_len(&conn->dcid.bound) - 1) {
+          ngtcp2_ringbuf_pop_back(&conn->dcid.bound);
+        } else {
+          last = ngtcp2_ringbuf_get(&conn->dcid.bound, len - 1);
+          ngtcp2_dcid_copy(bound_dcid, last);
+          ngtcp2_ringbuf_pop_back(&conn->dcid.bound);
+        }
+        require_new_cid = 0;
+
+        rv = conn_call_activate_dcid(conn, &dcid);
+        if (rv != 0) {
+          return rv;
+        }
+        break;
       }
-      require_new_cid = 0;
-
-      rv = conn_call_activate_dcid(conn, &dcid);
-      if (rv != 0) {
-        return rv;
-      }
-      break;
     }
-  }
 
-  if (i == len) {
-    if (require_new_cid) {
-      if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
-        return NGTCP2_ERR_CONN_ID_BLOCKED;
-      }
-      ngtcp2_dcid_copy(&dcid, ngtcp2_ringbuf_get(&conn->dcid.unused, 0));
-      ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
+    if (i == len) {
+      if (require_new_cid) {
+        if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+          return NGTCP2_ERR_CONN_ID_BLOCKED;
+        }
+        ngtcp2_dcid_copy(&dcid, ngtcp2_ringbuf_get(&conn->dcid.unused, 0));
+        ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
 
-      rv = conn_call_activate_dcid(conn, &dcid);
-      if (rv != 0) {
-        return rv;
+        rv = conn_call_activate_dcid(conn, &dcid);
+        if (rv != 0) {
+          return rv;
+        }
+      } else {
+        /* Use the current DCID if a remote endpoint does not change
+           DCID. */
+        ngtcp2_dcid_copy(&dcid, &conn->dcid.current);
       }
-    } else {
-      /* Use the current DCID if a remote endpoint does not change
-         DCID. */
-      ngtcp2_dcid_copy(&dcid, &conn->dcid.current);
     }
   }
 
