@@ -36,7 +36,10 @@
 
 /* NGTCP2_PV_MAX_ENTRIES is the maximum number of entries that
    ngtcp2_pv can contain.  It must be power of 2. */
-#define NGTCP2_PV_MAX_ENTRIES 4
+#define NGTCP2_PV_MAX_ENTRIES 8
+/* NGTCP2_PV_NUM_PROBE_PKT is the number of probe packets containing
+   PATH_CHALLENGE sent at a time. */
+#define NGTCP2_PV_NUM_PROBE_PKT 2
 
 struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
@@ -59,6 +62,9 @@ typedef enum {
   /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of path
      validation should be ignored entirely. */
   NGTCP2_PV_FLAG_DONT_CARE = 0x01,
+  /* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer is
+     cancelled. */
+  NGTCP2_PV_FLAG_CANCEL_TIMER = 0x02,
   /* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID
      is available in ngtcp2_pv.  If path validation fails, fallback to
      the fallback DCID.  If path validation succeeds, fallback DCID is
@@ -87,8 +93,12 @@ struct ngtcp2_pv {
   ngtcp2_duration timeout;
   /* started_ts is the timestamp this path validation starts. */
   ngtcp2_tstamp started_ts;
-  /* loss_count is the number of lost PATH_CHALLENGE */
-  size_t loss_count;
+  /* round is the number of times that probe_pkt_left is reset. */
+  size_t round;
+  /* probe_pkt_left is the number of probe packets containing
+     PATH_CHALLENGE which can be send without waiting for an
+     expiration of a previous flight. */
+  size_t probe_pkt_left;
   /* flags is bitwise-OR of zero or more of ngtcp2_pv_flag. */
   uint8_t flags;
 };
@@ -115,16 +125,11 @@ int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
 void ngtcp2_pv_del(ngtcp2_pv *pv);
 
 /*
- * ngtcp2_pv_ensure_start sets started_ts field to |ts| if it is zero.
- */
-void ngtcp2_pv_ensure_start(ngtcp2_pv *pv, ngtcp2_tstamp ts);
-
-/*
  * ngtcp2_pv_add_entry adds new entry with |data|.  |expiry| is the
  * expiry time of the entry.
  */
 void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
-                         ngtcp2_tstamp expiry);
+                         ngtcp2_tstamp expiry, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_pv_full returns nonzero if |pv| is full of ngtcp2_pv_entry.
@@ -148,9 +153,15 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
 int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data);
 
 /*
- * ngtcp2_pv_handle_entry_expiry checks expiry for each entry.
+ * ngtcp2_pv_handle_entry_expiry checks expiry of existing entries.
  */
 void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_pv_should_send_probe returns nonzero if new entry can be
+ * added by ngtcp2_pv_add_entry.
+ */
+int ngtcp2_pv_should_send_probe(ngtcp2_pv *pv);
 
 /*
  * ngtcp2_pv_validation_timed_out returns nonzero if the path
@@ -162,5 +173,10 @@ int ngtcp2_pv_validation_timed_out(ngtcp2_pv *pv, ngtcp2_tstamp ts);
  * ngtcp2_pv_next_expiry returns the earliest expiry.
  */
 ngtcp2_tstamp ngtcp2_pv_next_expiry(ngtcp2_pv *pv);
+
+/*
+ * ngtcp2_pv_cancel_expired_timer cancels the expired timer.
+ */
+void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_PV_H */

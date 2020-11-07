@@ -40,7 +40,6 @@ void test_ngtcp2_pv_add_entry(void) {
   uint8_t data[8];
   size_t i;
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
-  ngtcp2_tstamp t = 1;
 
   dcid_init(&cid);
   ngtcp2_dcid_init(&dcid, 1000000007, &cid, token);
@@ -49,33 +48,40 @@ void test_ngtcp2_pv_add_entry(void) {
   rv = ngtcp2_pv_new(&pv, &dcid, timeout, NGTCP2_PV_FLAG_NONE, &log, mem);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ngtcp2_pv_validation_timed_out(pv, 0));
 
-  ngtcp2_pv_ensure_start(pv, t);
+  ngtcp2_pv_handle_entry_expiry(pv, 0);
 
-  memset(data, 0, sizeof(data));
+  CU_ASSERT(NGTCP2_PV_NUM_PROBE_PKT == pv->probe_pkt_left);
+  CU_ASSERT(ngtcp2_pv_should_send_probe(pv));
 
-  for (i = 0; i < NGTCP2_PV_MAX_ENTRIES - 1; ++i) {
-    ngtcp2_pv_add_entry(pv, data, 100 + i);
+  for (i = 0; i < NGTCP2_PV_NUM_PROBE_PKT; ++i) {
+    ngtcp2_pv_add_entry(pv, data, 100, 0);
 
     CU_ASSERT(i + 1 == ngtcp2_ringbuf_len(&pv->ents));
-    CU_ASSERT(!ngtcp2_pv_full(pv));
   }
 
-  ngtcp2_pv_add_entry(pv, data, 100 + NGTCP2_PV_MAX_ENTRIES);
-
-  CU_ASSERT(NGTCP2_PV_MAX_ENTRIES == ngtcp2_ringbuf_len(&pv->ents));
-  CU_ASSERT(ngtcp2_pv_full(pv));
+  CU_ASSERT(0 == pv->probe_pkt_left);
+  CU_ASSERT(!ngtcp2_pv_should_send_probe(pv));
+  CU_ASSERT(NGTCP2_PV_NUM_PROBE_PKT == ngtcp2_ringbuf_len(&pv->ents));
   CU_ASSERT(100 == ngtcp2_pv_next_expiry(pv));
+
+  ngtcp2_pv_handle_entry_expiry(pv, 99);
+
+  CU_ASSERT(0 == pv->probe_pkt_left);
+  CU_ASSERT(!ngtcp2_pv_should_send_probe(pv));
 
   ngtcp2_pv_handle_entry_expiry(pv, 100);
 
-  CU_ASSERT(NGTCP2_PV_MAX_ENTRIES - 1 == ngtcp2_ringbuf_len(&pv->ents));
-  CU_ASSERT(101 == ngtcp2_pv_next_expiry(pv));
+  CU_ASSERT(2 == pv->probe_pkt_left);
+  CU_ASSERT(ngtcp2_pv_should_send_probe(pv));
+  CU_ASSERT(100 == ngtcp2_pv_next_expiry(pv));
 
-  ngtcp2_pv_handle_entry_expiry(pv, 100 + NGTCP2_PV_MAX_ENTRIES);
+  ngtcp2_pv_add_entry(pv, data, 111, 100);
 
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&pv->ents));
-  CU_ASSERT(timeout + t == ngtcp2_pv_next_expiry(pv));
+  CU_ASSERT(1 == pv->probe_pkt_left);
+  CU_ASSERT(ngtcp2_pv_should_send_probe(pv));
+  CU_ASSERT(111 == ngtcp2_pv_next_expiry(pv));
 
   ngtcp2_pv_del(pv);
 }
@@ -90,7 +96,6 @@ void test_ngtcp2_pv_validate(void) {
   ngtcp2_log log;
   uint8_t data[8];
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
-  ngtcp2_tstamp t = 1;
   ngtcp2_path_storage path;
 
   path_init(&path, 1, 0, 2, 0);
@@ -103,16 +108,11 @@ void test_ngtcp2_pv_validate(void) {
 
   CU_ASSERT(0 == rv);
 
-  ngtcp2_pv_ensure_start(pv, t);
-
   memset(data, 0, sizeof(data));
-  ngtcp2_pv_add_entry(pv, data, 100);
+  ngtcp2_pv_add_entry(pv, data, 100, 1);
 
   memset(data, 1, sizeof(data));
-  ngtcp2_pv_add_entry(pv, data, 100);
-
-  memset(data, 2, sizeof(data));
-  ngtcp2_pv_add_entry(pv, data, 100);
+  ngtcp2_pv_add_entry(pv, data, 100, 1);
 
   memset(data, 1, sizeof(data));
   rv = ngtcp2_pv_validate(pv, data);

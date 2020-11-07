@@ -25,6 +25,7 @@
 #include "ngtcp2_pv.h"
 
 #include <string.h>
+#include <assert.h>
 
 #include "ngtcp2_mem.h"
 #include "ngtcp2_log.h"
@@ -59,8 +60,9 @@ int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
   (*ppv)->mem = mem;
   (*ppv)->log = log;
   (*ppv)->timeout = timeout;
-  (*ppv)->started_ts = 0;
-  (*ppv)->loss_count = 0;
+  (*ppv)->started_ts = UINT64_MAX;
+  (*ppv)->probe_pkt_left = NGTCP2_PV_NUM_PROBE_PKT;
+  (*ppv)->round = 0;
   (*ppv)->flags = flags;
 
   return 0;
@@ -74,20 +76,22 @@ void ngtcp2_pv_del(ngtcp2_pv *pv) {
   ngtcp2_mem_free(pv->mem, pv);
 }
 
-void ngtcp2_pv_ensure_start(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
-  if (pv->started_ts) {
-    return;
-  }
-  pv->started_ts = ts;
-}
-
 void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
-                         ngtcp2_tstamp expiry) {
-  ngtcp2_pv_entry *ent = ngtcp2_ringbuf_push_back(&pv->ents);
-  ngtcp2_pv_entry_init(ent, data, expiry);
-}
+                         ngtcp2_tstamp expiry, ngtcp2_tstamp ts) {
+  ngtcp2_pv_entry *ent;
 
-int ngtcp2_pv_full(ngtcp2_pv *pv) { return ngtcp2_ringbuf_full(&pv->ents); }
+  assert(pv->probe_pkt_left);
+
+  if (ngtcp2_ringbuf_len(&pv->ents) == 0) {
+    pv->started_ts = ts;
+  }
+
+  ent = ngtcp2_ringbuf_push_back(&pv->ents);
+  ngtcp2_pv_entry_init(ent, data, expiry);
+
+  pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_CANCEL_TIMER;
+  --pv->probe_pkt_left;
+}
 
 int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data) {
   size_t len = ngtcp2_ringbuf_len(&pv->ents);
@@ -110,46 +114,52 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data) {
 }
 
 void ngtcp2_pv_handle_entry_expiry(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
-  ngtcp2_pv_entry *ent;
+  ngtcp2_tstamp expiry = ngtcp2_pv_next_expiry(pv);
 
-  if (ngtcp2_ringbuf_len(&pv->ents) == 0) {
-    return;
-  }
-
-  ent = ngtcp2_ringbuf_get(&pv->ents, 0);
-  if (ent->expiry <= ts) {
-    ++pv->loss_count;
-
-    ngtcp2_ringbuf_pop_front(&pv->ents);
-
-    for (; ngtcp2_ringbuf_len(&pv->ents);) {
-      ent = ngtcp2_ringbuf_get(&pv->ents, 0);
-      if (ent->expiry <= ts) {
-        ngtcp2_ringbuf_pop_front(&pv->ents);
-        continue;
-      }
-      break;
+  if (expiry == UINT64_MAX || expiry <= ts) {
+    if (ngtcp2_ringbuf_len(&pv->ents)) {
+      ++pv->round;
     }
+    pv->probe_pkt_left = NGTCP2_PV_NUM_PROBE_PKT;
   }
 }
 
+int ngtcp2_pv_should_send_probe(ngtcp2_pv *pv) {
+  return pv->probe_pkt_left > 0;
+}
+
 int ngtcp2_pv_validation_timed_out(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
+  if (pv->started_ts == UINT64_MAX) {
+    return 0;
+  }
+
   return pv->started_ts + pv->timeout <= ts;
 }
 
 ngtcp2_tstamp ngtcp2_pv_next_expiry(ngtcp2_pv *pv) {
-  ngtcp2_tstamp t = UINT64_MAX;
+  ngtcp2_tstamp t;
   ngtcp2_pv_entry *ent;
 
-  if (pv->started_ts) {
-    t = pv->started_ts + pv->timeout;
+  if ((pv->flags & NGTCP2_PV_FLAG_CANCEL_TIMER) ||
+      ngtcp2_ringbuf_len(&pv->ents) == 0) {
+    return UINT64_MAX;
   }
 
-  if (ngtcp2_ringbuf_len(&pv->ents) == 0) {
-    return t;
-  }
+  assert(pv->started_ts != UINT64_MAX);
 
-  ent = ngtcp2_ringbuf_get(&pv->ents, 0);
+  t = pv->started_ts + pv->timeout;
+
+  ent = ngtcp2_ringbuf_get(&pv->ents, ngtcp2_ringbuf_len(&pv->ents) - 1);
 
   return ngtcp2_min(t, ent->expiry);
+}
+
+void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
+  ngtcp2_tstamp expiry = ngtcp2_pv_next_expiry(pv);
+
+  if (expiry > ts) {
+    return;
+  }
+
+  pv->flags |= NGTCP2_PV_FLAG_CANCEL_TIMER;
 }

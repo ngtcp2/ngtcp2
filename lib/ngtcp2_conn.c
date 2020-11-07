@@ -3934,8 +3934,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   ngtcp2_tstamp expiry;
   ngtcp2_pv *pv = conn->pv;
   ngtcp2_frame lfr;
-
-  ngtcp2_pv_ensure_start(pv, ts);
+  ngtcp2_duration timeout;
 
   if (ngtcp2_pv_validation_timed_out(pv, ts)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
@@ -3945,7 +3944,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   ngtcp2_pv_handle_entry_expiry(pv, ts);
 
-  if (ngtcp2_pv_full(pv)) {
+  if (!ngtcp2_pv_should_send_probe(pv)) {
     return 0;
   }
 
@@ -3959,11 +3958,11 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
 
-  /* TODO reconsider this.  This might get larger pretty quickly than
-     validation timeout which is just around 3*PTO. */
-  expiry = ts + 6ULL * conn->cstat.initial_rtt * (1ULL << pv->loss_count);
+  timeout = conn_compute_pto(conn, &conn->pktns);
+  timeout = ngtcp2_max(timeout, 3 * conn->cstat.initial_rtt);
+  expiry = ts + timeout * (1 << pv->round);
 
-  ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry);
+  ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry, ts);
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, NULL, dest, destlen, NGTCP2_PKT_SHORT, &pv->dcid.cid, &lfr,
@@ -9028,6 +9027,10 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
   ngtcp2_conn_remove_lost_pkt(conn, ts);
+
+  if (conn->pv) {
+    ngtcp2_pv_cancel_expired_timer(conn->pv, ts);
+  }
 
   if (ngtcp2_conn_loss_detection_expiry(conn) <= ts) {
     rv = ngtcp2_conn_on_loss_detection_timer(conn, ts);
