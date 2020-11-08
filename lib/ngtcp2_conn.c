@@ -3960,7 +3960,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   timeout = conn_compute_pto(conn, &conn->pktns);
   timeout = ngtcp2_max(timeout, 3 * conn->cstat.initial_rtt);
-  expiry = ts + timeout * (1 << pv->round);
+  expiry = ts + timeout * (1ULL << pv->round);
 
   ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry, ts);
 
