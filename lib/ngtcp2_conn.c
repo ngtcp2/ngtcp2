@@ -3926,8 +3926,9 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
  *     User-defined callback function failed.
  */
 static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
-                                              ngtcp2_path *path, uint8_t *dest,
-                                              size_t destlen,
+                                              ngtcp2_path *path,
+                                              ngtcp2_pkt_info *pi,
+                                              uint8_t *dest, size_t destlen,
                                               ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ssize nwrite;
@@ -3965,7 +3966,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry, ts);
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
-      conn, NULL, dest, destlen, NGTCP2_PKT_SHORT, &pv->dcid.cid, &lfr,
+      conn, pi, dest, destlen, NGTCP2_PKT_SHORT, &pv->dcid.cid, &lfr,
       NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
   if (nwrite <= 0) {
     return nwrite;
@@ -3991,7 +3992,8 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
  *     User-defined callback function failed.
  */
 static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
-                                             ngtcp2_path *path, uint8_t *dest,
+                                             ngtcp2_path *path,
+                                             ngtcp2_pkt_info *pi, uint8_t *dest,
                                              size_t destlen, ngtcp2_tstamp ts) {
   ngtcp2_pv *pv = conn->pv;
   ngtcp2_path_challenge_entry *pcent = NULL;
@@ -4052,7 +4054,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
   memcpy(lfr.path_response.data, pcent->data, sizeof(lfr.path_response.data));
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
-      conn, NULL, dest, destlen, NGTCP2_PKT_SHORT, &dcid->cid, &lfr,
+      conn, pi, dest, destlen, NGTCP2_PKT_SHORT, &dcid->cid, &lfr,
       NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
   if (nwrite <= 0) {
     return nwrite;
@@ -9545,13 +9547,13 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
       destlen = 0;
     } else {
-      nwrite = conn_write_path_response(conn, path, dest, destlen, ts);
+      nwrite = conn_write_path_response(conn, path, pi, dest, destlen, ts);
       if (nwrite) {
         goto fin;
       }
 
       if (conn->pv) {
-        nwrite = conn_write_path_challenge(conn, path, dest, destlen, ts);
+        nwrite = conn_write_path_challenge(conn, path, pi, dest, destlen, ts);
         if (nwrite) {
           goto fin;
         }
