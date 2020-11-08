@@ -59,13 +59,11 @@ jobs:
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
-        autoreconf -i && ./configure --enable-werror $AUTOTOOLS_OPTS
+        autoreconf -i && ./configure --enable-werror
     - name: Configure cmake
       if: matrix.buildtool == 'cmake'
-      # Set CMAKE_LIBRARY_ARCHITECTURE to workaround failure to parse
-      # implicit link information from GCC 5
       run: |
-        cmake $CMAKE_OPTS -DCMAKE_LIBRARY_ARCHITECTURE=x86_64-linux-gnu
+        cmake $CMAKE_OPTS .
     - name: Build ngtcp2
       run: |
         make
