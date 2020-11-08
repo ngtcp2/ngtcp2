@@ -2316,7 +2316,7 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   return ngtcp2_conn_write_single_frame_pkt(conn, pi, dest, destlen, type,
                                             &conn->dcid.current.cid, ackfr,
-                                            NGTCP2_RTB_FLAG_NONE, ts);
+                                            NGTCP2_RTB_FLAG_NONE, NULL, ts);
 }
 
 static void conn_discard_pktns(ngtcp2_conn *conn, ngtcp2_pktns **ppktns,
@@ -3528,11 +3528,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   return nwrite;
 }
 
-ngtcp2_ssize
-ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
-                                   uint8_t *dest, size_t destlen, uint8_t type,
-                                   const ngtcp2_cid *dcid, ngtcp2_frame *fr,
-                                   uint8_t rtb_flags, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
+    ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+    uint8_t type, const ngtcp2_cid *dcid, ngtcp2_frame *fr, uint8_t rtb_flags,
+    const ngtcp2_path *path, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -3640,7 +3639,8 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     break;
   }
 
-  if ((rtb_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) {
+  if (((rtb_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) || padded) &&
+      (!path || ngtcp2_path_eq(&conn->dcid.current.ps.path, path))) {
     if (pi) {
       conn_handle_tx_ecn(conn, pi, &rtb_flags, pktns, &hd, ts);
     }
@@ -3967,7 +3967,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, pi, dest, destlen, NGTCP2_PKT_SHORT, &pv->dcid.cid, &lfr,
-      NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
+      NGTCP2_RTB_FLAG_ACK_ELICITING, &pv->dcid.ps.path, ts);
   if (nwrite <= 0) {
     return nwrite;
   }
@@ -4055,7 +4055,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, pi, dest, destlen, NGTCP2_PKT_SHORT, &dcid->cid, &lfr,
-      NGTCP2_RTB_FLAG_ACK_ELICITING, ts);
+      NGTCP2_RTB_FLAG_ACK_ELICITING, &pcent->ps.path, ts);
   if (nwrite <= 0) {
     return nwrite;
   }
@@ -9637,7 +9637,7 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (in_pktns && conn->server) {
       nwrite = ngtcp2_conn_write_single_frame_pkt(
           conn, pi, dest, destlen, NGTCP2_PKT_INITIAL, &conn->dcid.current.cid,
-          &fr, NGTCP2_RTB_FLAG_NONE, ts);
+          &fr, NGTCP2_RTB_FLAG_NONE, NULL, ts);
       if (nwrite < 0) {
         return nwrite;
       }
@@ -9651,7 +9651,7 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         hs_pktns->crypto.tx.ckm) {
       nwrite = ngtcp2_conn_write_single_frame_pkt(
           conn, pi, dest, destlen, NGTCP2_PKT_HANDSHAKE,
-          &conn->dcid.current.cid, &fr, NGTCP2_RTB_FLAG_NONE, ts);
+          &conn->dcid.current.cid, &fr, NGTCP2_RTB_FLAG_NONE, NULL, ts);
       if (nwrite < 0) {
         return nwrite;
       }
@@ -9664,7 +9664,7 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(conn, pi, dest, destlen, pkt_type,
                                               &conn->dcid.current.cid, &fr,
-                                              NGTCP2_RTB_FLAG_NONE, ts);
+                                              NGTCP2_RTB_FLAG_NONE, NULL, ts);
 
   if (nwrite < 0) {
     return nwrite;
@@ -9798,7 +9798,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close(
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, pi, dest, destlen, NGTCP2_PKT_SHORT, &conn->dcid.current.cid, &fr,
-      NGTCP2_RTB_FLAG_NONE, ts);
+      NGTCP2_RTB_FLAG_NONE, NULL, ts);
 
   if (nwrite < 0) {
     return nwrite;

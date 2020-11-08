@@ -728,11 +728,10 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User-defined callback function failed.
  */
-ngtcp2_ssize
-ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
-                                   uint8_t *dest, size_t destlen, uint8_t type,
-                                   const ngtcp2_cid *dcid, ngtcp2_frame *fr,
-                                   uint8_t rtb_flags, ngtcp2_tstamp ts);
+ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
+    ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+    uint8_t type, const ngtcp2_cid *dcid, ngtcp2_frame *fr, uint8_t rtb_flags,
+    const ngtcp2_path *path, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_commit_local_transport_params commits the local
