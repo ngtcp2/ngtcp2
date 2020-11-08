@@ -36,13 +36,13 @@ jobs:
     - name: Setup clang
       if: matrix.compiler == 'clang'
       run: |
-        echo '::set-env name=CC::clang'
-        echo '::set-env name=CXX::clang++'
+        echo 'CC=clang' >> $GITHUB_ENV
+        echo 'CXX=clang++' >> $GITHUB_ENV
     - name: Setup gcc
       if: runner.os == 'Linux' && matrix.compiler == 'gcc'
       run: |
-        echo '::set-env name=CC::gcc-8'
-        echo '::set-env name=CXX::g++-8'
+        echo 'CC=gcc-8' >> $GITHUB_ENV
+        echo 'CXX=g++-8' >> $GITHUB_ENV
     - name: Build OpenSSL
       run: |
         ./ci/build_openssl.sh
@@ -54,8 +54,8 @@ jobs:
         PKG_CONFIG_PATH="$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig"
         LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
 
-        echo '::set-env name=PKG_CONFIG_PATH::'"$PKG_CONFIG_PATH"
-        echo '::set-env name=LDFLAGS::'"$LDFLAGS"
+        echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
+        echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
