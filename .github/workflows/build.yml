@@ -17,7 +17,7 @@ jobs:
     - name: Linux setup
       if: runner.os == 'Linux'
       run: |
-        sudo apt install \
+        sudo apt-get install \
           g++-8 \
           autoconf \
           automake \
