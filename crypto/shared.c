@@ -349,11 +349,11 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
     if (ngtcp2_conn_is_server(conn)) {
       rv = ngtcp2_crypto_set_remote_transport_params(conn, tls);
       if (rv != 0) {
-        goto fail;
+        return rv;
       }
 
       if (crypto_set_local_transport_params(conn, tls) != 0) {
-        goto fail;
+        return rv;
       }
     }
 
