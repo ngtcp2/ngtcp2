@@ -821,6 +821,12 @@ typedef struct ngtcp2_settings {
    * specified in this field.
    */
   uint64_t max_stream_window;
+  /**
+   * ack_thresh is the maximum number of unacknowledged packets before
+   * sending acknowledgement.  It triggers the immediate
+   * acknowledgement.
+   */
+  size_t ack_thresh;
 } ngtcp2_settings;
 
 /**
@@ -3388,6 +3394,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  *
  * * cc_algo = NGTCP2_CC_ALGO_CUBIC
  * * initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT
+ * * ack_thresh = 2
  * * transport_params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE
  * * transport_params.ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
  * * transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY

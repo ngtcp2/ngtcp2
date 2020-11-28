@@ -5447,8 +5447,9 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   /* TODO Initial and Handshake are always acknowledged without
      delay. */
-  if (require_ack && (++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT ||
-                      (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
+  if (require_ack &&
+      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
+       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
@@ -7301,8 +7302,9 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
 
   pktns_increase_ecn_counts(pktns, pi);
 
-  if (require_ack && (++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT ||
-                      (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
+  if (require_ack &&
+      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
+       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
@@ -7851,8 +7853,9 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   pktns_increase_ecn_counts(pktns, pi);
 
-  if (require_ack && (++pktns->acktr.rx_npkt >= NGTCP2_NUM_IMMEDIATE_ACK_PKT ||
-                      (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
+  if (require_ack &&
+      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
+       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
@@ -10693,6 +10696,7 @@ void ngtcp2_settings_default(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+  settings->ack_thresh = 2;
   settings->transport_params.max_udp_payload_size =
       NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
   settings->transport_params.ack_delay_exponent =
