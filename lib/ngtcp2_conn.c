@@ -5365,7 +5365,10 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (payloadlen == 0) {
     /* QUIC packet must contain at least one frame */
-    return NGTCP2_ERR_DISCARD_PKT;
+    if (hd.type == NGTCP2_PKT_INITIAL) {
+      return NGTCP2_ERR_DISCARD_PKT;
+    }
+    return NGTCP2_ERR_PROTO;
   }
 
   if (hd.type == NGTCP2_PKT_INITIAL &&
@@ -7242,7 +7245,7 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
 
   if (payloadlen == 0) {
     /* QUIC packet must contain at least one frame */
-    return NGTCP2_ERR_DISCARD_PKT;
+    return NGTCP2_ERR_PROTO;
   }
 
   ngtcp2_qlog_pkt_received_start(&conn->qlog, hd);
@@ -7582,7 +7585,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (payloadlen == 0) {
     /* QUIC packet must contain at least one frame */
-    return NGTCP2_ERR_DISCARD_PKT;
+    return NGTCP2_ERR_PROTO;
   }
 
   if (hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) {
