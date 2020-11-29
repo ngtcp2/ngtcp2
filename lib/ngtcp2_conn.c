@@ -5517,7 +5517,10 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
             }
             return NGTCP2_ERR_DROP_CONN;
           }
-        } else if (nread == NGTCP2_ERR_CRYPTO) {
+          return 0;
+        }
+        /* client */
+        if (nread == NGTCP2_ERR_CRYPTO) {
           /* If client gets crypto error from TLS stack, it is
              unrecoverable, therefore drop connection. */
           return (int)nread;
