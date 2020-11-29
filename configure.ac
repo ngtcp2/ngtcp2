@@ -448,6 +448,8 @@ AC_CONFIG_FILES([
   crypto/includes/Makefile
   crypto/gnutls/Makefile
   crypto/gnutls/libngtcp2_crypto_gnutls.pc
+  doc/Makefile
+  doc/source/conf.py
   third-party/Makefile
   examples/Makefile
 ])

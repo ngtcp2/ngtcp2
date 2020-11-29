@@ -1,6 +1,6 @@
 # ngtcp2
 
-# Copyright (c) 2016 ngtcp2 contributors
+# Copyright (c) 2020 ngtcp2 contributors
 
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -20,25 +20,29 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-SUBDIRS = lib tests doc
 
-if HAVE_CRYPTO
-SUBDIRS += crypto
-endif
+# Minimal makefile for Sphinx documentation
+#
 
-if ENABLE_EXAMPLES
-SUBDIRS += third-party examples
-endif
+# You can set these variables from the command line, and also
+# from the environment for the first two.
+SPHINXOPTS    ?=
+SPHINXBUILD   ?= sphinx-build
+SOURCEDIR     = source
+BUILDDIR      = build
 
-ACLOCAL_AMFLAGS = -I m4
+# Put it first so that "make" without argument is like "make help".
+help:
+	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-# Format source files using clang-format.  Don't format source files
-# under third-party directory since we are not responsible for thier
-# coding style.
-clang-format:
-	CLANGFORMAT=`git config --get clangformat.binary`; \
-	test -z $${CLANGFORMAT} && CLANGFORMAT="clang-format"; \
-	$${CLANGFORMAT} -i lib/*.{c,h} tests/*.{c,h} lib/includes/ngtcp2/*.h \
-	crypto/*.{c,h} crypto/openssl/*.c  crypto/gnutls/*.c \
-	crypto/includes/ngtcp2/*.h \
-	examples/*.{cc,h}
+.PHONY: help html apiref
+
+apiref: mkapiref.py \
+	$(top_builddir)/lib/includes/ngtcp2/version.h \
+	$(top_srcdir)/lib/includes/ngtcp2/ngtcp2.h
+	$(top_srcdir)/doc/mkapiref.py \
+	source/apiref.rst source/macros.rst source/enums.rst source/types.rst \
+	source $^
+
+html-local: apiref
+	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
