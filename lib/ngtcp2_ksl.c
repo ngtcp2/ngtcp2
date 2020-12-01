@@ -389,11 +389,13 @@ static ngtcp2_ksl_blk *ksl_merge_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
 }
 
 /*
- * ksl_shift_left moves the first node in blk->nodes[i]->blk->nodes to
- * blk->nodes[i - 1]->blk->nodes.
+ * ksl_shift_left moves the first nodes in blk->nodes[i]->blk->nodes
+ * to blk->nodes[i - 1]->blk->nodes in a manner that they have the
+ * same amount of nodes as much as possible.
  */
 static void ksl_shift_left(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
-  ngtcp2_ksl_node *lnode, *rnode, *dest, *src;
+  ngtcp2_ksl_node *lnode, *rnode;
+  size_t n;
 
   assert(i > 0);
 
@@ -403,24 +405,33 @@ static void ksl_shift_left(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
   assert(lnode->blk->n < NGTCP2_KSL_MAX_NBLK);
   assert(rnode->blk->n > NGTCP2_KSL_MIN_NBLK);
 
-  dest = ngtcp2_ksl_nth_node(ksl, lnode->blk, lnode->blk->n);
-  src = ngtcp2_ksl_nth_node(ksl, rnode->blk, 0);
+  n = (lnode->blk->n + rnode->blk->n + 1) / 2 - lnode->blk->n;
 
-  memcpy(dest, src, ksl->nodelen);
-  ksl_node_set_key(ksl, lnode, dest->key);
-  ++lnode->blk->n;
+  assert(n > 0);
+  assert(lnode->blk->n <= NGTCP2_KSL_MAX_NBLK - n);
+  assert(rnode->blk->n >= NGTCP2_KSL_MIN_NBLK + n);
 
-  --rnode->blk->n;
-  memmove(rnode->blk->nodes, rnode->blk->nodes + ksl->nodelen,
+  memcpy(lnode->blk->nodes + ksl->nodelen * lnode->blk->n, rnode->blk->nodes,
+         ksl->nodelen * n);
+
+  lnode->blk->n += (uint32_t)n;
+  rnode->blk->n -= (uint32_t)n;
+
+  ksl_node_set_key(
+      ksl, lnode, ngtcp2_ksl_nth_node(ksl, lnode->blk, lnode->blk->n - 1)->key);
+
+  memmove(rnode->blk->nodes, rnode->blk->nodes + ksl->nodelen * n,
           ksl->nodelen * rnode->blk->n);
 }
 
 /*
- * ksl_shift_right moves the last node in blk->nodes[i]->blk->nodes to
- * blk->nodes[i + 1]->blk->nodes.
+ * ksl_shift_right moves the last nodes in blk->nodes[i]->blk->nodes
+ * to blk->nodes[i + 1]->blk->nodes in a manner that they have the
+ * same amount of nodes as much as possible..
  */
 static void ksl_shift_right(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
-  ngtcp2_ksl_node *lnode, *rnode, *dest, *src;
+  ngtcp2_ksl_node *lnode, *rnode;
+  size_t n;
 
   assert(i < blk->n - 1);
 
@@ -430,16 +441,21 @@ static void ksl_shift_right(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i) {
   assert(lnode->blk->n > NGTCP2_KSL_MIN_NBLK);
   assert(rnode->blk->n < NGTCP2_KSL_MAX_NBLK);
 
-  memmove(rnode->blk->nodes + ksl->nodelen, rnode->blk->nodes,
+  n = (lnode->blk->n + rnode->blk->n + 1) / 2 - rnode->blk->n;
+
+  assert(n > 0);
+  assert(lnode->blk->n >= NGTCP2_KSL_MIN_NBLK + n);
+  assert(rnode->blk->n <= NGTCP2_KSL_MAX_NBLK - n);
+
+  memmove(rnode->blk->nodes + ksl->nodelen * n, rnode->blk->nodes,
           ksl->nodelen * rnode->blk->n);
-  ++rnode->blk->n;
 
-  dest = ngtcp2_ksl_nth_node(ksl, rnode->blk, 0);
-  src = ngtcp2_ksl_nth_node(ksl, lnode->blk, lnode->blk->n - 1);
+  rnode->blk->n += (uint32_t)n;
+  lnode->blk->n -= (uint32_t)n;
 
-  memcpy(dest, src, ksl->nodelen);
+  memcpy(rnode->blk->nodes, lnode->blk->nodes + ksl->nodelen * lnode->blk->n,
+         ksl->nodelen * n);
 
-  --lnode->blk->n;
   ksl_node_set_key(
       ksl, lnode, ngtcp2_ksl_nth_node(ksl, lnode->blk, lnode->blk->n - 1)->key);
 }
