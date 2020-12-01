@@ -1069,18 +1069,6 @@ void Handler::reset_idle_timer() {
 
 int Handler::handle_expiry() {
   auto now = util::timestamp(loop_);
-  if (ngtcp2_conn_loss_detection_expiry(conn_) <= now) {
-    if (!config.quiet) {
-      std::cerr << "Loss detection timer expired" << std::endl;
-    }
-  }
-
-  if (ngtcp2_conn_ack_delay_expiry(conn_) <= now) {
-    if (!config.quiet) {
-      std::cerr << "Delayed ACK timer expired" << std::endl;
-    }
-  }
-
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;

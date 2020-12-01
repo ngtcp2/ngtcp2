@@ -3377,33 +3377,7 @@ NGTCP2_EXTERN int ngtcp2_conn_get_tls_error(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
- * of loss detection timer.  Application should call
- * `ngtcp2_conn_on_loss_detection_timer` and `ngtcp2_conn_write_pkt`
- * (or `ngtcp2_conn_writev_stream`) when it expires.  It returns
- * UINT64_MAX if loss detection timer is not armed.
- */
-NGTCP2_EXTERN ngtcp2_tstamp
-ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
-
-/**
- * @function
- *
- * `ngtcp2_conn_ack_delay_expiry` returns the expiry time point of
- * delayed protected ACK.  Application should call
- * ngtcp2_conn_cancel_expired_ack_delay_timer() and
- * `ngtcp2_conn_write_pkt` (or `ngtcp2_conn_writev_stream`) when it
- * expires.  It returns UINT64_MAX if there is no expiry.
- */
-NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn);
-
-/**
- * @function
- *
- * `ngtcp2_conn_get_expiry` returns the next expiry time.  This
- * function returns the timestamp such that
- * min(ngtcp2_conn_loss_detection_expiry(conn),
- * ngtcp2_conn_ack_delay_expiry(conn), other timers in |conn|).
+ * `ngtcp2_conn_get_expiry` returns the next expiry time.
  *
  * Call `ngtcp2_conn_handle_expiry()` and `ngtcp2_conn_write_pkt` (or
  * `ngtcp2_conn_writev_stream`) if expiry time is passed.
@@ -3418,16 +3392,6 @@ NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn);
  */
 NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
                                             ngtcp2_tstamp ts);
-
-/**
- * @function
- *
- * `ngtcp2_conn_cancel_expired_ack_delay_timer` stops expired ACK
- * delay timer.  |ts| is the current time.  This function must be
- * called when ngtcp2_conn_ack_delay_expiry() <= ts.
- */
-NGTCP2_EXTERN void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
-                                                              ngtcp2_tstamp ts);
 
 /**
  * @function

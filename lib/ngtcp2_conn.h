@@ -775,4 +775,36 @@ int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
 
 uint64_t ngtcp2_conn_tx_strmq_first_cycle(ngtcp2_conn *conn);
 
+/**
+ * @function
+ *
+ * `ngtcp2_conn_ack_delay_expiry` returns the expiry time point of
+ * delayed protected ACK.  One should call
+ * `ngtcp2_conn_cancel_expired_ack_delay_timer` and
+ * `ngtcp2_conn_write_pkt` (or `ngtcp2_conn_writev_stream`) when it
+ * expires.  It returns UINT64_MAX if there is no expiry.
+ */
+ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_cancel_expired_ack_delay_timer` stops expired ACK
+ * delay timer.  |ts| is the current time.  This function must be
+ * called when `ngtcp2_conn_ack_delay_expiry` <= ts.
+ */
+void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
+                                                ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_loss_detection_expiry` returns the expiry time point
+ * of loss detection timer.  One should call
+ * `ngtcp2_conn_on_loss_detection_timer` and `ngtcp2_conn_write_pkt`
+ * (or `ngtcp2_conn_writev_stream`) when it expires.  It returns
+ * UINT64_MAX if loss detection timer is not armed.
+ */
+ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
+
 #endif /* NGTCP2_CONN_H */
