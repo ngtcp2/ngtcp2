@@ -29,6 +29,11 @@ For older draft implementations:
 - `draft-23 <https://github.com/ngtcp2/ngtcp2/tree/draft-23>`_
 - `draft-22 <https://github.com/ngtcp2/ngtcp2/tree/draft-22>`_
 
+Documentation
+-------------
+
+`Online documentation <https://nghttp2.org/ngtcp2/>`_ is available.
+
 Requirements
 ------------
 
