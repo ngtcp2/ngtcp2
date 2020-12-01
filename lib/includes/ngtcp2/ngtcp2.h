@@ -308,32 +308,39 @@ typedef struct ngtcp2_mem {
 #define NGTCP2_DEFAULT_INITIAL_RTT (333 * NGTCP2_MILLISECONDS)
 
 /**
- * @enum
+ * @macro
  *
- * :type:`ngtcp2_ecn` defines ECN markings.
+ * :macro:`NGTCP2_ECN_NOT_ECT` indicates no ECN marking.
  */
-typedef enum ngtcp2_ecn {
-  /**
-   * :enum:`NGTCP2_ECN_NOT_ECT` indicates no ECN marking.
-   */
-  NGTCP2_ECN_NOT_ECT = 0x0,
-  /**
-   * :enum:`NGTCP2_ECN_ECT_1` is ECT(1) codepoint.
-   */
-  NGTCP2_ECN_ECT_1 = 0x1,
-  /**
-   * :enum:`NGTCP2_ECN_ECT_0` is ECT(0) codepoint.
-   */
-  NGTCP2_ECN_ECT_0 = 0x2,
-  /**
-   * :enum:`NGTCP2_ECN_CE` is CE codepoint.
-   */
-  NGTCP2_ECN_CE = 0x3,
-  /**
-   * :enum:`NGTCP2_ECN_MASK` is a bit mask to get ECN marking.
-   */
-  NGTCP2_ECN_MASK = 0x3
-} ngtcp2_ecn;
+#define NGTCP2_ECN_NOT_ECT 0x0
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ECN_ECT_1` is ECT(1) codepoint.
+ */
+#define NGTCP2_ECN_ECT_1 0x1
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ECN_ECT_0` is ECT(0) codepoint.
+ */
+#define NGTCP2_ECN_ECT_0 0x2
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ECN_CE` is CE codepoint.
+ */
+#define NGTCP2_ECN_CE 0x3
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ECN_MASK` is a bit mask to get ECN marking.
+ */
+#define NGTCP2_ECN_MASK 0x3
 
 /**
  * @struct
@@ -344,10 +351,8 @@ typedef struct ngtcp2_pkt_info {
   /**
    * :member:`ecn <ngtcp2_pkt_info.ecn>` is ECN marking and when
    * passing `ngtcp2_conn_read_pkt()`, and it should be either
-   * :enum:`ngtcp2_ecn.NGTCP2_ECN_NOT_ECT`,
-   * :enum:`ngtcp2_ecn.NGTCP2_ECN_ECT_1`,
-   * :enum:`ngtcp2_ecn.NGTCP2_ECN_ECT_0`, or
-   * :enum:`ngtcp2_ecn.NGTCP2_ECN_CE`.
+   * :macro:`NGTCP2_ECN_NOT_ECT`, :macro:`NGTCP2_ECN_ECT_1`,
+   * :macro:`NGTCP2_ECN_ECT_0`, or :macro:`NGTCP2_ECN_CE`.
    */
   uint32_t ecn;
 } ngtcp2_pkt_info;
