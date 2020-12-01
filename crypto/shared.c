@@ -217,7 +217,7 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
       goto fail;
     }
     break;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     if (!ngtcp2_conn_is_server(conn)) {
       rv = ngtcp2_crypto_set_remote_transport_params(conn, tls);
       if (rv != 0) {
@@ -358,7 +358,7 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
     }
 
     break;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     rv = ngtcp2_conn_install_tx_key(conn, secret, secretlen, &aead_ctx, iv,
                                     ivlen, &hp_ctx);
     if (rv != 0) {

@@ -613,7 +613,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
           crypto_level = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
           break;
         case NGTCP2_PKTNS_ID_APPLICATION:
-          crypto_level = NGTCP2_CRYPTO_LEVEL_APP;
+          crypto_level = NGTCP2_CRYPTO_LEVEL_APPLICATION;
           break;
         default:
           assert(0);

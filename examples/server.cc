@@ -139,7 +139,7 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     keylog::log_secret(ssl_, keylog::QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET,
                        tx_secret, secretlen);
     break;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     title = "application_traffic";
     keylog::log_secret(ssl_, keylog::QUIC_CLIENT_TRAFFIC_SECRET_0, rx_secret,
                        secretlen);
@@ -161,7 +161,7 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     }
   }
 
-  if (level == NGTCP2_CRYPTO_LEVEL_APP && setup_httpconn() != 0) {
+  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION && setup_httpconn() != 0) {
     return -1;
   }
 

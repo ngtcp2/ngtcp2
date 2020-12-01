@@ -304,7 +304,7 @@ ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
   case ssl_encryption_handshake:
     return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
   case ssl_encryption_application:
-    return NGTCP2_CRYPTO_LEVEL_APP;
+    return NGTCP2_CRYPTO_LEVEL_APPLICATION;
   default:
     assert(0);
   }
@@ -316,7 +316,7 @@ OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
     return ssl_encryption_initial;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     return ssl_encryption_handshake;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     return ssl_encryption_application;
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     return ssl_encryption_early_data;

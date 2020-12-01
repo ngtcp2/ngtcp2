@@ -67,7 +67,7 @@ void print_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     crypto_level_str = "Handshake";
     break;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     crypto_level_str = "Application";
     break;
   default:

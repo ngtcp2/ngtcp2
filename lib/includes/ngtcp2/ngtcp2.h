@@ -2247,10 +2247,10 @@ typedef enum ngtcp2_crypto_level {
    */
   NGTCP2_CRYPTO_LEVEL_HANDSHAKE,
   /**
-   * :enum:`NGTCP2_CRYPTO_LEVEL_APP` is Application Data (1-RTT) Keys
-   * encryption level.
+   * :enum:`NGTCP2_CRYPTO_LEVEL_APPLICATION` is Application Data
+   * (1-RTT) Keys encryption level.
    */
-  NGTCP2_CRYPTO_LEVEL_APP,
+  NGTCP2_CRYPTO_LEVEL_APPLICATION,
   /**
    * :enum:`NGTCP2_CRYPTO_LEVEL_EARLY` is Early Data (0-RTT) Keys
    * encryption level.

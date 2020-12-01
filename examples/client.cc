@@ -203,7 +203,7 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
     keylog::log_secret(ssl_, keylog::QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET,
                        tx_secret, secretlen);
     break;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     title = "application_traffic";
     keylog::log_secret(ssl_, keylog::QUIC_SERVER_TRAFFIC_SECRET_0, rx_secret,
                        secretlen);
@@ -225,7 +225,7 @@ int Client::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
                          tx_iv.data(), ivlen, tx_hp_key.data(), keylen);
   }
 
-  if (level == NGTCP2_CRYPTO_LEVEL_APP) {
+  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION) {
     if (config.tp_file) {
       ngtcp2_transport_params params;
 

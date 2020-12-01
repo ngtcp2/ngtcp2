@@ -7723,8 +7723,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_CRYPTO:
-      rv = conn_recv_crypto(conn, NGTCP2_CRYPTO_LEVEL_APP, &pktns->crypto.strm,
-                            &fr->crypto);
+      rv = conn_recv_crypto(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION,
+                            &pktns->crypto.strm, &fr->crypto);
       if (rv != 0) {
         return rv;
       }
@@ -10326,7 +10326,7 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
     assert(conn->hs_pktns);
     pktns = conn->hs_pktns;
     break;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     pktns = &conn->pktns;
     break;
   default:

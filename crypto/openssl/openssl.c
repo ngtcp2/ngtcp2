@@ -397,7 +397,7 @@ from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
     return ssl_encryption_initial;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     return ssl_encryption_handshake;
-  case NGTCP2_CRYPTO_LEVEL_APP:
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     return ssl_encryption_application;
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     return ssl_encryption_early_data;
