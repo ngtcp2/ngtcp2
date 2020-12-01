@@ -1588,23 +1588,18 @@ typedef struct ngtcp2_cc {
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
 /**
- * @enum
+ * @macro
  *
- * :type:`ngtcp2_qlog_write_flag` defines the set of flags passed to
- * :type:`ngtcp2_qlog_write` callback.
+ * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE` indicates no flag set.
  */
-typedef enum ngtcp2_qlog_write_flag {
-  /**
-   * :enum:`NGTCP2_QLOG_WRITE_FLAG_NONE` indicates no flag set.
-   */
-  NGTCP2_QLOG_WRITE_FLAG_NONE = 0,
-  /**
-   * :enum:`NGTCP2_QLOG_WRITE_FLAG_FIN` indicates that this is the
-   * final call to :type:`ngtcp2_qlog_write` in the current
-   * connection.
-   */
-  NGTCP2_QLOG_WRITE_FLAG_FIN = 0x01
-} ngtcp2_qlog_write_flag;
+#define NGTCP2_QLOG_WRITE_FLAG_NONE 0
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_QLOG_WRITE_FLAG_FIN` indicates that this is the
+ * final call to :type:`ngtcp2_qlog_write` in the current connection.
+ */
+#define NGTCP2_QLOG_WRITE_FLAG_FIN 0x01
 
 /**
  * @struct
@@ -1627,7 +1622,8 @@ typedef struct ngtcp2_rand_ctx {
  *
  * :type:`ngtcp2_qlog_write` is a callback function which is called to
  * write qlog |data| of length |datalen| bytes.  |flags| is bitwise OR
- * of zero or more of :type:`ngtcp2_qlog_write_flag`.
+ * of zero or more of NGTCP2_QLOG_WRITE_FLAG_*.  See
+ * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE`.
  */
 typedef void (*ngtcp2_qlog_write)(void *user_data, uint32_t flags,
                                   const void *data, size_t datalen);
