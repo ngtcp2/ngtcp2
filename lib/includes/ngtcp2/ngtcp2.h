@@ -165,6 +165,49 @@ typedef struct ngtcp2_mem {
 } ngtcp2_mem;
 
 /**
+ * @macrosection
+ *
+ * Time related macros
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_SECONDS` is a count of tick which corresponds to 1 second.
+ */
+#define NGTCP2_SECONDS ((uint64_t)1000000000ULL)
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_MILLISECONDS` is a count of tick which corresponds
+ * to 1 millisecond.
+ */
+#define NGTCP2_MILLISECONDS ((uint64_t)1000000ULL)
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_MICROSECONDS` is a count of tick which corresponds
+ * to 1 microsecond.
+ */
+#define NGTCP2_MICROSECONDS ((uint64_t)1000ULL)
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_NANOSECONDS` is a count of tick which corresponds to
+ * 1 nanosecond.
+ */
+#define NGTCP2_NANOSECONDS ((uint64_t)1ULL)
+
+/**
+ * @macrosection
+ *
+ * QUIC protocol version macros
+ */
+
+/**
  * @macro
  *
  * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version the
@@ -178,6 +221,12 @@ typedef struct ngtcp2_mem {
  * library supports.
  */
 #define NGTCP2_PROTO_VER_MIN 0xff00001du
+
+/**
+ * @macrosection
+ *
+ * IP packet related macros
+ */
 
 /**
  * @macro
@@ -210,6 +259,12 @@ typedef struct ngtcp2_mem {
  * controller to compute congestion window.
  */
 #define NGTCP2_DEFAULT_MAX_PKTLEN 1200
+
+/**
+ * @macrosection
+ *
+ * QUIC specific macros
+ */
 
 /**
  * @macro
@@ -272,40 +327,38 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_SECONDS` is a count of tick which corresponds to 1 second.
- */
-#define NGTCP2_SECONDS ((uint64_t)1000000000ULL)
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_MILLISECONDS` is a count of tick which corresponds
- * to 1 millisecond.
- */
-#define NGTCP2_MILLISECONDS ((uint64_t)1000000ULL)
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_MICROSECONDS` is a count of tick which corresponds
- * to 1 microsecond.
- */
-#define NGTCP2_MICROSECONDS ((uint64_t)1000ULL)
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_NANOSECONDS` is a count of tick which corresponds to
- * 1 nanosecond.
- */
-#define NGTCP2_NANOSECONDS ((uint64_t)1ULL)
-
-/**
- * @macro
- *
  * :macro:`NGTCP2_DEFAULT_INITIAL_RTT` is a default initial RTT.
  */
 #define NGTCP2_DEFAULT_INITIAL_RTT (333 * NGTCP2_MILLISECONDS)
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_MAX_CIDLEN` is the maximum length of Connection ID.
+ */
+#define NGTCP2_MAX_CIDLEN 20
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_MIN_CIDLEN` is the minimum length of Connection ID.
+ */
+#define NGTCP2_MIN_CIDLEN 1
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_MIN_INITIAL_DCIDLEN` is the minimum length of
+ * Destination Connection ID in Client Initial packet if it does not
+ * bear token from Retry packet.
+ */
+#define NGTCP2_MIN_INITIAL_DCIDLEN 8
+
+/**
+ * @macrosection
+ *
+ * ECN related macros
+ */
 
 /**
  * @macro
@@ -357,7 +410,11 @@ typedef struct ngtcp2_pkt_info {
   uint32_t ecn;
 } ngtcp2_pkt_info;
 
-/* ngtcp2 library error codes */
+/**
+ * @macrosection
+ *
+ * ngtcp2 library error codes
+ */
 
 /**
  * @macro
@@ -616,6 +673,12 @@ typedef struct ngtcp2_pkt_info {
 #define NGTCP2_ERR_CALLBACK_FAILURE -502
 
 /**
+ * @macrosection
+ *
+ * QUIC packet header flags
+ */
+
+/**
  * @macro
  *
  * :macro:`NGTCP2_PKT_FLAG_NONE` indicates no flag set.
@@ -670,7 +733,11 @@ typedef enum ngtcp2_pkt_type {
   NGTCP2_PKT_SHORT = 0x70
 } ngtcp2_pkt_type;
 
-/* QUIC transport error code. */
+/**
+ * @macrosection
+ *
+ * QUIC transport error code
+ */
 
 /**
  * @macro
@@ -842,29 +909,6 @@ typedef uint64_t ngtcp2_tstamp;
 typedef uint64_t ngtcp2_duration;
 
 /**
- * @macro
- *
- * :macro:`NGTCP2_MAX_CIDLEN` is the maximum length of Connection ID.
- */
-#define NGTCP2_MAX_CIDLEN 20
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_MIN_CIDLEN` is the minimum length of Connection ID.
- */
-#define NGTCP2_MIN_CIDLEN 1
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_MIN_INITIAL_DCIDLEN` is the minimum length of
- * Destination Connection ID in Client Initial packet if it does not
- * bear token from Retry packet.
- */
-#define NGTCP2_MIN_INITIAL_DCIDLEN 8
-
-/**
  * @struct
  *
  * :type:`ngtcp2_cid` holds a Connection ID.
@@ -1033,6 +1077,12 @@ typedef enum ngtcp2_rand_usage {
    */
   NGTCP2_RAND_USAGE_PATH_CHALLENGE
 } ngtcp2_rand_usage;
+
+/**
+ * @macrosection
+ *
+ * QUIC transport parameters related macros
+ */
 
 /**
  * @macro
@@ -1586,6 +1636,12 @@ typedef struct ngtcp2_cc {
  * or `ngtcp2_conn_server_new`.
  */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
+
+/**
+ * @macrosection
+ *
+ * QLog related macros
+ */
 
 /**
  * @macro
@@ -2374,6 +2430,12 @@ typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                               const ngtcp2_crypto_cipher_ctx *hp_ctx,
                               const uint8_t *sample);
+
+/**
+ * @macrosection
+ *
+ * Stream data flags
+ */
 
 /**
  * @macro
@@ -3613,6 +3675,12 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
                                                    uint64_t app_error_code);
 
 /**
+ * @macrosection
+ *
+ * Write stream data flags
+ */
+
+/**
  * @macro
  *
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` indicates no flag set.
@@ -4411,6 +4479,12 @@ NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
  * allocator.
  */
 NGTCP2_EXTERN const ngtcp2_mem *ngtcp2_mem_default(void);
+
+/**
+ * @macrosection
+ *
+ * ngtcp2_info macros
+ */
 
 /**
  * @macro

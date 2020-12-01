@@ -94,6 +94,18 @@ class MacroDoc:
         for line in self.content:
             out.write('    {}\n'.format(line))
 
+class MacroSectionDoc:
+    def __init__(self, content):
+        self.content = content
+
+    def write(self, out):
+        out.write('\n')
+        c = ' '.join(self.content).strip()
+        out.write(c)
+        out.write('\n')
+        out.write('-' * len(c))
+        out.write('\n\n')
+
 class TypedefDoc:
     def __init__(self, name, content):
         self.name = name
@@ -128,6 +140,8 @@ def make_api_ref(infiles):
                     enums.append(process_enum(infile))
                 elif doctype == '@macro':
                     macros.append(process_macro(infile))
+                elif doctype == '@macrosection':
+                    macros.append(process_macrosection(infile))
                 elif doctype == '@typedef':
                     types.append(process_typedef(infile))
     return macros, enums, types, functions
@@ -195,6 +209,10 @@ def process_macro(infile):
     line = infile.readline()
     macro_name = line.split()[1]
     return MacroDoc(macro_name, content)
+
+def process_macrosection(infile):
+    content = read_content(infile)
+    return MacroSectionDoc(content)
 
 def process_typedef(infile):
     content = read_content(infile)

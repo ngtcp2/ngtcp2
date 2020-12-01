@@ -26,6 +26,12 @@
 #define VERSION_H
 
 /**
+ * @macrosection
+ *
+ * Library version macros
+ */
+
+/**
  * @macro
  *
  * Version number of the ngtcp2 library release.
