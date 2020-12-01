@@ -567,8 +567,8 @@ typedef struct ngtcp2_pkt_info {
  * @macro
  *
  * :macro:`NGTCP2_ERR_WRITE_MORE` indicates
- * :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_MORE` is
- * used and a function call succeeded.
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is used and a function call
+ * succeeded.
  */
 #define NGTCP2_ERR_WRITE_MORE -240
 /**
@@ -2376,41 +2376,42 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                               const uint8_t *sample);
 
 /**
- * @enum
+ * @macro
  *
- * :type:`ngtcp2_stream_data_flag` defines the properties of the data
- * emitted via :type:`ngtcp2_recv_stream_data` callback function.
+ * :macro:`NGTCP2_STREAM_DATA_FLAG_NONE` indicates no flag set.
  */
-typedef enum ngtcp2_stream_data_flag {
-  /**
-   * :enum:`NGTCP2_STREAM_DATA_FLAG_NONE` indicates no flag set.
-   */
-  NGTCP2_STREAM_DATA_FLAG_NONE = 0x00,
-  /**
-   * :enum:`NGTCP2_STREAM_DATA_FLAG_FIN` indicates that this chunk of
-   * data is final piece of an incoming stream.
-   */
-  NGTCP2_STREAM_DATA_FLAG_FIN = 0x01,
-  /**
-   * :enum:`NGTCP2_STREAM_DATA_FLAG_0RTT` indicates that this chunk of
-   * data contains data received in 0RTT packet and the handshake has
-   * not completed yet, which means that the data might be replayed.
-   */
-  NGTCP2_STREAM_DATA_FLAG_0RTT = 0x02
-} ngtcp2_stream_data_flag;
+#define NGTCP2_STREAM_DATA_FLAG_NONE 0x00
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_STREAM_DATA_FLAG_FIN` indicates that this chunk of
+ * data is final piece of an incoming stream.
+ */
+#define NGTCP2_STREAM_DATA_FLAG_FIN 0x01
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_STREAM_DATA_FLAG_0RTT` indicates that this chunk of
+ * data contains data received in 0RTT packet and the handshake has
+ * not completed yet, which means that the data might be replayed.
+ */
+#define NGTCP2_STREAM_DATA_FLAG_0RTT 0x02
 
 /**
  * @functypedef
  *
  * :type:`ngtcp2_recv_stream_data` is invoked when stream data is
  * received.  The stream is specified by |stream_id|.  |flags| is the
- * bitwise-OR of zero or more of ngtcp2_stream_data_flag.  If |flags|
- * & :enum:`ngtcp2_stream_data_flag.NGTCP2_STREAM_DATA_FLAG_FIN` is
- * nonzero, this portion of the data is the last data in this stream.
- * |offset| is the offset where this data begins.  The library ensures
- * that data is passed to the application in the non-decreasing order
- * of |offset|.  The data is passed as |data| of length |datalen|.
- * |datalen| may be 0 if and only if |fin| is nonzero.
+ * bitwise-OR of zero or more of NGTCP2_STREAM_DATA_FLAG_*.  See
+ * :macro:`NGTCP2_STREAM_DATA_FLAG_NONE`.  If |flags| &
+ * :macro:`NGTCP2_STREAM_DATA_FLAG_FIN` is nonzero, this portion of
+ * the data is the last data in this stream.  |offset| is the offset
+ * where this data begins.  The library ensures that data is passed to
+ * the application in the non-decreasing order of |offset|.  The data
+ * is passed as |data| of length |datalen|.  |datalen| may be 0 if and
+ * only if |fin| is nonzero.
  *
  * The callback function must return 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library return
@@ -3125,8 +3126,7 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_write_pkt` is equivalent to calling
  * `ngtcp2_conn_writev_stream` without specifying stream data and
- * :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_NONE` as
- * flags.
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` as flags.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt(ngtcp2_conn *conn,
                                                  ngtcp2_path *path,
@@ -3649,28 +3649,28 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
                                                    uint64_t app_error_code);
 
 /**
- * @enum
+ * @macro
  *
- * :type:`ngtcp2_write_stream_flag` defines extra behaviour for
- * `ngtcp2_conn_writev_stream()`.
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` indicates no flag set.
  */
-typedef enum ngtcp2_write_stream_flag {
-  /**
-   * :enum:`NGTCP2_WRITE_STREAM_FLAG_NONE` indicates no flag set.
-   */
-  NGTCP2_WRITE_STREAM_FLAG_NONE = 0x00,
-  /**
-   * :enum:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more stream
-   * data may come and should be coalesced into the same packet if
-   * possible.
-   */
-  NGTCP2_WRITE_STREAM_FLAG_MORE = 0x01,
-  /**
-   * :enum:`NGTCP2_WRITE_STREAM_FLAG_FIN` indicates that the passed
-   * data is the final part of a stream.
-   */
-  NGTCP2_WRITE_STREAM_FLAG_FIN = 0x02
-} ngtcp2_write_stream_flag;
+#define NGTCP2_WRITE_STREAM_FLAG_NONE 0x00
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more stream
+ * data may come and should be coalesced into the same packet if
+ * possible.
+ */
+#define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` indicates that the passed
+ * data is the final part of a stream.
+ */
+#define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02
 
 /**
  * @function
@@ -3706,19 +3706,17 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * caller must pass the same |pi| to this function.
  *
  * If the all given data is encoded as STREAM frame in |dest|, and if
- * |flags| &
- * :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_FIN` is
- * nonzero, fin flag is set to outgoing STREAM frame.  Otherwise, fin
- * flag in STREAM frame is not set.
+ * |flags| & :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` is nonzero, fin
+ * flag is set to outgoing STREAM frame.  Otherwise, fin flag in
+ * STREAM frame is not set.
  *
  * This packet may contain frames other than STREAM frame.  The packet
  * might not contain STREAM frame if other frames occupy the packet.
  * In that case, |*pdatalen| would be -1 if |pdatalen| is not NULL.
  *
- * If |flags| &
- * :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_FIN` is
- * nonzero, and 0 length STREAM frame is successfully serialized,
- * |*pdatalen| would be 0.
+ * If |flags| & :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` is nonzero, and
+ * 0 length STREAM frame is successfully serialized, |*pdatalen| would
+ * be 0.
  *
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
  * if it is not NULL.  The caller must keep the portion of data
@@ -3726,27 +3724,22 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * :type:`ngtcp2_acked_stream_data_offset` indicates that they are
  * acknowledged by a remote endpoint or the stream is closed.
  *
- * If |flags| equals to
- * :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_NONE`,
- * this function produces a single payload of UDP packet.  If the
- * given stream data is small (e.g., few bytes), the packet might be
+ * If |flags| equals to :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE`, this
+ * function produces a single payload of UDP packet.  If the given
+ * stream data is small (e.g., few bytes), the packet might be
  * severely under filled.  Too many small packet might increase
  * overall packet processing costs.  Unless there are retransmissions,
  * by default, application can only send 1 STREAM frame in one QUIC
  * packet.  In order to include more than 1 STREAM frame in one QUIC
- * packet, specify
- * :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_MORE` in
- * |flags|.  This is analogous to ``MSG_MORE`` flag in ``send(2)``.
- * If the
- * :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_MORE` is
- * used, there are 4 outcomes:
+ * packet, specify :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` in |flags|.
+ * This is analogous to ``MSG_MORE`` flag in ``send(2)``.  If the
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is used, there are 4
+ * outcomes:
  *
  * - The function returns the written length of packet just like
- *   without
- *   :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_MORE`.
- *   This is because packet is nearly full and the library decided to
- *   make a complete packet.  In this case, |*pdatalen| == -1 is
- *   asserted.
+ *   without :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE`.  This is because
+ *   packet is nearly full and the library decided to make a complete
+ *   packet.  In this case, |*pdatalen| == -1 is asserted.
  *
  * - The function returns :macro:`NGTCP2_ERR_WRITE_MORE`.  In this
  *   case, |*pdatalen| >= 0 is asserted.  This indicates that
@@ -3760,7 +3753,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *   indicates that stream is blocked because of flow control.
  *
  * - The other error might be returned just like without
- *   :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_MORE`.
+ *   :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE`.
  *
  * When application sees :macro:`NGTCP2_ERR_WRITE_MORE`, it must not
  * call other ngtcp2 API functions (application can still call
@@ -3794,11 +3787,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  *     Stream is blocked because of flow control.
  * :macro:`NGTCP2_ERR_WRITE_MORE`
- *     (Only when
- *     :enum:`ngtcp2_write_stream_flag.NGTCP2_WRITE_STREAM_FLAG_MORE`
- *     is specified) Application can call this function to pack more
- *     stream data into the same packet.  See above to know how it
- *     works.
+ *     (Only when :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is specified)
+ *     Application can call this function to pack more stream data
+ *     into the same packet.  See above to know how it works.
  *
  * In general, if the error code which satisfies
  * ngtcp2_err_is_fatal(err) != 0 is returned, the application should
