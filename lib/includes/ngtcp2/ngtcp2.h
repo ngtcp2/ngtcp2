@@ -1309,10 +1309,10 @@ typedef enum ngtcp2_pktns_id {
    */
   NGTCP2_PKTNS_ID_HANDSHAKE,
   /**
-   * :enum:`NGTCP2_PKTNS_ID_APP` is the Application data packet number
-   * space.
+   * :enum:`NGTCP2_PKTNS_ID_APPLICATION` is the Application data
+   * packet number space.
    */
-  NGTCP2_PKTNS_ID_APP,
+  NGTCP2_PKTNS_ID_APPLICATION,
   /**
    * :enum:`NGTCP2_PKTNS_ID_MAX` is defined to get the number of
    * packet number spaces.

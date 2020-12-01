@@ -288,7 +288,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
 
 void test_ngtcp2_rtb_lost_pkt_ts(void) {
   ngtcp2_rtb rtb;
-  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APP;
+  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APPLICATION;
   ngtcp2_strm crypto;
   ngtcp2_log log;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
@@ -325,7 +325,7 @@ void test_ngtcp2_rtb_lost_pkt_ts(void) {
 
 void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   ngtcp2_rtb rtb;
-  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APP;
+  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APPLICATION;
   ngtcp2_strm crypto;
   ngtcp2_log log;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
@@ -370,7 +370,7 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
 
 void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
   ngtcp2_rtb rtb;
-  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APP;
+  const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_APPLICATION;
   ngtcp2_strm crypto;
   ngtcp2_log log;
   const ngtcp2_mem *mem = ngtcp2_mem_default();

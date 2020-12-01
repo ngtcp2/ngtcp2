@@ -650,7 +650,7 @@ static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_duration var = ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY);
   ngtcp2_duration max_ack_delay =
-      pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APP
+      pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APPLICATION
           ? conn->remote.transport_params.max_ack_delay
           : 0;
   return cstat->smoothed_rtt + var + max_ack_delay;
@@ -907,7 +907,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_hs_pktns_init;
   }
 
-  rv = pktns_init(&(*pconn)->pktns, NGTCP2_PKTNS_ID_APP, &(*pconn)->rst,
+  rv = pktns_init(&(*pconn)->pktns, NGTCP2_PKTNS_ID_APPLICATION, &(*pconn)->rst,
                   &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
   if (rv != 0) {
     goto fail_pktns_init;
@@ -3497,10 +3497,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     if (rtb_entry_flags & NGTCP2_RTB_FLAG_ACK_ELICITING) {
       if (conn->cc.on_pkt_sent) {
-        conn->cc.on_pkt_sent(&conn->cc, &conn->cstat,
-                             ngtcp2_cc_pkt_init(&cc_pkt, hd->pkt_num,
-                                                (size_t)nwrite,
-                                                NGTCP2_PKTNS_ID_APP, ts));
+        conn->cc.on_pkt_sent(
+            &conn->cc, &conn->cstat,
+            ngtcp2_cc_pkt_init(&cc_pkt, hd->pkt_num, (size_t)nwrite,
+                               NGTCP2_PKTNS_ID_APPLICATION, ts));
       }
 
       if (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE) {
@@ -10142,7 +10142,7 @@ static ngtcp2_pktns *conn_get_earliest_pktns(ngtcp2_conn *conn,
     if (ns[i] == NULL || ns[i]->rtb.num_retransmittable == 0 ||
         (times[i] == UINT64_MAX ||
          (earliest_ts != UINT64_MAX && times[i] >= earliest_ts) ||
-         (i == NGTCP2_PKTNS_ID_APP &&
+         (i == NGTCP2_PKTNS_ID_APPLICATION &&
           !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
       continue;
     }
@@ -10287,7 +10287,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       assert(hs_pktns);
       hs_pktns->rtb.probe_pkt_left = 1;
       break;
-    case NGTCP2_PKTNS_ID_APP:
+    case NGTCP2_PKTNS_ID_APPLICATION:
       conn->pktns.rtb.probe_pkt_left = 2;
       break;
     default:

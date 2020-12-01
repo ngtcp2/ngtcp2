@@ -295,7 +295,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   uint64_t add, tcp_add;
   uint64_t m;
 
-  if (pkt->pktns_id == NGTCP2_PKTNS_ID_APP && cc->window_end != -1 &&
+  if (pkt->pktns_id == NGTCP2_PKTNS_ID_APPLICATION && cc->window_end != -1 &&
       cc->window_end <= pkt->pkt_num) {
     cc->window_end = -1;
   }
@@ -487,7 +487,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_sent(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   (void)cstat;
 
-  if (pkt->pktns_id != NGTCP2_PKTNS_ID_APP || cc->window_end != -1) {
+  if (pkt->pktns_id != NGTCP2_PKTNS_ID_APPLICATION || cc->window_end != -1) {
     return;
   }
 
@@ -525,7 +525,7 @@ void ngtcp2_cc_cubic_cc_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  last_ts = cstat->last_tx_pkt_ts[NGTCP2_PKTNS_ID_APP];
+  last_ts = cstat->last_tx_pkt_ts[NGTCP2_PKTNS_ID_APPLICATION];
   if (last_ts == UINT64_MAX || last_ts <= cc->epoch_start) {
     return;
   }

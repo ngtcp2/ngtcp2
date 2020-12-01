@@ -612,7 +612,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
         case NGTCP2_PKTNS_ID_HANDSHAKE:
           crypto_level = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
           break;
-        case NGTCP2_PKTNS_ID_APP:
+        case NGTCP2_PKTNS_ID_APPLICATION:
           crypto_level = NGTCP2_CRYPTO_LEVEL_APP;
           break;
         default:
@@ -960,7 +960,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
         }
 
         if ((ent->flags & NGTCP2_RTB_FLAG_LOST_RETRANSMITTED)) {
-          if (rtb->pktns_id != NGTCP2_PKTNS_ID_APP || last_lost_pkt_num == -1 ||
+          if (rtb->pktns_id != NGTCP2_PKTNS_ID_APPLICATION ||
+              last_lost_pkt_num == -1 ||
               latest_ts - oldest_ts >= congestion_period) {
             break;
           }
@@ -1015,7 +1016,7 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
        * persistent congestion there, then it is a lot easier to just
        * not enable it during handshake.
        */
-      if (rtb->pktns_id == NGTCP2_PKTNS_ID_APP && loss_window > 0) {
+      if (rtb->pktns_id == NGTCP2_PKTNS_ID_APPLICATION && loss_window > 0) {
         if (loss_window >= congestion_period) {
           ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                           "persistent congestion loss_window=%" PRIu64
