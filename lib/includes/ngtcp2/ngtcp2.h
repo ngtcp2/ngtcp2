@@ -616,25 +616,26 @@ typedef struct ngtcp2_pkt_info {
 #define NGTCP2_ERR_CALLBACK_FAILURE -502
 
 /**
- * @enum
+ * @macro
  *
- * :type:`ngtcp2_pkt_flag` defines flags for QUIC packet header.
+ * :macro:`NGTCP2_PKT_FLAG_NONE` indicates no flag set.
  */
-typedef enum ngtcp2_pkt_flag {
-  /**
-   * :enum:`NGTCP2_PKT_FLAG_NONE` indicates no flag set.
-   */
-  NGTCP2_PKT_FLAG_NONE = 0,
-  /**
-   * :enum:`NGTCP2_PKT_FLAG_LONG_FORM` indicates the Long packet
-   * header.
-   */
-  NGTCP2_PKT_FLAG_LONG_FORM = 0x01,
-  /**
-   * :enum:`NGTCP2_PKT_FLAG_KEY_PHASE` indicates Key Phase bit set.
-   */
-  NGTCP2_PKT_FLAG_KEY_PHASE = 0x04
-} ngtcp2_pkt_flag;
+#define NGTCP2_PKT_FLAG_NONE 0
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_PKT_FLAG_LONG_FORM` indicates the Long packet
+ * header.
+ */
+#define NGTCP2_PKT_FLAG_LONG_FORM 0x01
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_PKT_FLAG_KEY_PHASE` indicates Key Phase bit set.
+ */
+#define NGTCP2_PKT_FLAG_KEY_PHASE 0x04
 
 /**
  * @enum
@@ -953,7 +954,8 @@ typedef struct ngtcp2_pkt_hd {
    */
   uint8_t type;
   /**
-   * :member:`flags` is zero or more of :type:`ngtcp2_pkt_flag`.
+   * :member:`flags` is zero or more of NGTCP2_PKT_FLAG_*.  See
+   * :macro:`NGTCP2_PKT_FLAG_NONE`.
    */
   uint8_t flags;
 } ngtcp2_pkt_hd;
