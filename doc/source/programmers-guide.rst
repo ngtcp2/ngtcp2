@@ -17,11 +17,11 @@ the TLS stacks maintained by the active participants of QUIC working
 group only get this interface at the time of this writing.  In order
 to build QUIC application you have to choose one of them.  Here is the
 list of TLS stacks which are supposed to provide such interface.
-Please note that I only use my hacked OpenSSL.  Don't ask me how to
+Please note that I only use my patched OpenSSL.  Do not ask me how to
 use other TLS libraries:
 
 * `my OpenSSL fork
-  <https://github.com/tatsuhiro-t/openssl/tree/OpenSSL_1_1_1g-quic-draft-29>`_
+  <https://github.com/tatsuhiro-t/openssl/tree/OpenSSL_1_1_1g-quic-draft-32>`_
 * picotls
 * nss
 * BoringSSL
@@ -29,52 +29,65 @@ use other TLS libraries:
 Creating ngtcp2_conn object
 ---------------------------
 
-``ngtcp2_conn`` is the primary object to present a single QUIC
+:type:`ngtcp2_conn` is the primary object to present a single QUIC
 connection.  Use `ngtcp2_conn_client_new()` for client application,
 and `ngtcp2_conn_server_new()` for server.
 
-They require ``ngtcp2_conn_callbacks`` and ``ngtcp2_settings``
+They require :type:`ngtcp2_conn_callbacks` and :type:`ngtcp2_settings`
 objects.
 
-The ``ngtcp2_conn_callbacks`` contains the callback functions which
-``ngtcp2_conn`` calls when a specific event happens, say, receiving
-stream data or stream is closed, etc.  Some of the callback functions
-are optional.  For client application, the following callback
-functions must be set:
+The :type:`ngtcp2_conn_callbacks` contains the callback functions
+which :type:`ngtcp2_conn` calls when a specific event happens, say,
+receiving stream data or stream is closed, etc.  Some of the callback
+functions are optional.  For client application, the following
+callback functions must be set:
 
-* ``client_initial``: `ngtcp2_crypto_client_initial_cb()` can be
-  passed directly.
-* ``recv_crypto_data``
-* ``encrypt``: `ngtcp2_crypto_encrypt_cb()` can be passed directly.
-* ``decrypt``: `ngtcp2_crypto_decrypt_cb()` can be passed directly.
-* ``hp_mask``: `ngtcp2_crypto_hp_mask_cb()` can be passed directly.
-* ``recv_retry``: `ngtcp2_crypto_recv_retry_cb()` can be passed
-  directly.
-* ``rand``
-* ``get_new_connection_id``
-* ``update_key``: `ngtcp2_crypto_update_key_cb()` can be passed
-  directly.
-* ``delete_crypto_aead_ctx``:
+* :member:`client_initial <ngtcp2_conn_callbacks.client_initial>`:
+  `ngtcp2_crypto_client_initial_cb()` can be passed directly.
+* :member:`recv_crypto_data <ngtcp2_conn_callbacks.recv_crypto_data>`
+* :member:`encrypt <ngtcp2_conn_callbacks.encrypt>`:
+  `ngtcp2_crypto_encrypt_cb()` can be passed directly.
+* :member:`decrypt <ngtcp2_conn_callbacks.decrypt>`:
+  `ngtcp2_crypto_decrypt_cb()` can be passed directly.
+* :member:`hp_mask <ngtcp2_conn_callbacks.hp_mask>`:
+  `ngtcp2_crypto_hp_mask_cb()` can be passed directly.
+* :member:`recv_retry <ngtcp2_conn_callbacks.recv_retry>`:
+  `ngtcp2_crypto_recv_retry_cb()` can be passed directly.
+* :member:`rand <ngtcp2_conn_callbacks.rand>`
+* :member:`get_new_connection_id
+  <ngtcp2_conn_callbacks.get_new_connection_id>`
+* :member:`update_key <ngtcp2_conn_callbacks.update_key>`:
+  `ngtcp2_crypto_update_key_cb()` can be passed directly.
+* :member:`delete_crypto_aead_ctx
+  <ngtcp2_conn_callbacks.delete_crypto_aead_ctx>`:
   `ngtcp2_crypto_delete_crypto_aead_ctx_cb()` can be passed directly.
-* ``delete_crypto_cipher_ctx``:
+* :member:`delete_crypto_cipher_ctx
+  <ngtcp2_conn_callbacks.delete_crypto_cipher_ctx>`:
   `ngtcp2_crypto_delete_crypto_cipher_ctx_cb()` can be passed
   directly.
 
 For server application, the following callback functions must be set:
 
-* ``recv_client_initial``: `ngtcp2_crypto_recv_client_initial_cb()`
-  can be passed directly.
-* ``recv_crypto_data``
-* ``encrypt``: `ngtcp2_crypto_encrypt_cb()` can be passed directly.
-* ``decrypt``: `ngtcp2_crypto_decrypt_cb()` can be passed directly.
-* ``hp_mask``: `ngtcp2_crypto_hp_mask_cb()` can be passed directly.
-* ``rand``
-* ``get_new_connection_id``
-* ``update_key``: `ngtcp2_crypto_update_key_cb()` can be passed
-  directly.
-* ``delete_crypto_aead_ctx``:
+* :member:`recv_client_initial
+  <ngtcp2_conn_callbacks.recv_client_initial>`:
+  `ngtcp2_crypto_recv_client_initial_cb()` can be passed directly.
+* :member:`recv_crypto_data <ngtcp2_conn_callbacks.recv_crypto_data>`
+* :member:`encrypt <ngtcp2_conn_callbacks.encrypt>`:
+  `ngtcp2_crypto_encrypt_cb()` can be passed directly.
+* :member:`decrypt <ngtcp2_conn_callbacks.decrypt>`:
+  `ngtcp2_crypto_decrypt_cb()` can be passed directly.
+* :member:`hp_mask <ngtcp2_conn_callbacks.hp_mask>`:
+  `ngtcp2_crypto_hp_mask_cb()` can be passed directly.
+* :member:`rand <ngtcp2_conn_callbacks.rand>`
+* :member:`get_new_connection_id
+  <ngtcp2_conn_callbacks.get_new_connection_id>`
+* :member:`update_key <ngtcp2_conn_callbacks.update_key>`:
+  `ngtcp2_crypto_update_key_cb()` can be passed directly.
+* :member:`delete_crypto_aead_ctx
+  <ngtcp2_conn_callbacks.delete_crypto_aead_ctx>`:
   `ngtcp2_crypto_delete_crypto_aead_ctx_cb()` can be passed directly.
-* ``delete_crypto_cipher_ctx``:
+* :member:`delete_crypto_cipher_ctx
+  <ngtcp2_conn_callbacks.delete_crypto_cipher_ctx>`:
   `ngtcp2_crypto_delete_crypto_cipher_ctx_cb()` can be passed
   directly.
 
@@ -83,29 +96,30 @@ library which provides easy integration with the supported TLS
 backend.  It vastly simplifies TLS integration and is strongly
 recommended.
 
-``ngtcp2_settings`` contains the settings for QUIC connection.  All
-fields must be set.  Application should call
+:type:`ngtcp2_settings` contains the settings for QUIC connection.
+All fields must be set.  Application should call
 `ngtcp2_settings_default()` to set the default values.  It would be
 very useful to enable debug logging by setting logging function to
-``log_printf`` field.  ngtcp2 library relies on the timestamp fed from
-application.  The initial timestamp must be passed to ``initial_ts``
-field in nanosecond resolution.  ngtcp2 cares about the difference
-from that initial value.  It could be any timestamp which increases
-monotonically, and actual value does not matter.
+:member:`ngtcp2_settings.log_printf` field.  ngtcp2 library relies on
+the timestamp fed from application.  The initial timestamp must be
+passed to ``initial_ts`` field in nanosecond resolution.  ngtcp2 cares
+about the difference from that initial value.  It could be any
+timestamp which increases monotonically, and actual value does not
+matter.
 
 Client application has to supply Connection IDs to
 `ngtcp2_conn_client_new()`.  The *dcid* parameter is the destination
 connection ID (DCID), and which should be random byte string and at
 least 8 bytes long.  The *scid* is the source connection ID (SCID)
 which identifies the client itself.  The *version* parameter is the
-QUIC version to use.  It should be ``NGTCP2_PROTO_VER_MAX``.
+QUIC version to use.  It should be :macro:`NGTCP2_PROTO_VER_MAX`.
 
 Similarly, server application has to supply these parameters to
 `ngtcp2_conn_server_new()`.  But the *dcid* must be the same value
 which is received from client (which is client SCID).  The *scid* is
 chosen by server.  Don't use DCID in client packet as server SCID.
 The *version* parameter is the QUIC version to use.  It should be
-``NGTCP2_PROTO_VER_MAX``.
+:macro:`NGTCP2_PROTO_VER_MAX`.
 
 A path is very important to QUIC connection.  It is the pair of
 endpoints, local and remote.  The path passed to
@@ -123,24 +137,26 @@ ngtcp2 crypto support library is strongly recommended because it
 vastly simplifies the TLS integration.
 
 The most of the TLS work is done by the callback functions passed to
-``ngtcp2_conn_callbacks`` object.  There are some operations left to
-application has to perform to make TLS integration work.
+:type:`ngtcp2_conn_callbacks` object.  There are some operations left
+to application has to perform to make TLS integration work.
 
 When TLS stack generates new secrets, they have to be installed to
-``ngtcp2_conn`` by calling `ngtcp2_crypto_derive_and_install_rx_key()`
-and `ngtcp2_crypto_derive_and_install_tx_key()`.
+:type:`ngtcp2_conn` by calling
+`ngtcp2_crypto_derive_and_install_rx_key()` and
+`ngtcp2_crypto_derive_and_install_tx_key()`.
 
 When TLS stack generates new crypto data to send, they must be passed
-to ``ngtcp2_conn`` by calling `ngtcp2_conn_submit_crypto_data()`.
+to :type:`ngtcp2_conn` by calling `ngtcp2_conn_submit_crypto_data()`.
 
-When QUIC handshake is completed, ``handshake_completed`` callback
-function is called.  The local and remote endpoint independently
-declare handshake completion.  The endpoint has to confirm that the
-other endpoint also finished handshake.  When the handshake is
-confirmed, client side ``ngtcp2_conn`` will call
-``handshake_confirmed`` callback function.  Server confirms handshake
-when it declares handshake completion, therefore, separate handshake
-confirmation callback is not called.
+When QUIC handshake is completed,
+:member:`ngtcp2_conn_callbacks.handshake_completed` callback function
+is called.  The local and remote endpoint independently declare
+handshake completion.  The endpoint has to confirm that the other
+endpoint also finished handshake.  When the handshake is confirmed,
+client side :type:`ngtcp2_conn` will call
+:member:`ngtcp2_conn_callbacks.handshake_confirmed` callback function.
+Server confirms handshake when it declares handshake completion,
+therefore, separate handshake confirmation callback is not called.
 
 Read and write packets
 ----------------------
@@ -165,30 +181,30 @@ Client application has to load resumed TLS session.  It also has to
 set the remembered transport parameter using
 `ngtcp2_conn_set_early_remote_transport_params()` function.
 
-Before calling `ngtcp2_conn_client_writev_stream()`, client
-application has to open stream to send data using
-`ngtcp2_conn_open_bidi_stream()` (or `ngtcp2_conn_open_uni_stream()`
-for unidirectional stream).
+Before calling `ngtcp2_conn_writev_stream()`, client application has
+to open stream to send data using `ngtcp2_conn_open_bidi_stream()` (or
+`ngtcp2_conn_open_uni_stream()` for unidirectional stream).
 
 Stream and crypto data ownershp
 -------------------------------
 
-Stream and crypto data passed to ``ngtcp2_conn`` must be held by
-application until ``acked_stream_data_offset`` and
-``acked_crypto_offset`` callbacks, respectively, tell that the those
-data are acknowledged by the remote endpoint and no longer used by the
-application.
+Stream and crypto data passed to :type:`ngtcp2_conn` must be held by
+application until
+:member:`ngtcp2_conn_callbacks.acked_stream_data_offset` and
+:member:`ngtcp2_conn_callbacks.acked_crypto_offset` callbacks,
+respectively, telling that the those data are acknowledged by the
+remote endpoint and no longer used by the library.
 
 Timers
 ------
 
 The library does not ask any timestamp to an operating system.
 Instead, an application has to supply timestamp to the library.  The
-type of timestamp in ngtcp2 library is ``ngtcp2_tstamp`` which is
+type of timestamp in ngtcp2 library is :type:`ngtcp2_tstamp` which is
 nanosecond resolution.  The library only cares the difference of
 timestamp, so it does not have to be a system clock.  A monotonic
 clock should work better.  It should be same clock passed to
-``ngtcp2_setting``.
+:type:`ngtcp2_settings`.
 
 `ngtcp2_conn_get_expiry()` tells an application when timer fires.
 When timer fires, call `ngtcp2_conn_handle_expiry()` and
@@ -215,7 +231,7 @@ In general, when error is returned from the ngtcp2 library function,
 just close QUIC connection.
 
 If `ngtcp2_err_is_fatal()` returns true with the returned error code,
-``ngtcp2_conn`` object must be deleted with `ngtcp2_conn_del()`
+:type:`ngtcp2_conn` object must be deleted with `ngtcp2_conn_del()`
 without any ngtcp2 library functions.  Otherwise, call
 `ngtcp2_conn_write_connection_close()` to get terminal packet.
 Sending it finishes QUIC connection.
@@ -223,7 +239,7 @@ Sending it finishes QUIC connection.
 The following error codes must be considered as transitional, and
 application should keep connection alive:
 
-* ``NGTCP2_ERR_STREAM_DATA_BLOCKED``
-* ``NGTCP2_ERR_STREAM_SHUT_WR``
-* ``NGTCP2_ERR_STREAM_NOT_FOUND``
-* ``NGTCP2_ERR_STREAM_ID_BLOCKED``
+* :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
+* :macro:`NGTCP2_ERR_STREAM_SHUT_WR`
+* :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`
+* :macro:`NGTCP2_ERR_STREAM_ID_BLOCKED`
