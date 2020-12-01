@@ -2455,11 +2455,11 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 /**
  * @macro
  *
- * :macro:`NGTCP2_STREAM_DATA_FLAG_0RTT` indicates that this chunk of
+ * :macro:`NGTCP2_STREAM_DATA_FLAG_EARLY` indicates that this chunk of
  * data contains data received in 0RTT packet and the handshake has
  * not completed yet, which means that the data might be replayed.
  */
-#define NGTCP2_STREAM_DATA_FLAG_0RTT 0x02
+#define NGTCP2_STREAM_DATA_FLAG_EARLY 0x02
 
 /**
  * @functypedef

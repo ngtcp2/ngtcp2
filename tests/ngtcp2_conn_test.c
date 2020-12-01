@@ -2880,7 +2880,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
   CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN));
-  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_0RTT));
+  CU_ASSERT(!(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_EARLY));
   CU_ASSERT(111 == ud.stream_data.datalen);
 
   fr.type = NGTCP2_FRAME_STREAM;
@@ -3651,7 +3651,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(4 == ud.stream_data.stream_id);
-  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_0RTT);
+  CU_ASSERT(ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_EARLY);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 

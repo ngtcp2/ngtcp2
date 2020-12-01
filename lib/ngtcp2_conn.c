@@ -5652,7 +5652,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
       sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
     }
     if (!handshake_completed) {
-      sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
+      sdflags |= NGTCP2_STREAM_DATA_FLAG_EARLY;
     }
 
     rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data, datalen);
@@ -5968,7 +5968,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
         sdflags |= NGTCP2_STREAM_DATA_FLAG_FIN;
       }
       if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
-        sdflags |= NGTCP2_STREAM_DATA_FLAG_0RTT;
+        sdflags |= NGTCP2_STREAM_DATA_FLAG_EARLY;
       }
       rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
                                       datalen);
