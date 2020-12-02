@@ -244,7 +244,7 @@ static size_t ksl_bsearch(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
   ngtcp2_ksl_node *node;
 
   while (right - left > 1) {
-    mid = (left + right) / 2;
+    mid = (left + right) >> 1;
     node = ngtcp2_ksl_nth_node(ksl, blk, (size_t)mid);
     if (compar((ngtcp2_ksl_key *)node->key, key)) {
       left = mid;
