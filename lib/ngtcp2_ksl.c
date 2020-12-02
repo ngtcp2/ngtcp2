@@ -496,25 +496,35 @@ int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
 
     node = ngtcp2_ksl_nth_node(ksl, blk, i);
 
-    if (node->blk->n == NGTCP2_KSL_MIN_NBLK) {
-      if (i > 0 &&
-          ngtcp2_ksl_nth_node(ksl, blk, i - 1)->blk->n > NGTCP2_KSL_MIN_NBLK) {
-        ksl_shift_right(ksl, blk, i - 1);
-        blk = node->blk;
-      } else if (i + 1 < blk->n &&
-                 ngtcp2_ksl_nth_node(ksl, blk, i + 1)->blk->n >
-                     NGTCP2_KSL_MIN_NBLK) {
-        ksl_shift_left(ksl, blk, i + 1);
-        blk = node->blk;
-      } else if (i > 0) {
-        blk = ksl_merge_node(ksl, blk, i - 1);
-      } else {
-        assert(i + 1 < blk->n);
-        blk = ksl_merge_node(ksl, blk, i);
-      }
-    } else {
+    if (node->blk->n > NGTCP2_KSL_MIN_NBLK) {
       blk = node->blk;
+      continue;
     }
+
+    assert(node->blk->n == NGTCP2_KSL_MIN_NBLK);
+
+    if (i + 1 < blk->n &&
+        ngtcp2_ksl_nth_node(ksl, blk, i + 1)->blk->n > NGTCP2_KSL_MIN_NBLK) {
+      ksl_shift_left(ksl, blk, i + 1);
+      blk = node->blk;
+      continue;
+    }
+
+    if (i > 0 &&
+        ngtcp2_ksl_nth_node(ksl, blk, i - 1)->blk->n > NGTCP2_KSL_MIN_NBLK) {
+      ksl_shift_right(ksl, blk, i - 1);
+      blk = node->blk;
+      continue;
+    }
+
+    if (i + 1 < blk->n) {
+      blk = ksl_merge_node(ksl, blk, i);
+      continue;
+    }
+
+    assert(i > 0);
+
+    blk = ksl_merge_node(ksl, blk, i - 1);
   }
 }
 
