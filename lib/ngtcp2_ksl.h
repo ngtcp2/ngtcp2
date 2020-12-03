@@ -84,9 +84,9 @@ struct ngtcp2_ksl_blk {
   /* prev points to the previous block if leaf field is nonzero. */
   ngtcp2_ksl_blk *prev;
   /* n is the number of nodes this object contains in nodes. */
-  size_t n;
+  uint32_t n;
   /* leaf is nonzero if this block contains leaf nodes. */
-  int leaf;
+  uint32_t leaf;
   union {
     uint64_t align;
     /* nodes is a buffer to contain NGTCP2_KSL_MAX_NBLK
