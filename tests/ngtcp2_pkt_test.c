@@ -1024,7 +1024,7 @@ void test_ngtcp2_pkt_encode_streams_blocked_frame(void) {
   size_t framelen = 1 + 8;
 
   fr.type = NGTCP2_FRAME_STREAMS_BLOCKED_BIDI;
-  fr.stream_limit = 0xf1f2f3f4u;
+  fr.max_streams = 0xf1f2f3f4u;
 
   rv = ngtcp2_pkt_encode_streams_blocked_frame(buf, sizeof(buf), &fr);
 
@@ -1034,7 +1034,7 @@ void test_ngtcp2_pkt_encode_streams_blocked_frame(void) {
 
   CU_ASSERT((ngtcp2_ssize)framelen == rv);
   CU_ASSERT(fr.type == nfr.type);
-  CU_ASSERT(fr.stream_limit == nfr.stream_limit);
+  CU_ASSERT(fr.max_streams == nfr.max_streams);
 }
 
 void test_ngtcp2_pkt_encode_new_connection_id_frame(void) {
