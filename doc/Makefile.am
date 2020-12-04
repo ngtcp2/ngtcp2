@@ -42,7 +42,7 @@ apiref: mkapiref.py \
 	$(top_srcdir)/lib/includes/ngtcp2/ngtcp2.h
 	$(top_srcdir)/doc/mkapiref.py \
 	source/apiref.rst source/macros.rst source/enums.rst source/types.rst \
-	source $^
+	source $(wordlist 2, $(words $^), $^)
 
 html-local: apiref
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
