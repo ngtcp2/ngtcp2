@@ -6811,6 +6811,44 @@ static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
 }
 
 /*
+ * conn_recv_streams_blocked_bidi processes the incoming
+ * STREAMS_BLOCKED (0x16).
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Maximum Streams is larger than advertised value.
+ */
+static int conn_recv_streams_blocked_bidi(ngtcp2_conn *conn,
+                                          ngtcp2_streams_blocked *fr) {
+  if (fr->stream_limit > conn->remote.bidi.max_streams) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  return 0;
+}
+
+/*
+ * conn_recv_streams_blocked_uni processes the incoming
+ * STREAMS_BLOCKED (0x17).
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Maximum Streams is larger than advertised value.
+ */
+static int conn_recv_streams_blocked_uni(ngtcp2_conn *conn,
+                                         ngtcp2_streams_blocked *fr) {
+  if (fr->stream_limit > conn->remote.uni.max_streams) {
+    return NGTCP2_ERR_FRAME_ENCODING;
+  }
+
+  return 0;
+}
+
+/*
  * conn_select_preferred_addr asks a client application to select a
  * server address from preferred addresses received from server.  If a
  * client chooses the address, path validation will start.
@@ -7808,9 +7846,21 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
       non_probing_pkt = 1;
       break;
-    case NGTCP2_FRAME_DATA_BLOCKED:
     case NGTCP2_FRAME_STREAMS_BLOCKED_BIDI:
+      rv = conn_recv_streams_blocked_bidi(conn, &fr->streams_blocked);
+      if (rv != 0) {
+        return rv;
+      }
+      non_probing_pkt = 1;
+      break;
     case NGTCP2_FRAME_STREAMS_BLOCKED_UNI:
+      rv = conn_recv_streams_blocked_uni(conn, &fr->streams_blocked);
+      if (rv != 0) {
+        return rv;
+      }
+      non_probing_pkt = 1;
+      break;
+    case NGTCP2_FRAME_DATA_BLOCKED:
       /* TODO Not implemented yet */
       non_probing_pkt = 1;
       break;
