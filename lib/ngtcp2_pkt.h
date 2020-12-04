@@ -236,7 +236,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  uint64_t stream_limit;
+  uint64_t max_streams;
 } ngtcp2_streams_blocked;
 
 typedef struct {

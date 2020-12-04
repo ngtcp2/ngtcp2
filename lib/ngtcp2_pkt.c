@@ -1095,7 +1095,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_streams_blocked_frame(
   }
 
   dest->type = payload[0];
-  dest->stream_limit = ngtcp2_get_varint(&n, p);
+  dest->max_streams = ngtcp2_get_varint(&n, p);
   p += n;
 
   assert((size_t)(p - payload) == len);
@@ -1732,7 +1732,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_stream_data_blocked_frame(
 ngtcp2_ssize
 ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
                                         const ngtcp2_streams_blocked *fr) {
-  size_t len = 1 + ngtcp2_put_varint_len(fr->stream_limit);
+  size_t len = 1 + ngtcp2_put_varint_len(fr->max_streams);
   uint8_t *p;
 
   if (outlen < len) {
@@ -1742,7 +1742,7 @@ ngtcp2_pkt_encode_streams_blocked_frame(uint8_t *out, size_t outlen,
   p = out;
 
   *p++ = fr->type;
-  p = ngtcp2_put_varint(p, fr->stream_limit);
+  p = ngtcp2_put_varint(p, fr->max_streams);
 
   assert((size_t)(p - out) == len);
 

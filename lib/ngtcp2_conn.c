@@ -6822,7 +6822,7 @@ static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
  */
 static int conn_recv_streams_blocked_bidi(ngtcp2_conn *conn,
                                           ngtcp2_streams_blocked *fr) {
-  if (fr->stream_limit > conn->remote.bidi.max_streams) {
+  if (fr->max_streams > conn->remote.bidi.max_streams) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 
@@ -6841,7 +6841,7 @@ static int conn_recv_streams_blocked_bidi(ngtcp2_conn *conn,
  */
 static int conn_recv_streams_blocked_uni(ngtcp2_conn *conn,
                                          ngtcp2_streams_blocked *fr) {
-  if (fr->stream_limit > conn->remote.uni.max_streams) {
+  if (fr->max_streams > conn->remote.uni.max_streams) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 

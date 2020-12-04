@@ -340,8 +340,8 @@ static void log_fr_streams_blocked(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                                    const char *dir) {
   log->log_printf(
       log->user_data,
-      (NGTCP2_LOG_PKT " STREAMS_BLOCKED(0x%02x) stream_limit=%" PRIu64),
-      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->stream_limit);
+      (NGTCP2_LOG_PKT " STREAMS_BLOCKED(0x%02x) max_streams=%" PRIu64),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type, fr->max_streams);
 }
 
 static void log_fr_new_connection_id(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
