@@ -73,6 +73,11 @@ extern "C" {
 #  endif /* !BUILDING_NGTCP2 */
 #endif   /* !defined(WIN32) */
 
+/**
+ * @typedef
+ *
+ * :type:`ngtcp2_ssize` is signed counterpart of size_t.
+ */
 typedef ptrdiff_t ngtcp2_ssize;
 
 /**
