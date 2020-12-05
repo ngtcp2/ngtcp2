@@ -27,8 +27,30 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-/* OpenSSL specific error codes */
+/**
+ * @macrosection
+ *
+ * OpenSSL specific error codes
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP` is the error code
+ * which indicates that TLS handshake routine is interrupted by X509
+ * certificate lookup.  See :macro:`SSL_ERROR_WANT_X509_LOOKUP` error
+ * description from `SSL_do_handshake`.
+ */
 #define NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP -10001
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB` is the error
+ * code which indicates that TLS handshake routine is interrupted by
+ * client hello callback.  See :macro:`SSL_ERROR_WANT_CLIENT_HELLO_CB`
+ * error description from `SSL_do_handshake`.
+ */
 #define NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB -10002
 
 #endif /* NGTCP2_CRYPTO_OPENSSL_H */

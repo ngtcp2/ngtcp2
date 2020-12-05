@@ -147,19 +147,24 @@ def make_api_ref(infile):
     return macros, enums, types, functions
 
 def output(
-        indexfile, macrosfile, enumsfile, typesfile, funcsdir,
+        title, indexfile, macrosfile, enumsfile, typesfile, funcsdir,
         macros, enums, types, functions):
     indexfile.write('''
-API Reference
-=============
+{title}
+{titledecoration}
 
 .. toctree::
    :maxdepth: 1
 
-   macros
-   enums
-   types
-''')
+   {macros}
+   {enums}
+   {types}
+'''.format(
+    title=title, titledecoration='='*len(title),
+    macros=os.path.splitext(os.path.basename(macrosfile.name))[0],
+    enums=os.path.splitext(os.path.basename(enumsfile.name))[0],
+    types=os.path.splitext(os.path.basename(typesfile.name))[0],
+))
 
     for doc in functions:
         indexfile.write('   {}\n'.format(doc.funcname))
@@ -306,6 +311,8 @@ def transform_content(content):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate API reference")
+    parser.add_argument('--title', default='API Reference',
+                        help='title of index page')
     parser.add_argument('index', type=argparse.FileType('w'),
                         help='index output file')
     parser.add_argument('macros', type=argparse.FileType('w'),
@@ -331,5 +338,6 @@ if __name__ == '__main__':
         funcs.extend(f)
     funcs.sort(key=lambda x: x.funcname)
     output(
+        args.title,
         args.index, args.macros, args.enums, args.types, args.funcsdir,
         macros, enums, types, funcs)

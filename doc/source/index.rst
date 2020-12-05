@@ -7,11 +7,12 @@ Welcome to ngtcp2's documentation!
 ==================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    programmers-guide
    apiref
+   crypto_apiref
 
 Indices and tables
 ==================

@@ -41,8 +41,19 @@ apiref: mkapiref.py \
 	$(top_builddir)/lib/includes/ngtcp2/version.h \
 	$(top_srcdir)/lib/includes/ngtcp2/ngtcp2.h
 	$(top_srcdir)/doc/mkapiref.py \
+	--title='ngtcp2 API reference' \
 	source/apiref.rst source/macros.rst source/enums.rst source/types.rst \
 	source $(wordlist 2, $(words $^), $^)
 
-html-local: apiref
+cryptoapiref: mkapiref.py \
+	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto.h \
+	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_openssl.h \
+	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_gnutls.h
+	$(top_srcdir)/doc/mkapiref.py \
+	--title='ngtcp2 crypto API reference' \
+	source/crypto_apiref.rst source/crypto_macros.rst \
+	source/crypto_enums.rst source/crypto_types.rst \
+	source $(wordlist 2, $(words $^), $^)
+
+html-local: apiref cryptoapiref
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

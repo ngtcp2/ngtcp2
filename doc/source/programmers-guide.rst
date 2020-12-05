@@ -91,9 +91,9 @@ For server application, the following callback functions must be set:
   `ngtcp2_crypto_delete_crypto_cipher_ctx_cb()` can be passed
   directly.
 
-``ngtcp2_crypto_*`` functions are a part of ngtcp2 crypto support
-library which provides easy integration with the supported TLS
-backend.  It vastly simplifies TLS integration and is strongly
+``ngtcp2_crypto_*`` functions are a part of :doc:`ngtcp2 crypto API
+<crypto_apiref>` which provides easy integration with the supported
+TLS backend.  It vastly simplifies TLS integration and is strongly
 recommended.
 
 :type:`ngtcp2_settings` contains the settings for QUIC connection.
@@ -133,8 +133,8 @@ takes path parameter and fills it to which the packet should be sent.
 TLS integration
 ---------------
 
-ngtcp2 crypto support library is strongly recommended because it
-vastly simplifies the TLS integration.
+Use of :doc:`ngtcp2 crypto API <crypto_apiref>` is strongly
+recommended because it vastly simplifies the TLS integration.
 
 The most of the TLS work is done by the callback functions passed to
 :type:`ngtcp2_conn_callbacks` object.  There are some operations left

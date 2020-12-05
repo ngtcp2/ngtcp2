@@ -31,8 +31,28 @@
 extern "C" {
 #endif
 
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_INITIAL_SECRETLEN` is the length of secret
+ * for Initial packets.
+ */
 #define NGTCP2_CRYPTO_INITIAL_SECRETLEN 32
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_INITIAL_KEYLEN` is the length of key for
+ * Initial packets.
+ */
 #define NGTCP2_CRYPTO_INITIAL_KEYLEN 16
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_CRYPTO_INITIAL_IVLEN` is the length of IV for
+ * Initial packets.
+ */
 #define NGTCP2_CRYPTO_INITIAL_IVLEN 12
 
 /**
@@ -147,18 +167,18 @@ NGTCP2_EXTERN int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
 /**
  * @enum
  *
- * `ngtcp2_crypto_side` indicates which side the application
+ * :type:`ngtcp2_crypto_side` indicates which side the application
  * implements; client or server.
  */
 typedef enum ngtcp2_crypto_side {
   /**
-   * ``NGTCP2_CRYPTO_SIDE_CLIENT`` indicates that the application is
-   * client.
+   * :enum:`NGTCP2_CRYPTO_SIDE_CLIENT` indicates that the application
+   * is client.
    */
   NGTCP2_CRYPTO_SIDE_CLIENT,
   /**
-   * ``NGTCP2_CRYPTO_SIDE_SERVER`` indicates that the application is
-   * server.
+   * :enum:`NGTCP2_CRYPTO_SIDE_SERVER` indicates that the application
+   * is server.
    */
   NGTCP2_CRYPTO_SIDE_SERVER
 } ngtcp2_crypto_side;
@@ -220,11 +240,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
  * @function
  *
  * `ngtcp2_crypto_encrypt_cb` is a wrapper function around
- * `ngtcp2_crypto_encrypt`.  It can be directly passed to encrypt
- * callback to ngtcp2_callbacks.
+ * `ngtcp2_crypto_encrypt`.  It can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.encrypt` field.
  *
  * This function returns 0 if it succeeds, or
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
@@ -257,11 +277,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_decrypt(uint8_t *dest,
  * @function
  *
  * `ngtcp2_crypto_decrypt_cb` is a wrapper function around
- * `ngtcp2_crypto_decrypt`.  It can be directly passed to decrypt
- * callback to ngtcp2_callbacks.
+ * `ngtcp2_crypto_decrypt`.  It can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.decrypt` field.
  *
  * This function returns 0 if it succeeds, or
- * :enum:`NGTCP2_ERR_TLS_DECRYPT`.
+ * :macro:`NGTCP2_ERR_TLS_DECRYPT`.
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
@@ -289,11 +309,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
  * @function
  *
  * `ngtcp2_crypto_hp_mask_cb` is a wrapper function around
- * `ngtcp2_crypto_hp_mask`.  It can be directly passed to hp_mask
- * callback to ngtcp2_callbacks.
+ * `ngtcp2_crypto_hp_mask`.  It can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.hp_mask` field.
  *
  * This function returns 0 if it succeeds, or
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
@@ -416,10 +436,10 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_key(
  *
  * `ngtcp2_crypto_update_key_cb` is a wrapper function around
  * `ngtcp2_crypto_update_key`.  It can be directly passed to
- * update_key field in ngtcp2_callbacks.
+ * :member:`ngtcp2_conn_callbacks.update_key` field.
  *
  * This function returns 0 if it succeeds, or
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
     ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
@@ -434,11 +454,12 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
  * `ngtcp2_crypto_client_initial_cb` installs initial secrets and
  * encryption keys and sets QUIC transport parameters.
  *
- * This function can be directly passed to client_initial field in
- * ngtcp2_callbacks.  It is only used by client.
+ * This function can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.client_initial` field.  It is only
+ * used by client.
  *
  * This function returns 0 if it succeeds, or
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn,
                                                   void *user_data);
@@ -449,11 +470,12 @@ NGTCP2_EXTERN int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn,
  * `ngtcp2_crypto_recv_retry_cb` re-installs initial secrets in
  * response to incoming Retry packet.
  *
- * This function can be directly passed to recv_retry field in
- * ngtcp2_callbacks.  It is only used by client.
+ * This function can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.recv_retry` field.  It is only used
+ * by client.
  *
  * This function returns 0 if it succeeds, or
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn,
                                               const ngtcp2_pkt_hd *hd,
@@ -466,11 +488,12 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn,
  * response to an incoming Initial packet from client, and sets QUIC
  * transport parameters.
  *
- * This function can be directly passed to recv_client_initial field
- * in ngtcp2_callbacks.  It is only used by server.
+ * This function can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.recv_client_initial` field.  It is
+ * only used by server.
  *
  * This function returns 0 if it succeeds, or
- * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
                                                        const ngtcp2_cid *dcid,
@@ -490,7 +513,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
  * The generic error code is -1 if a specific error code is not
  * suitable.  The error codes less than -10000 are specific to
  * underlying TLS implementation.  For OpenSSL, the error codes are
- * defined in ngtcp2_crypto_openssl.h.
+ * defined in *ngtcp2_crypto_openssl.h*.
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
@@ -504,7 +527,8 @@ ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
  *  stateless reset token using HKDF extraction with |md| using the
  *  given |cid| and static key |secret| as input.  The token will be
  *  written to the buffer pointed by |token| and it must have a
- *  capacity of at least NGTCP2_STATELESS_RESET_TOKENLEN bytes.
+ *  capacity of at least :macro:`NGTCP2_STATELESS_RESET_TOKENLEN`
+ *  bytes.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -596,8 +620,8 @@ ngtcp2_crypto_aead_ctx_free(ngtcp2_crypto_aead_ctx *aead_ctx);
  *
  * `ngtcp2_crypto_delete_crypto_aead_ctx_cb` deletes the given |aead_ctx|.
  *
- * This function can be directly passed to delete_crypto_aead_ctx
- * field in ngtcp2_callbacks.
+ * This function can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.delete_crypto_aead_ctx` field.
  */
 NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_aead_ctx_cb(
     ngtcp2_conn *conn, ngtcp2_crypto_aead_ctx *aead_ctx, void *user_data);
@@ -608,8 +632,8 @@ NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_aead_ctx_cb(
  * `ngtcp2_crypto_delete_crypto_cipher_ctx_cb` deletes the given
  * |cipher_ctx|.
  *
- * This function can be directly passed to delete_crypto_cipher_ctx
- * field in ngtcp2_callbacks.
+ * This function can be directly passed to
+ * :member:`ngtcp2_conn_callbacks.delete_crypto_cipher_ctx` field.
  */
 NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_cipher_ctx_cb(
     ngtcp2_conn *conn, ngtcp2_crypto_cipher_ctx *cipher_ctx, void *user_data);
