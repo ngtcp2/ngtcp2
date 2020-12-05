@@ -29,12 +29,13 @@
 import re, sys, argparse, os.path
 
 class FunctionDoc:
-    def __init__(self, name, content, domain):
+    def __init__(self, name, content, domain, filename):
         self.name = name
         self.content = content
         self.domain = domain
         if self.domain == 'function':
             self.funcname = re.search(r'(ngtcp2_[^ )]+)\(', self.name).group(1)
+        self.filename = filename
 
     def write(self, out):
         out.write('.. {}:: {}\n'.format(self.domain, self.name))
@@ -117,39 +118,33 @@ class TypedefDoc:
         for line in self.content:
             out.write('    {}\n'.format(line))
 
-def make_api_ref(infiles):
+def make_api_ref(infile):
     macros = []
     enums = []
     types = []
     functions = []
-    for infile in infiles:
-        while True:
+    while True:
+        line = infile.readline()
+        if not line:
+            break
+        elif line == '/**\n':
             line = infile.readline()
-            if not line:
-                break
-            elif line == '/**\n':
-                line = infile.readline()
-                doctype = line.split()[1]
-                if doctype == '@function':
-                    functions.append(process_function('function', infile))
-                elif doctype == '@functypedef':
-                    types.append(process_function('type', infile))
-                elif doctype == '@struct' or doctype == '@union':
-                    types.append(process_struct(infile))
-                elif doctype == '@enum':
-                    enums.append(process_enum(infile))
-                elif doctype == '@macro':
-                    macros.append(process_macro(infile))
-                elif doctype == '@macrosection':
-                    macros.append(process_macrosection(infile))
-                elif doctype == '@typedef':
-                    types.append(process_typedef(infile))
+            doctype = line.split()[1]
+            if doctype == '@function':
+                functions.append(process_function('function', infile))
+            elif doctype == '@functypedef':
+                types.append(process_function('type', infile))
+            elif doctype == '@struct' or doctype == '@union':
+                types.append(process_struct(infile))
+            elif doctype == '@enum':
+                enums.append(process_enum(infile))
+            elif doctype == '@macro':
+                macros.append(process_macro(infile))
+            elif doctype == '@macrosection':
+                macros.append(process_macrosection(infile))
+            elif doctype == '@typedef':
+                types.append(process_typedef(infile))
     return macros, enums, types, functions
-
-    alldocs = [('Macros', macros),
-               ('Enums', enums),
-               ('Types (structs, unions and typedefs)', types),
-               ('Functions', functions)]
 
 def output(
         indexfile, macrosfile, enumsfile, typesfile, funcsdir,
@@ -199,9 +194,10 @@ Types (structs, unions and typedefs)
 Synopsis
 --------
 
-*#include <ngtcp2/ngtcp2.h>*
+*#include <ngtcp2/{filename}>*
 
-'''.format(funcname=doc.funcname, secul='='*len(doc.funcname)))
+'''.format(funcname=doc.funcname, secul='='*len(doc.funcname),
+           filename=doc.filename))
             doc.write(f)
 
 def process_macro(infile):
@@ -284,7 +280,8 @@ def process_function(domain, infile):
     func_proto = re.sub(r'\s+', ' ', func_proto)
     func_proto = re.sub(r'NGTCP2_EXTERN ', '', func_proto)
     func_proto = re.sub(r'typedef ', '', func_proto)
-    return FunctionDoc(func_proto, content, domain)
+    filename = os.path.basename(infile.name)
+    return FunctionDoc(func_proto, content, domain, filename)
 
 def read_content(infile):
     content = []
@@ -327,7 +324,7 @@ if __name__ == '__main__':
     types = []
     funcs = []
     for infile in args.files:
-        m, e, t, f = make_api_ref(args.files)
+        m, e, t, f = make_api_ref(infile)
         macros.extend(m)
         enums.extend(e)
         types.extend(t)
