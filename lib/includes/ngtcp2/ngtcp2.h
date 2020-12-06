@@ -432,7 +432,7 @@ typedef struct ngtcp2_pkt_info {
  * @macro
  *
  * :macro:`NGTCP2_ERR_NOBUF` indicates that a provided buffer does not
- * not enough space to store data.
+ * have enough space to store data.
  */
 #define NGTCP2_ERR_NOBUF -203
 /**
