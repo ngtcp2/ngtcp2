@@ -419,7 +419,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
-  ngtcp2_conn_callbacks cb;
+  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid dcid, scid;
   ngtcp2_transport_params *params;
@@ -475,7 +475,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
-  ngtcp2_conn_callbacks cb;
+  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid dcid, scid;
   ngtcp2_transport_params *params;
@@ -531,7 +531,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 }
 
 static void setup_handshake_server(ngtcp2_conn **pconn) {
-  ngtcp2_conn_callbacks cb;
+  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid dcid, scid;
 
@@ -554,7 +554,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
 }
 
 static void setup_handshake_client(ngtcp2_conn **pconn) {
-  ngtcp2_conn_callbacks cb;
+  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid rcid, scid;
   ngtcp2_crypto_aead retry_aead = {0};
@@ -582,7 +582,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
 }
 
 static void setup_early_server(ngtcp2_conn **pconn) {
-  ngtcp2_conn_callbacks cb;
+  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_transport_params *params;
   ngtcp2_cid dcid, scid;
@@ -621,7 +621,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
 }
 
 static void setup_early_client(ngtcp2_conn **pconn) {
-  ngtcp2_conn_callbacks cb;
+  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_cid rcid, scid;
@@ -5410,7 +5410,7 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
 void test_ngtcp2_conn_send_initial_token(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
-  ngtcp2_conn_callbacks cb;
+  ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_cid rcid, scid;
   ngtcp2_crypto_aead retry_aead = {0};

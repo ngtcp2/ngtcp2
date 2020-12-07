@@ -1553,7 +1553,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   SSL_set_accept_state(ssl_);
   SSL_set_quic_early_data_enabled(ssl_, 1);
 
-  auto callbacks = ngtcp2_conn_callbacks{
+  auto callbacks = ngtcp2_callbacks{
       nullptr, // client_initial
       ngtcp2_crypto_recv_client_initial_cb,
       ::recv_crypto_data,

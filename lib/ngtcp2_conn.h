@@ -316,7 +316,7 @@ typedef enum ngtcp2_ecn_state {
 
 struct ngtcp2_conn {
   ngtcp2_conn_state state;
-  ngtcp2_conn_callbacks callbacks;
+  ngtcp2_callbacks callbacks;
   /* rcid is a connection ID present in Initial or 0-RTT packet from
      client as destination connection ID.  Server uses this field to
      check that duplicated Initial or 0-RTT packet are indeed sent to

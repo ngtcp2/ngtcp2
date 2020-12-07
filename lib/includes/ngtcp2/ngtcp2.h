@@ -2825,9 +2825,9 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
 /**
  * @struct
  *
- * :type:`ngtcp2_conn_callbacks` holds a set of callback functions.
+ * :type:`ngtcp2_callbacks` holds a set of callback functions.
  */
-typedef struct ngtcp2_conn_callbacks {
+typedef struct ngtcp2_callbacks {
   /**
    * :member:`client_initial` is a callback function which is invoked
    * when client asks TLS stack to produce first TLS cryptographic
@@ -3026,7 +3026,7 @@ typedef struct ngtcp2_conn_callbacks {
    * deletes a given cipher context object.
    */
   ngtcp2_delete_crypto_cipher_ctx delete_crypto_cipher_ctx;
-} ngtcp2_conn_callbacks;
+} ngtcp2_callbacks;
 
 /**
  * @function
@@ -3119,7 +3119,7 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 NGTCP2_EXTERN int
 ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
-                       uint32_t version, const ngtcp2_conn_callbacks *callbacks,
+                       uint32_t version, const ngtcp2_callbacks *callbacks,
                        const ngtcp2_settings *settings, const ngtcp2_mem *mem,
                        void *user_data);
 
@@ -3145,7 +3145,7 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 NGTCP2_EXTERN int
 ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
-                       uint32_t version, const ngtcp2_conn_callbacks *callbacks,
+                       uint32_t version, const ngtcp2_callbacks *callbacks,
                        const ngtcp2_settings *settings, const ngtcp2_mem *mem,
                        void *user_data);
 
