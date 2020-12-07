@@ -1394,7 +1394,7 @@ int Handler::setup_httpconn() {
     return -1;
   }
 
-  nghttp3_conn_callbacks callbacks{
+  nghttp3_callbacks callbacks{
       ::http_acked_stream_data, // acked_stream_data
       ::http_stream_close,
       ::http_recv_data,
@@ -1414,8 +1414,8 @@ int Handler::setup_httpconn() {
       ::http_end_stream,
       ::http_reset_stream,
   };
-  nghttp3_conn_settings settings;
-  nghttp3_conn_settings_default(&settings);
+  nghttp3_settings settings;
+  nghttp3_settings_default(&settings);
   settings.qpack_max_table_capacity = 4096;
   settings.qpack_blocked_streams = 100;
 

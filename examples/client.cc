@@ -2115,7 +2115,7 @@ int Client::setup_httpconn() {
     return -1;
   }
 
-  nghttp3_conn_callbacks callbacks{
+  nghttp3_callbacks callbacks{
       ::http_acked_stream_data,  ::http_stream_close,
       ::http_recv_data,          ::http_deferred_consume,
       ::http_begin_headers,      ::http_recv_header,
@@ -2125,8 +2125,8 @@ int Client::setup_httpconn() {
       ::http_end_push_promise,   ::http_cancel_push,
       ::http_send_stop_sending,  ::http_push_stream,
   };
-  nghttp3_conn_settings settings;
-  nghttp3_conn_settings_default(&settings);
+  nghttp3_settings settings;
+  nghttp3_settings_default(&settings);
   settings.qpack_max_table_capacity = 4096;
   settings.qpack_blocked_streams = 100;
   settings.max_pushes = 100;
