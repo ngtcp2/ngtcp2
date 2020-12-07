@@ -27,6 +27,12 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#include <openssl/ssl.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @macrosection
  *
@@ -52,5 +58,28 @@
  * error description from `SSL_do_handshake`.
  */
 #define NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB -10002
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_from_ossl_encryption_level` translates |ossl_level|
+ * to :type:`ngtcp2_crypto_level`.
+ *
+ */
+NGTCP2_EXTERN ngtcp2_crypto_level
+ngtcp2_crypto_from_ossl_encryption_level(OSSL_ENCRYPTION_LEVEL ossl_level);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_from_ngtcp2_crypto_level` translates |crypto_level|
+ * to OSSL_ENCRYPTION_LEVEL.
+ */
+NGTCP2_EXTERN OSSL_ENCRYPTION_LEVEL
+ngtcp2_crypto_from_ngtcp2_crypto_level(ngtcp2_crypto_level crypto_level);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NGTCP2_CRYPTO_OPENSSL_H */

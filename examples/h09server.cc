@@ -41,6 +41,8 @@
 #include <sys/mman.h>
 #include <netinet/udp.h>
 
+#include <ngtcp2/ngtcp2_crypto_openssl.h>
+
 #include <openssl/bio.h>
 #include <openssl/err.h>
 
@@ -2631,8 +2633,8 @@ int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                            const uint8_t *write_secret, size_t secret_len) {
   auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
 
-  if (auto rv = h->on_key(util::from_ossl_level(ossl_level), read_secret,
-                          write_secret, secret_len);
+  if (auto rv = h->on_key(ngtcp2_crypto_from_ossl_encryption_level(ossl_level),
+                          read_secret, write_secret, secret_len);
       rv != 0) {
     return 0;
   }
@@ -2645,7 +2647,8 @@ namespace {
 int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                        const uint8_t *data, size_t len) {
   auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
-  h->write_server_handshake(util::from_ossl_level(ossl_level), data, len);
+  h->write_server_handshake(
+      ngtcp2_crypto_from_ossl_encryption_level(ossl_level), data, len);
   return 1;
 }
 } // namespace

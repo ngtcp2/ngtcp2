@@ -209,13 +209,6 @@ template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
 int read_mime_types(std::unordered_map<std::string, std::string> &dest,
                     const char *filename);
 
-// from_ossl_level translates |ossl_level| to ngtcp2_crypto_level.
-ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level);
-
-// from_ngtcp2_level translates |crypto_level| to
-// OSSL_ENCRYPTION_LEVEL.
-OSSL_ENCRYPTION_LEVEL from_ngtcp2_level(ngtcp2_crypto_level crypto_level);
-
 // format_uint converts |n| into string.
 template <typename T> std::string format_uint(T n) {
   std::string res;
