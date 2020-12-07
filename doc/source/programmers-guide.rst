@@ -33,61 +33,61 @@ Creating ngtcp2_conn object
 connection.  Use `ngtcp2_conn_client_new()` for client application,
 and `ngtcp2_conn_server_new()` for server.
 
-They require :type:`ngtcp2_conn_callbacks` and :type:`ngtcp2_settings`
+They require :type:`ngtcp2_callbacks` and :type:`ngtcp2_settings`
 objects.
 
-The :type:`ngtcp2_conn_callbacks` contains the callback functions
-which :type:`ngtcp2_conn` calls when a specific event happens, say,
+The :type:`ngtcp2_callbacks` contains the callback functions which
+:type:`ngtcp2_conn` calls when a specific event happens, say,
 receiving stream data or stream is closed, etc.  Some of the callback
 functions are optional.  For client application, the following
 callback functions must be set:
 
-* :member:`client_initial <ngtcp2_conn_callbacks.client_initial>`:
+* :member:`client_initial <ngtcp2_callbacks.client_initial>`:
   `ngtcp2_crypto_client_initial_cb()` can be passed directly.
-* :member:`recv_crypto_data <ngtcp2_conn_callbacks.recv_crypto_data>`
-* :member:`encrypt <ngtcp2_conn_callbacks.encrypt>`:
+* :member:`recv_crypto_data <ngtcp2_callbacks.recv_crypto_data>`
+* :member:`encrypt <ngtcp2_callbacks.encrypt>`:
   `ngtcp2_crypto_encrypt_cb()` can be passed directly.
-* :member:`decrypt <ngtcp2_conn_callbacks.decrypt>`:
+* :member:`decrypt <ngtcp2_callbacks.decrypt>`:
   `ngtcp2_crypto_decrypt_cb()` can be passed directly.
-* :member:`hp_mask <ngtcp2_conn_callbacks.hp_mask>`:
+* :member:`hp_mask <ngtcp2_callbacks.hp_mask>`:
   `ngtcp2_crypto_hp_mask_cb()` can be passed directly.
-* :member:`recv_retry <ngtcp2_conn_callbacks.recv_retry>`:
+* :member:`recv_retry <ngtcp2_callbacks.recv_retry>`:
   `ngtcp2_crypto_recv_retry_cb()` can be passed directly.
-* :member:`rand <ngtcp2_conn_callbacks.rand>`
+* :member:`rand <ngtcp2_callbacks.rand>`
 * :member:`get_new_connection_id
-  <ngtcp2_conn_callbacks.get_new_connection_id>`
-* :member:`update_key <ngtcp2_conn_callbacks.update_key>`:
+  <ngtcp2_callbacks.get_new_connection_id>`
+* :member:`update_key <ngtcp2_callbacks.update_key>`:
   `ngtcp2_crypto_update_key_cb()` can be passed directly.
 * :member:`delete_crypto_aead_ctx
-  <ngtcp2_conn_callbacks.delete_crypto_aead_ctx>`:
+  <ngtcp2_callbacks.delete_crypto_aead_ctx>`:
   `ngtcp2_crypto_delete_crypto_aead_ctx_cb()` can be passed directly.
 * :member:`delete_crypto_cipher_ctx
-  <ngtcp2_conn_callbacks.delete_crypto_cipher_ctx>`:
+  <ngtcp2_callbacks.delete_crypto_cipher_ctx>`:
   `ngtcp2_crypto_delete_crypto_cipher_ctx_cb()` can be passed
   directly.
 
 For server application, the following callback functions must be set:
 
 * :member:`recv_client_initial
-  <ngtcp2_conn_callbacks.recv_client_initial>`:
+  <ngtcp2_callbacks.recv_client_initial>`:
   `ngtcp2_crypto_recv_client_initial_cb()` can be passed directly.
-* :member:`recv_crypto_data <ngtcp2_conn_callbacks.recv_crypto_data>`
-* :member:`encrypt <ngtcp2_conn_callbacks.encrypt>`:
+* :member:`recv_crypto_data <ngtcp2_callbacks.recv_crypto_data>`
+* :member:`encrypt <ngtcp2_callbacks.encrypt>`:
   `ngtcp2_crypto_encrypt_cb()` can be passed directly.
-* :member:`decrypt <ngtcp2_conn_callbacks.decrypt>`:
+* :member:`decrypt <ngtcp2_callbacks.decrypt>`:
   `ngtcp2_crypto_decrypt_cb()` can be passed directly.
-* :member:`hp_mask <ngtcp2_conn_callbacks.hp_mask>`:
+* :member:`hp_mask <ngtcp2_callbacks.hp_mask>`:
   `ngtcp2_crypto_hp_mask_cb()` can be passed directly.
-* :member:`rand <ngtcp2_conn_callbacks.rand>`
+* :member:`rand <ngtcp2_callbacks.rand>`
 * :member:`get_new_connection_id
-  <ngtcp2_conn_callbacks.get_new_connection_id>`
-* :member:`update_key <ngtcp2_conn_callbacks.update_key>`:
+  <ngtcp2_callbacks.get_new_connection_id>`
+* :member:`update_key <ngtcp2_callbacks.update_key>`:
   `ngtcp2_crypto_update_key_cb()` can be passed directly.
 * :member:`delete_crypto_aead_ctx
-  <ngtcp2_conn_callbacks.delete_crypto_aead_ctx>`:
+  <ngtcp2_callbacks.delete_crypto_aead_ctx>`:
   `ngtcp2_crypto_delete_crypto_aead_ctx_cb()` can be passed directly.
 * :member:`delete_crypto_cipher_ctx
-  <ngtcp2_conn_callbacks.delete_crypto_cipher_ctx>`:
+  <ngtcp2_callbacks.delete_crypto_cipher_ctx>`:
   `ngtcp2_crypto_delete_crypto_cipher_ctx_cb()` can be passed
   directly.
 
@@ -137,8 +137,8 @@ Use of :doc:`ngtcp2 crypto API <crypto_apiref>` is strongly
 recommended because it vastly simplifies the TLS integration.
 
 The most of the TLS work is done by the callback functions passed to
-:type:`ngtcp2_conn_callbacks` object.  There are some operations left
-to application has to perform to make TLS integration work.
+:type:`ngtcp2_callbacks` object.  There are some operations left to
+application has to perform to make TLS integration work.
 
 When TLS stack generates new secrets, they have to be installed to
 :type:`ngtcp2_conn` by calling
@@ -149,12 +149,12 @@ When TLS stack generates new crypto data to send, they must be passed
 to :type:`ngtcp2_conn` by calling `ngtcp2_conn_submit_crypto_data()`.
 
 When QUIC handshake is completed,
-:member:`ngtcp2_conn_callbacks.handshake_completed` callback function
-is called.  The local and remote endpoint independently declare
-handshake completion.  The endpoint has to confirm that the other
-endpoint also finished handshake.  When the handshake is confirmed,
-client side :type:`ngtcp2_conn` will call
-:member:`ngtcp2_conn_callbacks.handshake_confirmed` callback function.
+:member:`ngtcp2_callbacks.handshake_completed` callback function is
+called.  The local and remote endpoint independently declare handshake
+completion.  The endpoint has to confirm that the other endpoint also
+finished handshake.  When the handshake is confirmed, client side
+:type:`ngtcp2_conn` will call
+:member:`ngtcp2_callbacks.handshake_confirmed` callback function.
 Server confirms handshake when it declares handshake completion,
 therefore, separate handshake confirmation callback is not called.
 
@@ -189,9 +189,8 @@ Stream and crypto data ownershp
 -------------------------------
 
 Stream and crypto data passed to :type:`ngtcp2_conn` must be held by
-application until
-:member:`ngtcp2_conn_callbacks.acked_stream_data_offset` and
-:member:`ngtcp2_conn_callbacks.acked_crypto_offset` callbacks,
+application until :member:`ngtcp2_callbacks.acked_stream_data_offset`
+and :member:`ngtcp2_callbacks.acked_crypto_offset` callbacks,
 respectively, telling that the those data are acknowledged by the
 remote endpoint and no longer used by the library.
 
