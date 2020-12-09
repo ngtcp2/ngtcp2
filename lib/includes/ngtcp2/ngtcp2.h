@@ -2171,14 +2171,6 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_version_negotiation(
     size_t nsv);
 
 /**
- * @function
- *
- * `ngtcp2_pkt_get_type_long` returns the long packet type.  |c| is
- * the first byte of Long packet header.
- */
-NGTCP2_EXTERN uint8_t ngtcp2_pkt_get_type_long(uint8_t c);
-
-/**
  * @struct
  *
  * :type:`ngtcp2_conn` represents a single QUIC connection.

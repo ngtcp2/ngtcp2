@@ -1130,4 +1130,12 @@ int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
                                 const ngtcp2_crypto_aead *aead,
                                 const ngtcp2_crypto_aead_ctx *aead_ctx);
 
+/**
+ * @function
+ *
+ * `ngtcp2_pkt_get_type_long` returns the long packet type.  |c| is
+ * the first byte of Long packet header.
+ */
+uint8_t ngtcp2_pkt_get_type_long(uint8_t c);
+
 #endif /* NGTCP2_PKT_H */
