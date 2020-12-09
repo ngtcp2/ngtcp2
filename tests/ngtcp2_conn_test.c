@@ -461,6 +461,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+  (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   params = &(*pconn)->remote.transport_params;
   params->initial_max_stream_data_bidi_local = 64 * 1024;
   params->initial_max_stream_data_bidi_remote = 64 * 1024;
@@ -515,6 +516,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
+  (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   params = &(*pconn)->remote.transport_params;
   params->initial_max_stream_data_bidi_local = 64 * 1024;
   params->initial_max_stream_data_bidi_remote = 64 * 1024;
@@ -4383,7 +4385,10 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   memcpy(frs[2].new_connection_id.stateless_reset_token, token2,
          sizeof(token2));
 
-  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 3);
+  frs[3].type = NGTCP2_FRAME_PADDING;
+  frs[3].padding.len = 1200;
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 4);
 
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
@@ -4664,6 +4669,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   ngtcp2_tstamp t = 11;
   int64_t pkt_num = 0;
   ngtcp2_frame fr;
+  ngtcp2_frame frs[2];
   int rv;
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
   ngtcp2_cid cid;
@@ -4691,11 +4697,12 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
 
   CU_ASSERT(0 == rv);
 
-  fr.type = NGTCP2_FRAME_PATH_CHALLENGE;
-  memcpy(fr.path_challenge.data, data, sizeof(fr.path_challenge.data));
+  frs[0].type = NGTCP2_FRAME_PATH_CHALLENGE;
+  memcpy(frs[0].path_challenge.data, data, sizeof(frs[0].path_challenge.data));
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
 
-  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid,
-                                  ++pkt_num, &fr);
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2);
 
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
@@ -5022,7 +5029,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   CU_ASSERT(0 == rv);
 
   /* Increase anti-amplification factor for easier testing */
-  conn->cstat.bytes_recv += 10000;
+  conn->dcid.current.bytes_recv += 10000;
 
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  123);
@@ -5127,7 +5134,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   CU_ASSERT(0 == rv);
 
   /* Increase anti-amplification factor for easier testing */
-  conn->cstat.bytes_recv += 10000;
+  conn->dcid.current.bytes_recv += 10000;
 
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
                                  123);

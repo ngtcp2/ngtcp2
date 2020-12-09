@@ -648,6 +648,13 @@ typedef struct ngtcp2_pkt_info {
 /**
  * @macro
  *
+ * :macro:`NGTCP2_ERR_NO_VIABLE_PATH` indicates that path validation
+ * could not probe that a path is not capable of at least 1200 MTU.
+ */
+#define NGTCP2_ERR_NO_VIABLE_PATH -244
+/**
+ * @macro
+ *
  * :macro:`NGTCP2_ERR_FATAL` indicates that error codes less than this
  * value is fatal error.  When this error is returned, an endpoint
  * should drop connection immediately.
@@ -860,6 +867,14 @@ typedef enum ngtcp2_pkt_type {
  * ``AEAD_LIMIT_REACHED``.
  */
 #define NGTCP2_AEAD_LIMIT_REACHED 0xfu
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_NO_VIABLE_PATH` is QUIC transport error code
+ * ``NO_VIABLE_PATH``.
+ */
+#define NGTCP2_NO_VIABLE_PATH 0x10u
 
 /**
  * @macro
@@ -1395,17 +1410,6 @@ typedef struct ngtcp2_conn_stat {
    * congestion controller to compute congestion window.
    */
   size_t max_udp_payload_size;
-  /**
-   * :member:`bytes_sent` is the number of bytes sent in this
-   * particular connection.  It only includes data written by
-   * `ngtcp2_conn_writev_stream()`.
-   */
-  uint64_t bytes_sent;
-  /**
-   * :member:`bytes_recv` is the number of bytes received in this
-   * particular connection, including discarded packets.
-   */
-  uint64_t bytes_recv;
   /**
    * :member:`delivery_rate_sec` is the current sending rate measured
    * in byte per second.

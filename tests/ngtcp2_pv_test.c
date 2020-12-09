@@ -56,7 +56,7 @@ void test_ngtcp2_pv_add_entry(void) {
   CU_ASSERT(ngtcp2_pv_should_send_probe(pv));
 
   for (i = 0; i < NGTCP2_PV_NUM_PROBE_PKT; ++i) {
-    ngtcp2_pv_add_entry(pv, data, 100, 0);
+    ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 0);
 
     CU_ASSERT(i + 1 == ngtcp2_ringbuf_len(&pv->ents));
   }
@@ -77,7 +77,7 @@ void test_ngtcp2_pv_add_entry(void) {
   CU_ASSERT(ngtcp2_pv_should_send_probe(pv));
   CU_ASSERT(100 == ngtcp2_pv_next_expiry(pv));
 
-  ngtcp2_pv_add_entry(pv, data, 111, 100);
+  ngtcp2_pv_add_entry(pv, data, 111, NGTCP2_PV_ENTRY_FLAG_NONE, 100);
 
   CU_ASSERT(1 == pv->probe_pkt_left);
   CU_ASSERT(ngtcp2_pv_should_send_probe(pv));
@@ -97,6 +97,7 @@ void test_ngtcp2_pv_validate(void) {
   uint8_t data[8];
   ngtcp2_duration timeout = 100ULL * NGTCP2_SECONDS;
   ngtcp2_path_storage path;
+  uint8_t flags;
 
   path_init(&path, 1, 0, 2, 0);
   dcid_init(&cid);
@@ -109,18 +110,18 @@ void test_ngtcp2_pv_validate(void) {
   CU_ASSERT(0 == rv);
 
   memset(data, 0, sizeof(data));
-  ngtcp2_pv_add_entry(pv, data, 100, 1);
+  ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 1);
 
   memset(data, 1, sizeof(data));
-  ngtcp2_pv_add_entry(pv, data, 100, 1);
+  ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 1);
 
   memset(data, 1, sizeof(data));
-  rv = ngtcp2_pv_validate(pv, data);
+  rv = ngtcp2_pv_validate(pv, &flags, data);
 
   CU_ASSERT(0 == rv);
 
   memset(data, 3, sizeof(data));
-  rv = ngtcp2_pv_validate(pv, data);
+  rv = ngtcp2_pv_validate(pv, &flags, data);
 
   CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 

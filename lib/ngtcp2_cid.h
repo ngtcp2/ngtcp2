@@ -57,6 +57,12 @@ typedef struct {
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_scid;
 
+/* NGTCP2_DCID_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_DCID_FLAG_NONE 0x00
+/* NGTCP2_DCID_FLAG_PATH_VALIDATED indicates that an associated path
+   has been validated. */
+#define NGTCP2_DCID_FLAG_PATH_VALIDATED 0x01
+
 typedef struct {
   /* seq is the sequence number associated to the CID. */
   uint64_t seq;
@@ -68,6 +74,13 @@ typedef struct {
   /* ts_retired is the timestamp when peer tells that this CID is
      retired. */
   ngtcp2_tstamp ts_retired;
+  /* bytes_sent is the number of bytes sent to an associated path. */
+  uint64_t bytes_sent;
+  /* bytes_recv is the number of bytes received from an associated
+     path. */
+  uint64_t bytes_recv;
+  /* flags is bitwise OR of zero or more of NGTCP2_DCID_FLAG_*. */
+  uint8_t flags;
   /* token is a stateless reset token associated to this CID.
      Actually, the stateless reset token is tied to the connection,
      not to the particular connection ID. */
@@ -122,10 +135,10 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
 void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
 
 /*
- * ngtcp2_dcid_copy_no_path behaves like ngtcp2_dcid_copy, but it does
- * not copy path.
+ * ngtcp2_dcid_copy_cid_token behaves like ngtcp2_dcid_copy, but it
+ * only copies cid, seq, and path.
  */
-void ngtcp2_dcid_copy_no_path(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
+void ngtcp2_dcid_copy_cid_token(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
 
 /*
  * ngtcp2_dcid_verify_uniqueness verifies uniqueness of (|seq|, |cid|,

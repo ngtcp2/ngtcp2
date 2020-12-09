@@ -36,7 +36,7 @@
 
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
                          const ngtcp2_pkt_info *pi, const uint8_t *pkt,
-                         size_t pktlen, ngtcp2_tstamp ts,
+                         size_t pktlen, size_t dgramlen, ngtcp2_tstamp ts,
                          const ngtcp2_mem *mem) {
   *ppc = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pkt_chain) + pktlen);
   if (*ppc == NULL) {
@@ -48,6 +48,7 @@ int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
   (*ppc)->next = NULL;
   (*ppc)->pkt = (uint8_t *)(*ppc) + sizeof(ngtcp2_pkt_chain);
   (*ppc)->pktlen = pktlen;
+  (*ppc)->dgramlen = dgramlen;
   (*ppc)->ts = ts;
 
   memcpy((*ppc)->pkt, pkt, pktlen);

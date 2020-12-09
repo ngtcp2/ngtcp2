@@ -47,15 +47,23 @@ typedef struct ngtcp2_log ngtcp2_log;
 struct ngtcp2_frame_chain;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
+/* NGTCP2_PV_ENTRY_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_PV_ENTRY_FLAG_NONE 0x00
+/* NGTCP2_PV_ENTRY_FLAG_UNDERSIZED indicates that UDP datagram which
+   contains PATH_CHALLENGE is undersized (< 1200 bytes) */
+#define NGTCP2_PV_ENTRY_FLAG_UNDERSIZED 0x01
+
 typedef struct {
   /* expiry is the timestamp when this PATH_CHALLENGE expires. */
   ngtcp2_tstamp expiry;
+  /* flags is zero or more of NGTCP2_PV_ENTRY_FLAG_*. */
+  uint8_t flags;
   /* data is a byte string included in PATH_CHALLENGE. */
   uint8_t data[8];
 } ngtcp2_pv_entry;
 
 void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
-                          ngtcp2_tstamp expiry);
+                          ngtcp2_tstamp expiry, uint8_t flags);
 
 typedef enum {
   NGTCP2_PV_FLAG_NONE,
@@ -70,6 +78,10 @@ typedef enum {
      the fallback DCID.  If path validation succeeds, fallback DCID is
      retired if it does not equal to the current DCID. */
   NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE = 0x04,
+  /* NGTCP2_PV_FLAG_MTU_PROBE indicates that a validation must probe
+     least MTU that QUIC requires, which is 1200 bytes.  If it fails,
+     a path is not viable. */
+  NGTCP2_PV_FLAG_MTU_PROBE = 0x08,
 } ngtcp2_pv_flag;
 
 struct ngtcp2_pv;
@@ -129,7 +141,7 @@ void ngtcp2_pv_del(ngtcp2_pv *pv);
  * expiry time of the entry.
  */
 void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
-                         ngtcp2_tstamp expiry, ngtcp2_tstamp ts);
+                         ngtcp2_tstamp expiry, uint8_t flags, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_pv_full returns nonzero if |pv| is full of ngtcp2_pv_entry.
@@ -138,7 +150,8 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
 
 /*
  * ngtcp2_pv_validate validates that the received |data| matches the
- * one of the existing entry.
+ * one of the existing entry.  The flag of ngtcp2_pv_entry that
+ * matches |data| is assigned to |*pflags| if this function succeeds.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -150,7 +163,7 @@ int ngtcp2_pv_full(ngtcp2_pv *pv);
  * NGTCP2_ERR_INVALID_ARGUMENT
  *     |pv| does not have an entry which has |data| and |path|
  */
-int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data);
+int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags, const uint8_t *data);
 
 /*
  * ngtcp2_pv_handle_entry_expiry checks expiry of existing entries.

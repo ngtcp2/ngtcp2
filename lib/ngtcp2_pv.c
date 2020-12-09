@@ -33,9 +33,10 @@
 #include "ngtcp2_addr.h"
 
 void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
-                          ngtcp2_tstamp expiry) {
+                          ngtcp2_tstamp expiry, uint8_t flags) {
   memcpy(pvent->data, data, sizeof(pvent->data));
   pvent->expiry = expiry;
+  pvent->flags = flags;
 }
 
 int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
@@ -77,7 +78,8 @@ void ngtcp2_pv_del(ngtcp2_pv *pv) {
 }
 
 void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
-                         ngtcp2_tstamp expiry, ngtcp2_tstamp ts) {
+                         ngtcp2_tstamp expiry, uint8_t flags,
+                         ngtcp2_tstamp ts) {
   ngtcp2_pv_entry *ent;
 
   assert(pv->probe_pkt_left);
@@ -87,13 +89,13 @@ void ngtcp2_pv_add_entry(ngtcp2_pv *pv, const uint8_t *data,
   }
 
   ent = ngtcp2_ringbuf_push_back(&pv->ents);
-  ngtcp2_pv_entry_init(ent, data, expiry);
+  ngtcp2_pv_entry_init(ent, data, expiry, flags);
 
   pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_CANCEL_TIMER;
   --pv->probe_pkt_left;
 }
 
-int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data) {
+int ngtcp2_pv_validate(ngtcp2_pv *pv, uint8_t *pflags, const uint8_t *data) {
   size_t len = ngtcp2_ringbuf_len(&pv->ents);
   size_t i;
   ngtcp2_pv_entry *ent;
@@ -105,6 +107,7 @@ int ngtcp2_pv_validate(ngtcp2_pv *pv, const uint8_t *data) {
   for (i = 0; i < len; ++i) {
     ent = ngtcp2_ringbuf_get(&pv->ents, i);
     if (memcmp(ent->data, data, sizeof(ent->data)) == 0) {
+      *pflags = ent->flags;
       ngtcp2_log_info(pv->log, NGTCP2_LOG_EVENT_PTV, "path has been validated");
       return 0;
     }

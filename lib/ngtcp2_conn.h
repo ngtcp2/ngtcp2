@@ -356,6 +356,10 @@ struct ngtcp2_conn {
     /* num_retire_queued is the number of RETIRE_CONNECTION_ID frames
        queued for transmission. */
     size_t num_retire_queued;
+    /* zerolen_seq is a pseudo sequence number of zero-length
+       Destination Connection ID in order to distinguish between
+       them. */
+    uint64_t zerolen_seq;
   } dcid;
 
   struct {

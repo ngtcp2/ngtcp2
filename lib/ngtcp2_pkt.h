@@ -323,7 +323,11 @@ struct ngtcp2_pkt_chain {
   ngtcp2_pkt_info pi;
   ngtcp2_pkt_chain *next;
   uint8_t *pkt;
+  /* pktlen is length of a QUIC packet. */
   size_t pktlen;
+  /* dgramlen is length of UDP datagram that a QUIC packet is
+     included. */
+  size_t dgramlen;
   ngtcp2_tstamp ts;
 };
 
@@ -342,7 +346,7 @@ struct ngtcp2_pkt_chain {
  */
 int ngtcp2_pkt_chain_new(ngtcp2_pkt_chain **ppc, const ngtcp2_path *path,
                          const ngtcp2_pkt_info *pi, const uint8_t *pkt,
-                         size_t pktlen, ngtcp2_tstamp ts,
+                         size_t pktlen, size_t dgramlen, ngtcp2_tstamp ts,
                          const ngtcp2_mem *mem);
 
 /*
