@@ -2079,18 +2079,18 @@ int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
 } // namespace
 
 int Client::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
-  if (config.exit_on_first_stream_close) {
-    should_exit_ = true;
-  }
+  if (ngtcp2_is_bidi_stream(stream_id)) {
+    assert(ngtcp2_conn_is_local_stream(conn_, stream_id));
 
-  ++nstreams_closed_;
+    ++nstreams_closed_;
 
-  if (config.exit_on_all_streams_close && config.nstreams == nstreams_done_ &&
-      nstreams_closed_ == nstreams_done_) {
-    should_exit_ = true;
-  }
-
-  if (!ngtcp2_is_bidi_stream(stream_id)) {
+    if (config.exit_on_first_stream_close ||
+        (config.exit_on_all_streams_close &&
+         config.nstreams == nstreams_done_ &&
+         nstreams_closed_ == nstreams_done_)) {
+      should_exit_ = true;
+    }
+  } else {
     assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
     ngtcp2_conn_extend_max_streams_uni(conn_, 1);
   }
@@ -2572,9 +2572,10 @@ Options:
               Default: )"
             << config.max_streams_uni << R"(
   --exit-on-first-stream-close
-              Exit when a first HTTP stream is closed.
+              Exit  when  a first  client  initialted  HTTP stream  is
+              closed.
   --exit-on-all-streams-close
-              Exit when all HTTP streams are closed.
+              Exit when all client initiated HTTP streams are closed.
   --disable-early-data
               Disable early data.
   --cc=(<cubic>|<reno>)
