@@ -567,8 +567,8 @@ typedef struct ngtcp2_vmsg_stream {
   const ngtcp2_vec *data;
   /* datacnt is the number of ngtcp2_vec pointed by data. */
   size_t datacnt;
-  /* *pdatalen is the pointer to the variable which the number of
-     bytes written is assigned to if pdatalen is not NULL. */
+  /* pdatalen is the pointer to the variable which the number of bytes
+     written is assigned to if pdatalen is not NULL. */
   ngtcp2_ssize *pdatalen;
 } ngtcp2_vmsg_stream;
 
