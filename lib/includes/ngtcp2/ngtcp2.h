@@ -1421,11 +1421,6 @@ typedef struct ngtcp2_conn_stat {
    * in byte per second.
    */
   uint64_t delivery_rate_sec;
-  /**
-   * :member:`recv_rate_sec` is the current receiving rate of
-   * application data measured in byte per second.
-   */
-  uint64_t recv_rate_sec;
 } ngtcp2_conn_stat;
 
 /**

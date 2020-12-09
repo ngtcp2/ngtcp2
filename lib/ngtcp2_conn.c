@@ -559,7 +559,6 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->congestion_recovery_start_ts = UINT64_MAX;
   cstat->bytes_in_flight = 0;
   cstat->delivery_rate_sec = 0;
-  cstat->recv_rate_sec = 0;
 }
 
 /*
@@ -580,57 +579,6 @@ static void reset_conn_stat_recovery(ngtcp2_conn_stat *cstat) {
 static void conn_reset_conn_stat(ngtcp2_conn *conn, ngtcp2_conn_stat *cstat) {
   conn_reset_conn_stat_cc(conn, cstat);
   reset_conn_stat_recovery(cstat);
-}
-
-static void conn_reset_rx_rate(ngtcp2_conn *conn) {
-  conn->rx.rate.start_ts = UINT64_MAX;
-  conn->rx.rate.received = 0;
-}
-
-static void conn_update_recv_rate(ngtcp2_conn *conn, size_t datalen,
-                                  ngtcp2_tstamp ts) {
-  uint64_t bps;
-  ngtcp2_duration window;
-
-  conn->rx.rate.received += datalen;
-
-  if (conn->rx.rate.start_ts == UINT64_MAX) {
-    conn->rx.rate.start_ts = ts;
-    return;
-  }
-
-  assert(conn->cstat.min_rtt);
-
-  window = conn->cstat.min_rtt == UINT64_MAX ? conn->cstat.initial_rtt
-                                             : conn->cstat.min_rtt * 2;
-
-  /* If settings.initial_rtt is zero for whatever reason then window
-     can be zero and we can end up with a division by zero error when
-     bps is set below. If this assert fails, check that
-     settings.initial_rtt is not zero. */
-  assert(window);
-
-  if (window > ts - conn->rx.rate.start_ts) {
-    return;
-  }
-
-  bps = conn->rx.rate.received * NGTCP2_SECONDS / (ts - conn->rx.rate.start_ts);
-
-  if (conn->cstat.recv_rate_sec == 0) {
-    conn->cstat.recv_rate_sec = bps;
-  } else {
-    conn->cstat.recv_rate_sec = (conn->cstat.recv_rate_sec * 3 + bps) / 4;
-  }
-
-  conn_reset_rx_rate(conn);
-
-  if (conn->cstat.min_rtt != UINT64_MAX) {
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                    "recv_rate_sec=%" PRIu64 " bytes/min_rtt=%" PRIu64,
-                    conn->cstat.recv_rate_sec,
-                    conn->cstat.recv_rate_sec * conn->cstat.min_rtt /
-                        NGTCP2_SECONDS);
-  }
 }
 
 static void delete_scid(ngtcp2_ksl *scids, const ngtcp2_mem *mem) {
@@ -892,8 +840,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   default:
     assert(0);
   }
-
-  conn_reset_rx_rate(*pconn);
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
@@ -4800,8 +4746,6 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
 static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   conn_reset_conn_stat_cc(conn, &conn->cstat);
 
-  conn_reset_rx_rate(conn);
-
   conn->cc.reset(&conn->cc);
 
   if (conn->hs_pktns) {
@@ -5796,8 +5740,7 @@ static int conn_max_data_violated(ngtcp2_conn *conn, uint64_t datalen) {
  *     STREAM frame has strictly larger end offset than it is
  *     permitted.
  */
-static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
-                            ngtcp2_tstamp ts) {
+static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   int rv;
   ngtcp2_strm *strm;
   ngtcp2_idtr *idtr;
@@ -5935,8 +5878,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr,
       return 0;
     }
   }
-
-  conn_update_recv_rate(conn, fr_end_offset - fr->offset, ts);
 
   if (fr->offset <= rx_offset) {
     size_t ncut = (size_t)(rx_offset - fr->offset);
@@ -7752,7 +7693,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       non_probing_pkt = 1;
       break;
     case NGTCP2_FRAME_STREAM:
-      rv = conn_recv_stream(conn, &fr->stream, ts);
+      rv = conn_recv_stream(conn, &fr->stream);
       if (rv != 0) {
         return rv;
       }
