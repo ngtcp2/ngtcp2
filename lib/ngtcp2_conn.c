@@ -4774,21 +4774,21 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     return 0;
   }
 
-  if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
-    if (pv->dcid.seq != conn->dcid.current.seq) {
-      assert(conn->dcid.current.cid.datalen);
-
-      rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
-      if (rv != 0) {
-        goto fail;
-      }
-      ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
-    }
-    conn_reset_congestion_state(conn);
-    conn_reset_ecn_validation_state(conn);
-  }
-
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
+    if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
+      if (pv->dcid.seq != conn->dcid.current.seq) {
+        assert(conn->dcid.current.cid.datalen);
+
+        rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
+        if (rv != 0) {
+          goto fail;
+        }
+        ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
+      }
+      conn_reset_congestion_state(conn);
+      conn_reset_ecn_validation_state(conn);
+    }
+
     rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
                                    NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
     if (rv != 0) {
