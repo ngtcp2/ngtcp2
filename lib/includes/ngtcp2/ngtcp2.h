@@ -3411,12 +3411,15 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_set_tls_error` sets the TLS related error in |conn|.
- * In general, error code should be propagated via return value, but
- * sometimes ngtcp2 API is called inside callback function of TLS
- * stack and it does not allow to return ngtcp2 error code directly.
- * In this case, implementation can set the error code (e.g.,
- * NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM) using this function.
+ * `ngtcp2_conn_set_tls_error` sets the TLS related error |liberr| in
+ * |conn|.  |liberr| must be one of ngtcp2 library error codes (which
+ * is defined as NGTCP2_ERR_* macro, such as
+ * :macro:`NGTCP2_ERR_TLS_DECRYPT`).  In general, error code should be
+ * propagated via return value, but sometimes ngtcp2 API is called
+ * inside callback function of TLS stack and it does not allow to
+ * return ngtcp2 error code directly.  In this case, implementation
+ * can set the error code (e.g.,
+ * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`) using this function.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_tls_error(ngtcp2_conn *conn, int liberr);
 
@@ -4396,6 +4399,9 @@ NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
+ * |liberr| must be one of ngtcp2 library error codes (which is
+ * defined as NGTCP2_ERR_* macro, such as
+ * :macro:`NGTCP2_ERR_TLS_DECRYPT`).
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
 
@@ -4403,6 +4409,9 @@ NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
  * @function
  *
  * `ngtcp2_err_is_fatal` returns nonzero if |liberr| is a fatal error.
+ * |liberr| must be one of ngtcp2 library error codes (which is
+ * defined as NGTCP2_ERR_* macro, such as
+ * :macro:`NGTCP2_ERR_TLS_DECRYPT`).
  */
 NGTCP2_EXTERN int ngtcp2_err_is_fatal(int liberr);
 
@@ -4410,7 +4419,9 @@ NGTCP2_EXTERN int ngtcp2_err_is_fatal(int liberr);
  * @function
  *
  * `ngtcp2_err_infer_quic_transport_error_code` returns a QUIC
- * transport error code which corresponds to |liberr|.
+ * transport error code which corresponds to |liberr|.  |liberr| must
+ * be one of ngtcp2 library error codes (which is defined as
+ * NGTCP2_ERR_* macro, such as :macro:`NGTCP2_ERR_TLS_DECRYPT`).
  */
 NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
 
