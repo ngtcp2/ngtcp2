@@ -2042,7 +2042,7 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
  * respectively.
  *
  * If the given packet is Short packet, |*pversion| will be 0,
- * |*pscid| will be NULL, and |*pscidlen| will be 0.  Because the
+ * |*pscid| will be ``NULL``, and |*pscidlen| will be 0.  Because the
  * Short packet does not have the length of Destination Connection ID,
  * the caller has to pass the length in |short_dcidlen|.  This
  * function extracts the pointer to the Destination Connection ID and
@@ -2758,8 +2758,8 @@ typedef enum ngtcp2_connection_id_status_type {
  * :type:`ngtcp2_connection_id_status` is a callback function which is
  * called when the status of Connection ID changes.
  *
- * |token| is the associated stateless reset token and it is NULL if
- * no token is present.
+ * |token| is the associated stateless reset token and it is ``NULL``
+ * if no token is present.
  *
  * |type| is the one of the value defined in
  * :type:`ngtcp2_connection_id_status_type`.  The new value might be
@@ -3078,8 +3078,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
  * Version Negotiation packet is required to send, it returns 1.
  * Otherwise, it returns -1.
  *
- * If |dest| is not NULL, and the return value is 0 or 1, the decoded
- * packet header is stored to the object pointed by |dest|.
+ * If |dest| is not ``NULL``, and the return value is 0 or 1, the
+ * decoded packet header is stored to the object pointed by |dest|.
  */
 NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                 size_t pktlen);
@@ -3091,11 +3091,12 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * initializes it as client.  |dcid| is randomized destination
  * connection ID.  |scid| is source connection ID.  |version| is a
  * QUIC version to use.  |path| is the network path where this QUIC
- * connection is being established and must not be NULL.  |callbacks|,
- * and |settings| must not be NULL, and the function make a copy of
- * each of them.  |user_data| is the arbitrary pointer which is passed
- * to the user-defined callback functions.  If |mem| is NULL, the
- * memory allocator returned by `ngtcp2_mem_default()` is used.
+ * connection is being established and must not be ``NULL``.
+ * |callbacks|, and |settings| must not be ``NULL``, and the function
+ * make a copy of each of them.  |user_data| is the arbitrary pointer
+ * which is passed to the user-defined callback functions.  If |mem|
+ * is ``NULL``, the memory allocator returned by
+ * `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3116,11 +3117,11 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
  * initializes it as server.  |dcid| is a destination connection ID.
  * |scid| is a source connection ID.  |path| is the network path where
- * this QUIC connection is being established and must not be NULL.
+ * this QUIC connection is being established and must not be ``NULL`.
  * |version| is a QUIC version to use.  |callbacks|, and |settings|
- * must not be NULL, and the function make a copy of each of them.
+ * must not be ``NULL``, and the function make a copy of each of them.
  * |user_data| is the arbitrary pointer which is passed to the
- * user-defined callback functions.  If |mem| is NULL, the memory
+ * user-defined callback functions.  If |mem| is ``NULL``, the memory
  * allocator returned by `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -3149,17 +3150,17 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_read_pkt` decrypts QUIC packet given in |pkt| of
  * length |pktlen| and processes it.  |path| is the network path the
- * packet is delivered and must not be NULL.  |pi| is packet metadata
- * and must not be NULL. This function performs QUIC handshake as
- * well.
+ * packet is delivered and must not be ``NULL``.  |pi| is packet
+ * metadata and must not be ``NULL``. This function performs QUIC
+ * handshake as well.
  *
  * This function must not be called from inside the callback
  * functions.
  *
  * This function returns 0 if it succeeds, or negative error codes.
  * In general, if the error code which satisfies
- * ngtcp2_erro_is_fatal(err) != 0 is returned, the application should
- * just close the connection by calling
+ * `ngtcp2_erro_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
+ * the application should just close the connection by calling
  * `ngtcp2_conn_write_connection_close` or just delete the QUIC
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.  If :macro:`NGTCP2_ERR_RETRY` is returned,
@@ -3452,7 +3453,7 @@ NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_get_idle_expiry` returns the time when a connection
  * should be closed if it continues to be idle.  If idle timeout is
- * disabled, this function returns UINT64_MAX.
+ * disabled, this function returns ``UINT64_MAX``.
  */
 NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn);
 
@@ -3718,16 +3719,17 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *
  * Specifying -1 to |stream_id| means no new stream data to send.
  *
- * If |path| is not NULL, this function stores the network path with
- * which the packet should be sent.  Each addr field must point to the
- * buffer which should be at least ``sizeof(struct sockaddr_storage)``
- * bytes long.  The assignment might not be done if nothing is written
- * to |dest|.
+ * If |path| is not ``NULL``, this function stores the network path
+ * with which the packet should be sent.  Each addr field must point
+ * to the buffer which should be at least ``sizeof(struct
+ * sockaddr_storage)`` bytes long.  The assignment might not be done
+ * if nothing is written to |dest|.
  *
- * If |pi| is not NULL, this function stores packet metadata in it if
- * it succeeds.  The metadata includes ECN markings.  When calling
- * this function again after it returns :macro:`NGTCP2_ERR_WRITE_MORE`,
- * caller must pass the same |pi| to this function.
+ * If |pi| is not ``NULL``, this function stores packet metadata in it
+ * if it succeeds.  The metadata includes ECN markings.  When calling
+ * this function again after it returns
+ * :macro:`NGTCP2_ERR_WRITE_MORE`, caller must pass the same |pi| to
+ * this function.
  *
  * If the all given data is encoded as STREAM frame in |dest|, and if
  * |flags| & :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` is nonzero, fin
@@ -3736,14 +3738,15 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *
  * This packet may contain frames other than STREAM frame.  The packet
  * might not contain STREAM frame if other frames occupy the packet.
- * In that case, |*pdatalen| would be -1 if |pdatalen| is not NULL.
+ * In that case, |*pdatalen| would be -1 if |pdatalen| is not
+ * ``NULL``.
  *
  * If |flags| & :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` is nonzero, and
  * 0 length STREAM frame is successfully serialized, |*pdatalen| would
  * be 0.
  *
  * The number of data encoded in STREAM frame is stored in |*pdatalen|
- * if it is not NULL.  The caller must keep the portion of data
+ * if it is not ``NULL``.  The caller must keep the portion of data
  * covered by |*pdatalen| bytes in tact until
  * :type:`ngtcp2_acked_stream_data_offset` indicates that they are
  * acknowledged by a remote endpoint or the stream is closed.
@@ -3834,14 +3837,14 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  * a CONNECTION_CLOSE frame (type 0x1c) in the buffer pointed by
  * |dest| whose capacity is |datalen|.
  *
- * If |path| is not NULL, this function stores the network path with
- * which the packet should be sent.  Each addr field must point to the
- * buffer which should be at least ``sizeof(struct sockaddr_storage)``
- * bytes long.  The assignment might not be done if nothing is written
- * to |dest|.
+ * If |path| is not ``NULL``, this function stores the network path
+ * with which the packet should be sent.  Each addr field must point
+ * to the buffer which should be at least ``sizeof(struct
+ * sockaddr_storage)`` bytes long.  The assignment might not be done
+ * if nothing is written to |dest|.
  *
- * If |pi| is not NULL, this function stores packet metadata in it if
- * it succeeds.  The metadata includes ECN markings.
+ * If |pi| is not ``NULL``, this function stores packet metadata in it
+ * if it succeeds.  The metadata includes ECN markings.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -3872,14 +3875,14 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  * contains a CONNECTION_CLOSE frame (type 0x1d) in the buffer pointed
  * by |dest| whose capacity is |datalen|.
  *
- * If |path| is not NULL, this function stores the network path with
- * which the packet should be sent.  Each addr field must point to the
- * buffer which should be at least ``sizeof(struct sockaddr_storage)``
- * bytes long.  The assignment might not be done if nothing is written
- * to |dest|.
+ * If |path| is not ``NULL``, this function stores the network path
+ * with which the packet should be sent.  Each addr field must point
+ * to the buffer which should be at least ``sizeof(struct
+ * sockaddr_storage)`` bytes long.  The assignment might not be done
+ * if nothing is written to |dest|.
  *
- * If |pi| is not NULL, this function stores packet metadata in it if
- * it succeeds.  The metadata includes ECN markings.
+ * If |pi| is not ``NULL``, this function stores packet metadata in it
+ * if it succeeds.  The metadata includes ECN markings.
  *
  * If handshake has not been confirmed yet, CONNECTION_CLOSE (type
  * 0x1c) with error code :macro:`NGTCP2_APPLICATION_ERROR` is written
@@ -4170,7 +4173,7 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_initiate_migration` starts connection migration to the
- * given |path| which must not be NULL.  Only client can initiate
+ * given |path| which must not be ``NULL``.  Only client can initiate
  * migration.  This function does immediate migration; it does not
  * probe peer reachability from a new local address.
  *
