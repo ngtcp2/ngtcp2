@@ -31,6 +31,16 @@
 
 #include <ngtcp2/ngtcp2_crypto.h>
 
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_INITIAL_SALT` is a salt value which is used to
+ * derive initial secret.
+ */
+#define NGTCP2_INITIAL_SALT                                                    \
+  "\xaf\xbf\xec\x28\x99\x93\xd2\x4c\x9e\x97\x86\xf1\x9c\x61\x11\xe0\x43\x90"   \
+  "\xa8\x99"
+
 /* Maximum key usage (encryption) limits */
 #define NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM (1ULL << 23)
 #define NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305 (1ULL << 62)
