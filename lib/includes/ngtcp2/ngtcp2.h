@@ -215,17 +215,41 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version the
- * library supports.
+ * :macro:`NGTCP2_PROTO_VER_V1` is the QUIC version 1.
  */
-#define NGTCP2_PROTO_VER_MAX 0xff000020u
+#define NGTCP2_PROTO_VER_V1 0x00000001u
+
 /**
  * @macro
  *
- * :macro:`NGTCP2_PROTO_VER_MIN` is the lowest QUIC version the
+ * :macro:`NGTCP2_PROTO_VER_DRAFT_MAX` is the maximum QUIC draft
+ * version that this library supports.
+ */
+#define NGTCP2_PROTO_VER_DRAFT_MAX 0xff000020u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_PROTO_VER_DRAFT_MIN` is the minimum QUIC draft
+ * version that this library supports.
+ */
+#define NGTCP2_PROTO_VER_DRAFT_MIN 0xff00001du
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version that this
  * library supports.
  */
-#define NGTCP2_PROTO_VER_MIN 0xff00001du
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_V1
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_PROTO_VER_MIN` is the lowest QUIC version that this
+ * library supports.
+ */
+#define NGTCP2_PROTO_VER_MIN NGTCP2_PROTO_VER_DRAFT_MIN
 
 /**
  * @macrosection
@@ -290,19 +314,37 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_RETRY_KEY` is an encryption key to create integrity
- * tag of Retry packet.
+ * :macro:`NGTCP2_RETRY_KEY_DRAFT` is an encryption key to create
+ * integrity tag of Retry packet.  It is used for QUIC draft versions.
  */
-#define NGTCP2_RETRY_KEY                                                       \
+#define NGTCP2_RETRY_KEY_DRAFT                                                 \
   "\xcc\xce\x18\x7e\xd0\x9a\x09\xd0\x57\x28\x15\x5a\x6c\xb9\x6b\xe1"
 
 /**
  * @macro
  *
- * :macro:`NGTCP2_RETRY_NONCE` is nonce used when generating integrity
- * tag of Retry packet.
+ * :macro:`NGTCP2_RETRY_NONCE_DRAFT` is nonce used when generating
+ * integrity tag of Retry packet.  It is used for QUIC draft versions.
  */
-#define NGTCP2_RETRY_NONCE "\xe5\x49\x30\xf9\x7f\x21\x36\xf0\x53\x0a\x8c\x1c"
+#define NGTCP2_RETRY_NONCE_DRAFT                                               \
+  "\xe5\x49\x30\xf9\x7f\x21\x36\xf0\x53\x0a\x8c\x1c"
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_RETRY_KEY_V1` is an encryption key to create
+ * integrity tag of Retry packet.  It is used for QUIC v1.
+ */
+#define NGTCP2_RETRY_KEY_V1                                                    \
+  "\xbe\x0c\x69\x0b\x9f\x66\x57\x5a\x1d\x76\x6b\x54\xe3\x68\xc8\x4e"
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_RETRY_NONCE_V1` is nonce used when generating integrity
+ * tag of Retry packet.  It is used for QUIC v1.
+ */
+#define NGTCP2_RETRY_NONCE_V1 "\x46\x15\x99\xd3\x5d\x63\x2b\xf2\x23\x98\x25\xbb"
 
 /**
  * @macro

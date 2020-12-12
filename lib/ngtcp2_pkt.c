@@ -95,8 +95,9 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
 
     version = ngtcp2_get_uint32(&data[1]);
 
-    if ((version == 0 || (NGTCP2_PROTO_VER_MIN <= version &&
-                          version <= NGTCP2_PROTO_VER_MAX)) &&
+    if ((version == 0 || version == NGTCP2_PROTO_VER_V1 ||
+         (NGTCP2_PROTO_VER_DRAFT_MIN <= version &&
+          version <= NGTCP2_PROTO_VER_DRAFT_MAX)) &&
         (dcidlen > NGTCP2_MAX_CIDLEN || scidlen > NGTCP2_MAX_CIDLEN)) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
@@ -107,8 +108,9 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
     *pscid = &data[6 + dcidlen + 1];
     *pscidlen = scidlen;
 
-    if (version &&
-        (version < NGTCP2_PROTO_VER_MIN || NGTCP2_PROTO_VER_MAX < version)) {
+    if (version && version != NGTCP2_PROTO_VER_V1 &&
+        (version < NGTCP2_PROTO_VER_DRAFT_MIN ||
+         NGTCP2_PROTO_VER_DRAFT_MAX < version)) {
       return 1;
     }
     return 0;
@@ -2218,6 +2220,8 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(
   int rv;
   uint8_t *p;
   size_t offset;
+  const uint8_t *nonce;
+  size_t noncelen;
 
   assert(tokenlen > 0);
   assert(!ngtcp2_cid_eq(scid, odcid));
@@ -2240,11 +2244,17 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(
     return pseudo_retrylen;
   }
 
+  if (version == NGTCP2_PROTO_VER_V1) {
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
+  } else {
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_DRAFT;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_DRAFT) - 1;
+  }
+
   /* OpenSSL does not like NULL plaintext. */
-  rv = encrypt(tag, aead, aead_ctx, (const uint8_t *)"", 0,
-               (const uint8_t *)NGTCP2_RETRY_NONCE,
-               sizeof(NGTCP2_RETRY_NONCE) - 1, pseudo_retry,
-               (size_t)pseudo_retrylen);
+  rv = encrypt(tag, aead, aead_ctx, (const uint8_t *)"", 0, nonce, noncelen,
+               pseudo_retry, (size_t)pseudo_retrylen);
   if (rv != 0) {
     return rv;
   }
@@ -2294,7 +2304,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_pseudo_retry(
   return p - dest;
 }
 
-int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
+int ngtcp2_pkt_verify_retry_tag(uint32_t version, const ngtcp2_pkt_retry *retry,
                                 const uint8_t *pkt, size_t pktlen,
                                 ngtcp2_encrypt encrypt,
                                 const ngtcp2_crypto_aead *aead,
@@ -2304,6 +2314,8 @@ int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
   uint8_t *p = pseudo_retry;
   int rv;
   uint8_t tag[NGTCP2_RETRY_TAGLEN];
+  const uint8_t *nonce;
+  size_t noncelen;
 
   assert(pktlen >= sizeof(retry->tag));
 
@@ -2318,10 +2330,17 @@ int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
 
   pseudo_retrylen = (size_t)(p - pseudo_retry);
 
+  if (version == NGTCP2_PROTO_VER_V1) {
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
+  } else {
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_DRAFT;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_DRAFT) - 1;
+  }
+
   /* OpenSSL does not like NULL plaintext. */
-  rv = encrypt(tag, aead, aead_ctx, (const uint8_t *)"", 0,
-               (const uint8_t *)NGTCP2_RETRY_NONCE,
-               sizeof(NGTCP2_RETRY_NONCE) - 1, pseudo_retry, pseudo_retrylen);
+  rv = encrypt(tag, aead, aead_ctx, (const uint8_t *)"", 0, nonce, noncelen,
+               pseudo_retry, pseudo_retrylen);
   if (rv != 0) {
     return rv;
   }
