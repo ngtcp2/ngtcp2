@@ -552,7 +552,7 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->rttvar = conn->local.settings.initial_rtt / 2;
   cstat->first_rtt_sample_ts = UINT64_MAX;
   cstat->pto_count = 0;
-  cstat->loss_detection_timer = 0;
+  cstat->loss_detection_timer = UINT64_MAX;
   cstat->cwnd =
       ngtcp2_cc_compute_initcwnd(conn->local.settings.max_udp_payload_size);
   cstat->ssthresh = UINT64_MAX;
@@ -8209,7 +8209,7 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
          situation, try to arm loss detection and check the expiry
          here so that on next write call, we can resend
          Initial/Handshake first. */
-      if (!conn->cstat.loss_detection_timer) {
+      if (conn->cstat.loss_detection_timer == UINT64_MAX) {
         ngtcp2_conn_set_loss_detection_timer(conn, ts);
         if (ngtcp2_conn_loss_detection_expiry(conn) <= ts) {
           rv = ngtcp2_conn_on_loss_detection_timer(conn, ts);
@@ -8543,10 +8543,10 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
       server_hs_tx_left = conn_server_hs_tx_left(conn);
       if (server_hs_tx_left == 0) {
-        if (cstat->loss_detection_timer) {
+        if (cstat->loss_detection_timer != UINT64_MAX) {
           ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                           "loss detection timer canceled");
-          cstat->loss_detection_timer = 0;
+          cstat->loss_detection_timer = UINT64_MAX;
           cstat->pto_count = 0;
         }
         return 0;
@@ -8967,10 +8967,7 @@ int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 }
 
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
-  if (conn->cstat.loss_detection_timer) {
-    return conn->cstat.loss_detection_timer;
-  }
-  return UINT64_MAX;
+  return conn->cstat.loss_detection_timer;
 }
 
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
@@ -10183,10 +10180,10 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       (conn->server ||
        (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
                        NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
-    if (cstat->loss_detection_timer) {
+    if (cstat->loss_detection_timer != UINT64_MAX) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
                       "loss detection timer canceled");
-      cstat->loss_detection_timer = 0;
+      cstat->loss_detection_timer = UINT64_MAX;
       cstat->pto_count = 0;
     }
     return;
@@ -10228,14 +10225,14 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   switch (conn->state) {
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
-    cstat->loss_detection_timer = 0;
+    cstat->loss_detection_timer = UINT64_MAX;
     cstat->pto_count = 0;
     return 0;
   default:
     break;
   }
 
-  if (!cstat->loss_detection_timer) {
+  if (cstat->loss_detection_timer == UINT64_MAX) {
     return 0;
   }
 
