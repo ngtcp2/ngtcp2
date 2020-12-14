@@ -986,7 +986,6 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   if ((*pconn)->local.settings.token.len) {
     /* Usage of token lifts amplification limit */
-    (*pconn)->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
     (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   }
 
@@ -5504,7 +5503,6 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   if (conn->server && hd.type == NGTCP2_PKT_HANDSHAKE) {
     /* Successful processing of Handshake packet from client verifies
        source address. */
-    conn->flags |= NGTCP2_CONN_FLAG_SADDR_VERIFIED;
     conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   }
 

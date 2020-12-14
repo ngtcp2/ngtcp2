@@ -162,9 +162,6 @@ typedef enum {
   /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
      rejected by a peer. */
   NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED = 0x20,
-  /* NGTCP2_CONN_FLAG_SADDR_VERIFIED is set when source address is
-     verified. */
-  NGTCP2_CONN_FLAG_SADDR_VERIFIED = 0x40,
   /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
      confirmed completion of handshake. */
   NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED = 0x80,
