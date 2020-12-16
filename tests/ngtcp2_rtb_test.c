@@ -63,7 +63,8 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
                      1000000007, 1, NGTCP2_PROTO_VER_MAX, 0);
 
-  rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 10, 0, NGTCP2_RTB_FLAG_NONE, mem);
+  rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 10, 0, NGTCP2_RTB_ENTRY_FLAG_NONE,
+                            mem);
 
   CU_ASSERT(0 == rv);
 
@@ -72,7 +73,8 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
                      1000000008, 2, NGTCP2_PROTO_VER_MAX, 0);
 
-  rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 9, 0, NGTCP2_RTB_FLAG_NONE, mem);
+  rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 9, 0, NGTCP2_RTB_ENTRY_FLAG_NONE,
+                            mem);
 
   CU_ASSERT(0 == rv);
 
@@ -81,7 +83,8 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
                      1000000009, 4, NGTCP2_PROTO_VER_MAX, 0);
 
-  rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 11, 0, NGTCP2_RTB_FLAG_NONE, mem);
+  rv = ngtcp2_rtb_entry_new(&ent, &hd, NULL, 11, 0, NGTCP2_RTB_ENTRY_FLAG_NONE,
+                            mem);
 
   CU_ASSERT(0 == rv);
 
@@ -125,7 +128,8 @@ static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
   for (i = 0; i < len; ++i) {
     ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
                        base_pkt_num + (int64_t)i, 1, NGTCP2_PROTO_VER_MAX, 0);
-    ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 0, NGTCP2_RTB_FLAG_NONE, mem);
+    ngtcp2_rtb_entry_new(&ent, &hd, NULL, 0, 0, NGTCP2_RTB_ENTRY_FLAG_NONE,
+                         mem);
     ngtcp2_rtb_add(rtb, ent, cstat);
   }
 }
@@ -313,7 +317,7 @@ void test_ngtcp2_rtb_lost_pkt_ts(void) {
   it = ngtcp2_ksl_end(&rtb.ents);
   ngtcp2_ksl_it_prev(&it);
   ent = ngtcp2_ksl_it_get(&it);
-  ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
+  ent->flags |= NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED;
   ent->lost_ts = 16777217;
 
   CU_ASSERT(16777217 == ngtcp2_rtb_lost_pkt_ts(&rtb));
@@ -351,7 +355,7 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   for (i = 0; i < 5; ++i) {
     ngtcp2_ksl_it_prev(&it);
     ent = ngtcp2_ksl_it_get(&it);
-    ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
+    ent->flags |= NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED;
     ent->lost_ts = 16777217 + i;
   }
 
@@ -396,7 +400,7 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
   for (i = 0; i < 5; ++i) {
     ngtcp2_ksl_it_prev(&it);
     ent = ngtcp2_ksl_it_get(&it);
-    ent->flags |= NGTCP2_RTB_FLAG_LOST_RETRANSMITTED;
+    ent->flags |= NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED;
     ent->lost_ts = 16777217;
     ++rtb.num_lost_pkts;
   }

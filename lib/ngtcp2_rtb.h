@@ -162,31 +162,31 @@ void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
 void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
                                  const ngtcp2_mem *mem);
 
-/* NGTCP2_RTB_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_RTB_FLAG_NONE 0x00
-/* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
-   packet. */
-#define NGTCP2_RTB_FLAG_PROBE 0x01
-/* NGTCP2_RTB_FLAG_RETRANSMITTABLE indicates that the entry includes a
-   frame which must be retransmitted until it is acknowledged.  In
-   most cases, this flag is used along with
-   NGTCP2_RTB_FLAG_ACK_ELICITING.  We have these 2 flags because
-   NGTCP2_RTB_FLAG_RETRANSMITTABLE triggers PTO, but just
-   NGTCP2_RTB_FLAG_ACK_ELICITING does not. */
-#define NGTCP2_RTB_FLAG_RETRANSMITTABLE 0x02
-/* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
-   acknowledgement. */
-#define NGTCP2_RTB_FLAG_ACK_ELICITING 0x04
-/* NGTCP2_RTB_FLAG_PTO_RECLAIMED indicates that the packet has been
-   reclaimed on PTO.  It is not marked lost yet and still consumes
-   congestion window. */
-#define NGTCP2_RTB_FLAG_PTO_RECLAIMED 0x08
-/* NGTCP2_RTB_FLAG_LOST_RETRANSMITTED indicates that the entry has
-   been marked lost and scheduled to retransmit. */
-#define NGTCP2_RTB_FLAG_LOST_RETRANSMITTED 0x10
-/* NGTCP2_RTB_FLAG_ECN indicates that the entry is included in a UDP
-   datagram with ECN marking. */
-#define NGTCP2_RTB_FLAG_ECN 0x20
+/* NGTCP2_RTB_ENTRY_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_RTB_ENTRY_FLAG_NONE 0x00
+/* NGTCP2_RTB_ENTRY_FLAG_PROBE indicates that the entry includes a
+   probe packet. */
+#define NGTCP2_RTB_ENTRY_FLAG_PROBE 0x01
+/* NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE indicates that the entry
+   includes a frame which must be retransmitted until it is
+   acknowledged.  In most cases, this flag is used along with
+   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING.  We have these 2 flags because
+   NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE triggers PTO, but just
+   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING does not. */
+#define NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE 0x02
+/* NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING indicates that the entry
+   elicits acknowledgement. */
+#define NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING 0x04
+/* NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED indicates that the packet has
+   been reclaimed on PTO.  It is not marked lost yet and still
+   consumes congestion window. */
+#define NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED 0x08
+/* NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED indicates that the entry
+   has been marked lost and scheduled to retransmit. */
+#define NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED 0x10
+/* NGTCP2_RTB_ENTRY_FLAG_ECN indicates that the entry is included in a
+   UDP datagram with ECN marking. */
+#define NGTCP2_RTB_ENTRY_FLAG_ECN 0x20
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
@@ -216,7 +216,8 @@ struct ngtcp2_rtb_entry {
     ngtcp2_tstamp first_sent_ts;
     int is_app_limited;
   } rst;
-  /* flags is bitwise-OR of zero or more of NGTCP2_RTB_FLAG_*. */
+  /* flags is bitwise-OR of zero or more of
+     NGTCP2_RTB_ENTRY_FLAG_*. */
   uint8_t flags;
 };
 
@@ -280,7 +281,7 @@ typedef struct ngtcp2_rtb {
      handshake is confirmed. */
   ngtcp2_tstamp persistent_congestion_start_ts;
   /* num_lost_pkts is the number entries in ents which has
-     NGTCP2_RTB_FLAG_LOST_RETRANSMITTED flag set. */
+     NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED flag set. */
   size_t num_lost_pkts;
 } ngtcp2_rtb;
 

@@ -4945,7 +4945,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
   ent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
+  CU_ASSERT(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE);
   CU_ASSERT(sizeof(buf) == ent->pktlen);
 
   ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
@@ -4972,7 +4972,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   it = ngtcp2_rtb_head(&conn->hs_pktns->rtb);
   ent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(ent->flags & NGTCP2_RTB_FLAG_PROBE);
+  CU_ASSERT(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE);
   /* We should expect sizeof(buf) > ent->pktlen, but we haven't
      discarded Initial state in this test case, therefore Handshake
      packet is padded.  In practice, client gets Initial from server,
@@ -5992,7 +5992,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   num_reclaim_pkt = 0;
   for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
     ent = ngtcp2_ksl_it_get(&it);
-    if (ent->flags & NGTCP2_RTB_FLAG_PTO_RECLAIMED) {
+    if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
       ++num_reclaim_pkt;
     }
   }
