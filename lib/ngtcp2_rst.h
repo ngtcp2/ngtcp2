@@ -31,7 +31,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-struct ngtcp2_rtb_entry;
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
 /**

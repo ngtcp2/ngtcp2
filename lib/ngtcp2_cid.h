@@ -40,7 +40,7 @@ typedef enum {
   NGTCP2_SCID_FLAG_RETIRED = 0x02,
 } ngtcp2_scid_flag;
 
-typedef struct {
+typedef struct ngtcp2_scid {
   ngtcp2_pq_entry pe;
   /* seq is the sequence number associated to the CID. */
   uint64_t seq;
@@ -63,7 +63,7 @@ typedef struct {
    has been validated. */
 #define NGTCP2_DCID_FLAG_PATH_VALIDATED 0x01
 
-typedef struct {
+typedef struct ngtcp2_dcid {
   /* seq is the sequence number associated to the CID. */
   uint64_t seq;
   /* cid is a connection ID */

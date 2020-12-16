@@ -41,10 +41,8 @@
    PATH_CHALLENGE sent at a time. */
 #define NGTCP2_PV_NUM_PROBE_PKT 2
 
-struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
-struct ngtcp2_frame_chain;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /* NGTCP2_PV_ENTRY_FLAG_NONE indicates that no flag is set. */
@@ -53,7 +51,7 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
    contains PATH_CHALLENGE is undersized (< 1200 bytes) */
 #define NGTCP2_PV_ENTRY_FLAG_UNDERSIZED 0x01
 
-typedef struct {
+typedef struct ngtcp2_pv_entry {
   /* expiry is the timestamp when this PATH_CHALLENGE expires. */
   ngtcp2_tstamp expiry;
   /* flags is zero or more of NGTCP2_PV_ENTRY_FLAG_*. */
@@ -84,7 +82,6 @@ typedef enum {
   NGTCP2_PV_FLAG_MTU_PROBE = 0x08,
 } ngtcp2_pv_flag;
 
-struct ngtcp2_pv;
 typedef struct ngtcp2_pv ngtcp2_pv;
 
 /*

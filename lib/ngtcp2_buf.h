@@ -31,7 +31,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-typedef struct {
+typedef struct ngtcp2_buf {
   /* begin points to the beginning of the buffer. */
   uint8_t *begin;
   /* end points to the one beyond of the last byte of the buffer */

@@ -41,7 +41,7 @@
    ngtcp2_pq_entry.index can check that the entry is queued or not. */
 #define NGTCP2_PQ_BAD_INDEX SIZE_MAX
 
-typedef struct {
+typedef struct ngtcp2_pq_entry {
   size_t index;
 } ngtcp2_pq_entry;
 
@@ -49,7 +49,7 @@ typedef struct {
 typedef int (*ngtcp2_less)(const ngtcp2_pq_entry *lhs,
                            const ngtcp2_pq_entry *rhs);
 
-typedef struct {
+typedef struct ngtcp2_pq {
   /* The pointer to the pointer to the item stored */
   ngtcp2_pq_entry **q;
   /* Memory allocator */

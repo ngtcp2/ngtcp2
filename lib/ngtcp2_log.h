@@ -33,6 +33,8 @@
 
 #include "ngtcp2_pkt.h"
 
+typedef struct ngtcp2_log ngtcp2_log;
+
 struct ngtcp2_log {
   /* log_printf is a sink to write log.  NULL means no logging
      output. */
@@ -48,8 +50,6 @@ struct ngtcp2_log {
   /* scid is SCID encoded as NULL-terminated hex string. */
   uint8_t scid[NGTCP2_MAX_CIDLEN * 2 + 1];
 };
-
-typedef struct ngtcp2_log ngtcp2_log;
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,

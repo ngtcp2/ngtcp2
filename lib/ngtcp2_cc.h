@@ -34,7 +34,6 @@
 #define NGTCP2_LOSS_REDUCTION_FACTOR_BITS 1
 #define NGTCP2_PERSISTENT_CONGESTION_THRESHOLD 3
 
-struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
 /*
@@ -47,14 +46,12 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   ngtcp2_tstamp ts_sent);
 
 /* ngtcp2_reno_cc is the RENO congestion controller. */
-struct ngtcp2_reno_cc {
+typedef struct ngtcp2_reno_cc {
   ngtcp2_cc_base ccb;
   uint64_t max_delivery_rate_sec;
   uint64_t target_cwnd;
   uint64_t pending_add;
-};
-
-typedef struct ngtcp2_reno_cc ngtcp2_reno_cc;
+} ngtcp2_reno_cc;
 
 int ngtcp2_cc_reno_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
                            const ngtcp2_mem *mem);

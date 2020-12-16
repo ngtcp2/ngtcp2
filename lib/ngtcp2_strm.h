@@ -37,7 +37,6 @@
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
 
-struct ngtcp2_frame_chain;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 typedef enum {
@@ -69,7 +68,6 @@ typedef enum {
   NGTCP2_STRM_FLAG_FIN_ACKED = 0x40,
 } ngtcp2_strm_flags;
 
-struct ngtcp2_strm;
 typedef struct ngtcp2_strm ngtcp2_strm;
 
 struct ngtcp2_strm {

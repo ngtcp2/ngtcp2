@@ -48,7 +48,7 @@ typedef enum {
   NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE = 0x01,
 } ngtcp2_crypto_km_flag;
 
-typedef struct {
+typedef struct ngtcp2_crypto_km {
   ngtcp2_vec secret;
   ngtcp2_crypto_aead_ctx aead_ctx;
   ngtcp2_vec iv;
@@ -88,7 +88,7 @@ int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
 
 void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 
-typedef struct {
+typedef struct ngtcp2_crypto_cc {
   ngtcp2_crypto_aead aead;
   ngtcp2_crypto_cipher hp;
   ngtcp2_crypto_km *ckm;

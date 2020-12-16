@@ -50,10 +50,8 @@
  */
 typedef void ngtcp2_ksl_key;
 
-struct ngtcp2_ksl_node;
 typedef struct ngtcp2_ksl_node ngtcp2_ksl_node;
 
-struct ngtcp2_ksl_blk;
 typedef struct ngtcp2_ksl_blk ngtcp2_ksl_blk;
 
 /*
@@ -107,10 +105,8 @@ struct ngtcp2_ksl_blk {
 typedef int (*ngtcp2_ksl_compar)(const ngtcp2_ksl_key *lhs,
                                  const ngtcp2_ksl_key *rhs);
 
-struct ngtcp2_ksl;
 typedef struct ngtcp2_ksl ngtcp2_ksl;
 
-struct ngtcp2_ksl_it;
 typedef struct ngtcp2_ksl_it ngtcp2_ksl_it;
 
 /*

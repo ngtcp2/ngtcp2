@@ -49,7 +49,7 @@ typedef struct ngtcp2_map_bucket {
   ngtcp2_ksl *ksl;
 } ngtcp2_map_bucket;
 
-typedef struct {
+typedef struct ngtcp2_map {
   ngtcp2_map_bucket *table;
   const ngtcp2_mem *mem;
   size_t size;

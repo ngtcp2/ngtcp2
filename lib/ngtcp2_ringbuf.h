@@ -33,7 +33,7 @@
 
 #include "ngtcp2_mem.h"
 
-typedef struct {
+typedef struct ngtcp2_ringbuf {
   /* buf points to the underlying buffer. */
   uint8_t *buf;
   const ngtcp2_mem *mem;

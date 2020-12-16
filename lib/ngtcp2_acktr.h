@@ -40,16 +40,12 @@
    which ngtcp2_acktr stores. */
 #define NGTCP2_ACKTR_MAX_ENT 1024
 
-struct ngtcp2_acktr_entry;
-typedef struct ngtcp2_acktr_entry ngtcp2_acktr_entry;
-
-struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
 
 /*
  * ngtcp2_acktr_entry is a range of packets which need to be acked.
  */
-struct ngtcp2_acktr_entry {
+typedef struct ngtcp2_acktr_entry {
   /* pkt_num is the largest packet number to acknowledge in this
      range. */
   int64_t pkt_num;
@@ -60,7 +56,7 @@ struct ngtcp2_acktr_entry {
   /* tstamp is the timestamp when a packet denoted by pkt_num is
      received. */
   ngtcp2_tstamp tstamp;
-};
+} ngtcp2_acktr_entry;
 
 /*
  * ngtcp2_acktr_entry_new allocates memory for ent, and initializes it
@@ -82,7 +78,7 @@ int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
  */
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, const ngtcp2_mem *mem);
 
-typedef struct {
+typedef struct ngtcp2_acktr_ack_entry {
   /* largest_ack is the largest packet number in outgoing ACK frame */
   int64_t largest_ack;
   /* pkt_num is the packet number that ACK frame is included. */
@@ -109,7 +105,7 @@ typedef enum {
 /*
  * ngtcp2_acktr tracks received packets which we have to send ack.
  */
-typedef struct {
+typedef struct ngtcp2_acktr {
   ngtcp2_ringbuf acks;
   /* ents includes ngtcp2_acktr_entry sorted by decreasing order of
      packet number. */

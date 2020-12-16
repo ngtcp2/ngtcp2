@@ -121,7 +121,7 @@ typedef enum {
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
  */
-typedef union {
+typedef union ngtcp2_max_frame {
   ngtcp2_frame fr;
   struct {
     ngtcp2_ack ack;
@@ -130,7 +130,7 @@ typedef union {
   } ackfr;
 } ngtcp2_max_frame;
 
-typedef struct {
+typedef struct ngtcp2_path_challenge_entry {
   ngtcp2_path_storage ps;
   uint8_t data[8];
 } ngtcp2_path_challenge_entry;
@@ -190,7 +190,7 @@ typedef enum {
   NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED = 0x4000,
 } ngtcp2_conn_flag;
 
-typedef struct {
+typedef struct ngtcp2_crypto_data {
   ngtcp2_buf buf;
   /* pkt_type is the type of packet to send data in buf.  If it is 0,
      it must be sent in Short packet.  Otherwise, it is sent the long

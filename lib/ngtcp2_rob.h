@@ -35,17 +35,14 @@
 #include "ngtcp2_range.h"
 #include "ngtcp2_ksl.h"
 
-struct ngtcp2_rob_gap;
-typedef struct ngtcp2_rob_gap ngtcp2_rob_gap;
-
 /*
  * ngtcp2_rob_gap represents the gap, which is the range of stream
  * data that is not received yet.
  */
-struct ngtcp2_rob_gap {
+typedef struct ngtcp2_rob_gap {
   /* range is the range of this gap. */
   ngtcp2_range range;
-};
+} ngtcp2_rob_gap;
 
 /*
  * ngtcp2_rob_gap_new allocates new ngtcp2_rob_gap object, and assigns
@@ -69,20 +66,17 @@ int ngtcp2_rob_gap_new(ngtcp2_rob_gap **pg, uint64_t begin, uint64_t end,
  */
 void ngtcp2_rob_gap_del(ngtcp2_rob_gap *g, const ngtcp2_mem *mem);
 
-struct ngtcp2_rob_data;
-typedef struct ngtcp2_rob_data ngtcp2_rob_data;
-
 /*
  * ngtcp2_rob_data holds the buffered stream data.
  */
-struct ngtcp2_rob_data {
+typedef struct ngtcp2_rob_data {
   /* range is the range of this gap. */
   ngtcp2_range range;
   /* begin points to the buffer. */
   uint8_t *begin;
   /* end points to the one beyond of the last byte of the buffer */
   uint8_t *end;
-};
+} ngtcp2_rob_data;
 
 /*
  * ngtcp2_rob_data_new allocates new ngtcp2_rob_data object, and
@@ -112,7 +106,7 @@ void ngtcp2_rob_data_del(ngtcp2_rob_data *d, const ngtcp2_mem *mem);
  * ngtcp2_rob is the reorder buffer which reassembles stream data
  * received in out of order.
  */
-typedef struct {
+typedef struct ngtcp2_rob {
   /* gapksl maintains the range of offset which is not received
      yet. Initially, its range is [0, UINT64_MAX). */
   ngtcp2_ksl gapksl;

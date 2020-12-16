@@ -35,24 +35,11 @@
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
 
-struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
-
 typedef struct ngtcp2_pktns ngtcp2_pktns;
-
-struct ngtcp2_frame_chain;
-typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
-
-struct ngtcp2_log;
 typedef struct ngtcp2_log ngtcp2_log;
-
-struct ngtcp2_qlog;
 typedef struct ngtcp2_qlog ngtcp2_qlog;
-
-struct ngtcp2_strm;
 typedef struct ngtcp2_strm ngtcp2_strm;
-
-struct ngtcp2_rst;
 typedef struct ngtcp2_rst ngtcp2_rst;
 
 typedef enum ngtcp2_frame_chain_binder_flag {
@@ -76,6 +63,17 @@ typedef struct ngtcp2_frame_chain_binder {
 int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
                                   const ngtcp2_mem *mem);
 
+typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
+
+/*
+ * ngtcp2_frame_chain chains frames in a single packet.
+ */
+struct ngtcp2_frame_chain {
+  ngtcp2_frame_chain *next;
+  ngtcp2_frame_chain_binder *binder;
+  ngtcp2_frame fr;
+};
+
 /*
  * ngtcp2_bind_frame_chains binds two frame chains |a| and |b| using
  * new or existing ngtcp2_frame_chain_binder.  |a| might have non-NULL
@@ -89,15 +87,6 @@ int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
  */
 int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
                              const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain chains frames in a single packet.
- */
-struct ngtcp2_frame_chain {
-  ngtcp2_frame_chain *next;
-  ngtcp2_frame_chain_binder *binder;
-  ngtcp2_frame fr;
-};
 
 /* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
    a ngtcp2_stream can include. */
@@ -198,7 +187,6 @@ typedef enum {
   NGTCP2_RTB_FLAG_ECN = 0x20,
 } ngtcp2_rtb_flag;
 
-struct ngtcp2_rtb_entry;
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
 /*
@@ -256,7 +244,7 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for
  * retransmission.
  */
-typedef struct {
+typedef struct ngtcp2_rtb {
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;

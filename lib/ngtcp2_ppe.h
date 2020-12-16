@@ -38,7 +38,7 @@
 /*
  * ngtcp2_ppe is the Protected Packet Encoder.
  */
-typedef struct {
+typedef struct ngtcp2_ppe {
   ngtcp2_buf buf;
   ngtcp2_crypto_cc *cc;
   /* hdlen is the number of bytes for packet header written in buf. */
