@@ -39,10 +39,12 @@
 
 typedef uint64_t key_type;
 
-typedef struct ngtcp2_map_entry {
-  struct ngtcp2_map_entry *next;
+typedef struct ngtcp2_map_entry ngtcp2_map_entry;
+
+struct ngtcp2_map_entry {
+  ngtcp2_map_entry *next;
   key_type key;
-} ngtcp2_map_entry;
+};
 
 typedef struct ngtcp2_map_bucket {
   ngtcp2_map_entry *ptr;
