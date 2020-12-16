@@ -42,12 +42,12 @@ typedef struct ngtcp2_qlog ngtcp2_qlog;
 typedef struct ngtcp2_strm ngtcp2_strm;
 typedef struct ngtcp2_rst ngtcp2_rst;
 
-typedef enum ngtcp2_frame_chain_binder_flag {
-  NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE = 0x00,
-  /* NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK indicates that an information
-     which a frame carries has been acknowledged. */
-  NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK = 0x01,
-} ngtcp2_frame_chain_binder_flag;
+/* NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE indicates that no flag is
+   set. */
+#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE 0x00
+/* NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK indicates that an information
+   which a frame carries has been acknowledged. */
+#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK 0x01
 
 /*
  * ngtcp2_frame_chain_binder binds 2 or more of ngtcp2_frame_chain to
@@ -57,6 +57,8 @@ typedef enum ngtcp2_frame_chain_binder_flag {
  */
 typedef struct ngtcp2_frame_chain_binder {
   size_t refcount;
+  /* flags is bitwise OR of zero or more of
+     NGTCP2_FRAME_CHAIN_BINDER_FLAG_*. */
   uint32_t flags;
 } ngtcp2_frame_chain_binder;
 
@@ -160,32 +162,31 @@ void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
 void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
                                  const ngtcp2_mem *mem);
 
-typedef enum {
-  NGTCP2_RTB_FLAG_NONE = 0x00,
-  /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
-     packet. */
-  NGTCP2_RTB_FLAG_PROBE = 0x01,
-  /* NGTCP2_RTB_FLAG_RETRANSMITTABLE indicates that the entry includes
-     a frame which must be retransmitted until it is acknowledged.  In
-     most cases, this flag is used along with
-     NGTCP2_RTB_FLAG_ACK_ELICITING.  We have these 2 flags because
-     NGTCP2_RTB_FLAG_RETRANSMITTABLE triggers PTO, but just
-     NGTCP2_RTB_FLAG_ACK_ELICITING does not. */
-  NGTCP2_RTB_FLAG_RETRANSMITTABLE = 0x02,
-  /* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
-     acknowledgement. */
-  NGTCP2_RTB_FLAG_ACK_ELICITING = 0x04,
-  /* NGTCP2_RTB_FLAG_PTO_RECLAIMED indicates that the packet has been
-     reclaimed on PTO.  It is not marked lost yet and still consumes
-     congestion window. */
-  NGTCP2_RTB_FLAG_PTO_RECLAIMED = 0x08,
-  /* NGTCP2_RTB_FLAG_LOST_RETRANSMITTED indicates that the entry has
-     been marked lost and scheduled to retransmit. */
-  NGTCP2_RTB_FLAG_LOST_RETRANSMITTED = 0x10,
-  /* NGTCP2_RTB_FLAG_ECN indicates that the entry is included in a UDP
-     datagram with ECN marking. */
-  NGTCP2_RTB_FLAG_ECN = 0x20,
-} ngtcp2_rtb_flag;
+/* NGTCP2_RTB_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_RTB_FLAG_NONE 0x00
+/* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
+   packet. */
+#define NGTCP2_RTB_FLAG_PROBE 0x01
+/* NGTCP2_RTB_FLAG_RETRANSMITTABLE indicates that the entry includes a
+   frame which must be retransmitted until it is acknowledged.  In
+   most cases, this flag is used along with
+   NGTCP2_RTB_FLAG_ACK_ELICITING.  We have these 2 flags because
+   NGTCP2_RTB_FLAG_RETRANSMITTABLE triggers PTO, but just
+   NGTCP2_RTB_FLAG_ACK_ELICITING does not. */
+#define NGTCP2_RTB_FLAG_RETRANSMITTABLE 0x02
+/* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
+   acknowledgement. */
+#define NGTCP2_RTB_FLAG_ACK_ELICITING 0x04
+/* NGTCP2_RTB_FLAG_PTO_RECLAIMED indicates that the packet has been
+   reclaimed on PTO.  It is not marked lost yet and still consumes
+   congestion window. */
+#define NGTCP2_RTB_FLAG_PTO_RECLAIMED 0x08
+/* NGTCP2_RTB_FLAG_LOST_RETRANSMITTED indicates that the entry has
+   been marked lost and scheduled to retransmit. */
+#define NGTCP2_RTB_FLAG_LOST_RETRANSMITTED 0x10
+/* NGTCP2_RTB_FLAG_ECN indicates that the entry is included in a UDP
+   datagram with ECN marking. */
+#define NGTCP2_RTB_FLAG_ECN 0x20
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
@@ -215,7 +216,7 @@ struct ngtcp2_rtb_entry {
     ngtcp2_tstamp first_sent_ts;
     int is_app_limited;
   } rst;
-  /* flags is bitwise-OR of zero or more of ngtcp2_rtb_flag. */
+  /* flags is bitwise-OR of zero or more of NGTCP2_RTB_FLAG_*. */
   uint8_t flags;
 };
 

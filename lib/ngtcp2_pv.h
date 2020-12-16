@@ -63,24 +63,23 @@ typedef struct ngtcp2_pv_entry {
 void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
                           ngtcp2_tstamp expiry, uint8_t flags);
 
-typedef enum {
-  NGTCP2_PV_FLAG_NONE,
-  /* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of path
-     validation should be ignored entirely. */
-  NGTCP2_PV_FLAG_DONT_CARE = 0x01,
-  /* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer is
-     cancelled. */
-  NGTCP2_PV_FLAG_CANCEL_TIMER = 0x02,
-  /* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID
-     is available in ngtcp2_pv.  If path validation fails, fallback to
-     the fallback DCID.  If path validation succeeds, fallback DCID is
-     retired if it does not equal to the current DCID. */
-  NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE = 0x04,
-  /* NGTCP2_PV_FLAG_MTU_PROBE indicates that a validation must probe
-     least MTU that QUIC requires, which is 1200 bytes.  If it fails,
-     a path is not viable. */
-  NGTCP2_PV_FLAG_MTU_PROBE = 0x08,
-} ngtcp2_pv_flag;
+/* NGTCP2_PV_FLAG_NONE indicates no flag is set. */
+#define NGTCP2_PV_FLAG_NONE 0x00
+/* NGTCP2_PV_FLAG_DONT_CARE indicates that the outcome of path
+   validation should be ignored entirely. */
+#define NGTCP2_PV_FLAG_DONT_CARE 0x01
+/* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer is
+   cancelled. */
+#define NGTCP2_PV_FLAG_CANCEL_TIMER 0x02
+/* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID is
+   available in ngtcp2_pv.  If path validation fails, fallback to the
+   fallback DCID.  If path validation succeeds, fallback DCID is
+   retired if it does not equal to the current DCID. */
+#define NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE 0x04
+/* NGTCP2_PV_FLAG_MTU_PROBE indicates that a validation must probe
+   least MTU that QUIC requires, which is 1200 bytes.  If it fails, a
+   path is not viable. */
+#define NGTCP2_PV_FLAG_MTU_PROBE 0x08
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 
@@ -108,7 +107,7 @@ struct ngtcp2_pv {
      PATH_CHALLENGE which can be send without waiting for an
      expiration of a previous flight. */
   size_t probe_pkt_left;
-  /* flags is bitwise-OR of zero or more of ngtcp2_pv_flag. */
+  /* flags is bitwise-OR of zero or more of NGTCP2_PV_FLAG_*. */
   uint8_t flags;
 };
 

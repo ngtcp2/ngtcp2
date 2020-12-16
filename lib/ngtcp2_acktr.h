@@ -85,22 +85,21 @@ typedef struct ngtcp2_acktr_ack_entry {
   int64_t pkt_num;
 } ngtcp2_acktr_ack_entry;
 
-typedef enum {
-  NGTCP2_ACKTR_FLAG_NONE = 0x00,
-  /* NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK indicates that immediate
-     acknowledgement is required. */
-  NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK = 0x01,
-  /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are
-     pending protected packet to be acknowledged. */
-  NGTCP2_ACKTR_FLAG_ACTIVE_ACK = 0x02,
-  /* NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK is set when server received
-     acknowledgement for ACK which acknowledges the last handshake
-     packet from client (which contains TLSv1.3 Finished message). */
-  NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK = 0x80,
-  /* NGTCP2_ACKTR_FLAG_CANCEL_TIMER is set when ACK delay timer is
-     expired and canceled. */
-  NGTCP2_ACKTR_FLAG_CANCEL_TIMER = 0x0100,
-} ngtcp2_acktr_flag;
+/* NGTCP2_ACKTR_FLAG_NONE indicates that no flag set. */
+#define NGTCP2_ACKTR_FLAG_NONE 0x00
+/* NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK indicates that immediate
+   acknowledgement is required. */
+#define NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK 0x01
+/* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are pending
+   protected packet to be acknowledged. */
+#define NGTCP2_ACKTR_FLAG_ACTIVE_ACK 0x02
+/* NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK is set when server received
+   acknowledgement for ACK which acknowledges the last handshake
+   packet from client (which contains TLSv1.3 Finished message). */
+#define NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK 0x80
+/* NGTCP2_ACKTR_FLAG_CANCEL_TIMER is set when ACK delay timer is
+   expired and canceled. */
+#define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100
 
 /*
  * ngtcp2_acktr tracks received packets which we have to send ack.
@@ -112,7 +111,7 @@ typedef struct ngtcp2_acktr {
   ngtcp2_ksl ents;
   ngtcp2_log *log;
   const ngtcp2_mem *mem;
-  /* flags is bitwise OR of zero, or more of ngtcp2_ack_flag. */
+  /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
      first time after the last outgoing ACK frame. */

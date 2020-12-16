@@ -34,11 +34,14 @@
 #include "ngtcp2_pq.h"
 #include "ngtcp2_path.h"
 
-typedef enum {
-  NGTCP2_SCID_FLAG_NONE,
-  NGTCP2_SCID_FLAG_USED = 0x01,
-  NGTCP2_SCID_FLAG_RETIRED = 0x02,
-} ngtcp2_scid_flag;
+/* NGTCP2_SCID_FLAG_NONE indicats that no flag is set. */
+#define NGTCP2_SCID_FLAG_NONE 0x00
+/* NGTCP2_SCID_FLAG_USED indicates that a local endpoint observed that
+   a remote endpoint uses a particular Connection ID. */
+#define NGTCP2_SCID_FLAG_USED 0x01
+/* NGTCP2_SCID_FLAG_RETIRED indicates that a particular Connection ID
+   is retired. */
+#define NGTCP2_SCID_FLAG_RETIRED 0x02
 
 typedef struct ngtcp2_scid {
   ngtcp2_pq_entry pe;
@@ -49,7 +52,7 @@ typedef struct ngtcp2_scid {
   /* ts_retired is the timestamp when peer tells that this CID is
      retired. */
   ngtcp2_tstamp ts_retired;
-  /* flags is the bitwise OR of zero or more of ngtcp2_scid_flag. */
+  /* flags is the bitwise OR of zero or more of NGTCP2_SCID_FLAG_*. */
   uint8_t flags;
   /* token is a stateless reset token associated to this CID.
      Actually, the stateless reset token is tied to the connection,

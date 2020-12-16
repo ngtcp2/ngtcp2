@@ -1900,15 +1900,14 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->flags |= NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
 }
 
-typedef enum {
-  NGTCP2_WRITE_PKT_FLAG_NONE = 0x00,
-  /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet
-     should be padded */
-  NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING = 0x01,
-  /* NGTCP2_WRITE_PKT_FLAG_MORE indicates that more frames might come
-     and it should be encoded into the current packet. */
-  NGTCP2_WRITE_PKT_FLAG_MORE = 0x02,
-} ngtcp2_write_pkt_flag;
+/* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_WRITE_PKT_FLAG_NONE 0x00
+/* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet should
+   be padded */
+#define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING 0x01
+/* NGTCP2_WRITE_PKT_FLAG_MORE indicates that more frames might come
+   and it should be encoded into the current packet. */
+#define NGTCP2_WRITE_PKT_FLAG_MORE 0x02
 
 /*
  * conn_write_handshake_pkt writes handshake packet in the buffer

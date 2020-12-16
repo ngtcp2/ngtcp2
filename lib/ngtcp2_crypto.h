@@ -41,12 +41,11 @@
 /* NGTCP2_MAX_AEAD_OVERHEAD is expected maximum AEAD overhead. */
 #define NGTCP2_MAX_AEAD_OVERHEAD 16
 
-typedef enum {
-  NGTCP2_CRYPTO_KM_FLAG_NONE,
-  /* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
-     set. */
-  NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE = 0x01,
-} ngtcp2_crypto_km_flag;
+/* NGTCP2_CRYPTO_KM_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_CRYPTO_KM_FLAG_NONE 0x00
+/* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
+   set. */
+#define NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE 0x01
 
 typedef struct ngtcp2_crypto_km {
   ngtcp2_vec secret;
@@ -61,7 +60,7 @@ typedef struct ngtcp2_crypto_km {
      This field is only used for tx key. */
   uint64_t use_count;
   /* flags is the bitwise OR of zero or more of
-     ngtcp2_crypto_km_flag. */
+     NGTCP2_CRYPTO_KM_FLAG_*. */
   uint8_t flags;
 } ngtcp2_crypto_km;
 

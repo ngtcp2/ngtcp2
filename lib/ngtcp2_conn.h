@@ -139,56 +139,53 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
                                       const ngtcp2_path *path,
                                       const uint8_t *data);
 
-typedef enum {
-  NGTCP2_CONN_FLAG_NONE = 0x00,
-  /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set if handshake
-     completed. */
-  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED = 0x01,
-  /* NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED is set if connection ID is
-     negotiated.  This is only used for client. */
-  NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED = 0x02,
-  /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
-     parameters are received. */
-  NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED = 0x04,
-  /* NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT is set when a protected
-     packet is received, and decrypted successfully.  This flag is
-     used to stop retransmitting handshake packets.  It might be
-     replaced with an another mechanism when we implement key
-     update. */
-  NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT = 0x08,
-  /* NGTCP2_CONN_FLAG_RECV_RETRY is set when a client receives Retry
-     packet. */
-  NGTCP2_CONN_FLAG_RECV_RETRY = 0x10,
-  /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
-     rejected by a peer. */
-  NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED = 0x20,
-  /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
-     confirmed completion of handshake. */
-  NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED = 0x80,
-  /* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
-     library transitions its state to "post handshake". */
-  NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED = 0x0100,
-  /* NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT is set when the early
-     handshake retransmission has done when server receives
-     overlapping Initial crypto data. */
-  NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT = 0x0200,
-  /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update
-     is not confirmed by the local endpoint.  That is, it has not
-     received ACK frame which acknowledges packet which is encrypted
-     with new key. */
-  NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED = 0x0800,
-  /* NGTCP2_CONN_FLAG_PPE_PENDING is set when
-     NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state
-     of ngtcp2_ppe is stored in pkt struct of ngtcp2_conn. */
-  NGTCP2_CONN_FLAG_PPE_PENDING = 0x1000,
-  /* NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE is set when idle
-     timer should be restarted on next write. */
-  NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE = 0x2000,
-  /* NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED indicates that server as
-     peer verified client address.  This flag is only used by
-     client. */
-  NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED = 0x4000,
-} ngtcp2_conn_flag;
+/* NGTCP2_CONN_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_CONN_FLAG_NONE 0x00
+/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED is set if handshake
+   completed. */
+#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED 0x01
+/* NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED is set if connection ID is
+   negotiated.  This is only used for client. */
+#define NGTCP2_CONN_FLAG_CONN_ID_NEGOTIATED 0x02
+/* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
+   parameters are received. */
+#define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04
+/* NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT is set when a protected packet
+   is received, and decrypted successfully.  This flag is used to stop
+   retransmitting handshake packets.  It might be replaced with an
+   another mechanism when we implement key update. */
+#define NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT 0x08
+/* NGTCP2_CONN_FLAG_RECV_RETRY is set when a client receives Retry
+   packet. */
+#define NGTCP2_CONN_FLAG_RECV_RETRY 0x10
+/* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
+   rejected by a peer. */
+#define NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED 0x20
+/* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
+   confirmed completion of handshake. */
+#define NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED 0x80
+/* NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED is set when the
+   library transitions its state to "post handshake". */
+#define NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED 0x0100
+/* NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT is set when the early
+   handshake retransmission has done when server receives overlapping
+   Initial crypto data. */
+#define NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT 0x0200
+/* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update is
+   not confirmed by the local endpoint.  That is, it has not received
+   ACK frame which acknowledges packet which is encrypted with new
+   key. */
+#define NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED 0x0800
+/* NGTCP2_CONN_FLAG_PPE_PENDING is set when
+   NGTCP2_WRITE_STREAM_FLAG_MORE is used and the intermediate state of
+   ngtcp2_ppe is stored in pkt struct of ngtcp2_conn. */
+#define NGTCP2_CONN_FLAG_PPE_PENDING 0x1000
+/* NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE is set when idle timer
+   should be restarted on next write. */
+#define NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE 0x2000
+/* NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED indicates that server as peer
+   verified client address.  This flag is only used by client. */
+#define NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED 0x4000
 
 typedef struct ngtcp2_crypto_data {
   ngtcp2_buf buf;
@@ -548,7 +545,7 @@ struct ngtcp2_conn {
   ngtcp2_tstamp idle_ts;
   void *user_data;
   uint32_t version;
-  /* flags is bitwise OR of zero or more of ngtcp2_conn_flag. */
+  /* flags is bitwise OR of zero or more of NGTCP2_CONN_FLAG_*. */
   uint16_t flags;
   int server;
 };
@@ -561,7 +558,7 @@ typedef struct ngtcp2_vmsg_stream {
   /* strm is a stream that data is sent to. */
   ngtcp2_strm *strm;
   /* flags is bitwise OR of zero or more of
-     ngtcp2_write_stream_flag. */
+     NGTCP2_WRITE_STREAM_FLAG_*. */
   uint32_t flags;
   /* data is the pointer to ngtcp2_vec array which contains the stream
      data to send. */

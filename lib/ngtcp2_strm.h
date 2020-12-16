@@ -39,34 +39,33 @@
 
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
-typedef enum {
-  NGTCP2_STRM_FLAG_NONE = 0,
-  /* NGTCP2_STRM_FLAG_SHUT_RD indicates that further reception of
-     stream data is not allowed. */
-  NGTCP2_STRM_FLAG_SHUT_RD = 0x01,
-  /* NGTCP2_STRM_FLAG_SHUT_WR indicates that further transmission of
-     stream data is not allowed. */
-  NGTCP2_STRM_FLAG_SHUT_WR = 0x02,
-  NGTCP2_STRM_FLAG_SHUT_RDWR =
-      NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR,
-  /* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is sent from
-     the local endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_WR is
-     also set. */
-  NGTCP2_STRM_FLAG_SENT_RST = 0x04,
-  /* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is received
-     from the remote endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_RD
-     is also set. */
-  NGTCP2_STRM_FLAG_RECV_RST = 0x08,
-  /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
-     from the local endpoint. */
-  NGTCP2_STRM_FLAG_STOP_SENDING = 0x10,
-  /* NGTCP2_STRM_FLAG_RST_ACKED indicates that the outgoing RST_STREAM
-     is acknowledged by peer. */
-  NGTCP2_STRM_FLAG_RST_ACKED = 0x20,
-  /* NGTCP2_STRM_FLAG_FIN_ACKED indicates that a STREAM with FIN bit
-     set is acknowledged by a remote endpoint. */
-  NGTCP2_STRM_FLAG_FIN_ACKED = 0x40,
-} ngtcp2_strm_flags;
+/* NGTCP2_STRM_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_STRM_FLAG_NONE 0x00
+/* NGTCP2_STRM_FLAG_SHUT_RD indicates that further reception of stream
+   data is not allowed. */
+#define NGTCP2_STRM_FLAG_SHUT_RD 0x01
+/* NGTCP2_STRM_FLAG_SHUT_WR indicates that further transmission of
+   stream data is not allowed. */
+#define NGTCP2_STRM_FLAG_SHUT_WR 0x02
+#define NGTCP2_STRM_FLAG_SHUT_RDWR                                             \
+  (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR)
+/* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is sent from
+   the local endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_WR is also
+   set. */
+#define NGTCP2_STRM_FLAG_SENT_RST 0x04
+/* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is received
+   from the remote endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_RD
+   is also set. */
+#define NGTCP2_STRM_FLAG_RECV_RST 0x08
+/* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
+   from the local endpoint. */
+#define NGTCP2_STRM_FLAG_STOP_SENDING 0x10
+/* NGTCP2_STRM_FLAG_RST_ACKED indicates that the outgoing RST_STREAM
+   is acknowledged by peer. */
+#define NGTCP2_STRM_FLAG_RST_ACKED 0x20
+/* NGTCP2_STRM_FLAG_FIN_ACKED indicates that a STREAM with FIN bit set
+   is acknowledged by a remote endpoint. */
+#define NGTCP2_STRM_FLAG_FIN_ACKED 0x40
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -126,7 +125,7 @@ struct ngtcp2_strm {
   const ngtcp2_mem *mem;
   int64_t stream_id;
   void *stream_user_data;
-  /* flags is bit-wise OR of zero or more of ngtcp2_strm_flags. */
+  /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
   uint32_t flags;
   /* app_error_code is an error code the local endpoint sent in
      RST_STREAM or STOP_SENDING. */
