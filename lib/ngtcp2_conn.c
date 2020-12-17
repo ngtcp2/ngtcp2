@@ -2550,7 +2550,7 @@ static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
   }
 
   /* len includes retired CID.  We don't provide extra CID if doing so
-     excceds NGTCP2_MAX_SCID_POOL_SIZE. */
+     exceeds NGTCP2_MAX_SCID_POOL_SIZE. */
 
   n = conn->remote.transport_params.active_connection_id_limit +
       conn->scid.num_retired;
