@@ -418,6 +418,24 @@ static void client_default_settings(ngtcp2_settings *settings) {
   params->active_connection_id_limit = 8;
 }
 
+static void conn_set_scid_used(ngtcp2_conn *conn) {
+  ngtcp2_scid *scid;
+  ngtcp2_ksl_it it;
+  int rv;
+
+  assert(1 == ngtcp2_ksl_len(&conn->scid.set));
+
+  it = ngtcp2_ksl_begin(&conn->scid.set);
+  scid = ngtcp2_ksl_it_get(&it);
+  scid->flags |= NGTCP2_SCID_FLAG_USED;
+
+  assert(NGTCP2_PQ_BAD_INDEX == scid->pe.index);
+
+  rv = ngtcp2_pq_push(&conn->scid.used, &scid->pe);
+
+  assert(0 == rv);
+}
+
 static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
@@ -461,6 +479,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+  conn_set_scid_used(*pconn);
   params = &(*pconn)->remote.transport_params;
   params->initial_max_stream_data_bidi_local = 64 * 1024;
   params->initial_max_stream_data_bidi_remote = 64 * 1024;
@@ -516,6 +535,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED |
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
+  conn_set_scid_used(*pconn);
   params = &(*pconn)->remote.transport_params;
   params->initial_max_stream_data_bidi_local = 64 * 1024;
   params->initial_max_stream_data_bidi_remote = 64 * 1024;
@@ -4455,7 +4475,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
 
   CU_ASSERT(NGTCP2_SCID_FLAG_NONE == scid->flags);
   CU_ASSERT(UINT64_MAX == scid->ts_retired);
-  CU_ASSERT(0 == ngtcp2_pq_size(&conn->scid.used));
+  CU_ASSERT(1 == ngtcp2_pq_size(&conn->scid.used));
 
   fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
   fr.retire_connection_id.seq = seq;
