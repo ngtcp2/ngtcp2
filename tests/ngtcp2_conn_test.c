@@ -4472,7 +4472,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   CU_ASSERT(7 == ngtcp2_ksl_len(&conn->scid.set));
   CU_ASSERT(1 == conn->scid.num_retired);
 
-  /* One NEW_CONNECTION_ID frame is setn as a replacement. */
+  /* One NEW_CONNECTION_ID frame is sent as a replacement. */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
