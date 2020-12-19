@@ -6314,6 +6314,100 @@ void test_ngtcp2_conn_validate_ecn(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_path_validation(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  size_t pktlen;
+  ngtcp2_ssize spktlen;
+  ngtcp2_tstamp t = 0;
+  int64_t pkt_num = 0;
+  ngtcp2_frame frs[4];
+  int rv;
+  ngtcp2_path_storage rpath, wpath;
+  ngtcp2_pv_entry *ent;
+
+  /* server starts path validation in NAT rebinding scenario. */
+  setup_default_server(&conn);
+
+  /* This will send NEW_CONNECTION_ID frames */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  frs[0].type = NGTCP2_FRAME_PING;
+
+  /* Just change remote port */
+  path_init(&rpath, 0, 0, 0, 1);
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &rpath.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NULL != conn->pv);
+  CU_ASSERT(0 == conn->pv->dcid.seq);
+  CU_ASSERT(ngtcp2_path_eq(&conn->pv->dcid.ps.path, &rpath.path));
+
+  ngtcp2_path_storage_zero(&wpath);
+  spktlen =
+      ngtcp2_conn_write_pkt(conn, &wpath.path, NULL, buf, sizeof(buf), ++t);
+
+  /* Server has not received enough bytes to pad probing packet. */
+  CU_ASSERT(1200 > spktlen);
+  CU_ASSERT(ngtcp2_path_eq(&rpath.path, &wpath.path));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents));
+
+  ent = ngtcp2_ringbuf_get(&conn->pv->ents, 0);
+
+  CU_ASSERT(ent->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED);
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_MTU_PROBE));
+
+  frs[0].type = NGTCP2_FRAME_PATH_RESPONSE;
+  memcpy(frs[0].path_response.data, ent->data, sizeof(ent->data));
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &rpath.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  /* Start another path validation to probe least MTU */
+  CU_ASSERT(NULL != conn->pv);
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_MTU_PROBE);
+
+  ngtcp2_path_storage_zero(&wpath);
+  spktlen =
+      ngtcp2_conn_write_pkt(conn, &wpath.path, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(1200 <= spktlen);
+  CU_ASSERT(ngtcp2_path_eq(&rpath.path, &wpath.path));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents));
+
+  ent = ngtcp2_ringbuf_get(&conn->pv->ents, 0);
+  frs[0].type = NGTCP2_FRAME_PATH_RESPONSE;
+  memcpy(frs[0].path_response.data, ent->data, sizeof(ent->data));
+
+  pktlen = write_pkt(conn, buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &rpath.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  /* Now perform another validation to old path */
+  CU_ASSERT(NULL != conn->pv);
+  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE));
+  CU_ASSERT(!(conn->pv->flags & NGTCP2_PV_FLAG_MTU_PROBE));
+  CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_DONT_CARE);
+
+  ngtcp2_path_storage_zero(&wpath);
+  spktlen =
+      ngtcp2_conn_write_pkt(conn, &wpath.path, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(1200 <= spktlen);
+  CU_ASSERT(ngtcp2_path_eq(&null_path.path, &wpath.path));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents));
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];
