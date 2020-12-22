@@ -1,5 +1,5 @@
 #!/bin/sh -e
-#build last openssl master (for Travis)
+# build patched openssl (for GitHub workflow)
 
 cd ..
 git clone --depth 1 -b OpenSSL_1_1_1g-quic-draft-33 https://github.com/tatsuhiro-t/openssl

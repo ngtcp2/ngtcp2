@@ -1,5 +1,5 @@
 #!/bin/sh -e
-#build nghttp3 (for Travis)
+# build nghttp3 (for GitHub workflow)
 
 cd ..
 git clone https://github.com/ngtcp2/nghttp3

@@ -1,5 +1,5 @@
 #!/bin/sh -e
-#build gnutls
+# build gnutls (for GitHub workflow)
 
 cd ..
 curl -LO https://ftp.gnu.org/gnu/nettle/nettle-3.6.tar.gz
