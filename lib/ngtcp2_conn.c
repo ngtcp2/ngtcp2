@@ -2306,6 +2306,9 @@ static void conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                  "discarding Initial packet number space");
+
   conn_discard_pktns(conn, &conn->in_pktns, ts);
 }
 
@@ -2317,6 +2320,9 @@ static void conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   if (!conn->hs_pktns) {
     return;
   }
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                  "discarding Handshake packet number space");
 
   conn_discard_pktns(conn, &conn->hs_pktns, ts);
 }
