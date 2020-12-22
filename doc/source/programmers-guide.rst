@@ -171,19 +171,15 @@ stream.  For unidirectional stream, call
 `ngtcp2_conn_open_uni_stream()`.  Call `ngtcp2_conn_writev_stream()`
 to send stream data.
 
-0RTT data transmission
+Dealing with 0RTT data
 ----------------------
-
-In order for client to send 0RTT data, it should use
-`ngtcp2_conn_writev_stream()` function.
 
 Client application has to load resumed TLS session.  It also has to
 set the remembered transport parameter using
 `ngtcp2_conn_set_early_remote_transport_params()` function.
 
-Before calling `ngtcp2_conn_writev_stream()`, client application has
-to open stream to send data using `ngtcp2_conn_open_bidi_stream()` (or
-`ngtcp2_conn_open_uni_stream()` for unidirectional stream).
+Other than that, there is no difference between 0RTT and 1RTT data in
+terms of API usage.
 
 Stream and crypto data ownershp
 -------------------------------

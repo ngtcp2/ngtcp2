@@ -2461,6 +2461,10 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * is passed as |data| of length |datalen|.  |datalen| may be 0 if and
  * only if |fin| is nonzero.
  *
+ * If :macro:`NGTCP2_STREAM_DATA_FLAG_EARLY` is set in |flags|, it
+ * indicates that a part of or whole data was received in 0RTT packet
+ * and a handshake has not completed yet.
+ *
  * The callback function must return 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library return
  * immediately.
