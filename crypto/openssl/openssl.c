@@ -398,8 +398,8 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
   int err;
 
   if (SSL_provide_quic_data(
-          ssl, ngtcp2_crypto_from_ngtcp2_crypto_level(crypto_level), data,
-          datalen) != 1) {
+          ssl, ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(crypto_level),
+          data, datalen) != 1) {
     return -1;
   }
 
@@ -412,9 +412,9 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
       case SSL_ERROR_WANT_WRITE:
         return 0;
       case SSL_ERROR_WANT_CLIENT_HELLO_CB:
-        return NGTCP2_CRYPTO_ERR_TLS_WANT_CLIENT_HELLO_CB;
+        return NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_CLIENT_HELLO_CB;
       case SSL_ERROR_WANT_X509_LOOKUP:
-        return NGTCP2_CRYPTO_ERR_TLS_WANT_X509_LOOKUP;
+        return NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_X509_LOOKUP;
       case SSL_ERROR_SSL:
         return -1;
       default:
@@ -480,8 +480,8 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
   return 0;
 }
 
-ngtcp2_crypto_level
-ngtcp2_crypto_from_ossl_encryption_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
+ngtcp2_crypto_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
+    OSSL_ENCRYPTION_LEVEL ossl_level) {
   switch (ossl_level) {
   case ssl_encryption_initial:
     return NGTCP2_CRYPTO_LEVEL_INITIAL;
@@ -497,7 +497,8 @@ ngtcp2_crypto_from_ossl_encryption_level(OSSL_ENCRYPTION_LEVEL ossl_level) {
 }
 
 OSSL_ENCRYPTION_LEVEL
-ngtcp2_crypto_from_ngtcp2_crypto_level(ngtcp2_crypto_level crypto_level) {
+ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
+    ngtcp2_crypto_level crypto_level) {
   switch (crypto_level) {
   case NGTCP2_CRYPTO_LEVEL_INITIAL:
     return ssl_encryption_initial;
