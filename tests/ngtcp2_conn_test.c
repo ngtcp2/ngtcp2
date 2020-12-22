@@ -4993,14 +4993,7 @@ void test_ngtcp2_conn_handshake_probe(void) {
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE);
-  /* We should expect sizeof(buf) > ent->pktlen, but we haven't
-     discarded Initial state in this test case, therefore Handshake
-     packet is padded.  In practice, client gets Initial from server,
-     which produces Handshake tx key.  Client acknowledges server
-     Initial.  After that client no longer needs to send Initial
-     packet, so initial state is discarded.  Then no more padding is
-     involved. */
-  CU_ASSERT(sizeof(buf) == ent->pktlen);
+  CU_ASSERT(sizeof(buf) > ent->pktlen);
 
   ngtcp2_conn_del(conn);
 }

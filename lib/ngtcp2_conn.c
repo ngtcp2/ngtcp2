@@ -2424,8 +2424,12 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   ngtcp2_ksl_it it;
 
-  if (!conn->server && conn->hs_pktns->crypto.tx.ckm &&
-      !ngtcp2_acktr_empty(&conn->hs_pktns->acktr)) {
+  if (!conn->server && conn->hs_pktns->crypto.tx.ckm && conn->in_pktns &&
+      !ngtcp2_acktr_require_active_ack(&conn->in_pktns->acktr,
+                                       /* max_ack_delay = */ 0, ts) &&
+      (ngtcp2_acktr_require_active_ack(&conn->hs_pktns->acktr,
+                                       /* max_ack_delay = */ 0, ts) ||
+       conn->hs_pktns->rtb.probe_pkt_left)) {
     /* Discard Initial state here so that Handshake packet is not
        padded. */
     conn_discard_initial_state(conn, ts);
