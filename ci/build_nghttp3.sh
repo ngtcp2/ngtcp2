@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 #build nghttp3 (for Travis)
 
 cd ..

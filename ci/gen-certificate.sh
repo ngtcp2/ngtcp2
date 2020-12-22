@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 # Generate a self-signed certificate for testing purposes.
 
 mkdir -p cert

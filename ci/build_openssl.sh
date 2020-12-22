@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 #build last openssl master (for Travis)
 
 cd ..
