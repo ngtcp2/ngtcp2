@@ -2430,6 +2430,18 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   ngtcp2_ksl_it it;
 
+  /* As a client, we would like to discard Initial packet number space
+     when sending the first Handshake packet.  When sending Handshake
+     packet, it should be one of 1) sending ACK, 2) sending PTO probe
+     packet, or 3) sending CRYPTO.  If we have pending acknowledgement
+     for Initial, then do not discard Initial packet number space.
+     Otherwise, if either 1) or 2) is satisfied, discard Initial
+     packet number space.  When sending Handshake CRYPTO, it indicates
+     that client has received Handshake CRYPTO from server.  Initial
+     packet number space is discarded because 1) is met.  If there is
+     pending Initial ACK, Initial packet number space is discarded
+     after writing the first Handshake packet.
+   */
   if (!conn->server && conn->hs_pktns->crypto.tx.ckm && conn->in_pktns &&
       !ngtcp2_acktr_require_active_ack(&conn->in_pktns->acktr,
                                        /* max_ack_delay = */ 0, ts) &&
