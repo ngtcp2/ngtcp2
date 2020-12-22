@@ -67,6 +67,11 @@ as crypto backend:
 * Patched OpenSSL
   (https://github.com/tatsuhiro-t/openssl/tree/OpenSSL_1_1_1g-quic-draft-33)
 
+For crypto helper library:
+
+* Patched OpenSSL listed above
+* libgnutls28-dev >= 3.7.0
+
 Build from git
 --------------
 
