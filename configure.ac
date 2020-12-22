@@ -177,17 +177,10 @@ AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 # GnuTLS (for examples)
 have_gnutls=no
 if test "x${request_gnutls}" != "xno"; then
-  PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.11],
+  PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.7.0],
                     [have_gnutls=yes], [have_gnutls=no])
   if test "x${have_gnutls}" = "xno"; then
     AC_MSG_NOTICE($GNUTLS_PKG_ERRORS)
-  fi
-  # Until GnuTLS gains mainline support for QUIC, check for a patched version.
-  AC_CHECK_LIB([gnutls], [gnutls_handshake_write], [have_gnutls_quic=yes],
-               [have_gnutls_quic=no], [$GNUTLS_LIBS])
-  if test "x${have_gnutls}${have_gnutls_quic}" = "xyesno"; then
-    AC_MSG_NOTICE([gnutls does not have QUIC interface, disabling it])
-    have_gnutls=no
   fi
 fi
 

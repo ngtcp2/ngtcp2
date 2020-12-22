@@ -46,12 +46,15 @@ jobs:
     - name: Build OpenSSL
       run: |
         ./ci/build_openssl.sh
+    - name: Build GnuTLS
+      run: |
+        ./ci/build_gnutls.sh
     - name: Build nghttp3
       run: |
         ./ci/build_nghttp3.sh
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig"
+        PKG_CONFIG_PATH="$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig:$PWD/../gnutls-3.7.0/build/lib/pkgconfig:$PWD/../nettle-3.6/build/lib64/pkgconfig"
         LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
 
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
@@ -59,7 +62,8 @@ jobs:
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
-        autoreconf -i && ./configure --enable-werror
+        autoreconf -i && \
+        ./configure --enable-werror --with-openssl --with-gnutls
     - name: Configure cmake
       if: matrix.buildtool == 'cmake'
       run: |
