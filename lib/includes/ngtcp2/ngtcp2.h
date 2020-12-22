@@ -4458,16 +4458,22 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * values.  First this function fills |settings| with 0 and set the
  * default value to the following fields:
  *
- * * cc_algo = :enum:`ngtcp2_cc_algo.NGTCP2_CC_ALGO_CUBIC`
- * * initial_rtt = :macro:`NGTCP2_DEFAULT_INITIAL_RTT`
- * * ack_thresh = 2
- * * transport_params.max_udp_payload_size =
+ * * :type:`cc_algo <ngtcp2_settings.cc_algo>` =
+ *   :enum:`ngtcp2_cc_algo.NGTCP2_CC_ALGO_CUBIC`
+ * * :type:`initial_rtt <ngtcp2_settings.initial_rtt>` =
+ *   :macro:`NGTCP2_DEFAULT_INITIAL_RTT`
+ * * :type:`ack_thresh <ngtcp2_settings.ack_thresh>` = 2
+ * * :type:`transport_params.max_udp_payload_size
+ *   <ngtcp2_transport_params.max_udp_payload_size>` =
  *   :macro:`NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE`
- * * transport_params.ack_delay_component =
+ * * :type:`transport_params.ack_delay_exponent
+ *   <ngtcp2_transport_params.ack_delay_exponent>` =
  *   :macro:`NGTCP2_DEFAULT_ACK_DELAY_EXPONENT`
- * * transport_params.max_ack_delay =
+ * * :type:`transport_params.max_ack_delay
+ *   <ngtcp2_transport_params.max_ack_delay>` =
  *   :macro:`NGTCP2_DEFAULT_MAX_ACK_DELAY`
- * * transport_params.active_connection_id_limit =
+ * * :type:`transport_params.active_connection_id_limit
+ *   <ngtcp2_transport_params.active_connection_id_limit>` =
  *   :macro:`NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT`
  */
 NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);

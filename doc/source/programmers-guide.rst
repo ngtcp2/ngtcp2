@@ -214,7 +214,8 @@ application should call `ngtcp2_conn_get_expiry()` to restart timer.
 
 Application also handles connection idle timeout.
 `ngtcp2_conn_get_idle_expiry()` returns the current idle expiry.  If
-idle timer is expired, the connection should be closed.
+idle timer is expired, the connection should be closed without calling
+`ngtcp2_conn_write_connection_close()`.
 
 Closing connection
 ------------------
@@ -234,6 +235,10 @@ If `ngtcp2_err_is_fatal()` returns true with the returned error code,
 without any ngtcp2 library functions.  Otherwise, call
 `ngtcp2_conn_write_connection_close()` to get terminal packet.
 Sending it finishes QUIC connection.
+
+If :macro:`NGTCP2_ERR_DROP_CONN` is returned from
+`ngtcp2_conn_read_pkt`, a connection should be dropped without calling
+`ngtcp2_conn_write_connection_close()`.
 
 The following error codes must be considered as transitional, and
 application should keep connection alive:
