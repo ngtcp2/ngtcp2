@@ -150,7 +150,7 @@ AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
 
 AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
 
-# openssl (for examples)
+# openssl (for libngtcp2_crypto and examples)
 have_openssl=no
 if test "x${request_openssl}" != "xno"; then
   PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
@@ -174,7 +174,7 @@ fi
 
 AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 
-# GnuTLS (for examples)
+# GnuTLS (for libngtcp2_crypto and examples)
 have_gnutls=no
 if test "x${request_gnutls}" != "xno"; then
   PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.7.0],
