@@ -1431,6 +1431,10 @@ static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
   ngtcp2_frame_chain *frc;
   ngtcp2_strm *strm;
 
+  if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
+    return 0;
+  }
+
   for (; !ngtcp2_pq_empty(&conn->tx.strmq);) {
     strm = ngtcp2_conn_tx_strmq_top(conn);
     if (ngtcp2_strm_streamfrq_empty(strm)) {
@@ -8670,12 +8674,14 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
-      nwrite = conn_retransmit_retry_early(conn, pi, dest, destlen, ts);
-      if (nwrite < 0) {
-        return nwrite;
-      }
+      if (!(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
+        nwrite = conn_retransmit_retry_early(conn, pi, dest, destlen, ts);
+        if (nwrite < 0) {
+          return nwrite;
+        }
 
-      res += nwrite;
+        res += nwrite;
+      }
 
       if (res == 0) {
         nwrite = conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
