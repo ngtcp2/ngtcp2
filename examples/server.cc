@@ -2255,7 +2255,8 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
   int fd = -1;
 
   for (rp = res; rp; rp = rp->ai_next) {
-    fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    fd = util::create_nonblock_socket(rp->ai_family, rp->ai_socktype,
+                                      rp->ai_protocol);
     if (fd == -1) {
       continue;
     }
@@ -2322,7 +2323,7 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const char *addr,
 
 namespace {
 int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
-  auto fd = socket(addr.su.sa.sa_family, SOCK_DGRAM, 0);
+  auto fd = util::create_nonblock_socket(addr.su.sa.sa_family, SOCK_DGRAM, 0);
   if (fd == -1) {
     std::cerr << "socket: " << strerror(errno) << std::endl;
     return -1;
@@ -2423,7 +2424,7 @@ int Server::on_read(Endpoint &ep) {
     msg.msg_namelen = sizeof(su);
     msg.msg_controllen = sizeof(msg_ctrl);
 
-    auto nread = recvmsg(ep.fd, &msg, MSG_DONTWAIT);
+    auto nread = recvmsg(ep.fd, &msg, 0);
     if (nread == -1) {
       if (!(errno == EAGAIN || errno == ENOTCONN)) {
         std::cerr << "recvmsg: " << strerror(errno) << std::endl;

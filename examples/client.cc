@@ -1092,7 +1092,7 @@ int Client::on_read() {
     msg.msg_namelen = sizeof(su);
     msg.msg_controllen = sizeof(msg_ctrl);
 
-    auto nread = recvmsg(fd_, &msg, MSG_DONTWAIT);
+    auto nread = recvmsg(fd_, &msg, 0);
 
     if (nread == -1) {
       if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -1379,7 +1379,8 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
   int fd = -1;
 
   for (rp = res; rp; rp = rp->ai_next) {
-    fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+    fd = util::create_nonblock_socket(rp->ai_family, rp->ai_socktype,
+                                      rp->ai_protocol);
     if (fd == -1) {
       continue;
     }
@@ -1562,7 +1563,7 @@ int Client::send_packet() {
   ssize_t nwrite = 0;
 
   do {
-    nwrite = sendmsg(fd_, &msg, MSG_DONTWAIT);
+    nwrite = sendmsg(fd_, &msg, 0);
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {

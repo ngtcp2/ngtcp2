@@ -31,6 +31,9 @@
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
 #endif
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <netdb.h>
 
 #include <cassert>
@@ -560,6 +563,40 @@ std::string normalize_path(const std::string &path) {
       ;
   }
   return std::string{res.data(), p};
+}
+
+int make_socket_nonblocking(int fd) {
+  int rv;
+  int flags;
+
+  while ((flags = fcntl(fd, F_GETFL, 0)) == -1 && errno == EINTR)
+    ;
+  if (flags == -1) {
+    return -1;
+  }
+
+  while ((rv = fcntl(fd, F_SETFL, flags | O_NONBLOCK)) == -1 && errno == EINTR)
+    ;
+
+  return rv;
+}
+
+int create_nonblock_socket(int domain, int type, int protocol) {
+#ifdef SOCK_NONBLOCK
+  auto fd = socket(domain, type | SOCK_NONBLOCK, protocol);
+  if (fd == -1) {
+    return -1;
+  }
+#else  // !SOCK_NONBLOCK
+  auto fd = socket(domain, type, protocol);
+  if (fd == -1) {
+    return -1;
+  }
+
+  make_socket_nonblocking(fd);
+#endif // !SOCK_NONBLOCK
+
+  return fd;
 }
 
 } // namespace util

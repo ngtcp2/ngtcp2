@@ -319,6 +319,10 @@ std::string percent_decode(InputIt first, InputIt last) {
   return result;
 }
 
+int make_socket_nonblocking(int fd);
+
+int create_nonblock_socket(int domain, int type, int protocol);
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
