@@ -33,3 +33,7 @@ endif
 if HAVE_GNUTLS
 SUBDIRS += gnutls
 endif
+
+if HAVE_BORINGSSL
+SUBDIRS += boringssl
+endif

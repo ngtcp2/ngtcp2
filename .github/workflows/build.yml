@@ -49,6 +49,9 @@ jobs:
     - name: Build GnuTLS
       run: |
         ./ci/build_gnutls.sh
+    - name: Build BoringSSL
+      run: |
+        ./ci/build_boringssl.sh
     - name: Build nghttp3
       run: |
         ./ci/build_nghttp3.sh
@@ -56,18 +59,31 @@ jobs:
       run: |
         PKG_CONFIG_PATH="$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig:$PWD/../gnutls-3.7.0/build/lib/pkgconfig:$PWD/../nettle-3.6/build/lib64/pkgconfig"
         LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib"
+        BORINGSSL_CFLAGS="-I$PWD/../boringssl/include/"
+        BORINGSSL_LIBS="-L$PWD/../boringssl/build/ssl -lssl -L$PWD/../boringssl/build/crypto -lcrypto"
 
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
+        echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
+        echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
+    - name: BoringSSL pthread requirement
+      if: runner.os == 'Linux'
+      run: |
+        BORINGSSL_LIBS="$BORINGSSL_LIBS -pthread"
+
+        echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
         autoreconf -i && \
-        ./configure --enable-werror --with-openssl --with-gnutls
+        ./configure --enable-werror \
+          --with-openssl --with-gnutls --with-boringssl
     - name: Configure cmake
       if: matrix.buildtool == 'cmake'
       run: |
-        cmake $CMAKE_OPTS .
+        cmake $CMAKE_OPTS \
+          -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
+          -DBORINGSSL_INCLUDE_DIR="$PWD/../boringssl/include/" .
     - name: Build ngtcp2
       run: |
         make

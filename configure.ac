@@ -53,6 +53,10 @@ AC_SUBST(CRYPTO_GNUTLS_LT_CURRENT, 0)
 AC_SUBST(CRYPTO_GNUTLS_LT_REVISION, 0)
 AC_SUBST(CRYPTO_GNUTLS_LT_AGE, 0)
 
+AC_SUBST(CRYPTO_BORINGSSL_LT_CURRENT, 0)
+AC_SUBST(CRYPTO_BORINGSSL_LT_REVISION, 0)
+AC_SUBST(CRYPTO_BORINGSSL_LT_AGE, 0)
+
 # from nghttp2
 major=`echo $PACKAGE_VERSION |cut -d. -f1 | sed -e "s/[^0-9]//g"`
 minor=`echo $PACKAGE_VERSION |cut -d. -f2 | sed -e "s/[^0-9]//g"`
@@ -103,6 +107,14 @@ AC_ARG_WITH([gnutls],
     [AS_HELP_STRING([--with-gnutls],
                     [Use gnutls [default=check]])],
     [request_gnutls=$withval], [request_gnutls=check])
+
+AC_ARG_WITH([boringssl],
+    [AS_HELP_STRING([--with-boringssl],
+                    [Use boringssl [default=check]])],
+    [request_boringssl=$withval], [request_boringssl=check])
+
+AC_ARG_VAR([BORINGSSL_CFLAGS], [C compiler flags for BORINGSSL])
+AC_ARG_VAR([BORINGSSL_LIBS], [linker flags for BORINGSSL])
 
 # Checks for programs
 AC_PROG_CC
@@ -193,7 +205,24 @@ fi
 
 AM_CONDITIONAL([HAVE_GNUTLS], [ test "x${have_gnutls}" = "xyes" ])
 
-AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_openssl}" = "xyes" || test "x${have_gnutls}" = "xyes" ])
+# BoringSSL (for libngtcp2_crypto)
+have_boringssl=no
+if test "x${request_boringssl}" != "xno"; then
+  save_LDFLAGS="$LDFLAGS"
+  LDFLAGS="$LDFLAGS $BORINGSSL_LIBS"
+  AC_CHECK_LIB([ssl], [SSL_provide_quic_data],
+               [have_boringssl=yes], [have_boringssl=no], [$BORINGSSL_LIBS])
+  LDFLAGS="$save_LDFLAGS"
+fi
+
+if test "x${request_boringssl}" = "xyes" &&
+   test "x${have_boringssl}" != "xyes"; then
+  AC_MSG_ERROR([boringssl was requested (--with-boringssl) but not found])
+fi
+
+AM_CONDITIONAL([HAVE_BORINGSSL], [ test "x${have_boringssl}" = "xyes" ])
+
+AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_openssl}" = "xyes" || test "x${have_gnutls}" = "xyes" || test "${have_boringssl}" = "xyes" ])
 
 # libnghttp3 (for examples)
 PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
@@ -444,6 +473,8 @@ AC_CONFIG_FILES([
   crypto/includes/Makefile
   crypto/gnutls/Makefile
   crypto/gnutls/libngtcp2_crypto_gnutls.pc
+  crypto/boringssl/Makefile
+  crypto/boringssl/libngtcp2_crypto_boringssl.pc
   doc/Makefile
   doc/source/conf.py
   third-party/Makefile
@@ -490,5 +521,6 @@ AC_MSG_NOTICE([summary of build options:
       Libnghttp3:     ${have_libnghttp3} (CFLAGS='${LIBNGHTTP3_CFLAGS}' LIBS='${LIBNGHTTP3_LIBS}')
       Jemalloc:       ${have_jemalloc} (LIBS='${JEMALLOC_LIBS}')
       GnuTLS:         ${have_gnutls} (CFLAGS='${GNUTLS_CFLAGS}' LIBS='${GNUTLS_LIBS}')
+      BoringSSL:      ${have_boringssl} (CFLAGS='${BORINGSSL_CFLAGS}' LIBS='${BORINGSSL_LIBS}')
     Examples:         ${enable_examples}
 ])

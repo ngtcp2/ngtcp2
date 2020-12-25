@@ -71,6 +71,7 @@ For crypto helper library:
 
 * Patched OpenSSL listed above
 * libgnutls28-dev >= 3.7.0
+* BoringSSL (commit 78f15a6aa9f11ab7cff736f920c4858cc38264fb)
 
 Build from git
 --------------
@@ -181,6 +182,10 @@ available crypto helper libraries are:
 
 * libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
 * libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
+* libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
+
+Because BoringSSL is an unversioned product, we only tested its
+particular revision.  See Requirements section above.
 
 Configuring Wireshark for QUIC
 ------------------------------
