@@ -2708,21 +2708,6 @@ auto quic_method = SSL_QUIC_METHOD{
 } // namespace
 
 namespace {
-int client_hello_cb(SSL *ssl, int *al, void *arg) {
-  const uint8_t *tp;
-  size_t tplen;
-
-  if (!SSL_client_hello_get0_ext(ssl, NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS,
-                                 &tp, &tplen)) {
-    *al = SSL_AD_INTERNAL_ERROR;
-    return SSL_CLIENT_HELLO_ERROR;
-  }
-
-  return SSL_CLIENT_HELLO_SUCCESS;
-}
-} // namespace
-
-namespace {
 int verify_cb(int preverify_ok, X509_STORE_CTX *ctx) {
   // We don't verify the client certificate.  Just request it for the
   // testing purpose.
@@ -2793,7 +2778,6 @@ SSL_CTX *create_ssl_ctx(const char *private_key_file, const char *cert_file) {
 
   SSL_CTX_set_max_early_data(ssl_ctx, std::numeric_limits<uint32_t>::max());
   SSL_CTX_set_quic_method(ssl_ctx, &quic_method);
-  SSL_CTX_set_client_hello_cb(ssl_ctx, client_hello_cb, nullptr);
 
   return ssl_ctx;
 }
