@@ -254,8 +254,10 @@ public:
   void start_key_update_timer();
   void start_delay_stream_timer();
 
-  int on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
-             const uint8_t *tx_secret, size_t secretlen);
+  int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                size_t secretlen);
+  int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
 

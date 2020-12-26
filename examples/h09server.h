@@ -261,8 +261,10 @@ public:
   void update_endpoint(const ngtcp2_addr *addr);
   void update_remote_addr(const ngtcp2_addr *addr, const ngtcp2_pkt_info *pi);
 
-  int on_key(ngtcp2_crypto_level level, const uint8_t *rsecret,
-             const uint8_t *wsecret, size_t secretlen);
+  int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                size_t secretlen);
+  int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                size_t secretlen);
 
   void set_tls_alert(uint8_t alert);
 

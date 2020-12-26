@@ -107,18 +107,13 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen}, begin(buf.data()), tail(begin + datalen) {}
 Buffer::Buffer(size_t datalen) : buf(datalen), begin(buf.data()), tail(begin) {}
 
-int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
-                    const uint8_t *tx_secret, size_t secretlen) {
-  std::array<uint8_t, 64> rx_key, rx_iv, rx_hp_key, tx_key, tx_iv, tx_hp_key;
+int Handler::on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                       size_t secretlen) {
+  std::array<uint8_t, 64> key, iv, hp_key;
 
-  if (ngtcp2_crypto_derive_and_install_rx_key(
-          conn_, rx_key.data(), rx_iv.data(), rx_hp_key.data(), level,
-          rx_secret, secretlen) != 0) {
-    return -1;
-  }
-  if (ngtcp2_crypto_derive_and_install_tx_key(
-          conn_, tx_key.data(), tx_iv.data(), tx_hp_key.data(), level,
-          tx_secret, secretlen) != 0) {
+  if (ngtcp2_crypto_derive_and_install_rx_key(conn_, key.data(), iv.data(),
+                                              hp_key.data(), level, secret,
+                                              secretlen) != 0) {
     return -1;
   }
 
@@ -131,21 +126,17 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
   switch (level) {
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     title = "early_traffic";
-    keylog::log_secret(ssl_, keylog::QUIC_CLIENT_EARLY_TRAFFIC_SECRET,
-                       rx_secret, secretlen);
+    keylog::log_secret(ssl_, keylog::QUIC_CLIENT_EARLY_TRAFFIC_SECRET, secret,
+                       secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     title = "handshake_traffic";
     keylog::log_secret(ssl_, keylog::QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET,
-                       rx_secret, secretlen);
-    keylog::log_secret(ssl_, keylog::QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET,
-                       tx_secret, secretlen);
+                       secret, secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     title = "application_traffic";
-    keylog::log_secret(ssl_, keylog::QUIC_CLIENT_TRAFFIC_SECRET_0, rx_secret,
-                       secretlen);
-    keylog::log_secret(ssl_, keylog::QUIC_SERVER_TRAFFIC_SECRET_0, tx_secret,
+    keylog::log_secret(ssl_, keylog::QUIC_CLIENT_TRAFFIC_SECRET_0, secret,
                        secretlen);
     break;
   default:
@@ -154,13 +145,50 @@ int Handler::on_key(ngtcp2_crypto_level level, const uint8_t *rx_secret,
 
   if (!config.quiet && config.show_secret) {
     std::cerr << title << " rx secret" << std::endl;
-    debug::print_secrets(rx_secret, secretlen, rx_key.data(), keylen,
-                         rx_iv.data(), ivlen, rx_hp_key.data(), keylen);
-    if (tx_secret) {
-      std::cerr << title << " tx secret" << std::endl;
-      debug::print_secrets(tx_secret, secretlen, tx_key.data(), keylen,
-                           tx_iv.data(), ivlen, tx_hp_key.data(), keylen);
-    }
+    debug::print_secrets(secret, secretlen, key.data(), keylen, iv.data(),
+                         ivlen, hp_key.data(), keylen);
+  }
+
+  return 0;
+}
+
+int Handler::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                       size_t secretlen) {
+  std::array<uint8_t, 64> key, iv, hp_key;
+
+  if (ngtcp2_crypto_derive_and_install_tx_key(conn_, key.data(), iv.data(),
+                                              hp_key.data(), level, secret,
+                                              secretlen) != 0) {
+    return -1;
+  }
+
+  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  auto aead = &crypto_ctx->aead;
+  auto keylen = ngtcp2_crypto_aead_keylen(aead);
+  auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
+
+  const char *title = nullptr;
+  switch (level) {
+  case NGTCP2_CRYPTO_LEVEL_EARLY:
+    assert(0);
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    title = "handshake_traffic";
+    keylog::log_secret(ssl_, keylog::QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET,
+                       secret, secretlen);
+    break;
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+    title = "application_traffic";
+    keylog::log_secret(ssl_, keylog::QUIC_SERVER_TRAFFIC_SECRET_0, secret,
+                       secretlen);
+    break;
+  default:
+    assert(0);
+  }
+
+  if (!config.quiet && config.show_secret) {
+    std::cerr << title << " tx secret" << std::endl;
+    debug::print_secrets(secret, secretlen, key.data(), keylen, iv.data(),
+                         ivlen, hp_key.data(), keylen);
   }
 
   if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION && setup_httpconn() != 0) {
@@ -3323,12 +3351,15 @@ int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                            const uint8_t *read_secret,
                            const uint8_t *write_secret, size_t secret_len) {
   auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
+  auto level = ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
 
-  if (auto rv = h->on_key(
-          ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level),
-          read_secret, write_secret, secret_len);
-      rv != 0) {
+  if (auto rv = h->on_rx_key(level, read_secret, secret_len); rv != 0) {
     return 0;
+  }
+  if (write_secret) {
+    if (auto rv = h->on_tx_key(level, write_secret, secret_len); rv != 0) {
+      return 0;
+    }
   }
 
   return 1;
