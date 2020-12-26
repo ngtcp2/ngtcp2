@@ -447,11 +447,11 @@ AC_SUBST([WARNCXXFLAGS])
 
 if test "x$asan" != "xno"; then
     # Assume both C and C++ compiler either support ASAN or not.
-    LDFLAGS_saved="$LDFLAGS"
+    save_LDFLAGS="$LDFLAGS"
     LDFLAGS="$LDFLAGS -fsanitize=address"
     AX_CHECK_COMPILE_FLAG([-fsanitize=address],
                           [CFLAGS="$CFLAGS -fsanitize=address"; CXXFLAGS="$CXXFLAGS -fsanitize=address"],
-                          [LDFLAGS="$LDFLAGS_saved"])
+                          [LDFLAGS="$save_LDFLAGS"])
 fi
 
 # extra flags for API function visibility
