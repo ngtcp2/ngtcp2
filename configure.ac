@@ -162,7 +162,7 @@ AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
 
 AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
 
-# openssl (for libngtcp2_crypto and examples)
+# OpenSSL (required for libngtcp2_crypto_openssl and examples)
 have_openssl=no
 if test "x${request_openssl}" != "xno"; then
   PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
@@ -188,7 +188,7 @@ fi
 
 AM_CONDITIONAL([HAVE_OPENSSL], [ test "x${have_openssl}" = "xyes" ])
 
-# GnuTLS (for libngtcp2_crypto)
+# GnuTLS (required for libngtcp2_crypto_gnutls)
 have_gnutls=no
 if test "x${request_gnutls}" != "xno"; then
   PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.7.0],
@@ -205,7 +205,7 @@ fi
 
 AM_CONDITIONAL([HAVE_GNUTLS], [ test "x${have_gnutls}" = "xyes" ])
 
-# BoringSSL (for libngtcp2_crypto)
+# BoringSSL (required for libngtcp2_crypto_boringssl)
 have_boringssl=no
 if test "x${request_boringssl}" != "xno"; then
   save_LDFLAGS="$LDFLAGS"
@@ -224,7 +224,7 @@ AM_CONDITIONAL([HAVE_BORINGSSL], [ test "x${have_boringssl}" = "xyes" ])
 
 AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_openssl}" = "xyes" || test "x${have_gnutls}" = "xyes" || test "${have_boringssl}" = "xyes" ])
 
-# libnghttp3 (for examples)
+# libnghttp3 (required for examples)
 PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
                   [have_libnghttp3=yes], [have_libnghttp3=no])
 if test "${have_libnghttp3}" = "xno"; then
@@ -235,7 +235,7 @@ AM_CONDITIONAL([HAVE_NGHTTP3], [ test "x${have_libnghttp3}" = "xyes" ])
 AC_ARG_VAR([LIBEV_CFLAGS], [C compiler flags for libev, skipping any checks])
 AC_ARG_VAR([LIBEV_LIBS], [linker flags for libev, skipping any checks])
 
-# libev (for examples)
+# libev (required for examples)
 if test "x${LIBEV_LIBS}" = "x" && test "x${LIBEV_CFLAGS}" = "x"; then
   # libev does not have pkg-config file.  Check it in an old way.
   save_LIBS=$LIBS
