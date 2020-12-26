@@ -164,6 +164,8 @@ if test "x${request_openssl}" != "xno"; then
   if test "x${have_openssl}${have_openssl_quic}" = "xyesno"; then
     AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
     have_openssl=no
+    OPENSSL_LIBS=
+    OPENSSL_CFLAGS=
   fi
 fi
 
