@@ -229,6 +229,7 @@ fi
 enable_examples=no
 if test "x${lib_only}" = "xno" &&
    test "x${have_libnghttp3}" = "xyes" &&
+   test "x${have_openssl}" = "xyes" &&
    test "x${have_libev}" = "xyes"; then
   enable_examples=yes
 fi
