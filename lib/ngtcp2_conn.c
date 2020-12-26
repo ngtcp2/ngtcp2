@@ -2575,6 +2575,8 @@ static size_t conn_required_num_new_connection_id(ngtcp2_conn *conn) {
     return 0;
   }
 
+  assert(conn->remote.transport_params.active_connection_id_limit);
+
   /* len includes retired CID.  We don't provide extra CID if doing so
      exceeds NGTCP2_MAX_SCID_POOL_SIZE. */
 
@@ -9123,6 +9125,12 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
 
   pktns->crypto.rx.hp_ctx = *hp_ctx;
 
+  if (!conn->server) {
+    conn->remote.transport_params = conn->remote.pending_transport_params;
+    conn_sync_stream_id_limit(conn);
+    conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
+  }
+
   return 0;
 }
 
@@ -9145,9 +9153,11 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
 
   pktns->crypto.tx.hp_ctx = *hp_ctx;
 
-  conn->remote.transport_params = conn->remote.pending_transport_params;
-  conn_sync_stream_id_limit(conn);
-  conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
+  if (conn->server) {
+    conn->remote.transport_params = conn->remote.pending_transport_params;
+    conn_sync_stream_id_limit(conn);
+    conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
+  }
 
   return 0;
 }
@@ -9379,7 +9389,8 @@ int ngtcp2_conn_set_remote_transport_params(
   ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
                                               NGTCP2_QLOG_SIDE_REMOTE);
 
-  if (conn->pktns.crypto.tx.ckm) {
+  if ((conn->server && conn->pktns.crypto.tx.ckm) ||
+      (!conn->server && conn->pktns.crypto.rx.ckm)) {
     conn->remote.transport_params = *params;
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
