@@ -3370,8 +3370,8 @@ namespace {
 int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                        const uint8_t *data, size_t len) {
   auto h = static_cast<Handler *>(SSL_get_app_data(ssl));
-  h->write_server_handshake(
-      ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level), data, len);
+  auto level = ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
+  h->write_server_handshake(level, data, len);
   return 1;
 }
 } // namespace
