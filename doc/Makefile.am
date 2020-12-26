@@ -48,7 +48,8 @@ apiref: mkapiref.py \
 cryptoapiref: mkapiref.py \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto.h \
 	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_openssl.h \
-	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_gnutls.h
+	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_gnutls.h \
+	$(top_srcdir)/crypto/includes/ngtcp2/ngtcp2_crypto_boringssl.h
 	$(top_srcdir)/doc/mkapiref.py \
 	--title='ngtcp2 crypto API reference' \
 	source/crypto_apiref.rst source/crypto_macros.rst \
