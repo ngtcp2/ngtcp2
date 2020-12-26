@@ -210,7 +210,7 @@ have_boringssl=no
 if test "x${request_boringssl}" != "xno"; then
   save_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS $BORINGSSL_LIBS"
-  AC_CHECK_LIB([ssl], [SSL_provide_quic_data],
+  AC_CHECK_LIB([ssl], [SSL_set_quic_early_data_context],
                [have_boringssl=yes], [have_boringssl=no], [$BORINGSSL_LIBS])
   LDFLAGS="$save_LDFLAGS"
 fi
