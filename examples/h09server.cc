@@ -2213,7 +2213,7 @@ int Server::generate_retry_token(uint8_t *token, size_t &tokenlen,
   }
 
   /* 1 for magic byte */
-  tokenlen = 1 + plaintextlen + ngtcp2_crypto_aead_taglen(&token_aead_);
+  tokenlen = 1 + plaintextlen + ngtcp2_crypto_aead_max_overhead(&token_aead_);
   memcpy(token + tokenlen, rand_data.data(), rand_data.size());
   tokenlen += rand_data.size();
 
@@ -2292,9 +2292,10 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
     return -1;
   }
 
-  assert(ciphertextlen >= ngtcp2_crypto_aead_taglen(&token_aead_));
+  assert(ciphertextlen >= ngtcp2_crypto_aead_max_overhead(&token_aead_));
 
-  auto plaintextlen = ciphertextlen - ngtcp2_crypto_aead_taglen(&token_aead_);
+  auto plaintextlen =
+      ciphertextlen - ngtcp2_crypto_aead_max_overhead(&token_aead_);
   if (plaintextlen < sizeof(uint64_t)) {
     if (!config.quiet) {
       std::cerr << "Bad token construction" << std::endl;
@@ -2410,7 +2411,7 @@ int Server::generate_token(uint8_t *token, size_t &tokenlen,
   }
 
   /* 1 for magic byte */
-  tokenlen = 1 + plaintextlen + ngtcp2_crypto_aead_taglen(&token_aead_);
+  tokenlen = 1 + plaintextlen + ngtcp2_crypto_aead_max_overhead(&token_aead_);
   memcpy(token + tokenlen, rand_data.data(), rand_data.size());
   tokenlen += rand_data.size();
 
@@ -2488,9 +2489,10 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
     return -1;
   }
 
-  assert(ciphertextlen >= ngtcp2_crypto_aead_taglen(&token_aead_));
+  assert(ciphertextlen >= ngtcp2_crypto_aead_max_overhead(&token_aead_));
 
-  auto plaintextlen = ciphertextlen - ngtcp2_crypto_aead_taglen(&token_aead_);
+  auto plaintextlen =
+      ciphertextlen - ngtcp2_crypto_aead_max_overhead(&token_aead_);
   if (plaintextlen != sizeof(uint64_t)) {
     if (!config.quiet) {
       std::cerr << "Bad token construction" << std::endl;

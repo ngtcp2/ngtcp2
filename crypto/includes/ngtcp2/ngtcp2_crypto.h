@@ -113,9 +113,11 @@ ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead);
 /**
  * @function
  *
- * `ngtcp2_crypto_aead_taglen` returns the length of tag for |aead|.
+ * `ngtcp2_crypto_aead_max_overhead` returns the maximum authenticated
+ * encryption overhead of |aead|.
  */
-NGTCP2_EXTERN size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead);
+NGTCP2_EXTERN size_t
+ngtcp2_crypto_aead_max_overhead(const ngtcp2_crypto_aead *aead);
 
 /**
  * @function
@@ -222,7 +224,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_packet_protection_key(
  * `ngtcp2_crypto_encrypt` encrypts |plaintext| of length
  * |plaintextlen| and writes the ciphertext into the buffer pointed by
  * |dest|.  The length of ciphertext is plaintextlen +
- * ngtcp2_crypto_aead_taglen(aead) bytes long.  |dest| must have
+ * ngtcp2_crypto_aead_max_overhead(aead) bytes long.  |dest| must have
  * enough capacity to store the ciphertext.  It is allowed to specify
  * the same value to |dest| and |plaintext|.
  *
@@ -259,9 +261,9 @@ ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * `ngtcp2_crypto_decrypt` decrypts |ciphertext| of length
  * |ciphertextlen| and writes the plaintext into the buffer pointed by
  * |dest|.  The length of plaintext is ciphertextlen -
- * ngtcp2_crypto_aead_taglen(aead) bytes long.  |dest| must have enough
- * capacity to store the plaintext.  It is allowed to specify the same
- * value to |dest| and |ciphertext|.
+ * ngtcp2_crypto_aead_max_overhead(aead) bytes long.  |dest| must have
+ * enough capacity to store the plaintext.  It is allowed to specify
+ * the same value to |dest| and |ciphertext|.
  *
  * This function returns 0 if it succeeds, or -1.
  */

@@ -180,7 +180,7 @@ size_t ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead) {
   return crypto_aead_noncelen(aead->native_handle);
 }
 
-size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead) {
+size_t ngtcp2_crypto_aead_max_overhead(const ngtcp2_crypto_aead *aead) {
   return EVP_AEAD_max_overhead(aead->native_handle);
 }
 

@@ -37,7 +37,7 @@
 
 #include "shared.h"
 
-static size_t crypto_aead_taglen(const EVP_CIPHER *aead) {
+static size_t crypto_aead_max_overhead(const EVP_CIPHER *aead) {
   switch (EVP_CIPHER_nid(aead)) {
   case NID_aes_128_gcm:
   case NID_aes_256_gcm:
@@ -54,7 +54,7 @@ static size_t crypto_aead_taglen(const EVP_CIPHER *aead) {
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   const EVP_CIPHER *cipher = EVP_aes_128_gcm();
   ctx->aead.native_handle = (void *)cipher;
-  ctx->aead.max_overhead = crypto_aead_taglen(cipher);
+  ctx->aead.max_overhead = crypto_aead_max_overhead(cipher);
   ctx->md.native_handle = (void *)EVP_sha256();
   ctx->hp.native_handle = (void *)EVP_aes_128_ctr();
   ctx->max_encryption = 0;
@@ -65,7 +65,7 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
 ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead) {
   const EVP_CIPHER *cipher = EVP_aes_128_gcm();
   aead->native_handle = (void *)cipher;
-  aead->max_overhead = crypto_aead_taglen(cipher);
+  aead->max_overhead = crypto_aead_max_overhead(cipher);
   return aead;
 }
 
@@ -144,7 +144,7 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   SSL *ssl = tls_native_handle;
   const EVP_CIPHER *cipher = crypto_ssl_get_aead(ssl);
   ctx->aead.native_handle = (void *)cipher;
-  ctx->aead.max_overhead = crypto_aead_taglen(cipher);
+  ctx->aead.max_overhead = crypto_aead_max_overhead(cipher);
   ctx->md.native_handle = (void *)crypto_ssl_get_md(ssl);
   ctx->hp.native_handle = (void *)crypto_ssl_get_hp(ssl);
   ctx->max_encryption = crypto_ssl_get_aead_max_encryption(ssl);
@@ -176,8 +176,8 @@ size_t ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead) {
   return crypto_aead_noncelen(aead->native_handle);
 }
 
-size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead) {
-  return crypto_aead_taglen(aead->native_handle);
+size_t ngtcp2_crypto_aead_max_overhead(const ngtcp2_crypto_aead *aead) {
+  return crypto_aead_max_overhead(aead->native_handle);
 }
 
 int ngtcp2_crypto_aead_ctx_encrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
@@ -197,7 +197,7 @@ int ngtcp2_crypto_aead_ctx_encrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
                            NULL) ||
       (cipher_nid == NID_aes_128_ccm &&
        !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG,
-                            (int)crypto_aead_taglen(cipher), NULL)) ||
+                            (int)crypto_aead_max_overhead(cipher), NULL)) ||
       !EVP_EncryptInit_ex(actx, NULL, NULL, key, NULL)) {
     EVP_CIPHER_CTX_free(actx);
     return -1;
@@ -225,7 +225,7 @@ int ngtcp2_crypto_aead_ctx_decrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
                            NULL) ||
       (cipher_nid == NID_aes_128_ccm &&
        !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG,
-                            (int)crypto_aead_taglen(cipher), NULL)) ||
+                            (int)crypto_aead_max_overhead(cipher), NULL)) ||
       !EVP_DecryptInit_ex(actx, NULL, NULL, key, NULL)) {
     EVP_CIPHER_CTX_free(actx);
     return -1;
@@ -326,7 +326,7 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const uint8_t *nonce, size_t noncelen,
                           const uint8_t *ad, size_t adlen) {
   const EVP_CIPHER *cipher = aead->native_handle;
-  size_t taglen = crypto_aead_taglen(cipher);
+  size_t taglen = crypto_aead_max_overhead(cipher);
   int cipher_nid = EVP_CIPHER_nid(cipher);
   EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
   int len;
@@ -353,7 +353,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const uint8_t *nonce, size_t noncelen,
                           const uint8_t *ad, size_t adlen) {
   const EVP_CIPHER *cipher = aead->native_handle;
-  size_t taglen = crypto_aead_taglen(cipher);
+  size_t taglen = crypto_aead_max_overhead(cipher);
   int cipher_nid = EVP_CIPHER_nid(cipher);
   EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
   int len;

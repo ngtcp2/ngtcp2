@@ -145,7 +145,7 @@ size_t ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead) {
       (gnutls_cipher_algorithm_t)aead->native_handle);
 }
 
-size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead) {
+size_t ngtcp2_crypto_aead_max_overhead(const ngtcp2_crypto_aead *aead) {
   return gnutls_cipher_get_tag_size(
       (gnutls_cipher_algorithm_t)aead->native_handle);
 }
