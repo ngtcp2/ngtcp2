@@ -114,7 +114,10 @@ ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead);
  * @function
  *
  * `ngtcp2_crypto_aead_max_overhead` returns the maximum authenticated
- * encryption overhead of |aead|.
+ * encryption overhead of |aead|.  This function does not use
+ * :member:`ngtcp2_crypto_aead.max_overhead`.  Instead, it queries the
+ * length to an underlying TLS backend with
+ * :member:`ngtcp2_crypto_aead.native_handle`.
  */
 NGTCP2_EXTERN size_t
 ngtcp2_crypto_aead_max_overhead(const ngtcp2_crypto_aead *aead);
