@@ -16,14 +16,12 @@ not available from most of the existing TLS stacks.  As far as I know,
 the TLS stacks maintained by the active participants of QUIC working
 group only get this interface at the time of this writing.  In order
 to build QUIC application you have to choose one of them.  Here is the
-list of TLS stacks which are supposed to provide such interface.
-Please note that I only use my patched OpenSSL.  Do not ask me how to
-use other TLS libraries:
+list of TLS stacks which are supposed to provide such interface and
+for which we provide crypto helper libraries:
 
 * `my OpenSSL fork
-  <https://github.com/tatsuhiro-t/openssl/tree/OpenSSL_1_1_1g-quic-draft-32>`_
-* picotls
-* nss
+  <https://github.com/tatsuhiro-t/openssl/tree/OpenSSL_1_1_1g-quic-draft-33>`_
+* GnuTLS >= 3.7.0
 * BoringSSL
 
 Creating ngtcp2_conn object
