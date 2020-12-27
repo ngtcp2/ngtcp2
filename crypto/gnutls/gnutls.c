@@ -39,6 +39,8 @@
 
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ctx->aead.native_handle = (void *)GNUTLS_CIPHER_AES_128_GCM;
+  ctx->aead.max_overhead =
+      gnutls_cipher_get_tag_size(GNUTLS_CIPHER_AES_128_GCM);
   ctx->md.native_handle = (void *)GNUTLS_DIG_SHA256;
   ctx->hp.native_handle = (void *)GNUTLS_CIPHER_AES_128_CBC;
   ctx->max_encryption = 0;
@@ -48,6 +50,8 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
 
 ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead) {
   aead->native_handle = (void *)GNUTLS_CIPHER_AES_128_GCM;
+  aead->max_overhead = gnutls_cipher_get_tag_size(GNUTLS_CIPHER_AES_128_GCM);
+
   return aead;
 }
 
@@ -108,6 +112,7 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   cipher = gnutls_cipher_get(session);
   if (cipher != GNUTLS_CIPHER_UNKNOWN && cipher != GNUTLS_CIPHER_NULL) {
     ctx->aead.native_handle = (void *)cipher;
+    ctx->aead.max_overhead = gnutls_cipher_get_tag_size(cipher);
   }
 
   hash = gnutls_prf_hash_get(session);

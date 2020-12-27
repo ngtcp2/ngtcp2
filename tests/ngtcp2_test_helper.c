@@ -131,7 +131,7 @@ size_t write_single_frame_pkt_flags(ngtcp2_conn *conn, uint8_t *out,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = conn->pktns.crypto.rx.ckm;
-  cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+  cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
                      NGTCP2_PROTO_VER_MAX, 0);
@@ -168,7 +168,7 @@ size_t write_pkt_flags(ngtcp2_conn *conn, uint8_t *out, size_t outlen,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = conn->pktns.crypto.rx.ckm;
-  cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+  cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
                      NGTCP2_PROTO_VER_MAX, 0);
@@ -201,7 +201,7 @@ size_t write_single_frame_pkt_without_conn_id(ngtcp2_conn *conn, uint8_t *out,
   cc.encrypt = null_encrypt;
   cc.hp_mask = null_hp_mask;
   cc.ckm = conn->pktns.crypto.rx.ckm;
-  cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+  cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL,
                      pkt_num, 4, NGTCP2_PROTO_VER_MAX, 0);
@@ -233,11 +233,11 @@ static size_t write_single_frame_handshake_pkt_generic(
   cc.ckm = ckm;
   switch (pkt_type) {
   case NGTCP2_PKT_INITIAL:
-    cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+    cc.aead.max_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_HANDSHAKE:
   case NGTCP2_PKT_0RTT:
-    cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+    cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   default:
     assert(0);
@@ -308,11 +308,11 @@ size_t write_handshake_pkt(uint8_t *out, size_t outlen, uint8_t pkt_type,
   cc.ckm = ckm;
   switch (pkt_type) {
   case NGTCP2_PKT_INITIAL:
-    cc.aead_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
+    cc.aead.max_overhead = NGTCP2_INITIAL_AEAD_OVERHEAD;
     break;
   case NGTCP2_PKT_HANDSHAKE:
   case NGTCP2_PKT_0RTT:
-    cc.aead_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
+    cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
     break;
   default:
     assert(0);

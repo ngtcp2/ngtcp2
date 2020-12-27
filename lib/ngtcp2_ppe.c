@@ -48,7 +48,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_cc *cc = ppe->cc;
 
-  if (ngtcp2_buf_left(buf) < cc->aead_overhead) {
+  if (ngtcp2_buf_left(buf) < cc->aead.max_overhead) {
     return NGTCP2_ERR_NOBUF;
   }
 
@@ -59,11 +59,11 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
     }
     ppe->pkt_num_offset = ppe->len_offset + 2;
     rv = ngtcp2_pkt_encode_hd_long(
-        buf->last, ngtcp2_buf_left(buf) - cc->aead_overhead, hd);
+        buf->last, ngtcp2_buf_left(buf) - cc->aead.max_overhead, hd);
   } else {
     ppe->pkt_num_offset = 1 + hd->dcid.datalen;
     rv = ngtcp2_pkt_encode_hd_short(
-        buf->last, ngtcp2_buf_left(buf) - cc->aead_overhead, hd);
+        buf->last, ngtcp2_buf_left(buf) - cc->aead.max_overhead, hd);
   }
   if (rv < 0) {
     return (int)rv;
@@ -86,12 +86,12 @@ int ngtcp2_ppe_encode_frame(ngtcp2_ppe *ppe, ngtcp2_frame *fr) {
   ngtcp2_buf *buf = &ppe->buf;
   ngtcp2_crypto_cc *cc = ppe->cc;
 
-  if (ngtcp2_buf_left(buf) < cc->aead_overhead) {
+  if (ngtcp2_buf_left(buf) < cc->aead.max_overhead) {
     return NGTCP2_ERR_NOBUF;
   }
 
-  rv = ngtcp2_pkt_encode_frame(buf->last,
-                               ngtcp2_buf_left(buf) - cc->aead_overhead, fr);
+  rv = ngtcp2_pkt_encode_frame(
+      buf->last, ngtcp2_buf_left(buf) - cc->aead.max_overhead, fr);
   if (rv < 0) {
     return (int)rv;
   }
@@ -117,7 +117,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   if (ppe->len_offset) {
     ngtcp2_put_varint14(
         buf->begin + ppe->len_offset,
-        (uint16_t)(payloadlen + ppe->pkt_numlen + cc->aead_overhead));
+        (uint16_t)(payloadlen + ppe->pkt_numlen + cc->aead.max_overhead));
   }
 
   ngtcp2_crypto_create_nonce(ppe->nonce, cc->ckm->iv.base, cc->ckm->iv.len,
@@ -129,7 +129,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  buf->last = payload + payloadlen + cc->aead_overhead;
+  buf->last = payload + payloadlen + cc->aead.max_overhead;
 
   /* TODO Check that we have enough space to get sample */
   assert(ppe->sample_offset + NGTCP2_HP_SAMPLELEN <= ngtcp2_buf_len(buf));
@@ -161,17 +161,17 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
 size_t ngtcp2_ppe_left(ngtcp2_ppe *ppe) {
   ngtcp2_crypto_cc *cc = ppe->cc;
 
-  if (ngtcp2_buf_left(&ppe->buf) < cc->aead_overhead) {
+  if (ngtcp2_buf_left(&ppe->buf) < cc->aead.max_overhead) {
     return 0;
   }
 
-  return ngtcp2_buf_left(&ppe->buf) - cc->aead_overhead;
+  return ngtcp2_buf_left(&ppe->buf) - cc->aead.max_overhead;
 }
 
 size_t ngtcp2_ppe_pktlen(ngtcp2_ppe *ppe) {
   ngtcp2_crypto_cc *cc = ppe->cc;
 
-  return ngtcp2_buf_len(&ppe->buf) + cc->aead_overhead;
+  return ngtcp2_buf_len(&ppe->buf) + cc->aead.max_overhead;
 }
 
 size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe) {
@@ -179,9 +179,9 @@ size_t ngtcp2_ppe_padding(ngtcp2_ppe *ppe) {
   ngtcp2_buf *buf = &ppe->buf;
   size_t len;
 
-  assert(ngtcp2_buf_left(buf) >= cc->aead_overhead);
+  assert(ngtcp2_buf_left(buf) >= cc->aead.max_overhead);
 
-  len = ngtcp2_buf_left(buf) - cc->aead_overhead;
+  len = ngtcp2_buf_left(buf) - cc->aead.max_overhead;
   memset(buf->last, 0, len);
   buf->last += len;
 
@@ -194,9 +194,10 @@ size_t ngtcp2_ppe_padding_hp_sample(ngtcp2_ppe *ppe) {
   size_t max_samplelen;
   size_t len = 0;
 
-  assert(cc->aead_overhead);
+  assert(cc->aead.max_overhead);
 
-  max_samplelen = ngtcp2_buf_len(buf) + cc->aead_overhead - ppe->sample_offset;
+  max_samplelen =
+      ngtcp2_buf_len(buf) + cc->aead.max_overhead - ppe->sample_offset;
   if (max_samplelen < NGTCP2_HP_SAMPLELEN) {
     len = NGTCP2_HP_SAMPLELEN - max_samplelen;
     assert(ngtcp2_ppe_left(ppe) >= len);
@@ -210,7 +211,7 @@ size_t ngtcp2_ppe_padding_hp_sample(ngtcp2_ppe *ppe) {
 size_t ngtcp2_ppe_padding_size(ngtcp2_ppe *ppe, size_t n) {
   ngtcp2_crypto_cc *cc = ppe->cc;
   ngtcp2_buf *buf = &ppe->buf;
-  size_t pktlen = ngtcp2_buf_len(buf) + cc->aead_overhead;
+  size_t pktlen = ngtcp2_buf_len(buf) + cc->aead.max_overhead;
   size_t len;
 
   if (pktlen >= n) {

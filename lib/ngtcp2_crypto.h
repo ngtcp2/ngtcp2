@@ -92,7 +92,6 @@ typedef struct ngtcp2_crypto_cc {
   ngtcp2_crypto_cipher hp;
   ngtcp2_crypto_km *ckm;
   ngtcp2_crypto_cipher_ctx hp_ctx;
-  size_t aead_overhead;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;
   ngtcp2_hp_mask hp_mask;

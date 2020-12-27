@@ -180,7 +180,6 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
   if (!ctx->aead.native_handle) {
     ngtcp2_crypto_ctx cctx;
     ngtcp2_crypto_ctx_tls(&cctx, tls);
-    ngtcp2_conn_set_aead_overhead(conn, ngtcp2_crypto_aead_taglen(&cctx.aead));
     ngtcp2_conn_set_crypto_ctx(conn, &cctx);
     ctx = ngtcp2_conn_get_crypto_ctx(conn);
   }
@@ -309,7 +308,6 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
   if (!ctx->aead.native_handle) {
     ngtcp2_crypto_ctx cctx;
     ngtcp2_crypto_ctx_tls(&cctx, tls);
-    ngtcp2_conn_set_aead_overhead(conn, ngtcp2_crypto_aead_taglen(&cctx.aead));
     ngtcp2_conn_set_crypto_ctx(conn, &cctx);
     ctx = ngtcp2_conn_get_crypto_ctx(conn);
   }

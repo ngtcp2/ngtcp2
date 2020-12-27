@@ -1887,6 +1887,11 @@ typedef struct ngtcp2_crypto_aead {
    * object.
    */
   void *native_handle;
+  /**
+   * :member:`max_overhead` is the number of additional bytes which
+   * AEAD encryption needs on encryption.
+   */
+  size_t max_overhead;
 } ngtcp2_crypto_aead;
 
 /**
@@ -3290,26 +3295,6 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_handshake_key(
 NGTCP2_EXTERN int ngtcp2_conn_install_tx_handshake_key(
     ngtcp2_conn *conn, const ngtcp2_crypto_aead_ctx *aead_ctx,
     const uint8_t *iv, size_t ivlen, const ngtcp2_crypto_cipher_ctx *hp_ctx);
-
-/**
- * @function
- *
- * `ngtcp2_conn_set_aead_overhead` tells the ngtcp2 library the length
- * of AEAD tag which the negotiated cipher suites defines.  This
- * function must be called before encrypting or decrypting the
- * incoming packets other than Initial packets.
- */
-NGTCP2_EXTERN void ngtcp2_conn_set_aead_overhead(ngtcp2_conn *conn,
-                                                 size_t aead_overhead);
-
-/**
- * @function
- *
- * `ngtcp2_conn_get_aead_overhead` returns the aead overhead passed to
- * `ngtcp2_conn_set_aead_overhead`. If `ngtcp2_conn_set_aead_overhead` hasn't
- * been called yet this function returns 0.
- */
-NGTCP2_EXTERN size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn);
 
 /**
  * @function

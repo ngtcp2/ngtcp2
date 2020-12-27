@@ -64,7 +64,9 @@ static ngtcp2_crypto_boringssl_cipher crypto_cipher_chacha20 = {
 };
 
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
-  ctx->aead.native_handle = (void *)EVP_aead_aes_128_gcm();
+  const EVP_AEAD *cipher = EVP_aead_aes_128_gcm();
+  ctx->aead.native_handle = (void *)cipher;
+  ctx->aead.max_overhead = EVP_AEAD_max_overhead(cipher);
   ctx->md.native_handle = (void *)EVP_sha256();
   ctx->hp.native_handle = (void *)&crypto_cipher_evp_aes_128_ctr;
   ctx->max_encryption = 0;
@@ -73,7 +75,9 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
 }
 
 ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead) {
-  aead->native_handle = (void *)EVP_aead_aes_128_gcm();
+  const EVP_AEAD *cipher = EVP_aead_aes_128_gcm();
+  aead->native_handle = (void *)cipher;
+  aead->max_overhead = EVP_AEAD_max_overhead(cipher);
   return aead;
 }
 
@@ -142,7 +146,9 @@ static const EVP_MD *crypto_ssl_get_md(SSL *ssl) {
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
                                          void *tls_native_handle) {
   SSL *ssl = tls_native_handle;
-  ctx->aead.native_handle = (void *)crypto_ssl_get_aead(ssl);
+  const EVP_AEAD *cipher = crypto_ssl_get_aead(ssl);
+  ctx->aead.native_handle = (void *)cipher;
+  ctx->aead.max_overhead = EVP_AEAD_max_overhead(cipher);
   ctx->md.native_handle = (void *)crypto_ssl_get_md(ssl);
   ctx->hp.native_handle = (void *)crypto_ssl_get_hp(ssl);
   ctx->max_encryption = crypto_ssl_get_aead_max_encryption(ssl);
@@ -174,12 +180,8 @@ size_t ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead) {
   return crypto_aead_noncelen(aead->native_handle);
 }
 
-static size_t crypto_aead_taglen(const EVP_AEAD *aead) {
-  return EVP_AEAD_max_overhead(aead);
-}
-
 size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead) {
-  return crypto_aead_taglen(aead->native_handle);
+  return EVP_AEAD_max_overhead(aead->native_handle);
 }
 
 int ngtcp2_crypto_aead_ctx_encrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,

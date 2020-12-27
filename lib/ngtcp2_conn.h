@@ -499,7 +499,6 @@ struct ngtcp2_conn {
 
     /* tls_native_handle is a native handle to TLS session object. */
     void *tls_native_handle;
-    size_t aead_overhead;
     /* decrypt_hp_buf is a buffer which is used to write unprotected
        packet header. */
     ngtcp2_vec decrypt_hp_buf;
