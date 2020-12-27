@@ -509,8 +509,9 @@ AC_MSG_NOTICE([summary of build options:
     Libtool:
       LIBTOOL_LDFLAGS: ${LIBTOOL_LDFLAGS}
     Crypto helper libraries:
-      libngtcp2_crypto_openssl: ${have_openssl}
-      libngtcp2_crypto_gnutls:  ${have_gnutls}
+      libngtcp2_crypto_openssl:   ${have_openssl}
+      libngtcp2_crypto_gnutls:    ${have_gnutls}
+      libngtcp2_crypto_boringssl: ${have_boringssl}
     Test:
       CUnit:          ${have_cunit} (CFLAGS='${CUNIT_CFLAGS}' LIBS='${CUNIT_LIBS}')
     Debug:
