@@ -81,6 +81,15 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
 /**
  * @function
  *
+ * `ngtcp2_crypto_aead_init` initializes |aead| with the provided
+ * |aead_native_handle| which is an underlying AEAD object.
+ */
+NGTCP2_EXTERN ngtcp2_crypto_aead *
+ngtcp2_crypto_aead_init(ngtcp2_crypto_aead *aead, void *aead_native_handle);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_aead_retry` initializes |aead| with the AEAD cipher
  * AEAD_AES_128_GCM for Retry packet integrity protection.
  */
@@ -109,18 +118,6 @@ NGTCP2_EXTERN size_t ngtcp2_crypto_aead_keylen(const ngtcp2_crypto_aead *aead);
  */
 NGTCP2_EXTERN size_t
 ngtcp2_crypto_aead_noncelen(const ngtcp2_crypto_aead *aead);
-
-/**
- * @function
- *
- * `ngtcp2_crypto_aead_max_overhead` returns the maximum authenticated
- * encryption overhead of |aead|.  This function does not use
- * :member:`ngtcp2_crypto_aead.max_overhead`.  Instead, it queries the
- * length to an underlying TLS backend with
- * :member:`ngtcp2_crypto_aead.native_handle`.
- */
-NGTCP2_EXTERN size_t
-ngtcp2_crypto_aead_max_overhead(const ngtcp2_crypto_aead *aead);
 
 /**
  * @function

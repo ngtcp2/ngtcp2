@@ -1532,7 +1532,8 @@ Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
     : loop_(loop), ssl_ctx_(ssl_ctx) {
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 
-  token_aead_.native_handle = const_cast<EVP_CIPHER *>(EVP_aes_128_gcm());
+  ngtcp2_crypto_aead_init(&token_aead_,
+                          const_cast<EVP_CIPHER *>(EVP_aes_128_gcm()));
   token_md_.native_handle = const_cast<EVP_MD *>(EVP_sha256());
 }
 
@@ -2213,7 +2214,7 @@ int Server::generate_retry_token(uint8_t *token, size_t &tokenlen,
   }
 
   /* 1 for magic byte */
-  tokenlen = 1 + plaintextlen + ngtcp2_crypto_aead_max_overhead(&token_aead_);
+  tokenlen = 1 + plaintextlen + token_aead_.max_overhead;
   memcpy(token + tokenlen, rand_data.data(), rand_data.size());
   tokenlen += rand_data.size();
 
@@ -2292,10 +2293,9 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
     return -1;
   }
 
-  assert(ciphertextlen >= ngtcp2_crypto_aead_max_overhead(&token_aead_));
+  assert(ciphertextlen >= token_aead_.max_overhead);
 
-  auto plaintextlen =
-      ciphertextlen - ngtcp2_crypto_aead_max_overhead(&token_aead_);
+  auto plaintextlen = ciphertextlen - token_aead_.max_overhead;
   if (plaintextlen < sizeof(uint64_t)) {
     if (!config.quiet) {
       std::cerr << "Bad token construction" << std::endl;
@@ -2411,7 +2411,7 @@ int Server::generate_token(uint8_t *token, size_t &tokenlen,
   }
 
   /* 1 for magic byte */
-  tokenlen = 1 + plaintextlen + ngtcp2_crypto_aead_max_overhead(&token_aead_);
+  tokenlen = 1 + plaintextlen + token_aead_.max_overhead;
   memcpy(token + tokenlen, rand_data.data(), rand_data.size());
   tokenlen += rand_data.size();
 
@@ -2489,10 +2489,9 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
     return -1;
   }
 
-  assert(ciphertextlen >= ngtcp2_crypto_aead_max_overhead(&token_aead_));
+  assert(ciphertextlen >= token_aead_.max_overhead);
 
-  auto plaintextlen =
-      ciphertextlen - ngtcp2_crypto_aead_max_overhead(&token_aead_);
+  auto plaintextlen = ciphertextlen - token_aead_.max_overhead;
   if (plaintextlen != sizeof(uint64_t)) {
     if (!config.quiet) {
       std::cerr << "Bad token construction" << std::endl;
