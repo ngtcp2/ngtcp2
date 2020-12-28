@@ -88,7 +88,7 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
  * a pointer to EVP_CIPHER.
  *
  * If libngtcp2_crypto_gnutls is linked, |aead_native_handle| must be
- * gnutls_cipher_algorithm_t casted to (void *).
+ * gnutls_cipher_algorithm_t casted to ``void *``.
  *
  * If libngtcp2_crypto_boringssl is linked, |aead_native_handle| must
  * be a pointer to EVP_AEAD.
@@ -115,7 +115,7 @@ ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead);
  * pointer to EVP_MD.
  *
  * If libngtcp2_crypto_gnutls is linked, |md_native_handle| must be
- * gnutls_mac_algorithm_t casted to (void *).
+ * gnutls_mac_algorithm_t casted to ``void *``.
  *
  * If libngtcp2_crypto_boringssl is linked, |md_native_handle| must be
  * a pointer to EVP_MD.
