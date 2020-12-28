@@ -29,6 +29,12 @@
 
 #include "ngtcp2_macro.h"
 
+ngtcp2_crypto_md *ngtcp2_crypto_md_init(ngtcp2_crypto_md *md,
+                                        void *md_native_handle) {
+  md->native_handle = md_native_handle;
+  return md;
+}
+
 int ngtcp2_crypto_hkdf_expand_label(uint8_t *dest, size_t destlen,
                                     const ngtcp2_crypto_md *md,
                                     const uint8_t *secret, size_t secretlen,

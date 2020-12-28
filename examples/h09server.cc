@@ -1534,7 +1534,7 @@ Server::Server(struct ev_loop *loop, SSL_CTX *ssl_ctx)
 
   ngtcp2_crypto_aead_init(&token_aead_,
                           const_cast<EVP_CIPHER *>(EVP_aes_128_gcm()));
-  token_md_.native_handle = const_cast<EVP_MD *>(EVP_sha256());
+  ngtcp2_crypto_md_init(&token_md_, const_cast<EVP_MD *>(EVP_sha256()));
 }
 
 Server::~Server() {

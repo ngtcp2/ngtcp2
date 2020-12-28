@@ -1861,9 +1861,6 @@ typedef struct ngtcp2_path_storage {
  *
  * :type:`ngtcp2_crypto_md` is a wrapper around native message digest
  * object.
- *
- * If libngtcp2_crypto_openssl is linked, native_handle must be a
- * pointer to EVP_MD.
  */
 typedef struct ngtcp2_crypto_md {
   /**
@@ -1877,9 +1874,6 @@ typedef struct ngtcp2_crypto_md {
  * @struct
  *
  * :type:`ngtcp2_crypto_aead` is a wrapper around native AEAD object.
- *
- * If libngtcp2_crypto_openssl is linked, native_handle must be a
- * pointer to EVP_CIPHER.
  */
 typedef struct ngtcp2_crypto_aead {
   /**
@@ -1899,9 +1893,6 @@ typedef struct ngtcp2_crypto_aead {
  *
  * :type:`ngtcp2_crypto_cipher` is a wrapper around native cipher
  * object.
- *
- * If libngtcp2_crypto_openssl is linked, native_handle must be a
- * pointer to EVP_CIPHER.
  */
 typedef struct ngtcp2_crypto_cipher {
   /**
