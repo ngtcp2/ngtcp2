@@ -31,8 +31,6 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-#include <openssl/ssl.h>
-
 namespace ngtcp2 {
 
 namespace keylog {
@@ -45,9 +43,6 @@ constexpr char QUIC_CLIENT_TRAFFIC_SECRET_0[] = "CLIENT_TRAFFIC_SECRET_0";
 constexpr char QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET[] =
     "SERVER_HANDSHAKE_TRAFFIC_SECRET";
 constexpr char QUIC_SERVER_TRAFFIC_SECRET_0[] = "SERVER_TRAFFIC_SECRET_0";
-
-void log_secret(SSL *ssl, const char *name, const unsigned char *secret,
-                size_t secretlen);
 
 } // namespace keylog
 

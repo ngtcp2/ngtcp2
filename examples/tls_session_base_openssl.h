@@ -22,40 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CRYPTO_GNUTLS_H
-#define NGTCP2_CRYPTO_GNUTLS_H
+#ifndef TLS_SESSION_BASE_OPENSSL_H
+#define TLS_SESSION_BASE_OPENSSL_H
 
-#include <ngtcp2/ngtcp2.h>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif // HAVE_CONFIG_H
 
-#include <gnutls/gnutls.h>
+#include <string>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <openssl/ssl.h>
 
-/**
- * @function
- *
- * `ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level`
- * translates |gtls_level| to :type:`ngtcp2_crypto_level`.  This
- * function is only available for GnuTLS backend.
- */
-NGTCP2_EXTERN ngtcp2_crypto_level
-ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
-    gnutls_record_encryption_level_t gtls_level);
+class TLSSessionBase {
+public:
+  TLSSessionBase();
+  ~TLSSessionBase();
 
-/**
- * @function
- *
- * `ngtcp2_crypto_gnutls_from_ngtcp2_crypto_level` translates
- * |crypto_level| to gnutls_record_encryption_level_t.  This function
- * is only available for GnuTLS backend.
- */
-NGTCP2_EXTERN gnutls_record_encryption_level_t
-ngtcp2_crypto_gnutls_from_ngtcp2_level(ngtcp2_crypto_level crypto_level);
+  SSL *get_native_handle() const;
 
-#ifdef __cplusplus
-}
-#endif
+  void log_secret(const char *name, const uint8_t *secret, size_t secretlen);
 
-#endif /* NGTCP2_CRYPTO_GNUTLS_H */
+  std::string get_cipher_name() const;
+  std::string get_selected_alpn() const;
+  // Keylog is enabled per SSL_CTX.
+  void enable_keylog() {}
+
+protected:
+  SSL *ssl_;
+};
+
+#endif // TLS_SESSION_BASE_OPENSSL_H

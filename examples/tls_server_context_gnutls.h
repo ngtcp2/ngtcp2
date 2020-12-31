@@ -22,40 +22,34 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CRYPTO_GNUTLS_H
-#define NGTCP2_CRYPTO_GNUTLS_H
+#ifndef TLS_SERVER_CONTEXT_GNUTLS_H
+#define TLS_SERVER_CONTEXT_GNUTLS_H
 
-#include <ngtcp2/ngtcp2.h>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif // HAVE_CONFIG_H
 
 #include <gnutls/gnutls.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "shared.h"
 
-/**
- * @function
- *
- * `ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level`
- * translates |gtls_level| to :type:`ngtcp2_crypto_level`.  This
- * function is only available for GnuTLS backend.
- */
-NGTCP2_EXTERN ngtcp2_crypto_level
-ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
-    gnutls_record_encryption_level_t gtls_level);
+using namespace ngtcp2;
 
-/**
- * @function
- *
- * `ngtcp2_crypto_gnutls_from_ngtcp2_crypto_level` translates
- * |crypto_level| to gnutls_record_encryption_level_t.  This function
- * is only available for GnuTLS backend.
- */
-NGTCP2_EXTERN gnutls_record_encryption_level_t
-ngtcp2_crypto_gnutls_from_ngtcp2_level(ngtcp2_crypto_level crypto_level);
+class TLSServerContext {
+public:
+  TLSServerContext();
+  ~TLSServerContext();
 
-#ifdef __cplusplus
-}
-#endif
+  int init(const char *private_key_file, const char *cert_file,
+           AppProtocol app_proto);
 
-#endif /* NGTCP2_CRYPTO_GNUTLS_H */
+  gnutls_certificate_credentials_t get_native_handle() const;
+
+  // Keylog is enabled per session.
+  void enable_keylog() {}
+
+private:
+  gnutls_certificate_credentials_t cred_;
+};
+
+#endif // TLS_SERVER_CONTEXT_GNUTLS_H

@@ -222,7 +222,14 @@ fi
 
 AM_CONDITIONAL([HAVE_BORINGSSL], [ test "x${have_boringssl}" = "xyes" ])
 
-AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_openssl}" = "xyes" || test "x${have_gnutls}" = "xyes" || test "${have_boringssl}" = "xyes" ])
+have_crypto=no
+if test "x${have_openssl}" = "xyes" ||
+   test "x${have_gnutls}" = "xyes" ||
+   test "x${have_boringssl}" = "xyes"; then
+  have_crypto=yes
+fi
+
+AM_CONDITIONAL([HAVE_CRYPTO], [ test "x${have_crypto}" = "xyes" ])
 
 # libnghttp3 (required for examples)
 PKG_CHECK_MODULES([LIBNGHTTP3], [libnghttp3 >= 0.0.0],
@@ -258,12 +265,24 @@ fi
 enable_examples=no
 if test "x${lib_only}" = "xno" &&
    test "x${have_libnghttp3}" = "xyes" &&
-   test "x${have_openssl}" = "xyes" &&
+   test "x${have_crypto}" = "xyes" &&
    test "x${have_libev}" = "xyes"; then
   enable_examples=yes
+
+  if test "x${have_openssl}" = "xyes"; then
+    AC_DEFINE([ENABLE_EXAMPLE_OPENSSL], [1],
+              [Define to 1 in order to build examples/{client,server}])
+  fi
+
+  if test "x${have_gnutls}" = "xyes"; then
+    AC_DEFINE([ENABLE_EXAMPLE_GNUTLS], [1],
+              [Define to 1 in order to build examples/{gtlsclient,gtlsserver}])
+  fi
 fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_OPENSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_openssl}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_GNUTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_gnutls}" = "xyes" ])
 
 AC_ARG_VAR([JEMALLOC_CFLAGS], [C compiler flags for jemalloc, skipping any checks])
 AC_ARG_VAR([JEMALLOC_LIBS], [linker flags for jemalloc, skipping any checks])

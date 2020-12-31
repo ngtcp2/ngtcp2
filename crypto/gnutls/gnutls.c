@@ -344,8 +344,24 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   return 0;
 }
 
-static gnutls_record_encryption_level_t
-from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
+ngtcp2_crypto_level ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
+    gnutls_record_encryption_level_t gtls_level) {
+  switch (gtls_level) {
+  case GNUTLS_ENCRYPTION_LEVEL_INITIAL:
+    return NGTCP2_CRYPTO_LEVEL_INITIAL;
+  case GNUTLS_ENCRYPTION_LEVEL_HANDSHAKE:
+    return NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
+  case GNUTLS_ENCRYPTION_LEVEL_APPLICATION:
+    return NGTCP2_CRYPTO_LEVEL_APPLICATION;
+  case GNUTLS_ENCRYPTION_LEVEL_EARLY:
+    return NGTCP2_CRYPTO_LEVEL_EARLY;
+  default:
+    assert(0);
+  }
+}
+
+gnutls_record_encryption_level_t
+ngtcp2_crypto_gnutls_from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
   switch (crypto_level) {
   case NGTCP2_CRYPTO_LEVEL_INITIAL:
     return GNUTLS_ENCRYPTION_LEVEL_INITIAL;
@@ -367,8 +383,9 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
   int rv;
 
   if (datalen > 0) {
-    if (gnutls_handshake_write(session, from_ngtcp2_level(crypto_level), data,
-                               datalen) != 0) {
+    if (gnutls_handshake_write(
+            session, ngtcp2_crypto_gnutls_from_ngtcp2_level(crypto_level), data,
+            datalen) != 0) {
       return -1;
     }
   }

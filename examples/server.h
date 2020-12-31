@@ -34,130 +34,20 @@
 #include <string>
 #include <deque>
 #include <string_view>
+#include <memory>
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <nghttp3/nghttp3.h>
 
-#include <openssl/ssl.h>
-#include <openssl/evp.h>
 #include <ev.h>
 
+#include "server_base.h"
+#include "tls_server_context.h"
 #include "network.h"
 #include "shared.h"
 
 using namespace ngtcp2;
-
-struct Config {
-  Address preferred_ipv4_addr;
-  Address preferred_ipv6_addr;
-  // tx_loss_prob is probability of losing outgoing packet.
-  double tx_loss_prob;
-  // rx_loss_prob is probability of losing incoming packet.
-  double rx_loss_prob;
-  // ciphers is the list of enabled ciphers.
-  const char *ciphers;
-  // groups is the list of supported groups.
-  const char *groups;
-  // htdocs is a root directory to serve documents.
-  std::string htdocs;
-  // mime_types_file is a path to "MIME media types and the
-  // extensions" file.  Ubuntu mime-support package includes it in
-  // /etc/mime/types.
-  const char *mime_types_file;
-  // mime_types maps file extension to MIME media type.
-  std::unordered_map<std::string, std::string> mime_types;
-  // port is the port number which server listens on for incoming
-  // connections.
-  uint16_t port;
-  // quiet suppresses the output normally shown except for the error
-  // messages.
-  bool quiet;
-  // timeout is an idle timeout for QUIC connection.
-  ngtcp2_duration timeout;
-  // show_secret is true if transport secrets should be printed out.
-  bool show_secret;
-  // validate_addr is true if server requires address validation.
-  bool validate_addr;
-  // early_response is true if server starts sending response when it
-  // receives HTTP header fields without waiting for request body.  If
-  // HTTP response data is written before receiving request body,
-  // STOP_SENDING is sent.
-  bool early_response;
-  // verify_client is true if server verifies client with X.509
-  // certificate based authentication.
-  bool verify_client;
-  // qlog_dir is the path to directory where qlog is stored.
-  std::string_view qlog_dir;
-  // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
-  // should be disabled.
-  bool no_quic_dump;
-  // no_http_dump is true if hexdump of HTTP response body should be
-  // disabled.
-  bool no_http_dump;
-  // max_data is the initial connection-level flow control window.
-  uint64_t max_data;
-  // max_stream_data_bidi_local is the initial stream-level flow
-  // control window for a bidirectional stream that the local endpoint
-  // initiates.
-  uint64_t max_stream_data_bidi_local;
-  // max_stream_data_bidi_remote is the initial stream-level flow
-  // control window for a bidirectional stream that the remote
-  // endpoint initiates.
-  uint64_t max_stream_data_bidi_remote;
-  // max_stream_data_uni is the initial stream-level flow control
-  // window for a unidirectional stream.
-  uint64_t max_stream_data_uni;
-  // max_streams_bidi is the number of the concurrent bidirectional
-  // streams.
-  uint64_t max_streams_bidi;
-  // max_streams_uni is the number of the concurrent unidirectional
-  // streams.
-  uint64_t max_streams_uni;
-  // max_window is the maximum connection-level flow control window
-  // size if auto-tuning is enabled.
-  uint64_t max_window;
-  // max_stream_window is the maximum stream-level flow control window
-  // size if auto-tuning is enabled.
-  uint64_t max_stream_window;
-  // max_dyn_length is the maximum length of dynamically generated
-  // response.
-  uint64_t max_dyn_length;
-  // static_secret is used to derive keying materials for Retry and
-  // Stateless Retry token.
-  std::array<uint8_t, 32> static_secret;
-  // cc is the congestion controller algorithm.
-  std::string_view cc;
-  // initial_rtt is an initial RTT.
-  ngtcp2_duration initial_rtt;
-  // max_udp_payload_size is the maximum UDP payload size that server
-  // transmits.  If it is 0, the default value is chosen.
-  size_t max_udp_payload_size;
-  // send_trailers controls whether server sends trailer fields or
-  // not.
-  bool send_trailers;
-};
-
-struct Buffer {
-  Buffer(const uint8_t *data, size_t datalen);
-  explicit Buffer(size_t datalen);
-
-  size_t size() const { return tail - begin; }
-  size_t left() const { return buf.data() + buf.size() - tail; }
-  uint8_t *const wpos() { return tail; }
-  const uint8_t *rpos() const { return begin; }
-  void push(size_t len) { tail += len; }
-  void reset() { tail = begin; }
-
-  std::vector<uint8_t> buf;
-  // begin points to the beginning of the buffer.  This might point to
-  // buf.data() if a buffer space is allocated by this object.  It is
-  // also allowed to point to the external shared buffer.
-  uint8_t *begin;
-  // tail points to the position of the buffer where write should
-  // occur.
-  uint8_t *tail;
-};
 
 struct HTTPHeader {
   HTTPHeader(const std::string_view &name, const std::string_view &value)
@@ -214,24 +104,15 @@ struct Endpoint {
   unsigned int ecn;
 };
 
-struct Crypto {
-  /* data is unacknowledged data. */
-  std::deque<Buffer> data;
-  /* acked_offset is the size of acknowledged crypto data removed from
-     |data| so far */
-  uint64_t acked_offset;
-};
-
-class Handler {
+class Handler : public HandlerBase {
 public:
-  Handler(struct ev_loop *loop, SSL_CTX *ssl_ctx, Server *server,
-          const ngtcp2_cid *rcid);
-  ~Handler();
+  Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid);
+  virtual ~Handler();
 
   int init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
            const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
            const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
-           uint32_t version);
+           uint32_t version, const TLSServerContext &tls_ctx);
 
   int on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
               const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen);
@@ -244,15 +125,11 @@ public:
   void signal_write();
   int handshake_completed();
 
-  void write_server_handshake(ngtcp2_crypto_level crypto_level,
-                              const uint8_t *data, size_t datalen);
-
   int recv_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
                        size_t datalen);
 
   Server *server() const;
   const Address &remote_addr() const;
-  ngtcp2_conn *conn() const;
   int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
                        size_t datalen);
   int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
@@ -260,8 +137,6 @@ public:
   const ngtcp2_cid *pscid() const;
   const ngtcp2_cid *rcid() const;
   uint32_t version() const;
-  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
-                             uint64_t datalen);
   void on_stream_open(int64_t stream_id);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   void start_draining_period();
@@ -272,12 +147,8 @@ public:
   void update_endpoint(const ngtcp2_addr *addr);
   void update_remote_addr(const ngtcp2_addr *addr, const ngtcp2_pkt_info *pi);
 
-  int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                size_t secretlen);
-  int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                size_t secretlen);
-
-  void set_tls_alert(uint8_t alert);
+  virtual int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                        size_t secretlen);
 
   int update_key(uint8_t *rx_secret, uint8_t *tx_secret,
                  ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
@@ -316,15 +187,11 @@ private:
   unsigned int ecn_;
   size_t max_pktlen_;
   struct ev_loop *loop_;
-  SSL_CTX *ssl_ctx_;
-  SSL *ssl_;
   Server *server_;
   ev_io wev_;
   ev_timer timer_;
   ev_timer rttimer_;
   FILE *qlog_;
-  Crypto crypto_[3];
-  ngtcp2_conn *conn_;
   ngtcp2_cid scid_;
   ngtcp2_cid pscid_;
   ngtcp2_cid rcid_;
@@ -334,7 +201,6 @@ private:
   // This packet is repeatedly sent as a response to the incoming
   // packet in draining period.
   std::unique_ptr<Buffer> conn_closebuf_;
-  QUICError last_error_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
   // draining_ becomes true when draining period starts.
@@ -343,7 +209,7 @@ private:
 
 class Server {
 public:
-  Server(struct ev_loop *loop, SSL_CTX *ssl_ctx);
+  Server(struct ev_loop *loop, const TLSServerContext &tls_ctx);
   ~Server();
 
   int init(const char *addr, const char *port);
@@ -384,7 +250,7 @@ private:
   std::unordered_map<std::string, std::string> ctos_;
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
-  SSL_CTX *ssl_ctx_;
+  const TLSServerContext &tls_ctx_;
   ngtcp2_crypto_aead token_aead_;
   ngtcp2_crypto_md token_md_;
   ev_signal sigintev_;

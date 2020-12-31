@@ -445,37 +445,6 @@ std::pair<uint64_t, int> parse_duration(const std::string_view &s) {
 }
 
 namespace {
-auto randgen = make_mt19937();
-} // namespace
-
-int generate_secret(uint8_t *secret, size_t secretlen) {
-  std::array<uint8_t, 16> rand;
-  std::array<uint8_t, 32> md;
-
-  assert(md.size() == secretlen);
-
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate_n(rand.data(), rand.size(), [&dis]() { return dis(randgen); });
-
-  auto ctx = EVP_MD_CTX_new();
-  if (ctx == nullptr) {
-    return -1;
-  }
-
-  auto ctx_deleter = defer(EVP_MD_CTX_free, ctx);
-
-  unsigned int mdlen = md.size();
-  if (!EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) ||
-      !EVP_DigestUpdate(ctx, rand.data(), rand.size()) ||
-      !EVP_DigestFinal_ex(ctx, md.data(), &mdlen)) {
-    return -1;
-  }
-
-  std::copy_n(std::begin(md), secretlen, secret);
-  return 0;
-}
-
-namespace {
 template <typename InputIt> InputIt eat_file(InputIt first, InputIt last) {
   if (first == last) {
     *first++ = '/';

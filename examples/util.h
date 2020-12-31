@@ -40,8 +40,6 @@
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 
-#include <openssl/ssl.h>
-
 #include <ev.h>
 
 namespace ngtcp2 {
@@ -322,6 +320,18 @@ std::string percent_decode(InputIt first, InputIt last) {
 int make_socket_nonblocking(int fd);
 
 int create_nonblock_socket(int domain, int type, int protocol);
+
+std::pair<std::string, int> read_token(const std::string_view &filename);
+int write_token(const std::string_view &filename, const uint8_t *token,
+                size_t tokenlen);
+
+ngtcp2_crypto_aead crypto_aead_aes_128_gcm();
+
+ngtcp2_crypto_md crypto_md_sha256();
+
+const char *crypto_default_ciphers();
+
+const char *crypto_default_groups();
 
 } // namespace util
 

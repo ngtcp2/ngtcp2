@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2018 ngtcp2 contributors
+ * Copyright (c) 2020 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,29 +22,19 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <string>
+#ifndef TLS_CLIENT_SESSION_H
+#define TLS_CLIENT_SESSION_H
 
-#include "keylog.h"
-#include "util.h"
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif // HAVE_CONFIG_H
 
-namespace ngtcp2 {
+#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
+#  include "tls_client_session_openssl.h"
+#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
 
-namespace keylog {
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+#  include "tls_client_session_gnutls.h"
+#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
 
-void log_secret(SSL *ssl, const char *name, const unsigned char *secret,
-                size_t secretlen) {
-  if (auto keylog_cb = SSL_CTX_get_keylog_callback(SSL_get_SSL_CTX(ssl))) {
-    unsigned char crandom[32];
-    if (SSL_get_client_random(ssl, crandom, 32) != 32) {
-      return;
-    }
-    std::string line = name;
-    line += " " + util::format_hex(crandom, 32);
-    line += " " + util::format_hex(secret, secretlen);
-    keylog_cb(ssl, line.c_str());
-  }
-}
-
-} // namespace keylog
-
-} // namespace ngtcp2
+#endif // TLS_CLIENT_SESSION_H

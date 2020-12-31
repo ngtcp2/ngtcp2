@@ -22,40 +22,22 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CRYPTO_GNUTLS_H
-#define NGTCP2_CRYPTO_GNUTLS_H
+#include "tls_server_session_openssl.h"
+#include "tls_server_context_openssl.h"
+#include "server_base.h"
 
-#include <ngtcp2/ngtcp2.h>
+TLSServerSession::TLSServerSession() {}
 
-#include <gnutls/gnutls.h>
+TLSServerSession::~TLSServerSession() {}
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+int TLSServerSession::init(const TLSServerContext &tls_ctx,
+                           HandlerBase *handler) {
+  auto ssl_ctx = tls_ctx.get_native_handle();
 
-/**
- * @function
- *
- * `ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level`
- * translates |gtls_level| to :type:`ngtcp2_crypto_level`.  This
- * function is only available for GnuTLS backend.
- */
-NGTCP2_EXTERN ngtcp2_crypto_level
-ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
-    gnutls_record_encryption_level_t gtls_level);
+  ssl_ = SSL_new(ssl_ctx);
+  SSL_set_app_data(ssl_, handler);
+  SSL_set_accept_state(ssl_);
+  SSL_set_quic_early_data_enabled(ssl_, 1);
 
-/**
- * @function
- *
- * `ngtcp2_crypto_gnutls_from_ngtcp2_crypto_level` translates
- * |crypto_level| to gnutls_record_encryption_level_t.  This function
- * is only available for GnuTLS backend.
- */
-NGTCP2_EXTERN gnutls_record_encryption_level_t
-ngtcp2_crypto_gnutls_from_ngtcp2_level(ngtcp2_crypto_level crypto_level);
-
-#ifdef __cplusplus
+  return 0;
 }
-#endif
-
-#endif /* NGTCP2_CRYPTO_GNUTLS_H */
