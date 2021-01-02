@@ -40,8 +40,6 @@ public:
 
   gnutls_session_t get_native_handle() const;
 
-  void log_secret(const char *name, const uint8_t *secret, size_t secretlen);
-
   std::string get_cipher_name() const;
   std::string get_selected_alpn() const;
   void enable_keylog();

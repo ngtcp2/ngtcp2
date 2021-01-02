@@ -31,7 +31,6 @@
 #include <ngtcp2/ngtcp2_crypto.h>
 
 #include "debug.h"
-#include "keylog.h"
 
 using namespace ngtcp2;
 
@@ -69,18 +68,12 @@ int HandlerBase::on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
   switch (level) {
   case NGTCP2_CRYPTO_LEVEL_EARLY:
     title = "early_traffic";
-    tls_session_.log_secret(keylog::QUIC_CLIENT_EARLY_TRAFFIC_SECRET, secret,
-                            secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     title = "handshake_traffic";
-    tls_session_.log_secret(keylog::QUIC_CLIENT_HANDSHAKE_TRAFFIC_SECRET,
-                            secret, secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     title = "application_traffic";
-    tls_session_.log_secret(keylog::QUIC_CLIENT_TRAFFIC_SECRET_0, secret,
-                            secretlen);
     break;
   default:
     assert(0);
@@ -116,13 +109,9 @@ int HandlerBase::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
     assert(0);
   case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
     title = "handshake_traffic";
-    tls_session_.log_secret(keylog::QUIC_SERVER_HANDSHAKE_TRAFFIC_SECRET,
-                            secret, secretlen);
     break;
   case NGTCP2_CRYPTO_LEVEL_APPLICATION:
     title = "application_traffic";
-    tls_session_.log_secret(keylog::QUIC_SERVER_TRAFFIC_SECRET_0, secret,
-                            secretlen);
     break;
   default:
     assert(0);

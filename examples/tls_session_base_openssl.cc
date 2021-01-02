@@ -40,26 +40,6 @@ TLSSessionBase::~TLSSessionBase() {
 
 SSL *TLSSessionBase::get_native_handle() const { return ssl_; }
 
-void TLSSessionBase::log_secret(const char *name, const uint8_t *secret,
-                                size_t secretlen) {
-  auto keylog_cb = SSL_CTX_get_keylog_callback(SSL_get_SSL_CTX(ssl_));
-  if (!keylog_cb) {
-    return;
-  }
-
-  std::array<unsigned char, 32> crandom;
-  if (SSL_get_client_random(ssl_, crandom.data(), crandom.size()) !=
-      crandom.size()) {
-    return;
-  }
-  std::string line = name;
-  line += ' ';
-  line += util::format_hex(crandom.data(), crandom.size());
-  line += ' ';
-  line += util::format_hex(secret, secretlen);
-  keylog_cb(ssl_, line.c_str());
-}
-
 std::string TLSSessionBase::get_cipher_name() const {
   return SSL_get_cipher_name(ssl_);
 }

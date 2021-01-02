@@ -45,7 +45,6 @@ SERVER_SRCS = \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
-	keylog.h \
 	shared.cc shared.h \
 	http.cc http.h
 
@@ -55,7 +54,6 @@ CLIENT_SRCS = \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
-	keylog.h \
 	shared.cc shared.h
 
 noinst_PROGRAMS =

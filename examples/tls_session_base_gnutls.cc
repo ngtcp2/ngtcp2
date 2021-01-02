@@ -38,9 +38,6 @@ TLSSessionBase::~TLSSessionBase() { gnutls_deinit(session_); }
 
 gnutls_session_t TLSSessionBase::get_native_handle() const { return session_; }
 
-void TLSSessionBase::log_secret(const char *name, const uint8_t *secret,
-                                size_t secretlen) {}
-
 std::string TLSSessionBase::get_cipher_name() const {
   return gnutls_cipher_get_name(gnutls_cipher_get(session_));
 }

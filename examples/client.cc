@@ -47,7 +47,6 @@
 #include "util.h"
 #include "shared.h"
 #include "template.h"
-#include "keylog.h"
 
 using namespace ngtcp2;
 using namespace std::literals;
