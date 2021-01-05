@@ -210,11 +210,17 @@ public:
                              const ngtcp2_transport_params *params);
   int read_transport_params(const char *path, ngtcp2_transport_params *params);
 
+  void write_qlog(const void *data, size_t datalen);
+
 protected:
   TLSClientSession tls_session_;
+  FILE *qlog_;
   Crypto crypto_[3];
   ngtcp2_conn *conn_;
   QUICError last_error_;
 };
+
+void qlog_write_cb(void *user_data, uint32_t flags, const void *data,
+                   size_t datalen);
 
 #endif // CLIENT_BASE_H

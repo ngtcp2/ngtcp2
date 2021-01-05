@@ -123,8 +123,6 @@ public:
 
   void reset_idle_timer();
 
-  void write_qlog(const void *data, size_t datalen);
-
   void idle_timeout();
 
 private:
@@ -143,7 +141,6 @@ private:
   struct ev_loop *loop_;
   int fd_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
-  FILE *qlog_;
   nghttp3_conn *httpconn_;
   // addr_ is the server host address.
   const char *addr_;

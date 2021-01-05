@@ -44,11 +44,18 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
 Buffer::Buffer(size_t datalen) : buf(datalen), tail(buf.data()) {}
 
 ClientBase::ClientBase()
-    : crypto_{}, conn_(nullptr), last_error_{QUICErrorType::Transport, 0} {}
+    : qlog_(nullptr),
+      crypto_{},
+      conn_(nullptr),
+      last_error_{QUICErrorType::Transport, 0} {}
 
 ClientBase::~ClientBase() {
   if (conn_) {
     ngtcp2_conn_del(conn_);
+  }
+
+  if (qlog_) {
+    fclose(qlog_);
   }
 }
 
@@ -234,3 +241,14 @@ void ClientBase::set_tls_alert(uint8_t alert) {
 }
 
 ngtcp2_conn *ClientBase::conn() const { return conn_; }
+
+void qlog_write_cb(void *user_data, uint32_t flags, const void *data,
+                   size_t datalen) {
+  auto c = static_cast<ClientBase *>(user_data);
+  c->write_qlog(data, datalen);
+}
+
+void ClientBase::write_qlog(const void *data, size_t datalen) {
+  assert(qlog_);
+  fwrite(data, 1, datalen, qlog_);
+}

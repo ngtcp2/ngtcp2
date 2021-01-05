@@ -225,7 +225,6 @@ Client::Client(struct ev_loop *loop)
       max_pktlen_(0),
       loop_(loop),
       fd_(-1),
-      qlog_(nullptr),
       addr_(nullptr),
       port_(nullptr),
       sendbuf_{NGTCP2_MAX_PKTLEN_IPV4},
@@ -266,11 +265,6 @@ Client::~Client() {
   if (fd_ != -1) {
     ::close(fd_);
     fd_ = -1;
-  }
-
-  if (qlog_) {
-    fclose(qlog_);
-    qlog_ = nullptr;
   }
 }
 
@@ -592,19 +586,6 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 }
 } // namespace
 
-namespace {
-void write_qlog(void *user_data, uint32_t flags, const void *data,
-                size_t datalen) {
-  auto c = static_cast<Client *>(user_data);
-  c->write_qlog(data, datalen);
-}
-} // namespace
-
-void Client::write_qlog(const void *data, size_t datalen) {
-  assert(qlog_);
-  fwrite(data, 1, datalen, qlog_);
-}
-
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port, uint32_t version,
                  const TLSClientContext &tls_ctx) {
@@ -696,7 +677,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                 << strerror(errno) << std::endl;
       return -1;
     }
-    settings.qlog.write = ::write_qlog;
+    settings.qlog.write = qlog_write_cb;
   }
   settings.max_udp_payload_size = max_pktlen_;
   settings.cc_algo =

@@ -145,7 +145,6 @@ private:
   int fd_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   std::set<Stream *, StreamIDLess> sendq_;
-  FILE *qlog_;
   // addr_ is the server host address.
   const char *addr_;
   // port_ is the server port.
