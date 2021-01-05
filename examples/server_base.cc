@@ -158,3 +158,10 @@ void HandlerBase::set_tls_alert(uint8_t alert) {
 }
 
 ngtcp2_conn *HandlerBase::conn() const { return conn_; }
+
+int HandlerBase::call_application_tx_key_cb() const {
+  if (!application_tx_key_cb_) {
+    return 0;
+  }
+  return application_tx_key_cb_();
+}

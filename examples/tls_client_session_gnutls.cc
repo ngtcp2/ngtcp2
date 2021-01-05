@@ -86,10 +86,16 @@ int secret_func(gnutls_session_t session,
   auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
   auto level =
       ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
-  if (secret_read &&
-      c->on_rx_key(level, reinterpret_cast<const uint8_t *>(secret_read),
-                   secret_size) != 0) {
-    return -1;
+  if (secret_read) {
+    if (c->on_rx_key(level, reinterpret_cast<const uint8_t *>(secret_read),
+                     secret_size) != 0) {
+      return -1;
+    }
+
+    if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
+        c->call_application_rx_key_cb() != 0) {
+      return -1;
+    }
   }
   if (secret_write &&
       c->on_tx_key(level, reinterpret_cast<const uint8_t *>(secret_write),

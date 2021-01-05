@@ -33,6 +33,7 @@
 #include <deque>
 #include <string>
 #include <string_view>
+#include <functional>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -192,12 +193,12 @@ struct Crypto {
 class ClientBase {
 public:
   ClientBase();
-  virtual ~ClientBase();
+  ~ClientBase();
 
   ngtcp2_conn *conn() const;
 
-  virtual int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                        size_t secretlen);
+  int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                size_t secretlen);
   int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
                 size_t secretlen);
   void write_client_handshake(ngtcp2_crypto_level crypto_level,
@@ -212,12 +213,15 @@ public:
 
   void write_qlog(const void *data, size_t datalen);
 
+  int call_application_rx_key_cb() const;
+
 protected:
   TLSClientSession tls_session_;
   FILE *qlog_;
   Crypto crypto_[3];
   ngtcp2_conn *conn_;
   QUICError last_error_;
+  std::function<int()> application_rx_key_cb_;
 };
 
 void qlog_write_cb(void *user_data, uint32_t flags, const void *data,

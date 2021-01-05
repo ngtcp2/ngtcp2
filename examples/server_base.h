@@ -34,6 +34,7 @@
 #include <unordered_map>
 #include <string>
 #include <string_view>
+#include <functional>
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -165,14 +166,14 @@ struct Crypto {
 class HandlerBase {
 public:
   HandlerBase();
-  virtual ~HandlerBase();
+  ~HandlerBase();
 
   ngtcp2_conn *conn() const;
 
   int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
                 size_t secretlen);
-  virtual int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                        size_t secretlen);
+  int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
+                size_t secretlen);
 
   void write_server_handshake(ngtcp2_crypto_level crypto_level,
                               const uint8_t *data, size_t datalen);
@@ -181,11 +182,14 @@ public:
 
   void set_tls_alert(uint8_t alert);
 
+  int call_application_tx_key_cb() const;
+
 protected:
   TLSServerSession tls_session_;
   Crypto crypto_[3];
   ngtcp2_conn *conn_;
   QUICError last_error_;
+  std::function<int()> application_tx_key_cb_;
 };
 
 #endif // SERVER_BASE_H

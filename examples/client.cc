@@ -95,19 +95,6 @@ int Stream::open_file(const std::string_view &path) {
   return 0;
 }
 
-int Client::on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                      size_t secretlen) {
-  if (ClientBase::on_rx_key(level, secret, secretlen) != 0) {
-    return -1;
-  }
-
-  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION && setup_httpconn() != 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
 namespace {
 void writecb(struct ev_loop *loop, ev_io *w, int revents) {
   ev_io_stop(loop, w);
@@ -269,6 +256,8 @@ Client::Client(struct ev_loop *loop)
                 static_cast<double>(config.delay_stream) / NGTCP2_SECONDS, 0.);
   delay_stream_timer_.data = this;
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
+
+  application_rx_key_cb_ = [this]() { return setup_httpconn(); };
 }
 
 Client::~Client() {

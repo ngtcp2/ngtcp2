@@ -102,9 +102,6 @@ public:
   void start_key_update_timer();
   void start_delay_stream_timer();
 
-  virtual int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                        size_t secretlen);
-
   int select_preferred_address(Address &selected_addr,
                                const ngtcp2_preferred_addr *paddr);
 

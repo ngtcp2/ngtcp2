@@ -252,3 +252,10 @@ void ClientBase::write_qlog(const void *data, size_t datalen) {
   assert(qlog_);
   fwrite(data, 1, datalen, qlog_);
 }
+
+int ClientBase::call_application_rx_key_cb() const {
+  if (!application_rx_key_cb_) {
+    return 0;
+  }
+  return application_rx_key_cb_();
+}

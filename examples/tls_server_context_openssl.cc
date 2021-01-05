@@ -160,6 +160,11 @@ int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
     if (auto rv = h->on_tx_key(level, write_secret, secret_len); rv != 0) {
       return 0;
     }
+
+    if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
+        h->call_application_tx_key_cb() != 0) {
+      return 0;
+    }
   }
 
   return 1;

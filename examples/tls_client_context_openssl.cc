@@ -73,8 +73,15 @@ int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
   auto c = static_cast<ClientBase *>(SSL_get_app_data(ssl));
   auto level = ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
 
-  if (read_secret && c->on_rx_key(level, read_secret, secret_len) != 0) {
-    return 0;
+  if (read_secret) {
+    if (c->on_rx_key(level, read_secret, secret_len) != 0) {
+      return 0;
+    }
+
+    if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
+        c->call_application_rx_key_cb() != 0) {
+      return 0;
+    }
   }
 
   if (c->on_tx_key(level, write_secret, secret_len) != 0) {

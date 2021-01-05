@@ -95,19 +95,6 @@ constexpr size_t MAX_TOKENLEN =
 
 Config config{};
 
-int Handler::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                       size_t secretlen) {
-  if (HandlerBase::on_tx_key(level, secret, secretlen) != 0) {
-    return -1;
-  }
-
-  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION && setup_httpconn() != 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
 Stream::Stream(int64_t stream_id, Handler *handler)
     : stream_id(stream_id),
       handler(handler),
@@ -711,6 +698,8 @@ Handler::Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid)
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
+
+  application_tx_key_cb_ = [this]() { return setup_httpconn(); };
 }
 
 Handler::~Handler() {

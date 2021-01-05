@@ -101,7 +101,7 @@ struct Endpoint {
 class Handler : public HandlerBase {
 public:
   Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid);
-  virtual ~Handler();
+  ~Handler();
 
   int init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
            const ngtcp2_cid *dcid, const ngtcp2_cid *scid,

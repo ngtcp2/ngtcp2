@@ -107,7 +107,7 @@ struct Endpoint {
 class Handler : public HandlerBase {
 public:
   Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid);
-  virtual ~Handler();
+  ~Handler();
 
   int init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
            const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
@@ -146,9 +146,6 @@ public:
   int send_conn_close();
   void update_endpoint(const ngtcp2_addr *addr);
   void update_remote_addr(const ngtcp2_addr *addr, const ngtcp2_pkt_info *pi);
-
-  virtual int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                        size_t secretlen);
 
   int update_key(uint8_t *rx_secret, uint8_t *tx_secret,
                  ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,

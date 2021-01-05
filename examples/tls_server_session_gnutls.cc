@@ -61,10 +61,16 @@ int secret_func(gnutls_session_t session,
     return -1;
   }
 
-  if (secret_write &&
-      h->on_tx_key(level, reinterpret_cast<const uint8_t *>(secret_write),
-                   secret_size) != 0) {
-    return -1;
+  if (secret_write) {
+    if (h->on_tx_key(level, reinterpret_cast<const uint8_t *>(secret_write),
+                     secret_size) != 0) {
+      return -1;
+    }
+
+    if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
+        h->call_application_tx_key_cb() != 0) {
+      return -1;
+    }
   }
 
   return 0;
