@@ -81,6 +81,20 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
 /**
  * @function
  *
+ * `ngtcp2_crypto_ctx_tls_early` initializes |ctx| by extracting early
+ * ciphers and message digests from native TLS session
+ * |tls_native_handle|.  This is used for encrypting/decrypting 0RTT
+ * packets.
+ *
+ * If libngtcp2_crypto_openssl is linked, |tls_native_handle| must be
+ * a pointer to SSL object.
+ */
+NGTCP2_EXTERN ngtcp2_crypto_ctx *
+ngtcp2_crypto_ctx_tls_early(ngtcp2_crypto_ctx *ctx, void *tls_native_handle);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_aead_init` initializes |aead| with the provided
  * |aead_native_handle| which is an underlying AEAD object.
  *

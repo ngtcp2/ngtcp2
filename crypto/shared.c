@@ -166,6 +166,7 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
   uint8_t keybuf[64], ivbuf[64], hp_keybuf[64];
   size_t ivlen;
   int rv;
+  ngtcp2_crypto_ctx cctx;
 
   if (level == NGTCP2_CRYPTO_LEVEL_EARLY && !ngtcp2_conn_is_server(conn)) {
     return 0;
@@ -181,13 +182,18 @@ int ngtcp2_crypto_derive_and_install_rx_key(ngtcp2_conn *conn, uint8_t *key,
     hp_key = hp_keybuf;
   }
 
-  ctx = ngtcp2_conn_get_crypto_ctx(conn);
-
-  if (!ctx->aead.native_handle) {
-    ngtcp2_crypto_ctx cctx;
-    ngtcp2_crypto_ctx_tls(&cctx, tls);
-    ngtcp2_conn_set_crypto_ctx(conn, &cctx);
+  if (level == NGTCP2_CRYPTO_LEVEL_EARLY) {
+    ngtcp2_crypto_ctx_tls_early(&cctx, tls);
+    ngtcp2_conn_set_early_crypto_ctx(conn, &cctx);
+    ctx = ngtcp2_conn_get_early_crypto_ctx(conn);
+  } else {
     ctx = ngtcp2_conn_get_crypto_ctx(conn);
+
+    if (!ctx->aead.native_handle) {
+      ngtcp2_crypto_ctx_tls(&cctx, tls);
+      ngtcp2_conn_set_crypto_ctx(conn, &cctx);
+      ctx = ngtcp2_conn_get_crypto_ctx(conn);
+    }
   }
 
   aead = &ctx->aead;
@@ -294,6 +300,7 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
   uint8_t keybuf[64], ivbuf[64], hp_keybuf[64];
   size_t ivlen;
   int rv;
+  ngtcp2_crypto_ctx cctx;
 
   if (level == NGTCP2_CRYPTO_LEVEL_EARLY && ngtcp2_conn_is_server(conn)) {
     return 0;
@@ -309,13 +316,18 @@ int ngtcp2_crypto_derive_and_install_tx_key(ngtcp2_conn *conn, uint8_t *key,
     hp_key = hp_keybuf;
   }
 
-  ctx = ngtcp2_conn_get_crypto_ctx(conn);
-
-  if (!ctx->aead.native_handle) {
-    ngtcp2_crypto_ctx cctx;
-    ngtcp2_crypto_ctx_tls(&cctx, tls);
-    ngtcp2_conn_set_crypto_ctx(conn, &cctx);
+  if (level == NGTCP2_CRYPTO_LEVEL_EARLY) {
+    ngtcp2_crypto_ctx_tls_early(&cctx, tls);
+    ngtcp2_conn_set_early_crypto_ctx(conn, &cctx);
+    ctx = ngtcp2_conn_get_early_crypto_ctx(conn);
+  } else {
     ctx = ngtcp2_conn_get_crypto_ctx(conn);
+
+    if (!ctx->aead.native_handle) {
+      ngtcp2_crypto_ctx_tls(&cctx, tls);
+      ngtcp2_conn_set_crypto_ctx(conn, &cctx);
+      ctx = ngtcp2_conn_get_crypto_ctx(conn);
+    }
   }
 
   aead = &ctx->aead;

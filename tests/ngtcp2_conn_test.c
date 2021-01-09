@@ -187,7 +187,7 @@ static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
 
   init_crypto_ctx(&crypto_ctx);
 
-  ngtcp2_conn_set_crypto_ctx(conn, &crypto_ctx);
+  ngtcp2_conn_set_early_crypto_ctx(conn, &crypto_ctx);
   ngtcp2_conn_install_early_key(conn, &aead_ctx, null_iv, sizeof(null_iv),
                                 &hp_ctx);
 
@@ -224,9 +224,13 @@ static int recv_client_initial_early(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
                                      void *user_data) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_crypto_ctx ctx;
 
   recv_client_initial(conn, dcid, user_data);
 
+  init_crypto_ctx(&ctx);
+
+  ngtcp2_conn_set_early_crypto_ctx(conn, &ctx);
   ngtcp2_conn_install_early_key(conn, &aead_ctx, null_iv, sizeof(null_iv),
                                 &hp_ctx);
 

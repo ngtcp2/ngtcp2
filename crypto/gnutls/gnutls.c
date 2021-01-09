@@ -133,6 +133,12 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   return ctx;
 }
 
+ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls_early(ngtcp2_crypto_ctx *ctx,
+                                               void *tls_native_handle) {
+  /* This does not work */
+  return ngtcp2_crypto_ctx_tls(ctx, tls_native_handle);
+}
+
 size_t ngtcp2_crypto_md_hashlen(const ngtcp2_crypto_md *md) {
   return gnutls_hash_get_len((gnutls_digest_algorithm_t)md->native_handle);
 }

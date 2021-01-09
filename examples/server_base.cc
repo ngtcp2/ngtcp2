@@ -59,7 +59,9 @@ int HandlerBase::on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
     return -1;
   }
 
-  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  auto crypto_ctx = level == NGTCP2_CRYPTO_LEVEL_EARLY
+                        ? ngtcp2_conn_get_early_crypto_ctx(conn_)
+                        : ngtcp2_conn_get_crypto_ctx(conn_);
   auto aead = &crypto_ctx->aead;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
@@ -98,7 +100,9 @@ int HandlerBase::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
     return -1;
   }
 
-  auto crypto_ctx = ngtcp2_conn_get_crypto_ctx(conn_);
+  auto crypto_ctx = level == NGTCP2_CRYPTO_LEVEL_EARLY
+                        ? ngtcp2_conn_get_early_crypto_ctx(conn_)
+                        : ngtcp2_conn_get_crypto_ctx(conn_);
   auto aead = &crypto_ctx->aead;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);

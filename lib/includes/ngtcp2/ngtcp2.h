@@ -4228,11 +4228,10 @@ ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_set_initial_crypto_ctx` sets |ctx| for
- * 0RTT/Handshake/Short packet encryption.  In other words, this
- * crypto context is used for all packets except for Initial packets.
- * The passed data will be passed to :type:`ngtcp2_encrypt`,
- * :type:`ngtcp2_decrypt` and :type:`ngtcp2_hp_mask` callbacks.
+ * `ngtcp2_conn_set_crypto_ctx` sets |ctx| for Handshake/Short packet
+ * encryption.  The passed data will be passed to
+ * :type:`ngtcp2_encrypt`, :type:`ngtcp2_decrypt` and
+ * :type:`ngtcp2_hp_mask` callbacks.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
                                               const ngtcp2_crypto_ctx *ctx);
@@ -4278,10 +4277,31 @@ ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn, const ngtcp2_crypto_aead *aead,
  * @function
  *
  * `ngtcp2_conn_get_crypto_ctx` returns :type:`ngtcp2_crypto_ctx`
- * object for 0RTT/Handshake/Short packet encryption.
+ * object for Handshake/Short packet encryption.
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_early_crypto_ctx` sets |ctx| for 0RTT packet
+ * encryption.  The passed data will be passed to
+ * :type:`ngtcp2_encrypt`, :type:`ngtcp2_decrypt` and
+ * :type:`ngtcp2_hp_mask` callbacks.
+ */
+NGTCP2_EXTERN void
+ngtcp2_conn_set_early_crypto_ctx(ngtcp2_conn *conn,
+                                 const ngtcp2_crypto_ctx *ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_early_crypto_ctx` returns
+ * :type:`ngtcp2_crypto_ctx` object for 0RTT packet encryption.
+ */
+NGTCP2_EXTERN const ngtcp2_crypto_ctx *
+ngtcp2_conn_get_early_crypto_ctx(ngtcp2_conn *conn);
 
 /**
  * @enum

@@ -2825,6 +2825,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
               ? NGTCP2_PKT_FLAG_KEY_PHASE
               : NGTCP2_PKT_FLAG_NONE;
+      cc->aead = pktns->crypto.ctx.aead;
+      cc->hp = pktns->crypto.ctx.hp;
       cc->ckm = pktns->crypto.tx.ckm;
       cc->hp_ctx = pktns->crypto.tx.hp_ctx;
 
@@ -2846,6 +2848,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         return 0;
       }
       hd_flags = NGTCP2_PKT_FLAG_LONG_FORM;
+      cc->aead = conn->early.ctx.aead;
+      cc->hp = conn->early.ctx.hp;
       cc->ckm = conn->early.ckm;
       cc->hp_ctx = conn->early.hp_ctx;
       break;
@@ -2854,8 +2858,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       assert(0);
     }
 
-    cc->aead = pktns->crypto.ctx.aead;
-    cc->hp = pktns->crypto.ctx.hp;
     cc->encrypt = conn->callbacks.encrypt;
     cc->hp_mask = conn->callbacks.hp_mask;
 
@@ -7604,6 +7606,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
 
       pktns = conn->hs_pktns;
+      aead = &pktns->crypto.ctx.aead;
+      hp = &pktns->crypto.ctx.hp;
       ckm = pktns->crypto.rx.ckm;
       hp_ctx = &pktns->crypto.rx.hp_ctx;
       hp_mask = conn->callbacks.hp_mask;
@@ -7615,6 +7619,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
 
       pktns = &conn->pktns;
+      aead = &conn->early.ctx.aead;
+      hp = &conn->early.ctx.hp;
       ckm = conn->early.ckm;
       hp_ctx = &conn->early.hp_ctx;
       hp_mask = conn->callbacks.hp_mask;
@@ -7635,14 +7641,13 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
 
     pktns = &conn->pktns;
+    aead = &pktns->crypto.ctx.aead;
+    hp = &pktns->crypto.ctx.hp;
     ckm = pktns->crypto.rx.ckm;
     hp_ctx = &pktns->crypto.rx.hp_ctx;
     hp_mask = conn->callbacks.hp_mask;
     decrypt = conn->callbacks.decrypt;
   }
-
-  aead = &pktns->crypto.ctx.aead;
-  hp = &pktns->crypto.ctx.hp;
 
   rv = conn_ensure_decrypt_hp_buffer(conn, (size_t)nread + 4);
   if (rv != 0) {
@@ -10840,6 +10845,15 @@ void ngtcp2_conn_set_crypto_ctx(ngtcp2_conn *conn,
 
 const ngtcp2_crypto_ctx *ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn) {
   return &conn->pktns.crypto.ctx;
+}
+
+void ngtcp2_conn_set_early_crypto_ctx(ngtcp2_conn *conn,
+                                      const ngtcp2_crypto_ctx *ctx) {
+  conn->early.ctx = *ctx;
+}
+
+const ngtcp2_crypto_ctx *ngtcp2_conn_get_early_crypto_ctx(ngtcp2_conn *conn) {
+  return &conn->early.ctx;
 }
 
 void *ngtcp2_conn_get_tls_native_handle(ngtcp2_conn *conn) {

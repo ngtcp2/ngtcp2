@@ -423,6 +423,7 @@ struct ngtcp2_conn {
   struct {
     ngtcp2_crypto_km *ckm;
     ngtcp2_crypto_cipher_ctx hp_ctx;
+    ngtcp2_crypto_ctx ctx;
   } early;
 
   struct {

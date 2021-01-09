@@ -156,6 +156,11 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   return ctx;
 }
 
+ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls_early(ngtcp2_crypto_ctx *ctx,
+                                               void *tls_native_handle) {
+  return ngtcp2_crypto_ctx_tls(ctx, tls_native_handle);
+}
+
 static size_t crypto_md_hashlen(const EVP_MD *md) {
   return (size_t)EVP_MD_size(md);
 }
