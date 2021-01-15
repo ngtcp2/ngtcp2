@@ -4,16 +4,22 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git g++ make binutils autoconf automake autotools-dev libtool \
         pkg-config libev-dev libjemalloc-dev \
-        libev4 libjemalloc2 ca-certificates mime-support && \
+        libev4 libjemalloc2 ca-certificates mime-support \
+        libasan5 libubsan1 && \
     git clone --depth 1 -b OpenSSL_1_1_1g-quic-draft-33 https://github.com/tatsuhiro-t/openssl && \
     cd openssl && ./config enable-tls1_3 --openssldir=/etc/ssl && make -j$(nproc) && make install_sw && cd .. && rm -rf openssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \
-    ./configure --enable-lib-only && \
+    ./configure --enable-lib-only \
+        LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
+        CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" && \
     make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
     git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
-    ./configure CXXFLAGS=-DNGTCP2_ENABLE_UDP_GSO=0 && \
+    ./configure \
+        CXXFLAGS=-DNGTCP2_ENABLE_UDP_GSO=0 \
+        LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
+        CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" && \
     make -j$(nproc) && make install-strip && \
     cp examples/server examples/client examples/h09server examples/h09client /usr/local/bin && \
     cd .. && \
