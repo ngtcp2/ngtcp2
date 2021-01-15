@@ -61,6 +61,7 @@ int ngtcp2_pv_new(ngtcp2_pv **ppv, const ngtcp2_dcid *dcid,
   (*ppv)->mem = mem;
   (*ppv)->log = log;
   (*ppv)->timeout = timeout;
+  (*ppv)->fallback_pto = 0;
   (*ppv)->started_ts = UINT64_MAX;
   (*ppv)->probe_pkt_left = NGTCP2_PV_NUM_PROBE_PKT;
   (*ppv)->round = 0;

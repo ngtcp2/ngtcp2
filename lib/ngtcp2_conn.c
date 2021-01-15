@@ -590,17 +590,39 @@ static void delete_scid(ngtcp2_ksl *scids, const ngtcp2_mem *mem) {
 }
 
 /*
+ * compute_pto computes PTO.
+ */
+static ngtcp2_duration compute_pto(ngtcp2_duration smoothed_rtt,
+                                   ngtcp2_duration rttvar,
+                                   ngtcp2_duration max_ack_delay) {
+  ngtcp2_duration var = ngtcp2_max(4 * rttvar, NGTCP2_GRANULARITY);
+  return smoothed_rtt + var + max_ack_delay;
+}
+
+/*
+ * conn_compute_initial_pto computes PTO using the initial RTT.
+ */
+static ngtcp2_duration conn_compute_initial_pto(ngtcp2_conn *conn,
+                                                ngtcp2_pktns *pktns) {
+  ngtcp2_duration initial_rtt = conn->local.settings.initial_rtt;
+  ngtcp2_duration max_ack_delay =
+      pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APPLICATION
+          ? conn->remote.transport_params.max_ack_delay
+          : 0;
+  return compute_pto(initial_rtt, initial_rtt / 2, max_ack_delay);
+}
+
+/*
  * conn_compute_pto computes the current PTO.
  */
 static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
                                         ngtcp2_pktns *pktns) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
-  ngtcp2_duration var = ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY);
   ngtcp2_duration max_ack_delay =
       pktns->rtb.pktns_id == NGTCP2_PKTNS_ID_APPLICATION
           ? conn->remote.transport_params.max_ack_delay
           : 0;
-  return cstat->smoothed_rtt + var + max_ack_delay;
+  return compute_pto(cstat->smoothed_rtt, cstat->rttvar, max_ack_delay);
 }
 
 static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
@@ -4881,7 +4903,7 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
                                    ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_duration timeout;
+  ngtcp2_duration pto, timeout;
   ngtcp2_pv *pv = conn->pv, *npv;
   uint8_t ent_flags;
 
@@ -4924,8 +4946,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
-    timeout = 3 * conn_compute_pto(conn, &conn->pktns);
-    timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
+    pto = conn_compute_pto(conn, &conn->pktns);
+    timeout = 3 * ngtcp2_max(pto, pv->fallback_pto);
 
     if (ent_flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED) {
       assert(conn->server);
@@ -4941,6 +4963,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
       npv->dcid.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
       ngtcp2_dcid_copy(&npv->fallback_dcid, &pv->fallback_dcid);
+      npv->fallback_pto = pv->fallback_pto;
     } else {
       rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid, timeout,
                          NGTCP2_PV_FLAG_DONT_CARE, &conn->log, conn->mem);
@@ -6952,7 +6975,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   struct sockaddr_storage buf;
   ngtcp2_addr addr;
   int rv;
-  ngtcp2_duration timeout;
+  ngtcp2_duration pto, initial_pto, timeout;
   ngtcp2_pv *pv;
   ngtcp2_dcid *dcid;
 
@@ -6975,8 +6998,9 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   assert(conn->pv == NULL);
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
-  timeout = 3 * conn_compute_pto(conn, &conn->pktns);
-  timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
+  pto = conn_compute_pto(conn, &conn->pktns);
+  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
+  timeout = 3 * ngtcp2_max(pto, initial_pto);
 
   rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
                      conn->mem);
@@ -7199,7 +7223,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_dcid dcid, *bound_dcid, *last;
   ngtcp2_pv *pv;
   int rv;
-  ngtcp2_duration timeout;
+  ngtcp2_duration pto, initial_pto, timeout;
   int require_new_cid;
   int local_addr_eq;
   uint32_t remote_addr_cmp;
@@ -7245,8 +7269,9 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                   "non-probing packet was received from new remote address");
 
-  timeout = 3 * conn_compute_pto(conn, &conn->pktns);
-  timeout = ngtcp2_max(timeout, 6 * conn->cstat.initial_rtt);
+  pto = conn_compute_pto(conn, &conn->pktns);
+  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
+  timeout = 3 * ngtcp2_max(pto, initial_pto);
 
   len = ngtcp2_ringbuf_len(&conn->dcid.bound);
 
@@ -7312,8 +7337,10 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
     ngtcp2_dcid_copy(&pv->fallback_dcid, &conn->pv->fallback_dcid);
+    pv->fallback_pto = conn->pv->fallback_pto;
   } else {
     ngtcp2_dcid_copy(&pv->fallback_dcid, &conn->dcid.current);
+    pv->fallback_pto = pto;
   }
 
   ngtcp2_dcid_copy(&conn->dcid.current, &dcid);

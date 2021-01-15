@@ -99,6 +99,8 @@ struct ngtcp2_pv {
   /* timeout is the duration within which this path validation should
      succeed. */
   ngtcp2_duration timeout;
+  /* fallback_pto is PTO of fallback connection. */
+  ngtcp2_duration fallback_pto;
   /* started_ts is the timestamp this path validation starts. */
   ngtcp2_tstamp started_ts;
   /* round is the number of times that probe_pkt_left is reset. */
