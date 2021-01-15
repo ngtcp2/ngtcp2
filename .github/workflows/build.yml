@@ -66,6 +66,18 @@ jobs:
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
+    - name: Enable ASAN
+      if: runner.os == 'Linux'
+      run: |
+        asanflags="-fsanitize=address,undefined -fno-sanitize-recover=undefined"
+
+        LDFLAGS="$LDFLAGS $asanflags"
+        CFLAGS="$CFLAGS $asanflags"
+        CXXFLAGS="$CXXFLAGS $asanflags"
+
+        echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
+        echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
+        echo 'CXXFLAGS='"$CXXFLAGS" >> $GITHUB_ENV
     - name: BoringSSL pthread requirement
       if: runner.os == 'Linux'
       run: |
