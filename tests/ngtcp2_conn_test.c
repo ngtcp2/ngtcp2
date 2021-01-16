@@ -5521,6 +5521,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
   params.original_dcid = conn->rcid;
 
@@ -5535,6 +5536,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
@@ -5548,6 +5550,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
   params.original_dcid = conn->rcid;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
@@ -5561,6 +5564,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
   params.original_dcid = conn->rcid;
   params.retry_scid_present = 1;
@@ -5579,6 +5583,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
   params.original_dcid = conn->rcid;
   params.retry_scid_present = 1;
@@ -5598,6 +5603,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
 
   memset(&params, 0, sizeof(params));
   params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
   params.initial_scid = conn->dcid.current.cid;
   params.original_dcid = conn->rcid;
 
