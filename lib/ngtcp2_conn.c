@@ -9384,6 +9384,10 @@ int ngtcp2_conn_set_remote_transport_params(
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
+  if (params->max_udp_payload_size < 1200) {
+    return NGTCP2_ERR_TRANSPORT_PARAM;
+  }
+
   if (!conn->server) {
     rv = conn_client_validate_transport_params(conn, params);
     if (rv != 0) {
