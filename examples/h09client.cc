@@ -377,6 +377,8 @@ int Client::handshake_completed() {
   if (!config.quiet) {
     std::cerr << "Negotiated cipher suite is " << tls_session_.get_cipher_name()
               << std::endl;
+    std::cerr << "Negotiated ALPN is " << tls_session_.get_selected_alpn()
+              << std::endl;
   }
 
   return 0;
