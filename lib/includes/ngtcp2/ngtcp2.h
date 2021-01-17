@@ -1673,7 +1673,8 @@ typedef struct ngtcp2_rand_ctx {
  * :type:`ngtcp2_qlog_write` is a callback function which is called to
  * write qlog |data| of length |datalen| bytes.  |flags| is bitwise OR
  * of zero or more of NGTCP2_QLOG_WRITE_FLAG_*.  See
- * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE`.
+ * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE`.  If
+ * :macro:`NGTCP2_QLOG_WRITE_FLAG_FIN` is set, |datalen| may be 0.
  */
 typedef void (*ngtcp2_qlog_write)(void *user_data, uint32_t flags,
                                   const void *data, size_t datalen);

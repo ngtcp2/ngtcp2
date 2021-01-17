@@ -89,7 +89,7 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr);
  * ngtcp2_qlog_pkt_received_end will flush the content of qlog->buf to
  * write callback.
  */
-void ngtcp2_qlog_pkt_received_start(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd);
+void ngtcp2_qlog_pkt_received_start(ngtcp2_qlog *qlog);
 
 /*
  * ngtcp2_qlog_pkt_received_end ends packet_received event and sends
@@ -104,7 +104,7 @@ void ngtcp2_qlog_pkt_received_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
  * ngtcp2_qlog_pkt_sent_end will flush the content of qlog->buf to
  * write callback.
  */
-void ngtcp2_qlog_pkt_sent_start(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd);
+void ngtcp2_qlog_pkt_sent_start(ngtcp2_qlog *qlog);
 
 /*
  * ngtcp2_qlog_pkt_sent_end ends packet_sent event and sends the
