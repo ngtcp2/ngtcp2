@@ -12,19 +12,18 @@ RUN apt-get update && \
     cd nghttp3 && autoreconf -i && \
     ./configure --enable-lib-only \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
-        CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" && \
-    make -j$(nproc) && make install-strip && cd .. && rm -rf nghttp3 && \
+        CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
+    make -j$(nproc) && make install && cd .. && rm -rf nghttp3 && \
     git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
     ./configure \
         CXXFLAGS=-DNGTCP2_ENABLE_UDP_GSO=0 \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
-        CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" && \
-    make -j$(nproc) && make install-strip && \
+        CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
+    make -j$(nproc) && make install && \
     cp examples/server examples/client examples/h09server examples/h09client /usr/local/bin && \
     cd .. && \
     rm -rf ngtcp2 && \
-    strip /usr/local/lib/*.so.*.* /usr/local/lib/engines-*/*.so && \
     rm -rf /usr/local/lib/libssl.so /usr/local/lib/libcrypto.so /usr/local/lib/libssl.a /usr/local/lib/libcrypto.a /usr/local/lib/pkgconfig/*ssl.pc /usr/local/include/openssl/* && \
     apt-get -y purge git g++ make binutils autoconf automake autotools-dev libtool pkg-config \
         libev-dev libjemalloc-dev && \
