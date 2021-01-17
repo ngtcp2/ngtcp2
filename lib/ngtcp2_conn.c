@@ -5626,9 +5626,14 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
             /* If this is crypto related error, then return normally
                in order to send CONNECTION_CLOSE with TLS alert (e.g.,
                no_application_protocol). */
-            if (nread == NGTCP2_ERR_CRYPTO) {
+            switch (nread) {
+            case NGTCP2_ERR_CRYPTO:
+            case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
+            case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
+            case NGTCP2_ERR_TRANSPORT_PARAM:
               return (int)nread;
             }
+
             return NGTCP2_ERR_DROP_CONN;
           }
           return 0;
