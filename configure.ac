@@ -105,8 +105,8 @@ AC_ARG_WITH([openssl],
 
 AC_ARG_WITH([gnutls],
     [AS_HELP_STRING([--with-gnutls],
-                    [Use gnutls [default=check]])],
-    [request_gnutls=$withval], [request_gnutls=check])
+                    [Use gnutls [default=no]])],
+    [request_gnutls=$withval], [request_gnutls=no])
 
 AC_ARG_WITH([boringssl],
     [AS_HELP_STRING([--with-boringssl],
