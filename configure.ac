@@ -111,7 +111,7 @@ AC_ARG_WITH([gnutls],
 AC_ARG_WITH([boringssl],
     [AS_HELP_STRING([--with-boringssl],
                     [Use boringssl [default=no]])],
-    [request_boringssl=$withval], [request_boringssl=check])
+    [request_boringssl=$withval], [request_boringssl=no])
 
 AC_ARG_VAR([BORINGSSL_CFLAGS], [C compiler flags for BORINGSSL])
 AC_ARG_VAR([BORINGSSL_LIBS], [linker flags for BORINGSSL])
