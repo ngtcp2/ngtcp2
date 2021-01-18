@@ -984,10 +984,6 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     return rv;
   }
 
-  ngtcp2_qlog_parameters_set_transport_params(
-      &(*pconn)->qlog, &(*pconn)->local.settings.transport_params,
-      (*pconn)->server, NGTCP2_QLOG_SIDE_LOCAL);
-
   return 0;
 }
 
