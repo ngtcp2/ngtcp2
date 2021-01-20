@@ -3154,7 +3154,7 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  *
  * This function returns 0 if it succeeds, or negative error codes.
  * In general, if the error code which satisfies
- * `ngtcp2_erro_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
+ * `ngtcp2_err_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
  * the application should just close the connection by calling
  * `ngtcp2_conn_write_connection_close` or just delete the QUIC
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
@@ -3797,8 +3797,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *     into the same packet.  See above to know how it works.
  *
  * In general, if the error code which satisfies
- * ngtcp2_err_is_fatal(err) != 0 is returned, the application should
- * just close the connection by calling
+ * `ngtcp2_err_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
+ * the application should just close the connection by calling
  * `ngtcp2_conn_write_connection_close` or just delete the QUIC
  * connection using `ngtcp2_conn_del`.  It is undefined to call the
  * other library functions.
