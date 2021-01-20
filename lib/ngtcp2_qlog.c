@@ -217,6 +217,8 @@ static ngtcp2_vec *qlog_pkt_type(ngtcp2_vec *dest, const ngtcp2_pkt_hd *hd) {
       return ngtcp2_vec_lit(dest, "handshake");
     case NGTCP2_PKT_0RTT:
       return ngtcp2_vec_lit(dest, "0RTT");
+    case NGTCP2_PKT_RETRY:
+      return ngtcp2_vec_lit(dest, "retry");
     default:
       return ngtcp2_vec_lit(dest, "unknown");
     }
@@ -1210,6 +1212,38 @@ void ngtcp2_qlog_pkt_lost(ngtcp2_qlog *qlog, ngtcp2_rtb_entry *ent) {
   hd.pkt_num = ent->hd.pkt_num;
 
   p = write_pkt_hd(p, &hd);
+
+  *p++ = '}';
+  *p++ = '}';
+  *p++ = '\n';
+
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
+              (size_t)(p - buf));
+}
+
+void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog,
+                                    const ngtcp2_pkt_hd *hd) {
+  uint8_t buf[256];
+  uint8_t *p = buf;
+  ngtcp2_vec name, value;
+
+  if (!qlog->write) {
+    return;
+  }
+
+  *p++ = '{';
+  p = write_pair_tstamp(p, ngtcp2_vec_lit(&name, "time"),
+                        qlog->last_ts - qlog->ts);
+  *p++ = ',';
+  p = write_pair(p, ngtcp2_vec_lit(&name, "name"),
+                 ngtcp2_vec_lit(&value, "transport:packet_received"));
+  *p++ = ',';
+  p = write_string(p, ngtcp2_vec_lit(&name, "data"));
+  *p++ = ':';
+  *p++ = '{';
+  p = write_string(p, ngtcp2_vec_lit(&name, "header"));
+  *p++ = ':';
+  p = write_pkt_hd(p, hd);
 
   *p++ = '}';
   *p++ = '}';
