@@ -58,3 +58,6 @@ cryptoapiref: mkapiref.py \
 
 html-local: apiref cryptoapiref
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+clean-local:
+	-rm -rf "$(BUILDDIR)"
