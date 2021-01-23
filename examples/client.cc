@@ -69,20 +69,22 @@ Stream::~Stream() {
 int Stream::open_file(const std::string_view &path) {
   assert(fd == -1);
 
+  std::string_view filename;
+
   auto it = std::find(std::rbegin(path), std::rend(path), '/').base();
   if (it == std::end(path)) {
-    std::cerr << "No file name found: " << path << std::endl;
-    return -1;
-  }
-  auto b = std::string_view{it, static_cast<size_t>(std::end(path) - it)};
-  if (b == ".." || b == ".") {
-    std::cerr << "Invalid file name: " << b << std::endl;
-    return -1;
+    filename = "index.html";
+  } else {
+    filename = std::string_view{it, static_cast<size_t>(std::end(path) - it)};
+    if (filename == ".." || filename == ".") {
+      std::cerr << "Invalid file name: " << filename << std::endl;
+      return -1;
+    }
   }
 
   auto fname = std::string{config.download};
   fname += '/';
-  fname += b;
+  fname += filename;
 
   fd = open(fname.c_str(), O_WRONLY | O_CREAT | O_TRUNC,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -2116,7 +2118,9 @@ Options:
   --download=<PATH>
               The path to the directory  to save a downloaded content.
               It is  undefined if 2  concurrent requests write  to the
-              same file.
+              same file.   If a request  path does not contain  a path
+              component  usable  as  a   file  name,  it  defaults  to
+              "index.html".
   --no-quic-dump
               Disables printing QUIC STREAM and CRYPTO frame data out.
   --no-http-dump
