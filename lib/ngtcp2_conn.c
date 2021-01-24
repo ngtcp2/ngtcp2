@@ -3403,10 +3403,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn->flags |= NGTCP2_CONN_FLAG_PPE_PENDING;
 
     if (send_stream) {
-      return NGTCP2_ERR_WRITE_MORE;
-    }
-
-    if (ngtcp2_conn_get_max_data_left(conn) && stream_blocked) {
+      if (ngtcp2_ppe_left(ppe)) {
+        return NGTCP2_ERR_WRITE_MORE;
+      }
+    } else if (ngtcp2_conn_get_max_data_left(conn) && stream_blocked) {
       return NGTCP2_ERR_STREAM_DATA_BLOCKED;
     }
   }

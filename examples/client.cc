@@ -1004,9 +1004,17 @@ int Client::write_streams() {
       last_error_ = quic_err_transport(nwrite);
       disconnect();
       return -1;
+    } else if (ndatalen > 0) {
+      if (auto rv =
+              nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
+          rv != 0) {
+        std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
+                  << std::endl;
+        last_error_ = quic_err_app(rv);
+        disconnect();
+        return -1;
+      }
     }
-
-    assert(ndatalen == -1);
 
     if (nwrite == 0) {
       // We are congestion limited.

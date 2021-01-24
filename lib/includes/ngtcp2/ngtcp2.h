@@ -3744,7 +3744,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * - The function returns the written length of packet just like
  *   without :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE`.  This is because
  *   packet is nearly full and the library decided to make a complete
- *   packet.  In this case, |*pdatalen| == -1 is asserted.
+ *   packet.  |*pdatalen| might be -1 or >= 0.
  *
  * - The function returns :macro:`NGTCP2_ERR_WRITE_MORE`.  In this
  *   case, |*pdatalen| >= 0 is asserted.  This indicates that
@@ -3766,8 +3766,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * `ngtcp2_conn_write_application_close` to handle error from this
  * function).  Just keep calling `ngtcp2_conn_writev_stream` or
  * `ngtcp2_conn_write_pkt` until it returns a positive number (which
- * indicates a complete packet is ready).  If |*pdatalen| >= 0, the
- * function always return :macro:`NGTCP2_ERR_WRITE_MORE`.
+ * indicates a complete packet is ready).
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should

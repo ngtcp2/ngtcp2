@@ -964,9 +964,12 @@ int Client::write_streams() {
       last_error_ = quic_err_transport(nwrite);
       disconnect();
       return -1;
+    } else if (ndatalen > 0) {
+      stream->reqbuf.pos += ndatalen;
+      if (nghttp3_buf_len(&stream->reqbuf) == 0) {
+        sendq_.erase(std::begin(sendq_));
+      }
     }
-
-    assert(ndatalen == -1);
 
     if (nwrite == 0) {
       // We are congestion limited.

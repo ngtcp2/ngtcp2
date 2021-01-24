@@ -1047,9 +1047,12 @@ int Handler::write_streams() {
                 << std::endl;
       last_error_ = quic_err_transport(nwrite);
       return handle_error();
+    } else if (ndatalen > 0) {
+      stream->respbuf.pos += ndatalen;
+      if (nghttp3_buf_len(&stream->respbuf) == 0) {
+        sendq_.erase(std::begin(sendq_));
+      }
     }
-
-    assert(ndatalen == -1);
 
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
