@@ -1014,7 +1014,7 @@ int Client::write_streams() {
       last_error_ = quic_err_transport(nwrite);
       disconnect();
       return -1;
-    } else if (ndatalen > 0) {
+    } else if (ndatalen >= 0) {
       if (auto rv =
               nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
           rv != 0) {

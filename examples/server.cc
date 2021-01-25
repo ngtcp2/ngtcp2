@@ -1795,7 +1795,7 @@ int Handler::write_streams() {
                 << std::endl;
       last_error_ = quic_err_transport(nwrite);
       return handle_error();
-    } else if (ndatalen > 0) {
+    } else if (ndatalen >= 0) {
       if (auto rv =
               nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
           rv != 0) {
