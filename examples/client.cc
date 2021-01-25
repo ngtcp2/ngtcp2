@@ -972,7 +972,6 @@ int Client::write_streams() {
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
-      case NGTCP2_ERR_STREAM_SHUT_WR:
         assert(ndatalen == -1);
         if (auto rv = nghttp3_conn_block_stream(httpconn_, stream_id);
             rv != 0) {
@@ -983,8 +982,19 @@ int Client::write_streams() {
           return -1;
         }
         continue;
+      case NGTCP2_ERR_STREAM_SHUT_WR:
+        assert(ndatalen == -1);
+        if (auto rv = nghttp3_conn_shutdown_stream_write(httpconn_, stream_id);
+            rv != 0) {
+          std::cerr << "nghttp3_conn_shutdown_stream_write: "
+                    << nghttp3_strerror(rv) << std::endl;
+          last_error_ = quic_err_app(rv);
+          disconnect();
+          return -1;
+        }
+        continue;
       case NGTCP2_ERR_WRITE_MORE:
-        assert(ndatalen > 0);
+        assert(ndatalen >= 0);
         if (auto rv =
                 nghttp3_conn_add_write_offset(httpconn_, stream_id, ndatalen);
             rv != 0) {

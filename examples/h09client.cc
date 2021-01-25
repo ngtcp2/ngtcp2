@@ -949,7 +949,7 @@ int Client::write_streams() {
         sendq_.erase(std::begin(sendq_));
         continue;
       case NGTCP2_ERR_WRITE_MORE:
-        assert(ndatalen > 0);
+        assert(ndatalen >= 0);
         stream->reqbuf.pos += ndatalen;
         if (nghttp3_buf_len(&stream->reqbuf) == 0) {
           sendq_.erase(std::begin(sendq_));

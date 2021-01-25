@@ -1033,7 +1033,7 @@ int Handler::write_streams() {
         sendq_.erase(std::begin(sendq_));
         continue;
       case NGTCP2_ERR_WRITE_MORE:
-        assert(ndatalen > 0);
+        assert(ndatalen >= 0);
         stream->respbuf.pos += ndatalen;
         if (nghttp3_buf_len(&stream->respbuf) == 0) {
           sendq_.erase(std::begin(sendq_));
