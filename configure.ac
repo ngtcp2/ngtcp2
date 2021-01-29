@@ -278,11 +278,17 @@ if test "x${lib_only}" = "xno" &&
     AC_DEFINE([ENABLE_EXAMPLE_GNUTLS], [1],
               [Define to 1 in order to build examples/{gtlsclient,gtlsserver}])
   fi
+
+  if test "x${have_boringssl}" = "xyes"; then
+    AC_DEFINE([ENABLE_EXAMPLE_BORINGSSL], [1],
+              [Define to 1 in order to build examples/{bsslclient,bsslserver}])
+  fi
 fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_OPENSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_openssl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_GNUTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_gnutls}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_BORINGSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_boringssl}" = "xyes" ])
 
 AC_ARG_VAR([JEMALLOC_CFLAGS], [C compiler flags for jemalloc, skipping any checks])
 AC_ARG_VAR([JEMALLOC_LIBS], [linker flags for jemalloc, skipping any checks])

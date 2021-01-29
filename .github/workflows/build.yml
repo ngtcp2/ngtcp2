@@ -110,8 +110,8 @@ jobs:
       run: |
         ./ci/gen-certificate.sh
         NETTLE_PATH=$PWD/../nettle-3.6/build/lib64
-        for client in client gtlsclient; do
-          for server in server gtlsserver; do
+        for client in client gtlsclient bsslclient; do
+          for server in server gtlsserver bsslserver; do
             echo "# $client - $server"
             LD_LIBRARY_PATH=$NETTLE_PATH ./examples/$server localhost 4433 cert/server.key cert/server.crt &
             LD_LIBRARY_PATH=$NETTLE_PATH ./examples/$client localhost 4433 https://localhost/ --exit-on-first-stream-close

@@ -37,4 +37,8 @@
 #  include "tls_client_context_gnutls.h"
 #endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
 
+#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
+#  include "tls_client_context_boringssl.h"
+#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+
 #endif // TLS_CLIENT_CONTEXT_OPENSSL_H

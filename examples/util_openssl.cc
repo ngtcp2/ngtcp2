@@ -113,12 +113,6 @@ int write_token(const std::string_view &filename, const uint8_t *token,
   return 0;
 }
 
-ngtcp2_crypto_aead crypto_aead_aes_128_gcm() {
-  ngtcp2_crypto_aead aead;
-  ngtcp2_crypto_aead_init(&aead, const_cast<EVP_CIPHER *>(EVP_aes_128_gcm()));
-  return aead;
-}
-
 ngtcp2_crypto_md crypto_md_sha256() {
   ngtcp2_crypto_md md;
   ngtcp2_crypto_md_init(&md, const_cast<EVP_MD *>(EVP_sha256()));

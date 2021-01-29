@@ -44,7 +44,7 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
     tls_server_context_openssl.cc
     tls_server_session_openssl.cc
     tls_session_base_openssl.cc
-    util_openssl.cc
+    util_openssl.cc util_aead_openssl.cc
   )
 
   set(ossl_INCLUDE_DIRS
@@ -149,4 +149,69 @@ if(LIBEV_FOUND AND HAVE_GNUTLS AND LIBNGHTTP3_FOUND)
   target_link_libraries(gtlsserver ${gtls_LIBS})
 
   # TODO prevent gtlsclient and example gtlsservers from being installed?
+endif()
+
+if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
+  set(bsslclient_SOURCES
+    client.cc
+    client_base.cc
+    debug.cc
+    util.cc
+    shared.cc
+    tls_client_context_boringssl.cc
+    tls_client_session_boringssl.cc
+    tls_session_base_openssl.cc
+    util_openssl.cc
+  )
+
+  set(bsslserver_SOURCES
+    server.cc
+    server_base.cc
+    debug.cc
+    util.cc
+    http.cc
+    shared.cc
+    tls_server_context_boringssl.cc
+    tls_server_session_boringssl.cc
+    tls_session_base_openssl.cc
+    util_openssl.cc util_aead_boringssl.cc
+  )
+
+  set(bssl_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/lib/includes
+    ${CMAKE_BINARY_DIR}/lib/includes
+    ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/crypto/includes
+
+    ${BORINGSSL_INCLUDE_DIRS}
+    ${LIBEV_INCLUDE_DIRS}
+    ${LIBNGHTTP3_INCLUDE_DIRS}
+  )
+
+  set(bssl_LIBS
+    ngtcp2_crypto_boringssl
+    ngtcp2
+    ${BORINGSSL_LIBRARIES}
+    ${LIBEV_LIBRARIES}
+    ${LIBNGHTTP3_LIBRARIES}
+  )
+
+  add_executable(bsslclient ${bsslclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(bsslserver ${bsslserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  set_target_properties(bsslclient PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_BORINGSSL -DWITH_EXAMPLE_BORINGSSL"
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+  )
+  set_target_properties(bsslserver PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_BORINGSSL -DWITH_EXAMPLE_BORINGSSL"
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+  )
+  target_include_directories(bsslclient PUBLIC ${bssl_INCLUDE_DIRS})
+  target_include_directories(bsslserver PUBLIC ${bssl_INCLUDE_DIRS})
+  target_link_libraries(bsslclient ${bssl_LIBS})
+  target_link_libraries(bsslserver ${bssl_LIBS})
+
+  # TODO prevent bsslclient and example bsslservers from being installed?
 endif()

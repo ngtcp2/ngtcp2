@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2021 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,23 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_SESSION_H
-#define TLS_SERVER_SESSION_H
+#ifndef TLS_SERVER_CONTEXT_BORINGSSL_H
+#define TLS_SERVER_CONTEXT_BORINGSSL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_session_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include <openssl/ssl.h>
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_session_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+#include "shared.h"
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_session_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+using namespace ngtcp2;
 
-#endif // TLS_SERVER_SESSION_H
+class TLSServerContext {
+public:
+  TLSServerContext();
+  ~TLSServerContext();
+
+  int init(const char *private_key_file, const char *cert_file,
+           AppProtocol app_proto);
+
+  SSL_CTX *get_native_handle() const;
+
+  void enable_keylog();
+
+private:
+  SSL_CTX *ssl_ctx_;
+};
+
+#endif // TLS_SERVER_CONTEXT_BORINGSSL_H

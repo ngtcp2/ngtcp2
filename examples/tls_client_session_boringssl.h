@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2021 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,23 +22,30 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_SESSION_H
-#define TLS_SERVER_SESSION_H
+#ifndef TLS_CLIENT_SESSION_BORINGSSL_H
+#define TLS_CLIENT_SESSION_BORINGSSL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_session_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include "tls_session_base_openssl.h"
+#include "shared.h"
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_session_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+using namespace ngtcp2;
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_session_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+class TLSClientContext;
+class ClientBase;
 
-#endif // TLS_SERVER_SESSION_H
+class TLSClientSession : public TLSSessionBase {
+public:
+  TLSClientSession();
+  ~TLSClientSession();
+
+  int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
+           const char *remote_addr, ClientBase *client, AppProtocol app_proto);
+
+  bool get_early_data_accepted() const;
+};
+
+#endif // TLS_CLIENT_SESSION_BORINGSSL_H
