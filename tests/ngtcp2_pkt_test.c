@@ -1228,6 +1228,97 @@ void test_ngtcp2_pkt_encode_handshake_done_frame(void) {
   CU_ASSERT(fr.type == nfr.type);
 }
 
+void test_ngtcp2_pkt_encode_datagram_frame(void) {
+  const uint8_t data[] = "0123456789abcdef3";
+  uint8_t buf[256];
+  ngtcp2_frame fr, nfr;
+  ngtcp2_ssize rv;
+  size_t framelen;
+
+  fr.type = NGTCP2_FRAME_DATAGRAM_LEN;
+  fr.datagram.datacnt = 1;
+  fr.datagram.data = fr.datagram.rdata;
+  fr.datagram.rdata[0].len = strsize(data);
+  fr.datagram.rdata[0].base = (uint8_t *)data;
+
+  framelen = 1 + 1 + 17;
+
+  rv = ngtcp2_pkt_encode_datagram_frame(buf, sizeof(buf), &fr.datagram);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_datagram_frame(&nfr.datagram, buf, framelen);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.datagram.datacnt == nfr.datagram.datacnt);
+  CU_ASSERT(fr.datagram.data->len == nfr.datagram.data->len);
+  CU_ASSERT(0 == memcmp(fr.datagram.data->base, nfr.datagram.data->base,
+                        fr.datagram.data->len));
+
+  memset(&nfr, 0, sizeof(nfr));
+
+  /* Without length field */
+  fr.type = NGTCP2_FRAME_DATAGRAM;
+  fr.datagram.datacnt = 1;
+  fr.datagram.data = fr.datagram.rdata;
+  fr.datagram.rdata[0].len = strsize(data);
+  fr.datagram.rdata[0].base = (uint8_t *)data;
+
+  framelen = 1 + 17;
+
+  rv = ngtcp2_pkt_encode_datagram_frame(buf, sizeof(buf), &fr.datagram);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_datagram_frame(&nfr.datagram, buf, framelen);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.datagram.datacnt == nfr.datagram.datacnt);
+  CU_ASSERT(fr.datagram.data->len == nfr.datagram.data->len);
+  CU_ASSERT(0 == memcmp(fr.datagram.data->base, nfr.datagram.data->base,
+                        fr.datagram.data->len));
+
+  memset(&nfr, 0, sizeof(nfr));
+
+  /* Zero length data with length field */
+  fr.type = NGTCP2_FRAME_DATAGRAM_LEN;
+  fr.datagram.datacnt = 0;
+  fr.datagram.data = NULL;
+
+  framelen = 1 + 1;
+
+  rv = ngtcp2_pkt_encode_datagram_frame(buf, sizeof(buf), &fr.datagram);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_datagram_frame(&nfr.datagram, buf, framelen);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.datagram.datacnt == nfr.datagram.datacnt);
+  CU_ASSERT(NULL == nfr.datagram.data);
+
+  /* Zero length data without length field */
+  fr.type = NGTCP2_FRAME_DATAGRAM;
+  fr.datagram.datacnt = 0;
+  fr.datagram.data = NULL;
+
+  framelen = 1;
+
+  rv = ngtcp2_pkt_encode_datagram_frame(buf, sizeof(buf), &fr.datagram);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+
+  rv = ngtcp2_pkt_decode_datagram_frame(&nfr.datagram, buf, framelen);
+
+  CU_ASSERT((ngtcp2_ssize)framelen == rv);
+  CU_ASSERT(fr.type == nfr.type);
+  CU_ASSERT(fr.datagram.datacnt == nfr.datagram.datacnt);
+  CU_ASSERT(NULL == nfr.datagram.data);
+}
+
 void test_ngtcp2_pkt_adjust_pkt_num(void) {
   CU_ASSERT(0xaa831f94llu ==
             ngtcp2_pkt_adjust_pkt_num(0xaa82f30ellu, 0x1f94, 16));

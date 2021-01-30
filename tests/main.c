@@ -125,6 +125,8 @@ int main() {
                    test_ngtcp2_pkt_encode_retire_connection_id_frame) ||
       !CU_add_test(pSuite, "pkt_encode_handshake_done",
                    test_ngtcp2_pkt_encode_handshake_done_frame) ||
+      !CU_add_test(pSuite, "pkt_encode_datagram_frame",
+                   test_ngtcp2_pkt_encode_datagram_frame) ||
       !CU_add_test(pSuite, "pkt_adjust_pkt_num",
                    test_ngtcp2_pkt_adjust_pkt_num) ||
       !CU_add_test(pSuite, "pkt_validate_ack", test_ngtcp2_pkt_validate_ack) ||
@@ -231,6 +233,10 @@ int main() {
                    test_ngtcp2_conn_pkt_payloadlen) ||
       !CU_add_test(pSuite, "conn_writev_stream",
                    test_ngtcp2_conn_writev_stream) ||
+      !CU_add_test(pSuite, "conn_writev_datagram",
+                   test_ngtcp2_conn_writev_datagram) ||
+      !CU_add_test(pSuite, "conn_recv_datagram",
+                   test_ngtcp2_conn_recv_datagram) ||
       !CU_add_test(pSuite, "conn_recv_new_connection_id",
                    test_ngtcp2_conn_recv_new_connection_id) ||
       !CU_add_test(pSuite, "conn_recv_retire_connection_id",

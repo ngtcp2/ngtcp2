@@ -245,6 +245,10 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
                            params->active_connection_id_limit);
   }
+  if (params->max_datagram_frame_size) {
+    len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
+                           params->max_datagram_frame_size);
+  }
 
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -356,6 +360,11 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
           NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT) {
     p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
                            params->active_connection_id_limit);
+  }
+
+  if (params->max_datagram_frame_size) {
+    p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
+                           params->max_datagram_frame_size);
   }
 
   assert((size_t)(p - dest) == len);
@@ -489,6 +498,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->active_connection_id_limit =
       NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
   params->retry_scid_present = 0;
+  params->max_datagram_frame_size = 0;
   memset(&params->retry_scid, 0, sizeof(params->retry_scid));
   memset(&params->initial_scid, 0, sizeof(params->initial_scid));
   memset(&params->original_dcid, 0, sizeof(params->original_dcid));
@@ -698,6 +708,13 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       break;
     case NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT:
       nread = decode_varint_param(&params->active_connection_id_limit, p, end);
+      if (nread < 0) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      p += nread;
+      break;
+    case NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE:
+      nread = decode_varint_param(&params->max_datagram_frame_size, p, end);
       if (nread < 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }

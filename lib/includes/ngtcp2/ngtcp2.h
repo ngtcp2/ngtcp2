@@ -1052,7 +1052,8 @@ typedef enum ngtcp2_transport_param_id {
   NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS = 0x000d,
   NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT = 0x000e,
   NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID = 0x000f,
-  NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID = 0x0010
+  NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID = 0x0010,
+  NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE = 0x0020
 } ngtcp2_transport_param_id;
 
 /**
@@ -1269,6 +1270,13 @@ typedef struct ngtcp2_transport_params {
    * which the endpoint will delay sending acknowledgements.
    */
   ngtcp2_duration max_ack_delay;
+  /**
+   * :member:`max_datagram_frame_size` is the maximum size of DATAGRAM
+   * frame that this endpoint willingly receives.  Specifying 0
+   * disables DATAGRAM support.  See
+   * https://tools.ietf.org/html/draft-ietf-quic-datagram-01
+   */
+  uint64_t max_datagram_frame_size;
   /**
    * :member:`stateless_reset_token_present` is nonzero if
    * :member:`stateless_reset_token` field is set.
@@ -2799,6 +2807,47 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
     ngtcp2_conn *conn, ngtcp2_crypto_cipher_ctx *cipher_ctx, void *user_data);
 
 /**
+ * @macrosection
+ *
+ * Datagram flags
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_DATAGRAM_FLAG_NONE` indicates no flag set.
+ */
+#define NGTCP2_DATAGRAM_FLAG_NONE 0x00
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_DATAGRAM_FLAG_EARLY` indicates that DATAGRAM frame
+ * is received in 0RTT packet and the handshake has not completed yet,
+ * which means that the data might be replayed.
+ */
+#define NGTCP2_DATAGRAM_FLAG_EARLY 0x01
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_recv_datagram` is invoked when DATAGRAM frame is
+ * received.  |flags| is bitwise-OR of zero or more of
+ * NGTCP2_DATAGRAM_FLAG_*.  See :macro:`NGTCP2_DATAGRAM_FLAG_NONE`.
+ *
+ * If :macro:`NGTCP2_DATAGRAM_FLAG_EARLY` is set in |flags|, it
+ * indicates that DATAGRAM frame was received in 0RTT packet and a
+ * handshake has not completed yet.
+ *
+ * The callback function must return 0 if it succeeds, or
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library return
+ * immediately.
+ */
+typedef int (*ngtcp2_recv_datagram)(ngtcp2_conn *conn, uint32_t flags,
+                                    const uint8_t *data, size_t datalen,
+                                    void *user_data);
+
+/**
  * @struct
  *
  * :type:`ngtcp2_callbacks` holds a set of callback functions.
@@ -3002,6 +3051,11 @@ typedef struct ngtcp2_callbacks {
    * deletes a given cipher context object.
    */
   ngtcp2_delete_crypto_cipher_ctx delete_crypto_cipher_ctx;
+  /**
+   * :member:`recv_datagram` is a callback function which is invoked
+   * when DATAGRAM frame is received.
+   */
+  ngtcp2_recv_datagram recv_datagram;
 } ngtcp2_callbacks;
 
 /**
@@ -3660,9 +3714,8 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
 /**
  * @macro
  *
- * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more stream
- * data may come and should be coalesced into the same packet if
- * possible.
+ * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more data may
+ * come and should be coalesced into the same packet if possible.
  */
 #define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01
 
@@ -3747,11 +3800,12 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *
  * - The function returns :macro:`NGTCP2_ERR_WRITE_MORE`.  In this
  *   case, |*pdatalen| >= 0 is asserted.  This indicates that
- *   application can call this function with different stream data to
- *   pack them into the same packet.  Application has to specify the
- *   same |conn|, |path|, |dest|, |destlen|, |pdatalen|, and |ts|
- *   parameters, otherwise the behaviour is undefined.  The
- *   application can change |flags|.
+ *   application can call this function with different stream data (or
+ *   `ngtcp2_conn_writev_datagram` if it has data to send in
+ *   unreliable datagram) to pack them into the same packet.
+ *   Application has to specify the same |conn|, |path|, |pi|, |dest|,
+ *   |destlen|, and |ts| parameters, otherwise the behaviour is
+ *   undefined.  The application can change |flags|.
  *
  * - The function returns :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED` which
  *   indicates that stream is blocked because of flow control.
@@ -3763,9 +3817,10 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * call other ngtcp2 API functions (application can still call
  * `ngtcp2_conn_write_connection_close` or
  * `ngtcp2_conn_write_application_close` to handle error from this
- * function).  Just keep calling `ngtcp2_conn_writev_stream` or
- * `ngtcp2_conn_write_pkt` until it returns a positive number (which
- * indicates a complete packet is ready).
+ * function).  Just keep calling `ngtcp2_conn_writev_stream`,
+ * `ngtcp2_conn_write_pkt`, or `ngtcp2_conn_writev_datagram` until it
+ * returns a positive number (which indicates a complete packet is
+ * ready).
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
@@ -3805,6 +3860,111 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
     ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
     size_t destlen, ngtcp2_ssize *pdatalen, uint32_t flags, int64_t stream_id,
     const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
+
+/**
+ * @macrosection
+ *
+ * Write datagram flags
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_NONE` indicates no flag set.
+ */
+#define NGTCP2_WRITE_DATAGRAM_FLAG_NONE 0x00
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE` indicates that more data
+ * may come and should be coalesced into the same packet if possible.
+ */
+#define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_writev_datagram` writes a packet containing unreliable
+ * data in DATAGRAM frame.  The buffer of the packet is pointed by
+ * |dest| of length |destlen|.  This function performs QUIC handshake
+ * as well.
+ *
+ * For |path| and |pi| parameters, refer to
+ * `ngtcp2_conn_writev_stream`.
+ *
+ * If the given data is written to the buffer, nonzero value is
+ * assigned to |*paccepted| if it is not NULL.  The data in DATAGRAM
+ * frame cannot be fragmented; writing partial data is not possible.
+ *
+ * This function might write other frames other than DATAGRAM, just
+ * like `ngtcp2_conn_writev_stream`.
+ *
+ * If the function returns 0, it means that no more data cannot be
+ * sent because of congestion control limit; or, data does not fit
+ * into the provided buffer; or, a local endpoint, as a server, is
+ * unable to send data because of its amplification limit.  In this
+ * case, |*paccepted| is assigned zero if it is not NULL.
+ *
+ * If :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE` is set in |flags|,
+ * there are 3 outcomes:
+ *
+ * - The function returns the written length of packet just like
+ *   without :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE`.  This is
+ *   because packet is nearly full and the library decided to make a
+ *   complete packet.  |*paccepted| might be zero or nonzero.
+ *
+ * - The function returns :macro:`NGTCP2_ERR_WRITE_MORE`.  In this
+ *   case, |*paccepted| != 0 is asserted.  This indicates that
+ *   application can call this function with another unreliable data
+ *   (or `ngtcp2_conn_writev_stream` if it has stream data to send) to
+ *   pack them into the same packet.  Application has to specify the
+ *   same |conn|, |path|, |pi|, |dest|, |destlen|, and |ts|
+ *   parameters, otherwise the behaviour is undefined.  The
+ *   application can change |flags|.
+ *
+ * - The other error might be returned just like without
+ *   :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE`.
+ *
+ * When application sees :macro:`NGTCP2_ERR_WRITE_MORE`, it must not
+ * call other ngtcp2 API functions (application can still call
+ * `ngtcp2_conn_write_connection_close` or
+ * `ngtcp2_conn_write_application_close` to handle error from this
+ * function).  Just keep calling `ngtcp2_conn_writev_datagram`,
+ * `ngtcp2_conn_writev_stream` or `ngtcp2_conn_write_pkt` until it
+ * returns a positive number (which indicates a complete packet is
+ * ready).
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :macro:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
+ *     Packet number is exhausted, and cannot send any more packet.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ * :macro:`NGTCP2_ERR_WRITE_MORE`
+ *     (Only when :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE` is
+ *     specified) Application can call this function to pack more data
+ *     into the same packet.  See above to know how it works.
+ * :macro:`NGTCP2_ERR_INVALID_STATE`
+ *     A remote endpoint did not express the DATAGRAM frame support.
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     The provisional DATAGRAM frame size exceeds the maximum
+ *     DATAGRAM frame size that a remote endpoint can receive.
+ *
+ * In general, if the error code which satisfies
+ * `ngtcp2_err_is_fatal(err) <ngtcp2_err_is_fatal>` != 0 is returned,
+ * the application should just close the connection by calling
+ * `ngtcp2_conn_write_connection_close` or just delete the QUIC
+ * connection using `ngtcp2_conn_del`.  It is undefined to call the
+ * other library functions.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram(
+    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+    size_t destlen, int *paccepted, uint32_t flags, const ngtcp2_vec *datav,
+    size_t datavcnt, ngtcp2_tstamp ts);
 
 /**
  * @function

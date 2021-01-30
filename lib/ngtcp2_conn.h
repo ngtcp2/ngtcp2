@@ -555,6 +555,7 @@ struct ngtcp2_conn {
 
 typedef enum ngtcp2_vmsg_type {
   NGTCP2_VMSG_TYPE_STREAM,
+  NGTCP2_VMSG_TYPE_DATAGRAM,
 } ngtcp2_vmsg_type;
 
 typedef struct ngtcp2_vmsg_stream {
@@ -573,10 +574,25 @@ typedef struct ngtcp2_vmsg_stream {
   ngtcp2_ssize *pdatalen;
 } ngtcp2_vmsg_stream;
 
+typedef struct ngtcp2_vmsg_datagram {
+  /* data is the pointer to ngtcp2_vec array which contains the data
+     to send. */
+  const ngtcp2_vec *data;
+  /* datacnt is the number of ngtcp2_vec pointed by data. */
+  size_t datacnt;
+  /* flags is bitwise OR of zero or more of
+     NGTCP2_WRITE_DATAGRAM_FLAG_*. */
+  uint32_t flags;
+  /* paccepted is the pointer to the variable which, if it is not
+     NULL, is assigned nonzero if data is written to a packet. */
+  int *paccepted;
+} ngtcp2_vmsg_datagram;
+
 typedef struct ngtcp2_vmsg {
   ngtcp2_vmsg_type type;
   union {
     ngtcp2_vmsg_stream stream;
+    ngtcp2_vmsg_datagram datagram;
   };
 } ngtcp2_vmsg;
 

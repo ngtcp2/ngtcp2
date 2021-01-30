@@ -642,6 +642,19 @@ static uint8_t *write_handshake_done_frame(uint8_t *p,
   return write_verbatim(p, "{\"frame_type\":\"handshake_done\"}");
 }
 
+static uint8_t *write_datagram_frame(uint8_t *p, const ngtcp2_datagram *fr) {
+  /*
+   * {"frame_type":"datagram","length":0000000000000000000}
+   */
+#define NGTCP2_QLOG_DATAGRAM_FRAME_OVERHEAD 54
+
+  p = write_verbatim(p, "{\"frame_type\":\"datagram\",");
+  p = write_pair_number(p, "length", ngtcp2_vec_len(fr->data, fr->datacnt));
+  *p++ = '}';
+
+  return p;
+}
+
 static uint8_t *qlog_write_time(ngtcp2_qlog *qlog, uint8_t *p) {
   return write_pair_tstamp(p, "time", qlog->last_ts - qlog->ts);
 }
@@ -875,6 +888,14 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     }
     p = write_handshake_done_frame(p, &fr->handshake_done);
     break;
+  case NGTCP2_FRAME_DATAGRAM:
+  case NGTCP2_FRAME_DATAGRAM_LEN:
+    if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_DATAGRAM_FRAME_OVERHEAD + 1 +
+                                          NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD) {
+      return;
+    }
+    p = write_datagram_frame(p, &fr->datagram);
+    break;
   default:
     assert(0);
   }
@@ -993,6 +1014,9 @@ void ngtcp2_qlog_parameters_set_transport_params(
                        sizeof(paddr->stateless_reset_token));
     *p++ = '}';
   }
+  *p++ = ',';
+  p = write_pair_number(p, "max_datagram_frame_size",
+                        params->max_datagram_frame_size);
   p = write_verbatim(p, "}}\n");
 
   qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,

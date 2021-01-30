@@ -57,6 +57,7 @@ void test_ngtcp2_pkt_encode_crypto_frame(void);
 void test_ngtcp2_pkt_encode_new_token_frame(void);
 void test_ngtcp2_pkt_encode_retire_connection_id_frame(void);
 void test_ngtcp2_pkt_encode_handshake_done_frame(void);
+void test_ngtcp2_pkt_encode_datagram_frame(void);
 void test_ngtcp2_pkt_adjust_pkt_num(void);
 void test_ngtcp2_pkt_validate_ack(void);
 void test_ngtcp2_pkt_write_stateless_reset(void);

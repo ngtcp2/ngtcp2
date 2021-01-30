@@ -67,6 +67,11 @@
    the beginning of the payload. */
 #define NGTCP2_CRYPTO_OVERHEAD (1 + 8 + 8)
 
+/* NGTCP2_DATAGRAM_OVERHEAD is the maximum number of bytes required
+   other than payload for DATAGRAM frame.  That is from type field to
+   the beginning of the payload. */
+#define NGTCP2_DATAGRAM_OVERHEAD (1 + 8)
+
 /* NGTCP2_MIN_FRAME_PAYLOADLEN is the minimum frame payload length. */
 #define NGTCP2_MIN_FRAME_PAYLOADLEN 16
 
@@ -133,6 +138,8 @@ typedef enum {
   NGTCP2_FRAME_CONNECTION_CLOSE = 0x1c,
   NGTCP2_FRAME_CONNECTION_CLOSE_APP = 0x1d,
   NGTCP2_FRAME_HANDSHAKE_DONE = 0x1e,
+  NGTCP2_FRAME_DATAGRAM = 0x30,
+  NGTCP2_FRAME_DATAGRAM_LEN = 0x31,
 } ngtcp2_frame_type;
 
 typedef struct ngtcp2_stream {
@@ -288,6 +295,19 @@ typedef struct ngtcp2_handshake_done {
   uint8_t type;
 } ngtcp2_handshake_done;
 
+typedef struct ngtcp2_datagram {
+  uint8_t type;
+  /* datacnt is the number of elements that data contains. */
+  size_t datacnt;
+  /* data is a pointer to ngtcp2_vec array that stores data. */
+  ngtcp2_vec *data;
+  /* rdata is conveniently embedded to ngtcp2_datagram, so that data
+     field can just point to the address of this field to store a
+     single vector which is the case when DATAGRAM is received from a
+     remote endpoint. */
+  ngtcp2_vec rdata[1];
+} ngtcp2_datagram;
+
 typedef union ngtcp2_frame {
   uint8_t type;
   ngtcp2_stream stream;
@@ -310,6 +330,7 @@ typedef union ngtcp2_frame {
   ngtcp2_new_token new_token;
   ngtcp2_retire_connection_id retire_connection_id;
   ngtcp2_handshake_done handshake_done;
+  ngtcp2_datagram datagram;
 } ngtcp2_frame;
 
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -772,6 +793,21 @@ ngtcp2_ssize ngtcp2_pkt_decode_handshake_done_frame(ngtcp2_handshake_done *dest,
                                                     size_t payloadlen);
 
 /*
+ * ngtcp2_pkt_decode_datagram_frame decodes DATAGRAM frame from
+ * |payload| of length |payloadlen|.  The result is stored in the
+ * object pointed by |dest|.  DATAGRAM frame must start at payload[0].
+ * This function finishes when it decodes one DATAGRAM frame, and
+ * returns the exact number of bytes read to decode a frame if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_FRAME_ENCODING
+ *     Payload is too short to include DATAGRAM frame.
+ */
+ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
+                                              const uint8_t *payload,
+                                              size_t payloadlen);
+
+/*
  * ngtcp2_pkt_encode_stream_frame encodes STREAM frame |fr| into the
  * buffer pointed by |out| of length |outlen|.
  *
@@ -1051,6 +1087,19 @@ ngtcp2_pkt_encode_handshake_done_frame(uint8_t *out, size_t outlen,
                                        const ngtcp2_handshake_done *fr);
 
 /*
+ * ngtcp2_pkt_encode_datagram_frame encodes DATAGRAM frame |fr| into
+ * the buffer pointed by |out| of length |outlen|.
+ *
+ * This function returns the number of bytes written if it succeeds,
+ * or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOBUF
+ *     Buffer does not have enough capacity to write a frame.
+ */
+ngtcp2_ssize ngtcp2_pkt_encode_datagram_frame(uint8_t *out, size_t outlen,
+                                              const ngtcp2_datagram *fr);
+
+/*
  * ngtcp2_pkt_adjust_pkt_num find the full 64 bits packet number for
  * |pkt_num|, which is expected to be least significant |n| bits.  The
  * |max_pkt_num| is the highest successfully authenticated packet
@@ -1088,6 +1137,12 @@ size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
  * to write CRYPTO frame, this function returns (size_t)-1.
  */
 size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left);
+
+/*
+ * ngtcp2_pkt_datagram_framelen returns the length of DATAGRAM frame
+ * to encode |len| bytes of data.
+ */
+size_t ngtcp2_pkt_datagram_framelen(size_t len);
 
 /*
  * ngtcp2_pkt_verify_reserved_bits verifies that the first byte |c| of

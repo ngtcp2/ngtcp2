@@ -59,6 +59,8 @@ void test_ngtcp2_conn_recv_early_data(void);
 void test_ngtcp2_conn_recv_compound_pkt(void);
 void test_ngtcp2_conn_pkt_payloadlen(void);
 void test_ngtcp2_conn_writev_stream(void);
+void test_ngtcp2_conn_writev_datagram(void);
+void test_ngtcp2_conn_recv_datagram(void);
 void test_ngtcp2_conn_recv_new_connection_id(void);
 void test_ngtcp2_conn_recv_retire_connection_id(void);
 void test_ngtcp2_conn_server_path_validation(void);

@@ -444,6 +444,13 @@ static void log_fr_handshake_done(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type);
 }
 
+static void log_fr_datagram(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
+                            const ngtcp2_datagram *fr, const char *dir) {
+  log->log_printf(log->user_data, (NGTCP2_LOG_PKT " DATAGRAM(0x%02x) len=%zu"),
+                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
+                  ngtcp2_vec_len(fr->data, fr->datacnt));
+}
+
 static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                    const ngtcp2_frame *fr, const char *dir) {
   switch (fr->type) {
@@ -510,6 +517,10 @@ static void log_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     break;
   case NGTCP2_FRAME_HANDSHAKE_DONE:
     log_fr_handshake_done(log, hd, &fr->handshake_done, dir);
+    break;
+  case NGTCP2_FRAME_DATAGRAM:
+  case NGTCP2_FRAME_DATAGRAM_LEN:
+    log_fr_datagram(log, hd, &fr->datagram, dir);
     break;
   default:
     assert(0);
@@ -680,6 +691,9 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_TP " disable_active_migration=%d"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->disable_active_migration);
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_TP " max_datagram_frame_size=%" PRIu64),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->max_datagram_frame_size);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
