@@ -721,11 +721,11 @@ static void conn_reset_ecn_validation_state(ngtcp2_conn *conn) {
 static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                     const ngtcp2_cid *scid, const ngtcp2_path *path,
                     uint32_t version, const ngtcp2_callbacks *callbacks,
-                    const ngtcp2_settings *settings, const ngtcp2_mem *mem,
-                    void *user_data, int server) {
+                    const ngtcp2_settings *settings,
+                    const ngtcp2_transport_params *params,
+                    const ngtcp2_mem *mem, void *user_data, int server) {
   int rv;
   ngtcp2_scid *scident;
-  const ngtcp2_transport_params *params = &settings->transport_params;
   uint8_t *buf;
 
   assert(settings->max_window <= NGTCP2_MAX_VARINT);
@@ -814,6 +814,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   (*pconn)->local.settings = *settings;
+  (*pconn)->local.transport_params = *params;
 
   if (settings->token.len) {
     buf = ngtcp2_mem_malloc(mem, settings->token.len);
@@ -966,10 +967,11 @@ int ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                            const ngtcp2_cid *scid, const ngtcp2_path *path,
                            uint32_t version, const ngtcp2_callbacks *callbacks,
                            const ngtcp2_settings *settings,
+                           const ngtcp2_transport_params *params,
                            const ngtcp2_mem *mem, void *user_data) {
   int rv;
-  rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings, mem,
-                user_data, 0);
+  rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings, params,
+                mem, user_data, 0);
   if (rv != 0) {
     return rv;
   }
@@ -991,10 +993,11 @@ int ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                            const ngtcp2_cid *scid, const ngtcp2_path *path,
                            uint32_t version, const ngtcp2_callbacks *callbacks,
                            const ngtcp2_settings *settings,
+                           const ngtcp2_transport_params *params,
                            const ngtcp2_mem *mem, void *user_data) {
   int rv;
-  rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings, mem,
-                user_data, 1);
+  rv = conn_new(pconn, dcid, scid, path, version, callbacks, settings, params,
+                mem, user_data, 1);
   if (rv != 0) {
     return rv;
   }
@@ -1185,7 +1188,7 @@ static int conn_ensure_ack_blks(ngtcp2_conn *conn, size_t n) {
  * ACK.
  */
 static ngtcp2_duration conn_compute_ack_delay(ngtcp2_conn *conn) {
-  return ngtcp2_min(conn->local.settings.transport_params.max_ack_delay,
+  return ngtcp2_min(conn->local.transport_params.max_ack_delay,
                     conn->cstat.smoothed_rtt / 8);
 }
 
@@ -2257,8 +2260,7 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   case NGTCP2_PKT_SHORT:
     pktns = &conn->pktns;
     ack_delay = conn_compute_ack_delay(conn);
-    ack_delay_exponent =
-        conn->local.settings.transport_params.ack_delay_exponent;
+    ack_delay_exponent = conn->local.transport_params.ack_delay_exponent;
     break;
   default:
     assert(0);
@@ -2543,17 +2545,15 @@ static uint64_t conn_initial_stream_rx_offset(ngtcp2_conn *conn,
 
   if (bidi_stream(stream_id)) {
     if (local_stream) {
-      return conn->local.settings.transport_params
-          .initial_max_stream_data_bidi_local;
+      return conn->local.transport_params.initial_max_stream_data_bidi_local;
     }
-    return conn->local.settings.transport_params
-        .initial_max_stream_data_bidi_remote;
+    return conn->local.transport_params.initial_max_stream_data_bidi_remote;
   }
 
   if (local_stream) {
     return 0;
   }
-  return conn->local.settings.transport_params.initial_max_stream_data_uni;
+  return conn->local.transport_params.initial_max_stream_data_uni;
 }
 
 /*
@@ -2957,9 +2957,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
     }
 
-    rv = conn_create_ack_frame(
-        conn, &ackfr, pktns, type, ts, conn_compute_ack_delay(conn),
-        conn->local.settings.transport_params.ack_delay_exponent);
+    rv = conn_create_ack_frame(conn, &ackfr, pktns, type, ts,
+                               conn_compute_ack_delay(conn),
+                               conn->local.transport_params.ack_delay_exponent);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
@@ -3285,7 +3285,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     if (ackfr == NULL && credit_expanded) {
       rv = conn_create_ack_frame(
           conn, &ackfr, pktns, type, ts, /* ack_delay = */ 0,
-          conn->local.settings.transport_params.ack_delay_exponent);
+          conn->local.transport_params.ack_delay_exponent);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
         return rv;
@@ -5672,13 +5672,13 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   if (bidi_stream(stream_id)) {
     if (local_stream) {
-      max_rx_offset = conn->local.settings.transport_params
-                          .initial_max_stream_data_bidi_local;
+      max_rx_offset =
+          conn->local.transport_params.initial_max_stream_data_bidi_local;
       max_tx_offset =
           conn->remote.transport_params.initial_max_stream_data_bidi_remote;
     } else {
-      max_rx_offset = conn->local.settings.transport_params
-                          .initial_max_stream_data_bidi_remote;
+      max_rx_offset =
+          conn->local.transport_params.initial_max_stream_data_bidi_remote;
       max_tx_offset =
           conn->remote.transport_params.initial_max_stream_data_bidi_local;
     }
@@ -5686,8 +5686,7 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     max_rx_offset = 0;
     max_tx_offset = conn->remote.transport_params.initial_max_stream_data_uni;
   } else {
-    max_rx_offset =
-        conn->local.settings.transport_params.initial_max_stream_data_uni;
+    max_rx_offset = conn->local.transport_params.initial_max_stream_data_uni;
     max_tx_offset = 0;
   }
 
@@ -6718,7 +6717,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
     }
   }
 
-  if (conn->local.settings.transport_params.active_connection_id_limit <=
+  if (conn->local.transport_params.active_connection_id_limit <=
       len + extra_dcid) {
     return NGTCP2_ERR_CONNECTION_ID_LIMIT;
   }
@@ -9464,14 +9463,14 @@ int ngtcp2_conn_set_local_transport_params(
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  conn->local.settings.transport_params = *params;
+  conn->local.transport_params = *params;
 
   return 0;
 }
 
 int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
   const ngtcp2_mem *mem = conn->mem;
-  ngtcp2_transport_params *params = &conn->local.settings.transport_params;
+  ngtcp2_transport_params *params = &conn->local.transport_params;
   ngtcp2_scid *scident;
   ngtcp2_ksl_it it;
   int rv;
@@ -9532,7 +9531,7 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
 
 void ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn,
                                             ngtcp2_transport_params *params) {
-  *params = conn->local.settings.transport_params;
+  *params = conn->local.transport_params;
 }
 
 int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
@@ -10823,10 +10822,10 @@ ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
       conn->remote.transport_params.max_idle_timeout == 0 ||
-      (conn->local.settings.transport_params.max_idle_timeout &&
-       conn->local.settings.transport_params.max_idle_timeout <
+      (conn->local.transport_params.max_idle_timeout &&
+       conn->local.transport_params.max_idle_timeout <
            conn->remote.transport_params.max_idle_timeout)) {
-    idle_timeout = conn->local.settings.transport_params.max_idle_timeout;
+    idle_timeout = conn->local.transport_params.max_idle_timeout;
   } else {
     idle_timeout = conn->remote.transport_params.max_idle_timeout;
   }
@@ -10947,12 +10946,14 @@ void ngtcp2_settings_default(ngtcp2_settings *settings) {
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->ack_thresh = 2;
-  settings->transport_params.max_udp_payload_size =
-      NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
-  settings->transport_params.ack_delay_exponent =
-      NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-  settings->transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  settings->transport_params.active_connection_id_limit =
+}
+
+void ngtcp2_transport_params_default(ngtcp2_transport_params *params) {
+  memset(params, 0, sizeof(*params));
+  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
+  params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+  params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  params->active_connection_id_limit =
       NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
 }
 

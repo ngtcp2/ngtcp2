@@ -428,6 +428,9 @@ struct ngtcp2_conn {
 
   struct {
     ngtcp2_settings settings;
+    /* transport_params is the local transport parameters.  It is used
+       for Short packet only. */
+    ngtcp2_transport_params transport_params;
     struct {
       /* max_streams is the maximum number of bidirectional streams which
          the local endpoint can open. */

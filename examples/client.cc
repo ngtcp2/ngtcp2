@@ -720,7 +720,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
   }
 
-  auto &params = settings.transport_params;
+  ngtcp2_transport_params params;
+  ngtcp2_transport_params_default(&params);
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
   params.initial_max_stream_data_bidi_remote =
       config.max_stream_data_bidi_remote;
@@ -734,8 +735,9 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   auto path = ngtcp2_path{
       {local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)},
       {remote_addr.len, const_cast<sockaddr *>(&remote_addr.su.sa)}};
-  auto rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version,
-                                   &callbacks, &settings, nullptr, this);
+  auto rv =
+      ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version, &callbacks,
+                             &settings, &params, nullptr, this);
 
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;

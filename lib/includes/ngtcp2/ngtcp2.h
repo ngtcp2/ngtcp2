@@ -1706,11 +1706,6 @@ typedef struct ngtcp2_qlog_settings {
  */
 typedef struct ngtcp2_settings {
   /**
-   * :member:`transport_params` is the QUIC transport parameters to
-   * send.
-   */
-  ngtcp2_transport_params transport_params;
-  /**
    * :member:`qlog` is qlog settings.
    */
   ngtcp2_qlog_settings qlog;
@@ -1772,8 +1767,8 @@ typedef struct ngtcp2_settings {
    * window if connection-level window auto-tuning is enabled.  The
    * connection-level window auto tuning is enabled if nonzero value
    * is specified in this field.  The initial value of window size is
-   * initial_max_data in transport_params.  The window size is scaled
-   * up to the value specified in this field.
+   * :member:`ngtcp2_transport_params.initial_max_data`.  The window
+   * size is scaled up to the value specified in this field.
    */
   uint64_t max_window;
   /**
@@ -1783,10 +1778,9 @@ typedef struct ngtcp2_settings {
    * is specified in this field.  The initial value of window size is
    * :member:`ngtcp2_transport_params.initial_max_stream_data_bidi_remote`,
    * :member:`ngtcp2_transport_params.initial_max_stream_data_bidi_local`,
-   * or :member:`ngtcp2_transport_params.initial_max_stream_data_uni`
-   * in :member:`transport_params`, depending on the type of stream.
-   * The window size is scaled up to the value specified in this
-   * field.
+   * or :member:`ngtcp2_transport_params.initial_max_stream_data_uni`,
+   * depending on the type of stream.  The window size is scaled up to
+   * the value specified in this field.
    */
   uint64_t max_stream_window;
   /**
@@ -3087,11 +3081,12 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  * connection ID.  |scid| is source connection ID.  |version| is a
  * QUIC version to use.  |path| is the network path where this QUIC
  * connection is being established and must not be ``NULL``.
- * |callbacks|, and |settings| must not be ``NULL``, and the function
- * make a copy of each of them.  |user_data| is the arbitrary pointer
- * which is passed to the user-defined callback functions.  If |mem|
- * is ``NULL``, the memory allocator returned by
- * `ngtcp2_mem_default()` is used.
+ * |callbacks|, |settings|, and |params| must not be ``NULL``, and the
+ * function make a copy of each of them.  |params| is local QUIC
+ * transport parameters and sent to a remote endpoint during
+ * handshake.  |user_data| is the arbitrary pointer which is passed to
+ * the user-defined callback functions.  If |mem| is ``NULL``, the
+ * memory allocator returned by `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3103,8 +3098,9 @@ NGTCP2_EXTERN int
 ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
                        uint32_t version, const ngtcp2_callbacks *callbacks,
-                       const ngtcp2_settings *settings, const ngtcp2_mem *mem,
-                       void *user_data);
+                       const ngtcp2_settings *settings,
+                       const ngtcp2_transport_params *params,
+                       const ngtcp2_mem *mem, void *user_data);
 
 /**
  * @function
@@ -3113,11 +3109,13 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * initializes it as server.  |dcid| is a destination connection ID.
  * |scid| is a source connection ID.  |path| is the network path where
  * this QUIC connection is being established and must not be ``NULL`.
- * |version| is a QUIC version to use.  |callbacks|, and |settings|
- * must not be ``NULL``, and the function make a copy of each of them.
- * |user_data| is the arbitrary pointer which is passed to the
- * user-defined callback functions.  If |mem| is ``NULL``, the memory
- * allocator returned by `ngtcp2_mem_default()` is used.
+ * |version| is a QUIC version to use.  |callbacks|, |settings|, and
+ * |params| must not be ``NULL``, and the function make a copy of each
+ * of them.  |params| is local QUIC transport parameters and sent to a
+ * remote endpoint during handshake.  |user_data| is the arbitrary
+ * pointer which is passed to the user-defined callback functions.  If
+ * |mem| is ``NULL``, the memory allocator returned by
+ * `ngtcp2_mem_default()` is used.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -3129,8 +3127,9 @@ NGTCP2_EXTERN int
 ngtcp2_conn_server_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_path *path,
                        uint32_t version, const ngtcp2_callbacks *callbacks,
-                       const ngtcp2_settings *settings, const ngtcp2_mem *mem,
-                       void *user_data);
+                       const ngtcp2_settings *settings,
+                       const ngtcp2_transport_params *params,
+                       const ngtcp2_mem *mem, void *user_data);
 
 /**
  * @function
@@ -4463,20 +4462,30 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * * :type:`initial_rtt <ngtcp2_settings.initial_rtt>` =
  *   :macro:`NGTCP2_DEFAULT_INITIAL_RTT`
  * * :type:`ack_thresh <ngtcp2_settings.ack_thresh>` = 2
- * * :type:`transport_params.max_udp_payload_size
+ */
+NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
+
+/**
+ * @function
+ *
+ * `ngtcp2_transport_params_default` initializes |params| with the
+ * default values.  First this function fills |params| with 0 and set
+ * the default value to the following fields:
+ *
+ * * :type:`max_udp_payload_size
  *   <ngtcp2_transport_params.max_udp_payload_size>` =
  *   :macro:`NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE`
- * * :type:`transport_params.ack_delay_exponent
+ * * :type:`ack_delay_exponent
  *   <ngtcp2_transport_params.ack_delay_exponent>` =
  *   :macro:`NGTCP2_DEFAULT_ACK_DELAY_EXPONENT`
- * * :type:`transport_params.max_ack_delay
- *   <ngtcp2_transport_params.max_ack_delay>` =
+ * * :type:`max_ack_delay <ngtcp2_transport_params.max_ack_delay>` =
  *   :macro:`NGTCP2_DEFAULT_MAX_ACK_DELAY`
- * * :type:`transport_params.active_connection_id_limit
+ * * :type:`active_connection_id_limit
  *   <ngtcp2_transport_params.active_connection_id_limit>` =
  *   :macro:`NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT`
  */
-NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
+NGTCP2_EXTERN void
+ngtcp2_transport_params_default(ngtcp2_transport_params *params);
 
 /**
  * @function

@@ -31,8 +31,8 @@ Creating ngtcp2_conn object
 connection.  Use `ngtcp2_conn_client_new()` for client application,
 and `ngtcp2_conn_server_new()` for server.
 
-They require :type:`ngtcp2_callbacks` and :type:`ngtcp2_settings`
-objects.
+They require :type:`ngtcp2_callbacks`, :type:`ngtcp2_settings`, and
+:type:`ngtcp2_transport_params` objects.
 
 The :type:`ngtcp2_callbacks` contains the callback functions which
 :type:`ngtcp2_conn` calls when a specific event happens, say,
@@ -104,6 +104,11 @@ passed to ``initial_ts`` field in nanosecond resolution.  ngtcp2 cares
 about the difference from that initial value.  It could be any
 timestamp which increases monotonically, and actual value does not
 matter.
+
+:type:`ngtcp2_transport_params` contains QUIC transport parameters
+which is sent to a remote endpoint during handshake.  All fields must
+be set.  Application should call `ngtcp2_transport_params_default()`
+to set the default values.
 
 Client application has to supply Connection IDs to
 `ngtcp2_conn_client_new()`.  The *dcid* parameter is the destination

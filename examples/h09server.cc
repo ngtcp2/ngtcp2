@@ -804,7 +804,9 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     settings.qlog.write = ::write_qlog;
     settings.qlog.odcid = *scid;
   }
-  auto &params = settings.transport_params;
+
+  ngtcp2_transport_params params;
+  ngtcp2_transport_params_default(&params);
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
   params.initial_max_stream_data_bidi_remote =
       config.max_stream_data_bidi_remote;
@@ -858,8 +860,9 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   auto path = ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa),
                            const_cast<Endpoint *>(&ep)},
                           {salen, const_cast<sockaddr *>(sa)}};
-  if (auto rv = ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version,
-                                       &callbacks, &settings, nullptr, this);
+  if (auto rv =
+          ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version,
+                                 &callbacks, &settings, &params, nullptr, this);
       rv != 0) {
     std::cerr << "ngtcp2_conn_server_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;

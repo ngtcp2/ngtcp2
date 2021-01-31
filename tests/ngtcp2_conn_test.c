@@ -400,13 +400,16 @@ static int genrand(uint8_t *dest, size_t destlen,
 }
 
 static void server_default_settings(ngtcp2_settings *settings) {
-  size_t i;
-  ngtcp2_transport_params *params = &settings->transport_params;
-
   memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+}
+
+static void server_default_transport_params(ngtcp2_transport_params *params) {
+  size_t i;
+
+  memset(params, 0, sizeof(*params));
   params->initial_max_stream_data_bidi_local = 65535;
   params->initial_max_stream_data_bidi_remote = 65535;
   params->initial_max_stream_data_uni = 65535;
@@ -423,12 +426,14 @@ static void server_default_settings(ngtcp2_settings *settings) {
 }
 
 static void client_default_settings(ngtcp2_settings *settings) {
-  ngtcp2_transport_params *params = &settings->transport_params;
-
   memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+}
+
+static void client_default_transport_params(ngtcp2_transport_params *params) {
+  memset(params, 0, sizeof(*params));
   params->initial_max_stream_data_bidi_local = 65535;
   params->initial_max_stream_data_bidi_remote = 65535;
   params->initial_max_stream_data_uni = 65535;
@@ -462,8 +467,9 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
 static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
+  ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
-  ngtcp2_transport_params *params;
+  ngtcp2_transport_params *remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
@@ -482,10 +488,11 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   cb.rand = genrand;
   cb.update_key = update_key;
   server_default_settings(&settings);
+  server_default_transport_params(&params);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
-                         NULL);
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
@@ -502,24 +509,25 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
-  params = &(*pconn)->remote.transport_params;
-  params->initial_max_stream_data_bidi_local = 64 * 1024;
-  params->initial_max_stream_data_bidi_remote = 64 * 1024;
-  params->initial_max_stream_data_uni = 64 * 1024;
-  params->initial_max_streams_bidi = 0;
-  params->initial_max_streams_uni = 1;
-  params->initial_max_data = 64 * 1024;
-  params->active_connection_id_limit = 8;
-  (*pconn)->local.bidi.max_streams = params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = params->initial_max_data;
+  remote_params = &(*pconn)->remote.transport_params;
+  remote_params->initial_max_stream_data_bidi_local = 64 * 1024;
+  remote_params->initial_max_stream_data_bidi_remote = 64 * 1024;
+  remote_params->initial_max_stream_data_uni = 64 * 1024;
+  remote_params->initial_max_streams_bidi = 0;
+  remote_params->initial_max_streams_uni = 1;
+  remote_params->initial_max_data = 64 * 1024;
+  remote_params->active_connection_id_limit = 8;
+  (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
+  (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
+  (*pconn)->tx.max_offset = remote_params->initial_max_data;
 }
 
 static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
+  ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
-  ngtcp2_transport_params *params;
+  ngtcp2_transport_params *remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
@@ -537,10 +545,11 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   cb.get_new_connection_id = get_new_connection_id;
   cb.update_key = update_key;
   client_default_settings(&settings);
+  client_default_transport_params(&params);
 
   ngtcp2_conn_client_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
-                         NULL);
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_rx_handshake_key(*pconn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
@@ -557,17 +566,17 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
-  params = &(*pconn)->remote.transport_params;
-  params->initial_max_stream_data_bidi_local = 64 * 1024;
-  params->initial_max_stream_data_bidi_remote = 64 * 1024;
-  params->initial_max_stream_data_uni = 64 * 1024;
-  params->initial_max_streams_bidi = 1;
-  params->initial_max_streams_uni = 1;
-  params->initial_max_data = 64 * 1024;
-  params->active_connection_id_limit = 8;
-  (*pconn)->local.bidi.max_streams = params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = params->initial_max_data;
+  remote_params = &(*pconn)->remote.transport_params;
+  remote_params->initial_max_stream_data_bidi_local = 64 * 1024;
+  remote_params->initial_max_stream_data_bidi_remote = 64 * 1024;
+  remote_params->initial_max_stream_data_uni = 64 * 1024;
+  remote_params->initial_max_streams_bidi = 1;
+  remote_params->initial_max_streams_uni = 1;
+  remote_params->initial_max_data = 64 * 1024;
+  remote_params->active_connection_id_limit = 8;
+  (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
+  (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
+  (*pconn)->tx.max_offset = remote_params->initial_max_data;
 
   memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
 }
@@ -575,6 +584,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 static void setup_handshake_server(ngtcp2_conn **pconn) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
+  ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
 
   dcid_init(&dcid);
@@ -589,15 +599,17 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
   server_default_settings(&settings);
+  server_default_transport_params(&params);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
-                         NULL);
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
 }
 
 static void setup_handshake_client(ngtcp2_conn **pconn) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
+  ngtcp2_transport_params params;
   ngtcp2_cid rcid, scid;
   ngtcp2_crypto_aead retry_aead = {0, NGTCP2_FAKE_AEAD_OVERHEAD};
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
@@ -617,10 +629,11 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
   client_default_settings(&settings);
+  client_default_transport_params(&params);
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
-                         NULL);
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
@@ -630,7 +643,8 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
 static void setup_early_server(ngtcp2_conn **pconn) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
-  ngtcp2_transport_params *params;
+  ngtcp2_transport_params params;
+  ngtcp2_transport_params *remote_params;
   ngtcp2_cid dcid, scid;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
@@ -647,22 +661,23 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
   server_default_settings(&settings);
+  server_default_transport_params(&params);
 
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
-                         NULL);
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
-  params = &(*pconn)->remote.transport_params;
-  params->initial_max_stream_data_bidi_local = 64 * 1024;
-  params->initial_max_stream_data_bidi_remote = 64 * 1024;
-  params->initial_max_stream_data_uni = 64 * 1024;
-  params->initial_max_streams_bidi = 0;
-  params->initial_max_streams_uni = 1;
-  params->initial_max_data = 64 * 1024;
-  (*pconn)->local.bidi.max_streams = params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = params->initial_max_data;
+  remote_params = &(*pconn)->remote.transport_params;
+  remote_params->initial_max_stream_data_bidi_local = 64 * 1024;
+  remote_params->initial_max_stream_data_bidi_remote = 64 * 1024;
+  remote_params->initial_max_stream_data_uni = 64 * 1024;
+  remote_params->initial_max_streams_bidi = 0;
+  remote_params->initial_max_streams_uni = 1;
+  remote_params->initial_max_data = 64 * 1024;
+  (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
+  (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
+  (*pconn)->tx.max_offset = remote_params->initial_max_data;
 }
 
 static void setup_early_client(ngtcp2_conn **pconn) {
@@ -687,10 +702,11 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
   client_default_settings(&settings);
+  client_default_transport_params(&params);
 
   ngtcp2_conn_client_new(pconn, &rcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
-                         NULL);
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(*pconn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
                                   &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
@@ -808,8 +824,7 @@ void test_ngtcp2_conn_stream_rx_flow_control(void) {
 
   setup_default_server(&conn);
 
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      2047;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = 2047;
 
   for (i = 0; i < 3; ++i) {
     stream_id = (int64_t)(i * 4);
@@ -876,8 +891,7 @@ void test_ngtcp2_conn_stream_rx_flow_control_error(void) {
 
   setup_default_server(&conn);
 
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      1023;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = 1023;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -997,7 +1011,7 @@ void test_ngtcp2_conn_rx_flow_control(void) {
 
   setup_default_server(&conn);
 
-  conn->local.settings.transport_params.initial_max_data = 1024;
+  conn->local.transport_params.initial_max_data = 1024;
   conn->rx.window = 1024;
   conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
@@ -1057,7 +1071,7 @@ void test_ngtcp2_conn_rx_flow_control_error(void) {
 
   setup_default_server(&conn);
 
-  conn->local.settings.transport_params.initial_max_data = 1024;
+  conn->local.transport_params.initial_max_data = 1024;
   conn->rx.window = 1024;
   conn->rx.max_offset = 1024;
   conn->rx.unsent_max_offset = 1024;
@@ -1605,8 +1619,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
      connection-level flow control. */
   setup_default_server(&conn);
 
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      1 << 21;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = 1 << 21;
 
   fr.type = NGTCP2_FRAME_RESET_STREAM;
   fr.reset_stream.stream_id = 4;
@@ -1643,8 +1656,7 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
      control */
   setup_default_server(&conn);
 
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      1 << 21;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = 1 << 21;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.flags = 0;
@@ -2760,8 +2772,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should be sent */
   setup_default_server(&conn);
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      datalen;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2790,8 +2801,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
 
   /* MAX_STREAM_DATA should not be sent on incoming fin */
   setup_default_server(&conn);
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      datalen;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2821,8 +2831,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   /* MAX_STREAM_DATA should not be sent if STOP_SENDING frame is being
      sent by local endpoint */
   setup_default_server(&conn);
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      datalen;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -2856,8 +2865,7 @@ void test_ngtcp2_conn_send_max_stream_data(void) {
   /* MAX_STREAM_DATA should not be sent if stream is being reset by
      remote endpoint */
   setup_default_server(&conn);
-  conn->local.settings.transport_params.initial_max_stream_data_bidi_remote =
-      datalen;
+  conn->local.transport_params.initial_max_stream_data_bidi_remote = datalen;
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 4;
@@ -3277,8 +3285,8 @@ void test_ngtcp2_conn_recv_stream_data(void) {
     CU_ASSERT(0 == ud.stream_data.stream_id);
     CU_ASSERT(19 == conn->rx.offset);
     CU_ASSERT(19 == conn->rx.unsent_max_offset -
-                        conn->local.settings.transport_params.initial_max_data);
-    CU_ASSERT(conn->local.settings.transport_params.initial_max_data ==
+                        conn->local.transport_params.initial_max_data);
+    CU_ASSERT(conn->local.transport_params.initial_max_data ==
               conn->rx.max_offset);
   }
 
@@ -3315,7 +3323,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != ngtcp2_conn_find_stream(conn, 0));
   CU_ASSERT(199 == conn->rx.unsent_max_offset -
-                       conn->local.settings.transport_params.initial_max_data);
+                       conn->local.transport_params.initial_max_data);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 0;
@@ -3333,7 +3341,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(-1 == ud.stream_data.stream_id);
   CU_ASSERT(199 == conn->rx.unsent_max_offset -
-                       conn->local.settings.transport_params.initial_max_data);
+                       conn->local.transport_params.initial_max_data);
 
   fr.type = NGTCP2_FRAME_STREAM;
   fr.stream.stream_id = 0;
@@ -3351,7 +3359,7 @@ void test_ngtcp2_conn_recv_stream_data(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(-1 == ud.stream_data.stream_id);
   CU_ASSERT(199 == conn->rx.unsent_max_offset -
-                       conn->local.settings.transport_params.initial_max_data);
+                       conn->local.transport_params.initial_max_data);
 
   ngtcp2_conn_del(conn);
 
@@ -4374,7 +4382,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   /* Receiving more than advertised CID is treated as error */
   setup_default_server(&conn);
-  conn->local.settings.transport_params.active_connection_id_limit = 2;
+  conn->local.transport_params.active_connection_id_limit = 2;
 
   /* This will send NEW_CONNECTION_ID frames */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -5460,6 +5468,7 @@ void test_ngtcp2_conn_send_initial_token(void) {
   uint8_t buf[2048];
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
+  ngtcp2_transport_params params;
   ngtcp2_cid rcid, scid;
   ngtcp2_crypto_aead retry_aead = {0, NGTCP2_FAKE_AEAD_OVERHEAD};
   uint8_t token[] = "this is token";
@@ -5483,13 +5492,14 @@ void test_ngtcp2_conn_send_initial_token(void) {
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
   client_default_settings(&settings);
+  client_default_transport_params(&params);
 
   settings.token.base = token;
   settings.token.len = sizeof(token);
 
   ngtcp2_conn_client_new(&conn, &rcid, &scid, &null_path.path,
-                         NGTCP2_PROTO_VER_MAX, &cb, &settings, /* mem = */ NULL,
-                         NULL);
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
   ngtcp2_conn_set_initial_crypto_ctx(conn, &crypto_ctx);
   ngtcp2_conn_install_initial_key(conn, &aead_ctx, null_iv, &hp_ctx, &aead_ctx,
                                   null_iv, &hp_ctx, sizeof(null_iv));
