@@ -63,7 +63,8 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
       NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
 
   assert(quic_early_data_ctxlen > 0);
-  assert(quic_early_data_ctxlen <= quic_early_data_ctx.size());
+  assert(static_cast<size_t>(quic_early_data_ctxlen) <=
+         quic_early_data_ctx.size());
 
   if (SSL_set_quic_early_data_context(ssl_, quic_early_data_ctx.data(),
                                       quic_early_data_ctxlen) != 1) {
