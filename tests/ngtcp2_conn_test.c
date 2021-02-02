@@ -4774,12 +4774,11 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   CU_ASSERT(8 == ngtcp2_ksl_len(&conn->scid.set));
   CU_ASSERT(1 == conn->scid.num_retired);
 
-  /* Now time passed and still no NEW_CONNECTION_ID frames should be
-     sent */
+  /* Now time passed and retired connection ID is removed */
   t += 7 * NGTCP2_DEFAULT_INITIAL_RTT;
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
 
-  CU_ASSERT(spktlen == 0);
+  ngtcp2_conn_handle_expiry(conn, t);
+
   CU_ASSERT(7 == ngtcp2_ksl_len(&conn->scid.set));
   CU_ASSERT(0 == conn->scid.num_retired);
 

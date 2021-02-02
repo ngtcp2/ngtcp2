@@ -2708,8 +2708,9 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
  *     User-defined callback function failed.
  */
 static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
+                                             ngtcp2_duration pto,
                                              ngtcp2_tstamp ts) {
-  ngtcp2_duration timeout = conn_compute_pto(conn, &conn->pktns);
+  ngtcp2_duration timeout = pto;
   ngtcp2_scid *scid;
   ngtcp2_dcid *dcid;
   int rv;
@@ -9397,7 +9398,7 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
 
 int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
-  ngtcp2_duration pto;
+  ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
 
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
@@ -9414,10 +9415,13 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     }
   }
 
+  rv = conn_remove_retired_connection_id(conn, pto, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
   if (conn->server && conn->early.ckm &&
       conn->early.discard_started_ts != UINT64_MAX) {
-    pto = conn_compute_pto(conn, &conn->pktns);
-
     if (conn->early.discard_started_ts + 3 * pto <= ts) {
       conn_discard_early_key(conn);
     }
@@ -9928,11 +9932,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
-  }
-
-  rv = conn_remove_retired_connection_id(conn, ts);
-  if (rv != 0) {
-    return rv;
   }
 
   if (vmsg) {
