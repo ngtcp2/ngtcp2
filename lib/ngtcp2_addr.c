@@ -81,6 +81,7 @@ static int sockaddr_eq(const struct sockaddr *a, const struct sockaddr *b) {
   }
   default:
     assert(0);
+    abort();
   }
 }
 
@@ -123,6 +124,7 @@ uint32_t ngtcp2_addr_compare(const ngtcp2_addr *aa, const ngtcp2_addr *bb) {
   }
   default:
     assert(0);
+    abort();
   }
 }
 

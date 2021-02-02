@@ -1287,7 +1287,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
   if (type == NGTCP2_PKT_SHORT) {
     ack->ack_delay_unscaled = ts - largest_ack_ts;
     ack->ack_delay = ack->ack_delay_unscaled / NGTCP2_MICROSECONDS /
-                     (1UL << ack_delay_exponent);
+                     (1ULL << ack_delay_exponent);
   } else {
     ack->ack_delay_unscaled = 0;
     ack->ack_delay = 0;
@@ -4581,7 +4581,7 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
 static void assign_recved_ack_delay_unscaled(ngtcp2_ack *fr,
                                              uint64_t ack_delay_exponent) {
   fr->ack_delay_unscaled =
-      fr->ack_delay * (1UL << ack_delay_exponent) * NGTCP2_MICROSECONDS;
+      fr->ack_delay * (1ULL << ack_delay_exponent) * NGTCP2_MICROSECONDS;
 }
 
 /*
@@ -5063,6 +5063,7 @@ static size_t pkt_num_bits(size_t pkt_numlen) {
     return 32;
   default:
     assert(0);
+    abort();
   }
 }
 
@@ -8688,6 +8689,7 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return conn_recv_cpkt(conn, path, pi, pkt, pktlen, ts);
   default:
     assert(0);
+    abort();
   }
 }
 
