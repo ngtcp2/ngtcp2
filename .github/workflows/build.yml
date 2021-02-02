@@ -119,3 +119,17 @@ jobs:
             sleep 1
           done
         done
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Configure cmake
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build ngtcp2
+      run: |
+        cmake --build build
