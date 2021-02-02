@@ -424,6 +424,9 @@ struct ngtcp2_conn {
     ngtcp2_crypto_km *ckm;
     ngtcp2_crypto_cipher_ctx hp_ctx;
     ngtcp2_crypto_ctx ctx;
+    /* discard_started_ts is the timestamp when the timer to discard
+       early key has started.  Used by server only. */
+    ngtcp2_tstamp discard_started_ts;
   } early;
 
   struct {

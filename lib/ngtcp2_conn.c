@@ -915,6 +915,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->idle_ts = settings->initial_ts;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
   (*pconn)->tx.last_max_data_ts = UINT64_MAX;
+  (*pconn)->early.discard_started_ts = UINT64_MAX;
 
   conn_reset_ecn_validation_state(*pconn);
 
@@ -2347,6 +2348,22 @@ static void conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
                   "discarding Handshake packet number space");
 
   conn_discard_pktns(conn, &conn->hs_pktns, ts);
+}
+
+/*
+ * conn_discard_early_key discards early key.
+ */
+static void conn_discard_early_key(ngtcp2_conn *conn) {
+  assert(conn->early.ckm);
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "discarding early key");
+
+  conn_call_delete_crypto_aead_ctx(conn, &conn->early.ckm->aead_ctx);
+  conn_call_delete_crypto_cipher_ctx(conn, &conn->early.hp_ctx);
+  memset(&conn->early.hp_ctx, 0, sizeof(conn->early.hp_ctx));
+
+  ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
+  conn->early.ckm = NULL;
 }
 
 /*
@@ -8183,6 +8200,11 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     } else if (ckm->pkt_num > hd.pkt_num) {
       ckm->pkt_num = hd.pkt_num;
     }
+
+    if (conn->server && conn->early.ckm &&
+        conn->early.discard_started_ts == UINT64_MAX) {
+      conn->early.discard_started_ts = ts;
+    }
   }
 
   rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, require_ack, pkt_ts);
@@ -9288,6 +9310,8 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
     conn->remote.transport_params = conn->remote.pending_transport_params;
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
+  } else if (conn->early.ckm) {
+    conn_discard_early_key(conn);
   }
 
   return 0;
@@ -9317,7 +9341,7 @@ ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn) {
 }
 
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
-  ngtcp2_tstamp res = UINT64_MAX;
+  ngtcp2_tstamp res = UINT64_MAX, t;
   ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
   ngtcp2_scid *scid;
   ngtcp2_dcid *dcid;
@@ -9336,6 +9360,12 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
   if (ngtcp2_ringbuf_len(&conn->dcid.retired)) {
     dcid = ngtcp2_ringbuf_get(&conn->dcid.retired, 0);
     res = ngtcp2_min(res, dcid->ts_retired + pto);
+  }
+
+  if (conn->server && conn->early.ckm &&
+      conn->early.discard_started_ts != UINT64_MAX) {
+    t = conn->early.discard_started_ts + 3 * pto;
+    res = ngtcp2_min(res, t);
   }
 
   return res;
@@ -9363,6 +9393,7 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
 
 int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
+  ngtcp2_duration pto;
 
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
@@ -9376,6 +9407,15 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     rv = ngtcp2_conn_on_loss_detection_timer(conn, ts);
     if (rv != 0) {
       return rv;
+    }
+  }
+
+  if (conn->server && conn->early.ckm &&
+      conn->early.discard_started_ts != UINT64_MAX) {
+    pto = conn_compute_pto(conn, &conn->pktns);
+
+    if (conn->early.discard_started_ts + 3 * pto <= ts) {
+      conn_discard_early_key(conn);
     }
   }
 
