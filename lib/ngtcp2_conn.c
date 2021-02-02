@@ -7744,8 +7744,12 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       decrypt = conn->callbacks.decrypt;
       break;
     case NGTCP2_PKT_0RTT:
-      if (!conn->server || !conn->early.ckm) {
+      if (!conn->server) {
         return NGTCP2_ERR_DISCARD_PKT;
+      }
+
+      if (!conn->early.ckm) {
+        return (ngtcp2_ssize)pktlen;
       }
 
       pktns = &conn->pktns;
