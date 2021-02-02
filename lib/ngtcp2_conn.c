@@ -9430,7 +9430,7 @@ ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn) {
 }
 
 void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  ngtcp2_tstamp pto;
+  ngtcp2_duration pto;
 
   if (conn->in_pktns) {
     pto = conn_compute_pto(conn, conn->in_pktns);
