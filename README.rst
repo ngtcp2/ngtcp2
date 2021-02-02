@@ -191,6 +191,17 @@ Note that GnuTLS has some issues regarding early data. GnuTLS client
 cannot send early data and GnuTLS server will crash when it receives
 0RTT packet.
 
+The examples directory contains client and server that are linked to
+those crypto helper libraries and TLS backends.  They are only built
+if their corresponding crypto helper library is built:
+
+- client: OpenSSL client
+- server: OpenSSL server
+- gtlsclient: GnuTLS client
+- gtlsserver: GnuTLS server
+- bsslclient: BoringSSL client
+- bsslserver: BoringSSL server
+
 Configuring Wireshark for QUIC
 ------------------------------
 
