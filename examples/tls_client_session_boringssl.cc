@@ -24,6 +24,7 @@
  */
 #include "tls_client_session_boringssl.h"
 
+#include <cassert>
 #include <iostream>
 
 #include "tls_client_context_boringssl.h"
@@ -62,6 +63,10 @@ int TLSClientSession::init(bool &early_data_enabled,
     SSL_set_alpn_protos(ssl_, alpn, alpnlen);
     break;
   }
+  case AppProtocol::Perf:
+    /* TODO Not implemented yet */
+    assert(0);
+    break;
   }
 
   if (!config.sni.empty()) {

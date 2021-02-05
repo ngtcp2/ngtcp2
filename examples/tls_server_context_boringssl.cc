@@ -147,6 +147,29 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
 } // namespace
 
 namespace {
+int alpn_select_proto_perf_cb(SSL *ssl, const unsigned char **out,
+                              unsigned char *outlen, const unsigned char *in,
+                              unsigned int inlen, void *arg) {
+  constexpr static uint8_t alpn[] = "perf";
+  size_t alpnlen = str_size(alpn);
+
+  for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
+    if (std::equal(alpn, alpn + alpnlen, p)) {
+      *out = p + 1;
+      *outlen = *p;
+      return SSL_TLSEXT_ERR_OK;
+    }
+  }
+
+  if (!config.quiet) {
+    std::cerr << "Client did not present ALPN " << &alpn[1] << std::endl;
+  }
+
+  return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+} // namespace
+
+namespace {
 int set_read_secret(SSL *ssl, enum ssl_encryption_level_t ssl_level,
                     const SSL_CIPHER *cipher, const uint8_t *secret,
                     size_t secretlen) {
@@ -246,6 +269,9 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     break;
   case AppProtocol::HQ:
     SSL_CTX_set_alpn_select_cb(ssl_ctx_, alpn_select_proto_hq_cb, nullptr);
+    break;
+  case AppProtocol::Perf:
+    SSL_CTX_set_alpn_select_cb(ssl_ctx_, alpn_select_proto_perf_cb, nullptr);
     break;
   }
 

@@ -36,6 +36,7 @@ namespace ngtcp2 {
 enum class AppProtocol {
   H3,
   HQ,
+  Perf,
 };
 
 constexpr uint8_t HQ_ALPN[] = "\x5hq-29\x5hq-30\x5hq-31\x5hq-32\x2hq";
