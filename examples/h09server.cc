@@ -2651,7 +2651,7 @@ Options:
               The maximum length of a dynamically generated content.
               Default: )"
             << util::format_uint_iec(config.max_dyn_length) << R"(
-  --cc=(<cubic>|<reno>)
+  --cc=(cubic|reno)
               The name of congestion controller algorithm.
   --initial-rtt=<DURATION>
               Set an initial RTT.

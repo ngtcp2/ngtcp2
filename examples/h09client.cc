@@ -1757,7 +1757,7 @@ Options:
               Exit when all HTTP streams are closed.
   --disable-early-data
               Disable early data.
-  --cc=(<cubic>|<reno>)
+  --cc=(cubic|reno)
               The name of congestion controller algorithm.
   --token-file=<PATH>
               Read/write token from/to <PATH>.  Token is obtained from
