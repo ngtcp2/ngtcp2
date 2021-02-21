@@ -148,7 +148,7 @@ AX_CXX_COMPILE_STDCXX([17], [noext], [optional])
 
 # cunit
 have_cunit=no
-if test "x${have_cunit}" != "xno"; then
+if test "x${request_cunit}" != "xno"; then
   PKG_CHECK_MODULES([CUNIT], [cunit >= 2.1], [have_cunit=yes], [have_cunit=no])
   # If pkg-config does not find cunit, check it using AC_CHECK_LIB.  We
   # do this because Debian (Ubuntu) lacks pkg-config file for cunit.
