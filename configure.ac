@@ -171,8 +171,24 @@ if test "x${request_openssl}" != "xno"; then
     AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
   fi
   # Until OpenSSL gains mainline support for QUIC, check for a patched version.
-  AC_CHECK_LIB([ssl], [SSL_is_quic], [have_openssl_quic=yes],
-               [have_openssl_quic=no], [$OPENSSL_LIBS])
+  save_CFLAGS="$CFLAGS"
+  save_LIBS="$LIBS"
+  CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
+  LIBS="$OPENSSL_LIBS $LIBS"
+
+  AC_MSG_CHECKING([for SSL_is_quic])
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <openssl/ssl.h>
+  ]], [[
+    SSL *ssl = NULL;
+    SSL_is_quic(ssl);
+  ]])],
+  [AC_MSG_RESULT([yes]); have_openssl_quic=yes],
+  [AC_MSG_RESULT([no]); have_openssl_quic=no])
+
+  CFLAGS="$save_CFLAGS"
+  LIBS="$save_LIBS"
+
   if test "x${have_openssl}${have_openssl_quic}" = "xyesno"; then
     AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
     have_openssl=no
@@ -208,11 +224,23 @@ AM_CONDITIONAL([HAVE_GNUTLS], [ test "x${have_gnutls}" = "xyes" ])
 # BoringSSL (required for libngtcp2_crypto_boringssl)
 have_boringssl=no
 if test "x${request_boringssl}" != "xno"; then
-  save_LDFLAGS="$LDFLAGS"
-  LDFLAGS="$LDFLAGS $BORINGSSL_LIBS"
-  AC_CHECK_LIB([ssl], [SSL_set_quic_early_data_context],
-               [have_boringssl=yes], [have_boringssl=no], [$BORINGSSL_LIBS])
-  LDFLAGS="$save_LDFLAGS"
+  save_CFLAGS="$CFLAGS"
+  save_LIBS="$LIBS"
+  CFLAGS="$BORINGSSL_CFLAGS"
+  LIBS="$BORINGSSL_LIBS $LIBS"
+
+  AC_MSG_CHECKING([for SSL_set_quic_early_data_context])
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <openssl/ssl.h>
+  ]], [[
+    SSL *ssl = NULL;
+    SSL_set_quic_early_data_context(ssl, NULL, 0);
+  ]])],
+  [AC_MSG_RESULT([yes]); have_boringssl=yes],
+  [AC_MSG_RESULT([no]); have_boringssl=no])
+
+  CFLAGS="$save_CFLAGS"
+  LIBS="$save_LIBS"
 fi
 
 if test "x${request_boringssl}" = "xyes" &&
