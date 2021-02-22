@@ -129,7 +129,6 @@ int ngtcp2_map_each(ngtcp2_map *map,
 
 void ngtcp2_map_entry_init(ngtcp2_map_entry *entry, key_type key) {
   entry->key = key;
-  entry->next = NULL;
 }
 
 /* FNV1a hash */

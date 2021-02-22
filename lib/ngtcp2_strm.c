@@ -54,7 +54,6 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   strm->rx.window = strm->rx.max_offset = strm->rx.unsent_max_offset =
       max_rx_offset;
   strm->me.key = (uint64_t)stream_id;
-  strm->me.next = NULL;
   strm->pe.index = NGTCP2_PQ_BAD_INDEX;
   strm->mem = mem;
   strm->app_error_code = 0;
