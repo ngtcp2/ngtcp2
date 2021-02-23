@@ -756,7 +756,8 @@ int Handler::write_streams() {
     if (!sendq_.empty() && ngtcp2_conn_get_max_data_left(conn_)) {
       stream = *std::begin(sendq_);
 
-      auto n = std::min(stream->bytes_left, nulldata.size());
+      auto n =
+          std::min(stream->bytes_left, static_cast<uint64_t>(nulldata.size()));
 
       stream_id = stream->stream_id;
       vec.base = nulldata.data();
