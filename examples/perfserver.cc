@@ -549,7 +549,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   params.initial_max_stream_data_uni = config.max_stream_data_uni;
   params.initial_max_data = config.max_data;
   params.initial_max_streams_bidi = config.max_streams_bidi;
-  params.initial_max_streams_uni = 0;
+  params.initial_max_streams_uni = config.max_streams_uni;
   params.max_idle_timeout = config.timeout;
   params.stateless_reset_token_present = 1;
   params.active_connection_id_limit = 7;
@@ -970,28 +970,32 @@ int Handler::recv_stream_data(uint32_t flags, int64_t stream_id,
   }
 
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
-  auto &stream = (*it).second;
+  if (it != std::end(streams_)) {
+    assert(ngtcp2_is_bidi_stream(stream_id));
+    auto &stream = (*it).second;
 
-  if (stream->datalen != stream->data.size()) {
-    assert(stream->datalen < stream->data.size());
+    if (stream->datalen != stream->data.size()) {
+      assert(stream->datalen < stream->data.size());
 
-    auto n = std::min(stream->data.size() - stream->datalen, datalen);
-    std::copy_n(data, n, stream->data.data());
-    stream->datalen += n;
+      auto n = std::min(stream->data.size() - stream->datalen, datalen);
+      std::copy_n(data, n, stream->data.data());
+      stream->datalen += n;
 
-    if (stream->datalen == stream->data.size()) {
-      stream->bytes_left = (static_cast<uint64_t>(stream->data[0]) << 56) +
-                           (static_cast<uint64_t>(stream->data[1]) << 48) +
-                           (static_cast<uint64_t>(stream->data[2]) << 40) +
-                           (static_cast<uint64_t>(stream->data[3]) << 32) +
-                           (static_cast<uint64_t>(stream->data[4]) << 24) +
-                           (static_cast<uint64_t>(stream->data[5]) << 16) +
-                           (static_cast<uint64_t>(stream->data[6]) << 8) +
-                           static_cast<uint64_t>(stream->data[7]);
+      if (stream->datalen == stream->data.size()) {
+        stream->bytes_left = (static_cast<uint64_t>(stream->data[0]) << 56) +
+                             (static_cast<uint64_t>(stream->data[1]) << 48) +
+                             (static_cast<uint64_t>(stream->data[2]) << 40) +
+                             (static_cast<uint64_t>(stream->data[3]) << 32) +
+                             (static_cast<uint64_t>(stream->data[4]) << 24) +
+                             (static_cast<uint64_t>(stream->data[5]) << 16) +
+                             (static_cast<uint64_t>(stream->data[6]) << 8) +
+                             static_cast<uint64_t>(stream->data[7]);
 
-      stream->start_response();
+        stream->start_response();
+      }
     }
+  } else {
+    assert(!ngtcp2_is_bidi_stream(stream_id));
   }
 
   ngtcp2_conn_extend_max_stream_offset(conn_, stream_id, datalen);
@@ -1050,16 +1054,23 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   }
 
   auto it = streams_.find(stream_id);
-  assert(it != std::end(streams_));
-  auto &stream = (*it).second;
+  if (it != std::end(streams_)) {
+    assert(ngtcp2_is_bidi_stream(stream_id));
+    auto &stream = (*it).second;
 
-  sendq_.erase(stream.get());
+    sendq_.erase(stream.get());
 
-  streams_.erase(it);
+    streams_.erase(it);
+  } else {
+    assert(!ngtcp2_is_bidi_stream(stream_id));
+  }
+
+  assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
 
   if (ngtcp2_is_bidi_stream(stream_id)) {
-    assert(!ngtcp2_conn_is_local_stream(conn_, stream_id));
     ngtcp2_conn_extend_max_streams_bidi(conn_, 1);
+  } else {
+    ngtcp2_conn_extend_max_streams_uni(conn_, 1);
   }
 
   return 0;
@@ -2247,7 +2258,7 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
   config.max_streams_bidi = 100;
-  config.max_streams_uni = 3;
+  config.max_streams_uni = 100;
   config.max_dyn_length = 20_m;
   config.cc = "cubic"sv;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
