@@ -6321,10 +6321,6 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
       return 0;
     }
 
-    if (conn_initial_stream_rx_offset(conn, fr->stream_id) < fr->final_size ||
-        conn_max_data_violated(conn, fr->final_size)) {
-      return NGTCP2_ERR_FLOW_CONTROL;
-    }
     rv = ngtcp2_idtr_open(idtr, fr->stream_id);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
@@ -6332,6 +6328,11 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
       }
       assert(rv == NGTCP2_ERR_STREAM_IN_USE);
       return 0;
+    }
+
+    if (conn_initial_stream_rx_offset(conn, fr->stream_id) < fr->final_size ||
+        conn_max_data_violated(conn, fr->final_size)) {
+      return NGTCP2_ERR_FLOW_CONTROL;
     }
 
     /* Stream is reset before we create ngtcp2_strm object. */
