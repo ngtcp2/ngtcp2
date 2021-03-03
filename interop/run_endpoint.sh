@@ -32,6 +32,8 @@ if [ "$ROLE" == "client" ]; then
     CLIENT_ARGS="$SERVER 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
+    else
+	CLIENT_ARGS="$CLIENT_ARGS -v 0x1"
     fi
     if [ "$TESTCASE" == "chacha20" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --ciphers=TLS_CHACHA20_POLY1305_SHA256"
