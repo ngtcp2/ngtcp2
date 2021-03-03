@@ -39,12 +39,12 @@ enum class AppProtocol {
   Perf,
 };
 
-constexpr uint8_t HQ_ALPN[] = "\x5hq-29\x5hq-30\x5hq-31\x5hq-32\x2hq";
+constexpr uint8_t HQ_ALPN[] = "\x5hq-29\x5hq-30\x5hq-31\x5hq-32\xahq-interop";
 constexpr uint8_t HQ_ALPN_DRAFT29[] = "\x5hq-29";
 constexpr uint8_t HQ_ALPN_DRAFT30[] = "\x5hq-30";
 constexpr uint8_t HQ_ALPN_DRAFT31[] = "\x5hq-31";
 constexpr uint8_t HQ_ALPN_DRAFT32[] = "\x5hq-32";
-constexpr uint8_t HQ_ALPN_V1[] = "\x2hq";
+constexpr uint8_t HQ_ALPN_V1[] = "\xahq-interop";
 
 constexpr uint8_t H3_ALPN[] = "\x5h3-29\x5h3-30\x5h3-31\x5h3-32\x2h3";
 constexpr uint8_t H3_ALPN_DRAFT29[] = "\x5h3-29";
