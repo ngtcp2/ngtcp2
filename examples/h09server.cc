@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <netinet/udp.h>
+#include <net/if.h>
 
 #include <http-parser/http_parser.h>
 
@@ -420,9 +421,7 @@ fail:
 } // namespace
 
 Handler::Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid)
-    : endpoint_{nullptr},
-      remote_addr_{},
-      max_pktlen_(0),
+    : max_pktlen_(0),
       loop_(loop),
       server_(server),
       qlog_(nullptr),
@@ -481,8 +480,9 @@ int Handler::handshake_completed() {
   std::array<uint8_t, MAX_TOKENLEN> token;
   size_t tokenlen = token.size();
 
-  if (server_->generate_token(token.data(), tokenlen, &remote_addr_.su.sa) !=
-      0) {
+  auto path = ngtcp2_conn_get_path(conn_);
+
+  if (server_->generate_token(token.data(), tokenlen, path->remote.addr) != 0) {
     if (!config.quiet) {
       std::cerr << "Unable to generate token" << std::endl;
     }
@@ -716,19 +716,15 @@ void Handler::write_qlog(const void *data, size_t datalen) {
   fwrite(data, 1, datalen, qlog_);
 }
 
-int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
-                  const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                  const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
-                  uint32_t version, const TLSServerContext &tls_ctx) {
-  endpoint_ = const_cast<Endpoint *>(&ep);
-
-  remote_addr_.len = salen;
-  memcpy(&remote_addr_.su.sa, sa, salen);
-
+int Handler::init(const Endpoint &ep, const Address &local_addr,
+                  const sockaddr *sa, socklen_t salen, const ngtcp2_cid *dcid,
+                  const ngtcp2_cid *scid, const ngtcp2_cid *ocid,
+                  const uint8_t *token, size_t tokenlen, uint32_t version,
+                  const TLSServerContext &tls_ctx) {
   if (config.max_udp_payload_size) {
     max_pktlen_ = config.max_udp_payload_size;
   } else {
-    switch (remote_addr_.su.storage.ss_family) {
+    switch (sa->sa_family) {
     case AF_INET:
       max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
       break;
@@ -857,9 +853,10 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     params.preferred_address.cid = pscid_;
   }
 
-  auto path = ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa),
-                           const_cast<Endpoint *>(&ep)},
-                          {salen, const_cast<sockaddr *>(sa)}};
+  auto path =
+      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa),
+                   const_cast<Endpoint *>(&ep)},
+                  {salen, const_cast<sockaddr *>(sa)}};
   if (auto rv =
           ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version,
                                  &callbacks, &settings, &params, nullptr, this);
@@ -876,7 +873,7 @@ int Handler::init(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
 
   ngtcp2_conn_set_tls_native_handle(conn_, tls_session_.get_native_handle());
 
-  ev_io_set(&wev_, endpoint_->fd, EV_WRITE);
+  ev_io_set(&wev_, ep.fd, EV_WRITE);
   ev_timer_again(loop_, &timer_);
 
   return 0;
@@ -888,29 +885,14 @@ int Handler::recv_crypto_data(ngtcp2_crypto_level crypto_level,
                                               datalen);
 }
 
-void Handler::update_endpoint(const ngtcp2_addr *addr) {
-  endpoint_ = static_cast<Endpoint *>(addr->user_data);
-  assert(endpoint_);
-}
-
-void Handler::update_remote_addr(const ngtcp2_addr *addr,
-                                 const ngtcp2_pkt_info *pi) {
-  remote_addr_.len = addr->addrlen;
-  memcpy(&remote_addr_.su, addr->addr, addr->addrlen);
-
-  if (pi) {
-    ecn_ = pi->ecn;
-  } else {
-    ecn_ = 0;
-  }
-}
-
-int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
+int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
+                       const sockaddr *sa, socklen_t salen,
                        const ngtcp2_pkt_info *pi, uint8_t *data,
                        size_t datalen) {
-  auto path = ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa),
-                           const_cast<Endpoint *>(&ep)},
-                          {salen, const_cast<sockaddr *>(sa)}};
+  auto path =
+      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa),
+                   const_cast<Endpoint *>(&ep)},
+                  {salen, const_cast<sockaddr *>(sa)}};
 
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
                                      util::timestamp(loop_));
@@ -943,9 +925,11 @@ int Handler::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
   return 0;
 }
 
-int Handler::on_read(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
+int Handler::on_read(const Endpoint &ep, const Address &local_addr,
+                     const sockaddr *sa, socklen_t salen,
                      const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen) {
-  if (auto rv = feed_data(ep, sa, salen, pi, data, datalen); rv != 0) {
+  if (auto rv = feed_data(ep, local_addr, sa, salen, pi, data, datalen);
+      rv != 0) {
     return rv;
   }
 
@@ -999,7 +983,8 @@ int Handler::on_write() {
 
 int Handler::write_streams() {
   ngtcp2_vec vec;
-  PathStorage path;
+  PathStorage path, prev_path;
+  uint32_t prev_ecn;
   size_t pktcnt = 0;
   size_t max_pktcnt = std::min(static_cast<size_t>(10),
                                static_cast<size_t>(64_k / max_pktlen_));
@@ -1059,8 +1044,10 @@ int Handler::write_streams() {
 
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
-        server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
-                             bufpos - buf.data(), max_pktlen_);
+        server_->send_packet(
+            *static_cast<Endpoint *>(prev_path.path.local.user_data),
+            prev_path.path.local, prev_path.path.remote, prev_ecn, buf.data(),
+            bufpos - buf.data(), max_pktlen_);
         reset_idle_timer();
       }
       // We are congestion limited.
@@ -1071,38 +1058,36 @@ int Handler::write_streams() {
 
 #if NGTCP2_ENABLE_UDP_GSO
     if (pktcnt == 0) {
-      update_endpoint(&path.path.local);
-      update_remote_addr(&path.path.remote, &pi);
-    } else if (remote_addr_.len != path.path.remote.addrlen ||
-               0 != memcmp(&remote_addr_.su, path.path.remote.addr,
-                           path.path.remote.addrlen) ||
-               endpoint_ != path.path.local.user_data || ecn_ != pi.ecn) {
-      server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
-                           bufpos - buf.data() - nwrite, max_pktlen_);
+      ngtcp2_path_copy(&prev_path.path, &path.path);
+      prev_ecn = pi.ecn;
+    } else if (!ngtcp2_path_eq(&prev_path.path, &path.path) ||
+               prev_ecn != pi.ecn) {
+      server_->send_packet(
+          *static_cast<Endpoint *>(prev_path.path.local.user_data),
+          prev_path.path.local, prev_path.path.remote, prev_ecn, buf.data(),
+          bufpos - buf.data() - nwrite, max_pktlen_);
 
-      update_endpoint(&path.path.local);
-      update_remote_addr(&path.path.remote, &pi);
-
-      server_->send_packet(*endpoint_, remote_addr_, ecn_, bufpos - nwrite,
-                           nwrite, max_pktlen_);
+      server_->send_packet(*static_cast<Endpoint *>(path.path.local.user_data),
+                           path.path.local, path.path.remote, pi.ecn,
+                           bufpos - nwrite, nwrite, max_pktlen_);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
       return 0;
     }
 
     if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < max_pktlen_) {
-      server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
-                           bufpos - buf.data(), max_pktlen_);
+      server_->send_packet(*static_cast<Endpoint *>(path.path.local.user_data),
+                           path.path.local, path.path.remote, pi.ecn,
+                           buf.data(), bufpos - buf.data(), max_pktlen_);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
       return 0;
     }
 #else  // !NGTCP2_ENABLE_UDP_GSO
-    update_endpoint(&path.path.local);
-    update_remote_addr(&path.path.remote, &pi);
     reset_idle_timer();
 
-    server_->send_packet(*endpoint_, remote_addr_, ecn_, buf.data(),
+    server_->send_packet(*static_cast<Endpoint *>(path.path.local.user_data),
+                         path.path.local, path.path.remote, pi.ecn, buf.data(),
                          bufpos - buf.data(), 0);
     if (++pktcnt == max_pktcnt) {
       ev_io_start(loop_, &wev_);
@@ -1175,9 +1160,6 @@ int Handler::start_closing_period() {
     conn_closebuf_->push(n);
   }
 
-  update_endpoint(&path.path.local);
-  update_remote_addr(&path.path.remote, &pi);
-
   return 0;
 }
 
@@ -1199,8 +1181,12 @@ int Handler::send_conn_close() {
   }
 
   assert(conn_closebuf_ && conn_closebuf_->size());
+  assert(conn_);
 
-  return server_->send_packet(*endpoint_, remote_addr_, 0,
+  auto path = ngtcp2_conn_get_path(conn_);
+
+  return server_->send_packet(*static_cast<Endpoint *>(path->local.user_data),
+                              path->local, path->remote, /* ecn = */ 0,
                               conn_closebuf_->rpos(), conn_closebuf_->size(),
                               0);
 }
@@ -1333,8 +1319,6 @@ const ngtcp2_cid *Handler::rcid() const { return &rcid_; }
 
 Server *Handler::server() const { return server_; }
 
-const Address &Handler::remote_addr() const { return remote_addr_; }
-
 int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
   if (!config.quiet) {
     std::cerr << "QUIC stream " << stream_id << " closed" << std::endl;
@@ -1458,6 +1442,16 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
         close(fd);
         continue;
       }
+
+      if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &val,
+                     static_cast<socklen_t>(sizeof(val))) == -1) {
+        close(fd);
+        continue;
+      }
+    } else if (setsockopt(fd, IPPROTO_IP, IP_PKTINFO, &val,
+                          static_cast<socklen_t>(sizeof(val))) == -1) {
+      close(fd);
+      continue;
     }
 
     if (bind(fd, rp->ai_addr, rp->ai_addrlen) != -1) {
@@ -1521,9 +1515,22 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
   }
 
   int val = 1;
-  if (addr.su.sa.sa_family == AF_INET6 &&
-      setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val,
-                 static_cast<socklen_t>(sizeof(val)))) {
+  if (addr.su.sa.sa_family == AF_INET6) {
+    if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      std::cerr << "setsockopt: " << strerror(errno) << std::endl;
+      close(fd);
+      return -1;
+    }
+
+    if (setsockopt(fd, IPPROTO_IPV6, IPV6_RECVPKTINFO, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      std::cerr << "setsockopt: " << strerror(errno) << std::endl;
+      close(fd);
+      return -1;
+    }
+  } else if (setsockopt(fd, IPPROTO_IP, IP_PKTINFO, &val,
+                        static_cast<socklen_t>(sizeof(val))) == -1) {
     std::cerr << "setsockopt: " << strerror(errno) << std::endl;
     close(fd);
     return -1;
@@ -1608,7 +1615,9 @@ int Server::on_read(Endpoint &ep) {
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t))];
+  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t)) +
+                   std::max(CMSG_SPACE(sizeof(in_pktinfo)),
+                            CMSG_SPACE(sizeof(in6_pktinfo)))];
   msg.msg_control = msg_ctrl;
 
   for (; pktcnt < 10;) {
@@ -1626,11 +1635,20 @@ int Server::on_read(Endpoint &ep) {
     ++pktcnt;
 
     pi.ecn = msghdr_get_ecn(&msg, su.storage.ss_family);
+    auto local_addr = msghdr_get_local_addr(&msg, su.storage.ss_family);
+    if (!local_addr) {
+      std::cerr << "Unable to obtain local address" << std::endl;
+      continue;
+    }
+
+    set_port(*local_addr, ep.addr);
 
     if (!config.quiet) {
+      std::array<char, IF_NAMESIZE> ifname;
       std::cerr << "Received packet: local="
-                << util::straddr(&ep.addr.su.sa, ep.addr.len)
+                << util::straddr(&local_addr->su.sa, local_addr->len)
                 << " remote=" << util::straddr(&su.sa, msg.msg_namelen)
+                << " if=" << if_indextoname(local_addr->ifindex, ifname.data())
                 << " ecn=0x" << std::hex << pi.ecn << std::dec << " " << nread
                 << " bytes" << std::endl;
     }
@@ -1656,7 +1674,7 @@ int Server::on_read(Endpoint &ep) {
         rv != 0) {
       if (rv == 1) {
         send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
-                                 &su.sa, msg.msg_namelen);
+                                 *local_addr, &su.sa, msg.msg_namelen);
         continue;
       }
       std::cerr << "Could not decode version and CID from QUIC packet header: "
@@ -1682,8 +1700,8 @@ int Server::on_read(Endpoint &ep) {
                       << std::endl;
           }
           send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
-                                   hd.dcid.data, hd.dcid.datalen, ep, &su.sa,
-                                   msg.msg_namelen);
+                                   hd.dcid.data, hd.dcid.datalen, ep,
+                                   *local_addr, &su.sa, msg.msg_namelen);
           continue;
         }
 
@@ -1694,13 +1712,14 @@ int Server::on_read(Endpoint &ep) {
           if (config.validate_addr || hd.token.len) {
             std::cerr << "Perform stateless address validation" << std::endl;
             if (hd.token.len == 0) {
-              send_retry(&hd, ep, &su.sa, msg.msg_namelen);
+              send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
               continue;
             }
 
             if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
                 hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
-              send_stateless_connection_close(&hd, ep, &su.sa, msg.msg_namelen);
+              send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
+                                              msg.msg_namelen);
               continue;
             }
 
@@ -1708,7 +1727,7 @@ int Server::on_read(Endpoint &ep) {
             case RETRY_TOKEN_MAGIC:
               if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) !=
                   0) {
-                send_stateless_connection_close(&hd, ep, &su.sa,
+                send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
                                                 msg.msg_namelen);
                 continue;
               }
@@ -1717,7 +1736,7 @@ int Server::on_read(Endpoint &ep) {
             case TOKEN_MAGIC:
               if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
                 if (config.validate_addr) {
-                  send_retry(&hd, ep, &su.sa, msg.msg_namelen);
+                  send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
                   continue;
                 }
 
@@ -1730,7 +1749,7 @@ int Server::on_read(Endpoint &ep) {
                 std::cerr << "Ignore unrecognized token" << std::endl;
               }
               if (config.validate_addr) {
-                send_retry(&hd, ep, &su.sa, msg.msg_namelen);
+                send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
                 continue;
               }
 
@@ -1741,22 +1760,23 @@ int Server::on_read(Endpoint &ep) {
           }
           break;
         case NGTCP2_PKT_0RTT:
-          send_retry(&hd, ep, &su.sa, msg.msg_namelen);
+          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
           continue;
         }
 
         auto h = std::make_unique<Handler>(loop_, this, &hd.dcid);
-        if (h->init(ep, &su.sa, msg.msg_namelen, &hd.scid, &hd.dcid, pocid,
-                    hd.token.base, hd.token.len, hd.version, tls_ctx_) != 0) {
+        if (h->init(ep, *local_addr, &su.sa, msg.msg_namelen, &hd.scid,
+                    &hd.dcid, pocid, hd.token.base, hd.token.len, hd.version,
+                    tls_ctx_) != 0) {
           continue;
         }
 
-        switch (
-            h->on_read(ep, &su.sa, msg.msg_namelen, &pi, buf.data(), nread)) {
+        switch (h->on_read(ep, *local_addr, &su.sa, msg.msg_namelen, &pi,
+                           buf.data(), nread)) {
         case 0:
           break;
         case NETWORK_ERR_RETRY:
-          send_retry(&hd, ep, &su.sa, msg.msg_namelen);
+          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
           continue;
         default:
           continue;
@@ -1806,8 +1826,8 @@ int Server::on_read(Endpoint &ep) {
       continue;
     }
 
-    if (auto rv =
-            h->on_read(ep, &su.sa, msg.msg_namelen, &pi, buf.data(), nread);
+    if (auto rv = h->on_read(ep, *local_addr, &su.sa, msg.msg_namelen, &pi,
+                             buf.data(), nread);
         rv != 0) {
       if (rv != NETWORK_ERR_CLOSE_WAIT) {
         remove(h);
@@ -1847,6 +1867,7 @@ uint32_t generate_reserved_version(const sockaddr *sa, socklen_t salen,
 int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
                                      size_t dcidlen, const uint8_t *scid,
                                      size_t scidlen, Endpoint &ep,
+                                     const Address &local_addr,
                                      const sockaddr *sa, socklen_t salen) {
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
   std::array<uint32_t, 16> sv;
@@ -1876,11 +1897,10 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
 
   buf.push(nwrite);
 
-  Address remote_addr;
-  remote_addr.len = salen;
-  memcpy(&remote_addr.su.sa, sa, salen);
+  ngtcp2_addr laddr{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)};
+  ngtcp2_addr raddr{salen, const_cast<sockaddr *>(sa)};
 
-  if (send_packet(ep, remote_addr, 0, buf.rpos(), buf.size(), 0) !=
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -1889,7 +1909,8 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
 }
 
 int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
-                       const sockaddr *sa, socklen_t salen) {
+                       const Address &local_addr, const sockaddr *sa,
+                       socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;
 
@@ -1937,11 +1958,10 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
 
   buf.push(nwrite);
 
-  Address remote_addr;
-  remote_addr.len = salen;
-  memcpy(&remote_addr.su.sa, sa, salen);
+  ngtcp2_addr laddr{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)};
+  ngtcp2_addr raddr{salen, const_cast<sockaddr *>(sa)};
 
-  if (send_packet(ep, remote_addr, 0, buf.rpos(), buf.size(), 0) !=
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -1950,7 +1970,9 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
 }
 
 int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
-                                            Endpoint &ep, const sockaddr *sa,
+                                            Endpoint &ep,
+                                            const Address &local_addr,
+                                            const sockaddr *sa,
                                             socklen_t salen) {
   Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
 
@@ -1964,11 +1986,10 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
 
   buf.push(nwrite);
 
-  Address remote_addr;
-  remote_addr.len = salen;
-  memcpy(&remote_addr.su.sa, sa, salen);
+  ngtcp2_addr laddr{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)};
+  ngtcp2_addr raddr{salen, const_cast<sockaddr *>(sa)};
 
-  if (send_packet(ep, remote_addr, 0, buf.rpos(), buf.size(), 0) !=
+  if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
     return -1;
   }
@@ -2375,9 +2396,9 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
   return 0;
 }
 
-int Server::send_packet(Endpoint &ep, const Address &remote_addr,
-                        unsigned int ecn, const uint8_t *data, size_t datalen,
-                        size_t gso_size) {
+int Server::send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
+                        const ngtcp2_addr &remote_addr, unsigned int ecn,
+                        const uint8_t *data, size_t datalen, size_t gso_size) {
   if (debug::packet_lost(config.tx_loss_prob)) {
     if (!config.quiet) {
       std::cerr << "** Simulated outgoing packet loss **" << std::endl;
@@ -2390,24 +2411,65 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr,
   msg_iov.iov_len = datalen;
 
   msghdr msg{};
-  msg.msg_name = const_cast<sockaddr *>(&remote_addr.su.sa);
-  msg.msg_namelen = remote_addr.len;
+  msg.msg_name = const_cast<sockaddr *>(remote_addr.addr);
+  msg.msg_namelen = remote_addr.addrlen;
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
+  std::array<uint8_t,
 #if NGTCP2_ENABLE_UDP_GSO
-  std::array<uint8_t, CMSG_SPACE(sizeof(uint16_t))> msg_ctrl{};
-  if (gso_size && datalen > gso_size) {
-    msg.msg_control = msg_ctrl.data();
-    msg.msg_controllen = msg_ctrl.size();
+             CMSG_SPACE(sizeof(uint16_t)) +
+#endif // NGTCP2_ENABLE_UDP_GSO
+                 std::max(CMSG_SPACE(sizeof(in_pktinfo)),
+                          CMSG_SPACE(sizeof(in6_pktinfo)))>
+      msg_ctrl{};
 
-    auto cm = CMSG_FIRSTHDR(&msg);
+  msg.msg_control = msg_ctrl.data();
+  msg.msg_controllen = msg_ctrl.size();
+
+  size_t controllen = 0;
+
+  auto cm = CMSG_FIRSTHDR(&msg);
+
+  switch (local_addr.addr->sa_family) {
+  case AF_INET: {
+    controllen += CMSG_SPACE(sizeof(in_pktinfo));
+    cm->cmsg_level = IPPROTO_IP;
+    cm->cmsg_type = IP_PKTINFO;
+    cm->cmsg_len = CMSG_LEN(sizeof(in_pktinfo));
+    auto pktinfo = reinterpret_cast<in_pktinfo *>(CMSG_DATA(cm));
+    memset(pktinfo, 0, sizeof(in_pktinfo));
+    auto addrin = reinterpret_cast<sockaddr_in *>(local_addr.addr);
+    pktinfo->ipi_spec_dst = addrin->sin_addr;
+    break;
+  }
+  case AF_INET6: {
+    controllen += CMSG_SPACE(sizeof(in6_pktinfo));
+    cm->cmsg_level = IPPROTO_IPV6;
+    cm->cmsg_type = IPV6_PKTINFO;
+    cm->cmsg_len = CMSG_LEN(sizeof(in6_pktinfo));
+    auto pktinfo = reinterpret_cast<in6_pktinfo *>(CMSG_DATA(cm));
+    memset(pktinfo, 0, sizeof(in6_pktinfo));
+    auto addrin = reinterpret_cast<sockaddr_in6 *>(local_addr.addr);
+    pktinfo->ipi6_addr = addrin->sin6_addr;
+    break;
+  }
+  default:
+    assert(0);
+  }
+
+#if NGTCP2_ENABLE_UDP_GSO
+  if (gso_size && datalen > gso_size) {
+    controllen += CMSG_SPACE(sizeof(uint16_t));
+    cm = CMSG_NXTHDR(&msg, cm);
     cm->cmsg_level = SOL_UDP;
     cm->cmsg_type = UDP_SEGMENT;
     cm->cmsg_len = CMSG_LEN(sizeof(uint16_t));
     *(reinterpret_cast<uint16_t *>(CMSG_DATA(cm))) = gso_size;
   }
 #endif // NGTCP2_ENABLE_UDP_GSO
+
+  msg.msg_controllen = controllen;
 
   if (ep.ecn != ecn) {
     ep.ecn = ecn;
@@ -2429,10 +2491,11 @@ int Server::send_packet(Endpoint &ep, const Address &remote_addr,
 
   if (!config.quiet) {
     std::cerr << "Sent packet: local="
-              << util::straddr(&ep.addr.su.sa, ep.addr.len) << " remote="
-              << util::straddr(&remote_addr.su.sa, remote_addr.len) << " ecn=0x"
-              << std::hex << ecn << std::dec << " " << nwrite << " bytes"
-              << std::endl;
+              << util::straddr(local_addr.addr, local_addr.addrlen)
+              << " remote="
+              << util::straddr(remote_addr.addr, remote_addr.addrlen)
+              << " ecn=0x" << std::hex << ecn << std::dec << " " << nwrite
+              << " bytes" << std::endl;
   }
 
   return NETWORK_ERR_OK;
