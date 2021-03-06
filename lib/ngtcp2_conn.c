@@ -10958,6 +10958,10 @@ const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn) {
   return &conn->dcid.current.ps.path.remote;
 }
 
+const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn) {
+  return &conn->dcid.current.ps.path;
+}
+
 int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn, const ngtcp2_path *path,
                                    ngtcp2_tstamp ts) {
   int rv;

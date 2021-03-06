@@ -4350,6 +4350,13 @@ NGTCP2_EXTERN const ngtcp2_addr *ngtcp2_conn_get_remote_addr(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_path` returns the current path.
+ */
+NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_initiate_migration` starts connection migration to the
  * given |path| which must not be ``NULL``.  Only client can initiate
  * migration.  This function does immediate migration; it does not
@@ -4799,6 +4806,23 @@ typedef enum {
  */
 NGTCP2_EXTERN void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev,
                                    const char *fmt, ...);
+
+/**
+ * @function
+ *
+ * `ngtcp2_path_copy` copies |src| into |dest|.  This function assumes
+ * that |dest| has enough buffer to store the deep copy of src->local
+ * and src->remote.
+ */
+NGTCP2_EXTERN void ngtcp2_path_copy(ngtcp2_path *dest, const ngtcp2_path *src);
+
+/**
+ * @function
+ *
+ * `ngtcp2_path_eq` returns nonzero if |a| and |b| shares the same
+ * local and remote addresses.
+ */
+NGTCP2_EXTERN int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
 
 #ifdef __cplusplus
 }
