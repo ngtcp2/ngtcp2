@@ -617,7 +617,7 @@ AC_MSG_NOTICE([summary of build options:
       OpenSSL:        ${have_openssl} (CFLAGS='${OPENSSL_CFLAGS}' LIBS='${OPENSSL_LIBS}')
       Libev:          ${have_libev} (CFLAGS='${LIBEV_CFLAGS}' LIBS='${LIBEV_LIBS}')
       Libnghttp3:     ${have_libnghttp3} (CFLAGS='${LIBNGHTTP3_CFLAGS}' LIBS='${LIBNGHTTP3_LIBS}')
-      Jemalloc:       ${have_jemalloc} (LIBS='${JEMALLOC_LIBS}')
+      Jemalloc:       ${have_jemalloc} (CFLAGS='${JEMALLOC_CFLAGS}' LIBS='${JEMALLOC_LIBS}')
       GnuTLS:         ${have_gnutls} (CFLAGS='${GNUTLS_CFLAGS}' LIBS='${GNUTLS_LIBS}')
       BoringSSL:      ${have_boringssl} (CFLAGS='${BORINGSSL_CFLAGS}' LIBS='${BORINGSSL_LIBS}')
     Examples:         ${enable_examples}
