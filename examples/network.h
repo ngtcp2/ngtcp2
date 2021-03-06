@@ -65,6 +65,7 @@ union sockaddr_union {
 struct Address {
   socklen_t len;
   union sockaddr_union su;
+  uint32_t ifindex;
 };
 
 struct PathStorage {

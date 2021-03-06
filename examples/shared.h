@@ -29,7 +29,11 @@
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
+#include <optional>
+
 #include <ngtcp2/ngtcp2.h>
+
+#include "network.h"
 
 namespace ngtcp2 {
 
@@ -92,6 +96,10 @@ void fd_set_ecn(int fd, int family, unsigned int ecn);
 // fd_set_recv_ecn sets socket option to |fd| so that it can receive
 // ECN bits.
 void fd_set_recv_ecn(int fd, int family);
+
+std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family);
+
+void set_port(Address &dst, Address &src);
 
 } // namespace ngtcp2
 
