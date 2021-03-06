@@ -30,7 +30,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/third-party \
 	@LIBEV_CFLAGS@ \
 	@LIBNGHTTP3_CFLAGS@ \
-	@DEFS@
+	@DEFS@ \
+	@EXTRA_DEFS@
 AM_LDFLAGS = -no-install \
 	@LIBTOOL_LDFLAGS@
 LDADD = $(top_builddir)/lib/libngtcp2.la \

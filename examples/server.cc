@@ -1705,7 +1705,7 @@ int Handler::on_write() {
 int Handler::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   PathStorage path, prev_path;
-  uint32_t prev_ecn;
+  uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
   size_t max_pktcnt = std::min(static_cast<size_t>(10),
                                static_cast<size_t>(64_k / max_pktlen_));
@@ -2321,9 +2321,8 @@ int Server::on_read(Endpoint &ep) {
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  uint8_t msg_ctrl[CMSG_SPACE(sizeof(uint8_t)) +
-                   std::max(CMSG_SPACE(sizeof(in_pktinfo)),
-                            CMSG_SPACE(sizeof(in6_pktinfo)))];
+  uint8_t
+      msg_ctrl[CMSG_SPACE(sizeof(uint8_t)) + CMSG_SPACE(sizeof(in6_pktinfo))];
   msg.msg_control = msg_ctrl;
 
   for (; pktcnt < 10;) {
@@ -3122,16 +3121,16 @@ int Server::send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
-  std::array<uint8_t,
+  uint8_t msg_ctrl[
 #if NGTCP2_ENABLE_UDP_GSO
-             CMSG_SPACE(sizeof(uint16_t)) +
+      CMSG_SPACE(sizeof(uint16_t)) +
 #endif // NGTCP2_ENABLE_UDP_GSO
-                 std::max(CMSG_SPACE(sizeof(in_pktinfo)),
-                          CMSG_SPACE(sizeof(in6_pktinfo)))>
-      msg_ctrl{};
+      CMSG_SPACE(sizeof(in6_pktinfo))];
 
-  msg.msg_control = msg_ctrl.data();
-  msg.msg_controllen = msg_ctrl.size();
+  memset(msg_ctrl, 0, sizeof(msg_ctrl));
+
+  msg.msg_control = msg_ctrl;
+  msg.msg_controllen = sizeof(msg_ctrl);
 
   size_t controllen = 0;
 

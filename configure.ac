@@ -144,6 +144,13 @@ PKG_PROG_PKG_CONFIG([0.20])
 
 AX_CXX_COMPILE_STDCXX([17], [noext], [optional])
 
+case "${build}" in
+  *-apple-darwin*)
+    EXTRA_DEFS="-D__APPLE_USE_RFC_3542"
+    AC_SUBST([EXTRA_DEFS])
+    ;;
+esac
+
 # Checks for libraries.
 
 # cunit
