@@ -298,6 +298,14 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
+ * :macro:`NGTCP2_MAX_VARINT` is the maximum value which can be
+ * encoded in variable-length integer encoding.
+ */
+#define NGTCP2_MAX_VARINT ((1ULL << 62) - 1)
+
+/**
+ * @macro
+ *
  * :macro:`NGTCP2_STATELESS_RESET_TOKENLEN` is the length of Stateless
  * Reset Token.
  */
