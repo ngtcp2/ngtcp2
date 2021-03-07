@@ -71,11 +71,11 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
   return 0;
 }
 
-std::pair<std::string, int> read_token(const std::string_view &filename) {
+std::optional<std::string> read_token(const std::string_view &filename) {
   auto f = BIO_new_file(filename.data(), "r");
   if (f == nullptr) {
     std::cerr << "Could not open token file " << filename << std::endl;
-    return {"", -1};
+    return {};
   }
 
   auto f_d = defer(BIO_free, f);
@@ -86,7 +86,7 @@ std::pair<std::string, int> read_token(const std::string_view &filename) {
   std::string token;
   if (PEM_read_bio(f, &name, &header, &data, &datalen) != 1) {
     std::cerr << "Could not read token file " << filename << std::endl;
-    return {"", -1};
+    return {};
   }
 
   OPENSSL_free(name);
@@ -96,7 +96,7 @@ std::pair<std::string, int> read_token(const std::string_view &filename) {
 
   OPENSSL_free(data);
 
-  return {res, 0};
+  return res;
 }
 
 int write_token(const std::string_view &filename, const uint8_t *token,

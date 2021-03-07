@@ -318,51 +318,56 @@ std::string format_duration(ngtcp2_duration n) {
 }
 
 namespace {
-std::tuple<uint64_t, size_t, int>
+std::optional<std::pair<uint64_t, size_t>>
 parse_uint_internal(const std::string_view &s) {
   uint64_t res = 0;
 
   if (s.empty()) {
-    return {0, 0, -1};
+    return {};
   }
 
   for (size_t i = 0; i < s.size(); ++i) {
     auto c = s[i];
     if (c < '0' || '9' < c) {
-      return {res, i, 0};
+      return {{res, i}};
     }
 
     auto d = c - '0';
     if (res > (std::numeric_limits<uint64_t>::max() - d) / 10) {
-      return {0, i, -1};
+      return {};
     }
 
     res *= 10;
     res += d;
   }
 
-  return {res, s.size(), 0};
+  return {{res, s.size()}};
 }
 } // namespace
 
-std::pair<uint64_t, int> parse_uint(const std::string_view &s) {
-  auto [res, idx, rv] = parse_uint_internal(s);
-  if (rv != 0 || idx != s.size()) {
-    return {0, -1};
+std::optional<uint64_t> parse_uint(const std::string_view &s) {
+  auto o = parse_uint_internal(s);
+  if (!o) {
+    return {};
   }
-  return {res, 0};
+  auto [res, idx] = *o;
+  if (idx != s.size()) {
+    return {};
+  }
+  return res;
 }
 
-std::pair<uint64_t, int> parse_uint_iec(const std::string_view &s) {
-  auto [res, idx, rv] = parse_uint_internal(s);
-  if (rv != 0) {
-    return {0, rv};
+std::optional<uint64_t> parse_uint_iec(const std::string_view &s) {
+  auto o = parse_uint_internal(s);
+  if (!o) {
+    return {};
   }
+  auto [res, idx] = *o;
   if (idx == s.size()) {
-    return {res, 0};
+    return res;
   }
   if (idx + 1 != s.size()) {
-    return {0, -1};
+    return {};
   }
 
   uint64_t m;
@@ -380,23 +385,24 @@ std::pair<uint64_t, int> parse_uint_iec(const std::string_view &s) {
     m = 1 << 10;
     break;
   default:
-    return {0, -1};
+    return {};
   }
 
   if (res > std::numeric_limits<uint64_t>::max() / m) {
-    return {0, -1};
+    return {};
   }
 
-  return {res * m, 0};
+  return res * m;
 }
 
-std::pair<uint64_t, int> parse_duration(const std::string_view &s) {
-  auto [res, idx, rv] = parse_uint_internal(s);
-  if (rv != 0) {
-    return {0, rv};
+std::optional<uint64_t> parse_duration(const std::string_view &s) {
+  auto o = parse_uint_internal(s);
+  if (!o) {
+    return {};
   }
+  auto [res, idx] = *o;
   if (idx == s.size()) {
-    return {res * NGTCP2_SECONDS, 0};
+    return res * NGTCP2_SECONDS;
   }
 
   uint64_t m;
@@ -415,7 +421,7 @@ std::pair<uint64_t, int> parse_duration(const std::string_view &s) {
       m = NGTCP2_SECONDS;
       break;
     default:
-      return {0, -1};
+      return {};
     }
   } else if (idx + 2 == s.size() && (s[idx + 1] == 's' || s[idx + 1] == 'S')) {
     switch (s[idx]) {
@@ -429,19 +435,19 @@ std::pair<uint64_t, int> parse_duration(const std::string_view &s) {
       break;
     case 'N':
     case 'n':
-      return {res, 0};
+      return res;
     default:
-      return {0, -1};
+      return {};
     }
   } else {
-    return {0, -1};
+    return {};
   }
 
   if (res > std::numeric_limits<uint64_t>::max() / m) {
-    return {0, -1};
+    return {};
   }
 
-  return {res * m, 0};
+  return res * m;
 }
 
 namespace {

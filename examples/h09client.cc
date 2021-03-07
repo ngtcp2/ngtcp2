@@ -694,9 +694,9 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   if (!config.token_file.empty()) {
     std::cerr << "Reading token file " << config.token_file << std::endl;
 
-    auto [t, rv] = util::read_token(config.token_file);
-    if (rv == 0) {
-      token = std::move(t);
+    auto t = util::read_token(config.token_file);
+    if (t) {
+      token = std::move(*t);
       settings.token.base = reinterpret_cast<uint8_t *>(token.data());
       settings.token.len = token.size();
     }
@@ -1893,11 +1893,11 @@ int main(int argc, char **argv) {
         break;
       case 3:
         // --timeout
-        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+        if (auto t = util::parse_duration(optarg); !t) {
           std::cerr << "timeout: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.timeout = t;
+          config.timeout = *t;
         }
         break;
       case 4:
@@ -1923,20 +1923,20 @@ int main(int argc, char **argv) {
       }
       case 7:
         // --change-local-addr
-        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+        if (auto t = util::parse_duration(optarg); !t) {
           std::cerr << "change-local-addr: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.change_local_addr = t;
+          config.change_local_addr = *t;
         }
         break;
       case 8:
         // --key-update
-        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+        if (auto t = util::parse_duration(optarg); !t) {
           std::cerr << "key-update: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.key_update = t;
+          config.key_update = *t;
         }
         break;
       case 9:
@@ -1945,11 +1945,11 @@ int main(int argc, char **argv) {
         break;
       case 10:
         // --delay-stream
-        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+        if (auto t = util::parse_duration(optarg); !t) {
           std::cerr << "delay-stream: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.delay_stream = t;
+          config.delay_stream = *t;
         }
         break;
       case 11:
@@ -1982,40 +1982,40 @@ int main(int argc, char **argv) {
         break;
       case 18:
         // --max-data
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-data: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_data = n;
+          config.max_data = *n;
         }
         break;
       case 19:
         // --max-stream-data-bidi-local
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-stream-data-bidi-local: invalid argument"
                     << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_stream_data_bidi_local = n;
+          config.max_stream_data_bidi_local = *n;
         }
         break;
       case 20:
         // --max-stream-data-bidi-remote
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-stream-data-bidi-remote: invalid argument"
                     << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_stream_data_bidi_remote = n;
+          config.max_stream_data_bidi_remote = *n;
         }
         break;
       case 21:
         // --max-stream-data-uni
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-stream-data-uni: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_stream_data_uni = n;
+          config.max_stream_data_uni = *n;
         }
         break;
       case 22:
@@ -2060,11 +2060,11 @@ int main(int argc, char **argv) {
         break;
       case 31:
         // --initial-rtt
-        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+        if (auto t = util::parse_duration(optarg); !t) {
           std::cerr << "initial-rtt: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.initial_rtt = t;
+          config.initial_rtt = *t;
         }
         break;
       }

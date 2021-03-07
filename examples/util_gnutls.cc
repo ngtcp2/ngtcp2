@@ -63,11 +63,11 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
   return 0;
 }
 
-std::pair<std::string, int> read_token(const std::string_view &filename) {
+std::optional<std::string> read_token(const std::string_view &filename) {
   auto f = std::ifstream(filename.data());
   if (!f) {
     std::cerr << "Could not read token file " << filename << std::endl;
-    return {"", -1};
+    return {};
   }
 
   auto pos = f.tellg();
@@ -82,14 +82,14 @@ std::pair<std::string, int> read_token(const std::string_view &filename) {
   gnutls_datum_t d;
   if (auto rv = gnutls_pem_base64_decode2("QUIC TOKEN", &s, &d); rv < 0) {
     std::cerr << "Could not read token in " << filename << std::endl;
-    return {"", -1};
+    return {};
   }
 
   auto res = std::string{d.data, d.data + d.size};
 
   gnutls_free(d.data);
 
-  return {res, 0};
+  return res;
 }
 
 int write_token(const std::string_view &filename, const uint8_t *token,

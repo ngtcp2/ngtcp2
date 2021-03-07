@@ -77,145 +77,145 @@ void test_util_format_duration() {
 
 void test_util_parse_uint() {
   {
-    auto [res, rv] = util::parse_uint("0");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(0 == res);
+    auto res = util::parse_uint("0");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(0 == *res);
   }
   {
-    auto [res, rv] = util::parse_uint("1");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(1 == res);
+    auto res = util::parse_uint("1");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(1 == *res);
   }
   {
-    auto [res, rv] = util::parse_uint("18446744073709551615");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(18446744073709551615ull == res);
+    auto res = util::parse_uint("18446744073709551615");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(18446744073709551615ull == *res);
   }
   {
-    auto [_, rv] = util::parse_uint("18446744073709551616");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_uint("18446744073709551616");
+    CU_ASSERT(!res.has_value());
   }
   {
-    auto [_, rv] = util::parse_uint("a");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_uint("a");
+    CU_ASSERT(!res.has_value());
   }
   {
-    auto [_, rv] = util::parse_uint("1a");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_uint("1a");
+    CU_ASSERT(!res.has_value());
   }
 }
 
 void test_util_parse_uint_iec() {
   {
-    auto [res, rv] = util::parse_uint_iec("0");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(0 == res);
+    auto res = util::parse_uint_iec("0");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(0 == *res);
   }
   {
-    auto [res, rv] = util::parse_uint_iec("1023");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(1023 == res);
+    auto res = util::parse_uint_iec("1023");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(1023 == *res);
   }
   {
-    auto [res, rv] = util::parse_uint_iec("1K");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(1 << 10 == res);
+    auto res = util::parse_uint_iec("1K");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(1 << 10 == *res);
   }
   {
-    auto [res, rv] = util::parse_uint_iec("1M");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(1 << 20 == res);
+    auto res = util::parse_uint_iec("1M");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(1 << 20 == *res);
   }
   {
-    auto [res, rv] = util::parse_uint_iec("1G");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(1 << 30 == res);
+    auto res = util::parse_uint_iec("1G");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(1 << 30 == *res);
   }
   {
-    auto [res, rv] = util::parse_uint_iec("11G");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT((1ull << 30) * 11 == res);
+    auto res = util::parse_uint_iec("11G");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT((1ull << 30) * 11 == *res);
   }
   {
-    auto [_, rv] = util::parse_uint_iec("18446744073709551616");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_uint_iec("18446744073709551616");
+    CU_ASSERT(!res.has_value());
   }
   {
-    auto [_, rv] = util::parse_uint_iec("1x");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_uint_iec("1x");
+    CU_ASSERT(!res.has_value());
   }
   {
-    auto [_, rv] = util::parse_uint_iec("1Gx");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_uint_iec("1Gx");
+    CU_ASSERT(!res.has_value());
   }
 }
 
 void test_util_parse_duration() {
   {
-    auto [res, rv] = util::parse_duration("0");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(0 == res);
+    auto res = util::parse_duration("0");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(0 == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("1");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(NGTCP2_SECONDS == res);
+    auto res = util::parse_duration("1");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(NGTCP2_SECONDS == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("0ns");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(0 == res);
+    auto res = util::parse_duration("0ns");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(0 == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("1ns");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(1 == res);
+    auto res = util::parse_duration("1ns");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(1 == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("1us");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(NGTCP2_MICROSECONDS == res);
+    auto res = util::parse_duration("1us");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(NGTCP2_MICROSECONDS == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("1ms");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(NGTCP2_MILLISECONDS == res);
+    auto res = util::parse_duration("1ms");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(NGTCP2_MILLISECONDS == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("1s");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(NGTCP2_SECONDS == res);
+    auto res = util::parse_duration("1s");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(NGTCP2_SECONDS == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("1m");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(60 * NGTCP2_SECONDS == res);
+    auto res = util::parse_duration("1m");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(60 * NGTCP2_SECONDS == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("1h");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(3600 * NGTCP2_SECONDS == res);
+    auto res = util::parse_duration("1h");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(3600 * NGTCP2_SECONDS == *res);
   }
   {
-    auto [res, rv] = util::parse_duration("2h");
-    CU_ASSERT(0 == rv);
-    CU_ASSERT(2 * 3600 * NGTCP2_SECONDS == res);
+    auto res = util::parse_duration("2h");
+    CU_ASSERT(res.has_value());
+    CU_ASSERT(2 * 3600 * NGTCP2_SECONDS == *res);
   }
   {
-    auto [_, rv] = util::parse_duration("18446744073709551616");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_duration("18446744073709551616");
+    CU_ASSERT(!res.has_value());
   }
   {
-    auto [_, rv] = util::parse_duration("1x");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_duration("1x");
+    CU_ASSERT(!res.has_value());
   }
   {
-    auto [_, rv] = util::parse_duration("1mx");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_duration("1mx");
+    CU_ASSERT(!res.has_value());
   }
   {
-    auto [_, rv] = util::parse_duration("1mxy");
-    CU_ASSERT(-1 == rv);
+    auto res = util::parse_duration("1mxy");
+    CU_ASSERT(!res.has_value());
   }
 }
 

@@ -2836,11 +2836,11 @@ int main(int argc, char **argv) {
         break;
       case 3:
         // --timeout
-        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+        if (auto t = util::parse_duration(optarg); !t) {
           std::cerr << "timeout: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.timeout = t;
+          config.timeout = *t;
         }
         break;
       case 4:
@@ -2887,40 +2887,40 @@ int main(int argc, char **argv) {
         break;
       case 12:
         // --max-data
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-data: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_data = n;
+          config.max_data = *n;
         }
         break;
       case 13:
         // --max-stream-data-bidi-local
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-stream-data-bidi-local: invalid argument"
                     << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_stream_data_bidi_local = n;
+          config.max_stream_data_bidi_local = *n;
         }
         break;
       case 14:
         // --max-stream-data-bidi-remote
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-stream-data-bidi-remote: invalid argument"
                     << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_stream_data_bidi_remote = n;
+          config.max_stream_data_bidi_remote = *n;
         }
         break;
       case 15:
         // --max-stream-data-uni
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-stream-data-uni: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_stream_data_uni = n;
+          config.max_stream_data_uni = *n;
         }
         break;
       case 16:
@@ -2933,11 +2933,11 @@ int main(int argc, char **argv) {
         break;
       case 18:
         // --max-dyn-length
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-dyn-length: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_dyn_length = n;
+          config.max_dyn_length = *n;
         }
         break;
       case 19:
@@ -2950,24 +2950,24 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
       case 20:
         // --initial-rtt
-        if (auto [t, rv] = util::parse_duration(optarg); rv != 0) {
+        if (auto t = util::parse_duration(optarg); !t) {
           std::cerr << "initial-rtt: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.initial_rtt = t;
+          config.initial_rtt = *t;
         }
         break;
       case 21:
         // --max-udp-payload-size
-        if (auto [n, rv] = util::parse_uint_iec(optarg); rv != 0) {
+        if (auto n = util::parse_uint_iec(optarg); !n) {
           std::cerr << "max-udp-payload-size: invalid argument" << std::endl;
           exit(EXIT_FAILURE);
-        } else if (n > 64_k) {
+        } else if (*n > 64_k) {
           std::cerr << "max-udp-payload-size: must not exceed 65536"
                     << std::endl;
           exit(EXIT_FAILURE);
         } else {
-          config.max_udp_payload_size = n;
+          config.max_udp_payload_size = *n;
         }
         break;
       case 22:
