@@ -1856,7 +1856,16 @@ int main(int argc, char **argv) {
       break;
     case 'n':
       // --streams
-      config.nstreams = strtol(optarg, nullptr, 10);
+      if (auto n = util::parse_uint(optarg); !n) {
+        std::cerr << "streams: invalid argument" << std::endl;
+        exit(EXIT_FAILURE);
+      } else if (*n > NGTCP2_MAX_VARINT) {
+        std::cerr << "streams: must not exceed " << NGTCP2_MAX_VARINT
+                  << std::endl;
+        exit(EXIT_FAILURE);
+      } else {
+        config.nstreams = *n;
+      }
       break;
     case 'q':
       // --quiet
@@ -2020,11 +2029,21 @@ int main(int argc, char **argv) {
         break;
       case 22:
         // --max-streams-bidi
-        config.max_streams_bidi = strtoull(optarg, nullptr, 10);
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "max-streams-bidi: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_streams_bidi = *n;
+        }
         break;
       case 23:
         // --max-streams-uni
-        config.max_streams_uni = strtoull(optarg, nullptr, 10);
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "max-streams-uni: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_streams_uni = *n;
+        }
         break;
       case 24:
         // --exit-on-first-stream-close
