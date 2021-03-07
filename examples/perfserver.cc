@@ -2707,11 +2707,14 @@ int main(int argc, char **argv) {
   auto private_key_file = argv[optind++];
   auto cert_file = argv[optind++];
 
-  errno = 0;
-  config.port = strtoul(port, nullptr, 10);
-  if (errno != 0) {
+  if (auto n = util::parse_uint(port); !n) {
     std::cerr << "port: invalid port number" << std::endl;
     exit(EXIT_FAILURE);
+  } else if (*n > 65535) {
+    std::cerr << "port: must not exceed 65535" << std::endl;
+    exit(EXIT_FAILURE);
+  } else {
+    config.port = *n;
   }
 
   TLSServerContext tls_ctx;
