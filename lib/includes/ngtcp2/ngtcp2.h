@@ -4341,15 +4341,6 @@ NGTCP2_EXTERN void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_set_remote_addr` sets remote endpoint address |addr|
- * to |conn|.
- */
-NGTCP2_EXTERN void ngtcp2_conn_set_remote_addr(ngtcp2_conn *conn,
-                                               const ngtcp2_addr *addr);
-
-/**
- * @function
- *
  * `ngtcp2_conn_get_path` returns the current path.
  */
 NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);

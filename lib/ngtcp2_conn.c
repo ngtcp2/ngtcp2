@@ -10947,13 +10947,6 @@ void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn, const ngtcp2_addr *addr) {
   ngtcp2_addr_copy(dest, addr);
 }
 
-void ngtcp2_conn_set_remote_addr(ngtcp2_conn *conn, const ngtcp2_addr *addr) {
-  ngtcp2_addr *dest = &conn->dcid.current.ps.path.remote;
-
-  assert(addr->addrlen <= sizeof(conn->dcid.current.ps.remote_addrbuf));
-  ngtcp2_addr_copy(dest, addr);
-}
-
 const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn) {
   return &conn->dcid.current.ps.path;
 }
