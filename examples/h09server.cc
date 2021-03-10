@@ -854,9 +854,9 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   }
 
   auto path =
-      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa),
-                   const_cast<Endpoint *>(&ep)},
-                  {salen, const_cast<sockaddr *>(sa)}};
+      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)},
+                  {salen, const_cast<sockaddr *>(sa)},
+                  const_cast<Endpoint *>(&ep)};
   if (auto rv =
           ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version,
                                  &callbacks, &settings, &params, nullptr, this);
@@ -890,9 +890,9 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
                        const ngtcp2_pkt_info *pi, uint8_t *data,
                        size_t datalen) {
   auto path =
-      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa),
-                   const_cast<Endpoint *>(&ep)},
-                  {salen, const_cast<sockaddr *>(sa)}};
+      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)},
+                  {salen, const_cast<sockaddr *>(sa)},
+                  const_cast<Endpoint *>(&ep)};
 
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
                                      util::timestamp(loop_));
@@ -1044,10 +1044,10 @@ int Handler::write_streams() {
 
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
-        server_->send_packet(
-            *static_cast<Endpoint *>(prev_path.path.local.user_data),
-            prev_path.path.local, prev_path.path.remote, prev_ecn, buf.data(),
-            bufpos - buf.data(), max_pktlen_);
+        server_->send_packet(*static_cast<Endpoint *>(prev_path.path.user_data),
+                             prev_path.path.local, prev_path.path.remote,
+                             prev_ecn, buf.data(), bufpos - buf.data(),
+                             max_pktlen_);
         reset_idle_timer();
       }
       // We are congestion limited.
@@ -1062,12 +1062,12 @@ int Handler::write_streams() {
       prev_ecn = pi.ecn;
     } else if (!ngtcp2_path_eq(&prev_path.path, &path.path) ||
                prev_ecn != pi.ecn) {
-      server_->send_packet(
-          *static_cast<Endpoint *>(prev_path.path.local.user_data),
-          prev_path.path.local, prev_path.path.remote, prev_ecn, buf.data(),
-          bufpos - buf.data() - nwrite, max_pktlen_);
+      server_->send_packet(*static_cast<Endpoint *>(prev_path.path.user_data),
+                           prev_path.path.local, prev_path.path.remote,
+                           prev_ecn, buf.data(), bufpos - buf.data() - nwrite,
+                           max_pktlen_);
 
-      server_->send_packet(*static_cast<Endpoint *>(path.path.local.user_data),
+      server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
                            path.path.local, path.path.remote, pi.ecn,
                            bufpos - nwrite, nwrite, max_pktlen_);
       reset_idle_timer();
@@ -1076,7 +1076,7 @@ int Handler::write_streams() {
     }
 
     if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < max_pktlen_) {
-      server_->send_packet(*static_cast<Endpoint *>(path.path.local.user_data),
+      server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
                            path.path.local, path.path.remote, pi.ecn,
                            buf.data(), bufpos - buf.data(), max_pktlen_);
       reset_idle_timer();
@@ -1086,7 +1086,7 @@ int Handler::write_streams() {
 #else  // !NGTCP2_ENABLE_UDP_GSO
     reset_idle_timer();
 
-    server_->send_packet(*static_cast<Endpoint *>(path.path.local.user_data),
+    server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
                          path.path.local, path.path.remote, pi.ecn, buf.data(),
                          bufpos - buf.data(), 0);
     if (++pktcnt == max_pktcnt) {
@@ -1185,10 +1185,9 @@ int Handler::send_conn_close() {
 
   auto path = ngtcp2_conn_get_path(conn_);
 
-  return server_->send_packet(*static_cast<Endpoint *>(path->local.user_data),
-                              path->local, path->remote, /* ecn = */ 0,
-                              conn_closebuf_->rpos(), conn_closebuf_->size(),
-                              0);
+  return server_->send_packet(
+      *static_cast<Endpoint *>(path->user_data), path->local, path->remote,
+      /* ecn = */ 0, conn_closebuf_->rpos(), conn_closebuf_->size(), 0);
 }
 
 void Handler::schedule_retransmit() {

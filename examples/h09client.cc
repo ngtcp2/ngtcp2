@@ -1129,8 +1129,7 @@ int Client::change_local_addr() {
   if (config.nat_rebinding) {
     ngtcp2_addr addr;
     ngtcp2_conn_set_local_addr(
-        conn_,
-        ngtcp2_addr_init(&addr, &local_addr.su.sa, local_addr.len, nullptr));
+        conn_, ngtcp2_addr_init(&addr, &local_addr.su.sa, local_addr.len));
   } else {
     auto path = ngtcp2_path{{local_addr.len, &local_addr.su.sa},
                             {remote_addr.len, &remote_addr.su.sa}};

@@ -7049,7 +7049,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   ngtcp2_pv *pv;
   ngtcp2_dcid *dcid;
 
-  ngtcp2_addr_init(&addr, (struct sockaddr *)&buf, 0, NULL);
+  ngtcp2_addr_init(&addr, (struct sockaddr *)&buf, 0);
 
   if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
     return 0;

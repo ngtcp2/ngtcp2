@@ -496,6 +496,6 @@ void path_init(ngtcp2_path_storage *path, uint32_t local_addr,
   addr_init(&la, local_addr, local_port);
   addr_init(&ra, remote_addr, remote_port);
 
-  ngtcp2_path_storage_init(path, (struct sockaddr *)&la, sizeof(la), NULL,
+  ngtcp2_path_storage_init(path, (struct sockaddr *)&la, sizeof(la),
                            (struct sockaddr *)&ra, sizeof(ra), NULL);
 }

@@ -40,10 +40,9 @@
 #endif
 
 ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const struct sockaddr *addr,
-                              size_t addrlen, void *user_data) {
+                              size_t addrlen) {
   dest->addrlen = addrlen;
   dest->addr = (struct sockaddr *)addr;
-  dest->user_data = user_data;
   return dest;
 }
 
@@ -52,7 +51,6 @@ void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src) {
   if (src->addrlen) {
     memcpy(dest->addr, src->addr, src->addrlen);
   }
-  dest->user_data = src->user_data;
 }
 
 void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const struct sockaddr *addr,

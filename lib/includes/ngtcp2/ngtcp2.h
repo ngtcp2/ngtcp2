@@ -1864,11 +1864,6 @@ typedef struct ngtcp2_addr {
    * address.  It must not be ``NULL``.
    */
   struct sockaddr *addr;
-  /**
-   * :member:`user_data` is an arbitrary data and opaque to the
-   * library.
-   */
-  void *user_data;
 } ngtcp2_addr;
 
 /**
@@ -1886,6 +1881,11 @@ typedef struct ngtcp2_path {
    * :member:`remote` is the address of remote endpoint.
    */
   ngtcp2_addr remote;
+  /**
+   * :member:`user_data` is an arbitrary data and opaque to the
+   * library.
+   */
+  void *user_data;
 } ngtcp2_path;
 
 /**
@@ -4626,7 +4626,7 @@ NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
  */
 NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
                                             const struct sockaddr *addr,
-                                            size_t addrlen, void *user_data);
+                                            size_t addrlen);
 
 /**
  * @function
@@ -4637,10 +4637,9 @@ NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
 NGTCP2_EXTERN void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
                                             const struct sockaddr *local_addr,
                                             size_t local_addrlen,
-                                            void *local_user_data,
                                             const struct sockaddr *remote_addr,
                                             size_t remote_addrlen,
-                                            void *remote_user_data);
+                                            void *user_data);
 
 /**
  * @function
