@@ -309,7 +309,7 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   if (EVP_PKEY_derive_init(pctx) != 1 ||
       EVP_PKEY_CTX_hkdf_mode(pctx, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) != 1 ||
       EVP_PKEY_CTX_set_hkdf_md(pctx, prf) != 1 ||
-      EVP_PKEY_CTX_set1_hkdf_salt(pctx, "", 0) != 1 ||
+      EVP_PKEY_CTX_set1_hkdf_salt(pctx, (const unsigned char *)"", 0) != 1 ||
       EVP_PKEY_CTX_set1_hkdf_key(pctx, secret, (int)secretlen) != 1 ||
       EVP_PKEY_CTX_add1_hkdf_info(pctx, info, (int)infolen) != 1 ||
       EVP_PKEY_derive(pctx, dest, &destlen) != 1) {
