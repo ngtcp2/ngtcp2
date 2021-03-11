@@ -61,15 +61,17 @@ required:
 * libev
 * nghttp3 (https://github.com/ngtcp2/nghttp3) for HTTP/3
 
-The client and server under examples directory require patched OpenSSL
-as crypto backend:
+The client and server under examples directory require at least one of
+the following TLS backends:
 
-* Patched OpenSSL
-  (https://github.com/tatsuhiro-t/openssl/tree/OpenSSL_1_1_1g-quic-draft-33)
+* `OpenSSL with QUIC support
+  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1j+quic>`_
+* GnuTLS
+* BoringSSL
 
 For crypto helper library:
 
-* Patched OpenSSL listed above
+* OpenSSL with QUIC support described above
 * libgnutls28-dev >= 3.7.0
 * BoringSSL (commit 78f15a6aa9f11ab7cff736f920c4858cc38264fb)
 
@@ -78,7 +80,7 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b OpenSSL_1_1_1g-quic-draft-33 https://github.com/tatsuhiro-t/openssl
+   $ git clone --depth 1 -b OpenSSL_1_1_1j+quic https://github.com/quictls/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
