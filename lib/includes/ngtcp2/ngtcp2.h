@@ -3590,6 +3590,8 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn,
  * * initial_max_stream_data_bidi_remote
  * * initial_max_stream_data_uni
  * * initial_max_data
+ * * active_connection_id_limit
+ * * max_datagram_frame_size (if DATAGRAM extension was negotiated)
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
