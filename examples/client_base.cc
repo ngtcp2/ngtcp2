@@ -74,7 +74,10 @@ int ClientBase::write_transport_params(const char *path,
     << params->initial_max_stream_data_bidi_remote << '\n'
     << "initial_max_stream_data_uni=" << params->initial_max_stream_data_uni
     << '\n'
-    << "initial_max_data=" << params->initial_max_data << '\n';
+    << "initial_max_data=" << params->initial_max_data << '\n'
+    << "active_connection_id_limit=" << params->active_connection_id_limit
+    << '\n'
+    << "max_datagram_frame_size=" << params->max_datagram_frame_size << '\n';
 
   f.close();
   if (!f) {
@@ -155,6 +158,29 @@ int ClientBase::read_transport_params(const char *path,
       } else {
         params->initial_max_data = *n;
       }
+      continue;
+    }
+
+    if (util::istarts_with_l(line, "active_connection_id_limit=")) {
+      if (auto n = util::parse_uint(line.c_str() +
+                                    str_size("active_connection_id_limit="));
+          !n) {
+        return -1;
+      } else {
+        params->active_connection_id_limit = *n;
+      }
+      continue;
+    }
+
+    if (util::istarts_with_l(line, "max_datagram_frame_size=")) {
+      if (auto n = util::parse_uint(line.c_str() +
+                                    str_size("max_datagram_frame_size="));
+          !n) {
+        return -1;
+      } else {
+        params->max_datagram_frame_size = *n;
+      }
+      continue;
     }
   }
 
