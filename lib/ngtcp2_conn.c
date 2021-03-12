@@ -8337,6 +8337,45 @@ static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
   conn->local.uni.max_streams = params->initial_max_streams_uni;
 }
 
+static int strm_set_max_offset(ngtcp2_map_entry *ent, void *ptr) {
+  ngtcp2_conn *conn = ptr;
+  ngtcp2_transport_params *params = &conn->remote.transport_params;
+  ngtcp2_strm *strm = ngtcp2_struct_of(ent, ngtcp2_strm, me);
+  uint64_t max_offset;
+  int rv;
+
+  if (!conn_local_stream(conn, strm->stream_id)) {
+    return 0;
+  }
+
+  if (bidi_stream(strm->stream_id)) {
+    max_offset = params->initial_max_stream_data_bidi_remote;
+  } else {
+    max_offset = params->initial_max_stream_data_uni;
+  }
+
+  if (strm->tx.max_offset < max_offset) {
+    strm->tx.max_offset = max_offset;
+
+    /* Don't call callback if stream is half-closed local */
+    if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
+      return 0;
+    }
+
+    rv = conn_call_extend_max_stream_data(conn, strm, strm->stream_id,
+                                          strm->tx.max_offset);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  return 0;
+}
+
+static int conn_sync_stream_data_limit(ngtcp2_conn *conn) {
+  return ngtcp2_map_each(&conn->strms, strm_set_max_offset, conn);
+}
+
 /*
  * conn_handshake_completed is called once cryptographic handshake has
  * completed.
@@ -9309,6 +9348,7 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
     conn->remote.transport_params = conn->remote.pending_transport_params;
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
+    return conn_sync_stream_data_limit(conn);
   }
 
   return 0;
@@ -9551,6 +9591,28 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
+  /* conn->remote.transport_params might have a remembered value
+     (otherwise they are zero cleared) for early data transfer.  Check
+     that the following parameters are not decreased. */
+  if (conn->remote.transport_params.active_connection_id_limit >
+          params->active_connection_id_limit ||
+      conn->remote.transport_params.initial_max_data >
+          params->initial_max_data ||
+      conn->remote.transport_params.initial_max_stream_data_bidi_local >
+          params->initial_max_stream_data_bidi_local ||
+      conn->remote.transport_params.initial_max_stream_data_bidi_remote >
+          params->initial_max_stream_data_bidi_remote ||
+      conn->remote.transport_params.initial_max_stream_data_uni >
+          params->initial_max_stream_data_uni ||
+      conn->remote.transport_params.initial_max_streams_bidi >
+          params->initial_max_streams_bidi ||
+      conn->remote.transport_params.initial_max_streams_uni >
+          params->initial_max_streams_uni ||
+      conn->remote.transport_params.max_datagram_frame_size >
+          params->max_datagram_frame_size) {
+    return NGTCP2_ERR_PROTO;
+  }
+
   return 0;
 }
 
@@ -9599,6 +9661,12 @@ int ngtcp2_conn_set_remote_transport_params(
     conn->remote.transport_params = *params;
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
+    if (!conn->server) {
+      rv = conn_sync_stream_data_limit(conn);
+      if (rv != 0) {
+        return rv;
+      }
+    }
   } else {
     conn->remote.pending_transport_params = *params;
   }
@@ -9634,6 +9702,7 @@ void ngtcp2_conn_set_early_remote_transport_params(
   p->initial_max_stream_data_uni = params->initial_max_stream_data_uni;
   p->initial_max_data = params->initial_max_data;
   p->max_datagram_frame_size = params->max_datagram_frame_size;
+  p->active_connection_id_limit = params->active_connection_id_limit;
 
   conn_sync_stream_id_limit(conn);
 

@@ -276,6 +276,8 @@ int main() {
                    test_ngtcp2_conn_validate_ecn) ||
       !CU_add_test(pSuite, "conn_path_validation",
                    test_ngtcp2_conn_path_validation) ||
+      !CU_add_test(pSuite, "conn_early_data_sync_stream_data_limit",
+                   test_ngtcp2_conn_early_data_sync_stream_data_limit) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
                    test_ngtcp2_pkt_write_connection_close) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||
