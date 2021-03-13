@@ -168,6 +168,7 @@ typedef struct {
     uint32_t flags;
     const uint8_t *data;
     size_t datalen;
+    uint64_t dgram_id;
   } datagram;
 } my_user_data;
 
@@ -414,6 +415,17 @@ static int recv_datagram(ngtcp2_conn *conn, uint32_t flags, const uint8_t *data,
     ud->datagram.flags = flags;
     ud->datagram.data = data;
     ud->datagram.datalen = datalen;
+  }
+
+  return 0;
+}
+
+static int ack_datagram(ngtcp2_conn *conn, uint64_t dgram_id, void *user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+
+  if (ud) {
+    ud->datagram.dgram_id = dgram_id;
   }
 
   return 0;
@@ -2718,6 +2730,11 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   ngtcp2_tstamp t = 0;
   int64_t stream_id, stream_id_a, stream_id_b;
   ngtcp2_ksl_it it;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  ngtcp2_vec datav;
+  int accepted;
+  int rv;
 
   /* Retransmit a packet completely */
   setup_default_client(&conn);
@@ -2775,6 +2792,54 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   CU_ASSERT(!ngtcp2_ksl_it_end(&it));
   CU_ASSERT(NULL != conn->pktns.tx.frq);
+
+  ngtcp2_conn_del(conn);
+
+  /* DATAGRAM frame must not be retransmitted */
+  setup_default_client(&conn);
+
+  conn->callbacks.ack_datagram = ack_datagram;
+  conn->remote.transport_params.max_datagram_frame_size = 65535;
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 0, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  datav.base = null_data;
+  datav.len = 99;
+
+  spktlen = ngtcp2_conn_writev_datagram(
+      conn, NULL, NULL, buf, sizeof(buf), &accepted,
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1000000009, &datav, 1, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* Kick delayed ACK timer */
+  t += NGTCP2_SECONDS;
+
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+  CU_ASSERT(NULL == conn->pktns.tx.frq);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
 }
@@ -4076,16 +4141,36 @@ void test_ngtcp2_conn_writev_datagram(void) {
   ngtcp2_vec vec;
   int accepted;
   ngtcp2_transport_params params;
+  my_user_data ud;
+  ngtcp2_frame fr;
+  size_t pktlen;
+  int rv;
 
   setup_default_client(&conn);
+  conn->callbacks.ack_datagram = ack_datagram;
   conn->remote.transport_params.max_datagram_frame_size = 1 + 1 + 10;
+  conn->user_data = &ud;
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, &datav, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1000000009, &datav, 1, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(0 != accepted);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 0, &fr);
+
+  ud.datagram.dgram_id = 0;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1000000009 == ud.datagram.dgram_id);
 
   ngtcp2_conn_del(conn);
 
@@ -4095,21 +4180,21 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_MORE, &datav, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_MORE, 1000000007, &datav, 1, ++t);
 
   CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
   CU_ASSERT(0 != accepted);
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_MORE, &datav, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_MORE, 1000000007, &datav, 1, ++t);
 
   CU_ASSERT(NGTCP2_ERR_WRITE_MORE == spktlen);
   CU_ASSERT(0 != accepted);
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, &datav, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 0, &datav, 1, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(0 != accepted);
@@ -4127,14 +4212,14 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, &vec, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 987, &vec, 1, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(0 == accepted);
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, &vec, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 545, &vec, 1, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(0 != accepted);
@@ -4147,7 +4232,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, &datav, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 999, &datav, 1, ++t);
 
   CU_ASSERT(NGTCP2_ERR_INVALID_STATE == spktlen);
 
@@ -4160,7 +4245,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, &datav, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 4433, &datav, 1, ++t);
 
   CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == spktlen);
 
@@ -4176,7 +4261,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
-      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, &datav, 1, ++t);
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 22360679, &datav, 1, ++t);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(0 != accepted);
@@ -6326,6 +6411,73 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
   }
 
   CU_ASSERT(3 == num_reclaim_pkt);
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_rtb_reclaim_on_pto_datagram(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  int64_t stream_id;
+  uint8_t buf[2048];
+  ngtcp2_ssize nwrite;
+  ngtcp2_ssize spktlen;
+  size_t num_reclaim_pkt;
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it;
+  ngtcp2_vec datav;
+  int accepted;
+  ngtcp2_frame_chain *frc;
+
+  /* DATAGRAM frame must not be reclaimed on PTO */
+  setup_default_client(&conn);
+
+  conn->callbacks.ack_datagram = ack_datagram;
+  conn->remote.transport_params.max_datagram_frame_size = 65535;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf),
+                                     &nwrite, NGTCP2_WRITE_STREAM_FLAG_NONE,
+                                     stream_id, null_data, 1024, 1);
+
+  CU_ASSERT(0 < spktlen);
+
+  datav.base = null_data;
+  datav.len = 10;
+
+  spktlen = ngtcp2_conn_writev_datagram(
+      conn, NULL, NULL, buf, sizeof(buf), &accepted,
+      NGTCP2_WRITE_DATAGRAM_FLAG_NONE, 1000000007, &datav, 1, 1);
+
+  CU_ASSERT(accepted);
+  CU_ASSERT(0 < spktlen);
+  CU_ASSERT(2 == ngtcp2_ksl_len(&conn->pktns.rtb.ents));
+
+  rv = ngtcp2_conn_on_loss_detection_timer(conn, 3 * NGTCP2_SECONDS);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf),
+                                  3 * NGTCP2_SECONDS);
+
+  CU_ASSERT(spktlen > 0);
+
+  it = ngtcp2_ksl_begin(&conn->pktns.rtb.ents);
+  num_reclaim_pkt = 0;
+  for (; !ngtcp2_ksl_it_end(&it); ngtcp2_ksl_it_next(&it)) {
+    ent = ngtcp2_ksl_it_get(&it);
+    if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
+      ++num_reclaim_pkt;
+      for (frc = ent->frc; frc; frc = frc->next) {
+        CU_ASSERT(NGTCP2_FRAME_DATAGRAM != frc->fr.type);
+      }
+    }
+  }
+
+  CU_ASSERT(1 == num_reclaim_pkt);
 
   ngtcp2_conn_del(conn);
 }

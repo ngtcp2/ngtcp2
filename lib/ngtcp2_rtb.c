@@ -311,6 +311,8 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   size_t num_reclaimed = 0;
   int rv;
 
+  assert(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE);
+
   /* PADDING only (or PADDING + ACK ) packets will have NULL
      ent->frc. */
   /* TODO Reconsider the order of pfrc */
@@ -412,6 +414,9 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       }
 
       break;
+    case NGTCP2_FRAME_DATAGRAM:
+    case NGTCP2_FRAME_DATAGRAM_LEN:
+      continue;
     default:
       rv = ngtcp2_frame_chain_new(&nfrc, rtb->mem);
       if (rv != 0) {
@@ -469,7 +474,7 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
       return 0;
     }
 
-    if (ent->frc) {
+    if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) && ent->frc) {
       assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
       assert(UINT64_MAX == ent->lost_ts);
 
@@ -640,6 +645,18 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
     case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
       assert(conn->dcid.num_retire_queued);
       --conn->dcid.num_retire_queued;
+      break;
+    case NGTCP2_FRAME_DATAGRAM:
+    case NGTCP2_FRAME_DATAGRAM_LEN:
+      if (!conn->callbacks.ack_datagram) {
+        break;
+      }
+
+      rv = conn->callbacks.ack_datagram(conn, frc->fr.datagram.dgram_id,
+                                        conn->user_data);
+      if (rv != 0) {
+        return NGTCP2_ERR_CALLBACK_FAILURE;
+      }
       break;
     }
   }
@@ -1144,7 +1161,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     return 0;
   }
 
-  if (!ent->frc) {
+  if (!ent->frc || !(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE)) {
     /* PADDING only (or PADDING + ACK ) packets will have NULL
        ent->frc. */
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
@@ -1213,6 +1230,14 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
         ngtcp2_frame_chain_del(frc, conn->mem);
         return rv;
       }
+      break;
+    case NGTCP2_FRAME_DATAGRAM:
+    case NGTCP2_FRAME_DATAGRAM_LEN:
+      frc = *pfrc;
+
+      *pfrc = (*pfrc)->next;
+
+      ngtcp2_frame_chain_del(frc, conn->mem);
       break;
     default:
       pfrc = &(*pfrc)->next;

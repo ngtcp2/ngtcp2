@@ -293,6 +293,8 @@ typedef struct ngtcp2_handshake_done {
 
 typedef struct ngtcp2_datagram {
   uint8_t type;
+  /* dgram_id is an opaque identifier chosen by an application. */
+  uint64_t dgram_id;
   /* datacnt is the number of elements that data contains. */
   size_t datacnt;
   /* data is a pointer to ngtcp2_vec array that stores data. */

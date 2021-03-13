@@ -272,6 +272,8 @@ int main() {
                    test_ngtcp2_conn_write_application_close) ||
       !CU_add_test(pSuite, "conn_rtb_reclaim_on_pto",
                    test_ngtcp2_conn_rtb_reclaim_on_pto) ||
+      !CU_add_test(pSuite, "conn_rtb_reclaim_on_pto_datagram",
+                   test_ngtcp2_conn_rtb_reclaim_on_pto_datagram) ||
       !CU_add_test(pSuite, "conn_validate_ecn",
                    test_ngtcp2_conn_validate_ecn) ||
       !CU_add_test(pSuite, "conn_path_validation",

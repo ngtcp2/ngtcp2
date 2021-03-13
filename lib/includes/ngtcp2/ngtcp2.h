@@ -2898,6 +2898,20 @@ typedef int (*ngtcp2_recv_datagram)(ngtcp2_conn *conn, uint32_t flags,
                                     void *user_data);
 
 /**
+ * @functypedef
+ *
+ * :type:`ngtcp2_ack_datagram` is invoked when a packet which contains
+ * DATAGRAM frame which is identified by |dgram_id| is acknowledged.
+ * |dgram_id| is the valued passed to `ngtcp2_conn_writev_datagram`.
+ *
+ * The callback function must return 0 if it succeeds, or
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library return
+ * immediately.
+ */
+typedef int (*ngtcp2_ack_datagram)(ngtcp2_conn *conn, uint64_t dgram_id,
+                                   void *user_data);
+
+/**
  * @struct
  *
  * :type:`ngtcp2_callbacks` holds a set of callback functions.
@@ -3106,6 +3120,11 @@ typedef struct ngtcp2_callbacks {
    * when DATAGRAM frame is received.
    */
   ngtcp2_recv_datagram recv_datagram;
+  /**
+   * :member:`ack_datagram` is a callback function which is invoked
+   * when a packet containing DATAGRAM frame is acknowledged.
+   */
+  ngtcp2_ack_datagram ack_datagram;
 } ngtcp2_callbacks;
 
 /**
@@ -3949,6 +3968,12 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  * assigned to |*paccepted| if it is not NULL.  The data in DATAGRAM
  * frame cannot be fragmented; writing partial data is not possible.
  *
+ * |dgram_id| is an opaque identifier which should uniquely identify
+ * the given DATAGRAM.  It is passed to :type:`ngtcp2_ack_datagram`
+ * callback when a packet that contains DATAGRAM frame is
+ * acknowledged.  If an application does not use this callback, it can
+ * always sets 0 to this parameter.
+ *
  * This function might write other frames other than DATAGRAM, just
  * like `ngtcp2_conn_writev_stream`.
  *
@@ -4015,8 +4040,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram(
     ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
-    size_t destlen, int *paccepted, uint32_t flags, const ngtcp2_vec *datav,
-    size_t datavcnt, ngtcp2_tstamp ts);
+    size_t destlen, int *paccepted, uint32_t flags, uint64_t dgram_id,
+    const ngtcp2_vec *datav, size_t datavcnt, ngtcp2_tstamp ts);
 
 /**
  * @function

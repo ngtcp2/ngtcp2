@@ -3411,12 +3411,38 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   if (rv != NGTCP2_ERR_NOBUF && send_datagram &&
       left >= ngtcp2_pkt_datagram_framelen(datalen)) {
-    lfr.datagram.type = NGTCP2_FRAME_DATAGRAM_LEN;
-    lfr.datagram.datacnt = vmsg->datagram.datacnt;
-    lfr.datagram.data = (ngtcp2_vec *)vmsg->datagram.data;
+    if (conn->callbacks.ack_datagram) {
+      rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
+      if (rv != 0) {
+        assert(ngtcp2_err_is_fatal(rv));
+        return rv;
+      }
 
-    rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
-    assert(rv == 0);
+      nfrc->fr.datagram.type = NGTCP2_FRAME_DATAGRAM_LEN;
+      nfrc->fr.datagram.dgram_id = vmsg->datagram.dgram_id;
+      nfrc->fr.datagram.datacnt = vmsg->datagram.datacnt;
+      nfrc->fr.datagram.data = (ngtcp2_vec *)vmsg->datagram.data;
+
+      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
+      assert(rv == 0);
+
+      /* Because DATAGRAM will not be retransmitted, we do not use data
+         anymore.  Just nullify it.  The only reason to keep track a
+         frame is keep dgram_id to pass it to ngtcp2_ack_datagram
+         callback. */
+      nfrc->fr.datagram.datacnt = 0;
+      nfrc->fr.datagram.data = NULL;
+
+      *pfrc = nfrc;
+      pfrc = &(*pfrc)->next;
+    } else {
+      lfr.datagram.type = NGTCP2_FRAME_DATAGRAM_LEN;
+      lfr.datagram.datacnt = vmsg->datagram.datacnt;
+      lfr.datagram.data = (ngtcp2_vec *)vmsg->datagram.data;
+
+      rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
+      assert(rv == 0);
+    }
 
     pkt_empty = 0;
     rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
@@ -9914,7 +9940,7 @@ ngtcp2_ssize ngtcp2_conn_writev_stream(ngtcp2_conn *conn, ngtcp2_path *path,
 ngtcp2_ssize ngtcp2_conn_writev_datagram(ngtcp2_conn *conn, ngtcp2_path *path,
                                          ngtcp2_pkt_info *pi, uint8_t *dest,
                                          size_t destlen, int *paccepted,
-                                         uint32_t flags,
+                                         uint32_t flags, uint64_t dgram_id,
                                          const ngtcp2_vec *datav,
                                          size_t datavcnt, ngtcp2_tstamp ts) {
   ngtcp2_vmsg vmsg;
@@ -9932,6 +9958,7 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   vmsg.type = NGTCP2_VMSG_TYPE_DATAGRAM;
+  vmsg.datagram.dgram_id = dgram_id;
   vmsg.datagram.flags = flags;
   vmsg.datagram.data = datav;
   vmsg.datagram.datacnt = datavcnt;

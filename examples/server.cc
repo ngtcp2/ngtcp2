@@ -1488,6 +1488,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       nullptr, // recv_new_token
       ngtcp2_crypto_delete_crypto_aead_ctx_cb,
       ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
+      nullptr, // recv_datagram
+      nullptr, // ack_datagram
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);

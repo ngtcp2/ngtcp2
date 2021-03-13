@@ -583,6 +583,8 @@ typedef struct ngtcp2_vmsg_datagram {
   const ngtcp2_vec *data;
   /* datacnt is the number of ngtcp2_vec pointed by data. */
   size_t datacnt;
+  /* dgram_id is an opaque identifier chosen by an application. */
+  uint64_t dgram_id;
   /* flags is bitwise OR of zero or more of
      NGTCP2_WRITE_DATAGRAM_FLAG_*. */
   uint32_t flags;
