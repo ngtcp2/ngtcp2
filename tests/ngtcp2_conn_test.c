@@ -733,6 +733,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
+  cb.update_key = update_key;
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -750,6 +751,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   params.initial_max_streams_bidi = 1;
   params.initial_max_streams_uni = 1;
   params.initial_max_data = 64 * 1024;
+  params.active_connection_id_limit = 8;
 
   ngtcp2_conn_set_early_remote_transport_params(*pconn, &params);
 }
@@ -6936,14 +6938,22 @@ void test_ngtcp2_conn_early_data_sync_stream_data_limit(void) {
 
   CU_ASSERT(0 == rv);
 
-  params = conn->remote.transport_params;
-  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  memset(&params, 0, sizeof(params));
   ngtcp2_cid_init(&params.initial_scid, conn->dcid.current.cid.data,
                   conn->dcid.current.cid.datalen);
   ngtcp2_cid_init(&params.original_dcid, conn->rcid.data, conn->rcid.datalen);
   params.max_udp_payload_size = 1200;
+  params.initial_max_stream_data_bidi_local =
+      conn->early.transport_params.initial_max_stream_data_bidi_local;
   params.initial_max_stream_data_bidi_remote = 640 * 1024;
   params.initial_max_stream_data_uni = 320 * 1024;
+  params.initial_max_data = conn->early.transport_params.initial_max_data;
+  params.initial_max_streams_bidi =
+      conn->early.transport_params.initial_max_streams_bidi;
+  params.initial_max_streams_uni =
+      conn->early.transport_params.initial_max_streams_uni;
+  params.active_connection_id_limit =
+      conn->early.transport_params.active_connection_id_limit;
 
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
@@ -6953,6 +6963,11 @@ void test_ngtcp2_conn_early_data_sync_stream_data_limit(void) {
                                   &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
 
   CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_handshake_completed(conn);
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 < spktlen);
 
   strm = ngtcp2_conn_find_stream(conn, bidi_stream_id);
 

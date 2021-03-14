@@ -8812,6 +8812,39 @@ static int conn_handshake_probe_left(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_validate_early_transport_params_limits validates that the
+ * limits in transport parameters remembered by client for early data
+ * are not reduced.  This function is only used by client and should
+ * only be called when early data is accepted by server.
+ */
+static int conn_validate_early_transport_params_limits(ngtcp2_conn *conn) {
+  const ngtcp2_transport_params *params = &conn->remote.transport_params;
+
+  assert(!conn->server);
+
+  if (conn->early.transport_params.active_connection_id_limit >
+          params->active_connection_id_limit ||
+      conn->early.transport_params.initial_max_data >
+          params->initial_max_data ||
+      conn->early.transport_params.initial_max_stream_data_bidi_local >
+          params->initial_max_stream_data_bidi_local ||
+      conn->early.transport_params.initial_max_stream_data_bidi_remote >
+          params->initial_max_stream_data_bidi_remote ||
+      conn->early.transport_params.initial_max_stream_data_uni >
+          params->initial_max_stream_data_uni ||
+      conn->early.transport_params.initial_max_streams_bidi >
+          params->initial_max_streams_bidi ||
+      conn->early.transport_params.initial_max_streams_uni >
+          params->initial_max_streams_uni ||
+      conn->early.transport_params.max_datagram_frame_size >
+          params->max_datagram_frame_size) {
+    return NGTCP2_ERR_PROTO;
+  }
+
+  return 0;
+}
+
+/*
  * conn_write_handshake writes QUIC handshake packets to the buffer
  * pointed by |dest| of length |destlen|.  |early_datalen| specifies
  * the expected length of early data to send.  Specify 0 to
@@ -8929,6 +8962,21 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
       return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+    }
+
+    if ((conn->flags & NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED) &&
+        !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
+      rv = conn_validate_early_transport_params_limits(conn);
+      if (rv != 0) {
+        return rv;
+      }
+    }
+
+    /* Server might increase stream data limits.  Extend it if we have
+       streams created for early data. */
+    rv = conn_sync_stream_data_limit(conn);
+    if (rv != 0) {
+      return rv;
     }
 
     conn->state = NGTCP2_CS_POST_HANDSHAKE;
@@ -9120,11 +9168,11 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
       return spktlen;
     }
 
-    if (conn->pktns.crypto.tx.ckm || !conn->early.ckm ||
-        (!send_stream && !send_datagram)) {
+    if (!conn->early.ckm || (!send_stream && !send_datagram)) {
       return spktlen;
     }
   } else {
+    assert(!conn->pktns.crypto.rx.ckm);
     assert(!conn->pktns.crypto.tx.ckm);
     assert(conn->early.ckm);
 
@@ -9348,6 +9396,8 @@ int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
 
   conn->early.hp_ctx = *hp_ctx;
 
+  conn->flags |= NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED;
+
   return 0;
 }
 
@@ -9374,7 +9424,10 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
     conn->remote.transport_params = conn->remote.pending_transport_params;
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
-    return conn_sync_stream_data_limit(conn);
+
+    if (conn->early.ckm) {
+      conn_discard_early_key(conn);
+    }
   }
 
   return 0;
@@ -9617,28 +9670,6 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
-  /* conn->remote.transport_params might have a remembered value
-     (otherwise they are zero cleared) for early data transfer.  Check
-     that the following parameters are not decreased. */
-  if (conn->remote.transport_params.active_connection_id_limit >
-          params->active_connection_id_limit ||
-      conn->remote.transport_params.initial_max_data >
-          params->initial_max_data ||
-      conn->remote.transport_params.initial_max_stream_data_bidi_local >
-          params->initial_max_stream_data_bidi_local ||
-      conn->remote.transport_params.initial_max_stream_data_bidi_remote >
-          params->initial_max_stream_data_bidi_remote ||
-      conn->remote.transport_params.initial_max_stream_data_uni >
-          params->initial_max_stream_data_uni ||
-      conn->remote.transport_params.initial_max_streams_bidi >
-          params->initial_max_streams_bidi ||
-      conn->remote.transport_params.initial_max_streams_uni >
-          params->initial_max_streams_uni ||
-      conn->remote.transport_params.max_datagram_frame_size >
-          params->max_datagram_frame_size) {
-    return NGTCP2_ERR_PROTO;
-  }
-
   return 0;
 }
 
@@ -9687,12 +9718,6 @@ int ngtcp2_conn_set_remote_transport_params(
     conn->remote.transport_params = *params;
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
-    if (!conn->server) {
-      rv = conn_sync_stream_data_limit(conn);
-      if (rv != 0) {
-        return rv;
-      }
-    }
   } else {
     conn->remote.pending_transport_params = *params;
   }
@@ -9729,6 +9754,22 @@ void ngtcp2_conn_set_early_remote_transport_params(
   p->initial_max_data = params->initial_max_data;
   p->max_datagram_frame_size = params->max_datagram_frame_size;
   p->active_connection_id_limit = params->active_connection_id_limit;
+
+  conn->early.transport_params.initial_max_streams_bidi =
+      params->initial_max_streams_bidi;
+  conn->early.transport_params.initial_max_streams_uni =
+      params->initial_max_streams_uni;
+  conn->early.transport_params.initial_max_stream_data_bidi_local =
+      params->initial_max_stream_data_bidi_local;
+  conn->early.transport_params.initial_max_stream_data_bidi_remote =
+      params->initial_max_stream_data_bidi_remote;
+  conn->early.transport_params.initial_max_stream_data_uni =
+      params->initial_max_stream_data_uni;
+  conn->early.transport_params.initial_max_data = params->initial_max_data;
+  conn->early.transport_params.max_datagram_frame_size =
+      params->max_datagram_frame_size;
+  conn->early.transport_params.active_connection_id_limit =
+      params->active_connection_id_limit;
 
   conn_sync_stream_id_limit(conn);
 
