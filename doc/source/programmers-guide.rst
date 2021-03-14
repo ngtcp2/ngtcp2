@@ -175,15 +175,21 @@ stream.  For unidirectional stream, call
 `ngtcp2_conn_open_uni_stream()`.  Call `ngtcp2_conn_writev_stream()`
 to send stream data.
 
-Dealing with 0RTT data
-----------------------
+Dealing with early data
+-----------------------
 
 Client application has to load resumed TLS session.  It also has to
 set the remembered transport parameter using
 `ngtcp2_conn_set_early_remote_transport_params()` function.
 
-Other than that, there is no difference between 0RTT and 1RTT data in
-terms of API usage.
+Other than that, there is no difference between early data and 1RTT
+data in terms of API usage.
+
+If early data is rejected by a server, all connection states altered
+during early data transmission are undone.  The library does not
+retransmit early data to server as 1RTT data.  If an application
+wishes to resend data, it has to reopen streams and writes data again.
+See `ngtcp2_conn_early_data_rejected`.
 
 Stream and crypto data ownershp
 -------------------------------

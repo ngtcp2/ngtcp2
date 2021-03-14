@@ -10644,19 +10644,63 @@ uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn) {
   return conn->version;
 }
 
-int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
-  ngtcp2_pktns *pktns = &conn->pktns;
-  ngtcp2_rtb *rtb = &conn->pktns.rtb;
-  int rv;
+static int delete_strms_pq_each(ngtcp2_map_entry *ent, void *ptr) {
+  ngtcp2_conn *conn = ptr;
+  ngtcp2_strm *s = ngtcp2_struct_of(ent, ngtcp2_strm, me);
 
-  conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
-
-  rv = ngtcp2_rtb_remove_all(rtb, conn, pktns, &conn->cstat);
-  if (rv != 0) {
-    return rv;
+  if (ngtcp2_strm_is_tx_queued(s)) {
+    ngtcp2_pq_remove(&conn->tx.strmq, &s->pe);
   }
 
-  return rv;
+  ngtcp2_strm_free(s);
+  ngtcp2_mem_free(conn->mem, s);
+
+  return 0;
+}
+
+/*
+ * conn_discard_early_data_state discards any connection states which
+ * are altered by any operations during early data transfer.
+ */
+static void conn_discard_early_data_state(ngtcp2_conn *conn) {
+  ngtcp2_frame_chain **pfrc, *frc;
+
+  ngtcp2_rtb_remove_early_data(&conn->pktns.rtb, &conn->cstat);
+
+  ngtcp2_map_each_free(&conn->strms, delete_strms_pq_each, conn);
+
+  conn->tx.offset = 0;
+
+  conn->rx.unsent_max_offset = conn->rx.max_offset =
+      conn->local.transport_params.initial_max_data;
+
+  conn->remote.bidi.unsent_max_streams = conn->remote.bidi.max_streams =
+      conn->local.transport_params.initial_max_streams_bidi;
+
+  conn->remote.uni.unsent_max_streams = conn->remote.uni.max_streams =
+      conn->local.transport_params.initial_max_streams_uni;
+
+  if (conn->server) {
+    conn->local.bidi.next_stream_id = 1;
+    conn->local.uni.next_stream_id = 3;
+  } else {
+    conn->local.bidi.next_stream_id = 0;
+    conn->local.uni.next_stream_id = 2;
+  }
+
+  for (pfrc = &conn->pktns.tx.frq; *pfrc;) {
+    frc = *pfrc;
+    *pfrc = (*pfrc)->next;
+    ngtcp2_frame_chain_del(frc, conn->mem);
+  }
+}
+
+int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
+  conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
+
+  conn_discard_early_data_state(conn);
+
+  return 0;
 }
 
 void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,

@@ -83,6 +83,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto_datagram(void);
 void test_ngtcp2_conn_validate_ecn(void);
 void test_ngtcp2_conn_path_validation(void);
 void test_ngtcp2_conn_early_data_sync_stream_data_limit(void);
+void test_ngtcp2_conn_early_data_rejected(void);
 void test_ngtcp2_pkt_write_connection_close(void);
 
 #endif /* NGTCP2_CONN_TEST_H */

@@ -4283,8 +4283,18 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_early_data_rejected` tells |conn| that 0-RTT data was
- * rejected by a server.
+ * `ngtcp2_conn_early_data_rejected` tells |conn| that early data was
+ * rejected by a server.  |conn| discards the following connection
+ * states:
+ *
+ * - Any opended streams.
+ * - Stream identifier allocations.
+ * - Max data extended by `ngtcp2_conn_extend_max_offset`.
+ * - Max bidi streams extended by `ngtcp2_conn_extend_max_streams_bidi`.
+ * - Max uni streams extended by `ngtcp2_conn_extend_max_streams_uni`.
+ *
+ * Application which wishes to retransmit early data, it has to open
+ * streams and send stream data again.
  */
 NGTCP2_EXTERN int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
 

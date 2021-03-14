@@ -382,6 +382,16 @@ int Client::handshake_completed() {
                 << std::endl;
       return -1;
     }
+
+    nghttp3_conn_del(httpconn_);
+    httpconn_ = nullptr;
+
+    nstreams_done_ = 0;
+    streams_.clear();
+
+    if (setup_httpconn() != 0) {
+      return -1;
+    }
   }
 
   if (!config.quiet) {

@@ -368,6 +368,11 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                           ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
 
 /*
+ * ngtcp2_rtb_remove_early_data removes all entries for 0RTT packets.
+ */
+void ngtcp2_rtb_remove_early_data(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat);
+
+/*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.
  */
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);

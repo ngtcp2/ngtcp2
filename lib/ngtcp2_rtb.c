@@ -1276,6 +1276,29 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   return 0;
 }
 
+void ngtcp2_rtb_remove_early_data(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat) {
+  ngtcp2_rtb_entry *ent;
+  ngtcp2_ksl_it it;
+  int rv;
+
+  it = ngtcp2_ksl_begin(&rtb->ents);
+
+  for (; !ngtcp2_ksl_it_end(&it);) {
+    ent = ngtcp2_ksl_it_get(&it);
+
+    if (ent->hd.type != NGTCP2_PKT_0RTT) {
+      ngtcp2_ksl_it_next(&it);
+      continue;
+    }
+
+    rtb_on_remove(rtb, ent, cstat);
+    rv = ngtcp2_ksl_remove(&rtb->ents, &it, &ent->hd.pkt_num);
+    assert(0 == rv);
+
+    ngtcp2_rtb_entry_del(ent, rtb->mem);
+  }
+}
+
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb) {
   return ngtcp2_ksl_len(&rtb->ents) == 0;
 }

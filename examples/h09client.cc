@@ -374,6 +374,9 @@ int Client::handshake_completed() {
                 << std::endl;
       return -1;
     }
+
+    nstreams_done_ = 0;
+    streams_.clear();
   }
 
   if (!config.quiet) {
