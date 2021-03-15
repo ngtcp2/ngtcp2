@@ -1,7 +1,6 @@
 #!/bin/sh -e
 # build gnutls (for GitHub workflow)
 
-cd ..
 curl -LO https://ftp.gnu.org/gnu/nettle/nettle-3.6.tar.gz
 tar xf nettle-3.6.tar.gz
 cd nettle-3.6
@@ -20,4 +19,3 @@ cd gnutls-3.7.0
 	    PKG_CONFIG_PATH="$PWD/../nettle-3.6/build/lib64/pkgconfig"
 make -j$(nproc)
 make install
-cd ..

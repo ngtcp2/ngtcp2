@@ -63,10 +63,10 @@ jobs:
         ./ci/build_nghttp3.sh
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig:$PWD/../gnutls-3.7.0/build/lib/pkgconfig:$PWD/../nettle-3.6/build/lib64/pkgconfig"
-        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/../openssl/build/lib -Wl,-rpath,$PWD/../nettle-3.6/build/lib64"
-        BORINGSSL_CFLAGS="-I$PWD/../boringssl/include/"
-        BORINGSSL_LIBS="-L$PWD/../boringssl/build/ssl -lssl -L$PWD/../boringssl/build/crypto -lcrypto"
+        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/gnutls-3.7.0/build/lib/pkgconfig:$PWD/nettle-3.6/build/lib64/pkgconfig"
+        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/nettle-3.6/build/lib64"
+        BORINGSSL_CFLAGS="-I$PWD/boringssl/include/"
+        BORINGSSL_LIBS="-L$PWD/boringssl/build/ssl -lssl -L$PWD/boringssl/build/crypto -lcrypto"
 
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
@@ -101,7 +101,7 @@ jobs:
       run: |
         cmake $CMAKE_OPTS \
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
-          -DBORINGSSL_INCLUDE_DIR="$PWD/../boringssl/include/" .
+          -DBORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/" .
     - name: Build ngtcp2
       run: |
         make
@@ -109,7 +109,7 @@ jobs:
     - name: Integration test
       run: |
         ./ci/gen-certificate.sh
-        NETTLE_PATH=$PWD/../nettle-3.6/build/lib64
+        NETTLE_PATH=$PWD/nettle-3.6/build/lib64
         for client in client gtlsclient bsslclient; do
           for server in server gtlsserver bsslserver; do
             echo "# $client - $server"
