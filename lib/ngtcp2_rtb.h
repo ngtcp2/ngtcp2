@@ -187,6 +187,9 @@ void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
 /* NGTCP2_RTB_ENTRY_FLAG_ECN indicates that the entry is included in a
    UDP datagram with ECN marking. */
 #define NGTCP2_RTB_ENTRY_FLAG_ECN 0x20
+/* NGTCP2_RTB_ENTRY_FLAG_DATAGRAM indicates that the entry includes
+   DATAGRAM frame. */
+#define NGTCP2_RTB_ENTRY_FLAG_DATAGRAM 0x40
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 

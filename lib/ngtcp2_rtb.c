@@ -443,6 +443,33 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
   return (ngtcp2_ssize)num_reclaimed;
 }
 
+/*
+ * conn_process_lost_datagram calls ngtcp2_lost_datagram callback for
+ * lost DATAGRAM frames.
+ */
+static int conn_process_lost_datagram(ngtcp2_conn *conn,
+                                      ngtcp2_rtb_entry *ent) {
+  ngtcp2_frame_chain *frc;
+  int rv;
+
+  for (frc = ent->frc; frc; frc = frc->next) {
+    switch (frc->fr.type) {
+    case NGTCP2_FRAME_DATAGRAM:
+    case NGTCP2_FRAME_DATAGRAM_LEN:
+      assert(conn->callbacks.lost_datagram);
+
+      rv = conn->callbacks.lost_datagram(conn, frc->fr.datagram.dgram_id,
+                                         conn->user_data);
+      if (rv != 0) {
+        return NGTCP2_ERR_CALLBACK_FAILURE;
+      }
+      break;
+    }
+  }
+
+  return 0;
+}
+
 static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
                            ngtcp2_rtb_entry *ent, ngtcp2_conn *conn,
                            ngtcp2_pktns *pktns, ngtcp2_tstamp ts) {
@@ -472,6 +499,14 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
       ngtcp2_ksl_it_next(it);
 
       return 0;
+    }
+
+    if (conn->callbacks.lost_datagram &&
+        (ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM)) {
+      rv = conn_process_lost_datagram(conn, ent);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
     if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) && ent->frc) {

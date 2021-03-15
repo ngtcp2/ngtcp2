@@ -2912,6 +2912,21 @@ typedef int (*ngtcp2_ack_datagram)(ngtcp2_conn *conn, uint64_t dgram_id,
                                    void *user_data);
 
 /**
+ * @functypedef
+ *
+ * :type:`ngtcp2_lost_datagram` is invoked when a packet which
+ * contains DATAGRAM frame which is identified by |dgram_id| is
+ * declared lost.  |dgram_id| is the valued passed to
+ * `ngtcp2_conn_writev_datagram`.
+ *
+ * The callback function must return 0 if it succeeds, or
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library return
+ * immediately.
+ */
+typedef int (*ngtcp2_lost_datagram)(ngtcp2_conn *conn, uint64_t dgram_id,
+                                    void *user_data);
+
+/**
  * @struct
  *
  * :type:`ngtcp2_callbacks` holds a set of callback functions.
@@ -3125,6 +3140,11 @@ typedef struct ngtcp2_callbacks {
    * when a packet containing DATAGRAM frame is acknowledged.
    */
   ngtcp2_ack_datagram ack_datagram;
+  /**
+   * :member:`lost_datagram` is a callback function which is invoked
+   * when a packet containing DATAGRAM frame is declared lost.
+   */
+  ngtcp2_lost_datagram lost_datagram;
 } ngtcp2_callbacks;
 
 /**

@@ -3411,7 +3411,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   if (rv != NGTCP2_ERR_NOBUF && send_datagram &&
       left >= ngtcp2_pkt_datagram_framelen(datalen)) {
-    if (conn->callbacks.ack_datagram) {
+    if (conn->callbacks.ack_datagram || conn->callbacks.lost_datagram) {
       rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
@@ -3426,10 +3426,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &nfrc->fr);
       assert(rv == 0);
 
-      /* Because DATAGRAM will not be retransmitted, we do not use data
-         anymore.  Just nullify it.  The only reason to keep track a
-         frame is keep dgram_id to pass it to ngtcp2_ack_datagram
-         callback. */
+      /* Because DATAGRAM will not be retransmitted, we do not use
+         data anymore.  Just nullify it.  The only reason to keep
+         track a frame is keep dgram_id to pass it to
+         ngtcp2_ack_datagram or ngtcp2_lost_datagram callbacks. */
       nfrc->fr.datagram.datacnt = 0;
       nfrc->fr.datagram.data = NULL;
 
@@ -3445,7 +3445,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     pkt_empty = 0;
-    rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
+    rtb_entry_flags |=
+        NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING | NGTCP2_RTB_ENTRY_FLAG_DATAGRAM;
 
     if (vmsg->datagram.paccepted) {
       *vmsg->datagram.paccepted = 1;
