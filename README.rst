@@ -10,12 +10,11 @@ Branching strategy
 ------------------
 
 As of the beginning of draft-23 development, the new branching
-strategy has been introduced.  The master branch tracks the latest
-QUIC draft development.  When new draft-*NN* is published, the new
-branch named draft-*NN-1* is created based on the master branch.
-Those draft-*NN* branches are considered as "archived", which means
-that no update is expected.  PR should be made to the master branch
-only.
+strategy has been introduced.  The main branch tracks the latest QUIC
+draft development.  When new draft-*NN* is published, the new branch
+named draft-*NN-1* is created based on the main branch.  Those
+draft-*NN* branches are considered as "archived", which means that no
+update is expected.  PR should be made to the main branch only.
 
 For older draft implementations:
 
