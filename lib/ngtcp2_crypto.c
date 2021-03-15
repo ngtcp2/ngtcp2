@@ -478,8 +478,9 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   int initial_scid_present = 0;
   int original_dcid_present = 0;
 
-  p = data;
-  end = data + datalen;
+  if (datalen == 0) {
+    return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;
+  }
 
   /* Set default values */
   memset(params, 0, sizeof(*params));
@@ -503,9 +504,8 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   memset(&params->initial_scid, 0, sizeof(params->initial_scid));
   memset(&params->original_dcid, 0, sizeof(params->original_dcid));
 
-  if (datalen == 0) {
-    return 0;
-  }
+  p = data;
+  end = data + datalen;
 
   for (; (size_t)(end - p) >= 2;) {
     nread = decode_varint(&param_type, p, end);
