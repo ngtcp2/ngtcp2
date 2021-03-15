@@ -36,7 +36,6 @@
 #include "ngtcp2_acktr.h"
 #include "ngtcp2_rtb.h"
 #include "ngtcp2_strm.h"
-#include "ngtcp2_mem.h"
 #include "ngtcp2_idtr.h"
 #include "ngtcp2_str.h"
 #include "ngtcp2_pkt.h"
