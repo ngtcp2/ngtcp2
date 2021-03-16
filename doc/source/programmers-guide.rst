@@ -179,7 +179,7 @@ Dealing with early data
 -----------------------
 
 Client application has to load resumed TLS session.  It also has to
-set the remembered transport parameter using
+set the remembered transport parameters using
 `ngtcp2_conn_set_early_remote_transport_params()` function.
 
 Other than that, there is no difference between early data and 1RTT
