@@ -433,7 +433,8 @@ struct ngtcp2_conn {
     /* transport_params is the values remembered by client from the
        previous session.  These are set by
        ngtcp2_conn_set_early_remote_transport_params().  Server does
-       not use this field. */
+       not use this field.  Server must not set values for these
+       parameters that are smaller than the remembered values. */
     struct {
       uint64_t initial_max_streams_bidi;
       uint64_t initial_max_streams_uni;
@@ -441,8 +442,8 @@ struct ngtcp2_conn {
       uint64_t initial_max_stream_data_bidi_remote;
       uint64_t initial_max_stream_data_uni;
       uint64_t initial_max_data;
-      uint64_t max_datagram_frame_size;
       uint64_t active_connection_id_limit;
+      uint64_t max_datagram_frame_size;
     } transport_params;
   } early;
 

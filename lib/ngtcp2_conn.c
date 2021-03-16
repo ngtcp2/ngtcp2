@@ -9753,9 +9753,15 @@ void ngtcp2_conn_set_early_remote_transport_params(
       params->initial_max_stream_data_bidi_remote;
   p->initial_max_stream_data_uni = params->initial_max_stream_data_uni;
   p->initial_max_data = params->initial_max_data;
-  p->max_datagram_frame_size = params->max_datagram_frame_size;
   p->active_connection_id_limit = params->active_connection_id_limit;
+  p->max_idle_timeout = params->max_idle_timeout;
+  p->max_udp_payload_size = params->max_udp_payload_size;
+  p->disable_active_migration = params->disable_active_migration;
+  p->max_datagram_frame_size = params->max_datagram_frame_size;
 
+  /* These parameters are treated specially.  If server accepts early
+     data, it must not set values for these parameters that are
+     smaller than these remembered values. */
   conn->early.transport_params.initial_max_streams_bidi =
       params->initial_max_streams_bidi;
   conn->early.transport_params.initial_max_streams_uni =
@@ -9767,10 +9773,10 @@ void ngtcp2_conn_set_early_remote_transport_params(
   conn->early.transport_params.initial_max_stream_data_uni =
       params->initial_max_stream_data_uni;
   conn->early.transport_params.initial_max_data = params->initial_max_data;
-  conn->early.transport_params.max_datagram_frame_size =
-      params->max_datagram_frame_size;
   conn->early.transport_params.active_connection_id_limit =
       params->active_connection_id_limit;
+  conn->early.transport_params.max_datagram_frame_size =
+      params->max_datagram_frame_size;
 
   conn_sync_stream_id_limit(conn);
 
