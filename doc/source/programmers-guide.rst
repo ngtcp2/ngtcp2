@@ -185,7 +185,8 @@ set the remembered transport parameters using
 Other than that, there is no difference between early data and 1RTT
 data in terms of API usage.
 
-If early data is rejected by a server, all connection states altered
+If early data is rejected by a server, client must call
+`ngtcp2_conn_early_data_rejected`.  All connection states altered
 during early data transmission are undone.  The library does not
 retransmit early data to server as 1RTT data.  If an application
 wishes to resend data, it has to reopen streams and writes data again.
