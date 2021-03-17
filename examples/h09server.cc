@@ -524,16 +524,8 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
     debug::print_crypto_data(crypto_level, data, datalen);
   }
 
-  auto h = static_cast<Handler *>(user_data);
-
-  if (h->recv_crypto_data(crypto_level, data, datalen) != 0) {
-    if (auto err = ngtcp2_conn_get_tls_error(conn); err) {
-      return err;
-    }
-    return NGTCP2_ERR_CRYPTO;
-  }
-
-  return 0;
+  return ngtcp2_crypto_recv_crypto_data_cb(conn, crypto_level, offset, data,
+                                           datalen, user_data);
 }
 } // namespace
 
@@ -879,12 +871,6 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   ev_timer_again(loop_, &timer_);
 
   return 0;
-}
-
-int Handler::recv_crypto_data(ngtcp2_crypto_level crypto_level,
-                              const uint8_t *data, size_t datalen) {
-  return ngtcp2_crypto_read_write_crypto_data(conn_, crypto_level, data,
-                                              datalen);
 }
 
 int Handler::feed_data(const Endpoint &ep, const Address &local_addr,

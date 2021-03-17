@@ -127,9 +127,6 @@ public:
   void signal_write();
   int handshake_completed();
 
-  int recv_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
-                       size_t datalen);
-
   Server *server() const;
   int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
                        size_t datalen);

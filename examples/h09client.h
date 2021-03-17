@@ -92,9 +92,6 @@ public:
   int handshake_completed();
   int handshake_confirmed();
 
-  int recv_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
-                       size_t datalen);
-
   void update_remote_addr(const ngtcp2_addr *addr, const ngtcp2_pkt_info *pi);
   int send_packet();
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);

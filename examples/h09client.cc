@@ -294,16 +294,8 @@ int recv_crypto_data(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
     debug::print_crypto_data(crypto_level, data, datalen);
   }
 
-  auto c = static_cast<Client *>(user_data);
-
-  if (c->recv_crypto_data(crypto_level, data, datalen) != 0) {
-    if (auto err = ngtcp2_conn_get_tls_error(conn); err) {
-      return err;
-    }
-    return NGTCP2_ERR_CRYPTO;
-  }
-
-  return 0;
+  return ngtcp2_crypto_recv_crypto_data_cb(conn, crypto_level, offset, data,
+                                           datalen, user_data);
 }
 } // namespace
 
@@ -1010,12 +1002,6 @@ void Client::schedule_retransmit() {
                         : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
   rttimer_.repeat = t;
   ev_timer_again(loop_, &rttimer_);
-}
-
-int Client::recv_crypto_data(ngtcp2_crypto_level crypto_level,
-                             const uint8_t *data, size_t datalen) {
-  return ngtcp2_crypto_read_write_crypto_data(conn_, crypto_level, data,
-                                              datalen);
 }
 
 namespace {

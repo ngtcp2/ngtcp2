@@ -42,7 +42,8 @@ callback functions must be set:
 
 * :member:`client_initial <ngtcp2_callbacks.client_initial>`:
   `ngtcp2_crypto_client_initial_cb()` can be passed directly.
-* :member:`recv_crypto_data <ngtcp2_callbacks.recv_crypto_data>`
+* :member:`recv_crypto_data <ngtcp2_callbacks.recv_crypto_data>`:
+  `ngtcp2_crypto_recv_crypto_data_cb()` can be passed directly.
 * :member:`encrypt <ngtcp2_callbacks.encrypt>`:
   `ngtcp2_crypto_encrypt_cb()` can be passed directly.
 * :member:`decrypt <ngtcp2_callbacks.decrypt>`:
@@ -69,7 +70,8 @@ For server application, the following callback functions must be set:
 * :member:`recv_client_initial
   <ngtcp2_callbacks.recv_client_initial>`:
   `ngtcp2_crypto_recv_client_initial_cb()` can be passed directly.
-* :member:`recv_crypto_data <ngtcp2_callbacks.recv_crypto_data>`
+* :member:`recv_crypto_data <ngtcp2_callbacks.recv_crypto_data>`:
+  `ngtcp2_crypto_recv_crypto_data_cb()` can be passed directly.
 * :member:`encrypt <ngtcp2_callbacks.encrypt>`:
   `ngtcp2_crypto_encrypt_cb()` can be passed directly.
 * :member:`decrypt <ngtcp2_callbacks.decrypt>`:

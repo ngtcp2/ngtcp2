@@ -566,6 +566,23 @@ ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_crypto_recv_crypto_data_cb` is a wrapper function around
+ * `ngtcp2_crypto_read_write_crypto_data`.  It can be directly passed
+ * to :member:`ngtcp2_callbacks.recv_crypto_data` field.
+ *
+ * If this function is used, the TLS implementation specific error
+ * codes described in `ngtcp2_crypto_read_write_crypto_data` are
+ * treated as if it returns -1.  Do not use this function if an
+ * application wishes to use the TLS implementation specific error
+ * codes.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_recv_crypto_data_cb(
+    ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level, uint64_t offset,
+    const uint8_t *data, size_t datalen, void *user_data);
+
+/**
+ * @function
+ *
  *  `ngtcp2_crypto_generate_stateless_reset_token` generates a
  *  stateless reset token using HKDF extraction with |md| using the
  *  given |cid| and static key |secret| as input.  The token will be

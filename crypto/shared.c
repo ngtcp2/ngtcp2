@@ -829,3 +829,23 @@ void ngtcp2_crypto_delete_crypto_cipher_ctx_cb(
 
   ngtcp2_crypto_cipher_ctx_free(cipher_ctx);
 }
+
+int ngtcp2_crypto_recv_crypto_data_cb(ngtcp2_conn *conn,
+                                      ngtcp2_crypto_level crypto_level,
+                                      uint64_t offset, const uint8_t *data,
+                                      size_t datalen, void *user_data) {
+  int rv;
+  (void)offset;
+  (void)user_data;
+
+  if (ngtcp2_crypto_read_write_crypto_data(conn, crypto_level, data, datalen) !=
+      0) {
+    rv = ngtcp2_conn_get_tls_error(conn);
+    if (rv) {
+      return rv;
+    }
+    return NGTCP2_ERR_CRYPTO;
+  }
+
+  return 0;
+}
