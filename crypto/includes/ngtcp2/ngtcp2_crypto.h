@@ -284,7 +284,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
  *
  * `ngtcp2_crypto_encrypt_cb` is a wrapper function around
  * `ngtcp2_crypto_encrypt`.  It can be directly passed to
- * :member:`ngtcp2_conn_callbacks.encrypt` field.
+ * :member:`ngtcp2_callbacks.encrypt` field.
  *
  * This function returns 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
@@ -321,7 +321,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_decrypt(uint8_t *dest,
  *
  * `ngtcp2_crypto_decrypt_cb` is a wrapper function around
  * `ngtcp2_crypto_decrypt`.  It can be directly passed to
- * :member:`ngtcp2_conn_callbacks.decrypt` field.
+ * :member:`ngtcp2_callbacks.decrypt` field.
  *
  * This function returns 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_TLS_DECRYPT`.
@@ -353,7 +353,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
  *
  * `ngtcp2_crypto_hp_mask_cb` is a wrapper function around
  * `ngtcp2_crypto_hp_mask`.  It can be directly passed to
- * :member:`ngtcp2_conn_callbacks.hp_mask` field.
+ * :member:`ngtcp2_callbacks.hp_mask` field.
  *
  * This function returns 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
@@ -479,7 +479,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_key(
  *
  * `ngtcp2_crypto_update_key_cb` is a wrapper function around
  * `ngtcp2_crypto_update_key`.  It can be directly passed to
- * :member:`ngtcp2_conn_callbacks.update_key` field.
+ * :member:`ngtcp2_callbacks.update_key` field.
  *
  * This function returns 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
@@ -498,8 +498,8 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
  * encryption keys and sets QUIC transport parameters.
  *
  * This function can be directly passed to
- * :member:`ngtcp2_conn_callbacks.client_initial` field.  It is only
- * used by client.
+ * :member:`ngtcp2_callbacks.client_initial` field.  It is only used
+ * by client.
  *
  * This function returns 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
@@ -514,7 +514,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn,
  * response to incoming Retry packet.
  *
  * This function can be directly passed to
- * :member:`ngtcp2_conn_callbacks.recv_retry` field.  It is only used
+ * :member:`ngtcp2_callbacks.recv_retry` field.  It is only used
  * by client.
  *
  * This function returns 0 if it succeeds, or
@@ -532,7 +532,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn,
  * transport parameters.
  *
  * This function can be directly passed to
- * :member:`ngtcp2_conn_callbacks.recv_client_initial` field.  It is
+ * :member:`ngtcp2_callbacks.recv_client_initial` field.  It is
  * only used by server.
  *
  * This function returns 0 if it succeeds, or
@@ -681,7 +681,7 @@ ngtcp2_crypto_aead_ctx_free(ngtcp2_crypto_aead_ctx *aead_ctx);
  * `ngtcp2_crypto_delete_crypto_aead_ctx_cb` deletes the given |aead_ctx|.
  *
  * This function can be directly passed to
- * :member:`ngtcp2_conn_callbacks.delete_crypto_aead_ctx` field.
+ * :member:`ngtcp2_callbacks.delete_crypto_aead_ctx` field.
  */
 NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_aead_ctx_cb(
     ngtcp2_conn *conn, ngtcp2_crypto_aead_ctx *aead_ctx, void *user_data);
@@ -693,7 +693,7 @@ NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_aead_ctx_cb(
  * |cipher_ctx|.
  *
  * This function can be directly passed to
- * :member:`ngtcp2_conn_callbacks.delete_crypto_cipher_ctx` field.
+ * :member:`ngtcp2_callbacks.delete_crypto_cipher_ctx` field.
  */
 NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_cipher_ctx_cb(
     ngtcp2_conn *conn, ngtcp2_crypto_cipher_ctx *cipher_ctx, void *user_data);
