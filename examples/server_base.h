@@ -60,7 +60,7 @@ struct Config {
   // mime_types_file is a path to "MIME media types and the
   // extensions" file.  Ubuntu mime-support package includes it in
   // /etc/mime/types.
-  const char *mime_types_file;
+  std::string_view mime_types_file;
   // mime_types maps file extension to MIME media type.
   std::unordered_map<std::string, std::string> mime_types;
   // port is the port number which server listens on for incoming

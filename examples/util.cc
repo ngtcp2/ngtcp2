@@ -265,12 +265,14 @@ namespace {
 constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace
 
-int read_mime_types(std::unordered_map<std::string, std::string> &dest,
-                    const char *filename) {
-  std::ifstream f(filename);
+std::optional<std::unordered_map<std::string, std::string>>
+read_mime_types(const std::string_view &filename) {
+  std::ifstream f(filename.data());
   if (!f) {
-    return -1;
+    return {};
   }
+
+  std::unordered_map<std::string, std::string> dest;
 
   std::string line;
   while (std::getline(f, line)) {
@@ -295,7 +297,7 @@ int read_mime_types(std::unordered_map<std::string, std::string> &dest,
     }
   }
 
-  return 0;
+  return dest;
 }
 
 std::string format_duration(ngtcp2_duration n) {

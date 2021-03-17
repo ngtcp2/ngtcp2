@@ -202,10 +202,10 @@ template <typename InputIt> std::string b64encode(InputIt first, InputIt last) {
 }
 
 // read_mime_types reads "MIME media types and the extensions" file
-// denoted by |filename| and stores the mapping of extension to MIME
-// media type in |dest|.  It returns 0 if it succeeds, or -1.
-int read_mime_types(std::unordered_map<std::string, std::string> &dest,
-                    const char *filename);
+// denoted by |filename| and returns the mapping of extension to MIME
+// media type.
+std::optional<std::unordered_map<std::string, std::string>>
+read_mime_types(const std::string_view &filename);
 
 // format_uint converts |n| into string.
 template <typename T> std::string format_uint(T n) {
