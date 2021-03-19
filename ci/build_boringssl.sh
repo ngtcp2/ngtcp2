@@ -3,7 +3,7 @@
 
 git clone https://boringssl.googlesource.com/boringssl
 cd boringssl
-git checkout 78f15a6aa9f11ab7cff736f920c4858cc38264fb
+git checkout b09f283a030efc650cfcb3476932626c5000b921
 mkdir build
 cd build
 CFLAGS=-fpic CXXFLAGS=-fpic cmake ..

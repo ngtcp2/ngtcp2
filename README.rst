@@ -72,7 +72,7 @@ For crypto helper library:
 
 * OpenSSL with QUIC support described above
 * libgnutls28-dev >= 3.7.0
-* BoringSSL (commit 78f15a6aa9f11ab7cff736f920c4858cc38264fb)
+* BoringSSL (commit b09f283a030efc650cfcb3476932626c5000b921)
 
 Build from git
 --------------
