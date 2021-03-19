@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <memory>
 #include <fstream>
+#include <iomanip>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -787,7 +788,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     path += ".qlog";
     qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {
-      std::cerr << "Could not open qlog file " << path << ": "
+      std::cerr << "Could not open qlog file " << std::quoted(path) << ": "
                 << strerror(errno) << std::endl;
       return -1;
     }
@@ -2777,7 +2778,7 @@ int main(int argc, char **argv) {
       // --htdocs
       auto path = realpath(optarg, nullptr);
       if (path == nullptr) {
-        std::cerr << "path: invalid path " << optarg << std::endl;
+        std::cerr << "path: invalid path " << std::quoted(optarg) << std::endl;
         exit(EXIT_FAILURE);
       }
       config.htdocs = path;
@@ -2834,8 +2835,8 @@ int main(int argc, char **argv) {
         // --preferred-ipv4-addr
         if (parse_host_port(config.preferred_ipv4_addr, AF_INET, optarg,
                             optarg + strlen(optarg)) != 0) {
-          std::cerr << "preferred-ipv4-addr: could not use '" << optarg << "'"
-                    << std::endl;
+          std::cerr << "preferred-ipv4-addr: could not use "
+                    << std::quoted(optarg) << std::endl;
           exit(EXIT_FAILURE);
         }
         break;
@@ -2843,8 +2844,8 @@ int main(int argc, char **argv) {
         // --preferred-ipv6-addr
         if (parse_host_port(config.preferred_ipv6_addr, AF_INET6, optarg,
                             optarg + strlen(optarg)) != 0) {
-          std::cerr << "preferred-ipv6-addr: could not use '" << optarg << "'"
-                    << std::endl;
+          std::cerr << "preferred-ipv6-addr: could not use "
+                    << std::quoted(optarg) << std::endl;
           exit(EXIT_FAILURE);
         }
         break;

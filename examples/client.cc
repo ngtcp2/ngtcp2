@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <memory>
 #include <fstream>
+#include <iomanip>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -698,7 +699,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
     qlog_ = fopen(path.c_str(), "w");
     if (qlog_ == nullptr) {
-      std::cerr << "Could not open qlog file " << path << ": "
+      std::cerr << "Could not open qlog file " << std::quoted(path) << ": "
                 << strerror(errno) << std::endl;
       return -1;
     }
