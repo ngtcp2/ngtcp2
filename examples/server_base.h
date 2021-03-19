@@ -132,6 +132,9 @@ struct Config {
   // send_trailers controls whether server sends trailer fields or
   // not.
   bool send_trailers;
+  // max_gso_dgrams is the maximum number of UDP datagrams in one GSO
+  // sendmsg call.
+  size_t max_gso_dgrams;
 };
 
 struct Buffer {

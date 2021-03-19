@@ -975,7 +975,7 @@ int Handler::write_streams() {
   PathStorage path, prev_path;
   uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
-  size_t max_pktcnt = std::min(static_cast<size_t>(10),
+  size_t max_pktcnt = std::min(static_cast<size_t>(config.max_gso_dgrams),
                                static_cast<size_t>(64_k / max_pktlen_));
   std::array<uint8_t, 64_k> buf;
   uint8_t *bufpos = buf.data();
@@ -2598,6 +2598,7 @@ void config_set_default(Config &config) {
   config.max_dyn_length = 20_m;
   config.cc = "cubic"sv;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+  config.max_gso_dgrams = 10;
 }
 } // namespace
 
@@ -2714,6 +2715,11 @@ Options:
             << NGTCP2_MAX_PKTLEN_IPV6 << R"( for IPv6
   --send-trailers
               Send trailer fields.
+  --max-gso-dgrams=<N>
+              Maximum  number of  UDP  datagrams that  are  sent in  a
+              single GSO sendmsg call.
+              Default: )"
+            << config.max_gso_dgrams << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2766,6 +2772,7 @@ int main(int argc, char **argv) {
         {"initial-rtt", required_argument, &flag, 20},
         {"max-udp-payload-size", required_argument, &flag, 21},
         {"send-trailers", no_argument, &flag, 22},
+        {"max-gso-dgrams", required_argument, &flag, 25},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -2971,6 +2978,15 @@ int main(int argc, char **argv) {
       case 22:
         // --send-trailers
         config.send_trailers = true;
+        break;
+      case 25:
+        // --max-gso-dgrams
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "max-gso-dgrams: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_gso_dgrams = *n;
+        }
         break;
       }
       break;

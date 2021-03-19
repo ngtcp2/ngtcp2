@@ -1696,7 +1696,7 @@ int Handler::write_streams() {
   PathStorage path, prev_path;
   uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
-  size_t max_pktcnt = std::min(static_cast<size_t>(10),
+  size_t max_pktcnt = std::min(static_cast<size_t>(config.max_gso_dgrams),
                                static_cast<size_t>(64_k / max_pktlen_));
   std::array<uint8_t, 64_k> buf;
   uint8_t *bufpos = buf.data();
@@ -3306,6 +3306,7 @@ void config_set_default(Config &config) {
   config.max_dyn_length = 20_m;
   config.cc = "cubic"sv;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+  config.max_gso_dgrams = 10;
 }
 } // namespace
 
@@ -3434,6 +3435,11 @@ Options:
               and window size is scaled up to this value.
               Default: )"
             << util::format_uint_iec(config.max_stream_window) << R"(
+  --max-gso-dgrams=<N>
+              Maximum  number of  UDP  datagrams that  are  sent in  a
+              single GSO sendmsg call.
+              Default: )"
+            << config.max_gso_dgrams << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -3488,6 +3494,7 @@ int main(int argc, char **argv) {
         {"send-trailers", no_argument, &flag, 22},
         {"max-window", required_argument, &flag, 23},
         {"max-stream-window", required_argument, &flag, 24},
+        {"max-gso-dgrams", required_argument, &flag, 25},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3710,6 +3717,15 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.max_stream_window = *n;
+        }
+        break;
+      case 25:
+        // --max-gso-dgrams
+        if (auto n = util::parse_uint(optarg); !n) {
+          std::cerr << "max-gso-dgrams: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.max_gso_dgrams = *n;
         }
         break;
       }
