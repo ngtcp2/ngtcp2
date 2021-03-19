@@ -7990,8 +7990,6 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                       "packet was ignored because of mismatched DCID");
       return NGTCP2_ERR_DISCARD_PKT;
     }
-
-    conn->flags |= NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT;
   }
 
   ngtcp2_qlog_pkt_received_start(&conn->qlog);

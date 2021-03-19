@@ -149,11 +149,6 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
    parameters are received. */
 #define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04
-/* NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT is set when a protected packet
-   is received, and decrypted successfully.  This flag is used to stop
-   retransmitting handshake packets.  It might be replaced with an
-   another mechanism when we implement key update. */
-#define NGTCP2_CONN_FLAG_RECV_PROTECTED_PKT 0x08
 /* NGTCP2_CONN_FLAG_RECV_RETRY is set when a client receives Retry
    packet. */
 #define NGTCP2_CONN_FLAG_RECV_RETRY 0x10
