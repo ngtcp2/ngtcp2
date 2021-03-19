@@ -889,7 +889,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   /* Set stateless reset token later if it is available in the local
      transport parameters */
-  ngtcp2_scid_init(scident, 0, scid, NULL);
+  ngtcp2_scid_init(scident, 0, scid);
 
   rv = ngtcp2_ksl_insert(&(*pconn)->scid.set, NULL, &scident->cid, scident);
   if (rv != 0) {
@@ -2667,7 +2667,7 @@ static int conn_enqueue_new_connection_id(ngtcp2_conn *conn) {
       return NGTCP2_ERR_NOMEM;
     }
 
-    ngtcp2_scid_init(scid, seq, &cid, token);
+    ngtcp2_scid_init(scid, seq, &cid);
 
     rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scid->cid, scid);
     if (rv != 0) {
@@ -9802,7 +9802,6 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
   const ngtcp2_mem *mem = conn->mem;
   ngtcp2_transport_params *params = &conn->local.transport_params;
   ngtcp2_scid *scident;
-  ngtcp2_ksl_it it;
   int rv;
 
   assert(1 == ngtcp2_ksl_len(&conn->scid.set));
@@ -9818,32 +9817,21 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
     params->preferred_address_present = 0;
   }
 
-  if (conn->server) {
-    if (params->stateless_reset_token_present) {
-      it = ngtcp2_ksl_begin(&conn->scid.set);
-      scident = ngtcp2_ksl_it_get(&it);
-
-      memcpy(scident->token, params->stateless_reset_token,
-             NGTCP2_STATELESS_RESET_TOKENLEN);
+  if (conn->server && params->preferred_address_present) {
+    scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
+    if (scident == NULL) {
+      return NGTCP2_ERR_NOMEM;
     }
 
-    if (params->preferred_address_present) {
-      scident = ngtcp2_mem_malloc(mem, sizeof(*scident));
-      if (scident == NULL) {
-        return NGTCP2_ERR_NOMEM;
-      }
+    ngtcp2_scid_init(scident, 1, &params->preferred_address.cid);
 
-      ngtcp2_scid_init(scident, 1, &params->preferred_address.cid,
-                       params->preferred_address.stateless_reset_token);
-
-      rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scident->cid, scident);
-      if (rv != 0) {
-        ngtcp2_mem_free(mem, scident);
-        return rv;
-      }
-
-      conn->scid.last_seq = 1;
+    rv = ngtcp2_ksl_insert(&conn->scid.set, NULL, &scident->cid, scident);
+    if (rv != 0) {
+      ngtcp2_mem_free(mem, scident);
+      return rv;
     }
+
+    conn->scid.last_seq = 1;
   }
 
   conn->rx.window = conn->rx.unsent_max_offset = conn->rx.max_offset =

@@ -54,10 +54,6 @@ typedef struct ngtcp2_scid {
   ngtcp2_tstamp ts_retired;
   /* flags is the bitwise OR of zero or more of NGTCP2_SCID_FLAG_*. */
   uint8_t flags;
-  /* token is a stateless reset token associated to this CID.
-     Actually, the stateless reset token is tied to the connection,
-     not to the particular connection ID. */
-  uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_scid;
 
 /* NGTCP2_DCID_FLAG_NONE indicates that no flag is set. */
@@ -112,12 +108,9 @@ int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs);
 int ngtcp2_cid_empty(const ngtcp2_cid *cid);
 
 /*
- * ngtcp2_scid_init initializes |scid| with the given parameters.  If
- * |token| is NULL, the function fills scid->token it with 0.  |token|
- * must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
+ * ngtcp2_scid_init initializes |scid| with the given parameters.
  */
-void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid,
-                      const uint8_t *token);
+void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid);
 
 /*
  * ngtcp2_scid_copy copies |src| into |dest|.
