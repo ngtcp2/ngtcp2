@@ -4001,8 +4001,10 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  * |dgram_id| is an opaque identifier which should uniquely identify
  * the given DATAGRAM.  It is passed to :type:`ngtcp2_ack_datagram`
  * callback when a packet that contains DATAGRAM frame is
- * acknowledged.  If an application does not use this callback, it can
- * always sets 0 to this parameter.
+ * acknowledged.  It is passed to :type:`ngtcp2_lost_datagram`
+ * callback when a packet that contains DATAGRAM frame is declared
+ * lost.  If an application uses neither of those callbacks, it can
+ * sets 0 to this parameter.
  *
  * This function might write other frames other than DATAGRAM, just
  * like `ngtcp2_conn_writev_stream`.
