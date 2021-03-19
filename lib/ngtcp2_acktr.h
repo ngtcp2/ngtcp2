@@ -93,10 +93,6 @@ typedef struct ngtcp2_acktr_ack_entry {
 /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are pending
    protected packet to be acknowledged. */
 #define NGTCP2_ACKTR_FLAG_ACTIVE_ACK 0x02
-/* NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK is set when server received
-   acknowledgement for ACK which acknowledges the last handshake
-   packet from client (which contains TLSv1.3 Finished message). */
-#define NGTCP2_ACKTR_FLAG_ACK_FINISHED_ACK 0x80
 /* NGTCP2_ACKTR_FLAG_CANCEL_TIMER is set when ACK delay timer is
    expired and canceled. */
 #define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100
