@@ -3742,7 +3742,7 @@ int main(int argc, char **argv) {
 
   if (auto mt = util::read_mime_types(config.mime_types_file); !mt) {
     std::cerr << "mime-types-file: Could not read MIME media types file "
-              << config.mime_types_file << std::endl;
+              << std::quoted(config.mime_types_file) << std::endl;
   } else {
     config.mime_types = std::move(*mt);
   }
