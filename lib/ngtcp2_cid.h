@@ -61,6 +61,9 @@ typedef struct ngtcp2_scid {
 /* NGTCP2_DCID_FLAG_PATH_VALIDATED indicates that an associated path
    has been validated. */
 #define NGTCP2_DCID_FLAG_PATH_VALIDATED 0x01
+/* NGTCP2_DCID_FLAG_TOKEN_PRESENT indicates that a stateless reset
+   token is set in token field. */
+#define NGTCP2_DCID_FLAG_TOKEN_PRESENT 0x02
 
 typedef struct ngtcp2_dcid {
   /* seq is the sequence number associated to the CID. */
@@ -126,6 +129,12 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
                       const uint8_t *token);
 
 /*
+ * ngtcp2_dcid_set_token sets |token| to |dcid|.  |token| must not be
+ * NULL and must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
+ */
+void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid, const uint8_t *token);
+
+/*
  * ngtcp2_dcid_copy copies |src| into |dest|.
  */
 void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
@@ -142,5 +151,17 @@ void ngtcp2_dcid_copy_cid_token(ngtcp2_dcid *dest, const ngtcp2_dcid *src);
  */
 int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
                                   const ngtcp2_cid *cid, const uint8_t *token);
+
+/*
+ * ngtcp2_dcid_verify_stateless_reset_token verifies stateless reset
+ * token |token| against the one included in |dcid|.  This function
+ * returns 0 if the verification succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     Tokens do not match; or |dcid| does not contain a token.
+ */
+int ngtcp2_dcid_verify_stateless_reset_token(const ngtcp2_dcid *dcid,
+                                             const uint8_t *token);
 
 #endif /* NGTCP2_CID_H */

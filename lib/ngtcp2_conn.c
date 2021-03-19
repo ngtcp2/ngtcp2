@@ -345,8 +345,7 @@ static int conn_call_dcid_status(ngtcp2_conn *conn,
 
   rv = conn->callbacks.dcid_status(
       conn, (int)type, dcid->seq, &dcid->cid,
-      ngtcp2_check_invalid_stateless_reset_token(dcid->token) ? NULL
-                                                              : dcid->token,
+      (dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? dcid->token : NULL,
       conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -6524,8 +6523,8 @@ static int check_stateless_reset(const ngtcp2_dcid *dcid,
                                  const ngtcp2_path *path,
                                  const ngtcp2_pkt_stateless_reset *sr) {
   return ngtcp2_path_eq(&dcid->ps.path, path) &&
-         ngtcp2_verify_stateless_reset_token(dcid->token,
-                                             sr->stateless_reset_token) == 0;
+         ngtcp2_dcid_verify_stateless_reset_token(
+             dcid, sr->stateless_reset_token) == 0;
 }
 
 /*
@@ -8995,9 +8994,10 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     if (conn->remote.transport_params.stateless_reset_token_present) {
       assert(conn->dcid.current.seq == 0);
-      memcpy(conn->dcid.current.token,
-             conn->remote.transport_params.stateless_reset_token,
-             sizeof(conn->dcid.current.token));
+      assert(!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT));
+      ngtcp2_dcid_set_token(
+          &conn->dcid.current,
+          conn->remote.transport_params.stateless_reset_token);
     }
 
     rv = conn_call_activate_dcid(conn, &conn->dcid.current);
@@ -11073,9 +11073,10 @@ static void copy_dcid_to_cid_token(ngtcp2_cid_token *dest,
   dest->seq = src->seq;
   dest->cid = src->cid;
   ngtcp2_path_storage_init2(&dest->ps, &src->ps.path);
-  dest->token_present =
-      (uint8_t)!ngtcp2_check_invalid_stateless_reset_token(src->token);
-  memcpy(dest->token, src->token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  if ((dest->token_present =
+           (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) != 0)) {
+    memcpy(dest->token, src->token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  }
 }
 
 size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {

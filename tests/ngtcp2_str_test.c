@@ -29,15 +29,6 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_test_helper.h"
 
-void test_ngtcp2_check_invalid_stateless_reset_token(void) {
-  static uint8_t invalid_token[] = {0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0};
-  static uint8_t good_token[NGTCP2_STATELESS_RESET_TOKENLEN] = {1};
-
-  CU_ASSERT(ngtcp2_check_invalid_stateless_reset_token(invalid_token));
-  CU_ASSERT(!ngtcp2_check_invalid_stateless_reset_token(good_token));
-}
-
 void test_ngtcp2_encode_ipv4(void) {
   uint8_t buf[16];
 

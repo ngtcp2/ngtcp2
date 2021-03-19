@@ -610,6 +610,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
   (*pconn)->tx.max_offset = remote_params->initial_max_data;
 
+  (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
   memset((*pconn)->dcid.current.token, 0xf1, NGTCP2_STATELESS_RESET_TOKENLEN);
 }
 
@@ -2283,7 +2284,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.rx.max_pkt_num = 24324325;
 
-  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  ngtcp2_dcid_set_token(&conn->dcid.current, token);
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
       buf, sizeof(buf), token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
@@ -2303,7 +2304,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.rx.max_pkt_num = 3255454;
 
-  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  ngtcp2_dcid_set_token(&conn->dcid.current, token);
 
   spktlen =
       ngtcp2_pkt_write_stateless_reset(buf, sizeof(buf), token, null_data, 29);
@@ -2323,7 +2324,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.rx.max_pkt_num = 754233;
 
-  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  ngtcp2_dcid_set_token(&conn->dcid.current, token);
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
       buf, sizeof(buf), token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
@@ -2346,7 +2347,7 @@ void test_ngtcp2_conn_recv_stateless_reset(void) {
   conn->callbacks.decrypt = fail_decrypt;
   conn->pktns.rx.max_pkt_num = 754233;
 
-  memcpy(conn->dcid.current.token, token, NGTCP2_STATELESS_RESET_TOKENLEN);
+  ngtcp2_dcid_set_token(&conn->dcid.current, token);
 
   spktlen = ngtcp2_pkt_write_stateless_reset(
       buf, 41, token, null_data, NGTCP2_MIN_STATELESS_RESET_RANDLEN);
@@ -4411,6 +4412,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
   CU_ASSERT(ngtcp2_cid_eq(&fr.new_connection_id.cid, &dcid->cid));
+  CU_ASSERT(dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT);
   CU_ASSERT(0 == memcmp(fr.new_connection_id.stateless_reset_token, dcid->token,
                         sizeof(fr.new_connection_id.stateless_reset_token)));
 

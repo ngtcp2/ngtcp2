@@ -29,7 +29,6 @@
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-void test_ngtcp2_check_invalid_stateless_reset_token(void);
 void test_ngtcp2_encode_ipv4(void);
 void test_ngtcp2_encode_ipv6(void);
 
