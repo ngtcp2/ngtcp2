@@ -4811,7 +4811,7 @@ typedef struct ngtcp2_info {
  * version number and if the condition is not met, this function will
  * return a ``NULL``.  Pass in 0 to skip the version checking.
  */
-NGTCP2_EXTERN ngtcp2_info *ngtcp2_version(int least_version);
+NGTCP2_EXTERN const ngtcp2_info *ngtcp2_version(int least_version);
 
 /**
  * @function
