@@ -677,10 +677,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   ngtcp2_callbacks cb;
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
-  ngtcp2_transport_params *remote_params;
   ngtcp2_cid dcid, scid;
-  ngtcp2_crypto_aead_ctx aead_ctx = {0};
-  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
 
   dcid_init(&dcid);
   scid_init(&scid);
@@ -699,18 +696,6 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   ngtcp2_conn_server_new(pconn, &dcid, &scid, &null_path.path,
                          NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
                          /* mem = */ NULL, NULL);
-  ngtcp2_conn_install_initial_key(*pconn, &aead_ctx, null_iv, &hp_ctx,
-                                  &aead_ctx, null_iv, &hp_ctx, sizeof(null_iv));
-  remote_params = &(*pconn)->remote.transport_params;
-  remote_params->initial_max_stream_data_bidi_local = 64 * 1024;
-  remote_params->initial_max_stream_data_bidi_remote = 64 * 1024;
-  remote_params->initial_max_stream_data_uni = 64 * 1024;
-  remote_params->initial_max_streams_bidi = 0;
-  remote_params->initial_max_streams_uni = 1;
-  remote_params->initial_max_data = 64 * 1024;
-  (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = remote_params->initial_max_data;
 }
 
 static void setup_early_client(ngtcp2_conn **pconn) {
