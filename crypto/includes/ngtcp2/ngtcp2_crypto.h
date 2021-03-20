@@ -240,18 +240,19 @@ ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead);
  *
  * `ngtcp2_crypto_derive_packet_protection_key` derives packet
  * protection key.  This function writes packet protection key into
- * the buffer pointed by |key|.  |key| must point to the buffer which
- * is at least ngtcp2_crypto_aead_keylen(aead) bytes long.  This
- * function writes packet protection IV into |iv|.  |iv| must point to
- * the buffer which is at least
- * ngtcp2_crypto_packet_protection_ivlen(aead).  |key| is
- * ngtcp2_crypto_aead_keylen(aead) bytes long.  |iv| is
- * ngtcp2_crypto_packet_protection_ivlen(aead) bytes long.
+ * the buffer pointed by |key|.  The length of derived key is
+ * `ngtcp2_crypto_aead_keylen(aead) <ngtcp2_crypto_aead_keylen>`
+ * bytes.  |key| must have enough capacity to store the key.  This
+ * function writes packet protection IV into |iv|.  The length of
+ * derived IV is `ngtcp2_crypto_packet_protection_ivlen(aead)
+ * <ngtcp2_crypto_packet_protection_ivlen>` bytes.  |iv| must have
+ * enough capacity to store the IV.
  *
  * If |hp| is not NULL, this function also derives packet header
  * protection key and writes the key into the buffer pointed by |hp|.
- * The length of key is ngtcp2_crypto_aead_keylen(aead) bytes long.
- * |hp|, if not NULL, must have enough capacity to store the key.
+ * The length of derived key is `ngtcp2_crypto_aead_keylen(aead)
+ * <ngtcp2_crypto_aead_keylen>` bytes.  |hp|, if not NULL, must have
+ * enough capacity to store the key.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -265,9 +266,10 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_packet_protection_key(
  * `ngtcp2_crypto_encrypt` encrypts |plaintext| of length
  * |plaintextlen| and writes the ciphertext into the buffer pointed by
  * |dest|.  The length of ciphertext is plaintextlen +
- * ngtcp2_crypto_aead_max_overhead(aead) bytes long.  |dest| must have
- * enough capacity to store the ciphertext.  It is allowed to specify
- * the same value to |dest| and |plaintext|.
+ * :member:`aead->max_overhead <ngtcp2_crypto_aead.max_overhead>`
+ * bytes long.  |dest| must have enough capacity to store the
+ * ciphertext.  It is allowed to specify the same value to |dest| and
+ * |plaintext|.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -302,9 +304,10 @@ ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * `ngtcp2_crypto_decrypt` decrypts |ciphertext| of length
  * |ciphertextlen| and writes the plaintext into the buffer pointed by
  * |dest|.  The length of plaintext is ciphertextlen -
- * ngtcp2_crypto_aead_max_overhead(aead) bytes long.  |dest| must have
- * enough capacity to store the plaintext.  It is allowed to specify
- * the same value to |dest| and |ciphertext|.
+ * :member:`aead->max_overhead <ngtcp2_crypto_aead.max_overhead>`
+ * bytes long.  |dest| must have enough capacity to store the
+ * plaintext.  It is allowed to specify the same value to |dest| and
+ * |ciphertext|.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -379,16 +382,30 @@ ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * |secretlen| specifies the length of |secret|.
  *
  * The length of packet protection key and header protection key is
- * ngtcp2_crypto_aead(ctx->aead), and the length of packet protection
- * IV is ngtcp2_crypto_packet_protection_ivlen(ctx->aead) where ctx
- * can be obtained by `ngtcp2_crypto_ctx_tls`.
+ * `ngtcp2_crypto_aead_keylen(ctx->aead) <ngtcp2_crypto_aead_keylen>`,
+ * and the length of packet protection IV is
+ * `ngtcp2_crypto_packet_protection_ivlen(ctx->aead)
+ * <ngtcp2_crypto_packet_protection_ivlen>` where ctx is obtained by
+ * `ngtcp2_crypto_ctx_tls` (or `ngtcp2_crypto_ctx_tls_early` if
+ * |level| == :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`).
  *
  * In the first call of this function, it calls
- * `ngtcp2_conn_set_crypto_ctx` to set negotiated AEAD and message
- * digest algorithm.  After the successful call of this function,
- * application can use `ngtcp2_conn_get_crypto_ctx` to get the object.
- * It also calls `ngtcp2_conn_set_aead_overhead` to set AEAD tag
- * length.
+ * `ngtcp2_conn_set_crypto_ctx` (or `ngtcp2_conn_set_early_crypto_ctx`
+ * if |level| ==
+ * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to set
+ * negotiated AEAD and message digest algorithm.  After the successful
+ * call of this function, application can use
+ * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_early_crypto_ctx`
+ * if |level| ==
+ * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to get
+ * :type:`ngtcp2_crypto_ctx`.
+ *
+ * If |conn| is initialized as client, and |level| is
+ * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_APPLICATION`, this
+ * function retrieves a remote QUIC transport parameters extension
+ * from an object obtained by `ngtcp2_conn_get_tls_native_handle` and
+ * sets it to |conn| by calling
+ * `ngtcp2_conn_set_remote_transport_params`.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -412,21 +429,30 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  * |secretlen| specifies the length of |secret|.
  *
  * The length of packet protection key and header protection key is
- * ngtcp2_crypto_aead(ctx->aead), and the length of packet protection
- * IV is ngtcp2_crypto_packet_protection_ivlen(ctx->aead) where ctx
- * can be obtained by `ngtcp2_crypto_ctx_tls`.
+ * `ngtcp2_crypto_aead_keylen(ctx->aead) <ngtcp2_crypto_aead_keylen>`,
+ * and the length of packet protection IV is
+ * `ngtcp2_crypto_packet_protection_ivlen(ctx->aead)
+ * <ngtcp2_crypto_packet_protection_ivlen>` where ctx is obtained by
+ * `ngtcp2_crypto_ctx_tls` (or `ngtcp2_crypto_ctx_tls_early` if
+ * |level| == :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`).
  *
  * In the first call of this function, it calls
- * `ngtcp2_conn_set_crypto_ctx` to set negotiated AEAD and message
- * digest algorithm.  After the successful call of this function,
- * application can use `ngtcp2_conn_get_crypto_ctx` to get the object.
- * It also calls `ngtcp2_conn_set_aead_overhead` to set AEAD tag
- * length.
+ * `ngtcp2_conn_set_crypto_ctx` (or `ngtcp2_conn_set_early_crypto_ctx`
+ * if |level| ==
+ * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to set
+ * negotiated AEAD and message digest algorithm.  After the successful
+ * call of this function, application can use
+ * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_early_crypto_ctx`
+ * if |level| ==
+ * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`) to get
+ * :type:`ngtcp2_crypto_ctx`.
  *
- * If |level| is
+ * If |conn| is initialized as server, and |level| is
  * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_APPLICATION`, this
  * function retrieves a remote QUIC transport parameters extension
- * from |tls| and sets it to |conn|.
+ * from an object obtained by `ngtcp2_conn_get_tls_native_handle` and
+ * sets it to |conn| by calling
+ * `ngtcp2_conn_set_remote_transport_params`.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -462,9 +488,11 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_tx_key(
  * length of |rx_secret| and |tx_secret|.
  *
  * The length of packet protection key and header protection key is
- * ngtcp2_crypto_aead(ctx->aead), and the length of packet protection
- * IV is ngtcp2_crypto_packet_protection_ivlen(ctx->aead) where ctx
- * can be obtained by `ngtcp2_conn_get_crypto_ctx`.
+ * `ngtcp2_crypto_aead_keylen(ctx->aead) <ngtcp2_crypto_aead_keylen>`,
+ * and the length of packet protection IV is
+ * `ngtcp2_crypto_packet_protection_ivlen(ctx->aead)
+ * <ngtcp2_crypto_packet_protection_ivlen>` where ctx is obtained by
+ * `ngtcp2_crypto_ctx_tls`.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -550,8 +578,8 @@ NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
  * length |datalen| in encryption level |crypto_level| and may feed
  * outgoing CRYPTO data to |conn|.  This function can drive handshake.
  * This function can be also used after handshake completes.  It is
- * allowed to call this function with datalen == 0.  In this case, no
- * additional read operation is done.
+ * allowed to call this function with |datalen| == 0.  In this case,
+ * no additional read operation is done.
  *
  * This function returns 0 if it succeeds, or a negative error code.
  * The generic error code is -1 if a specific error code is not
