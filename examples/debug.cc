@@ -30,6 +30,8 @@
 
 #include "util.h"
 
+using namespace std::literals;
+
 namespace ngtcp2 {
 
 namespace debug {
@@ -314,6 +316,19 @@ void print_http_push_promise(int64_t stream_id, int64_t push_id,
   for (size_t i = 0; i < nvlen; ++i) {
     auto &nv = nva[i];
     print_header(nv);
+  }
+}
+
+std::string_view secret_title(ngtcp2_crypto_level level) {
+  switch (level) {
+  case NGTCP2_CRYPTO_LEVEL_EARLY:
+    return "early_traffic"sv;
+  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
+    return "handshake_traffic"sv;
+  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
+    return "application_traffic"sv;
+  default:
+    assert(0);
   }
 }
 

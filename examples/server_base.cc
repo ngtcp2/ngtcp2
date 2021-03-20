@@ -65,21 +65,7 @@ int HandlerBase::on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
   auto aead = &crypto_ctx->aead;
   auto keylen = ngtcp2_crypto_aead_keylen(aead);
   auto ivlen = ngtcp2_crypto_packet_protection_ivlen(aead);
-
-  const char *title = nullptr;
-  switch (level) {
-  case NGTCP2_CRYPTO_LEVEL_EARLY:
-    title = "early_traffic";
-    break;
-  case NGTCP2_CRYPTO_LEVEL_HANDSHAKE:
-    title = "handshake_traffic";
-    break;
-  case NGTCP2_CRYPTO_LEVEL_APPLICATION:
-    title = "application_traffic";
-    break;
-  default:
-    assert(0);
-  }
+  auto title = debug::secret_title(level);
 
   if (!config.quiet && config.show_secret) {
     std::cerr << title << " rx secret" << std::endl;
