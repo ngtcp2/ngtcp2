@@ -447,8 +447,8 @@ typedef struct ngtcp2_mem {
  */
 typedef struct ngtcp2_pkt_info {
   /**
-   * :member:`ecn <ngtcp2_pkt_info.ecn>` is ECN marking and when
-   * passing `ngtcp2_conn_read_pkt()`, and it should be either
+   * :member:`ecn` is ECN marking and when passing
+   * `ngtcp2_conn_read_pkt()`, and it should be either
    * :macro:`NGTCP2_ECN_NOT_ECT`, :macro:`NGTCP2_ECN_ECT_1`,
    * :macro:`NGTCP2_ECN_ECT_0`, or :macro:`NGTCP2_ECN_CE`.
    */
@@ -976,13 +976,11 @@ typedef uint64_t ngtcp2_duration;
  */
 typedef struct ngtcp2_cid {
   /**
-   * :member:`datalen <ngtcp2_cid.datalen>` is the length of
-   * Connection ID.
+   * :member:`datalen` is the length of Connection ID.
    */
   size_t datalen;
   /**
-   * :member:`data <ngtcp2_cid.data>` is the buffer to store
-   * Connection ID.
+   * :member:`data` is the buffer to store Connection ID.
    */
   uint8_t data[NGTCP2_MAX_CIDLEN];
 } ngtcp2_cid;
@@ -995,12 +993,12 @@ typedef struct ngtcp2_cid {
  */
 typedef struct ngtcp2_vec {
   /**
-   * :member:`base <ngtcp2_vec.base>` points to the data.
+   * :member:`base` points to the data.
    */
   uint8_t *base;
   /**
-   * :member:`len <ngtcp2_vec.len>` is the number of bytes which the
-   * buffer pointed by base contains.
+   * :member:`len` is the number of bytes which the buffer pointed by
+   * base contains.
    */
   size_t len;
 } ngtcp2_vec;
