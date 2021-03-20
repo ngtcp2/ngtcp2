@@ -699,7 +699,8 @@ typedef struct ngtcp2_pkt_info {
  * @macro
  *
  * :macro:`NGTCP2_ERR_NO_VIABLE_PATH` indicates that path validation
- * could not probe that a path is not capable of at least 1200 MTU.
+ * could not probe that a path is capable of sending UDP datagram
+ * payload of size at least 1200 bytes.
  */
 #define NGTCP2_ERR_NO_VIABLE_PATH -244
 /**
