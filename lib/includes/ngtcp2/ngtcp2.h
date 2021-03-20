@@ -83,32 +83,36 @@ typedef ptrdiff_t ngtcp2_ssize;
 /**
  * @functypedef
  *
- * Custom memory allocator to replace malloc().  The |mem_user_data|
- * is the mem_user_data member of :type:`ngtcp2_mem` structure.
+ * Custom memory allocator to replace :manpage:`malloc(3)`.  The
+ * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
+ * structure.
  */
 typedef void *(*ngtcp2_malloc)(size_t size, void *mem_user_data);
 
 /**
  * @functypedef
  *
- * Custom memory allocator to replace free().  The |mem_user_data| is
- * the mem_user_data member of :type:`ngtcp2_mem` structure.
+ * Custom memory allocator to replace :manpage:`free(3)`.  The
+ * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
+ * structure.
  */
 typedef void (*ngtcp2_free)(void *ptr, void *mem_user_data);
 
 /**
  * @functypedef
  *
- * Custom memory allocator to replace calloc().  The |mem_user_data|
- * is the mem_user_data member of :type:`ngtcp2_mem` structure.
+ * Custom memory allocator to replace :manpage:`calloc(3)`.  The
+ * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
+ * structure.
  */
 typedef void *(*ngtcp2_calloc)(size_t nmemb, size_t size, void *mem_user_data);
 
 /**
  * @functypedef
  *
- * Custom memory allocator to replace realloc().  The |mem_user_data|
- * is the mem_user_data member of :type:`ngtcp2_mem` structure.
+ * Custom memory allocator to replace :manpage:`realloc(3)`.  The
+ * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
+ * structure.
  */
 typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *mem_user_data);
 
@@ -117,12 +121,12 @@ typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *mem_user_data);
  *
  * Custom memory allocator functions and user defined pointer.  The
  * |mem_user_data| member is passed to each allocator function.  This
- * can be used, for example, to achieve per-session memory pool.
+ * can be used, for example, to achieve per-connection memory pool.
  *
  * In the following example code, ``my_malloc``, ``my_free``,
  * ``my_calloc`` and ``my_realloc`` are the replacement of the
- * standard allocators ``malloc``, ``free``, ``calloc`` and
- * ``realloc`` respectively::
+ * standard allocators :manpage:`malloc(3)`, :manpage:`free(3)`,
+ * :manpage:`calloc(3)` and :manpage:`realloc(3)` respectively::
  *
  *     void *my_malloc_cb(size_t size, void *mem_user_data) {
  *       return my_malloc(size);
@@ -152,19 +156,19 @@ typedef struct ngtcp2_mem {
    */
   void *mem_user_data;
   /**
-   * Custom allocator function to replace malloc().
+   * Custom allocator function to replace :manpage:`malloc(3)`.
    */
   ngtcp2_malloc malloc;
   /**
-   * Custom allocator function to replace free().
+   * Custom allocator function to replace :manpage:`free(3)`.
    */
   ngtcp2_free free;
   /**
-   * Custom allocator function to replace calloc().
+   * Custom allocator function to replace :manpage:`calloc(3)`.
    */
   ngtcp2_calloc calloc;
   /**
-   * Custom allocator function to replace realloc().
+   * Custom allocator function to replace :manpage:`realloc(3)`.
    */
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
@@ -2031,7 +2035,7 @@ typedef struct ngtcp2_crypto_ctx {
  *
  * :macro:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small.
- * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`:
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |exttype| is invalid.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params(
@@ -2055,7 +2059,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params(
  *     The required parameter is missing.
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
  *     The input is malformed.
- * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`:
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |exttype| is invalid.
  */
 NGTCP2_EXTERN int
@@ -2123,8 +2127,9 @@ ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
  * Negotiation packet has random type in wire format.  For
  * convenience, this function sets
  * :enum:`ngtcp2_pkt_type.NGTCP2_PKT_VERSION_NEGOTIATION` to
- * dest->type, and set dest->payloadlen and dest->pkt_num to 0.
- * Version Negotiation packet occupies a single packet.
+ * :member:`dest->type <ngtcp2_pkt_hd.type>`, and sets 0 to
+ * :member:`dest->len <ngtcp2_pkt_hd.len>`.  Version Negotiation
+ * packet occupies a single packet.
  *
  * It stores the result in the object pointed by |dest|, and returns
  * the number of bytes decoded to read the packet header if it
@@ -2766,8 +2771,8 @@ typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn,
  * asks a client application to choose server address from preferred
  * addresses |paddr| received from server.  An application should
  * write preferred address in |dest|.  If an application denies the
- * preferred addresses, just leave |dest| unmodified (or set dest->len
- * to 0) and return 0.
+ * preferred addresses, just leave |dest| unmodified (or set
+ * :member:`dest->addrlen <ngtcp2_addr.addrlen>` to 0) and return 0.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
@@ -2839,7 +2844,9 @@ typedef int (*ngtcp2_recv_new_token)(ngtcp2_conn *conn, const ngtcp2_vec *token,
  * @functypedef
  *
  * :type:`ngtcp2_delete_crypto_aead_ctx` is a callback function which
- * must delete the native object pointed by |aead_ctx|->native_handle.
+ * must delete the native object pointed by
+ * :member:`aead_ctx->native_handle
+ * <ngtcp2_crypto_aead_ctx.native_handle>`.
  */
 typedef void (*ngtcp2_delete_crypto_aead_ctx)(ngtcp2_conn *conn,
                                               ngtcp2_crypto_aead_ctx *aead_ctx,
@@ -2850,7 +2857,8 @@ typedef void (*ngtcp2_delete_crypto_aead_ctx)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_delete_crypto_cipher_ctx` is a callback function
  * which must delete the native object pointed by
- * |cipher_ctx|->native_handle.
+ * :member:`cipher_ctx->native_handle
+ * <ngtcp2_crypto_cipher_ctx.native_handle>`.
  */
 typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
     ngtcp2_conn *conn, ngtcp2_crypto_cipher_ctx *cipher_ctx, void *user_data);
@@ -3889,8 +3897,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * by default, application can only send 1 STREAM frame in one QUIC
  * packet.  In order to include more than 1 STREAM frame in one QUIC
  * packet, specify :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` in |flags|.
- * This is analogous to ``MSG_MORE`` flag in ``send(2)``.  If the
- * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is used, there are 4
+ * This is analogous to ``MSG_MORE`` flag in :manpage:`send(2)`.  If
+ * the :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` is used, there are 4
  * outcomes:
  *
  * - The function returns the written length of packet just like
@@ -4869,8 +4877,9 @@ NGTCP2_EXTERN void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev,
  * @function
  *
  * `ngtcp2_path_copy` copies |src| into |dest|.  This function assumes
- * that |dest| has enough buffer to store the deep copy of src->local
- * and src->remote.
+ * that |dest| has enough buffer to store the deep copy of
+ * :member:`src->local <ngtcp2_path.local>` and :member:`src->remote
+ * <ngtcp2_path.remote>`.
  */
 NGTCP2_EXTERN void ngtcp2_path_copy(ngtcp2_path *dest, const ngtcp2_path *src);
 

@@ -423,9 +423,10 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  * It also calls `ngtcp2_conn_set_aead_overhead` to set AEAD tag
  * length.
  *
- * If |level| is NGTCP2_CRYPTO_LEVEL_APP, this function retrieves a
- * remote QUIC transport parameters extension from |tls| and sets it
- * to |conn|.
+ * If |level| is
+ * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_APPLICATION`, this
+ * function retrieves a remote QUIC transport parameters extension
+ * from |tls| and sets it to |conn|.
  *
  * This function returns 0 if it succeeds, or -1.
  */
