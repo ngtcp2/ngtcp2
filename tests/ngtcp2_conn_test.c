@@ -5011,7 +5011,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_initiate_migration(conn, &new_path.path, ++t);
+  rv = ngtcp2_conn_initiate_immediate_migration(conn, &new_path.path, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == conn->pv);

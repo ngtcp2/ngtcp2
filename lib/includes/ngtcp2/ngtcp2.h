@@ -4424,10 +4424,11 @@ NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_initiate_migration` starts connection migration to the
- * given |path| which must not be ``NULL``.  Only client can initiate
- * migration.  This function does immediate migration; it does not
- * probe peer reachability from a new local address.
+ * `ngtcp2_conn_initiate_immediate_migration` starts connection
+ * migration to the given |path| which must not be ``NULL``.  Only
+ * client can initiate migration.  This function does immediate
+ * migration; it does not probe peer reachability from a new local
+ * address.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4441,9 +4442,8 @@ NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  */
-NGTCP2_EXTERN int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
-                                                 const ngtcp2_path *path,
-                                                 ngtcp2_tstamp ts);
+NGTCP2_EXTERN int ngtcp2_conn_initiate_immediate_migration(
+    ngtcp2_conn *conn, const ngtcp2_path *path, ngtcp2_tstamp ts);
 
 /**
  * @function

@@ -1125,11 +1125,11 @@ int Client::change_local_addr() {
   } else {
     auto path = ngtcp2_path{{local_addr.len, &local_addr.su.sa},
                             {remote_addr.len, &remote_addr.su.sa}};
-    if (auto rv = ngtcp2_conn_initiate_migration(conn_, &path,
-                                                 util::timestamp(loop_));
+    if (auto rv = ngtcp2_conn_initiate_immediate_migration(
+            conn_, &path, util::timestamp(loop_));
         rv != 0) {
-      std::cerr << "ngtcp2_conn_initiate_migration: " << ngtcp2_strerror(rv)
-                << std::endl;
+      std::cerr << "ngtcp2_conn_initiate_immediate_migration: "
+                << ngtcp2_strerror(rv) << std::endl;
     }
   }
 
