@@ -313,8 +313,6 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
   assert(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE);
 
-  /* PADDING only (or PADDING + ACK ) packets will have NULL
-     ent->frc. */
   /* TODO Reconsider the order of pfrc */
   for (frc = ent->frc; frc; frc = frc->next) {
     fr = &frc->fr;
@@ -509,7 +507,8 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
       }
     }
 
-    if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) && ent->frc) {
+    if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) {
+      assert(ent->frc);
       assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
       assert(UINT64_MAX == ent->lost_ts);
 
@@ -1196,9 +1195,9 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     return 0;
   }
 
-  if (!ent->frc || (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) &&
-                    (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM) ||
-                     !conn->callbacks.lost_datagram))) {
+  if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) &&
+      (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM) ||
+       !conn->callbacks.lost_datagram)) {
     /* PADDING only (or PADDING + ACK ) packets will have NULL
        ent->frc. */
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
