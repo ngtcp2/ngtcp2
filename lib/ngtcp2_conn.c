@@ -4962,11 +4962,13 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
                                      ngtcp2_path_challenge *fr) {
   ngtcp2_path_challenge_entry *ent;
 
-  /* client only responds to PATH_CHALLENGE from the current path. */
-  if (!conn->server && !ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
-    ngtcp2_log_info(
-        &conn->log, NGTCP2_LOG_EVENT_CON,
-        "discard PATH_CHALLENGE from the path which is not current");
+  /* client only responds to PATH_CHALLENGE from the current path or
+     path which client is migrating to. */
+  if (!conn->server && !ngtcp2_path_eq(&conn->dcid.current.ps.path, path) &&
+      (!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path))) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                    "discard PATH_CHALLENGE from the path which is not current "
+                    "or endpoint is migrating to");
     return;
   }
 
