@@ -226,6 +226,15 @@ Application also handles connection idle timeout.
 idle timer is expired, the connection should be closed without calling
 `ngtcp2_conn_write_connection_close()`.
 
+Connection migration
+--------------------
+
+In QUIC, client application can migrate to a new local address.
+`ngtcp2_conn_initiate_immediate_migration()` migrates to a new local
+address without checking reachability.  On the other hand,
+`ngtcp2_conn_initiate_migration()` migrates to a new local address
+after a new path is validated (thus reachability is established).
+
 Closing connection
 ------------------
 
