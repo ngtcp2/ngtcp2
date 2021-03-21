@@ -251,7 +251,7 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(params.preferred_address.ipv4_addr, 0,
          sizeof(params.preferred_address.ipv4_addr));
   params.preferred_address.ipv4_port = 0;
-  params.preferred_address.ipv4_present = 1;
+  params.preferred_address.ipv4_present = 0;
   memset(params.preferred_address.ipv6_addr, 0xe1,
          sizeof(params.preferred_address.ipv6_addr));
   params.preferred_address.ipv6_port = 63111;
@@ -360,11 +360,15 @@ void test_ngtcp2_encode_transport_params(void) {
                         sizeof(params.preferred_address.ipv4_addr)));
   CU_ASSERT(params.preferred_address.ipv4_port ==
             nparams.preferred_address.ipv4_port);
+  CU_ASSERT(params.preferred_address.ipv4_present ==
+            nparams.preferred_address.ipv4_present);
   CU_ASSERT(0 == memcmp(params.preferred_address.ipv6_addr,
                         nparams.preferred_address.ipv6_addr,
                         sizeof(params.preferred_address.ipv6_addr)));
   CU_ASSERT(params.preferred_address.ipv6_port ==
             nparams.preferred_address.ipv6_port);
+  CU_ASSERT(params.preferred_address.ipv6_present ==
+            nparams.preferred_address.ipv6_present);
   CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid,
                           &nparams.preferred_address.cid));
   CU_ASSERT(0 ==
