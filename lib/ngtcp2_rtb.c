@@ -1196,7 +1196,9 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     return 0;
   }
 
-  if (!ent->frc || !(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE)) {
+  if (!ent->frc || (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE) &&
+                    (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_DATAGRAM) ||
+                     !conn->callbacks.lost_datagram))) {
     /* PADDING only (or PADDING + ACK ) packets will have NULL
        ent->frc. */
     assert(!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED));
@@ -1269,6 +1271,14 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     case NGTCP2_FRAME_DATAGRAM:
     case NGTCP2_FRAME_DATAGRAM_LEN:
       frc = *pfrc;
+
+      if (conn->callbacks.lost_datagram) {
+        rv = conn->callbacks.lost_datagram(conn, frc->fr.datagram.dgram_id,
+                                           conn->user_data);
+        if (rv != 0) {
+          return NGTCP2_ERR_CALLBACK_FAILURE;
+        }
+      }
 
       *pfrc = (*pfrc)->next;
 
