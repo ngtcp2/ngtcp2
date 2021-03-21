@@ -70,6 +70,15 @@ struct StreamIDLess {
   }
 };
 
+class Client;
+
+struct Endpoint {
+  Address addr;
+  ev_io rev;
+  Client *client;
+  int fd;
+};
+
 class Client : public ClientBase {
 public:
   Client(struct ev_loop *loop);
@@ -82,18 +91,18 @@ public:
 
   void start_wev();
 
-  int on_read();
+  int on_read(const Endpoint &ep);
   int on_write();
   int write_streams();
-  int feed_data(const sockaddr *sa, socklen_t salen, const ngtcp2_pkt_info *pi,
-                uint8_t *data, size_t datalen);
+  int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
+                const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen);
   int handle_expiry();
   void schedule_retransmit();
   int handshake_completed();
   int handshake_confirmed();
 
-  void update_remote_addr(const ngtcp2_addr *addr, const ngtcp2_pkt_info *pi);
-  int send_packet();
+  int send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
+                  unsigned int ecn, const uint8_t *data, size_t datalen);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   int on_extend_max_streams();
   int handle_error();
@@ -126,12 +135,10 @@ public:
   void idle_timeout();
 
 private:
-  Address local_addr_;
+  std::vector<Endpoint> endpoints_;
   Address remote_addr_;
-  unsigned int ecn_;
   size_t max_pktlen_;
   ev_io wev_;
-  ev_io rev_;
   ev_timer timer_;
   ev_timer rttimer_;
   ev_timer change_local_addr_timer_;
@@ -139,15 +146,12 @@ private:
   ev_timer delay_stream_timer_;
   ev_signal sigintev_;
   struct ev_loop *loop_;
-  int fd_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
   std::set<Stream *, StreamIDLess> sendq_;
   // addr_ is the server host address.
   const char *addr_;
   // port_ is the server port.
   const char *port_;
-  // common buffer used to store packet data before sending
-  Buffer sendbuf_;
   // nstreams_done_ is the number of streams opened.
   size_t nstreams_done_;
   // nstreams_closed_ is the number of streams get closed.
