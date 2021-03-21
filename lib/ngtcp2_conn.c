@@ -7482,6 +7482,9 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   if (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
     ngtcp2_dcid_copy(&pv->fallback_dcid, &conn->pv->fallback_dcid);
     pv->fallback_pto = conn->pv->fallback_pto;
+    /* Unset the flag bit so that conn_stop_pv does not retire
+       DCID. */
+    conn->pv->flags &= (uint8_t)~NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE;
   } else {
     ngtcp2_dcid_copy(&pv->fallback_dcid, &conn->dcid.current);
     pv->fallback_pto = pto;
