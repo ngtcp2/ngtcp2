@@ -545,6 +545,7 @@ int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
 
 namespace {
 int select_preferred_address(ngtcp2_conn *conn, ngtcp2_addr *dest,
+                             void **ppath_user_data,
                              const ngtcp2_preferred_addr *paddr,
                              void *user_data) {
   auto c = static_cast<Client *>(user_data);
@@ -561,6 +562,9 @@ int select_preferred_address(ngtcp2_conn *conn, ngtcp2_addr *dest,
 
   dest->addrlen = addr.len;
   memcpy(dest->addr, &addr.su, dest->addrlen);
+
+  auto path = ngtcp2_conn_get_path(conn);
+  *ppath_user_data = path->user_data;
 
   return 0;
 }

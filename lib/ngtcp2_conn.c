@@ -261,8 +261,8 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
   return 0;
 }
 
-static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
-                                           ngtcp2_addr *dest) {
+static int conn_call_select_preferred_addr(ngtcp2_conn *conn, ngtcp2_addr *dest,
+                                           void **ppath_user_data) {
   int rv;
 
   if (!conn->callbacks.select_preferred_addr) {
@@ -272,8 +272,8 @@ static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
   assert(conn->remote.transport_params.preferred_address_present);
 
   rv = conn->callbacks.select_preferred_addr(
-      conn, dest, &conn->remote.transport_params.preferred_address,
-      conn->user_data);
+      conn, dest, ppath_user_data,
+      &conn->remote.transport_params.preferred_address, conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -7074,6 +7074,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   ngtcp2_duration pto, initial_pto, timeout;
   ngtcp2_pv *pv;
   ngtcp2_dcid *dcid;
+  void *path_user_data = NULL;
 
   ngtcp2_addr_init(&addr, (struct sockaddr *)&buf, 0);
 
@@ -7081,7 +7082,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
     return 0;
   }
 
-  rv = conn_call_select_preferred_addr(conn, &addr);
+  rv = conn_call_select_preferred_addr(conn, &addr, &path_user_data);
   if (rv != 0) {
     return rv;
   }
@@ -7110,6 +7111,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
 
   ngtcp2_addr_copy(&pv->dcid.ps.path.local, &conn->dcid.current.ps.path.local);
   ngtcp2_addr_copy(&pv->dcid.ps.path.remote, &addr);
+  pv->dcid.ps.path.user_data = path_user_data;
 
   return conn_call_activate_dcid(conn, &pv->dcid);
 }

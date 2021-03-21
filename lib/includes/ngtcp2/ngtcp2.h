@@ -2773,6 +2773,9 @@ typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn,
  * write preferred address in |dest|.  If an application denies the
  * preferred addresses, just leave |dest| unmodified (or set
  * :member:`dest->addrlen <ngtcp2_addr.addrlen>` to 0) and return 0.
+ * |*ppath_user_data| is assigned to :member:`ngtcp2_path.user_data`
+ * of new path if a client chooses server address.  |*path_user_data|
+ * is initialized to NULL.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
@@ -2780,6 +2783,7 @@ typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn,
  */
 typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
                                             ngtcp2_addr *dest,
+                                            void **ppath_user_data,
                                             const ngtcp2_preferred_addr *paddr,
                                             void *user_data);
 
