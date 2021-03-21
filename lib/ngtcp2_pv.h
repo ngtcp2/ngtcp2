@@ -80,6 +80,9 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
    least MTU that QUIC requires, which is 1200 bytes.  If it fails, a
    path is not viable. */
 #define NGTCP2_PV_FLAG_MTU_PROBE 0x08
+/* NGTCP2_PV_FLAG_PREFERRED_ADDR indicates that client is migrating to
+   server's preferred address.  This flag is only used by client. */
+#define NGTCP2_PV_FLAG_PREFERRED_ADDR 0x10
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 

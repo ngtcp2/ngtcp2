@@ -7101,8 +7101,8 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
   timeout = 3 * ngtcp2_max(pto, initial_pto);
 
-  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
-                     conn->mem);
+  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_PREFERRED_ADDR,
+                     &conn->log, conn->mem);
   if (rv != 0) {
     /* TODO Call ngtcp2_dcid_free here if it is introduced */
     return rv;
@@ -11137,7 +11137,8 @@ static int conn_initiate_migration_precheck(ngtcp2_conn *conn,
                                             const ngtcp2_addr *local_addr) {
   if (conn->remote.transport_params.disable_active_migration ||
       conn->dcid.current.cid.datalen == 0 ||
-      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
+      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) ||
+      (conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_PREFERRED_ADDR))) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 

@@ -4449,7 +4449,8 @@ NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
  * negative error codes:
  *
  * :macro:`NGTCP2_ERR_INVALID_STATE`
- *     Migration is disabled.
+ *     Migration is disabled; or handshake is not yet confirmed; or
+ *     client is migrating to server's preferred address.
  * :macro:`NGTCP2_ERR_CONN_ID_BLOCKED`
  *     No unused connection ID is available.
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
@@ -4476,7 +4477,8 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_immediate_migration(
  * negative error codes:
  *
  * :macro:`NGTCP2_ERR_INVALID_STATE`
- *     Migration is disabled.
+ *     Migration is disabled; or handshake is not yet confirmed; or
+ *     client is migrating to server's preferred address.
  * :macro:`NGTCP2_ERR_CONN_ID_BLOCKED`
  *     No unused connection ID is available.
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
