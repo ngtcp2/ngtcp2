@@ -11130,6 +11130,25 @@ const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn) {
   return &conn->dcid.current.ps.path;
 }
 
+static int conn_initiate_migration_precheck(ngtcp2_conn *conn,
+                                            const ngtcp2_addr *local_addr) {
+  if (conn->remote.transport_params.disable_active_migration ||
+      conn->dcid.current.cid.datalen == 0 ||
+      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
+  if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
+    return NGTCP2_ERR_CONN_ID_BLOCKED;
+  }
+
+  if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, local_addr)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  return 0;
+}
+
 int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
                                              const ngtcp2_addr *local_addr,
                                              void *path_user_data,
@@ -11142,17 +11161,9 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
 
-  if (conn->remote.transport_params.disable_active_migration ||
-      conn->dcid.current.cid.datalen == 0 ||
-      !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
-    return NGTCP2_ERR_INVALID_STATE;
-  }
-  if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
-    return NGTCP2_ERR_CONN_ID_BLOCKED;
-  }
-
-  if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, local_addr)) {
-    return NGTCP2_ERR_INVALID_ARGUMENT;
+  rv = conn_initiate_migration_precheck(conn, local_addr);
+  if (rv != 0) {
+    return rv;
   }
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
@@ -11183,6 +11194,51 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   conn_reset_ecn_validation_state(conn);
 
   return 0;
+}
+
+int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
+                                   const ngtcp2_addr *local_addr,
+                                   void *path_user_data, ngtcp2_tstamp ts) {
+  int rv;
+  ngtcp2_dcid *dcid;
+  ngtcp2_duration pto, initial_pto, timeout;
+  ngtcp2_pv *pv;
+
+  assert(!conn->server);
+
+  conn->log.last_ts = ts;
+  conn->qlog.last_ts = ts;
+
+  rv = conn_initiate_migration_precheck(conn, local_addr);
+  if (rv != 0) {
+    return rv;
+  }
+
+  rv = conn_stop_pv(conn, ts);
+  if (rv != 0) {
+    return rv;
+  }
+
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+  pto = conn_compute_pto(conn, &conn->pktns);
+  initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
+  timeout = 3 * ngtcp2_max(pto, initial_pto);
+
+  rv = ngtcp2_pv_new(&pv, dcid, timeout, NGTCP2_PV_FLAG_NONE, &conn->log,
+                     conn->mem);
+  if (rv != 0) {
+    return rv;
+  }
+
+  ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
+  conn->pv = pv;
+
+  ngtcp2_addr_copy(&pv->dcid.ps.path.local, local_addr);
+  ngtcp2_addr_copy(&pv->dcid.ps.path.remote,
+                   &conn->dcid.current.ps.path.remote);
+  pv->dcid.ps.path.user_data = path_user_data;
+
+  return conn_call_activate_dcid(conn, &pv->dcid);
 }
 
 uint64_t ngtcp2_conn_get_max_local_streams_uni(ngtcp2_conn *conn) {

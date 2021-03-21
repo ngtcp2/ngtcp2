@@ -4454,6 +4454,34 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_immediate_migration(
 /**
  * @function
  *
+ * `ngtcp2_conn_initiate_migration` starts connection migration to the
+ * given local address |local_addr|.  |path_user_data| is assigned to
+ * :member:`ngtcp2_path.user_data` for new path.  Only client can
+ * initiate migration.  Unlike
+ * `ngtcp2_conn_initiate_immediate_migration`, this function starts a
+ * path validation with a new path and migrate to the new path after
+ * successful path validation.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_INVALID_STATE`
+ *     Migration is disabled.
+ * :macro:`NGTCP2_ERR_CONN_ID_BLOCKED`
+ *     No unused connection ID is available.
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     |local_addr| equals the current local address.
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ */
+NGTCP2_EXTERN int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
+                                                 const ngtcp2_addr *local_addr,
+                                                 void *path_user_data,
+                                                 ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_max_local_streams_uni` returns the cumulative
  * number of streams which local endpoint can open.
  */
