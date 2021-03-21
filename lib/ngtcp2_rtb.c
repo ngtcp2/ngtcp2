@@ -1208,9 +1208,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
   if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) {
     --rtb->num_lost_pkts;
-  }
 
-  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) {
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                     "pkn=%" PRId64
                     " was declared lost and has already been retransmitted",
