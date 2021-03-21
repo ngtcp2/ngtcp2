@@ -1096,37 +1096,45 @@ void Client::start_change_local_addr_timer() {
 }
 
 int Client::change_local_addr() {
-  Address remote_addr, local_addr;
+  Address local_addr;
 
   if (!config.quiet) {
     std::cerr << "Changing local address" << std::endl;
   }
 
-  auto nfd = create_sock(remote_addr, addr_, port_);
+  auto nfd = util::create_nonblock_socket(remote_addr_.su.sa.sa_family,
+                                          SOCK_DGRAM, IPPROTO_UDP);
   if (nfd == -1) {
     return -1;
   }
 
-  if (bind_addr(local_addr, nfd, remote_addr.su.sa.sa_family) != 0) {
-    ::close(nfd);
+  auto val = 1;
+  if (setsockopt(nfd, SOL_SOCKET, SO_REUSEADDR, &val,
+                 static_cast<socklen_t>(sizeof(val))) == -1) {
+    close(nfd);
     return -1;
   }
 
-  ::close(fd_);
+  fd_set_recv_ecn(nfd, remote_addr_.su.sa.sa_family);
+
+  if (bind_addr(local_addr, nfd, remote_addr_.su.sa.sa_family) != 0) {
+    close(nfd);
+    return -1;
+  }
+
+  close(fd_);
 
   fd_ = nfd;
   local_addr_ = local_addr;
-  remote_addr_ = remote_addr;
+
+  ngtcp2_addr addr;
+  ngtcp2_addr_init(&addr, &local_addr.su.sa, local_addr.len);
 
   if (config.nat_rebinding) {
-    ngtcp2_addr addr;
-    ngtcp2_conn_set_local_addr(
-        conn_, ngtcp2_addr_init(&addr, &local_addr.su.sa, local_addr.len));
+    ngtcp2_conn_set_local_addr(conn_, &addr);
   } else {
-    auto path = ngtcp2_path{{local_addr.len, &local_addr.su.sa},
-                            {remote_addr.len, &remote_addr.su.sa}};
     if (auto rv = ngtcp2_conn_initiate_immediate_migration(
-            conn_, &path, util::timestamp(loop_));
+            conn_, &addr, nullptr, util::timestamp(loop_));
         rv != 0) {
       std::cerr << "ngtcp2_conn_initiate_immediate_migration: "
                 << ngtcp2_strerror(rv) << std::endl;

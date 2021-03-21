@@ -11127,7 +11127,8 @@ const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
-                                             const ngtcp2_path *path,
+                                             const ngtcp2_addr *local_addr,
+                                             void *path_user_data,
                                              ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_dcid *dcid;
@@ -11146,7 +11147,7 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
     return NGTCP2_ERR_CONN_ID_BLOCKED;
   }
 
-  if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
+  if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, local_addr)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -11162,8 +11163,11 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
     return rv;
   }
 
+  ngtcp2_addr_copy(&dcid->ps.path.local, local_addr);
+  ngtcp2_addr_copy(&dcid->ps.path.remote, &conn->dcid.current.ps.path.remote);
+  dcid->ps.path.user_data = path_user_data;
+
   ngtcp2_dcid_copy(&conn->dcid.current, dcid);
-  ngtcp2_path_copy(&conn->dcid.current.ps.path, path);
   ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
 
   rv = conn_call_activate_dcid(conn, &conn->dcid.current);

@@ -36,6 +36,7 @@
 #include "ngtcp2_conv.h"
 #include "ngtcp2_vec.h"
 #include "ngtcp2_rcvry.h"
+#include "ngtcp2_addr.h"
 
 static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const ngtcp2_crypto_aead_ctx *aead_ctx,
@@ -4993,6 +4994,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
   ngtcp2_cid cid;
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
+  my_user_data ud;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -5011,11 +5013,16 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_initiate_immediate_migration(conn, &new_path.path, ++t);
+  rv = ngtcp2_conn_initiate_immediate_migration(conn, &new_path.path.local, &ud,
+                                                ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == conn->pv);
-  CU_ASSERT(ngtcp2_path_eq(&new_path.path, &conn->dcid.current.ps.path));
+  CU_ASSERT(
+      ngtcp2_addr_eq(&new_path.path.local, &conn->dcid.current.ps.path.local));
+  CU_ASSERT(ngtcp2_addr_eq(&null_path.path.remote,
+                           &conn->dcid.current.ps.path.remote));
+  CU_ASSERT(&ud == conn->dcid.current.ps.path.user_data);
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
   ngtcp2_conn_del(conn);
