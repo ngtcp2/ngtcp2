@@ -1513,23 +1513,26 @@ int Client::select_preferred_address(Address &selected_addr,
   int af;
   const uint8_t *binaddr;
   uint16_t port;
-  constexpr uint8_t empty_addr[] = {0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0};
 
   auto path = ngtcp2_conn_get_path(conn_);
 
-  if (path->local.addr->sa_family == AF_INET &&
-      memcmp(empty_addr, paddr->ipv4_addr, sizeof(paddr->ipv4_addr)) != 0) {
+  switch (path->local.addr->sa_family) {
+  case AF_INET:
+    if (!paddr->ipv4_present) {
+      return 0;
+    }
     af = AF_INET;
     binaddr = paddr->ipv4_addr;
     port = paddr->ipv4_port;
-  } else if (path->local.addr->sa_family == AF_INET6 &&
-             memcmp(empty_addr, paddr->ipv6_addr, sizeof(paddr->ipv6_addr)) !=
-                 0) {
+    break;
+  case AF_INET6:
+    if (!paddr->ipv6_present) {
+      return 0;
+    }
     af = AF_INET6;
     binaddr = paddr->ipv6_addr;
     port = paddr->ipv6_port;
-  } else {
+  default:
     return -1;
   }
 

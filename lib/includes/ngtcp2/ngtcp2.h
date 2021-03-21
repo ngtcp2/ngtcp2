@@ -1218,6 +1218,16 @@ typedef struct ngtcp2_preferred_addr {
    */
   uint8_t ipv6_addr[16];
   /**
+   * :member: `ipv4_present` indicates that :member:`ipv4_addr` and
+   * :member:`ipv4_port` contain IPv4 address and port respectively.
+   */
+  uint8_t ipv4_present;
+  /**
+   * :member: `ipv6_present` indicates that :member:`ipv6_addr` and
+   * :member:`ipv6_port` contain IPv6 address and port respectively.
+   */
+  uint8_t ipv6_present;
+  /**
    * :member:`stateless_reset_token` contains stateless reset token.
    */
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];

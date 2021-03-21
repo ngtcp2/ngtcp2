@@ -146,6 +146,8 @@ static uint8_t *write_cid_param(uint8_t *p, ngtcp2_transport_param_id id,
   return p;
 }
 
+static const uint8_t empty_address[16];
+
 ngtcp2_ssize
 ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                                ngtcp2_transport_params_type exttype,
@@ -271,13 +273,25 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
       p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS);
       p = ngtcp2_put_varint(p, preferred_addrlen);
 
-      p = ngtcp2_cpymem(p, params->preferred_address.ipv4_addr,
-                        sizeof(params->preferred_address.ipv4_addr));
-      p = ngtcp2_put_uint16be(p, params->preferred_address.ipv4_port);
+      if (params->preferred_address.ipv4_present) {
+        p = ngtcp2_cpymem(p, params->preferred_address.ipv4_addr,
+                          sizeof(params->preferred_address.ipv4_addr));
+        p = ngtcp2_put_uint16be(p, params->preferred_address.ipv4_port);
+      } else {
+        p = ngtcp2_cpymem(p, empty_address,
+                          sizeof(params->preferred_address.ipv4_addr));
+        p = ngtcp2_put_uint16be(p, 0);
+      }
 
-      p = ngtcp2_cpymem(p, params->preferred_address.ipv6_addr,
-                        sizeof(params->preferred_address.ipv6_addr));
-      p = ngtcp2_put_uint16be(p, params->preferred_address.ipv6_port);
+      if (params->preferred_address.ipv6_present) {
+        p = ngtcp2_cpymem(p, params->preferred_address.ipv6_addr,
+                          sizeof(params->preferred_address.ipv6_addr));
+        p = ngtcp2_put_uint16be(p, params->preferred_address.ipv6_port);
+      } else {
+        p = ngtcp2_cpymem(p, empty_address,
+                          sizeof(params->preferred_address.ipv6_addr));
+        p = ngtcp2_put_uint16be(p, 0);
+      }
 
       *p++ = (uint8_t)params->preferred_address.cid.datalen;
       if (params->preferred_address.cid.datalen) {
@@ -634,11 +648,23 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
       params->preferred_address.ipv4_port = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
 
+      if (params->preferred_address.ipv4_port ||
+          memcmp(empty_address, params->preferred_address.ipv4_addr,
+                 sizeof(params->preferred_address.ipv4_addr)) != 0) {
+        params->preferred_address.ipv4_present = 1;
+      }
+
       memcpy(params->preferred_address.ipv6_addr, p,
              sizeof(params->preferred_address.ipv6_addr));
       p += sizeof(params->preferred_address.ipv6_addr);
       params->preferred_address.ipv6_port = ngtcp2_get_uint16(p);
       p += sizeof(uint16_t);
+
+      if (params->preferred_address.ipv6_port ||
+          memcmp(empty_address, params->preferred_address.ipv6_addr,
+                 sizeof(params->preferred_address.ipv6_addr)) != 0) {
+        params->preferred_address.ipv6_present = 1;
+      }
 
       /* cid */
       params->preferred_address.cid.datalen = *p++;

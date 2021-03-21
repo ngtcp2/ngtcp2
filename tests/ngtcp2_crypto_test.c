@@ -251,9 +251,11 @@ void test_ngtcp2_encode_transport_params(void) {
   memset(params.preferred_address.ipv4_addr, 0,
          sizeof(params.preferred_address.ipv4_addr));
   params.preferred_address.ipv4_port = 0;
+  params.preferred_address.ipv4_present = 1;
   memset(params.preferred_address.ipv6_addr, 0xe1,
          sizeof(params.preferred_address.ipv6_addr));
   params.preferred_address.ipv6_port = 63111;
+  params.preferred_address.ipv6_present = 1;
   scid_init(&params.preferred_address.cid);
   memset(params.preferred_address.stateless_reset_token, 0xd1,
          sizeof(params.preferred_address.stateless_reset_token));
