@@ -5046,7 +5046,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
         rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
         if (rv != 0) {
-          goto fail;
+          return rv;
         }
         ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
       }
@@ -5061,7 +5061,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
                                    NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
     if (rv != 0) {
-      goto fail;
+      return rv;
     }
   }
 
@@ -5078,7 +5078,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
                              NGTCP2_PV_FLAG_MTU_PROBE,
                          &conn->log, conn->mem);
       if (rv != 0) {
-        goto fail;
+        return rv;
       }
 
       npv->dcid.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
@@ -5088,7 +5088,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
       rv = ngtcp2_pv_new(&npv, &pv->fallback_dcid, timeout,
                          NGTCP2_PV_FLAG_DONT_CARE, &conn->log, conn->mem);
       if (rv != 0) {
-        goto fail;
+        return rv;
       }
     }
 
@@ -5107,7 +5107,6 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
     return 0;
   }
 
-fail:
   return conn_stop_pv(conn, ts);
 }
 
