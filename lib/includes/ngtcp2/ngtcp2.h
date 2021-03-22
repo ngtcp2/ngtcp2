@@ -955,7 +955,12 @@ typedef enum ngtcp2_path_validation_result {
    * :enum:`NGTCP2_PATH_VALIDATION_RESULT_FAILURE` indicates
    * validation failure.
    */
-  NGTCP2_PATH_VALIDATION_RESULT_FAILURE
+  NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
+  /**
+   * :enum:`NGTCP2_PATH_VALIDATION_RESULT_ABORTED` indicates that path
+   * validation was aborted.
+   */
+  NGTCP2_PATH_VALIDATION_RESULT_ABORTED
 } ngtcp2_path_validation_result;
 
 /**

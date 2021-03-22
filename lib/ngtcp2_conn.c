@@ -3974,6 +3974,34 @@ fin:
   return rv;
 }
 
+/*
+ * conn_abort_pv aborts the current path validation and frees
+ * resources allocated for it.  This function assumes that conn->pv is
+ * not NULL.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ * NGTCP2_ERR_CALLBACK_FAILURE
+ *     User-defined callback function failed.
+ */
+static int conn_abort_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  ngtcp2_pv *pv = conn->pv;
+  int rv;
+
+  assert(pv);
+
+  rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
+                                 NGTCP2_PATH_VALIDATION_RESULT_ABORTED);
+  if (rv != 0) {
+    return rv;
+  }
+
+  return conn_stop_pv(conn, ts);
+}
+
 static void conn_reset_congestion_state(ngtcp2_conn *conn);
 
 /*
@@ -6904,7 +6932,7 @@ static int conn_post_process_recv_new_connection_id(ngtcp2_conn *conn,
                         "path migration is aborted because connection ID is"
                         "retired and no unused connection ID is available");
 
-        return conn_stop_pv(conn, ts);
+        return conn_abort_pv(conn, ts);
       }
     }
     if ((pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) &&
@@ -6925,7 +6953,7 @@ static int conn_post_process_recv_new_connection_id(ngtcp2_conn *conn,
         }
       } else {
         /* Now we have no fallback dcid. */
-        return conn_stop_pv(conn, ts);
+        return conn_abort_pv(conn, ts);
       }
     }
   }
@@ -7386,11 +7414,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     conn_reset_congestion_state(conn);
     conn->dcid.current.bytes_recv += dgramlen;
     conn_reset_ecn_validation_state(conn);
-    rv = conn_stop_pv(conn, ts);
-    if (rv != 0) {
-      return rv;
-    }
-    return 0;
+    return conn_abort_pv(conn, ts);
   }
 
   remote_addr_cmp =
@@ -7502,7 +7526,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_log_info(
         &conn->log, NGTCP2_LOG_EVENT_PTV,
         "path migration is aborted because new migration has started");
-    rv = conn_stop_pv(conn, ts);
+    rv = conn_abort_pv(conn, ts);
     if (rv != 0) {
       return rv;
     }
@@ -11172,9 +11196,11 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
-  rv = conn_stop_pv(conn, ts);
-  if (rv != 0) {
-    return rv;
+  if (conn->pv) {
+    rv = conn_abort_pv(conn, ts);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
@@ -11218,9 +11244,11 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
     return rv;
   }
 
-  rv = conn_stop_pv(conn, ts);
-  if (rv != 0) {
-    return rv;
+  if (conn->pv) {
+    rv = conn_abort_pv(conn, ts);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
