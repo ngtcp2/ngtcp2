@@ -49,6 +49,7 @@ int TLSClientSession::init(bool &early_data_enabled,
   ssl_ = SSL_new(ssl_ctx);
   SSL_set_app_data(ssl_, client);
   SSL_set_connect_state(ssl_);
+  SSL_set_quic_use_legacy_codepoint(ssl_, 0);
 
   switch (app_proto) {
   case AppProtocol::H3: {
