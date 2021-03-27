@@ -6,5 +6,5 @@ cd boringssl
 git checkout b09f283a030efc650cfcb3476932626c5000b921
 mkdir build
 cd build
-CFLAGS=-fpic CXXFLAGS=-fpic cmake ..
+cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
 make -j$(nproc)
