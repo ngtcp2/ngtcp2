@@ -150,7 +150,7 @@ namespace {
 int alpn_select_proto_perf_cb(SSL *ssl, const unsigned char **out,
                               unsigned char *outlen, const unsigned char *in,
                               unsigned int inlen, void *arg) {
-  constexpr static uint8_t alpn[] = "perf";
+  constexpr static uint8_t alpn[] = "\x4perf";
   size_t alpnlen = str_size(alpn);
 
   for (auto p = in, end = in + inlen; p + alpnlen <= end; p += *p + 1) {
