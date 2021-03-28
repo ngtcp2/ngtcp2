@@ -10786,11 +10786,11 @@ static ngtcp2_pktns *conn_get_earliest_pktns(ngtcp2_conn *conn,
                                              ngtcp2_tstamp *pts,
                                              const ngtcp2_tstamp *times) {
   ngtcp2_pktns *ns[] = {conn->in_pktns, conn->hs_pktns, &conn->pktns};
-  ngtcp2_pktns *res = ns[0];
+  ngtcp2_pktns *res = NULL;
   size_t i;
-  ngtcp2_tstamp earliest_ts = times[NGTCP2_PKTNS_ID_INITIAL];
+  ngtcp2_tstamp earliest_ts = UINT64_MAX;
 
-  for (i = NGTCP2_PKTNS_ID_HANDSHAKE; i < NGTCP2_PKTNS_ID_MAX; ++i) {
+  for (i = NGTCP2_PKTNS_ID_INITIAL; i < NGTCP2_PKTNS_ID_MAX; ++i) {
     if (ns[i] == NULL || ns[i]->rtb.num_retransmittable == 0 ||
         (times[i] == UINT64_MAX ||
          (earliest_ts != UINT64_MAX && times[i] >= earliest_ts) ||
@@ -10804,8 +10804,6 @@ static ngtcp2_pktns *conn_get_earliest_pktns(ngtcp2_conn *conn,
   }
 
   if (res == NULL && !conn->server) {
-    earliest_ts = UINT64_MAX;
-
     if (conn->hs_pktns && conn->hs_pktns->crypto.tx.ckm) {
       res = conn->hs_pktns;
     } else {
