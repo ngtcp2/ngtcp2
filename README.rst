@@ -64,7 +64,7 @@ The client and server under examples directory require at least one of
 the following TLS backends:
 
 * `OpenSSL with QUIC support
-  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1j+quic>`_
+  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1k+quic>`_
 * GnuTLS
 * BoringSSL
 
@@ -79,7 +79,7 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b OpenSSL_1_1_1j+quic https://github.com/quictls/openssl
+   $ git clone --depth 1 -b OpenSSL_1_1_1k+quic https://github.com/quictls/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
