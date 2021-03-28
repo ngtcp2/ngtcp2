@@ -10167,7 +10167,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         origlen = ngtcp2_min(origlen, server_tx_left);
         destlen = ngtcp2_min(destlen, server_tx_left);
 
-        if (destlen == 0 && conn->cstat.loss_detection_timer != UINT64_MAX) {
+        if (server_tx_left == 0 &&
+            conn->cstat.loss_detection_timer != UINT64_MAX) {
           ngtcp2_log_info(
               &conn->log, NGTCP2_LOG_EVENT_RCV,
               "loss detection timer canceled due to amplification limit");
