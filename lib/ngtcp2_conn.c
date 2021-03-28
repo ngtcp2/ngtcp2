@@ -9064,34 +9064,30 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     return nwrite;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
-      if (conn_handshake_probe_left(conn) || !conn_cwnd_is_zero(conn)) {
-        nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
-                                           /* early_datalen = */ 0, ts);
-        if (nwrite < 0) {
-          return nwrite;
-        }
-
-        res += nwrite;
-        dest += nwrite;
-        destlen -= (size_t)nwrite;
+    if (conn_handshake_probe_left(conn) || !conn_cwnd_is_zero(conn)) {
+      nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
+                                         /* early_datalen = */ 0, ts);
+      if (nwrite < 0) {
+        return nwrite;
       }
 
-      if (res == 0) {
-        nwrite = conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
-        if (nwrite < 0) {
-          return nwrite;
-        }
-
-        res += nwrite;
-        dest += nwrite;
-        origlen -= (size_t)nwrite;
-      }
-
-      return res;
+      res += nwrite;
+      dest += nwrite;
+      destlen -= (size_t)nwrite;
     }
 
-    return 0;
+    if (res == 0) {
+      nwrite = conn_write_handshake_ack_pkts(conn, pi, dest, origlen, ts);
+      if (nwrite < 0) {
+        return nwrite;
+      }
+
+      res += nwrite;
+      dest += nwrite;
+      origlen -= (size_t)nwrite;
+    }
+
+    return res;
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
