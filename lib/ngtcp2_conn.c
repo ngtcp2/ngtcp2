@@ -2445,6 +2445,39 @@ static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn,
 }
 
 /*
+ * dcid_tx_left returns the maximum number of bytes that server is
+ * allowed to send to an unvalidated path associated to |dcid|.
+ */
+static size_t dcid_tx_left(ngtcp2_dcid *dcid) {
+  if (dcid->flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
+    return SIZE_MAX;
+  }
+  /* From QUIC spec: Prior to validating the client address, servers
+     MUST NOT send more than three times as many bytes as the number
+     of bytes they have received. */
+  assert(dcid->bytes_recv * 3 >= dcid->bytes_sent);
+
+  return dcid->bytes_recv * 3 - dcid->bytes_sent;
+}
+
+/*
+ * conn_server_tx_left returns the maximum number of bytes that server
+ * is allowed to send to an unvalidated path.
+ */
+static size_t conn_server_tx_left(ngtcp2_conn *conn, ngtcp2_dcid *dcid) {
+  assert(conn->server);
+
+  /* If pv->dcid has the current path, use conn->dcid.current.  This
+     is because conn->dcid.current gets update for bytes_recv and
+     bytes_sent. */
+  if (ngtcp2_path_eq(&dcid->ps.path, &conn->dcid.current.ps.path)) {
+    return dcid_tx_left(&conn->dcid.current);
+  }
+
+  return dcid_tx_left(dcid);
+}
+
+/*
  * conn_write_handshake_pkts writes Initial and Handshake packets in
  * the buffer pointed by |dest| whose length is |destlen|.
  *
@@ -2466,6 +2499,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
   int64_t prev_pkt_num = -1;
   ngtcp2_rtb_entry *rtbent;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
+  ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_ksl_it it;
 
   /* As a client, we would like to discard Initial packet number space
@@ -2509,6 +2543,15 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
     if (nwrite == 0) {
       if (conn->server && (conn->in_pktns->rtb.probe_pkt_left ||
                            ngtcp2_ksl_len(&conn->in_pktns->crypto.tx.frq))) {
+        if (cstat->loss_detection_timer != UINT64_MAX &&
+            conn_server_tx_left(conn, &conn->dcid.current) <
+                NGTCP2_DEFAULT_MAX_PKTLEN) {
+          ngtcp2_log_info(
+              &conn->log, NGTCP2_LOG_EVENT_RCV,
+              "loss detection timer canceled due to amplification limit");
+          cstat->loss_detection_timer = UINT64_MAX;
+        }
+
         return 0;
       }
     } else {
@@ -4036,39 +4079,6 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
   }
 
   return conn_stop_pv(conn, ts);
-}
-
-/*
- * dcid_tx_left returns the maximum number of bytes that server is
- * allowed to send to an unvalidated path associated to |dcid|.
- */
-static size_t dcid_tx_left(ngtcp2_dcid *dcid) {
-  if (dcid->flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
-    return SIZE_MAX;
-  }
-  /* From QUIC spec: Prior to validating the client address, servers
-     MUST NOT send more than three times as many bytes as the number
-     of bytes they have received. */
-  assert(dcid->bytes_recv * 3 >= dcid->bytes_sent);
-
-  return dcid->bytes_recv * 3 - dcid->bytes_sent;
-}
-
-/*
- * conn_server_tx_left returns the maximum number of bytes that server
- * is allowed to send to an unvalidated path.
- */
-static size_t conn_server_tx_left(ngtcp2_conn *conn, ngtcp2_dcid *dcid) {
-  assert(conn->server);
-
-  /* If pv->dcid has the current path, use conn->dcid.current.  This
-     is because conn->dcid.current gets update for bytes_recv and
-     bytes_sent. */
-  if (ngtcp2_path_eq(&dcid->ps.path, &conn->dcid.current.ps.path)) {
-    return dcid_tx_left(&conn->dcid.current);
-  }
-
-  return dcid_tx_left(dcid);
 }
 
 /*
