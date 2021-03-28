@@ -8902,8 +8902,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   int rv;
   ngtcp2_ssize res = 0, nwrite = 0, early_spktlen = 0;
   size_t origlen = destlen;
-  size_t server_tx_left;
-  ngtcp2_conn_stat *cstat = &conn->cstat;
   size_t pending_early_datalen;
   ngtcp2_dcid *dcid;
   ngtcp2_preferred_addr *paddr;
@@ -9057,19 +9055,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     return nwrite;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
-      if (!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
-        server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
-        if (server_tx_left == 0) {
-          if (cstat->loss_detection_timer != UINT64_MAX) {
-            ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                            "loss detection timer canceled");
-            cstat->loss_detection_timer = UINT64_MAX;
-            cstat->pto_count = 0;
-          }
-          return 0;
-        }
-      }
-
       if (conn_handshake_probe_left(conn) || !conn_cwnd_is_zero(conn)) {
         nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
                                            /* early_datalen = */ 0, ts);
@@ -10041,6 +10026,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   int rv;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
+  ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_ssize res = 0;
   size_t server_tx_left;
 
@@ -10077,6 +10063,17 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     if (!ppe_pending) {
       if (!(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
         server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
+        if (server_tx_left == 0) {
+          if (cstat->loss_detection_timer != UINT64_MAX) {
+            ngtcp2_log_info(
+                &conn->log, NGTCP2_LOG_EVENT_RCV,
+                "loss detection timer canceled due to amplification limit");
+            cstat->loss_detection_timer = UINT64_MAX;
+          }
+
+          return 0;
+        }
+
         destlen = ngtcp2_min(destlen, server_tx_left);
       }
 
@@ -10171,10 +10168,10 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         destlen = ngtcp2_min(destlen, server_tx_left);
 
         if (destlen == 0 && conn->cstat.loss_detection_timer != UINT64_MAX) {
-          ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
-                          "loss detection timer canceled");
+          ngtcp2_log_info(
+              &conn->log, NGTCP2_LOG_EVENT_RCV,
+              "loss detection timer canceled due to amplification limit");
           conn->cstat.loss_detection_timer = UINT64_MAX;
-          conn->cstat.pto_count = 0;
         }
       }
     }
