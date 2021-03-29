@@ -690,12 +690,12 @@ static void qlog_pkt_write_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
   }
 
   /*
-   * ],"header":,"raw":{"packet_size":0000000000000000000}}}
+   * ],"header":,"raw":{"length":0000000000000000000}}}
    *
    * plus, terminating LF
    */
 #define NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD                                     \
-  (1 + 55 + NGTCP2_QLOG_PKT_HD_OVERHEAD)
+  (1 + 50 + NGTCP2_QLOG_PKT_HD_OVERHEAD)
 
   assert(ngtcp2_buf_left(&qlog->buf) >= NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD);
   assert(ngtcp2_buf_len(&qlog->buf));
@@ -707,7 +707,7 @@ static void qlog_pkt_write_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 
   p = write_verbatim(p, "],\"header\":");
   p = write_pkt_hd(p, hd);
-  p = write_verbatim(p, ",\"raw\":{\"packet_size\":");
+  p = write_verbatim(p, ",\"raw\":{\"length\":");
   p = write_number(p, pktlen);
   p = write_verbatim(p, "}}}\n");
 
