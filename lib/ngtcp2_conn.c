@@ -4897,7 +4897,7 @@ static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest,
                                ngtcp2_hp_mask hp_mask) {
   size_t sample_offset;
   uint8_t *p = dest;
-  uint8_t mask[NGTCP2_HP_MASKLEN];
+  uint8_t mask[NGTCP2_HP_SAMPLELEN];
   size_t i;
   int rv;
 
