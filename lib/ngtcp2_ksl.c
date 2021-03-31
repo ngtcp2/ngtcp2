@@ -240,20 +240,15 @@ static void ksl_insert_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk, size_t i,
 
 static size_t ksl_bsearch(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
                           const ngtcp2_ksl_key *key, ngtcp2_ksl_compar compar) {
-  ngtcp2_ssize left = -1, right = (ngtcp2_ssize)blk->n, mid;
+  size_t i;
   ngtcp2_ksl_node *node;
 
-  while (right - left > 1) {
-    mid = (left + right) >> 1;
-    node = ngtcp2_ksl_nth_node(ksl, blk, (size_t)mid);
-    if (compar((ngtcp2_ksl_key *)node->key, key)) {
-      left = mid;
-    } else {
-      right = mid;
-    }
-  }
+  for (i = 0, node = (ngtcp2_ksl_node *)(void *)blk->nodes;
+       i < blk->n && compar((ngtcp2_ksl_key *)node->key, key);
+       ++i, node = (ngtcp2_ksl_node *)(void *)((uint8_t *)node + ksl->nodelen))
+    ;
 
-  return (size_t)right;
+  return i;
 }
 
 int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
