@@ -266,7 +266,8 @@ void ngtcp2_ksl_it_init(ngtcp2_ksl_it *it, const ngtcp2_ksl *ksl,
  * |it| points to.  It is undefined to call this function when
  * ngtcp2_ksl_it_end(it) returns nonzero.
  */
-void *ngtcp2_ksl_it_get(const ngtcp2_ksl_it *it);
+#define ngtcp2_ksl_it_get(IT)                                                  \
+  ngtcp2_ksl_nth_node((IT)->ksl, (IT)->blk, (IT)->i)->data
 
 /*
  * ngtcp2_ksl_it_next advances the iterator by one.  It is undefined
