@@ -42,6 +42,9 @@
 /* NGTCP2_FLOW_WINDOW_SCALING_FACTOR is the growth factor of flow
    control window. */
 #define NGTCP2_FLOW_WINDOW_SCALING_FACTOR 2
+/* NGTCP2_MIN_COALESCED_PAYLOADLEN is the minimum length of QUIC
+   packet payload that should be coalesced to a long packet. */
+#define NGTCP2_MIN_COALESCED_PAYLOADLEN 128
 
 /*
  * conn_local_stream returns nonzero if |stream_id| indicates that it
@@ -1864,14 +1867,19 @@ static int conn_verify_dcid(ngtcp2_conn *conn, int *pnew_cid_used,
 /*
  * conn_should_pad_pkt returns nonzero if the packet should be padded.
  * |type| is the type of packet.  |left| is the space left in packet
- * buffer.  |early_datalen| is the number of bytes which will be sent
- * in the next, coalesced 0-RTT packet.
+ * buffer.  |write_datalen| is the number of bytes which will be sent
+ * in the next, coalesced 0-RTT or Short packet.
  */
 static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
-                               size_t early_datalen, int ack_eliciting) {
+                               size_t write_datalen, int ack_eliciting,
+                               int require_padding) {
   size_t min_payloadlen;
 
   if (conn->server) {
+    if (require_padding) {
+      return 1;
+    }
+
     if (type != NGTCP2_PKT_INITIAL || !ack_eliciting) {
       return 0;
     }
@@ -1882,28 +1890,42 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
          !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
       /* If we have something to send in Handshake packet, then add
          PADDING in Handshake packet. */
-      min_payloadlen = 128;
+      min_payloadlen = NGTCP2_MIN_COALESCED_PAYLOADLEN;
     } else {
       return 1;
     }
   } else {
-    if (type == NGTCP2_PKT_HANDSHAKE) {
-      return conn->in_pktns != NULL;
-    }
-
-    if (conn->hs_pktns->crypto.tx.ckm &&
-        (conn->hs_pktns->rtb.probe_pkt_left ||
-         ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
-         !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
-      /* If we have something to send in Handshake packet, then add
-         PADDING in Handshake packet. */
-      min_payloadlen = 128;
-    } else if (!conn->early.ckm || early_datalen == 0) {
-      return 1;
+    if (type == NGTCP2_PKT_INITIAL) {
+      if (conn->hs_pktns->crypto.tx.ckm &&
+          (conn->hs_pktns->rtb.probe_pkt_left ||
+           ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
+           !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
+        /* If we have something to send in Handshake packet, then add
+           PADDING in Handshake packet. */
+        min_payloadlen = NGTCP2_MIN_COALESCED_PAYLOADLEN;
+      } else if ((!conn->early.ckm && !conn->pktns.crypto.tx.ckm) ||
+                 write_datalen == 0) {
+        return 1;
+      } else {
+        /* If we have something to send in 0RTT or Short packet, then
+           add PADDING in that packet.  Take maximum in case that
+           write_datalen includes DATAGRAM which cannot be split. */
+        min_payloadlen =
+            ngtcp2_max(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
+      }
     } else {
-      /* If we have something to send in 0RTT packet, then add PADDING
-         in 0RTT packet. */
-      min_payloadlen = ngtcp2_min(early_datalen, 128);
+      assert(type == NGTCP2_PKT_HANDSHAKE);
+
+      if (!require_padding) {
+        return 0;
+      }
+
+      if (!conn->pktns.crypto.tx.ckm || write_datalen == 0) {
+        return 1;
+      }
+
+      min_payloadlen =
+          ngtcp2_max(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
     }
   }
 
@@ -1939,6 +1961,9 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  * packet type.  It should be either NGTCP2_PKT_INITIAL or
  * NGTCP2_PKT_HANDSHAKE_PKT.
  *
+ * |write_datalen| is the minimum length of application data ready to
+ * send in subsequent 0RTT or Short packet.
+ *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
  *
@@ -1950,7 +1975,7 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 static ngtcp2_ssize
 conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
                          size_t destlen, uint8_t type, uint8_t flags,
-                         size_t early_datalen, ngtcp2_tstamp ts) {
+                         size_t write_datalen, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -2152,10 +2177,10 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 
   /* If we cannot write another packet, then we need to add padding to
      Initial here. */
-  if (require_padding ||
-      conn_should_pad_pkt(
-          conn, type, ngtcp2_ppe_left(&ppe), early_datalen,
-          (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) != 0)) {
+  if (conn_should_pad_pkt(
+          conn, type, ngtcp2_ppe_left(&ppe), write_datalen,
+          (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) != 0,
+          require_padding)) {
     lfr.type = NGTCP2_FRAME_PADDING;
     lfr.padding.len = ngtcp2_ppe_padding(&ppe);
   } else {
@@ -2491,7 +2516,7 @@ static size_t conn_server_tx_left(ngtcp2_conn *conn, ngtcp2_dcid *dcid) {
 static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
                                               ngtcp2_pkt_info *pi,
                                               uint8_t *dest, size_t destlen,
-                                              size_t early_datalen,
+                                              size_t write_datalen,
                                               ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
@@ -2523,17 +2548,15 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
        padded. */
     conn_discard_initial_state(conn, ts);
   } else if (conn->in_pktns) {
-    if (conn->server) {
-      it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
-      if (!ngtcp2_ksl_it_end(&it)) {
-        rtbent = ngtcp2_ksl_it_get(&it);
-        prev_pkt_num = rtbent->hd.pkt_num;
-      }
+    it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+    if (!ngtcp2_ksl_it_end(&it)) {
+      rtbent = ngtcp2_ksl_it_get(&it);
+      prev_pkt_num = rtbent->hd.pkt_num;
     }
 
     nwrite =
         conn_write_handshake_pkt(conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
-                                 NGTCP2_WRITE_PKT_FLAG_NONE, early_datalen, ts);
+                                 NGTCP2_WRITE_PKT_FLAG_NONE, write_datalen, ts);
     if (nwrite < 0) {
       assert(nwrite != NGTCP2_ERR_NOBUF);
       return nwrite;
@@ -2558,12 +2581,13 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
       dest += nwrite;
       destlen -= (size_t)nwrite;
 
-      if (conn->server && destlen) {
+      if (destlen) {
         it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
         if (!ngtcp2_ksl_it_end(&it)) {
           rtbent = ngtcp2_ksl_it_get(&it);
           if (rtbent->hd.pkt_num != prev_pkt_num &&
-              (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
+              (!conn->server ||
+               (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING))) {
             /* We might have already added padding to Initial, but in
                that case, we should have destlen == 0 and no Handshake
                packet will be written. */
@@ -8883,9 +8907,9 @@ static int conn_validate_early_transport_params_limits(ngtcp2_conn *conn) {
 
 /*
  * conn_write_handshake writes QUIC handshake packets to the buffer
- * pointed by |dest| of length |destlen|.  |early_datalen| specifies
- * the expected length of early data to send.  Specify 0 to
- * |early_datalen| if there is no early data.
+ * pointed by |dest| of length |destlen|.  |write_datalen| specifies
+ * the expected length of 0RTT or Short packet payload.  Specify 0 to
+ * |write_datalen| if there is no such data.
  *
  * This function returns the number of bytes written to the buffer, or
  * one of the following negative error codes:
@@ -8906,7 +8930,7 @@ static int conn_validate_early_transport_params_limits(ngtcp2_conn *conn) {
  */
 static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                                          uint8_t *dest, size_t destlen,
-                                         size_t early_datalen,
+                                         size_t write_datalen,
                                          ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ssize res = 0, nwrite = 0, early_spktlen = 0;
@@ -8919,19 +8943,19 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   case NGTCP2_CS_CLIENT_INITIAL:
     pending_early_datalen = conn_retry_early_payloadlen(conn);
     if (pending_early_datalen) {
-      early_datalen = pending_early_datalen;
+      write_datalen = pending_early_datalen;
     }
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_RECV_RETRY)) {
       nwrite =
-          conn_write_client_initial(conn, pi, dest, destlen, early_datalen, ts);
+          conn_write_client_initial(conn, pi, dest, destlen, write_datalen, ts);
       if (nwrite <= 0) {
         return nwrite;
       }
     } else {
       nwrite = conn_write_handshake_pkt(
           conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
-          NGTCP2_WRITE_PKT_FLAG_NONE, early_datalen, ts);
+          NGTCP2_WRITE_PKT_FLAG_NONE, write_datalen, ts);
       if (nwrite < 0) {
         return nwrite;
       }
@@ -8959,12 +8983,12 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED_HANDLED)) {
         pending_early_datalen = conn_retry_early_payloadlen(conn);
         if (pending_early_datalen) {
-          early_datalen = pending_early_datalen;
+          write_datalen = pending_early_datalen;
         }
       }
 
       nwrite =
-          conn_write_handshake_pkts(conn, pi, dest, destlen, early_datalen, ts);
+          conn_write_handshake_pkts(conn, pi, dest, destlen, write_datalen, ts);
       if (nwrite < 0) {
         return nwrite;
       }
@@ -9052,7 +9076,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     return res;
   case NGTCP2_CS_SERVER_INITIAL:
     nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
-                                       /* early_datalen = */ 0, ts);
+                                       /* write_datalen = */ 0, ts);
     if (nwrite < 0) {
       return nwrite;
     }
@@ -9065,7 +9089,7 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     if (conn_handshake_probe_left(conn) || !conn_cwnd_is_zero(conn)) {
       nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
-                                         /* early_datalen = */ 0, ts);
+                                         /* write_datalen = */ 0, ts);
       if (nwrite < 0) {
         return nwrite;
       }
@@ -9130,7 +9154,7 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
   ngtcp2_ssize spktlen, early_spktlen;
   int was_client_initial;
   size_t datalen;
-  size_t early_datalen = 0;
+  size_t write_datalen = 0;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
 
@@ -9138,7 +9162,7 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
 
   /* conn->early.ckm might be created in the first call of
      conn_handshake().  Check it later. */
-  if (vmsg && !(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
+  if (vmsg) {
     switch (vmsg->type) {
     case NGTCP2_VMSG_TYPE_STREAM:
       datalen = ngtcp2_vec_len(vmsg->stream.data, vmsg->stream.datacnt);
@@ -9150,9 +9174,11 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
             (vmsg->stream.strm->tx.max_offset - vmsg->stream.strm->tx.offset) &&
             (conn->tx.max_offset - conn->tx.offset)));
       if (send_stream) {
-        early_datalen =
-            conn_enforce_flow_control(conn, vmsg->stream.strm, datalen) +
-            NGTCP2_STREAM_OVERHEAD;
+        write_datalen =
+            conn_enforce_flow_control(conn, vmsg->stream.strm, datalen);
+        write_datalen =
+            ngtcp2_min(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
+        write_datalen += NGTCP2_STREAM_OVERHEAD;
 
         if (vmsg->stream.flags & NGTCP2_WRITE_STREAM_FLAG_MORE) {
           wflags |= NGTCP2_WRITE_PKT_FLAG_MORE;
@@ -9163,11 +9189,9 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
       break;
     case NGTCP2_VMSG_TYPE_DATAGRAM:
       datalen = ngtcp2_vec_len(vmsg->datagram.data, vmsg->datagram.datacnt);
-      /* TODO Do we need this?  DATAGRAM is independent from STREAM
-         data and no retransmission */
       send_datagram = conn_retry_early_payloadlen(conn) == 0;
       if (send_datagram) {
-        early_datalen = datalen + NGTCP2_DATAGRAM_OVERHEAD;
+        write_datalen = datalen + NGTCP2_DATAGRAM_OVERHEAD;
 
         if (vmsg->datagram.flags & NGTCP2_WRITE_DATAGRAM_FLAG_MORE) {
           wflags |= NGTCP2_WRITE_PKT_FLAG_MORE;
@@ -9181,13 +9205,14 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
 
   if (!ppe_pending) {
     was_client_initial = conn->state == NGTCP2_CS_CLIENT_INITIAL;
-    spktlen = conn_write_handshake(conn, pi, dest, destlen, early_datalen, ts);
+    spktlen = conn_write_handshake(conn, pi, dest, destlen, write_datalen, ts);
 
     if (spktlen < 0) {
       return spktlen;
     }
 
-    if (!conn->early.ckm || (!send_stream && !send_datagram)) {
+    if ((conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) ||
+        !conn->early.ckm || (!send_stream && !send_datagram)) {
       return spktlen;
     }
   } else {
@@ -10063,6 +10088,16 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     if (conn->state != NGTCP2_CS_POST_HANDSHAKE) {
       return nwrite;
     }
+
+    assert(nwrite);
+    assert(dest[0] & NGTCP2_HEADER_FORM_BIT);
+
+    if (ngtcp2_pkt_get_type_long(dest[0]) == NGTCP2_PKT_INITIAL) {
+      /* We have added padding already, but in that case, there is no
+         space left to write Short packet. */
+      wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+    }
+
     res = nwrite;
     dest += nwrite;
     destlen -= (size_t)nwrite;
@@ -10144,12 +10179,18 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   if (ppe_pending) {
     res = conn->pkt.hs_spktlen;
     conn->pkt.hs_spktlen = 0;
+    if (conn->pkt.require_padding) {
+      wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+    }
     /* dest and destlen have already been adjusted in ppe in the first
        run.  They are adjusted for probe packet later. */
     nwrite = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_SHORT,
                             wflags, ts);
     goto fin;
   } else {
+    conn->pkt.require_padding =
+        (wflags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING);
+
     if (conn->state == NGTCP2_CS_POST_HANDSHAKE) {
       rv = conn_prepare_key_update(conn, ts);
       if (rv != 0) {
