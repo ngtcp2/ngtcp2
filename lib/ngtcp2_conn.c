@@ -1875,27 +1875,23 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
                                int require_padding) {
   size_t min_payloadlen;
 
-  if (conn->server) {
-    if (require_padding) {
-      return 1;
-    }
+  if (type == NGTCP2_PKT_INITIAL) {
+    if (conn->server) {
+      if (!ack_eliciting) {
+        return 0;
+      }
 
-    if (type != NGTCP2_PKT_INITIAL || !ack_eliciting) {
-      return 0;
-    }
-
-    if (conn->hs_pktns->crypto.tx.ckm &&
-        (conn->hs_pktns->rtb.probe_pkt_left ||
-         ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
-         !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
-      /* If we have something to send in Handshake packet, then add
-         PADDING in Handshake packet. */
-      min_payloadlen = NGTCP2_MIN_COALESCED_PAYLOADLEN;
+      if (conn->hs_pktns->crypto.tx.ckm &&
+          (conn->hs_pktns->rtb.probe_pkt_left ||
+           ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
+           !ngtcp2_acktr_empty(&conn->hs_pktns->acktr))) {
+        /* If we have something to send in Handshake packet, then add
+           PADDING in Handshake packet. */
+        min_payloadlen = NGTCP2_MIN_COALESCED_PAYLOADLEN;
+      } else {
+        return 1;
+      }
     } else {
-      return 1;
-    }
-  } else {
-    if (type == NGTCP2_PKT_INITIAL) {
       if (conn->hs_pktns->crypto.tx.ckm &&
           (conn->hs_pktns->rtb.probe_pkt_left ||
            ngtcp2_ksl_len(&conn->hs_pktns->crypto.tx.frq) ||
@@ -1913,22 +1909,22 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
         min_payloadlen =
             ngtcp2_max(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
       }
-    } else {
-      assert(type == NGTCP2_PKT_HANDSHAKE);
-
-      if (!require_padding) {
-        return 0;
-      }
-
-      if (!conn->pktns.crypto.tx.ckm || write_datalen == 0) {
-        return 1;
-      }
-
-      min_payloadlen =
-          ngtcp2_max(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
     }
+  } else {
+    assert(type == NGTCP2_PKT_HANDSHAKE);
+
+    if (!require_padding) {
+      return 0;
+    }
+
+    if (!conn->pktns.crypto.tx.ckm || write_datalen == 0) {
+      return 1;
+    }
+
+    min_payloadlen = ngtcp2_max(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
   }
 
+  /* TODO the next packet type should be taken into account */
   return left <
          /* TODO Assuming that pkt_num is encoded in 1 byte. */
          NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.current.cid.datalen +
@@ -2598,8 +2594,8 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
     }
   }
 
-  nwrite = conn_write_handshake_pkt(conn, pi, dest, destlen,
-                                    NGTCP2_PKT_HANDSHAKE, wflags, 0, ts);
+  nwrite = conn_write_handshake_pkt(
+      conn, pi, dest, destlen, NGTCP2_PKT_HANDSHAKE, wflags, write_datalen, ts);
   if (nwrite < 0) {
     assert(nwrite != NGTCP2_ERR_NOBUF);
     return nwrite;
@@ -9075,8 +9071,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     return res;
   case NGTCP2_CS_SERVER_INITIAL:
-    nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
-                                       /* write_datalen = */ 0, ts);
+    nwrite =
+        conn_write_handshake_pkts(conn, pi, dest, destlen, write_datalen, ts);
     if (nwrite < 0) {
       return nwrite;
     }
@@ -9088,8 +9084,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     return nwrite;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
     if (conn_handshake_probe_left(conn) || !conn_cwnd_is_zero(conn)) {
-      nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
-                                         /* write_datalen = */ 0, ts);
+      nwrite =
+          conn_write_handshake_pkts(conn, pi, dest, destlen, write_datalen, ts);
       if (nwrite < 0) {
         return nwrite;
       }
@@ -10065,6 +10061,11 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_ssize res = 0;
   size_t server_tx_left;
+  size_t datalen;
+  size_t write_datalen = 0;
+  int64_t prev_in_pkt_num = -1;
+  ngtcp2_ksl_it it;
+  ngtcp2_rtb_entry *rtbent;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -10123,20 +10124,60 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
         destlen = ngtcp2_min(destlen, server_tx_left);
       }
 
-      nwrite = conn_write_handshake(conn, pi, dest, destlen, 0, ts);
-      if (nwrite < 0) {
-        return nwrite;
+      if (vmsg) {
+        switch (vmsg->type) {
+        case NGTCP2_VMSG_TYPE_STREAM:
+          datalen = ngtcp2_vec_len(vmsg->stream.data, vmsg->stream.datacnt);
+          if (datalen == 0 || (datalen > 0 &&
+                               (vmsg->stream.strm->tx.max_offset -
+                                vmsg->stream.strm->tx.offset) &&
+                               (conn->tx.max_offset - conn->tx.offset))) {
+            write_datalen =
+                conn_enforce_flow_control(conn, vmsg->stream.strm, datalen);
+            write_datalen =
+                ngtcp2_min(write_datalen, NGTCP2_MIN_COALESCED_PAYLOADLEN);
+            write_datalen += NGTCP2_STREAM_OVERHEAD;
+          }
+          break;
+        case NGTCP2_VMSG_TYPE_DATAGRAM:
+          write_datalen =
+              ngtcp2_vec_len(vmsg->datagram.data, vmsg->datagram.datacnt) +
+              NGTCP2_DATAGRAM_OVERHEAD;
+          break;
+        default:
+          assert(0);
+        }
+
+        if (conn->in_pktns && write_datalen > 0) {
+          it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+          if (!ngtcp2_ksl_it_end(&it)) {
+            rtbent = ngtcp2_ksl_it_get(&it);
+            prev_in_pkt_num = rtbent->hd.pkt_num;
+          }
+        }
       }
 
-      if (conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
-        destlen = origlen;
-      } else {
-        origlen = destlen;
+      nwrite = conn_write_handshake(conn, pi, dest, destlen, write_datalen, ts);
+      if (nwrite < 0) {
+        return nwrite;
       }
 
       res = nwrite;
       dest += nwrite;
       destlen -= (size_t)nwrite;
+
+      if (conn->in_pktns && write_datalen > 0) {
+        it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+        if (!ngtcp2_ksl_it_end(&it)) {
+          rtbent = ngtcp2_ksl_it_get(&it);
+          if (rtbent->hd.pkt_num != prev_in_pkt_num &&
+              (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
+            /* We have added padding already, but in that case, there
+               is no space left to write Short packet. */
+            wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+          }
+        }
+      }
     }
     if (conn->state != NGTCP2_CS_POST_HANDSHAKE &&
         conn->pktns.crypto.tx.ckm == NULL) {
@@ -10235,7 +10276,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       if (conn_handshake_probe_left(conn)) {
         destlen = origlen;
       }
-      nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen, 0, ts);
+      nwrite = conn_write_handshake_pkts(conn, pi, dest, destlen,
+                                         /* write_datalen = */ 0, ts);
       if (nwrite < 0) {
         return nwrite;
       }
