@@ -5307,6 +5307,10 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return (ngtcp2_ssize)pktlen;
     }
 
+    if (conn->pktns.crypto.rx.ckm) {
+      return 0;
+    }
+
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "buffering Short packet len=%zu", pktlen);
 
@@ -5739,12 +5743,14 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
  * This function returns the same error code returned by
  * conn_recv_handshake_pkt.
  */
-static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
-                                    const ngtcp2_pkt_info *pi,
-                                    const uint8_t *pkt, size_t pktlen,
-                                    ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
+                                             const ngtcp2_path *path,
+                                             const ngtcp2_pkt_info *pi,
+                                             const uint8_t *pkt, size_t pktlen,
+                                             ngtcp2_tstamp ts) {
   ngtcp2_ssize nread;
   size_t dgramlen = pktlen;
+  const uint8_t *origpkt = pkt;
 
   if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     conn->dcid.current.bytes_recv += dgramlen;
@@ -5755,7 +5761,7 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         conn_recv_handshake_pkt(conn, path, pi, pkt, pktlen, dgramlen, ts, ts);
     if (nread < 0) {
       if (ngtcp2_err_is_fatal((int)nread)) {
-        return (int)nread;
+        return nread;
       }
 
       if (nread == NGTCP2_ERR_DRAINING) {
@@ -5781,27 +5787,32 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
             case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
             case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
             case NGTCP2_ERR_TRANSPORT_PARAM:
-              return (int)nread;
+              return nread;
             }
 
             return NGTCP2_ERR_DROP_CONN;
           }
-          return 0;
+          return (ngtcp2_ssize)dgramlen;
         }
         /* client */
         if (nread == NGTCP2_ERR_CRYPTO) {
           /* If client gets crypto error from TLS stack, it is
              unrecoverable, therefore drop connection. */
-          return (int)nread;
+          return nread;
         }
-        return 0;
+        return (ngtcp2_ssize)dgramlen;
       }
 
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
-        return 0;
+        return (ngtcp2_ssize)dgramlen;
       }
 
-      return (int)nread;
+      return nread;
+    }
+
+    if (nread == 0) {
+      assert(!(pkt[0] & NGTCP2_HEADER_FORM_BIT));
+      return pkt - origpkt;
     }
 
     assert(pktlen >= (size_t)nread);
@@ -5812,7 +5823,7 @@ static int conn_recv_handshake_cpkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                     "read packet %td left %zu", nread, pktlen);
   }
 
-  return 0;
+  return (ngtcp2_ssize)dgramlen;
 }
 
 int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
@@ -8601,27 +8612,36 @@ static int conn_enqueue_handshake_done(ngtcp2_conn *conn) {
  * reading given data.  |pkt| points to the buffer to read and
  * |pktlen| is the length of the buffer.  |path| is the network path.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes: (TBD).
+ * This function returns the number of bytes processed.  Unless the
+ * last packet is Short packet and an application decryption key has
+ * been installed, it returns |pktlen| if it succeeds.  If it finds
+ * Short packet and an application decryption key has been installed,
+ * it returns the number of bytes just before Short packet begins.
+ *
+ * This function returns the number of bytes processed if it succeeds,
+ * or one of the following negative error codes: (TBD).
  */
-static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
-                               const ngtcp2_pkt_info *pi, const uint8_t *pkt,
-                               size_t pktlen, ngtcp2_tstamp ts) {
+static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
+                                        const ngtcp2_path *path,
+                                        const ngtcp2_pkt_info *pi,
+                                        const uint8_t *pkt, size_t pktlen,
+                                        ngtcp2_tstamp ts) {
   int rv;
+  ngtcp2_ssize nread;
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
     /* TODO Better to log something when we ignore input */
-    return 0;
+    return (ngtcp2_ssize)pktlen;
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
-    rv = conn_recv_handshake_cpkt(conn, path, pi, pkt, pktlen, ts);
-    if (rv < 0) {
-      return rv;
+    nread = conn_recv_handshake_cpkt(conn, path, pi, pkt, pktlen, ts);
+    if (nread < 0) {
+      return nread;
     }
 
     if (conn->state == NGTCP2_CS_CLIENT_INITIAL) {
       /* Retry packet was received */
-      return 0;
+      return (ngtcp2_ssize)pktlen;
     }
 
     assert(conn->hs_pktns);
@@ -8640,13 +8660,18 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (rv != 0) {
         return rv;
       }
+
+      rv = conn_process_buffered_protected_pkt(conn, &conn->pktns, ts);
+      if (rv != 0) {
+        return rv;
+      }
     }
 
-    return 0;
+    return nread;
   case NGTCP2_CS_SERVER_INITIAL:
-    rv = conn_recv_handshake_cpkt(conn, path, pi, pkt, pktlen, ts);
-    if (rv < 0) {
-      return rv;
+    nread = conn_recv_handshake_cpkt(conn, path, pi, pkt, pktlen, ts);
+    if (nread < 0) {
+      return nread;
     }
 
     /*
@@ -8661,7 +8686,7 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
           ngtcp2_rob_data_buffered(conn->in_pktns->crypto.strm.rx.rob)) {
         /* Address has been validated with token */
         if (conn->local.settings.token.len) {
-          return 0;
+          return nread;
         }
         return NGTCP2_ERR_RETRY;
       }
@@ -8685,11 +8710,11 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
       }
     }
 
-    return 0;
+    return nread;
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
-    rv = conn_recv_handshake_cpkt(conn, path, pi, pkt, pktlen, ts);
-    if (rv < 0) {
-      return rv;
+    nread = conn_recv_handshake_cpkt(conn, path, pi, pkt, pktlen, ts);
+    if (nread < 0) {
+      return nread;
     }
 
     if (conn->hs_pktns->crypto.rx.ckm) {
@@ -8726,7 +8751,7 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
         }
       }
 
-      return 0;
+      return nread;
     }
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED)) {
@@ -8762,13 +8787,13 @@ static int conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
        confirmed. */
     ngtcp2_conn_set_loss_detection_timer(conn, ts);
 
-    return 0;
+    return nread;
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
     return NGTCP2_ERR_DRAINING;
   default:
-    return 0;
+    return (ngtcp2_ssize)pktlen;
   }
 }
 
@@ -8776,6 +8801,7 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                          const ngtcp2_pkt_info *pi, const uint8_t *pkt,
                          size_t pktlen, ngtcp2_tstamp ts) {
   int rv = 0;
+  ngtcp2_ssize nread = 0;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -8800,7 +8826,21 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
-    return conn_read_handshake(conn, path, pi, pkt, pktlen, ts);
+    nread = conn_read_handshake(conn, path, pi, pkt, pktlen, ts);
+    if (nread < 0) {
+      return (int)nread;
+    }
+
+    if ((size_t)nread == pktlen) {
+      return 0;
+    }
+
+    assert(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
+
+    pkt += nread;
+    pktlen -= (size_t)nread;
+
+    break;
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
   case NGTCP2_CS_SERVER_TLS_HANDSHAKE_FAILED:
@@ -8817,7 +8857,22 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
       return 0;
     }
-    return conn_read_handshake(conn, path, pi, pkt, pktlen, ts);
+
+    nread = conn_read_handshake(conn, path, pi, pkt, pktlen, ts);
+    if (nread < 0) {
+      return (int)nread;
+    }
+
+    if ((size_t)nread == pktlen) {
+      return 0;
+    }
+
+    assert(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
+
+    pkt += nread;
+    pktlen -= (size_t)nread;
+
+    break;
   case NGTCP2_CS_CLOSING:
     return NGTCP2_ERR_CLOSING;
   case NGTCP2_CS_DRAINING:
@@ -8827,11 +8882,13 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     if (rv != 0) {
       return rv;
     }
-    return conn_recv_cpkt(conn, path, pi, pkt, pktlen, ts);
+    break;
   default:
     assert(0);
     abort();
   }
+
+  return conn_recv_cpkt(conn, path, pi, pkt, pktlen, ts);
 }
 
 /*
@@ -9064,11 +9121,6 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     conn_process_early_rtb(conn);
-
-    rv = conn_process_buffered_protected_pkt(conn, &conn->pktns, ts);
-    if (rv != 0) {
-      return (ngtcp2_ssize)rv;
-    }
 
     return res;
   case NGTCP2_CS_SERVER_INITIAL:
