@@ -9310,6 +9310,7 @@ int ngtcp2_conn_install_initial_key(
   ngtcp2_pktns *pktns = conn->in_pktns;
   int rv;
 
+  assert(ivlen >= 8);
   assert(pktns);
 
   conn_call_delete_crypto_cipher_ctx(conn, &pktns->crypto.rx.hp_ctx);
@@ -9358,6 +9359,7 @@ int ngtcp2_conn_install_rx_handshake_key(
   ngtcp2_pktns *pktns = conn->hs_pktns;
   int rv;
 
+  assert(ivlen >= 8);
   assert(pktns);
   assert(!pktns->crypto.rx.hp_ctx.native_handle);
   assert(!pktns->crypto.rx.ckm);
@@ -9379,6 +9381,7 @@ int ngtcp2_conn_install_tx_handshake_key(
   ngtcp2_pktns *pktns = conn->hs_pktns;
   int rv;
 
+  assert(ivlen >= 8);
   assert(pktns);
   assert(!pktns->crypto.tx.hp_ctx.native_handle);
   assert(!pktns->crypto.tx.ckm);
@@ -9404,6 +9407,7 @@ int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
                                   const ngtcp2_crypto_cipher_ctx *hp_ctx) {
   int rv;
 
+  assert(ivlen >= 8);
   assert(!conn->early.hp_ctx.native_handle);
   assert(!conn->early.ckm);
 
@@ -9428,6 +9432,7 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
+  assert(ivlen >= 8);
   assert(!pktns->crypto.rx.hp_ctx.native_handle);
   assert(!pktns->crypto.rx.ckm);
 
@@ -9460,6 +9465,7 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
   ngtcp2_pktns *pktns = &conn->pktns;
   int rv;
 
+  assert(ivlen >= 8);
   assert(!pktns->crypto.tx.hp_ctx.native_handle);
   assert(!pktns->crypto.tx.ckm);
 
