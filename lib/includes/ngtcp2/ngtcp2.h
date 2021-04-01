@@ -3380,6 +3380,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * decryption counterpart .  If they have already been set, they are
  * overwritten.
  *
+ * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
+ * that is larger.
+ *
  * If this function succeeds, |conn| takes ownership of |rx_aead_ctx|,
  * |rx_hp_ctx|, |tx_aead_ctx|, and |tx_hp_ctx|.
  * :type:`ngtcp2_delete_crypto_aead_ctx` and
@@ -3413,6 +3416,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
  * protection cipher context object |hp_ctx| to decrypt incoming
  * Handshake packets.
  *
+ * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
+ * that is larger.
+ *
  * If this function succeeds, |conn| takes ownership of |aead_ctx|,
  * and |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
  * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
@@ -3439,6 +3445,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_handshake_key(
  * protection cipher context object |hp_ctx| to encrypt outgoing
  * Handshake packets.
  *
+ * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
+ * that is larger.
+ *
  * If this function succeeds, |conn| takes ownership of |aead_ctx| and
  * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
  * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
@@ -3462,6 +3471,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_tx_handshake_key(
  * cipher context object |aead_ctx|, IV |iv| of length |ivlen|, and
  * packet header protection cipher context object |hp_ctx| to encrypt
  * (for client) or decrypt (for server) 0RTT packets.
+ *
+ * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
+ * that is larger.
  *
  * If this function succeeds, |conn| takes ownership of |aead_ctx| and
  * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
@@ -3490,6 +3502,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(
  * |iv| of length |ivlen|, and packet header protection cipher context
  * object |hp_ctx| to decrypt incoming Short packets.
  *
+ * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
+ * that is larger.
+ *
  * If this function succeeds, |conn| takes ownership of |aead_ctx| and
  * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
  * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
@@ -3517,6 +3532,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
  * context object which must be initialized with encryption key, IV
  * |iv| of length |ivlen|, and packet header protection cipher context
  * object |hp_ctx| to encrypt outgoing Short packets.
+ *
+ * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
+ * that is larger.
  *
  * If this function succeeds, |conn| takes ownership of |aead_ctx| and
  * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
