@@ -547,7 +547,6 @@ struct ngtcp2_conn {
     int pkt_empty;
     int hd_logged;
     uint8_t rtb_entry_flags;
-    int was_client_initial;
     ngtcp2_ssize hs_spktlen;
     int require_padding;
   } pkt;

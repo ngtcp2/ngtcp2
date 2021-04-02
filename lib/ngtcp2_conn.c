@@ -9264,20 +9264,24 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
         !conn->early.ckm || (!send_stream && !send_datagram)) {
       return spktlen;
     }
+
+    /* If spktlen > 0, we are making a compound packet.  If Initial
+       packet is written, we have to pad bytes to 0-RTT packet. */
+    if (spktlen > 0 && was_client_initial) {
+      wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+      conn->pkt.require_padding = 1;
+    } else {
+      conn->pkt.require_padding = 0;
+    }
   } else {
     assert(!conn->pktns.crypto.rx.ckm);
     assert(!conn->pktns.crypto.tx.ckm);
     assert(conn->early.ckm);
 
-    was_client_initial = conn->pkt.was_client_initial;
+    if (conn->pkt.require_padding) {
+      wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+    }
     spktlen = conn->pkt.hs_spktlen;
-  }
-
-  /* If spktlen > 0, we are making a compound packet.  If Initial
-     packet is written, we have to pad bytes to 0-RTT packet. */
-
-  if (spktlen && was_client_initial) {
-    wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
   }
 
   dest += spktlen;
@@ -9295,7 +9299,6 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
     case NGTCP2_ERR_STREAM_DATA_BLOCKED:
       return spktlen;
     case NGTCP2_ERR_WRITE_MORE:
-      conn->pkt.was_client_initial = was_client_initial;
       conn->pkt.hs_spktlen = spktlen;
       break;
     }
