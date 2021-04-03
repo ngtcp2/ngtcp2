@@ -8835,7 +8835,7 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return 0;
     }
 
-    assert(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
+    assert(conn->pktns.crypto.rx.ckm);
 
     pkt += nread;
     pktlen -= (size_t)nread;
@@ -8867,7 +8867,7 @@ int ngtcp2_conn_read_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return 0;
     }
 
-    assert(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED);
+    assert(conn->pktns.crypto.rx.ckm);
 
     pkt += nread;
     pktlen -= (size_t)nread;
