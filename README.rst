@@ -203,6 +203,14 @@ if their corresponding crypto helper library is built:
 - bsslclient: BoringSSL client
 - bsslserver: BoringSSL server
 
+QUIC protocol extensions
+-------------------------
+
+The library implements the following QUIC protocol extensions:
+
+- `An Unreliable Datagram Extension to QUIC
+  <https://quicwg.org/datagram/draft-ietf-quic-datagram.html>`_
+
 Configuring Wireshark for QUIC
 ------------------------------
 
