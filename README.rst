@@ -44,35 +44,35 @@ gcc >= 8.0).
 
 The following packages are required to configure the build system:
 
-* pkg-config >= 0.20
-* autoconf
-* automake
-* autotools-dev
-* libtool
+- pkg-config >= 0.20
+- autoconf
+- automake
+- autotools-dev
+- libtool
 
 libngtcp2 uses cunit for its unit test frame work:
 
-* cunit >= 2.1
+- cunit >= 2.1
 
 To build sources under the examples directory, libev and nghttp3 are
 required:
 
-* libev
-* nghttp3 (https://github.com/ngtcp2/nghttp3) for HTTP/3
+- libev
+- nghttp3 (https://github.com/ngtcp2/nghttp3) for HTTP/3
 
 The client and server under examples directory require at least one of
 the following TLS backends:
 
-* `OpenSSL with QUIC support
+- `OpenSSL with QUIC support
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1k+quic>`_
-* GnuTLS
-* BoringSSL
+- GnuTLS
+- BoringSSL
 
 For crypto helper library:
 
-* OpenSSL with QUIC support described above
-* libgnutls28-dev >= 3.7.0
-* BoringSSL (commit b09f283a030efc650cfcb3476932626c5000b921)
+- OpenSSL with QUIC support described above
+- libgnutls28-dev >= 3.7.0
+- BoringSSL (commit b09f283a030efc650cfcb3476932626c5000b921)
 
 Build from git
 --------------
@@ -181,9 +181,9 @@ The header file exists under crypto/includes/ngtcp2 directory.
 Each library file is built for a particular TLS backend.  The
 available crypto helper libraries are:
 
-* libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
-* libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
-* libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
+- libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
+- libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
+- libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
 
 Because BoringSSL is an unversioned product, we only tested its
 particular revision.  See Requirements section above.
