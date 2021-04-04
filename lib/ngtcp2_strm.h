@@ -70,7 +70,6 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 typedef struct ngtcp2_strm ngtcp2_strm;
 
 struct ngtcp2_strm {
-  ngtcp2_map_entry me;
   ngtcp2_pq_entry pe;
   uint64_t cycle;
 

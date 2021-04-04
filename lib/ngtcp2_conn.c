@@ -1036,9 +1036,9 @@ static size_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
   return (size_t)ngtcp2_min((uint64_t)len, fc_credits);
 }
 
-static int delete_strms_each(ngtcp2_map_entry *ent, void *ptr) {
+static int delete_strms_each(void *data, void *ptr) {
   const ngtcp2_mem *mem = ptr;
-  ngtcp2_strm *s = ngtcp2_struct_of(ent, ngtcp2_strm, me);
+  ngtcp2_strm *s = data;
 
   ngtcp2_strm_free(s);
   ngtcp2_mem_free(mem, s);
@@ -5831,7 +5831,8 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     return rv;
   }
 
-  rv = ngtcp2_map_insert(&conn->strms, &strm->me);
+  rv = ngtcp2_map_insert(&conn->strms, (ngtcp2_map_key_type)strm->stream_id,
+                         strm);
   if (rv != 0) {
     assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
     goto fail;
@@ -8404,10 +8405,10 @@ static void conn_sync_stream_id_limit(ngtcp2_conn *conn) {
   conn->local.uni.max_streams = params->initial_max_streams_uni;
 }
 
-static int strm_set_max_offset(ngtcp2_map_entry *ent, void *ptr) {
+static int strm_set_max_offset(void *data, void *ptr) {
   ngtcp2_conn *conn = ptr;
   ngtcp2_transport_params *params = &conn->remote.transport_params;
-  ngtcp2_strm *strm = ngtcp2_struct_of(ent, ngtcp2_strm, me);
+  ngtcp2_strm *strm = data;
   uint64_t max_offset;
   int rv;
 
@@ -9983,14 +9984,7 @@ int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn, int64_t *pstream_id,
 }
 
 ngtcp2_strm *ngtcp2_conn_find_stream(ngtcp2_conn *conn, int64_t stream_id) {
-  ngtcp2_map_entry *me;
-
-  me = ngtcp2_map_find(&conn->strms, (uint64_t)stream_id);
-  if (me == NULL) {
-    return NULL;
-  }
-
-  return ngtcp2_struct_of(me, ngtcp2_strm, me);
+  return ngtcp2_map_find(&conn->strms, (uint64_t)stream_id);
 }
 
 ngtcp2_ssize ngtcp2_conn_write_stream(ngtcp2_conn *conn, ngtcp2_path *path,
@@ -10569,7 +10563,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     app_error_code = strm->app_error_code;
   }
 
-  rv = ngtcp2_map_remove(&conn->strms, strm->me.key);
+  rv = ngtcp2_map_remove(&conn->strms, (ngtcp2_map_key_type)strm->stream_id);
   if (rv != 0) {
     assert(rv != NGTCP2_ERR_INVALID_ARGUMENT);
     return rv;
@@ -10787,9 +10781,9 @@ uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn) {
   return conn->version;
 }
 
-static int delete_strms_pq_each(ngtcp2_map_entry *ent, void *ptr) {
+static int delete_strms_pq_each(void *data, void *ptr) {
   ngtcp2_conn *conn = ptr;
-  ngtcp2_strm *s = ngtcp2_struct_of(ent, ngtcp2_strm, me);
+  ngtcp2_strm *s = data;
 
   if (ngtcp2_strm_is_tx_queued(s)) {
     ngtcp2_pq_remove(&conn->tx.strmq, &s->pe);
@@ -10811,6 +10805,7 @@ static void conn_discard_early_data_state(ngtcp2_conn *conn) {
   ngtcp2_rtb_remove_early_data(&conn->pktns.rtb, &conn->cstat);
 
   ngtcp2_map_each_free(&conn->strms, delete_strms_pq_each, conn);
+  ngtcp2_map_clear(&conn->strms);
 
   conn->tx.offset = 0;
 
