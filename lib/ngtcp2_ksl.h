@@ -192,6 +192,17 @@ int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
                       const ngtcp2_ksl_key *key);
 
 /*
+ * ngtcp2_ksl_remove_hint removes the |key| from |ksl|.  |hint| must
+ * point to the same node denoted by |key|.  |hint| is used to remove
+ * a node efficiently in some cases.  Other than that, it behaves
+ * exactly like ngtcp2_ksl_remove.  |it| and |hint| can point to the
+ * same object.
+ */
+int ngtcp2_ksl_remove_hint(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
+                           const ngtcp2_ksl_it *hint,
+                           const ngtcp2_ksl_key *key);
+
+/*
  * ngtcp2_ksl_lower_bound returns the iterator which points to the
  * first node which has the key which is equal to |key| or the last
  * node which satisfies !compar(&node->key, key).  If there is no such

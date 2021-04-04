@@ -1540,7 +1540,7 @@ static int conn_cryptofrq_unacked_pop(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
     frc = ngtcp2_ksl_it_get(&it);
     fr = &frc->fr.crypto;
 
-    ngtcp2_ksl_remove(&pktns->crypto.tx.frq, &it, &fr->offset);
+    ngtcp2_ksl_remove_hint(&pktns->crypto.tx.frq, &it, &it, &fr->offset);
 
     idx = 0;
     offset = fr->offset;

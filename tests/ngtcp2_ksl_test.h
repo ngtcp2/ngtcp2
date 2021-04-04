@@ -34,5 +34,6 @@ void test_ngtcp2_ksl_clear(void);
 void test_ngtcp2_ksl_range(void);
 void test_ngtcp2_ksl_update_key_range(void);
 void test_ngtcp2_ksl_dup(void);
+void test_ngtcp2_ksl_remove_hint(void);
 
 #endif /* NGTCP2_KSL_TEST_H */

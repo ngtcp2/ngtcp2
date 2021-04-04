@@ -91,7 +91,7 @@ void ngtcp2_acktr_free(ngtcp2_acktr *acktr) {
 
 int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
                      ngtcp2_tstamp ts) {
-  ngtcp2_ksl_it it;
+  ngtcp2_ksl_it it, prev_it;
   ngtcp2_acktr_entry *ent, *prev_ent, *delent;
   int rv;
   int added = 0;
@@ -122,15 +122,16 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
           added = 1;
         }
       } else {
-        ngtcp2_ksl_it_prev(&it);
-        prev_ent = ngtcp2_ksl_it_get(&it);
+        prev_it = it;
+        ngtcp2_ksl_it_prev(&prev_it);
+        prev_ent = ngtcp2_ksl_it_get(&prev_it);
 
         assert(prev_ent->pkt_num >= pkt_num + (int64_t)prev_ent->len);
 
         if (ent->pkt_num + 1 == pkt_num) {
           if (prev_ent->pkt_num == pkt_num + (int64_t)prev_ent->len) {
             prev_ent->len += ent->len + 1;
-            ngtcp2_ksl_remove(&acktr->ents, NULL, &ent->pkt_num);
+            ngtcp2_ksl_remove_hint(&acktr->ents, NULL, &it, &ent->pkt_num);
             ngtcp2_acktr_entry_del(ent, acktr->mem);
             added = 1;
           } else {
@@ -171,7 +172,7 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
     it = ngtcp2_ksl_end(&acktr->ents);
     ngtcp2_ksl_it_prev(&it);
     delent = ngtcp2_ksl_it_get(&it);
-    ngtcp2_ksl_remove(&acktr->ents, NULL, &delent->pkt_num);
+    ngtcp2_ksl_remove_hint(&acktr->ents, NULL, &it, &delent->pkt_num);
     ngtcp2_acktr_entry_del(delent, acktr->mem);
   }
 
@@ -186,7 +187,7 @@ void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent) {
 
   for (; !ngtcp2_ksl_it_end(&it);) {
     ent = ngtcp2_ksl_it_get(&it);
-    ngtcp2_ksl_remove(&acktr->ents, &it, &ent->pkt_num);
+    ngtcp2_ksl_remove_hint(&acktr->ents, &it, &it, &ent->pkt_num);
     ngtcp2_acktr_entry_del(ent, acktr->mem);
   }
 }
@@ -212,12 +213,13 @@ ngtcp2_acktr_ack_entry *ngtcp2_acktr_add_ack(ngtcp2_acktr *acktr,
 }
 
 /*
- * acktr_remove removes |ent| from |acktr|.  The iterator which points
- * to the entry next to |ent| is assigned to |it|.
+ * acktr_remove removes |ent| from |acktr|.  |it| must point to the
+ * node whose key identifies |ent|.  The iterator which points to the
+ * entry next to |ent| is assigned to |it|.
  */
 static void acktr_remove(ngtcp2_acktr *acktr, ngtcp2_ksl_it *it,
                          ngtcp2_acktr_entry *ent) {
-  ngtcp2_ksl_remove(&acktr->ents, it, &ent->pkt_num);
+  ngtcp2_ksl_remove_hint(&acktr->ents, it, it, &ent->pkt_num);
   ngtcp2_acktr_entry_del(ent, acktr->mem);
 }
 

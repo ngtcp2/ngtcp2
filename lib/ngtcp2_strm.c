@@ -210,7 +210,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
     frc = ngtcp2_ksl_it_get(&it);
     fr = &frc->fr.stream;
 
-    ngtcp2_ksl_remove(strm->tx.streamfrq, &it, &fr->offset);
+    ngtcp2_ksl_remove_hint(strm->tx.streamfrq, &it, &it, &fr->offset);
 
     idx = 0;
     offset = fr->offset;

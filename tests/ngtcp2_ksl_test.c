@@ -460,3 +460,43 @@ void test_ngtcp2_ksl_dup(void) {
     ngtcp2_ksl_free(&ksl);
   }
 }
+
+void test_ngtcp2_ksl_remove_hint(void) {
+  static int64_t keys[16000];
+  ngtcp2_ksl ksl;
+  const ngtcp2_mem *mem = ngtcp2_mem_default();
+  ngtcp2_ksl_it it;
+  size_t i, j;
+
+  for (i = 0; i < arraylen(keys); ++i) {
+    keys[i] = (int64_t)i;
+  }
+
+  for (j = 0; j < 10; ++j) {
+    ngtcp2_ksl_init(&ksl, less, sizeof(int64_t), mem);
+
+    shuffle(keys, arraylen(keys));
+
+    for (i = 0; i < arraylen(keys); ++i) {
+      CU_ASSERT(0 == ngtcp2_ksl_insert(&ksl, NULL, &keys[i], NULL));
+    }
+
+    shuffle(keys, arraylen(keys));
+
+    for (i = 0; i < arraylen(keys); ++i) {
+      it = ngtcp2_ksl_lower_bound(&ksl, &keys[i]);
+
+      CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+      CU_ASSERT(keys[i] == *(int64_t *)ngtcp2_ksl_it_key(&it));
+      CU_ASSERT(0 == ngtcp2_ksl_remove_hint(&ksl, &it, &it, &keys[i]));
+
+      it = ngtcp2_ksl_lower_bound(&ksl, &keys[i]);
+
+      CU_ASSERT(ngtcp2_ksl_it_end(&it) ||
+                keys[i] != *(int64_t *)ngtcp2_ksl_it_key(&it));
+      CU_ASSERT(arraylen(keys) - i - 1 == ngtcp2_ksl_len(&ksl));
+    }
+
+    ngtcp2_ksl_free(&ksl);
+  }
+}

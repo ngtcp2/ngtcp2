@@ -73,7 +73,7 @@ int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen) {
     }
 
     if (ngtcp2_range_eq(&k, &m)) {
-      ngtcp2_ksl_remove(&gaptr->gap, &it, &k);
+      ngtcp2_ksl_remove_hint(&gaptr->gap, &it, &it, &k);
       continue;
     }
     ngtcp2_range_cut(&l, &r, &k, &m);
@@ -125,5 +125,5 @@ void ngtcp2_gaptr_drop_first_gap(ngtcp2_gaptr *gaptr) {
 
   r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
 
-  ngtcp2_ksl_remove(&gaptr->gap, NULL, &r);
+  ngtcp2_ksl_remove_hint(&gaptr->gap, NULL, &it, &r);
 }
