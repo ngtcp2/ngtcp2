@@ -2884,7 +2884,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
   size_t min_pktlen = conn_min_short_pktlen(conn);
   int padded = 0;
-  int credit_expanded = 0;
   ngtcp2_cc_pkt cc_pkt;
   uint64_t crypto_offset;
   uint64_t stream_offset;
@@ -2999,7 +2998,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
       conn->rx.max_offset = conn->rx.unsent_max_offset =
           nfrc->fr.max_data.max_data;
-      credit_expanded = 1;
     }
 
     ngtcp2_pkt_hd_init(hd, hd_flags, type, &conn->dcid.current.cid,
@@ -3298,7 +3296,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           }
 
           pkt_empty = 0;
-          credit_expanded = 1;
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
                              NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
           pfrc = &(*pfrc)->next;
@@ -3361,29 +3358,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         if (rv != 0) {
           assert(ngtcp2_err_is_fatal(rv));
           return rv;
-        }
-      }
-    }
-
-    /* Add ACK if MAX_DATA or MAX_STREAM_DATA frame is encoded to
-       decrease packet count. */
-    if (ackfr == NULL && credit_expanded) {
-      rv = conn_create_ack_frame(
-          conn, &ackfr, pktns, type, ts, /* ack_delay = */ 0,
-          conn->local.transport_params.ack_delay_exponent);
-      if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
-        return rv;
-      }
-
-      if (ackfr) {
-        rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, ackfr);
-        if (rv != 0) {
-          assert(NGTCP2_ERR_NOBUF == rv);
-        } else {
-          ngtcp2_acktr_commit_ack(&pktns->acktr);
-          ngtcp2_acktr_add_ack(&pktns->acktr, hd->pkt_num,
-                               ackfr->ack.largest_ack);
         }
       }
     }
