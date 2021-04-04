@@ -3554,18 +3554,16 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   /* TODO Push STREAM frame back to ngtcp2_strm if there is an error
      before ngtcp2_rtb_entry is safely created and added. */
-  lfr.type = NGTCP2_FRAME_PADDING;
-  if ((require_padding ||
-       /* Making full sized packet will help GSO a bit */
-       ngtcp2_ppe_left(ppe) < 10 ||
-       (type == NGTCP2_PKT_0RTT && conn->state == NGTCP2_CS_CLIENT_INITIAL)) &&
-      ngtcp2_ppe_left(ppe)) {
+  if (require_padding ||
+      /* Making full sized packet will help GSO a bit */
+      ngtcp2_ppe_left(ppe) < 10) {
     lfr.padding.len = ngtcp2_ppe_padding(ppe);
   } else {
     lfr.padding.len = ngtcp2_ppe_padding_size(ppe, min_pktlen);
   }
 
   if (lfr.padding.len) {
+    lfr.type = NGTCP2_FRAME_PADDING;
     padded = 1;
     ngtcp2_log_tx_fr(&conn->log, hd, &lfr);
     ngtcp2_qlog_write_frame(&conn->qlog, &lfr);
