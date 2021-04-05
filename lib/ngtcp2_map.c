@@ -142,7 +142,7 @@ void ngtcp2_map_print_distance(ngtcp2_map *map) {
     }
 
     idx = bkt->hash & (map->tablelen - 1);
-    fprintf(stderr, "@%u hash=%08x key=%lu base=%zu distance=%zu\n", i,
+    fprintf(stderr, "@%u hash=%08x key=%" PRIu64 " base=%zu distance=%zu\n", i,
             bkt->hash, bkt->key, idx,
             distance(map->tablelen, map->tablelenbits, bkt, idx));
   }
