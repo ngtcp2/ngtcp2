@@ -499,7 +499,6 @@ int Stream::start_response(nghttp3_conn *httpconn) {
         content_type = (*it).second;
       }
     }
-
   } else {
     content_length = dyn_len;
     dynresp = true;
