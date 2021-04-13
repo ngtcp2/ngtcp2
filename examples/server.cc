@@ -502,11 +502,13 @@ int Stream::start_response(nghttp3_conn *httpconn) {
 
   } else {
     content_length = dyn_len;
-    datalen = dyn_len;
     dynresp = true;
-    dyndataleft = dyn_len;
-
     dr.read_data = dyn_read_data;
+
+    if (method != "HEAD") {
+      datalen = dyn_len;
+      dyndataleft = dyn_len;
+    }
 
     content_type = "application/octet-stream";
   }
