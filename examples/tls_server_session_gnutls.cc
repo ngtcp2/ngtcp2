@@ -261,8 +261,8 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
                                      GNUTLS_HOOK_POST, client_hello_cb);
   if (auto rv = gnutls_session_ext_register(
           session_, "QUIC Transport Parameters",
-          NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS, GNUTLS_EXT_TLS, tp_recv_func,
-          tp_send_func, nullptr, nullptr, nullptr,
+          NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT, GNUTLS_EXT_TLS,
+          tp_recv_func, tp_send_func, nullptr, nullptr, nullptr,
           GNUTLS_EXT_FLAG_TLS | GNUTLS_EXT_FLAG_CLIENT_HELLO |
               GNUTLS_EXT_FLAG_EE);
       rv != 0) {

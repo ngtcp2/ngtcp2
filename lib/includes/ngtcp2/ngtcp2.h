@@ -1189,10 +1189,19 @@ typedef enum ngtcp2_rand_usage {
 /**
  * @macro
  *
- * :macro:`NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS` is TLS extension
- * type of quic_transport_parameters.
+ * :macro:`NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1` is TLS
+ * extension type of quic_transport_parameters.
  */
-#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS 0xffa5u
+#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1 0x39u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT` is TLS
+ * extension type of quic_transport_parameters used during draft
+ * development.
+ */
+#define NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT 0xffa5u
 
 /**
  * @struct
