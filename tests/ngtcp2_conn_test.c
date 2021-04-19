@@ -2739,6 +2739,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += NGTCP2_SECONDS;
 
+  conn->pktns.tx.last_pkt_num = 1000000009;
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
@@ -2770,6 +2771,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += NGTCP2_SECONDS;
 
+  conn->pktns.tx.last_pkt_num = 1000000009;
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
@@ -2819,6 +2821,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   /* Kick delayed ACK timer */
   t += NGTCP2_SECONDS;
 
+  conn->pktns.tx.last_pkt_num = 1000000009;
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
   ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
