@@ -1413,11 +1413,11 @@ static size_t pktns_select_pkt_numlen(ngtcp2_pktns *pktns) {
   ngtcp2_rtb *rtb = &pktns->rtb;
   int64_t n = pkt_num - rtb->largest_acked_tx_pkt_num;
 
-  if (NGTCP2_MAX_PKT_NUM / 2 <= pkt_num) {
+  if (NGTCP2_MAX_PKT_NUM / 2 < n) {
     return 4;
   }
 
-  n = n * 2 + 1;
+  n = n * 2 - 1;
 
   if (n > 0xffffff) {
     return 4;

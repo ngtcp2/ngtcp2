@@ -2137,7 +2137,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   /* 1 octet pkt num (largest)*/
   setup_default_client(&conn);
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
-  conn->pktns.tx.last_pkt_num = 127;
+  conn->pktns.tx.last_pkt_num = 128;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -2154,7 +2154,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   /* 2 octet pkt num (shortest)*/
   setup_default_client(&conn);
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
-  conn->pktns.tx.last_pkt_num = 128;
+  conn->pktns.tx.last_pkt_num = 129;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -2171,7 +2171,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   /* 2 octet pkt num (largest)*/
   setup_default_client(&conn);
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
-  conn->pktns.tx.last_pkt_num = 32767;
+  conn->pktns.tx.last_pkt_num = 32768;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -2188,7 +2188,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   /* 3 octet pkt num (shortest) */
   setup_default_client(&conn);
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
-  conn->pktns.tx.last_pkt_num = 32768;
+  conn->pktns.tx.last_pkt_num = 32769;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -2205,7 +2205,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   /* 3 octet pkt num (largest) */
   setup_default_client(&conn);
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
-  conn->pktns.tx.last_pkt_num = 8388607;
+  conn->pktns.tx.last_pkt_num = 8388608;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
@@ -2222,7 +2222,7 @@ void test_ngtcp2_conn_short_pkt_type(void) {
   /* 4 octet pkt num (shortest)*/
   setup_default_client(&conn);
   conn->pktns.rtb.largest_acked_tx_pkt_num = 1;
-  conn->pktns.tx.last_pkt_num = 8388608;
+  conn->pktns.tx.last_pkt_num = 8388609;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
