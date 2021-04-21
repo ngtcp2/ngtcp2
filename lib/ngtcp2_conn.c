@@ -2892,6 +2892,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t target_max_data;
   ngtcp2_conn_stat *cstat = &conn->cstat;
   uint64_t delta;
+  const ngtcp2_cid *scid;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -2927,6 +2928,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
               ? NGTCP2_PKT_FLAG_KEY_PHASE
               : NGTCP2_PKT_FLAG_NONE;
+      scid = NULL;
       cc->aead = pktns->crypto.ctx.aead;
       cc->hp = pktns->crypto.ctx.hp;
       cc->ckm = pktns->crypto.tx.ckm;
@@ -2950,6 +2952,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         return 0;
       }
       hd_flags = NGTCP2_PKT_FLAG_LONG_FORM;
+      scid = &conn->oscid;
       cc->aead = conn->early.ctx.aead;
       cc->hp = conn->early.ctx.hp;
       cc->ckm = conn->early.ckm;
@@ -3000,8 +3003,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           nfrc->fr.max_data.max_data;
     }
 
-    ngtcp2_pkt_hd_init(hd, hd_flags, type, &conn->dcid.current.cid,
-                       &conn->oscid, pktns->tx.last_pkt_num + 1,
+    ngtcp2_pkt_hd_init(hd, hd_flags, type, &conn->dcid.current.cid, scid,
+                       pktns->tx.last_pkt_num + 1,
                        pktns_select_pkt_numlen(pktns), conn->version, 0);
 
     ngtcp2_ppe_init(ppe, dest, destlen, cc);
@@ -3661,15 +3664,18 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   uint8_t flags;
   ngtcp2_rtb_entry *rtbent;
   int padded = 0;
+  const ngtcp2_cid *scid;
 
   switch (type) {
   case NGTCP2_PKT_INITIAL:
     pktns = conn->in_pktns;
     flags = NGTCP2_PKT_FLAG_LONG_FORM;
+    scid = &conn->oscid;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = conn->hs_pktns;
     flags = NGTCP2_PKT_FLAG_LONG_FORM;
+    scid = &conn->oscid;
     break;
   case NGTCP2_PKT_SHORT:
     /* 0 means Short packet. */
@@ -3677,6 +3683,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     flags = (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
                 ? NGTCP2_PKT_FLAG_KEY_PHASE
                 : NGTCP2_PKT_FLAG_NONE;
+    scid = NULL;
     break;
   default:
     /* We don't support 0-RTT packet in this function. */
@@ -3690,9 +3697,8 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   cc.encrypt = conn->callbacks.encrypt;
   cc.hp_mask = conn->callbacks.hp_mask;
 
-  ngtcp2_pkt_hd_init(&hd, flags, type, dcid, &conn->oscid,
-                     pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
-                     conn->version, 0);
+  ngtcp2_pkt_hd_init(&hd, flags, type, dcid, scid, pktns->tx.last_pkt_num + 1,
+                     pktns_select_pkt_numlen(pktns), conn->version, 0);
 
   ngtcp2_ppe_init(&ppe, dest, destlen, &cc);
 
