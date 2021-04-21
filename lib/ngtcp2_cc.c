@@ -198,6 +198,14 @@ static void cubic_cc_reset(ngtcp2_cubic_cc *cc) {
   cc->epoch_start = UINT64_MAX;
   cc->k = 0;
 
+  cc->prior.cwnd = 0;
+  cc->prior.ssthresh = 0;
+  cc->prior.w_last_max = 0;
+  cc->prior.w_tcp = 0;
+  cc->prior.origin_point = 0;
+  cc->prior.epoch_start = UINT64_MAX;
+  cc->prior.k = 0;
+
   cc->rtt_sample_count = 0;
   cc->current_round_min_rtt = UINT64_MAX;
   cc->last_round_min_rtt = UINT64_MAX;
@@ -225,6 +233,7 @@ int ngtcp2_cc_cubic_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
   cc->ccb = &cubic_cc->ccb;
   cc->on_pkt_acked = ngtcp2_cc_cubic_cc_on_pkt_acked;
   cc->congestion_event = ngtcp2_cc_cubic_cc_congestion_event;
+  cc->on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion;
   cc->on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion;
   cc->on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
   cc->on_pkt_sent = ngtcp2_cc_cubic_cc_on_pkt_sent;
@@ -430,6 +439,16 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
     return;
   }
 
+  if (cc->prior.cwnd < cstat->cwnd) {
+    cc->prior.cwnd = cstat->cwnd;
+    cc->prior.ssthresh = cstat->ssthresh;
+    cc->prior.w_last_max = cc->w_last_max;
+    cc->prior.w_tcp = cc->w_tcp;
+    cc->prior.origin_point = cc->origin_point;
+    cc->prior.epoch_start = cc->epoch_start;
+    cc->prior.k = cc->k;
+  }
+
   cstat->congestion_recovery_start_ts = ts;
 
   cc->epoch_start = UINT64_MAX;
@@ -446,6 +465,40 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
 
   ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
                   "reduce cwnd because of packet loss cwnd=%" PRIu64,
+                  cstat->cwnd);
+}
+
+void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
+                                               ngtcp2_conn_stat *cstat,
+                                               ngtcp2_tstamp ts) {
+  ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
+  (void)ts;
+
+  if (cstat->cwnd >= cc->prior.cwnd) {
+    return;
+  }
+
+  cstat->congestion_recovery_start_ts = UINT64_MAX;
+
+  cstat->cwnd = cc->prior.cwnd;
+  cstat->ssthresh = cc->prior.ssthresh;
+  cc->w_last_max = cc->prior.w_last_max;
+  cc->w_tcp = cc->prior.w_tcp;
+  cc->origin_point = cc->prior.origin_point;
+  cc->epoch_start = cc->prior.epoch_start;
+  cc->k = cc->prior.k;
+
+  cc->prior.cwnd = 0;
+  cc->prior.ssthresh = 0;
+  cc->prior.w_last_max = 0;
+  cc->prior.w_tcp = 0;
+  cc->prior.origin_point = 0;
+  cc->prior.epoch_start = UINT64_MAX;
+  cc->prior.k = 0;
+
+  ngtcp2_log_info(cc->ccb.log, NGTCP2_LOG_EVENT_RCV,
+                  "spurious congestion is detected and congestion state is "
+                  "restored cwnd=%" PRIu64,
                   cstat->cwnd);
 }
 

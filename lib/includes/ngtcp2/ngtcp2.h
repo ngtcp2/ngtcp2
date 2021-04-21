@@ -1588,6 +1588,16 @@ typedef void (*ngtcp2_cc_congestion_event)(ngtcp2_cc *cc,
 /**
  * @functypedef
  *
+ * :type:`ngtcp2_cc_on_spurious_congestion` is a callback function
+ * which is called when a spurious congestion is detected.
+ */
+typedef void (*ngtcp2_cc_on_spurious_congestion)(ngtcp2_cc *cc,
+                                                 ngtcp2_conn_stat *cstat,
+                                                 ngtcp2_tstamp ts);
+
+/**
+ * @functypedef
+ *
  * :type:`ngtcp2_cc_on_persistent_congestion` is a callback function
  * which is called when persistent congestion is established.
  */
@@ -1674,6 +1684,11 @@ typedef struct ngtcp2_cc {
    * when congestion event happens (.e.g, packet is lost).
    */
   ngtcp2_cc_congestion_event congestion_event;
+  /**
+   * :member:`on_spurious_congestion` is a callback function which is
+   * called when a spurious congestion is detected.
+   */
+  ngtcp2_cc_on_spurious_congestion on_spurious_congestion;
   /**
    * :member:`on_persistent_congestion` is a callback function which
    * is called when persistent congestion is established.

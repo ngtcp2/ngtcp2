@@ -88,6 +88,18 @@ typedef struct ngtcp2_cubic_cc {
   uint64_t origin_point;
   ngtcp2_tstamp epoch_start;
   uint64_t k;
+  /* prior stores the congestion state when a congestion event occurs
+     in order to restore the state when it turns out that the event is
+     spurious. */
+  struct {
+    uint64_t cwnd;
+    uint64_t ssthresh;
+    uint64_t w_last_max;
+    uint64_t w_tcp;
+    uint64_t origin_point;
+    ngtcp2_tstamp epoch_start;
+    uint64_t k;
+  } prior;
   /* HyStart++ variables */
   size_t rtt_sample_count;
   uint64_t current_round_min_rtt;
@@ -113,6 +125,10 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp ts_sent,
                                          ngtcp2_tstamp ts);
+
+void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
+                                               ngtcp2_conn_stat *cstat,
+                                               ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *cc,
                                                  ngtcp2_conn_stat *cstat,

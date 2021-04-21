@@ -573,7 +573,8 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
 }
 
 static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
-                                 ngtcp2_conn *conn) {
+                                 ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
+                                 ngtcp2_tstamp ts) {
   ngtcp2_frame_chain *frc;
   uint64_t prev_stream_offset, stream_offset;
   ngtcp2_strm *strm;
@@ -581,6 +582,12 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   uint64_t datalen;
   ngtcp2_strm *crypto = rtb->crypto;
   ngtcp2_crypto_level crypto_level;
+  ngtcp2_cc *cc = rtb->cc;
+
+  if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) &&
+      cc->on_spurious_congestion) {
+    cc->on_spurious_congestion(cc, cstat, ts);
+  }
 
   for (frc = ent->frc; frc; frc = frc->next) {
     if (frc->binder) {
@@ -870,7 +877,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
       largest_acked_sent_ts = ent->ts;
 
-      rv = rtb_process_acked_pkt(rtb, ent, conn);
+      rv = rtb_process_acked_pkt(rtb, ent, cstat, conn, ts);
       if (rv != 0) {
         goto fail;
       }
