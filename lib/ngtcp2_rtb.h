@@ -182,7 +182,7 @@ void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
    consumes congestion window. */
 #define NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED 0x08
 /* NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED indicates that the entry
-   has been marked lost and scheduled to retransmit. */
+   has been marked lost and, optionally, scheduled to retransmit. */
 #define NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED 0x10
 /* NGTCP2_RTB_ENTRY_FLAG_ECN indicates that the entry is included in a
    UDP datagram with ECN marking. */

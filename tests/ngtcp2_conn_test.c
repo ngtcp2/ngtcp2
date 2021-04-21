@@ -2832,7 +2832,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
 
   it = ngtcp2_rtb_head(&conn->pktns.rtb);
 
-  CU_ASSERT(ngtcp2_ksl_it_end(&it));
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
 }
