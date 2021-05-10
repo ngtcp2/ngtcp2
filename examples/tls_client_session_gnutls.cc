@@ -220,12 +220,16 @@ int TLSClientSession::init(bool &early_data_enabled,
                            AppProtocol app_proto) {
   early_data_enabled = false;
 
-  if (auto rv = gnutls_init(&session_, GNUTLS_CLIENT); rv != 0) {
+  if (auto rv =
+          gnutls_init(&session_, GNUTLS_CLIENT | GNUTLS_ENABLE_EARLY_DATA |
+                                     GNUTLS_NO_END_OF_EARLY_DATA);
+      rv != 0) {
     std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
     return -1;
   }
 
-  std::string priority = config.ciphers;
+  std::string priority = "%DISABLE_TLS13_COMPAT_MODE:";
+  priority += config.ciphers;
   priority += ':';
   priority += config.groups;
 
