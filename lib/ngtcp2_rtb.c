@@ -61,11 +61,14 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
 int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem) {
-  size_t need = sizeof(ngtcp2_vec) * (datacnt - 1);
-  size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream);
+  size_t need, avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream);
 
-  if (datacnt > 0 && need > avail) {
-    return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
+  if (datacnt > 0) {
+    need = sizeof(ngtcp2_vec) * (datacnt - 1);
+
+    if (need > avail) {
+      return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
+    }
   }
 
   return ngtcp2_frame_chain_new(pfrc, mem);
@@ -74,11 +77,14 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
 int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem) {
-  size_t need = sizeof(ngtcp2_vec) * (datacnt - 1);
-  size_t avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto);
+  size_t need, avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto);
 
-  if (datacnt > 0 && need > avail) {
-    return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
+  if (datacnt > 0) {
+    need = sizeof(ngtcp2_vec) * (datacnt - 1);
+
+    if (need > avail) {
+      return ngtcp2_frame_chain_extralen_new(pfrc, need - avail, mem);
+    }
   }
 
   return ngtcp2_frame_chain_new(pfrc, mem);
