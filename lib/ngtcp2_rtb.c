@@ -104,7 +104,7 @@ int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
   fr = &(*pfrc)->fr;
   fr->type = NGTCP2_FRAME_NEW_TOKEN;
 
-  p = (uint8_t *)(*pfrc) + sizeof(ngtcp2_new_token);
+  p = (uint8_t *)fr + sizeof(ngtcp2_new_token);
   memcpy(p, token->base, token->len);
 
   ngtcp2_vec_init(&fr->new_token.token, p, token->len);

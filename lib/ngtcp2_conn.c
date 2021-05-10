@@ -11136,23 +11136,16 @@ int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const uint8_t *token,
                                  size_t tokenlen) {
   int rv;
   ngtcp2_frame_chain *nfrc;
-  uint8_t *p;
+  ngtcp2_vec tokenv = {(uint8_t *)token, tokenlen};
 
   assert(conn->server);
   assert(token);
   assert(tokenlen);
 
-  rv = ngtcp2_frame_chain_extralen_new(&nfrc, tokenlen, conn->mem);
+  rv = ngtcp2_frame_chain_new_token_new(&nfrc, &tokenv, conn->mem);
   if (rv != 0) {
     return rv;
   }
-
-  nfrc->fr.type = NGTCP2_FRAME_NEW_TOKEN;
-
-  p = (uint8_t *)nfrc + sizeof(*nfrc);
-  memcpy(p, token, tokenlen);
-
-  ngtcp2_vec_init(&nfrc->fr.new_token.token, p, tokenlen);
 
   nfrc->next = conn->pktns.tx.frq;
   conn->pktns.tx.frq = nfrc;
