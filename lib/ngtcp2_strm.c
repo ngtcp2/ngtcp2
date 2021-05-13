@@ -245,6 +245,14 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
 
         return 0;
       }
+
+      if (fr->offset == 0 && fr->datacnt == 0 && strm->tx.offset == 0 &&
+          !(strm->flags & NGTCP2_STRM_FLAG_ANY_ACKED)) {
+        *pfrc = frc;
+
+        return 0;
+      }
+
       ngtcp2_frame_chain_del(frc, strm->mem);
       continue;
     }

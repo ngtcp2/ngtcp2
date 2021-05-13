@@ -3405,6 +3405,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         data, &ndatalen, NGTCP2_MAX_STREAM_DATACNT, vmsg->stream.data,
         vmsg->stream.datacnt, ndatalen);
 
+    assert((datacnt == 0 && datalen == 0) || (datacnt && datalen));
+
     rv = ngtcp2_frame_chain_stream_datacnt_new(&nfrc, datacnt, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));

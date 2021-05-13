@@ -2835,6 +2835,49 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   CU_ASSERT(!ngtcp2_ksl_it_end(&it));
 
   ngtcp2_conn_del(conn);
+
+  /* Retransmit an empty STREAM frame */
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_pkt(conn, buf, sizeof(buf), &conn->oscid, 0, &fr);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     NULL, 0, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  /* Kick delayed ACK timer */
+  t += NGTCP2_SECONDS;
+
+  conn->pktns.tx.last_pkt_num = 1000000009;
+  conn->pktns.rtb.largest_acked_tx_pkt_num = 1000000007;
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+  ngtcp2_conn_detect_lost_pkt(conn, &conn->pktns, &conn->cstat, ++t);
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(NULL == conn->pktns.tx.frq);
+
+  it = ngtcp2_rtb_head(&conn->pktns.rtb);
+
+  CU_ASSERT(!ngtcp2_ksl_it_end(&it));
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_send_max_stream_data(void) {

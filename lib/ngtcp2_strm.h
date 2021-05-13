@@ -66,6 +66,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_FIN_ACKED indicates that a STREAM with FIN bit set
    is acknowledged by a remote endpoint. */
 #define NGTCP2_STRM_FLAG_FIN_ACKED 0x40
+/* NGTCP2_STRM_FLAG_ANY_ACKED indicates that any portion of stream
+   data, including 0 length segment, is acknowledged. */
+#define NGTCP2_STRM_FLAG_ANY_ACKED 0x80
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 

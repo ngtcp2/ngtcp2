@@ -340,9 +340,18 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       range.end = fr->stream.offset +
                   ngtcp2_vec_len(fr->stream.data, fr->stream.datacnt);
       range = ngtcp2_range_intersect(&range, &gap);
-      if (ngtcp2_range_len(&range) == 0 &&
-          (!fr->stream.fin || (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED))) {
-        continue;
+      if (ngtcp2_range_len(&range) == 0) {
+        if (!fr->stream.fin) {
+          /* 0 length STREAM frame with offset == 0 must be
+             retransmitted if no non-empty data is sent to this stream
+             and no data in this stream is acknowledged. */
+          if (fr->stream.offset != 0 || fr->stream.datacnt != 0 ||
+              strm->tx.offset || (strm->flags & NGTCP2_STRM_FLAG_ANY_ACKED)) {
+            continue;
+          }
+        } else if (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED) {
+          continue;
+        }
       }
 
       rv = ngtcp2_frame_chain_stream_datacnt_new(&nfrc, fr->stream.datacnt,
@@ -606,6 +615,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       if (strm == NULL) {
         break;
       }
+
+      strm->flags |= NGTCP2_STRM_FLAG_ANY_ACKED;
 
       if (frc->fr.stream.fin) {
         strm->flags |= NGTCP2_STRM_FLAG_FIN_ACKED;
