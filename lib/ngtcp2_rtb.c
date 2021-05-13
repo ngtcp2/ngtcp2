@@ -63,7 +63,7 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           const ngtcp2_mem *mem) {
   size_t need, avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream);
 
-  if (datacnt > 0) {
+  if (datacnt > 1) {
     need = sizeof(ngtcp2_vec) * (datacnt - 1);
 
     if (need > avail) {
@@ -79,7 +79,7 @@ int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           const ngtcp2_mem *mem) {
   size_t need, avail = sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto);
 
-  if (datacnt > 0) {
+  if (datacnt > 1) {
     need = sizeof(ngtcp2_vec) * (datacnt - 1);
 
     if (need > avail) {
