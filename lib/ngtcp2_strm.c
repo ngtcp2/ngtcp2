@@ -238,7 +238,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
           return 0;
         }
 
-        fr->offset = fr->offset + ngtcp2_vec_len(fr->data, fr->datacnt);
+        fr->offset += ngtcp2_vec_len(fr->data, fr->datacnt);
         fr->datacnt = 0;
 
         *pfrc = frc;
