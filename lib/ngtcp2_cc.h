@@ -42,7 +42,9 @@ typedef struct ngtcp2_log ngtcp2_log;
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_packet_size);
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
-                                  size_t pktlen, ngtcp2_pktns_id pktns_id,
+                                  size_t pktlen, uint64_t delivered,
+                                  uint64_t is_app_limited,
+                                  ngtcp2_pktns_id pktns_id,
                                   ngtcp2_tstamp ts_sent);
 
 /* ngtcp2_reno_cc is the RENO congestion controller. */

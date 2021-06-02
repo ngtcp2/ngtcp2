@@ -52,6 +52,7 @@ set(ngtcp2_SOURCES
   ngtcp2_cid.c
   ngtcp2_ksl.c
   ngtcp2_cc.c
+  ngtcp2_bbr.c
   ngtcp2_addr.c
   ngtcp2_path.c
   ngtcp2_pv.c

@@ -1495,10 +1495,19 @@ typedef struct ngtcp2_conn_stat {
    */
   size_t max_udp_payload_size;
   /**
+   * :member:`delivered` is the current delivered bytes measured
+   * in one sample rate round.
+   */
+  uint64_t delivered;
+  /**
    * :member:`delivery_rate_sec` is the current sending rate measured
    * in byte per second.
    */
   uint64_t delivery_rate_sec;
+  /**
+   * :member:`app_limited` indicate current transmits rate limited by app.
+   */
+  uint64_t app_limited;
 } ngtcp2_conn_stat;
 
 /**
@@ -1515,6 +1524,10 @@ typedef enum ngtcp2_cc_algo {
    * :enum:`NGTCP2_CC_ALGO_CUBIC` represents Cubic.
    */
   NGTCP2_CC_ALGO_CUBIC = 0x01,
+  /**
+   * :enum:`NGTCP2_CC_ALGO_BBR` represents Bbr.
+   */
+  NGTCP2_CC_ALGO_BBR = 0x02,
   /**
    * :enum:`NGTCP2_CC_ALGO_CUSTOM` represents custom congestion
    * control algorithm.
@@ -1560,6 +1573,15 @@ typedef struct ngtcp2_cc_pkt {
    * :member:`ts_sent` is the timestamp when packet is sent.
    */
   ngtcp2_tstamp ts_sent;
+  /**
+   * :member:`delivered` is the bytes delivered when packet is sent.
+   */
+  uint64_t delivered;
+  /**
+   * :member:`is_app_limited` indicate current transmits rate limited by app
+   * when packet is sent.
+   */
+  uint64_t is_app_limited;
 } ngtcp2_cc_pkt;
 
 typedef struct ngtcp2_cc ngtcp2_cc;
@@ -1663,6 +1685,14 @@ typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
 /**
+ * @functypedef
+ *
+ * :type:`conn_pace_time_to_send` is a callback function which is called
+ * when try to send packet pacing.
+ */
+typedef int (*ngtcp2_cc_on_pace_time_to_send)(ngtcp2_cc *cc, ngtcp2_tstamp ts);
+
+/**
  * @struct
  *
  * :type:`ngtcp2_cc` is congestion control algorithm interface to
@@ -1719,6 +1749,12 @@ typedef struct ngtcp2_cc {
    * specific event happens.
    */
   ngtcp2_cc_event event;
+
+  /**
+   * :member:`on_pace_time_to_send` is a callback function when try
+   * to send packet pacing.
+   */
+  ngtcp2_cc_on_pace_time_to_send on_pace_time_to_send;
 } ngtcp2_cc;
 
 /**

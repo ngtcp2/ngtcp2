@@ -525,6 +525,9 @@ static void cc_del(ngtcp2_cc *cc, ngtcp2_cc_algo cc_algo,
   case NGTCP2_CC_ALGO_CUBIC:
     ngtcp2_cc_cubic_cc_free(cc, mem);
     break;
+  case NGTCP2_CC_ALGO_BBR:
+    ngtcp2_cc_bbr_cc_free(cc, mem);
+    break;
   default:
     break;
   }
@@ -559,7 +562,9 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->ssthresh = UINT64_MAX;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
   cstat->bytes_in_flight = 0;
+  cstat->delivered = 0;
   cstat->delivery_rate_sec = 0;
+  cstat->app_limited = 0;
 }
 
 /*
@@ -848,6 +853,13 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     break;
   case NGTCP2_CC_ALGO_CUBIC:
     rv = ngtcp2_cc_cubic_cc_init(&(*pconn)->cc, &(*pconn)->log, mem);
+    if (rv != 0) {
+      goto fail_cc_init;
+    }
+    break;
+  case NGTCP2_CC_ALGO_BBR:
+    rv = ngtcp2_cc_bbr_cc_init(&(*pconn)->cc, &(*pconn)->log,
+                               settings->initial_ts, mem);
     if (rv != 0) {
       goto fail_cc_init;
     }
@@ -1442,6 +1454,14 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
           : conn->cstat.cwnd;
 
   return bytes_in_flight >= cwnd;
+}
+
+static int conn_pace_time_to_send(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  if (conn->cc.on_pace_time_to_send) {
+    return conn->cc.on_pace_time_to_send(&conn->cc, ts);
+  }
+
+  return 1;
 }
 
 /*
@@ -3682,6 +3702,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn->cc.on_pkt_sent(
             &conn->cc, &conn->cstat,
             ngtcp2_cc_pkt_init(&cc_pkt, hd->pkt_num, (size_t)nwrite,
+                               ent->rst.delivered, ent->rst.is_app_limited,
                                NGTCP2_PKTNS_ID_APPLICATION, ts));
       }
 
@@ -10348,7 +10369,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       }
     }
 
-    if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
+    if (!conn->pktns.rtb.probe_pkt_left &&
+        (conn_cwnd_is_zero(conn) || !conn_pace_time_to_send(conn, ts))) {
       destlen = 0;
     } else {
       nwrite = conn_write_path_response(conn, path, pi, dest, destlen, ts);

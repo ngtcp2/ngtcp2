@@ -688,8 +688,18 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
     settings.qlog.write = qlog_write_cb;
   }
-  settings.cc_algo =
-      config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
+
+  if (config.cc == "cubic") {
+    settings.cc_algo = NGTCP2_CC_ALGO_CUBIC;
+  } else if (config.cc == "bbr") {
+    settings.cc_algo = NGTCP2_CC_ALGO_BBR;
+  } else {
+    settings.cc_algo = NGTCP2_CC_ALGO_RENO;
+  }
+
+  settings.initial_rtt = config.initial_rtt;
+  settings.max_window = config.max_window;
+
   settings.initial_ts = util::timestamp(loop_);
   settings.initial_rtt = config.initial_rtt;
 
@@ -1598,7 +1608,7 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
   config.max_streams_uni = 100;
-  config.cc = "cubic"sv;
+  config.cc = "bbr"sv;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
 }
 } // namespace

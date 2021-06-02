@@ -63,12 +63,13 @@ int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
     rst->app_limited = 0;
   }
 
+  cstat->app_limited = rst->app_limited;
+
   if (rs->prior_ts == 0) {
     return 0;
   }
 
   rs->interval = ngtcp2_max(rs->send_elapsed, rs->ack_elapsed);
-
   rs->delivered = rst->delivered - rs->prior_delivered;
 
   if (rs->interval < cstat->min_rtt) {
@@ -77,6 +78,7 @@ int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
   }
 
   if (rs->interval) {
+    cstat->delivered = rs->delivered;
     cstat->delivery_rate_sec = rs->delivered * NGTCP2_SECONDS / rs->interval;
   }
 
