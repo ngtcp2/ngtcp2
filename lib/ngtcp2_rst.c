@@ -63,6 +63,8 @@ int ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat) {
     rst->app_limited = 0;
   }
 
+  cstat->app_limited = rst->app_limited;
+
   if (rs->prior_ts == 0) {
     return 0;
   }

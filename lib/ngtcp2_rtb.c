@@ -726,10 +726,11 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
   ngtcp2_rst_update_rate_sample(rtb->rst, ent, ts);
 
-  cc->on_pkt_acked(cc, cstat,
-                   ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
-                                      rtb->pktns_id, ent->ts),
-                   ts);
+  cc->on_pkt_acked(
+      cc, cstat,
+      ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->rst.delivered,
+                         ent->rst.is_app_limited, rtb->pktns_id, ent->ts),
+      ts);
 
   if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE) &&
       (ent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
