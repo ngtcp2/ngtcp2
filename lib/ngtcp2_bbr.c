@@ -38,12 +38,12 @@
 #define BBRGainCycleLen 8
 static const double pacing_gain_cycle[BBRGainCycleLen] = {5 / 4, 3 / 4, 1, 1,
                                                        1,     1,     1, 1};
-static const double BBRHighGain = 2.89;
-static const uint64_t ProbeRTTDuration = 200 * NGTCP2_MILLISECONDS;
-static const uint64_t RTpropFilterLen = 10 * NGTCP2_SECONDS;
-static const uint64_t MSS = 1500;
-static const uint64_t BBRMinPipeCwnd = 4 * MSS;
-static const uint64_t InitialCwnd = 10 * MSS;
+#define BBRHighGain 2.89
+#define ProbeRTTDuration (200*NGTCP2_MILLISECONDS)
+#define RTpropFilterLen (10*NGTCP2_SECONDS)
+#define MSS 1500
+#define BBRMinPipeCwnd (4*MSS)
+#define InitialCwnd (10*MSS)
 
 typedef enum {
   Startup = 0,
