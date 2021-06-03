@@ -71,11 +71,12 @@ typedef struct ngtcp2_bbr_cc {
 } ngtcp2_bbr_cc;
 
 int ngtcp2_cc_bbr_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
-                          const ngtcp2_mem *mem);
+                          ngtcp2_tstamp initial_ts, const ngtcp2_mem *mem);
 
 void ngtcp2_cc_bbr_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem);
 
-void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_log *log);
+void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *bbr_cc, ngtcp2_tstamp initial_ts,
+                        ngtcp2_log *log);
 
 void ngtcp2_bbr_cc_free(ngtcp2_bbr_cc *cc);
 
