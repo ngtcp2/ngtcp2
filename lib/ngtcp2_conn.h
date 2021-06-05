@@ -155,6 +155,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED is set when 0-RTT packet is
    rejected by a peer. */
 #define NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED 0x20
+/* NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED is set when the expired
+   keep-alive timer has been cancelled. */
+#define NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED 0x40
 /* NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED is set when an endpoint
    confirmed completion of handshake. */
 #define NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED 0x80
@@ -550,6 +553,17 @@ struct ngtcp2_conn {
     ngtcp2_ssize hs_spktlen;
     int require_padding;
   } pkt;
+
+  struct {
+    /* last_ts is a timestamp when a last packet is sent or received
+       on a current path. */
+    ngtcp2_tstamp last_ts;
+    /* timeout is keep-alive timeout.  When it expires, a packet
+       should be sent to a current path to keep connection alive.  It
+       might be used to keep NAT binding intact.  If 0 is set,
+       keep-alive timer is disabled. */
+    ngtcp2_duration timeout;
+  } keep_alive;
 
   ngtcp2_map strms;
   ngtcp2_conn_stat cstat;

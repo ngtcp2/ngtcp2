@@ -907,6 +907,8 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_seqgap_push;
   }
 
+  (*pconn)->keep_alive.last_ts = UINT64_MAX;
+
   (*pconn)->server = server;
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
@@ -1942,6 +1944,61 @@ static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->flags |= NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
 }
 
+/*
+ * conn_keep_alive_enabled returns nonzero if keep-alive is enabled.
+ */
+static int conn_keep_alive_enabled(ngtcp2_conn *conn) {
+  return conn->keep_alive.last_ts != UINT64_MAX && conn->keep_alive.timeout;
+}
+
+/*
+ * conn_keep_alive_expired returns nonzero if keep-alive timer has
+ * expired.
+ */
+static int conn_keep_alive_expired(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  return conn_keep_alive_enabled(conn) &&
+         conn->keep_alive.last_ts + conn->keep_alive.timeout <= ts;
+}
+
+/*
+ * conn_keep_alive_expiry returns the expiry time of keep-alive timer.
+ */
+static ngtcp2_tstamp conn_keep_alive_expiry(ngtcp2_conn *conn) {
+  if ((conn->flags & NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED) ||
+      !conn_keep_alive_enabled(conn)) {
+    return UINT64_MAX;
+  }
+
+  return conn->keep_alive.last_ts + conn->keep_alive.timeout;
+}
+
+/*
+ * conn_cancel_expired_keep_alive_timer cancels the expired keep-alive
+ * timer.
+ */
+static void conn_cancel_expired_keep_alive_timer(ngtcp2_conn *conn,
+                                                 ngtcp2_tstamp ts) {
+  if (!(conn->flags & NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED) &&
+      conn_keep_alive_expired(conn, ts)) {
+    conn->flags |= NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED;
+  }
+}
+
+/*
+ * conn_update_keep_alive_last_ts updates the base time point of
+ * keep-alive timer.
+ */
+static void conn_update_keep_alive_last_ts(ngtcp2_conn *conn,
+                                           ngtcp2_tstamp ts) {
+  conn->keep_alive.last_ts = ts;
+  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED;
+}
+
+void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
+                                        ngtcp2_duration timeout) {
+  conn->keep_alive.timeout = timeout;
+}
+
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
@@ -2231,6 +2288,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
       (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
     --pktns->rtb.probe_pkt_left;
   }
+
+  conn_update_keep_alive_last_ts(conn, ts);
 
   conn->dcid.current.bytes_sent += (uint64_t)spktlen;
 
@@ -2893,6 +2952,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   ngtcp2_conn_stat *cstat = &conn->cstat;
   uint64_t delta;
   const ngtcp2_cid *scid;
+  int keep_alive_expired = 0;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -3502,7 +3562,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       return NGTCP2_ERR_STREAM_DATA_BLOCKED;
     }
 
-    if (conn->pktns.rtb.probe_pkt_left == 0) {
+    keep_alive_expired = conn_keep_alive_expired(conn, ts);
+
+    if (conn->pktns.rtb.probe_pkt_left == 0 && !keep_alive_expired) {
       return 0;
     }
   } else if (write_more) {
@@ -3538,7 +3600,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
-    if (pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT) {
+    if (pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT ||
+        keep_alive_expired) {
       lfr.type = NGTCP2_FRAME_PING;
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
@@ -3642,6 +3705,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%td",
                     nwrite);
   }
+
+  conn_update_keep_alive_last_ts(conn, ts);
 
   conn->dcid.current.bytes_sent += (uint64_t)nwrite;
 
@@ -3791,6 +3856,10 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     }
   } else if (pi && conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
     conn_handle_tx_ecn(conn, pi, NULL, pktns, &hd, ts);
+  }
+
+  if (path && ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local)) {
+    conn_update_keep_alive_last_ts(conn, ts);
   }
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
@@ -8296,6 +8365,10 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         conn->early.discard_started_ts == UINT64_MAX) {
       conn->early.discard_started_ts = ts;
     }
+
+    if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local)) {
+      conn_update_keep_alive_last_ts(conn, ts);
+    }
   }
 
   rv = pktns_commit_recv_pkt_num(pktns, hd.pkt_num, require_ack, pkt_ts);
@@ -9615,9 +9688,11 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp t2 = ngtcp2_conn_ack_delay_expiry(conn);
   ngtcp2_tstamp t3 = ngtcp2_conn_internal_expiry(conn);
   ngtcp2_tstamp t4 = ngtcp2_conn_lost_pkt_expiry(conn);
+  ngtcp2_tstamp t5 = conn_keep_alive_expiry(conn);
   ngtcp2_tstamp res = ngtcp2_min(t1, t2);
   res = ngtcp2_min(res, t3);
-  return ngtcp2_min(res, t4);
+  res = ngtcp2_min(res, t4);
+  return ngtcp2_min(res, t5);
 }
 
 int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
@@ -9625,6 +9700,8 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
 
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
+
+  conn_cancel_expired_keep_alive_timer(conn, ts);
 
   ngtcp2_conn_remove_lost_pkt(conn, ts);
 

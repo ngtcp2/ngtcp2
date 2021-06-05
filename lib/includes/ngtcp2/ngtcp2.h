@@ -3619,6 +3619,17 @@ NGTCP2_EXTERN int ngtcp2_conn_get_tls_error(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_set_keep_alive_timeout` sets keep-alive timeout.  If
+ * nonzero value is given, after a connection is idle at least in a
+ * given amount of time, a keep-alive packet is sent.  If 0 is set,
+ * keep-alive functionality is disabled and this is the default.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
+                                                      ngtcp2_duration timeout);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_expiry` returns the next expiry time.
  *
  * Call `ngtcp2_conn_handle_expiry()` and `ngtcp2_conn_write_pkt` (or
