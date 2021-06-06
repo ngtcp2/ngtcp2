@@ -165,10 +165,6 @@ available crypto helper libraries are:
 Because BoringSSL is an unversioned product, we only tested its
 particular revision.  See Requirements section above.
 
-Note that GnuTLS has some issues regarding early data. GnuTLS client
-cannot send early data and GnuTLS server will crash when it receives
-0RTT packet.
-
 The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built
 if their corresponding crypto helper library is built:
