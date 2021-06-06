@@ -68,7 +68,7 @@ endforeach()
 
 
 if(ENABLE_GNUTLS)
-  find_package(GnuTLS 3.7.0)
+  find_package(GnuTLS 3.7.2)
 endif()
 if(ENABLE_OPENSSL)
   find_package(OpenSSL 1.1.1)
