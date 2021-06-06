@@ -248,7 +248,7 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   if (auto rv = gnutls_session_ext_register(
           session_, "QUIC Transport Parameters",
-          NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT, GNUTLS_EXT_TLS,
+          NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1, GNUTLS_EXT_TLS,
           tp_recv_func, tp_send_func, nullptr, nullptr, nullptr,
           GNUTLS_EXT_FLAG_TLS | GNUTLS_EXT_FLAG_CLIENT_HELLO |
               GNUTLS_EXT_FLAG_EE);
@@ -305,9 +305,9 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   gnutls_datum_t alpn = {NULL, 0};
 
-  // strip the first byte from H3_ALPN_DRAFT29
-  alpn.data = const_cast<uint8_t *>(&H3_ALPN_DRAFT29[1]);
-  alpn.size = H3_ALPN_DRAFT29[0];
+  // strip the first byte from H3_ALPN_V1
+  alpn.data = const_cast<uint8_t *>(&H3_ALPN_V1[1]);
+  alpn.size = H3_ALPN_V1[0];
   gnutls_alpn_set_protocols(session_, &alpn, 1, 0);
 
   if (util::numeric_host(remote_addr)) {
