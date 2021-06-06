@@ -43,9 +43,7 @@ extern Config config;
 
 TLSServerSession::TLSServerSession() {}
 
-TLSServerSession::~TLSServerSession() {
-  gnutls_anti_replay_deinit(anti_replay_);
-}
+TLSServerSession::~TLSServerSession() {}
 
 namespace {
 int secret_func(gnutls_session_t session,
@@ -208,14 +206,6 @@ int tp_send_func(gnutls_session_t session, gnutls_buffer_st *extdata) {
 }
 } // namespace
 
-namespace {
-int anti_replay_db_add_func(void *dbf, time_t exp_time,
-                            const gnutls_datum_t *key,
-                            const gnutls_datum_t *data) {
-  return 0;
-}
-} // namespace
-
 int TLSServerSession::init(const TLSServerContext &tls_ctx,
                            HandlerBase *handler) {
   if (auto rv =
@@ -264,10 +254,8 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
     return -1;
   }
 
-  gnutls_anti_replay_init(&anti_replay_);
-  gnutls_anti_replay_set_add_function(anti_replay_, anti_replay_db_add_func);
-  gnutls_anti_replay_set_ptr(anti_replay_, nullptr);
-  gnutls_anti_replay_enable(session_, anti_replay_);
+  gnutls_anti_replay_enable(session_, tls_ctx.get_anti_replay());
+
   gnutls_record_set_max_early_data_size(session_, 0xffffffffu);
 
   gnutls_session_set_ptr(session_, handler);
