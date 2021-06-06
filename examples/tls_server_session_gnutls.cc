@@ -239,17 +239,8 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
     return -1;
   }
 
-  gnutls_datum_t key;
-
-  if (auto rv = gnutls_session_ticket_key_generate(&key); rv != 0) {
-    std::cerr << "gnutls_session_ticket_key_generate failed: "
-              << gnutls_strerror(rv) << std::endl;
-    return -1;
-  }
-
-  auto rv = gnutls_session_ticket_enable_server(session_, &key);
-  gnutls_memset(key.data, 0, key.size);
-  gnutls_free(key.data);
+  auto rv = gnutls_session_ticket_enable_server(
+      session_, tls_ctx.get_session_ticket_key());
   if (rv != 0) {
     std::cerr << "gnutls_session_ticket_enable_server failed: "
               << gnutls_strerror(rv) << std::endl;
@@ -282,7 +273,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   gnutls_session_set_ptr(session_, handler);
 
   if (auto rv = gnutls_credentials_set(session_, GNUTLS_CRD_CERTIFICATE,
-                                       tls_ctx.get_native_handle());
+                                       tls_ctx.get_certificate_credentials());
       rv != 0) {
     std::cerr << "gnutls_credentials_set failed: " << gnutls_strerror(rv)
               << std::endl;

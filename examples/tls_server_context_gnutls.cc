@@ -39,8 +39,13 @@ TLSServerContext::~TLSServerContext() {
   gnutls_certificate_free_credentials(cred_);
 }
 
-gnutls_certificate_credentials_t TLSServerContext::get_native_handle() const {
+gnutls_certificate_credentials_t
+TLSServerContext::get_certificate_credentials() const {
   return cred_;
+}
+
+const gnutls_datum_t *TLSServerContext::get_session_ticket_key() const {
+  return &session_ticket_key_;
 }
 
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
@@ -61,6 +66,13 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
           cred_, cert_file, private_key_file, GNUTLS_X509_FMT_PEM);
       rv != 0) {
     std::cerr << "gnutls_certificate_set_x509_key_file failed: "
+              << gnutls_strerror(rv) << std::endl;
+    return -1;
+  }
+
+  if (auto rv = gnutls_session_ticket_key_generate(&session_ticket_key_);
+      rv != 0) {
+    std::cerr << "gnutls_session_ticket_key_generate failed: "
               << gnutls_strerror(rv) << std::endl;
     return -1;
   }
