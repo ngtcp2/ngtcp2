@@ -562,6 +562,7 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->ssthresh = UINT64_MAX;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
   cstat->bytes_in_flight = 0;
+  cstat->delivered = 0;
   cstat->delivery_rate_sec = 0;
   cstat->app_limited = 0;
 }

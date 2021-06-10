@@ -1495,6 +1495,11 @@ typedef struct ngtcp2_conn_stat {
    */
   size_t max_udp_payload_size;
   /**
+   * :member:`delivered` is the current delivered bytes measured
+   * in one sample rate round.
+   */
+  uint64_t delivered;
+  /**
    * :member:`delivery_rate_sec` is the current sending rate measured
    * in byte per second.
    */

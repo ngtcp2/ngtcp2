@@ -31,17 +31,17 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-#define BtlBwFilterLen 10
+#define BBR_BTL_BW_FILTER_LEN 10
 
 /* ngtcp2_bbr_cc is BBR congestion controller. */
 typedef struct ngtcp2_bbr_cc {
   ngtcp2_cc_base ccb;
 
   struct {
-    uint64_t BtlBw;
-    uint64_t BtlBwFilter[BtlBwFilterLen];
-    uint64_t RTprop;
-    uint64_t cwnd_gain;
+    uint64_t btl_bw;
+    uint64_t btl_bw_filter[BBR_BTL_BW_FILTER_LEN];
+    uint64_t rt_prop;
+    double cwnd_gain;
     uint64_t cycle_index;
     uint64_t cycle_stamp;
     uint64_t filled_pipe;
@@ -52,7 +52,7 @@ typedef struct ngtcp2_bbr_cc {
     uint64_t delivered;
     uint64_t next_round_delivered;
     double pacing_gain;
-    uint64_t pacing_rate;
+    double pacing_rate;
     uint64_t packet_conservation;
     uint64_t prior_cwnd;
     uint64_t probe_rtt_done_stamp;
@@ -64,8 +64,7 @@ typedef struct ngtcp2_bbr_cc {
     uint64_t send_quantum;
     uint64_t state;
     uint64_t target_cwnd;
-  } BBR;
-  uint64_t packets_delivered;
+  } bbr;
   uint64_t packets_lost;
   uint64_t prior_inflight;
 } ngtcp2_bbr_cc;
