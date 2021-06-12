@@ -1457,6 +1457,14 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
   return bytes_in_flight >= cwnd;
 }
 
+static int conn_pace_time_to_send(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  if (conn->cc.on_pace_time_to_send) {
+    return conn->cc.on_pace_time_to_send(&conn->cc, ts);
+  }
+
+  return 1;
+}
+
 /*
  * conn_retry_early_payloadlen returns the estimated wire length of
  * the first STREAM frame of 0-RTT packet which should be
@@ -10282,7 +10290,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       }
     }
 
-    if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
+    if (!conn->pktns.rtb.probe_pkt_left &&
+        (conn_cwnd_is_zero(conn) || !conn_pace_time_to_send(conn, ts))) {
       destlen = 0;
     } else {
       nwrite = conn_write_path_response(conn, path, pi, dest, destlen, ts);
