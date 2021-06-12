@@ -1685,6 +1685,14 @@ typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
 /**
+ * @functypedef
+ *
+ * :type:`conn_pace_time_to_send` is a callback function which is called
+ * when try to send packet pacing.
+ */
+typedef int (*ngtcp2_cc_on_pace_time_to_send)(ngtcp2_cc *cc, ngtcp2_tstamp ts);
+
+/**
  * @struct
  *
  * :type:`ngtcp2_cc` is congestion control algorithm interface to
@@ -1741,6 +1749,12 @@ typedef struct ngtcp2_cc {
    * specific event happens.
    */
   ngtcp2_cc_event event;
+
+  /**
+   * :member:`on_pace_time_to_send` is a callback function when try
+   * to send packet pacing.
+   */
+  ngtcp2_cc_on_pace_time_to_send on_pace_time_to_send;
 } ngtcp2_cc;
 
 /**
