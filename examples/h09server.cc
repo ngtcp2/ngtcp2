@@ -778,8 +778,17 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
-  settings.cc_algo =
-      config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
+  if (config.cc == "cubic") {
+    settings.cc_algo = NGTCP2_CC_ALGO_CUBIC;
+  } else if (config.cc == "bbr") {
+    settings.cc_algo = NGTCP2_CC_ALGO_BBR;
+  } else {
+    settings.cc_algo = NGTCP2_CC_ALGO_RENO;
+  }
+
+  settings.initial_rtt = config.initial_rtt;
+  settings.max_window = config.max_window;
+
   settings.initial_rtt = config.initial_rtt;
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
@@ -2598,7 +2607,7 @@ void config_set_default(Config &config) {
   config.max_streams_bidi = 100;
   config.max_streams_uni = 3;
   config.max_dyn_length = 20_m;
-  config.cc = "cubic"sv;
+  config.cc = "bbr"sv;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_gso_dgrams = 10;
 }
