@@ -7204,6 +7204,43 @@ void test_ngtcp2_conn_early_data_rejected(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_keep_alive(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ngtcp2_ssize spktlen;
+  ngtcp2_pkt_info pi;
+  ngtcp2_tstamp t = 0;
+
+  setup_default_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 < spktlen);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_set_keep_alive_timeout(conn, 10 * NGTCP2_SECONDS);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
+
+  CU_ASSERT(0 == spktlen);
+
+  t += 10 * NGTCP2_SECONDS;
+
+  ngtcp2_conn_handle_expiry(conn, t);
+
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
+
+  CU_ASSERT(0 < spktlen);
+  CU_ASSERT(t == conn->keep_alive.last_ts);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];

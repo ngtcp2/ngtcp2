@@ -41,9 +41,6 @@ public:
 
   int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
   int send_session_ticket();
-
-private:
-  gnutls_anti_replay_t anti_replay_;
 };
 
 #endif // TLS_SERVER_SESSION_GNUTLS_H

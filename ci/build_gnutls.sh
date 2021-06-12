@@ -9,9 +9,9 @@ make
 make install
 cd ..
 
-curl -LO https://www.gnupg.org/ftp/gcrypt/gnutls/v3.7/gnutls-3.7.0.tar.xz
-tar xf gnutls-3.7.0.tar.xz
-cd gnutls-3.7.0
+curl -LO https://www.gnupg.org/ftp/gcrypt/gnutls/v3.7/gnutls-3.7.2.tar.xz
+tar xf gnutls-3.7.2.tar.xz
+cd gnutls-3.7.2
 ./configure --prefix=$PWD/build \
 	    --with-included-unistring \
 	    --with-included-libtasn1 \

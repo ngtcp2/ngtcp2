@@ -3,31 +3,8 @@ ngtcp2
 
 "Call it TCP/2.  One More Time."
 
-ngtcp2 project is an effort to implement QUIC protocol which is now
-being discussed in IETF QUICWG for its standardization.
-
-Branching strategy
-------------------
-
-As of the beginning of draft-23 development, the new branching
-strategy has been introduced.  The main branch tracks the latest QUIC
-draft development.  When new draft-*NN* is published, the new branch
-named draft-*NN-1* is created based on the main branch.  Those
-draft-*NN* branches are considered as "archived", which means that no
-update is expected.  PR should be made to the main branch only.
-
-For older draft implementations:
-
-- `draft-32 <https://github.com/ngtcp2/ngtcp2/tree/draft-32>`_
-- `draft-31 <https://github.com/ngtcp2/ngtcp2/tree/draft-31>`_
-- `draft-30 <https://github.com/ngtcp2/ngtcp2/tree/draft-30>`_
-- `draft-29 <https://github.com/ngtcp2/ngtcp2/tree/draft-29>`_
-- `draft-28 <https://github.com/ngtcp2/ngtcp2/tree/draft-28>`_
-- `draft-27 <https://github.com/ngtcp2/ngtcp2/tree/draft-27>`_
-- `draft-25 <https://github.com/ngtcp2/ngtcp2/tree/draft-25>`_
-- `draft-24 <https://github.com/ngtcp2/ngtcp2/tree/draft-24>`_
-- `draft-23 <https://github.com/ngtcp2/ngtcp2/tree/draft-23>`_
-- `draft-22 <https://github.com/ngtcp2/ngtcp2/tree/draft-22>`_
+ngtcp2 project is an effort to implement `RFC9000
+<https://datatracker.ietf.org/doc/html/rfc9000>`_ QUIC protocol.
 
 Documentation
 -------------
@@ -71,7 +48,7 @@ the following TLS backends:
 For crypto helper library:
 
 - OpenSSL with QUIC support described above
-- libgnutls28-dev >= 3.7.0
+- libgnutls28-dev >= 3.7.2
 - BoringSSL (commit b09f283a030efc650cfcb3476932626c5000b921)
 
 Build from git
@@ -187,10 +164,6 @@ available crypto helper libraries are:
 
 Because BoringSSL is an unversioned product, we only tested its
 particular revision.  See Requirements section above.
-
-Note that GnuTLS has some issues regarding early data. GnuTLS client
-cannot send early data and GnuTLS server will crash when it receives
-0RTT packet.
 
 The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built

@@ -43,9 +43,7 @@ extern Config config;
 
 TLSServerSession::TLSServerSession() {}
 
-TLSServerSession::~TLSServerSession() {
-  gnutls_anti_replay_deinit(anti_replay_);
-}
+TLSServerSession::~TLSServerSession() {}
 
 namespace {
 int secret_func(gnutls_session_t session,
@@ -119,9 +117,9 @@ int client_hello_cb(gnutls_session_t session, unsigned int htype, unsigned when,
 
   // TODO Fix this to properly select ALPN based on app_proto.
 
-  // strip the first byte from H3_ALPN_DRAFT32
-  auto h3 = reinterpret_cast<const char *>(&H3_ALPN_DRAFT29[1]);
-  if (static_cast<size_t>(H3_ALPN_DRAFT29[0]) != alpn.size ||
+  // strip the first byte from H3_ALPN_V1
+  auto h3 = reinterpret_cast<const char *>(&H3_ALPN_V1[1]);
+  if (static_cast<size_t>(H3_ALPN_V1[0]) != alpn.size ||
       !std::equal(alpn.data, alpn.data + alpn.size, h3)) {
     return -1;
   }
@@ -208,25 +206,19 @@ int tp_send_func(gnutls_session_t session, gnutls_buffer_st *extdata) {
 }
 } // namespace
 
-namespace {
-int anti_replay_db_add_func(void *dbf, time_t exp_time,
-                            const gnutls_datum_t *key,
-                            const gnutls_datum_t *data) {
-  return 0;
-}
-} // namespace
-
 int TLSServerSession::init(const TLSServerContext &tls_ctx,
                            HandlerBase *handler) {
   if (auto rv =
           gnutls_init(&session_, GNUTLS_SERVER | GNUTLS_ENABLE_EARLY_DATA |
-                                     GNUTLS_NO_AUTO_SEND_TICKET);
+                                     GNUTLS_NO_AUTO_SEND_TICKET |
+                                     GNUTLS_NO_END_OF_EARLY_DATA);
       rv != 0) {
     std::cerr << "gnutls_init failed: " << gnutls_strerror(rv) << std::endl;
     return -1;
   }
 
-  std::string priority = config.ciphers;
+  std::string priority = "%DISABLE_TLS13_COMPAT_MODE:";
+  priority += config.ciphers;
   priority += ':';
   priority += config.groups;
 
@@ -237,17 +229,8 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
     return -1;
   }
 
-  gnutls_datum_t key;
-
-  if (auto rv = gnutls_session_ticket_key_generate(&key); rv != 0) {
-    std::cerr << "gnutls_session_ticket_key_generate failed: "
-              << gnutls_strerror(rv) << std::endl;
-    return -1;
-  }
-
-  auto rv = gnutls_session_ticket_enable_server(session_, &key);
-  gnutls_memset(key.data, 0, key.size);
-  gnutls_free(key.data);
+  auto rv = gnutls_session_ticket_enable_server(
+      session_, tls_ctx.get_session_ticket_key());
   if (rv != 0) {
     std::cerr << "gnutls_session_ticket_enable_server failed: "
               << gnutls_strerror(rv) << std::endl;
@@ -261,7 +244,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
                                      GNUTLS_HOOK_POST, client_hello_cb);
   if (auto rv = gnutls_session_ext_register(
           session_, "QUIC Transport Parameters",
-          NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT, GNUTLS_EXT_TLS,
+          NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1, GNUTLS_EXT_TLS,
           tp_recv_func, tp_send_func, nullptr, nullptr, nullptr,
           GNUTLS_EXT_FLAG_TLS | GNUTLS_EXT_FLAG_CLIENT_HELLO |
               GNUTLS_EXT_FLAG_EE);
@@ -271,16 +254,14 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
     return -1;
   }
 
-  gnutls_anti_replay_init(&anti_replay_);
-  gnutls_anti_replay_set_add_function(anti_replay_, anti_replay_db_add_func);
-  gnutls_anti_replay_set_ptr(anti_replay_, nullptr);
-  gnutls_anti_replay_enable(session_, anti_replay_);
+  gnutls_anti_replay_enable(session_, tls_ctx.get_anti_replay());
+
   gnutls_record_set_max_early_data_size(session_, 0xffffffffu);
 
   gnutls_session_set_ptr(session_, handler);
 
   if (auto rv = gnutls_credentials_set(session_, GNUTLS_CRD_CERTIFICATE,
-                                       tls_ctx.get_native_handle());
+                                       tls_ctx.get_certificate_credentials());
       rv != 0) {
     std::cerr << "gnutls_credentials_set failed: " << gnutls_strerror(rv)
               << std::endl;
@@ -289,10 +270,10 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
 
   // TODO Set all available ALPN based on app_proto.
 
-  // strip the first byte from H3_ALPN_DRAFT29
+  // strip the first byte from H3_ALPN_V1
   gnutls_datum_t alpn = {nullptr, 0};
-  alpn.data = const_cast<uint8_t *>(&H3_ALPN_DRAFT29[1]);
-  alpn.size = H3_ALPN_DRAFT29[0];
+  alpn.data = const_cast<uint8_t *>(&H3_ALPN_V1[1]);
+  alpn.size = H3_ALPN_V1[0];
   gnutls_alpn_set_protocols(session_, &alpn, 1, 0);
 
   return 0;

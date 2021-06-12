@@ -36,12 +36,31 @@ extern Config config;
 TLSServerContext::TLSServerContext() : cred_{nullptr} {}
 
 TLSServerContext::~TLSServerContext() {
+  gnutls_anti_replay_deinit(anti_replay_);
+  gnutls_free(session_ticket_key_.data);
   gnutls_certificate_free_credentials(cred_);
 }
 
-gnutls_certificate_credentials_t TLSServerContext::get_native_handle() const {
+gnutls_certificate_credentials_t
+TLSServerContext::get_certificate_credentials() const {
   return cred_;
 }
+
+const gnutls_datum_t *TLSServerContext::get_session_ticket_key() const {
+  return &session_ticket_key_;
+}
+
+gnutls_anti_replay_t TLSServerContext::get_anti_replay() const {
+  return anti_replay_;
+}
+
+namespace {
+int anti_replay_db_add_func(void *dbf, time_t exp_time,
+                            const gnutls_datum_t *key,
+                            const gnutls_datum_t *data) {
+  return 0;
+}
+} // namespace
 
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
@@ -64,6 +83,17 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
               << gnutls_strerror(rv) << std::endl;
     return -1;
   }
+
+  if (auto rv = gnutls_session_ticket_key_generate(&session_ticket_key_);
+      rv != 0) {
+    std::cerr << "gnutls_session_ticket_key_generate failed: "
+              << gnutls_strerror(rv) << std::endl;
+    return -1;
+  }
+
+  gnutls_anti_replay_init(&anti_replay_);
+  gnutls_anti_replay_set_add_function(anti_replay_, anti_replay_db_add_func);
+  gnutls_anti_replay_set_ptr(anti_replay_, nullptr);
 
   return 0;
 }

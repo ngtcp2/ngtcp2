@@ -43,13 +43,17 @@ public:
   int init(const char *private_key_file, const char *cert_file,
            AppProtocol app_proto);
 
-  gnutls_certificate_credentials_t get_native_handle() const;
+  gnutls_certificate_credentials_t get_certificate_credentials() const;
+  const gnutls_datum_t *get_session_ticket_key() const;
+  gnutls_anti_replay_t get_anti_replay() const;
 
   // Keylog is enabled per session.
   void enable_keylog() {}
 
 private:
   gnutls_certificate_credentials_t cred_;
+  gnutls_datum_t session_ticket_key_;
+  gnutls_anti_replay_t anti_replay_;
 };
 
 #endif // TLS_SERVER_CONTEXT_GNUTLS_H

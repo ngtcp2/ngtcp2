@@ -2028,7 +2028,7 @@ void config_set_default(Config &config) {
   config.nstreams = 0;
   config.data = nullptr;
   config.datalen = 0;
-  config.version = NGTCP2_PROTO_VER_MIN;
+  config.version = NGTCP2_PROTO_VER_V1;
   config.timeout = 30 * NGTCP2_SECONDS;
   config.http_method = "GET"sv;
   config.max_data = 1_m;

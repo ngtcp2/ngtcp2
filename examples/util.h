@@ -32,6 +32,7 @@
 
 #include <sys/socket.h>
 
+#include <optional>
 #include <string>
 #include <random>
 #include <unordered_map>
