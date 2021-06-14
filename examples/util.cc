@@ -261,6 +261,19 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   return res;
 }
 
+std::string_view strccalgo(ngtcp2_cc_algo cc_algo) {
+  switch (cc_algo) {
+  case NGTCP2_CC_ALGO_RENO:
+    return "reno";
+  case NGTCP2_CC_ALGO_CUBIC:
+    return "cubic";
+  case NGTCP2_CC_ALGO_BBR:
+    return "bbr";
+  default:
+    assert(0);
+  }
+}
+
 namespace {
 constexpr bool rws(char c) { return c == '\t' || c == ' '; }
 } // namespace

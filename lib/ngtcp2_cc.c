@@ -42,16 +42,12 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
 }
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
-                                  size_t pktlen, uint64_t delivered,
-                                  uint64_t is_app_limited,
-                                  ngtcp2_pktns_id pktns_id,
+                                  size_t pktlen, ngtcp2_pktns_id pktns_id,
                                   ngtcp2_tstamp ts_sent) {
   pkt->pkt_num = pkt_num;
   pkt->pktlen = pktlen;
   pkt->pktns_id = pktns_id;
   pkt->ts_sent = ts_sent;
-  pkt->delivered = delivered;
-  pkt->is_app_limited = is_app_limited;
 
   return pkt;
 }
@@ -166,9 +162,10 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 }
 
 void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
-                                   ngtcp2_tstamp ts) {
+                                   const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
   uint64_t target_cwnd, initcwnd;
+  (void)ack;
   (void)ts;
 
   /* TODO Use sliding window for min rtt measurement */
@@ -188,8 +185,12 @@ void ngtcp2_cc_reno_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 }
 
-void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *ccx) {
+void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                             ngtcp2_tstamp ts) {
   ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
+  (void)cstat;
+  (void)ts;
+
   reno_cc_reset(cc);
 }
 
@@ -517,9 +518,11 @@ void ngtcp2_cc_cubic_cc_on_persistent_congestion(ngtcp2_cc *ccx,
 }
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                                    const ngtcp2_cc_ack *ack,
                                     ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   uint64_t target_cwnd, initcwnd;
+  (void)ack;
   (void)ts;
 
   /* TODO Use sliding window for min rtt measurement */
@@ -568,8 +571,12 @@ void ngtcp2_cc_cubic_cc_new_rtt_sample(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   ++cc->rtt_sample_count;
 }
 
-void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx) {
+void ngtcp2_cc_cubic_cc_reset(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
+                              ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
+  (void)cstat;
+  (void)ts;
+
   cubic_cc_reset(cc);
 }
 

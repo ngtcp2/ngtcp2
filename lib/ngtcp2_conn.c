@@ -562,9 +562,9 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
   cstat->ssthresh = UINT64_MAX;
   cstat->congestion_recovery_start_ts = UINT64_MAX;
   cstat->bytes_in_flight = 0;
-  cstat->delivered = 0;
   cstat->delivery_rate_sec = 0;
-  cstat->app_limited = 0;
+  cstat->pacing_rate = 0.0;
+  cstat->send_quantum = SIZE_MAX;
 }
 
 /*
@@ -629,6 +629,11 @@ static ngtcp2_duration conn_compute_pto(ngtcp2_conn *conn,
           ? conn->remote.transport_params.max_ack_delay
           : 0;
   return compute_pto(cstat->smoothed_rtt, cstat->rttvar, max_ack_delay);
+}
+
+ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn,
+                                        ngtcp2_pktns *pktns) {
+  return conn_compute_pto(conn, pktns);
 }
 
 static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
@@ -858,8 +863,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     }
     break;
   case NGTCP2_CC_ALGO_BBR:
-    rv = ngtcp2_cc_bbr_cc_init(&(*pconn)->cc, &(*pconn)->log,
-                               settings->initial_ts, mem);
+    rv = ngtcp2_cc_bbr_cc_init(&(*pconn)->cc, &(*pconn)->log, &(*pconn)->cstat,
+                               &(*pconn)->rst, settings->initial_ts,
+                               callbacks->rand, &settings->rand_ctx, mem);
     if (rv != 0) {
       goto fail_cc_init;
     }
@@ -927,6 +933,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->idle_ts = settings->initial_ts;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
   (*pconn)->tx.last_max_data_ts = UINT64_MAX;
+  (*pconn)->tx.pacing.next_ts = UINT64_MAX;
   (*pconn)->early.discard_started_ts = UINT64_MAX;
 
   conn_reset_ecn_validation_state(*pconn);
@@ -1454,14 +1461,6 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
           : conn->cstat.cwnd;
 
   return bytes_in_flight >= cwnd;
-}
-
-static int conn_pace_time_to_send(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
-  if (conn->cc.on_pace_time_to_send) {
-    return conn->cc.on_pace_time_to_send(&conn->cc, ts);
-  }
-
-  return 1;
 }
 
 /*
@@ -2016,6 +2015,35 @@ void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
   conn->keep_alive.timeout = timeout;
 }
 
+/*
+ * NGTCP2_PKT_PACING_OVERHEAD defines overhead of userspace event
+ * loop.  Packet pacing might require sub milliseconds packet spacing,
+ * but userspace event loop might not offer such precision.
+ * Typically, if delay is 0.5 microseconds, the actual delay after
+ * which we can send packet is well over 1 millisecond when event loop
+ * is involved (which includes other stuff, like reading packets etc
+ * in a typical single threaded use case).
+ */
+#define NGTCP2_PKT_PACING_OVERHEAD (500 * NGTCP2_MICROSECONDS)
+
+static void conn_cancel_expired_pkt_tx_timer(ngtcp2_conn *conn,
+                                             ngtcp2_tstamp ts) {
+  if (conn->tx.pacing.next_ts == UINT64_MAX) {
+    return;
+  }
+
+  if (conn->tx.pacing.next_ts > ts + NGTCP2_PKT_PACING_OVERHEAD) {
+    return;
+  }
+
+  conn->tx.pacing.next_ts = UINT64_MAX;
+}
+
+static int conn_pacing_pkt_tx_allowed(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  return conn->tx.pacing.next_ts == UINT64_MAX ||
+         conn->tx.pacing.next_ts <= ts + NGTCP2_PKT_PACING_OVERHEAD;
+}
+
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
@@ -2309,6 +2337,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   conn_update_keep_alive_last_ts(conn, ts);
 
   conn->dcid.current.bytes_sent += (uint64_t)spktlen;
+
+  conn->tx.pacing.pktlen += (size_t)spktlen;
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
@@ -3702,7 +3732,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn->cc.on_pkt_sent(
             &conn->cc, &conn->cstat,
             ngtcp2_cc_pkt_init(&cc_pkt, hd->pkt_num, (size_t)nwrite,
-                               ent->rst.delivered, ent->rst.is_app_limited,
                                NGTCP2_PKTNS_ID_APPLICATION, ts));
       }
 
@@ -3727,6 +3756,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   conn_update_keep_alive_last_ts(conn, ts);
 
   conn->dcid.current.bytes_sent += (uint64_t)nwrite;
+
+  conn->tx.pacing.pktlen += (size_t)nwrite;
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
@@ -3888,6 +3919,8 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   if (path && ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     conn_update_keep_alive_last_ts(conn, ts);
   }
+
+  conn->tx.pacing.pktlen += (size_t)nwrite;
 
   ngtcp2_qlog_metrics_updated(&conn->qlog, &conn->cstat);
 
@@ -4141,7 +4174,7 @@ static int conn_abort_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   return conn_stop_pv(conn, ts);
 }
 
-static void conn_reset_congestion_state(ngtcp2_conn *conn);
+static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 /*
  * conn_on_path_validation_failed is called when path validation
@@ -4171,7 +4204,7 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
 
   if (pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) {
     ngtcp2_dcid_copy(&conn->dcid.current, &pv->fallback_dcid);
-    conn_reset_congestion_state(conn);
+    conn_reset_congestion_state(conn, ts);
   }
 
   return conn_stop_pv(conn, ts);
@@ -4557,7 +4590,8 @@ int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
  *     ODCID does not match; or Token is empty.
  */
 static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
-                         size_t hdpktlen, const uint8_t *pkt, size_t pktlen) {
+                         size_t hdpktlen, const uint8_t *pkt, size_t pktlen,
+                         ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_pkt_retry retry;
   ngtcp2_pktns *in_pktns = conn->in_pktns;
@@ -4645,7 +4679,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   ngtcp2_cpymem(token->base, retry.token.base, retry.token.len);
 
   reset_conn_stat_recovery(&conn->cstat);
-  conn_reset_congestion_state(conn);
+  conn_reset_congestion_state(conn, ts);
   conn_reset_ecn_validation_state(conn);
 
   return 0;
@@ -4653,13 +4687,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
                                 ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
-  ngtcp2_duration pto = conn_compute_pto(conn, pktns);
-  int rv = ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, conn, pktns, cstat, pto, ts);
-  if (rv != 0) {
-    return rv;
-  }
-
-  return 0;
+  return ngtcp2_rtb_detect_lost_pkt(&pktns->rtb, conn, pktns, cstat, ts);
 }
 
 /*
@@ -4709,11 +4737,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
 
   if (num_acked == 0) {
     return 0;
-  }
-
-  rv = ngtcp2_conn_detect_lost_pkt(conn, pktns, &conn->cstat, ts);
-  if (rv != 0) {
-    return rv;
   }
 
   pktns->rtb.probe_pkt_left = 0;
@@ -5109,10 +5132,10 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
 /*
  * conn_reset_congestion_state resets congestion state.
  */
-static void conn_reset_congestion_state(ngtcp2_conn *conn) {
+static void conn_reset_congestion_state(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn_reset_conn_stat_cc(conn, &conn->cstat);
 
-  conn->cc.reset(&conn->cc);
+  conn->cc.reset(&conn->cc, &conn->cstat, ts);
 
   if (conn->hs_pktns) {
     ngtcp2_rtb_reset_cc_state(&conn->hs_pktns->rtb,
@@ -5120,6 +5143,8 @@ static void conn_reset_congestion_state(ngtcp2_conn *conn) {
   }
   ngtcp2_rtb_reset_cc_state(&conn->pktns.rtb, conn->pktns.tx.last_pkt_num + 1);
   ngtcp2_rst_init(&conn->rst);
+
+  conn->tx.pacing.next_ts = UINT64_MAX;
 }
 
 static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
@@ -5152,7 +5177,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
         }
         ngtcp2_dcid_copy(&conn->dcid.current, &pv->dcid);
       }
-      conn_reset_congestion_state(conn);
+      conn_reset_congestion_state(conn, ts);
       conn_reset_ecn_validation_state(conn);
     }
 
@@ -5452,7 +5477,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    rv = conn_on_retry(conn, &hd, hdpktlen, pkt, pktlen);
+    rv = conn_on_retry(conn, &hd, hdpktlen, pkt, pktlen, ts);
     if (rv != 0) {
       if (ngtcp2_err_is_fatal(rv)) {
         return rv;
@@ -7524,7 +7549,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
                     "path is migrated back to the original path");
     ngtcp2_dcid_copy(&conn->dcid.current, &conn->pv->fallback_dcid);
-    conn_reset_congestion_state(conn);
+    conn_reset_congestion_state(conn, ts);
     conn->dcid.current.bytes_recv += dgramlen;
     conn_reset_ecn_validation_state(conn);
     return conn_abort_pv(conn, ts);
@@ -7631,7 +7656,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 
   if (!local_addr_eq || (remote_addr_cmp & (NGTCP2_ADDR_COMPARE_FLAG_ADDR |
                                             NGTCP2_ADDR_COMPARE_FLAG_FAMILY))) {
-    conn_reset_congestion_state(conn);
+    conn_reset_congestion_state(conn, ts);
   }
   conn_reset_ecn_validation_state(conn);
 
@@ -9715,7 +9740,8 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp res = ngtcp2_min(t1, t2);
   res = ngtcp2_min(res, t3);
   res = ngtcp2_min(res, t4);
-  return ngtcp2_min(res, t5);
+  res = ngtcp2_min(res, t5);
+  return ngtcp2_min(res, conn->tx.pacing.next_ts);
 }
 
 int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
@@ -9725,6 +9751,8 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
   conn_cancel_expired_keep_alive_timer(conn, ts);
+
+  conn_cancel_expired_pkt_tx_timer(conn, ts);
 
   ngtcp2_conn_remove_lost_pkt(conn, ts);
 
@@ -10208,6 +10236,10 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     pi->ecn = NGTCP2_ECN_NOT_ECT;
   }
 
+  if (!conn_pacing_pkt_tx_allowed(conn, ts)) {
+    return 0;
+  }
+
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
@@ -10369,8 +10401,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       }
     }
 
-    if (!conn->pktns.rtb.probe_pkt_left &&
-        (conn_cwnd_is_zero(conn) || !conn_pace_time_to_send(conn, ts))) {
+    if (!conn->pktns.rtb.probe_pkt_left && conn_cwnd_is_zero(conn)) {
       destlen = 0;
     } else {
       nwrite = conn_write_path_response(conn, path, pi, dest, destlen, ts);
@@ -10955,8 +10986,6 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_duration min_rtt;
 
-  rtt = ngtcp2_max(rtt, NGTCP2_GRANULARITY);
-
   cstat->latest_rtt = rtt;
 
   if (cstat->min_rtt == UINT64_MAX) {
@@ -11434,7 +11463,7 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
     return rv;
   }
 
-  conn_reset_congestion_state(conn);
+  conn_reset_congestion_state(conn, ts);
   conn_reset_ecn_validation_state(conn);
 
   return 0;
@@ -11629,6 +11658,21 @@ int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn, int64_t stream_id,
   strm->stream_user_data = stream_user_data;
 
   return 0;
+}
+
+void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
+  if (!(conn->cstat.pacing_rate > 0) || conn->tx.pacing.pktlen == 0) {
+    return;
+  }
+
+  conn->tx.pacing.next_ts =
+      ts + (ngtcp2_duration)((double)conn->tx.pacing.pktlen /
+                             conn->cstat.pacing_rate);
+  conn->tx.pacing.pktlen = 0;
+}
+
+size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn) {
+  return conn->cstat.send_quantum;
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,

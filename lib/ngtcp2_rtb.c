@@ -726,11 +726,10 @@ static void rtb_on_pkt_acked(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
 
   ngtcp2_rst_update_rate_sample(rtb->rst, ent, ts);
 
-  cc->on_pkt_acked(
-      cc, cstat,
-      ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen, ent->rst.delivered,
-                         ent->rst.is_app_limited, rtb->pktns_id, ent->ts),
-      ts);
+  cc->on_pkt_acked(cc, cstat,
+                   ngtcp2_cc_pkt_init(&pkt, ent->hd.pkt_num, ent->pktlen,
+                                      rtb->pktns_id, ent->ts),
+                   ts);
 
   if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE) &&
       (ent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
@@ -779,6 +778,10 @@ static void conn_verify_ecn(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   }
 }
 
+static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
+                               ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                               ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts);
+
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
                                  ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
                                  ngtcp2_pktns *pktns, ngtcp2_tstamp pkt_ts,
@@ -797,6 +800,9 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   int ack_eliciting_pkt_acked = 0;
   size_t ecn_acked = 0;
   int verify_ecn = 0;
+  ngtcp2_cc_ack cc_ack = {0};
+
+  cc_ack.prior_bytes_in_flight = cstat->bytes_in_flight;
 
   if (conn && (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) &&
       largest_ack >= conn->pktns.crypto.tx.ckm->pkt_num) {
@@ -881,8 +887,6 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
   }
 
-  ngtcp2_rst_on_ack_recv(rtb->rst, cstat);
-
   if (conn) {
     for (ent = acked_ent; ent; ent = acked_ent) {
       if (ent->hd.pkt_num >= pktns->tx.ecn.start_pkt_num &&
@@ -899,6 +903,12 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
       if (rv != 0) {
         goto fail;
       }
+
+      cc_ack.bytes_delivered += ent->pktlen;
+
+      assert(cc_ack.pkt_delivered <= ent->rst.delivered);
+
+      cc_ack.pkt_delivered = ent->rst.delivered;
 
       rtb_on_pkt_acked(rtb, ent, cstat, ts);
       acked_ent = ent->next;
@@ -918,7 +928,16 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
   }
 
-  cc->on_ack_recv(cc, cstat, ts);
+  ngtcp2_rst_on_ack_recv(rtb->rst, cstat, cc_ack.pkt_delivered);
+
+  if (conn) {
+    rv = rtb_detect_lost_pkt(rtb, &cc_ack.bytes_lost, conn, pktns, cstat, ts);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  cc->on_ack_recv(cc, cstat, &cc_ack, ts);
 
   return num_acked;
 
@@ -980,9 +999,9 @@ static int conn_all_ecn_pkt_lost(ngtcp2_conn *conn) {
          pktns->tx.ecn.validation_pkt_sent == pktns->tx.ecn.validation_pkt_lost;
 }
 
-int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
-                               ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
-                               ngtcp2_duration pto, ngtcp2_tstamp ts) {
+static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
+                               ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                               ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_duration loss_delay;
   ngtcp2_tstamp lost_send_time;
@@ -996,6 +1015,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
       rtb->cc_bytes_in_flight / cstat->max_udp_payload_size / 2;
   size_t ecn_pkt_lost = 0;
   ngtcp2_tstamp start_ts;
+  ngtcp2_duration pto = ngtcp2_conn_compute_pto(conn, pktns);
+  uint64_t prior_bytes_in_flight = cstat->bytes_in_flight;
 
   pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
   cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
@@ -1114,7 +1135,20 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
   ngtcp2_rtb_remove_excessive_lost_pkt(rtb, pkt_thres);
 
+  if (ppkt_lost) {
+    assert(prior_bytes_in_flight >= cstat->bytes_in_flight);
+
+    *ppkt_lost = prior_bytes_in_flight - cstat->bytes_in_flight;
+  }
+
   return 0;
+}
+
+int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                               ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
+                               ngtcp2_tstamp ts) {
+  return rtb_detect_lost_pkt(rtb, /* ppkt_lost = */ NULL, conn, pktns, cstat,
+                             ts);
 }
 
 void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {

@@ -1143,7 +1143,13 @@ typedef enum ngtcp2_rand_usage {
    * :enum:`NGTCP2_RAND_USAGE_PATH_CHALLENGE` indicates that random
    * value is used for PATH_CHALLENGE.
    */
-  NGTCP2_RAND_USAGE_PATH_CHALLENGE
+  NGTCP2_RAND_USAGE_PATH_CHALLENGE,
+  /**
+   * :enum:`NGTCP2_RAND_USAGE_GENERIC` indicates that random value is
+   * used for a general purpose, such as picking a random number in
+   * non-cryptographic context.
+   */
+  NGTCP2_RAND_USAGE_GENERIC
 } ngtcp2_rand_usage;
 
 /**
@@ -1495,19 +1501,20 @@ typedef struct ngtcp2_conn_stat {
    */
   size_t max_udp_payload_size;
   /**
-   * :member:`delivered` is the current delivered bytes measured
-   * in one sample rate round.
-   */
-  uint64_t delivered;
-  /**
    * :member:`delivery_rate_sec` is the current sending rate measured
    * in byte per second.
    */
   uint64_t delivery_rate_sec;
   /**
-   * :member:`app_limited` indicate current transmits rate limited by app.
+   * :member:`pacing_rate` is the current packet sending rate.  If
+   * pacing is disabled, 0 is set.
    */
-  uint64_t app_limited;
+  double pacing_rate;
+  /**
+   * :member:`send_quantum` is the maximum size of a data aggregate
+   * scheduled and transmitted together.
+   */
+  size_t send_quantum;
 } ngtcp2_conn_stat;
 
 /**
@@ -1525,7 +1532,8 @@ typedef enum ngtcp2_cc_algo {
    */
   NGTCP2_CC_ALGO_CUBIC = 0x01,
   /**
-   * :enum:`NGTCP2_CC_ALGO_BBR` represents Bbr.
+   * :enum:`NGTCP2_CC_ALGO_BBR` represents BBR.  If BBR is chosen,
+   * packet pacing is enabled.
    */
   NGTCP2_CC_ALGO_BBR = 0x02,
   /**
@@ -1573,16 +1581,34 @@ typedef struct ngtcp2_cc_pkt {
    * :member:`ts_sent` is the timestamp when packet is sent.
    */
   ngtcp2_tstamp ts_sent;
-  /**
-   * :member:`delivered` is the bytes delivered when packet is sent.
-   */
-  uint64_t delivered;
-  /**
-   * :member:`is_app_limited` indicate current transmits rate limited by app
-   * when packet is sent.
-   */
-  uint64_t is_app_limited;
 } ngtcp2_cc_pkt;
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_cc_ack` is a convenient structure which stores
+ * acknowledged and lost bytes.
+ */
+typedef struct ngtcp2_cc_ack {
+  /**
+   * :member:`prior_bytes_in_flight` is the in-flight bytes before
+   * processing this ACK.
+   */
+  uint64_t prior_bytes_in_flight;
+  /**
+   * :member:`bytes_delivered` is the number of bytes acknowledged.
+   */
+  uint64_t bytes_delivered;
+  /**
+   * :member:`bytes_lost` is the number of bytes declared lost.
+   */
+  uint64_t bytes_lost;
+  /**
+   * :member:`pkt_delivered` is the cumulative acknowledged bytes when
+   * the last packet acknowledged by this ACK was sent.
+   */
+  uint64_t pkt_delivered;
+} ngtcp2_cc_ack;
 
 typedef struct ngtcp2_cc ngtcp2_cc;
 
@@ -1634,6 +1660,7 @@ typedef void (*ngtcp2_cc_on_persistent_congestion)(ngtcp2_cc *cc,
  * called when an acknowledgement is received.
  */
 typedef void (*ngtcp2_cc_on_ack_recv)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                      const ngtcp2_cc_ack *ack,
                                       ngtcp2_tstamp ts);
 
 /**
@@ -1660,7 +1687,8 @@ typedef void (*ngtcp2_cc_new_rtt_sample)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  * :type:`ngtcp2_cc_reset` is a callback function which is called when
  * congestion state must be reset.
  */
-typedef void (*ngtcp2_cc_reset)(ngtcp2_cc *cc);
+typedef void (*ngtcp2_cc_reset)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                ngtcp2_tstamp ts);
 
 /**
  * @enum
@@ -1683,14 +1711,6 @@ typedef enum ngtcp2_cc_event_type {
  */
 typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
-
-/**
- * @functypedef
- *
- * :type:`conn_pace_time_to_send` is a callback function which is called
- * when try to send packet pacing.
- */
-typedef int (*ngtcp2_cc_on_pace_time_to_send)(ngtcp2_cc *cc, ngtcp2_tstamp ts);
 
 /**
  * @struct
@@ -1749,12 +1769,6 @@ typedef struct ngtcp2_cc {
    * specific event happens.
    */
   ngtcp2_cc_event event;
-
-  /**
-   * :member:`on_pace_time_to_send` is a callback function when try
-   * to send packet pacing.
-   */
-  ngtcp2_cc_on_pace_time_to_send on_pace_time_to_send;
 } ngtcp2_cc;
 
 /**
@@ -4039,6 +4053,12 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * This function must not be called from inside the callback
  * functions.
  *
+ * If pacing is enabled, `ngtcp2_conn_update_pkt_tx_time` must be
+ * called after this function.  Application may call this function
+ * multiple times before calling `ngtcp2_conn_update_pkt_tx_time`.
+ * Packet pacing is enabled if BBR congestion controller algorithm is
+ * used.
+ *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
  *
@@ -4797,6 +4817,29 @@ NGTCP2_EXTERN int ngtcp2_conn_after_retry(ngtcp2_conn *conn);
 NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
                                                    int64_t stream_id,
                                                    void *stream_user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_update_pkt_tx_time` sets the time instant of the next
+ * packet transmission.  This function is noop if packet pacing is
+ * disabled.  If packet pacing is enabled, this function must be
+ * called after (multiple invocation of) `ngtcp2_conn_writev_stream`.
+ * If packet aggregation (e.g., packet batching, GSO) is used, call
+ * this function after all aggregated datagrams are sent, which
+ * indicates multiple invocation of `ngtcp2_conn_writev_stream`.
+ */
+NGTCP2_EXTERN void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn,
+                                                  ngtcp2_tstamp ts);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_send_quantum` returns the maximum number of bytes
+ * that can be sent in one go without packet spacing.  If packet
+ * pacing is disabled, this function returns UINT64_MAX.
+ */
+NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
 
 /**
  * @function
