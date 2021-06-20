@@ -29,7 +29,7 @@ if [ "$ROLE" == "client" ]; then
     else
 	CLIENT_BIN="/usr/local/bin/h09client"
     fi
-    CLIENT_ARGS="$SERVER 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR"
+    CLIENT_ARGS="$SERVER 443 --download /downloads -s --no-quic-dump --no-http-dump --exit-on-all-streams-close --qlog-dir $QLOGDIR --cc bbr"
     if [ "$TESTCASE" == "versionnegotiation" ]; then
         CLIENT_ARGS="$CLIENT_ARGS -v 0xaaaaaaaa"
     else
@@ -65,7 +65,7 @@ elif [ "$ROLE" == "server" ]; then
     else
 	SERVER_BIN="/usr/local/bin/h09server"
     fi
-    SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR"
+    SERVER_ARGS="/certs/priv.key /certs/cert.pem -s -d /www --qlog-dir $QLOGDIR --cc bbr"
     if [ "$TESTCASE" == "retry" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
     elif [ "$TESTCASE" == "multiconnect" ]; then
