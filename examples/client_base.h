@@ -153,8 +153,8 @@ struct Config {
   // static_secret is used to derive keying materials for Stateless
   // Retry token.
   std::array<uint8_t, 32> static_secret;
-  // cc is the congestion controller algorithm.
-  std::string_view cc;
+  // cc_algo is the congestion controller algorithm.
+  ngtcp2_cc_algo cc_algo;
   // token_file is a path to file to read or write token from
   // NEW_TOKEN frame.
   std::string_view token_file;

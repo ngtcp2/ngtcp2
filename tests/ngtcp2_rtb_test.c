@@ -35,6 +35,7 @@
 
 static void conn_stat_init(ngtcp2_conn_stat *cstat) {
   memset(cstat, 0, sizeof(*cstat));
+  cstat->max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
 }
 
 void test_ngtcp2_rtb_add(void) {

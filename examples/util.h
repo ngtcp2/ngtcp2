@@ -150,6 +150,9 @@ std::string make_cid_key(const uint8_t *cid, size_t cidlen);
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
 
+// strccalgo stringifies |cc_algo|.
+std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
+
 template <typename T, size_t N>
 bool streq_l(const T (&a)[N], const nghttp3_vec &b) {
   return N - 1 == b.len && memcmp(a, b.base, N - 1) == 0;

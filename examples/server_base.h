@@ -122,8 +122,8 @@ struct Config {
   // static_secret is used to derive keying materials for Retry and
   // Stateless Retry token.
   std::array<uint8_t, 32> static_secret;
-  // cc is the congestion controller algorithm.
-  std::string_view cc;
+  // cc_algo is the congestion controller algorithm.
+  ngtcp2_cc_algo cc_algo;
   // initial_rtt is an initial RTT.
   ngtcp2_duration initial_rtt;
   // max_udp_payload_size is the maximum UDP payload size that server

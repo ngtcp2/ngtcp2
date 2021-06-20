@@ -42,6 +42,7 @@
 #include "ngtcp2_log.h"
 #include "ngtcp2_pq.h"
 #include "ngtcp2_cc.h"
+#include "ngtcp2_bbr.h"
 #include "ngtcp2_pv.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_buf.h"
@@ -400,6 +401,16 @@ struct ngtcp2_conn {
          validation period. */
       size_t dgram_sent;
     } ecn;
+
+    struct {
+      /* pktlen is the number of bytes written before calling
+         ngtcp2_conn_update_pkt_tx_time which resets this field to
+         0. */
+      size_t pktlen;
+      /* next_ts is the time to send next packet.  It is UINT64_MAX if
+         packet pacing is disabled or expired.*/
+      ngtcp2_tstamp next_ts;
+    } pacing;
   } tx;
 
   struct {
@@ -847,5 +858,7 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
  * UINT64_MAX if loss detection timer is not armed.
  */
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
+
+ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
 
 #endif /* NGTCP2_CONN_H */

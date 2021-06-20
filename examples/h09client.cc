@@ -688,8 +688,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
     settings.qlog.write = qlog_write_cb;
   }
-  settings.cc_algo =
-      config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
+
+  settings.cc_algo = config.cc_algo;
   settings.initial_ts = util::timestamp(loop_);
   settings.initial_rtt = config.initial_rtt;
 
@@ -913,6 +913,10 @@ int Client::write_streams() {
   PathStorage path;
   size_t pktcnt = 0;
   std::array<uint8_t, 64_k> buf;
+  size_t max_pktcnt = config.cc_algo == NGTCP2_CC_ALGO_BBR
+                          ? ngtcp2_conn_get_send_quantum(conn_) / max_pktlen_
+                          : 10;
+  auto ts = util::timestamp(loop_);
 
   for (;;) {
     int64_t stream_id = -1;
@@ -933,9 +937,9 @@ int Client::write_streams() {
     ngtcp2_ssize ndatalen;
     ngtcp2_pkt_info pi;
 
-    auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, &pi, buf.data(), max_pktlen_, &ndatalen, flags,
-        stream_id, &vec, vcnt, util::timestamp(loop_));
+    auto nwrite = ngtcp2_conn_writev_stream(conn_, &path.path, &pi, buf.data(),
+                                            max_pktlen_, &ndatalen, flags,
+                                            stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -968,6 +972,7 @@ int Client::write_streams() {
 
     if (nwrite == 0) {
       // We are congestion limited.
+      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       return 0;
     }
 
@@ -979,11 +984,16 @@ int Client::write_streams() {
       if (rv != NETWORK_ERR_SEND_BLOCKED) {
         last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
         disconnect();
+      } else {
+        ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       }
       return rv;
     }
 
-    if (++pktcnt == 10) {
+    ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+
+    if (++pktcnt == max_pktcnt) {
+      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       ev_io_start(loop_, &wev_);
       return 0;
     }
@@ -1598,7 +1608,7 @@ void config_set_default(Config &config) {
   config.max_stream_data_bidi_remote = 256_k;
   config.max_stream_data_uni = 256_k;
   config.max_streams_uni = 100;
-  config.cc = "cubic"sv;
+  config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
 }
 } // namespace
@@ -1734,8 +1744,10 @@ Options:
               Exit when all HTTP streams are closed.
   --disable-early-data
               Disable early data.
-  --cc=(cubic|reno)
+  --cc=(cubic|reno|bbr)
               The name of congestion controller algorithm.
+              Default: )"
+            << util::strccalgo(config.cc_algo) << R"(
   --token-file=<PATH>
               Read/write token from/to <PATH>.  Token is obtained from
               NEW_TOKEN frame from server.
@@ -2036,11 +2048,19 @@ int main(int argc, char **argv) {
         break;
       case 27:
         // --cc
-        if (strcmp("cubic", optarg) == 0 || strcmp("reno", optarg) == 0) {
-          config.cc = optarg;
+        if (strcmp("cubic", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
           break;
         }
-        std::cerr << "cc: specify cubic or reno" << std::endl;
+        if (strcmp("reno", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_RENO;
+          break;
+        }
+        if (strcmp("bbr", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_BBR;
+          break;
+        }
+        std::cerr << "cc: specify cubic, reno, or bbr" << std::endl;
         exit(EXIT_FAILURE);
       case 28:
         // --exit-on-all-streams-close

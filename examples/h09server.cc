@@ -777,9 +777,9 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.log_printf = config.quiet ? nullptr : debug::log_printf;
   settings.initial_ts = util::timestamp(loop_);
   settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
-  settings.cc_algo =
-      config.cc == "cubic" ? NGTCP2_CC_ALGO_CUBIC : NGTCP2_CC_ALGO_RENO;
+  settings.cc_algo = config.cc_algo;
   settings.initial_rtt = config.initial_rtt;
+  settings.max_udp_payload_size = max_pktlen_;
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
     path += '/';
@@ -976,11 +976,20 @@ int Handler::write_streams() {
   PathStorage path, prev_path;
   uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
-  size_t max_pktcnt = std::min(static_cast<size_t>(config.max_gso_dgrams),
-                               static_cast<size_t>(64_k / max_pktlen_));
+  size_t max_pktcnt =
+      std::min(static_cast<size_t>(64_k), ngtcp2_conn_get_send_quantum(conn_)) /
+      max_pktlen_;
   std::array<uint8_t, 64_k> buf;
   uint8_t *bufpos = buf.data();
   ngtcp2_pkt_info pi;
+  auto ts = util::timestamp(loop_);
+
+  if (config.cc_algo != NGTCP2_CC_ALGO_BBR) {
+    /* If bbr is chosen, pacing is enabled.  No need to cap the number
+       of datagrams to send. */
+    max_pktcnt =
+        std::min(max_pktcnt, static_cast<size_t>(config.max_gso_dgrams));
+  }
 
   for (;;) {
     int64_t stream_id = -1;
@@ -1000,9 +1009,9 @@ int Handler::write_streams() {
 
     ngtcp2_ssize ndatalen;
 
-    auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, &pi, bufpos, max_pktlen_, &ndatalen, flags,
-        stream_id, &vec, vcnt, util::timestamp(loop_));
+    auto nwrite =
+        ngtcp2_conn_writev_stream(conn_, &path.path, &pi, bufpos, max_pktlen_,
+                                  &ndatalen, flags, stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -1038,9 +1047,11 @@ int Handler::write_streams() {
                              prev_path.path.local, prev_path.path.remote,
                              prev_ecn, buf.data(), bufpos - buf.data(),
                              max_pktlen_);
+        ngtcp2_conn_update_pkt_tx_time(conn_, ts);
         reset_idle_timer();
       }
       // We are congestion limited.
+      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       return 0;
     }
 
@@ -1060,6 +1071,7 @@ int Handler::write_streams() {
       server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
                            path.path.local, path.path.remote, pi.ecn,
                            bufpos - nwrite, nwrite, max_pktlen_);
+      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
       return 0;
@@ -1069,6 +1081,7 @@ int Handler::write_streams() {
       server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
                            path.path.local, path.path.remote, pi.ecn,
                            buf.data(), bufpos - buf.data(), max_pktlen_);
+      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
       return 0;
@@ -1080,6 +1093,7 @@ int Handler::write_streams() {
                          path.path.local, path.path.remote, pi.ecn, buf.data(),
                          bufpos - buf.data(), 0);
     if (++pktcnt == max_pktcnt) {
+      ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       ev_io_start(loop_, &wev_);
       return 0;
     }
@@ -2597,7 +2611,7 @@ void config_set_default(Config &config) {
   config.max_streams_bidi = 100;
   config.max_streams_uni = 3;
   config.max_dyn_length = 20_m;
-  config.cc = "cubic"sv;
+  config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_gso_dgrams = 10;
 }
@@ -2703,8 +2717,10 @@ Options:
               The maximum length of a dynamically generated content.
               Default: )"
             << util::format_uint_iec(config.max_dyn_length) << R"(
-  --cc=(cubic|reno)
+  --cc=(cubic|reno|bbr)
               The name of congestion controller algorithm.
+              Default: )"
+            << util::strccalgo(config.cc_algo) << R"(
   --initial-rtt=<DURATION>
               Set an initial RTT.
               Default: )"
@@ -2948,11 +2964,19 @@ int main(int argc, char **argv) {
         break;
       case 19:
         // --cc
-        if (strcmp("cubic", optarg) == 0 || strcmp("reno", optarg) == 0) {
-          config.cc = optarg;
+        if (strcmp("cubic", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
           break;
         }
-        std::cerr << "cc: specify cubic or reno" << std::endl;
+        if (strcmp("reno", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_RENO;
+          break;
+        }
+        if (strcmp("bbr", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_BBR;
+          break;
+        }
+        std::cerr << "cc: specify cubic, reno, or bbr" << std::endl;
         exit(EXIT_FAILURE);
       case 20:
         // --initial-rtt
