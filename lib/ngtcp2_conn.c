@@ -3864,7 +3864,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     conn_handle_tx_ecn(conn, pi, NULL, pktns, &hd, ts);
   }
 
-  if (path && ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local)) {
+  if (path && ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     conn_update_keep_alive_last_ts(conn, ts);
   }
 
@@ -8368,7 +8368,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       conn->early.discard_started_ts = ts;
     }
 
-    if (ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local)) {
+    if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
       conn_update_keep_alive_last_ts(conn, ts);
     }
   }
