@@ -3847,9 +3847,18 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
       return rv;
     }
 
-    if ((rtb_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) &&
-        (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE)) {
-      conn_restart_timer_on_write(conn, ts);
+    if (rtb_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
+      if (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE) {
+        conn_restart_timer_on_write(conn, ts);
+      }
+
+      if (pktns->rtb.probe_pkt_left && path &&
+          ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
+        --pktns->rtb.probe_pkt_left;
+
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "probe pkt size=%td",
+                        nwrite);
+      }
     }
   } else if (pi && conn->tx.ecn.state == NGTCP2_ECN_STATE_CAPABLE) {
     conn_handle_tx_ecn(conn, pi, NULL, pktns, &hd, ts);
