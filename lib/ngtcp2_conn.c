@@ -4164,7 +4164,6 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
                                               ngtcp2_pkt_info *pi,
                                               uint8_t *dest, size_t destlen,
                                               ngtcp2_tstamp ts) {
-  int rv;
   ngtcp2_ssize nwrite;
   ngtcp2_tstamp expiry;
   ngtcp2_pv *pv = conn->pv;
@@ -4186,12 +4185,9 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   }
 
   assert(conn->callbacks.rand);
-  rv = conn->callbacks.rand(
-      lfr.path_challenge.data, sizeof(lfr.path_challenge.data),
-      &conn->local.settings.rand_ctx, NGTCP2_RAND_USAGE_PATH_CHALLENGE);
-  if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
+  conn->callbacks.rand(lfr.path_challenge.data, sizeof(lfr.path_challenge.data),
+                       &conn->local.settings.rand_ctx,
+                       NGTCP2_RAND_USAGE_PATH_CHALLENGE);
 
   lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
 

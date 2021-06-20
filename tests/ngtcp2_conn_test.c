@@ -396,14 +396,12 @@ static int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   return 0;
 }
 
-static int genrand(uint8_t *dest, size_t destlen,
-                   const ngtcp2_rand_ctx *rand_ctx, ngtcp2_rand_usage usage) {
+static void genrand(uint8_t *dest, size_t destlen,
+                    const ngtcp2_rand_ctx *rand_ctx, ngtcp2_rand_usage usage) {
   (void)rand_ctx;
   (void)usage;
 
   memset(dest, 0, destlen);
-
-  return 0;
 }
 
 static int recv_datagram(ngtcp2_conn *conn, uint32_t flags, const uint8_t *data,

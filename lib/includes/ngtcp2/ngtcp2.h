@@ -2706,14 +2706,10 @@ typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
  * string from application.  Application must fill random |destlen|
  * bytes to the buffer pointed by |dest|.  |usage| provides the usage
  * of the generated random data.
- *
- * The callback function must return 0 if it succeeds.  Returning
- * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
- * immediately.
  */
-typedef int (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
-                           const ngtcp2_rand_ctx *rand_ctx,
-                           ngtcp2_rand_usage usage);
+typedef void (*ngtcp2_rand)(uint8_t *dest, size_t destlen,
+                            const ngtcp2_rand_ctx *rand_ctx,
+                            ngtcp2_rand_usage usage);
 
 /**
  * @functypedef
