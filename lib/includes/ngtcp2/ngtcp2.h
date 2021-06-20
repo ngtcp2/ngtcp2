@@ -1839,8 +1839,7 @@ typedef struct ngtcp2_settings {
   /**
    * :member:`max_udp_payload_size` is the maximum size of UDP
    * datagram payload that this endpoint transmits.  It is used by
-   * congestion controller to compute congestion window.  If it is set
-   * to 0, it defaults to :macro:`NGTCP2_DEFAULT_MAX_PKTLEN`.
+   * congestion controller to compute congestion window.
    */
   size_t max_udp_payload_size;
   /**
@@ -4840,6 +4839,9 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * * :type:`initial_rtt <ngtcp2_settings.initial_rtt>` =
  *   :macro:`NGTCP2_DEFAULT_INITIAL_RTT`
  * * :type:`ack_thresh <ngtcp2_settings.ack_thresh>` = 2
+ * * :type:`max_udp_payload_size
+ *   <ngtcp2_settings.max_udp_payload_size>` =
+ *   :macro:`NGTCP2_DEFAULT_MAX_PKTLEN`
  */
 NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
 

@@ -731,6 +731,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   assert(settings->max_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_stream_window <= NGTCP2_MAX_VARINT);
+  assert(settings->max_udp_payload_size);
   assert(params->active_connection_id_limit <= NGTCP2_MAX_DCID_POOL_SIZE);
   assert(params->initial_max_data <= NGTCP2_MAX_VARINT);
   assert(params->initial_max_stream_data_bidi_local <= NGTCP2_MAX_VARINT);
@@ -827,10 +828,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   } else {
     (*pconn)->local.settings.token.base = NULL;
     (*pconn)->local.settings.token.len = 0;
-  }
-
-  if (settings->max_udp_payload_size == 0) {
-    (*pconn)->local.settings.max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
   }
 
   conn_reset_conn_stat(*pconn, &(*pconn)->cstat);
@@ -11619,6 +11616,7 @@ void ngtcp2_settings_default(ngtcp2_settings *settings) {
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->ack_thresh = 2;
+  settings->max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
 }
 
 void ngtcp2_transport_params_default(ngtcp2_transport_params *params) {

@@ -437,6 +437,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+  settings->max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
 }
 
 static void server_default_transport_params(ngtcp2_transport_params *params) {
@@ -463,6 +464,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+  settings->max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
 }
 
 static void client_default_transport_params(ngtcp2_transport_params *params) {
