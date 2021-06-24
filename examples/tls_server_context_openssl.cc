@@ -26,6 +26,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <limits>
 
 #include <ngtcp2/ngtcp2_crypto_openssl.h>
 
