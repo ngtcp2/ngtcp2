@@ -937,6 +937,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
     }
   }
 
+  cc_ack.largest_acked_sent_ts = largest_acked_sent_ts;
   cc->on_ack_recv(cc, cstat, &cc_ack, ts);
 
   return num_acked;

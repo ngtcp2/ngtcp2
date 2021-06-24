@@ -86,6 +86,9 @@ typedef struct ngtcp2_bbr_cc {
   ngtcp2_tstamp rtprop_stamp;
   ngtcp2_tstamp cycle_stamp;
   ngtcp2_tstamp probe_rtt_done_stamp;
+  /* congestion_recovery_start_ts is the time when congestion recovery
+     period started.*/
+  ngtcp2_tstamp congestion_recovery_start_ts;
   size_t full_bw_count;
   size_t cycle_index;
   ngtcp2_bbr_state state;
@@ -99,6 +102,9 @@ typedef struct ngtcp2_bbr_cc {
   int idle_restart;
   int packet_conservation;
   int probe_rtt_round_done;
+  /* in_loss_recovery becomes nonzero when BBR enters loss recovery
+     period. */
+  int in_loss_recovery;
 } ngtcp2_bbr_cc;
 
 int ngtcp2_cc_bbr_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,

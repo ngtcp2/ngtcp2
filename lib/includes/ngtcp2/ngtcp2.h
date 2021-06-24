@@ -1608,6 +1608,11 @@ typedef struct ngtcp2_cc_ack {
    * the last packet acknowledged by this ACK was sent.
    */
   uint64_t pkt_delivered;
+  /**
+   * :member:`largest_acked_sent_ts` is the time when the largest
+   * acknowledged packet was sent.
+   */
+  ngtcp2_tstamp largest_acked_sent_ts;
 } ngtcp2_cc_ack;
 
 typedef struct ngtcp2_cc ngtcp2_cc;
