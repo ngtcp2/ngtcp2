@@ -55,6 +55,11 @@ enum network_error {
   NETWORK_ERR_DROP_CONN = -14,
 };
 
+union in_addr_union {
+  in_addr in;
+  in6_addr in6;
+};
+
 union sockaddr_union {
   sockaddr_storage storage;
   sockaddr sa;

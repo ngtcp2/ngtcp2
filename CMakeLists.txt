@@ -155,6 +155,9 @@ check_include_file("unistd.h"      HAVE_UNISTD_H)
 check_include_file("sys/endian.h"  HAVE_SYS_ENDIAN_H)
 check_include_file("endian.h"      HAVE_ENDIAN_H)
 check_include_file("byteswap.h"    HAVE_BYTESWAP_H)
+check_include_file("asm/types.h"   HAVE_ASM_TYPES_H)
+check_include_file("linux/netlink.h"   HAVE_LINUX_NETLINK_H)
+check_include_file("linux/rtnetlink.h" HAVE_LINUX_RTNETLINK_H)
 
 include(CheckTypeSize)
 # Checks for typedefs, structures, and compiler characteristics.

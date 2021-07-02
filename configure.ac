@@ -418,6 +418,9 @@ AC_CHECK_HEADERS([ \
   sys/endian.h \
   endian.h \
   byteswap.h \
+  asm/types.h \
+  linux/netlink.h \
+  linux/rtnetlink.h
 ])
 
 # Checks for typedefs, structures, and compiler characteristics.

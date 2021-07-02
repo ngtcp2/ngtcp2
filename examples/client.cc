@@ -1069,7 +1069,8 @@ void Client::schedule_retransmit() {
 }
 
 namespace {
-int bind_addr(Address &local_addr, int fd, int family) {
+int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
+              int family) {
   addrinfo hints{};
   addrinfo *res, *rp;
 
@@ -1077,7 +1078,21 @@ int bind_addr(Address &local_addr, int fd, int family) {
   hints.ai_socktype = SOCK_DGRAM;
   hints.ai_flags = AI_PASSIVE;
 
-  if (auto rv = getaddrinfo(nullptr, "0", &hints, &res); rv != 0) {
+  char *node;
+  std::array<char, NI_MAXHOST> nodebuf;
+
+  if (iau) {
+    if (inet_ntop(family, iau, nodebuf.data(), nodebuf.size()) == nullptr) {
+      std::cerr << "inet_ntop: " << strerror(errno) << std::endl;
+      return -1;
+    }
+
+    node = nodebuf.data();
+  } else {
+    node = nullptr;
+  }
+
+  if (auto rv = getaddrinfo(node, "0", &hints, &res); rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
     return -1;
   }
@@ -1180,7 +1195,20 @@ int Client::change_local_addr() {
 
   fd_set_recv_ecn(nfd, remote_addr_.su.sa.sa_family);
 
-  if (bind_addr(local_addr, nfd, remote_addr_.su.sa.sa_family) != 0) {
+#ifdef HAVE_LINUX_RTNETLINK_H
+  in_addr_union iau, *piau;
+
+  if (get_local_addr(iau, remote_addr_) != 0) {
+    std::cerr << "Could not get local address" << std::endl;
+    piau = nullptr;
+  } else {
+    piau = &iau;
+  }
+#else  // !HAVE_LINUX_RTNETLINK_H
+  in_addr_union *piau = nullptr;
+#endif // !HAVE_LINUX_RTNETLINK_H
+
+  if (bind_addr(local_addr, nfd, piau, remote_addr_.su.sa.sa_family) != 0) {
     close(nfd);
     return -1;
   }
@@ -1925,7 +1953,20 @@ int run(Client &c, const char *addr, const char *port,
     return -1;
   }
 
-  if (bind_addr(local_addr, fd, remote_addr.su.sa.sa_family) != 0) {
+#ifdef HAVE_LINUX_RTNETLINK_H
+  in_addr_union iau, *piau;
+
+  if (get_local_addr(iau, remote_addr) != 0) {
+    std::cerr << "Could not get local address" << std::endl;
+    piau = nullptr;
+  } else {
+    piau = &iau;
+  }
+#else  // !HAVE_LINUX_RTNETLINK_H
+  in_addr_union *piau = nullptr;
+#endif // !HAVE_LINUX_RTNETLINK_H
+
+  if (bind_addr(local_addr, fd, piau, remote_addr.su.sa.sa_family) != 0) {
     close(fd);
     return -1;
   }

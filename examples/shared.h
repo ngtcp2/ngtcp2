@@ -101,6 +101,10 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family);
 
 void set_port(Address &dst, Address &src);
 
+// get_local_addr stores preferred local address (interface address)
+// in |iau| for a given destination address |remote_addr|.
+int get_local_addr(in_addr_union &iau, const Address &remote_addr);
+
 } // namespace ngtcp2
 
 #endif // SHARED_H
