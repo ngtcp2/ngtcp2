@@ -48,7 +48,7 @@ the following TLS backends:
 For crypto helper library:
 
 - OpenSSL with QUIC support described above
-- libgnutls28-dev >= 3.7.2
+- GnuTLS >= 3.7.2
 - BoringSSL (commit 7ada8466927864b6427277f455483c61081a32db)
 
 Build from git
