@@ -21,7 +21,7 @@ for which we provide crypto helper libraries:
 
 * `OpenSSL with QUIC support
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1k+quic>`_
-* GnuTLS >= 3.7.0
+* GnuTLS >= 3.7.2
 * BoringSSL
 
 Creating ngtcp2_conn object
