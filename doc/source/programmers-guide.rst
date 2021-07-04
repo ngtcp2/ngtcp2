@@ -177,6 +177,16 @@ stream.  For unidirectional stream, call
 `ngtcp2_conn_open_uni_stream()`.  Call `ngtcp2_conn_writev_stream()`
 to send stream data.
 
+If BBR congestion control algorithm is used, the additional API
+functions are required when sending QUIC packets.  BBR needs pacing
+packets.  `ngtcp2_conn_get_send_quantum()` returns the number of bytes
+that can be sent without packet spacing.  After one or more calls of
+`ngtcp2_conn_writev_stream()` (it can be called multiple times to fill
+the buffer sized up to `ngtcp2_conn_get_send_quantum()` bytes), call
+`ngtcp2_conn_update_pkt_tx_time()` to set the timer when the next
+packet should be sent.  The timer is integrated into
+`ngtcp2_conn_get_expiry()`.
+
 Dealing with early data
 -----------------------
 
