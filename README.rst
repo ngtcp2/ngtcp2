@@ -35,7 +35,7 @@ To build sources under the examples directory, libev and nghttp3 are
 required:
 
 - libev
-- nghttp3 (https://github.com/ngtcp2/nghttp3) for HTTP/3
+- `nghttp3 <https://github.com/ngtcp2/nghttp3>`_ for HTTP/3
 
 The client and server under examples directory require at least one of
 the following TLS backends:
