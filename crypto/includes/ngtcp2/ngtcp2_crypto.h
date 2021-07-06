@@ -341,8 +341,12 @@ ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  *
  * `ngtcp2_crypto_hp_mask` generates mask which is used in packet
  * header encryption.  The mask is written to the buffer pointed by
- * |dest|.  The length of mask is 5 bytes.  |dest| must have enough
- * capacity to store the mask.
+ * |dest|.  The sample is passed as |sample| which is
+ * :macro:`NGTCP2_HP_SAMPLELEN` bytes long.  The length of mask must
+ * be at least :macro:`NGTCP2_HP_MASKLEN`.  The library only uses the
+ * first :macro:`NGTCP2_HP_MASKLEN` bytes of the produced mask.  The
+ * buffer pointed by |dest| must have at least
+ * :macro:`NGTCP2_HP_SAMPLELEN` bytes available.
  *
  * This function returns 0 if it succeeds, or -1.
  */

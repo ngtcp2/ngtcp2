@@ -2546,13 +2546,16 @@ typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * application to produce mask to encrypt or decrypt packet header.
  * The encryption cipher is |hp|.  |hp_ctx| is the cipher context
  * object which is initialized with header protection key.  The sample
- * is passed as |sample|.
+ * is passed as |sample| which is :macro:`NGTCP2_HP_SAMPLELEN` bytes
+ * long.
  *
  * The implementation of this callback must produce a mask using the
  * header protection cipher suite specified by QUIC specification and
  * write the result into the buffer pointed by |dest|.  The length of
- * mask must be :macro:`NGTCP2_HP_MASKLEN`.  The library ensures that
- * |dest| has enough capacity.
+ * mask must be at least :macro:`NGTCP2_HP_MASKLEN`.  The library only
+ * uses the first :macro:`NGTCP2_HP_MASKLEN` bytes of the produced
+ * mask.  The buffer pointed by |dest| is guaranteed to have at least
+ * :macro:`NGTCP2_HP_SAMPLELEN` bytes available for convenience.
  *
  * The callback function must return 0 if it succeeds, or
  *  :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
