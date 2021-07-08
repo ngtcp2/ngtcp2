@@ -397,9 +397,8 @@ static int recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 }
 
 static void genrand(uint8_t *dest, size_t destlen,
-                    const ngtcp2_rand_ctx *rand_ctx, ngtcp2_rand_usage usage) {
+                    const ngtcp2_rand_ctx *rand_ctx) {
   (void)rand_ctx;
-  (void)usage;
 
   memset(dest, 0, destlen);
 }
@@ -426,6 +425,16 @@ static int ack_datagram(ngtcp2_conn *conn, uint64_t dgram_id, void *user_data) {
   if (ud) {
     ud->datagram.dgram_id = dgram_id;
   }
+
+  return 0;
+}
+
+static int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data,
+                                   void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  memset(data, 0, NGTCP2_PATH_CHALLENGE_DATALEN);
 
   return 0;
 }
@@ -520,6 +529,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
   cb.update_key = update_key;
+  cb.get_path_challenge_data = get_path_challenge_data;
   server_default_settings(&settings);
   server_default_transport_params(&params);
 
@@ -578,6 +588,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
   cb.update_key = update_key;
+  cb.get_path_challenge_data = get_path_challenge_data;
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -633,6 +644,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
+  cb.get_path_challenge_data = get_path_challenge_data;
   server_default_settings(&settings);
   server_default_transport_params(&params);
 
@@ -663,6 +675,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
+  cb.get_path_challenge_data = get_path_challenge_data;
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -692,6 +705,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
   cb.rand = genrand;
+  cb.get_path_challenge_data = get_path_challenge_data;
   server_default_settings(&settings);
   server_default_transport_params(&params);
 
@@ -722,6 +736,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
   cb.update_key = update_key;
+  cb.get_path_challenge_data = get_path_challenge_data;
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -5900,6 +5915,7 @@ void test_ngtcp2_conn_send_initial_token(void) {
   cb.encrypt = null_encrypt;
   cb.hp_mask = null_hp_mask;
   cb.get_new_connection_id = get_new_connection_id;
+  cb.get_path_challenge_data = get_path_challenge_data;
   client_default_settings(&settings);
   client_default_transport_params(&params);
 

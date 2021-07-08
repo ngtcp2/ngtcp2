@@ -566,7 +566,7 @@ static void bbr_enter_probe_bw(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
 
   assert(cc->rand);
 
-  cc->rand(&rand, 1, cc->rand_ctx, NGTCP2_RAND_USAGE_GENERIC);
+  cc->rand(&rand, 1, cc->rand_ctx);
 
   cc->cycle_index = NGTCP2_BBR_GAIN_CYCLELEN - 1 - (size_t)(rand * 7 / 256);
   bbr_advance_cycle_phase(cc, ts);

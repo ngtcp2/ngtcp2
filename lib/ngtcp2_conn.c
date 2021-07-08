@@ -4234,6 +4234,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   ngtcp2_duration timeout;
   uint8_t flags;
   size_t tx_left;
+  int rv;
 
   if (ngtcp2_pv_validation_timed_out(pv, ts)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
@@ -4247,10 +4248,12 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
     return 0;
   }
 
-  assert(conn->callbacks.rand);
-  conn->callbacks.rand(lfr.path_challenge.data, sizeof(lfr.path_challenge.data),
-                       &conn->local.settings.rand_ctx,
-                       NGTCP2_RAND_USAGE_PATH_CHALLENGE);
+  assert(conn->callbacks.get_path_challenge_data);
+  rv = conn->callbacks.get_path_challenge_data(conn, lfr.path_challenge.data,
+                                               conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
 
   lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
 

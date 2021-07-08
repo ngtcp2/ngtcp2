@@ -436,8 +436,7 @@ int extend_max_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
 } // namespace
 
 namespace {
-void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx,
-          ngtcp2_rand_usage usage) {
+void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
 }
@@ -584,6 +583,16 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 }
 } // namespace
 
+namespace {
+int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  std::generate(data, data + NGTCP2_PATH_CHALLENGE_DATALEN,
+                [&dis]() { return dis(randgen); });
+
+  return 0;
+}
+} // namespace
+
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port, uint32_t version,
                  const TLSClientContext &tls_ctx) {
@@ -649,6 +658,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // recv_datagram
       nullptr, // ack_datagram
       nullptr, // lost_datagram
+      get_path_challenge_data,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(

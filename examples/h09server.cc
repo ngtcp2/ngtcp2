@@ -606,8 +606,7 @@ int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint64_t app_error_code,
 } // namespace
 
 namespace {
-void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx,
-          ngtcp2_rand_usage usage) {
+void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
 }
@@ -696,6 +695,16 @@ int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
 }
 
 namespace {
+int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
+  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
+  std::generate(data, data + NGTCP2_PATH_CHALLENGE_DATALEN,
+                [&dis]() { return dis(randgen); });
+
+  return 0;
+}
+} // namespace
+
+namespace {
 void write_qlog(void *user_data, uint32_t flags, const void *data,
                 size_t datalen) {
   auto h = static_cast<Handler *>(user_data);
@@ -764,6 +773,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       nullptr, // recv_datagram
       nullptr, // ack_datagram
       nullptr, // lost_datagram
+      get_path_challenge_data,
   };
 
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);

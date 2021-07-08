@@ -258,12 +258,12 @@ typedef struct ngtcp2_stop_sending {
 
 typedef struct ngtcp2_path_challenge {
   uint8_t type;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_challenge;
 
 typedef struct ngtcp2_path_response {
   uint8_t type;
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_path_response;
 
 typedef struct ngtcp2_crypto {
