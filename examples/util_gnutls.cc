@@ -41,9 +41,13 @@ namespace ngtcp2 {
 
 namespace util {
 
-namespace {
-auto randgen = make_mt19937();
-} // namespace
+int generate_secure_random(uint8_t *data, size_t datalen) {
+  if (gnutls_rnd(GNUTLS_RND_RANDOM, data, datalen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
 
 int generate_secret(uint8_t *secret, size_t secretlen) {
   std::array<uint8_t, 16> rand;
@@ -51,8 +55,9 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
 
   assert(md.size() == secretlen);
 
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate_n(rand.data(), rand.size(), [&dis]() { return dis(randgen); });
+  if (generate_secure_random(rand.data(), rand.size()) != 0) {
+    return -1;
+  }
 
   if (gnutls_hash_fast(GNUTLS_DIG_SHA256, rand.data(), rand.size(),
                        md.data()) != 0) {

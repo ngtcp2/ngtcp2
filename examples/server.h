@@ -233,7 +233,6 @@ public:
 
   int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
                        const uint8_t *rand_data, size_t rand_datalen);
-  void generate_rand_data(uint8_t *buf, size_t len);
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
   void dissociate_cid(const ngtcp2_cid *cid);
 

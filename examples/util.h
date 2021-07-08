@@ -266,6 +266,11 @@ std::optional<uint64_t> parse_uint_iec(const std::string_view &s);
 // the return value does not contain a value.
 std::optional<uint64_t> parse_duration(const std::string_view &s);
 
+// generate_secure_random generates a cryptographically secure pseudo
+// random data of |datalen| bytes and stores to the buffer pointed by
+// |data|.
+int generate_secure_random(uint8_t *data, size_t datalen);
+
 // generate_secret generates secret and writes it to the buffer
 // pointed by |secret| of length |secretlen|.  Currently, |secretlen|
 // must be 32.

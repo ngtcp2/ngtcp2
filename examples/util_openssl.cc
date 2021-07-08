@@ -33,6 +33,7 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 
 #include "template.h"
 
@@ -40,9 +41,13 @@ namespace ngtcp2 {
 
 namespace util {
 
-namespace {
-auto randgen = make_mt19937();
-} // namespace
+int generate_secure_random(uint8_t *data, size_t datalen) {
+  if (RAND_bytes(data, static_cast<int>(datalen)) != 1) {
+    return -1;
+  }
+
+  return 0;
+}
 
 int generate_secret(uint8_t *secret, size_t secretlen) {
   std::array<uint8_t, 16> rand;
@@ -50,8 +55,9 @@ int generate_secret(uint8_t *secret, size_t secretlen) {
 
   assert(md.size() == secretlen);
 
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate_n(rand.data(), rand.size(), [&dis]() { return dis(randgen); });
+  if (generate_secure_random(rand.data(), rand.size()) != 0) {
+    return -1;
+  }
 
   auto ctx = EVP_MD_CTX_new();
   if (ctx == nullptr) {

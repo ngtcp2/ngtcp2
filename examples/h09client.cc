@@ -445,10 +445,10 @@ void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
 namespace {
 int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
                           size_t cidlen, void *user_data) {
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  auto f = [&dis]() { return dis(randgen); };
+  if (util::generate_secure_random(cid->data, cidlen) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
 
-  std::generate_n(cid->data, cidlen, f);
   cid->datalen = cidlen;
   auto md = util::crypto_md_sha256();
   if (ngtcp2_crypto_generate_stateless_reset_token(
@@ -585,9 +585,9 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 
 namespace {
 int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate(data, data + NGTCP2_PATH_CHALLENGE_DATALEN,
-                [&dis]() { return dis(randgen); });
+  if (util::generate_secure_random(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
 
   return 0;
 }
@@ -661,18 +661,18 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       get_path_challenge_data,
   };
 
-  auto dis = std::uniform_int_distribution<uint8_t>(
-      0, std::numeric_limits<uint8_t>::max());
-  auto generate_cid = [&dis](ngtcp2_cid &cid, size_t len) {
-    cid.datalen = len;
-    std::generate(std::begin(cid.data), std::begin(cid.data) + cid.datalen,
-                  [&dis]() { return dis(randgen); });
-  };
-
   ngtcp2_cid scid, dcid;
-  generate_cid(scid, 17);
+  scid.datalen = 17;
+  if (util::generate_secure_random(scid.data, scid.datalen) != 0) {
+    std::cerr << "Could not generate source connection ID" << std::endl;
+    return -1;
+  }
   if (config.dcid.datalen == 0) {
-    generate_cid(dcid, 18);
+    dcid.datalen = 18;
+    if (util::generate_secure_random(dcid.data, dcid.datalen) != 0) {
+      std::cerr << "Could not generate destination connection ID" << std::endl;
+      return -1;
+    }
   } else {
     dcid = config.dcid;
   }

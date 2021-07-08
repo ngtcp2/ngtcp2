@@ -351,10 +351,10 @@ void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
 namespace {
 int get_new_connection_id(ngtcp2_conn *conn, ngtcp2_cid *cid, uint8_t *token,
                           size_t cidlen, void *user_data) {
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  auto f = [&dis]() { return dis(randgen); };
+  if (util::generate_secure_random(cid->data, cidlen) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
 
-  std::generate_n(cid->data, cidlen, f);
   cid->datalen = cidlen;
   auto md = util::crypto_md_sha256();
   if (ngtcp2_crypto_generate_stateless_reset_token(
@@ -432,9 +432,9 @@ int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
 
 namespace {
 int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate(data, data + NGTCP2_PATH_CHALLENGE_DATALEN,
-                [&dis]() { return dis(randgen); });
+  if (util::generate_secure_random(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
 
   return 0;
 }
@@ -512,11 +512,11 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       get_path_challenge_data,
   };
 
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-
   scid_.datalen = NGTCP2_SV_SCIDLEN;
-  std::generate(scid_.data, scid_.data + scid_.datalen,
-                [&dis]() { return dis(randgen); });
+  if (util::generate_secure_random(scid_.data, scid_.datalen) != 0) {
+    std::cerr << "Could not generate connection ID" << std::endl;
+    return -1;
+  }
 
   ngtcp2_settings settings;
   ngtcp2_settings_default(&settings);
@@ -561,9 +561,11 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     params.original_dcid = *scid;
   }
 
-  std::generate(std::begin(params.stateless_reset_token),
-                std::end(params.stateless_reset_token),
-                [&dis]() { return dis(randgen); });
+  if (util::generate_secure_random(params.stateless_reset_token,
+                                   sizeof(params.stateless_reset_token)) != 0) {
+    std::cerr << "Could not generate stateless reset token" << std::endl;
+    return -1;
+  }
 
   if (config.preferred_ipv4_addr.len || config.preferred_ipv6_addr.len) {
     params.preferred_address_present = 1;
@@ -585,12 +587,18 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     }
 
     auto &token = params.preferred_address.stateless_reset_token;
-    std::generate(std::begin(token), std::end(token),
-                  [&dis]() { return dis(randgen); });
+    if (util::generate_secure_random(token, sizeof(token)) != 0) {
+      std::cerr << "Could not generate preferred address stateless reset token"
+                << std::endl;
+      return -1;
+    }
 
     pscid_.datalen = NGTCP2_SV_SCIDLEN;
-    std::generate(pscid_.data, pscid_.data + pscid_.datalen,
-                  [&dis]() { return dis(randgen); });
+    if (util::generate_secure_random(pscid_.data, pscid_.datalen) != 0) {
+      std::cerr << "Could not generate preferred address connection ID"
+                << std::endl;
+      return -1;
+    }
     params.preferred_address.cid = pscid_;
   }
 
@@ -1654,9 +1662,9 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
   ngtcp2_cid scid;
 
   scid.datalen = NGTCP2_SV_SCIDLEN;
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate(scid.data, scid.data + scid.datalen,
-                [&dis]() { return dis(randgen); });
+  if (util::generate_secure_random(scid.data, scid.datalen) != 0) {
+    return -1;
+  }
 
   std::array<uint8_t, MAX_RETRY_TOKENLEN> token;
   size_t tokenlen = token.size();
@@ -1745,11 +1753,6 @@ int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
   return 0;
 }
 
-void Server::generate_rand_data(uint8_t *buf, size_t len) {
-  auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
-  std::generate_n(buf, len, [&dis]() { return dis(randgen); });
-}
-
 namespace {
 size_t generate_retry_token_aad(uint8_t *dest, size_t destlen,
                                 const sockaddr *sa, socklen_t salen,
@@ -1783,7 +1786,10 @@ int Server::generate_retry_token(uint8_t *token, size_t &tokenlen,
   auto keylen = key.size();
   auto ivlen = iv.size();
 
-  generate_rand_data(rand_data.data(), rand_data.size());
+  if (util::generate_secure_random(rand_data.data(), rand_data.size()) != 0) {
+    return -1;
+  }
+
   if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data.data(),
                        rand_data.size()) != 0) {
     return -1;
@@ -1985,7 +1991,10 @@ int Server::generate_token(uint8_t *token, size_t &tokenlen,
   auto keylen = key.size();
   auto ivlen = iv.size();
 
-  generate_rand_data(rand_data.data(), rand_data.size());
+  if (util::generate_secure_random(rand_data.data(), rand_data.size()) != 0) {
+    return -1;
+  }
+
   if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data.data(),
                        rand_data.size()) != 0) {
     return -1;
