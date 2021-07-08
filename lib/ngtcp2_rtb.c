@@ -930,7 +930,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 
   ngtcp2_rst_on_ack_recv(rtb->rst, cstat, cc_ack.pkt_delivered);
 
-  if (conn) {
+  if (conn && num_acked > 0) {
     rv = rtb_detect_lost_pkt(rtb, &cc_ack.bytes_lost, conn, pktns, cstat, ts);
     if (rv != 0) {
       return rv;
