@@ -195,13 +195,13 @@ void ngtcp2_cc_bbr_cc_on_persistent_congestion(ngtcp2_cc *ccx,
   ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
   (void)ts;
 
-  bbr_save_cwnd(cc, cstat);
-  cstat->cwnd = cstat->max_udp_payload_size;
-
   cstat->congestion_recovery_start_ts = UINT64_MAX;
   cc->congestion_recovery_start_ts = UINT64_MAX;
   cc->in_loss_recovery = 0;
   cc->packet_conservation = 0;
+
+  bbr_save_cwnd(cc, cstat);
+  cstat->cwnd = cstat->max_udp_payload_size;
 }
 
 void ngtcp2_cc_bbr_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
