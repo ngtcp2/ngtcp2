@@ -201,7 +201,7 @@ void ngtcp2_cc_bbr_cc_on_persistent_congestion(ngtcp2_cc *ccx,
   cc->packet_conservation = 0;
 
   bbr_save_cwnd(cc, cstat);
-  cstat->cwnd = cstat->max_udp_payload_size;
+  cstat->cwnd = 2 * cstat->max_udp_payload_size;
 }
 
 void ngtcp2_cc_bbr_cc_on_ack_recv(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
