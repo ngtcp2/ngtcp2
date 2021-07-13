@@ -263,8 +263,8 @@ static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
   return 0;
 }
 
-static int conn_call_select_preferred_addr(ngtcp2_conn *conn, ngtcp2_addr *dest,
-                                           void **ppath_user_data) {
+static int conn_call_select_preferred_addr(ngtcp2_conn *conn,
+                                           ngtcp2_path *dest) {
   int rv;
 
   if (!conn->callbacks.select_preferred_addr) {
@@ -274,8 +274,8 @@ static int conn_call_select_preferred_addr(ngtcp2_conn *conn, ngtcp2_addr *dest,
   assert(conn->remote.transport_params.preferred_address_present);
 
   rv = conn->callbacks.select_preferred_addr(
-      conn, dest, ppath_user_data,
-      &conn->remote.transport_params.preferred_address, conn->user_data);
+      conn, dest, &conn->remote.transport_params.preferred_address,
+      conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -7239,27 +7239,26 @@ static int conn_recv_streams_blocked_uni(ngtcp2_conn *conn,
  *     User-defined callback function failed.
  */
 static int conn_select_preferred_addr(ngtcp2_conn *conn) {
-  struct sockaddr_storage buf;
-  ngtcp2_addr addr;
+  ngtcp2_path_storage ps;
   int rv;
   ngtcp2_duration pto, initial_pto, timeout;
   ngtcp2_pv *pv;
   ngtcp2_dcid *dcid;
-  void *path_user_data = NULL;
-
-  ngtcp2_addr_init(&addr, (struct sockaddr *)&buf, 0);
 
   if (ngtcp2_ringbuf_len(&conn->dcid.unused) == 0) {
     return 0;
   }
 
-  rv = conn_call_select_preferred_addr(conn, &addr, &path_user_data);
+  ngtcp2_path_storage_zero(&ps);
+  ngtcp2_addr_copy(&ps.path.local, &conn->dcid.current.ps.path.local);
+
+  rv = conn_call_select_preferred_addr(conn, &ps.path);
   if (rv != 0) {
     return rv;
   }
 
-  if (addr.addrlen == 0 ||
-      ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &addr)) {
+  if (ps.path.remote.addrlen == 0 ||
+      ngtcp2_addr_eq(&conn->dcid.current.ps.path.remote, &ps.path.remote)) {
     return 0;
   }
 
@@ -7280,9 +7279,7 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
   conn->pv = pv;
 
-  ngtcp2_addr_copy(&pv->dcid.ps.path.local, &conn->dcid.current.ps.path.local);
-  ngtcp2_addr_copy(&pv->dcid.ps.path.remote, &addr);
-  pv->dcid.ps.path.user_data = path_user_data;
+  ngtcp2_path_storage_init2(&pv->dcid.ps, &ps.path);
 
   return conn_call_activate_dcid(conn, &pv->dcid);
 }

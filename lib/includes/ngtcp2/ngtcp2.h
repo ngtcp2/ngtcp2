@@ -2848,20 +2848,28 @@ typedef int (*ngtcp2_path_validation)(ngtcp2_conn *conn,
  * :type:`ngtcp2_select_preferred_addr` is a callback function which
  * asks a client application to choose server address from preferred
  * addresses |paddr| received from server.  An application should
- * write preferred address in |dest|.  If an application denies the
- * preferred addresses, just leave |dest| unmodified (or set
- * :member:`dest->addrlen <ngtcp2_addr.addrlen>` to 0) and return 0.
- * |*ppath_user_data| is assigned to :member:`ngtcp2_path.user_data`
- * of new path if a client chooses server address.  |*path_user_data|
- * is initialized to NULL.
+ * write a network path for a selected preferred address in |dest|.
+ * More specifically, the selected preferred address must be set to
+ * :member:`dest->remote <ngtcp2_path.remote>`, a client source
+ * address must be set to :member:`dest->local <ngtcp2_path.local>`.
+ * If a client source address does not change for the new server
+ * address, leave :member:`dest->local <ngtcp2_path.local>`
+ * unmodified, or copy the value of :member:`local
+ * <ngtcp2_path.local>` field of the current network path obtained
+ * from `ngtcp2_conn_get_path()`.  Both :member:`dest->local.addr
+ * <ngtcp2_addr.addr>` and :member:`dest->remote.addr
+ * <ngtcp2_addr.addr>` point to buffers which are at least
+ * ``sizeof(struct sockaddr_storage)`` bytes long, respectively.  If
+ * an application denies the preferred addresses, just leave |dest|
+ * unmodified (or set :member:`dest->remote.addrlen
+ * <ngtcp2_addr.addrlen>` to 0) and return 0.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
 typedef int (*ngtcp2_select_preferred_addr)(ngtcp2_conn *conn,
-                                            ngtcp2_addr *dest,
-                                            void **ppath_user_data,
+                                            ngtcp2_path *dest,
                                             const ngtcp2_preferred_addr *paddr,
                                             void *user_data);
 

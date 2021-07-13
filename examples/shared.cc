@@ -342,4 +342,17 @@ int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
 
 #endif // HAVE_LINUX_NETLINK_H
 
+bool addreq(const sockaddr *sa, const in_addr_union &iau) {
+  switch (sa->sa_family) {
+  case AF_INET:
+    return memcmp(&reinterpret_cast<const sockaddr_in *>(sa)->sin_addr, &iau.in,
+                  sizeof(iau.in)) == 0;
+  case AF_INET6:
+    return memcmp(&reinterpret_cast<const sockaddr_in6 *>(sa)->sin6_addr,
+                  &iau.in6, sizeof(iau.in6)) == 0;
+  default:
+    assert(0);
+  }
+}
+
 } // namespace ngtcp2

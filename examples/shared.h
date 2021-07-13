@@ -105,6 +105,9 @@ void set_port(Address &dst, Address &src);
 // in |iau| for a given destination address |remote_addr|.
 int get_local_addr(in_addr_union &iau, const Address &remote_addr);
 
+// addreq returns true if |sa| and |iau| contain the same address.
+bool addreq(const sockaddr *sa, const in_addr_union &iau);
+
 } // namespace ngtcp2
 
 #endif // SHARED_H
