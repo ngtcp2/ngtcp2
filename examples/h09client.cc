@@ -1096,6 +1096,26 @@ int connect_sock(Address &local_addr, int fd, const Address &remote_addr) {
 #endif // !HAVE_LINUX_RTNETLINK_H
 
 namespace {
+int udp_sock(int family) {
+  auto fd = util::create_nonblock_socket(family, SOCK_DGRAM, IPPROTO_UDP);
+  if (fd == -1) {
+    return -1;
+  }
+
+  auto val = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
+                 static_cast<socklen_t>(sizeof(val))) == -1) {
+    close(fd);
+    return -1;
+  }
+
+  fd_set_recv_ecn(fd, family);
+
+  return fd;
+}
+} // namespace
+
+namespace {
 int create_sock(Address &remote_addr, const char *addr, const char *port) {
   addrinfo hints{};
   addrinfo *res, *rp;
@@ -1113,8 +1133,7 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
   int fd = -1;
 
   for (rp = res; rp; rp = rp->ai_next) {
-    fd = util::create_nonblock_socket(rp->ai_family, rp->ai_socktype,
-                                      rp->ai_protocol);
+    fd = udp_sock(rp->ai_family);
     if (fd == -1) {
       continue;
     }
@@ -1123,18 +1142,9 @@ int create_sock(Address &remote_addr, const char *addr, const char *port) {
   }
 
   if (!rp) {
-    std::cerr << "Could not connect" << std::endl;
+    std::cerr << "Could not create socket" << std::endl;
     return -1;
   }
-
-  auto val = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
-                 static_cast<socklen_t>(sizeof(val))) == -1) {
-    close(fd);
-    return -1;
-  }
-
-  fd_set_recv_ecn(fd, rp->ai_family);
 
   remote_addr.len = rp->ai_addrlen;
   memcpy(&remote_addr.su, rp->ai_addr, rp->ai_addrlen);
@@ -1160,20 +1170,10 @@ std::optional<Endpoint *> Client::endpoint_for(const Address &remote_addr) {
   }
 #endif // HAVE_LINUX_RTNETLINK_H
 
-  auto fd = util::create_nonblock_socket(remote_addr.su.sa.sa_family,
-                                         SOCK_DGRAM, IPPROTO_UDP);
+  auto fd = udp_sock(remote_addr.su.sa.sa_family);
   if (fd == -1) {
     return nullptr;
   }
-
-  auto val = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
-                 static_cast<socklen_t>(sizeof(val))) == -1) {
-    close(fd);
-    return nullptr;
-  }
-
-  fd_set_recv_ecn(fd, remote_addr.su.sa.sa_family);
 
   Address local_addr;
 
@@ -1213,20 +1213,10 @@ int Client::change_local_addr() {
     std::cerr << "Changing local address" << std::endl;
   }
 
-  auto nfd = util::create_nonblock_socket(remote_addr_.su.sa.sa_family,
-                                          SOCK_DGRAM, IPPROTO_UDP);
+  auto nfd = udp_sock(remote_addr_.su.sa.sa_family);
   if (nfd == -1) {
     return -1;
   }
-
-  auto val = 1;
-  if (setsockopt(nfd, SOL_SOCKET, SO_REUSEADDR, &val,
-                 static_cast<socklen_t>(sizeof(val))) == -1) {
-    close(nfd);
-    return -1;
-  }
-
-  fd_set_recv_ecn(nfd, remote_addr_.su.sa.sa_family);
 
 #ifdef HAVE_LINUX_RTNETLINK_H
   in_addr_union iau;
