@@ -4239,7 +4239,18 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   if (ngtcp2_pv_validation_timed_out(pv, ts)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
                     "path validation was timed out");
-    return conn_on_path_validation_failed(conn, pv, ts);
+    rv =  conn_on_path_validation_failed(conn, pv, ts);
+    if (rv != 0) {
+      return rv;
+    }
+
+    /* We might set path to the one which we just failed validate.
+       Set it to the current path here. */
+    if (path) {
+      ngtcp2_path_copy(path, &conn->dcid.current.ps.path);
+    }
+
+    return 0;
   }
 
   ngtcp2_pv_handle_entry_expiry(pv, ts);
