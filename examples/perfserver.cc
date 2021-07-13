@@ -397,7 +397,7 @@ int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 } // namespace
 
 namespace {
-int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
+int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
                     ngtcp2_path_validation_result res, void *user_data) {
   if (!config.quiet) {
     debug::path_validation(path, res);

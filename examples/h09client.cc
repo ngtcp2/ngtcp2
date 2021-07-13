@@ -503,14 +503,26 @@ int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
 } // namespace
 
 namespace {
-int path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
+int path_validation(ngtcp2_conn *conn, uint32_t flags, const ngtcp2_path *path,
                     ngtcp2_path_validation_result res, void *user_data) {
   if (!config.quiet) {
     debug::path_validation(path, res);
   }
+
+  if (flags & NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR) {
+    auto c = static_cast<Client *>(user_data);
+
+    c->set_remote_addr(path->remote);
+  }
+
   return 0;
 }
 } // namespace
+
+void Client::set_remote_addr(const ngtcp2_addr &remote_addr) {
+  memcpy(&remote_addr_.su, remote_addr.addr, remote_addr.addrlen);
+  remote_addr_.len = remote_addr.addrlen;
+}
 
 namespace {
 int select_preferred_address(ngtcp2_conn *conn, ngtcp2_path *dest,

@@ -247,15 +247,21 @@ static int conn_call_remove_connection_id(ngtcp2_conn *conn,
   return 0;
 }
 
-static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_path *path,
+static int conn_call_path_validation(ngtcp2_conn *conn, const ngtcp2_pv *pv,
                                      ngtcp2_path_validation_result res) {
   int rv;
+  uint32_t flags = NGTCP2_PATH_VALIDATION_FLAG_NONE;
 
   if (!conn->callbacks.path_validation) {
     return 0;
   }
 
-  rv = conn->callbacks.path_validation(conn, path, res, conn->user_data);
+  if (pv->flags & NGTCP2_PV_FLAG_PREFERRED_ADDR) {
+    flags |= NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR;
+  }
+
+  rv = conn->callbacks.path_validation(conn, flags, &pv->dcid.ps.path, res,
+                                       conn->user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -4165,7 +4171,7 @@ static int conn_abort_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   assert(pv);
 
-  rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
+  rv = conn_call_path_validation(conn, pv,
                                  NGTCP2_PATH_VALIDATION_RESULT_ABORTED);
   if (rv != 0) {
     return rv;
@@ -4192,7 +4198,7 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
                                           ngtcp2_tstamp ts) {
   int rv;
 
-  rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
+  rv = conn_call_path_validation(conn, pv,
                                  NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
   if (rv != 0) {
     return rv;
@@ -4239,7 +4245,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   if (ngtcp2_pv_validation_timed_out(pv, ts)) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PTV,
                     "path validation was timed out");
-    rv =  conn_on_path_validation_failed(conn, pv, ts);
+    rv = conn_on_path_validation_failed(conn, pv, ts);
     if (rv != 0) {
       return rv;
     }
@@ -5199,7 +5205,7 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
       conn->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
     }
 
-    rv = conn_call_path_validation(conn, &pv->dcid.ps.path,
+    rv = conn_call_path_validation(conn, pv,
                                    NGTCP2_PATH_VALIDATION_RESULT_SUCCESS);
     if (rv != 0) {
       return rv;

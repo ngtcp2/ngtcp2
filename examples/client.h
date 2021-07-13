@@ -113,6 +113,8 @@ public:
 
   std::optional<Endpoint *> endpoint_for(const Address &remote_addr);
 
+  void set_remote_addr(const ngtcp2_addr &remote_addr);
+
   int setup_httpconn();
   int submit_http_request(const Stream *stream);
   int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
