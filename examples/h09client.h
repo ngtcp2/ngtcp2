@@ -121,6 +121,8 @@ public:
   int select_preferred_address(Address &selected_addr,
                                const ngtcp2_preferred_addr *paddr);
 
+  std::optional<Endpoint *> endpoint_for(const Address &remote_addr);
+
   int submit_http_request(Stream *stream);
   int recv_stream_data(uint32_t flags, int64_t stream_id, const uint8_t *data,
                        size_t datalen);
