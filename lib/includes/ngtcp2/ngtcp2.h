@@ -4932,6 +4932,20 @@ NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
 /**
  * @function
  *
+ * `ngtcp2_addr_copy_byte` copies |addr| of length |addrlen| into the
+ * buffer pointed by :member:`dest->addr <ngtcp2_addr.addr>`.
+ * :member:`dest->addrlen <ngtcp2_addr.addrlen>` is updated to have
+ * |addrlen|.  This function assumes that :member:`dest->addr
+ * <ngtcp2_addr.addr>` points to a buffer which has a sufficient
+ * capacity to store the copy.
+ */
+NGTCP2_EXTERN void ngtcp2_addr_copy_byte(ngtcp2_addr *dest,
+                                         const struct sockaddr *addr,
+                                         size_t addrlen);
+
+/**
+ * @function
+ *
  * `ngtcp2_path_storage_init` initializes |ps| with the given
  * arguments.  This function copies |local_addr| and |remote_addr|.
  */

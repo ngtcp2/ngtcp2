@@ -573,8 +573,8 @@ int select_preferred_address(ngtcp2_conn *conn, ngtcp2_path *dest,
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  ngtcp2_addr_init(&dest->local, &(*ep)->addr.su.sa, (*ep)->addr.len);
-  ngtcp2_addr_init(&dest->remote, &remote_addr.su.sa, remote_addr.len);
+  ngtcp2_addr_copy_byte(&dest->local, &(*ep)->addr.su.sa, (*ep)->addr.len);
+  ngtcp2_addr_copy_byte(&dest->remote, &remote_addr.su.sa, remote_addr.len);
   dest->user_data = *ep;
 
   return 0;
