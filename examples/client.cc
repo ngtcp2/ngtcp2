@@ -1410,8 +1410,10 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
   msg_iov.iov_len = datalen;
 
   msghdr msg{};
+#ifdef HAVE_LINUX_RTNETLINK_H
   msg.msg_name = const_cast<sockaddr *>(remote_addr.addr);
   msg.msg_namelen = remote_addr.addrlen;
+#endif // HAVE_LINUX_RTNETLINK_H
   msg.msg_iov = &msg_iov;
   msg.msg_iovlen = 1;
 
