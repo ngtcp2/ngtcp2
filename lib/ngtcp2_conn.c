@@ -9320,7 +9320,6 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
   int send_stream = 0;
   int send_datagram = 0;
   ngtcp2_ssize spktlen, early_spktlen;
-  int was_client_initial;
   size_t datalen;
   size_t write_datalen = 0;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
@@ -9372,7 +9371,6 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
   }
 
   if (!ppe_pending) {
-    was_client_initial = conn->state == NGTCP2_CS_CLIENT_INITIAL;
     spktlen = conn_write_handshake(conn, pi, dest, destlen, write_datalen, ts);
 
     if (spktlen < 0) {
@@ -9386,7 +9384,8 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
 
     /* If spktlen > 0, we are making a compound packet.  If Initial
        packet is written, we have to pad bytes to 0-RTT packet. */
-    if (spktlen > 0 && was_client_initial) {
+    if (spktlen > 0 &&
+        ngtcp2_pkt_get_type_long(dest[0]) == NGTCP2_PKT_INITIAL) {
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
       conn->pkt.require_padding = 1;
     } else {

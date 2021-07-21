@@ -201,6 +201,28 @@ static int client_initial_early_data(ngtcp2_conn *conn, void *user_data) {
   return 0;
 }
 
+static int client_initial_large_crypto_early_data(ngtcp2_conn *conn,
+                                                  void *user_data) {
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_crypto_ctx crypto_ctx;
+
+  (void)user_data;
+
+  /* Initial CRYPTO data which is larger than a typical single
+     datagram. */
+  ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_INITIAL, null_data,
+                                 1500);
+
+  init_crypto_ctx(&crypto_ctx);
+
+  ngtcp2_conn_set_early_crypto_ctx(conn, &crypto_ctx);
+  ngtcp2_conn_install_early_key(conn, &aead_ctx, null_iv, sizeof(null_iv),
+                                &hp_ctx);
+
+  return 0;
+}
+
 static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
                                void *user_data) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
@@ -2598,6 +2620,8 @@ void test_ngtcp2_conn_handshake(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_cid rcid;
   int rv;
+  int64_t stream_id;
+  ngtcp2_ssize nwrite;
 
   rcid_init(&rcid);
 
@@ -2647,6 +2671,39 @@ void test_ngtcp2_conn_handshake(void) {
 
   CU_ASSERT(spktlen >= 1200);
   CU_ASSERT(1 == ngtcp2_ksl_len(&conn->hs_pktns->rtb.ents));
+
+  ngtcp2_conn_del(conn);
+
+  /* Make sure that client packet is padded if it includes Initial and
+     0RTT packets */
+  setup_early_client(&conn);
+
+  conn->callbacks.client_initial = client_initial_large_crypto_early_data;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  /* First packet should only includes Initial.  No space for 0RTT. */
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 10, 1);
+
+  CU_ASSERT(1280 == spktlen);
+  CU_ASSERT(-1 == nwrite);
+
+  /* Second packet has a room for 0RTT. */
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
+                                     NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
+                                     null_data, 10, 1);
+
+  CU_ASSERT(1280 == spktlen);
+  CU_ASSERT(10 == nwrite);
+
+  /* We have no data to send. */
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1280, 1);
+
+  CU_ASSERT(0 == spktlen);
 
   ngtcp2_conn_del(conn);
 }
