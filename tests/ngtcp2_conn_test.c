@@ -2622,6 +2622,9 @@ void test_ngtcp2_conn_handshake(void) {
   int rv;
   int64_t stream_id;
   ngtcp2_ssize nwrite;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_crypto_ctx crypto_ctx;
 
   rcid_init(&rcid);
 
@@ -2704,6 +2707,49 @@ void test_ngtcp2_conn_handshake(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1280, 1);
 
   CU_ASSERT(0 == spktlen);
+
+  ngtcp2_conn_del(conn);
+
+  /* Make sure that client non ack-eliciting Initial triggers
+     padding. */
+  setup_handshake_client(&conn);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  init_crypto_ctx(&crypto_ctx);
+  ngtcp2_conn_set_crypto_ctx(conn, &crypto_ctx);
+  ngtcp2_conn_install_rx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+  ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
+                                       sizeof(null_iv), &hp_ctx);
+
+  pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_HANDSHAKE, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), ++pkt_num, conn->version, &fr, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen >= 1200);
 
   ngtcp2_conn_del(conn);
 }

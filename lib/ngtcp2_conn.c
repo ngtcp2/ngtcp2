@@ -2629,7 +2629,6 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
                                               ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
-  int64_t prev_pkt_num = -1;
   ngtcp2_rtb_entry *rtbent;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   ngtcp2_conn_stat *cstat = &conn->cstat;
@@ -2657,12 +2656,6 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
        padded. */
     conn_discard_initial_state(conn, ts);
   } else if (conn->in_pktns) {
-    it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
-    if (!ngtcp2_ksl_it_end(&it)) {
-      rtbent = ngtcp2_ksl_it_get(&it);
-      prev_pkt_num = rtbent->hd.pkt_num;
-    }
-
     nwrite =
         conn_write_handshake_pkt(conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
                                  NGTCP2_WRITE_PKT_FLAG_NONE, write_datalen, ts);
@@ -2691,17 +2684,19 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
       destlen -= (size_t)nwrite;
 
       if (destlen) {
-        it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
-        if (!ngtcp2_ksl_it_end(&it)) {
-          rtbent = ngtcp2_ksl_it_get(&it);
-          if (rtbent->hd.pkt_num != prev_pkt_num &&
-              (!conn->server ||
-               (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING))) {
-            /* We might have already added padding to Initial, but in
-               that case, we should have destlen == 0 and no Handshake
-               packet will be written. */
-            wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+        /* We might have already added padding to Initial, but in that
+           case, we should have destlen == 0 and no Handshake packet
+           will be written. */
+        if (conn->server) {
+          it = ngtcp2_rtb_head(&conn->in_pktns->rtb);
+          if (!ngtcp2_ksl_it_end(&it)) {
+            rtbent = ngtcp2_ksl_it_get(&it);
+            if (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
+              wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
+            }
           }
+        } else {
+          wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
         }
       }
     }
