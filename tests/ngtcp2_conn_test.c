@@ -2690,7 +2690,7 @@ void test_ngtcp2_conn_handshake(void) {
   /* First packet should only includes Initial.  No space for 0RTT. */
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
-                                     null_data, 10, 1);
+                                     null_data, 10, ++t);
 
   CU_ASSERT(1280 == spktlen);
   CU_ASSERT(-1 == nwrite);
@@ -2698,13 +2698,13 @@ void test_ngtcp2_conn_handshake(void) {
   /* Second packet has a room for 0RTT. */
   spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, 1280, &nwrite,
                                      NGTCP2_WRITE_STREAM_FLAG_NONE, stream_id,
-                                     null_data, 10, 1);
+                                     null_data, 10, ++t);
 
   CU_ASSERT(1280 == spktlen);
   CU_ASSERT(10 == nwrite);
 
   /* We have no data to send. */
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1280, 1);
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, 1280, ++t);
 
   CU_ASSERT(0 == spktlen);
 
