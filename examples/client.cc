@@ -1905,6 +1905,9 @@ int http_push_stream(nghttp3_conn *conn, int64_t push_id, int64_t stream_id,
   if (!config.quiet) {
     debug::push_stream(push_id, stream_id);
   }
+
+  nghttp3_conn_extend_max_pushes(conn, 1);
+
   return 0;
 }
 } // namespace
@@ -1974,7 +1977,6 @@ int Client::setup_httpconn() {
   nghttp3_settings_default(&settings);
   settings.qpack_max_table_capacity = 4096;
   settings.qpack_blocked_streams = 100;
-  settings.max_pushes = 100;
 
   auto mem = nghttp3_mem_default();
 
@@ -1985,6 +1987,8 @@ int Client::setup_httpconn() {
               << std::endl;
     return -1;
   }
+
+  nghttp3_conn_extend_max_pushes(httpconn_, 100);
 
   int64_t ctrl_stream_id;
 
