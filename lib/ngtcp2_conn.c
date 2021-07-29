@@ -373,6 +373,24 @@ static int conn_call_deactivate_dcid(ngtcp2_conn *conn,
       conn, NGTCP2_CONNECTION_ID_STATUS_TYPE_DEACTIVATE, dcid);
 }
 
+static int conn_call_stream_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                                         uint64_t app_error_code,
+                                         void *stream_user_data) {
+  int rv;
+
+  if (!conn->callbacks.stream_stop_sending) {
+    return 0;
+  }
+
+  rv = conn->callbacks.stream_stop_sending(conn, stream_id, app_error_code,
+                                           conn->user_data, stream_user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static void conn_call_delete_crypto_aead_ctx(ngtcp2_conn *conn,
                                              ngtcp2_crypto_aead_ctx *aead_ctx) {
   if (!aead_ctx->native_handle) {
@@ -3191,6 +3209,15 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           ngtcp2_frame_chain_del(frc, conn->mem);
           continue;
         }
+
+        rv = conn_call_stream_stop_sending(
+            conn, (*pfrc)->fr.stop_sending.stream_id,
+            (*pfrc)->fr.stop_sending.app_error_code, strm->stream_user_data);
+        if (rv != 0) {
+          assert(ngtcp2_err_is_fatal(rv));
+          return rv;
+        }
+
         break;
       case NGTCP2_FRAME_STREAM:
         assert(0);

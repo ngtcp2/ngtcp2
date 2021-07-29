@@ -452,6 +452,20 @@ int stream_reset(ngtcp2_conn *conn, int64_t stream_id, uint64_t final_size,
 } // namespace
 
 namespace {
+int stream_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                        uint64_t app_error_code, void *user_data,
+                        void *stream_user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  if (c->on_stream_stop_sending(stream_id) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
+namespace {
 int extend_max_streams_bidi(ngtcp2_conn *conn, uint64_t max_streams,
                             void *user_data) {
   auto c = static_cast<Client *>(user_data);
@@ -691,6 +705,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // ack_datagram
       nullptr, // lost_datagram
       get_path_challenge_data,
+      stream_stop_sending,
   };
 
   ngtcp2_cid scid, dcid;
@@ -1522,6 +1537,20 @@ int Client::on_stream_reset(int64_t stream_id) {
       return -1;
     }
   }
+  return 0;
+}
+
+int Client::on_stream_stop_sending(int64_t stream_id) {
+  if (!httpconn_) {
+    return 0;
+  }
+
+  if (auto rv = nghttp3_conn_stop_sending(httpconn_, stream_id); rv != 0) {
+    std::cerr << "nghttp3_conn_stop_sending: " << nghttp3_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
   return 0;
 }
 

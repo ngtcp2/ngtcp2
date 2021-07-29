@@ -124,6 +124,7 @@ public:
   void http_consume(int64_t stream_id, size_t nconsumed);
   void http_write_data(int64_t stream_id, const uint8_t *data, size_t datalen);
   int on_stream_reset(int64_t stream_id);
+  int on_stream_stop_sending(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int send_stop_sending(int64_t stream_id, uint64_t app_error_code);
   int http_stream_close(int64_t stream_id, uint64_t app_error_code);

@@ -967,6 +967,32 @@ int Handler::on_stream_reset(int64_t stream_id) {
 }
 
 namespace {
+int stream_stop_sending(ngtcp2_conn *conn, int64_t stream_id,
+                        uint64_t app_error_code, void *user_data,
+                        void *stream_user_data) {
+  auto h = static_cast<Handler *>(user_data);
+  if (h->on_stream_stop_sending(stream_id) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Handler::on_stream_stop_sending(int64_t stream_id) {
+  if (!httpconn_) {
+    return 0;
+  }
+
+  if (auto rv = nghttp3_conn_stop_sending(httpconn_, stream_id); rv != 0) {
+    std::cerr << "nghttp3_conn_stop_sending: " << nghttp3_strerror(rv)
+              << std::endl;
+    return -1;
+  }
+
+  return 0;
+}
+
+namespace {
 void rand(uint8_t *dest, size_t destlen, const ngtcp2_rand_ctx *rand_ctx) {
   auto dis = std::uniform_int_distribution<uint8_t>(0, 255);
   std::generate(dest, dest + destlen, [&dis]() { return dis(randgen); });
@@ -1494,6 +1520,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       nullptr, // ack_datagram
       nullptr, // lost_datagram
       get_path_challenge_data,
+      stream_stop_sending,
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;

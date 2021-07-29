@@ -3063,6 +3063,24 @@ typedef int (*ngtcp2_get_path_challenge_data)(ngtcp2_conn *conn, uint8_t *data,
                                               void *user_data);
 
 /**
+ * @functypedef
+ *
+ * :type:`ngtcp2_stream_stop_sending` is invoked when a stream is no
+ * longer read by a local endpoint before it receives all stream data.
+ * This function is called at most once per stream.  |app_error_code|
+ * is the error code passed to `ngtcp2_conn_shutdown_stream_read` or
+ * `ngtcp2_conn_shutdown_stream`.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_stream_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
+                                          uint64_t app_error_code,
+                                          void *user_data,
+                                          void *stream_user_data);
+
+/**
  * @struct
  *
  * :type:`ngtcp2_callbacks` holds a set of callback functions.
@@ -3287,6 +3305,12 @@ typedef struct ngtcp2_callbacks {
    * callback must be specified.
    */
   ngtcp2_get_path_challenge_data get_path_challenge_data;
+  /**
+   * :member:`stream_stop_sending` is a callback function which is
+   * invoked when a local endpoint no longer reads from a stream
+   * before it receives all stream data.
+   */
+  ngtcp2_stream_stop_sending stream_stop_sending;
 } ngtcp2_callbacks;
 
 /**
