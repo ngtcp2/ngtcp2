@@ -2602,7 +2602,7 @@ int main(int argc, char **argv) {
         break;
       case 7:
         // --early-response
-        config.early_response = optarg;
+        config.early_response = true;
         break;
       case 8:
         // --verify-client

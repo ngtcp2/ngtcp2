@@ -592,8 +592,6 @@ int Stream::start_response(nghttp3_conn *httpconn) {
                 << std::endl;
       return -1;
     }
-
-    handler->shutdown_read(stream_id, NGHTTP3_H3_NO_ERROR);
   }
 
   return 0;
@@ -1150,7 +1148,11 @@ int http_end_request_headers(nghttp3_conn *conn, int64_t stream_id,
 
 int Handler::http_end_request_headers(Stream *stream) {
   if (config.early_response) {
-    return start_response(stream);
+    if (start_response(stream) != 0) {
+      return -1;
+    }
+
+    shutdown_read(stream->stream_id, NGHTTP3_H3_NO_ERROR);
   }
   return 0;
 }
@@ -3618,7 +3620,7 @@ int main(int argc, char **argv) {
         break;
       case 7:
         // --early-response
-        config.early_response = optarg;
+        config.early_response = true;
         break;
       case 8:
         // --verify-client
