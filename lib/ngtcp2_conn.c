@@ -414,6 +414,165 @@ conn_call_delete_crypto_cipher_ctx(ngtcp2_conn *conn,
   conn->callbacks.delete_crypto_cipher_ctx(conn, cipher_ctx, conn->user_data);
 }
 
+static int conn_call_client_initial(ngtcp2_conn *conn) {
+  int rv;
+
+  assert(conn->callbacks.client_initial);
+
+  rv = conn->callbacks.client_initial(conn, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data) {
+  int rv;
+
+  assert(conn->callbacks.get_path_challenge_data);
+
+  rv = conn->callbacks.get_path_challenge_data(conn, data, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_recv_version_negotiation(ngtcp2_conn *conn,
+                                              const ngtcp2_pkt_hd *hd,
+                                              const uint32_t *sv, size_t nsv) {
+  int rv;
+
+  if (!conn->callbacks.recv_version_negotiation) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_version_negotiation(conn, hd, sv, nsv,
+                                                conn->user_data);
+  if (rv != 0) {
+    rv = NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_recv_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd) {
+  int rv;
+
+  assert(conn->callbacks.recv_retry);
+
+  rv = conn->callbacks.recv_retry(conn, hd, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int
+conn_call_recv_stateless_reset(ngtcp2_conn *conn,
+                               const ngtcp2_pkt_stateless_reset *sr) {
+  int rv;
+
+  if (!conn->callbacks.recv_stateless_reset) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_stateless_reset(conn, sr, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_recv_new_token(ngtcp2_conn *conn,
+                                    const ngtcp2_vec *token) {
+  int rv;
+
+  if (!conn->callbacks.recv_new_token) {
+    return 0;
+  }
+
+  rv = conn->callbacks.recv_new_token(conn, token, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_handshake_confirmed(ngtcp2_conn *conn) {
+  int rv;
+
+  if (!conn->callbacks.handshake_confirmed) {
+    return 0;
+  }
+
+  rv = conn->callbacks.handshake_confirmed(conn, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int conn_call_recv_datagram(ngtcp2_conn *conn,
+                                   const ngtcp2_datagram *fr) {
+  const uint8_t *data;
+  size_t datalen;
+  int rv;
+  uint32_t flags = NGTCP2_DATAGRAM_FLAG_NONE;
+
+  if (!conn->callbacks.recv_datagram) {
+    return 0;
+  }
+
+  if (fr->datacnt) {
+    assert(fr->datacnt == 1);
+
+    data = fr->data->base;
+    datalen = fr->data->len;
+  } else {
+    data = NULL;
+    datalen = 0;
+  }
+
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
+    flags |= NGTCP2_DATAGRAM_FLAG_EARLY;
+  }
+
+  rv = conn->callbacks.recv_datagram(conn, flags, data, datalen,
+                                     conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+static int
+conn_call_update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+                     ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+                     ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
+                     const uint8_t *current_rx_secret,
+                     const uint8_t *current_tx_secret, size_t secretlen) {
+  int rv;
+
+  assert(conn->callbacks.update_key);
+
+  rv = conn->callbacks.update_key(
+      conn, rx_secret, tx_secret, rx_aead_ctx, rx_iv, tx_aead_ctx, tx_iv,
+      current_rx_secret, current_tx_secret, secretlen, conn->user_data);
+  if (rv != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
 static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
                               const ngtcp2_ksl_key *rhs) {
   return *(int64_t *)lhs < *(int64_t *)rhs;
@@ -2583,11 +2742,9 @@ static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn,
                                               ngtcp2_tstamp ts) {
   int rv;
 
-  assert(conn->callbacks.client_initial);
-
-  rv = conn->callbacks.client_initial(conn, conn->user_data);
+  rv = conn_call_client_initial(conn);
   if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+    return rv;
   }
 
   return conn_write_handshake_pkt(conn, pi, dest, destlen, NGTCP2_PKT_INITIAL,
@@ -4287,11 +4444,9 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
     return 0;
   }
 
-  assert(conn->callbacks.get_path_challenge_data);
-  rv = conn->callbacks.get_path_challenge_data(conn, lfr.path_challenge.data,
-                                               conn->user_data);
+  rv = conn_call_get_path_challenge_data(conn, lfr.path_challenge.data);
   if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+    return rv;
   }
 
   lfr.type = NGTCP2_FRAME_PATH_CHALLENGE;
@@ -4505,19 +4660,14 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
     }
   }
 
-  if (conn->callbacks.recv_version_negotiation) {
-    rv = conn->callbacks.recv_version_negotiation(conn, hd, p, nsv,
-                                                  conn->user_data);
-    if (rv != 0) {
-      rv = NGTCP2_ERR_CALLBACK_FAILURE;
-    }
+  rv = conn_call_recv_version_negotiation(conn, hd, p, nsv);
+  if (rv != 0) {
+    goto fin;
   }
 
-  if (rv == 0) {
-    /* TODO Just move to the terminal state for now in order not to
-       send CONNECTION_CLOSE frame. */
-    conn->state = NGTCP2_CS_DRAINING;
-  }
+  /* TODO Just move to the terminal state for now in order not to
+     send CONNECTION_CLOSE frame. */
+  conn->state = NGTCP2_CS_DRAINING;
 
 fin:
   if (p != sv) {
@@ -4685,11 +4835,9 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
 
   conn->flags |= NGTCP2_CONN_FLAG_RECV_RETRY;
 
-  assert(conn->callbacks.recv_retry);
-
-  rv = conn->callbacks.recv_retry(conn, hd, conn->user_data);
+  rv = conn_call_recv_retry(conn, hd);
   if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+    return rv;
   }
 
   conn->state = NGTCP2_CS_CLIENT_INITIAL;
@@ -6798,16 +6946,7 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_log_rx_sr(&conn->log, &sr);
 
-  if (!conn->callbacks.recv_stateless_reset) {
-    return 0;
-  }
-
-  rv = conn->callbacks.recv_stateless_reset(conn, &sr, conn->user_data);
-  if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
+  return conn_call_recv_stateless_reset(conn, &sr);
 }
 
 /*
@@ -7206,8 +7345,6 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
  *     Server received NEW_TOKEN.
  */
 static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
-  int rv;
-
   if (conn->server) {
     return NGTCP2_ERR_PROTO;
   }
@@ -7216,14 +7353,7 @@ static int conn_recv_new_token(ngtcp2_conn *conn, const ngtcp2_new_token *fr) {
     return NGTCP2_ERR_FRAME_ENCODING;
   }
 
-  if (conn->callbacks.recv_new_token) {
-    rv = conn->callbacks.recv_new_token(conn, &fr->token, conn->user_data);
-    if (rv != 0) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-  }
-
-  return 0;
+  return conn_call_recv_new_token(conn, &fr->token);
 }
 
 /*
@@ -7362,11 +7492,9 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     }
   }
 
-  if (conn->callbacks.handshake_confirmed) {
-    rv = conn->callbacks.handshake_confirmed(conn, conn->user_data);
-    if (rv != 0) {
-      return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
+  rv = conn_call_handshake_confirmed(conn);
+  if (rv != 0) {
+    return rv;
   }
 
   /* Re-arm loss detection timer after handshake has been
@@ -7386,38 +7514,9 @@ static int conn_recv_handshake_done(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
  *     User-defined callback function failed.
  */
 static int conn_recv_datagram(ngtcp2_conn *conn, ngtcp2_datagram *fr) {
-  const uint8_t *data;
-  size_t datalen;
-  int rv;
-  uint32_t flags = NGTCP2_DATAGRAM_FLAG_NONE;
-
   assert(conn->local.transport_params.max_datagram_frame_size);
 
-  if (!conn->callbacks.recv_datagram) {
-    return 0;
-  }
-
-  if (fr->datacnt) {
-    assert(fr->datacnt == 1);
-
-    data = fr->data->base;
-    datalen = fr->data->len;
-  } else {
-    data = NULL;
-    datalen = 0;
-  }
-
-  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
-    flags |= NGTCP2_DATAGRAM_FLAG_EARLY;
-  }
-
-  rv = conn->callbacks.recv_datagram(conn, flags, data, datalen,
-                                     conn->user_data);
-  if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
+  return conn_call_recv_datagram(conn, fr);
 }
 
 /*
@@ -7481,14 +7580,12 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   new_rx_ckm = conn->crypto.key_update.new_rx_ckm;
   new_tx_ckm = conn->crypto.key_update.new_tx_ckm;
 
-  assert(conn->callbacks.update_key);
-
-  rv = conn->callbacks.update_key(
+  rv = conn_call_update_key(
       conn, new_rx_ckm->secret.base, new_tx_ckm->secret.base, &rx_aead_ctx,
       new_rx_ckm->iv.base, &tx_aead_ctx, new_tx_ckm->iv.base,
-      rx_ckm->secret.base, tx_ckm->secret.base, secretlen, conn->user_data);
+      rx_ckm->secret.base, tx_ckm->secret.base, secretlen);
   if (rv != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
+    return rv;
   }
 
   new_rx_ckm->aead_ctx = rx_aead_ctx;
