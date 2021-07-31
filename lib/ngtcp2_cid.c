@@ -82,6 +82,7 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
   }
   ngtcp2_path_storage_zero(&dcid->ps);
   dcid->ts_retired = UINT64_MAX;
+  dcid->bound_ts = UINT64_MAX;
   dcid->bytes_sent = 0;
   dcid->bytes_recv = 0;
 }
@@ -99,6 +100,7 @@ void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
                                                                  : NULL);
   ngtcp2_path_copy(&dest->ps.path, &src->ps.path);
   dest->ts_retired = src->ts_retired;
+  dest->bound_ts = src->bound_ts;
   dest->flags = src->flags;
   dest->bytes_sent = src->bytes_sent;
   dest->bytes_recv = src->bytes_recv;

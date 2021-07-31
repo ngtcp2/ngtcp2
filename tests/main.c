@@ -284,6 +284,8 @@ int main() {
       !CU_add_test(pSuite, "conn_early_data_rejected",
                    test_ngtcp2_conn_early_data_rejected) ||
       !CU_add_test(pSuite, "conn_keep_alive", test_ngtcp2_conn_keep_alive) ||
+      !CU_add_test(pSuite, "conn_retire_stale_bound_dcid",
+                   test_ngtcp2_conn_retire_stale_bound_dcid) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
                    test_ngtcp2_pkt_write_connection_close) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||

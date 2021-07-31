@@ -76,6 +76,10 @@ typedef struct ngtcp2_dcid {
   /* ts_retired is the timestamp when peer tells that this CID is
      retired. */
   ngtcp2_tstamp ts_retired;
+  /* bound_ts is the timestamp when this connection ID is bound to a
+     particular path.  It is only assigned when a connection ID is
+     used just for sending PATH_RESPONSE and is not zero-length. */
+  ngtcp2_tstamp bound_ts;
   /* bytes_sent is the number of bytes sent to an associated path. */
   uint64_t bytes_sent;
   /* bytes_recv is the number of bytes received from an associated
