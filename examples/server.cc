@@ -136,7 +136,6 @@ std::string make_status_body(unsigned int status_code) {
 
 struct Request {
   std::string path;
-  std::vector<std::string> pushes;
   struct {
     int32_t urgency;
     int inc;
@@ -177,25 +176,11 @@ Request request_path(const std::string_view &uri, bool is_connect) {
   }
 
   if (u.field_set & (1 << UF_QUERY)) {
-    static constexpr char push_prefix[] = "push=";
     static constexpr char urgency_prefix[] = "u=";
     static constexpr char inc_prefix[] = "i=";
     auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
                          u.field_data[UF_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
-      if (util::istarts_with(p, std::end(q), std::begin(push_prefix),
-                             std::end(push_prefix) - 1)) {
-        auto path_start = p + sizeof(push_prefix) - 1;
-        auto path_end = std::find(path_start, std::end(q), '&');
-        if (path_start != path_end && *path_start == '/') {
-          req.pushes.emplace_back(path_start, path_end);
-        }
-        if (path_end == std::end(q)) {
-          break;
-        }
-        p = path_end + 1;
-        continue;
-      }
       if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
                              std::end(urgency_prefix) - 1)) {
         auto urgency_start = p + sizeof(urgency_prefix) - 1;
@@ -510,14 +495,6 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     }
 
     content_type = "application/octet-stream";
-  }
-
-  if ((stream_id & 0x3) == 0 && !authority.empty()) {
-    for (const auto &push : req.pushes) {
-      if (handler->push_content(stream_id, authority, push) != 0) {
-        return -1;
-      }
-    }
   }
 
   auto content_length_str = std::to_string(content_length);
@@ -864,72 +841,6 @@ void Handler::on_stream_open(int64_t stream_id) {
   auto it = streams_.find(stream_id);
   assert(it == std::end(streams_));
   streams_.emplace(stream_id, std::make_unique<Stream>(stream_id, this));
-}
-
-int Handler::push_content(int64_t stream_id, const std::string_view &authority,
-                          const std::string_view &path) {
-  auto nva = std::array<nghttp3_nv, 4>{
-      util::make_nv(":method", "GET"),
-      util::make_nv(":scheme", "https"),
-      util::make_nv(":authority", authority),
-      util::make_nv(":path", path),
-  };
-
-  int64_t push_id;
-  if (auto rv = nghttp3_conn_submit_push_promise(httpconn_, &push_id, stream_id,
-                                                 nva.data(), nva.size());
-      rv != 0) {
-    std::cerr << "nghttp3_conn_submit_push_promise: " << nghttp3_strerror(rv)
-              << std::endl;
-    if (rv != NGHTTP3_ERR_PUSH_ID_BLOCKED) {
-      return -1;
-    }
-    return 0;
-  }
-
-  if (!config.quiet) {
-    debug::print_http_push_promise(stream_id, push_id, nva.data(), nva.size());
-  }
-
-  int64_t push_stream_id;
-  if (auto rv = ngtcp2_conn_open_uni_stream(conn_, &push_stream_id, nullptr);
-      rv != 0) {
-    std::cerr << "ngtcp2_conn_open_uni_stream: " << ngtcp2_strerror(rv)
-              << std::endl;
-    if (rv != NGTCP2_ERR_STREAM_ID_BLOCKED) {
-      return -1;
-    }
-    return 0;
-  }
-
-  if (!config.quiet) {
-    debug::push_stream(push_id, push_stream_id);
-  }
-
-  Stream *stream;
-  {
-    auto p = std::make_unique<Stream>(push_stream_id, this);
-    stream = p.get();
-    streams_.emplace(push_stream_id, std::move(p));
-  }
-
-  if (auto rv =
-          nghttp3_conn_bind_push_stream(httpconn_, push_id, push_stream_id);
-      rv != 0) {
-    std::cerr << "nghttp3_conn_bind_push_stream: " << nghttp3_strerror(rv)
-              << std::endl;
-    return -1;
-  }
-
-  stream->uri = path;
-  stream->method = "GET";
-  stream->authority = authority;
-
-  nghttp3_conn_set_stream_user_data(httpconn_, push_stream_id, stream);
-
-  stream->start_response(httpconn_);
-
-  return 0;
 }
 
 namespace {
@@ -1334,12 +1245,7 @@ int Handler::setup_httpconn() {
       nullptr, // begin_trailers
       nullptr, // recv_trailer
       nullptr, // end_trailers
-      nullptr, // begin_push_promise
-      nullptr, // recv_push_promise
-      nullptr, // end_push_promise
-      nullptr, // cancel_push
       ::http_send_stop_sending,
-      nullptr, // push_stream
       ::http_end_stream,
       ::http_reset_stream,
   };

@@ -130,7 +130,6 @@ std::string make_status_body(unsigned int status_code) {
 
 struct Request {
   std::string path;
-  std::vector<std::string> pushes;
   struct {
     int32_t urgency;
     int inc;
@@ -172,25 +171,11 @@ Request request_path(const std::string_view &uri) {
   }
 
   if (u.field_set & (1 << UF_QUERY)) {
-    static constexpr char push_prefix[] = "push=";
     static constexpr char urgency_prefix[] = "u=";
     static constexpr char inc_prefix[] = "i=";
     auto q = std::string(uri.data() + u.field_data[UF_QUERY].off,
                          u.field_data[UF_QUERY].len);
     for (auto p = std::begin(q); p != std::end(q);) {
-      if (util::istarts_with(p, std::end(q), std::begin(push_prefix),
-                             std::end(push_prefix) - 1)) {
-        auto path_start = p + sizeof(push_prefix) - 1;
-        auto path_end = std::find(path_start, std::end(q), '&');
-        if (path_start != path_end && *path_start == '/') {
-          req.pushes.emplace_back(path_start, path_end);
-        }
-        if (path_end == std::end(q)) {
-          break;
-        }
-        p = path_end + 1;
-        continue;
-      }
       if (util::istarts_with(p, std::end(q), std::begin(urgency_prefix),
                              std::end(urgency_prefix) - 1)) {
         auto urgency_start = p + sizeof(urgency_prefix) - 1;

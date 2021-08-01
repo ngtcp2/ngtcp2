@@ -258,37 +258,6 @@ void print_http_end_trailers(int64_t stream_id) {
   fprintf(outfile, "http: stream 0x%" PRIx64 " trailers ended\n", stream_id);
 }
 
-void print_http_begin_push_promise(int64_t stream_id, int64_t push_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " started\n",
-          stream_id, push_id);
-}
-
-void print_http_push_promise(int64_t stream_id, int64_t push_id,
-                             const nghttp3_rcbuf *name,
-                             const nghttp3_rcbuf *value, uint8_t flags) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " ", stream_id,
-          push_id);
-  print_header(name, value, flags);
-}
-
-void print_http_end_push_promise(int64_t stream_id, int64_t push_id) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " push 0x%" PRIx64 " ended\n",
-          stream_id, push_id);
-}
-
-void cancel_push(int64_t push_id, int64_t stream_id) {
-  fprintf(outfile,
-          "http: push 0x%" PRIx64 " (stream 0x%" PRIx64
-          ") has been cancelled by remote endpoint\n",
-          push_id, stream_id);
-}
-
-void push_stream(int64_t push_id, int64_t stream_id) {
-  fprintf(outfile,
-          "http: push 0x%" PRIx64 " promise fulfilled stream 0x%" PRIx64 "\n",
-          push_id, stream_id);
-}
-
 void print_http_request_headers(int64_t stream_id, const nghttp3_nv *nva,
                                 size_t nvlen) {
   fprintf(outfile, "http: stream 0x%" PRIx64 " submit request headers\n",
@@ -303,16 +272,6 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
                                  size_t nvlen) {
   fprintf(outfile, "http: stream 0x%" PRIx64 " submit response headers\n",
           stream_id);
-  for (size_t i = 0; i < nvlen; ++i) {
-    auto &nv = nva[i];
-    print_header(nv);
-  }
-}
-
-void print_http_push_promise(int64_t stream_id, int64_t push_id,
-                             const nghttp3_nv *nva, size_t nvlen) {
-  fprintf(outfile, "http: stream 0x%" PRIx64 " submit push 0x%" PRIx64 "\n",
-          stream_id, push_id);
   for (size_t i = 0; i < nvlen; ++i) {
     auto &nv = nva[i];
     print_header(nv);

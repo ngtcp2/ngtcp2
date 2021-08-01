@@ -1859,40 +1859,6 @@ int http_end_trailers(nghttp3_conn *conn, int64_t stream_id, void *user_data,
 } // namespace
 
 namespace {
-int http_begin_push_promise(nghttp3_conn *conn, int64_t stream_id,
-                            int64_t push_id, void *user_data,
-                            void *stream_user_data) {
-  if (!config.quiet) {
-    debug::print_http_begin_push_promise(stream_id, push_id);
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int http_recv_push_promise(nghttp3_conn *conn, int64_t stream_id,
-                           int64_t push_id, int32_t token, nghttp3_rcbuf *name,
-                           nghttp3_rcbuf *value, uint8_t flags, void *user_data,
-                           void *stream_user_data) {
-  if (!config.quiet) {
-    debug::print_http_push_promise(stream_id, push_id, name, value, flags);
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int http_end_push_promise(nghttp3_conn *conn, int64_t stream_id,
-                          int64_t push_id, void *user_data,
-                          void *stream_user_data) {
-  if (!config.quiet) {
-    debug::print_http_end_push_promise(stream_id, push_id);
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
 int http_send_stop_sending(nghttp3_conn *conn, int64_t stream_id,
                            uint64_t app_error_code, void *user_data,
                            void *stream_user_data) {
@@ -1917,29 +1883,6 @@ int Client::send_stop_sending(int64_t stream_id, uint64_t app_error_code) {
   }
   return 0;
 }
-
-namespace {
-int http_cancel_push(nghttp3_conn *conn, int64_t push_id, int64_t stream_id,
-                     void *user_data, void *stream_user_data) {
-  if (!config.quiet) {
-    debug::cancel_push(push_id, stream_id);
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int http_push_stream(nghttp3_conn *conn, int64_t push_id, int64_t stream_id,
-                     void *user_data) {
-  if (!config.quiet) {
-    debug::push_stream(push_id, stream_id);
-  }
-
-  nghttp3_conn_extend_max_pushes(conn, 1);
-
-  return 0;
-}
-} // namespace
 
 namespace {
 int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
@@ -1993,14 +1936,10 @@ int Client::setup_httpconn() {
   }
 
   nghttp3_callbacks callbacks{
-      ::http_acked_stream_data,  ::http_stream_close,
-      ::http_recv_data,          ::http_deferred_consume,
-      ::http_begin_headers,      ::http_recv_header,
-      ::http_end_headers,        ::http_begin_trailers,
-      ::http_recv_trailer,       ::http_end_trailers,
-      ::http_begin_push_promise, ::http_recv_push_promise,
-      ::http_end_push_promise,   ::http_cancel_push,
-      ::http_send_stop_sending,  ::http_push_stream,
+      ::http_acked_stream_data, ::http_stream_close,      ::http_recv_data,
+      ::http_deferred_consume,  ::http_begin_headers,     ::http_recv_header,
+      ::http_end_headers,       ::http_begin_trailers,    ::http_recv_trailer,
+      ::http_end_trailers,      ::http_send_stop_sending,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
@@ -2016,8 +1955,6 @@ int Client::setup_httpconn() {
               << std::endl;
     return -1;
   }
-
-  nghttp3_conn_extend_max_pushes(httpconn_, 100);
 
   int64_t ctrl_stream_id;
 
