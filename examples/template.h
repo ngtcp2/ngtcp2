@@ -33,7 +33,7 @@
 // inspired by <http://blog.korfuri.fr/post/go-defer-in-cpp/>, but our
 // template can take functions returning other than void.
 template <typename F, typename... T> struct Defer {
-  Defer(F &&f, T &&... t)
+  Defer(F &&f, T &&...t)
       : f(std::bind(std::forward<F>(f), std::forward<T>(t)...)) {}
   Defer(Defer &&o) noexcept : f(std::move(o.f)) {}
   ~Defer() { f(); }
@@ -43,7 +43,7 @@ template <typename F, typename... T> struct Defer {
   std::function<ResultType()> f;
 };
 
-template <typename F, typename... T> Defer<F, T...> defer(F &&f, T &&... t) {
+template <typename F, typename... T> Defer<F, T...> defer(F &&f, T &&...t) {
   return Defer<F, T...>(std::forward<F>(f), std::forward<T>(t)...);
 }
 
