@@ -60,13 +60,13 @@ void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid) {
   scid->pe.index = NGTCP2_PQ_BAD_INDEX;
   scid->seq = seq;
   scid->cid = *cid;
-  scid->ts_retired = UINT64_MAX;
+  scid->retired_ts = UINT64_MAX;
   scid->flags = NGTCP2_SCID_FLAG_NONE;
 }
 
 void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src) {
   ngtcp2_scid_init(dest, src->seq, &src->cid);
-  dest->ts_retired = src->ts_retired;
+  dest->retired_ts = src->retired_ts;
   dest->flags = src->flags;
 }
 
@@ -81,7 +81,7 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
     dcid->flags = NGTCP2_DCID_FLAG_NONE;
   }
   ngtcp2_path_storage_zero(&dcid->ps);
-  dcid->ts_retired = UINT64_MAX;
+  dcid->retired_ts = UINT64_MAX;
   dcid->bound_ts = UINT64_MAX;
   dcid->bytes_sent = 0;
   dcid->bytes_recv = 0;
@@ -99,7 +99,7 @@ void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
                    (src->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT) ? src->token
                                                                  : NULL);
   ngtcp2_path_copy(&dest->ps.path, &src->ps.path);
-  dest->ts_retired = src->ts_retired;
+  dest->retired_ts = src->retired_ts;
   dest->bound_ts = src->bound_ts;
   dest->flags = src->flags;
   dest->bytes_sent = src->bytes_sent;

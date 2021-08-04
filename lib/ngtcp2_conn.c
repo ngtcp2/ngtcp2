@@ -720,12 +720,12 @@ static int cid_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return ngtcp2_cid_less(lhs, rhs);
 }
 
-static int ts_retired_less(const ngtcp2_pq_entry *lhs,
+static int retired_ts_less(const ngtcp2_pq_entry *lhs,
                            const ngtcp2_pq_entry *rhs) {
   const ngtcp2_scid *a = ngtcp2_struct_of(lhs, ngtcp2_scid, pe);
   const ngtcp2_scid *b = ngtcp2_struct_of(rhs, ngtcp2_scid, pe);
 
-  return a->ts_retired < b->ts_retired;
+  return a->retired_ts < b->retired_ts;
 }
 
 /*
@@ -971,7 +971,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_scid_set_init;
   }
 
-  ngtcp2_pq_init(&(*pconn)->scid.used, ts_retired_less, mem);
+  ngtcp2_pq_init(&(*pconn)->scid.used, retired_ts_less, mem);
 
   rv = ngtcp2_map_init(&(*pconn)->strms, mem);
   if (rv != 0) {
@@ -3062,7 +3062,7 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
   for (; !ngtcp2_pq_empty(&conn->scid.used);) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
 
-    if (scid->ts_retired == UINT64_MAX || scid->ts_retired + timeout >= ts) {
+    if (scid->retired_ts == UINT64_MAX || scid->retired_ts + timeout >= ts) {
       break;
     }
 
@@ -3083,7 +3083,7 @@ static int conn_remove_retired_connection_id(ngtcp2_conn *conn,
 
   for (; ngtcp2_ringbuf_len(&conn->dcid.retired);) {
     dcid = ngtcp2_ringbuf_get(&conn->dcid.retired, 0);
-    if (dcid->ts_retired + timeout >= ts) {
+    if (dcid->retired_ts + timeout >= ts) {
       break;
     }
 
@@ -4210,7 +4210,7 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
 
   dest = ngtcp2_ringbuf_push_back(rb);
   ngtcp2_dcid_copy(dest, dcid);
-  dest->ts_retired = ts;
+  dest->retired_ts = ts;
 
   return conn_retire_dcid_seq(conn, dcid->seq);
 }
@@ -7325,7 +7325,7 @@ static int conn_recv_retire_connection_id(ngtcp2_conn *conn,
         scid->pe.index = NGTCP2_PQ_BAD_INDEX;
       }
 
-      scid->ts_retired = ts;
+      scid->retired_ts = ts;
 
       return ngtcp2_pq_push(&conn->scid.used, &scid->pe);
     }
@@ -9891,14 +9891,14 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
 
   if (!ngtcp2_pq_empty(&conn->scid.used)) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
-    if (scid->ts_retired != UINT64_MAX) {
-      res = ngtcp2_min(res, scid->ts_retired + pto);
+    if (scid->retired_ts != UINT64_MAX) {
+      res = ngtcp2_min(res, scid->retired_ts + pto);
     }
   }
 
   if (ngtcp2_ringbuf_len(&conn->dcid.retired)) {
     dcid = ngtcp2_ringbuf_get(&conn->dcid.retired, 0);
-    res = ngtcp2_min(res, dcid->ts_retired + pto);
+    res = ngtcp2_min(res, dcid->retired_ts + pto);
   }
 
   if (conn->dcid.current.cid.datalen) {

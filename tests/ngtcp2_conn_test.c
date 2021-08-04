@@ -4982,7 +4982,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   seq = scid->seq;
 
   CU_ASSERT(NGTCP2_SCID_FLAG_NONE == scid->flags);
-  CU_ASSERT(UINT64_MAX == scid->ts_retired);
+  CU_ASSERT(UINT64_MAX == scid->retired_ts);
   CU_ASSERT(1 == ngtcp2_pq_size(&conn->scid.used));
 
   fr.type = NGTCP2_FRAME_RETIRE_CONNECTION_ID;
@@ -4995,7 +4995,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_SCID_FLAG_RETIRED == scid->flags);
-  CU_ASSERT(1000000010 == scid->ts_retired);
+  CU_ASSERT(1000000010 == scid->retired_ts);
   CU_ASSERT(2 == ngtcp2_pq_size(&conn->scid.used));
   CU_ASSERT(7 == ngtcp2_ksl_len(&conn->scid.set));
   CU_ASSERT(1 == conn->scid.num_retired);

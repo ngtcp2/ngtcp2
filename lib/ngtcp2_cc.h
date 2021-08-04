@@ -43,7 +43,7 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_packet_size);
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_pktns_id pktns_id,
-                                  ngtcp2_tstamp ts_sent);
+                                  ngtcp2_tstamp sent_ts);
 
 /* ngtcp2_reno_cc is the RENO congestion controller. */
 typedef struct ngtcp2_reno_cc {
@@ -66,7 +66,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                        ngtcp2_tstamp ts_sent,
+                                        ngtcp2_tstamp sent_ts,
                                         ngtcp2_tstamp ts);
 
 void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
@@ -124,7 +124,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                      ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                         ngtcp2_tstamp ts_sent,
+                                         ngtcp2_tstamp sent_ts,
                                          ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,

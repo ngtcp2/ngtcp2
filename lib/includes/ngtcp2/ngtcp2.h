@@ -1566,9 +1566,9 @@ typedef struct ngtcp2_cc_pkt {
    */
   ngtcp2_pktns_id pktns_id;
   /**
-   * :member:`ts_sent` is the timestamp when packet is sent.
+   * :member:`sent_ts` is the timestamp when packet is sent.
    */
-  ngtcp2_tstamp ts_sent;
+  ngtcp2_tstamp sent_ts;
 } ngtcp2_cc_pkt;
 
 /**
@@ -1623,7 +1623,7 @@ typedef void (*ngtcp2_cc_on_pkt_acked)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  */
 typedef void (*ngtcp2_cc_congestion_event)(ngtcp2_cc *cc,
                                            ngtcp2_conn_stat *cstat,
-                                           ngtcp2_tstamp ts_sent,
+                                           ngtcp2_tstamp sent_ts,
                                            ngtcp2_tstamp ts);
 
 /**

@@ -43,11 +43,11 @@ uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
                                   size_t pktlen, ngtcp2_pktns_id pktns_id,
-                                  ngtcp2_tstamp ts_sent) {
+                                  ngtcp2_tstamp sent_ts) {
   pkt->pkt_num = pkt_num;
   pkt->pktlen = pktlen;
   pkt->pktns_id = pktns_id;
-  pkt->ts_sent = ts_sent;
+  pkt->sent_ts = sent_ts;
 
   return pkt;
 }
@@ -106,7 +106,7 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   uint64_t m;
   (void)ts;
 
-  if (in_congestion_recovery(cstat, pkt->ts_sent)) {
+  if (in_congestion_recovery(cstat, pkt->sent_ts)) {
     return;
   }
 
@@ -129,12 +129,12 @@ void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 }
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
-                                        ngtcp2_tstamp ts_sent,
+                                        ngtcp2_tstamp sent_ts,
                                         ngtcp2_tstamp ts) {
   ngtcp2_reno_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_reno_cc, ccb);
   uint64_t min_cwnd;
 
-  if (in_congestion_recovery(cstat, ts_sent)) {
+  if (in_congestion_recovery(cstat, sent_ts)) {
     return;
   }
 
@@ -314,7 +314,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
     cc->window_end = -1;
   }
 
-  if (in_congestion_recovery(cstat, pkt->ts_sent)) {
+  if (in_congestion_recovery(cstat, pkt->sent_ts)) {
     return;
   }
 
@@ -435,12 +435,12 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *ccx,
                                          ngtcp2_conn_stat *cstat,
-                                         ngtcp2_tstamp ts_sent,
+                                         ngtcp2_tstamp sent_ts,
                                          ngtcp2_tstamp ts) {
   ngtcp2_cubic_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_cubic_cc, ccb);
   uint64_t min_cwnd;
 
-  if (in_congestion_recovery(cstat, ts_sent)) {
+  if (in_congestion_recovery(cstat, sent_ts)) {
     return;
   }
 

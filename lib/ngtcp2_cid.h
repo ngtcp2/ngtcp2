@@ -49,9 +49,9 @@ typedef struct ngtcp2_scid {
   uint64_t seq;
   /* cid is a connection ID */
   ngtcp2_cid cid;
-  /* ts_retired is the timestamp when peer tells that this CID is
+  /* retired_ts is the timestamp when peer tells that this CID is
      retired. */
-  ngtcp2_tstamp ts_retired;
+  ngtcp2_tstamp retired_ts;
   /* flags is the bitwise OR of zero or more of NGTCP2_SCID_FLAG_*. */
   uint8_t flags;
 } ngtcp2_scid;
@@ -73,9 +73,9 @@ typedef struct ngtcp2_dcid {
   /* path is a path which cid is bound to.  The addresses are zero
      length if cid has not been bound to a particular path yet. */
   ngtcp2_path_storage ps;
-  /* ts_retired is the timestamp when peer tells that this CID is
+  /* retired_ts is the timestamp when peer tells that this CID is
      retired. */
-  ngtcp2_tstamp ts_retired;
+  ngtcp2_tstamp retired_ts;
   /* bound_ts is the timestamp when this connection ID is bound to a
      particular path.  It is only assigned when a connection ID is
      used just for sending PATH_RESPONSE and is not zero-length. */

@@ -161,12 +161,12 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 }
 
 void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
-                                       ngtcp2_tstamp ts_sent,
+                                       ngtcp2_tstamp sent_ts,
                                        ngtcp2_tstamp ts) {
   ngtcp2_bbr_cc *cc = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr_cc, ccb);
 
   if (cc->in_loss_recovery || cc->congestion_recovery_start_ts != UINT64_MAX ||
-      in_congestion_recovery(cstat, ts_sent)) {
+      in_congestion_recovery(cstat, sent_ts)) {
     return;
   }
 

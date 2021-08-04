@@ -126,7 +126,7 @@ void ngtcp2_cc_bbr_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                    const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
 
 void ngtcp2_cc_bbr_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                       ngtcp2_tstamp ts_sent, ngtcp2_tstamp ts);
+                                       ngtcp2_tstamp sent_ts, ngtcp2_tstamp ts);
 
 void ngtcp2_cc_bbr_cc_on_spurious_congestion(ngtcp2_cc *ccx,
                                              ngtcp2_conn_stat *cstat,
