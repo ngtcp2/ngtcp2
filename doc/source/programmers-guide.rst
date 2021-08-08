@@ -189,6 +189,18 @@ the buffer sized up to `ngtcp2_conn_get_send_quantum()` bytes), call
 packet should be sent.  The timer is integrated into
 `ngtcp2_conn_get_expiry()`.
 
+Initial packet handling on server side
+--------------------------------------
+
+When the very first packet to a connection is received by a server,
+the packet should be passed to `ngtcp2_accept()`.  If it returns
+:macro:`NGTCP2_ERR_RETRY`, the server should send Retry packet.  If it
+returns :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`, the server should
+send Version Negotiation packet.  If it returns an other negative
+error code, just drop the packet to the floor and take no action.
+Otherwise, the packet is acceptable.  Create :type:`ngtcp2_conn`
+object and pass the packet by calling `ngtcp2_conn_read_pkt()`.
+
 Dealing with early data
 -----------------------
 

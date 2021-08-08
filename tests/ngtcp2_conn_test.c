@@ -7480,6 +7480,118 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_accept(void) {
+  size_t pktlen;
+  uint8_t buf[2048];
+  ngtcp2_cid dcid, scid;
+  ngtcp2_frame fr;
+  int rv;
+  ngtcp2_pkt_hd hd;
+
+  dcid_init(&dcid);
+  scid_init(&scid);
+
+  /* Initial packet */
+  memset(&hd, 0, sizeof(hd));
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_initial_pkt(buf, sizeof(buf), &dcid, &scid, 0,
+                                          NGTCP2_PROTO_VER_V1, &fr, NULL, 0,
+                                          &null_ckm);
+
+  CU_ASSERT(pktlen >= 1200);
+
+  rv = ngtcp2_accept(&hd, buf, pktlen);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_cid_eq(&dcid, &hd.dcid));
+  CU_ASSERT(ngtcp2_cid_eq(&scid, &hd.scid));
+  CU_ASSERT(0 == hd.token.len);
+  CU_ASSERT(hd.len > 0);
+  CU_ASSERT(NGTCP2_PROTO_VER_V1 == hd.version);
+  CU_ASSERT(NGTCP2_PKT_INITIAL == hd.type);
+  CU_ASSERT(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM);
+
+  /* 0RTT packet */
+  memset(&hd, 0, sizeof(hd));
+
+  fr.type = NGTCP2_FRAME_STREAM;
+  fr.stream.flags = 0;
+  fr.stream.stream_id = 0;
+  fr.stream.fin = 0;
+  fr.stream.offset = 0;
+  fr.stream.datacnt = 1;
+  fr.stream.data[0].len = 1200;
+  fr.stream.data[0].base = null_data;
+
+  pktlen = write_single_frame_0rtt_pkt(buf, sizeof(buf), &dcid, &scid, 1,
+                                       NGTCP2_PROTO_VER_V1, &fr, &null_ckm);
+
+  CU_ASSERT(pktlen >= 1200);
+
+  rv = ngtcp2_accept(&hd, buf, pktlen);
+
+  CU_ASSERT(NGTCP2_ERR_RETRY == rv);
+  CU_ASSERT(ngtcp2_cid_eq(&dcid, &hd.dcid));
+  CU_ASSERT(ngtcp2_cid_eq(&scid, &hd.scid));
+  CU_ASSERT(0 == hd.token.len);
+  CU_ASSERT(hd.len > 0);
+  CU_ASSERT(NGTCP2_PROTO_VER_V1 == hd.version);
+  CU_ASSERT(NGTCP2_PKT_0RTT == hd.type);
+  CU_ASSERT(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM);
+
+  /* Unknown version */
+  memset(&hd, 0, sizeof(hd));
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen =
+      write_single_frame_handshake_pkt(buf, sizeof(buf), NGTCP2_PKT_INITIAL,
+                                       &dcid, &scid, 0, 0x2, &fr, &null_ckm);
+
+  CU_ASSERT(pktlen >= 1200);
+
+  rv = ngtcp2_accept(&hd, buf, pktlen);
+
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
+
+  /* Short packet */
+  memset(&hd, 0, sizeof(hd));
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1200;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_pkt(buf, sizeof(buf), &dcid, 0, &fr, &null_ckm);
+
+  CU_ASSERT(pktlen >= 1200);
+
+  rv = ngtcp2_accept(&hd, buf, pktlen);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
+  /* Unable to decode packet header */
+  memset(&hd, 0, sizeof(hd));
+
+  memset(buf, 0, 4);
+  buf[0] = NGTCP2_HEADER_FORM_BIT;
+
+  rv = ngtcp2_accept(&hd, buf, 4);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];

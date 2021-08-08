@@ -9583,35 +9583,35 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
   }
 
   if (pktlen == 0 || (pkt[0] & NGTCP2_HEADER_FORM_BIT) == 0) {
-    return -1;
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   nread = ngtcp2_pkt_decode_hd_long(p, pkt, pktlen);
   if (nread < 0) {
-    return -1;
-  }
-
-  switch (p->type) {
-  case NGTCP2_PKT_INITIAL:
-    if (pktlen < NGTCP2_MIN_INITIAL_PKTLEN) {
-      return -1;
-    }
-    if (p->token.len == 0 && p->dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
-      return -1;
-    }
-    break;
-  case NGTCP2_PKT_0RTT:
-    /* 0-RTT packet may arrive before Initial packet due to
-       re-ordering. */
-    break;
-  default:
-    return -1;
+    return (int)nread;
   }
 
   if (p->version != NGTCP2_PROTO_VER_V1 &&
       (p->version < NGTCP2_PROTO_VER_DRAFT_MIN ||
        NGTCP2_PROTO_VER_DRAFT_MAX < p->version)) {
-    return 1;
+    return NGTCP2_ERR_VERSION_NEGOTIATION;
+  }
+
+  switch (p->type) {
+  case NGTCP2_PKT_INITIAL:
+    break;
+  case NGTCP2_PKT_0RTT:
+    /* 0-RTT packet may arrive before Initial packet due to
+       re-ordering.  ngtcp2 does not buffer 0RTT packet unless the
+       very first Initial packet is received or token is received. */
+    return NGTCP2_ERR_RETRY;
+  default:
+    return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  if (pktlen < NGTCP2_MIN_INITIAL_PKTLEN ||
+      (p->token.len == 0 && p->dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN)) {
+    return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
   return 0;

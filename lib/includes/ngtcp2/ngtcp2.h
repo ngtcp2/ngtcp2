@@ -718,6 +718,13 @@ typedef struct ngtcp2_pkt_info {
 /**
  * @macro
  *
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION` indicates that server
+ * should send Version Negotiation packet.
+ */
+#define NGTCP2_ERR_VERSION_NEGOTIATION -245
+/**
+ * @macro
+ *
  * :macro:`NGTCP2_ERR_FATAL` indicates that error codes less than this
  * value is fatal error.  When this error is returned, an endpoint
  * should drop connection immediately.
@@ -3369,15 +3376,24 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
  * @function
  *
  * `ngtcp2_accept` is used by server implementation, and decides
- * whether packet |pkt| of length |pktlen| is acceptable for initial
- * packet from client.
+ * whether packet |pkt| of length |pktlen| from client is acceptable
+ * for the very initial packet to a connection.
  *
- * If it is acceptable, it returns 0.  If it is not acceptable, and
- * Version Negotiation packet is required to send, it returns 1.
- * Otherwise, it returns -1.
+ * If |dest| is not ``NULL`` and the function returns 0,
+ * :macro:`NGTCP2_ERR_RETRY`, or
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`, the decoded packet header
+ * is stored to the object pointed by |dest|.
  *
- * If |dest| is not ``NULL``, and the return value is 0 or 1, the
- * decoded packet header is stored to the object pointed by |dest|.
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_RETRY`
+ *     Retry packet should be sent.
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`
+ *     Version Negotiation packet should be sent.
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     The packet is not acceptable for the very first packet to a new
+ *     connection; or it failed to parse the packet header.
  */
 NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                 size_t pktlen);

@@ -1422,13 +1422,13 @@ int Server::on_read(Endpoint &ep) {
     if (handler_it == std::end(handlers_)) {
       auto ctos_it = ctos_.find(dcid_key);
       if (ctos_it == std::end(ctos_)) {
-        if (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv == -1) {
-          if (!config.quiet) {
-            std::cerr << "Unexpected packet received: length=" << nread
-                      << std::endl;
-          }
+        switch (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv) {
+        case 0:
+          break;
+        case NGTCP2_ERR_RETRY:
+          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
           continue;
-        } else if (rv == 1) {
+        case NGTCP2_ERR_VERSION_NEGOTIATION:
           if (!config.quiet) {
             std::cerr << "Unsupported version: Send Version Negotiation"
                       << std::endl;
@@ -1437,51 +1437,44 @@ int Server::on_read(Endpoint &ep) {
                                    hd.dcid.data, hd.dcid.datalen, ep,
                                    *local_addr, &su.sa, msg.msg_namelen);
           continue;
+        default:
+          if (!config.quiet) {
+            std::cerr << "Unexpected packet received: length=" << nread
+                      << std::endl;
+          }
+          continue;
         }
 
         ngtcp2_cid ocid;
         ngtcp2_cid *pocid = nullptr;
-        switch (hd.type) {
-        case NGTCP2_PKT_INITIAL:
-          if (config.validate_addr || hd.token.len) {
-            std::cerr << "Perform stateless address validation" << std::endl;
-            if (hd.token.len == 0) {
-              send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
-              continue;
-            }
 
-            if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
-                hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
+        assert(hd.type == NGTCP2_PKT_INITIAL);
+
+        if (config.validate_addr || hd.token.len) {
+          std::cerr << "Perform stateless address validation" << std::endl;
+          if (hd.token.len == 0) {
+            send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+            continue;
+          }
+
+          if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
+              hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
+            send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
+                                            msg.msg_namelen);
+            continue;
+          }
+
+          switch (hd.token.base[0]) {
+          case RETRY_TOKEN_MAGIC:
+            if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) != 0) {
               send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
                                               msg.msg_namelen);
               continue;
             }
-
-            switch (hd.token.base[0]) {
-            case RETRY_TOKEN_MAGIC:
-              if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) !=
-                  0) {
-                send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
-                                                msg.msg_namelen);
-                continue;
-              }
-              pocid = &ocid;
-              break;
-            case TOKEN_MAGIC:
-              if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
-                if (config.validate_addr) {
-                  send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
-                  continue;
-                }
-
-                hd.token.base = nullptr;
-                hd.token.len = 0;
-              }
-              break;
-            default:
-              if (!config.quiet) {
-                std::cerr << "Ignore unrecognized token" << std::endl;
-              }
+            pocid = &ocid;
+            break;
+          case TOKEN_MAGIC:
+            if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
               if (config.validate_addr) {
                 send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
                 continue;
@@ -1489,13 +1482,21 @@ int Server::on_read(Endpoint &ep) {
 
               hd.token.base = nullptr;
               hd.token.len = 0;
-              break;
             }
+            break;
+          default:
+            if (!config.quiet) {
+              std::cerr << "Ignore unrecognized token" << std::endl;
+            }
+            if (config.validate_addr) {
+              send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+              continue;
+            }
+
+            hd.token.base = nullptr;
+            hd.token.len = 0;
+            break;
           }
-          break;
-        case NGTCP2_PKT_0RTT:
-          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
-          continue;
         }
 
         auto h = std::make_unique<Handler>(loop_, this, &hd.dcid);

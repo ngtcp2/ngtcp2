@@ -102,6 +102,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_AEAD_LIMIT_REACHED";
   case NGTCP2_ERR_NO_VIABLE_PATH:
     return "ERR_NO_VIABLE_PATH";
+  case NGTCP2_ERR_VERSION_NEGOTIATION:
+    return "ERR_VERSION_NEGOTIATION";
   default:
     return "(unknown)";
   }
