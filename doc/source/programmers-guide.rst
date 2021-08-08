@@ -218,9 +218,9 @@ remote endpoint and no longer used by the library.
 Timers
 ------
 
-The library does not ask any timestamp to an operating system.
-Instead, an application has to supply timestamp to the library.  The
-type of timestamp in ngtcp2 library is :type:`ngtcp2_tstamp` which is
+The library does not ask an operating system any timestamp.  Instead,
+an application has to supply timestamp to the library.  The type of
+timestamp in ngtcp2 library is :type:`ngtcp2_tstamp` which is
 nanosecond resolution.  The library only cares the difference of
 timestamp, so it does not have to be a system clock.  A monotonic
 clock should work better.  It should be same clock passed to
