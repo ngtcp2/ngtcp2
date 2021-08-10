@@ -895,7 +895,8 @@ int Handler::on_stream_stop_sending(int64_t stream_id) {
     return 0;
   }
 
-  if (auto rv = nghttp3_conn_shutdown_stream_read(httpconn_, stream_id); rv != 0) {
+  if (auto rv = nghttp3_conn_shutdown_stream_read(httpconn_, stream_id);
+      rv != 0) {
     std::cerr << "nghttp3_conn_shutdown_stream_read: " << nghttp3_strerror(rv)
               << std::endl;
     return -1;
