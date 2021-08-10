@@ -9883,7 +9883,7 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
   ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
   ngtcp2_scid *scid;
   ngtcp2_dcid *dcid;
-  size_t i;
+  size_t i, len;
 
   if (conn->pv) {
     res = ngtcp2_pv_next_expiry(conn->pv);
@@ -9902,7 +9902,8 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
   }
 
   if (conn->dcid.current.cid.datalen) {
-    for (i = 0; i < ngtcp2_ringbuf_len(&conn->dcid.bound);) {
+    len = ngtcp2_ringbuf_len(&conn->dcid.bound);
+    for (i = 0; i < len; ++i) {
       dcid = ngtcp2_ringbuf_get(&conn->dcid.bound, i);
 
       assert(dcid->cid.datalen);
