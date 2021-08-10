@@ -136,8 +136,8 @@ packet pretty small because it does not send its certificates.
 To send 0-RTT data, after making sure that resumption works, use -d
 option to specify a file which contains data to send.
 
-Token (Not  comes in Retry packet)
-----------------------------------
+Token (Not something included in Retry packet)
+----------------------------------------------
 
 QUIC server might send a token to client after connection has been
 established.  Client can send this token in subsequent connection to
