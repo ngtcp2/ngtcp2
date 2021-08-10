@@ -7433,6 +7433,7 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   uint8_t buf[2048];
   size_t pktlen;
   ngtcp2_tstamp t = 0;
+  ngtcp2_tstamp expiry;
   int64_t pkt_num = 0;
   ngtcp2_frame fr;
   int rv;
@@ -7469,6 +7470,10 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_ringbuf_len(&conn->rx.path_challenge) > 0);
   CU_ASSERT(ngtcp2_ringbuf_len(&conn->dcid.bound) > 0);
+
+  expiry = ngtcp2_conn_get_expiry(conn);
+
+  CU_ASSERT(UINT64_MAX != expiry);
 
   t += 3 * ngtcp2_conn_get_pto(conn);
 
