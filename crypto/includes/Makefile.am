@@ -26,3 +26,11 @@ nobase_include_HEADERS = ngtcp2/ngtcp2_crypto.h
 if HAVE_OPENSSL
 nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_openssl.h
 endif
+
+if HAVE_GNUTLS
+nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_gnutls.h
+endif
+
+if HAVE_BORINGSSL
+nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_boringssl.h
+endif
