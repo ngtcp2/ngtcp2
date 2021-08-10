@@ -596,16 +596,6 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 }
 } // namespace
 
-namespace {
-int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
-  if (util::generate_secure_random(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
-}
-} // namespace
-
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port, uint32_t version,
                  const TLSClientContext &tls_ctx) {
@@ -671,7 +661,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // recv_datagram
       nullptr, // ack_datagram
       nullptr, // lost_datagram
-      get_path_challenge_data,
+      ngtcp2_crypto_get_path_challenge_data_cb,
   };
 
   ngtcp2_cid scid, dcid;

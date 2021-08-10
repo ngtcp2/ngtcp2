@@ -731,6 +731,20 @@ NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_aead_ctx_cb(
 NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_cipher_ctx_cb(
     ngtcp2_conn *conn, ngtcp2_crypto_cipher_ctx *cipher_ctx, void *user_data);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_get_path_challenge_data_cb` writes unpredictable
+ * sequence of :macro:`NGTCP2_PATH_CHALLENGE_DATALEN` bytes to |data|
+ * which is sent with PATH_CHALLENGE frame.
+ *
+ * This function can be directly passed to
+ * :member:`ngtcp2_callbacks.get_path_challenge_data` field.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn,
+                                                           uint8_t *data,
+                                                           void *user_data);
+
 #ifdef __cplusplus
 }
 #endif

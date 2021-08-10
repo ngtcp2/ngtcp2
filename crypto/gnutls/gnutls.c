@@ -457,3 +457,15 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
      gnutls_session_ext_register. */
   return 0;
 }
+
+int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn, uint8_t *data,
+                                             void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  if (gnutls_rnd(GNUTLS_RND_RANDOM, data, NGTCP2_PATH_CHALLENGE_DATALEN) != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}

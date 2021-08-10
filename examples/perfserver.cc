@@ -431,16 +431,6 @@ int Handler::extend_max_stream_data(int64_t stream_id, uint64_t max_data) {
 }
 
 namespace {
-int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data, void *user_data) {
-  if (util::generate_secure_random(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 0) {
-    return NGTCP2_ERR_CALLBACK_FAILURE;
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
 void write_qlog(void *user_data, uint32_t flags, const void *data,
                 size_t datalen) {
   auto h = static_cast<Handler *>(user_data);
@@ -509,7 +499,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       nullptr, // recv_datagram
       nullptr, // ack_datagram
       nullptr, // lost_datagram
-      get_path_challenge_data,
+      ngtcp2_crypto_get_path_challenge_data_cb,
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;

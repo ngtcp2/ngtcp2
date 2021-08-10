@@ -34,6 +34,7 @@
 #include <openssl/ssl.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
+#include <openssl/rand.h>
 
 #include "shared.h"
 
@@ -523,4 +524,16 @@ ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
   default:
     assert(0);
   }
+}
+
+int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn, uint8_t *data,
+                                             void *user_data) {
+  (void)conn;
+  (void)user_data;
+
+  if (RAND_bytes(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 1) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
 }
