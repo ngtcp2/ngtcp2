@@ -7,9 +7,11 @@ describes a brief introduction of programming ngtcp2.
 Prerequisites
 -------------
 
-Reading QUIC transport and TLS draft helps you a lot to write QUIC
-application.  They describes how TLS is integrated into QUIC and why
-the existing TLS stack cannot be used with QUIC.
+Reading `QUIC transport
+<https://datatracker.ietf.org/doc/html/rfc9000>`_ and `QUIC TLS
+<https://datatracker.ietf.org/doc/html/rfc9001>`_ documents helps you
+a lot to write QUIC application.  They describes how TLS is integrated
+into QUIC and why the existing TLS stack cannot be used with QUIC.
 
 QUIC requires the special interface from TLS stack, which is probably
 not available from most of the existing TLS stacks.  As far as I know,
