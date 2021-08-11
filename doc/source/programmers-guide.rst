@@ -121,15 +121,14 @@ Client application has to supply Connection IDs to
 connection ID (DCID), and which should be random byte string and at
 least 8 bytes long.  The *scid* is the source connection ID (SCID)
 which identifies the client itself.  The *version* parameter is the
-QUIC version to use.  It should be :macro:`NGTCP2_PROTO_VER_MIN` for
-the maximum compatibility.
+QUIC version to use.  It should be :macro:`NGTCP2_PROTO_VER_V1`.
 
 Similarly, server application has to supply these parameters to
 `ngtcp2_conn_server_new()`.  But the *dcid* must be the same value
 which is received from client (which is client SCID).  The *scid* is
 chosen by server.  Don't use DCID in client packet as server SCID.
 The *version* parameter is the QUIC version to use.  It should be
-:macro:`NGTCP2_PROTO_VER_MIN` for the maximum compatibility.
+:macro:`NGTCP2_PROTO_VER_V1`.
 
 A path is very important to QUIC connection.  It is the pair of
 endpoints, local and remote.  The path passed to
