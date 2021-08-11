@@ -37,17 +37,11 @@ required:
 - libev
 - `nghttp3 <https://github.com/ngtcp2/nghttp3>`_ for HTTP/3
 
-The client and server under examples directory require at least one of
-the following TLS backends:
+ngtcp2 crypto helper library, and client and server under examples
+directory require at least one of the following TLS backends:
 
 - `OpenSSL with QUIC support
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1k+quic>`_
-- GnuTLS
-- BoringSSL
-
-For crypto helper library:
-
-- OpenSSL with QUIC support described above
 - GnuTLS >= 3.7.2
 - BoringSSL (commit 7ada8466927864b6427277f455483c61081a32db)
 
