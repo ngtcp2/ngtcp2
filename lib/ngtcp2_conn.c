@@ -755,7 +755,7 @@ static void conn_reset_conn_stat_cc(ngtcp2_conn *conn,
  * function
  */
 static void reset_conn_stat_recovery(ngtcp2_conn_stat *cstat) {
-  // Initializes them with UINT64_MAX.
+  /* Initializes them with UINT64_MAX. */
   memset(cstat->loss_time, 0xff, sizeof(cstat->loss_time));
   memset(cstat->last_tx_pkt_ts, 0xff, sizeof(cstat->last_tx_pkt_ts));
 }
