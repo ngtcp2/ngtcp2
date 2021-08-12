@@ -59,7 +59,15 @@ CLIENT_SRCS = \
 noinst_PROGRAMS =
 
 if ENABLE_EXAMPLE_OPENSSL
-noinst_PROGRAMS += client server h09client h09server perfserver
+noinst_PROGRAMS += client server h09client h09server perfserver simpleclient
+
+simpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
+	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
+simpleclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/openssl/libngtcp2_crypto_openssl.la \
+	@OPENSSL_LIBS@ \
+	@JEMALLOC_LIBS@
+simpleclient_SOURCES = simpleclient.c
 
 client_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
