@@ -784,8 +784,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     return -1;
   }
 
-  if (tls_session_.init(early_data_, tls_ctx, addr_, this, AppProtocol::H3) !=
-      0) {
+  if (tls_session_.init(early_data_, tls_ctx, addr_, this, version,
+                        AppProtocol::H3) != 0) {
     return -1;
   }
 

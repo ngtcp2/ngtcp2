@@ -217,7 +217,7 @@ int tp_send_func(gnutls_session_t session, gnutls_buffer_st *extdata) {
 int TLSClientSession::init(bool &early_data_enabled,
                            const TLSClientContext &tls_ctx,
                            const char *remote_addr, ClientBase *client,
-                           AppProtocol app_proto) {
+                           uint32_t quic_version, AppProtocol app_proto) {
   early_data_enabled = false;
 
   if (auto rv =
@@ -248,8 +248,10 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   if (auto rv = gnutls_session_ext_register(
           session_, "QUIC Transport Parameters",
-          NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1, GNUTLS_EXT_TLS,
-          tp_recv_func, tp_send_func, nullptr, nullptr, nullptr,
+          (quic_version & 0xff000000)
+              ? NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT
+              : NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1,
+          GNUTLS_EXT_TLS, tp_recv_func, tp_send_func, nullptr, nullptr, nullptr,
           GNUTLS_EXT_FLAG_TLS | GNUTLS_EXT_FLAG_CLIENT_HELLO |
               GNUTLS_EXT_FLAG_EE);
       rv != 0) {
