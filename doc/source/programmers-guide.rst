@@ -221,14 +221,13 @@ retransmit early data to server as 1RTT data.  If an application
 wishes to resend data, it has to reopen streams and writes data again.
 See `ngtcp2_conn_early_data_rejected`.
 
-Stream and crypto data ownership
+Stream data ownership
 --------------------------------
 
-Stream and crypto data passed to :type:`ngtcp2_conn` must be held by
-application until :member:`ngtcp2_callbacks.acked_stream_data_offset`
-and :member:`ngtcp2_callbacks.acked_crypto_offset` callbacks,
-respectively, telling that the those data are acknowledged by the
-remote endpoint and no longer used by the library.
+Stream data passed to :type:`ngtcp2_conn` must be held by application
+until :member:`ngtcp2_callbacks.acked_stream_data_offset` callbacks is
+invoked, telling that the those data are acknowledged by the remote
+endpoint and no longer used by the library.
 
 Timers
 ------

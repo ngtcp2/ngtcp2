@@ -285,6 +285,8 @@ typedef struct ngtcp2_pktns {
       ngtcp2_crypto_km *ckm;
       /* hp_ctx is cipher context for packet header protection. */
       ngtcp2_crypto_cipher_ctx hp_ctx;
+      /* data is the submitted crypto data. */
+      ngtcp2_buf_chain *data;
     } tx;
 
     struct {

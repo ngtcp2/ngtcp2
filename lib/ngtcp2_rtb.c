@@ -587,6 +587,35 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
   ngtcp2_list_insert(ent, pent);
 }
 
+static void conn_ack_crypto_data(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                                 uint64_t datalen) {
+  ngtcp2_buf_chain **pbufchain, *bufchain;
+  size_t left;
+
+  for (pbufchain = &pktns->crypto.tx.data; *pbufchain;) {
+    left = ngtcp2_buf_len(&(*pbufchain)->buf);
+    if (left > datalen) {
+      (*pbufchain)->buf.pos += datalen;
+      return;
+    }
+
+    bufchain = *pbufchain;
+    *pbufchain = bufchain->next;
+
+    ngtcp2_mem_free(conn->mem, bufchain);
+
+    datalen -= left;
+
+    if (datalen == 0) {
+      return;
+    }
+  }
+
+  assert(datalen == 0);
+
+  return;
+}
+
 static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
                                  ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
                                  ngtcp2_tstamp ts) {
@@ -596,8 +625,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   int rv;
   uint64_t datalen;
   ngtcp2_strm *crypto = rtb->crypto;
-  ngtcp2_crypto_level crypto_level;
   ngtcp2_cc *cc = rtb->cc;
+  ngtcp2_pktns *pktns;
 
   if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED) &&
       cc->on_spurious_congestion) {
@@ -659,33 +688,28 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
         return rv;
       }
 
-      if (conn->callbacks.acked_crypto_offset) {
-        stream_offset = ngtcp2_strm_get_acked_offset(crypto);
-        datalen = stream_offset - prev_stream_offset;
-        if (datalen == 0) {
-          break;
-        }
-
-        switch (rtb->pktns_id) {
-        case NGTCP2_PKTNS_ID_INITIAL:
-          crypto_level = NGTCP2_CRYPTO_LEVEL_INITIAL;
-          break;
-        case NGTCP2_PKTNS_ID_HANDSHAKE:
-          crypto_level = NGTCP2_CRYPTO_LEVEL_HANDSHAKE;
-          break;
-        case NGTCP2_PKTNS_ID_APPLICATION:
-          crypto_level = NGTCP2_CRYPTO_LEVEL_APPLICATION;
-          break;
-        default:
-          assert(0);
-        }
-
-        rv = conn->callbacks.acked_crypto_offset(
-            conn, crypto_level, prev_stream_offset, datalen, conn->user_data);
-        if (rv != 0) {
-          return NGTCP2_ERR_CALLBACK_FAILURE;
-        }
+      stream_offset = ngtcp2_strm_get_acked_offset(crypto);
+      datalen = stream_offset - prev_stream_offset;
+      if (datalen == 0) {
+        break;
       }
+
+      switch (rtb->pktns_id) {
+      case NGTCP2_PKTNS_ID_INITIAL:
+        pktns = conn->in_pktns;
+        break;
+      case NGTCP2_PKTNS_ID_HANDSHAKE:
+        pktns = conn->hs_pktns;
+        break;
+      case NGTCP2_PKTNS_ID_APPLICATION:
+        pktns = &conn->pktns;
+        break;
+      default:
+        assert(0);
+      }
+
+      conn_ack_crypto_data(conn, pktns, datalen);
+
       break;
     case NGTCP2_FRAME_RESET_STREAM:
       strm = ngtcp2_conn_find_stream(conn, frc->fr.reset_stream.stream_id);

@@ -314,16 +314,6 @@ int recv_stream_data(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
 } // namespace
 
 namespace {
-int acked_crypto_offset(ngtcp2_conn *conn, ngtcp2_crypto_level crypto_level,
-                        uint64_t offset, uint64_t datalen, void *user_data) {
-  auto c = static_cast<Client *>(user_data);
-  c->remove_tx_crypto_data(crypto_level, offset, datalen);
-
-  return 0;
-}
-} // namespace
-
-namespace {
 int acked_stream_data_offset(ngtcp2_conn *conn, int64_t stream_id,
                              uint64_t offset, uint64_t datalen, void *user_data,
                              void *stream_user_data) {
@@ -635,7 +625,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       ngtcp2_crypto_decrypt_cb,
       do_hp_mask,
       ::recv_stream_data,
-      acked_crypto_offset,
       ::acked_stream_data_offset,
       nullptr, // stream_open
       stream_close,

@@ -2667,26 +2667,6 @@ typedef int (*ngtcp2_acked_stream_data_offset)(
 /**
  * @functypedef
  *
- * :type:`ngtcp2_acked_crypto_offset` is a callback function which is
- * called when crypto stream data is acknowledged, and application can
- * free the data.  |crypto_level| indicates the encryption level where
- * this data was sent.  Crypto data never be sent in
- * :enum:`ngtcp2_crypto_level.NGTCP2_CRYPTO_LEVEL_EARLY`.  This works
- * like :type:`ngtcp2_acked_stream_data_offset` but crypto stream has
- * no stream_id and stream_user_data, and |datalen| never become 0.
- *
- * The implementation of this callback should return 0 if it succeeds.
- * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
- * call return immediately.
- */
-typedef int (*ngtcp2_acked_crypto_offset)(ngtcp2_conn *conn,
-                                          ngtcp2_crypto_level crypto_level,
-                                          uint64_t offset, uint64_t datalen,
-                                          void *user_data);
-
-/**
- * @functypedef
- *
  * :type:`ngtcp2_recv_stateless_reset` is a callback function which is
  * called when Stateless Reset packet is received.  The stateless
  * reset details are given in |sr|.
@@ -3125,14 +3105,6 @@ typedef struct ngtcp2_callbacks {
    * received.  This callback function is optional.
    */
   ngtcp2_recv_stream_data recv_stream_data;
-  /**
-   * :member:`acked_crypto_offset` is a callback function which is
-   * invoked when CRYPTO data is acknowledged by a remote endpoint.
-   * It tells an application the largest offset of acknowledged CRYPTO
-   * data without a gap so that the application can free memory for
-   * the data.  This callback function is optional.
-   */
-  ngtcp2_acked_crypto_offset acked_crypto_offset;
   /**
    * :member:`acked_stream_data_offset` is a callback function which
    * is invoked when STREAM data, which includes application data, is
@@ -4565,9 +4537,8 @@ NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
  * of length |datalen| to the library for transmission.  The
  * encryption level is given in |crypto_level|.
  *
- * Application should keep the buffer pointed by |data| alive until
- * the data is acknowledged.  The acknowledgement is notified by
- * :type:`ngtcp2_acked_crypto_offset` callback.
+ * The library makes a copy of the buffer pointed by |data| of length
+ * |datalen|.  Application can discard |data|.
  */
 NGTCP2_EXTERN int
 ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,

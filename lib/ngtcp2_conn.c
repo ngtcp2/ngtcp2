@@ -665,9 +665,22 @@ static void delete_buffed_pkts(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem) {
   }
 }
 
+static void delete_buf_chain(ngtcp2_buf_chain *bufchain,
+                             const ngtcp2_mem *mem) {
+  ngtcp2_buf_chain *next;
+
+  for (; bufchain;) {
+    next = bufchain->next;
+    ngtcp2_buf_chain_del(bufchain, mem);
+    bufchain = next;
+  }
+}
+
 static void pktns_free(ngtcp2_pktns *pktns, const ngtcp2_mem *mem) {
   ngtcp2_frame_chain *frc;
   ngtcp2_ksl_it it;
+
+  delete_buf_chain(pktns->crypto.tx.data, mem);
 
   delete_buffed_pkts(pktns->rx.buffed_pkts, mem);
 
@@ -11419,6 +11432,32 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   return 0;
 }
 
+static int conn_buffer_crypto_data(ngtcp2_conn *conn, const uint8_t **pdata,
+                                   ngtcp2_pktns *pktns, const uint8_t *data,
+                                   size_t datalen) {
+  int rv;
+  ngtcp2_buf_chain **pbufchain;
+
+  for (pbufchain = &pktns->crypto.tx.data; *pbufchain;
+       pbufchain = &(*pbufchain)->next) {
+    if (ngtcp2_buf_left(&(*pbufchain)->buf) >= datalen) {
+      break;
+    }
+  }
+
+  if (!*pbufchain) {
+    rv = ngtcp2_buf_chain_new(pbufchain, ngtcp2_max(1024, datalen), conn->mem);
+    if (rv != 0) {
+      return rv;
+    }
+  }
+
+  *pdata = (*pbufchain)->buf.last;
+  (*pbufchain)->buf.last = ngtcp2_cpymem((*pbufchain)->buf.last, data, datalen);
+
+  return 0;
+}
+
 int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
                                    ngtcp2_crypto_level crypto_level,
                                    const uint8_t *data, const size_t datalen) {
@@ -11445,6 +11484,11 @@ int ngtcp2_conn_submit_crypto_data(ngtcp2_conn *conn,
     break;
   default:
     return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  rv = conn_buffer_crypto_data(conn, &data, pktns, data, datalen);
+  if (rv != 0) {
+    return rv;
   }
 
   rv = ngtcp2_frame_chain_new(&frc, conn->mem);

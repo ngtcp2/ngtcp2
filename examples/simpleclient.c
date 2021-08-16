@@ -139,11 +139,6 @@ struct client {
   ngtcp2_conn *conn;
 
   struct {
-    uint8_t data[65536];
-    size_t datalen;
-  } crypto;
-
-  struct {
     int64_t stream_id;
     const uint8_t *data;
     size_t datalen;
@@ -187,22 +182,12 @@ static int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
       ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
   int rv;
 
-  if (sizeof(c->crypto.data) < c->crypto.datalen + len) {
-    fprintf(stderr, "crypto data overflow\n");
-    return 0;
-  }
-
-  memcpy(c->crypto.data + c->crypto.datalen, data, len);
-
-  rv = ngtcp2_conn_submit_crypto_data(c->conn, level,
-                                      c->crypto.data + c->crypto.datalen, len);
+  rv = ngtcp2_conn_submit_crypto_data(c->conn, level, data, len);
   if (rv != 0) {
     fprintf(stderr, "ngtcp2_conn_submit_crypto_data: %s\n",
             ngtcp2_strerror(rv));
     return 0;
   }
-
-  c->crypto.datalen += len;
 
   return 1;
 }
@@ -356,7 +341,6 @@ static int client_quic_init(struct client *c,
       ngtcp2_crypto_decrypt_cb,
       ngtcp2_crypto_hp_mask_cb,
       NULL, /* recv_stream_data */
-      NULL, /* acked_crypto_offset */
       NULL, /* acked_stream_data_offset */
       NULL, /* stream_open */
       NULL, /* stream_close */

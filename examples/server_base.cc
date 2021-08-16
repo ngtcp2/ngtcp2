@@ -41,7 +41,7 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
 Buffer::Buffer(size_t datalen) : buf(datalen), begin(buf.data()), tail(begin) {}
 
 HandlerBase::HandlerBase()
-    : crypto_{}, conn_(nullptr), last_error_{QUICErrorType::Transport, 0} {}
+    : conn_(nullptr), last_error_{QUICErrorType::Transport, 0} {}
 
 HandlerBase::~HandlerBase() {
   if (conn_) {
@@ -118,29 +118,7 @@ int HandlerBase::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
 
 void HandlerBase::write_server_handshake(ngtcp2_crypto_level level,
                                          const uint8_t *data, size_t datalen) {
-  auto &crypto = crypto_[level];
-  crypto.data.emplace_back(data, datalen);
-
-  auto &buf = crypto.data.back();
-
-  ngtcp2_conn_submit_crypto_data(conn_, level, buf.rpos(), buf.size());
-}
-
-namespace {
-void remove_tx_data(std::deque<Buffer> &d, uint64_t &tx_offset,
-                    uint64_t offset) {
-  for (; !d.empty() && tx_offset + d.front().size() <= offset;) {
-    auto &v = d.front();
-    tx_offset += v.size();
-    d.pop_front();
-  }
-}
-} // namespace
-
-void HandlerBase::remove_tx_crypto_data(ngtcp2_crypto_level crypto_level,
-                                        uint64_t offset, uint64_t datalen) {
-  auto &crypto = crypto_[crypto_level];
-  remove_tx_data(crypto.data, crypto.acked_offset, offset + datalen);
+  ngtcp2_conn_submit_crypto_data(conn_, level, data, datalen);
 }
 
 void HandlerBase::set_tls_alert(uint8_t alert) {

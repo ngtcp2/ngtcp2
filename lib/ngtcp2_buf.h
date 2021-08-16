@@ -76,4 +76,33 @@ void ngtcp2_buf_reset(ngtcp2_buf *buf);
  */
 size_t ngtcp2_buf_cap(const ngtcp2_buf *buf);
 
+/*
+ * ngtcp2_buf_chain is a linked list of ngtcp2_buf.
+ */
+typedef struct ngtcp2_buf_chain ngtcp2_buf_chain;
+
+struct ngtcp2_buf_chain {
+  ngtcp2_buf_chain *next;
+  ngtcp2_buf buf;
+};
+
+/*
+ * ngtcp2_buf_chain_new creates new ngtcp2_buf_chain and initializes
+ * the internal buffer with |len| bytes space.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+int ngtcp2_buf_chain_new(ngtcp2_buf_chain **pbufchain, size_t len,
+                         const ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_buf_chain_del deletes the resource allocated by |bufchain|.
+ * It also deletes the memory pointed by |bufchain|.
+ */
+void ngtcp2_buf_chain_del(ngtcp2_buf_chain *bufchain, const ngtcp2_mem *mem);
+
 #endif /* NGTCP2_BUF_H */

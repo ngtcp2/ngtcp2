@@ -182,14 +182,6 @@ struct Buffer {
   uint8_t *tail;
 };
 
-struct Crypto {
-  /* data is unacknowledged data. */
-  std::deque<Buffer> data;
-  /* acked_offset is the size of acknowledged crypto data removed from
-     |data| so far */
-  uint64_t acked_offset;
-};
-
 class ClientBase {
 public:
   ClientBase();
@@ -203,8 +195,6 @@ public:
                 size_t secretlen);
   void write_client_handshake(ngtcp2_crypto_level crypto_level,
                               const uint8_t *data, size_t datalen);
-  void remove_tx_crypto_data(ngtcp2_crypto_level crypto_level, uint64_t offset,
-                             uint64_t datalen);
   void set_tls_alert(uint8_t alert);
 
   int write_transport_params(const char *path,
@@ -218,7 +208,6 @@ public:
 protected:
   TLSClientSession tls_session_;
   FILE *qlog_;
-  Crypto crypto_[3];
   ngtcp2_conn *conn_;
   QUICError last_error_;
   std::function<int()> application_rx_key_cb_;
