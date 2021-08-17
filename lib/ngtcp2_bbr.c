@@ -104,7 +104,7 @@ void ngtcp2_bbr_cc_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   cc->ccb.log = log;
   cc->rst = rst;
   cc->rand = rand;
-  cc->rand_ctx = rand_ctx;
+  cc->rand_ctx = *rand_ctx;
   cc->initial_cwnd = cstat->cwnd;
   bbr_init(cc, cstat, initial_ts);
 }
@@ -566,7 +566,7 @@ static void bbr_enter_probe_bw(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
 
   assert(cc->rand);
 
-  cc->rand(&rand, 1, cc->rand_ctx);
+  cc->rand(&rand, 1, &cc->rand_ctx);
 
   cc->cycle_index = NGTCP2_BBR_GAIN_CYCLELEN - 1 - (size_t)(rand * 7 / 256);
   bbr_advance_cycle_phase(cc, ts);

@@ -54,7 +54,7 @@ typedef struct ngtcp2_bbr_cc {
   uint64_t initial_cwnd;
   ngtcp2_rst *rst;
   ngtcp2_rand rand;
-  const ngtcp2_rand_ctx *rand_ctx;
+  ngtcp2_rand_ctx rand_ctx;
 
   /* BBR variables */
 
