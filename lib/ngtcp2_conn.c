@@ -11448,12 +11448,14 @@ static int conn_buffer_crypto_data(ngtcp2_conn *conn, const uint8_t **pdata,
                                    ngtcp2_pktns *pktns, const uint8_t *data,
                                    size_t datalen) {
   int rv;
-  ngtcp2_buf_chain **pbufchain;
+  ngtcp2_buf_chain **pbufchain = &pktns->crypto.tx.data;
 
-  for (pbufchain = &pktns->crypto.tx.data; *pbufchain;
-       pbufchain = &(*pbufchain)->next) {
-    if (ngtcp2_buf_left(&(*pbufchain)->buf) >= datalen) {
-      break;
+  if (*pbufchain) {
+    for (; (*pbufchain)->next; pbufchain = &(*pbufchain)->next)
+      ;
+
+    if (ngtcp2_buf_left(&(*pbufchain)->buf) < datalen) {
+      pbufchain = &(*pbufchain)->next;
     }
   }
 
