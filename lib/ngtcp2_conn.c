@@ -10004,22 +10004,26 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 }
 
 static void acktr_cancel_expired_ack_delay_timer(ngtcp2_acktr *acktr,
+                                                 ngtcp2_duration max_ack_delay,
                                                  ngtcp2_tstamp ts) {
   if (!(acktr->flags & NGTCP2_ACKTR_FLAG_CANCEL_TIMER) &&
-      acktr->first_unacked_ts <= ts) {
+      acktr->first_unacked_ts != UINT64_MAX &&
+      acktr->first_unacked_ts + max_ack_delay <= ts) {
     acktr->flags |= NGTCP2_ACKTR_FLAG_CANCEL_TIMER;
   }
 }
 
 void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
                                                 ngtcp2_tstamp ts) {
+  ngtcp2_duration ack_delay = conn_compute_ack_delay(conn);
+
   if (conn->in_pktns) {
-    acktr_cancel_expired_ack_delay_timer(&conn->in_pktns->acktr, ts);
+    acktr_cancel_expired_ack_delay_timer(&conn->in_pktns->acktr, 0, ts);
   }
   if (conn->hs_pktns) {
-    acktr_cancel_expired_ack_delay_timer(&conn->hs_pktns->acktr, ts);
+    acktr_cancel_expired_ack_delay_timer(&conn->hs_pktns->acktr, 0, ts);
   }
-  acktr_cancel_expired_ack_delay_timer(&conn->pktns.acktr, ts);
+  acktr_cancel_expired_ack_delay_timer(&conn->pktns.acktr, ack_delay, ts);
 }
 
 ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn) {

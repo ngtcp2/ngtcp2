@@ -312,7 +312,8 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr) {
 int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
                                     ngtcp2_duration max_ack_delay,
                                     ngtcp2_tstamp ts) {
-  return acktr->first_unacked_ts <= ts - max_ack_delay;
+  return acktr->first_unacked_ts != UINT64_MAX &&
+         acktr->first_unacked_ts + max_ack_delay <= ts;
 }
 
 void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr) {
