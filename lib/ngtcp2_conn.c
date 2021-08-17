@@ -6793,6 +6793,10 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   strm->rx.last_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
 
+  if (!strm->app_error_code) {
+    strm->app_error_code = fr->app_error_code;
+  }
+
   return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
 }
 
@@ -6866,6 +6870,10 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
       ngtcp2_mem_free(conn->mem, strm);
       return rv;
     }
+  }
+
+  if (!strm->app_error_code) {
+    strm->app_error_code = fr->app_error_code;
   }
 
   /* No RESET_STREAM is required if we have sent FIN and all data have
