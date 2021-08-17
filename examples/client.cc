@@ -1081,6 +1081,10 @@ void Client::schedule_retransmit() {
   auto now = util::timestamp(loop_);
   auto t = expiry < now ? 1e-9
                         : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
+  if (!config.quiet) {
+    std::cerr << "Set timer=" << std::fixed << t << "s" << std::defaultfloat
+              << std::endl;
+  }
   rttimer_.repeat = t;
   ev_timer_again(loop_, &rttimer_);
 }
