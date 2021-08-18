@@ -11371,7 +11371,7 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_tstamp earliest_loss_time;
   ngtcp2_pktns *loss_pktns =
       conn_get_earliest_pktns(conn, &earliest_loss_time, cstat->loss_time);
-  ngtcp2_pktns *earliest_pktns;
+  ngtcp2_pktns *pto_pktns;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -11409,13 +11409,16 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       in_pktns->rtb.probe_pkt_left = 1;
     }
   } else {
-    earliest_pktns = conn_get_earliest_pktns(conn, NULL, cstat->last_tx_pkt_ts);
+    if (in_pktns && in_pktns->rtb.num_retransmittable) {
+      pto_pktns = in_pktns;
+    } else if (hs_pktns && hs_pktns->rtb.num_retransmittable) {
+      pto_pktns = hs_pktns;
+    } else {
+      pto_pktns = &conn->pktns;
+    }
 
-    assert(earliest_pktns);
-
-    switch (earliest_pktns->rtb.pktns_id) {
+    switch (pto_pktns->rtb.pktns_id) {
     case NGTCP2_PKTNS_ID_INITIAL:
-      assert(in_pktns);
       in_pktns->rtb.probe_pkt_left = 1;
       if (!conn->server) {
         break;
@@ -11423,7 +11426,6 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       /* fall through for server so that it can coalesce packets. */
       /* fall through */
     case NGTCP2_PKTNS_ID_HANDSHAKE:
-      assert(hs_pktns);
       hs_pktns->rtb.probe_pkt_left = 1;
       break;
     case NGTCP2_PKTNS_ID_APPLICATION:
