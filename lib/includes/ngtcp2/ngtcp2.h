@@ -782,7 +782,12 @@ typedef enum ngtcp2_pkt_type {
    * :enum:`NGTCP2_PKT_VERSION_NEGOTIATION` is defined by libngtcp2
    * for convenience.
    */
-  NGTCP2_PKT_VERSION_NEGOTIATION = 0xf0,
+  NGTCP2_PKT_VERSION_NEGOTIATION = 0x80,
+  /**
+   * :enum:`NGTCP2_PKT_STATELESS_RESET` is defined by libngtcp2 for
+   * convenience.
+   */
+  NGTCP2_PKT_STATELESS_RESET = 0x81,
   /**
    * :enum:`NGTCP2_PKT_INITIAL` indicates Initial packet.
    */
@@ -802,7 +807,7 @@ typedef enum ngtcp2_pkt_type {
   /**
    * :enum:`NGTCP2_PKT_SHORT` is defined by libngtcp2 for convenience.
    */
-  NGTCP2_PKT_SHORT = 0x70
+  NGTCP2_PKT_SHORT = 0x40
 } ngtcp2_pkt_type;
 
 /**

@@ -157,6 +157,8 @@ static const char *strpkttype_long(uint8_t type) {
   switch (type) {
   case NGTCP2_PKT_VERSION_NEGOTIATION:
     return "VN";
+  case NGTCP2_PKT_STATELESS_RESET:
+    return "SR";
   case NGTCP2_PKT_INITIAL:
     return "Initial";
   case NGTCP2_PKT_RETRY:
@@ -569,6 +571,9 @@ void ngtcp2_log_rx_sr(ngtcp2_log *log, const ngtcp2_pkt_stateless_reset *sr) {
   }
 
   memset(&shd, 0, sizeof(shd));
+
+  shd.flags = NGTCP2_PKT_FLAG_LONG_FORM;
+  shd.type = NGTCP2_PKT_STATELESS_RESET;
 
   log->log_printf(
       log->user_data, (NGTCP2_LOG_PKT " token=0x%s randlen=%zu"),
