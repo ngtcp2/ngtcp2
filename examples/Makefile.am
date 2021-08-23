@@ -115,7 +115,16 @@ perfserver_SOURCES = perfserver.cc perfserver.h ${SERVER_SRCS} \
 endif # ENABLE_EXAMPLE_OPENSSL
 
 if ENABLE_EXAMPLE_GNUTLS
-noinst_PROGRAMS += gtlsclient gtlsserver
+# Missing 'h09client h09server perfserver' (??)
+noinst_PROGRAMS += gtlsclient gtlsserver gtlssimpleclient
+
+gtlssimpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
+	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@ -DWITH_EXAMPLE_GNUTLS
+gtlssimpleclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/gnutls/libngtcp2_crypto_gnutls.la \
+	@GNUTLS_LIBS@ \
+	@JEMALLOC_LIBS@
+gtlssimpleclient_SOURCES = simpleclient.c
 
 gtlsclient_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@ -DWITH_EXAMPLE_GNUTLS

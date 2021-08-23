@@ -35,27 +35,36 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include <ngtcp2/ngtcp2.h>
-#include <ngtcp2/ngtcp2_crypto.h>
-#include <ngtcp2/ngtcp2_crypto_openssl.h>
-
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+#include <assert.h>
+#include <gnutls/gnutls.h>
+#include <gnutls/crypto.h>
+#include <ngtcp2/ngtcp2_crypto_gnutls.h>
+#elif defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
+#include <ngtcp2/ngtcp2_crypto_openssl.h>
+#else
+#error Unimplemented TLS lib
+#endif
+
+#include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 
 #include <ev.h>
 
-#define REMOTE_HOST "127.0.0.1"
-#define REMOTE_PORT "4433"
-#define ALPN "\xahq-interop"
+// #define REMOTE_HOST "127.0.0.1"
+// #define REMOTE_PORT "4433"
+// #define ALPN "\xahq-interop"
 #define MESSAGE "GET /\r\n"
 
 /*
  * Example 1: Handshake with www.google.com
- *
- * #define REMOTE_HOST "www.google.com"
- * #define REMOTE_PORT "443"
- * #define ALPN "\x2h3"
- *
+ */
+#define REMOTE_HOST "www.google.com"
+#define REMOTE_PORT "443"
+#define ALPN "\x2h3"
+/*
  * and undefine MESSAGE macro.
  */
 
@@ -134,8 +143,13 @@ struct client {
   int fd;
   struct sockaddr_storage local_addr;
   size_t local_addrlen;
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+  gnutls_certificate_credentials_t cred;
+  gnutls_session_t session;
+#elif defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
   SSL_CTX *ssl_ctx;
   SSL *ssl;
+#endif
   ngtcp2_conn *conn;
 
   struct {
@@ -152,6 +166,137 @@ struct client {
   ev_timer idle_timer;
 };
 
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+static int RAND_bytes(uint8_t *data, int size)
+{
+  if (size <= 0) {
+    return 0;
+  }
+	int result = gnutls_rnd(GNUTLS_RND_RANDOM, data, (size_t)size);
+	if (result != 0) {
+		return 0;
+	}
+	return 1;
+}
+
+static int secret_func(gnutls_session_t session,
+                gnutls_record_encryption_level_t gtls_level,
+                const void *rx_secret, const void *tx_secret,
+                size_t secretlen)
+{
+  struct client *c = (struct client *)gnutls_session_get_ptr(session);
+  ngtcp2_crypto_level level =
+          ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
+
+  if (rx_secret &&
+      ngtcp2_crypto_derive_and_install_rx_key(c->conn, NULL, NULL, NULL, level,
+                                              (const uint8_t *)rx_secret,
+                                              secretlen) != 0) {
+    return -1;
+  }
+
+  if (ngtcp2_crypto_derive_and_install_tx_key(c->conn, NULL, NULL, NULL, level,
+                                              (const uint8_t *)tx_secret,
+                                              secretlen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int read_func(gnutls_session_t session,
+                     gnutls_record_encryption_level_t gtls_level,
+                     gnutls_handshake_description_t htype, const void *data,
+                     size_t len) {
+  assert(htype != GNUTLS_HANDSHAKE_CHANGE_CIPHER_SPEC);
+
+  struct client *c = (struct client *)gnutls_session_get_ptr(session);
+  ngtcp2_crypto_level level =
+          ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
+  if (ngtcp2_conn_submit_crypto_data(c->conn, level, (const uint8_t *)data,
+                                     len) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int alert_read_func(gnutls_session_t session,
+                           gnutls_record_encryption_level_t gtls_level,
+                           gnutls_alert_level_t alert_level,
+                           gnutls_alert_description_t alert) {
+  (void)gtls_level;
+  (void)alert_level;
+
+  struct client *c = (struct client *)gnutls_session_get_ptr(session);
+  c->last_error = NGTCP2_CRYPTO_ERROR | alert;
+
+  return 0;
+}
+
+static int set_remote_transport_params(ngtcp2_conn *conn, const uint8_t *data,
+                                       size_t datalen)
+{
+  ngtcp2_transport_params params;
+
+  if (ngtcp2_decode_transport_params(&params,
+                             NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+                             data, datalen) != 0)
+  {
+    return -1;
+  }
+
+  if (ngtcp2_conn_set_remote_transport_params(conn, &params) != 0)
+  {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int tp_recv_func(gnutls_session_t session, const uint8_t *data,
+                        size_t datalen) {
+  struct client *c = (struct client *)gnutls_session_get_ptr(session);
+
+  if (set_remote_transport_params(c->conn, data, datalen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int append_local_transport_params(ngtcp2_conn *conn,
+                                  gnutls_buffer_t extdata)
+{
+  ngtcp2_transport_params params;
+  uint8_t buf[64];
+
+  ngtcp2_conn_get_local_transport_params(conn, &params);
+  ngtcp2_ssize nwrite =
+      ngtcp2_encode_transport_params(buf, sizeof(buf),
+                                     NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
+                                     &params);
+  if (nwrite < 0) {
+    return -1;
+  }
+
+  if (gnutls_buffer_append_data(extdata, buf, (size_t)nwrite) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
+  struct client *c = (struct client *)gnutls_session_get_ptr(session);
+
+  if (append_local_transport_params(c->conn, extdata) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+#elif defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
 static int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
                                   const uint8_t *rx_secret,
                                   const uint8_t *tx_secret, size_t secretlen) {
@@ -213,6 +358,7 @@ static SSL_QUIC_METHOD quic_method = {
     flush_flight,
     send_alert,
 };
+#endif
 
 static int numeric_host_family(const char *hostname, int family) {
   uint8_t dst[sizeof(struct in6_addr)];
@@ -224,7 +370,67 @@ static int numeric_host(const char *hostname) {
          numeric_host_family(hostname, AF_INET6);
 }
 
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+#define DEFAULT_CIPHERS "NORMAL:-VERS-ALL:+VERS-TLS1.3:-CIPHER-ALL:+AES-128-GCM:+AES-256-GCM:+CHACHA20-POLY1305:+AES-128-CCM"
+#define DEFAULT_GROUPS "-GROUP-ALL:+GROUP-SECP256R1:+GROUP-X25519:+GROUP-SECP384R1:+GROUP-SECP521R1"
+#endif
+
 static int client_ssl_init(struct client *c) {
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+  const gnutls_datum_t alpn = {
+    .data = (unsigned char *)&ALPN[1],
+    .size = ALPN[0]
+  };
+
+	if (gnutls_certificate_allocate_credentials(&c->cred) != GNUTLS_E_SUCCESS) {
+		return -1;
+	}
+
+	if (gnutls_certificate_set_x509_system_trust(c->cred) < GNUTLS_E_SUCCESS) {
+		return -1;
+	}
+
+  if (gnutls_init(&c->session,
+                  GNUTLS_CLIENT | GNUTLS_NO_END_OF_EARLY_DATA) != 0) {
+    return -1;
+  }
+
+  const char priority[] = "%DISABLE_TLS13_COMPAT_MODE:"DEFAULT_CIPHERS":"
+                          DEFAULT_GROUPS;
+  if (gnutls_priority_set_direct(c->session, priority, NULL) != 0)
+  {
+    return -1;
+  }
+
+  gnutls_handshake_set_secret_function(c->session, secret_func);
+  gnutls_handshake_set_read_function(c->session, read_func);
+  gnutls_alert_set_read_function(c->session, alert_read_func);
+
+  if (gnutls_session_ext_register(c->session, "QUIC Transport Parameters",
+                                  NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1,
+                                  GNUTLS_EXT_TLS, tp_recv_func, tp_send_func,
+                                  NULL, NULL, NULL, GNUTLS_EXT_FLAG_TLS |
+                                  GNUTLS_EXT_FLAG_CLIENT_HELLO |
+                                  GNUTLS_EXT_FLAG_EE) != 0)
+  {
+    return -1;
+  }
+
+  gnutls_session_set_ptr(c->session, c);
+
+  if (gnutls_credentials_set(c->session, GNUTLS_CRD_CERTIFICATE, c->cred) != 0)
+  {
+    return -1;
+  }
+
+  gnutls_alpn_set_protocols(c->session, &alpn, 1, 0);
+
+  if (!numeric_host(REMOTE_HOST)) {
+    gnutls_server_name_set(c->session, GNUTLS_NAME_DNS, REMOTE_HOST, strlen(REMOTE_HOST));
+  }
+
+  return 0;
+#elif defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
   c->ssl_ctx = SSL_CTX_new(TLS_client_method());
 
   SSL_CTX_set_min_proto_version(c->ssl_ctx, TLS1_3_VERSION);
@@ -241,6 +447,9 @@ static int client_ssl_init(struct client *c) {
   }
 
   return 0;
+#else
+return -1;
+#endif
 }
 
 static void rand_cb(uint8_t *dest, size_t destlen,
@@ -405,7 +614,11 @@ static int client_quic_init(struct client *c,
     return -1;
   }
 
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+  ngtcp2_conn_set_tls_native_handle(c->conn, c->session);
+#elif defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
   ngtcp2_conn_set_tls_native_handle(c->conn, c->ssl);
+#endif
 
   return 0;
 }
@@ -724,8 +937,13 @@ static int client_init(struct client *c) {
 
 static void client_free(struct client *c) {
   ngtcp2_conn_del(c->conn);
+#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
+  gnutls_deinit(c->session);
+  gnutls_certificate_free_credentials(c->cred);
+#elif defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
   SSL_free(c->ssl);
   SSL_CTX_free(c->ssl_ctx);
+#endif
 }
 
 int main() {
