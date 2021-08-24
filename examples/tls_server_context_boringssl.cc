@@ -293,7 +293,7 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   }
 
   if (SSL_CTX_use_certificate_chain_file(ssl_ctx_, cert_file) != 1) {
-    std::cerr << "SSL_CTX_use_certificate_file: "
+    std::cerr << "SSL_CTX_use_certificate_chain_file: "
               << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
     return -1;
   }
