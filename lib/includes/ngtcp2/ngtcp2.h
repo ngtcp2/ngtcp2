@@ -3308,11 +3308,14 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
  * @function
  *
  * `ngtcp2_pkt_write_retry` writes Retry packet in the buffer pointed
- * by |dest| whose length is |destlen|.  |odcid| specifies Original
- * Destination Connection ID.  |token| specifies Retry Token, and
- * |tokenlen| specifies its length.  |aead| must be AEAD_AES_128_GCM.
- * |aead_ctx| must be initialized with :macro:`NGTCP2_RETRY_KEY` as an
- * encryption key.
+ * by |dest| whose length is |destlen|.  |dcid| is the destination
+ * connection ID which appeared in a packet as a source connection ID
+ * sent by client.  |scid| is a server chosen source connection ID.
+ * |odcid| specifies Original Destination Connection ID which appeared
+ * in a packet as a destination connection ID sent by client.  |token|
+ * specifies Retry Token, and |tokenlen| specifies its length.  |aead|
+ * must be AEAD_AES_128_GCM.  |aead_ctx| must be initialized with
+ * :macro:`NGTCP2_RETRY_KEY` as an encryption key.
  *
  * This function returns the number of bytes written to the buffer, or
  * one of the following negative error codes:
