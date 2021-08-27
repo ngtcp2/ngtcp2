@@ -175,7 +175,7 @@ int tp_recv_func(gnutls_session_t session, const uint8_t *data,
 
 namespace {
 int append_local_transport_params(const ClientBase *client,
-                                  gnutls_buffer_st *extdata) {
+                                  gnutls_buffer_t extdata) {
   auto conn = client->conn();
 
   ngtcp2_transport_params params;
@@ -199,18 +199,17 @@ int append_local_transport_params(const ClientBase *client,
     return -1;
   }
 
-  return nwrite;
+  return 0;
 }
 } // namespace
 
 namespace {
-int tp_send_func(gnutls_session_t session, gnutls_buffer_st *extdata) {
+int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
   auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
-  auto nwrite = append_local_transport_params(c, extdata);
-  if (nwrite < 0) {
+  if (append_local_transport_params(c, extdata) != 0) {
     return -1;
   }
-  return nwrite;
+  return 0;
 }
 } // namespace
 
@@ -269,9 +268,10 @@ int TLSClientSession::init(bool &early_data_enabled,
       f.seekg(0, std::ios::beg);
       f.read(content.data(), pos);
 
-      gnutls_datum_t s{};
-      s.data = reinterpret_cast<unsigned char *>(content.data());
-      s.size = content.size();
+      gnutls_datum_t s{
+          .data = reinterpret_cast<unsigned char *>(content.data()),
+          .size = static_cast<unsigned int>(content.size()),
+      };
 
       gnutls_datum_t d;
       if (auto rv =
@@ -305,11 +305,12 @@ int TLSClientSession::init(bool &early_data_enabled,
     return -1;
   }
 
-  gnutls_datum_t alpn = {NULL, 0};
-
   // strip the first byte from H3_ALPN_V1
-  alpn.data = const_cast<uint8_t *>(&H3_ALPN_V1[1]);
-  alpn.size = H3_ALPN_V1[0];
+  gnutls_datum_t alpn{
+      .data = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
+      .size = H3_ALPN_V1[0],
+  };
+
   gnutls_alpn_set_protocols(session_, &alpn, 1, 0);
 
   if (util::numeric_host(remote_addr)) {

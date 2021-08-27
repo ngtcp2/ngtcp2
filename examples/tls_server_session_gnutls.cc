@@ -167,7 +167,7 @@ int tp_recv_func(gnutls_session_t session, const uint8_t *data,
 
 namespace {
 int append_local_transport_params(const HandlerBase *handler,
-                                  gnutls_buffer_st *extdata) {
+                                  gnutls_buffer_t extdata) {
   auto conn = handler->conn();
 
   ngtcp2_transport_params params;
@@ -191,18 +191,17 @@ int append_local_transport_params(const HandlerBase *handler,
     return -1;
   }
 
-  return nwrite;
+  return 0;
 }
 } // namespace
 
 namespace {
-int tp_send_func(gnutls_session_t session, gnutls_buffer_st *extdata) {
+int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
   auto h = static_cast<HandlerBase *>(gnutls_session_get_ptr(session));
-  auto nwrite = append_local_transport_params(h, extdata);
-  if (nwrite < 0) {
+  if (append_local_transport_params(h, extdata) != 0) {
     return -1;
   }
-  return nwrite;
+  return 0;
 }
 } // namespace
 
@@ -271,9 +270,10 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   // TODO Set all available ALPN based on app_proto.
 
   // strip the first byte from H3_ALPN_V1
-  gnutls_datum_t alpn = {nullptr, 0};
-  alpn.data = const_cast<uint8_t *>(&H3_ALPN_V1[1]);
-  alpn.size = H3_ALPN_V1[0];
+  gnutls_datum_t alpn{
+      .data = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
+      .size = H3_ALPN_V1[0],
+  };
   gnutls_alpn_set_protocols(session_, &alpn, 1, 0);
 
   return 0;
