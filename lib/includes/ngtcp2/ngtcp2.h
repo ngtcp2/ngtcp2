@@ -3392,7 +3392,7 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
  * initializes it as server.  |dcid| is a destination connection ID.
  * |scid| is a source connection ID.  |path| is the network path where
- * this QUIC connection is being established and must not be ``NULL`.
+ * this QUIC connection is being established and must not be ``NULL``.
  * |version| is a QUIC version to use.  |callbacks|, |settings|, and
  * |params| must not be ``NULL``, and the function make a copy of each
  * of them.  |params| is local QUIC transport parameters and sent to a
