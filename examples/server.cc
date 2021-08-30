@@ -657,8 +657,7 @@ fail:
 } // namespace
 
 Handler::Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid)
-    : max_pktlen_(0),
-      loop_(loop),
+    : loop_(loop),
       server_(server),
       qlog_(nullptr),
       scid_{},
@@ -1357,21 +1356,6 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
                   const ngtcp2_cid *scid, const ngtcp2_cid *ocid,
                   const uint8_t *token, size_t tokenlen, uint32_t version,
                   const TLSServerContext &tls_ctx) {
-  if (config.max_udp_payload_size) {
-    max_pktlen_ = config.max_udp_payload_size;
-  } else {
-    switch (sa->sa_family) {
-    case AF_INET:
-      max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
-      break;
-    case AF_INET6:
-      max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
-      break;
-    default:
-      return -1;
-    }
-  }
-
   auto callbacks = ngtcp2_callbacks{
       nullptr, // client_initial
       ngtcp2_crypto_recv_client_initial_cb,
@@ -1426,7 +1410,13 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.initial_rtt = config.initial_rtt;
   settings.max_window = config.max_window;
   settings.max_stream_window = config.max_stream_window;
-  settings.max_udp_payload_size = max_pktlen_;
+  if (config.max_udp_payload_size) {
+    settings.max_udp_payload_size = config.max_udp_payload_size;
+    settings.no_udp_payload_size_shaping = 1;
+  } else {
+    settings.max_udp_payload_size = server_max_udp_payload_size;
+    settings.assume_symmetric_path = 1;
+  }
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
     path += '/';
@@ -1631,9 +1621,10 @@ int Handler::write_streams() {
   PathStorage path, prev_path;
   uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
+  auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
   size_t max_pktcnt =
       std::min(static_cast<size_t>(64_k), ngtcp2_conn_get_send_quantum(conn_)) /
-      max_pktlen_;
+      max_udp_payload_size;
   std::array<uint8_t, 64_k> buf;
   uint8_t *bufpos = buf.data();
   ngtcp2_pkt_info pi;
@@ -1672,7 +1663,7 @@ int Handler::write_streams() {
     }
 
     auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, &pi, bufpos, max_pktlen_, &ndatalen, flags,
+        conn_, &path.path, &pi, bufpos, max_udp_payload_size, &ndatalen, flags,
         stream_id, reinterpret_cast<const ngtcp2_vec *>(v), vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
@@ -1731,7 +1722,7 @@ int Handler::write_streams() {
         server_->send_packet(*static_cast<Endpoint *>(prev_path.path.user_data),
                              prev_path.path.local, prev_path.path.remote,
                              prev_ecn, buf.data(), bufpos - buf.data(),
-                             max_pktlen_);
+                             max_udp_payload_size);
         ngtcp2_conn_update_pkt_tx_time(conn_, ts);
         reset_idle_timer();
       }
@@ -1751,11 +1742,11 @@ int Handler::write_streams() {
       server_->send_packet(*static_cast<Endpoint *>(prev_path.path.user_data),
                            prev_path.path.local, prev_path.path.remote,
                            prev_ecn, buf.data(), bufpos - buf.data() - nwrite,
-                           max_pktlen_);
+                           max_udp_payload_size);
 
       server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
                            path.path.local, path.path.remote, pi.ecn,
-                           bufpos - nwrite, nwrite, max_pktlen_);
+                           bufpos - nwrite, nwrite, max_udp_payload_size);
 
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       reset_idle_timer();
@@ -1763,10 +1754,12 @@ int Handler::write_streams() {
       return 0;
     }
 
-    if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < max_pktlen_) {
+    if (++pktcnt == max_pktcnt ||
+        static_cast<size_t>(nwrite) < max_udp_payload_size) {
       server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
                            path.path.local, path.path.remote, pi.ecn,
-                           buf.data(), bufpos - buf.data(), max_pktlen_);
+                           buf.data(), bufpos - buf.data(),
+                           max_udp_payload_size);
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
@@ -1824,13 +1817,15 @@ int Handler::start_closing_period() {
               << std::endl;
   }
 
-  conn_closebuf_ = std::make_unique<Buffer>(max_pktlen_);
+  auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
+
+  conn_closebuf_ = std::make_unique<Buffer>(max_udp_payload_size);
 
   PathStorage path;
   ngtcp2_pkt_info pi;
   if (last_error_.type == QUICErrorType::Transport) {
     auto n = ngtcp2_conn_write_connection_close(
-        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_pktlen_,
+        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_udp_payload_size,
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
@@ -1840,7 +1835,7 @@ int Handler::start_closing_period() {
     conn_closebuf_->push(n);
   } else {
     auto n = ngtcp2_conn_write_application_close(
-        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_pktlen_,
+        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_udp_payload_size,
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: " << ngtcp2_strerror(n)
@@ -2511,7 +2506,7 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
                                      size_t scidlen, Endpoint &ep,
                                      const Address &local_addr,
                                      const sockaddr *sa, socklen_t salen) {
-  Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
+  Buffer buf{NGTCP2_DEFAULT_MAX_PKTLEN};
   std::array<uint32_t, 16> sv;
 
   static_assert(sv.size() >= 2 + (NGTCP2_PROTO_VER_DRAFT_MAX -
@@ -2588,7 +2583,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
     util::hexdump(stderr, token.data(), tokenlen);
   }
 
-  Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
+  Buffer buf{NGTCP2_DEFAULT_MAX_PKTLEN};
 
   auto nwrite = ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), chd->version,
                                           &chd->scid, &scid, &chd->dcid,
@@ -2616,7 +2611,7 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
                                             const Address &local_addr,
                                             const sockaddr *sa,
                                             socklen_t salen) {
-  Buffer buf{NGTCP2_MAX_PKTLEN_IPV4};
+  Buffer buf{NGTCP2_DEFAULT_MAX_PKTLEN};
 
   auto nwrite = ngtcp2_crypto_write_connection_close(
       buf.wpos(), buf.left(), chd->version, &chd->scid, &chd->dcid,
@@ -3370,9 +3365,6 @@ Options:
             << util::format_duration(config.initial_rtt) << R"(
   --max-udp-payload-size=<SIZE>
               Override maximum UDP payload size that server transmits.
-              Default: )"
-            << NGTCP2_MAX_PKTLEN_IPV4 << R"( for IPv4, )"
-            << NGTCP2_MAX_PKTLEN_IPV6 << R"( for IPv6
   --send-trailers
               Send trailer fields.
   --max-window=<SIZE>

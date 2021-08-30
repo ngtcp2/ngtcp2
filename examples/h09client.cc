@@ -224,7 +224,6 @@ void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
 
 Client::Client(struct ev_loop *loop)
     : remote_addr_{},
-      max_pktlen_(0),
       loop_(loop),
       addr_(nullptr),
       port_(nullptr),
@@ -604,17 +603,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   port_ = port;
   version_ = version;
 
-  switch (remote_addr_.su.storage.ss_family) {
-  case AF_INET:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV4;
-    break;
-  case AF_INET6:
-    max_pktlen_ = NGTCP2_MAX_PKTLEN_IPV6;
-    break;
-  default:
-    return -1;
-  }
-
   auto callbacks = ngtcp2_callbacks{
       ngtcp2_crypto_client_initial_cb,
       nullptr, // recv_client_initial
@@ -694,6 +682,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.cc_algo = config.cc_algo;
   settings.initial_ts = util::timestamp(loop_);
   settings.initial_rtt = config.initial_rtt;
+  settings.max_udp_payload_size = config.max_udp_payload_size;
+  settings.no_udp_payload_size_shaping = 1;
 
   std::string token;
 
@@ -915,9 +905,11 @@ int Client::write_streams() {
   PathStorage path;
   size_t pktcnt = 0;
   std::array<uint8_t, 64_k> buf;
-  size_t max_pktcnt = config.cc_algo == NGTCP2_CC_ALGO_BBR
-                          ? ngtcp2_conn_get_send_quantum(conn_) / max_pktlen_
-                          : 10;
+  auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
+  size_t max_pktcnt =
+      config.cc_algo == NGTCP2_CC_ALGO_BBR
+          ? ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size
+          : 10;
   auto ts = util::timestamp(loop_);
 
   for (;;) {
@@ -940,8 +932,8 @@ int Client::write_streams() {
     ngtcp2_pkt_info pi;
 
     auto nwrite = ngtcp2_conn_writev_stream(conn_, &path.path, &pi, buf.data(),
-                                            max_pktlen_, &ndatalen, flags,
-                                            stream_id, &vec, vcnt, ts);
+                                            max_udp_payload_size, &ndatalen,
+                                            flags, stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
       case NGTCP2_ERR_STREAM_DATA_BLOCKED:
@@ -1389,7 +1381,7 @@ int Client::handle_error() {
   ngtcp2_ssize nwrite;
   if (last_error_.type == QUICErrorType::Transport) {
     nwrite = ngtcp2_conn_write_connection_close(
-        conn_, &path.path, &pi, buf.data(), max_pktlen_, last_error_.code,
+        conn_, &path.path, &pi, buf.data(), buf.size(), last_error_.code,
         util::timestamp(loop_));
     if (nwrite < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: "
@@ -1398,7 +1390,7 @@ int Client::handle_error() {
     }
   } else {
     nwrite = ngtcp2_conn_write_application_close(
-        conn_, &path.path, &pi, buf.data(), max_pktlen_, last_error_.code,
+        conn_, &path.path, &pi, buf.data(), buf.size(), last_error_.code,
         util::timestamp(loop_));
     if (nwrite < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: "
@@ -1736,6 +1728,7 @@ void config_set_default(Config &config) {
   config.max_streams_uni = 100;
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
+  config.max_udp_payload_size = client_max_udp_payload_size;
 }
 } // namespace
 
@@ -1884,6 +1877,10 @@ Options:
               Set an initial RTT.
               Default: )"
             << util::format_duration(config.initial_rtt) << R"(
+  --max-udp-payload-size=<SIZE>
+              Override maximum UDP payload size that client transmits.
+              Default: )"
+            << config.max_udp_payload_size << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -1948,6 +1945,7 @@ int main(int argc, char **argv) {
         {"token-file", required_argument, &flag, 29},
         {"sni", required_argument, &flag, 30},
         {"initial-rtt", required_argument, &flag, 31},
+        {"max-udp-payload-size", required_argument, &flag, 32},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2207,6 +2205,21 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.initial_rtt = *t;
+        }
+        break;
+      case 32:
+        // --max-udp-payload-size
+        if (auto n = util::parse_uint_iec(optarg); !n) {
+          std::cerr << "max-udp-payload-size: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*n > 64_k) {
+          std::cerr << "max-udp-payload-size: must not exceed 65536"
+                    << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*n == 0) {
+          std::cerr << "max-udp-payload-size: must not be 0" << std::endl;
+        } else {
+          config.max_udp_payload_size = *n;
         }
         break;
       }

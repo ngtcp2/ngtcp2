@@ -1921,6 +1921,23 @@ typedef struct ngtcp2_settings {
    * immediate acknowledgement.
    */
   size_t ack_thresh;
+  /**
+   * :member:`assume_symmetric_path`, if set to nonzero, assumes that
+   * a network path is symmetric and extends the UDP payload size up to
+   * the incoming UDP payload size.  The size is still capped by
+   * :member:`max_udp_payload_size`.  This field is ignored if
+   * :member:`no_udp_payload_size_shaping` is set to nonzero.
+   */
+  int assume_symmetric_path;
+  /**
+   * :member:`no_udp_payload_size_shaping`,   if   set   to   nonzero,
+   * instructs the library  not to limit the UDP payload  size to 1200
+   * bytes       (which        can       be        extended,       see
+   * :member:`assume_symmetric_path`)  and instead  fully utilize  the
+   * given  buffer  size.   The  buffer size  should  be  assigned  to
+   * :member:`max_udp_payload_size`.
+   */
+  int no_udp_payload_size_shaping;
 } ngtcp2_settings;
 
 /**
@@ -4591,6 +4608,15 @@ NGTCP2_EXTERN void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_path_user_data(ngtcp2_conn *conn,
                                                   void *path_user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_path_max_udp_payload_size` returns the maximum
+ * outgoing UDP payload size for the current path.
+ */
+NGTCP2_EXTERN size_t
+ngtcp2_conn_get_path_max_udp_payload_size(ngtcp2_conn *conn);
 
 /**
  * @function

@@ -136,7 +136,6 @@ public:
   void add_sendq(Stream *stream);
 
 private:
-  size_t max_pktlen_;
   struct ev_loop *loop_;
   Server *server_;
   ev_io wev_;

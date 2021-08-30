@@ -85,6 +85,9 @@ typedef struct ngtcp2_dcid {
   /* bytes_recv is the number of bytes received from an associated
      path. */
   uint64_t bytes_recv;
+  /* max_udp_payload_size is the maximum size of UDP payload that is
+     allowed to send to this path. */
+  size_t max_udp_payload_size;
   /* flags is bitwise OR of zero or more of NGTCP2_DCID_FLAG_*. */
   uint8_t flags;
   /* token is a stateless reset token associated to this CID.
@@ -137,6 +140,13 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
  * NULL and must be NGTCP2_STATELESS_RESET_TOKENLEN bytes long.
  */
 void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid, const uint8_t *token);
+
+/*
+ * ngtcp2_dcid_set_path sets |path| to |dcid|.  It sets
+ * max_udp_payload_size to the minimum UDP payload size supported
+ * by the IP protocol version.
+ */
+void ngtcp2_dcid_set_path(ngtcp2_dcid *dcid, const ngtcp2_path *path);
 
 /*
  * ngtcp2_dcid_copy copies |src| into |dest|.

@@ -136,7 +136,6 @@ public:
 private:
   std::vector<Endpoint> endpoints_;
   Address remote_addr_;
-  size_t max_pktlen_;
   ev_io wev_;
   ev_timer timer_;
   ev_timer rttimer_;
