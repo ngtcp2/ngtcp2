@@ -3392,7 +3392,7 @@ ngtcp2_conn_client_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
  * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
  * initializes it as server.  |dcid| is a destination connection ID.
  * |scid| is a source connection ID.  |path| is the network path where
- * this QUIC connection is being established and must not be ``NULL`.
+ * this QUIC connection is being established and must not be ``NULL``.
  * |version| is a QUIC version to use.  |callbacks|, |settings|, and
  * |params| must not be ``NULL``, and the function make a copy of each
  * of them.  |params| is local QUIC transport parameters and sent to a
@@ -3458,7 +3458,7 @@ NGTCP2_EXTERN int ngtcp2_conn_read_pkt(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_write_pkt` is equivalent to calling
- * `ngtcp2_conn_writev_stream` without specifying stream data and
+ * `ngtcp2_conn_writev_stream` with -1 as stream_id, no stream data, and
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` as flags.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt(ngtcp2_conn *conn,
@@ -4091,7 +4091,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * function).  Just keep calling `ngtcp2_conn_writev_stream`,
  * `ngtcp2_conn_write_pkt`, or `ngtcp2_conn_writev_datagram` until it
  * returns a positive number (which indicates a complete packet is
- * ready).
+ * ready).  If there is no stream data to include, call this function
+ * with |stream_id| as -1 to stop coalescing and write a packet.
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
