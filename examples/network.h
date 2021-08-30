@@ -44,6 +44,8 @@
 
 #include <array>
 
+#include <ngtcp2/ngtcp2.h>
+
 namespace ngtcp2 {
 
 enum network_error {
