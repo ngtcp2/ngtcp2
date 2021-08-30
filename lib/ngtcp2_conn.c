@@ -11680,6 +11680,10 @@ void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn, const ngtcp2_addr *addr) {
   ngtcp2_addr_copy(dest, addr);
 }
 
+void ngtcp2_conn_set_path_user_data(ngtcp2_conn *conn, void *path_user_data) {
+  conn->dcid.current.ps.path.user_data = path_user_data;
+}
+
 const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn) {
   return &conn->dcid.current.ps.path;
 }

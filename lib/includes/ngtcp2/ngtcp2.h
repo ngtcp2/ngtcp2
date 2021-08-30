@@ -4577,10 +4577,19 @@ NGTCP2_EXTERN int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn,
  * @function
  *
  * `ngtcp2_conn_set_local_addr` sets local endpoint address |addr| to
- * |conn|.
+ * the current path of |conn|.
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn,
                                               const ngtcp2_addr *addr);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_path_user_data` sets the |path_user_data| to the
+ * current path (see :member:`ngtcp2_path.user_data`).
+ */
+NGTCP2_EXTERN void ngtcp2_conn_set_path_user_data(ngtcp2_conn *conn,
+                                                  void *path_user_data);
 
 /**
  * @function

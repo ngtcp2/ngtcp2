@@ -1307,6 +1307,11 @@ int Client::change_local_addr() {
   }
 #endif // !HAVE_LINUX_RTNETLINK_H
 
+  if (!config.quiet) {
+    std::cerr << "Local address is now "
+              << util::straddr(&local_addr.su.sa, local_addr.len) << std::endl;
+  }
+
   endpoints_.emplace_back();
   auto &ep = endpoints_.back();
   ep.addr = local_addr;
@@ -1320,6 +1325,7 @@ int Client::change_local_addr() {
 
   if (config.nat_rebinding) {
     ngtcp2_conn_set_local_addr(conn_, &addr);
+    ngtcp2_conn_set_path_user_data(conn_, &ep);
   } else {
     if (auto rv = ngtcp2_conn_initiate_immediate_migration(
             conn_, &addr, &ep, util::timestamp(loop_));
