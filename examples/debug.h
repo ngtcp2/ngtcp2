@@ -31,7 +31,7 @@
 
 #ifndef __STDC_FORMAT_MACROS
 // For travis and PRIu64
-#define __STDC_FORMAT_MACROS
+#  define __STDC_FORMAT_MACROS
 #endif // __STDC_FORMAT_MACROS
 
 #include <cinttypes>
