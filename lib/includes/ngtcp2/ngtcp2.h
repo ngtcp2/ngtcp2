@@ -4431,6 +4431,16 @@ NGTCP2_EXTERN const ngtcp2_cid *ngtcp2_conn_get_dcid(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_client_initial_dcid` returns the non-NULL pointer
+ * to the Destination Connection ID that client sent in its Initial
+ * packet.
+ */
+NGTCP2_EXTERN const ngtcp2_cid *
+ngtcp2_conn_get_client_initial_dcid(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_num_scid` returns the number of source connection
  * IDs which the local endpoint has provided to the peer and have not
  * retired.

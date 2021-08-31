@@ -181,13 +181,12 @@ fail:
 }
 } // namespace
 
-Handler::Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid)
+Handler::Handler(struct ev_loop *loop, Server *server)
     : loop_(loop),
       server_(server),
       qlog_(nullptr),
       scid_{},
       pscid_{},
-      rcid_(*rcid),
       nkey_update_(0),
       draining_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
@@ -1023,8 +1022,6 @@ const ngtcp2_cid *Handler::scid() const { return &scid_; }
 
 const ngtcp2_cid *Handler::pscid() const { return &pscid_; }
 
-const ngtcp2_cid *Handler::rcid() const { return &rcid_; }
-
 Server *Handler::server() const { return server_; }
 
 int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
@@ -1475,7 +1472,7 @@ int Server::on_read(Endpoint &ep) {
           }
         }
 
-        auto h = std::make_unique<Handler>(loop_, this, &hd.dcid);
+        auto h = std::make_unique<Handler>(loop_, this);
         if (h->init(ep, *local_addr, &su.sa, msg.msg_namelen, &hd.scid,
                     &hd.dcid, pocid, hd.token.base, hd.token.len, hd.version,
                     tls_ctx_) != 0) {
@@ -2221,10 +2218,12 @@ void Server::dissociate_cid(const ngtcp2_cid *cid) {
 }
 
 void Server::remove(const Handler *h) {
-  ctos_.erase(util::make_cid_key(h->rcid()));
   ctos_.erase(util::make_cid_key(h->pscid()));
 
   auto conn = h->conn();
+
+  ctos_.erase(util::make_cid_key(ngtcp2_conn_get_client_initial_dcid(conn)));
+
   std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(conn));
   ngtcp2_conn_get_scid(conn, cids.data());
 

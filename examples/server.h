@@ -106,7 +106,7 @@ struct Endpoint {
 
 class Handler : public HandlerBase {
 public:
-  Handler(struct ev_loop *loop, Server *server, const ngtcp2_cid *rcid);
+  Handler(struct ev_loop *loop, Server *server);
   ~Handler();
 
   int init(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
@@ -133,7 +133,6 @@ public:
   int acked_stream_data_offset(int64_t stream_id, uint64_t datalen);
   const ngtcp2_cid *scid() const;
   const ngtcp2_cid *pscid() const;
-  const ngtcp2_cid *rcid() const;
   uint32_t version() const;
   void on_stream_open(int64_t stream_id);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
@@ -182,7 +181,6 @@ private:
   FILE *qlog_;
   ngtcp2_cid scid_;
   ngtcp2_cid pscid_;
-  ngtcp2_cid rcid_;
   nghttp3_conn *httpconn_;
   std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;
   // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.
