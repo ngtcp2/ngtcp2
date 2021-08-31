@@ -44,6 +44,8 @@
 
 #include <array>
 
+#include <ngtcp2/ngtcp2.h>
+
 namespace ngtcp2 {
 
 constexpr size_t server_max_udp_payload_size = 1472;
