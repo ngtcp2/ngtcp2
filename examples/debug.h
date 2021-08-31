@@ -29,8 +29,11 @@
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
+#ifndef __STDC_FORMAT_MACROS
 // For travis and PRIu64
 #define __STDC_FORMAT_MACROS
+#endif // __STDC_FORMAT_MACROS
+
 #include <cinttypes>
 #include <string_view>
 
