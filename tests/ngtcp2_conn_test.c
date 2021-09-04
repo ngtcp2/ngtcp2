@@ -5219,6 +5219,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
   const uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN] = {0xff};
   my_user_data ud;
   ngtcp2_ssize spktlen;
+  ngtcp2_path_storage to_path;
 
   ngtcp2_cid_init(&cid, raw_cid, sizeof(raw_cid));
 
@@ -5238,15 +5239,14 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_initiate_immediate_migration(conn, &new_path.path.local, &ud,
-                                                ++t);
+  ngtcp2_path_storage_init2(&to_path, &new_path.path);
+  to_path.path.user_data = &ud;
+
+  rv = ngtcp2_conn_initiate_immediate_migration(conn, &to_path.path, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == conn->pv);
-  CU_ASSERT(
-      ngtcp2_addr_eq(&new_path.path.local, &conn->dcid.current.ps.path.local));
-  CU_ASSERT(ngtcp2_addr_eq(&null_path.path.remote,
-                           &conn->dcid.current.ps.path.remote));
+  CU_ASSERT(ngtcp2_path_eq(&to_path.path, &conn->dcid.current.ps.path));
   CU_ASSERT(&ud == conn->dcid.current.ps.path.user_data);
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 
@@ -5268,7 +5268,10 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   CU_ASSERT(0 == rv);
 
-  rv = ngtcp2_conn_initiate_migration(conn, &new_path.path.local, &ud, ++t);
+  ngtcp2_path_storage_init2(&to_path, &new_path.path);
+  to_path.path.user_data = &ud;
+
+  rv = ngtcp2_conn_initiate_migration(conn, &to_path.path, ++t);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL != conn->pv);
@@ -5290,10 +5293,7 @@ void test_ngtcp2_conn_client_connection_migration(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NULL == conn->pv);
-  CU_ASSERT(
-      ngtcp2_addr_eq(&new_path.path.local, &conn->dcid.current.ps.path.local));
-  CU_ASSERT(ngtcp2_addr_eq(&null_path.path.remote,
-                           &conn->dcid.current.ps.path.remote));
+  CU_ASSERT(ngtcp2_path_eq(&to_path.path, &conn->dcid.current.ps.path));
   CU_ASSERT(&ud == conn->dcid.current.ps.path.user_data);
   CU_ASSERT(ngtcp2_cid_eq(&cid, &conn->dcid.current.cid));
 

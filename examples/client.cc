@@ -1319,8 +1319,12 @@ int Client::change_local_addr() {
     ngtcp2_conn_set_local_addr(conn_, &addr);
     ngtcp2_conn_set_path_user_data(conn_, &ep);
   } else {
+    auto path = ngtcp2_path{
+        addr,
+        {remote_addr_.len, const_cast<sockaddr *>(&remote_addr_.su.sa)},
+        &ep};
     if (auto rv = ngtcp2_conn_initiate_immediate_migration(
-            conn_, &addr, &ep, util::timestamp(loop_));
+            conn_, &path, util::timestamp(loop_));
         rv != 0) {
       std::cerr << "ngtcp2_conn_initiate_immediate_migration: "
                 << ngtcp2_strerror(rv) << std::endl;
