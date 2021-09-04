@@ -10326,6 +10326,8 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
   conn->remote.uni.unsent_max_streams = params->initial_max_streams_uni;
   conn->remote.uni.max_streams = params->initial_max_streams_uni;
 
+  conn->flags |= NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED;
+
   ngtcp2_qlog_parameters_set_transport_params(&conn->qlog, params, conn->server,
                                               NGTCP2_QLOG_SIDE_LOCAL);
 
@@ -11637,11 +11639,20 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   return ngtcp2_pq_push(&conn->tx.strmq, &strm->pe);
 }
 
+static int conn_has_uncommited_preferred_address_cid(ngtcp2_conn *conn) {
+  return conn->server &&
+         !(conn->flags & NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED) &&
+         conn->oscid.datalen &&
+         conn->local.transport_params.preferred_address_present;
+}
+
 size_t ngtcp2_conn_get_num_scid(ngtcp2_conn *conn) {
-  return ngtcp2_ksl_len(&conn->scid.set);
+  return ngtcp2_ksl_len(&conn->scid.set) +
+         (size_t)conn_has_uncommited_preferred_address_cid(conn);
 }
 
 size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
+  ngtcp2_cid *origdest = dest;
   ngtcp2_ksl_it it;
   ngtcp2_scid *scid;
 
@@ -11651,7 +11662,11 @@ size_t ngtcp2_conn_get_scid(ngtcp2_conn *conn, ngtcp2_cid *dest) {
     *dest++ = scid->cid;
   }
 
-  return ngtcp2_ksl_len(&conn->scid.set);
+  if (conn_has_uncommited_preferred_address_cid(conn)) {
+    *dest++ = conn->local.transport_params.preferred_address.cid;
+  }
+
+  return (size_t)(dest - origdest);
 }
 
 size_t ngtcp2_conn_get_num_active_dcid(ngtcp2_conn *conn) {

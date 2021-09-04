@@ -150,6 +150,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
 /* NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED is set if transport
    parameters are received. */
 #define NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED 0x04
+/* NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED is set when a
+   local transport parameters are applied. */
+#define NGTCP2_CONN_FLAG_LOCAL_TRANSPORT_PARAMS_COMMITTED 0x08
 /* NGTCP2_CONN_FLAG_RECV_RETRY is set when a client receives Retry
    packet. */
 #define NGTCP2_CONN_FLAG_RECV_RETRY 0x10
@@ -318,10 +321,8 @@ struct ngtcp2_conn {
   /* rcid is a connection ID present in Initial or 0-RTT packet from
      client as destination connection ID.  Server uses this field to
      check that duplicated Initial or 0-RTT packet are indeed sent to
-     this connection.  It is also sent to client as
-     original_destination_connection_id transport parameter.  Client
-     uses this field to validate original_destination_connection_id
-     transport parameter if no Retry packet is involved. */
+     this connection.  Client uses this field to validate
+     original_destination_connection_id transport parameter. */
   ngtcp2_cid rcid;
   /* oscid is the source connection ID initially used by the local
      endpoint. */

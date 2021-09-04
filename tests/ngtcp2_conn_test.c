@@ -7487,6 +7487,56 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_get_scid(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+  ngtcp2_cid dcid, scid;
+  ngtcp2_callbacks cb;
+  const uint8_t raw_cid[] = {0x0f, 0x00, 0x00, 0x00};
+  ngtcp2_cid scids[16];
+
+  dcid_init(&dcid);
+  dcid_init(&scid);
+
+  memset(&cb, 0, sizeof(cb));
+
+  server_default_settings(&settings);
+
+  /* Without preferred address */
+  server_default_transport_params(&params);
+
+  ngtcp2_conn_server_new(&conn, &dcid, &scid, &null_path.path,
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
+
+  CU_ASSERT(1 == ngtcp2_conn_get_num_scid(conn));
+
+  ngtcp2_conn_get_scid(conn, scids);
+
+  CU_ASSERT(ngtcp2_cid_eq(&scid, &scids[0]));
+
+  ngtcp2_conn_del(conn);
+
+  /* With preferred address */
+  server_default_transport_params(&params);
+  params.preferred_address_present = 1;
+  ngtcp2_cid_init(&params.preferred_address.cid, raw_cid, sizeof(raw_cid));
+
+  ngtcp2_conn_server_new(&conn, &dcid, &scid, &null_path.path,
+                         NGTCP2_PROTO_VER_MAX, &cb, &settings, &params,
+                         /* mem = */ NULL, NULL);
+
+  CU_ASSERT(2 == ngtcp2_conn_get_num_scid(conn));
+
+  ngtcp2_conn_get_scid(conn, scids);
+
+  CU_ASSERT(ngtcp2_cid_eq(&scid, &scids[0]));
+  CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid, &scids[1]));
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_accept(void) {
   size_t pktlen;
   uint8_t buf[2048];
