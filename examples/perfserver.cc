@@ -186,7 +186,6 @@ Handler::Handler(struct ev_loop *loop, Server *server)
       server_(server),
       qlog_(nullptr),
       scid_{},
-      pscid_{},
       nkey_update_(0),
       draining_(false) {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
@@ -563,13 +562,14 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       return -1;
     }
 
-    pscid_.datalen = NGTCP2_SV_SCIDLEN;
-    if (util::generate_secure_random(pscid_.data, pscid_.datalen) != 0) {
+    params.preferred_address.cid.datalen = NGTCP2_SV_SCIDLEN;
+    if (util::generate_secure_random(params.preferred_address.cid.data,
+                                     params.preferred_address.cid.datalen) !=
+        0) {
       std::cerr << "Could not generate preferred address connection ID"
                 << std::endl;
       return -1;
     }
-    params.preferred_address.cid = pscid_;
   }
 
   auto path =
@@ -1018,10 +1018,6 @@ int Handler::update_key(uint8_t *rx_secret, uint8_t *tx_secret,
   return 0;
 }
 
-const ngtcp2_cid *Handler::scid() const { return &scid_; }
-
-const ngtcp2_cid *Handler::pscid() const { return &pscid_; }
-
 Server *Handler::server() const { return server_; }
 
 int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
@@ -1101,7 +1097,7 @@ void Server::disconnect() {
 
     h->handle_error();
 
-    remove(h.get());
+    remove(h);
   }
 }
 
@@ -1393,74 +1389,59 @@ int Server::on_read(Endpoint &ep) {
 
     auto handler_it = handlers_.find(dcid_key);
     if (handler_it == std::end(handlers_)) {
-      auto ctos_it = ctos_.find(dcid_key);
-      if (ctos_it == std::end(ctos_)) {
-        switch (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv) {
-        case 0:
-          break;
-        case NGTCP2_ERR_RETRY:
+      switch (auto rv = ngtcp2_accept(&hd, buf.data(), nread); rv) {
+      case 0:
+        break;
+      case NGTCP2_ERR_RETRY:
+        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+        continue;
+      case NGTCP2_ERR_VERSION_NEGOTIATION:
+        if (!config.quiet) {
+          std::cerr << "Unsupported version: Send Version Negotiation"
+                    << std::endl;
+        }
+        send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
+                                 hd.dcid.data, hd.dcid.datalen, ep, *local_addr,
+                                 &su.sa, msg.msg_namelen);
+        continue;
+      default:
+        if (!config.quiet) {
+          std::cerr << "Unexpected packet received: length=" << nread
+                    << std::endl;
+        }
+        continue;
+      }
+
+      ngtcp2_cid ocid;
+      ngtcp2_cid *pocid = nullptr;
+
+      assert(hd.type == NGTCP2_PKT_INITIAL);
+
+      if (config.validate_addr || hd.token.len) {
+        std::cerr << "Perform stateless address validation" << std::endl;
+        if (hd.token.len == 0) {
           send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
-          continue;
-        case NGTCP2_ERR_VERSION_NEGOTIATION:
-          if (!config.quiet) {
-            std::cerr << "Unsupported version: Send Version Negotiation"
-                      << std::endl;
-          }
-          send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
-                                   hd.dcid.data, hd.dcid.datalen, ep,
-                                   *local_addr, &su.sa, msg.msg_namelen);
-          continue;
-        default:
-          if (!config.quiet) {
-            std::cerr << "Unexpected packet received: length=" << nread
-                      << std::endl;
-          }
           continue;
         }
 
-        ngtcp2_cid ocid;
-        ngtcp2_cid *pocid = nullptr;
+        if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
+            hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
+          send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
+                                          msg.msg_namelen);
+          continue;
+        }
 
-        assert(hd.type == NGTCP2_PKT_INITIAL);
-
-        if (config.validate_addr || hd.token.len) {
-          std::cerr << "Perform stateless address validation" << std::endl;
-          if (hd.token.len == 0) {
-            send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
-            continue;
-          }
-
-          if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
-              hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
+        switch (hd.token.base[0]) {
+        case RETRY_TOKEN_MAGIC:
+          if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) != 0) {
             send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
                                             msg.msg_namelen);
             continue;
           }
-
-          switch (hd.token.base[0]) {
-          case RETRY_TOKEN_MAGIC:
-            if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) != 0) {
-              send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
-                                              msg.msg_namelen);
-              continue;
-            }
-            pocid = &ocid;
-            break;
-          case TOKEN_MAGIC:
-            if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
-              if (config.validate_addr) {
-                send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
-                continue;
-              }
-
-              hd.token.base = nullptr;
-              hd.token.len = 0;
-            }
-            break;
-          default:
-            if (!config.quiet) {
-              std::cerr << "Ignore unrecognized token" << std::endl;
-            }
+          pocid = &ocid;
+          break;
+        case TOKEN_MAGIC:
+          if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
             if (config.validate_addr) {
               send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
               continue;
@@ -1468,58 +1449,69 @@ int Server::on_read(Endpoint &ep) {
 
             hd.token.base = nullptr;
             hd.token.len = 0;
-            break;
           }
-        }
-
-        auto h = std::make_unique<Handler>(loop_, this);
-        if (h->init(ep, *local_addr, &su.sa, msg.msg_namelen, &hd.scid,
-                    &hd.dcid, pocid, hd.token.base, hd.token.len, hd.version,
-                    tls_ctx_) != 0) {
-          continue;
-        }
-
-        switch (h->on_read(ep, *local_addr, &su.sa, msg.msg_namelen, &pi,
-                           buf.data(), nread)) {
-        case 0:
-          break;
-        case NETWORK_ERR_RETRY:
-          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
-          continue;
-        default:
-          continue;
-        }
-
-        switch (h->on_write()) {
-        case 0:
           break;
         default:
-          continue;
+          if (!config.quiet) {
+            std::cerr << "Ignore unrecognized token" << std::endl;
+          }
+          if (config.validate_addr) {
+            send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+            continue;
+          }
+
+          hd.token.base = nullptr;
+          hd.token.len = 0;
+          break;
         }
+      }
 
-        auto scid = h->scid();
-        auto scid_key = util::make_cid_key(scid);
-        ctos_.emplace(dcid_key, scid_key);
-
-        auto pscid = h->pscid();
-        if (pscid->datalen) {
-          auto pscid_key = util::make_cid_key(pscid);
-          ctos_.emplace(pscid_key, scid_key);
-        }
-
-        handlers_.emplace(scid_key, std::move(h));
+      auto h = std::make_unique<Handler>(loop_, this);
+      if (h->init(ep, *local_addr, &su.sa, msg.msg_namelen, &hd.scid, &hd.dcid,
+                  pocid, hd.token.base, hd.token.len, hd.version,
+                  tls_ctx_) != 0) {
         continue;
       }
-      if (!config.quiet) {
-        std::cerr << "Forward CID=" << util::format_hex((*ctos_it).first)
-                  << " to CID=" << util::format_hex((*ctos_it).second)
-                  << std::endl;
+
+      switch (h->on_read(ep, *local_addr, &su.sa, msg.msg_namelen, &pi,
+                         buf.data(), nread)) {
+      case 0:
+        break;
+      case NETWORK_ERR_RETRY:
+        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+        continue;
+      default:
+        continue;
       }
-      handler_it = handlers_.find((*ctos_it).second);
-      assert(handler_it != std::end(handlers_));
+
+      switch (h->on_write()) {
+      case 0:
+        break;
+      default:
+        continue;
+      }
+
+      std::array<ngtcp2_cid, 2> scids;
+      auto conn = h->conn();
+
+      auto num_scid = ngtcp2_conn_get_num_scid(conn);
+
+      assert(num_scid <= scids.size());
+
+      ngtcp2_conn_get_scid(conn, scids.data());
+
+      for (size_t i = 0; i < num_scid; ++i) {
+        handlers_.emplace(util::make_cid_key(&scids[i]), h.get());
+      }
+
+      handlers_.emplace(dcid_key, h.get());
+
+      h.release();
+
+      continue;
     }
 
-    auto h = (*handler_it).second.get();
+    auto h = (*handler_it).second;
     if (ngtcp2_conn_is_in_closing_period(h->conn())) {
       // TODO do exponential backoff.
       switch (h->send_conn_close()) {
@@ -2210,28 +2202,27 @@ int Server::send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
 }
 
 void Server::associate_cid(const ngtcp2_cid *cid, Handler *h) {
-  ctos_.emplace(util::make_cid_key(cid), util::make_cid_key(h->scid()));
+  handlers_.emplace(util::make_cid_key(cid), h);
 }
 
 void Server::dissociate_cid(const ngtcp2_cid *cid) {
-  ctos_.erase(util::make_cid_key(cid));
+  handlers_.erase(util::make_cid_key(cid));
 }
 
 void Server::remove(const Handler *h) {
-  ctos_.erase(util::make_cid_key(h->pscid()));
-
   auto conn = h->conn();
 
-  ctos_.erase(util::make_cid_key(ngtcp2_conn_get_client_initial_dcid(conn)));
+  handlers_.erase(
+      util::make_cid_key(ngtcp2_conn_get_client_initial_dcid(conn)));
 
   std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(conn));
   ngtcp2_conn_get_scid(conn, cids.data());
 
   for (auto &cid : cids) {
-    ctos_.erase(util::make_cid_key(&cid));
+    handlers_.erase(util::make_cid_key(&cid));
   }
 
-  handlers_.erase(util::make_cid_key(h->scid()));
+  delete h;
 }
 
 namespace {

@@ -126,8 +126,6 @@ public:
                        size_t datalen);
   int acked_stream_data_offset(int64_t stream_id, uint64_t offset,
                                uint64_t datalen);
-  const ngtcp2_cid *scid() const;
-  const ngtcp2_cid *pscid() const;
   uint32_t version() const;
   void on_stream_open(int64_t stream_id);
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
@@ -161,7 +159,6 @@ private:
   ev_timer rttimer_;
   FILE *qlog_;
   ngtcp2_cid scid_;
-  ngtcp2_cid pscid_;
   std::unordered_map<int64_t, std::unique_ptr<Stream>> streams_;
   std::set<Stream *, StreamIDLess> sendq_;
   // conn_closebuf_ contains a packet which contains CONNECTION_CLOSE.
@@ -214,10 +211,7 @@ public:
   void dissociate_cid(const ngtcp2_cid *cid);
 
 private:
-  std::unordered_map<std::string, std::unique_ptr<Handler>> handlers_;
-  // ctos_ is a mapping between client's initial destination
-  // connection ID, and server source connection ID.
-  std::unordered_map<std::string, std::string> ctos_;
+  std::unordered_map<std::string, Handler *> handlers_;
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   const TLSServerContext &tls_ctx_;
