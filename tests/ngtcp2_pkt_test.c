@@ -95,7 +95,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
                                      buf, (size_t)(p - buf), 0);
 
-  CU_ASSERT(1 == rv);
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
   CU_ASSERT(0xffffff00 == version);
   CU_ASSERT(NGTCP2_MAX_CIDLEN == dcidlen);
   CU_ASSERT(&buf[6] == dcid);
@@ -128,7 +128,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
                                      buf, (size_t)(p - buf), 0);
 
-  CU_ASSERT(1 == rv);
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
   CU_ASSERT(0xffffff00 == version);
   CU_ASSERT(NGTCP2_MAX_CIDLEN + 1 == dcidlen);
   CU_ASSERT(&buf[6] == dcid);

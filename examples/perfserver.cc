@@ -1371,15 +1371,17 @@ int Server::on_read(Endpoint &ep) {
     const uint8_t *dcid, *scid;
     size_t dcidlen, scidlen;
 
-    if (auto rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen,
-                                                &scid, &scidlen, buf.data(),
-                                                nread, NGTCP2_SV_SCIDLEN);
-        rv != 0) {
-      if (rv == 1) {
-        send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
-                                 *local_addr, &su.sa, msg.msg_namelen);
-        continue;
-      }
+    switch (auto rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen,
+                                                    &scid, &scidlen, buf.data(),
+                                                    nread, NGTCP2_SV_SCIDLEN);
+            rv) {
+    case 0:
+      break;
+    case NGTCP2_ERR_VERSION_NEGOTIATION:
+      send_version_negotiation(version, scid, scidlen, dcid, dcidlen, ep,
+                               *local_addr, &su.sa, msg.msg_namelen);
+      continue;
+    default:
       std::cerr << "Could not decode version and CID from QUIC packet header: "
                 << ngtcp2_strerror(rv) << std::endl;
       continue;

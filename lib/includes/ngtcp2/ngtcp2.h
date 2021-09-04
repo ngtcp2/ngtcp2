@@ -2183,12 +2183,17 @@ ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
  * assigns it to |*pdcid|.  |short_dcidlen| is assigned to
  * |*pdcidlen|.
  *
- * This function returns 0 or 1 if it succeeds.  It returns 1 if
- * Version Negotiation packet should be sent.  Otherwise, one of the
+ * If Version Negotiation is required, this function returns
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`.  Unlike the other error
+ * cases, all output parameters are assigned as described above.
+ *
+ * This function returns 0 if it succeeds.  Otherwise, one of the
  * following negative error code:
  *
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     The function could not decode the packet header.
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`
+ *     Version Negotiation packet should be sent.
  */
 NGTCP2_EXTERN int
 ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,

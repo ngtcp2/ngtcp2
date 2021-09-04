@@ -111,7 +111,7 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
     if (version && version != NGTCP2_PROTO_VER_V1 &&
         (version < NGTCP2_PROTO_VER_DRAFT_MIN ||
          NGTCP2_PROTO_VER_DRAFT_MAX < version)) {
-      return 1;
+      return NGTCP2_ERR_VERSION_NEGOTIATION;
     }
     return 0;
   }
