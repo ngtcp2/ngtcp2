@@ -7485,6 +7485,8 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
   assert(conn->pv == NULL);
 
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+  ngtcp2_dcid_set_path(dcid, &ps.path);
+
   pto = conn_compute_pto(conn, &conn->pktns);
   initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
   timeout = 3 * ngtcp2_max(pto, initial_pto);
@@ -7498,8 +7500,6 @@ static int conn_select_preferred_addr(ngtcp2_conn *conn) {
 
   ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
   conn->pv = pv;
-
-  ngtcp2_path_storage_init2(&pv->dcid.ps, &ps.path);
 
   return conn_call_activate_dcid(conn, &pv->dcid);
 }
@@ -11790,6 +11790,7 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_dcid *dcid;
+  ngtcp2_path path;
 
   assert(!conn->server);
 
@@ -11800,8 +11801,6 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
   if (rv != 0) {
     return rv;
   }
-
-  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
 
   if (conn->pv) {
     rv = conn_abort_pv(conn, ts);
@@ -11815,9 +11814,11 @@ int ngtcp2_conn_initiate_immediate_migration(ngtcp2_conn *conn,
     return rv;
   }
 
-  ngtcp2_addr_copy(&dcid->ps.path.local, local_addr);
-  ngtcp2_addr_copy(&dcid->ps.path.remote, &conn->dcid.current.ps.path.remote);
-  dcid->ps.path.user_data = path_user_data;
+  ngtcp2_path_init(&path, local_addr, &conn->dcid.current.ps.path.remote);
+  path.user_data = path_user_data;
+
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+  ngtcp2_dcid_set_path(dcid, &path);
 
   ngtcp2_dcid_copy(&conn->dcid.current, dcid);
   ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
@@ -11840,6 +11841,7 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
   ngtcp2_dcid *dcid;
   ngtcp2_duration pto, initial_pto, timeout;
   ngtcp2_pv *pv;
+  ngtcp2_path path;
 
   assert(!conn->server);
 
@@ -11858,7 +11860,12 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
     }
   }
 
+  ngtcp2_path_init(&path, local_addr, &conn->dcid.current.ps.path.remote);
+  path.user_data = path_user_data;
+
   dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+  ngtcp2_dcid_set_path(dcid, &path);
+
   pto = conn_compute_pto(conn, &conn->pktns);
   initial_pto = conn_compute_initial_pto(conn, &conn->pktns);
   timeout = 3 * ngtcp2_max(pto, initial_pto);
@@ -11871,11 +11878,6 @@ int ngtcp2_conn_initiate_migration(ngtcp2_conn *conn,
 
   ngtcp2_ringbuf_pop_front(&conn->dcid.unused);
   conn->pv = pv;
-
-  ngtcp2_addr_copy(&pv->dcid.ps.path.local, local_addr);
-  ngtcp2_addr_copy(&pv->dcid.ps.path.remote,
-                   &conn->dcid.current.ps.path.remote);
-  pv->dcid.ps.path.user_data = path_user_data;
 
   return conn_call_activate_dcid(conn, &pv->dcid);
 }
