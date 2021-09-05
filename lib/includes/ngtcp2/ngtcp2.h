@@ -1043,6 +1043,14 @@ NGTCP2_EXTERN void ngtcp2_cid_init(ngtcp2_cid *cid, const uint8_t *data,
                                    size_t datalen);
 
 /**
+ * @function
+ *
+ * `ngtcp2_cid_eq` returns nonzero if |a| and |b| share the same
+ * Connection ID.
+ */
+NGTCP2_EXTERN int ngtcp2_cid_eq(const ngtcp2_cid *a, const ngtcp2_cid *b);
+
+/**
  * @struct
  *
  * :type:`ngtcp2_pkt_hd` represents QUIC packet header.

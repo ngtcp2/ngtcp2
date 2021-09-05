@@ -100,12 +100,6 @@ typedef struct ngtcp2_dcid {
 void ngtcp2_cid_zero(ngtcp2_cid *cid);
 
 /*
- * ngtcp2_cid_eq returns nonzero if |cid| and |other| share the same
- * connection ID.
- */
-int ngtcp2_cid_eq(const ngtcp2_cid *cid, const ngtcp2_cid *other);
-
-/*
  * ngtcp2_cid_less returns nonzero if |lhs| is lexicographical smaller
  * than |rhs|.
  */
