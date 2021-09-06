@@ -192,17 +192,30 @@ the buffer sized up to `ngtcp2_conn_get_send_quantum()` bytes), call
 packet should be sent.  The timer is integrated into
 `ngtcp2_conn_get_expiry()`.
 
-Initial packet handling on server side
---------------------------------------
+Packet handling on server side
+------------------------------
 
-When the very first packet to a connection is received by a server,
-the packet should be passed to `ngtcp2_accept()`.  If it returns
-:macro:`NGTCP2_ERR_RETRY`, the server should send Retry packet.  If it
-returns :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`, the server should
-send Version Negotiation packet.  If it returns an other negative
-error code, just drop the packet to the floor and take no action.
-Otherwise, the packet is acceptable.  Create :type:`ngtcp2_conn`
-object and pass the packet by calling `ngtcp2_conn_read_pkt()`.
+Any incoming UDP datagram should be first processed by
+`ngtcp2_pkt_decode_version_cid()`.  It can handle Connection ID more
+than 20 bytes which is the maximum length defined in QUIC v1.  If the
+function returns :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`, server
+should send Version Negotiation packet.  Use
+`ngtcp2_pkt_write_version_negotiation()` for this purpose.  If
+`ngtcp2_pkt_decode_version_cid()` succeeds, then check whether the UDP
+datagram belongs to any existing connection by looking up connection
+tables by Destination Connection ID.  If it belongs to an existing
+connection, pass the UDP datagram to `ngtcp2_conn_read_pkt()`.  If it
+does not belong to any existing connection, it should be passed to
+`ngtcp2_accept()`.  If it returns :macro:`NGTCP2_ERR_RETRY`, the
+server should send Retry packet (use `ngtcp2_crypto_write_retry()` to
+create Retry packet).  If it returns
+:macro:`NGTCP2_ERR_VERSION_NEGOTIATION`, the server should send
+Version Negotiation packet.  If it returns an other negative error
+code, just drop the packet to the floor and take no action, or send
+Stateless Reset packet (use `ngtcp2_pkt_write_stateless_reset()` to
+create Stateless Reset packet).  Otherwise, the UDP datagram is
+acceptable as a new connection.  Create :type:`ngtcp2_conn` object and
+pass the UDP datagram to `ngtcp2_conn_read_pkt()`.
 
 Dealing with early data
 -----------------------
