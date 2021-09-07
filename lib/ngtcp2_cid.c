@@ -85,7 +85,7 @@ void ngtcp2_dcid_init(ngtcp2_dcid *dcid, uint64_t seq, const ngtcp2_cid *cid,
   dcid->bound_ts = UINT64_MAX;
   dcid->bytes_sent = 0;
   dcid->bytes_recv = 0;
-  dcid->max_udp_payload_size = 0;
+  dcid->max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 }
 
 void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid, const uint8_t *token) {
@@ -97,18 +97,6 @@ void ngtcp2_dcid_set_token(ngtcp2_dcid *dcid, const uint8_t *token) {
 
 void ngtcp2_dcid_set_path(ngtcp2_dcid *dcid, const ngtcp2_path *path) {
   ngtcp2_path_copy(&dcid->ps.path, path);
-
-  switch (path->local.addr->sa_family) {
-  case AF_INET:
-    dcid->max_udp_payload_size = NGTCP2_MAX_PKTLEN_IPV4;
-    break;
-  case AF_INET6:
-    dcid->max_udp_payload_size = NGTCP2_MAX_PKTLEN_IPV6;
-    break;
-  default:
-    assert(0);
-    abort();
-  }
 }
 
 void ngtcp2_dcid_copy(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {

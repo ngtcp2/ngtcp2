@@ -466,7 +466,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  settings->max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
+  settings->max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
   settings->no_udp_payload_size_shaping = 1;
 }
 
@@ -494,7 +494,7 @@ static void client_default_settings(ngtcp2_settings *settings) {
   settings->log_printf = NULL;
   settings->initial_ts = 0;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  settings->max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
+  settings->max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
   settings->no_udp_payload_size_shaping = 1;
 }
 

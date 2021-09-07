@@ -222,7 +222,8 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI,
                            params->initial_max_streams_uni);
   }
-  if (params->max_udp_payload_size != NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE) {
+  if (params->max_udp_payload_size !=
+      NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE) {
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE,
                            params->max_udp_payload_size);
   }
@@ -346,7 +347,8 @@ ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
                            params->initial_max_streams_uni);
   }
 
-  if (params->max_udp_payload_size != NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE) {
+  if (params->max_udp_payload_size !=
+      NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE) {
     p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE,
                            params->max_udp_payload_size);
   }
@@ -505,7 +507,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   params->initial_max_stream_data_bidi_local = 0;
   params->initial_max_stream_data_bidi_remote = 0;
   params->initial_max_stream_data_uni = 0;
-  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
+  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
   params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params->stateless_reset_token_present = 0;
   params->preferred_address_present = 0;

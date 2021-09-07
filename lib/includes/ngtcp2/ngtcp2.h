@@ -264,34 +264,10 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_MAX_PKTLEN_IPV4` is the maximum datagram size of
- * IPv4 packet without PMTUD.
+ * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE` is the default maximum UDP
+ * datagram payload size that this endpoint transmits.
  */
-#define NGTCP2_MAX_PKTLEN_IPV4 1252
-/**
- * @macro
- *
- * :macro:`NGTCP2_MAX_PKTLEN_IPV6` is the maximum datagram size of
- * IPv6 packet without PMTUD.
- */
-#define NGTCP2_MAX_PKTLEN_IPV6 1232
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_MIN_INITIAL_PKTLEN` is the minimum datagram size for
- * a packet sent by client which contains its first Initial packet.
- */
-#define NGTCP2_MIN_INITIAL_PKTLEN 1200
-
-/**
- * @macro
- *
- * :macro:`NGTCP2_DEFAULT_MAX_PKTLEN` is the default maximum datagram
- * size that this endpoint transmits.  It is used by congestion
- * controller to compute congestion window.
- */
-#define NGTCP2_DEFAULT_MAX_PKTLEN 1200
+#define NGTCP2_MAX_UDP_PAYLOAD_SIZE 1200
 
 /**
  * @macrosection
@@ -1148,10 +1124,10 @@ typedef enum ngtcp2_transport_params_type {
 /**
  * @macro
  *
- * :macro:`NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE` is the default value
- * of max_udp_payload_size transport parameter.
+ * :macro:`NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE` is the default
+ * value of max_udp_payload_size transport parameter.
  */
-#define NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE 65527
+#define NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE 65527
 
 /**
  * @macro

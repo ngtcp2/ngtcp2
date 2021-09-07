@@ -1841,7 +1841,7 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
                                      size_t scidlen, Endpoint &ep,
                                      const Address &local_addr,
                                      const sockaddr *sa, socklen_t salen) {
-  Buffer buf{NGTCP2_DEFAULT_MAX_PKTLEN};
+  Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
   std::array<uint32_t, 16> sv;
 
   static_assert(sv.size() >= 2 + (NGTCP2_PROTO_VER_DRAFT_MAX -
@@ -1918,7 +1918,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
     util::hexdump(stderr, token.data(), tokenlen);
   }
 
-  Buffer buf{NGTCP2_DEFAULT_MAX_PKTLEN};
+  Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
 
   auto nwrite = ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), chd->version,
                                           &chd->scid, &scid, &chd->dcid,
@@ -1946,7 +1946,7 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
                                             const Address &local_addr,
                                             const sockaddr *sa,
                                             socklen_t salen) {
-  Buffer buf{NGTCP2_DEFAULT_MAX_PKTLEN};
+  Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
 
   auto nwrite = ngtcp2_crypto_write_connection_close(
       buf.wpos(), buf.left(), chd->version, &chd->scid, &chd->dcid,

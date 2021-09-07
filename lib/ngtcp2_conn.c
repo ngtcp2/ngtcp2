@@ -2359,7 +2359,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   /* Server requires at least NGTCP2_DEFAULT_MAX_PKTLEN bytes in order
      to send ack-eliciting Initial packet. */
   if (!conn->server || type != NGTCP2_PKT_INITIAL ||
-      destlen >= NGTCP2_DEFAULT_MAX_PKTLEN) {
+      destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
   build_pkt:
     for (; ngtcp2_ksl_len(&pktns->crypto.tx.frq);) {
       left = ngtcp2_ppe_left(&ppe);
@@ -2857,7 +2857,7 @@ static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
                            ngtcp2_ksl_len(&conn->in_pktns->crypto.tx.frq))) {
         if (cstat->loss_detection_timer != UINT64_MAX &&
             conn_server_tx_left(conn, &conn->dcid.current) <
-                NGTCP2_DEFAULT_MAX_PKTLEN) {
+                NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
           ngtcp2_log_info(
               &conn->log, NGTCP2_LOG_EVENT_RCV,
               "loss detection timer canceled due to amplification limit");
@@ -3333,7 +3333,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
           pkt_empty = 0;
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
-          require_padding = !conn->server || destlen >= 1200;
+          require_padding =
+              !conn->server || destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE;
           /* We don't retransmit PATH_RESPONSE. */
         }
       }
@@ -4039,7 +4040,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   switch (fr->type) {
   case NGTCP2_FRAME_PATH_CHALLENGE:
   case NGTCP2_FRAME_PATH_RESPONSE:
-    if (!conn->server || destlen >= 1200) {
+    if (!conn->server || destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
       lfr.padding.len = ngtcp2_ppe_padding(&ppe);
     } else {
       lfr.padding.len = 0;
@@ -4503,7 +4504,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
       }
     }
 
-    if (destlen < 1200) {
+    if (destlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
       flags = NGTCP2_PV_ENTRY_FLAG_UNDERSIZED;
     } else {
       flags = NGTCP2_PV_ENTRY_FLAG_NONE;
@@ -9670,7 +9671,7 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if (pktlen < NGTCP2_MIN_INITIAL_PKTLEN ||
+  if (pktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE ||
       (p->token.len == 0 && p->dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
@@ -10177,7 +10178,7 @@ int ngtcp2_conn_set_remote_transport_params(
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
-  if (params->max_udp_payload_size < 1200) {
+  if (params->max_udp_payload_size < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
     return NGTCP2_ERR_TRANSPORT_PARAM;
   }
 
@@ -12043,12 +12044,12 @@ void ngtcp2_settings_default(ngtcp2_settings *settings) {
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->ack_thresh = 2;
-  settings->max_udp_payload_size = NGTCP2_DEFAULT_MAX_PKTLEN;
+  settings->max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 }
 
 void ngtcp2_transport_params_default(ngtcp2_transport_params *params) {
   memset(params, 0, sizeof(*params));
-  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE;
+  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
   params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
   params->active_connection_id_limit =
