@@ -2356,8 +2356,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     }
   }
 
-  /* Server requires at least NGTCP2_DEFAULT_MAX_PKTLEN bytes in order
-     to send ack-eliciting Initial packet. */
+  /* Server requires at least NGTCP2_MAX_UDP_PAYLOAD_SIZE bytes in
+     order to send ack-eliciting Initial packet. */
   if (!conn->server || type != NGTCP2_PKT_INITIAL ||
       destlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
   build_pkt:

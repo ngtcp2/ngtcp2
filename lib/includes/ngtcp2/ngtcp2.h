@@ -5006,7 +5006,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * * :type:`ack_thresh <ngtcp2_settings.ack_thresh>` = 2
  * * :type:`max_udp_payload_size
  *   <ngtcp2_settings.max_udp_payload_size>` =
- *   :macro:`NGTCP2_DEFAULT_MAX_PKTLEN`
+ *   :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`
  */
 NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
 
@@ -5019,7 +5019,7 @@ NGTCP2_EXTERN void ngtcp2_settings_default(ngtcp2_settings *settings);
  *
  * * :type:`max_udp_payload_size
  *   <ngtcp2_transport_params.max_udp_payload_size>` =
- *   :macro:`NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE`
+ *   :macro:`NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE`
  * * :type:`ack_delay_exponent
  *   <ngtcp2_transport_params.ack_delay_exponent>` =
  *   :macro:`NGTCP2_DEFAULT_ACK_DELAY_EXPONENT`
