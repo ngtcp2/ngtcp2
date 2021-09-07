@@ -4388,7 +4388,7 @@ static void conn_update_dcid_max_udp_payload_size(ngtcp2_conn *conn,
 static size_t conn_shape_udp_payload(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
                                      size_t payloadlen) {
   if (conn->local.settings.no_udp_payload_size_shaping) {
-    return payloadlen;
+    return ngtcp2_min(payloadlen, conn->local.settings.max_udp_payload_size);
   }
 
   payloadlen =

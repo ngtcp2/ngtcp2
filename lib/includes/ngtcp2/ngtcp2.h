@@ -1914,12 +1914,12 @@ typedef struct ngtcp2_settings {
    */
   int assume_symmetric_path;
   /**
-   * :member:`no_udp_payload_size_shaping`,   if   set   to   nonzero,
-   * instructs the library  not to limit the UDP payload  size to 1200
-   * bytes       (which        can       be        extended,       see
-   * :member:`assume_symmetric_path`)  and instead  fully utilize  the
-   * given  buffer  size.   The  buffer size  should  be  assigned  to
-   * :member:`max_udp_payload_size`.
+   * :member:`no_udp_payload_size_shaping`, if set to nonzero,
+   * instructs the library not to limit the UDP payload size to
+   * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE` (which can be extended, see
+   * :member:`assume_symmetric_path`) and instead fully utilize the
+   * given buffer size or :member:`max_udp_payload_size` which is
+   * smaller.
    */
   int no_udp_payload_size_shaping;
 } ngtcp2_settings;
