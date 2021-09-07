@@ -1378,7 +1378,7 @@ int Client::handle_error() {
     return 0;
   }
 
-  std::array<uint8_t, 64_k> buf;
+  std::array<uint8_t, NGTCP2_MAX_UDP_PAYLOAD_SIZE> buf;
 
   PathStorage path;
   ngtcp2_pkt_info pi;

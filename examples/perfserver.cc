@@ -873,15 +873,13 @@ int Handler::start_closing_period() {
               << std::endl;
   }
 
-  auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
-
-  conn_closebuf_ = std::make_unique<Buffer>(max_udp_payload_size);
+  conn_closebuf_ = std::make_unique<Buffer>(NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   PathStorage path;
   ngtcp2_pkt_info pi;
   if (last_error_.type == QUICErrorType::Transport) {
     auto n = ngtcp2_conn_write_connection_close(
-        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_udp_payload_size,
+        conn_, &path.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
@@ -891,7 +889,7 @@ int Handler::start_closing_period() {
     conn_closebuf_->push(n);
   } else {
     auto n = ngtcp2_conn_write_application_close(
-        conn_, &path.path, &pi, conn_closebuf_->wpos(), max_udp_payload_size,
+        conn_, &path.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: " << ngtcp2_strerror(n)
