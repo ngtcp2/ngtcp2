@@ -928,11 +928,12 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
         goto fail;
       }
 
-      cc_ack.bytes_delivered += ent->pktlen;
+      if (ent->hd.pkt_num >= rtb->cc_pkt_num) {
+        assert(cc_ack.pkt_delivered <= ent->rst.delivered);
 
-      assert(cc_ack.pkt_delivered <= ent->rst.delivered);
-
-      cc_ack.pkt_delivered = ent->rst.delivered;
+        cc_ack.bytes_delivered += ent->pktlen;
+        cc_ack.pkt_delivered = ent->rst.delivered;
+      }
 
       rtb_on_pkt_acked(rtb, ent, cstat, ts);
       acked_ent = ent->next;
