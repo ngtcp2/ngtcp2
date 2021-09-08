@@ -4365,10 +4365,12 @@ static int conn_abort_pv(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
   assert(pv);
 
-  rv = conn_call_path_validation(conn, pv,
-                                 NGTCP2_PATH_VALIDATION_RESULT_ABORTED);
-  if (rv != 0) {
-    return rv;
+  if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
+    rv = conn_call_path_validation(conn, pv,
+                                   NGTCP2_PATH_VALIDATION_RESULT_ABORTED);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   return conn_stop_pv(conn, ts);
@@ -4415,10 +4417,12 @@ static int conn_on_path_validation_failed(ngtcp2_conn *conn, ngtcp2_pv *pv,
                                           ngtcp2_tstamp ts) {
   int rv;
 
-  rv = conn_call_path_validation(conn, pv,
-                                 NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
-  if (rv != 0) {
-    return rv;
+  if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
+    rv = conn_call_path_validation(conn, pv,
+                                   NGTCP2_PATH_VALIDATION_RESULT_FAILURE);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   if (pv->flags & NGTCP2_PV_FLAG_MTU_PROBE) {
