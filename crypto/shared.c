@@ -643,14 +643,15 @@ int ngtcp2_crypto_update_key_cb(
 }
 
 int ngtcp2_crypto_generate_stateless_reset_token(uint8_t *token,
-                                                 const ngtcp2_crypto_md *md,
                                                  const uint8_t *secret,
                                                  size_t secretlen,
                                                  const ngtcp2_cid *cid) {
   static const uint8_t info[] = "stateless_reset";
+  ngtcp2_crypto_md md;
 
-  if (ngtcp2_crypto_hkdf(token, NGTCP2_STATELESS_RESET_TOKENLEN, md, secret,
-                         secretlen, cid->data, cid->datalen, info,
+  if (ngtcp2_crypto_hkdf(token, NGTCP2_STATELESS_RESET_TOKENLEN,
+                         ngtcp2_crypto_md_sha256(&md), secret, secretlen,
+                         cid->data, cid->datalen, info,
                          sizeof(info) - 1) != 0) {
     return -1;
   }

@@ -37,6 +37,11 @@
 
 #include "shared.h"
 
+ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md) {
+  md->native_handle = (void *)GNUTLS_DIG_SHA256;
+  return md;
+}
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ngtcp2_crypto_aead_init(&ctx->aead, (void *)GNUTLS_CIPHER_AES_128_GCM);
   ctx->md.native_handle = (void *)GNUTLS_DIG_SHA256;

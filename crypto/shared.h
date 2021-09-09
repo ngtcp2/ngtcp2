@@ -208,4 +208,10 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
  */
 void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx);
 
+/*
+ * `ngtcp2_crypto_md_sha256` initializes |md| with SHA256 message
+ * digest algorithm and returns |md|.
+ */
+ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md);
+
 #endif /* NGTCP2_SHARED_H */

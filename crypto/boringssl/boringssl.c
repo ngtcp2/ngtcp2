@@ -63,6 +63,11 @@ static ngtcp2_crypto_boringssl_cipher crypto_cipher_chacha20 = {
     NGTCP2_CRYPTO_BORINGSSL_CIPHER_TYPE_CHACHA20,
 };
 
+ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md) {
+  md->native_handle = (void *)EVP_sha256();
+  return md;
+}
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ngtcp2_crypto_aead_init(&ctx->aead, (void *)EVP_aead_aes_128_gcm());
   ctx->md.native_handle = (void *)EVP_sha256();
