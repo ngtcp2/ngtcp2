@@ -69,26 +69,7 @@ constexpr size_t NGTCP2_SV_SCIDLEN = 18;
 } // namespace
 
 namespace {
-constexpr size_t TOKEN_RAND_DATALEN = 16;
-} // namespace
-
-namespace {
 auto randgen = util::make_mt19937();
-} // namespace
-
-namespace {
-// RETRY_TOKEN_MAGIC is the magic byte of Retry token.  Sent in
-// plaintext.
-constexpr uint8_t RETRY_TOKEN_MAGIC = 0xb6;
-constexpr size_t MAX_RETRY_TOKENLEN =
-    /* magic */ 1 + sizeof(uint64_t) + NGTCP2_MAX_CIDLEN +
-    /* aead tag */ 16 + TOKEN_RAND_DATALEN;
-
-// TOKEN_MAGIC is the magic byte of token which is sent in NEW_TOKEN
-// frame.  Sent in plaintext.
-constexpr uint8_t TOKEN_MAGIC = 0x36;
-constexpr size_t MAX_TOKENLEN =
-    /* magic */ 1 + sizeof(uint64_t) + /* aead tag */ 16 + TOKEN_RAND_DATALEN;
 } // namespace
 
 Config config{};
@@ -460,12 +441,17 @@ int Handler::handshake_completed() {
               << std::endl;
   }
 
-  std::array<uint8_t, MAX_TOKENLEN> token;
-  size_t tokenlen = token.size();
+  std::array<uint8_t, NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN> token;
 
   auto path = ngtcp2_conn_get_path(conn_);
+  auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+               .count();
 
-  if (server_->generate_token(token.data(), tokenlen, path->remote.addr) != 0) {
+  auto tokenlen = ngtcp2_crypto_generate_regular_token(
+      token.data(), config.static_secret.data(), config.static_secret.size(),
+      path->remote.addr, path->remote.addrlen, t);
+  if (tokenlen < 0) {
     if (!config.quiet) {
       std::cerr << "Unable to generate token" << std::endl;
     }
@@ -1337,10 +1323,7 @@ void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
 } // namespace
 
 Server::Server(struct ev_loop *loop, const TLSServerContext &tls_ctx)
-    : loop_(loop),
-      tls_ctx_(tls_ctx),
-      token_aead_(util::crypto_aead_aes_128_gcm()),
-      token_md_(util::crypto_md_sha256()) {
+    : loop_(loop), tls_ctx_(tls_ctx) {
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
@@ -1693,7 +1676,7 @@ int Server::on_read(Endpoint &ep) {
           continue;
         }
 
-        if (hd.token.base[0] != RETRY_TOKEN_MAGIC &&
+        if (hd.token.base[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY &&
             hd.dcid.datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
           send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
                                           msg.msg_namelen);
@@ -1701,7 +1684,7 @@ int Server::on_read(Endpoint &ep) {
         }
 
         switch (hd.token.base[0]) {
-        case RETRY_TOKEN_MAGIC:
+        case NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY:
           if (verify_retry_token(&ocid, &hd, &su.sa, msg.msg_namelen) != 0) {
             send_stateless_connection_close(&hd, ep, *local_addr, &su.sa,
                                             msg.msg_namelen);
@@ -1709,7 +1692,7 @@ int Server::on_read(Endpoint &ep) {
           }
           pocid = &ocid;
           break;
-        case TOKEN_MAGIC:
+        case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
           if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
             if (config.validate_addr) {
               send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
@@ -1902,11 +1885,16 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
     return -1;
   }
 
-  std::array<uint8_t, MAX_RETRY_TOKENLEN> token;
-  size_t tokenlen = token.size();
+  std::array<uint8_t, NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN> token;
 
-  if (generate_retry_token(token.data(), tokenlen, sa, salen, &scid,
-                           &chd->dcid) != 0) {
+  auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+               .count();
+
+  auto tokenlen = ngtcp2_crypto_generate_retry_token(
+      token.data(), config.static_secret.data(), config.static_secret.size(),
+      sa, salen, &scid, &chd->dcid, t);
+  if (tokenlen < 0) {
     return -1;
   }
 
@@ -1966,103 +1954,6 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
   return 0;
 }
 
-int Server::derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv,
-                             size_t &ivlen, const uint8_t *rand_data,
-                             size_t rand_datalen) {
-  std::array<uint8_t, 32> secret;
-
-  if (ngtcp2_crypto_hkdf_extract(
-          secret.data(), &token_md_, config.static_secret.data(),
-          config.static_secret.size(), rand_data, rand_datalen) != 0) {
-    return -1;
-  }
-
-  keylen = ngtcp2_crypto_aead_keylen(&token_aead_);
-  ivlen = ngtcp2_crypto_packet_protection_ivlen(&token_aead_);
-
-  if (ngtcp2_crypto_derive_packet_protection_key(key, iv, nullptr, &token_aead_,
-                                                 &token_md_, secret.data(),
-                                                 secret.size()) != 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-namespace {
-size_t generate_retry_token_aad(uint8_t *dest, size_t destlen,
-                                const sockaddr *sa, socklen_t salen,
-                                const ngtcp2_cid *retry_scid) {
-  assert(destlen >= salen + retry_scid->datalen);
-
-  auto p = std::copy_n(reinterpret_cast<const uint8_t *>(sa), salen, dest);
-  p = std::copy_n(retry_scid->data, retry_scid->datalen, p);
-
-  return p - dest;
-}
-} // namespace
-
-int Server::generate_retry_token(uint8_t *token, size_t &tokenlen,
-                                 const sockaddr *sa, socklen_t salen,
-                                 const ngtcp2_cid *retry_scid,
-                                 const ngtcp2_cid *ocid) {
-  std::array<uint8_t, 4096> plaintext;
-
-  uint64_t t = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                   std::chrono::system_clock::now().time_since_epoch())
-                   .count();
-
-  auto p = std::begin(plaintext);
-  // Host byte order
-  p = std::copy_n(reinterpret_cast<uint8_t *>(&t), sizeof(t), p);
-  p = std::copy_n(ocid->data, ocid->datalen, p);
-
-  std::array<uint8_t, TOKEN_RAND_DATALEN> rand_data;
-  std::array<uint8_t, 32> key, iv;
-  auto keylen = key.size();
-  auto ivlen = iv.size();
-
-  if (util::generate_secure_random(rand_data.data(), rand_data.size()) != 0) {
-    return -1;
-  }
-
-  if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data.data(),
-                       rand_data.size()) != 0) {
-    return -1;
-  }
-
-  auto plaintextlen = std::distance(std::begin(plaintext), p);
-
-  std::array<uint8_t, 256> aad;
-  auto aadlen =
-      generate_retry_token_aad(aad.data(), aad.size(), sa, salen, retry_scid);
-
-  token[0] = RETRY_TOKEN_MAGIC;
-
-  ngtcp2_crypto_aead_ctx aead_ctx;
-  if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &token_aead_, key.data(),
-                                          ivlen) != 0) {
-    return -1;
-  }
-
-  auto rv = ngtcp2_crypto_encrypt(token + 1, &token_aead_, &aead_ctx,
-                                  plaintext.data(), plaintextlen, iv.data(),
-                                  ivlen, aad.data(), aadlen);
-
-  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
-
-  if (rv != 0) {
-    return -1;
-  }
-
-  /* 1 for magic byte */
-  tokenlen = 1 + plaintextlen + token_aead_.max_overhead;
-  memcpy(token + tokenlen, rand_data.data(), rand_data.size());
-  tokenlen += rand_data.size();
-
-  return 0;
-}
-
 int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                                const sockaddr *sa, socklen_t salen) {
   std::array<char, NI_MAXHOST> host;
@@ -2081,184 +1972,22 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
     util::hexdump(stderr, hd->token.base, hd->token.len);
   }
 
-  /* 1 for RETRY_TOKEN_MAGIC */
-  if (hd->token.len < TOKEN_RAND_DATALEN + 1) {
-    if (!config.quiet) {
-      std::cerr << "Token is too short" << std::endl;
-    }
+  auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+               .count();
+
+  if (ngtcp2_crypto_verify_retry_token(
+          ocid, hd->token.base, hd->token.len, config.static_secret.data(),
+          config.static_secret.size(), sa, salen, &hd->dcid,
+          10 * NGTCP2_SECONDS, t) != 0) {
+    std::cerr << "Could not verify Retry token" << std::endl;
+
     return -1;
   }
-  if (hd->token.len > MAX_RETRY_TOKENLEN) {
-    if (!config.quiet) {
-      std::cerr << "Token is too long" << std::endl;
-    }
-    return -1;
-  }
-
-  assert(hd->token.base[0] == RETRY_TOKEN_MAGIC);
-
-  auto rand_data = hd->token.base + hd->token.len - TOKEN_RAND_DATALEN;
-  auto ciphertext = hd->token.base + 1;
-  auto ciphertextlen = hd->token.len - TOKEN_RAND_DATALEN - 1;
-
-  std::array<uint8_t, 32> key, iv;
-  auto keylen = key.size();
-  auto ivlen = iv.size();
-
-  if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data,
-                       TOKEN_RAND_DATALEN) != 0) {
-    return -1;
-  }
-
-  std::array<uint8_t, 256> aad;
-  auto aadlen =
-      generate_retry_token_aad(aad.data(), aad.size(), sa, salen, &hd->dcid);
-
-  ngtcp2_crypto_aead_ctx aead_ctx;
-  if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, &token_aead_, key.data(),
-                                          ivlen) != 0) {
-    return -1;
-  }
-
-  std::array<uint8_t, MAX_RETRY_TOKENLEN> plaintext;
-
-  auto rv = ngtcp2_crypto_decrypt(plaintext.data(), &token_aead_, &aead_ctx,
-                                  ciphertext, ciphertextlen, iv.data(), ivlen,
-                                  aad.data(), aadlen);
-
-  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
-
-  if (rv != 0) {
-    if (!config.quiet) {
-      std::cerr << "Could not decrypt token" << std::endl;
-    }
-    return -1;
-  }
-
-  assert(ciphertextlen >= token_aead_.max_overhead);
-
-  auto plaintextlen = ciphertextlen - token_aead_.max_overhead;
-  if (plaintextlen < sizeof(uint64_t)) {
-    if (!config.quiet) {
-      std::cerr << "Bad token construction" << std::endl;
-    }
-    return -1;
-  }
-
-  auto cil = plaintextlen - sizeof(uint64_t);
-  if (cil != 0 && (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN)) {
-    if (!config.quiet) {
-      std::cerr << "Bad token construction" << std::endl;
-    }
-    return -1;
-  }
-
-  uint64_t t;
-  memcpy(&t, plaintext.data(), sizeof(uint64_t));
-
-  uint64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                     std::chrono::system_clock::now().time_since_epoch())
-                     .count();
-
-  // Allow 10 seconds window
-  if (t + 10ULL * NGTCP2_SECONDS < now) {
-    if (!config.quiet) {
-      std::cerr << "Token has been expired" << std::endl;
-    }
-    return -1;
-  }
-
-  ngtcp2_cid_init(ocid, plaintext.data() + sizeof(uint64_t), cil);
 
   if (!config.quiet) {
     std::cerr << "Token was successfully validated" << std::endl;
   }
-
-  return 0;
-}
-
-namespace {
-size_t generate_token_aad(uint8_t *dest, size_t destlen, const sockaddr *sa) {
-  const uint8_t *addr;
-  size_t addrlen;
-
-  switch (sa->sa_family) {
-  case AF_INET:
-    addr = reinterpret_cast<const uint8_t *>(
-        &reinterpret_cast<const sockaddr_in *>(sa)->sin_addr);
-    addrlen = sizeof(reinterpret_cast<const sockaddr_in *>(sa)->sin_addr);
-    break;
-  case AF_INET6:
-    addr = reinterpret_cast<const uint8_t *>(
-        &reinterpret_cast<const sockaddr_in6 *>(sa)->sin6_addr);
-    addrlen = sizeof(reinterpret_cast<const sockaddr_in6 *>(sa)->sin6_addr);
-    break;
-  default:
-    if (!config.quiet) {
-      std::cerr << "Unknown address family 0x" << std::hex << sa->sa_family
-                << std::dec << std::endl;
-    }
-    return -1;
-  }
-
-  assert(destlen >= addrlen);
-
-  return std::copy_n(addr, addrlen, dest) - dest;
-}
-} // namespace
-
-int Server::generate_token(uint8_t *token, size_t &tokenlen,
-                           const sockaddr *sa) {
-  std::array<uint8_t, 8> plaintext;
-
-  uint64_t t = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                   std::chrono::system_clock::now().time_since_epoch())
-                   .count();
-
-  std::array<uint8_t, 256> aad;
-  auto aadlen = generate_token_aad(aad.data(), aad.size(), sa);
-
-  auto p = std::begin(plaintext);
-  // Host byte order
-  p = std::copy_n(reinterpret_cast<uint8_t *>(&t), sizeof(t), p);
-
-  std::array<uint8_t, TOKEN_RAND_DATALEN> rand_data;
-  std::array<uint8_t, 32> key, iv;
-  auto keylen = key.size();
-  auto ivlen = iv.size();
-
-  if (util::generate_secure_random(rand_data.data(), rand_data.size()) != 0) {
-    return -1;
-  }
-
-  if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data.data(),
-                       rand_data.size()) != 0) {
-    return -1;
-  }
-
-  auto plaintextlen = std::distance(std::begin(plaintext), p);
-
-  ngtcp2_crypto_aead_ctx aead_ctx;
-  if (ngtcp2_crypto_aead_ctx_encrypt_init(&aead_ctx, &token_aead_, key.data(),
-                                          ivlen) != 0) {
-    return -1;
-  }
-
-  token[0] = TOKEN_MAGIC;
-  auto rv = ngtcp2_crypto_encrypt(token + 1, &token_aead_, &aead_ctx,
-                                  plaintext.data(), plaintextlen, iv.data(),
-                                  ivlen, aad.data(), aadlen);
-
-  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
-
-  if (rv != 0) {
-    return -1;
-  }
-
-  /* 1 for magic byte */
-  tokenlen = 1 + plaintextlen + token_aead_.max_overhead;
-  memcpy(token + tokenlen, rand_data.data(), rand_data.size());
-  tokenlen += rand_data.size();
 
   return 0;
 }
@@ -2281,81 +2010,16 @@ int Server::verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
     util::hexdump(stderr, hd->token.base, hd->token.len);
   }
 
-  /* 1 for TOKEN_MAGIC */
-  if (hd->token.len < TOKEN_RAND_DATALEN + 1) {
-    if (!config.quiet) {
-      std::cerr << "Token is too short" << std::endl;
-    }
-    return -1;
-  }
-  if (hd->token.len > MAX_TOKENLEN) {
-    if (!config.quiet) {
-      std::cerr << "Token is too long" << std::endl;
-    }
-    return -1;
-  }
+  auto t = std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+               .count();
 
-  assert(hd->token.base[0] == TOKEN_MAGIC);
+  if (ngtcp2_crypto_verify_regular_token(hd->token.base, hd->token.len,
+                                         config.static_secret.data(),
+                                         config.static_secret.size(), sa, salen,
+                                         3600 * NGTCP2_SECONDS, t) != 0) {
+    std::cerr << "Could not verify token" << std::endl;
 
-  std::array<uint8_t, 256> aad;
-  auto aadlen = generate_token_aad(aad.data(), aad.size(), sa);
-
-  auto rand_data = hd->token.base + hd->token.len - TOKEN_RAND_DATALEN;
-  auto ciphertext = hd->token.base + 1;
-  auto ciphertextlen = hd->token.len - TOKEN_RAND_DATALEN - 1;
-
-  std::array<uint8_t, 32> key, iv;
-  auto keylen = key.size();
-  auto ivlen = iv.size();
-
-  if (derive_token_key(key.data(), keylen, iv.data(), ivlen, rand_data,
-                       TOKEN_RAND_DATALEN) != 0) {
-    return -1;
-  }
-
-  ngtcp2_crypto_aead_ctx aead_ctx;
-  if (ngtcp2_crypto_aead_ctx_decrypt_init(&aead_ctx, &token_aead_, key.data(),
-                                          ivlen) != 0) {
-    return -1;
-  }
-
-  std::array<uint8_t, MAX_TOKENLEN> plaintext;
-
-  auto rv = ngtcp2_crypto_decrypt(plaintext.data(), &token_aead_, &aead_ctx,
-                                  ciphertext, ciphertextlen, iv.data(), ivlen,
-                                  aad.data(), aadlen);
-
-  ngtcp2_crypto_aead_ctx_free(&aead_ctx);
-
-  if (rv != 0) {
-    if (!config.quiet) {
-      std::cerr << "Could not decrypt token" << std::endl;
-    }
-    return -1;
-  }
-
-  assert(ciphertextlen >= token_aead_.max_overhead);
-
-  auto plaintextlen = ciphertextlen - token_aead_.max_overhead;
-  if (plaintextlen != sizeof(uint64_t)) {
-    if (!config.quiet) {
-      std::cerr << "Bad token construction" << std::endl;
-    }
-    return -1;
-  }
-
-  uint64_t t;
-  memcpy(&t, plaintext.data(), sizeof(uint64_t));
-
-  uint64_t now = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                     std::chrono::system_clock::now().time_since_epoch())
-                     .count();
-
-  // Allow 1 hour window
-  if (t + 3600ULL * NGTCP2_SECONDS < now) {
-    if (!config.quiet) {
-      std::cerr << "Token has been expired" << std::endl;
-    }
     return -1;
   }
 

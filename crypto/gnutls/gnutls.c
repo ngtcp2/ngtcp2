@@ -37,6 +37,10 @@
 
 #include "shared.h"
 
+ngtcp2_crypto_aead *ngtcp2_crypto_aead_aes_128_gcm(ngtcp2_crypto_aead *aead) {
+  return ngtcp2_crypto_aead_init(aead, (void *)GNUTLS_CIPHER_AES_128_GCM);
+}
+
 ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md) {
   md->native_handle = (void *)GNUTLS_DIG_SHA256;
   return md;
@@ -496,6 +500,14 @@ int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn, uint8_t *data,
 
   if (gnutls_rnd(GNUTLS_RND_RANDOM, data, NGTCP2_PATH_CHALLENGE_DATALEN) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+int ngtcp2_crypto_random(uint8_t *data, size_t datalen) {
+  if (gnutls_rnd(GNUTLS_RND_RANDOM, data, datalen) != 0) {
+    return -1;
   }
 
   return 0;

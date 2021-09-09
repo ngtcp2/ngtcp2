@@ -63,6 +63,10 @@ static ngtcp2_crypto_boringssl_cipher crypto_cipher_chacha20 = {
     NGTCP2_CRYPTO_BORINGSSL_CIPHER_TYPE_CHACHA20,
 };
 
+ngtcp2_crypto_aead *ngtcp2_crypto_aead_aes_128_gcm(ngtcp2_crypto_aead *aead) {
+  return ngtcp2_crypto_aead_init(aead, (void *)EVP_aead_aes_128_gcm());
+}
+
 ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md) {
   md->native_handle = (void *)EVP_sha256();
   return md;
@@ -523,6 +527,14 @@ int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn, uint8_t *data,
 
   if (RAND_bytes(data, NGTCP2_PATH_CHALLENGE_DATALEN) != 1) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+
+int ngtcp2_crypto_random(uint8_t *data, size_t datalen) {
+  if (RAND_bytes(data, datalen) != 1) {
+    return -1;
   }
 
   return 0;

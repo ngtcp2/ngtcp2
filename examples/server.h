@@ -211,12 +211,8 @@ public:
   int send_stateless_connection_close(const ngtcp2_pkt_hd *chd, Endpoint &ep,
                                       const Address &local_addr,
                                       const sockaddr *sa, socklen_t salen);
-  int generate_retry_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa,
-                           socklen_t salen, const ngtcp2_cid *scid,
-                           const ngtcp2_cid *ocid);
   int verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
                          const sockaddr *sa, socklen_t salen);
-  int generate_token(uint8_t *token, size_t &tokenlen, const sockaddr *sa);
   int verify_token(const ngtcp2_pkt_hd *hd, const sockaddr *sa,
                    socklen_t salen);
   int send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
@@ -224,8 +220,6 @@ public:
                   const uint8_t *data, size_t datalen, size_t gso_size);
   void remove(const Handler *h);
 
-  int derive_token_key(uint8_t *key, size_t &keylen, uint8_t *iv, size_t &ivlen,
-                       const uint8_t *rand_data, size_t rand_datalen);
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
   void dissociate_cid(const ngtcp2_cid *cid);
 
@@ -234,8 +228,6 @@ private:
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
   const TLSServerContext &tls_ctx_;
-  ngtcp2_crypto_aead token_aead_;
-  ngtcp2_crypto_md token_md_;
   ev_signal sigintev_;
 };
 

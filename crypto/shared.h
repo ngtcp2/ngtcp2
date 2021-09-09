@@ -214,4 +214,14 @@ void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx);
  */
 ngtcp2_crypto_md *ngtcp2_crypto_md_sha256(ngtcp2_crypto_md *md);
 
+ngtcp2_crypto_aead *ngtcp2_crypto_aead_aes_128_gcm(ngtcp2_crypto_aead *aead);
+
+/*
+ * `ngtcp2_crypto_random` writes cryptographically-secure random
+ * |datalen| bytes into the buffer pointed by |data|.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+int ngtcp2_crypto_random(uint8_t *data, size_t datalen);
+
 #endif /* NGTCP2_SHARED_H */
