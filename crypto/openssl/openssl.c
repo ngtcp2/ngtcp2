@@ -322,6 +322,33 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   return rv;
 }
 
+int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
+                       const ngtcp2_crypto_md *md, const uint8_t *secret,
+                       size_t secretlen, const uint8_t *salt, size_t saltlen,
+                       const uint8_t *info, size_t infolen) {
+  const EVP_MD *prf = md->native_handle;
+  int rv = 0;
+  EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+  if (pctx == NULL) {
+    return -1;
+  }
+
+  if (EVP_PKEY_derive_init(pctx) != 1 ||
+      EVP_PKEY_CTX_hkdf_mode(pctx, EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) !=
+          1 ||
+      EVP_PKEY_CTX_set_hkdf_md(pctx, prf) != 1 ||
+      EVP_PKEY_CTX_set1_hkdf_salt(pctx, salt, (int)saltlen) != 1 ||
+      EVP_PKEY_CTX_set1_hkdf_key(pctx, secret, (int)secretlen) != 1 ||
+      EVP_PKEY_CTX_add1_hkdf_info(pctx, info, (int)infolen) != 1 ||
+      EVP_PKEY_derive(pctx, dest, &destlen) != 1) {
+    rv = -1;
+  }
+
+  EVP_PKEY_CTX_free(pctx);
+
+  return rv;
+}
+
 int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *plaintext, size_t plaintextlen,

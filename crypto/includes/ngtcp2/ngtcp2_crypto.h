@@ -194,6 +194,20 @@ NGTCP2_EXTERN int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
 /**
  * @function
  *
+ * `ngtcp2_crypto_hkdf` performs HKDF operation.  The result is
+ * |destlen| bytes long and is stored to the buffer pointed by |dest|.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
+                                     const ngtcp2_crypto_md *md,
+                                     const uint8_t *secret, size_t secretlen,
+                                     const uint8_t *salt, size_t saltlen,
+                                     const uint8_t *info, size_t infolen);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_hkdf_expand_label` performs HKDF expand label.  The
  * result is |destlen| bytes long and is stored to the buffer pointed
  * by |dest|.

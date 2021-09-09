@@ -296,6 +296,20 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   return 0;
 }
 
+int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
+                       const ngtcp2_crypto_md *md, const uint8_t *secret,
+                       size_t secretlen, const uint8_t *salt, size_t saltlen,
+                       const uint8_t *info, size_t infolen) {
+  const EVP_MD *prf = md->native_handle;
+
+  if (HKDF(dest, destlen, prf, secret, secretlen, salt, saltlen, info,
+           infolen) != 1) {
+    return -1;
+  }
+
+  return 0;
+}
+
 int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *plaintext, size_t plaintextlen,

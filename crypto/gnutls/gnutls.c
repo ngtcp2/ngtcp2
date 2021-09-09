@@ -284,6 +284,32 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   return 0;
 }
 
+int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
+                       const ngtcp2_crypto_md *md, const uint8_t *secret,
+                       size_t secretlen, const uint8_t *salt, size_t saltlen,
+                       const uint8_t *info, size_t infolen) {
+  gnutls_mac_algorithm_t prf =
+      (gnutls_mac_algorithm_t)(intptr_t)md->native_handle;
+  size_t keylen = ngtcp2_crypto_md_hashlen(md);
+  uint8_t key[64];
+  gnutls_datum_t _secret = {(void *)secret, (unsigned int)secretlen};
+  gnutls_datum_t _key = {(void *)key, (unsigned int)keylen};
+  gnutls_datum_t _salt = {(void *)salt, (unsigned int)saltlen};
+  gnutls_datum_t _info = {(void *)info, (unsigned int)infolen};
+
+  assert(keylen <= sizeof(key));
+
+  if (gnutls_hkdf_extract(prf, &_secret, &_salt, key) != 0) {
+    return -1;
+  }
+
+  if (gnutls_hkdf_expand(prf, &_key, &_info, dest, destlen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
 int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *plaintext, size_t plaintextlen,
