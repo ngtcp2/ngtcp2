@@ -647,19 +647,13 @@ int ngtcp2_crypto_generate_stateless_reset_token(uint8_t *token,
                                                  const uint8_t *secret,
                                                  size_t secretlen,
                                                  const ngtcp2_cid *cid) {
-  uint8_t buf[64];
-  int rv;
+  static const uint8_t info[] = "stateless_reset";
 
-  assert(ngtcp2_crypto_md_hashlen(md) <= sizeof(buf));
-  assert(NGTCP2_STATELESS_RESET_TOKENLEN <= sizeof(buf));
-
-  rv = ngtcp2_crypto_hkdf_extract(buf, md, secret, secretlen, cid->data,
-                                  cid->datalen);
-  if (rv != 0) {
+  if (ngtcp2_crypto_hkdf(token, NGTCP2_STATELESS_RESET_TOKENLEN, md, secret,
+                         secretlen, cid->data, cid->datalen, info,
+                         sizeof(info) - 1) != 0) {
     return -1;
   }
-
-  memcpy(token, buf, NGTCP2_STATELESS_RESET_TOKENLEN);
 
   return 0;
 }
