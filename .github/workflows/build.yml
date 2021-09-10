@@ -11,6 +11,7 @@ jobs:
         os: [ubuntu-20.04, macos-10.15]
         compiler: [gcc, clang]
         buildtool: [autotools, cmake]
+        openssl: [openssl1, openssl3]
 
     steps:
     - uses: actions/checkout@v2
@@ -49,9 +50,14 @@ jobs:
       run: |
         echo 'CC=gcc-10' >> $GITHUB_ENV
         echo 'CXX=g++-10' >> $GITHUB_ENV
-    - name: Build OpenSSL
+    - name: Build OpenSSL v1.1.1
+      if: matrix.openssl == 'openssl1'
       run: |
-        ./ci/build_openssl.sh
+        ./ci/build_openssl1.sh
+    - name: Build OpenSSL v3.0.0
+      if: matrix.openssl == 'openssl3'
+      run: |
+        ./ci/build_openssl3.sh
     - name: Build GnuTLS
       run: |
         ./ci/build_gnutls.sh
@@ -64,7 +70,7 @@ jobs:
     - name: Setup environment variables
       run: |
         PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/gnutls-3.7.2/build/lib/pkgconfig:$PWD/nettle-3.6/build/lib64/pkgconfig"
-        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/nettle-3.6/build/lib64"
+        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/openssl/build/lib64 -Wl,-rpath,$PWD/nettle-3.6/build/lib64"
         BORINGSSL_CFLAGS="-I$PWD/boringssl/include/"
         BORINGSSL_LIBS="-L$PWD/boringssl/build/ssl -lssl -L$PWD/boringssl/build/crypto -lcrypto"
 

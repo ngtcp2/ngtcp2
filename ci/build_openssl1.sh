@@ -3,6 +3,6 @@
 
 git clone --depth 1 -b OpenSSL_1_1_1l+quic https://github.com/quictls/openssl
 cd openssl
-./config enable-tls1_3 --prefix=$PWD/build
+./config --prefix=$PWD/build
 make -j$(nproc)
 make install_sw
