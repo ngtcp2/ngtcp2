@@ -207,8 +207,19 @@ Synopsis
 
 def process_macro(infile):
     content = read_content(infile)
-    line = infile.readline()
-    macro_name = line.split()[1]
+    lines = []
+    while True:
+        line = infile.readline()
+        if not line:
+            break
+        line = line.rstrip()
+        lines.append(line.rstrip('\\'))
+        if not line.endswith('\\'):
+            break
+
+    macro_name = re.sub(r'#define ', '', ''.join(lines))
+    m = re.match(r'^[^( ]+(:?\(.*?\))?', macro_name)
+    macro_name =  m.group(0)
     return MacroDoc(macro_name, content)
 
 def process_macrosection(infile):
@@ -281,6 +292,9 @@ def process_function(domain, infile):
         else:
             func_proto.append(line)
     func_proto = ''.join(func_proto)
+    func_proto = re.sub(r'int (pkt_info|transport_params|conn_stat|settings|callbacks)_version,',
+                        '', func_proto)
+    func_proto = re.sub(r'_versioned\(', '(', func_proto)
     func_proto = re.sub(r';\n$', '', func_proto)
     func_proto = re.sub(r'\s+', ' ', func_proto)
     func_proto = re.sub(r'NGTCP2_EXTERN ', '', func_proto)

@@ -150,14 +150,14 @@ static uint8_t *write_cid_param(uint8_t *p, ngtcp2_transport_param_id id,
 
 static const uint8_t empty_address[16];
 
-ngtcp2_ssize
-ngtcp2_encode_transport_params(uint8_t *dest, size_t destlen,
-                               ngtcp2_transport_params_type exttype,
-                               const ngtcp2_transport_params *params) {
+ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
+    uint8_t *dest, size_t destlen, ngtcp2_transport_params_type exttype,
+    int transport_params_version, const ngtcp2_transport_params *params) {
   uint8_t *p;
   size_t len = 0;
   /* For some reason, gcc 7.3.0 requires this initialization. */
   size_t preferred_addrlen = 0;
+  (void)transport_params_version;
 
   switch (exttype) {
   case NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO:
@@ -485,9 +485,9 @@ static ngtcp2_ssize decode_cid_param(ngtcp2_cid *pdest, const uint8_t *p,
   return (ngtcp2_ssize)(p - begin);
 }
 
-int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
-                                   ngtcp2_transport_params_type exttype,
-                                   const uint8_t *data, size_t datalen) {
+int ngtcp2_decode_transport_params_versioned(
+    int transport_params_version, ngtcp2_transport_params *params,
+    ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen) {
   const uint8_t *p, *end;
   size_t len;
   uint64_t param_type;
@@ -495,6 +495,7 @@ int ngtcp2_decode_transport_params(ngtcp2_transport_params *params,
   ngtcp2_ssize nread;
   int initial_scid_present = 0;
   int original_dcid_present = 0;
+  (void)transport_params_version;
 
   if (datalen == 0) {
     return NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM;

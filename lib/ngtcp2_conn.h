@@ -764,9 +764,9 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
-                                    ngtcp2_pkt_info *pi, uint8_t *dest,
-                                    size_t destlen, ngtcp2_vmsg *vmsg,
-                                    ngtcp2_tstamp ts);
+                                    int pkt_info_version, ngtcp2_pkt_info *pi,
+                                    uint8_t *dest, size_t destlen,
+                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains |fr|
