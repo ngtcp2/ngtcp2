@@ -11019,7 +11019,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
                              uint64_t app_error_code) {
   int rv;
 
-  if (!strm->app_error_code) {
+  if (strm->app_error_code) {
     app_error_code = strm->app_error_code;
   }
 

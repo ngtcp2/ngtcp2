@@ -171,6 +171,10 @@ typedef struct {
     size_t datalen;
     uint64_t dgram_id;
   } datagram;
+  struct {
+    int64_t stream_id;
+    uint64_t app_error_code;
+  } stream_close;
 } my_user_data;
 
 static int client_initial(ngtcp2_conn *conn, void *user_data) {
@@ -406,6 +410,19 @@ recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, uint32_t flags,
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
+
+  return 0;
+}
+
+static int stream_close(ngtcp2_conn *conn, int64_t stream_id,
+                        uint64_t app_error_code, void *user_data,
+                        void *stream_user_data) {
+  my_user_data *ud = user_data;
+  (void)conn;
+  (void)stream_user_data;
+
+  ud->stream_close.stream_id = stream_id;
+  ud->stream_close.app_error_code = app_error_code;
 
   return 0;
 }
@@ -7533,6 +7550,72 @@ void test_ngtcp2_conn_get_scid(void) {
 
   CU_ASSERT(ngtcp2_cid_eq(&scid, &scids[0]));
   CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid, &scids[1]));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_stream_close(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[2048];
+  ngtcp2_frame frs[2];
+  size_t pktlen;
+  int64_t pkt_num = 0;
+  my_user_data ud;
+  ngtcp2_strm *strm;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_ssize spktlen;
+
+  /* Recieve RESET_STREAM and STOP_SENDING from client */
+  setup_default_server(&conn);
+  conn->callbacks.stream_close = stream_close;
+  conn->user_data = &ud;
+
+  open_stream(conn, 0);
+
+  frs[0].type = NGTCP2_FRAME_RESET_STREAM;
+  frs[0].reset_stream.stream_id = 0;
+  frs[0].reset_stream.app_error_code = NGTCP2_APP_ERR01;
+  frs[0].reset_stream.final_size = 999;
+
+  frs[1].type = NGTCP2_FRAME_STOP_SENDING;
+  frs[1].stop_sending.stream_id = 0;
+  frs[1].stop_sending.app_error_code = NGTCP2_APP_ERR02;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2,
+                     conn->pktns.crypto.tx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, 0);
+
+  CU_ASSERT(NGTCP2_APP_ERR01 == strm->app_error_code);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT((size_t)spktlen < sizeof(buf));
+
+  frs[0].type = NGTCP2_FRAME_ACK;
+  frs[0].ack.largest_ack = 0;
+  frs[0].ack.ack_delay = 0;
+  frs[0].ack.first_ack_blklen = 0;
+  frs[0].ack.num_blks = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
+                     conn->pktns.crypto.tx.ckm);
+
+  ud.stream_close.stream_id = -1;
+  ud.stream_close.app_error_code = 0;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  CU_ASSERT(0 == ud.stream_close.stream_id);
+  CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
 
   ngtcp2_conn_del(conn);
 }
