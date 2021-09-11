@@ -36,6 +36,10 @@
 #include <openssl/kdf.h>
 #include <openssl/rand.h>
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#  include <openssl/core_names.h>
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
 #include "shared.h"
 
 static size_t crypto_aead_max_overhead(const EVP_CIPHER *aead) {
@@ -282,6 +286,33 @@ void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx) {
 int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *secret, size_t secretlen,
                                const uint8_t *salt, size_t saltlen) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  const EVP_MD *prf = md->native_handle;
+  EVP_KDF *kdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
+  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  int mode = EVP_KDF_HKDF_MODE_EXTRACT_ONLY;
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode),
+      OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
+                                       (char *)EVP_MD_get0_name(prf), 0),
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, (void *)secret,
+                                        secretlen),
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, (void *)salt,
+                                        saltlen),
+      OSSL_PARAM_construct_end(),
+  };
+  int rv = 0;
+
+  EVP_KDF_free(kdf);
+
+  if (EVP_KDF_derive(kctx, dest, (size_t)EVP_MD_size(prf), params) <= 0) {
+    rv = -1;
+  }
+
+  EVP_KDF_CTX_free(kctx);
+
+  return rv;
+#else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
   const EVP_MD *prf = md->native_handle;
   int rv = 0;
   EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
@@ -303,12 +334,40 @@ int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
   EVP_PKEY_CTX_free(pctx);
 
   return rv;
+#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
 }
 
 int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
                               const ngtcp2_crypto_md *md, const uint8_t *secret,
                               size_t secretlen, const uint8_t *info,
                               size_t infolen) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  const EVP_MD *prf = md->native_handle;
+  EVP_KDF *kdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
+  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  int mode = EVP_KDF_HKDF_MODE_EXPAND_ONLY;
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode),
+      OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
+                                       (char *)EVP_MD_get0_name(prf), 0),
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, (void *)secret,
+                                        secretlen),
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO, (void *)info,
+                                        infolen),
+      OSSL_PARAM_construct_end(),
+  };
+  int rv = 0;
+
+  EVP_KDF_free(kdf);
+
+  if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
+    rv = -1;
+  }
+
+  EVP_KDF_CTX_free(kctx);
+
+  return rv;
+#else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
   const EVP_MD *prf = md->native_handle;
   int rv = 0;
   EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
@@ -329,12 +388,40 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
   EVP_PKEY_CTX_free(pctx);
 
   return rv;
+#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
 }
 
 int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
                        const ngtcp2_crypto_md *md, const uint8_t *secret,
                        size_t secretlen, const uint8_t *salt, size_t saltlen,
                        const uint8_t *info, size_t infolen) {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  const EVP_MD *prf = md->native_handle;
+  EVP_KDF *kdf = EVP_KDF_fetch(NULL, "hkdf", NULL);
+  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
+                                       (char *)EVP_MD_get0_name(prf), 0),
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, (void *)secret,
+                                        secretlen),
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, (void *)salt,
+                                        saltlen),
+      OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO, (void *)info,
+                                        infolen),
+      OSSL_PARAM_construct_end(),
+  };
+  int rv = 0;
+
+  EVP_KDF_free(kdf);
+
+  if (EVP_KDF_derive(kctx, dest, destlen, params) <= 0) {
+    rv = -1;
+  }
+
+  EVP_KDF_CTX_free(kctx);
+
+  return rv;
+#else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
   const EVP_MD *prf = md->native_handle;
   int rv = 0;
   EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
@@ -356,6 +443,7 @@ int ngtcp2_crypto_hkdf(uint8_t *dest, size_t destlen,
   EVP_PKEY_CTX_free(pctx);
 
   return rv;
+#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
 }
 
 int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
