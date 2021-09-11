@@ -147,16 +147,21 @@ static int conn_call_stream_open(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   return 0;
 }
 
-static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                  uint64_t app_error_code) {
+static int conn_call_stream_close(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   int rv;
+  uint32_t flags = NGTCP2_STREAM_CLOSE_FLAG_NONE;
 
   if (!conn->callbacks.stream_close) {
     return 0;
   }
 
-  rv = conn->callbacks.stream_close(conn, strm->stream_id, app_error_code,
-                                    conn->user_data, strm->stream_user_data);
+  if (strm->flags & NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET) {
+    flags |= NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET;
+  }
+
+  rv = conn->callbacks.stream_close(conn, flags, strm->stream_id,
+                                    strm->app_error_code, conn->user_data,
+                                    strm->stream_user_data);
   if (rv != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
@@ -6540,8 +6545,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
 
       if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm,
-                                                     strm->app_error_code);
+        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
       }
     }
   } else {
@@ -6610,7 +6614,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return rv;
     }
   }
-  return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
+  return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
 }
 
 /*
@@ -6843,11 +6847,9 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
   strm->rx.last_offset = fr->final_size;
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_RECV_RST;
 
-  if (!strm->app_error_code) {
-    strm->app_error_code = fr->app_error_code;
-  }
+  ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
 
-  return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
+  return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
 }
 
 /*
@@ -6922,9 +6924,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
   }
 
-  if (!strm->app_error_code) {
-    strm->app_error_code = fr->app_error_code;
-  }
+  ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
 
   /* No RESET_STREAM is required if we have sent FIN and all data have
      been acknowledged. */
@@ -6942,7 +6942,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
 
   ngtcp2_strm_streamfrq_clear(strm);
 
-  return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, fr->app_error_code);
+  return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
 }
 
 /*
@@ -11020,13 +11020,8 @@ int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn) {
   return conn->state == NGTCP2_CS_DRAINING;
 }
 
-int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                             uint64_t app_error_code) {
+int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
   int rv;
-
-  if (strm->app_error_code) {
-    app_error_code = strm->app_error_code;
-  }
 
   rv = ngtcp2_map_remove(&conn->strms, (ngtcp2_map_key_type)strm->stream_id);
   if (rv != 0) {
@@ -11034,7 +11029,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     return rv;
   }
 
-  rv = conn_call_stream_close(conn, strm, app_error_code);
+  rv = conn_call_stream_close(conn, strm);
   if (rv != 0) {
     goto fin;
   }
@@ -11050,8 +11045,8 @@ fin:
   return rv;
 }
 
-int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                          uint64_t app_error_code) {
+int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
+                                          ngtcp2_strm *strm) {
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
           NGTCP2_STRM_FLAG_SHUT_RDWR &&
       ((strm->flags & NGTCP2_STRM_FLAG_RECV_RST) ||
@@ -11060,7 +11055,7 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm,
         (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
        (!(strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
         ngtcp2_strm_is_all_tx_data_acked(strm)))) {
-    return ngtcp2_conn_close_stream(conn, strm, app_error_code);
+    return ngtcp2_conn_close_stream(conn, strm);
   }
   return 0;
 }
@@ -11084,7 +11079,7 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
   /* Set this flag so that we don't accidentally send DATA to this
      stream. */
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_SENT_RST;
-  strm->app_error_code = app_error_code;
+  ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
   ngtcp2_strm_streamfrq_clear(strm);
 
@@ -11120,7 +11115,7 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
-  strm->app_error_code = app_error_code;
+  ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
   return conn_stop_sending(conn, strm, app_error_code);
 }

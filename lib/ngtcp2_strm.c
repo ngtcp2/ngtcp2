@@ -680,3 +680,15 @@ int ngtcp2_strm_ack_data(ngtcp2_strm *strm, uint64_t offset, uint64_t len) {
 
   return ngtcp2_gaptr_push(strm->tx.acked_offset, offset, len);
 }
+
+void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm,
+                                    uint64_t app_error_code) {
+  if (strm->flags & NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET) {
+    return;
+  }
+
+  assert(0 == strm->app_error_code);
+
+  strm->flags |= NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET;
+  strm->app_error_code = app_error_code;
+}

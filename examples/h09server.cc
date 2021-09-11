@@ -554,8 +554,9 @@ void Handler::on_stream_open(int64_t stream_id) {
 }
 
 namespace {
-int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint64_t app_error_code,
-                 void *user_data, void *stream_user_data) {
+int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
+                 uint64_t app_error_code, void *user_data,
+                 void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   if (h->on_stream_close(stream_id, app_error_code) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;

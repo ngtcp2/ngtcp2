@@ -172,6 +172,7 @@ typedef struct {
     uint64_t dgram_id;
   } datagram;
   struct {
+    uint32_t flags;
     int64_t stream_id;
     uint64_t app_error_code;
   } stream_close;
@@ -414,13 +415,14 @@ recv_stream_data_shutdown_stream_read(ngtcp2_conn *conn, uint32_t flags,
   return 0;
 }
 
-static int stream_close(ngtcp2_conn *conn, int64_t stream_id,
+static int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
                         uint64_t app_error_code, void *user_data,
                         void *stream_user_data) {
   my_user_data *ud = user_data;
   (void)conn;
   (void)stream_user_data;
 
+  ud->stream_close.flags = flags;
   ud->stream_close.stream_id = stream_id;
   ud->stream_close.app_error_code = app_error_code;
 
@@ -7615,6 +7617,7 @@ void test_ngtcp2_conn_stream_close(void) {
   pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
                      conn->pktns.crypto.tx.ckm);
 
+  ud.stream_close.flags = NGTCP2_STREAM_CLOSE_FLAG_NONE;
   ud.stream_close.stream_id = -1;
   ud.stream_close.app_error_code = 0;
 
@@ -7622,6 +7625,8 @@ void test_ngtcp2_conn_stream_close(void) {
 
   CU_ASSERT(0 == rv);
 
+  CU_ASSERT(NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET |
+            ud.stream_close.flags);
   CU_ASSERT(0 == ud.stream_close.stream_id);
   CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
 

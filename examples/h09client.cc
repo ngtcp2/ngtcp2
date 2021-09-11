@@ -399,8 +399,9 @@ int Client::handshake_confirmed() {
 }
 
 namespace {
-int stream_close(ngtcp2_conn *conn, int64_t stream_id, uint64_t app_error_code,
-                 void *user_data, void *stream_user_data) {
+int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
+                 uint64_t app_error_code, void *user_data,
+                 void *stream_user_data) {
   auto c = static_cast<Client *>(user_data);
 
   if (c->on_stream_close(stream_id, app_error_code) != 0) {

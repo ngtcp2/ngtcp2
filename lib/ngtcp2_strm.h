@@ -69,6 +69,12 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_ANY_ACKED indicates that any portion of stream
    data, including 0 length segment, is acknowledged. */
 #define NGTCP2_STRM_FLAG_ANY_ACKED 0x80
+/* NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET indicates that app_error_code
+   field is set.  This resolves the ambiguity that the initial
+   app_error_code value 0 might be a proper application error code.
+   In this case, without this flag, we are unable to distinguish
+   assigned value from unassigned one.  */
+#define NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET 0x100
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -130,7 +136,10 @@ struct ngtcp2_strm {
   /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
   uint32_t flags;
   /* app_error_code is an error code the local endpoint sent in
-     RST_STREAM or STOP_SENDING. */
+     RESET_STREAM or STOP_SENDING, or received from a remote endpoint
+     in RESET_STREAM or STOP_SENDING.  First application error code is
+     chosen and when set, NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET flag is
+     set in flags field. */
   uint64_t app_error_code;
 };
 
@@ -266,5 +275,12 @@ uint64_t ngtcp2_strm_get_acked_offset(ngtcp2_strm *strm);
  * offset+len) is acknowledged by a remote endpoint.
  */
 int ngtcp2_strm_ack_data(ngtcp2_strm *strm, uint64_t offset, uint64_t len);
+
+/*
+ * ngtcp2_strm_set_app_error_code sets |app_error_code| to |strm| and
+ * set NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET flag.  If the flag is
+ * already set, this function does nothing.
+ */
+void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm, uint64_t app_error_code);
 
 #endif /* NGTCP2_STRM_H */

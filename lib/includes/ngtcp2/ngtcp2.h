@@ -2642,20 +2642,54 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
                                   void *user_data);
 
 /**
+ * @macrosection
+ *
+ * Stream close flags
+ */
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_STREAM_CLOSE_FLAG_NONE` indicates no flag set.
+ */
+#define NGTCP2_STREAM_CLOSE_FLAG_NONE 0x00
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET` indicates that
+ * app_error_code parameter is set.
+ */
+#define NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET 0x01
+
+/**
  * @functypedef
  *
  * :type:`ngtcp2_stream_close` is invoked when a stream is closed.
  * This callback is not called when QUIC connection is closed before
- * existing streams are closed.  |app_error_code| indicates the error
- * code of this closure.
+ * existing streams are closed.  |flags| is the bitwise-OR of zero or
+ * more of NGTCP2_STREAM_CLOSE_FLAG_*.  See
+ * :macro:`NGTCP2_STREAM_CLOSE_FLAG_NONE`.  |app_error_code| indicates
+ * the error code of this closure if
+ * :macro:`NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET` is set in
+ * |flags|.  If it is not set, the stream was closed without any error
+ * code, which generally means success.
+ *
+ * |app_error_code| is the first application error code sent by a
+ * local endpoint, or received from a remote endpoint.  If a stream is
+ * closed cleanly, no application error code is exchanged.  Since QUIC
+ * stack does not know the application error code which indicates "no
+ * errors", |app_error_code| is set to 0 and
+ * :macro:`NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET` is not set in
+ * |flags| in this case.
  *
  * The implementation of this callback should return 0 if it succeeds.
  * Returning :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library
  * call return immediately.
  */
-typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, int64_t stream_id,
-                                   uint64_t app_error_code, void *user_data,
-                                   void *stream_user_data);
+typedef int (*ngtcp2_stream_close)(ngtcp2_conn *conn, uint32_t flags,
+                                   int64_t stream_id, uint64_t app_error_code,
+                                   void *user_data, void *stream_user_data);
 
 /**
  * @functypedef

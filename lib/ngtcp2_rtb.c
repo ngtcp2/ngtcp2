@@ -674,7 +674,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
         }
       }
 
-      rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
+      rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
       if (rv != 0) {
         return rv;
       }
@@ -717,7 +717,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
         break;
       }
       strm->flags |= NGTCP2_STRM_FLAG_RST_ACKED;
-      rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm, NGTCP2_NO_ERROR);
+      rv = ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
       if (rv != 0) {
         return rv;
       }
