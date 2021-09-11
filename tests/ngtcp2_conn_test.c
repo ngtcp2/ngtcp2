@@ -7574,7 +7574,7 @@ void test_ngtcp2_conn_stream_close(void) {
   ngtcp2_tstamp t = 0;
   ngtcp2_ssize spktlen;
 
-  /* Recieve RESET_STREAM and STOP_SENDING from client */
+  /* Receive RESET_STREAM and STOP_SENDING from client */
   setup_default_server(&conn);
   conn->callbacks.stream_close = stream_close;
   conn->user_data = &ud;
