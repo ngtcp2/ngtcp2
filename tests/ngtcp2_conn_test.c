@@ -1876,6 +1876,14 @@ void test_ngtcp2_conn_recv_reset_stream(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
+  CU_ASSERT(1024 == conn->rx.offset);
+  CU_ASSERT(128 * 1024 + 1024 == conn->rx.unsent_max_offset);
+
+  /* Receiving same RESET_STREAM does not increase rx offsets. */
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 3);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1024 == conn->rx.offset);
   CU_ASSERT(128 * 1024 + 1024 == conn->rx.unsent_max_offset);
 
   ngtcp2_conn_del(conn);
