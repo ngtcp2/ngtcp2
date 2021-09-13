@@ -2819,8 +2819,6 @@ void Server::remove(const Handler *h) {
     handlers_.erase(util::make_cid_key(&cid));
   }
 
-  assert(handlers_.empty());
-
   delete h;
 }
 
