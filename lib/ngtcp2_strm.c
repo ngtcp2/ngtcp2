@@ -353,7 +353,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   ngtcp2_frame_chain *frc, *nfrc;
   int rv;
   size_t nmerged;
-  size_t datalen;
+  uint64_t datalen;
   ngtcp2_vec a[NGTCP2_MAX_STREAM_DATACNT];
   ngtcp2_vec b[NGTCP2_MAX_STREAM_DATACNT];
   size_t acnt, bcnt;
@@ -444,7 +444,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     return 0;
   }
 
-  left -= datalen;
+  left -= (size_t)datalen;
 
   ngtcp2_vec_copy(a, fr->data, fr->datacnt);
   acnt = fr->datacnt;
@@ -542,7 +542,7 @@ uint64_t ngtcp2_strm_streamfrq_unacked_offset(ngtcp2_strm *strm) {
   ngtcp2_stream *fr;
   ngtcp2_range gap;
   ngtcp2_ksl_it it;
-  size_t datalen;
+  uint64_t datalen;
 
   assert(strm->tx.streamfrq);
   assert(ngtcp2_ksl_len(strm->tx.streamfrq));

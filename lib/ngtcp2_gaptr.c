@@ -57,7 +57,7 @@ void ngtcp2_gaptr_free(ngtcp2_gaptr *gaptr) {
   ngtcp2_ksl_free(&gaptr->gap);
 }
 
-int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen) {
+int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, uint64_t datalen) {
   int rv;
   ngtcp2_range k, m, l, r, q = {offset, offset + datalen};
   ngtcp2_ksl_it it;
@@ -108,7 +108,7 @@ ngtcp2_ksl_it ngtcp2_gaptr_get_first_gap_after(ngtcp2_gaptr *gaptr,
 }
 
 int ngtcp2_gaptr_is_pushed(ngtcp2_gaptr *gaptr, uint64_t offset,
-                           size_t datalen) {
+                           uint64_t datalen) {
   ngtcp2_range q = {offset, offset + datalen};
   ngtcp2_ksl_it it = ngtcp2_ksl_lower_bound_compar(
       &gaptr->gap, &q, ngtcp2_ksl_range_exclusive_compar);

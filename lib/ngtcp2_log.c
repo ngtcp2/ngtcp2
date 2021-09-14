@@ -203,13 +203,13 @@ static uint64_t timestamp_cast(uint64_t ns) { return ns / NGTCP2_MILLISECONDS; }
 
 static void log_fr_stream(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                           const ngtcp2_stream *fr, const char *dir) {
-  log->log_printf(log->user_data,
-                  (NGTCP2_LOG_PKT " STREAM(0x%02x) id=0x%" PRIx64
-                                  " fin=%d offset=%" PRIu64 " len=%zu uni=%d"),
-                  NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type | fr->flags,
-                  fr->stream_id, fr->fin, fr->offset,
-                  ngtcp2_vec_len(fr->data, fr->datacnt),
-                  (fr->stream_id & 0x2) != 0);
+  log->log_printf(
+      log->user_data,
+      (NGTCP2_LOG_PKT " STREAM(0x%02x) id=0x%" PRIx64 " fin=%d offset=%" PRIu64
+                      " len=%" PRIu64 " uni=%d"),
+      NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type | fr->flags, fr->stream_id,
+      fr->fin, fr->offset, ngtcp2_vec_len(fr->data, fr->datacnt),
+      (fr->stream_id & 0x2) != 0);
 }
 
 static void log_fr_ack(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -448,7 +448,8 @@ static void log_fr_handshake_done(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
 static void log_fr_datagram(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                             const ngtcp2_datagram *fr, const char *dir) {
-  log->log_printf(log->user_data, (NGTCP2_LOG_PKT " DATAGRAM(0x%02x) len=%zu"),
+  log->log_printf(log->user_data,
+                  (NGTCP2_LOG_PKT " DATAGRAM(0x%02x) len=%" PRIu64),
                   NGTCP2_LOG_FRM_HD_FIELDS(dir), fr->type,
                   ngtcp2_vec_len(fr->data, fr->datacnt));
 }

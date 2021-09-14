@@ -1258,10 +1258,10 @@ static uint64_t conn_fc_credits(ngtcp2_conn *conn, ngtcp2_strm *strm) {
  * sent to the given stream.  |len| might be shorted because of
  * available flow control credits.
  */
-static size_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
-                                        size_t len) {
+static uint64_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
+                                          uint64_t len) {
   uint64_t fc_credits = conn_fc_credits(conn, strm);
-  return (size_t)ngtcp2_min((uint64_t)len, fc_credits);
+  return ngtcp2_min(len, fc_credits);
 }
 
 static int delete_strms_each(void *data, void *ptr) {
@@ -1678,7 +1678,7 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
  * the first STREAM frame of 0-RTT packet which should be
  * retransmitted due to Retry frame
  */
-static size_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
+static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
   ngtcp2_frame_chain *frc;
   ngtcp2_strm *strm;
 
@@ -1725,7 +1725,7 @@ static uint64_t conn_cryptofrq_unacked_offset(ngtcp2_conn *conn,
   ngtcp2_range gap;
   ngtcp2_rtb *rtb = &pktns->rtb;
   ngtcp2_ksl_it it;
-  size_t datalen;
+  uint64_t datalen;
 
   (void)conn;
 
@@ -1885,7 +1885,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   ngtcp2_frame_chain *frc, *nfrc;
   int rv;
   size_t nmerged;
-  size_t datalen;
+  uint64_t datalen;
   ngtcp2_vec a[NGTCP2_MAX_CRYPTO_DATACNT];
   ngtcp2_vec b[NGTCP2_MAX_CRYPTO_DATACNT];
   size_t acnt, bcnt;
@@ -1953,7 +1953,7 @@ static int conn_cryptofrq_pop(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
     return 0;
   }
 
-  left -= datalen;
+  left -= (size_t)datalen;
 
   ngtcp2_vec_copy(a, fr->data, fr->datacnt);
   acnt = fr->datacnt;
@@ -2099,9 +2099,9 @@ static int conn_verify_dcid(ngtcp2_conn *conn, int *pnew_cid_used,
  * in the next, coalesced 0-RTT or Short packet.
  */
 static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
-                               size_t write_datalen, int ack_eliciting,
+                               uint64_t write_datalen, int ack_eliciting,
                                int require_padding) {
-  size_t min_payloadlen;
+  uint64_t min_payloadlen;
 
   if (type == NGTCP2_PKT_INITIAL) {
     if (conn->server) {
@@ -2284,7 +2284,7 @@ static int conn_pacing_pkt_tx_allowed(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 static ngtcp2_ssize
 conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
                          size_t destlen, uint8_t type, uint8_t flags,
-                         size_t write_datalen, ngtcp2_tstamp ts) {
+                         uint64_t write_datalen, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -2765,7 +2765,7 @@ static ngtcp2_ssize conn_write_handshake_ack_pkts(ngtcp2_conn *conn,
 static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn,
                                               ngtcp2_pkt_info *pi,
                                               uint8_t *dest, size_t destlen,
-                                              size_t early_datalen,
+                                              uint64_t early_datalen,
                                               ngtcp2_tstamp ts) {
   int rv;
 
@@ -2783,7 +2783,7 @@ static ngtcp2_ssize conn_write_client_initial(ngtcp2_conn *conn,
  * dcid_tx_left returns the maximum number of bytes that server is
  * allowed to send to an unvalidated path associated to |dcid|.
  */
-static size_t dcid_tx_left(ngtcp2_dcid *dcid) {
+static uint64_t dcid_tx_left(ngtcp2_dcid *dcid) {
   if (dcid->flags & NGTCP2_DCID_FLAG_PATH_VALIDATED) {
     return SIZE_MAX;
   }
@@ -2799,7 +2799,7 @@ static size_t dcid_tx_left(ngtcp2_dcid *dcid) {
  * conn_server_tx_left returns the maximum number of bytes that server
  * is allowed to send to an unvalidated path.
  */
-static size_t conn_server_tx_left(ngtcp2_conn *conn, ngtcp2_dcid *dcid) {
+static uint64_t conn_server_tx_left(ngtcp2_conn *conn, ngtcp2_dcid *dcid) {
   assert(conn->server);
 
   /* If pv->dcid has the current path, use conn->dcid.current.  This
@@ -2827,7 +2827,7 @@ static size_t conn_server_tx_left(ngtcp2_conn *conn, ngtcp2_dcid *dcid) {
 static ngtcp2_ssize conn_write_handshake_pkts(ngtcp2_conn *conn,
                                               ngtcp2_pkt_info *pi,
                                               uint8_t *dest, size_t destlen,
-                                              size_t write_datalen,
+                                              uint64_t write_datalen,
                                               ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
@@ -3175,13 +3175,13 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   ngtcp2_rtb_entry *ent;
   ngtcp2_strm *strm;
   int pkt_empty = 1;
-  size_t ndatalen = 0;
+  uint64_t ndatalen = 0;
   int send_stream = 0;
   int stream_blocked = 0;
   int send_datagram = 0;
   ngtcp2_pktns *pktns = &conn->pktns;
   size_t left;
-  size_t datalen = 0;
+  uint64_t datalen = 0;
   ngtcp2_vec data[NGTCP2_MAX_STREAM_DATACNT];
   size_t datacnt;
   uint8_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
@@ -3721,9 +3721,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
            vmsg->stream.strm->stream_id, vmsg->stream.strm->tx.offset, ndatalen,
            left)) != (size_t)-1 &&
       (ndatalen || datalen == 0)) {
-    datacnt = ngtcp2_vec_copy_at_most(
-        data, &ndatalen, NGTCP2_MAX_STREAM_DATACNT, vmsg->stream.data,
-        vmsg->stream.datacnt, ndatalen);
+    datacnt = ngtcp2_vec_copy_at_most(data, NGTCP2_MAX_STREAM_DATACNT,
+                                      vmsg->stream.data, vmsg->stream.datacnt,
+                                      (size_t)ndatalen);
+    ndatalen = ngtcp2_vec_len(data, datacnt);
 
     assert((datacnt == 0 && datalen == 0) || (datacnt && datalen));
 
@@ -3771,7 +3772,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   if (rv != NGTCP2_ERR_NOBUF && send_datagram &&
-      left >= ngtcp2_pkt_datagram_framelen(datalen)) {
+      left >= ngtcp2_pkt_datagram_framelen((size_t)datalen)) {
     if (conn->callbacks.ack_datagram || conn->callbacks.lost_datagram) {
       rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
       if (rv != 0) {
@@ -4474,7 +4475,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   ngtcp2_frame lfr;
   ngtcp2_duration timeout;
   uint8_t flags;
-  size_t tx_left;
+  uint64_t tx_left;
   int rv;
 
   if (ngtcp2_pv_validation_timed_out(pv, ts)) {
@@ -4516,7 +4517,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   if (conn->server) {
     if (!(pv->dcid.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
       tx_left = conn_server_tx_left(conn, &pv->dcid);
-      destlen = ngtcp2_min(destlen, tx_left);
+      destlen = (size_t)ngtcp2_min((uint64_t)destlen, tx_left);
       if (destlen == 0) {
         return 0;
       }
@@ -4575,7 +4576,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
   ngtcp2_frame lfr;
   ngtcp2_ssize nwrite;
   int rv;
-  size_t tx_left;
+  uint64_t tx_left;
 
   for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge);) {
     pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
@@ -4629,7 +4630,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
 
   if (conn->server && !(dcid->flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
     tx_left = conn_server_tx_left(conn, dcid);
-    destlen = ngtcp2_min(destlen, tx_left);
+    destlen = (size_t)ngtcp2_min((uint64_t)destlen, tx_left);
     if (destlen == 0) {
       return 0;
     }
@@ -6435,7 +6436,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
   uint64_t rx_offset, fr_end_offset;
   int local_stream;
   int bidi;
-  size_t datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
+  uint64_t datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
   uint32_t sdflags = NGTCP2_STREAM_DATA_FLAG_NONE;
 
   local_stream = conn_local_stream(conn, fr->stream_id);
@@ -6597,7 +6598,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         sdflags |= NGTCP2_STREAM_DATA_FLAG_EARLY;
       }
       rv = conn_call_recv_stream_data(conn, strm, sdflags, offset, data,
-                                      datalen);
+                                      (size_t)datalen);
       if (rv != 0) {
         return rv;
       }
@@ -9307,12 +9308,12 @@ static int conn_validate_early_transport_params_limits(ngtcp2_conn *conn) {
  */
 static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                                          uint8_t *dest, size_t destlen,
-                                         size_t write_datalen,
+                                         uint64_t write_datalen,
                                          ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ssize res = 0, nwrite = 0, early_spktlen = 0;
   size_t origlen = destlen;
-  size_t pending_early_datalen;
+  uint64_t pending_early_datalen;
   ngtcp2_dcid *dcid;
   ngtcp2_preferred_addr *paddr;
 
@@ -9524,8 +9525,8 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
   int send_stream = 0;
   int send_datagram = 0;
   ngtcp2_ssize spktlen, early_spktlen;
-  size_t datalen;
-  size_t write_datalen = 0;
+  uint64_t datalen;
+  uint64_t write_datalen = 0;
   uint8_t wflags = NGTCP2_WRITE_PKT_FLAG_NONE;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
 
@@ -10504,6 +10505,7 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
     uint32_t flags, uint64_t dgram_id, const ngtcp2_vec *datav, size_t datavcnt,
     ngtcp2_tstamp ts) {
   ngtcp2_vmsg vmsg;
+  int64_t datalen;
 
   if (paccepted) {
     *paccepted = 0;
@@ -10512,8 +10514,14 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
   if (conn->remote.transport_params.max_datagram_frame_size == 0) {
     return NGTCP2_ERR_INVALID_STATE;
   }
+
+  datalen = ngtcp2_vec_len_varint(datav, datavcnt);
+  if (datalen == -1 || (uint64_t)datalen > SIZE_MAX) {
+    return NGTCP2_ERR_INVALID_STATE;
+  }
+
   if (conn->remote.transport_params.max_datagram_frame_size <
-      ngtcp2_pkt_datagram_framelen(ngtcp2_vec_len(datav, datavcnt))) {
+      ngtcp2_pkt_datagram_framelen((size_t)datalen)) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
@@ -10541,9 +10549,9 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_ssize res = 0;
-  size_t server_tx_left;
-  size_t datalen;
-  size_t write_datalen = 0;
+  uint64_t server_tx_left;
+  uint64_t datalen;
+  uint64_t write_datalen = 0;
   int64_t prev_in_pkt_num = -1;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *rtbent;
@@ -10610,7 +10618,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
           return 0;
         }
 
-        destlen = ngtcp2_min(destlen, server_tx_left);
+        destlen = (size_t)ngtcp2_min((uint64_t)destlen, server_tx_left);
       }
 
       if (vmsg) {
@@ -10750,8 +10758,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
       if (conn->server &&
           !(conn->dcid.current.flags & NGTCP2_DCID_FLAG_PATH_VALIDATED)) {
         server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
-        origlen = ngtcp2_min(origlen, server_tx_left);
-        destlen = ngtcp2_min(destlen, server_tx_left);
+        origlen = (size_t)ngtcp2_min((uint64_t)origlen, server_tx_left);
+        destlen = (size_t)ngtcp2_min((uint64_t)destlen, server_tx_left);
 
         if (server_tx_left == 0 &&
             conn->cstat.loss_detection_timer != UINT64_MAX) {

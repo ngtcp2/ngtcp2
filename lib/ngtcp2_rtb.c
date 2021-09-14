@@ -978,7 +978,7 @@ fail:
 
 static int rtb_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat,
                         const ngtcp2_rtb_entry *ent, uint64_t loss_delay,
-                        ngtcp2_tstamp lost_send_time, uint64_t pkt_thres) {
+                        ngtcp2_tstamp lost_send_time, size_t pkt_thres) {
   ngtcp2_tstamp loss_time;
 
   if (ent->ts <= lost_send_time ||
@@ -1045,6 +1045,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
   uint64_t prior_bytes_in_flight = cstat->bytes_in_flight;
 
   pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
+  pkt_thres = ngtcp2_min(pkt_thres, 256);
   cstat->loss_time[rtb->pktns_id] = UINT64_MAX;
   loss_delay = compute_pkt_loss_delay(cstat);
   lost_send_time = ts - loss_delay;
@@ -1057,7 +1058,8 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
       break;
     }
 
-    if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, lost_send_time, pkt_thres)) {
+    if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, lost_send_time,
+                     (size_t)pkt_thres)) {
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
       last_lost_pkt_num = ent->hd.pkt_num;
@@ -1159,7 +1161,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
     }
   }
 
-  ngtcp2_rtb_remove_excessive_lost_pkt(rtb, pkt_thres);
+  ngtcp2_rtb_remove_excessive_lost_pkt(rtb, (size_t)pkt_thres);
 
   if (ppkt_lost) {
     assert(prior_bytes_in_flight >= cstat->bytes_in_flight);

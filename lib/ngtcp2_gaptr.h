@@ -71,7 +71,7 @@ void ngtcp2_gaptr_free(ngtcp2_gaptr *gaptr);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, size_t datalen);
+int ngtcp2_gaptr_push(ngtcp2_gaptr *gaptr, uint64_t offset, uint64_t datalen);
 
 /*
  * ngtcp2_gaptr_first_gap_offset returns the offset to the first gap.
@@ -91,7 +91,7 @@ ngtcp2_ksl_it ngtcp2_gaptr_get_first_gap_after(ngtcp2_gaptr *gaptr,
  * datalen) is completely pushed into this object.
  */
 int ngtcp2_gaptr_is_pushed(ngtcp2_gaptr *gaptr, uint64_t offset,
-                           size_t datalen);
+                           uint64_t datalen);
 
 /*
  * ngtcp2_gaptr_drop_first_gap deletes the first gap entirely as if

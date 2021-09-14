@@ -269,9 +269,9 @@ typedef struct ngtcp2_pktns {
       struct {
         /* ect0, ect1, ce are the ECN counts received in the latest
            ACK frame. */
-        size_t ect0;
-        size_t ect1;
-        size_t ce;
+        uint64_t ect0;
+        uint64_t ect1;
+        uint64_t ce;
       } ack;
     } ecn;
   } rx;
