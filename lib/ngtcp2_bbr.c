@@ -487,6 +487,8 @@ static void bbr_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   cc->congestion_recovery_start_ts = UINT64_MAX;
   cc->in_loss_recovery = 0;
 
+  cstat->send_quantum = cstat->max_udp_payload_size * 10;
+
   ngtcp2_window_filter_init(&cc->btl_bw_filter, NGTCP2_BBR_BTL_BW_FILTERLEN);
 
   bbr_init_round_counting(cc);
