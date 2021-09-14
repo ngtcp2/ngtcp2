@@ -7666,6 +7666,65 @@ void test_ngtcp2_conn_stream_close(void) {
   CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
 
   ngtcp2_conn_del(conn);
+
+  /* Client sends STOP_SENDING and then STREAM and fin */
+  pkt_num = 0;
+
+  setup_default_server(&conn);
+  conn->callbacks.stream_close = stream_close;
+  conn->callbacks.recv_stream_data = recv_stream_data;
+  conn->user_data = &ud;
+
+  frs[0].type = NGTCP2_FRAME_STOP_SENDING;
+  frs[0].stop_sending.stream_id = 0;
+  frs[0].stop_sending.app_error_code = NGTCP2_APP_ERR01;
+
+  frs[1].type = NGTCP2_FRAME_STREAM;
+  frs[1].stream.flags = 0;
+  frs[1].stream.fin = 1;
+  frs[1].stream.stream_id = 0;
+  frs[1].stream.offset = 0;
+  frs[1].stream.datacnt = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 2,
+                     conn->pktns.crypto.tx.ckm);
+
+  ud.stream_data.stream_id = -1;
+  ud.stream_data.flags = NGTCP2_STREAM_DATA_FLAG_NONE;
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(0 == ud.stream_data.stream_id);
+  CU_ASSERT((ud.stream_data.flags & NGTCP2_STREAM_DATA_FLAG_FIN) != 0);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+  CU_ASSERT((size_t)spktlen < sizeof(buf));
+
+  frs[0].type = NGTCP2_FRAME_ACK;
+  frs[0].ack.largest_ack = 0;
+  frs[0].ack.ack_delay = 0;
+  frs[0].ack.first_ack_blklen = 0;
+  frs[0].ack.num_blks = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
+                     conn->pktns.crypto.tx.ckm);
+
+  ud.stream_close.flags = NGTCP2_STREAM_CLOSE_FLAG_NONE;
+  ud.stream_close.stream_id = -1;
+  ud.stream_close.app_error_code = 0;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  CU_ASSERT((NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET |
+             ud.stream_close.flags) != 0);
+  CU_ASSERT(0 == ud.stream_close.stream_id);
+  CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_accept(void) {
