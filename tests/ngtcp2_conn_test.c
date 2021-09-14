@@ -422,9 +422,11 @@ static int stream_close(ngtcp2_conn *conn, uint32_t flags, int64_t stream_id,
   (void)conn;
   (void)stream_user_data;
 
-  ud->stream_close.flags = flags;
-  ud->stream_close.stream_id = stream_id;
-  ud->stream_close.app_error_code = app_error_code;
+  if (ud) {
+    ud->stream_close.flags = flags;
+    ud->stream_close.stream_id = stream_id;
+    ud->stream_close.app_error_code = app_error_code;
+  }
 
   return 0;
 }
