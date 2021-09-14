@@ -1978,6 +1978,39 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
   CU_ASSERT(NGTCP2_APP_ERR01 == frc->fr.reset_stream.app_error_code);
   CU_ASSERT(333 == frc->fr.reset_stream.final_size);
 
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  for (frc = conn->pktns.tx.frq; frc; frc = frc->next) {
+    if (frc->fr.type == NGTCP2_FRAME_RESET_STREAM) {
+      break;
+    }
+  }
+
+  CU_ASSERT(NULL == frc);
+
+  /* Make sure that receiving duplicated STOP_SENDING does not trigger
+     another RESET_STREAM. */
+  pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num,
+                                  &fr, conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SHUT_WR);
+  CU_ASSERT(strm->flags & NGTCP2_STRM_FLAG_SENT_RST);
+
+  for (frc = conn->pktns.tx.frq; frc; frc = frc->next) {
+    if (frc->fr.type == NGTCP2_FRAME_RESET_STREAM) {
+      break;
+    }
+  }
+
+  CU_ASSERT(NULL == frc);
+
   ngtcp2_conn_del(conn);
 
   /* Receive STOP_SENDING after receiving RESET_STREAM */
