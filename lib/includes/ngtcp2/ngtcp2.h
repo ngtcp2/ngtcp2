@@ -4974,7 +4974,7 @@ NGTCP2_EXTERN void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn,
  *
  * `ngtcp2_conn_get_send_quantum` returns the maximum number of bytes
  * that can be sent in one go without packet spacing.  If packet
- * pacing is disabled, this function returns UINT64_MAX.
+ * pacing is disabled, this function returns SIZE_MAX.
  */
 NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
 
