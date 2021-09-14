@@ -1697,6 +1697,9 @@ typedef enum ngtcp2_cc_event_type {
 typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
+#define NGTCP2_CC_VERSION_V1 1
+#define NGTCP2_CC_VERSION NGTCP2_CC_VERSION_V1
+
 /**
  * @struct
  *
@@ -1853,10 +1856,17 @@ typedef struct ngtcp2_settings {
    */
   ngtcp2_cc_algo cc_algo;
   /**
+   * :member:`cc_version` is the struct version of :type:`ngtcp2_cc`
+   * specified in :member:`cc`.  It must be :macro:`NGTCP2_CC_VERSION`
+   * if :member:`cc` is specified.
+   */
+  int cc_version;
+  /**
    * :member:`cc` is a pointer to custom congestion control algorithm.
    * :member:`cc_algo` must be set to
-   * :enum:`ngtcp2_cc_algo.NGTCP2_CC_ALGO_CUSTOM` in order to enable
-   * custom congestion control algorithm.
+   * :enum:`ngtcp2_cc_algo.NGTCP2_CC_ALGO_CUSTOM` and
+   * :member:`cc_version` to :macro:`NGTCP2_CC_VERSION` in order to
+   * enable custom congestion control algorithm.
    */
   ngtcp2_cc *cc;
   /**
