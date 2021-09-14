@@ -4192,6 +4192,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  *     Packet number is exhausted, and cannot send any more packet.
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
+ * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
+ *     The total length of stream data is too large.
  * :macro:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  *     Stream is blocked because of flow control.
  * :macro:`NGTCP2_ERR_WRITE_MORE`

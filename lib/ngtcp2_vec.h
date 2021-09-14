@@ -68,6 +68,12 @@ void ngtcp2_vec_del(ngtcp2_vec *vec, const ngtcp2_mem *mem);
 size_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n);
 
 /*
+ * ngtcp2_vec_len_varint is similar to ngtcp2_vec_len, but it returns
+ * -1 if the sum of the length exceeds NGTCP2_MAX_VARINT.
+ */
+int64_t ngtcp2_vec_len_varint(const ngtcp2_vec *vec, size_t n);
+
+/*
  * ngtcp2_vec_split splits |src| to |dst| so that the sum of the
  * length in |src| does not exceed |left| bytes.  The |maxcnt| is the
  * maximum number of elements which |dst| array can contain.  The

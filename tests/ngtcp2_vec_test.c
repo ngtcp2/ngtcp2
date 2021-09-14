@@ -405,3 +405,21 @@ void test_ngtcp2_vec_merge(void) {
 
   CU_ASSERT(0 == nmerged);
 }
+
+void test_ngtcp2_vec_len_varint(void) {
+  CU_ASSERT(0 == ngtcp2_vec_len_varint(NULL, 0));
+
+#if SIZE_MAX == UINT64_MAX
+  {
+    ngtcp2_vec v[] = {{NULL, NGTCP2_MAX_VARINT}, {NULL, 1}};
+
+    CU_ASSERT(-1 == ngtcp2_vec_len_varint(v, arraylen(v)));
+  }
+
+  {
+    ngtcp2_vec v[] = {{NULL, NGTCP2_MAX_VARINT - 1}, {NULL, 1}};
+
+    CU_ASSERT(NGTCP2_MAX_VARINT == ngtcp2_vec_len_varint(v, arraylen(v)));
+  }
+#endif /* SIZE_MAX == UINT64_MAX */
+}

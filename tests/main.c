@@ -302,6 +302,7 @@ int main() {
                    test_ngtcp2_gaptr_drop_first_gap) ||
       !CU_add_test(pSuite, "vec_split", test_ngtcp2_vec_split) ||
       !CU_add_test(pSuite, "vec_merge", test_ngtcp2_vec_merge) ||
+      !CU_add_test(pSuite, "vec_len_varint", test_ngtcp2_vec_len_varint) ||
       !CU_add_test(pSuite, "strm_streamfrq_pop",
                    test_ngtcp2_strm_streamfrq_pop) ||
       !CU_add_test(pSuite, "strm_streamfrq_unacked_offset",

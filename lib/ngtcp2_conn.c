@@ -10456,6 +10456,7 @@ ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
     ngtcp2_tstamp ts) {
   ngtcp2_vmsg vmsg, *pvmsg;
   ngtcp2_strm *strm;
+  int64_t datalen;
 
   if (pdatalen) {
     *pdatalen = -1;
@@ -10469,6 +10470,16 @@ ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
 
     if (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) {
       return NGTCP2_ERR_STREAM_SHUT_WR;
+    }
+
+    datalen = ngtcp2_vec_len_varint(datav, datavcnt);
+    if (datalen == -1) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
+    if ((uint64_t)datalen > NGTCP2_MAX_VARINT - strm->tx.offset ||
+        (uint64_t)datalen > NGTCP2_MAX_VARINT - conn->tx.offset) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
     vmsg.type = NGTCP2_VMSG_TYPE_STREAM;

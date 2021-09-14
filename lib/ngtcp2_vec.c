@@ -72,6 +72,23 @@ size_t ngtcp2_vec_len(const ngtcp2_vec *vec, size_t n) {
   return res;
 }
 
+int64_t ngtcp2_vec_len_varint(const ngtcp2_vec *vec, size_t n) {
+  uint64_t res = 0;
+  size_t len;
+  size_t i;
+
+  for (i = 0; i < n; ++i) {
+    len = vec[i].len;
+    if (len > NGTCP2_MAX_VARINT - res) {
+      return -1;
+    }
+
+    res += len;
+  }
+
+  return (int64_t)res;
+}
+
 ngtcp2_ssize ngtcp2_vec_split(ngtcp2_vec *src, size_t *psrccnt, ngtcp2_vec *dst,
                               size_t *pdstcnt, size_t left, size_t maxcnt) {
   size_t i;
