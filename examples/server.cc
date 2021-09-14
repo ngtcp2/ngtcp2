@@ -347,7 +347,7 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
 }
 } // namespace
 
-void Stream::http_acked_stream_data(size_t datalen) {
+void Stream::http_acked_stream_data(uint64_t datalen) {
   if (!dynresp) {
     return;
   }
@@ -1100,7 +1100,7 @@ int Handler::start_response(Stream *stream) {
 
 namespace {
 int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
-                           size_t datalen, void *user_data,
+                           uint64_t datalen, void *user_data,
                            void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
   auto stream = static_cast<Stream *>(stream_user_data);
@@ -1109,7 +1109,7 @@ int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
 }
 } // namespace
 
-void Handler::http_acked_stream_data(Stream *stream, size_t datalen) {
+void Handler::http_acked_stream_data(Stream *stream, uint64_t datalen) {
   stream->http_acked_stream_data(datalen);
 
   if (stream->dynresp && stream->dynbuflen < MAX_DYNBUFLEN - 16384) {

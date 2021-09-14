@@ -71,7 +71,7 @@ struct Stream {
   int send_redirect_response(nghttp3_conn *conn, unsigned int status_code,
                              const std::string_view &path);
   int64_t find_dyn_length(const std::string_view &path);
-  void http_acked_stream_data(size_t datalen);
+  void http_acked_stream_data(uint64_t datalen);
 
   int64_t stream_id;
   Handler *handler;
@@ -160,7 +160,7 @@ public:
   int on_stream_stop_sending(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   void shutdown_read(int64_t stream_id, int app_error_code);
-  void http_acked_stream_data(Stream *stream, size_t datalen);
+  void http_acked_stream_data(Stream *stream, uint64_t datalen);
   void http_stream_close(int64_t stream_id, uint64_t app_error_code);
   int http_send_stop_sending(int64_t stream_id, uint64_t app_error_code);
   int http_reset_stream(int64_t stream_id, uint64_t app_error_code);

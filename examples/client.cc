@@ -1725,22 +1725,6 @@ int Client::select_preferred_address(Address &selected_addr,
 void Client::start_wev() { ev_io_start(loop_, &wev_); }
 
 namespace {
-int http_acked_stream_data(nghttp3_conn *conn, int64_t stream_id,
-                           size_t datalen, void *user_data,
-                           void *stream_user_data) {
-  auto c = static_cast<Client *>(user_data);
-  if (c->http_acked_stream_data(stream_id, datalen) != 0) {
-    return NGHTTP3_ERR_CALLBACK_FAILURE;
-  }
-  return 0;
-}
-} // namespace
-
-int Client::http_acked_stream_data(int64_t stream_id, size_t datalen) {
-  return 0;
-}
-
-namespace {
 int http_recv_data(nghttp3_conn *conn, int64_t stream_id, const uint8_t *data,
                    size_t datalen, void *user_data, void *stream_user_data) {
   if (!config.quiet && !config.no_http_dump) {
@@ -1927,10 +1911,17 @@ int Client::setup_httpconn() {
   }
 
   nghttp3_callbacks callbacks{
-      ::http_acked_stream_data, ::http_stream_close,      ::http_recv_data,
-      ::http_deferred_consume,  ::http_begin_headers,     ::http_recv_header,
-      ::http_end_headers,       ::http_begin_trailers,    ::http_recv_trailer,
-      ::http_end_trailers,      ::http_send_stop_sending,
+      nullptr, /* acked_stream_data*/
+      ::http_stream_close,
+      ::http_recv_data,
+      ::http_deferred_consume,
+      ::http_begin_headers,
+      ::http_recv_header,
+      ::http_end_headers,
+      ::http_begin_trailers,
+      ::http_recv_trailer,
+      ::http_end_trailers,
+      ::http_send_stop_sending,
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);
