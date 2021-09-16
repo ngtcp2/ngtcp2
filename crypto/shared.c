@@ -513,7 +513,7 @@ int ngtcp2_crypto_derive_and_install_initial_key(
   if (!server && !ngtcp2_conn_after_retry(conn)) {
     ngtcp2_crypto_aead_retry(&retry_aead);
 
-    if (ngtcp2_conn_get_negotiated_version(conn) == NGTCP2_PROTO_VER_V1) {
+    if (version == NGTCP2_PROTO_VER_V1) {
       retry_key = (const uint8_t *)NGTCP2_RETRY_KEY_V1;
       retry_noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
     } else {
