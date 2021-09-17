@@ -1676,7 +1676,7 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
 /*
  * conn_retry_early_payloadlen returns the estimated wire length of
  * the first STREAM frame of 0-RTT packet which should be
- * retransmitted due to Retry frame
+ * retransmitted due to Retry packet.
  */
 static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
   ngtcp2_frame_chain *frc;
