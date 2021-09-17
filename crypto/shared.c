@@ -746,9 +746,12 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   uint8_t *p = plaintext;
   int rv;
 
-  /* Host byte order */
+  memset(plaintext, 0, sizeof(plaintext));
+
+  *p++ = (uint8_t)odcid->datalen;
   memcpy(p, odcid->data, odcid->datalen);
-  p += odcid->datalen;
+  p += NGTCP2_MAX_CIDLEN;
+  /* Host byte order */
   memcpy(p, &ts, sizeof(ts));
   p += sizeof(ts);
 
@@ -805,7 +808,8 @@ int ngtcp2_crypto_verify_retry_token(
     const uint8_t *secret, size_t secretlen, const struct sockaddr *remote_addr,
     socklen_t remote_addrlen, const ngtcp2_cid *dcid, ngtcp2_duration timeout,
     ngtcp2_tstamp ts) {
-  uint8_t plaintext[NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN];
+  uint8_t
+      plaintext[/* cid len = */ 1 + NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)];
   uint8_t key[32];
   uint8_t iv[32];
   size_t keylen;
@@ -818,14 +822,11 @@ int ngtcp2_crypto_verify_retry_token(
   const uint8_t *rand_data;
   const uint8_t *ciphertext;
   size_t ciphertextlen;
-  size_t plaintextlen;
   size_t cil;
   int rv;
   ngtcp2_tstamp gen_ts;
 
-  /* 1 for NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY */
-  if (tokenlen < 1 + NGTCP2_CRYPTO_TOKEN_RAND_DATALEN ||
-      tokenlen > NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN ||
+  if (tokenlen != NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN ||
       token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY) {
     return -1;
   }
@@ -863,26 +864,19 @@ int ngtcp2_crypto_verify_retry_token(
     return -1;
   }
 
-  assert(ciphertextlen >= aead.max_overhead);
+  cil = plaintext[0];
 
-  plaintextlen = (size_t)(ciphertextlen - aead.max_overhead);
-  if (plaintextlen < sizeof(ngtcp2_tstamp)) {
-    return -1;
-  }
-
-  cil = plaintextlen - sizeof(ngtcp2_tstamp);
-  if (cil != 0 && (cil < NGTCP2_MIN_CIDLEN || cil > NGTCP2_MAX_CIDLEN)) {
-    return -1;
-  }
+  assert(cil == 0 || (cil >= NGTCP2_MIN_CIDLEN && cil <= NGTCP2_MAX_CIDLEN));
 
   /* Host byte order */
-  memcpy(&gen_ts, plaintext + cil, sizeof(gen_ts));
+  memcpy(&gen_ts, plaintext + /* cid len = */ 1 + NGTCP2_MAX_CIDLEN,
+         sizeof(gen_ts));
 
   if (gen_ts + timeout <= ts) {
     return -1;
   }
 
-  ngtcp2_cid_init(odcid, plaintext, cil);
+  ngtcp2_cid_init(odcid, plaintext + /* cid len = */ 1, cil);
 
   return 0;
 }
@@ -918,7 +912,7 @@ ngtcp2_crypto_generate_regular_token(uint8_t *token, const uint8_t *secret,
                                      size_t secretlen,
                                      const struct sockaddr *remote_addr,
                                      size_t remote_addrlen, ngtcp2_tstamp ts) {
-  uint8_t plaintext[NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN];
+  uint8_t plaintext[sizeof(ngtcp2_tstamp)];
   uint8_t rand_data[NGTCP2_CRYPTO_TOKEN_RAND_DATALEN];
   uint8_t key[32];
   uint8_t iv[32];
@@ -991,7 +985,7 @@ int ngtcp2_crypto_verify_regular_token(const uint8_t *token, size_t tokenlen,
                                        socklen_t remote_addrlen,
                                        ngtcp2_duration timeout,
                                        ngtcp2_tstamp ts) {
-  uint8_t plaintext[NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN];
+  uint8_t plaintext[sizeof(ngtcp2_tstamp)];
   uint8_t key[32];
   uint8_t iv[32];
   size_t keylen;
@@ -1004,14 +998,11 @@ int ngtcp2_crypto_verify_regular_token(const uint8_t *token, size_t tokenlen,
   const uint8_t *rand_data;
   const uint8_t *ciphertext;
   size_t ciphertextlen;
-  size_t plaintextlen;
   int rv;
   ngtcp2_tstamp gen_ts;
   (void)remote_addrlen;
 
-  /* 1 for NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR */
-  if (tokenlen < 1 + NGTCP2_CRYPTO_TOKEN_RAND_DATALEN ||
-      tokenlen > NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN ||
+  if (tokenlen != NGTCP2_CRYPTO_MAX_REGULAR_TOKENLEN ||
       token[0] != NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR) {
     return -1;
   }
@@ -1045,13 +1036,6 @@ int ngtcp2_crypto_verify_regular_token(const uint8_t *token, size_t tokenlen,
   ngtcp2_crypto_aead_ctx_free(&aead_ctx);
 
   if (rv != 0) {
-    return -1;
-  }
-
-  assert(ciphertextlen >= aead.max_overhead);
-
-  plaintextlen = (size_t)(ciphertextlen - aead.max_overhead);
-  if (plaintextlen < sizeof(ngtcp2_tstamp)) {
     return -1;
   }
 
