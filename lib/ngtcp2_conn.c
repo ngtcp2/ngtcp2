@@ -1681,6 +1681,7 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
 static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
   ngtcp2_frame_chain *frc;
   ngtcp2_strm *strm;
+  uint64_t len;
 
   if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
     return 0;
@@ -1694,8 +1695,13 @@ static uint64_t conn_retry_early_payloadlen(ngtcp2_conn *conn) {
     }
 
     frc = ngtcp2_strm_streamfrq_top(strm);
-    return ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt) +
-           NGTCP2_STREAM_OVERHEAD;
+
+    len = ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt) +
+          NGTCP2_STREAM_OVERHEAD;
+
+    /* Take the min because in conn_should_pad_pkt we take max in
+       order to deal with unbreakable DATAGRAM. */
+    return ngtcp2_min(len, NGTCP2_MIN_COALESCED_PAYLOADLEN);
   }
 
   return 0;
