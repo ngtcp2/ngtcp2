@@ -1428,7 +1428,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
 
     vi = ngtcp2_get_varint(&n, p);
     if (payloadlen - len < vi) {
-      return NGTCP2_FRAME_ENCODING_ERROR;
+      return NGTCP2_ERR_FRAME_ENCODING;
     }
 
     datalen = (size_t)vi;
