@@ -42,19 +42,23 @@ LDADD = $(top_builddir)/lib/libngtcp2.la \
 SERVER_SRCS = \
 	server_base.cc server_base.h \
 	tls_server_context.h \
+	tls_server_session.h \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
 	shared.cc shared.h \
-	http.cc http.h
+	http.cc http.h \
+	network.h
 
 CLIENT_SRCS = \
 	client_base.cc client_base.h \
 	tls_client_context.h \
+	tls_client_session.h \
 	template.h \
 	debug.cc debug.h \
 	util.cc util.h \
-	shared.cc shared.h
+	shared.cc shared.h \
+	network.h
 
 noinst_PROGRAMS =
 
@@ -84,7 +88,7 @@ client_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 server_CPPFLAGS = ${client_CPPFLAGS}
 server_LDADD = ${client_LDADD}
 server_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_openssl.cc tls_server_context_openssl_h \
+	tls_server_context_openssl.cc tls_server_context_openssl.h \
 	tls_server_session_openssl.cc tls_server_session_openssl.h \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
 	util_openssl.cc util_aead_openssl.cc
@@ -156,7 +160,7 @@ bsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 bsslserver_CPPFLAGS = ${bsslclient_CPPFLAGS}
 bsslserver_LDADD = ${bsslclient_LDADD}
 bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
-	tls_server_context_boringssl.cc tls_server_context_boringssl_h \
+	tls_server_context_boringssl.cc tls_server_context_boringssl.h \
 	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
 	util_openssl.cc util_aead_boringssl.cc
