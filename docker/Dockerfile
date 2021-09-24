@@ -1,4 +1,4 @@
-FROM debian:10 as build
+FROM debian:11 as build
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -18,7 +18,7 @@ RUN apt-get update && \
         LIBS="-ldl -pthread" \
         OPENSSL_LIBS="-l:libssl.a -l:libcrypto.a" \
         LIBEV_LIBS="-l:libev.a" \
-        JEMALLOC_LIBS="-l:libjemalloc.a" && \
+        JEMALLOC_LIBS="-l:libjemalloc.a -lm" && \
     make -j$(nproc) && \
     strip examples/client examples/server && \
     cp examples/client examples/server /usr/local/bin && \
@@ -30,7 +30,7 @@ RUN apt-get update && \
     apt-get -y autoremove --purge && \
     rm -rf /var/log/*
 
-FROM gcr.io/distroless/cc-debian10
+FROM gcr.io/distroless/cc-debian11:latest-amd64
 
 COPY --from=build /usr/local/bin/client /usr/local/bin/server /usr/local/bin/
 COPY --from=build /etc/mime.types /etc/
