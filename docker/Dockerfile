@@ -15,8 +15,7 @@ RUN apt-get update && \
     cd ngtcp2 && autoreconf -i && \
     ./configure \
         LIBTOOL_LDFLAGS="-static-libtool-libs" \
-        LIBS="-ldl -pthread" \
-        OPENSSL_LIBS="-l:libssl.a -l:libcrypto.a" \
+        OPENSSL_LIBS="-l:libssl.a -l:libcrypto.a -ldl -pthread" \
         LIBEV_LIBS="-l:libev.a" \
         JEMALLOC_LIBS="-l:libjemalloc.a -lm" && \
     make -j$(nproc) && \
