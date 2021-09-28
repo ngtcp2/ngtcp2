@@ -11,6 +11,21 @@ Documentation
 
 `Online documentation <https://nghttp2.org/ngtcp2/>`_ is available.
 
+Public test server
+------------------
+
+The following endpoints are available to try out ngtcp2
+implementation:
+
+- https://nghttp2.org:4433
+- https://nghttp2.org:4434 (requires address validation token)
+- https://nghttp2.org (powered by `nghttpx
+  <https://nghttp2.org/documentation/nghttpx.1.html>`_)
+
+  This endpoints sends Alt-Svc header field to clients if it is
+  accessed via HTTP/1.1 or HTTP/2 to tell them that HTTP/3 is
+  available at UDP 443.
+
 Requirements
 ------------
 
