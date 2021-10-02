@@ -1006,7 +1006,6 @@ int Handler::write_streams() {
                              prev_path.path.local, prev_path.path.remote,
                              prev_ecn, buf.data(), bufpos - buf.data(),
                              max_udp_payload_size);
-        ngtcp2_conn_update_pkt_tx_time(conn_, ts);
         reset_idle_timer();
       }
       // We are congestion limited.
