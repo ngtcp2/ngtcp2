@@ -140,6 +140,7 @@ size_t write_single_frame_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   assert(0 == rv);
   rv = ngtcp2_ppe_encode_frame(&ppe, fr);
   assert(0 == rv);
+  (void)rv;
   n = ngtcp2_ppe_final(&ppe, NULL);
   assert(n > 0);
 
@@ -175,6 +176,7 @@ size_t write_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
+  (void)rv;
 
   for (i = 0; i < frlen; ++i, ++fr) {
     rv = ngtcp2_ppe_encode_frame(&ppe, fr);
@@ -212,6 +214,7 @@ size_t write_single_frame_pkt_without_conn_id(uint8_t *out, size_t outlen,
   assert(0 == rv);
   n = ngtcp2_ppe_final(&ppe, NULL);
   assert(n > 0);
+  (void)rv;
   return (size_t)n;
 }
 
@@ -255,6 +258,7 @@ static size_t write_single_frame_handshake_pkt_generic(
   assert(0 == rv);
   n = ngtcp2_ppe_final(&ppe, NULL);
   assert(n > 0);
+  (void)rv;
   return (size_t)n;
 }
 
@@ -323,6 +327,7 @@ size_t write_handshake_pkt(uint8_t *out, size_t outlen, uint8_t pkt_type,
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
+  (void)rv;
 
   for (i = 0; i < frlen; ++i) {
     fr = &fra[i];
@@ -344,6 +349,7 @@ ngtcp2_strm *open_stream(ngtcp2_conn *conn, int64_t stream_id) {
 
   rv = ngtcp2_conn_init_stream(conn, strm, stream_id, NULL);
   assert(0 == rv);
+  (void)rv;
 
   return strm;
 }

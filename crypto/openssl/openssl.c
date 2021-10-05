@@ -53,6 +53,7 @@ static size_t crypto_aead_max_overhead(const EVP_CIPHER *aead) {
     return EVP_CCM_TLS_TAG_LEN;
   default:
     assert(0);
+    abort(); /* if NDEBUG is set */
   }
 }
 
@@ -630,6 +631,7 @@ ngtcp2_crypto_level ngtcp2_crypto_openssl_from_ossl_encryption_level(
     return NGTCP2_CRYPTO_LEVEL_APPLICATION;
   default:
     assert(0);
+    abort(); /* if NDEBUG is set */
   }
 }
 
@@ -647,6 +649,7 @@ ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
     return ssl_encryption_early_data;
   default:
     assert(0);
+    abort(); /* if NDEBUG is set */
   }
 }
 

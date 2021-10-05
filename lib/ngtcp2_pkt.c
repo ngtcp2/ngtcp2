@@ -1396,7 +1396,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
   size_t len = 1;
   const uint8_t *p;
   uint8_t type;
-  size_t datalen;
+  size_t datalen = 0;
   size_t n;
   uint64_t vi;
 

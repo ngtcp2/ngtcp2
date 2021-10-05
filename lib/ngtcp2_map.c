@@ -204,6 +204,7 @@ static int map_resize(ngtcp2_map *map, uint32_t new_tablelen,
                 bkt->data);
 
     assert(0 == rv);
+    (void)rv;
   }
 
   ngtcp2_mem_free(map->mem, map->table);

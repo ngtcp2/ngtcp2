@@ -883,8 +883,8 @@ int ngtcp2_crypto_verify_retry_token(
 
 static size_t crypto_generate_regular_token_aad(uint8_t *dest,
                                                 const struct sockaddr *sa) {
-  const uint8_t *addr;
-  size_t addrlen;
+  const uint8_t *addr = NULL;
+  size_t addrlen = 0;
 
   switch (sa->sa_family) {
   case AF_INET:

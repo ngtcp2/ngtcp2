@@ -2300,7 +2300,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   ngtcp2_ssize spktlen;
   ngtcp2_crypto_cc cc;
   ngtcp2_rtb_entry *rtbent;
-  ngtcp2_pktns *pktns;
+  ngtcp2_pktns *pktns = NULL;
   size_t left;
   uint8_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
   int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
@@ -2581,9 +2581,9 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                                        uint8_t type, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_frame *ackfr;
-  ngtcp2_pktns *pktns;
-  ngtcp2_duration ack_delay;
-  uint64_t ack_delay_exponent;
+  ngtcp2_pktns *pktns = NULL;
+  ngtcp2_duration ack_delay = 0;
+  uint64_t ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
   ngtcp2_ssize spktlen;
 
   assert(!(conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING));
@@ -3193,7 +3193,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint8_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
   int hd_logged = 0;
   ngtcp2_path_challenge_entry *pcent;
-  uint8_t hd_flags;
+  uint8_t hd_flags = NGTCP2_PKT_FLAG_NONE;
   int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
   int write_more = (flags & NGTCP2_WRITE_PKT_FLAG_MORE) != 0;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
@@ -3207,7 +3207,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t target_max_data;
   ngtcp2_conn_stat *cstat = &conn->cstat;
   uint64_t delta;
-  const ngtcp2_cid *scid;
+  const ngtcp2_cid *scid = NULL;
   int keep_alive_expired = 0;
 
   /* Return 0 if destlen is less than minimum packet length which can
@@ -3996,7 +3996,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   ngtcp2_frame lfr;
   ngtcp2_ssize nwrite;
   ngtcp2_crypto_cc cc;
-  ngtcp2_pktns *pktns;
+  ngtcp2_pktns *pktns = NULL;
   uint8_t flags;
   ngtcp2_rtb_entry *rtbent;
   int padded = 0;
@@ -4266,16 +4266,15 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
  */
 static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
                           const ngtcp2_path *path, ngtcp2_tstamp ts) {
-  ngtcp2_pv *pv = conn->pv;
   ngtcp2_dcid *dcid, *ndcid;
   ngtcp2_cid cid;
   size_t i, len;
   int rv;
 
   assert(!ngtcp2_path_eq(&conn->dcid.current.ps.path, path));
-  assert(!pv || !ngtcp2_path_eq(&pv->dcid.ps.path, path));
-  assert(!pv || !(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
-         !ngtcp2_path_eq(&pv->fallback_dcid.ps.path, path));
+  assert(!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path));
+  assert(!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
+         !ngtcp2_path_eq(&conn->pv->fallback_dcid.ps.path, path));
 
   len = ngtcp2_ringbuf_len(&conn->dcid.bound);
   for (i = 0; i < len; ++i) {
@@ -5277,6 +5276,7 @@ static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest,
 
   assert(hp_mask);
   assert(ckm);
+  (void)ckm;
 
   if (pkt_num_offset + 4 + NGTCP2_HP_SAMPLELEN > pktlen) {
     return NGTCP2_ERR_PROTO;
@@ -10698,6 +10698,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   assert(pktns->crypto.tx.ckm);
+  (void)pktns;
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;

@@ -320,6 +320,7 @@ static int update_key(ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
   (void)current_rx_secret;
   (void)current_tx_secret;
   (void)user_data;
+  (void)secretlen;
 
   assert(sizeof(null_secret) == secretlen);
 
@@ -549,6 +550,7 @@ static void conn_set_scid_used(ngtcp2_conn *conn) {
   rv = ngtcp2_pq_push(&conn->scid.used, &scid->pe);
 
   assert(0 == rv);
+  (void)rv;
 }
 
 static void setup_default_server(ngtcp2_conn **pconn) {
