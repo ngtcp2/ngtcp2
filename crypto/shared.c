@@ -898,6 +898,7 @@ static size_t crypto_generate_regular_token_aad(uint8_t *dest,
     break;
   default:
     assert(0);
+    abort();
   }
 
   memcpy(dest, addr, addrlen);

@@ -1436,6 +1436,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_datagram_frame(ngtcp2_datagram *dest,
     break;
   default:
     assert(0);
+    abort();
   }
 
   dest->type = type;

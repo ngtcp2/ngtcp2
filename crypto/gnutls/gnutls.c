@@ -424,6 +424,7 @@ ngtcp2_crypto_level ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
     return NGTCP2_CRYPTO_LEVEL_EARLY;
   default:
     assert(0);
+    abort();
   }
 }
 
@@ -440,6 +441,7 @@ ngtcp2_crypto_gnutls_from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
     return GNUTLS_ENCRYPTION_LEVEL_EARLY;
   default:
     assert(0);
+    abort();
   }
 }
 

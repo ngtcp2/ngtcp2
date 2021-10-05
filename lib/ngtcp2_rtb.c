@@ -578,6 +578,8 @@ static void rtb_remove(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
                        ngtcp2_rtb_entry **pent, ngtcp2_rtb_entry *ent,
                        ngtcp2_conn_stat *cstat) {
   int rv;
+  (void)rv;
+
   rv = ngtcp2_ksl_remove_hint(&rtb->ents, it, it, &ent->hd.pkt_num);
   assert(0 == rv);
   rtb_on_remove(rtb, ent, cstat);
@@ -1182,6 +1184,7 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n) {
   ngtcp2_ksl_it it = ngtcp2_ksl_end(&rtb->ents);
   ngtcp2_rtb_entry *ent;
   int rv;
+  (void)rv;
 
   for (; rtb->num_lost_pkts > n;) {
     assert(ngtcp2_ksl_it_end(&it));
@@ -1205,6 +1208,7 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
   int rv;
+  (void)rv;
 
   if (ngtcp2_ksl_len(&rtb->ents) == 0) {
     return;
@@ -1404,6 +1408,7 @@ void ngtcp2_rtb_remove_early_data(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat) {
   ngtcp2_rtb_entry *ent;
   ngtcp2_ksl_it it;
   int rv;
+  (void)rv;
 
   it = ngtcp2_ksl_begin(&rtb->ents);
 

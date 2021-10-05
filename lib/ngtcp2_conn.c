@@ -2326,6 +2326,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     break;
   default:
     assert(0);
+    abort();
   }
 
   cc.aead = pktns->crypto.ctx.aead;
@@ -2607,6 +2608,7 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     break;
   default:
     assert(0);
+    abort();
   }
 
   if (!pktns->crypto.tx.ckm) {
@@ -4024,6 +4026,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   default:
     /* We don't support 0-RTT packet in this function. */
     assert(0);
+    abort();
   }
 
   cc.aead = pktns->crypto.ctx.aead;
@@ -4266,16 +4269,15 @@ static int conn_retire_dcid(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
  */
 static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
                           const ngtcp2_path *path, ngtcp2_tstamp ts) {
-  ngtcp2_pv *pv = conn->pv;
   ngtcp2_dcid *dcid, *ndcid;
   ngtcp2_cid cid;
   size_t i, len;
   int rv;
 
   assert(!ngtcp2_path_eq(&conn->dcid.current.ps.path, path));
-  assert(!pv || !ngtcp2_path_eq(&pv->dcid.ps.path, path));
-  assert(!pv || !(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
-         !ngtcp2_path_eq(&pv->fallback_dcid.ps.path, path));
+  assert(!conn->pv || !ngtcp2_path_eq(&conn->pv->dcid.ps.path, path));
+  assert(!conn->pv || !(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE) ||
+         !ngtcp2_path_eq(&conn->pv->fallback_dcid.ps.path, path));
 
   len = ngtcp2_ringbuf_len(&conn->dcid.bound);
   for (i = 0; i < len; ++i) {
@@ -5274,6 +5276,7 @@ static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest,
   uint8_t mask[NGTCP2_HP_SAMPLELEN];
   size_t i;
   int rv;
+  (void)ckm;
 
   assert(hp_mask);
   assert(ckm);
@@ -10562,6 +10565,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *rtbent;
   (void)pkt_info_version;
+  (void)pktns;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;

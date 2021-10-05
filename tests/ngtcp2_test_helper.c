@@ -125,6 +125,7 @@ size_t write_single_frame_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   ngtcp2_pkt_hd hd;
   int rv;
   ngtcp2_ssize n;
+  (void)rv;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -162,6 +163,7 @@ size_t write_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   int rv;
   ngtcp2_ssize n;
   size_t i;
+  (void)rv;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -195,6 +197,7 @@ size_t write_single_frame_pkt_without_conn_id(uint8_t *out, size_t outlen,
   ngtcp2_pkt_hd hd;
   int rv;
   ngtcp2_ssize n;
+  (void)rv;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -225,6 +228,7 @@ static size_t write_single_frame_handshake_pkt_generic(
   ngtcp2_pkt_hd hd;
   int rv;
   ngtcp2_ssize n;
+  (void)rv;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -300,6 +304,7 @@ size_t write_handshake_pkt(uint8_t *out, size_t outlen, uint8_t pkt_type,
   int rv;
   ngtcp2_ssize n;
   size_t i;
+  (void)rv;
 
   memset(&cc, 0, sizeof(cc));
   cc.encrypt = null_encrypt;
@@ -338,6 +343,7 @@ size_t write_handshake_pkt(uint8_t *out, size_t outlen, uint8_t pkt_type,
 ngtcp2_strm *open_stream(ngtcp2_conn *conn, int64_t stream_id) {
   ngtcp2_strm *strm;
   int rv;
+  (void)rv;
 
   strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
   assert(strm);

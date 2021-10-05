@@ -188,6 +188,7 @@ static int map_resize(ngtcp2_map *map, uint32_t new_tablelen,
   ngtcp2_map_bucket *new_table;
   ngtcp2_map_bucket *bkt;
   int rv;
+  (void)rv;
 
   new_table =
       ngtcp2_mem_calloc(map->mem, new_tablelen, sizeof(ngtcp2_map_bucket));

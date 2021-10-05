@@ -244,6 +244,7 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
   ngtcp2_crypto_boringssl_cipher *hp_cipher = cipher->native_handle;
   ngtcp2_crypto_boringssl_cipher_ctx *ctx;
   int rv;
+  (void)rv;
 
   ctx = malloc(sizeof(*ctx));
   if (ctx == NULL) {
@@ -267,6 +268,7 @@ int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
     return 0;
   default:
     assert(0);
+    abort();
   };
 }
 
@@ -501,6 +503,7 @@ ngtcp2_crypto_level ngtcp2_crypto_boringssl_from_ssl_encryption_level(
     return NGTCP2_CRYPTO_LEVEL_APPLICATION;
   default:
     assert(0);
+    abort();
   }
 }
 
@@ -517,6 +520,7 @@ enum ssl_encryption_level_t ngtcp2_crypto_boringssl_from_ngtcp2_crypto_level(
     return ssl_encryption_early_data;
   default:
     assert(0);
+    abort();
   }
 }
 
