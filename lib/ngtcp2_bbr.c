@@ -584,7 +584,7 @@ static void bbr_check_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
 
 static void bbr_advance_cycle_phase(ngtcp2_bbr_cc *cc, ngtcp2_tstamp ts) {
   cc->cycle_stamp = ts;
-  cc->cycle_index = (cc->cycle_index + 1) % NGTCP2_BBR_GAIN_CYCLELEN;
+  cc->cycle_index = (cc->cycle_index + 1) & (NGTCP2_BBR_GAIN_CYCLELEN - 1);
   cc->pacing_gain = pacing_gain_cycle[cc->cycle_index];
 }
 
