@@ -59,7 +59,7 @@
  * and undefine MESSAGE macro.
  */
 
-static uint64_t timestamp() {
+static uint64_t timestamp(void) {
   struct timespec tp;
 
   if (clock_gettime(CLOCK_MONOTONIC, &tp) != 0) {
@@ -728,7 +728,7 @@ static void client_free(struct client *c) {
   SSL_CTX_free(c->ssl_ctx);
 }
 
-int main() {
+int main(void) {
   struct client c;
 
   srandom((unsigned int)timestamp());
