@@ -74,6 +74,7 @@ void print_crypto_data(ngtcp2_crypto_level crypto_level, const uint8_t *data,
     break;
   default:
     assert(0);
+    abort();
   }
   fprintf(outfile, "Ordered CRYPTO data in %s crypto level\n",
           crypto_level_str);
@@ -288,6 +289,7 @@ std::string_view secret_title(ngtcp2_crypto_level level) {
     return "application_traffic"sv;
   default:
     assert(0);
+    abort();
   }
 }
 

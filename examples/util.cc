@@ -271,6 +271,7 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo) {
     return "bbr";
   default:
     assert(0);
+    abort();
   }
 }
 

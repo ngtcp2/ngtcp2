@@ -529,6 +529,7 @@ int Handler::acked_stream_data_offset(int64_t stream_id, uint64_t offset,
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
+  (void)stream;
 
   assert(static_cast<uint64_t>(stream->respbuf.end - stream->respbuf.begin) >=
          offset + datalen);
@@ -549,6 +550,7 @@ void Handler::on_stream_open(int64_t stream_id) {
     return;
   }
   auto it = streams_.find(stream_id);
+  (void)it;
   assert(it == std::end(streams_));
   streams_.emplace(stream_id, std::make_unique<Stream>(stream_id, this));
 }

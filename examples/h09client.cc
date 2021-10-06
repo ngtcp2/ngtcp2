@@ -1525,6 +1525,7 @@ int Client::acked_stream_data_offset(int64_t stream_id, uint64_t offset,
   auto it = streams_.find(stream_id);
   assert(it != std::end(streams_));
   auto &stream = (*it).second;
+  (void)stream;
   assert(static_cast<uint64_t>(stream->reqbuf.end - stream->reqbuf.begin) >=
          offset + datalen);
   return 0;

@@ -298,6 +298,7 @@ int recv_netlink_msg(in_addr_union &iau, int fd) {
         break;
       default:
         assert(0);
+        abort();
       }
 
       if (RTA_LENGTH(in_addrlen) != rta->rta_len) {
@@ -352,6 +353,7 @@ bool addreq(const sockaddr *sa, const in_addr_union &iau) {
                   &iau.in6, sizeof(iau.in6)) == 0;
   default:
     assert(0);
+    abort();
   }
 }
 
