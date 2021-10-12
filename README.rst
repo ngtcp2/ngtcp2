@@ -56,7 +56,7 @@ ngtcp2 crypto helper library, and client and server under examples
 directory require at least one of the following TLS backends:
 
 - `OpenSSL with QUIC support
-  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1l+quic>`_
+  <https://github.com/quictls/openssl/tree/openssl-3.0.0+quic>`_
 - GnuTLS >= 3.7.2
 - BoringSSL (commit 7ada8466927864b6427277f455483c61081a32db)
 
@@ -65,23 +65,23 @@ Build from git
 
 .. code-block:: text
 
-   $ git clone --depth 1 -b OpenSSL_1_1_1l+quic https://github.com/quictls/openssl
+   $ git clone --depth 1 -b openssl-3.0.0+quic https://github.com/quictls/openssl
    $ cd openssl
    $ # For Linux
    $ ./config enable-tls1_3 --prefix=$PWD/build
    $ make -j$(nproc)
-   $ make install_sw
+   $ (sudo) make install
    $ cd ..
    $ git clone https://github.com/ngtcp2/nghttp3
    $ cd nghttp3
-   $ autoreconf -i
+   $ autoreconf -fi
    $ ./configure --prefix=$PWD/build --enable-lib-only
    $ make -j$(nproc) check
-   $ make install
+   $ (sudo) make install
    $ cd ..
    $ git clone https://github.com/ngtcp2/ngtcp2
    $ cd ngtcp2
-   $ autoreconf -i
+   $ autoreconf -fi
    $ # For Mac users who have installed libev with MacPorts, append
    $ # ',-L/opt/local/lib' to LDFLAGS, and also pass
    $ # CPPFLAGS="-I/opt/local/include" to ./configure.
@@ -89,6 +89,9 @@ Build from git
    $ # "openssl/build/lib64".
    $ ./configure PKG_CONFIG_PATH=$PWD/../openssl/build/lib/pkgconfig:$PWD/../nghttp3/build/lib/pkgconfig LDFLAGS="-Wl,-rpath,$PWD/../openssl/build/lib"
    $ make -j$(nproc) check
+   $ # For Mac users who have installed libev with Homebrew, append
+   $ # ',-L/opt/homebrew/opt/libev/lib' to LDFLAGS, and also pass
+   $ # CPPFLAGS="-I/opt/homebrew/opt/libev/include" to ./configure.
 
 Client/Server
 -------------
