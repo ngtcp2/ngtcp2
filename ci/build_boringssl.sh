@@ -3,7 +3,7 @@
 
 git clone https://boringssl.googlesource.com/boringssl
 cd boringssl
-git checkout 7ada8466927864b6427277f455483c61081a32db
+git checkout f6ef1c560ae5af51e2df5d8d2175bed207b28b8f
 mkdir build
 cd build
 cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
