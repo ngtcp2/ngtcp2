@@ -185,8 +185,8 @@ static uint8_t *write_pair_cid_impl(uint8_t *p, const uint8_t *name,
 
 static uint8_t *write_common_fields(uint8_t *p, const ngtcp2_cid *odcid) {
   p = write_verbatim(
-      p, "\"common_fields\":{\"protocol_type\":\"QUIC_HTTP3\",\"time_format\":"
-         "\"relative\",\"reference_time\":\"0\",\"group_id\":");
+      p, "\"common_fields\":{\"protocol_type\":\"QUIC\",\"time_format\":"
+         "\"relative\",\"reference_time\":0,\"group_id\":");
   p = write_cid(p, odcid);
   *p++ = '}';
   return p;
