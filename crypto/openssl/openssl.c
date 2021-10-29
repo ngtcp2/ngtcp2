@@ -202,18 +202,37 @@ int ngtcp2_crypto_aead_ctx_encrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
   const EVP_CIPHER *cipher = aead->native_handle;
   int cipher_nid = EVP_CIPHER_nid(cipher);
   EVP_CIPHER_CTX *actx;
+  size_t taglen = crypto_aead_max_overhead(cipher);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  OSSL_PARAM params[3];
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   actx = EVP_CIPHER_CTX_new();
   if (actx == NULL) {
     return -1;
   }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_IVLEN, &noncelen);
+
+  if (cipher_nid == NID_aes_128_ccm) {
+    params[1] = OSSL_PARAM_construct_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG,
+                                                  NULL, taglen);
+    params[2] = OSSL_PARAM_construct_end();
+  } else {
+    params[1] = OSSL_PARAM_construct_end();
+  }
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
   if (!EVP_EncryptInit_ex(actx, cipher, NULL, NULL, NULL) ||
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      !EVP_CIPHER_CTX_set_params(actx, params) ||
+#else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_IVLEN, (int)noncelen,
                            NULL) ||
       (cipher_nid == NID_aes_128_ccm &&
-       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG,
-                            (int)crypto_aead_max_overhead(cipher), NULL)) ||
+       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen, NULL)) ||
+#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
       !EVP_EncryptInit_ex(actx, NULL, NULL, key, NULL)) {
     EVP_CIPHER_CTX_free(actx);
     return -1;
@@ -230,18 +249,37 @@ int ngtcp2_crypto_aead_ctx_decrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
   const EVP_CIPHER *cipher = aead->native_handle;
   int cipher_nid = EVP_CIPHER_nid(cipher);
   EVP_CIPHER_CTX *actx;
+  size_t taglen = crypto_aead_max_overhead(cipher);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  OSSL_PARAM params[3];
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   actx = EVP_CIPHER_CTX_new();
   if (actx == NULL) {
     return -1;
   }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_IVLEN, &noncelen);
+
+  if (cipher_nid == NID_aes_128_ccm) {
+    params[1] = OSSL_PARAM_construct_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG,
+                                                  NULL, taglen);
+    params[2] = OSSL_PARAM_construct_end();
+  } else {
+    params[1] = OSSL_PARAM_construct_end();
+  }
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
   if (!EVP_DecryptInit_ex(actx, cipher, NULL, NULL, NULL) ||
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      !EVP_CIPHER_CTX_set_params(actx, params) ||
+#else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_IVLEN, (int)noncelen,
                            NULL) ||
       (cipher_nid == NID_aes_128_ccm &&
-       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG,
-                            (int)crypto_aead_max_overhead(cipher), NULL)) ||
+       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen, NULL)) ||
+#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
       !EVP_DecryptInit_ex(actx, NULL, NULL, key, NULL)) {
     EVP_CIPHER_CTX_free(actx);
     return -1;
