@@ -457,6 +457,13 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   int cipher_nid = EVP_CIPHER_nid(cipher);
   EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
   int len;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG,
+                                        dest + plaintextlen, taglen),
+      OSSL_PARAM_construct_end(),
+  };
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   (void)noncelen;
 
@@ -466,8 +473,13 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
       !EVP_EncryptUpdate(actx, NULL, &len, aad, (int)aadlen) ||
       !EVP_EncryptUpdate(actx, dest, &len, plaintext, (int)plaintextlen) ||
       !EVP_EncryptFinal_ex(actx, dest + len, &len) ||
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      !EVP_CIPHER_CTX_get_params(actx, params)
+#else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_GET_TAG, (int)taglen,
-                           dest + plaintextlen)) {
+                           dest + plaintextlen)
+#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
+  ) {
     return -1;
   }
 
@@ -485,6 +497,9 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
   int len;
   const uint8_t *tag;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  OSSL_PARAM params[2];
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
   (void)noncelen;
 
@@ -495,9 +510,19 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   ciphertextlen -= taglen;
   tag = ciphertext + ciphertextlen;
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+  params[0] = OSSL_PARAM_construct_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG,
+                                                (void *)tag, taglen);
+  params[1] = OSSL_PARAM_construct_end();
+#endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
   if (!EVP_DecryptInit_ex(actx, NULL, NULL, NULL, nonce) ||
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+      !EVP_CIPHER_CTX_set_params(actx, params) ||
+#else  /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen,
                            (uint8_t *)tag) ||
+#endif /* !(OPENSSL_VERSION_NUMBER >= 0x30000000L) */
       (cipher_nid == NID_aes_128_ccm &&
        !EVP_DecryptUpdate(actx, NULL, &len, NULL, (int)ciphertextlen)) ||
       !EVP_DecryptUpdate(actx, NULL, &len, aad, (int)aadlen) ||
