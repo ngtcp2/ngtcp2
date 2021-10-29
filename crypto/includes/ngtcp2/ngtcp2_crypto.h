@@ -293,7 +293,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
                                         const uint8_t *plaintext,
                                         size_t plaintextlen,
                                         const uint8_t *nonce, size_t noncelen,
-                                        const uint8_t *ad, size_t adlen);
+                                        const uint8_t *aad, size_t aadlen);
 
 /**
  * @function
@@ -310,7 +310,7 @@ ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                          const ngtcp2_crypto_aead_ctx *aead_ctx,
                          const uint8_t *plaintext, size_t plaintextlen,
                          const uint8_t *nonce, size_t noncelen,
-                         const uint8_t *ad, size_t adlen);
+                         const uint8_t *aad, size_t aadlen);
 
 /**
  * @function
@@ -331,7 +331,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_decrypt(uint8_t *dest,
                                         const uint8_t *ciphertext,
                                         size_t ciphertextlen,
                                         const uint8_t *nonce, size_t noncelen,
-                                        const uint8_t *ad, size_t adlen);
+                                        const uint8_t *aad, size_t aadlen);
 
 /**
  * @function
@@ -348,7 +348,7 @@ ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                          const ngtcp2_crypto_aead_ctx *aead_ctx,
                          const uint8_t *ciphertext, size_t ciphertextlen,
                          const uint8_t *nonce, size_t noncelen,
-                         const uint8_t *ad, size_t adlen);
+                         const uint8_t *aad, size_t aadlen);
 
 /**
  * @function

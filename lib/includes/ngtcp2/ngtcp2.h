@@ -2504,8 +2504,8 @@ typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * encrypt is passed as |plaintext| of length |plaintextlen|.  The
  * AEAD cipher is |aead|.  |aead_ctx| is the AEAD cipher context
  * object which is initialized with encryption key.  The nonce is
- * passed as |nonce| of length |noncelen|.  The ad, Additional Data to
- * AEAD, is passed as |ad| of length |adlen|.
+ * passed as |nonce| of length |noncelen|.  The Additional
+ * Authenticated Data is passed as |aad| of length |aadlen|.
  *
  * The implementation of this callback must encrypt |plaintext| using
  * the negotiated cipher suite and write the ciphertext into the
@@ -2522,7 +2522,7 @@ typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                               const ngtcp2_crypto_aead_ctx *aead_ctx,
                               const uint8_t *plaintext, size_t plaintextlen,
                               const uint8_t *nonce, size_t noncelen,
-                              const uint8_t *ad, size_t adlen);
+                              const uint8_t *aad, size_t aadlen);
 
 /**
  * @functypedef
@@ -2532,8 +2532,8 @@ typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * decrypt is passed as |ciphertext| of length |ciphertextlen|.  The
  * AEAD cipher is |aead|.  |aead_ctx| is the AEAD cipher context
  * object which is initialized with decryption key.  The nonce is
- * passed as |nonce| of length |noncelen|.  The ad, Additional Data to
- * AEAD, is passed as |ad| of length |adlen|.
+ * passed as |nonce| of length |noncelen|.  The Additional
+ * Authenticated Data is passed as |aad| of length |aadlen|.
  *
  * The implementation of this callback must decrypt |ciphertext| using
  * the negotiated cipher suite and write the ciphertext into the
@@ -2551,7 +2551,7 @@ typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                               const ngtcp2_crypto_aead_ctx *aead_ctx,
                               const uint8_t *ciphertext, size_t ciphertextlen,
                               const uint8_t *nonce, size_t noncelen,
-                              const uint8_t *ad, size_t adlen);
+                              const uint8_t *aad, size_t aadlen);
 
 /**
  * @functypedef

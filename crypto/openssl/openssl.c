@@ -451,7 +451,7 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *plaintext, size_t plaintextlen,
                           const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen) {
+                          const uint8_t *aad, size_t aadlen) {
   const EVP_CIPHER *cipher = aead->native_handle;
   size_t taglen = crypto_aead_max_overhead(cipher);
   int cipher_nid = EVP_CIPHER_nid(cipher);
@@ -463,7 +463,7 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   if (!EVP_EncryptInit_ex(actx, NULL, NULL, NULL, nonce) ||
       (cipher_nid == NID_aes_128_ccm &&
        !EVP_EncryptUpdate(actx, NULL, &len, NULL, (int)plaintextlen)) ||
-      !EVP_EncryptUpdate(actx, NULL, &len, ad, (int)adlen) ||
+      !EVP_EncryptUpdate(actx, NULL, &len, aad, (int)aadlen) ||
       !EVP_EncryptUpdate(actx, dest, &len, plaintext, (int)plaintextlen) ||
       !EVP_EncryptFinal_ex(actx, dest + len, &len) ||
       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_GET_TAG, (int)taglen,
@@ -478,7 +478,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *ciphertext, size_t ciphertextlen,
                           const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen) {
+                          const uint8_t *aad, size_t aadlen) {
   const EVP_CIPHER *cipher = aead->native_handle;
   size_t taglen = crypto_aead_max_overhead(cipher);
   int cipher_nid = EVP_CIPHER_nid(cipher);
@@ -500,7 +500,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                            (uint8_t *)tag) ||
       (cipher_nid == NID_aes_128_ccm &&
        !EVP_DecryptUpdate(actx, NULL, &len, NULL, (int)ciphertextlen)) ||
-      !EVP_DecryptUpdate(actx, NULL, &len, ad, (int)adlen) ||
+      !EVP_DecryptUpdate(actx, NULL, &len, aad, (int)aadlen) ||
       !EVP_DecryptUpdate(actx, dest, &len, ciphertext, (int)ciphertextlen) ||
       (cipher_nid != NID_aes_128_ccm &&
        !EVP_DecryptFinal_ex(actx, dest + ciphertextlen, &len))) {

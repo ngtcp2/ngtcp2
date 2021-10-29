@@ -600,9 +600,9 @@ int ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                              const ngtcp2_crypto_aead_ctx *aead_ctx,
                              const uint8_t *plaintext, size_t plaintextlen,
                              const uint8_t *nonce, size_t noncelen,
-                             const uint8_t *ad, size_t adlen) {
+                             const uint8_t *aad, size_t aadlen) {
   if (ngtcp2_crypto_encrypt(dest, aead, aead_ctx, plaintext, plaintextlen,
-                            nonce, noncelen, ad, adlen) != 0) {
+                            nonce, noncelen, aad, aadlen) != 0) {
     return NGTCP2_ERR_CALLBACK_FAILURE;
   }
   return 0;
@@ -612,9 +612,9 @@ int ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                              const ngtcp2_crypto_aead_ctx *aead_ctx,
                              const uint8_t *ciphertext, size_t ciphertextlen,
                              const uint8_t *nonce, size_t noncelen,
-                             const uint8_t *ad, size_t adlen) {
+                             const uint8_t *aad, size_t aadlen) {
   if (ngtcp2_crypto_decrypt(dest, aead, aead_ctx, ciphertext, ciphertextlen,
-                            nonce, noncelen, ad, adlen) != 0) {
+                            nonce, noncelen, aad, aadlen) != 0) {
     return NGTCP2_ERR_TLS_DECRYPT;
   }
   return 0;

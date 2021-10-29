@@ -323,14 +323,14 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *plaintext, size_t plaintextlen,
                           const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen) {
+                          const uint8_t *aad, size_t aadlen) {
   gnutls_cipher_algorithm_t cipher =
       (gnutls_cipher_algorithm_t)(intptr_t)aead->native_handle;
   gnutls_aead_cipher_hd_t hd = aead_ctx->native_handle;
   size_t taglen = gnutls_cipher_get_tag_size(cipher);
   size_t ciphertextlen = plaintextlen + taglen;
 
-  if (gnutls_aead_cipher_encrypt(hd, nonce, noncelen, ad, adlen, taglen,
+  if (gnutls_aead_cipher_encrypt(hd, nonce, noncelen, aad, aadlen, taglen,
                                  plaintext, plaintextlen, dest,
                                  &ciphertextlen) != 0) {
     return -1;
@@ -343,7 +343,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                           const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *ciphertext, size_t ciphertextlen,
                           const uint8_t *nonce, size_t noncelen,
-                          const uint8_t *ad, size_t adlen) {
+                          const uint8_t *aad, size_t aadlen) {
   gnutls_cipher_algorithm_t cipher =
       (gnutls_cipher_algorithm_t)(intptr_t)aead->native_handle;
   gnutls_aead_cipher_hd_t hd = aead_ctx->native_handle;
@@ -356,7 +356,7 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 
   plaintextlen = ciphertextlen - taglen;
 
-  if (gnutls_aead_cipher_decrypt(hd, nonce, noncelen, ad, adlen, taglen,
+  if (gnutls_aead_cipher_decrypt(hd, nonce, noncelen, aad, aadlen, taglen,
                                  ciphertext, ciphertextlen, dest,
                                  &plaintextlen) != 0) {
     return -1;

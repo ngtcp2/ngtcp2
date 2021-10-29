@@ -42,7 +42,7 @@ static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *plaintext, size_t plaintextlen,
                         const uint8_t *nonce, size_t noncelen,
-                        const uint8_t *ad, size_t adlen) {
+                        const uint8_t *aad, size_t aadlen) {
   (void)dest;
   (void)aead;
   (void)aead_ctx;
@@ -50,8 +50,8 @@ static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   (void)plaintextlen;
   (void)nonce;
   (void)noncelen;
-  (void)ad;
-  (void)adlen;
+  (void)aad;
+  (void)aadlen;
 
   if (plaintextlen && plaintext != dest) {
     memcpy(dest, plaintext, plaintextlen);
@@ -65,15 +65,15 @@ static int null_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *ciphertext, size_t ciphertextlen,
                         const uint8_t *nonce, size_t noncelen,
-                        const uint8_t *ad, size_t adlen) {
+                        const uint8_t *aad, size_t aadlen) {
   (void)dest;
   (void)aead;
   (void)aead_ctx;
   (void)ciphertext;
   (void)nonce;
   (void)noncelen;
-  (void)ad;
-  (void)adlen;
+  (void)aad;
+  (void)aadlen;
   assert(ciphertextlen >= NGTCP2_FAKE_AEAD_OVERHEAD);
   memmove(dest, ciphertext, ciphertextlen - NGTCP2_FAKE_AEAD_OVERHEAD);
   return 0;
@@ -83,7 +83,7 @@ static int fail_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *ciphertext, size_t ciphertextlen,
                         const uint8_t *nonce, size_t noncelen,
-                        const uint8_t *ad, size_t adlen) {
+                        const uint8_t *aad, size_t aadlen) {
   (void)dest;
   (void)aead;
   (void)aead_ctx;
@@ -91,8 +91,8 @@ static int fail_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   (void)ciphertextlen;
   (void)nonce;
   (void)noncelen;
-  (void)ad;
-  (void)adlen;
+  (void)aad;
+  (void)aadlen;
   return NGTCP2_ERR_TLS_DECRYPT;
 }
 
