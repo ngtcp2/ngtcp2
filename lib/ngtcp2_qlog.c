@@ -215,7 +215,7 @@ void ngtcp2_qlog_start(ngtcp2_qlog *qlog, const ngtcp2_cid *odcid, int server) {
   }
 
   p = write_verbatim(
-      p, "{\"qlog_format\":\"NDJSON\",\"qlog_version\":\"draft-02\",");
+      p, "\x1e{\"qlog_format\":\"JSON-SEQ\",\"qlog_version\":\"0.3\",");
   p = write_trace(p, server, odcid);
   p = write_verbatim(p, "}\n");
 
@@ -669,6 +669,7 @@ static void qlog_pkt_write_start(ngtcp2_qlog *qlog, int sent) {
   ngtcp2_buf_reset(&qlog->buf);
   p = qlog->buf.last;
 
+  *p++ = '\x1e';
   *p++ = '{';
   p = qlog_write_time(qlog, p);
   p = write_verbatim(p, ",\"name\":");
@@ -934,6 +935,7 @@ void ngtcp2_qlog_parameters_set_transport_params(
     return;
   }
 
+  *p++ = '\x1e';
   *p++ = '{';
   p = qlog_write_time(qlog, p);
   p = write_verbatim(
@@ -1032,6 +1034,7 @@ void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
     return;
   }
 
+  *p++ = '\x1e';
   *p++ = '{';
   p = qlog_write_time(qlog, p);
   p = write_verbatim(p, ",\"name\":\"recovery:metrics_updated\",\"data\":{");
@@ -1071,6 +1074,7 @@ void ngtcp2_qlog_pkt_lost(ngtcp2_qlog *qlog, ngtcp2_rtb_entry *ent) {
     return;
   }
 
+  *p++ = '\x1e';
   *p++ = '{';
   p = qlog_write_time(qlog, p);
   p = write_verbatim(
@@ -1096,6 +1100,7 @@ void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog,
     return;
   }
 
+  *p++ = '\x1e';
   *p++ = '{';
   p = qlog_write_time(qlog, p);
   p = write_verbatim(
