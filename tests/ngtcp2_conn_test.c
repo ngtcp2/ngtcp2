@@ -483,6 +483,22 @@ static int get_path_challenge_data(ngtcp2_conn *conn, uint8_t *data,
   return 0;
 }
 
+static void delete_crypto_aead_ctx(ngtcp2_conn *conn,
+                                   ngtcp2_crypto_aead_ctx *aead_ctx,
+                                   void *user_data) {
+  (void)conn;
+  (void)aead_ctx;
+  (void)user_data;
+}
+
+static void delete_crypto_cipher_ctx(ngtcp2_conn *conn,
+                                     ngtcp2_crypto_cipher_ctx *cipher_ctx,
+                                     void *user_data) {
+  (void)conn;
+  (void)cipher_ctx;
+  (void)user_data;
+}
+
 static void server_default_settings(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
@@ -511,6 +527,28 @@ static void server_default_transport_params(ngtcp2_transport_params *params) {
   }
 }
 
+static void server_default_callbacks(ngtcp2_callbacks *cb) {
+  memset(cb, 0, sizeof(*cb));
+  cb->recv_client_initial = recv_client_initial;
+  cb->recv_crypto_data = recv_crypto_data_server;
+  cb->decrypt = null_decrypt;
+  cb->encrypt = null_encrypt;
+  cb->hp_mask = null_hp_mask;
+  cb->rand = genrand;
+  cb->get_new_connection_id = get_new_connection_id;
+  cb->update_key = update_key;
+  cb->delete_crypto_aead_ctx = delete_crypto_aead_ctx;
+  cb->delete_crypto_cipher_ctx = delete_crypto_cipher_ctx;
+  cb->get_path_challenge_data = get_path_challenge_data;
+}
+
+static void server_early_callbacks(ngtcp2_callbacks *cb) {
+  server_default_callbacks(cb);
+
+  cb->recv_client_initial = recv_client_initial_early;
+  cb->recv_crypto_data = recv_crypto_data_server_early_data;
+}
+
 static void client_default_settings(ngtcp2_settings *settings) {
   memset(settings, 0, sizeof(*settings));
   settings->log_printf = NULL;
@@ -532,6 +570,28 @@ static void client_default_transport_params(ngtcp2_transport_params *params) {
   params->max_udp_payload_size = 65535;
   params->stateless_reset_token_present = 0;
   params->active_connection_id_limit = 8;
+}
+
+static void client_default_callbacks(ngtcp2_callbacks *cb) {
+  memset(cb, 0, sizeof(*cb));
+  cb->client_initial = client_initial;
+  cb->recv_crypto_data = recv_crypto_data;
+  cb->decrypt = null_decrypt;
+  cb->encrypt = null_encrypt;
+  cb->hp_mask = null_hp_mask;
+  cb->recv_retry = recv_retry;
+  cb->rand = genrand;
+  cb->get_new_connection_id = get_new_connection_id;
+  cb->update_key = update_key;
+  cb->delete_crypto_aead_ctx = delete_crypto_aead_ctx;
+  cb->delete_crypto_cipher_ctx = delete_crypto_cipher_ctx;
+  cb->get_path_challenge_data = get_path_challenge_data;
+}
+
+static void client_early_callbacks(ngtcp2_callbacks *cb) {
+  client_default_callbacks(cb);
+
+  cb->client_initial = client_initial_early_data;
 }
 
 static void conn_set_scid_used(ngtcp2_conn *conn) {
@@ -568,15 +628,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
 
   init_crypto_ctx(&crypto_ctx);
 
-  memset(&cb, 0, sizeof(cb));
-  cb.decrypt = null_decrypt;
-  cb.encrypt = null_encrypt;
-  cb.hp_mask = null_hp_mask;
-  cb.recv_crypto_data = recv_crypto_data;
-  cb.get_new_connection_id = get_new_connection_id;
-  cb.rand = genrand;
-  cb.update_key = update_key;
-  cb.get_path_challenge_data = get_path_challenge_data;
+  server_default_callbacks(&cb);
   server_default_settings(&settings);
   server_default_transport_params(&params);
 
@@ -627,15 +679,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
 
   init_crypto_ctx(&crypto_ctx);
 
-  memset(&cb, 0, sizeof(cb));
-  cb.decrypt = null_decrypt;
-  cb.encrypt = null_encrypt;
-  cb.hp_mask = null_hp_mask;
-  cb.recv_crypto_data = recv_crypto_data;
-  cb.get_new_connection_id = get_new_connection_id;
-  cb.rand = genrand;
-  cb.update_key = update_key;
-  cb.get_path_challenge_data = get_path_challenge_data;
+  client_default_callbacks(&cb);
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -683,15 +727,7 @@ static void setup_handshake_server(ngtcp2_conn **pconn) {
   dcid_init(&dcid);
   scid_init(&scid);
 
-  memset(&cb, 0, sizeof(cb));
-  cb.recv_client_initial = recv_client_initial;
-  cb.recv_crypto_data = recv_crypto_data_server;
-  cb.decrypt = null_decrypt;
-  cb.encrypt = null_encrypt;
-  cb.hp_mask = null_hp_mask;
-  cb.get_new_connection_id = get_new_connection_id;
-  cb.rand = genrand;
-  cb.get_path_challenge_data = get_path_challenge_data;
+  server_default_callbacks(&cb);
   server_default_settings(&settings);
   server_default_transport_params(&params);
 
@@ -715,14 +751,7 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
 
   init_initial_crypto_ctx(&crypto_ctx);
 
-  memset(&cb, 0, sizeof(cb));
-  cb.client_initial = client_initial;
-  cb.recv_crypto_data = recv_crypto_data;
-  cb.decrypt = null_decrypt;
-  cb.encrypt = null_encrypt;
-  cb.hp_mask = null_hp_mask;
-  cb.get_new_connection_id = get_new_connection_id;
-  cb.get_path_challenge_data = get_path_challenge_data;
+  client_default_callbacks(&cb);
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -744,15 +773,7 @@ static void setup_early_server(ngtcp2_conn **pconn) {
   dcid_init(&dcid);
   scid_init(&scid);
 
-  memset(&cb, 0, sizeof(cb));
-  cb.recv_client_initial = recv_client_initial_early;
-  cb.recv_crypto_data = recv_crypto_data_server_early_data;
-  cb.decrypt = null_decrypt;
-  cb.encrypt = null_encrypt;
-  cb.hp_mask = null_hp_mask;
-  cb.get_new_connection_id = get_new_connection_id;
-  cb.rand = genrand;
-  cb.get_path_challenge_data = get_path_challenge_data;
+  server_early_callbacks(&cb);
   server_default_settings(&settings);
   server_default_transport_params(&params);
 
@@ -775,15 +796,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
 
   init_initial_crypto_ctx(&crypto_ctx);
 
-  memset(&cb, 0, sizeof(cb));
-  cb.client_initial = client_initial_early_data;
-  cb.recv_crypto_data = recv_crypto_data;
-  cb.decrypt = null_decrypt;
-  cb.encrypt = null_encrypt;
-  cb.hp_mask = null_hp_mask;
-  cb.get_new_connection_id = get_new_connection_id;
-  cb.update_key = update_key;
-  cb.get_path_challenge_data = get_path_challenge_data;
+  client_early_callbacks(&cb);
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -6134,14 +6147,7 @@ void test_ngtcp2_conn_send_initial_token(void) {
 
   init_initial_crypto_ctx(&crypto_ctx);
 
-  memset(&cb, 0, sizeof(cb));
-  cb.client_initial = client_initial;
-  cb.recv_crypto_data = recv_crypto_data;
-  cb.decrypt = null_decrypt;
-  cb.encrypt = null_encrypt;
-  cb.hp_mask = null_hp_mask;
-  cb.get_new_connection_id = get_new_connection_id;
-  cb.get_path_challenge_data = get_path_challenge_data;
+  client_default_callbacks(&cb);
   client_default_settings(&settings);
   client_default_transport_params(&params);
 
@@ -7563,8 +7569,7 @@ void test_ngtcp2_conn_get_scid(void) {
   dcid_init(&dcid);
   dcid_init(&scid);
 
-  memset(&cb, 0, sizeof(cb));
-
+  server_default_callbacks(&cb);
   server_default_settings(&settings);
 
   /* Without preferred address */

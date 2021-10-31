@@ -953,6 +953,19 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(params->initial_max_stream_data_bidi_local <= NGTCP2_MAX_VARINT);
   assert(params->initial_max_stream_data_bidi_remote <= NGTCP2_MAX_VARINT);
   assert(params->initial_max_stream_data_uni <= NGTCP2_MAX_VARINT);
+  assert(server || callbacks->client_initial);
+  assert(!server || callbacks->recv_client_initial);
+  assert(callbacks->recv_crypto_data);
+  assert(callbacks->encrypt);
+  assert(callbacks->decrypt);
+  assert(callbacks->hp_mask);
+  assert(server || callbacks->recv_retry);
+  assert(callbacks->rand);
+  assert(callbacks->get_new_connection_id);
+  assert(callbacks->update_key);
+  assert(callbacks->delete_crypto_aead_ctx);
+  assert(callbacks->delete_crypto_cipher_ctx);
+  assert(callbacks->get_path_challenge_data);
 
   if (mem == NULL) {
     mem = ngtcp2_mem_default();

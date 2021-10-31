@@ -3132,13 +3132,14 @@ typedef struct ngtcp2_callbacks {
   /**
    * :member:`client_initial` is a callback function which is invoked
    * when client asks TLS stack to produce first TLS cryptographic
-   * handshake message.  This callback function must be specified.
+   * handshake message.  This callback function must be specified for
+   * a client application.
    */
   ngtcp2_client_initial client_initial;
   /**
    * :member:`recv_client_initial` is a callback function which is
    * invoked when a server receives the first packet from client.
-   * This callback function must be specified.
+   * This callback function must be specified for a server application.
    */
   ngtcp2_recv_client_initial recv_client_initial;
   /**
@@ -3249,18 +3250,21 @@ typedef struct ngtcp2_callbacks {
   /**
    * :member:`update_key` is a callback function which is invoked when
    * the library tells an application that it must update keying
-   * materials and install new keys.  This function must be specified.
+   * materials and install new keys.  This callback function must be
+   * specified.
    */
   ngtcp2_update_key update_key;
   /**
    * :member:`path_validation` is a callback function which is invoked
-   * when path validation completed.  This function is optional.
+   * when path validation completed.  This callback function is
+   * optional.
    */
   ngtcp2_path_validation path_validation;
   /**
    * :member:`select_preferred_addr` is a callback function which is
    * invoked when the library asks a client to select preferred
-   * address presented by a server.  This function is optional.
+   * address presented by a server.  This callback function is
+   * optional.
    */
   ngtcp2_select_preferred_addr select_preferred_addr;
   /**
@@ -3293,45 +3297,52 @@ typedef struct ngtcp2_callbacks {
   /**
    * :member:`dcid_status` is a callback function which is invoked
    * when the new destination Connection ID is activated or the
-   * activated destination Connection ID is now deactivated.
+   * activated destination Connection ID is now deactivated.  This
+   * callback function is optional.
    */
   ngtcp2_connection_id_status dcid_status;
   /**
    * :member:`handshake_confirmed` is a callback function which is
    * invoked when both endpoints agree that handshake has finished.
    * This field is ignored by server because handshake_completed
-   * indicates the handshake confirmation for server.
+   * indicates the handshake confirmation for server.  This callback
+   * function is optional.
    */
   ngtcp2_handshake_confirmed handshake_confirmed;
   /**
    * :member:`recv_new_token` is a callback function which is invoked
    * when new token is received from server.  This field is ignored by
-   * server.
+   * server.  This callback function is optional.
    */
   ngtcp2_recv_new_token recv_new_token;
   /**
    * :member:`delete_crypto_aead_ctx` is a callback function which
-   * deletes a given AEAD cipher context object.
+   * deletes a given AEAD cipher context object.  This callback
+   * function must be specified.
    */
   ngtcp2_delete_crypto_aead_ctx delete_crypto_aead_ctx;
   /**
    * :member:`delete_crypto_cipher_ctx` is a callback function which
-   * deletes a given cipher context object.
+   * deletes a given cipher context object.  This callback function
+   * must be specified.
    */
   ngtcp2_delete_crypto_cipher_ctx delete_crypto_cipher_ctx;
   /**
    * :member:`recv_datagram` is a callback function which is invoked
-   * when DATAGRAM frame is received.
+   * when DATAGRAM frame is received.  This callback function is
+   * optional.
    */
   ngtcp2_recv_datagram recv_datagram;
   /**
    * :member:`ack_datagram` is a callback function which is invoked
-   * when a packet containing DATAGRAM frame is acknowledged.
+   * when a packet containing DATAGRAM frame is acknowledged.  This
+   * callback function is optional.
    */
   ngtcp2_ack_datagram ack_datagram;
   /**
    * :member:`lost_datagram` is a callback function which is invoked
-   * when a packet containing DATAGRAM frame is declared lost.
+   * when a packet containing DATAGRAM frame is declared lost.  This
+   * callback function is optional.
    */
   ngtcp2_lost_datagram lost_datagram;
   /**
@@ -3343,7 +3354,8 @@ typedef struct ngtcp2_callbacks {
   /**
    * :member:`stream_stop_sending` is a callback function which is
    * invoked when a local endpoint no longer reads from a stream
-   * before it receives all stream data.
+   * before it receives all stream data.  This callback function is
+   * optional.
    */
   ngtcp2_stream_stop_sending stream_stop_sending;
 } ngtcp2_callbacks;
