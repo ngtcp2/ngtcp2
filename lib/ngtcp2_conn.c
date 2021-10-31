@@ -941,6 +941,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   int rv;
   ngtcp2_scid *scident;
   uint8_t *buf;
+  uint8_t fixed_bit_byte;
   (void)callbacks_version;
   (void)settings_version;
   (void)transport_params_version;
@@ -1047,6 +1048,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->local.settings = *settings;
   (*pconn)->local.transport_params = *params;
 
+  /* grease_quic_bit is always enabled. */
+  (*pconn)->local.transport_params.grease_quic_bit = 1;
+
   if (settings->token.len) {
     buf = ngtcp2_mem_malloc(mem, settings->token.len);
     if (buf == NULL) {
@@ -1139,6 +1143,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   rv = ngtcp2_gaptr_push(&(*pconn)->dcid.seqgap, 0, 1);
   if (rv != 0) {
     goto fail_seqgap_push;
+  }
+
+  callbacks->rand(&fixed_bit_byte, 1, &settings->rand_ctx);
+  if (fixed_bit_byte & 1) {
+    (*pconn)->flags |= NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT;
   }
 
   (*pconn)->keep_alive.last_ts = UINT64_MAX;
@@ -2273,6 +2282,26 @@ static int conn_pacing_pkt_tx_allowed(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
          conn->tx.pacing.next_ts <= ts + NGTCP2_PKT_PACING_OVERHEAD;
 }
 
+static uint8_t conn_pkt_flags(ngtcp2_conn *conn) {
+  if (conn->remote.transport_params.grease_quic_bit &&
+      (conn->flags & NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT)) {
+    return NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
+  }
+
+  return NGTCP2_PKT_FLAG_NONE;
+}
+
+static uint8_t conn_pkt_flags_long(ngtcp2_conn *conn) {
+  return NGTCP2_PKT_FLAG_LONG_FORM | conn_pkt_flags(conn);
+}
+
+static uint8_t conn_pkt_flags_short(ngtcp2_conn *conn) {
+  return (uint8_t)(conn_pkt_flags(conn) | ((conn->pktns.crypto.tx.ckm->flags &
+                                            NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
+                                               ? NGTCP2_PKT_FLAG_KEY_PHASE
+                                               : NGTCP2_PKT_FLAG_NONE));
+}
+
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
@@ -2349,7 +2378,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   cc.encrypt = conn->callbacks.encrypt;
   cc.hp_mask = conn->callbacks.hp_mask;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, type,
+  ngtcp2_pkt_hd_init(&hd, conn_pkt_flags_long(conn), type,
                      &conn->dcid.current.cid, &conn->oscid,
                      pktns->tx.last_pkt_num + 1, pktns_select_pkt_numlen(pktns),
                      conn->version, 0);
@@ -3255,10 +3284,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   if (!ppe_pending) {
     switch (type) {
     case NGTCP2_PKT_SHORT:
-      hd_flags =
-          (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
-              ? NGTCP2_PKT_FLAG_KEY_PHASE
-              : NGTCP2_PKT_FLAG_NONE;
+      hd_flags = conn_pkt_flags_short(conn);
       scid = NULL;
       cc->aead = pktns->crypto.ctx.aead;
       cc->hp = pktns->crypto.ctx.hp;
@@ -3282,7 +3308,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       if (!conn->early.ckm) {
         return 0;
       }
-      hd_flags = NGTCP2_PKT_FLAG_LONG_FORM;
+      hd_flags = conn_pkt_flags_long(conn);
       scid = &conn->oscid;
       cc->aead = conn->early.ctx.aead;
       cc->hp = conn->early.ctx.hp;
@@ -4020,20 +4046,18 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   switch (type) {
   case NGTCP2_PKT_INITIAL:
     pktns = conn->in_pktns;
-    flags = NGTCP2_PKT_FLAG_LONG_FORM;
+    flags = conn_pkt_flags_long(conn);
     scid = &conn->oscid;
     break;
   case NGTCP2_PKT_HANDSHAKE:
     pktns = conn->hs_pktns;
-    flags = NGTCP2_PKT_FLAG_LONG_FORM;
+    flags = conn_pkt_flags_long(conn);
     scid = &conn->oscid;
     break;
   case NGTCP2_PKT_SHORT:
     /* 0 means Short packet. */
     pktns = &conn->pktns;
-    flags = (pktns->crypto.tx.ckm->flags & NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE)
-                ? NGTCP2_PKT_FLAG_KEY_PHASE
-                : NGTCP2_PKT_FLAG_NONE;
+    flags = conn_pkt_flags_short(conn);
     scid = NULL;
     break;
   default:

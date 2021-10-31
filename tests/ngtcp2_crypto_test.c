@@ -161,6 +161,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_scid = scid;
   params.active_connection_id_limit = 1000000007;
   params.max_datagram_frame_size = 65535;
+  params.grease_quic_bit = 1;
 
   for (i = 0;
        i <
@@ -196,7 +197,9 @@ void test_ngtcp2_encode_transport_params(void) {
             ngtcp2_put_varint_len(params.initial_scid.datalen) +
             params.initial_scid.datalen) +
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
-                           params.max_datagram_frame_size);
+                           params.max_datagram_frame_size) +
+           (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
+            ngtcp2_put_varint_len(0));
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
@@ -230,6 +233,7 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.active_connection_id_limit ==
             nparams.active_connection_id_limit);
   CU_ASSERT(params.max_datagram_frame_size == nparams.max_datagram_frame_size);
+  CU_ASSERT(params.grease_quic_bit == nparams.grease_quic_bit);
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -267,6 +271,7 @@ void test_ngtcp2_encode_transport_params(void) {
   params.initial_scid = scid;
   params.active_connection_id_limit = 1073741824;
   params.max_datagram_frame_size = 63;
+  params.grease_quic_bit = 1;
 
   for (i = 0;
        i <
@@ -320,7 +325,9 @@ void test_ngtcp2_encode_transport_params(void) {
             ngtcp2_put_varint_len(params.initial_scid.datalen) +
             params.initial_scid.datalen) +
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
-                           params.max_datagram_frame_size);
+                           params.max_datagram_frame_size) +
+           (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
+            ngtcp2_put_varint_len(0));
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -385,4 +392,5 @@ void test_ngtcp2_encode_transport_params(void) {
   CU_ASSERT(params.active_connection_id_limit ==
             nparams.active_connection_id_limit);
   CU_ASSERT(params.max_datagram_frame_size == nparams.max_datagram_frame_size);
+  CU_ASSERT(params.grease_quic_bit = nparams.grease_quic_bit);
 }

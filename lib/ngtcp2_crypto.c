@@ -254,6 +254,10 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
     len += varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
                            params->max_datagram_frame_size);
   }
+  if (params->grease_quic_bit) {
+    len += ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
+           ngtcp2_put_varint_len(0);
+  }
 
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
@@ -383,6 +387,11 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   if (params->max_datagram_frame_size) {
     p = write_varint_param(p, NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
                            params->max_datagram_frame_size);
+  }
+
+  if (params->grease_quic_bit) {
+    p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT);
+    p = ngtcp2_put_varint(p, 0);
   }
 
   assert((size_t)(p - dest) == len);
@@ -750,6 +759,14 @@ int ngtcp2_decode_transport_params_versioned(
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       p += nread;
+      break;
+    case NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT:
+      nread = decode_varint(&valuelen, p, end);
+      if (nread < 0 || valuelen != 0) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      p += nread;
+      params->grease_quic_bit = 1;
       break;
     default:
       /* Ignore unknown parameter */

@@ -755,6 +755,14 @@ typedef NGTCP2_ALIGN_BEFORE(8) struct ngtcp2_pkt_info {
 /**
  * @macro
  *
+ * :macro:`NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR` indicates that Fixed Bit
+ * (aka QUIC bit) is not set.
+ */
+#define NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR 0x02
+
+/**
+ * @macro
+ *
  * :macro:`NGTCP2_PKT_FLAG_KEY_PHASE` indicates Key Phase bit set.
  */
 #define NGTCP2_PKT_FLAG_KEY_PHASE 0x04
@@ -1360,6 +1368,14 @@ typedef struct ngtcp2_transport_params {
    * :member:`stateless_reset_token` contains stateless reset token.
    */
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
+  /**
+   * :member:`grease_quic_bit` is nonzero if sender supports "Greasing
+   * the QUIC Bit" extension.  See
+   * https://datatracker.ietf.org/doc/html/draft-ietf-quic-bit-grease.
+   * Note that the local endpoint always enables greasing QUIC bit
+   * regardless of this field value.
+   */
+  uint8_t grease_quic_bit;
 } ngtcp2_transport_params;
 
 /**

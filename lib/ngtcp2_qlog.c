@@ -1019,6 +1019,8 @@ void ngtcp2_qlog_parameters_set_transport_params(
   *p++ = ',';
   p = write_pair_number(p, "max_datagram_frame_size",
                         params->max_datagram_frame_size);
+  *p++ = ',';
+  p = write_pair_bool(p, "grease_quic_bit", params->grease_quic_bit);
   p = write_verbatim(p, "}}\n");
 
   qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,

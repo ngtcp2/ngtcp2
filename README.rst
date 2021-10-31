@@ -194,6 +194,8 @@ The library implements the following QUIC protocol extensions:
 
 - `An Unreliable Datagram Extension to QUIC
   <https://quicwg.org/datagram/draft-ietf-quic-datagram.html>`_
+- `Greasing the QUIC Bit
+  <https://datatracker.ietf.org/doc/html/draft-ietf-quic-bit-grease>`_
 
 Configuring Wireshark for QUIC
 ------------------------------

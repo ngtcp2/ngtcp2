@@ -170,6 +170,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   const uint8_t *token = NULL;
   size_t tokenlen = 0;
   uint64_t vi;
+  uint8_t flags = NGTCP2_PKT_FLAG_LONG_FORM;
 
   if (pktlen < 5) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
@@ -188,7 +189,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     len = 5 + 2;
   } else {
     if (!(pkt[0] & NGTCP2_FIXED_BIT_MASK)) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
+      flags |= NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
     }
 
     type = ngtcp2_pkt_get_type_long(pkt[0]);
@@ -280,7 +281,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     }
   }
 
-  dest->flags = NGTCP2_PKT_FLAG_LONG_FORM;
+  dest->flags = flags;
   dest->type = type;
   dest->version = version;
   dest->pkt_num = 0;
@@ -319,6 +320,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
                                         size_t pktlen, size_t dcidlen) {
   size_t len = 1 + dcidlen;
   const uint8_t *p = pkt;
+  uint8_t flags = NGTCP2_PKT_FLAG_NONE;
 
   assert(dcidlen <= NGTCP2_MAX_CIDLEN);
 
@@ -326,9 +328,12 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) ||
-      (pkt[0] & NGTCP2_FIXED_BIT_MASK) == 0) {
+  if (pkt[0] & NGTCP2_HEADER_FORM_BIT) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
+  }
+
+  if (!(pkt[0] & NGTCP2_FIXED_BIT_MASK)) {
+    flags |= NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
   }
 
   p = &pkt[1];
@@ -342,7 +347,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
      garbage. */
   ngtcp2_cid_zero(&dest->scid);
 
-  dest->flags = NGTCP2_PKT_FLAG_NONE;
+  dest->flags = flags;
   dest->version = 0;
   dest->len = 0;
   dest->pkt_num = 0;
@@ -374,8 +379,14 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p++ = (uint8_t)(NGTCP2_HEADER_FORM_BIT | NGTCP2_FIXED_BIT_MASK |
-                   (hd->type << 4) | (uint8_t)(hd->pkt_numlen - 1));
+  *p = (uint8_t)(NGTCP2_HEADER_FORM_BIT | (hd->type << 4) |
+                 (uint8_t)(hd->pkt_numlen - 1));
+  if (!(hd->flags & NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR)) {
+    *p |= NGTCP2_FIXED_BIT_MASK;
+  }
+
+  ++p;
+
   p = ngtcp2_put_uint32be(p, hd->version);
   *p++ = (uint8_t)hd->dcid.datalen;
   if (hd->dcid.datalen) {
@@ -414,7 +425,10 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p = NGTCP2_FIXED_BIT_MASK | (uint8_t)(hd->pkt_numlen - 1);
+  *p = (uint8_t)(hd->pkt_numlen - 1);
+  if (!(hd->flags & NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR)) {
+    *p |= NGTCP2_FIXED_BIT_MASK;
+  }
   if (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) {
     *p |= NGTCP2_SHORT_KEY_PHASE_BIT;
   }

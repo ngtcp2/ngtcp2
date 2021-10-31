@@ -229,6 +229,30 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   len = 1 + 4 + 1 + dcid.datalen + 1 + scid.datalen + 2 + 4;
 
   CU_ASSERT((ngtcp2_ssize)len == rv);
+  CU_ASSERT(buf[0] & NGTCP2_FIXED_BIT_MASK);
+
+  rv = pkt_decode_hd_long(&nhd, buf, len);
+
+  CU_ASSERT((ngtcp2_ssize)len == rv);
+  CU_ASSERT(hd.type == nhd.type);
+  CU_ASSERT(hd.flags == nhd.flags);
+  CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
+  CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
+  CU_ASSERT(0xe1e2e3e4u == nhd.pkt_num);
+  CU_ASSERT(hd.version == nhd.version);
+  CU_ASSERT(hd.len == nhd.len);
+
+  /* Handshake without Fixed Bit set */
+  ngtcp2_pkt_hd_init(
+      &hd, NGTCP2_PKT_FLAG_LONG_FORM | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+      NGTCP2_PKT_HANDSHAKE, &dcid, &scid, 0xe1e2e3e4u, 4, 0x000000ff, 16383);
+
+  rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
+
+  len = 1 + 4 + 1 + dcid.datalen + 1 + scid.datalen + 2 + 4;
+
+  CU_ASSERT((ngtcp2_ssize)len == rv);
+  CU_ASSERT((buf[0] & NGTCP2_FIXED_BIT_MASK) == 0);
 
   rv = pkt_decode_hd_long(&nhd, buf, len);
 
@@ -283,6 +307,31 @@ void test_ngtcp2_pkt_decode_hd_short(void) {
   rv = ngtcp2_pkt_encode_hd_short(buf, sizeof(buf), &hd);
 
   CU_ASSERT((ngtcp2_ssize)expectedlen == rv);
+  CU_ASSERT(buf[0] & NGTCP2_FIXED_BIT_MASK);
+
+  rv = pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
+
+  CU_ASSERT((ngtcp2_ssize)expectedlen == rv);
+  CU_ASSERT(hd.flags == nhd.flags);
+  CU_ASSERT(NGTCP2_PKT_SHORT == nhd.type);
+  CU_ASSERT(ngtcp2_cid_eq(&dcid, &nhd.dcid));
+  CU_ASSERT(ngtcp2_cid_empty(&nhd.scid));
+  CU_ASSERT(0xe1e2e3e4u == nhd.pkt_num);
+  CU_ASSERT(hd.pkt_numlen == nhd.pkt_numlen);
+  CU_ASSERT(0 == nhd.version);
+  CU_ASSERT(0 == nhd.len);
+
+  /* 4 bytes packet number without Fixed Bit set */
+  ngtcp2_pkt_hd_init(
+      &hd, NGTCP2_PKT_FLAG_NONE | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
+      NGTCP2_PKT_SHORT, &dcid, NULL, 0xe1e2e3e4u, 4, 0xd1d2d3d4u, 0);
+
+  expectedlen = 1 + dcid.datalen + 4;
+
+  rv = ngtcp2_pkt_encode_hd_short(buf, sizeof(buf), &hd);
+
+  CU_ASSERT((ngtcp2_ssize)expectedlen == rv);
+  CU_ASSERT((buf[0] & NGTCP2_FIXED_BIT_MASK) == 0);
 
   rv = pkt_decode_hd_short(&nhd, buf, expectedlen, dcid.datalen);
 

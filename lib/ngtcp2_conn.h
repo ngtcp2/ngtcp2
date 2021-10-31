@@ -172,6 +172,10 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    handshake retransmission has done when server receives overlapping
    Initial crypto data. */
 #define NGTCP2_CONN_FLAG_HANDSHAKE_EARLY_RETRANSMIT 0x0200
+/* NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT indicates that the local endpoint
+   sends a QUIC packet without Fixed Bit set if a remote endpoint
+   supports Greasing QUIC Bit extension. */
+#define NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT 0x0400
 /* NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED is set when key update is
    not confirmed by the local endpoint.  That is, it has not received
    ACK frame which acknowledges packet which is encrypted with new

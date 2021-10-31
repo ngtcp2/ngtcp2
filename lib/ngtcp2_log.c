@@ -700,6 +700,8 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   log->log_printf(log->user_data,
                   (NGTCP2_LOG_TP " max_datagram_frame_size=%" PRIu64),
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_datagram_frame_size);
+  log->log_printf(log->user_data, (NGTCP2_LOG_TP " grease_quic_bit=%d"),
+                  NGTCP2_LOG_TP_HD_FIELDS, params->grease_quic_bit);
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
