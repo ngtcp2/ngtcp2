@@ -55,7 +55,7 @@ static void bbr_on_transmit(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
 static void bbr_init_round_counting(ngtcp2_bbr_cc *cc);
 static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack);
 static void bbr_update_btl_bw(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
-                              const ngtcp2_cc_ack *ack);
+                              const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
 static void bbr_update_rtprop(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts);
 static void bbr_init_pacing_rate(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
@@ -250,7 +250,7 @@ static void bbr_update_model_and_state(ngtcp2_bbr_cc *cc,
                                        ngtcp2_conn_stat *cstat,
                                        const ngtcp2_cc_ack *ack,
                                        ngtcp2_tstamp ts) {
-  bbr_update_btl_bw(cc, cstat, ack);
+  bbr_update_btl_bw(cc, cstat, ack, ts);
   bbr_check_cycle_phase(cc, cstat, ack, ts);
   bbr_check_full_pipe(cc);
   bbr_check_drain(cc, cstat, ts);
@@ -289,14 +289,15 @@ static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack) {
 }
 
 static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
-                                const ngtcp2_cc_ack *ack) {
+                                const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   if (cc->in_loss_recovery) {
-    if (cc->round_start) {
+    if (cstat->congestion_recovery_start_ts + cstat->latest_rtt <= ts) {
       cc->packet_conservation = 0;
     }
 
     if (!in_congestion_recovery(cstat, ack->largest_acked_sent_ts)) {
       cc->in_loss_recovery = 0;
+      cc->packet_conservation = 0;
       bbr_restore_cwnd(cc, cstat);
     }
 
@@ -304,21 +305,21 @@ static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   }
 
   if (cc->congestion_recovery_start_ts != UINT64_MAX) {
+    cc->in_loss_recovery = 1;
     bbr_save_cwnd(cc, cstat);
     cstat->cwnd = cstat->bytes_in_flight +
                   ngtcp2_max(ack->bytes_delivered, cstat->max_udp_payload_size);
 
     cstat->congestion_recovery_start_ts = cc->congestion_recovery_start_ts;
     cc->congestion_recovery_start_ts = UINT64_MAX;
-    cc->in_loss_recovery = 1;
     cc->packet_conservation = 1;
   }
 }
 
 static void bbr_update_btl_bw(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
-                              const ngtcp2_cc_ack *ack) {
+                              const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
   bbr_update_round(cc, ack);
-  bbr_handle_recovery(cc, cstat, ack);
+  bbr_handle_recovery(cc, cstat, ack, ts);
 
   if (cstat->delivery_rate_sec < cc->btl_bw && cc->rst->rs.is_app_limited) {
     return;
