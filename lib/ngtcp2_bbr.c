@@ -55,7 +55,7 @@ static void bbr_on_transmit(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
 static void bbr_init_round_counting(ngtcp2_bbr_cc *cc);
 static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack);
 static void bbr_update_btl_bw(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
-                              const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
+                              const ngtcp2_cc_ack *ack);
 static void bbr_update_rtprop(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
                               ngtcp2_tstamp ts);
 static void bbr_init_pacing_rate(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat);
@@ -250,7 +250,7 @@ static void bbr_update_model_and_state(ngtcp2_bbr_cc *cc,
                                        ngtcp2_conn_stat *cstat,
                                        const ngtcp2_cc_ack *ack,
                                        ngtcp2_tstamp ts) {
-  bbr_update_btl_bw(cc, cstat, ack, ts);
+  bbr_update_btl_bw(cc, cstat, ack);
   bbr_check_cycle_phase(cc, cstat, ack, ts);
   bbr_check_full_pipe(cc);
   bbr_check_drain(cc, cstat, ts);
@@ -289,9 +289,9 @@ static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack) {
 }
 
 static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
-                                const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
+                                const ngtcp2_cc_ack *ack) {
   if (cc->in_loss_recovery) {
-    if (cstat->congestion_recovery_start_ts + cstat->latest_rtt <= ts) {
+    if (cc->round_start) {
       cc->packet_conservation = 0;
     }
 
@@ -317,9 +317,9 @@ static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
 }
 
 static void bbr_update_btl_bw(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
-                              const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts) {
+                              const ngtcp2_cc_ack *ack) {
   bbr_update_round(cc, ack);
-  bbr_handle_recovery(cc, cstat, ack, ts);
+  bbr_handle_recovery(cc, cstat, ack);
 
   if (cstat->delivery_rate_sec < cc->btl_bw && cc->rst->rs.is_app_limited) {
     return;
