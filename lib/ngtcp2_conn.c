@@ -5130,6 +5130,11 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
       ngtcp2_mem_free(conn->mem, strm);
       return rv;
     }
+
+    rv = conn_call_stream_open(conn, strm);
+    if (rv != 0) {
+      return rv;
+    }
   }
 
   if (strm->tx.max_offset < fr->max_stream_data) {
@@ -6264,13 +6269,6 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     goto fail;
   }
 
-  if (!conn_local_stream(conn, stream_id)) {
-    rv = conn_call_stream_open(conn, strm);
-    if (rv != 0) {
-      goto fail;
-    }
-  }
-
   return 0;
 
 fail:
@@ -6543,6 +6541,12 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       ngtcp2_mem_free(conn->mem, strm);
       return rv;
     }
+
+    rv = conn_call_stream_open(conn, strm);
+    if (rv != 0) {
+      return rv;
+    }
+
     if (!bidi) {
       ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
     }
@@ -6967,6 +6971,11 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
       ngtcp2_mem_free(conn->mem, strm);
+      return rv;
+    }
+
+    rv = conn_call_stream_open(conn, strm);
+    if (rv != 0) {
       return rv;
     }
   }
