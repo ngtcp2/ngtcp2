@@ -88,6 +88,7 @@ void test_ngtcp2_conn_keep_alive(void);
 void test_ngtcp2_conn_retire_stale_bound_dcid(void);
 void test_ngtcp2_conn_get_scid(void);
 void test_ngtcp2_conn_stream_close(void);
+void test_ngtcp2_conn_buffer_pkt(void);
 void test_ngtcp2_accept(void);
 void test_ngtcp2_pkt_write_connection_close(void);
 

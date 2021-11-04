@@ -7734,6 +7734,81 @@ void test_ngtcp2_conn_stream_close(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_buffer_pkt(void) {
+  ngtcp2_conn *conn;
+  int rv;
+  uint8_t buf[2048];
+  ngtcp2_frame fr;
+  size_t pktlen, in_pktlen;
+  int64_t pkt_num = 0;
+  ngtcp2_tstamp t = 0;
+  ngtcp2_ssize spktlen;
+  ngtcp2_crypto_aead_ctx aead_ctx = {0};
+  ngtcp2_crypto_cipher_ctx hp_ctx = {0};
+  ngtcp2_ksl_it it;
+  ngtcp2_pkt_chain *pc;
+
+  /* Server should buffer Short packet if it does not complete
+     handshake even if it has application tx key. */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 133;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), pkt_num++, NGTCP2_PROTO_VER_MAX, &fr,
+      &null_ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret),
+                                  &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
+
+  assert(0 == rv);
+
+  rv = ngtcp2_conn_install_rx_key(conn, null_secret, sizeof(null_secret),
+                                  &aead_ctx, null_iv, sizeof(null_iv), &hp_ctx);
+
+  assert(0 == rv);
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_PING;
+
+  in_pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), pkt_num++, NGTCP2_PROTO_VER_MAX, &fr,
+      &null_ckm);
+
+  pktlen = write_single_frame_pkt(buf + in_pktlen, sizeof(buf) - in_pktlen,
+                                  &conn->oscid, pkt_num++, &fr, &null_ckm);
+
+  CU_ASSERT(!conn->pktns.rx.buffed_pkts);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf,
+                            in_pktlen + pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  pc = conn->pktns.rx.buffed_pkts;
+
+  CU_ASSERT(pktlen == pc->pktlen);
+  CU_ASSERT(in_pktlen + pktlen == pc->dgramlen);
+
+  it = ngtcp2_acktr_get(&conn->pktns.acktr);
+
+  CU_ASSERT(ngtcp2_ksl_it_end(&it));
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_accept(void) {
   size_t pktlen;
   uint8_t buf[2048];

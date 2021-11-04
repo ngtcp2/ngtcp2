@@ -289,6 +289,7 @@ int main(void) {
       !CU_add_test(pSuite, "conn_get_scid", test_ngtcp2_conn_get_scid) ||
       !CU_add_test(pSuite, "conn_stream_close",
                    test_ngtcp2_conn_stream_close) ||
+      !CU_add_test(pSuite, "conn_buffer_pkt", test_ngtcp2_conn_buffer_pkt) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
                    test_ngtcp2_pkt_write_connection_close) ||

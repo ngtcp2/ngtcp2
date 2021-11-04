@@ -9127,6 +9127,23 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
         }
       }
 
+      if ((size_t)nread < pktlen) {
+        /* We have Short packet and application rx key, but the
+           handshake has not completed yet. */
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
+                        "buffering Short packet len=%zu",
+                        pktlen - (size_t)nread);
+
+        rv = conn_buffer_pkt(conn, &conn->pktns, path, pi, pkt + nread,
+                             pktlen - (size_t)nread, pktlen, ts);
+        if (rv != 0) {
+          assert(ngtcp2_err_is_fatal(rv));
+          return rv;
+        }
+
+        return (ssize_t)pktlen;
+      }
+
       return nread;
     }
 
