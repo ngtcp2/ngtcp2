@@ -457,7 +457,7 @@ static int conn_call_recv_version_negotiation(ngtcp2_conn *conn,
   rv = conn->callbacks.recv_version_negotiation(conn, hd, sv, nsv,
                                                 conn->user_data);
   if (rv != 0) {
-    rv = NGTCP2_ERR_CALLBACK_FAILURE;
+    return NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   return 0;
