@@ -1671,7 +1671,7 @@ int Client::select_preferred_address(Address &selected_addr,
   switch (path->local.addr->sa_family) {
   case AF_INET:
     if (!paddr->ipv4_present) {
-      return 0;
+      return -1;
     }
     af = AF_INET;
     binaddr = paddr->ipv4_addr;
@@ -1679,11 +1679,12 @@ int Client::select_preferred_address(Address &selected_addr,
     break;
   case AF_INET6:
     if (!paddr->ipv6_present) {
-      return 0;
+      return -1;
     }
     af = AF_INET6;
     binaddr = paddr->ipv6_addr;
     port = paddr->ipv6_port;
+    break;
   default:
     return -1;
   }
