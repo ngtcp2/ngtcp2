@@ -33,7 +33,19 @@
 
 extern Config config;
 
-TLSServerContext::TLSServerContext() : cred_{nullptr} {}
+namespace {
+int anti_replay_db_add_func(void *dbf, time_t exp_time,
+                            const gnutls_datum_t *key,
+                            const gnutls_datum_t *data) {
+  return 0;
+}
+} // namespace
+
+TLSServerContext::TLSServerContext() : cred_{nullptr}, session_ticket_key_{} {
+  gnutls_anti_replay_init(&anti_replay_);
+  gnutls_anti_replay_set_add_function(anti_replay_, anti_replay_db_add_func);
+  gnutls_anti_replay_set_ptr(anti_replay_, nullptr);
+}
 
 TLSServerContext::~TLSServerContext() {
   gnutls_anti_replay_deinit(anti_replay_);
@@ -53,14 +65,6 @@ const gnutls_datum_t *TLSServerContext::get_session_ticket_key() const {
 gnutls_anti_replay_t TLSServerContext::get_anti_replay() const {
   return anti_replay_;
 }
-
-namespace {
-int anti_replay_db_add_func(void *dbf, time_t exp_time,
-                            const gnutls_datum_t *key,
-                            const gnutls_datum_t *data) {
-  return 0;
-}
-} // namespace
 
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
@@ -90,10 +94,6 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
               << gnutls_strerror(rv) << std::endl;
     return -1;
   }
-
-  gnutls_anti_replay_init(&anti_replay_);
-  gnutls_anti_replay_set_add_function(anti_replay_, anti_replay_db_add_func);
-  gnutls_anti_replay_set_ptr(anti_replay_, nullptr);
 
   return 0;
 }

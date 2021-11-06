@@ -1134,6 +1134,7 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
     return -1;
   }
   local_addr.len = len;
+  local_addr.ifindex = 0;
 
   return 0;
 }
@@ -1154,6 +1155,7 @@ int connect_sock(Address &local_addr, int fd, const Address &remote_addr) {
     return -1;
   }
   local_addr.len = len;
+  local_addr.ifindex = 0;
 
   return 0;
 }

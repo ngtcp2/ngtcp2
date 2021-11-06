@@ -82,6 +82,7 @@ struct PathStorage {
   PathStorage() {
     path.local.addr = reinterpret_cast<sockaddr *>(&local_addrbuf);
     path.remote.addr = reinterpret_cast<sockaddr *>(&remote_addrbuf);
+    path.user_data = nullptr;
   }
 
   ngtcp2_path path;

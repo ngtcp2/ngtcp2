@@ -59,7 +59,9 @@ auto randgen = util::make_mt19937();
 Config config{};
 
 Stream::Stream(const Request &req, int64_t stream_id)
-    : req(req), stream_id(stream_id), fd(-1) {}
+    : req(req), stream_id(stream_id), fd(-1) {
+  nghttp3_buf_init(&reqbuf);
+}
 
 Stream::~Stream() {
   if (fd != -1) {
@@ -1052,6 +1054,7 @@ int bind_addr(Address &local_addr, int fd, const in_addr_union *iau,
     return -1;
   }
   local_addr.len = len;
+  local_addr.ifindex = 0;
 
   return 0;
 }
@@ -1072,6 +1075,7 @@ int connect_sock(Address &local_addr, int fd, const Address &remote_addr) {
     return -1;
   }
   local_addr.len = len;
+  local_addr.ifindex = 0;
 
   return 0;
 }

@@ -1167,6 +1167,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
     return -1;
   }
   local_addr.len = len;
+  local_addr.ifindex = 0;
 
   return fd;
 }

@@ -77,8 +77,8 @@ Config config{};
 Stream::Stream(int64_t stream_id, Handler *handler)
     : stream_id(stream_id), handler(handler), eos(false) {
   nghttp3_buf_init(&respbuf);
-  http_parser_init(&htp, HTTP_REQUEST);
   htp.data = this;
+  http_parser_init(&htp, HTTP_REQUEST);
 }
 
 namespace {
@@ -1437,6 +1437,7 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
     return -1;
   }
   local_addr.len = len;
+  local_addr.ifindex = 0;
 
   return fd;
 }
