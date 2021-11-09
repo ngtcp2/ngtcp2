@@ -644,13 +644,6 @@ typedef NGTCP2_ALIGN_BEFORE(8) struct ngtcp2_pkt_info {
 /**
  * @macro
  *
- * :macro:`NGTCP2_ERR_PATH_VALIDATION_FAILED` indicates that a path
- * validation failed.
- */
-#define NGTCP2_ERR_PATH_VALIDATION_FAILED -236
-/**
- * @macro
- *
  * :macro:`NGTCP2_ERR_CONN_ID_BLOCKED` indicates that there is no
  * spare Connection ID available.
  */

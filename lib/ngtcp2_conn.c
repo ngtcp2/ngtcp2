@@ -5464,9 +5464,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
 
   rv = ngtcp2_pv_validate(pv, &ent_flags, fr->data);
   if (rv != 0) {
-    if (rv == NGTCP2_ERR_PATH_VALIDATION_FAILED) {
-      return conn_on_path_validation_failed(conn, pv, ts);
-    }
+    assert(!ngtcp2_err_is_fatal(rv));
+
     return 0;
   }
 
