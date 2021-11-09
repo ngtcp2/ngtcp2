@@ -78,18 +78,6 @@ struct Address {
   uint32_t ifindex;
 };
 
-struct PathStorage {
-  PathStorage() {
-    path.local.addr = reinterpret_cast<sockaddr *>(&local_addrbuf);
-    path.remote.addr = reinterpret_cast<sockaddr *>(&remote_addrbuf);
-    path.user_data = nullptr;
-  }
-
-  ngtcp2_path path;
-  sockaddr_storage local_addrbuf;
-  sockaddr_storage remote_addrbuf;
-};
-
 } // namespace ngtcp2
 
 #endif // NETWORK_H

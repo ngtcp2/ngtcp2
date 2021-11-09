@@ -919,7 +919,7 @@ int Client::on_write() {
 
 int Client::write_streams() {
   ngtcp2_vec vec;
-  PathStorage path;
+  ngtcp2_path_storage ps;
   size_t pktcnt = 0;
   std::array<uint8_t, 64_k> buf;
   auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
@@ -928,6 +928,8 @@ int Client::write_streams() {
           ? ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size
           : 10;
   auto ts = util::timestamp(loop_);
+
+  ngtcp2_path_storage_zero(&ps);
 
   for (;;) {
     int64_t stream_id = -1;
@@ -948,7 +950,7 @@ int Client::write_streams() {
     ngtcp2_ssize ndatalen;
     ngtcp2_pkt_info pi;
 
-    auto nwrite = ngtcp2_conn_writev_stream(conn_, &path.path, &pi, buf.data(),
+    auto nwrite = ngtcp2_conn_writev_stream(conn_, &ps.path, &pi, buf.data(),
                                             max_udp_payload_size, &ndatalen,
                                             flags, stream_id, &vec, vcnt, ts);
     if (nwrite < 0) {
@@ -989,8 +991,8 @@ int Client::write_streams() {
 
     reset_idle_timer();
 
-    if (auto rv = send_packet(*static_cast<Endpoint *>(path.path.user_data),
-                              path.path.remote, pi.ecn, buf.data(), nwrite);
+    if (auto rv = send_packet(*static_cast<Endpoint *>(ps.path.user_data),
+                              ps.path.remote, pi.ecn, buf.data(), nwrite);
         rv != NETWORK_ERR_OK) {
       if (rv != NETWORK_ERR_SEND_BLOCKED) {
         last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
@@ -1403,12 +1405,15 @@ int Client::handle_error() {
 
   std::array<uint8_t, NGTCP2_MAX_UDP_PAYLOAD_SIZE> buf;
 
-  PathStorage path;
+  ngtcp2_path_storage ps;
+
+  ngtcp2_path_storage_zero(&ps);
+
   ngtcp2_pkt_info pi;
   ngtcp2_ssize nwrite;
   if (last_error_.type == QUICErrorType::Transport) {
     nwrite = ngtcp2_conn_write_connection_close(
-        conn_, &path.path, &pi, buf.data(), buf.size(), last_error_.code,
+        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code,
         util::timestamp(loop_));
     if (nwrite < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: "
@@ -1417,7 +1422,7 @@ int Client::handle_error() {
     }
   } else {
     nwrite = ngtcp2_conn_write_application_close(
-        conn_, &path.path, &pi, buf.data(), buf.size(), last_error_.code,
+        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code,
         util::timestamp(loop_));
     if (nwrite < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: "
@@ -1426,8 +1431,8 @@ int Client::handle_error() {
     }
   }
 
-  return send_packet(*static_cast<Endpoint *>(path.path.user_data),
-                     path.path.remote, pi.ecn, buf.data(), nwrite);
+  return send_packet(*static_cast<Endpoint *>(ps.path.user_data),
+                     ps.path.remote, pi.ecn, buf.data(), nwrite);
 }
 
 int Client::on_stream_close(int64_t stream_id, uint64_t app_error_code) {

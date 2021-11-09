@@ -1622,7 +1622,7 @@ int Handler::on_write() {
 
 int Handler::write_streams() {
   std::array<nghttp3_vec, 16> vec;
-  PathStorage path, prev_path;
+  ngtcp2_path_storage ps, prev_ps;
   uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
   auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
@@ -1633,6 +1633,9 @@ int Handler::write_streams() {
   uint8_t *bufpos = buf.data();
   ngtcp2_pkt_info pi;
   auto ts = util::timestamp(loop_);
+
+  ngtcp2_path_storage_zero(&ps);
+  ngtcp2_path_storage_zero(&prev_ps);
 
   if (config.cc_algo != NGTCP2_CC_ALGO_BBR) {
     /* If bbr is chosen, pacing is enabled.  No need to cap the number
@@ -1667,7 +1670,7 @@ int Handler::write_streams() {
     }
 
     auto nwrite = ngtcp2_conn_writev_stream(
-        conn_, &path.path, &pi, bufpos, max_udp_payload_size, &ndatalen, flags,
+        conn_, &ps.path, &pi, bufpos, max_udp_payload_size, &ndatalen, flags,
         stream_id, reinterpret_cast<const ngtcp2_vec *>(v), vcnt, ts);
     if (nwrite < 0) {
       switch (nwrite) {
@@ -1723,9 +1726,9 @@ int Handler::write_streams() {
 
     if (nwrite == 0) {
       if (bufpos - buf.data()) {
-        server_->send_packet(*static_cast<Endpoint *>(prev_path.path.user_data),
-                             prev_path.path.local, prev_path.path.remote,
-                             prev_ecn, buf.data(), bufpos - buf.data(),
+        server_->send_packet(*static_cast<Endpoint *>(prev_ps.path.user_data),
+                             prev_ps.path.local, prev_ps.path.remote, prev_ecn,
+                             buf.data(), bufpos - buf.data(),
                              max_udp_payload_size);
         reset_idle_timer();
       }
@@ -1738,17 +1741,16 @@ int Handler::write_streams() {
 
 #if NGTCP2_ENABLE_UDP_GSO
     if (pktcnt == 0) {
-      ngtcp2_path_copy(&prev_path.path, &path.path);
+      ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
-    } else if (!ngtcp2_path_eq(&prev_path.path, &path.path) ||
-               prev_ecn != pi.ecn) {
-      server_->send_packet(*static_cast<Endpoint *>(prev_path.path.user_data),
-                           prev_path.path.local, prev_path.path.remote,
-                           prev_ecn, buf.data(), bufpos - buf.data() - nwrite,
+    } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn) {
+      server_->send_packet(*static_cast<Endpoint *>(prev_ps.path.user_data),
+                           prev_ps.path.local, prev_ps.path.remote, prev_ecn,
+                           buf.data(), bufpos - buf.data() - nwrite,
                            max_udp_payload_size);
 
-      server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
-                           path.path.local, path.path.remote, pi.ecn,
+      server_->send_packet(*static_cast<Endpoint *>(ps.path.user_data),
+                           ps.path.local, ps.path.remote, pi.ecn,
                            bufpos - nwrite, nwrite, max_udp_payload_size);
 
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
@@ -1759,10 +1761,9 @@ int Handler::write_streams() {
 
     if (++pktcnt == max_pktcnt ||
         static_cast<size_t>(nwrite) < max_udp_payload_size) {
-      server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
-                           path.path.local, path.path.remote, pi.ecn,
-                           buf.data(), bufpos - buf.data(),
-                           max_udp_payload_size);
+      server_->send_packet(*static_cast<Endpoint *>(ps.path.user_data),
+                           ps.path.local, ps.path.remote, pi.ecn, buf.data(),
+                           bufpos - buf.data(), max_udp_payload_size);
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       reset_idle_timer();
       ev_io_start(loop_, &wev_);
@@ -1771,8 +1772,8 @@ int Handler::write_streams() {
 #else  // !NGTCP2_ENABLE_UDP_GSO
     reset_idle_timer();
 
-    server_->send_packet(*static_cast<Endpoint *>(path.path.user_data),
-                         path.path.local, path.path.remote, pi.ecn, buf.data(),
+    server_->send_packet(*static_cast<Endpoint *>(ps.path.user_data),
+                         ps.path.local, ps.path.remote, pi.ecn, buf.data(),
                          bufpos - buf.data(), 0);
     if (++pktcnt == max_pktcnt) {
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
@@ -1822,11 +1823,14 @@ int Handler::start_closing_period() {
 
   conn_closebuf_ = std::make_unique<Buffer>(NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
-  PathStorage path;
+  ngtcp2_path_storage ps;
+
+  ngtcp2_path_storage_zero(&ps);
+
   ngtcp2_pkt_info pi;
   if (last_error_.type == QUICErrorType::Transport) {
     auto n = ngtcp2_conn_write_connection_close(
-        conn_, &path.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
+        conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
@@ -1836,7 +1840,7 @@ int Handler::start_closing_period() {
     conn_closebuf_->push(n);
   } else {
     auto n = ngtcp2_conn_write_application_close(
-        conn_, &path.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
+        conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
         last_error_.code, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: " << ngtcp2_strerror(n)
