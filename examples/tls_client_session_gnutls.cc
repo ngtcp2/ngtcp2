@@ -311,7 +311,7 @@ int TLSClientSession::init(bool &early_data_enabled,
       .size = H3_ALPN_V1[0],
   };
 
-  gnutls_alpn_set_protocols(session_, &alpn, 1, 0);
+  gnutls_alpn_set_protocols(session_, &alpn, 1, GNUTLS_ALPN_MANDATORY);
 
   if (util::numeric_host(remote_addr)) {
     // If remote host is numeric address, just send "localhost" as SNI

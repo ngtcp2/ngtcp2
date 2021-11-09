@@ -274,7 +274,9 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
       .data = const_cast<uint8_t *>(&H3_ALPN_V1[1]),
       .size = H3_ALPN_V1[0],
   };
-  gnutls_alpn_set_protocols(session_, &alpn, 1, 0);
+  gnutls_alpn_set_protocols(session_, &alpn, 1,
+                            GNUTLS_ALPN_MANDATORY |
+                                GNUTLS_ALPN_SERVER_PRECEDENCE);
 
   return 0;
 }
