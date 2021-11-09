@@ -2014,6 +2014,10 @@ typedef struct ngtcp2_path {
  */
 typedef struct ngtcp2_path_storage {
   /**
+   * :member:`path` stores network path.
+   */
+  ngtcp2_path path;
+  /**
    * :member:`local_addrbuf` is a buffer to store local address.
    */
   struct sockaddr_storage local_addrbuf;
@@ -2021,10 +2025,6 @@ typedef struct ngtcp2_path_storage {
    * :member:`remote_addrbuf` is a buffer to store remote address.
    */
   struct sockaddr_storage remote_addrbuf;
-  /**
-   * :member:`path` stores network path.
-   */
-  ngtcp2_path path;
 } ngtcp2_path_storage;
 
 /**
