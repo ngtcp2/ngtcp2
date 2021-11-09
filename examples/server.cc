@@ -1153,19 +1153,18 @@ void Handler::http_stream_close(int64_t stream_id, uint64_t app_error_code) {
 }
 
 namespace {
-int http_send_stop_sending(nghttp3_conn *conn, int64_t stream_id,
-                           uint64_t app_error_code, void *user_data,
-                           void *stream_user_data) {
+int http_stop_sending(nghttp3_conn *conn, int64_t stream_id,
+                      uint64_t app_error_code, void *user_data,
+                      void *stream_user_data) {
   auto h = static_cast<Handler *>(user_data);
-  if (h->http_send_stop_sending(stream_id, app_error_code) != 0) {
+  if (h->http_stop_sending(stream_id, app_error_code) != 0) {
     return NGHTTP3_ERR_CALLBACK_FAILURE;
   }
   return 0;
 }
 } // namespace
 
-int Handler::http_send_stop_sending(int64_t stream_id,
-                                    uint64_t app_error_code) {
+int Handler::http_stop_sending(int64_t stream_id, uint64_t app_error_code) {
   if (auto rv =
           ngtcp2_conn_shutdown_stream_read(conn_, stream_id, app_error_code);
       rv != 0) {
@@ -1227,7 +1226,7 @@ int Handler::setup_httpconn() {
       nullptr, // begin_trailers
       nullptr, // recv_trailer
       nullptr, // end_trailers
-      ::http_send_stop_sending,
+      ::http_stop_sending,
       ::http_end_stream,
       ::http_reset_stream,
   };
