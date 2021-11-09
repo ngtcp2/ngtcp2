@@ -712,10 +712,17 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   params.max_idle_timeout = config.timeout;
   params.active_connection_id_limit = 7;
 
-  auto path =
-      ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa)},
-                  {remote_addr.len, const_cast<sockaddr *>(&remote_addr.su.sa)},
-                  &ep};
+  auto path = ngtcp2_path{
+      {
+          const_cast<sockaddr *>(&ep.addr.su.sa),
+          ep.addr.len,
+      },
+      {
+          const_cast<sockaddr *>(&remote_addr.su.sa),
+          remote_addr.len,
+      },
+      &ep,
+  };
   auto rv =
       ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version, &callbacks,
                              &settings, &params, nullptr, this);
@@ -759,9 +766,17 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
 int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                       const ngtcp2_pkt_info *pi, uint8_t *data,
                       size_t datalen) {
-  auto path = ngtcp2_path{{ep.addr.len, const_cast<sockaddr *>(&ep.addr.su.sa)},
-                          {salen, const_cast<sockaddr *>(sa)},
-                          const_cast<Endpoint *>(&ep)};
+  auto path = ngtcp2_path{
+      {
+          const_cast<sockaddr *>(&ep.addr.su.sa),
+          ep.addr.len,
+      },
+      {
+          const_cast<sockaddr *>(sa),
+          salen,
+      },
+      const_cast<Endpoint *>(&ep),
+  };
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
                                      util::timestamp(loop_));
       rv != 0) {
@@ -1247,8 +1262,12 @@ int Client::change_local_addr() {
   } else {
     auto path = ngtcp2_path{
         addr,
-        {remote_addr_.len, const_cast<sockaddr *>(&remote_addr_.su.sa)},
-        &ep};
+        {
+            const_cast<sockaddr *>(&remote_addr_.su.sa),
+            remote_addr_.len,
+        },
+        &ep,
+    };
     if (auto rv = ngtcp2_conn_initiate_immediate_migration(
             conn_, &path, util::timestamp(loop_));
         rv != 0) {

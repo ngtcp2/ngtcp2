@@ -322,12 +322,12 @@ static int client_quic_init(struct client *c,
                             size_t local_addrlen) {
   ngtcp2_path path = {
       {
-          local_addrlen,
           (struct sockaddr *)local_addr,
+          local_addrlen,
       },
       {
-          remote_addrlen,
           (struct sockaddr *)remote_addr,
+          remote_addrlen,
       },
       NULL,
   };

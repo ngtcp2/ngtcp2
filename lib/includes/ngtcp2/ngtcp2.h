@@ -1974,14 +1974,14 @@ typedef struct ngtcp2_settings {
  */
 typedef struct ngtcp2_addr {
   /**
-   * :member:`addrlen` is the length of addr.
-   */
-  size_t addrlen;
-  /**
    * :member:`addr` points to the buffer which contains endpoint
    * address.  It must not be ``NULL``.
    */
   struct sockaddr *addr;
+  /**
+   * :member:`addrlen` is the length of addr.
+   */
+  size_t addrlen;
 } ngtcp2_addr;
 
 /**

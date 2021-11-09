@@ -1484,10 +1484,17 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     }
   }
 
-  auto path =
-      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)},
-                  {salen, const_cast<sockaddr *>(sa)},
-                  const_cast<Endpoint *>(&ep)};
+  auto path = ngtcp2_path{
+      {
+          const_cast<sockaddr *>(&local_addr.su.sa),
+          local_addr.len,
+      },
+      {
+          const_cast<sockaddr *>(sa),
+          salen,
+      },
+      const_cast<Endpoint *>(&ep),
+  };
   if (auto rv =
           ngtcp2_conn_server_new(&conn_, dcid, &scid_, &path, version,
                                  &callbacks, &settings, &params, nullptr, this);
@@ -1514,10 +1521,17 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
                        const sockaddr *sa, socklen_t salen,
                        const ngtcp2_pkt_info *pi, uint8_t *data,
                        size_t datalen) {
-  auto path =
-      ngtcp2_path{{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)},
-                  {salen, const_cast<sockaddr *>(sa)},
-                  const_cast<Endpoint *>(&ep)};
+  auto path = ngtcp2_path{
+      {
+          const_cast<sockaddr *>(&local_addr.su.sa),
+          local_addr.len,
+      },
+      {
+          const_cast<sockaddr *>(sa),
+          salen,
+      },
+      const_cast<Endpoint *>(&ep),
+  };
 
   if (auto rv = ngtcp2_conn_read_pkt(conn_, &path, pi, data, datalen,
                                      util::timestamp(loop_));
@@ -2511,8 +2525,14 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
 
   buf.push(nwrite);
 
-  ngtcp2_addr laddr{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)};
-  ngtcp2_addr raddr{salen, const_cast<sockaddr *>(sa)};
+  ngtcp2_addr laddr{
+      const_cast<sockaddr *>(&local_addr.su.sa),
+      local_addr.len,
+  };
+  ngtcp2_addr raddr{
+      const_cast<sockaddr *>(sa),
+      salen,
+  };
 
   if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
@@ -2577,8 +2597,14 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
 
   buf.push(nwrite);
 
-  ngtcp2_addr laddr{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)};
-  ngtcp2_addr raddr{salen, const_cast<sockaddr *>(sa)};
+  ngtcp2_addr laddr{
+      const_cast<sockaddr *>(&local_addr.su.sa),
+      local_addr.len,
+  };
+  ngtcp2_addr raddr{
+      const_cast<sockaddr *>(sa),
+      salen,
+  };
 
   if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
@@ -2605,8 +2631,14 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
 
   buf.push(nwrite);
 
-  ngtcp2_addr laddr{local_addr.len, const_cast<sockaddr *>(&local_addr.su.sa)};
-  ngtcp2_addr raddr{salen, const_cast<sockaddr *>(sa)};
+  ngtcp2_addr laddr{
+      const_cast<sockaddr *>(&local_addr.su.sa),
+      local_addr.len,
+  };
+  ngtcp2_addr raddr{
+      const_cast<sockaddr *>(sa),
+      salen,
+  };
 
   if (send_packet(ep, laddr, raddr, /* ecn = */ 0, buf.rpos(), buf.size(), 0) !=
       NETWORK_ERR_OK) {
