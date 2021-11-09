@@ -91,36 +91,36 @@ typedef ptrdiff_t ngtcp2_ssize;
 /**
  * @functypedef
  *
- * Custom memory allocator to replace :manpage:`malloc(3)`.  The
- * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
- * structure.
+ * :type:`ngtcp2_malloc` is a custom memory allocator to replace
+ * :manpage:`malloc(3)`.  The |mem_user_data| is the mem_user_data
+ * member of :type:`ngtcp2_mem` structure.
  */
 typedef void *(*ngtcp2_malloc)(size_t size, void *mem_user_data);
 
 /**
  * @functypedef
  *
- * Custom memory allocator to replace :manpage:`free(3)`.  The
- * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
- * structure.
+ * :type:`ngtcp2_free` is a custom memory allocator to replace
+ * :manpage:`free(3)`.  The |mem_user_data| is the mem_user_data
+ * member of :type:`ngtcp2_mem` structure.
  */
 typedef void (*ngtcp2_free)(void *ptr, void *mem_user_data);
 
 /**
  * @functypedef
  *
- * Custom memory allocator to replace :manpage:`calloc(3)`.  The
- * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
- * structure.
+ * :type:`ngtcp2_calloc` is a custom memory allocator to replace
+ * :manpage:`calloc(3)`.  The |mem_user_data| is the mem_user_data
+ * member of :type:`ngtcp2_mem` structure.
  */
 typedef void *(*ngtcp2_calloc)(size_t nmemb, size_t size, void *mem_user_data);
 
 /**
  * @functypedef
  *
- * Custom memory allocator to replace :manpage:`realloc(3)`.  The
- * |mem_user_data| is the mem_user_data member of :type:`ngtcp2_mem`
- * structure.
+ * :type:`ngtcp2_realloc` is a custom memory allocator to replace
+ * :manpage:`realloc(3)`.  The |mem_user_data| is the mem_user_data
+ * member of :type:`ngtcp2_mem` structure.
  */
 typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *mem_user_data);
 
@@ -159,24 +159,28 @@ typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *mem_user_data);
  */
 typedef struct ngtcp2_mem {
   /**
-   * An arbitrary user supplied data.  This is passed to each
-   * allocator function.
+   * :member:`mem_user_data` is an arbitrary user supplied data.  This
+   * is passed to each allocator function.
    */
   void *mem_user_data;
   /**
-   * Custom allocator function to replace :manpage:`malloc(3)`.
+   * :member:`malloc` is a custom allocator function to replace
+   * :manpage:`malloc(3)`.
    */
   ngtcp2_malloc malloc;
   /**
-   * Custom allocator function to replace :manpage:`free(3)`.
+   * :member:`free` is a custom allocator function to replace
+   * :manpage:`free(3)`.
    */
   ngtcp2_free free;
   /**
-   * Custom allocator function to replace :manpage:`calloc(3)`.
+   * :member:`calloc` is a custom allocator function to replace
+   * :manpage:`calloc(3)`.
    */
   ngtcp2_calloc calloc;
   /**
-   * Custom allocator function to replace :manpage:`realloc(3)`.
+   * :member:`realloc` is a custom allocator function to replace
+   * :manpage:`realloc(3)`.
    */
   ngtcp2_realloc realloc;
 } ngtcp2_mem;
