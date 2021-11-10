@@ -5204,7 +5204,7 @@ NGTCP2_EXTERN int ngtcp2_is_bidi_stream(int64_t stream_id);
  * :type:`ngtcp2_log_event` defines an event of ngtcp2 library
  * internal logger.
  */
-typedef enum {
+typedef enum ngtcp2_log_event {
   /**
    * :enum:`NGTCP2_LOG_EVENT_NONE` represents no event.
    */
