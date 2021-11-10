@@ -448,7 +448,7 @@ typedef struct ngtcp2_mem {
  *
  * :type:`ngtcp2_pkt_info` is a packet metadata.
  */
-typedef NGTCP2_ALIGN_BEFORE(8) struct ngtcp2_pkt_info {
+typedef NGTCP2_ALIGN_BEFORE(8) struct NGTCP2_ALIGN_AFTER(8) ngtcp2_pkt_info {
   /**
    * :member:`ecn` is ECN marking and when passing
    * `ngtcp2_conn_read_pkt()`, and it should be either
@@ -456,7 +456,7 @@ typedef NGTCP2_ALIGN_BEFORE(8) struct ngtcp2_pkt_info {
    * :macro:`NGTCP2_ECN_ECT_0`, or :macro:`NGTCP2_ECN_CE`.
    */
   uint32_t ecn;
-} ngtcp2_pkt_info NGTCP2_ALIGN_AFTER(8);
+} ngtcp2_pkt_info;
 
 /**
  * @macrosection
