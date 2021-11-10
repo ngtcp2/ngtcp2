@@ -3583,9 +3583,9 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_install_initial_key` installs packet protection keying
  * materials for Initial packets.  |rx_aead_ctx| is AEAD cipher
- * context object and must be initialized with decryption key, IV
- * |rx_iv| of length |rx_ivlen|, and packet header protection cipher
- * context object |rx_hp_ctx| to decrypt incoming Initial packets.
+ * context object and must be initialized with a decryption key.
+ * |rx_iv| is IV of length |rx_ivlen| for decryption.  |rx_hp_ctx| is
+ * a packet header protection cipher context object for decryption.
  * Similarly, |tx_aead_ctx|, |tx_iv| and |tx_hp_ctx| are for
  * encrypting outgoing packets and are the same length with the
  * decryption counterpart .  If they have already been set, they are
@@ -3623,9 +3623,8 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
  * `ngtcp2_conn_install_rx_handshake_key` installs packet protection
  * keying materials for decrypting incoming Handshake packets.
  * |aead_ctx| is AEAD cipher context object which must be initialized
- * with decryption key, IV |iv| of length |ivlen|, and packet header
- * protection cipher context object |hp_ctx| to decrypt incoming
- * Handshake packets.
+ * with a decryption key.  |iv| is IV of length |ivlen|.  |hp_ctx| is
+ * a packet header protection cipher context object.
  *
  * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
  * that is larger.
@@ -3652,9 +3651,8 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_handshake_key(
  * `ngtcp2_conn_install_tx_handshake_key` installs packet protection
  * keying materials for encrypting outgoing Handshake packets.
  * |aead_ctx| is AEAD cipher context object which must be initialized
- * with encryption key, IV |iv| of length |ivlen|, and packet header
- * protection cipher context object |hp_ctx| to encrypt outgoing
- * Handshake packets.
+ * with an encryption key.  |iv| is IV of length |ivlen|.  |hp_ctx| is
+ * a packet header protection cipher context object.
  *
  * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
  * that is larger.
@@ -3709,9 +3707,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(
  * materials for decrypting Short packets.  |secret| of length
  * |secretlen| is the decryption secret which is used to derive keying
  * materials passed to this function.  |aead_ctx| is AEAD cipher
- * context object which must be initialized with decryption key, IV
- * |iv| of length |ivlen|, and packet header protection cipher context
- * object |hp_ctx| to decrypt incoming Short packets.
+ * context object which must be initialized with a decryption key.
+ * |iv| is IV of length |ivlen|.  |hp_ctx| is a packet header
+ * protection cipher context object.
  *
  * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
  * that is larger.
@@ -3740,9 +3738,9 @@ NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
  * materials for encrypting Short packets.  |secret| of length
  * |secretlen| is the encryption secret which is used to derive keying
  * materials passed to this function.  |aead_ctx| is AEAD cipher
- * context object which must be initialized with encryption key, IV
- * |iv| of length |ivlen|, and packet header protection cipher context
- * object |hp_ctx| to encrypt outgoing Short packets.
+ * context object which must be initialized with an encryption key.
+ * |iv| is IV of length |ivlen|.  |hp_ctx| is a packet header
+ * protection cipher context object.
  *
  * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
  * that is larger.
