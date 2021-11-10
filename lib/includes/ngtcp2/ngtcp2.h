@@ -307,7 +307,7 @@ typedef struct ngtcp2_mem {
  * @macro
  *
  * :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN` is the minimum length
- * of random bytes (Unpredictable Bits) in Stateless Retry packet
+ * of random bytes (Unpredictable Bits) in Stateless Reset packet
  */
 #define NGTCP2_MIN_STATELESS_RESET_RANDLEN 5
 
@@ -2293,7 +2293,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  * and its length must be :macro:`NGTCP2_STATELESS_RESET_TOKENLEN`
  * bytes long.  |rand| specifies the random octets preceding Stateless
  * Reset Token.  The length of |rand| is specified by |randlen| which
- * must be at least :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN` bytes
+ * must be at least :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN` bytes
  * long.
  *
  * If |randlen| is too long to write them all in the buffer, |rand| is
@@ -2306,7 +2306,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest,
  *     Buffer is too small.
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     |randlen| is strictly less than
- *     :macro:`NGTCP2_MIN_STATELESS_RETRY_RANDLEN`.
+ *     :macro:`NGTCP2_MIN_STATELESS_RESET_RANDLEN`.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_stateless_reset(
     uint8_t *dest, size_t destlen, const uint8_t *stateless_reset_token,
