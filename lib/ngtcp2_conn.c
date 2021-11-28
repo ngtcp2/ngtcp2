@@ -6136,6 +6136,18 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                            : (ngtcp2_ssize)pktlen;
 }
 
+static int is_crypto_error(int liberr) {
+  switch (liberr) {
+  case NGTCP2_ERR_CRYPTO:
+  case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
+  case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
+  case NGTCP2_ERR_TRANSPORT_PARAM:
+    return 1;
+  }
+
+  return 0;
+}
+
 /*
  * conn_recv_handshake_cpkt processes compound packet during
  * handshake.  The buffer pointed by |pkt| might contain multiple
@@ -6175,29 +6187,25 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
           pktlen > 4 && ngtcp2_get_uint32(&pkt[1]) > 0 &&
           ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
         if (conn->server) {
+          if (is_crypto_error((int)nread)) {
+            /* If server gets crypto error from TLS stack, it is
+               unrecoverable, therefore drop connection. */
+            return nread;
+          }
+
           /* If server discards first Initial, then drop connection
              state.  This is because SCID in packet might be corrupted
              and the current connection state might wrongly discard
              valid packet and prevent the handshake from
              completing. */
           if (conn->in_pktns && conn->in_pktns->rx.max_pkt_num == -1) {
-            /* If this is crypto related error, then return normally
-               in order to send CONNECTION_CLOSE with TLS alert (e.g.,
-               no_application_protocol). */
-            switch (nread) {
-            case NGTCP2_ERR_CRYPTO:
-            case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
-            case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
-            case NGTCP2_ERR_TRANSPORT_PARAM:
-              return nread;
-            }
-
             return NGTCP2_ERR_DROP_CONN;
           }
+
           return (ngtcp2_ssize)dgramlen;
         }
         /* client */
-        if (nread == NGTCP2_ERR_CRYPTO) {
+        if (is_crypto_error((int)nread)) {
           /* If client gets crypto error from TLS stack, it is
              unrecoverable, therefore drop connection. */
           return nread;
