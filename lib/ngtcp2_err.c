@@ -64,8 +64,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_MALFORMED_TRANSPORT_PARAM";
   case NGTCP2_ERR_FRAME_ENCODING:
     return "ERR_FRAME_ENCODING";
-  case NGTCP2_ERR_TLS_DECRYPT:
-    return "ERR_TLS_DECRYPT";
+  case NGTCP2_ERR_DECRYPT:
+    return "ERR_DECRYPT";
   case NGTCP2_ERR_STREAM_SHUT_WR:
     return "ERR_STREAM_SHUT_WR";
   case NGTCP2_ERR_STREAM_NOT_FOUND:

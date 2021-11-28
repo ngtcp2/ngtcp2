@@ -583,9 +583,9 @@ typedef NGTCP2_ALIGN_BEFORE(8) struct NGTCP2_ALIGN_AFTER(8) ngtcp2_pkt_info {
 /**
  * @macro
  *
- * :macro:`NGTCP2_ERR_TLS_DECRYPT` indicates TLS decryption failure.
+ * :macro:`NGTCP2_ERR_DECRYPT` indicates a decryption failure.
  */
-#define NGTCP2_ERR_TLS_DECRYPT -220
+#define NGTCP2_ERR_DECRYPT -220
 /**
  * @macro
  *
@@ -2556,8 +2556,8 @@ typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * |dest| and |ciphertext| may point to the same buffer.
  *
  * The callback function must return 0 if it succeeds.  If TLS stack
- * fails to decrypt data, return :macro:`NGTCP2_ERR_TLS_DECRYPT`.  For
- * any other errors, return :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which
+ * fails to decrypt data, return :macro:`NGTCP2_ERR_DECRYPT`.  For any
+ * other errors, return :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which
  * makes the library call return immediately.
  */
 typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
@@ -3783,7 +3783,7 @@ NGTCP2_EXTERN int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn,
  * `ngtcp2_conn_set_tls_error` sets the TLS related error |liberr| in
  * |conn|.  |liberr| must be one of ngtcp2 library error codes (which
  * is defined as NGTCP2_ERR_* macro, such as
- * :macro:`NGTCP2_ERR_TLS_DECRYPT`).  In general, error code should be
+ * :macro:`NGTCP2_ERR_DECRYPT`).  In general, error code should be
  * propagated via return value, but sometimes ngtcp2 API is called
  * inside callback function of TLS stack and it does not allow to
  * return ngtcp2 error code directly.  In this case, implementation
@@ -5019,7 +5019,7 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn);
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  * |liberr| must be one of ngtcp2 library error codes (which is
  * defined as NGTCP2_ERR_* macro, such as
- * :macro:`NGTCP2_ERR_TLS_DECRYPT`).
+ * :macro:`NGTCP2_ERR_DECRYPT`).
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
 
@@ -5029,7 +5029,7 @@ NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
  * `ngtcp2_err_is_fatal` returns nonzero if |liberr| is a fatal error.
  * |liberr| must be one of ngtcp2 library error codes (which is
  * defined as NGTCP2_ERR_* macro, such as
- * :macro:`NGTCP2_ERR_TLS_DECRYPT`).
+ * :macro:`NGTCP2_ERR_DECRYPT`).
  */
 NGTCP2_EXTERN int ngtcp2_err_is_fatal(int liberr);
 
@@ -5039,7 +5039,7 @@ NGTCP2_EXTERN int ngtcp2_err_is_fatal(int liberr);
  * `ngtcp2_err_infer_quic_transport_error_code` returns a QUIC
  * transport error code which corresponds to |liberr|.  |liberr| must
  * be one of ngtcp2 library error codes (which is defined as
- * NGTCP2_ERR_* macro, such as :macro:`NGTCP2_ERR_TLS_DECRYPT`).
+ * NGTCP2_ERR_* macro, such as :macro:`NGTCP2_ERR_DECRYPT`).
  */
 NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
 

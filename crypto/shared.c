@@ -615,7 +615,7 @@ int ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                              const uint8_t *aad, size_t aadlen) {
   if (ngtcp2_crypto_decrypt(dest, aead, aead_ctx, ciphertext, ciphertextlen,
                             nonce, noncelen, aad, aadlen) != 0) {
-    return NGTCP2_ERR_TLS_DECRYPT;
+    return NGTCP2_ERR_DECRYPT;
   }
   return 0;
 }

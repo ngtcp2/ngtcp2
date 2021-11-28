@@ -93,7 +93,7 @@ static int fail_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   (void)noncelen;
   (void)aad;
   (void)aadlen;
-  return NGTCP2_ERR_TLS_DECRYPT;
+  return NGTCP2_ERR_DECRYPT;
 }
 
 static int null_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,

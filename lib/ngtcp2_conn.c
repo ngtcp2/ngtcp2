@@ -5261,8 +5261,8 @@ static int conn_ensure_decrypt_buffer(ngtcp2_conn *conn, size_t n) {
  *
  * NGTCP2_ERR_CALLBACK_FAILURE
  *     User callback failed.
- * NGTCP2_ERR_TLS_DECRYPT
- *     TLS backend failed to decrypt data.
+ * NGTCP2_ERR_DECRYPT
+ *     Failed to decrypt a packet.
  */
 static ngtcp2_ssize decrypt_pkt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                                 const uint8_t *payload, size_t payloadlen,
@@ -5281,7 +5281,7 @@ static ngtcp2_ssize decrypt_pkt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                ckm->iv.len, aad, aadlen);
 
   if (rv != 0) {
-    if (rv == NGTCP2_ERR_TLS_DECRYPT) {
+    if (rv == NGTCP2_ERR_DECRYPT) {
       return rv;
     }
     return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -8339,7 +8339,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                        ckm, decrypt);
 
   if (force_decrypt_failure) {
-    nwrite = NGTCP2_ERR_TLS_DECRYPT;
+    nwrite = NGTCP2_ERR_DECRYPT;
   }
 
   if (nwrite < 0) {
@@ -8347,7 +8347,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return nwrite;
     }
 
-    assert(NGTCP2_ERR_TLS_DECRYPT == nwrite);
+    assert(NGTCP2_ERR_DECRYPT == nwrite);
 
     if (hd.type == NGTCP2_PKT_SHORT &&
         ++conn->crypto.decryption_failure_count >=
