@@ -59,6 +59,7 @@ OBJECTS = \
 	ngtcp2_ksl.c \
 	ngtcp2_cc.c \
 	ngtcp2_bbr.c \
+	ngtcp2_bbr2.c \
 	ngtcp2_addr.c \
 	ngtcp2_path.c \
 	ngtcp2_pv.c \
@@ -93,6 +94,7 @@ HFILES = \
 	ngtcp2_ksl.h \
 	ngtcp2_cc.h \
 	ngtcp2_bbr.h \
+	ngtcp2_bbr2.h \
 	ngtcp2_addr.h \
 	ngtcp2_path.h \
 	ngtcp2_pv.h \

@@ -1530,6 +1530,11 @@ typedef enum ngtcp2_cc_algo {
    */
   NGTCP2_CC_ALGO_BBR = 0x02,
   /**
+   * :enum:`NGTCP2_CC_ALGO_BBR2` represents BBR v2.  If BBR v2 is
+   * chosen, packet pacing is enabled.
+   */
+  NGTCP2_CC_ALGO_BBR2 = 0x03,
+  /**
    * :enum:`NGTCP2_CC_ALGO_CUSTOM` represents custom congestion
    * control algorithm.
    */
@@ -1574,6 +1579,21 @@ typedef struct ngtcp2_cc_pkt {
    * :member:`sent_ts` is the timestamp when packet is sent.
    */
   ngtcp2_tstamp sent_ts;
+  /**
+   * :member:`lost` is the number of bytes lost when this packet was
+   * sent.
+   */
+  uint64_t lost;
+  /**
+   * :member:`tx_in_flight` is the bytes in flight when this packet
+   * was sent.
+   */
+  uint64_t tx_in_flight;
+  /**
+   * :member:`is_app_limited` is nonzero if the connection is
+   * app-limited when this packet was sent.
+   */
+  int is_app_limited;
 } ngtcp2_cc_pkt;
 
 /**
@@ -1606,6 +1626,11 @@ typedef struct ngtcp2_cc_ack {
    * acknowledged packet was sent.
    */
   ngtcp2_tstamp largest_acked_sent_ts;
+  /**
+   * :member:`rtt` is the RTT sample.  It is UINT64_MAX if no RTT
+   * sample is available.
+   */
+  ngtcp2_duration rtt;
 } ngtcp2_cc_ack;
 
 typedef struct ngtcp2_cc ngtcp2_cc;
@@ -1620,6 +1645,15 @@ typedef void (*ngtcp2_cc_on_pkt_acked)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                        const ngtcp2_cc_pkt *pkt,
                                        ngtcp2_tstamp ts);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_cc_on_pkt_lost` is a callback function which is
+ * called with a lost packet.
+ */
+typedef void (*ngtcp2_cc_on_pkt_lost)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
+                                      const ngtcp2_cc_pkt *pkt,
+                                      ngtcp2_tstamp ts);
 /**
  * @functypedef
  *
@@ -1730,6 +1764,11 @@ typedef struct ngtcp2_cc {
    * when a packet is acknowledged.
    */
   ngtcp2_cc_on_pkt_acked on_pkt_acked;
+  /**
+   * :member:`on_pkt_lost` is a callback function which is called when
+   * a packet is lost.
+   */
+  ngtcp2_cc_on_pkt_lost on_pkt_lost;
   /**
    * :member:`congestion_event` is a callback function which is called
    * when congestion event happens (.e.g, packet is lost).

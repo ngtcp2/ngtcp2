@@ -729,6 +729,9 @@ static void cc_del(ngtcp2_cc *cc, ngtcp2_cc_algo cc_algo,
   case NGTCP2_CC_ALGO_BBR:
     ngtcp2_cc_bbr_cc_free(cc, mem);
     break;
+  case NGTCP2_CC_ALGO_BBR2:
+    ngtcp2_cc_bbr2_cc_free(cc, mem);
+    break;
   default:
     break;
   }
@@ -1089,6 +1092,14 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     rv = ngtcp2_cc_bbr_cc_init(&(*pconn)->cc, &(*pconn)->log, &(*pconn)->cstat,
                                &(*pconn)->rst, settings->initial_ts,
                                callbacks->rand, &settings->rand_ctx, mem);
+    if (rv != 0) {
+      goto fail_cc_init;
+    }
+    break;
+  case NGTCP2_CC_ALGO_BBR2:
+    rv = ngtcp2_cc_bbr2_cc_init(&(*pconn)->cc, &(*pconn)->log, &(*pconn)->cstat,
+                                &(*pconn)->rst, settings->initial_ts,
+                                callbacks->rand, &settings->rand_ctx, mem);
     if (rv != 0) {
       goto fail_cc_init;
     }
@@ -3993,7 +4004,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         conn->cc.on_pkt_sent(
             &conn->cc, &conn->cstat,
             ngtcp2_cc_pkt_init(&cc_pkt, hd->pkt_num, (size_t)nwrite,
-                               NGTCP2_PKTNS_ID_APPLICATION, ts));
+                               NGTCP2_PKTNS_ID_APPLICATION, ts, ent->rst.lost,
+                               ent->rst.tx_in_flight, ent->rst.is_app_limited));
       }
 
       if (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE) {
@@ -10529,6 +10541,42 @@ ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
                                              stream_id, &datav, 1, ts);
 }
 
+static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
+                                            ngtcp2_path *path,
+                                            int pkt_info_version,
+                                            ngtcp2_pkt_info *pi, uint8_t *dest,
+                                            size_t destlen, ngtcp2_vmsg *vmsg,
+                                            ngtcp2_tstamp ts) {
+  ngtcp2_pktns *in_pktns = conn->in_pktns;
+  ngtcp2_pktns *hs_pktns = conn->hs_pktns;
+  ngtcp2_pktns *pktns = &conn->pktns;
+  int no_retrans = (!in_pktns || in_pktns->rtb.num_retransmittable == 0) &&
+                   (!hs_pktns || hs_pktns->rtb.num_retransmittable == 0) &&
+                   pktns->rtb.num_retransmittable == 0;
+  ngtcp2_conn_stat *cstat = &conn->cstat;
+  ngtcp2_ssize nwrite;
+
+  nwrite = ngtcp2_conn_write_vmsg(conn, path, pkt_info_version, pi, dest,
+                                  destlen, vmsg, ts);
+  if (nwrite < 0) {
+    return nwrite;
+  }
+
+  if (cstat->bytes_in_flight >= cstat->cwnd) {
+    conn->rst.is_cwnd_limited = 1;
+  }
+
+  if (nwrite == 0 && cstat->bytes_in_flight < cstat->cwnd && no_retrans) {
+    conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
+
+    if (conn->rst.app_limited == 0) {
+      conn->rst.app_limited = cstat->max_udp_payload_size;
+    }
+  }
+
+  return nwrite;
+}
+
 ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
@@ -10574,8 +10622,8 @@ ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
     pvmsg = NULL;
   }
 
-  return ngtcp2_conn_write_vmsg(conn, path, pkt_info_version, pi, dest, destlen,
-                                pvmsg, ts);
+  return conn_write_vmsg_wrapper(conn, path, pkt_info_version, pi, dest,
+                                 destlen, pvmsg, ts);
 }
 
 ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
@@ -10611,8 +10659,8 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
   vmsg.datagram.datacnt = datavcnt;
   vmsg.datagram.paccepted = paccepted;
 
-  return ngtcp2_conn_write_vmsg(conn, path, pkt_info_version, pi, dest, destlen,
-                                &vmsg, ts);
+  return conn_write_vmsg_wrapper(conn, path, pkt_info_version, pi, dest,
+                                 destlen, &vmsg, ts);
 }
 
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,

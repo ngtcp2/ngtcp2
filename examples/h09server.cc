@@ -962,7 +962,8 @@ int Handler::write_streams() {
   ngtcp2_path_storage_zero(&ps);
   ngtcp2_path_storage_zero(&prev_ps);
 
-  if (config.cc_algo != NGTCP2_CC_ALGO_BBR) {
+  if (config.cc_algo != NGTCP2_CC_ALGO_BBR &&
+      config.cc_algo != NGTCP2_CC_ALGO_BBR2) {
     /* If bbr is chosen, pacing is enabled.  No need to cap the number
        of datagrams to send. */
     max_pktcnt =
@@ -2389,7 +2390,7 @@ Options:
               The maximum length of a dynamically generated content.
               Default: )"
             << util::format_uint_iec(config.max_dyn_length) << R"(
-  --cc=(cubic|reno|bbr)
+  --cc=(cubic|reno|bbr|bbr2)
               The name of congestion controller algorithm.
               Default: )"
             << util::strccalgo(config.cc_algo) << R"(
@@ -2645,7 +2646,11 @@ int main(int argc, char **argv) {
           config.cc_algo = NGTCP2_CC_ALGO_BBR;
           break;
         }
-        std::cerr << "cc: specify cubic, reno, or bbr" << std::endl;
+        if (strcmp("bbr2", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_BBR2;
+          break;
+        }
+        std::cerr << "cc: specify cubic, reno, bbr, or bbr2" << std::endl;
         exit(EXIT_FAILURE);
       case 20:
         // --initial-rtt

@@ -45,6 +45,9 @@ typedef struct ngtcp2_rs {
   uint64_t delivered;
   uint64_t prior_delivered;
   ngtcp2_tstamp prior_ts;
+  uint64_t tx_in_flight;
+  uint64_t lost;
+  uint64_t prior_lost;
   ngtcp2_duration send_elapsed;
   ngtcp2_duration ack_elapsed;
   int is_app_limited;
@@ -65,6 +68,8 @@ typedef struct ngtcp2_rst {
   uint64_t app_limited;
   uint64_t next_round_delivered;
   uint64_t round_count;
+  uint64_t lost;
+  int is_cwnd_limited;
 } ngtcp2_rst;
 
 void ngtcp2_rst_init(ngtcp2_rst *rst);

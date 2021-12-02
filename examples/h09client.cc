@@ -924,7 +924,8 @@ int Client::write_streams() {
   std::array<uint8_t, 64_k> buf;
   auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
   size_t max_pktcnt =
-      config.cc_algo == NGTCP2_CC_ALGO_BBR
+      (config.cc_algo == NGTCP2_CC_ALGO_BBR ||
+       config.cc_algo == NGTCP2_CC_ALGO_BBR2)
           ? ngtcp2_conn_get_send_quantum(conn_) / max_udp_payload_size
           : 10;
   auto ts = util::timestamp(loop_);
@@ -1897,7 +1898,7 @@ Options:
               Exit when all HTTP streams are closed.
   --disable-early-data
               Disable early data.
-  --cc=(cubic|reno|bbr)
+  --cc=(cubic|reno|bbr|bbr2)
               The name of congestion controller algorithm.
               Default: )"
             << util::strccalgo(config.cc_algo) << R"(
@@ -2218,7 +2219,11 @@ int main(int argc, char **argv) {
           config.cc_algo = NGTCP2_CC_ALGO_BBR;
           break;
         }
-        std::cerr << "cc: specify cubic, reno, or bbr" << std::endl;
+        if (strcmp("bbr2", optarg) == 0) {
+          config.cc_algo = NGTCP2_CC_ALGO_BBR2;
+          break;
+        }
+        std::cerr << "cc: specify cubic, reno, bbr, or bbr2" << std::endl;
         exit(EXIT_FAILURE);
       case 28:
         // --exit-on-all-streams-close
