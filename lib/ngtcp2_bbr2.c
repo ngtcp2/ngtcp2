@@ -854,7 +854,8 @@ static void bbr_adapt_upper_bounds(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
   }
 
   if (!bbr_check_inflight_too_high(bbr, cstat, ts)) {
-    if (bbr->inflight_hi == UINT64_MAX || bbr->bw_hi == UINT64_MAX) {
+    /* bbr->bw_hi never be updated */
+    if (bbr->inflight_hi == UINT64_MAX /* || bbr->bw_hi == UINT64_MAX */) {
       return;
     }
 
