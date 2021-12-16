@@ -119,7 +119,7 @@ int ngtcp2_cc_bbr_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,
   ngtcp2_bbr_cc *bbr_cc;
 
   bbr_cc = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_bbr_cc));
-  if (cc == NULL) {
+  if (bbr_cc == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
 
