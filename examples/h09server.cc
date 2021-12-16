@@ -724,6 +724,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.token = ngtcp2_vec{const_cast<uint8_t *>(token), tokenlen};
   settings.cc_algo = config.cc_algo;
   settings.initial_rtt = config.initial_rtt;
+  settings.handshake_timeout = config.handshake_timeout;
   if (config.max_udp_payload_size) {
     settings.max_udp_payload_size = config.max_udp_payload_size;
     settings.no_udp_payload_size_shaping = 1;
@@ -2287,6 +2288,7 @@ void config_set_default(Config &config) {
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_gso_dgrams = 10;
+  config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
 }
 } // namespace
 
@@ -2407,6 +2409,10 @@ Options:
               single GSO sendmsg call.
               Default: )"
             << config.max_gso_dgrams << R"(
+  --handshake-timeout=<DURATION>
+              Set the QUIC handshake timeout.
+              Default: )"
+            << util::format_duration(config.handshake_timeout) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -2460,6 +2466,7 @@ int main(int argc, char **argv) {
         {"max-udp-payload-size", required_argument, &flag, 21},
         {"send-trailers", no_argument, &flag, 22},
         {"max-gso-dgrams", required_argument, &flag, 25},
+        {"handshake-timeout", required_argument, &flag, 26},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -2685,6 +2692,15 @@ int main(int argc, char **argv) {
           exit(EXIT_FAILURE);
         } else {
           config.max_gso_dgrams = *n;
+        }
+        break;
+      case 26:
+        // --handshake-timeout
+        if (auto t = util::parse_duration(optarg); !t) {
+          std::cerr << "handshake-timeout: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.handshake_timeout = *t;
         }
         break;
       }

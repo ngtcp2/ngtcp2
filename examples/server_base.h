@@ -135,6 +135,9 @@ struct Config {
   // max_gso_dgrams is the maximum number of UDP datagrams in one GSO
   // sendmsg call.
   size_t max_gso_dgrams;
+  // handshake_timeout is the period of time before giving up QUIC
+  // connection establishment.
+  ngtcp2_duration handshake_timeout;
 };
 
 struct Buffer {
