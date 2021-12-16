@@ -506,6 +506,7 @@ static void server_default_settings(ngtcp2_settings *settings) {
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->max_udp_payload_size = 2048;
   settings->no_udp_payload_size_shaping = 1;
+  settings->handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
 }
 
 static void server_default_transport_params(ngtcp2_transport_params *params) {
@@ -7805,6 +7806,45 @@ void test_ngtcp2_conn_buffer_pkt(void) {
   it = ngtcp2_acktr_get(&conn->pktns.acktr);
 
   CU_ASSERT(ngtcp2_ksl_it_end(&it));
+
+  ngtcp2_conn_del(conn);
+}
+
+void test_ngtcp2_conn_handshake_timeout(void) {
+  ngtcp2_conn *conn;
+  int rv;
+
+  /* handshake has just timed out */
+  setup_handshake_server(&conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn,
+                                 conn->local.settings.initial_ts +
+                                     conn->local.settings.handshake_timeout);
+
+  CU_ASSERT(NGTCP2_ERR_HANDSHAKE_TIMEOUT == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* handshake is still in progress */
+  setup_handshake_server(&conn);
+
+  rv = ngtcp2_conn_handle_expiry(
+      conn, conn->local.settings.initial_ts +
+                conn->local.settings.handshake_timeout - 1);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* handshake timeout should be ignored after handshake has
+     completed. */
+  setup_default_server(&conn);
+
+  rv = ngtcp2_conn_handle_expiry(conn,
+                                 conn->local.settings.initial_ts +
+                                     conn->local.settings.handshake_timeout);
+
+  CU_ASSERT(0 == rv);
 
   ngtcp2_conn_del(conn);
 }
