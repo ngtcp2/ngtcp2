@@ -51,7 +51,7 @@ if [ "$ROLE" == "client" ]; then
 	REQUESTS=${REQS[@]:1}
 	$CLIENT_BIN $CLIENT_ARGS $REQUESTS $CLIENT_PARAMS &>> $LOG
     elif [ "$TESTCASE" == "multiconnect" ]; then
-	CLIENT_ARGS="$CLIENT_ARGS --timeout=180s"
+	CLIENT_ARGS="$CLIENT_ARGS --timeout=180s --handshake-timeout=180s"
 	for REQ in $REQUESTS; do
 	    echo "multiconnect REQ: $REQ" >> $LOG
 	    $CLIENT_BIN $CLIENT_ARGS $REQ $CLIENT_PARAMS &>> $LOG
@@ -69,7 +69,7 @@ elif [ "$ROLE" == "server" ]; then
     if [ "$TESTCASE" == "retry" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
     elif [ "$TESTCASE" == "multiconnect" ]; then
-	SERVER_ARGS="$SERVER_ARGS --timeout=180s"
+	SERVER_ARGS="$SERVER_ARGS --timeout=180s --handshake-timeout=180s"
     fi
 
     $SERVER_BIN '*' 443 $SERVER_ARGS $SERVER_PARAMS &> $LOG
