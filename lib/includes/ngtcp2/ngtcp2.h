@@ -4869,7 +4869,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  *   <ngtcp2_settings.max_udp_payload_size>` =
  *   :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`
  * * :type:`handshake_timeout <ngtcp2_settings.handshake_timeout>` =
- *   macro:`NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT`.
+ *   :macro:`NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT`.
  */
 NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
                                                      ngtcp2_settings *settings);
