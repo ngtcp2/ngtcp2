@@ -152,4 +152,4 @@ void ngtcp2_cc_bbr_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 void ngtcp2_cc_bbr_cc_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                             ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
-#endif /* NGTCP2_CC_H */
+#endif /* NGTCP2_BBR_H */
