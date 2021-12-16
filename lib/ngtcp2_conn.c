@@ -7837,14 +7837,21 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
   local_addr_eq =
       ngtcp2_addr_eq(&conn->dcid.current.ps.path.local, &path->local);
 
-  /* The transport specification draft-27 says:
+  /*
+   * When to change DCID?  RFC 9002 section 9.5 says:
    *
-   * An endpoint MUST use a new connection ID if it initiates
-   * connection migration as described in Section 9.2 or probes a new
-   * network path as described in Section 9.1. An endpoint MUST use a
-   * new connection ID in response to a change in the address of a
-   * peer if the packet with the new peer address uses an active
-   * connection ID that has not been previously used by the peer.
+   * An endpoint MUST NOT reuse a connection ID when sending from more
+   * than one local address -- for example, when initiating connection
+   * migration as described in Section 9.2 or when probing a new
+   * network path as described in Section 9.1.
+   *
+   * Similarly, an endpoint MUST NOT reuse a connection ID when
+   * sending to more than one destination address.  Due to network
+   * changes outside the control of its peer, an endpoint might
+   * receive packets from a new source address with the same
+   * Destination Connection ID field value, in which case it MAY
+   * continue to use the current connection ID with the new remote
+   * address while still sending from the same local address.
    */
   require_new_cid = conn->dcid.current.cid.datalen &&
                     ((new_cid_used && remote_addr_cmp) || !local_addr_eq);

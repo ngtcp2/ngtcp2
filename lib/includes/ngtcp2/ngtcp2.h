@@ -1468,13 +1468,11 @@ typedef struct ngtcp2_conn_stat {
   ngtcp2_tstamp loss_detection_timer;
   /**
    * :member:`last_tx_pkt_ts` corresponds to
-   * time_of_last_sent_ack_eliciting_packet in
-   * draft-ietf-quic-recovery-32.
+   * time_of_last_ack_eliciting_packet in RFC 9002.
    */
   ngtcp2_tstamp last_tx_pkt_ts[NGTCP2_PKTNS_ID_MAX];
   /**
-   * :member:`loss_time` corresponds to loss_time in
-   * draft-ietf-quic-recovery-32.
+   * :member:`loss_time` corresponds to loss_time in RFC 9002.
    */
   ngtcp2_tstamp loss_time[NGTCP2_PKTNS_ID_MAX];
   /**
