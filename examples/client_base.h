@@ -166,6 +166,9 @@ struct Config {
   // max_udp_payload_size is the maximum UDP payload size that client
   // transmits.
   size_t max_udp_payload_size;
+  // handshake_timeout is the period of time before giving up QUIC
+  // connection establishment.
+  ngtcp2_duration handshake_timeout;
 };
 
 struct Buffer {

@@ -686,6 +686,7 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.initial_rtt = config.initial_rtt;
   settings.max_udp_payload_size = config.max_udp_payload_size;
   settings.no_udp_payload_size_shaping = 1;
+  settings.handshake_timeout = config.handshake_timeout;
 
   std::string token;
 
@@ -1764,6 +1765,7 @@ void config_set_default(Config &config) {
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_udp_payload_size = client_max_udp_payload_size;
+  config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
 }
 } // namespace
 
@@ -1916,6 +1918,10 @@ Options:
               Override maximum UDP payload size that client transmits.
               Default: )"
             << config.max_udp_payload_size << R"(
+  --handshake-timeout=<DURATION>
+              Set the QUIC handshake timeout.
+              Default: )"
+            << util::format_duration(config.handshake_timeout) << R"(
   -h, --help  Display this help and exit.
 
 ---
@@ -1981,6 +1987,7 @@ int main(int argc, char **argv) {
         {"sni", required_argument, &flag, 30},
         {"initial-rtt", required_argument, &flag, 31},
         {"max-udp-payload-size", required_argument, &flag, 32},
+        {"handshake-timeout", required_argument, &flag, 36},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2259,6 +2266,15 @@ int main(int argc, char **argv) {
           std::cerr << "max-udp-payload-size: must not be 0" << std::endl;
         } else {
           config.max_udp_payload_size = *n;
+        }
+        break;
+      case 36:
+        // --handshake-timeout
+        if (auto t = util::parse_duration(optarg); !t) {
+          std::cerr << "handshake-timeout: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.handshake_timeout = *t;
         }
         break;
       }
