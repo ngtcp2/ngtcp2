@@ -10103,16 +10103,28 @@ ngtcp2_tstamp ngtcp2_conn_ack_delay_expiry(ngtcp2_conn *conn) {
   return UINT64_MAX;
 }
 
+static ngtcp2_tstamp conn_handshake_expiry(ngtcp2_conn *conn) {
+  if ((conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) ||
+      conn->local.settings.handshake_timeout == UINT64_MAX) {
+    return UINT64_MAX;
+  }
+
+  return conn->local.settings.initial_ts +
+         conn->local.settings.handshake_timeout;
+}
+
 ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp t1 = ngtcp2_conn_loss_detection_expiry(conn);
   ngtcp2_tstamp t2 = ngtcp2_conn_ack_delay_expiry(conn);
   ngtcp2_tstamp t3 = ngtcp2_conn_internal_expiry(conn);
   ngtcp2_tstamp t4 = ngtcp2_conn_lost_pkt_expiry(conn);
   ngtcp2_tstamp t5 = conn_keep_alive_expiry(conn);
+  ngtcp2_tstamp t6 = conn_handshake_expiry(conn);
   ngtcp2_tstamp res = ngtcp2_min(t1, t2);
   res = ngtcp2_min(res, t3);
   res = ngtcp2_min(res, t4);
   res = ngtcp2_min(res, t5);
+  res = ngtcp2_min(res, t6);
   return ngtcp2_min(res, conn->tx.pacing.next_ts);
 }
 
@@ -10156,6 +10168,14 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     if (conn->early.discard_started_ts + 3 * pto <= ts) {
       conn_discard_early_key(conn);
     }
+  }
+
+  if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED) &&
+      conn->local.settings.handshake_timeout != UINT64_MAX &&
+      conn->local.settings.initial_ts +
+              conn->local.settings.handshake_timeout <=
+          ts) {
+    return NGTCP2_ERR_HANDSHAKE_TIMEOUT;
   }
 
   return 0;
@@ -12229,6 +12249,7 @@ void ngtcp2_settings_default_versioned(int settings_version,
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->ack_thresh = 2;
   settings->max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+  settings->handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
 }
 
 void ngtcp2_transport_params_default_versioned(

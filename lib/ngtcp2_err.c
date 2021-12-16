@@ -102,6 +102,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_NO_VIABLE_PATH";
   case NGTCP2_ERR_VERSION_NEGOTIATION:
     return "ERR_VERSION_NEGOTIATION";
+  case NGTCP2_ERR_HANDSHAKE_TIMEOUT:
+    return "ERR_HANDSHAKE_TIMEOUT";
   default:
     return "(unknown)";
   }

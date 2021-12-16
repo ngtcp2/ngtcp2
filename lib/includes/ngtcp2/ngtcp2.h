@@ -400,6 +400,14 @@ typedef struct ngtcp2_mem {
 #define NGTCP2_MIN_INITIAL_DCIDLEN 8
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT` is the default handshake
+ * timeout.
+ */
+#define NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT (10 * NGTCP2_SECONDS)
+
+/**
  * @macrosection
  *
  * ECN related macros
@@ -706,6 +714,13 @@ typedef NGTCP2_ALIGN_BEFORE(8) struct NGTCP2_ALIGN_AFTER(8) ngtcp2_pkt_info {
  * should send Version Negotiation packet.
  */
 #define NGTCP2_ERR_VERSION_NEGOTIATION -245
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_ERR_HANDSHAKE_TIMEOUT` indicates that QUIC
+ * connection is not established before the specified deadline.
+ */
+#define NGTCP2_ERR_HANDSHAKE_TIMEOUT -246
 /**
  * @macro
  *
@@ -1706,6 +1721,15 @@ typedef struct ngtcp2_settings {
    * smaller.
    */
   int no_udp_payload_size_shaping;
+  /**
+   * :member:`handshake_timeout` is the period of time before giving
+   * up QUIC connection establishment.  If QUIC handshake is not
+   * complete within this period, `ngtcp2_conn_handle_expiry` returns
+   * :macro:`NGTCP2_ERR_HANDSHAKE_TIMEOUT` error.  The deadline is
+   * :member:`initial_ts` + :member:`handshake_timeout`.  If this
+   * field is set to ``UINT64_MAX``, no handshake timeout is set.
+   */
+  ngtcp2_duration handshake_timeout;
 } ngtcp2_settings;
 
 /**
@@ -4844,6 +4868,8 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * * :type:`max_udp_payload_size
  *   <ngtcp2_settings.max_udp_payload_size>` =
  *   :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`
+ * * :type:`handshake_timeout <ngtcp2_settings.handshake_timeout>` =
+ *   macro:`NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT`.
  */
 NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
                                                      ngtcp2_settings *settings);
