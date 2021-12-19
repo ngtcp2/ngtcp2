@@ -54,7 +54,7 @@ jobs:
       if: matrix.openssl == 'openssl1'
       run: |
         ./ci/build_openssl1.sh
-    - name: Build OpenSSL v3.0.0
+    - name: Build OpenSSL v3.0.x
       if: matrix.openssl == 'openssl3'
       run: |
         ./ci/build_openssl3.sh
