@@ -41,6 +41,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/rand.h>
+#include <openssl/err.h>
 
 #include <ev.h>
 
@@ -226,12 +227,21 @@ static int numeric_host(const char *hostname) {
 
 static int client_ssl_init(struct client *c) {
   c->ssl_ctx = SSL_CTX_new(TLS_client_method());
+  if (!c->ssl_ctx) {
+    fprintf(stderr, "SSL_CTX_new: %s\n",
+                    ERR_error_string(ERR_get_error(), NULL));
+    return -1;
+  }
 
   SSL_CTX_set_min_proto_version(c->ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(c->ssl_ctx, TLS1_3_VERSION);
   SSL_CTX_set_quic_method(c->ssl_ctx, &quic_method);
 
   c->ssl = SSL_new(c->ssl_ctx);
+  if (!c->ssl) {
+    fprintf(stderr, "SSL_new: %s\n", ERR_error_string(ERR_get_error(), NULL));
+    return -1;
+  }
 
   SSL_set_app_data(c->ssl, c);
   SSL_set_connect_state(c->ssl);

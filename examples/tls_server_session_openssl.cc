@@ -22,9 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include <iostream>
+
 #include "tls_server_session_openssl.h"
 #include "tls_server_context_openssl.h"
 #include "server_base.h"
+
+#include <openssl/err.h>
 
 TLSServerSession::TLSServerSession() {}
 
@@ -35,6 +39,12 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   auto ssl_ctx = tls_ctx.get_native_handle();
 
   ssl_ = SSL_new(ssl_ctx);
+  if (!ssl_) {
+    std::cerr << "SSL_new: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    return -1;
+  }
+  
   SSL_set_app_data(ssl_, handler);
   SSL_set_accept_state(ssl_);
   SSL_set_quic_early_data_enabled(ssl_, 1);
