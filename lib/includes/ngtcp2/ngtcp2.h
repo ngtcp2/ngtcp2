@@ -4689,10 +4689,10 @@ typedef enum ngtcp2_connection_close_error_code_type {
 /**
  * @struct
  *
- * `ngtcp2_connection_close_error_code` contains connection error code
- * and its type.
+ * :type:`ngtcp2_connection_close_error` contains connection
+ * error code, its type, and the optional reason phrase.
  */
-typedef struct ngtcp2_connection_close_error_code {
+typedef struct ngtcp2_connection_close_error {
   /**
    * :member:`error_code` is the error code for connection closure.
    */
@@ -4701,16 +4701,28 @@ typedef struct ngtcp2_connection_close_error_code {
    * :member:`type` is the type of :member:`error_code`.
    */
   ngtcp2_connection_close_error_code_type type;
-} ngtcp2_connection_close_error_code;
+  /**
+   * :member:`reason` points to the buffer which contains a reason
+   * phrase.  It may be NULL if there is no reason phrase.  It is
+   * truncated to 1024 bytes.
+   */
+  uint8_t *reason;
+  /**
+   * :member:`reasonlen` is the length of data pointed by
+   * :member:`reason`.
+   */
+  size_t reasonlen;
+} ngtcp2_connection_close_error;
 
 /**
  * @function
  *
- * `ngtcp2_conn_get_connection_close_error_code` stores the received
- * connection close error code in |ccec|.
+ * `ngtcp2_conn_get_connection_close_error` stores the received
+ * connection close error in |ccerr|.
  */
-NGTCP2_EXTERN void ngtcp2_conn_get_connection_close_error_code(
-    ngtcp2_conn *conn, ngtcp2_connection_close_error_code *ccec);
+NGTCP2_EXTERN void
+ngtcp2_conn_get_connection_close_error(ngtcp2_conn *conn,
+                                       ngtcp2_connection_close_error *ccerr);
 
 /**
  * @function

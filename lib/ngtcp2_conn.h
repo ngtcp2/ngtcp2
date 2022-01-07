@@ -118,6 +118,11 @@ typedef enum {
    packets sent in NGTCP2_ECN_STATE_TESTING period. */
 #define NGTCP2_ECN_MAX_NUM_VALIDATION_PKTS 10
 
+/* NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN is the maximum length
+   of reason phrase to remember.  If the received reason phrase is
+   longer than this value, it is truncated. */
+#define NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN 1024
+
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
@@ -436,8 +441,8 @@ struct ngtcp2_conn {
     uint64_t window;
     /* path_challenge stores received PATH_CHALLENGE data. */
     ngtcp2_ringbuf path_challenge;
-    /* ccec is the received connection close error code. */
-    ngtcp2_connection_close_error_code ccec;
+    /* ccerr is the received connection close error. */
+    ngtcp2_connection_close_error ccerr;
   } rx;
 
   struct {

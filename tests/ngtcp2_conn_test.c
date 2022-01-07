@@ -7849,6 +7849,52 @@ void test_ngtcp2_conn_handshake_timeout(void) {
   ngtcp2_conn_del(conn);
 }
 
+void test_ngtcp2_conn_get_connection_close_error(void) {
+  ngtcp2_conn *conn;
+  uint8_t buf[2048];
+  ngtcp2_frame frs[2];
+  size_t pktlen;
+  uint8_t reason[2048];
+  ngtcp2_tstamp t = 0;
+  int64_t pkt_num = 0;
+  int rv;
+  ngtcp2_connection_close_error ccerr;
+
+  memset(reason, 'a', sizeof(reason));
+
+  setup_default_server(&conn);
+
+  /* Record the last error. */
+  frs[0].type = NGTCP2_FRAME_CONNECTION_CLOSE_APP;
+  frs[0].connection_close.error_code = 1;
+  frs[0].connection_close.frame_type = 0;
+  frs[0].connection_close.reasonlen = 10;
+  frs[0].connection_close.reason = reason;
+
+  frs[1].type = NGTCP2_FRAME_CONNECTION_CLOSE;
+  frs[1].connection_close.error_code = NGTCP2_PROTOCOL_VIOLATION;
+  frs[1].connection_close.frame_type = 0;
+  frs[1].connection_close.reasonlen =
+      NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN + 1;
+  frs[1].connection_close.reason = reason;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs,
+                     arraylen(frs), conn->pktns.crypto.rx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_DRAINING == rv);
+
+  ngtcp2_conn_get_connection_close_error(conn, &ccerr);
+
+  CU_ASSERT(NGTCP2_PROTOCOL_VIOLATION == ccerr.error_code);
+  CU_ASSERT(NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT == ccerr.type);
+  CU_ASSERT(0 == memcmp(reason, ccerr.reason, ccerr.reasonlen));
+  CU_ASSERT(NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN == ccerr.reasonlen);
+
+  ngtcp2_conn_del(conn);
+}
+
 void test_ngtcp2_accept(void) {
   size_t pktlen;
   uint8_t buf[2048];

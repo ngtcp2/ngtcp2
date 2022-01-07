@@ -292,6 +292,8 @@ int main(void) {
       !CU_add_test(pSuite, "conn_buffer_pkt", test_ngtcp2_conn_buffer_pkt) ||
       !CU_add_test(pSuite, "conn_handshake_timeout",
                    test_ngtcp2_conn_handshake_timeout) ||
+      !CU_add_test(pSuite, "conn_get_connection_close_error",
+                   test_ngtcp2_conn_get_connection_close_error) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
                    test_ngtcp2_pkt_write_connection_close) ||
