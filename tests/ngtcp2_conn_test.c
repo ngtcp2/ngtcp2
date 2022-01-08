@@ -7867,13 +7867,13 @@ void test_ngtcp2_conn_get_connection_close_error(void) {
   /* Record the last error. */
   frs[0].type = NGTCP2_FRAME_CONNECTION_CLOSE_APP;
   frs[0].connection_close.error_code = 1;
-  frs[0].connection_close.frame_type = 0;
+  frs[0].connection_close.frame_type = 99;
   frs[0].connection_close.reasonlen = 10;
   frs[0].connection_close.reason = reason;
 
   frs[1].type = NGTCP2_FRAME_CONNECTION_CLOSE;
   frs[1].connection_close.error_code = NGTCP2_PROTOCOL_VIOLATION;
-  frs[1].connection_close.frame_type = 0;
+  frs[1].connection_close.frame_type = 1000000007;
   frs[1].connection_close.reasonlen =
       NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN + 1;
   frs[1].connection_close.reason = reason;
@@ -7889,6 +7889,7 @@ void test_ngtcp2_conn_get_connection_close_error(void) {
 
   CU_ASSERT(NGTCP2_PROTOCOL_VIOLATION == ccerr.error_code);
   CU_ASSERT(NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT == ccerr.type);
+  CU_ASSERT(1000000007 == ccerr.frame_type);
   CU_ASSERT(0 == memcmp(reason, ccerr.reason, ccerr.reasonlen));
   CU_ASSERT(NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN == ccerr.reasonlen);
 

@@ -5424,6 +5424,7 @@ static int conn_recv_connection_close(ngtcp2_conn *conn,
     ccerr->type = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION;
   }
   ccerr->error_code = fr->error_code;
+  ccerr->frame_type = fr->frame_type;
 
   if (!fr->reasonlen) {
     ccerr->reasonlen = 0;

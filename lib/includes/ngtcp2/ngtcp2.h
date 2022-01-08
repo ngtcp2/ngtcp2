@@ -4702,6 +4702,12 @@ typedef struct ngtcp2_connection_close_error {
    */
   ngtcp2_connection_close_error_code_type type;
   /**
+   * :member:`frame_type` is the type of QUIC frame which triggers
+   * this connection error.  This field is set to 0 if the frame type
+   * is unknown.
+   */
+  uint64_t frame_type;
+  /**
    * :member:`reason` points to the buffer which contains a reason
    * phrase.  It may be NULL if there is no reason phrase.  It is
    * truncated to 1024 bytes.
