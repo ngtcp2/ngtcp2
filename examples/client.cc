@@ -1495,8 +1495,8 @@ int Client::handle_error() {
   ngtcp2_ssize nwrite;
   if (last_error_.type == QUICErrorType::Transport) {
     nwrite = ngtcp2_conn_write_connection_close(
-        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code,
-        util::timestamp(loop_));
+        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code, nullptr,
+        0, util::timestamp(loop_));
     if (nwrite < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: "
                 << ngtcp2_strerror(nwrite) << std::endl;
@@ -1504,8 +1504,8 @@ int Client::handle_error() {
     }
   } else {
     nwrite = ngtcp2_conn_write_application_close(
-        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code,
-        util::timestamp(loop_));
+        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code, nullptr,
+        0, util::timestamp(loop_));
     if (nwrite < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: "
                 << ngtcp2_strerror(nwrite) << std::endl;

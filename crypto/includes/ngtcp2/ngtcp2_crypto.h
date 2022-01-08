@@ -779,14 +779,15 @@ NGTCP2_EXTERN int ngtcp2_crypto_verify_regular_token(
  * @function
  *
  * `ngtcp2_crypto_write_connection_close` writes Initial packet
- * containing CONNECTION_CLOSE with the given |error_code| to the
- * buffer pointed by |dest| of length |destlen|.  This function is
- * designed for server to close connection without committing the
- * state when validating Retry token fails.  This function must not be
- * used by client.  The |dcid| must be the Source Connection ID in
- * Initial packet from client.  The |scid| must be the Destination
- * Connection ID in Initial packet from client.  |scid| is used to
- * derive initial keying materials.
+ * containing CONNECTION_CLOSE with the given |error_code| and the
+ * optional |reason| of length |reasonlen| to the buffer pointed by
+ * |dest| of length |destlen|.  This function is designed for server
+ * to close connection without committing the state when validating
+ * Retry token fails.  This function must not be used by client.  The
+ * |dcid| must be the Source Connection ID in Initial packet from
+ * client.  The |scid| must be the Destination Connection ID in
+ * Initial packet from client.  |scid| is used to derive initial
+ * keying materials.
  *
  * This function wraps around `ngtcp2_pkt_write_connection_close` for
  * easier use.
@@ -795,7 +796,8 @@ NGTCP2_EXTERN int ngtcp2_crypto_verify_regular_token(
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_write_connection_close(
     uint8_t *dest, size_t destlen, uint32_t version, const ngtcp2_cid *dcid,
-    const ngtcp2_cid *scid, uint64_t error_code);
+    const ngtcp2_cid *scid, uint64_t error_code, const uint8_t *reason,
+    size_t reasonlen);
 
 /**
  * @function

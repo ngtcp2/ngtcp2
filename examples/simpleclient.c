@@ -633,8 +633,9 @@ static void client_close(struct client *c) {
 
   ngtcp2_path_storage_zero(&ps);
 
-  nwrite = ngtcp2_conn_write_connection_close(
-      c->conn, &ps.path, &pi, buf, sizeof(buf), c->last_error, timestamp());
+  nwrite = ngtcp2_conn_write_connection_close(c->conn, &ps.path, &pi, buf,
+                                              sizeof(buf), c->last_error, NULL,
+                                              0, timestamp());
   if (nwrite < 0) {
     fprintf(stderr, "ngtcp2_conn_write_connection_close: %s\n",
             ngtcp2_strerror((int)nwrite));

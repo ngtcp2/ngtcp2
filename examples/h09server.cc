@@ -1127,7 +1127,7 @@ int Handler::start_closing_period() {
   if (last_error_.type == QUICErrorType::Transport) {
     auto n = ngtcp2_conn_write_connection_close(
         conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
-        last_error_.code, util::timestamp(loop_));
+        last_error_.code, nullptr, 0, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
                 << std::endl;
@@ -1137,7 +1137,7 @@ int Handler::start_closing_period() {
   } else {
     auto n = ngtcp2_conn_write_application_close(
         conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
-        last_error_.code, util::timestamp(loop_));
+        last_error_.code, nullptr, 0, util::timestamp(loop_));
     if (n < 0) {
       std::cerr << "ngtcp2_conn_write_application_close: " << ngtcp2_strerror(n)
                 << std::endl;
@@ -1970,7 +1970,7 @@ int Server::send_stateless_connection_close(const ngtcp2_pkt_hd *chd,
 
   auto nwrite = ngtcp2_crypto_write_connection_close(
       buf.wpos(), buf.left(), chd->version, &chd->scid, &chd->dcid,
-      NGTCP2_INVALID_TOKEN);
+      NGTCP2_INVALID_TOKEN, nullptr, 0);
   if (nwrite < 0) {
     std::cerr << "ngtcp2_crypto_write_connection_close failed" << std::endl;
     return -1;

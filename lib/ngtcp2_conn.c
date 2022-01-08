@@ -11015,7 +11015,8 @@ fin:
 static ngtcp2_ssize
 conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
                             uint8_t *dest, size_t destlen, uint8_t pkt_type,
-                            uint64_t error_code, ngtcp2_tstamp ts) {
+                            uint64_t error_code, const uint8_t *reason,
+                            size_t reasonlen, ngtcp2_tstamp ts) {
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   ngtcp2_ssize res = 0, nwrite;
@@ -11024,8 +11025,8 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
   fr.connection_close.error_code = error_code;
   fr.connection_close.frame_type = 0;
-  fr.connection_close.reasonlen = 0;
-  fr.connection_close.reason = NULL;
+  fr.connection_close.reasonlen = reasonlen;
+  fr.connection_close.reason = (uint8_t *)reason;
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) &&
       pkt_type != NGTCP2_PKT_INITIAL) {
@@ -11077,7 +11078,7 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, uint64_t error_code,
-    ngtcp2_tstamp ts) {
+    const uint8_t *reason, size_t reasonlen, ngtcp2_tstamp ts) {
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   uint8_t pkt_type;
@@ -11122,7 +11123,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
   }
 
   nwrite = conn_write_connection_close(conn, pi, dest, destlen, pkt_type,
-                                       error_code, ts);
+                                       error_code, reason, reasonlen, ts);
   if (nwrite < 0) {
     return nwrite;
   }
@@ -11135,7 +11136,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
 ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, uint64_t app_error_code,
-    ngtcp2_tstamp ts) {
+    const uint8_t *reason, size_t reasonlen, ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
   ngtcp2_frame fr;
@@ -11170,7 +11171,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
                                          conn->hs_pktns->crypto.tx.ckm
                                              ? NGTCP2_PKT_HANDSHAKE
                                              : NGTCP2_PKT_INITIAL,
-                                         NGTCP2_APPLICATION_ERROR, ts);
+                                         NGTCP2_APPLICATION_ERROR, NULL, 0, ts);
     if (nwrite < 0) {
       return nwrite;
     }
@@ -11192,8 +11193,8 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE_APP;
   fr.connection_close.error_code = app_error_code;
   fr.connection_close.frame_type = 0;
-  fr.connection_close.reasonlen = 0;
-  fr.connection_close.reason = NULL;
+  fr.connection_close.reasonlen = reasonlen;
+  fr.connection_close.reason = (uint8_t *)reason;
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, pi, dest, destlen, NGTCP2_PKT_SHORT, &conn->dcid.current.cid, &fr,
@@ -12311,9 +12312,10 @@ void ngtcp2_transport_params_default_versioned(
    here. */
 ngtcp2_ssize ngtcp2_pkt_write_connection_close(
     uint8_t *dest, size_t destlen, uint32_t version, const ngtcp2_cid *dcid,
-    const ngtcp2_cid *scid, uint64_t error_code, ngtcp2_encrypt encrypt,
-    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_aead_ctx *aead_ctx,
-    const uint8_t *iv, ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
+    const ngtcp2_cid *scid, uint64_t error_code, const uint8_t *reason,
+    size_t reasonlen, ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead,
+    const ngtcp2_crypto_aead_ctx *aead_ctx, const uint8_t *iv,
+    ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
     const ngtcp2_crypto_cipher_ctx *hp_ctx) {
   ngtcp2_pkt_hd hd;
   ngtcp2_crypto_km ckm;
@@ -12353,6 +12355,8 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
 
   fr.type = NGTCP2_FRAME_CONNECTION_CLOSE;
   fr.connection_close.error_code = error_code;
+  fr.connection_close.reasonlen = reasonlen;
+  fr.connection_close.reason = (uint8_t *)reason;
 
   rv = ngtcp2_ppe_encode_frame(&ppe, &fr);
   if (rv != 0) {

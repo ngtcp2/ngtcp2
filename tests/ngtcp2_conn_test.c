@@ -6300,7 +6300,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
-                                               sizeof(buf), NGTCP2_NO_ERROR, 0);
+                                               sizeof(buf), NGTCP2_NO_ERROR,
+                                               (const uint8_t *)"foo", 3, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6325,8 +6326,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
 
-  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
-                                               sizeof(buf), NGTCP2_NO_ERROR, 0);
+  spktlen = ngtcp2_conn_write_connection_close(
+      conn, NULL, NULL, buf, sizeof(buf), NGTCP2_NO_ERROR, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6351,8 +6352,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
 
   conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
-                                               sizeof(buf), NGTCP2_NO_ERROR, 0);
+  spktlen = ngtcp2_conn_write_connection_close(
+      conn, NULL, NULL, buf, sizeof(buf), NGTCP2_NO_ERROR, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6376,8 +6377,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   /* Client has confirmed handshake */
   setup_default_client(&conn);
 
-  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
-                                               sizeof(buf), NGTCP2_NO_ERROR, 0);
+  spktlen = ngtcp2_conn_write_connection_close(
+      conn, NULL, NULL, buf, sizeof(buf), NGTCP2_NO_ERROR, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6404,8 +6405,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
 
-  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
-                                               sizeof(buf), NGTCP2_NO_ERROR, 0);
+  spktlen = ngtcp2_conn_write_connection_close(
+      conn, NULL, NULL, buf, sizeof(buf), NGTCP2_NO_ERROR, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6446,8 +6447,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
 
   conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
-                                               sizeof(buf), NGTCP2_NO_ERROR, 0);
+  spktlen = ngtcp2_conn_write_connection_close(
+      conn, NULL, NULL, buf, sizeof(buf), NGTCP2_NO_ERROR, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6480,8 +6481,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   /* Server has confirmed handshake */
   setup_default_server(&conn);
 
-  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
-                                               sizeof(buf), NGTCP2_NO_ERROR, 0);
+  spktlen = ngtcp2_conn_write_connection_close(
+      conn, NULL, NULL, buf, sizeof(buf), NGTCP2_NO_ERROR, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6513,7 +6514,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_conn_write_application_close(conn, NULL, NULL, buf,
-                                                sizeof(buf), app_err_code, 0);
+                                                sizeof(buf), app_err_code,
+                                                (const uint8_t *)"foo", 3, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6538,8 +6540,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
 
-  spktlen = ngtcp2_conn_write_application_close(conn, NULL, NULL, buf,
-                                                sizeof(buf), app_err_code, 0);
+  spktlen = ngtcp2_conn_write_application_close(
+      conn, NULL, NULL, buf, sizeof(buf), app_err_code, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6564,8 +6566,8 @@ void test_ngtcp2_conn_write_application_close(void) {
 
   conn->state = NGTCP2_CS_POST_HANDSHAKE;
 
-  spktlen = ngtcp2_conn_write_application_close(conn, NULL, NULL, buf,
-                                                sizeof(buf), app_err_code, 0);
+  spktlen = ngtcp2_conn_write_application_close(
+      conn, NULL, NULL, buf, sizeof(buf), app_err_code, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6589,8 +6591,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   /* Client has confirmed handshake */
   setup_default_client(&conn);
 
-  spktlen = ngtcp2_conn_write_application_close(conn, NULL, NULL, buf,
-                                                sizeof(buf), app_err_code, 0);
+  spktlen = ngtcp2_conn_write_application_close(
+      conn, NULL, NULL, buf, sizeof(buf), app_err_code, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6617,8 +6619,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
 
-  spktlen = ngtcp2_conn_write_application_close(conn, NULL, NULL, buf,
-                                                sizeof(buf), app_err_code, 0);
+  spktlen = ngtcp2_conn_write_application_close(
+      conn, NULL, NULL, buf, sizeof(buf), app_err_code, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6657,8 +6659,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_conn_install_tx_key(conn, null_secret, sizeof(null_secret), &aead_ctx,
                              null_iv, sizeof(null_iv), &hp_ctx);
 
-  spktlen = ngtcp2_conn_write_application_close(conn, NULL, NULL, buf,
-                                                sizeof(buf), app_err_code, 0);
+  spktlen = ngtcp2_conn_write_application_close(
+      conn, NULL, NULL, buf, sizeof(buf), app_err_code, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -6691,8 +6693,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   /* Server has confirmed handshake */
   setup_default_server(&conn);
 
-  spktlen = ngtcp2_conn_write_application_close(conn, NULL, NULL, buf,
-                                                sizeof(buf), app_err_code, 0);
+  spktlen = ngtcp2_conn_write_application_close(
+      conn, NULL, NULL, buf, sizeof(buf), app_err_code, NULL, 0, 0);
 
   CU_ASSERT(spktlen > 0);
 
@@ -8022,14 +8024,15 @@ void test_ngtcp2_pkt_write_connection_close(void) {
 
   spktlen = ngtcp2_pkt_write_connection_close(
       buf, sizeof(buf), NGTCP2_PROTO_VER_MAX, &dcid, &scid,
-      NGTCP2_INVALID_TOKEN, null_encrypt, &aead, &aead_ctx, null_iv,
-      null_hp_mask, &hp_mask, &hp_ctx);
+      NGTCP2_INVALID_TOKEN, (const uint8_t *)"foo", 3, null_encrypt, &aead,
+      &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
 
   CU_ASSERT(spktlen > 0);
 
   spktlen = ngtcp2_pkt_write_connection_close(
-      buf, 16, NGTCP2_PROTO_VER_MAX, &dcid, &scid, NGTCP2_INVALID_TOKEN,
-      null_encrypt, &aead, &aead_ctx, null_iv, null_hp_mask, &hp_mask, &hp_ctx);
+      buf, 16, NGTCP2_PROTO_VER_MAX, &dcid, &scid, NGTCP2_INVALID_TOKEN, NULL,
+      0, null_encrypt, &aead, &aead_ctx, null_iv, null_hp_mask, &hp_mask,
+      &hp_ctx);
 
   CU_ASSERT(NGTCP2_ERR_NOBUF == spktlen);
 }
