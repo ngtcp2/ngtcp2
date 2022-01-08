@@ -50,11 +50,11 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   ssl_ = SSL_new(ssl_ctx);
   if (!ssl_) {
-    std::cerr << "SSL_new: "
-              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    std::cerr << "SSL_new: " << ERR_error_string(ERR_get_error(), nullptr)
+              << std::endl;
     return -1;
   }
-  
+
   SSL_set_app_data(ssl_, client);
   SSL_set_connect_state(ssl_);
 
