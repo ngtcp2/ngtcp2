@@ -22,13 +22,14 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "tls_server_session_openssl.h"
+
 #include <iostream>
 
-#include "tls_server_session_openssl.h"
+#include <openssl/err.h>
+
 #include "tls_server_context_openssl.h"
 #include "server_base.h"
-
-#include <openssl/err.h>
 
 TLSServerSession::TLSServerSession() {}
 
