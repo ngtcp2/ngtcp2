@@ -10,8 +10,15 @@ jobs:
       matrix:
         os: [ubuntu-20.04, macos-10.15]
         compiler: [gcc, clang]
-        buildtool: [autotools, cmake]
+        buildtool: [autotools, distcheck, cmake]
         openssl: [openssl1, openssl3]
+        exclude:
+        - os: macos-10.15
+          buildtool: distcheck
+        - compiler: gcc
+          buildtool: distcheck
+        - openssl: openssl3
+          buildtool: distcheck
 
     steps:
     - uses: actions/checkout@v2
@@ -102,6 +109,10 @@ jobs:
         autoreconf -i && \
         ./configure --enable-werror \
           --with-openssl --with-gnutls --with-boringssl
+    - name: Configure autotools for distcheck
+      if: matrix.buildtool == 'distcheck'
+      run: |
+        autoreconf -i && ./configure
     - name: Configure cmake
       if: matrix.buildtool == 'cmake'
       run: |
@@ -109,10 +120,17 @@ jobs:
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
           -DBORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/" .
     - name: Build ngtcp2
+      if: matrix.buildtool != 'distcheck'
       run: |
         make
         make check
+    - name: Build ngtcp2 with distcheck
+      if: matrix.buildtool == 'distcheck'
+      run: |
+        make distcheck \
+          DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl"
     - name: Integration test
+      if: matrix.buildtool != 'distcheck'
       run: |
         ./ci/gen-certificate.sh
         NETTLE_PATH=$PWD/nettle-3.6/build/lib64
