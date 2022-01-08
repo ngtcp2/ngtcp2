@@ -43,6 +43,12 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
   auto ssl_ctx = tls_ctx.get_native_handle();
 
   ssl_ = SSL_new(ssl_ctx);
+  if (!ssl_) {
+    std::cerr << "SSL_new: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    return -1;
+  }
+  
   SSL_set_app_data(ssl_, handler);
   SSL_set_accept_state(ssl_);
   SSL_set_early_data_enabled(ssl_, 1);

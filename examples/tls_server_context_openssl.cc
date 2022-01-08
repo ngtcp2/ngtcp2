@@ -247,7 +247,12 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
   constexpr static unsigned char sid_ctx[] = "ngtcp2 server";
 
   ssl_ctx_ = SSL_CTX_new(TLS_server_method());
-
+  if (!ssl_ctx_) {
+    std::cerr << "SSSL_CTX_new: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    return -1;
+  }
+  
   constexpr auto ssl_opts = (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                             SSL_OP_SINGLE_ECDH_USE |
                             SSL_OP_CIPHER_SERVER_PREFERENCE |

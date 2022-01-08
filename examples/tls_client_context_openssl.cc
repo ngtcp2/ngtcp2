@@ -127,6 +127,11 @@ auto quic_method = SSL_QUIC_METHOD{
 int TLSClientContext::init(const char *private_key_file,
                            const char *cert_file) {
   ssl_ctx_ = SSL_CTX_new(TLS_client_method());
+  if (!ssl_ctx_) {
+    std::cerr << "SSL_CTX_new: "
+              << ERR_error_string(ERR_get_error(), nullptr) << std::endl;
+    return -1;
+  }
 
   SSL_CTX_set_min_proto_version(ssl_ctx_, TLS1_3_VERSION);
   SSL_CTX_set_max_proto_version(ssl_ctx_, TLS1_3_VERSION);
