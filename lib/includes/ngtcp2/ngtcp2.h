@@ -1765,6 +1765,16 @@ typedef struct ngtcp2_path {
   /**
    * :member:`user_data` is an arbitrary data and opaque to the
    * library.
+   *
+   * Note that :type:`ngtcp2_path` is generally passed to
+   * :type:`ngtcp2_conn` by an application, and :type:`ngtcp2_conn`
+   * stores their copies.  Unfortunately, there is no way for the
+   * application to know when :type:`ngtcp2_conn` finishes using a
+   * specific :type:`ngtcp2_path` object in mid connection, which
+   * means that the application cannot free the data pointed by this
+   * field.  Therefore, it is advised to use this field only when the
+   * data pointed by this field persists in an entire lifetime of the
+   * connection.
    */
   void *user_data;
 } ngtcp2_path;
