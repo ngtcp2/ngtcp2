@@ -4395,29 +4395,6 @@ NGTCP2_EXTERN void ngtcp2_conn_get_conn_stat_versioned(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_on_loss_detection_timer` should be called when a timer
- * returned from `ngtcp2_conn_earliest_expiry` fires.
- *
- * Application should call `ngtcp2_conn_handshake` if handshake has
- * not completed, otherwise `ngtcp2_conn_write_pkt` (or
- * `ngtcp2_conn_write_stream` if it has data to send) to send PTO
- * probe packets.
- *
- * This function must not be called from inside the callback
- * functions.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :macro:`NGTCP2_ERR_NOMEM`
- *     Out of memory
- */
-NGTCP2_EXTERN int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn,
-                                                      ngtcp2_tstamp ts);
-
-/**
- * @function
- *
  * `ngtcp2_conn_submit_crypto_data` submits crypto stream data |data|
  * of length |datalen| to the library for transmission.  The
  * encryption level is given in |crypto_level|.
