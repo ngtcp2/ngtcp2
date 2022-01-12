@@ -30,7 +30,19 @@ if ENABLE_EXAMPLES
 SUBDIRS += third-party examples
 endif
 
+dist_doc_DATA = README.rst
+
 ACLOCAL_AMFLAGS = -I m4
+
+EXTRA_DIST = \
+	cmakeconfig.h.in \
+	CMakeLists.txt \
+	CMakeOptions.txt \
+	cmake/ExtractValidFlags.cmake \
+	cmake/FindCUnit.cmake \
+	cmake/FindLibev.cmake \
+	cmake/FindLibnghttp3.cmake \
+	cmake/Version.cmake
 
 # Format source files using clang-format.  Don't format source files
 # under third-party directory since we are not responsible for thier

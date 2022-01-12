@@ -37,3 +37,5 @@ endif
 if HAVE_BORINGSSL
 SUBDIRS += boringssl
 endif
+
+EXTRA_DIST = CMakeLists.txt
