@@ -34,10 +34,7 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libngtcp2_crypto_boringssl.pc
 DISTCLEANFILES = $(pkgconfig_DATA)
 
-lib_LTLIBRARIES = libngtcp2_crypto_boringssl.la
+lib_LIBRARIES = libngtcp2_crypto_boringssl.a
 
-libngtcp2_crypto_boringssl_la_SOURCES = boringssl.c ../shared.c ../shared.h
-libngtcp2_crypto_boringssl_la_LDFLAGS = -no-undefined \
-	-version-info $(CRYPTO_BORINGSSL_LT_CURRENT):$(CRYPTO_BORINGSSL_LT_REVISION):$(CRYPTO_BORINGSSL_LT_AGE) \
-	@BORINGSSL_LIBS@
-libngtcp2_crypto_boringssl_la_LIBADD = $(top_builddir)/lib/libngtcp2.la
+libngtcp2_crypto_boringssl_a_SOURCES = boringssl.c ../shared.c ../shared.h
+libngtcp2_crypto_boringssl_a_LIBADD = $(top_builddir)/lib/libngtcp2.la

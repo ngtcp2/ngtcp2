@@ -43,30 +43,11 @@ foreach(name libngtcp2_crypto_boringssl.pc)
   configure_file("${name}.in" "${name}" @ONLY)
 endforeach()
 
-# Public shared library
-if(ENABLE_SHARED_LIB)
-  add_library(ngtcp2_crypto_boringssl SHARED ${ngtcp2_crypto_boringssl_SOURCES})
-  set_target_properties(ngtcp2_crypto_boringssl PROPERTIES
-    COMPILE_FLAGS "${WARNCFLAGS}"
-    VERSION ${CRYPTO_BORINGSSL_LT_VERSION}
-    SOVERSION ${CRYPTO_BORINGSSL_LT_SOVERSION}
-    C_VISIBILITY_PRESET hidden
-    POSITION_INDEPENDENT_CODE ON
-  )
-  target_include_directories(ngtcp2_crypto_boringssl PUBLIC
-    ${ngtcp2_crypto_boringssl_INCLUDE_DIRS})
-
-  install(TARGETS ngtcp2_crypto_boringssl
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-endif()
-
 if(ENABLE_STATIC_LIB)
   # Public static library
   add_library(ngtcp2_crypto_boringssl_static ${ngtcp2_crypto_boringssl_SOURCES})
   set_target_properties(ngtcp2_crypto_boringssl_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
-    VERSION ${CRYPTO_BORINGSSL_LT_VERSION}
-    SOVERSION ${CRYPTO_BORINGSSL_LT_SOVERSION}
   )
   target_compile_definitions(ngtcp2_crypto_boringssl_static PUBLIC
     "-DNGTCP2_STATICLIB")

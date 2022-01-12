@@ -189,7 +189,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
   )
 
   set(bssl_LIBS
-    ngtcp2_crypto_boringssl
+    ngtcp2_crypto_boringssl_static
     ngtcp2
     ${BORINGSSL_LIBRARIES}
     ${LIBEV_LIBRARIES}

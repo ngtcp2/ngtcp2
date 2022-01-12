@@ -150,7 +150,7 @@ noinst_PROGRAMS += bsslclient bsslserver
 
 bsslclient_CPPFLAGS = ${AM_CPPFLAGS} @BORINGSSL_CFLAGS@ -DWITH_EXAMPLE_BORINGSSL
 bsslclient_LDADD = ${LDADD} \
-	$(top_builddir)/crypto/boringssl/libngtcp2_crypto_boringssl.la \
+	$(top_builddir)/crypto/boringssl/libngtcp2_crypto_boringssl.a \
 	@BORINGSSL_LIBS@
 bsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
 	tls_client_context_boringssl.cc tls_client_context_boringssl.h \
