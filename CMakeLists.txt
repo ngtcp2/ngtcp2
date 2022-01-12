@@ -336,7 +336,8 @@ message(STATUS "summary of build options:
       WARNCFLAGS:     ${WARNCFLAGS}
       WARNCXXFLAGS:   ${WARNCXXFLAGS}
     Library:
-      Shared:         ${BUILD_SHARED_LIBS}
+      Shared:         ${ENABLE_SHARED_LIB}
+      Static:         ${ENABLE_STATIC_LIB}
     Test:
       CUnit:          ${HAVE_CUNIT} (LIBS='${CUNIT_LIBRARIES}')
     Libs:
