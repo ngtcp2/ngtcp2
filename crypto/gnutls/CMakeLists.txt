@@ -55,6 +55,7 @@ if(ENABLE_SHARED_LIB)
   )
   target_include_directories(ngtcp2_crypto_gnutls PUBLIC
     ${ngtcp2_crypto_gnutls_INCLUDE_DIRS})
+  target_link_libraries(ngtcp2_crypto_gnutls ngtcp2 ${GNUTLS_LIBRARIES})
 
   install(TARGETS ngtcp2_crypto_gnutls
     DESTINATION "${CMAKE_INSTALL_LIBDIR}")
