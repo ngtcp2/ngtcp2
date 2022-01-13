@@ -64,7 +64,7 @@ CLIENT_SRCS = \
 noinst_PROGRAMS =
 
 if ENABLE_EXAMPLE_OPENSSL
-noinst_PROGRAMS += client server h09client h09server perfserver simpleclient
+noinst_PROGRAMS += client server h09client h09server simpleclient
 
 simpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @OPENSSL_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
@@ -105,14 +105,6 @@ h09client_SOURCES = h09client.cc h09client.h ${CLIENT_SRCS} \
 h09server_CPPFLAGS = ${client_CPPFLAGS}
 h09server_LDADD = ${client_LDADD}
 h09server_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
-	tls_server_context_openssl.cc tls_server_context_openssl.h \
-	tls_server_session_openssl.cc tls_server_session_openssl.h \
-	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc util_aead_openssl.cc
-
-perfserver_CPPFLAGS = ${client_CPPFLAGS}
-perfserver_LDADD = ${client_LDADD}
-perfserver_SOURCES = perfserver.cc perfserver.h ${SERVER_SRCS} \
 	tls_server_context_openssl.cc tls_server_context_openssl.h \
 	tls_server_session_openssl.cc tls_server_session_openssl.h \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
