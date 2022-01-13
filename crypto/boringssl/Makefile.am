@@ -37,4 +37,3 @@ DISTCLEANFILES = $(pkgconfig_DATA)
 lib_LIBRARIES = libngtcp2_crypto_boringssl.a
 
 libngtcp2_crypto_boringssl_a_SOURCES = boringssl.c ../shared.c ../shared.h
-libngtcp2_crypto_boringssl_a_LIBADD = $(top_builddir)/lib/libngtcp2.la
