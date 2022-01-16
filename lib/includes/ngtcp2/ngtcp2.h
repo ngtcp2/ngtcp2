@@ -32,10 +32,6 @@
 #  define WIN32
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdlib.h>
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
 /* MSVC < 2013 does not have inttypes.h because it is not C99
@@ -80,6 +76,10 @@ extern "C" {
 #  define NGTCP2_ALIGN_BEFORE(N)
 #  define NGTCP2_ALIGN_AFTER(N) __attribute__((aligned(N)))
 #endif /* !WIN32 */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * @typedef
