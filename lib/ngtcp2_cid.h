@@ -34,7 +34,7 @@
 #include "ngtcp2_pq.h"
 #include "ngtcp2_path.h"
 
-/* NGTCP2_SCID_FLAG_NONE indicats that no flag is set. */
+/* NGTCP2_SCID_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_SCID_FLAG_NONE 0x00
 /* NGTCP2_SCID_FLAG_USED indicates that a local endpoint observed that
    a remote endpoint uses a particular Connection ID. */
