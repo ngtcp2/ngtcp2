@@ -31,6 +31,10 @@
 extern "C" {
 #endif
 
+#ifdef WIN32
+#  include <ws2tcpip.h>
+#endif /* WIN32 */
+
 /**
  * @macro
  *
