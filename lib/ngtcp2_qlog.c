@@ -410,14 +410,15 @@ static uint8_t *write_crypto_frame(uint8_t *p, const ngtcp2_crypto *fr) {
 
 static uint8_t *write_new_token_frame(uint8_t *p, const ngtcp2_new_token *fr) {
   /*
-   * {"frame_type":"new_token","length":0000000000000000000,"token":""}
+   * {"frame_type":"new_token","length":0000000000000000000,"token":{"data":""}}
    */
-#define NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD 66
+#define NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD 75
 
   p = write_verbatim(p, "{\"frame_type\":\"new_token\",");
   p = write_pair_number(p, "length", fr->token.len);
-  *p++ = ',';
-  p = write_pair_hex(p, "token", fr->token.base, fr->token.len);
+  p = write_verbatim(p, ",\"token\":{");
+  p = write_pair_hex(p, "data", fr->token.base, fr->token.len);
+  *p++ = '}';
   *p++ = '}';
 
   return p;
@@ -541,9 +542,9 @@ static uint8_t *write_streams_blocked_frame(uint8_t *p,
 static uint8_t *
 write_new_connection_id_frame(uint8_t *p, const ngtcp2_new_connection_id *fr) {
   /*
-   * {"frame_type":"new_connection_id","sequence_number":0000000000000000000,"retire_prior_to":0000000000000000000,"connection_id_length":0000000000000000000,"connection_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","stateless_reset_token":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+   * {"frame_type":"new_connection_id","sequence_number":0000000000000000000,"retire_prior_to":0000000000000000000,"connection_id_length":0000000000000000000,"connection_id":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx","stateless_reset_token":{"data":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}
    */
-#define NGTCP2_QLOG_NEW_CONNECTION_ID_FRAME_OVERHEAD 271
+#define NGTCP2_QLOG_NEW_CONNECTION_ID_FRAME_OVERHEAD 280
 
   p = write_verbatim(p, "{\"frame_type\":\"new_connection_id\",");
   p = write_pair_number(p, "sequence_number", fr->seq);
@@ -553,9 +554,10 @@ write_new_connection_id_frame(uint8_t *p, const ngtcp2_new_connection_id *fr) {
   p = write_pair_number(p, "connection_id_length", fr->cid.datalen);
   *p++ = ',';
   p = write_pair_cid(p, "connection_id", &fr->cid);
-  *p++ = ',';
-  p = write_pair_hex(p, "stateless_reset_token", fr->stateless_reset_token,
+  p = write_verbatim(p, ",\"stateless_reset_token\":{");
+  p = write_pair_hex(p, "data", fr->stateless_reset_token,
                      sizeof(fr->stateless_reset_token));
+  *p++ = '}';
   *p++ = '}';
 
   return p;
@@ -960,9 +962,10 @@ void ngtcp2_qlog_parameters_set_transport_params(
     *p++ = ',';
   }
   if (params->stateless_reset_token_present) {
-    p = write_pair_hex(p, "stateless_reset_token",
-                       params->stateless_reset_token,
+    p = write_verbatim(p, "\"stateless_reset_token\":{");
+    p = write_pair_hex(p, "data", params->stateless_reset_token,
                        sizeof(params->stateless_reset_token));
+    *p++ = '}';
     *p++ = ',';
   }
   p = write_pair_bool(p, "disable_active_migration",
@@ -1011,9 +1014,10 @@ void ngtcp2_qlog_parameters_set_transport_params(
     p = write_pair_number(p, "port_v6", paddr->ipv6_port);
     *p++ = ',';
     p = write_pair_cid(p, "connection_id", &paddr->cid);
-    *p++ = ',';
-    p = write_pair_hex(p, "stateless_reset_token", paddr->stateless_reset_token,
+    p = write_verbatim(p, ",\"stateless_reset_token\":{");
+    p = write_pair_hex(p, "data", paddr->stateless_reset_token,
                        sizeof(paddr->stateless_reset_token));
+    *p++ = '}';
     *p++ = '}';
   }
   *p++ = ',';
