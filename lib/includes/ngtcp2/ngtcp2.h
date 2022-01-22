@@ -32,6 +32,11 @@
 #  define WIN32
 #endif
 
+#ifdef WIN32
+#  pragma warning(push)
+#  pragma warning(disable : 4324)
+#endif
+
 #include <stdlib.h>
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
 /* MSVC < 2013 does not have inttypes.h because it is not C99
@@ -70,11 +75,9 @@
 #endif   /* !defined(WIN32) */
 
 #ifdef WIN32
-#  define NGTCP2_ALIGN_BEFORE(N) __declspec(align(N))
-#  define NGTCP2_ALIGN_AFTER(N)
+#  define NGTCP2_ALIGN(N) __declspec(align(N))
 #else /* !WIN32 */
-#  define NGTCP2_ALIGN_BEFORE(N)
-#  define NGTCP2_ALIGN_AFTER(N) __attribute__((aligned(N)))
+#  define NGTCP2_ALIGN(N) __attribute__((aligned(N)))
 #endif /* !WIN32 */
 
 #ifdef __cplusplus
@@ -456,7 +459,7 @@ typedef struct ngtcp2_mem {
  *
  * :type:`ngtcp2_pkt_info` is a packet metadata.
  */
-typedef NGTCP2_ALIGN_BEFORE(8) struct NGTCP2_ALIGN_AFTER(8) ngtcp2_pkt_info {
+typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
   /**
    * :member:`ecn` is ECN marking and when passing
    * `ngtcp2_conn_read_pkt()`, and it should be either
@@ -5172,6 +5175,10 @@ NGTCP2_EXTERN int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
  */
 #define ngtcp2_settings_default(SETTINGS)                                      \
   ngtcp2_settings_default_versioned(NGTCP2_SETTINGS_VERSION, (SETTINGS))
+
+#ifdef WIN32
+#  pragma warning(pop)
+#endif
 
 #ifdef __cplusplus
 }
