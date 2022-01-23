@@ -2022,9 +2022,11 @@ ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
  * Negotiation packet has random type in wire format.  For
  * convenience, this function sets
  * :enum:`ngtcp2_pkt_type.NGTCP2_PKT_VERSION_NEGOTIATION` to
- * :member:`dest->type <ngtcp2_pkt_hd.type>`, and sets 0 to
- * :member:`dest->len <ngtcp2_pkt_hd.len>`.  Version Negotiation
- * packet occupies a single packet.
+ * :member:`dest->type <ngtcp2_pkt_hd.type>`, clears
+ * :macro:`NGTCP2_PKT_FLAG_LONG_FORM` flag from :member:`dest->flags
+ * <ngtcp2_pkt_hd.flags>`, and sets 0 to :member:`dest->len
+ * <ngtcp2_pkt_hd.len>`.  Version Negotiation packet occupies a single
+ * packet.
  *
  * It stores the result in the object pointed by |dest|, and returns
  * the number of bytes decoded to read the packet header if it

@@ -5760,8 +5760,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
-  switch (hd.type) {
-  case NGTCP2_PKT_VERSION_NEGOTIATION:
+  if (!(hd.flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
+      hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
     hdpktlen = (size_t)nread;
 
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -5797,7 +5797,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
     return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
-  case NGTCP2_PKT_RETRY:
+  } else if (hd.type == NGTCP2_PKT_RETRY) {
     hdpktlen = (size_t)nread;
 
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
