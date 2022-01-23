@@ -4766,6 +4766,8 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 
   ngtcp2_log_rx_vn(&conn->log, hd, p, nsv);
 
+  ngtcp2_qlog_version_negotiation_pkt_received(&conn->qlog, hd, p, nsv);
+
   for (i = 0; i < nsv; ++i) {
     if (p[i] == conn->version) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
