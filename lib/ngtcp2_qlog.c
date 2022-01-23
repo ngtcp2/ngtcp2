@@ -238,6 +238,8 @@ static ngtcp2_vec vec_pkt_type_handshake = ngtcp2_make_vec_lit("handshake");
 static ngtcp2_vec vec_pkt_type_0rtt = ngtcp2_make_vec_lit("0RTT");
 static ngtcp2_vec vec_pkt_type_1rtt = ngtcp2_make_vec_lit("1RTT");
 static ngtcp2_vec vec_pkt_type_retry = ngtcp2_make_vec_lit("retry");
+static ngtcp2_vec vec_pkt_type_stateless_reset =
+    ngtcp2_make_vec_lit("stateless_reset");
 static ngtcp2_vec vec_pkt_type_unknown = ngtcp2_make_vec_lit("unknown");
 
 static const ngtcp2_vec *qlog_pkt_type(const ngtcp2_pkt_hd *hd) {
@@ -256,7 +258,14 @@ static const ngtcp2_vec *qlog_pkt_type(const ngtcp2_pkt_hd *hd) {
     }
   }
 
-  return &vec_pkt_type_1rtt;
+  switch (hd->type) {
+  case NGTCP2_PKT_STATELESS_RESET:
+    return &vec_pkt_type_stateless_reset;
+  case NGTCP2_PKT_SHORT:
+    return &vec_pkt_type_1rtt;
+  default:
+    return &vec_pkt_type_unknown;
+  }
 }
 
 static uint8_t *write_pkt_hd(uint8_t *p, const ngtcp2_pkt_hd *hd) {
@@ -1118,4 +1127,31 @@ void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 
   qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf.pos,
               ngtcp2_buf_len(&buf));
+}
+
+void ngtcp2_qlog_stateless_reset_pkt_received(
+    ngtcp2_qlog *qlog, const ngtcp2_pkt_stateless_reset *sr) {
+  uint8_t buf[256];
+  uint8_t *p = buf;
+  ngtcp2_pkt_hd hd = {0};
+
+  if (!qlog->write) {
+    return;
+  }
+
+  hd.type = NGTCP2_PKT_STATELESS_RESET;
+
+  *p++ = '\x1e';
+  *p++ = '{';
+  p = qlog_write_time(qlog, p);
+  p = write_verbatim(
+      p, ",\"name\":\"transport:packet_received\",\"data\":{\"header\":");
+  p = write_pkt_hd(p, &hd);
+  *p++ = ',';
+  p = write_pair_hex(p, "stateless_reset_token", sr->stateless_reset_token,
+                     NGTCP2_STATELESS_RESET_TOKENLEN);
+  p = write_verbatim(p, "}}\n");
+
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
+              (size_t)(p - buf));
 }

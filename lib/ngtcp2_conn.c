@@ -7115,6 +7115,8 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_log_rx_sr(&conn->log, &sr);
 
+  ngtcp2_qlog_stateless_reset_pkt_received(&conn->qlog, &sr);
+
   return conn_call_recv_stateless_reset(conn, &sr);
 }
 
