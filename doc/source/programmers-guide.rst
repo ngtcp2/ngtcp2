@@ -285,17 +285,14 @@ Error handling in general
 -------------------------
 
 In general, when error is returned from the ngtcp2 library function,
-just close QUIC connection.
-
-If `ngtcp2_err_is_fatal()` returns true with the returned error code,
-:type:`ngtcp2_conn` object must be deleted with `ngtcp2_conn_del()`
-without any ngtcp2 library functions.  Otherwise, call
-`ngtcp2_conn_write_connection_close()` to get terminal packet.
+call `ngtcp2_conn_write_connection_close()` or
+`ngtcp2_conn_write_application_close()` to get terminal packet.
 Sending it finishes QUIC connection.
 
 If :macro:`NGTCP2_ERR_DROP_CONN` is returned from
 `ngtcp2_conn_read_pkt`, a connection should be dropped without calling
-`ngtcp2_conn_write_connection_close()`.
+`ngtcp2_conn_write_connection_close()` or
+`ngtcp2_conn_write_application_close()`.
 
 The following error codes must be considered as transitional, and
 application should keep connection alive:
