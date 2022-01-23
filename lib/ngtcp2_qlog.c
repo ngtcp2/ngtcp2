@@ -28,6 +28,7 @@
 
 #include "ngtcp2_str.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_conv.h"
 
 void ngtcp2_qlog_init(ngtcp2_qlog *qlog, ngtcp2_qlog_write write,
                       ngtcp2_tstamp ts, void *user_data) {
@@ -238,6 +239,8 @@ static ngtcp2_vec vec_pkt_type_handshake = ngtcp2_make_vec_lit("handshake");
 static ngtcp2_vec vec_pkt_type_0rtt = ngtcp2_make_vec_lit("0RTT");
 static ngtcp2_vec vec_pkt_type_1rtt = ngtcp2_make_vec_lit("1RTT");
 static ngtcp2_vec vec_pkt_type_retry = ngtcp2_make_vec_lit("retry");
+static ngtcp2_vec vec_pkt_type_version_negotiation =
+    ngtcp2_make_vec_lit("version_negotiation");
 static ngtcp2_vec vec_pkt_type_stateless_reset =
     ngtcp2_make_vec_lit("stateless_reset");
 static ngtcp2_vec vec_pkt_type_unknown = ngtcp2_make_vec_lit("unknown");
@@ -259,6 +262,8 @@ static const ngtcp2_vec *qlog_pkt_type(const ngtcp2_pkt_hd *hd) {
   }
 
   switch (hd->type) {
+  case NGTCP2_PKT_VERSION_NEGOTIATION:
+    return &vec_pkt_type_version_negotiation;
   case NGTCP2_PKT_STATELESS_RESET:
     return &vec_pkt_type_stateless_reset;
   case NGTCP2_PKT_SHORT:
@@ -1154,4 +1159,50 @@ void ngtcp2_qlog_stateless_reset_pkt_received(
 
   qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
               (size_t)(p - buf));
+}
+
+void ngtcp2_qlog_version_negotiation_pkt_received(ngtcp2_qlog *qlog,
+                                                  const ngtcp2_pkt_hd *hd,
+                                                  const uint32_t *sv,
+                                                  size_t nsv) {
+  uint8_t rawbuf[512];
+  ngtcp2_buf buf;
+  size_t i;
+  uint32_t v;
+
+  if (!qlog->write) {
+    return;
+  }
+
+  ngtcp2_buf_init(&buf, rawbuf, sizeof(rawbuf));
+
+  *buf.last++ = '\x1e';
+  *buf.last++ = '{';
+  buf.last = qlog_write_time(qlog, buf.last);
+  buf.last = write_verbatim(
+      buf.last,
+      ",\"name\":\"transport:packet_received\",\"data\":{\"header\":");
+  buf.last = write_pkt_hd(buf.last, hd);
+  buf.last = write_verbatim(buf.last, ",\"supported_versions\":[");
+
+  if (nsv) {
+    if (ngtcp2_buf_left(&buf) <
+        (sizeof("\"xxxxxxxx\",") - 1) * nsv - 1 + sizeof("]}}\n") - 1) {
+      return;
+    }
+
+    v = ngtcp2_htonl(sv[0]);
+    buf.last = write_hex(buf.last, (const uint8_t *)&v, sizeof(v));
+
+    for (i = 1; i < nsv; ++i) {
+      *buf.last++ = ',';
+      v = ngtcp2_htonl(sv[i]);
+      buf.last = write_hex(buf.last, (const uint8_t *)&v, sizeof(v));
+    }
+  }
+
+  buf.last = write_verbatim(buf.last, "]}}\n");
+
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf.pos,
+              ngtcp2_buf_len(&buf));
 }
