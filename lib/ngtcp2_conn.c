@@ -4943,7 +4943,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return 0;
   }
 
-  ngtcp2_qlog_retry_pkt_received(&conn->qlog, hd);
+  ngtcp2_qlog_retry_pkt_received(&conn->qlog, hd, &retry);
 
   /* DCID must be updated before invoking callback because client
      generates new initial keys there. */
@@ -7114,6 +7114,8 @@ static int conn_on_stateless_reset(ngtcp2_conn *conn, const ngtcp2_path *path,
   conn->state = NGTCP2_CS_DRAINING;
 
   ngtcp2_log_rx_sr(&conn->log, &sr);
+
+  ngtcp2_qlog_stateless_reset_pkt_received(&conn->qlog, &sr);
 
   return conn_call_recv_stateless_reset(conn, &sr);
 }
