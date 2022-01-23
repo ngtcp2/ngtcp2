@@ -1097,23 +1097,35 @@ void ngtcp2_qlog_pkt_lost(ngtcp2_qlog *qlog, ngtcp2_rtb_entry *ent) {
               (size_t)(p - buf));
 }
 
-void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog,
-                                    const ngtcp2_pkt_hd *hd) {
-  uint8_t buf[256];
-  uint8_t *p = buf;
+void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
+                                    const ngtcp2_pkt_retry *retry) {
+  uint8_t rawbuf[1024];
+  ngtcp2_buf buf;
 
   if (!qlog->write) {
     return;
   }
 
-  *p++ = '\x1e';
-  *p++ = '{';
-  p = qlog_write_time(qlog, p);
-  p = write_verbatim(
-      p, ",\"name\":\"transport:packet_received\",\"data\":{\"header\":");
-  p = write_pkt_hd(p, hd);
-  p = write_verbatim(p, "}}\n");
+  ngtcp2_buf_init(&buf, rawbuf, sizeof(rawbuf));
 
-  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf,
-              (size_t)(p - buf));
+  *buf.last++ = '\x1e';
+  *buf.last++ = '{';
+  buf.last = qlog_write_time(qlog, buf.last);
+  buf.last = write_verbatim(
+      buf.last,
+      ",\"name\":\"transport:packet_received\",\"data\":{\"header\":");
+  buf.last = write_pkt_hd(buf.last, hd);
+  buf.last = write_verbatim(buf.last, ",\"retry_token\":{");
+
+  if (ngtcp2_buf_left(&buf) <
+      sizeof("\"data\":\"\"}}}\n") - 1 + retry->token.len * 2) {
+    return;
+  }
+
+  buf.last =
+      write_pair_hex(buf.last, "data", retry->token.base, retry->token.len);
+  buf.last = write_verbatim(buf.last, "}}}\n");
+
+  qlog->write(qlog->user_data, NGTCP2_QLOG_WRITE_FLAG_NONE, buf.pos,
+              ngtcp2_buf_len(&buf));
 }

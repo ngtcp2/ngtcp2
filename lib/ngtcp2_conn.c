@@ -4943,7 +4943,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
     return 0;
   }
 
-  ngtcp2_qlog_retry_pkt_received(&conn->qlog, hd);
+  ngtcp2_qlog_retry_pkt_received(&conn->qlog, hd, &retry);
 
   /* DCID must be updated before invoking callback because client
      generates new initial keys there. */

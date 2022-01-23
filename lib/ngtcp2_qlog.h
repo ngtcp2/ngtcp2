@@ -139,6 +139,7 @@ void ngtcp2_qlog_pkt_lost(ngtcp2_qlog *qlog, ngtcp2_rtb_entry *ent);
  * ngtcp2_qlog_retry_pkt_received writes packet_received event for a
  * received Retry packet.
  */
-void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd);
+void ngtcp2_qlog_retry_pkt_received(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
+                                    const ngtcp2_pkt_retry *retry);
 
 #endif /* NGTCP2_QLOG_H */
