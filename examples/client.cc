@@ -1822,8 +1822,8 @@ int http_recv_header(nghttp3_conn *conn, int64_t stream_id, int32_t token,
 } // namespace
 
 namespace {
-int http_end_headers(nghttp3_conn *conn, int64_t stream_id, void *user_data,
-                     void *stream_user_data) {
+int http_end_headers(nghttp3_conn *conn, int64_t stream_id, int fin,
+                     void *user_data, void *stream_user_data) {
   if (!config.quiet) {
     debug::print_http_end_headers(stream_id);
   }
@@ -1853,8 +1853,8 @@ int http_recv_trailer(nghttp3_conn *conn, int64_t stream_id, int32_t token,
 } // namespace
 
 namespace {
-int http_end_trailers(nghttp3_conn *conn, int64_t stream_id, void *user_data,
-                      void *stream_user_data) {
+int http_end_trailers(nghttp3_conn *conn, int64_t stream_id, int fin,
+                      void *user_data, void *stream_user_data) {
   if (!config.quiet) {
     debug::print_http_end_trailers(stream_id);
   }

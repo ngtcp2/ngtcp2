@@ -1050,7 +1050,7 @@ void Handler::http_recv_request_header(Stream *stream, int32_t token,
 }
 
 namespace {
-int http_end_request_headers(nghttp3_conn *conn, int64_t stream_id,
+int http_end_request_headers(nghttp3_conn *conn, int64_t stream_id, int fin,
                              void *user_data, void *stream_user_data) {
   if (!config.quiet) {
     debug::print_http_end_headers(stream_id);
