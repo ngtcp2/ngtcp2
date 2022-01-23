@@ -403,7 +403,8 @@ ngtcp2_ssize pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   ngtcp2_ssize nread;
 
   nread = ngtcp2_pkt_decode_hd_long(dest, pkt, pktlen);
-  if (nread < 0 || dest->type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+  if (nread < 0 || (!(dest->flags & NGTCP2_PKT_FLAG_LONG_FORM) &&
+                    dest->type == NGTCP2_PKT_VERSION_NEGOTIATION)) {
     return nread;
   }
 

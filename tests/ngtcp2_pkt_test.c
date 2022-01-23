@@ -280,7 +280,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   CU_ASSERT((ngtcp2_ssize)len == rv);
   CU_ASSERT(NGTCP2_PKT_VERSION_NEGOTIATION == nhd.type);
-  CU_ASSERT(hd.flags == nhd.flags);
+  CU_ASSERT((hd.flags & ~NGTCP2_PKT_FLAG_LONG_FORM) == nhd.flags);
   CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
