@@ -89,7 +89,6 @@ if(HAVE_CUNIT OR ENABLE_STATIC_LIB)
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
     C_VISIBILITY_PRESET hidden
-    POSITION_INDEPENDENT_CODE ON
   )
   target_compile_definitions(ngtcp2_static PUBLIC "-DNGTCP2_STATICLIB")
   target_include_directories(ngtcp2_static PUBLIC ${ngtcp2_INCLUDE_DIRS})

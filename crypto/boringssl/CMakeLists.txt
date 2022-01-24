@@ -49,7 +49,6 @@ if(ENABLE_STATIC_LIB)
   set_target_properties(ngtcp2_crypto_boringssl_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
     C_VISIBILITY_PRESET hidden
-    POSITION_INDEPENDENT_CODE ON
   )
   target_compile_definitions(ngtcp2_crypto_boringssl_static PUBLIC
     "-DNGTCP2_STATICLIB")
