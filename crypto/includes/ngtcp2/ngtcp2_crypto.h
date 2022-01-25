@@ -714,7 +714,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_generate_stateless_reset_token(
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
     uint8_t *token, const uint8_t *secret, size_t secretlen,
-    const struct sockaddr *remote_addr, size_t remote_addrlen,
+    const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
     const ngtcp2_cid *retry_scid, const ngtcp2_cid *odcid, ngtcp2_tstamp ts);
 
 /**
@@ -736,9 +736,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
  */
 NGTCP2_EXTERN int ngtcp2_crypto_verify_retry_token(
     ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen,
-    const uint8_t *secret, size_t secretlen, const struct sockaddr *remote_addr,
-    socklen_t remote_addrlen, const ngtcp2_cid *dcid, ngtcp2_duration timeout,
-    ngtcp2_tstamp ts);
+    const uint8_t *secret, size_t secretlen, const ngtcp2_sockaddr *remote_addr,
+    ngtcp2_socklen remote_addrlen, const ngtcp2_cid *dcid,
+    ngtcp2_duration timeout, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -759,7 +759,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_verify_retry_token(
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_generate_regular_token(
     uint8_t *token, const uint8_t *secret, size_t secretlen,
-    const struct sockaddr *remote_addr, size_t remote_addrlen,
+    const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
     ngtcp2_tstamp ts);
 
 /**
@@ -776,8 +776,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_generate_regular_token(
  */
 NGTCP2_EXTERN int ngtcp2_crypto_verify_regular_token(
     const uint8_t *token, size_t tokenlen, const uint8_t *secret,
-    size_t secretlen, const struct sockaddr *remote_addr,
-    socklen_t remote_addrlen, ngtcp2_duration timeout, ngtcp2_tstamp ts);
+    size_t secretlen, const ngtcp2_sockaddr *remote_addr,
+    ngtcp2_socklen remote_addrlen, ngtcp2_duration timeout, ngtcp2_tstamp ts);
 
 /**
  * @function

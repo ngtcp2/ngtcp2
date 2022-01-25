@@ -46,14 +46,14 @@ int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b) {
 }
 
 void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
-                              const struct sockaddr *local_addr,
+                              const ngtcp2_sockaddr *local_addr,
                               size_t local_addrlen,
-                              const struct sockaddr *remote_addr,
+                              const ngtcp2_sockaddr *remote_addr,
                               size_t remote_addrlen, void *user_data) {
-  ngtcp2_addr_init(&ps->path.local, (const struct sockaddr *)&ps->local_addrbuf,
+  ngtcp2_addr_init(&ps->path.local, (const ngtcp2_sockaddr *)&ps->local_addrbuf,
                    0);
   ngtcp2_addr_init(&ps->path.remote,
-                   (const struct sockaddr *)&ps->remote_addrbuf, 0);
+                   (const ngtcp2_sockaddr *)&ps->remote_addrbuf, 0);
 
   ngtcp2_addr_copy_byte(&ps->path.local, local_addr, local_addrlen);
   ngtcp2_addr_copy_byte(&ps->path.remote, remote_addr, remote_addrlen);
@@ -69,9 +69,9 @@ void ngtcp2_path_storage_init2(ngtcp2_path_storage *ps,
 }
 
 void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps) {
-  ngtcp2_addr_init(&ps->path.local, (const struct sockaddr *)&ps->local_addrbuf,
+  ngtcp2_addr_init(&ps->path.local, (const ngtcp2_sockaddr *)&ps->local_addrbuf,
                    0);
   ngtcp2_addr_init(&ps->path.remote,
-                   (const struct sockaddr *)&ps->remote_addrbuf, 0);
+                   (const ngtcp2_sockaddr *)&ps->remote_addrbuf, 0);
   ps->path.user_data = NULL;
 }

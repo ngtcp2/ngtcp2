@@ -50,10 +50,26 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#ifdef WIN32
-#  include <winsock2.h>
+#ifndef NGTCP2_USE_GENERIC_SOCKADDR
+#  ifdef WIN32
+#    include <ws2tcpip.h>
+#  else
+#    include <sys/socket.h>
+#    include <netinet/in.h>
+#  endif
+#endif
+
+#ifdef AF_INET
+#  define NGTCP2_AF_INET AF_INET
 #else
-#  include <sys/socket.h>
+#  define NGTCP2_AF_INET 2
+#endif
+
+#ifdef AF_INET6
+#  define NGTCP2_AF_INET6 AF_INET6
+#else
+#  define NGTCP2_AF_INET6 23
+#  define NGTCP2_USE_GENERIC_IPV6_SOCKADDR
 #endif
 
 #include <ngtcp2/version.h>
@@ -1733,6 +1749,67 @@ typedef struct ngtcp2_settings {
   ngtcp2_duration handshake_timeout;
 } ngtcp2_settings;
 
+#ifdef NGTCP2_USE_GENERIC_SOCKADDR
+typedef struct ngtcp2_sockaddr {
+  uint16_t sa_family;
+  uint8_t sa_data[14];
+} ngtcp2_sockaddr;
+
+typedef struct ngtcp2_in_addr {
+  uint32_t s_addr;
+} ngtcp2_in_addr;
+
+typedef struct ngtcp2_sockaddr_in {
+  uint16_t sin_family;
+  uint16_t sin_port;
+  ngtcp2_in_addr sin_addr;
+  uint8_t sin_zero[8];
+} ngtcp2_sockaddr_in;
+
+#  define NGTCP2_SS_MAXSIZE 128
+#  define NGTCP2_SS_ALIGNSIZE (sizeof(uint64_t))
+#  define NGTCP2_SS_PAD1SIZE (NGTCP2_SS_ALIGNSIZE - sizeof(uint16_t))
+#  define NGTCP2_SS_PAD2SIZE                                                   \
+    (NGTCP2_SS_MAXSIZE -                                                       \
+     (sizeof(uint16_t) + NGTCP2_SS_PAD1SIZE + NGTCP2_SS_ALIGNSIZE))
+
+typedef struct ngtcp2_sockaddr_storage {
+  uint16_t ss_family;
+  uint8_t _ss_pad1[NGTCP2_SS_PAD1SIZE];
+  uint64_t _ss_align;
+  uint8_t _ss_pad2[NGTCP2_SS_PAD2SIZE];
+} ngtcp2_sockaddr_storage;
+
+#  undef NGTCP2_SS_PAD2SIZE
+#  undef NGTCP2_SS_PAD1SIZE
+#  undef NGTCP2_SS_ALIGNSIZE
+#  undef NGTCP2_SS_MAXSIZE
+
+typedef uint32_t ngtcp2_socklen;
+#else
+typedef struct sockaddr ngtcp2_sockaddr;
+typedef struct sockaddr_storage ngtcp2_sockaddr_storage;
+typedef struct sockaddr_in ngtcp2_sockaddr_in;
+typedef socklen_t ngtcp2_socklen;
+#endif
+
+#if defined(NGTCP2_USE_GENERIC_SOCKADDR) ||                                    \
+    defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR)
+typedef struct ngtcp2_in6_addr {
+  uint8_t in6_addr[16];
+} ngtcp2_in6_addr;
+
+typedef struct ngtcp2_sockaddr_in6 {
+  uint16_t sin6_family;
+  uint16_t sin6_port;
+  uint32_t sin6_flowinfo;
+  ngtcp2_in6_addr sin6_addr;
+  uint32_t sin6_scope_id;
+} ngtcp2_sockaddr_in6;
+#else
+typedef struct sockaddr_in6 ngtcp2_sockaddr_in6;
+#endif
+
 /**
  * @struct
  *
@@ -1743,7 +1820,7 @@ typedef struct ngtcp2_addr {
    * :member:`addr` points to the buffer which contains endpoint
    * address.  It must not be ``NULL``.
    */
-  struct sockaddr *addr;
+  ngtcp2_sockaddr *addr;
   /**
    * :member:`addrlen` is the length of addr.
    */
@@ -1796,11 +1873,11 @@ typedef struct ngtcp2_path_storage {
   /**
    * :member:`local_addrbuf` is a buffer to store local address.
    */
-  struct sockaddr_storage local_addrbuf;
+  ngtcp2_sockaddr_storage local_addrbuf;
   /**
    * :member:`remote_addrbuf` is a buffer to store remote address.
    */
-  struct sockaddr_storage remote_addrbuf;
+  ngtcp2_sockaddr_storage remote_addrbuf;
 } ngtcp2_path_storage;
 
 /**
@@ -4824,7 +4901,7 @@ NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
  * returns |dest|.
  */
 NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
-                                            const struct sockaddr *addr,
+                                            const ngtcp2_sockaddr *addr,
                                             size_t addrlen);
 
 /**
@@ -4838,7 +4915,7 @@ NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
  * capacity to store the copy.
  */
 NGTCP2_EXTERN void ngtcp2_addr_copy_byte(ngtcp2_addr *dest,
-                                         const struct sockaddr *addr,
+                                         const ngtcp2_sockaddr *addr,
                                          size_t addrlen);
 
 /**
@@ -4848,9 +4925,9 @@ NGTCP2_EXTERN void ngtcp2_addr_copy_byte(ngtcp2_addr *dest,
  * arguments.  This function copies |local_addr| and |remote_addr|.
  */
 NGTCP2_EXTERN void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
-                                            const struct sockaddr *local_addr,
+                                            const ngtcp2_sockaddr *local_addr,
                                             size_t local_addrlen,
-                                            const struct sockaddr *remote_addr,
+                                            const ngtcp2_sockaddr *remote_addr,
                                             size_t remote_addrlen,
                                             void *user_data);
 
