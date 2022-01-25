@@ -1762,10 +1762,24 @@ typedef struct ngtcp2_sockaddr_in {
   uint8_t sin_zero[8];
 } ngtcp2_sockaddr_in;
 
+#  define NGTCP2_SS_MAXSIZE 128
+#  define NGTCP2_SS_ALIGNSIZE (sizeof(uint64_t))
+#  define NGTCP2_SS_PAD1SIZE (NGTCP2_SS_ALIGNSIZE - sizeof(uint16_t))
+#  define NGTCP2_SS_PAD2SIZE                                                   \
+    (NGTCP2_SS_MAXSIZE -                                                       \
+     (sizeof(uint16_t) + NGTCP2_SS_PAD1SIZE + NGTCP2_SS_ALIGNSIZE))
+
 typedef struct ngtcp2_sockaddr_storage {
   uint16_t ss_family;
-  uint8_t ss_storage[30];
+  uint8_t _ss_pad1[NGTCP2_SS_PAD1SIZE];
+  uint64_t _ss_align;
+  uint8_t _ss_pad2[NGTCP2_SS_PAD2SIZE];
 } ngtcp2_sockaddr_storage;
+
+#  undef NGTCP2_SS_PAD2SIZE
+#  undef NGTCP2_SS_PAD1SIZE
+#  undef NGTCP2_SS_ALIGNSIZE
+#  undef NGTCP2_SS_MAXSIZE
 #else
 typedef struct sockaddr ngtcp2_sockaddr;
 typedef struct sockaddr_storage ngtcp2_sockaddr_storage;
