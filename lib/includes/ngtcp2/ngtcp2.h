@@ -1772,9 +1772,9 @@ typedef struct sockaddr_storage ngtcp2_sockaddr_storage;
 typedef struct sockaddr_in ngtcp2_sockaddr_in;
 #endif
 
-#if defined(NGTCP2_USE_GENERIC_SOCKADDR) || defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR)
-typedef struct ngtcp2_in6_addr
-{
+#if defined(NGTCP2_USE_GENERIC_SOCKADDR) ||                                    \
+    defined(NGTCP2_USE_GENERIC_IPV6_SOCKADDR)
+typedef struct ngtcp2_in6_addr {
   uint8_t in6_addr[16];
 } ngtcp2_in6_addr;
 
