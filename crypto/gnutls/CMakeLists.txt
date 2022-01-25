@@ -68,6 +68,7 @@ if(ENABLE_STATIC_LIB)
     COMPILE_FLAGS "${WARNCFLAGS}"
     VERSION ${CRYPTO_GNUTLS_LT_VERSION}
     SOVERSION ${CRYPTO_GNUTLS_LT_SOVERSION}
+    C_VISIBILITY_PRESET hidden
   )
   target_compile_definitions(ngtcp2_crypto_gnutls_static PUBLIC
     "-DNGTCP2_STATICLIB")

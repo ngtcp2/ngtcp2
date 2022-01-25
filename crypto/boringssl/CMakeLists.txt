@@ -48,6 +48,7 @@ if(ENABLE_STATIC_LIB)
   add_library(ngtcp2_crypto_boringssl_static ${ngtcp2_crypto_boringssl_SOURCES})
   set_target_properties(ngtcp2_crypto_boringssl_static PROPERTIES
     COMPILE_FLAGS "${WARNCFLAGS}"
+    C_VISIBILITY_PRESET hidden
   )
   target_compile_definitions(ngtcp2_crypto_boringssl_static PUBLIC
     "-DNGTCP2_STATICLIB")
