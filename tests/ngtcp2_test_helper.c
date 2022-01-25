@@ -486,7 +486,7 @@ ngtcp2_ssize pkt_decode_hd_short_mask(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
   return nread + (ngtcp2_ssize)dest->pkt_numlen;
 }
 
-static void addr_init(struct sockaddr_in *dest, uint32_t addr, uint16_t port) {
+static void addr_init(ngtcp2_sockaddr_in *dest, uint32_t addr, uint16_t port) {
   memset(dest, 0, sizeof(*dest));
 
   dest->sin_family = AF_INET;
@@ -497,11 +497,11 @@ static void addr_init(struct sockaddr_in *dest, uint32_t addr, uint16_t port) {
 void path_init(ngtcp2_path_storage *path, uint32_t local_addr,
                uint16_t local_port, uint32_t remote_addr,
                uint16_t remote_port) {
-  struct sockaddr_in la, ra;
+  ngtcp2_sockaddr_in la, ra;
 
   addr_init(&la, local_addr, local_port);
   addr_init(&ra, remote_addr, remote_port);
 
-  ngtcp2_path_storage_init(path, (struct sockaddr *)&la, sizeof(la),
-                           (struct sockaddr *)&ra, sizeof(ra), NULL);
+  ngtcp2_path_storage_init(path, (ngtcp2_sockaddr *)&la, sizeof(la),
+                           (ngtcp2_sockaddr *)&ra, sizeof(ra), NULL);
 }

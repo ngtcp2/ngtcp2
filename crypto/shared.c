@@ -712,8 +712,8 @@ static int crypto_derive_token_key(uint8_t *key, size_t keylen, uint8_t *iv,
 }
 
 static size_t crypto_generate_retry_token_aad(uint8_t *dest,
-                                              const struct sockaddr *sa,
-                                              size_t salen,
+                                              const ngtcp2_sockaddr *sa,
+                                              ngtcp2_socklen salen,
                                               const ngtcp2_cid *retry_scid) {
   uint8_t *p = dest;
 
@@ -729,7 +729,7 @@ static const uint8_t retry_token_info_prefix[] = "retry_token";
 
 ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
     uint8_t *token, const uint8_t *secret, size_t secretlen,
-    const struct sockaddr *remote_addr, size_t remote_addrlen,
+    const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
     const ngtcp2_cid *retry_scid, const ngtcp2_cid *odcid, ngtcp2_tstamp ts) {
   uint8_t plaintext[NGTCP2_CRYPTO_MAX_RETRY_TOKENLEN];
   uint8_t rand_data[NGTCP2_CRYPTO_TOKEN_RAND_DATALEN];
@@ -741,7 +741,7 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   ngtcp2_crypto_md md;
   ngtcp2_crypto_aead_ctx aead_ctx;
   size_t plaintextlen;
-  uint8_t aad[sizeof(struct sockaddr_storage) + NGTCP2_MAX_CIDLEN];
+  uint8_t aad[sizeof(ngtcp2_sockaddr_storage) + NGTCP2_MAX_CIDLEN];
   size_t aadlen;
   uint8_t *p = plaintext;
   int rv;
@@ -805,9 +805,9 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
 
 int ngtcp2_crypto_verify_retry_token(
     ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen,
-    const uint8_t *secret, size_t secretlen, const struct sockaddr *remote_addr,
-    socklen_t remote_addrlen, const ngtcp2_cid *dcid, ngtcp2_duration timeout,
-    ngtcp2_tstamp ts) {
+    const uint8_t *secret, size_t secretlen, const ngtcp2_sockaddr *remote_addr,
+    ngtcp2_socklen remote_addrlen, const ngtcp2_cid *dcid,
+    ngtcp2_duration timeout, ngtcp2_tstamp ts) {
   uint8_t
       plaintext[/* cid len = */ 1 + NGTCP2_MAX_CIDLEN + sizeof(ngtcp2_tstamp)];
   uint8_t key[32];
@@ -817,7 +817,7 @@ int ngtcp2_crypto_verify_retry_token(
   ngtcp2_crypto_aead_ctx aead_ctx;
   ngtcp2_crypto_aead aead;
   ngtcp2_crypto_md md;
-  uint8_t aad[sizeof(struct sockaddr_storage) + NGTCP2_MAX_CIDLEN];
+  uint8_t aad[sizeof(ngtcp2_sockaddr_storage) + NGTCP2_MAX_CIDLEN];
   size_t aadlen;
   const uint8_t *rand_data;
   const uint8_t *ciphertext;
@@ -882,19 +882,19 @@ int ngtcp2_crypto_verify_retry_token(
 }
 
 static size_t crypto_generate_regular_token_aad(uint8_t *dest,
-                                                const struct sockaddr *sa) {
+                                                const ngtcp2_sockaddr *sa) {
   const uint8_t *addr;
   size_t addrlen;
 
   switch (sa->sa_family) {
   case AF_INET:
-    addr = (const uint8_t *)&((const struct sockaddr_in *)(void *)sa)->sin_addr;
-    addrlen = sizeof(((const struct sockaddr_in *)(void *)sa)->sin_addr);
+    addr = (const uint8_t *)&((const ngtcp2_sockaddr_in *)(void *)sa)->sin_addr;
+    addrlen = sizeof(((const ngtcp2_sockaddr_in *)(void *)sa)->sin_addr);
     break;
   case AF_INET6:
     addr =
-        (const uint8_t *)&((const struct sockaddr_in6 *)(void *)sa)->sin6_addr;
-    addrlen = sizeof(((const struct sockaddr_in6 *)(void *)sa)->sin6_addr);
+        (const uint8_t *)&((const ngtcp2_sockaddr_in6 *)(void *)sa)->sin6_addr;
+    addrlen = sizeof(((const ngtcp2_sockaddr_in6 *)(void *)sa)->sin6_addr);
     break;
   default:
     assert(0);
@@ -908,11 +908,10 @@ static size_t crypto_generate_regular_token_aad(uint8_t *dest,
 
 static const uint8_t regular_token_info_prefix[] = "regular_token";
 
-ngtcp2_ssize
-ngtcp2_crypto_generate_regular_token(uint8_t *token, const uint8_t *secret,
-                                     size_t secretlen,
-                                     const struct sockaddr *remote_addr,
-                                     size_t remote_addrlen, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_crypto_generate_regular_token(
+    uint8_t *token, const uint8_t *secret, size_t secretlen,
+    const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
+    ngtcp2_tstamp ts) {
   uint8_t plaintext[sizeof(ngtcp2_tstamp)];
   uint8_t rand_data[NGTCP2_CRYPTO_TOKEN_RAND_DATALEN];
   uint8_t key[32];
@@ -923,7 +922,7 @@ ngtcp2_crypto_generate_regular_token(uint8_t *token, const uint8_t *secret,
   ngtcp2_crypto_md md;
   ngtcp2_crypto_aead_ctx aead_ctx;
   size_t plaintextlen;
-  uint8_t aad[sizeof(struct sockaddr_in6)];
+  uint8_t aad[sizeof(ngtcp2_sockaddr_in6)];
   size_t aadlen;
   uint8_t *p = plaintext;
   int rv;
@@ -982,8 +981,8 @@ ngtcp2_crypto_generate_regular_token(uint8_t *token, const uint8_t *secret,
 
 int ngtcp2_crypto_verify_regular_token(const uint8_t *token, size_t tokenlen,
                                        const uint8_t *secret, size_t secretlen,
-                                       const struct sockaddr *remote_addr,
-                                       socklen_t remote_addrlen,
+                                       const ngtcp2_sockaddr *remote_addr,
+                                       ngtcp2_socklen remote_addrlen,
                                        ngtcp2_duration timeout,
                                        ngtcp2_tstamp ts) {
   uint8_t plaintext[sizeof(ngtcp2_tstamp)];
@@ -994,7 +993,7 @@ int ngtcp2_crypto_verify_regular_token(const uint8_t *token, size_t tokenlen,
   ngtcp2_crypto_aead_ctx aead_ctx;
   ngtcp2_crypto_aead aead;
   ngtcp2_crypto_md md;
-  uint8_t aad[sizeof(struct sockaddr_in6)];
+  uint8_t aad[sizeof(ngtcp2_sockaddr_in6)];
   size_t aadlen;
   const uint8_t *rand_data;
   const uint8_t *ciphertext;
