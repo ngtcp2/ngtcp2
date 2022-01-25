@@ -12,6 +12,7 @@ jobs:
         compiler: [gcc, clang]
         buildtool: [autotools, distcheck, cmake]
         openssl: [openssl1, openssl3]
+        sockaddr: [native-sockaddr, generic-sockaddr]
         exclude:
         - os: macos-10.15
           buildtool: distcheck
@@ -19,6 +20,14 @@ jobs:
           buildtool: distcheck
         - openssl: openssl3
           buildtool: distcheck
+        - compiler: gcc
+          sockaddr: generic-sockaddr
+        - openssl: openssl3
+          sockaddr: generic-sockaddr
+        - buildtool: distcheck
+          sockaddr: generic-sockaddr
+        - buildtool: cmake
+          sockaddr: generic-sockaddr
 
     steps:
     - uses: actions/checkout@v2
@@ -103,12 +112,20 @@ jobs:
         BORINGSSL_LIBS="$BORINGSSL_LIBS -pthread"
 
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
+    - name: Enable generic sockaddr
+      if: matrix.sockaddr == 'generic-sockaddr'
+      run: |
+        CFLAGS="$CFLAGS -DNGTCP2_USE_GENERIC_SOCKADDR"
+        EXTRA_AUTOTOOLS_OPTS="$EXTRA_AUTOTOOLS_OPTS --enable-lib-only"
+
+        echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
+        echo 'EXTRA_AUTOTOOLS_OPTS='"$EXTRA_AUTOTOOLS_OPTS" >> $GITHUB_ENV
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
         autoreconf -i && \
         ./configure --enable-werror \
-          --with-openssl --with-gnutls --with-boringssl
+          --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS
     - name: Configure autotools for distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
@@ -130,7 +147,7 @@ jobs:
         make distcheck \
           DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl"
     - name: Integration test
-      if: matrix.buildtool != 'distcheck'
+      if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
       run: |
         ./ci/gen-certificate.sh
         NETTLE_PATH=$PWD/nettle-3.6/build/lib64
