@@ -87,6 +87,34 @@ int ngtcp2_crypto_derive_initial_secrets(uint32_t version, uint8_t *rx_secret,
 /**
  * @function
  *
+ * `ngtcp2_crypto_derive_packet_protection_key` derives packet
+ * protection key.  This function writes packet protection key into
+ * the buffer pointed by |key|.  The length of derived key is
+ * `ngtcp2_crypto_aead_keylen(aead) <ngtcp2_crypto_aead_keylen>`
+ * bytes.  |key| must have enough capacity to store the key.  This
+ * function writes packet protection IV into |iv|.  The length of
+ * derived IV is `ngtcp2_crypto_packet_protection_ivlen(aead)
+ * <ngtcp2_crypto_packet_protection_ivlen>` bytes.  |iv| must have
+ * enough capacity to store the IV.
+ *
+ * If |hp| is not NULL, this function also derives packet header
+ * protection key and writes the key into the buffer pointed by |hp|.
+ * The length of derived key is `ngtcp2_crypto_aead_keylen(aead)
+ * <ngtcp2_crypto_aead_keylen>` bytes.  |hp|, if not NULL, must have
+ * enough capacity to store the key.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+int ngtcp2_crypto_derive_packet_protection_key(uint8_t *key, uint8_t *iv,
+                                               uint8_t *hp, uint32_t version,
+                                               const ngtcp2_crypto_aead *aead,
+                                               const ngtcp2_crypto_md *md,
+                                               const uint8_t *secret,
+                                               size_t secretlen);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_update_traffic_secret` derives the next generation
  * of the traffic secret.  |secret| specifies the current secret and
  * its length is given in |secretlen|.  The length of new key is the
@@ -183,7 +211,7 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls);
 int ngtcp2_crypto_derive_and_install_initial_key(
     ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
     uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
+    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp, uint32_t version,
     const ngtcp2_cid *client_dcid);
 
 /**

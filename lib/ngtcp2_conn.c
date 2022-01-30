@@ -11448,6 +11448,10 @@ const ngtcp2_cid *ngtcp2_conn_get_client_initial_dcid(ngtcp2_conn *conn) {
   return &conn->rcid;
 }
 
+uint32_t ngtcp2_conn_get_original_version(ngtcp2_conn *conn) {
+  return conn->version;
+}
+
 uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn) {
   return conn->version;
 }
