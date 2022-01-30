@@ -4474,6 +4474,13 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
 /**
  * @function
  *
+ * `ngtcp2_conn_get_original_version` returns the original version.
+ */
+NGTCP2_EXTERN uint32_t ngtcp2_conn_get_original_version(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_negotiated_version` returns the negotiated version.
  */
 NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);

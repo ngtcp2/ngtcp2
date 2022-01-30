@@ -256,31 +256,6 @@ ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead);
 /**
  * @function
  *
- * `ngtcp2_crypto_derive_packet_protection_key` derives packet
- * protection key.  This function writes packet protection key into
- * the buffer pointed by |key|.  The length of derived key is
- * `ngtcp2_crypto_aead_keylen(aead) <ngtcp2_crypto_aead_keylen>`
- * bytes.  |key| must have enough capacity to store the key.  This
- * function writes packet protection IV into |iv|.  The length of
- * derived IV is `ngtcp2_crypto_packet_protection_ivlen(aead)
- * <ngtcp2_crypto_packet_protection_ivlen>` bytes.  |iv| must have
- * enough capacity to store the IV.
- *
- * If |hp| is not NULL, this function also derives packet header
- * protection key and writes the key into the buffer pointed by |hp|.
- * The length of derived key is `ngtcp2_crypto_aead_keylen(aead)
- * <ngtcp2_crypto_aead_keylen>` bytes.  |hp|, if not NULL, must have
- * enough capacity to store the key.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-NGTCP2_EXTERN int ngtcp2_crypto_derive_packet_protection_key(
-    uint8_t *key, uint8_t *iv, uint8_t *hp, const ngtcp2_crypto_aead *aead,
-    const ngtcp2_crypto_md *md, const uint8_t *secret, size_t secretlen);
-
-/**
- * @function
- *
  * `ngtcp2_crypto_encrypt` encrypts |plaintext| of length
  * |plaintextlen| and writes the ciphertext into the buffer pointed by
  * |dest|.  The length of ciphertext is plaintextlen +
