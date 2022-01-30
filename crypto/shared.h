@@ -65,6 +65,40 @@
 /**
  * @function
  *
+ * `ngtcp2_crypto_ctx_initial` initializes |ctx| for Initial packet
+ * encryption and decryption.
+ */
+ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_aead_init` initializes |aead| with the provided
+ * |aead_native_handle| which is an underlying AEAD object.
+ *
+ * If libngtcp2_crypto_openssl is linked, |aead_native_handle| must be
+ * a pointer to EVP_CIPHER.
+ *
+ * If libngtcp2_crypto_gnutls is linked, |aead_native_handle| must be
+ * gnutls_cipher_algorithm_t casted to ``void *``.
+ *
+ * If libngtcp2_crypto_boringssl is linked, |aead_native_handle| must
+ * be a pointer to EVP_AEAD.
+ */
+ngtcp2_crypto_aead *ngtcp2_crypto_aead_init(ngtcp2_crypto_aead *aead,
+                                            void *aead_native_handle);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_aead_retry` initializes |aead| with the AEAD cipher
+ * AEAD_AES_128_GCM for Retry packet integrity protection.
+ */
+ngtcp2_crypto_aead *ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_derive_initial_secrets` derives initial secrets.
  * |rx_secret| and |tx_secret| must point to the buffer of at least 32
  * bytes capacity.  rx for read and tx for write.  This function

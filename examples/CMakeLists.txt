@@ -44,7 +44,7 @@ if(LIBEV_FOUND AND HAVE_OPENSSL AND LIBNGHTTP3_FOUND)
     tls_server_context_openssl.cc
     tls_server_session_openssl.cc
     tls_session_base_openssl.cc
-    util_openssl.cc util_aead_openssl.cc
+    util_openssl.cc
   )
 
   set(ossl_INCLUDE_DIRS
@@ -174,7 +174,7 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
     tls_server_context_boringssl.cc
     tls_server_session_boringssl.cc
     tls_session_base_openssl.cc
-    util_openssl.cc util_aead_boringssl.cc
+    util_openssl.cc
   )
 
   set(bssl_INCLUDE_DIRS

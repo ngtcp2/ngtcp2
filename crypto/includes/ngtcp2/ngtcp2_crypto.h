@@ -62,15 +62,6 @@ extern "C" {
 /**
  * @function
  *
- * `ngtcp2_crypto_ctx_initial` initializes |ctx| for Initial packet
- * encryption and decryption.
- */
-NGTCP2_EXTERN ngtcp2_crypto_ctx *
-ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx);
-
-/**
- * @function
- *
  * `ngtcp2_crypto_ctx_tls` initializes |ctx| by extracting negotiated
  * ciphers and message digests from native TLS session
  * |tls_native_handle|.  This is used for encrypting/decrypting
@@ -95,33 +86,6 @@ NGTCP2_EXTERN ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
  */
 NGTCP2_EXTERN ngtcp2_crypto_ctx *
 ngtcp2_crypto_ctx_tls_early(ngtcp2_crypto_ctx *ctx, void *tls_native_handle);
-
-/**
- * @function
- *
- * `ngtcp2_crypto_aead_init` initializes |aead| with the provided
- * |aead_native_handle| which is an underlying AEAD object.
- *
- * If libngtcp2_crypto_openssl is linked, |aead_native_handle| must be
- * a pointer to EVP_CIPHER.
- *
- * If libngtcp2_crypto_gnutls is linked, |aead_native_handle| must be
- * gnutls_cipher_algorithm_t casted to ``void *``.
- *
- * If libngtcp2_crypto_boringssl is linked, |aead_native_handle| must
- * be a pointer to EVP_AEAD.
- */
-NGTCP2_EXTERN ngtcp2_crypto_aead *
-ngtcp2_crypto_aead_init(ngtcp2_crypto_aead *aead, void *aead_native_handle);
-
-/**
- * @function
- *
- * `ngtcp2_crypto_aead_retry` initializes |aead| with the AEAD cipher
- * AEAD_AES_128_GCM for Retry packet integrity protection.
- */
-NGTCP2_EXTERN ngtcp2_crypto_aead *
-ngtcp2_crypto_aead_retry(ngtcp2_crypto_aead *aead);
 
 /**
  * @function
