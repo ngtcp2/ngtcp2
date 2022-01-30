@@ -92,7 +92,7 @@ server_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	tls_server_context_openssl.cc tls_server_context_openssl.h \
 	tls_server_session_openssl.cc tls_server_session_openssl.h \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc util_aead_openssl.cc
+	util_openssl.cc
 
 h09client_CPPFLAGS = ${client_CPPFLAGS}
 h09client_LDADD = ${client_LDADD}
@@ -108,7 +108,7 @@ h09server_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
 	tls_server_context_openssl.cc tls_server_context_openssl.h \
 	tls_server_session_openssl.cc tls_server_session_openssl.h \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc util_aead_openssl.cc
+	util_openssl.cc
 endif # ENABLE_EXAMPLE_OPENSSL
 
 if ENABLE_EXAMPLE_GNUTLS
@@ -156,7 +156,7 @@ bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	tls_server_context_boringssl.cc tls_server_context_boringssl.h \
 	tls_server_session_boringssl.cc tls_server_session_boringssl.h \
 	tls_session_base_openssl.cc tls_session_base_openssl.h \
-	util_openssl.cc util_aead_boringssl.cc
+	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
 
 if HAVE_CUNIT
