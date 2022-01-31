@@ -452,9 +452,14 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
   int rv;
 
   if (datalen > 0) {
-    if (gnutls_handshake_write(
-            session, ngtcp2_crypto_gnutls_from_ngtcp2_level(crypto_level), data,
-            datalen) != 0) {
+    rv = gnutls_handshake_write(
+        session, ngtcp2_crypto_gnutls_from_ngtcp2_level(crypto_level), data,
+        datalen);
+    if (rv != 0) {
+      if (!gnutls_error_is_fatal(rv)) {
+        return 0;
+      }
+      gnutls_alert_send_appropriate(session, rv);
       return -1;
     }
   }
