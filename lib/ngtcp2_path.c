@@ -47,9 +47,9 @@ int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b) {
 
 void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
                               const ngtcp2_sockaddr *local_addr,
-                              size_t local_addrlen,
+                              ngtcp2_socklen local_addrlen,
                               const ngtcp2_sockaddr *remote_addr,
-                              size_t remote_addrlen, void *user_data) {
+                              ngtcp2_socklen remote_addrlen, void *user_data) {
   ngtcp2_addr_init(&ps->path.local, (const ngtcp2_sockaddr *)&ps->local_addrbuf,
                    0);
   ngtcp2_addr_init(&ps->path.remote,
