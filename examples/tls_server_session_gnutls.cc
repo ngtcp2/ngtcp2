@@ -278,6 +278,11 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
                             GNUTLS_ALPN_MANDATORY |
                                 GNUTLS_ALPN_SERVER_PRECEDENCE);
 
+  if (config.verify_client) {
+    gnutls_certificate_server_set_request(session_, GNUTLS_CERT_REQUIRE);
+    gnutls_certificate_send_x509_rdn_sequence(session_, 1);
+  }
+
   return 0;
 }
 
