@@ -499,13 +499,11 @@ static int client_send_packet(struct client *c, const uint8_t *data,
   msg.msg_iovlen = 1;
 
   do {
-    nwrite = sendmsg(c->fd, &msg, MSG_DONTWAIT);
+    nwrite = sendmsg(c->fd, &msg, 0);
   } while (nwrite == -1 && errno == EINTR);
 
   if (nwrite == -1) {
-    if (errno != EAGAIN && errno != EWOULDBLOCK) {
-      fprintf(stderr, "sendmsg: %s\n", strerror(errno));
-    }
+    fprintf(stderr, "sendmsg: %s\n", strerror(errno));
 
     return -1;
   }
