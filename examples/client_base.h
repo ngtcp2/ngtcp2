@@ -171,23 +171,6 @@ struct Config {
   ngtcp2_duration handshake_timeout;
 };
 
-struct Buffer {
-  Buffer(const uint8_t *data, size_t datalen);
-  explicit Buffer(size_t datalen);
-
-  size_t size() const { return tail - buf.data(); }
-  size_t left() const { return buf.data() + buf.size() - tail; }
-  uint8_t *const wpos() { return tail; }
-  const uint8_t *rpos() const { return buf.data(); }
-  void push(size_t len) { tail += len; }
-  void reset() { tail = buf.data(); }
-
-  std::vector<uint8_t> buf;
-  // tail points to the position of the buffer where write should
-  // occur.
-  uint8_t *tail;
-};
-
 class ClientBase {
 public:
   ClientBase();

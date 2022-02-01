@@ -39,10 +39,6 @@ using namespace ngtcp2;
 
 extern Config config;
 
-Buffer::Buffer(const uint8_t *data, size_t datalen)
-    : buf{data, data + datalen}, tail(buf.data() + datalen) {}
-Buffer::Buffer(size_t datalen) : buf(datalen), tail(buf.data()) {}
-
 ClientBase::ClientBase()
     : qlog_(nullptr),
       conn_(nullptr),
