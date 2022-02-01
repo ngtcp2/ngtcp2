@@ -71,7 +71,7 @@ static uint64_t timestamp(void) {
   return (uint64_t)tp.tv_sec * NGTCP2_SECONDS + (uint64_t)tp.tv_nsec;
 }
 
-static int create_sock(struct sockaddr *addr, size_t *paddrlen,
+static int create_sock(struct sockaddr *addr, socklen_t *paddrlen,
                        const char *host, const char *port) {
   struct addrinfo hints = {0};
   struct addrinfo *res, *rp;
@@ -109,8 +109,9 @@ end:
   return fd;
 }
 
-static int connect_sock(struct sockaddr *local_addr, size_t *plocal_addrlen,
-                        int fd, const struct sockaddr *remote_addr,
+static int connect_sock(struct sockaddr *local_addr,
+                        socklen_t *plocal_addrlen, int fd,
+                        const struct sockaddr *remote_addr,
                         size_t remote_addrlen) {
   socklen_t len;
 
@@ -119,7 +120,7 @@ static int connect_sock(struct sockaddr *local_addr, size_t *plocal_addrlen,
     return -1;
   }
 
-  len = (socklen_t)*plocal_addrlen;
+  len = *plocal_addrlen;
 
   if (getsockname(fd, local_addr, &len) == -1) {
     fprintf(stderr, "getsockname: %s\n", strerror(errno));
@@ -134,7 +135,7 @@ static int connect_sock(struct sockaddr *local_addr, size_t *plocal_addrlen,
 struct client {
   int fd;
   struct sockaddr_storage local_addr;
-  size_t local_addrlen;
+  socklen_t local_addrlen;
   SSL_CTX *ssl_ctx;
   SSL *ssl;
   ngtcp2_conn *conn;
@@ -327,9 +328,9 @@ static void log_printf(void *user_data, const char *fmt, ...) {
 
 static int client_quic_init(struct client *c,
                             const struct sockaddr *remote_addr,
-                            size_t remote_addrlen,
+                            socklen_t remote_addrlen,
                             const struct sockaddr *local_addr,
-                            size_t local_addrlen) {
+                            socklen_t local_addrlen) {
   ngtcp2_path path = {
       {
           (struct sockaddr *)local_addr,
@@ -690,7 +691,7 @@ static void idle_timer_cb(struct ev_loop *loop, ev_timer *w, int revents) {
 
 static int client_init(struct client *c) {
   struct sockaddr_storage remote_addr, local_addr;
-  size_t remote_addrlen, local_addrlen = sizeof(local_addr);
+  socklen_t remote_addrlen, local_addrlen = sizeof(local_addr);
 
   memset(c, 0, sizeof(*c));
 

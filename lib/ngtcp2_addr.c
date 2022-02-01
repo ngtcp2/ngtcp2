@@ -28,7 +28,7 @@
 #include <assert.h>
 
 ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const ngtcp2_sockaddr *addr,
-                              size_t addrlen) {
+                              ngtcp2_socklen addrlen) {
   dest->addrlen = addrlen;
   dest->addr = (ngtcp2_sockaddr *)addr;
   return dest;
@@ -42,7 +42,7 @@ void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src) {
 }
 
 void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const ngtcp2_sockaddr *addr,
-                           size_t addrlen) {
+                           ngtcp2_socklen addrlen) {
   dest->addrlen = addrlen;
   if (addrlen) {
     memcpy(dest->addr, addr, addrlen);

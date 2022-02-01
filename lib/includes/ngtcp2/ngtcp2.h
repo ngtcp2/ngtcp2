@@ -1846,7 +1846,7 @@ typedef struct ngtcp2_addr {
   /**
    * :member:`addrlen` is the length of addr.
    */
-  size_t addrlen;
+  ngtcp2_socklen addrlen;
 } ngtcp2_addr;
 
 /**
@@ -4931,7 +4931,7 @@ NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
  */
 NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
                                             const ngtcp2_sockaddr *addr,
-                                            size_t addrlen);
+                                            ngtcp2_socklen addrlen);
 
 /**
  * @function
@@ -4945,7 +4945,7 @@ NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
  */
 NGTCP2_EXTERN void ngtcp2_addr_copy_byte(ngtcp2_addr *dest,
                                          const ngtcp2_sockaddr *addr,
-                                         size_t addrlen);
+                                         ngtcp2_socklen addrlen);
 
 /**
  * @function
@@ -4955,9 +4955,9 @@ NGTCP2_EXTERN void ngtcp2_addr_copy_byte(ngtcp2_addr *dest,
  */
 NGTCP2_EXTERN void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
                                             const ngtcp2_sockaddr *local_addr,
-                                            size_t local_addrlen,
+                                            ngtcp2_socklen local_addrlen,
                                             const ngtcp2_sockaddr *remote_addr,
-                                            size_t remote_addrlen,
+                                            ngtcp2_socklen remote_addrlen,
                                             void *user_data);
 
 /**
