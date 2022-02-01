@@ -84,3 +84,12 @@ manpages_url = 'https://man7.org/linux/man-pages/man{section}/{page}.{section}.h
 
 # The default language to highlight source code in.
 highlight_language = 'c'
+
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
+version = '@PACKAGE_VERSION@'
+# The full version, including alpha/beta/rc tags.
+release = '@PACKAGE_VERSION@'
