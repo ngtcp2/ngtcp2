@@ -46,6 +46,7 @@
 #include "tls_client_session.h"
 #include "network.h"
 #include "shared.h"
+#include "template.h"
 
 using namespace ngtcp2;
 
@@ -78,8 +79,6 @@ public:
            const char *addr, const char *port, uint32_t version,
            const TLSClientContext &tls_ctx);
   void disconnect();
-
-  void start_wev();
 
   int on_read(const Endpoint &ep);
   int on_write();
@@ -132,6 +131,11 @@ public:
 
   void idle_timeout();
 
+  void on_send_blocked(const Endpoint &ep, const ngtcp2_addr &remote_addr,
+                       unsigned int ecn, size_t datalen);
+  void start_wev_endpoint(const Endpoint &ep);
+  int send_blocked_packet();
+
 private:
   std::vector<Endpoint> endpoints_;
   Address remote_addr_;
@@ -164,6 +168,18 @@ private:
   // handshake_confirmed_ gets true after handshake has been
   // confirmed.
   bool handshake_confirmed_;
+
+  struct {
+    bool send_blocked;
+    // blocked field is effective only when send_blocked is true.
+    struct {
+      const Endpoint *endpoint;
+      Address remote_addr;
+      unsigned int ecn;
+      size_t datalen;
+    } blocked;
+    std::array<uint8_t, 64_k> data;
+  } tx_;
 };
 
 #endif // CLIENT_H
