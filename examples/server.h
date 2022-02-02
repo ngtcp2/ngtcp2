@@ -170,6 +170,13 @@ public:
   void write_qlog(const void *data, size_t datalen);
   void singal_write();
 
+  void on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
+                       const ngtcp2_addr &remote_addr, unsigned int ecn,
+                       const uint8_t *data, size_t datalen,
+                       size_t max_udp_payload_size);
+  void start_wev_endpoint(const Endpoint &ep);
+  int send_blocked_packet();
+
 private:
   struct ev_loop *loop_;
   Server *server_;
@@ -188,6 +195,23 @@ private:
   size_t nkey_update_;
   // draining_ becomes true when draining period starts.
   bool draining_;
+
+  struct {
+    bool send_blocked;
+    size_t num_blocked;
+    size_t num_blocked_sent;
+    // blocked field is effective only when send_blocked is true.
+    struct {
+      Endpoint *endpoint;
+      Address local_addr;
+      Address remote_addr;
+      unsigned int ecn;
+      const uint8_t *data;
+      size_t datalen;
+      size_t max_udp_payload_size;
+    } blocked[2];
+    std::unique_ptr<uint8_t[]> data;
+  } tx_;
 };
 
 class Server {
