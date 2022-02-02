@@ -109,9 +109,8 @@ end:
   return fd;
 }
 
-static int connect_sock(struct sockaddr *local_addr,
-                        socklen_t *plocal_addrlen, int fd,
-                        const struct sockaddr *remote_addr,
+static int connect_sock(struct sockaddr *local_addr, socklen_t *plocal_addrlen,
+                        int fd, const struct sockaddr *remote_addr,
                         size_t remote_addrlen) {
   socklen_t len;
 
@@ -230,7 +229,7 @@ static int client_ssl_init(struct client *c) {
   c->ssl_ctx = SSL_CTX_new(TLS_client_method());
   if (!c->ssl_ctx) {
     fprintf(stderr, "SSL_CTX_new: %s\n",
-                    ERR_error_string(ERR_get_error(), NULL));
+            ERR_error_string(ERR_get_error(), NULL));
     return -1;
   }
 

@@ -54,4 +54,4 @@ clang-format:
 	crypto/*.{c,h} \
 	crypto/openssl/*.c crypto/gnutls/*.c crypto/boringssl/*.c \
 	crypto/includes/ngtcp2/*.h \
-	examples/*.{cc,h}
+	examples/*.{cc,c,h}
