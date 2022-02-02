@@ -168,7 +168,6 @@ public:
   void reset_idle_timer();
 
   void write_qlog(const void *data, size_t datalen);
-  void singal_write();
 
   void on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
                        const ngtcp2_addr &remote_addr, unsigned int ecn,
