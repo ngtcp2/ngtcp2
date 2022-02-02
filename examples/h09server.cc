@@ -392,7 +392,9 @@ Handler::Handler(struct ev_loop *loop, Server *server)
       scid_{},
       nkey_update_(0),
       draining_(false),
-      tx_{} {
+      tx_{
+          .data = std::unique_ptr<uint8_t[]>(new uint8_t[64_k]),
+      } {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
   ev_timer_init(&timer_, timeoutcb, 0.,
@@ -400,8 +402,6 @@ Handler::Handler(struct ev_loop *loop, Server *server)
   timer_.data = this;
   ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
   rttimer_.data = this;
-
-  tx_.data.reset(new uint8_t[64_k]);
 }
 
 Handler::~Handler() {
