@@ -334,8 +334,6 @@ std::optional<std::string> read_token(const std::string_view &filename);
 int write_token(const std::string_view &filename, const uint8_t *token,
                 size_t tokenlen);
 
-ngtcp2_crypto_md crypto_md_sha256();
-
 const char *crypto_default_ciphers();
 
 const char *crypto_default_groups();

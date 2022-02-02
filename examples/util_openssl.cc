@@ -119,12 +119,6 @@ int write_token(const std::string_view &filename, const uint8_t *token,
   return 0;
 }
 
-ngtcp2_crypto_md crypto_md_sha256() {
-  ngtcp2_crypto_md md;
-  ngtcp2_crypto_md_init(&md, const_cast<EVP_MD *>(EVP_sha256()));
-  return md;
-}
-
 const char *crypto_default_ciphers() {
   return "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_"
          "SHA256:TLS_AES_128_CCM_SHA256";
