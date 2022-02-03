@@ -218,11 +218,7 @@ Client::Client(struct ev_loop *loop)
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }
 
-Client::~Client() {
-  disconnect();
-
-  ev_io_stop(loop_, &wev_);
-}
+Client::~Client() { disconnect(); }
 
 void Client::disconnect() {
   tx_.send_blocked = false;
@@ -236,6 +232,8 @@ void Client::disconnect() {
   ev_timer_stop(loop_, &change_local_addr_timer_);
   ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
+
+  ev_io_stop(loop_, &wev_);
 
   for (auto &ep : endpoints_) {
     ev_io_stop(loop_, &ep.rev);
@@ -863,8 +861,6 @@ int Client::handle_expiry() {
 }
 
 int Client::on_write() {
-  ev_io_stop(loop_, &wev_);
-
   if (tx_.send_blocked) {
     if (auto rv = send_blocked_packet(); rv != 0) {
       return rv;
@@ -958,6 +954,7 @@ int Client::write_streams() {
     if (nwrite == 0) {
       // We are congestion limited.
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+      ev_io_stop(loop_, &wev_);
       return 0;
     }
 

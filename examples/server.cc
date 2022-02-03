@@ -1608,8 +1608,6 @@ int Handler::handle_expiry() {
 }
 
 int Handler::on_write() {
-  ev_io_stop(loop_, &wev_);
-
   if (ngtcp2_conn_is_in_closing_period(conn_) ||
       ngtcp2_conn_is_in_draining_period(conn_)) {
     return 0;
@@ -1754,10 +1752,16 @@ int Handler::write_streams() {
                           data, datalen, max_udp_payload_size);
 
           start_wev_endpoint(ep);
+          ngtcp2_conn_update_pkt_tx_time(conn_, ts);
+          reset_idle_timer();
+          return 0;
         }
 
         reset_idle_timer();
       }
+
+      ev_io_stop(loop_, &wev_);
+
       // We are congestion limited.
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
       return 0;
@@ -1940,6 +1944,7 @@ void Handler::start_draining_period() {
   draining_ = true;
 
   ev_timer_stop(loop_, &rttimer_);
+  ev_io_stop(loop_, &wev_);
 
   timer_.repeat =
       static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
@@ -1957,6 +1962,7 @@ int Handler::start_closing_period() {
   }
 
   ev_timer_stop(loop_, &rttimer_);
+  ev_io_stop(loop_, &wev_);
 
   timer_.repeat =
       static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
