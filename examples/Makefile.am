@@ -159,6 +159,9 @@ bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
 
+if ENABLE_EXAMPLE_PICOTLS
+endif # ENABLE_EXAMPLE_PICOTLS
+
 if HAVE_CUNIT
 check_PROGRAMS = examplestest
 examplestest_SOURCES = examplestest.cc \
