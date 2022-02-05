@@ -194,6 +194,8 @@ public:
 
   int call_application_rx_key_cb() const;
 
+  void process_unhandled_tls_alert();
+
 protected:
   TLSClientSession tls_session_;
   FILE *qlog_;

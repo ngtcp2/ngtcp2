@@ -796,6 +796,11 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
       // already set.  This is because OpenSSL might set Alert.
       last_error_ = quic_err_transport(rv);
       break;
+    case NGTCP2_ERR_CRYPTO:
+      if (!last_error_.code) {
+        process_unhandled_tls_alert();
+      }
+      // fall through
     default:
       if (!last_error_.code) {
         last_error_ = quic_err_transport(rv);

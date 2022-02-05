@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,27 +22,38 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_SESSION_H
-#define TLS_CLIENT_SESSION_H
+#ifndef TLS_SERVER_CONTEXT_PICOTLS_H
+#define TLS_SERVER_CONTEXT_PICOTLS_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_client_session_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include <picotls.h>
+#include <picotls/openssl.h>
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_client_session_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+#include "shared.h"
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_client_session_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+using namespace ngtcp2;
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_client_session_picotls.h"
-#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+class TLSServerContext {
+public:
+  TLSServerContext();
+  ~TLSServerContext();
 
-#endif // TLS_CLIENT_SESSION_H
+  int init(const char *private_key_file, const char *cert_file,
+           AppProtocol app_proto);
+
+  ptls_context_t *get_native_handle() const;
+
+  // TODO Implement keylog.
+  void enable_keylog() {}
+
+private:
+  int load_private_key(const char *private_key_file);
+
+  ptls_context_t ctx_;
+  ptls_openssl_sign_certificate_t sign_cert_;
+};
+
+#endif // TLS_SERVER_CONTEXT_PICOTLS_H

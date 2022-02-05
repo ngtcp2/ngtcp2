@@ -180,6 +180,10 @@ public:
 
   int call_application_tx_key_cb() const;
 
+  TLSServerSession *get_session() { return &tls_session_; }
+
+  void process_unhandled_tls_alert();
+
 protected:
   TLSServerSession tls_session_;
   ngtcp2_conn *conn_;

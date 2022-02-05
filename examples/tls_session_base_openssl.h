@@ -44,6 +44,8 @@ public:
   std::string get_selected_alpn() const;
   // Keylog is enabled per SSL_CTX.
   void enable_keylog() {}
+  // alert is notified by callback.
+  uint8_t get_tls_alert() const { return 0; };
 
 protected:
   SSL *ssl_;
