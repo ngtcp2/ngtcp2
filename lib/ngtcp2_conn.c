@@ -11509,6 +11509,10 @@ static void conn_discard_early_data_state(ngtcp2_conn *conn) {
 }
 
 int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
+  if (conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED) {
+    return 0;
+  }
+
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED;
 
   conn_discard_early_data_state(conn);
