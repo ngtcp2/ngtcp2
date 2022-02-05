@@ -2657,7 +2657,8 @@ void test_ngtcp2_conn_recv_retry(void) {
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
-  CU_ASSERT(spktlen > 219 + 119);
+  /* Make sure that resent 0RTT packet is padded */
+  CU_ASSERT(sizeof(buf) == spktlen);
   CU_ASSERT(2 == conn->pktns.tx.last_pkt_num);
 
   strm = ngtcp2_conn_find_stream(conn, stream_id);

@@ -9366,9 +9366,10 @@ static int conn_check_pkt_num_exhausted(ngtcp2_conn *conn) {
 static ngtcp2_ssize conn_retransmit_retry_early(ngtcp2_conn *conn,
                                                 ngtcp2_pkt_info *pi,
                                                 uint8_t *dest, size_t destlen,
+                                                uint8_t flags,
                                                 ngtcp2_tstamp ts) {
-  return conn_write_pkt(conn, pi, dest, destlen, NULL, NGTCP2_PKT_0RTT,
-                        NGTCP2_WRITE_PKT_FLAG_NONE, ts);
+  return conn_write_pkt(conn, pi, dest, destlen, NULL, NGTCP2_PKT_0RTT, flags,
+                        ts);
 }
 
 /*
@@ -9471,8 +9472,11 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     if (pending_early_datalen) {
-      early_spktlen = conn_retransmit_retry_early(conn, pi, dest + nwrite,
-                                                  destlen - (size_t)nwrite, ts);
+      early_spktlen = conn_retransmit_retry_early(
+          conn, pi, dest + nwrite, destlen - (size_t)nwrite,
+          nwrite ? NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING
+                 : NGTCP2_WRITE_PKT_FLAG_NONE,
+          ts);
 
       if (early_spktlen < 0) {
         assert(ngtcp2_err_is_fatal((int)early_spktlen));
@@ -9509,7 +9513,8 @@ static ngtcp2_ssize conn_write_handshake(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_COMPLETED)) {
       if (!(conn->flags & NGTCP2_CONN_FLAG_EARLY_DATA_REJECTED)) {
-        nwrite = conn_retransmit_retry_early(conn, pi, dest, destlen, ts);
+        nwrite = conn_retransmit_retry_early(conn, pi, dest, destlen,
+                                             NGTCP2_WRITE_PKT_FLAG_NONE, ts);
         if (nwrite < 0) {
           return nwrite;
         }
