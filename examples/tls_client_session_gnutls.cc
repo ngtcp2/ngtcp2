@@ -325,3 +325,7 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   return 0;
 }
+
+bool TLSClientSession::get_early_data_accepted() const {
+  return gnutls_session_get_flags(session_) & GNUTLS_SFLAGS_EARLY_DATA;
+}

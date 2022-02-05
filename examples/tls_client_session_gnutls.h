@@ -46,8 +46,7 @@ public:
            const char *remote_addr, ClientBase *client, uint32_t quic_version,
            AppProtocol app_proto);
 
-  // GnuTLS 3.7.0 does not offer an API to export this knowledge.
-  bool get_early_data_accepted() const { return true; }
+  bool get_early_data_accepted() const;
 };
 
 #endif // TLS_CLIENT_SESSION_GNUTLS_H
