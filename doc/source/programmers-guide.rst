@@ -23,6 +23,7 @@ for which we provide crypto helper libraries:
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1m+quic>`_
 * GnuTLS >= 3.7.2
 * BoringSSL
+* Picotls
 
 Creating ngtcp2_conn object
 ---------------------------
