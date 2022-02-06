@@ -10,5 +10,6 @@ option(ENABLE_ASAN      "Enable AddressSanitizer (ASAN)" OFF)
 option(ENABLE_GNUTLS    "Enable GnuTLS crypto backend" ON)
 option(ENABLE_OPENSSL   "Enable OpenSSL crypto backend (required for examples)" ON)
 option(ENABLE_BORINGSSL "Enable BoringSSL crypto backend" ON)
+option(ENABLE_PICOTLS "Enable Picotls crypto backend" OFF)
 
 # vim: ft=cmake:
