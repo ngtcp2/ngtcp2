@@ -3443,15 +3443,17 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_pkt_versioned(
 /**
  * @function
  *
- * `ngtcp2_conn_handshake_completed` tells |conn| that the QUIC
- * handshake has completed.
+ * `ngtcp2_conn_handshake_completed` tells |conn| that the TLS stack
+ * declares TLS handshake completion.  This does not mean QUIC
+ * handshake has completed.  The library needs extra conditions to be
+ * met.
  */
 NGTCP2_EXTERN void ngtcp2_conn_handshake_completed(ngtcp2_conn *conn);
 
 /**
  * @function
  *
- * `ngtcp2_conn_get_handshake_completed` returns nonzero if handshake
+ * `ngtcp2_conn_get_handshake_completed` returns nonzero if QUIC handshake
  * has completed.
  */
 NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
