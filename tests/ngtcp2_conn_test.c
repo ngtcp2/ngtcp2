@@ -3941,7 +3941,7 @@ void test_ngtcp2_conn_send_early_data(void) {
                                      stream_id, null_data, 1024, ++t);
 
   CU_ASSERT((ngtcp2_ssize)sizeof(buf) == spktlen);
-  CU_ASSERT(674 == datalen);
+  CU_ASSERT(670 == datalen);
 
   ngtcp2_conn_del(conn);
 
@@ -5786,7 +5786,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   it = ngtcp2_ksl_begin(&conn->hs_pktns->rtb.ents);
   ent = ngtcp2_ksl_it_get(&it);
 
-  CU_ASSERT(996 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(992 == ent->frc->fr.crypto.offset);
   CU_ASSERT(4 == ent->hd.pkt_num);
 
   fr.type = NGTCP2_FRAME_ACK;
@@ -5823,7 +5823,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
   CU_ASSERT(0 == ent->frc->fr.crypto.offset);
   CU_ASSERT(2 == ent->frc->fr.crypto.datacnt);
-  CU_ASSERT(1186 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+  CU_ASSERT(1184 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
                                    ent->frc->fr.crypto.datacnt));
 
   ngtcp2_conn_del(conn);
@@ -5854,7 +5854,6 @@ void test_ngtcp2_conn_handshake_loss(void) {
                                  123);
   ngtcp2_conn_submit_crypto_data(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE, null_data,
                                  3000);
-
   /* Initial and first Handshake are coalesced into 1 packet. */
   for (i = 0; i < 3; ++i) {
     spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -5869,8 +5868,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
-  CU_ASSERT(2176 == ent->frc->fr.crypto.offset);
-  CU_ASSERT(824 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+  CU_ASSERT(2170 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(830 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
                                   ent->frc->fr.crypto.datacnt));
 
   t += 1000;
@@ -5893,8 +5892,8 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
-  CU_ASSERT(996 == ent->frc->fr.crypto.offset);
-  CU_ASSERT(1180 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
+  CU_ASSERT(992 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(1178 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
                                    ent->frc->fr.crypto.datacnt));
 
   fr.type = NGTCP2_FRAME_ACK;
@@ -5934,15 +5933,15 @@ void test_ngtcp2_conn_handshake_loss(void) {
   ent = ngtcp2_ksl_it_get(&it);
 
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == ent->frc->fr.type);
-  CU_ASSERT(991 == ent->frc->fr.crypto.offset);
+  CU_ASSERT(987 == ent->frc->fr.crypto.offset);
   CU_ASSERT(5 == ngtcp2_vec_len(ent->frc->fr.crypto.data,
                                 ent->frc->fr.crypto.datacnt));
 
   frc = ent->frc->next;
 
   CU_ASSERT(NGTCP2_FRAME_CRYPTO == frc->fr.type);
-  CU_ASSERT(2176 == frc->fr.crypto.offset);
-  CU_ASSERT(824 == ngtcp2_vec_len(frc->fr.crypto.data, frc->fr.crypto.datacnt));
+  CU_ASSERT(2170 == frc->fr.crypto.offset);
+  CU_ASSERT(830 == ngtcp2_vec_len(frc->fr.crypto.data, frc->fr.crypto.datacnt));
   CU_ASSERT(NULL == frc->next);
 
   ngtcp2_conn_del(conn);
@@ -7249,7 +7248,7 @@ void test_ngtcp2_conn_early_data_sync_stream_data_limit(void) {
                                      bidi_stream_id, null_data, 1024, ++t);
 
   CU_ASSERT((ngtcp2_ssize)sizeof(buf) == spktlen);
-  CU_ASSERT(674 == datalen);
+  CU_ASSERT(670 == datalen);
 
   rv = ngtcp2_conn_open_uni_stream(conn, &uni_stream_id, NULL);
 
@@ -7358,7 +7357,7 @@ void test_ngtcp2_conn_early_data_rejected(void) {
                                      bidi_stream_id, null_data, 1024, ++t);
 
   CU_ASSERT((ngtcp2_ssize)sizeof(buf) == spktlen);
-  CU_ASSERT(674 == datalen);
+  CU_ASSERT(670 == datalen);
 
   rv = ngtcp2_conn_open_uni_stream(conn, &uni_stream_id, NULL);
 

@@ -220,12 +220,12 @@ uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n);
 uint8_t *ngtcp2_put_varint(uint8_t *p, uint64_t n);
 
 /*
- * ngtcp2_put_varint14 writes |n| in |p| using variable-length integer
- * encoding.  |n| must be strictly less than 16384.  The function
- * always encodes |n| in 2 bytes.  It returns the one beyond of the
+ * ngtcp2_put_varint30 writes |n| in |p| using variable-length integer
+ * encoding.  |n| must be strictly less than 1073741824.  The function
+ * always encodes |n| in 4 bytes.  It returns the one beyond of the
  * last written position.
  */
-uint8_t *ngtcp2_put_varint14(uint8_t *p, uint16_t n);
+uint8_t *ngtcp2_put_varint30(uint8_t *p, uint32_t n);
 
 /*
  * ngtcp2_put_pkt_num encodes |pkt_num| using |len| bytes.  It

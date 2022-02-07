@@ -155,13 +155,13 @@ uint8_t *ngtcp2_put_varint(uint8_t *p, uint64_t n) {
   return rv;
 }
 
-uint8_t *ngtcp2_put_varint14(uint8_t *p, uint16_t n) {
+uint8_t *ngtcp2_put_varint30(uint8_t *p, uint32_t n) {
   uint8_t *rv;
 
-  assert(n < 16384);
+  assert(n < 1073741824);
 
-  rv = ngtcp2_put_uint16be(p, n);
-  *p |= 0x40;
+  rv = ngtcp2_put_uint32be(p, n);
+  *p |= 0x80;
 
   return rv;
 }

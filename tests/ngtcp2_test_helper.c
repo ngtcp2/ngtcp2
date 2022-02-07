@@ -392,9 +392,9 @@ uint64_t read_pkt_payloadlen(const uint8_t *pkt, const ngtcp2_cid *dcid,
 
 void write_pkt_payloadlen(uint8_t *pkt, const ngtcp2_cid *dcid,
                           const ngtcp2_cid *scid, uint64_t payloadlen) {
-  assert(payloadlen < 16384);
-  ngtcp2_put_varint14(&pkt[1 + 4 + 1 + dcid->datalen + 1 + scid->datalen],
-                      (uint16_t)payloadlen);
+  assert(payloadlen < 1073741824);
+  ngtcp2_put_varint30(&pkt[1 + 4 + 1 + dcid->datalen + 1 + scid->datalen],
+                      (uint32_t)payloadlen);
 }
 
 ngtcp2_ssize pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
