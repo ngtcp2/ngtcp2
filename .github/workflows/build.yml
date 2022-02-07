@@ -150,6 +150,8 @@ jobs:
       if: matrix.buildtool == 'cmake'
       run: |
         cmake $CMAKE_OPTS \
+          -DENABLE_GNUTLS=ON \
+          -DENABLE_BORINGSSL=ON \
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
           -DBORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/" \
           -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
