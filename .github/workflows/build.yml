@@ -80,6 +80,10 @@ jobs:
     - name: Build BoringSSL
       run: |
         ./ci/build_boringssl.sh
+    - name: Build Picotls
+      if: matrix.openssl == 'openssl1'
+      run: |
+        ./ci/build_picotls.sh
     - name: Build nghttp3
       run: |
         ./ci/build_nghttp3.sh
@@ -89,11 +93,15 @@ jobs:
         LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/openssl/build/lib64 -Wl,-rpath,$PWD/nettle-3.6/build/lib64"
         BORINGSSL_CFLAGS="-I$PWD/boringssl/include/"
         BORINGSSL_LIBS="-L$PWD/boringssl/build/ssl -lssl -L$PWD/boringssl/build/crypto -lcrypto"
+        PICOTLS_CFLAGS="-I$PWD/picotls/include/"
+        PICOTLS_LIBS="-L$PWD/picotls/build -lpicotls-openssl -lpicotls-core"
 
         echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
         echo 'LDFLAGS='"$LDFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_CFLAGS='"$BORINGSSL_CFLAGS" >> $GITHUB_ENV
         echo 'BORINGSSL_LIBS='"$BORINGSSL_LIBS" >> $GITHUB_ENV
+        echo 'PICOTLS_CFLAGS='"$PICOTLS_CFLAGS" >> $GITHUB_ENV
+        echo 'PICOTLS_LIBS='"$PICOTLS_LIBS" >> $GITHUB_ENV
     - name: Enable ASAN
       if: runner.os == 'Linux'
       run: |
@@ -120,6 +128,14 @@ jobs:
 
         echo 'CFLAGS='"$CFLAGS" >> $GITHUB_ENV
         echo 'EXTRA_AUTOTOOLS_OPTS='"$EXTRA_AUTOTOOLS_OPTS" >> $GITHUB_ENV
+    - name: Enable Picotls when OpenSSL is v1
+      if: matrix.openssl == 'openssl1'
+      run: |
+        EXTRA_AUTOTOOLS_OPTS="$EXTRA_AUTOTOOLS_OPTS --with-picotls"
+        CMAKE_OPTS="$CMAKE_OPTS -DENABLE_PICOTLS=ON"
+
+        echo 'EXTRA_AUTOTOOLS_OPTS='"$EXTRA_AUTOTOOLS_OPTS" >> $GITHUB_ENV
+        echo 'CMAKE_OPTS='"$CMAKE_OPTS" >> $GITHUB_ENV
     - name: Configure autotools
       if: matrix.buildtool == 'autotools'
       run: |
@@ -135,7 +151,9 @@ jobs:
       run: |
         cmake $CMAKE_OPTS \
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
-          -DBORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/" .
+          -DBORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/" \
+          -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
+          -DPICOTLS_INCLUDE_DIR="$PWD/picotls/include/" .
     - name: Build ngtcp2
       if: matrix.buildtool != 'distcheck'
       run: |
@@ -145,7 +163,7 @@ jobs:
       if: matrix.buildtool == 'distcheck'
       run: |
         make distcheck \
-          DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl"
+          DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS"
     - name: Integration test
       if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
       run: |

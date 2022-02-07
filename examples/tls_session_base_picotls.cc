@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,27 +22,41 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_SESSION_H
-#define TLS_CLIENT_SESSION_H
+#include "tls_session_base_picotls.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+TLSSessionBase::TLSSessionBase() { ngtcp2_crypto_picotls_ctx_init(&cptls_); }
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_client_session_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+TLSSessionBase::~TLSSessionBase() {
+  if (cptls_.ptls) {
+    ptls_free(cptls_.ptls);
+  }
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_client_session_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+  auto &hsprops = cptls_.handshake_properties;
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_client_session_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+  if (auto exts = hsprops.additional_extensions; exts) {
+    delete[] exts[0].data.base;
+    delete[] exts;
+  }
+}
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_client_session_picotls.h"
-#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+// TODO Better to remove const qualifier?
+ngtcp2_crypto_picotls_ctx *TLSSessionBase::get_native_handle() const {
+  return const_cast<ngtcp2_crypto_picotls_ctx *>(&cptls_);
+}
 
-#endif // TLS_CLIENT_SESSION_H
+std::string TLSSessionBase::get_cipher_name() const {
+  auto cs = ptls_get_cipher(cptls_.ptls);
+  return cs->aead->name;
+}
+
+std::string TLSSessionBase::get_selected_alpn() const {
+  auto alpn = ptls_get_negotiated_protocol(cptls_.ptls);
+
+  if (!alpn) {
+    return {};
+  }
+
+  return alpn;
+}
+
+uint8_t TLSSessionBase::get_tls_alert() const { return cptls_.alert; }

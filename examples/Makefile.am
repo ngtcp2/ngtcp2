@@ -159,6 +159,29 @@ bsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_BORINGSSL
 
+if ENABLE_EXAMPLE_PICOTLS
+noinst_PROGRAMS += ptlsclient ptlsserver
+
+ptlsclient_CPPFLAGS = ${AM_CPPFLAGS} @PICOTLS_CFLAGS@ @VANILLA_OPENSSL_CFLAGS@ \
+	-DWITH_EXAMPLE_PICOTLS
+ptlsclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/picotls/libngtcp2_crypto_picotls.a \
+	@PICOTLS_LIBS@ @VANILLA_OPENSSL_LIBS@
+ptlsclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
+	tls_client_context_picotls.cc tls_client_context_picotls.h \
+	tls_client_session_picotls.cc tls_client_session_picotls.h \
+	tls_session_base_picotls.cc tls_session_base_picotls.h \
+	util_openssl.cc
+
+ptlsserver_CPPFLAGS = ${ptlsclient_CPPFLAGS}
+ptlsserver_LDADD = ${ptlsclient_LDADD}
+ptlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
+	tls_server_context_picotls.cc tls_server_context_picotls.h \
+	tls_server_session_picotls.cc tls_server_session_picotls.h \
+	tls_session_base_picotls.cc tls_session_base_picotls.h \
+	util_openssl.cc
+endif # ENABLE_EXAMPLE_PICOTLS
+
 if HAVE_CUNIT
 check_PROGRAMS = examplestest
 examplestest_SOURCES = examplestest.cc \

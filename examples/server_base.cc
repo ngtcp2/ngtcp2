@@ -133,3 +133,9 @@ int HandlerBase::call_application_tx_key_cb() const {
   }
   return application_tx_key_cb_();
 }
+
+void HandlerBase::process_unhandled_tls_alert() {
+  if (auto alert = tls_session_.get_tls_alert(); alert) {
+    set_tls_alert(alert);
+  }
+}

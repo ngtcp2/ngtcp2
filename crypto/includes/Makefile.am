@@ -35,3 +35,7 @@ endif
 if HAVE_BORINGSSL
 nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_boringssl.h
 endif
+
+if HAVE_PICOTLS
+nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_picotls.h
+endif

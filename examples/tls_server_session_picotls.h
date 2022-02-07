@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,27 +22,26 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_SESSION_H
-#define TLS_CLIENT_SESSION_H
+#ifndef TLS_SERVER_SESSION_PICOTLS_H
+#define TLS_SERVER_SESSION_PICOTLS_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_client_session_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include "tls_session_base_picotls.h"
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_client_session_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+class TLSServerContext;
+class HandlerBase;
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_client_session_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+class TLSServerSession : public TLSSessionBase {
+public:
+  TLSServerSession();
+  ~TLSServerSession();
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_client_session_picotls.h"
-#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+  int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
+  // ticket is sent automatically.
+  int send_session_ticket() { return 0; }
+};
 
-#endif // TLS_CLIENT_SESSION_H
+#endif // TLS_SERVER_SESSION_PICOTLS_H

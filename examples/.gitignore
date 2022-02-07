@@ -7,5 +7,6 @@ gtlsclient
 gtlsserver
 bsslclient
 bsslserver
-perfserver
+ptlsclient
+ptlsserver
 simpleclient

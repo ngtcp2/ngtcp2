@@ -880,6 +880,11 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
       break;
     case NGTCP2_ERR_DROP_CONN:
       return NETWORK_ERR_DROP_CONN;
+    case NGTCP2_ERR_CRYPTO:
+      if (!last_error_.code) {
+        process_unhandled_tls_alert();
+      }
+      // fall through
     default:
       if (!last_error_.code) {
         last_error_ = quic_err_transport(rv);

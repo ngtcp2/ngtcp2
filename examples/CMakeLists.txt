@@ -215,3 +215,70 @@ if(LIBEV_FOUND AND HAVE_BORINGSSL AND LIBNGHTTP3_FOUND)
 
   # TODO prevent bsslclient and example bsslservers from being installed?
 endif()
+
+if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
+  set(ptlsclient_SOURCES
+    client.cc
+    client_base.cc
+    debug.cc
+    util.cc
+    shared.cc
+    tls_client_context_picotls.cc
+    tls_client_session_picotls.cc
+    tls_session_base_picotls.cc
+    util_openssl.cc
+  )
+
+  set(ptlsserver_SOURCES
+    server.cc
+    server_base.cc
+    debug.cc
+    util.cc
+    http.cc
+    shared.cc
+    tls_server_context_picotls.cc
+    tls_server_session_picotls.cc
+    tls_session_base_picotls.cc
+    util_openssl.cc
+  )
+
+  set(ptls_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/lib/includes
+    ${CMAKE_BINARY_DIR}/lib/includes
+    ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/crypto/includes
+
+    ${PICOTLS_INCLUDE_DIRS}
+    ${VANILLA_OPENSSL_INCLUDE_DIRS}
+    ${LIBEV_INCLUDE_DIRS}
+    ${LIBNGHTTP3_INCLUDE_DIRS}
+  )
+
+  set(ptls_LIBS
+    ngtcp2_crypto_picotls_static
+    ngtcp2
+    ${PICOTLS_LIBRARIES}
+    ${VANILLA_OPENSSL_LIBRARIES}
+    ${LIBEV_LIBRARIES}
+    ${LIBNGHTTP3_LIBRARIES}
+  )
+
+  add_executable(ptlsclient ${ptlsclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(ptlsserver ${ptlsserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  set_target_properties(ptlsclient PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_PICOTLS -DWITH_EXAMPLE_PICOTLS"
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+  )
+  set_target_properties(ptlsserver PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_PICOTLS -DWITH_EXAMPLE_PICOTLS"
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+  )
+  target_include_directories(ptlsclient PUBLIC ${ptls_INCLUDE_DIRS})
+  target_include_directories(ptlsserver PUBLIC ${ptls_INCLUDE_DIRS})
+  target_link_libraries(ptlsclient ${ptls_LIBS})
+  target_link_libraries(ptlsserver ${ptls_LIBS})
+
+  # TODO prevent ptlsclient and example ptlsservers from being installed?
+endif()

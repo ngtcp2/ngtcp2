@@ -41,4 +41,8 @@
 #  include "tls_server_session_boringssl.h"
 #endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
 
+#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
+#  include "tls_server_session_picotls.h"
+#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+
 #endif // TLS_SERVER_SESSION_H

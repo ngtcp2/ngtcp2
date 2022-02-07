@@ -59,6 +59,7 @@ directory require at least one of the following TLS backends:
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1m+quic>`_
 - GnuTLS >= 3.7.2
 - BoringSSL (commit 36a41bf0bf2dd3176f8780e09c03585351f29963)
+- Pictotls (commit 047c5fe20bb9ea91c1caded8977134f19681ec76)
 
 Build from git
 --------------
@@ -172,9 +173,13 @@ available crypto helper libraries are:
 - libngtcp2_crypto_openssl: Use OpenSSL as TLS backend
 - libngtcp2_crypto_gnutls: Use GnuTLS as TLS backend
 - libngtcp2_crypto_boringssl: Use BoringSSL as TLS backend
+- libngtcp2_crypto_picotls: Use Picotls as TLS backend
 
-Because BoringSSL is an unversioned product, we only tested its
-particular revision.  See Requirements section above.
+Because BoringSSL and Picotls are an unversioned product, we only
+tested their particular revision.  See Requirements section above.
+
+We use Picotls with OpenSSL as crypto backend.  It does not work with
+OpenSSL >= 3.0.0.
 
 The examples directory contains client and server that are linked to
 those crypto helper libraries and TLS backends.  They are only built
@@ -186,6 +191,8 @@ if their corresponding crypto helper library is built:
 - gtlsserver: GnuTLS server
 - bsslclient: BoringSSL client
 - bsslserver: BoringSSL server
+- ptlsclient: Picotls client
+- ptlsserver: Picotls server
 
 QUIC protocol extensions
 -------------------------

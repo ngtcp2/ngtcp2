@@ -42,3 +42,9 @@ if(HAVE_BORINGSSL)
       ngtcp2/ngtcp2_crypto_boringssl.h
       DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
 endif()
+
+if(HAVE_PICOTLS)
+  install(FILES
+      ngtcp2/ngtcp2_crypto_picotls.h
+      DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/ngtcp2")
+endif()

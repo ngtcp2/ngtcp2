@@ -124,8 +124,16 @@ AC_ARG_WITH([boringssl],
                     [Use boringssl [default=no]])],
     [request_boringssl=$withval], [request_boringssl=no])
 
+AC_ARG_WITH([picotls],
+    [AS_HELP_STRING([--with-picotls],
+                    [Use picotls [default=no]])],
+    [request_picotls=$withval], [request_picotls=no])
+
 AC_ARG_VAR([BORINGSSL_CFLAGS], [C compiler flags for BORINGSSL])
 AC_ARG_VAR([BORINGSSL_LIBS], [linker flags for BORINGSSL])
+
+AC_ARG_VAR([PICOTLS_CFLAGS], [C compiler flags for PICOTLS])
+AC_ARG_VAR([PICOTLS_LIBS], [linker flags for PICOTLS])
 
 AC_ARG_VAR([LIBEV_CFLAGS], [C compiler flags for libev, skipping any checks])
 AC_ARG_VAR([LIBEV_LIBS], [linker flags for libev, skipping any checks])
@@ -198,38 +206,50 @@ AM_CONDITIONAL([HAVE_CUNIT], [ test "x${have_cunit}" = "xyes" ])
 
 AM_CONDITIONAL([ENABLE_SHARED], [ test "x${enable_shared}" = "xyes" ])
 
-# OpenSSL (required for libngtcp2_crypto_openssl and examples)
+# OpenSSL (required for libngtcp2_crypto_openssl,
+# libngtcp2_crypto_picotls and examples)
 have_openssl=no
+have_vanilla_openssl=no
 if test "x${request_openssl}" != "xno"; then
   PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.1],
                     [have_openssl=yes], [have_openssl=no])
   if test "x${have_openssl}" = "xno"; then
     AC_MSG_NOTICE($OPENSSL_PKG_ERRORS)
-  fi
-  # Until OpenSSL gains mainline support for QUIC, check for a patched version.
-  save_CFLAGS="$CFLAGS"
-  save_LIBS="$LIBS"
-  CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
-  LIBS="$OPENSSL_LIBS $LIBS"
+  else
+    have_vanilla_openssl=yes
+    VANILLA_OPENSSL_LIBS="$OPENSSL_LIBS"
+    VANILLA_OPENSSL_CFLAGS="$OPENSSL_CFLAGS"
 
-  AC_MSG_CHECKING([for SSL_is_quic])
-  AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-    #include <openssl/ssl.h>
-  ]], [[
-    SSL *ssl = NULL;
-    SSL_is_quic(ssl);
-  ]])],
-  [AC_MSG_RESULT([yes]); have_openssl_quic=yes],
-  [AC_MSG_RESULT([no]); have_openssl_quic=no])
+    AC_SUBST(VANILLA_OPENSSL_LIBS)
+    AC_SUBST(VANILLA_OPENSSL_CFLAGS)
 
-  CFLAGS="$save_CFLAGS"
-  LIBS="$save_LIBS"
+    # Until OpenSSL gains mainline support for QUIC, check for a
+    # patched version.
 
-  if test "x${have_openssl}${have_openssl_quic}" = "xyesno"; then
-    AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
-    have_openssl=no
-    OPENSSL_LIBS=
-    OPENSSL_CFLAGS=
+    save_CFLAGS="$CFLAGS"
+    save_LIBS="$LIBS"
+    CFLAGS="$OPENSSL_CFLAGS $CFLAGS"
+    LIBS="$OPENSSL_LIBS $LIBS"
+
+    AC_MSG_CHECKING([for SSL_is_quic])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+      #include <openssl/ssl.h>
+    ]], [[
+      SSL *ssl = NULL;
+      SSL_is_quic(ssl);
+    ]])],
+    [AC_MSG_RESULT([yes]); have_openssl_quic=yes],
+    [AC_MSG_RESULT([no]); have_openssl_quic=no])
+
+    CFLAGS="$save_CFLAGS"
+    LIBS="$save_LIBS"
+
+    if test "x${have_openssl_quic}" = "no"; then
+      AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
+      have_openssl=no
+      OPENSSL_LIBS=
+      OPENSSL_CFLAGS=
+    fi
   fi
 fi
 
@@ -286,10 +306,40 @@ fi
 
 AM_CONDITIONAL([HAVE_BORINGSSL], [ test "x${have_boringssl}" = "xyes" ])
 
+# Picotls openssl backend (required for libngtcp2_crypto_picotls)
+have_picotls=no
+if test "x${request_picotls}" != "xno"; then
+  save_CFLAGS="$CFLAGS"
+  save_LIBS="$LIBS"
+  CFLAGS="$PICOTLS_CFLAGS $VANILLA_OPENSSL_CFLAGS $CFLAGS"
+  LIBS="$PICOTLS_LIBS $VANILLA_OPENSSL_LIBS $LIBS"
+
+  AC_MSG_CHECKING([for ptls_openssl_random_bytes])
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+    #include <picotls.h>
+    #include <picotls/openssl.h>
+  ]], [[
+    ptls_openssl_random_bytes(NULL, 0);
+  ]])],
+  [AC_MSG_RESULT([yes]); have_picotls=yes],
+  [AC_MSG_RESULT([no]); have_picotls=no])
+
+  CFLAGS="$save_CFLAGS"
+  LIBS="$save_LIBS"
+fi
+
+if test "x${request_picotls}" = "xyes" &&
+   test "x${have_picotls}" != "xyes"; then
+  AC_MSG_ERROR([picotls was requested (--with-picotls) but not found])
+fi
+
+AM_CONDITIONAL([HAVE_PICOTLS], [ test "x${have_picotls}" = "xyes" ])
+
 have_crypto=no
 if test "x${have_openssl}" = "xyes" ||
    test "x${have_gnutls}" = "xyes" ||
-   test "x${have_boringssl}" = "xyes"; then
+   test "x${have_boringssl}" = "xyes" ||
+   test "x${have_picotls}" = "xyes"; then
   have_crypto=yes
 fi
 
@@ -359,12 +409,18 @@ if test "x${lib_only}" = "xno" &&
     AC_DEFINE([ENABLE_EXAMPLE_BORINGSSL], [1],
               [Define to 1 in order to build examples/{bsslclient,bsslserver}])
   fi
+
+  if test "x${have_picotls}" = "xyes"; then
+    AC_DEFINE([ENABLE_EXAMPLE_PICOTLS], [1],
+              [Define to 1 in order to build examples/{ptlsclient,ptlsserver}])
+  fi
 fi
 
 AM_CONDITIONAL([ENABLE_EXAMPLES], [ test "x${enable_examples}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_OPENSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_openssl}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_GNUTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_gnutls}" = "xyes" ])
 AM_CONDITIONAL([ENABLE_EXAMPLE_BORINGSSL], [ test "x${enable_examples}" = "xyes" && test "x${have_boringssl}" = "xyes" ])
+AM_CONDITIONAL([ENABLE_EXAMPLE_PICOTLS], [ test "x${enable_examples}" = "xyes" && test "x${have_picotls}" = "xyes" ])
 
 # jemalloc
 have_jemalloc=no
@@ -571,6 +627,8 @@ AC_CONFIG_FILES([
   crypto/gnutls/libngtcp2_crypto_gnutls.pc
   crypto/boringssl/Makefile
   crypto/boringssl/libngtcp2_crypto_boringssl.pc
+  crypto/picotls/Makefile
+  crypto/picotls/libngtcp2_crypto_picotls.pc
   doc/Makefile
   doc/source/conf.py
   third-party/Makefile
@@ -608,6 +666,7 @@ AC_MSG_NOTICE([summary of build options:
       libngtcp2_crypto_openssl:   ${have_openssl}
       libngtcp2_crypto_gnutls:    ${have_gnutls}
       libngtcp2_crypto_boringssl: ${have_boringssl}
+      libngtcp2_crypto_picotls:   ${have_picotls}
     Test:
       CUnit:          ${have_cunit} (CFLAGS='${CUNIT_CFLAGS}' LIBS='${CUNIT_LIBS}')
     Debug:
@@ -619,5 +678,6 @@ AC_MSG_NOTICE([summary of build options:
       Jemalloc:       ${have_jemalloc} (CFLAGS='${JEMALLOC_CFLAGS}' LIBS='${JEMALLOC_LIBS}')
       GnuTLS:         ${have_gnutls} (CFLAGS='${GNUTLS_CFLAGS}' LIBS='${GNUTLS_LIBS}')
       BoringSSL:      ${have_boringssl} (CFLAGS='${BORINGSSL_CFLAGS}' LIBS='${BORINGSSL_LIBS}')
+      Picotls:        ${have_picotls} (CFLAGS='${PICOTLS_CFLAGS}' LIBS='${PICOTLS_LIBS}')
     Examples:         ${enable_examples}
 ])

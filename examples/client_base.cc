@@ -290,3 +290,9 @@ int ClientBase::call_application_rx_key_cb() const {
   }
   return application_rx_key_cb_();
 }
+
+void ClientBase::process_unhandled_tls_alert() {
+  if (auto alert = tls_session_.get_tls_alert(); alert) {
+    set_tls_alert(alert);
+  }
+}
