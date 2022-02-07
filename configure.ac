@@ -282,7 +282,7 @@ have_boringssl=no
 if test "x${request_boringssl}" != "xno"; then
   save_CFLAGS="$CFLAGS"
   save_LIBS="$LIBS"
-  CFLAGS="$BORINGSSL_CFLAGS"
+  CFLAGS="$BORINGSSL_CFLAGS $CFLAGS"
   LIBS="$BORINGSSL_LIBS $LIBS"
 
   AC_MSG_CHECKING([for SSL_set_quic_early_data_context])
