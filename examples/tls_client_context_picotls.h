@@ -39,7 +39,7 @@ public:
 
   int init(const char *private_key_file, const char *cert_file);
 
-  ptls_context_t *get_native_handle() const;
+  ptls_context_t *get_native_handle();
 
   // TODO Implement keylog.
   void enable_keylog() {}

@@ -87,7 +87,7 @@ public:
 
   int init(int fd, const Address &local_addr, const Address &remote_addr,
            const char *addr, const char *port, uint32_t version,
-           const TLSClientContext &tls_ctx);
+           TLSClientContext &tls_ctx);
   void disconnect();
 
   int on_read(const Endpoint &ep);

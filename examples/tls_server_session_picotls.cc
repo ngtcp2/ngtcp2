@@ -80,8 +80,7 @@ int collected_extensions(ptls_t *ptls,
 }
 } // namespace
 
-int TLSServerSession::init(const TLSServerContext &tls_ctx,
-                           HandlerBase *handler) {
+int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
   cptls_.ptls = ptls_server_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {
     std::cerr << "ptls_server_new failed" << std::endl;

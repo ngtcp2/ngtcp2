@@ -40,7 +40,7 @@ public:
   TLSSessionBase();
   ~TLSSessionBase();
 
-  ngtcp2_crypto_picotls_ctx *get_native_handle() const;
+  ngtcp2_crypto_picotls_ctx *get_native_handle();
 
   std::string get_cipher_name() const;
   std::string get_selected_alpn() const;

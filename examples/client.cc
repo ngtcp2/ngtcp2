@@ -588,7 +588,7 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port, uint32_t version,
-                 const TLSClientContext &tls_ctx) {
+                 TLSClientContext &tls_ctx) {
   endpoints_.reserve(4);
 
   endpoints_.emplace_back();
@@ -2061,7 +2061,7 @@ int Client::setup_httpconn() {
 
 namespace {
 int run(Client &c, const char *addr, const char *port,
-        const TLSClientContext &tls_ctx) {
+        TLSClientContext &tls_ctx) {
   Address remote_addr, local_addr;
 
   auto fd = create_sock(remote_addr, addr, port);

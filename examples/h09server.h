@@ -106,7 +106,7 @@ public:
   int init(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
            socklen_t salen, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
            const ngtcp2_cid *ocid, const uint8_t *token, size_t tokenlen,
-           uint32_t version, const TLSServerContext &tls_ctx);
+           uint32_t version, TLSServerContext &tls_ctx);
 
   int on_read(const Endpoint &ep, const Address &local_addr, const sockaddr *sa,
               socklen_t salen, const ngtcp2_pkt_info *pi, uint8_t *data,
@@ -196,7 +196,7 @@ private:
 
 class Server {
 public:
-  Server(struct ev_loop *loop, const TLSServerContext &tls_ctx);
+  Server(struct ev_loop *loop, TLSServerContext &tls_ctx);
   ~Server();
 
   int init(const char *addr, const char *port);
@@ -231,7 +231,7 @@ private:
   std::unordered_map<std::string, Handler *> handlers_;
   struct ev_loop *loop_;
   std::vector<Endpoint> endpoints_;
-  const TLSServerContext &tls_ctx_;
+  TLSServerContext &tls_ctx_;
   ev_signal sigintev_;
 };
 

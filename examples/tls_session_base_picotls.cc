@@ -39,9 +39,8 @@ TLSSessionBase::~TLSSessionBase() {
   }
 }
 
-// TODO Better to remove const qualifier?
-ngtcp2_crypto_picotls_ctx *TLSSessionBase::get_native_handle() const {
-  return const_cast<ngtcp2_crypto_picotls_ctx *>(&cptls_);
+ngtcp2_crypto_picotls_ctx *TLSSessionBase::get_native_handle() {
+  return &cptls_;
 }
 
 std::string TLSSessionBase::get_cipher_name() const {

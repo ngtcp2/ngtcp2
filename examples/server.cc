@@ -1345,7 +1345,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
                   const sockaddr *sa, socklen_t salen, const ngtcp2_cid *dcid,
                   const ngtcp2_cid *scid, const ngtcp2_cid *ocid,
                   const uint8_t *token, size_t tokenlen, uint32_t version,
-                  const TLSServerContext &tls_ctx) {
+                  TLSServerContext &tls_ctx) {
   auto callbacks = ngtcp2_callbacks{
       nullptr, // client_initial
       ngtcp2_crypto_recv_client_initial_cb,
@@ -2158,7 +2158,7 @@ void siginthandler(struct ev_loop *loop, ev_signal *watcher, int revents) {
 }
 } // namespace
 
-Server::Server(struct ev_loop *loop, const TLSServerContext &tls_ctx)
+Server::Server(struct ev_loop *loop, TLSServerContext &tls_ctx)
     : loop_(loop), tls_ctx_(tls_ctx) {
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
 }

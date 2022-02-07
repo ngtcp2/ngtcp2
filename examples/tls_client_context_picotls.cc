@@ -128,10 +128,7 @@ TLSClientContext::~TLSClientContext() {
   free(ctx_.certificates.list);
 }
 
-// TODO Better to remove const qualifier?
-ptls_context_t *TLSClientContext::get_native_handle() const {
-  return const_cast<ptls_context_t *>(&ctx_);
-}
+ptls_context_t *TLSClientContext::get_native_handle() { return &ctx_; }
 
 int TLSClientContext::init(const char *private_key_file,
                            const char *cert_file) {

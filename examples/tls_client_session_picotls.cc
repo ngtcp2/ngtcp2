@@ -136,8 +136,7 @@ auto negotiated_protocols = std::array<ptls_iovec_t, 1>{{
 }};
 } // namespace
 
-int TLSClientSession::init(bool &early_data_enabled,
-                           const TLSClientContext &tls_ctx,
+int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
                            const char *remote_addr, ClientBase *client,
                            uint32_t quic_version, AppProtocol app_proto) {
   cptls_.ptls = ptls_client_new(tls_ctx.get_native_handle());

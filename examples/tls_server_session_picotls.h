@@ -39,7 +39,7 @@ public:
   TLSServerSession();
   ~TLSServerSession();
 
-  int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
+  int init(TLSServerContext &tls_ctx, HandlerBase *handler);
   // ticket is sent automatically.
   int send_session_ticket() { return 0; }
 };
