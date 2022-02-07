@@ -961,6 +961,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(settings->max_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_stream_window <= NGTCP2_MAX_VARINT);
   assert(settings->max_udp_payload_size);
+  assert(settings->max_udp_payload_size <= NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE);
   assert(params->active_connection_id_limit <= NGTCP2_MAX_DCID_POOL_SIZE);
   assert(params->initial_max_data <= NGTCP2_MAX_VARINT);
   assert(params->initial_max_stream_data_bidi_local <= NGTCP2_MAX_VARINT);
@@ -2201,8 +2202,8 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
   return left <
          /* TODO Assuming that pkt_num is encoded in 1 byte. */
          NGTCP2_MIN_LONG_HEADERLEN + conn->dcid.current.cid.datalen +
-             conn->oscid.datalen + 1 /* payloadlen bytes - 1 */ +
-             min_payloadlen + NGTCP2_MAX_AEAD_OVERHEAD;
+             conn->oscid.datalen + NGTCP2_PKT_LENGTHLEN - 1 + min_payloadlen +
+             NGTCP2_MAX_AEAD_OVERHEAD;
 }
 
 static void conn_restart_timer_on_write(ngtcp2_conn *conn, ngtcp2_tstamp ts) {

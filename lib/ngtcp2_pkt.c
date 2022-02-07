@@ -379,7 +379,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
                      len and 1 byte for packet number. */
 
   if (hd->type != NGTCP2_PKT_RETRY) {
-    len += 2 /* Length */ + hd->pkt_numlen;
+    len += NGTCP2_PKT_LENGTHLEN /* Length */ + hd->pkt_numlen;
   }
 
   if (hd->type == NGTCP2_PKT_INITIAL) {
@@ -418,7 +418,7 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
   }
 
   if (hd->type != NGTCP2_PKT_RETRY) {
-    p = ngtcp2_put_varint14(p, (uint16_t)hd->len);
+    p = ngtcp2_put_varint30(p, (uint32_t)hd->len);
     p = ngtcp2_put_pkt_num(p, hd->pkt_num, hd->pkt_numlen);
   }
 
