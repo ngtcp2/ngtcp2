@@ -2506,12 +2506,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
       }
     }
 
-    /* Don't send any PING frame if client Initial has not been
-       acknowledged yet. */
     if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) &&
-        pktns->rtb.probe_pkt_left &&
-        (type != NGTCP2_PKT_INITIAL ||
-         ngtcp2_strm_is_all_tx_data_acked(&pktns->crypto.strm))) {
+        pktns->rtb.probe_pkt_left) {
       lfr.type = NGTCP2_FRAME_PING;
 
       rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
@@ -2528,7 +2524,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
       if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
         /* The intention of smaller limit is get more chance to measure
            RTT samples in early phase. */
-        if (pktns->rtb.probe_pkt_left || pktns->tx.num_non_ack_pkt >= 1) {
+        if (pktns->tx.num_non_ack_pkt >= 1) {
           lfr.type = NGTCP2_FRAME_PING;
 
           rv = conn_ppe_write_frame_hd_log(conn, &ppe, &hd_logged, &hd, &lfr);
