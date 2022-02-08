@@ -36,7 +36,7 @@ extern "C" {
 /**
  * @struct
  *
- * :struct:`ngtcp2_crypto_picotls_ctx` contains per-connection state
+ * :type:`ngtcp2_crypto_picotls_ctx` contains per-connection state
  * of Picotls objects and must be an object to bet set to
  * `ngtcp2_conn_set_tls_native_handle`.
  */
