@@ -10781,7 +10781,10 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   case NGTCP2_CS_CLIENT_WAIT_HANDSHAKE:
   case NGTCP2_CS_CLIENT_TLS_HANDSHAKE_FAILED:
     nwrite = conn_client_write_handshake(conn, pi, dest, destlen, vmsg, ts);
-    if (nwrite < 0) {
+    /* We might be unable to write a packet because of depletion of
+       congestion window budget, perhaps due to packet loss that
+       shrinks the window drastically. */
+    if (nwrite <= 0) {
       return nwrite;
     }
     if (conn->state != NGTCP2_CS_POST_HANDSHAKE) {
