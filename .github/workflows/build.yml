@@ -29,7 +29,7 @@ jobs:
         - buildtool: cmake
           sockaddr: generic-sockaddr
         - os: macos-10.15
-          buildtool: gcc
+          compiler: gcc
         - os: macos-10.15
           openssl: openssl3
 
