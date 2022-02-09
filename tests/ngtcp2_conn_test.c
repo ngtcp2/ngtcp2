@@ -6788,7 +6788,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto(void) {
     }
   }
 
-  CU_ASSERT(2 == num_reclaim_pkt);
+  CU_ASSERT(1 == num_reclaim_pkt);
 
   ngtcp2_conn_del(conn);
 }
