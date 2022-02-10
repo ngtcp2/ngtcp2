@@ -3503,9 +3503,6 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           continue;
         }
         break;
-      case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
-        ++conn->dcid.num_retire_queued;
-        break;
       case NGTCP2_FRAME_CRYPTO:
         assert(0);
         break;
@@ -4249,11 +4246,18 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory.
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
  */
 static int conn_retire_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
   ngtcp2_pktns *pktns = &conn->pktns;
   ngtcp2_frame_chain *nfrc;
   int rv;
+
+  rv = ngtcp2_conn_track_retired_dcid_seq(conn, seq);
+  if (rv != 0) {
+    return rv;
+  }
 
   rv = ngtcp2_frame_chain_new(&nfrc, conn->mem);
   if (rv != 0) {
@@ -7293,13 +7297,7 @@ static int conn_recv_new_connection_id(ngtcp2_conn *conn,
        For example, a peer might send seq = 50000 and retire_prior_to
        = 50000.  Then send NEW_CONNECTION_ID frames with seq <
        50000. */
-    /* TODO we might queue lots of RETIRE_CONNECTION_ID frame here
-       because conn->dcid.num_retire_queued is incremented when the
-       frame is serialized. */
-    if (conn->dcid.num_retire_queued < NGTCP2_MAX_DCID_POOL_SIZE * 2) {
-      return conn_retire_dcid_seq(conn, fr->seq);
-    }
-    return 0;
+    return conn_retire_dcid_seq(conn, fr->seq);
   }
 
   if (found) {
@@ -12292,6 +12290,46 @@ void ngtcp2_conn_update_pkt_tx_time(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
 size_t ngtcp2_conn_get_send_quantum(ngtcp2_conn *conn) {
   return conn->cstat.send_quantum;
+}
+
+int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
+  size_t i;
+
+  if (conn->dcid.retire_unacked.len >=
+      sizeof(conn->dcid.retire_unacked.seqs) /
+          sizeof(conn->dcid.retire_unacked.seqs[0])) {
+    return NGTCP2_ERR_CONNECTION_ID_LIMIT;
+  }
+
+  /* Make sure that we do not have a duplicate */
+  for (i = 0; i < conn->dcid.retire_unacked.len; ++i) {
+    if (conn->dcid.retire_unacked.seqs[i] == seq) {
+      assert(0);
+    }
+  }
+
+  conn->dcid.retire_unacked.seqs[conn->dcid.retire_unacked.len++] = seq;
+
+  return 0;
+}
+
+void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq) {
+  size_t i;
+
+  for (i = 0; i < conn->dcid.retire_unacked.len; ++i) {
+    if (conn->dcid.retire_unacked.seqs[i] != seq) {
+      continue;
+    }
+
+    if (i != conn->dcid.retire_unacked.len - 1) {
+      conn->dcid.retire_unacked.seqs[i] =
+          conn->dcid.retire_unacked.seqs[conn->dcid.retire_unacked.len - 1];
+    }
+
+    --conn->dcid.retire_unacked.len;
+
+    return;
+  }
 }
 
 void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,

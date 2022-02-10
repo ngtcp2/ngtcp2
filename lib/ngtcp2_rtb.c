@@ -730,8 +730,8 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
       }
       break;
     case NGTCP2_FRAME_RETIRE_CONNECTION_ID:
-      assert(conn->dcid.num_retire_queued);
-      --conn->dcid.num_retire_queued;
+      ngtcp2_conn_untrack_retired_dcid_seq(conn,
+                                           frc->fr.retire_connection_id.seq);
       break;
     case NGTCP2_FRAME_DATAGRAM:
     case NGTCP2_FRAME_DATAGRAM_LEN:

@@ -367,9 +367,13 @@ struct ngtcp2_conn {
     /* retire_prior_to is the largest retire_prior_to received so
        far. */
     uint64_t retire_prior_to;
-    /* num_retire_queued is the number of RETIRE_CONNECTION_ID frames
-       queued for transmission. */
-    size_t num_retire_queued;
+    struct {
+      /* seqs contains sequence number of Connection ID whose
+         retirement is not acknowledged by the remote endpoint yet. */
+      uint64_t seqs[NGTCP2_MAX_DCID_POOL_SIZE * 2];
+      /* len is the number of sequence numbers that seq contains. */
+      size_t len;
+    } retire_unacked;
     /* zerolen_seq is a pseudo sequence number of zero-length
        Destination Connection ID in order to distinguish between
        them. */
@@ -878,5 +882,24 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
 
 ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
+
+/*
+ * ngtcp2_conn_track_retired_dcid_seq tracks the sequence number |seq|
+ * of unacknowledged retiring Destination Connection ID.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_CONNECTION_ID_LIMIT
+ *     The number of unacknowledged retirement exceeds the limit.
+ */
+int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
+
+/*
+ * ngtcp2_conn_untrack_retired_dcid_seq deletes the sequence number
+ * |seq| of unacknowledged retiring Destination Connection ID.  It is
+ * fine if such sequence number is not found.
+ */
+void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
 
 #endif /* NGTCP2_CONN_H */
