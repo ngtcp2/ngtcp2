@@ -60,7 +60,7 @@ int TLSClientContext::init(const char *private_key_file,
     return -1;
   }
 
-  if (private_key_file != NULL && cert_file != NULL) {
+  if (private_key_file != nullptr && cert_file != nullptr) {
     if (auto rv = gnutls_certificate_set_x509_key_file(
             cred_, cert_file, private_key_file, GNUTLS_X509_FMT_PEM);
         rv != 0) {
