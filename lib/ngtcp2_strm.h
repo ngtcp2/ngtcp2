@@ -75,6 +75,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
    In this case, without this flag, we are unable to distinguish
    assigned value from unassigned one.  */
 #define NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET 0x100
+/* NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED is set when
+   stream_stop_sending callback is called. */
+#define NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED 0x200
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 

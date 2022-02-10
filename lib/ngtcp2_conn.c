@@ -3454,12 +3454,16 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
           continue;
         }
 
-        rv = conn_call_stream_stop_sending(
-            conn, (*pfrc)->fr.stop_sending.stream_id,
-            (*pfrc)->fr.stop_sending.app_error_code, strm->stream_user_data);
-        if (rv != 0) {
-          assert(ngtcp2_err_is_fatal(rv));
-          return rv;
+        if (!(strm->flags & NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED)) {
+          strm->flags |= NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED;
+
+          rv = conn_call_stream_stop_sending(
+              conn, (*pfrc)->fr.stop_sending.stream_id,
+              (*pfrc)->fr.stop_sending.app_error_code, strm->stream_user_data);
+          if (rv != 0) {
+            assert(ngtcp2_err_is_fatal(rv));
+            return rv;
+          }
         }
 
         break;
