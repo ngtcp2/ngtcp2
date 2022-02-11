@@ -4689,10 +4689,10 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
 
-  assert(ngtcp2_ringbuf_len(&conn->dcid.unused));
-  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused, 0);
+  assert(ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
+  dcid = ngtcp2_ringbuf_get(&conn->dcid.unused.rb, 0);
 
   CU_ASSERT(ngtcp2_cid_eq(&fr.new_connection_id.cid, &dcid->cid));
   CU_ASSERT(dcid->flags & NGTCP2_DCID_FLAG_TOKEN_PRESENT);
@@ -4711,8 +4711,8 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound));
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(NULL != conn->pktns.tx.frq);
   CU_ASSERT(2 == conn->dcid.retire_prior_to);
@@ -4754,7 +4754,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(2 == conn->dcid.retire_prior_to);
 
@@ -4780,7 +4780,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(2 == conn->dcid.retire_prior_to);
 
@@ -4831,7 +4831,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   CU_ASSERT(1 == conn->pv->dcid.seq);
   CU_ASSERT(0 == conn->pv->fallback_dcid.seq);
-  CU_ASSERT(2 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(2 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 3;
@@ -4845,7 +4845,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   CU_ASSERT(2 == conn->pv->dcid.seq);
   CU_ASSERT(3 == conn->pv->fallback_dcid.seq);
@@ -4891,7 +4891,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   CU_ASSERT(1 == conn->pv->dcid.seq);
   CU_ASSERT(0 == conn->pv->fallback_dcid.seq);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
 
   fr.type = NGTCP2_FRAME_NEW_CONNECTION_ID;
   fr.new_connection_id.seq = 2;
@@ -4906,7 +4906,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(2 == conn->dcid.current.seq);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(NULL == conn->pv);
 
   frc = conn->pktns.tx.frq;
@@ -4951,7 +4951,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
   CU_ASSERT(1 == conn->pv->dcid.seq);
   CU_ASSERT(0 == conn->pv->fallback_dcid.seq);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
 
   /* Overwrite seq in pv->dcid so that pv->dcid cannot be renewed. */
   conn->pv->dcid.seq = 2;
@@ -4972,7 +4972,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(3 == conn->dcid.current.seq);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(NULL == conn->pv);
 
   frc = conn->pktns.tx.frq;
@@ -5057,7 +5057,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(2 == conn->dcid.current.seq);
   CU_ASSERT(NULL != conn->pv);
   CU_ASSERT(ngtcp2_cid_eq(&frs[1].new_connection_id.cid,
@@ -5088,7 +5088,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   rv = ngtcp2_conn_read_pkt(conn, &new_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.unused.rb));
   CU_ASSERT(2 == conn->dcid.current.seq);
 
   ngtcp2_conn_del(conn);
@@ -5502,7 +5502,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   CU_ASSERT(spktlen >= 1200);
   CU_ASSERT(ngtcp2_path_eq(&new_path.path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
 
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen, cid.datalen);
 
@@ -5528,7 +5528,7 @@ void test_ngtcp2_conn_recv_path_challenge(void) {
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(ngtcp2_path_eq(&new_path.path, &ps.path));
   CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->rx.path_challenge));
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
 
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen, cid.datalen);
 
@@ -7646,7 +7646,7 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_ringbuf_len(&conn->rx.path_challenge) > 0);
-  CU_ASSERT(ngtcp2_ringbuf_len(&conn->dcid.bound) > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->dcid.bound.rb) > 0);
 
   expiry = ngtcp2_conn_get_expiry(conn);
 
@@ -7657,7 +7657,7 @@ void test_ngtcp2_conn_retire_stale_bound_dcid(void) {
   rv = ngtcp2_conn_handle_expiry(conn, t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound));
+  CU_ASSERT(0 == ngtcp2_ringbuf_len(&conn->dcid.bound.rb));
 
   ngtcp2_conn_del(conn);
 }

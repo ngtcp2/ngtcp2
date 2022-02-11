@@ -330,6 +330,13 @@ typedef enum ngtcp2_ecn_state {
   NGTCP2_ECN_STATE_CAPABLE,
 } ngtcp2_ecn_state;
 
+ngtcp2_static_ringbuf_def(dcid_bound, NGTCP2_MAX_BOUND_DCID_POOL_SIZE,
+                          sizeof(ngtcp2_dcid));
+ngtcp2_static_ringbuf_def(dcid_unused, NGTCP2_MAX_DCID_POOL_SIZE,
+                          sizeof(ngtcp2_dcid));
+ngtcp2_static_ringbuf_def(dcid_retired, NGTCP2_MAX_DCID_RETIRED_SIZE,
+                          sizeof(ngtcp2_dcid));
+
 struct ngtcp2_conn {
   ngtcp2_conn_state state;
   ngtcp2_callbacks callbacks;
@@ -355,12 +362,12 @@ struct ngtcp2_conn {
     ngtcp2_dcid current;
     /* bound is a set of destination connection IDs which are bound to
        particular paths.  These paths are not validated yet. */
-    ngtcp2_ringbuf bound;
+    ngtcp2_static_ringbuf_dcid_bound bound;
     /* unused is a set of unused CID received from peer. */
-    ngtcp2_ringbuf unused;
+    ngtcp2_static_ringbuf_dcid_unused unused;
     /* retired is a set of CID retired by local endpoint.  Keep them
        in 3*PTO to catch packets in flight along the old path. */
-    ngtcp2_ringbuf retired;
+    ngtcp2_static_ringbuf_dcid_retired retired;
     /* seqgap tracks received sequence numbers in order to ignore
        retransmitted duplicated NEW_CONNECTION_ID frame. */
     ngtcp2_gaptr seqgap;
