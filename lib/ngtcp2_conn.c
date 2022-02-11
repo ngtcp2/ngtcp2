@@ -7156,16 +7156,20 @@ static int conn_retire_dcid_prior_to(ngtcp2_conn *conn, ngtcp2_ringbuf *rb,
     if (rv != 0) {
       return rv;
     }
+
     if (i == 0) {
       ngtcp2_ringbuf_pop_front(rb);
-    } else if (i == ngtcp2_ringbuf_len(rb) - 1) {
+      continue;
+    }
+
+    if (i == ngtcp2_ringbuf_len(rb) - 1) {
       ngtcp2_ringbuf_pop_back(rb);
       break;
-    } else {
-      last = ngtcp2_ringbuf_get(rb, ngtcp2_ringbuf_len(rb) - 1);
-      ngtcp2_dcid_copy(dcid, last);
-      ngtcp2_ringbuf_pop_back(rb);
     }
+
+    last = ngtcp2_ringbuf_get(rb, ngtcp2_ringbuf_len(rb) - 1);
+    ngtcp2_dcid_copy(dcid, last);
+    ngtcp2_ringbuf_pop_back(rb);
   }
 
   return 0;
