@@ -67,7 +67,8 @@ OBJECTS = \
 	ngtcp2_pv.c \
 	ngtcp2_version.c \
 	ngtcp2_rst.c \
-	ngtcp2_window_filter.c
+	ngtcp2_window_filter.c \
+	ngtcp2_obj_pool.c
 
 HFILES = \
 	ngtcp2_pkt.h \
@@ -103,6 +104,7 @@ HFILES = \
 	ngtcp2_macro.h \
 	ngtcp2_rst.h \
 	ngtcp2_window_filter.h \
+	ngtcp2_obj_pool.h \
 	ngtcp2_rcvry.h
 
 libngtcp2_la_SOURCES = $(HFILES) $(OBJECTS)
