@@ -1007,6 +1007,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if ((*pconn)->qlog.write) {
     buf = ngtcp2_mem_malloc(mem, NGTCP2_QLOG_BUFLEN);
     if (buf == NULL) {
+      rv = NGTCP2_ERR_NOMEM;
       goto fail_qlog_buf;
     }
     ngtcp2_buf_init(&(*pconn)->qlog.buf, buf, NGTCP2_QLOG_BUFLEN);
@@ -1021,6 +1022,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   if (settings->token.len) {
     buf = ngtcp2_mem_malloc(mem, settings->token.len);
     if (buf == NULL) {
+      rv = NGTCP2_ERR_NOMEM;
       goto fail_token;
     }
     memcpy(buf, settings->token.base, settings->token.len);
