@@ -1009,10 +1009,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_pq_init(&(*pconn)->scid.used, retired_ts_less, mem);
 
-  rv = ngtcp2_map_init(&(*pconn)->strms, mem);
-  if (rv != 0) {
-    goto fail_strms_init;
-  }
+  ngtcp2_map_init(&(*pconn)->strms, mem);
 
   ngtcp2_pq_init(&(*pconn)->tx.strmq, cycle_less, mem);
 
@@ -1190,7 +1187,6 @@ fail_remote_uni_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->remote.bidi.idtr);
 fail_remote_bidi_idtr_init:
   ngtcp2_map_free(&(*pconn)->strms);
-fail_strms_init:
   delete_scid(&(*pconn)->scid.set, mem);
   ngtcp2_ksl_free(&(*pconn)->scid.set);
 fail_scid_set_init:

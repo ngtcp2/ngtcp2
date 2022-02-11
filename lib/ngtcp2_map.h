@@ -54,14 +54,8 @@ typedef struct ngtcp2_map {
 
 /*
  * Initializes the map |map|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *   Out of memory
  */
-int ngtcp2_map_init(ngtcp2_map *map, const ngtcp2_mem *mem);
+void ngtcp2_map_init(ngtcp2_map *map, const ngtcp2_mem *mem);
 
 /*
  * Deallocates any resources allocated for |map|. The stored entries
