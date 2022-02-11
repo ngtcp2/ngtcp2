@@ -52,7 +52,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
                       const ngtcp2_mem *mem) {
   int rv;
 
-  rv = ngtcp2_ringbuf_init(&acktr->acks, 128, sizeof(ngtcp2_acktr_ack_entry),
+  rv = ngtcp2_ringbuf_init(&acktr->acks, 32, sizeof(ngtcp2_acktr_ack_entry),
                            mem);
   if (rv != 0) {
     return rv;
