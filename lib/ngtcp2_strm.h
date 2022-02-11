@@ -148,16 +148,10 @@ struct ngtcp2_strm {
 
 /*
  * ngtcp2_strm_init initializes |strm|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
  */
-int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
-                     uint64_t max_rx_offset, uint64_t max_tx_offset,
-                     void *stream_user_data, const ngtcp2_mem *mem);
+void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
+                      uint64_t max_rx_offset, uint64_t max_tx_offset,
+                      void *stream_user_data, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_strm_free deallocates memory allocated for |strm|.  This

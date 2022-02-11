@@ -613,11 +613,8 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
     goto fail_acktr_init;
   }
 
-  rv = ngtcp2_strm_init(&pktns->crypto.strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0,
-                        NULL, mem);
-  if (rv != 0) {
-    goto fail_crypto_init;
-  }
+  ngtcp2_strm_init(&pktns->crypto.strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL,
+                   mem);
 
   ngtcp2_ksl_init(&pktns->crypto.tx.frq, crypto_offset_less, sizeof(uint64_t),
                   mem);
@@ -627,8 +624,6 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
 
   return 0;
 
-fail_crypto_init:
-  ngtcp2_acktr_free(&pktns->acktr);
 fail_acktr_init:
   ngtcp2_gaptr_free(&pktns->rx.pngap);
 
@@ -6267,11 +6262,8 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
     max_tx_offset = 0;
   }
 
-  rv = ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE, max_rx_offset,
-                        max_tx_offset, stream_user_data, conn->mem);
-  if (rv != 0) {
-    return rv;
-  }
+  ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE, max_rx_offset,
+                   max_tx_offset, stream_user_data, conn->mem);
 
   rv = ngtcp2_map_insert(&conn->strms, (ngtcp2_map_key_type)strm->stream_id,
                          strm);

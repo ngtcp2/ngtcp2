@@ -35,9 +35,9 @@ static int offset_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return *(int64_t *)lhs < *(int64_t *)rhs;
 }
 
-int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
-                     uint64_t max_rx_offset, uint64_t max_tx_offset,
-                     void *stream_user_data, const ngtcp2_mem *mem) {
+void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
+                      uint64_t max_rx_offset, uint64_t max_tx_offset,
+                      void *stream_user_data, const ngtcp2_mem *mem) {
   strm->cycle = 0;
   strm->tx.acked_offset = NULL;
   strm->tx.cont_acked_offset = 0;
@@ -56,8 +56,6 @@ int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   strm->pe.index = NGTCP2_PQ_BAD_INDEX;
   strm->mem = mem;
   strm->app_error_code = 0;
-
-  return 0;
 }
 
 void ngtcp2_strm_free(ngtcp2_strm *strm) {
