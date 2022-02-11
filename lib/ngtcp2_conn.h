@@ -336,6 +336,8 @@ ngtcp2_static_ringbuf_def(dcid_unused, NGTCP2_MAX_DCID_POOL_SIZE,
                           sizeof(ngtcp2_dcid));
 ngtcp2_static_ringbuf_def(dcid_retired, NGTCP2_MAX_DCID_RETIRED_SIZE,
                           sizeof(ngtcp2_dcid));
+ngtcp2_static_ringbuf_def(path_challenge, 4,
+                          sizeof(ngtcp2_path_challenge_entry));
 
 struct ngtcp2_conn {
   ngtcp2_conn_state state;
@@ -456,7 +458,7 @@ struct ngtcp2_conn {
     /* window is the connection-level flow control window size. */
     uint64_t window;
     /* path_challenge stores received PATH_CHALLENGE data. */
-    ngtcp2_ringbuf path_challenge;
+    ngtcp2_static_ringbuf_path_challenge path_challenge;
     /* ccerr is the received connection close error. */
     ngtcp2_connection_close_error ccerr;
   } rx;

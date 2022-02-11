@@ -1026,11 +1026,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_remote_uni_idtr_init;
   }
 
-  rv = ngtcp2_ringbuf_init(&(*pconn)->rx.path_challenge, 4,
-                           sizeof(ngtcp2_path_challenge_entry), mem);
-  if (rv != 0) {
-    goto fail_rx_path_challenge_init;
-  }
+  ngtcp2_static_ringbuf_path_challenge_init(&(*pconn)->rx.path_challenge);
 
   ngtcp2_log_init(&(*pconn)->log, scid, settings->log_printf,
                   settings->initial_ts, user_data);
@@ -1189,8 +1185,6 @@ fail_in_pktns_init:
 fail_cc_init:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
 fail_qlog_buf:
-  ngtcp2_ringbuf_free(&(*pconn)->rx.path_challenge);
-fail_rx_path_challenge_init:
   ngtcp2_idtr_free(&(*pconn)->remote.uni.idtr);
 fail_remote_uni_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->remote.bidi.idtr);
@@ -1374,8 +1368,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   cc_del(&conn->cc, conn->cc_algo, conn->mem);
 
   ngtcp2_mem_free(conn->mem, conn->qlog.buf.begin);
-
-  ngtcp2_ringbuf_free(&conn->rx.path_challenge);
 
   ngtcp2_pv_del(conn->pv);
 
@@ -3365,8 +3357,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       return 0;
     }
 
-    if (ngtcp2_ringbuf_len(&conn->rx.path_challenge)) {
-      pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
+    if (ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb)) {
+      pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge.rb, 0);
 
       /* PATH_RESPONSE is bound to the path that the corresponding
          PATH_CHALLENGE is received. */
@@ -3379,7 +3371,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         if (rv != 0) {
           assert(NGTCP2_ERR_NOBUF == rv);
         } else {
-          ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
+          ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge.rb);
 
           pkt_empty = 0;
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
@@ -4620,8 +4612,8 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
   int rv;
   uint64_t tx_left;
 
-  for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge);) {
-    pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge, 0);
+  for (; ngtcp2_ringbuf_len(&conn->rx.path_challenge.rb);) {
+    pcent = ngtcp2_ringbuf_get(&conn->rx.path_challenge.rb, 0);
 
     if (ngtcp2_path_eq(&conn->dcid.current.ps.path, &pcent->ps.path)) {
       /* Send PATH_RESPONSE from conn_write_pkt. */
@@ -4646,7 +4638,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
 
     /* Client does not expect to respond to path validation against
        unknown path */
-    ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
+    ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge.rb);
     pcent = NULL;
   }
 
@@ -4692,7 +4684,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
     ngtcp2_path_copy(path, &pcent->ps.path);
   }
 
-  ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge);
+  ngtcp2_ringbuf_pop_front(&conn->rx.path_challenge.rb);
 
   dcid->bytes_sent += (uint64_t)nwrite;
 
@@ -5451,7 +5443,7 @@ static void conn_recv_path_challenge(ngtcp2_conn *conn, const ngtcp2_path *path,
     return;
   }
 
-  ent = ngtcp2_ringbuf_push_front(&conn->rx.path_challenge);
+  ent = ngtcp2_ringbuf_push_front(&conn->rx.path_challenge.rb);
   ngtcp2_path_challenge_entry_init(ent, path, fr->data);
 }
 
