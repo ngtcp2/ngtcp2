@@ -594,7 +594,8 @@ static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
 
 static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
                       ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
-                      ngtcp2_qlog *qlog, const ngtcp2_mem *mem) {
+                      ngtcp2_qlog *qlog, ngtcp2_obj_pool *rtb_entry_opl,
+                      const ngtcp2_mem *mem) {
   int rv;
 
   memset(pktns, 0, sizeof(*pktns));
@@ -617,7 +618,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
                   mem);
 
   ngtcp2_rtb_init(&pktns->rtb, pktns_id, &pktns->crypto.strm, rst, cc, log,
-                  qlog, mem);
+                  qlog, rtb_entry_opl, mem);
 
   return 0;
 
@@ -629,7 +630,8 @@ fail_acktr_init:
 
 static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
                      ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
-                     ngtcp2_qlog *qlog, const ngtcp2_mem *mem) {
+                     ngtcp2_qlog *qlog, ngtcp2_obj_pool *rtb_entry_opl,
+                     const ngtcp2_mem *mem) {
   int rv;
 
   *ppktns = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pktns));
@@ -637,7 +639,7 @@ static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = pktns_init(*ppktns, pktns_id, rst, cc, log, qlog, mem);
+  rv = pktns_init(*ppktns, pktns_id, rst, cc, log, qlog, rtb_entry_opl, mem);
   if (rv != 0) {
     ngtcp2_mem_free(mem, *ppktns);
   }
@@ -1074,20 +1076,25 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     assert(0);
   }
 
+  ngtcp2_obj_pool_init(&(*pconn)->rtb_entry_opl);
+
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
-                 &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
+                 &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
+                 &(*pconn)->rtb_entry_opl, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
 
   rv = pktns_new(&(*pconn)->hs_pktns, NGTCP2_PKTNS_ID_HANDSHAKE, &(*pconn)->rst,
-                 &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
+                 &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
+                 &(*pconn)->rtb_entry_opl, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
 
   rv = pktns_init(&(*pconn)->pktns, NGTCP2_PKTNS_ID_APPLICATION, &(*pconn)->rst,
-                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog, mem);
+                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
+                  &(*pconn)->rtb_entry_opl, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
@@ -1255,6 +1262,16 @@ static int delete_strms_each(void *data, void *ptr) {
   return 0;
 }
 
+static void rtb_entry_opl_free(ngtcp2_obj_pool *opl, const ngtcp2_mem *mem) {
+  ngtcp2_obj_pool_entry *oplent, *next;
+
+  for (oplent = opl->head; oplent; oplent = next) {
+    next = oplent->next;
+    ngtcp2_rtb_entry_del(ngtcp2_struct_of(oplent, ngtcp2_rtb_entry, oplent),
+                         mem);
+  }
+}
+
 void ngtcp2_conn_del(ngtcp2_conn *conn) {
   if (conn == NULL) {
     return;
@@ -1333,6 +1350,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   pktns_free(&conn->pktns, conn->mem);
   pktns_del(conn->hs_pktns, conn->mem);
   pktns_del(conn->in_pktns, conn->mem);
+
+  rtb_entry_opl_free(&conn->rtb_entry_opl, conn->mem);
 
   cc_del(&conn->cc, conn->cc_algo, conn->mem);
 
@@ -2517,8 +2536,9 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
       conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, &hd, ts);
     }
 
-    rv = ngtcp2_rtb_entry_new(&rtbent, &hd, frq, ts, (size_t)spktlen,
-                              rtb_entry_flags, conn->mem);
+    rv = ngtcp2_rtb_entry_obj_pool_new(&rtbent, &hd, frq, ts, (size_t)spktlen,
+                                       rtb_entry_flags, &conn->rtb_entry_opl,
+                                       conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       ngtcp2_frame_chain_list_del(frq, conn->mem);
@@ -3912,8 +3932,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, hd, ts);
     }
 
-    rv = ngtcp2_rtb_entry_new(&ent, hd, NULL, ts, (size_t)nwrite,
-                              rtb_entry_flags, conn->mem);
+    rv = ngtcp2_rtb_entry_obj_pool_new(&ent, hd, NULL, ts, (size_t)nwrite,
+                                       rtb_entry_flags, &conn->rtb_entry_opl,
+                                       conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal((int)nwrite));
       return rv;
@@ -4098,8 +4119,9 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
       conn_handle_tx_ecn(conn, pi, &rtb_flags, pktns, &hd, ts);
     }
 
-    rv = ngtcp2_rtb_entry_new(&rtbent, &hd, NULL, ts, (size_t)nwrite, rtb_flags,
-                              conn->mem);
+    rv = ngtcp2_rtb_entry_obj_pool_new(&rtbent, &hd, NULL, ts, (size_t)nwrite,
+                                       rtb_flags, &conn->rtb_entry_opl,
+                                       conn->mem);
     if (rv != 0) {
       return rv;
     }

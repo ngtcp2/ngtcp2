@@ -34,6 +34,7 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
+#include "ngtcp2_obj_pool.h"
 
 typedef struct ngtcp2_conn ngtcp2_conn;
 typedef struct ngtcp2_pktns ngtcp2_pktns;
@@ -199,32 +200,38 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
  * to the one packet which is waiting for its ACK.
  */
 struct ngtcp2_rtb_entry {
-  ngtcp2_rtb_entry *next;
+  union {
+    struct {
+      ngtcp2_rtb_entry *next;
 
-  struct {
-    int64_t pkt_num;
-    uint8_t type;
-    uint8_t flags;
-  } hd;
-  ngtcp2_frame_chain *frc;
-  /* ts is the time point when a packet included in this entry is sent
-     to a peer. */
-  ngtcp2_tstamp ts;
-  /* lost_ts is the time when this entry is marked lost. */
-  ngtcp2_tstamp lost_ts;
-  /* pktlen is the length of QUIC packet */
-  size_t pktlen;
-  struct {
-    uint64_t delivered;
-    ngtcp2_tstamp delivered_ts;
-    ngtcp2_tstamp first_sent_ts;
-    uint64_t tx_in_flight;
-    uint64_t lost;
-    int is_app_limited;
-  } rst;
-  /* flags is bitwise-OR of zero or more of
-     NGTCP2_RTB_ENTRY_FLAG_*. */
-  uint8_t flags;
+      struct {
+        int64_t pkt_num;
+        uint8_t type;
+        uint8_t flags;
+      } hd;
+      ngtcp2_frame_chain *frc;
+      /* ts is the time point when a packet included in this entry is sent
+         to a peer. */
+      ngtcp2_tstamp ts;
+      /* lost_ts is the time when this entry is marked lost. */
+      ngtcp2_tstamp lost_ts;
+      /* pktlen is the length of QUIC packet */
+      size_t pktlen;
+      struct {
+        uint64_t delivered;
+        ngtcp2_tstamp delivered_ts;
+        ngtcp2_tstamp first_sent_ts;
+        uint64_t tx_in_flight;
+        uint64_t lost;
+        int is_app_limited;
+      } rst;
+      /* flags is bitwise-OR of zero or more of
+         NGTCP2_RTB_ENTRY_FLAG_*. */
+      uint8_t flags;
+    };
+
+    ngtcp2_obj_pool_entry oplent;
+  };
 };
 
 /*
@@ -242,11 +249,20 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
                          size_t pktlen, uint8_t flags, const ngtcp2_mem *mem);
 
+int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
+                                  const ngtcp2_pkt_hd *hd,
+                                  ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
+                                  size_t pktlen, uint8_t flags,
+                                  ngtcp2_obj_pool *opl, const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_rtb_entry_del deallocates |ent|.  It also frees memory
  * pointed by |ent|.
  */
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
+
+void ngtcp2_rtb_entry_obj_pool_del(ngtcp2_rtb_entry *ent, ngtcp2_obj_pool *opl,
+                                   const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for
@@ -262,6 +278,7 @@ typedef struct ngtcp2_rtb {
   ngtcp2_cc *cc;
   ngtcp2_log *log;
   ngtcp2_qlog *qlog;
+  ngtcp2_obj_pool *rtb_entry_opl;
   const ngtcp2_mem *mem;
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
@@ -296,7 +313,8 @@ typedef struct ngtcp2_rtb {
  */
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
                      ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
-                     ngtcp2_log *log, ngtcp2_qlog *qlog, const ngtcp2_mem *mem);
+                     ngtcp2_log *log, ngtcp2_qlog *qlog,
+                     ngtcp2_obj_pool *rtb_entry_opl, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.
