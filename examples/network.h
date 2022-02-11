@@ -49,7 +49,7 @@
 namespace ngtcp2 {
 
 constexpr size_t server_max_udp_payload_size = 1472;
-constexpr size_t client_max_udp_payload_size = 1362;
+constexpr size_t client_max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 
 enum network_error {
   NETWORK_ERR_OK = 0,
