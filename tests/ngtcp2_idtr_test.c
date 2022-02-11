@@ -39,9 +39,7 @@ void test_ngtcp2_idtr_open(void) {
   ngtcp2_ksl_it it;
   ngtcp2_range key;
 
-  rv = ngtcp2_idtr_init(&idtr, 0, mem);
-
-  CU_ASSERT(0 == rv);
+  ngtcp2_idtr_init(&idtr, 0, mem);
 
   rv = ngtcp2_idtr_open(&idtr, stream_id_from_id(0));
 

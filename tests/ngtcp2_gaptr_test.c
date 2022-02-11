@@ -40,12 +40,6 @@ void test_ngtcp2_gaptr_push(void) {
 
   ngtcp2_gaptr_init(&gaptr, mem);
 
-  it = ngtcp2_ksl_begin(&gaptr.gap);
-  r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
-
-  CU_ASSERT(0 == r.begin);
-  CU_ASSERT(UINT64_MAX == r.end);
-
   rv = ngtcp2_gaptr_push(&gaptr, 0, 1);
 
   CU_ASSERT(0 == rv);

@@ -599,10 +599,7 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
 
   memset(pktns, 0, sizeof(*pktns));
 
-  rv = ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
-  if (rv != 0) {
-    return rv;
-  }
+  ngtcp2_gaptr_init(&pktns->rx.pngap, mem);
 
   pktns->tx.last_pkt_num = -1;
   pktns->rx.max_pkt_num = -1;
@@ -987,10 +984,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_static_ringbuf_dcid_retired_init(&(*pconn)->dcid.retired);
 
-  rv = ngtcp2_gaptr_init(&(*pconn)->dcid.seqgap, mem);
-  if (rv != 0) {
-    goto fail_seqgap_init;
-  }
+  ngtcp2_gaptr_init(&(*pconn)->dcid.seqgap, mem);
 
   ngtcp2_ksl_init(&(*pconn)->scid.set, cid_less, sizeof(ngtcp2_cid), mem);
 
@@ -1000,15 +994,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   ngtcp2_pq_init(&(*pconn)->tx.strmq, cycle_less, mem);
 
-  rv = ngtcp2_idtr_init(&(*pconn)->remote.bidi.idtr, !server, mem);
-  if (rv != 0) {
-    goto fail_remote_bidi_idtr_init;
-  }
+  ngtcp2_idtr_init(&(*pconn)->remote.bidi.idtr, !server, mem);
 
-  rv = ngtcp2_idtr_init(&(*pconn)->remote.uni.idtr, !server, mem);
-  if (rv != 0) {
-    goto fail_remote_uni_idtr_init;
-  }
+  ngtcp2_idtr_init(&(*pconn)->remote.uni.idtr, !server, mem);
 
   ngtcp2_static_ringbuf_path_challenge_init(&(*pconn)->rx.path_challenge);
 
@@ -1170,14 +1158,11 @@ fail_cc_init:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
 fail_qlog_buf:
   ngtcp2_idtr_free(&(*pconn)->remote.uni.idtr);
-fail_remote_uni_idtr_init:
   ngtcp2_idtr_free(&(*pconn)->remote.bidi.idtr);
-fail_remote_bidi_idtr_init:
   ngtcp2_map_free(&(*pconn)->strms);
   delete_scid(&(*pconn)->scid.set, mem);
   ngtcp2_ksl_free(&(*pconn)->scid.set);
   ngtcp2_gaptr_free(&(*pconn)->dcid.seqgap);
-fail_seqgap_init:
   ngtcp2_mem_free(mem, *pconn);
 fail_conn:
   return rv;

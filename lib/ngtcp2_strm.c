@@ -609,7 +609,6 @@ int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
 
 ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
                                                  uint64_t offset) {
-  ngtcp2_ksl_it gapit;
   ngtcp2_range gap;
 
   if (strm->tx.acked_offset == NULL) {
@@ -618,8 +617,7 @@ ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
     return gap;
   }
 
-  gapit = ngtcp2_gaptr_get_first_gap_after(strm->tx.acked_offset, offset);
-  return *(ngtcp2_range *)ngtcp2_ksl_it_key(&gapit);
+  return ngtcp2_gaptr_get_first_gap_after(strm->tx.acked_offset, offset);
 }
 
 uint64_t ngtcp2_strm_get_acked_offset(ngtcp2_strm *strm) {
@@ -631,7 +629,6 @@ uint64_t ngtcp2_strm_get_acked_offset(ngtcp2_strm *strm) {
 }
 
 static int strm_acked_offset_init(ngtcp2_strm *strm) {
-  int rv;
   ngtcp2_gaptr *acked_offset =
       ngtcp2_mem_malloc(strm->mem, sizeof(*acked_offset));
 
@@ -639,11 +636,7 @@ static int strm_acked_offset_init(ngtcp2_strm *strm) {
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = ngtcp2_gaptr_init(acked_offset, strm->mem);
-  if (rv != 0) {
-    ngtcp2_mem_free(strm->mem, acked_offset);
-    return rv;
-  }
+  ngtcp2_gaptr_init(acked_offset, strm->mem);
 
   strm->tx.acked_offset = acked_offset;
 
