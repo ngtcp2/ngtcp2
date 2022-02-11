@@ -5299,7 +5299,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents) > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents.rb) > 0);
 
   fr.type = NGTCP2_FRAME_PATH_RESPONSE;
   memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
@@ -5335,7 +5335,7 @@ void test_ngtcp2_conn_server_path_validation(void) {
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
 
   CU_ASSERT(spktlen > 0);
-  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents) > 0);
+  CU_ASSERT(ngtcp2_ringbuf_len(&conn->pv->ents.rb) > 0);
 
   fr.type = NGTCP2_FRAME_PATH_RESPONSE;
   memset(fr.path_response.data, 0, sizeof(fr.path_response.data));
@@ -7267,9 +7267,9 @@ void test_ngtcp2_conn_path_validation(void) {
   /* Server has not received enough bytes to pad probing packet. */
   CU_ASSERT(1200 > spktlen);
   CU_ASSERT(ngtcp2_path_eq(&rpath.path, &wpath.path));
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents.rb));
 
-  ent = ngtcp2_ringbuf_get(&conn->pv->ents, 0);
+  ent = ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0);
 
   CU_ASSERT(ent->flags & NGTCP2_PV_ENTRY_FLAG_UNDERSIZED);
   CU_ASSERT(conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE);
@@ -7295,9 +7295,9 @@ void test_ngtcp2_conn_path_validation(void) {
 
   CU_ASSERT(1200 <= spktlen);
   CU_ASSERT(ngtcp2_path_eq(&rpath.path, &wpath.path));
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents.rb));
 
-  ent = ngtcp2_ringbuf_get(&conn->pv->ents, 0);
+  ent = ngtcp2_ringbuf_get(&conn->pv->ents.rb, 0);
   frs[0].type = NGTCP2_FRAME_PATH_RESPONSE;
   memcpy(frs[0].path_response.data, ent->data, sizeof(ent->data));
 
@@ -7319,7 +7319,7 @@ void test_ngtcp2_conn_path_validation(void) {
 
   CU_ASSERT(1200 <= spktlen);
   CU_ASSERT(ngtcp2_path_eq(&null_path.path, &wpath.path));
-  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents));
+  CU_ASSERT(1 == ngtcp2_ringbuf_len(&conn->pv->ents.rb));
 
   ngtcp2_conn_del(conn);
 }

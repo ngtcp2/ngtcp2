@@ -58,12 +58,12 @@ void test_ngtcp2_pv_add_entry(void) {
   for (i = 0; i < NGTCP2_PV_NUM_PROBE_PKT; ++i) {
     ngtcp2_pv_add_entry(pv, data, 100, NGTCP2_PV_ENTRY_FLAG_NONE, 0);
 
-    CU_ASSERT(i + 1 == ngtcp2_ringbuf_len(&pv->ents));
+    CU_ASSERT(i + 1 == ngtcp2_ringbuf_len(&pv->ents.rb));
   }
 
   CU_ASSERT(0 == pv->probe_pkt_left);
   CU_ASSERT(!ngtcp2_pv_should_send_probe(pv));
-  CU_ASSERT(NGTCP2_PV_NUM_PROBE_PKT == ngtcp2_ringbuf_len(&pv->ents));
+  CU_ASSERT(NGTCP2_PV_NUM_PROBE_PKT == ngtcp2_ringbuf_len(&pv->ents.rb));
   CU_ASSERT(100 == ngtcp2_pv_next_expiry(pv));
 
   ngtcp2_pv_handle_entry_expiry(pv, 99);

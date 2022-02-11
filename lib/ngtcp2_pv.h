@@ -86,6 +86,8 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
 
 typedef struct ngtcp2_pv ngtcp2_pv;
 
+ngtcp2_static_ringbuf_def(pv_ents, NGTCP2_PV_MAX_ENTRIES,
+                          sizeof(ngtcp2_pv_entry));
 /*
  * ngtcp2_pv is the context of a single path validation.
  */
@@ -98,7 +100,7 @@ struct ngtcp2_pv {
      fallback if this path validation fails. */
   ngtcp2_dcid fallback_dcid;
   /* ents is the ring buffer of ngtcp2_pv_entry */
-  ngtcp2_ringbuf ents;
+  ngtcp2_static_ringbuf_pv_ents ents;
   /* timeout is the duration within which this path validation should
      succeed. */
   ngtcp2_duration timeout;
