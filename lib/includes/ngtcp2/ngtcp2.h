@@ -146,7 +146,7 @@ typedef void *(*ngtcp2_realloc)(void *ptr, size_t size, void *mem_user_data);
 /**
  * @struct
  *
- * Custom memory allocator functions and user defined pointer.  The
+ * :type:`ngtcp2_mem` is a custom memory allocator.  The
  * |mem_user_data| member is passed to each allocator function.  This
  * can be used, for example, to achieve per-connection memory pool.
  *
@@ -5064,11 +5064,12 @@ typedef struct ngtcp2_info {
 /**
  * @function
  *
- * Returns a pointer to a ngtcp2_info struct with version information
- * about the run-time library in use.  The |least_version| argument
- * can be set to a 24 bit numerical value for the least accepted
- * version number and if the condition is not met, this function will
- * return a ``NULL``.  Pass in 0 to skip the version checking.
+ * `ngtcp2_version` returns a pointer to a ngtcp2_info struct with
+ * version information about the run-time library in use.  The
+ * |least_version| argument can be set to a 24 bit numerical value for
+ * the least accepted version number and if the condition is not met,
+ * this function will return a ``NULL``.  Pass in 0 to skip the
+ * version checking.
  */
 NGTCP2_EXTERN const ngtcp2_info *ngtcp2_version(int least_version);
 
