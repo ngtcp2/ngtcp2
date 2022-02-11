@@ -79,6 +79,11 @@ if test "x${debug}" = "xyes"; then
   AC_DEFINE([DEBUGBUILD], [1], [Define to 1 to enable debug output.])
 fi
 
+AC_ARG_ENABLE([memdebug],
+    [AS_HELP_STRING([--enable-memdebug],
+                    [Turn on memory allocation debug output])],
+    [memdebug=$enableval], [memdebug=no])
+
 AC_ARG_ENABLE(asan,
     AS_HELP_STRING([--enable-asan],
                    [Enable AddressSanitizer (ASAN)]),
@@ -604,6 +609,11 @@ if test "x$asan" != "xno"; then
     AX_CHECK_COMPILE_FLAG([-fsanitize=address],
                           [CFLAGS="$CFLAGS -fsanitize=address"; CXXFLAGS="$CXXFLAGS -fsanitize=address"],
                           [LDFLAGS="$save_LDFLAGS"])
+fi
+
+if test "x${memdebug}" = "xyes"; then
+  AC_DEFINE([MEMDEBUG], [1],
+            [Define to 1 to enable memory allocation debug output.])
 fi
 
 # extra flags for API function visibility
