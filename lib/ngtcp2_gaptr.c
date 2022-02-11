@@ -32,11 +32,8 @@ int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem) {
   int rv;
   ngtcp2_range range = {0, UINT64_MAX};
 
-  rv = ngtcp2_ksl_init(&gaptr->gap, ngtcp2_ksl_range_compar,
-                       sizeof(ngtcp2_range), mem);
-  if (rv != 0) {
-    return rv;
-  }
+  ngtcp2_ksl_init(&gaptr->gap, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range),
+                  mem);
 
   rv = ngtcp2_ksl_insert(&gaptr->gap, NULL, &range, NULL);
   if (rv != 0) {

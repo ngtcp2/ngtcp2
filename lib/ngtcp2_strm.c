@@ -154,17 +154,12 @@ void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
 }
 
 static int strm_streamfrq_init(ngtcp2_strm *strm) {
-  int rv;
   ngtcp2_ksl *streamfrq = ngtcp2_mem_malloc(strm->mem, sizeof(*streamfrq));
   if (streamfrq == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = ngtcp2_ksl_init(streamfrq, offset_less, sizeof(uint64_t), strm->mem);
-  if (rv != 0) {
-    ngtcp2_mem_free(strm->mem, streamfrq);
-    return rv;
-  }
+  ngtcp2_ksl_init(streamfrq, offset_less, sizeof(uint64_t), strm->mem);
 
   strm->tx.streamfrq = streamfrq;
 

@@ -619,19 +619,14 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
     goto fail_crypto_init;
   }
 
-  rv = ngtcp2_ksl_init(&pktns->crypto.tx.frq, crypto_offset_less,
-                       sizeof(uint64_t), mem);
-  if (rv != 0) {
-    goto fail_tx_frq_init;
-  }
+  ngtcp2_ksl_init(&pktns->crypto.tx.frq, crypto_offset_less, sizeof(uint64_t),
+                  mem);
 
   ngtcp2_rtb_init(&pktns->rtb, pktns_id, &pktns->crypto.strm, rst, cc, log,
                   qlog, mem);
 
   return 0;
 
-fail_tx_frq_init:
-  ngtcp2_strm_free(&pktns->crypto.strm);
 fail_crypto_init:
   ngtcp2_acktr_free(&pktns->acktr);
 fail_acktr_init:
@@ -1002,10 +997,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_seqgap_init;
   }
 
-  rv = ngtcp2_ksl_init(&(*pconn)->scid.set, cid_less, sizeof(ngtcp2_cid), mem);
-  if (rv != 0) {
-    goto fail_scid_set_init;
-  }
+  ngtcp2_ksl_init(&(*pconn)->scid.set, cid_less, sizeof(ngtcp2_cid), mem);
 
   ngtcp2_pq_init(&(*pconn)->scid.used, retired_ts_less, mem);
 
@@ -1189,7 +1181,6 @@ fail_remote_bidi_idtr_init:
   ngtcp2_map_free(&(*pconn)->strms);
   delete_scid(&(*pconn)->scid.set, mem);
   ngtcp2_ksl_free(&(*pconn)->scid.set);
-fail_scid_set_init:
   ngtcp2_gaptr_free(&(*pconn)->dcid.seqgap);
 fail_seqgap_init:
   ngtcp2_mem_free(mem, *pconn);

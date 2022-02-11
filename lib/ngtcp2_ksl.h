@@ -141,15 +141,9 @@ struct ngtcp2_ksl {
 /*
  * ngtcp2_ksl_init initializes |ksl|.  |compar| specifies compare
  * function.  |keylen| is the length of key.
- *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
- *
- * NGTCP2_ERR_NOMEM
- *   Out of memory.
  */
-int ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
-                    const ngtcp2_mem *mem);
+void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
+                     const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_ksl_free frees resources allocated for |ksl|.  If |ksl| is

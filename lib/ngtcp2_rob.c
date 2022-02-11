@@ -69,11 +69,8 @@ int ngtcp2_rob_init(ngtcp2_rob *rob, size_t chunk, const ngtcp2_mem *mem) {
   int rv;
   ngtcp2_rob_gap *g;
 
-  rv = ngtcp2_ksl_init(&rob->gapksl, ngtcp2_ksl_range_compar,
-                       sizeof(ngtcp2_range), mem);
-  if (rv != 0) {
-    goto fail_gapksl_ksl_init;
-  }
+  ngtcp2_ksl_init(&rob->gapksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range),
+                  mem);
 
   rv = ngtcp2_rob_gap_new(&g, 0, UINT64_MAX, mem);
   if (rv != 0) {
@@ -85,23 +82,18 @@ int ngtcp2_rob_init(ngtcp2_rob *rob, size_t chunk, const ngtcp2_mem *mem) {
     goto fail_gapksl_ksl_insert;
   }
 
-  rv = ngtcp2_ksl_init(&rob->dataksl, ngtcp2_ksl_range_compar,
-                       sizeof(ngtcp2_range), mem);
-  if (rv != 0) {
-    goto fail_dataksl_ksl_init;
-  }
+  ngtcp2_ksl_init(&rob->dataksl, ngtcp2_ksl_range_compar, sizeof(ngtcp2_range),
+                  mem);
 
   rob->chunk = chunk;
   rob->mem = mem;
 
   return 0;
 
-fail_dataksl_ksl_init:
 fail_gapksl_ksl_insert:
   ngtcp2_rob_gap_del(g, mem);
 fail_rob_gap_new:
   ngtcp2_ksl_free(&rob->gapksl);
-fail_gapksl_ksl_init:
   return rv;
 }
 

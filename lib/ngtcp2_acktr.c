@@ -58,11 +58,7 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
     return rv;
   }
 
-  rv = ngtcp2_ksl_init(&acktr->ents, greater, sizeof(int64_t), mem);
-  if (rv != 0) {
-    ngtcp2_ringbuf_free(&acktr->acks);
-    return rv;
-  }
+  ngtcp2_ksl_init(&acktr->ents, greater, sizeof(int64_t), mem);
 
   acktr->log = log;
   acktr->mem = mem;
