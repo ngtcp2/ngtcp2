@@ -33,7 +33,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_range.h"
 
-static ngtcp2_ksl_blk null_blk = {NULL, NULL, 0, 0, {0}};
+static ngtcp2_ksl_blk null_blk = {{{NULL, NULL, 0, 0, {0}}}};
 
 static size_t ksl_nodelen(size_t keylen) {
   return (sizeof(ngtcp2_ksl_node) + keylen - sizeof(uint64_t) + 0xf) &
@@ -64,6 +64,7 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
   ksl->nodelen = nodelen;
   ksl->n = 0;
   ksl->mem = mem;
+  ngtcp2_obj_pool_init(&ksl->opl);
 }
 
 static int ksl_head_init(ngtcp2_ksl *ksl) {
@@ -99,12 +100,36 @@ static void ksl_free_blk(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
   ngtcp2_mem_free(ksl->mem, blk);
 }
 
+static void ksl_opl_del(ngtcp2_ksl *ksl) {
+  ngtcp2_obj_pool_entry *oplent, *next;
+
+  for (oplent = ksl->opl.head; oplent; oplent = next) {
+    next = oplent->next;
+    ngtcp2_mem_free(ksl->mem, ngtcp2_struct_of(oplent, ngtcp2_ksl_blk, oplent));
+  }
+}
+
 void ngtcp2_ksl_free(ngtcp2_ksl *ksl) {
   if (!ksl || !ksl->head) {
     return;
   }
 
   ksl_free_blk(ksl, ksl->head);
+  ksl_opl_del(ksl);
+}
+
+static ngtcp2_ksl_blk *ksl_blk_obj_pool_new(ngtcp2_ksl *ksl) {
+  ngtcp2_obj_pool_entry *ent = ngtcp2_obj_pool_pop(&ksl->opl);
+
+  if (!ent) {
+    return ngtcp2_mem_malloc(ksl->mem, ksl_blklen(ksl->nodelen));
+  }
+
+  return ngtcp2_struct_of(ent, ngtcp2_ksl_blk, oplent);
+}
+
+static void ksl_blk_obj_pool_del(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
+  ngtcp2_obj_pool_push(&ksl->opl, &blk->oplent);
 }
 
 /*
@@ -118,7 +143,7 @@ void ngtcp2_ksl_free(ngtcp2_ksl *ksl) {
 static ngtcp2_ksl_blk *ksl_split_blk(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
   ngtcp2_ksl_blk *rblk;
 
-  rblk = ngtcp2_mem_malloc(ksl->mem, ksl_blklen(ksl->nodelen));
+  rblk = ksl_blk_obj_pool_new(ksl);
   if (rblk == NULL) {
     return NULL;
   }
@@ -202,7 +227,7 @@ static int ksl_split_head(ngtcp2_ksl *ksl) {
 
   lblk = ksl->head;
 
-  nhead = ngtcp2_mem_malloc(ksl->mem, ksl_blklen(ksl->nodelen));
+  nhead = ksl_blk_obj_pool_new(ksl);
   if (nhead == NULL) {
     ngtcp2_mem_free(ksl->mem, rblk);
     return NGTCP2_ERR_NOMEM;
@@ -386,10 +411,10 @@ static ngtcp2_ksl_blk *ksl_merge_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
     ksl->back = lblk;
   }
 
-  ngtcp2_mem_free(ksl->mem, rblk);
+  ksl_blk_obj_pool_del(ksl, rblk);
 
   if (ksl->head == blk && blk->n == 2) {
-    ngtcp2_mem_free(ksl->mem, ksl->head);
+    ksl_blk_obj_pool_del(ksl, ksl->head);
     ksl->head = lblk;
   } else {
     ksl_remove_node(ksl, blk, i + 1);
