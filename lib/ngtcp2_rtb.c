@@ -195,6 +195,34 @@ void ngtcp2_frame_chain_obj_pool_del(ngtcp2_frame_chain *frc,
     return;
   }
 
+  switch (frc->fr.type) {
+  case NGTCP2_FRAME_STREAM:
+    if (frc->fr.stream.datacnt &&
+        sizeof(ngtcp2_vec) * (frc->fr.stream.datacnt - 1) >
+            sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream)) {
+      ngtcp2_frame_chain_del(frc, mem);
+
+      return;
+    }
+
+    break;
+  case NGTCP2_FRAME_CRYPTO:
+    if (frc->fr.crypto.datacnt &&
+        sizeof(ngtcp2_vec) * (frc->fr.crypto.datacnt - 1) >
+            sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto)) {
+      ngtcp2_frame_chain_del(frc, mem);
+
+      return;
+    }
+
+    break;
+  case NGTCP2_FRAME_NEW_TOKEN:
+    /* TODO Pool frc if it is regular sized */
+    ngtcp2_frame_chain_del(frc, mem);
+
+    return;
+  }
+
   binder = frc->binder;
   if (binder && --binder->refcount == 0) {
     ngtcp2_mem_free(mem, binder);
@@ -229,32 +257,7 @@ void ngtcp2_frame_chain_list_obj_pool_del(ngtcp2_frame_chain *frc,
   for (; frc; frc = next) {
     next = frc->next;
 
-    switch (frc->fr.type) {
-    case NGTCP2_FRAME_STREAM:
-      if (frc->fr.stream.datacnt &&
-          sizeof(ngtcp2_vec) * (frc->fr.stream.datacnt - 1) >
-              sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream)) {
-        break;
-      }
-
-      ngtcp2_frame_chain_obj_pool_del(frc, opl, mem);
-      break;
-    case NGTCP2_FRAME_CRYPTO:
-      if (frc->fr.crypto.datacnt &&
-          sizeof(ngtcp2_vec) * (frc->fr.crypto.datacnt - 1) >
-              sizeof(ngtcp2_frame) - sizeof(ngtcp2_crypto)) {
-        break;
-      }
-
-      ngtcp2_frame_chain_obj_pool_del(frc, opl, mem);
-      break;
-    case NGTCP2_FRAME_NEW_TOKEN:
-      /* TODO Pool frc if it is regular sized */
-      ngtcp2_frame_chain_del(frc, mem);
-      break;
-    default:
-      ngtcp2_frame_chain_obj_pool_del(frc, opl, mem);
-    }
+    ngtcp2_frame_chain_obj_pool_del(frc, opl, mem);
   }
 }
 
