@@ -26,8 +26,6 @@
 
 void ngtcp2_obj_pool_init(ngtcp2_obj_pool *opl) { opl->head = NULL; }
 
-void ngtcp2_obj_pool_free(ngtcp2_obj_pool *opl) { (void)opl; }
-
 void ngtcp2_obj_pool_push(ngtcp2_obj_pool *opl, ngtcp2_obj_pool_entry *ent) {
   ent->next = opl->head;
   opl->head = ent;

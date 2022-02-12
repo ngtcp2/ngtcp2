@@ -37,16 +37,28 @@ struct ngtcp2_obj_pool_entry {
   ngtcp2_obj_pool_entry *next;
 };
 
+/*
+ * ngtcp2_obj_pool is an object memory pool.
+ */
 typedef struct ngtcp2_obj_pool {
   ngtcp2_obj_pool_entry *head;
 } ngtcp2_obj_pool;
 
+/*
+ * ngtcp2_obj_pool_init initializes |opl|.
+ */
 void ngtcp2_obj_pool_init(ngtcp2_obj_pool *opl);
 
-void ngtcp2_obj_pool_free(ngtcp2_obj_pool *opl);
+/*
+ * ngtcp2_obj_pool_push inserts |ent| to |opl| head.
+ */
+void ngtcp2_obj_pool_push(ngtcp2_obj_pool *opl, ngtcp2_obj_pool_entry *ent);
 
-void ngtcp2_obj_pool_push(ngtcp2_obj_pool *obj, ngtcp2_obj_pool_entry *ent);
-
-ngtcp2_obj_pool_entry *ngtcp2_obj_pool_pop(ngtcp2_obj_pool *obj);
+/*
+ * ngtcp2_obj_pool_pop removes the first ngtcp2_obj_pool_entry from
+ * |opl| and returns it.  If |opl| does not have any entry, it returns
+ * NULL.
+ */
+ngtcp2_obj_pool_entry *ngtcp2_obj_pool_pop(ngtcp2_obj_pool *opl);
 
 #endif /* NGTCP2_OBJ_POOL_H */
