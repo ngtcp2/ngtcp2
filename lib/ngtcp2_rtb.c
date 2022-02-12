@@ -344,14 +344,14 @@ int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
                                   ngtcp2_obj_pool *opl, const ngtcp2_mem *mem) {
   ngtcp2_obj_pool_entry *oplent = ngtcp2_obj_pool_pop(opl);
 
-  if (oplent) {
-    *pent = ngtcp2_struct_of(oplent, ngtcp2_rtb_entry, oplent);
-    rtb_entry_init(*pent, hd, frc, ts, pktlen, flags);
-
-    return 0;
+  if (!oplent) {
+    return ngtcp2_rtb_entry_new(pent, hd, frc, ts, pktlen, flags, mem);
   }
 
-  return ngtcp2_rtb_entry_new(pent, hd, frc, ts, pktlen, flags, mem);
+  *pent = ngtcp2_struct_of(oplent, ngtcp2_rtb_entry, oplent);
+  rtb_entry_init(*pent, hd, frc, ts, pktlen, flags);
+
+  return 0;
 }
 
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem) {
