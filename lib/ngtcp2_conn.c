@@ -595,7 +595,7 @@ static int crypto_offset_less(const ngtcp2_ksl_key *lhs,
 static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
                       ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
                       ngtcp2_qlog *qlog, ngtcp2_obj_pool *rtb_entry_opl,
-                      const ngtcp2_mem *mem) {
+                      ngtcp2_obj_pool *frc_stream_opl, const ngtcp2_mem *mem) {
   int rv;
 
   memset(pktns, 0, sizeof(*pktns));
@@ -612,13 +612,13 @@ static int pktns_init(ngtcp2_pktns *pktns, ngtcp2_pktns_id pktns_id,
   }
 
   ngtcp2_strm_init(&pktns->crypto.strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL,
-                   mem);
+                   NULL, mem);
 
   ngtcp2_ksl_init(&pktns->crypto.tx.frq, crypto_offset_less, sizeof(uint64_t),
                   mem);
 
   ngtcp2_rtb_init(&pktns->rtb, pktns_id, &pktns->crypto.strm, rst, cc, log,
-                  qlog, rtb_entry_opl, mem);
+                  qlog, rtb_entry_opl, frc_stream_opl, mem);
 
   return 0;
 
@@ -631,7 +631,7 @@ fail_acktr_init:
 static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
                      ngtcp2_rst *rst, ngtcp2_cc *cc, ngtcp2_log *log,
                      ngtcp2_qlog *qlog, ngtcp2_obj_pool *rtb_entry_opl,
-                     const ngtcp2_mem *mem) {
+                     ngtcp2_obj_pool *frc_stream_opl, const ngtcp2_mem *mem) {
   int rv;
 
   *ppktns = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pktns));
@@ -639,7 +639,8 @@ static int pktns_new(ngtcp2_pktns **ppktns, ngtcp2_pktns_id pktns_id,
     return NGTCP2_ERR_NOMEM;
   }
 
-  rv = pktns_init(*ppktns, pktns_id, rst, cc, log, qlog, rtb_entry_opl, mem);
+  rv = pktns_init(*ppktns, pktns_id, rst, cc, log, qlog, rtb_entry_opl,
+                  frc_stream_opl, mem);
   if (rv != 0) {
     ngtcp2_mem_free(mem, *ppktns);
   }
@@ -1077,24 +1078,25 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   ngtcp2_obj_pool_init(&(*pconn)->rtb_entry_opl);
+  ngtcp2_obj_pool_init(&(*pconn)->frc_stream_opl);
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
-                 &(*pconn)->rtb_entry_opl, mem);
+                 &(*pconn)->rtb_entry_opl, &(*pconn)->frc_stream_opl, mem);
   if (rv != 0) {
     goto fail_in_pktns_init;
   }
 
   rv = pktns_new(&(*pconn)->hs_pktns, NGTCP2_PKTNS_ID_HANDSHAKE, &(*pconn)->rst,
                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
-                 &(*pconn)->rtb_entry_opl, mem);
+                 &(*pconn)->rtb_entry_opl, &(*pconn)->frc_stream_opl, mem);
   if (rv != 0) {
     goto fail_hs_pktns_init;
   }
 
   rv = pktns_init(&(*pconn)->pktns, NGTCP2_PKTNS_ID_APPLICATION, &(*pconn)->rst,
                   &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
-                  &(*pconn)->rtb_entry_opl, mem);
+                  &(*pconn)->rtb_entry_opl, &(*pconn)->frc_stream_opl, mem);
   if (rv != 0) {
     goto fail_pktns_init;
   }
@@ -1262,13 +1264,23 @@ static int delete_strms_each(void *data, void *ptr) {
   return 0;
 }
 
-static void rtb_entry_opl_free(ngtcp2_obj_pool *opl, const ngtcp2_mem *mem) {
+static void rtb_entry_opl_del(ngtcp2_obj_pool *opl, const ngtcp2_mem *mem) {
   ngtcp2_obj_pool_entry *oplent, *next;
 
   for (oplent = opl->head; oplent; oplent = next) {
     next = oplent->next;
     ngtcp2_rtb_entry_del(ngtcp2_struct_of(oplent, ngtcp2_rtb_entry, oplent),
                          mem);
+  }
+}
+
+static void frc_stream_opl_del(ngtcp2_obj_pool *opl, const ngtcp2_mem *mem) {
+  ngtcp2_obj_pool_entry *oplent, *next;
+
+  for (oplent = opl->head; oplent; oplent = next) {
+    next = oplent->next;
+    ngtcp2_frame_chain_del(ngtcp2_struct_of(oplent, ngtcp2_frame_chain, oplent),
+                           mem);
   }
 }
 
@@ -1351,7 +1363,8 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   pktns_del(conn->hs_pktns, conn->mem);
   pktns_del(conn->in_pktns, conn->mem);
 
-  rtb_entry_opl_free(&conn->rtb_entry_opl, conn->mem);
+  frc_stream_opl_del(&conn->frc_stream_opl, conn->mem);
+  rtb_entry_opl_del(&conn->rtb_entry_opl, conn->mem);
 
   cc_del(&conn->cc, conn->cc_algo, conn->mem);
 
@@ -3745,7 +3758,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     assert((datacnt == 0 && datalen == 0) || (datacnt && datalen));
 
-    rv = ngtcp2_frame_chain_stream_datacnt_new(&nfrc, datacnt, conn->mem);
+    rv = ngtcp2_frame_chain_stream_datacnt_obj_pool_new(
+        &nfrc, datacnt, &conn->frc_stream_opl, conn->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       return rv;
@@ -6272,7 +6286,8 @@ int ngtcp2_conn_init_stream(ngtcp2_conn *conn, ngtcp2_strm *strm,
   }
 
   ngtcp2_strm_init(strm, stream_id, NGTCP2_STRM_FLAG_NONE, max_rx_offset,
-                   max_tx_offset, stream_user_data, conn->mem);
+                   max_tx_offset, stream_user_data, &conn->frc_stream_opl,
+                   conn->mem);
 
   rv = ngtcp2_map_insert(&conn->strms, (ngtcp2_map_key_type)strm->stream_id,
                          strm);

@@ -38,6 +38,7 @@
 #include "ngtcp2_pq.h"
 
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
+typedef struct ngtcp2_obj_pool ngtcp2_obj_pool;
 
 /* NGTCP2_STRM_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_STRM_FLAG_NONE 0x00
@@ -134,6 +135,7 @@ struct ngtcp2_strm {
   } rx;
 
   const ngtcp2_mem *mem;
+  ngtcp2_obj_pool *frc_stream_opl;
   int64_t stream_id;
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
@@ -151,7 +153,8 @@ struct ngtcp2_strm {
  */
 void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                       uint64_t max_rx_offset, uint64_t max_tx_offset,
-                      void *stream_user_data, const ngtcp2_mem *mem);
+                      void *stream_user_data, ngtcp2_obj_pool *frc_stream_opl,
+                      const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_strm_free deallocates memory allocated for |strm|.  This

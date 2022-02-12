@@ -73,9 +73,15 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
  * ngtcp2_frame_chain chains frames in a single packet.
  */
 struct ngtcp2_frame_chain {
-  ngtcp2_frame_chain *next;
-  ngtcp2_frame_chain_binder *binder;
-  ngtcp2_frame fr;
+  union {
+    struct {
+      ngtcp2_frame_chain *next;
+      ngtcp2_frame_chain_binder *binder;
+      ngtcp2_frame fr;
+    };
+
+    ngtcp2_obj_pool_entry oplent;
+  };
 };
 
 /*
@@ -131,6 +137,11 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem);
 
+int ngtcp2_frame_chain_stream_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
+                                                   size_t datacnt,
+                                                   ngtcp2_obj_pool *opl,
+                                                   const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_frame_chain_crypto_datacnt_new works like
  * ngtcp2_frame_chain_new, but it allocates enough data to store
@@ -152,6 +163,10 @@ int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
  */
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
 
+void ngtcp2_frame_chain_obj_pool_del(ngtcp2_frame_chain *frc,
+                                     ngtcp2_obj_pool *opl,
+                                     const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_frame_chain_init initializes |frc|.
  */
@@ -163,6 +178,10 @@ void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
  */
 void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
                                  const ngtcp2_mem *mem);
+
+void ngtcp2_frame_chain_list_obj_pool_del(ngtcp2_frame_chain *frc,
+                                          ngtcp2_obj_pool *opl,
+                                          const ngtcp2_mem *mem);
 
 /* NGTCP2_RTB_ENTRY_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_RTB_ENTRY_FLAG_NONE 0x00
@@ -262,6 +281,7 @@ int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
 
 void ngtcp2_rtb_entry_obj_pool_del(ngtcp2_rtb_entry *ent, ngtcp2_obj_pool *opl,
+                                   ngtcp2_obj_pool *frc_stream_opl,
                                    const ngtcp2_mem *mem);
 
 /*
@@ -279,6 +299,7 @@ typedef struct ngtcp2_rtb {
   ngtcp2_log *log;
   ngtcp2_qlog *qlog;
   ngtcp2_obj_pool *rtb_entry_opl;
+  ngtcp2_obj_pool *frc_stream_opl;
   const ngtcp2_mem *mem;
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
@@ -314,7 +335,8 @@ typedef struct ngtcp2_rtb {
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
                      ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
                      ngtcp2_log *log, ngtcp2_qlog *qlog,
-                     ngtcp2_obj_pool *rtb_entry_opl, const ngtcp2_mem *mem);
+                     ngtcp2_obj_pool *rtb_entry_opl,
+                     ngtcp2_obj_pool *frc_stream_opl, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.
