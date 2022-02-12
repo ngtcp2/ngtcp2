@@ -290,7 +290,7 @@ int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
 
 void ngtcp2_rtb_entry_obj_pool_del(ngtcp2_rtb_entry *ent, ngtcp2_obj_pool *opl,
-                                   ngtcp2_obj_pool *frc_stream_opl,
+                                   ngtcp2_obj_pool *frc_opl,
                                    const ngtcp2_mem *mem);
 
 /*
@@ -308,7 +308,7 @@ typedef struct ngtcp2_rtb {
   ngtcp2_log *log;
   ngtcp2_qlog *qlog;
   ngtcp2_obj_pool *rtb_entry_opl;
-  ngtcp2_obj_pool *frc_stream_opl;
+  ngtcp2_obj_pool *frc_opl;
   const ngtcp2_mem *mem;
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
@@ -344,8 +344,8 @@ typedef struct ngtcp2_rtb {
 void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
                      ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
                      ngtcp2_log *log, ngtcp2_qlog *qlog,
-                     ngtcp2_obj_pool *rtb_entry_opl,
-                     ngtcp2_obj_pool *frc_stream_opl, const ngtcp2_mem *mem);
+                     ngtcp2_obj_pool *rtb_entry_opl, ngtcp2_obj_pool *frc_opl,
+                     const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.

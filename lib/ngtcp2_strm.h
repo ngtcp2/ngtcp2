@@ -135,7 +135,7 @@ struct ngtcp2_strm {
   } rx;
 
   const ngtcp2_mem *mem;
-  ngtcp2_obj_pool *frc_stream_opl;
+  ngtcp2_obj_pool *frc_opl;
   int64_t stream_id;
   void *stream_user_data;
   /* flags is bit-wise OR of zero or more of NGTCP2_STRM_FLAG_*. */
@@ -153,7 +153,7 @@ struct ngtcp2_strm {
  */
 void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                       uint64_t max_rx_offset, uint64_t max_tx_offset,
-                      void *stream_user_data, ngtcp2_obj_pool *frc_stream_opl,
+                      void *stream_user_data, ngtcp2_obj_pool *frc_opl,
                       const ngtcp2_mem *mem);
 
 /*
