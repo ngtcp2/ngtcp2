@@ -118,6 +118,10 @@ int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
  */
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem);
 
+int ngtcp2_frame_chain_obj_pool_new(ngtcp2_frame_chain **pfrc,
+                                    ngtcp2_obj_pool *opl,
+                                    const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_frame_chain_extralen_new works like ngtcp2_frame_chain_new,
  * but it allocates extra memory |extralen| in order to extend
@@ -152,6 +156,11 @@ int ngtcp2_frame_chain_stream_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
 int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem);
+
+int ngtcp2_frame_chain_crypto_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
+                                                   size_t datacnt,
+                                                   ngtcp2_obj_pool *opl,
+                                                   const ngtcp2_mem *mem);
 
 int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
                                      const ngtcp2_vec *token,
