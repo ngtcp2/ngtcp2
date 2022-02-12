@@ -35,6 +35,7 @@
 #include "ngtcp2_ringbuf.h"
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pkt.h"
+#include "ngtcp2_obj_pool.h"
 
 /* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
    which ngtcp2_acktr stores. */
@@ -46,16 +47,22 @@ typedef struct ngtcp2_log ngtcp2_log;
  * ngtcp2_acktr_entry is a range of packets which need to be acked.
  */
 typedef struct ngtcp2_acktr_entry {
-  /* pkt_num is the largest packet number to acknowledge in this
-     range. */
-  int64_t pkt_num;
-  /* len is the consecutive packets started from pkt_num which
-     includes pkt_num itself counting in decreasing order.  So pkt_num
-     = 987 and len = 2, this entry includes packet 987 and 986. */
-  size_t len;
-  /* tstamp is the timestamp when a packet denoted by pkt_num is
-     received. */
-  ngtcp2_tstamp tstamp;
+  union {
+    struct {
+      /* pkt_num is the largest packet number to acknowledge in this
+         range. */
+      int64_t pkt_num;
+      /* len is the consecutive packets started from pkt_num which
+         includes pkt_num itself counting in decreasing order.  So pkt_num
+         = 987 and len = 2, this entry includes packet 987 and 986. */
+      size_t len;
+      /* tstamp is the timestamp when a packet denoted by pkt_num is
+         received. */
+      ngtcp2_tstamp tstamp;
+    };
+
+    ngtcp2_obj_pool_entry oplent;
+  };
 } ngtcp2_acktr_entry;
 
 /*
@@ -72,11 +79,18 @@ typedef struct ngtcp2_acktr_entry {
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
                            ngtcp2_tstamp tstamp, const ngtcp2_mem *mem);
 
+int ngtcp2_acktr_entry_obj_pool_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
+                                    ngtcp2_tstamp tstamp, ngtcp2_obj_pool *opl,
+                                    const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_acktr_entry_del deallocates memory allocated for |ent|.  It
  * deallocates memory pointed by |ent|.
  */
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, const ngtcp2_mem *mem);
+
+void ngtcp2_acktr_entry_obj_pool_del(ngtcp2_acktr_entry *ent,
+                                     ngtcp2_obj_pool *opl);
 
 typedef struct ngtcp2_acktr_ack_entry {
   /* largest_ack is the largest packet number in outgoing ACK frame */
@@ -107,6 +121,7 @@ typedef struct ngtcp2_acktr {
   ngtcp2_ksl ents;
   ngtcp2_log *log;
   const ngtcp2_mem *mem;
+  ngtcp2_obj_pool opl;
   /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
