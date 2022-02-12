@@ -118,6 +118,11 @@ int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
  */
 int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_obj_pool_new behaves like
+ * ngtcp2_frame_chain_new, but it can reuse ngtcp2_frame_chain in
+ * |opl|.
+ */
 int ngtcp2_frame_chain_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                     ngtcp2_obj_pool *opl,
                                     const ngtcp2_mem *mem);
@@ -141,6 +146,11 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_stream_datacnt_obj_pool_new behaves like
+ * ngtcp2_frame_chain_stream_datacnt_new, but it can reuse
+ * ngtcp2_frame_chain stored in |opl|.
+ */
 int ngtcp2_frame_chain_stream_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
                                                    ngtcp2_obj_pool *opl,
@@ -157,6 +167,11 @@ int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_crypto_datacnt_obj_pool_new behaves like
+ * ngtcp2_frame_chain_crypto_datacnt_new, but it can reuse
+ * ngtcp2_frame_chain in |opl|.
+ */
 int ngtcp2_frame_chain_crypto_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
                                                    ngtcp2_obj_pool *opl,
@@ -172,6 +187,11 @@ int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
  */
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_obj_pool_del adds |frc| to |opl| for reuse.  It
+ * might just delete |frc| depending on the frame type and the size of
+ * |frc|.
+ */
 void ngtcp2_frame_chain_obj_pool_del(ngtcp2_frame_chain *frc,
                                      ngtcp2_obj_pool *opl,
                                      const ngtcp2_mem *mem);
@@ -188,6 +208,11 @@ void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
 void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
                                  const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_list_obj_pool_del adds all ngtcp2_frame_chain
+ * linked from |frc| to |opl| for reuse.  Depending on the frame type
+ * and its size, ngtcp2_frame_chain might be deleted instead.
+ */
 void ngtcp2_frame_chain_list_obj_pool_del(ngtcp2_frame_chain *frc,
                                           ngtcp2_obj_pool *opl,
                                           const ngtcp2_mem *mem);
@@ -285,6 +310,10 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
                          ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
                          size_t pktlen, uint8_t flags, const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_rtb_entry_obj_pool_new behaves like ngtcp2_rtb_entry_new,
+ * but it can reuse ngtcp2_rtb_entry in |opl|.
+ */
 int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
                                   const ngtcp2_pkt_hd *hd,
                                   ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
@@ -297,6 +326,11 @@ int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
  */
 void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_rtb_entry_obj_pool_del adds |ent| to |opl| for reuse.
+ * ngtcp2_frame_chain linked from ent->frc are also added to |frc_opl|
+ * depending on their frame type and size.
+ */
 void ngtcp2_rtb_entry_obj_pool_del(ngtcp2_rtb_entry *ent, ngtcp2_obj_pool *opl,
                                    ngtcp2_obj_pool *frc_opl,
                                    const ngtcp2_mem *mem);
