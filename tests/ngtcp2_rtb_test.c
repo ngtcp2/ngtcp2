@@ -52,14 +52,21 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_strm crypto;
   const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_HANDSHAKE;
   ngtcp2_rst rst;
+  ngtcp2_obj_pool rtb_entry_opl;
+  ngtcp2_obj_pool frc_opl;
 
-  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_obj_pool_init(&rtb_entry_opl);
+  ngtcp2_obj_pool_init(&frc_opl);
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl,
+                   mem);
   dcid_init(&dcid);
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
                      1000000007, 1, NGTCP2_PROTO_VER_MAX, 0);
@@ -114,6 +121,9 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_rtb_free(&rtb);
   ngtcp2_cc_reno_cc_free(&cc, mem);
   ngtcp2_strm_free(&crypto);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
+  ngtcp2_rtb_entry_obj_pool_entry_list_del(&rtb_entry_opl, mem);
 }
 
 static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
@@ -169,8 +179,14 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_strm crypto;
   const ngtcp2_pktns_id pktns_id = NGTCP2_PKTNS_ID_HANDSHAKE;
   ngtcp2_rst rst;
+  ngtcp2_obj_pool rtb_entry_opl;
+  ngtcp2_obj_pool frc_opl;
 
-  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_obj_pool_init(&rtb_entry_opl);
+  ngtcp2_obj_pool_init(&frc_opl);
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl,
+                   mem);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL, 0,
                      1, NGTCP2_PROTO_VER_MAX, 0);
@@ -179,7 +195,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
   setup_rtb_fixture(&rtb, &cstat, mem);
 
   CU_ASSERT(67 == ngtcp2_ksl_len(&rtb.ents));
@@ -202,7 +219,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* with ack block */
   conn_stat_init(&cstat);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
   setup_rtb_fixture(&rtb, &cstat, mem);
 
   fr->largest_ack = 441;
@@ -231,7 +249,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* gap+blklen points to pkt_num 0 */
   conn_stat_init(&cstat);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
   add_rtb_entry_range(&rtb, 0, 1, &cstat, mem);
 
   fr->largest_ack = 250;
@@ -252,7 +271,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* pkt_num = 0 (first ack block) */
   conn_stat_init(&cstat);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
   add_rtb_entry_range(&rtb, 0, 1, &cstat, mem);
 
   fr->largest_ack = 0;
@@ -271,7 +291,8 @@ void test_ngtcp2_rtb_recv_ack(void) {
   /* pkt_num = 0 */
   conn_stat_init(&cstat);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
   add_rtb_entry_range(&rtb, 0, 1, &cstat, mem);
 
   fr->largest_ack = 2;
@@ -289,6 +310,9 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_rtb_free(&rtb);
   ngtcp2_cc_reno_cc_free(&cc, mem);
   ngtcp2_strm_free(&crypto);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
+  ngtcp2_rtb_entry_obj_pool_entry_list_del(&rtb_entry_opl, mem);
 }
 
 void test_ngtcp2_rtb_lost_pkt_ts(void) {
@@ -302,14 +326,21 @@ void test_ngtcp2_rtb_lost_pkt_ts(void) {
   ngtcp2_conn_stat cstat;
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
+  ngtcp2_obj_pool rtb_entry_opl;
+  ngtcp2_obj_pool frc_opl;
 
-  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_obj_pool_init(&rtb_entry_opl);
+  ngtcp2_obj_pool_init(&frc_opl);
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl,
+                   mem);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
 
   add_rtb_entry_range(&rtb, 0, 1, &cstat, mem);
 
@@ -326,6 +357,9 @@ void test_ngtcp2_rtb_lost_pkt_ts(void) {
   ngtcp2_rtb_free(&rtb);
   ngtcp2_cc_reno_cc_free(&cc, mem);
   ngtcp2_strm_free(&crypto);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
+  ngtcp2_rtb_entry_obj_pool_entry_list_del(&rtb_entry_opl, mem);
 }
 
 void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
@@ -340,14 +374,21 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
   size_t i;
+  ngtcp2_obj_pool rtb_entry_opl;
+  ngtcp2_obj_pool frc_opl;
 
-  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_obj_pool_init(&rtb_entry_opl);
+  ngtcp2_obj_pool_init(&frc_opl);
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl,
+                   mem);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
 
   add_rtb_entry_range(&rtb, 0, 7, &cstat, mem);
 
@@ -371,6 +412,9 @@ void test_ngtcp2_rtb_remove_expired_lost_pkt(void) {
   ngtcp2_rtb_free(&rtb);
   ngtcp2_cc_reno_cc_free(&cc, mem);
   ngtcp2_strm_free(&crypto);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
+  ngtcp2_rtb_entry_obj_pool_entry_list_del(&rtb_entry_opl, mem);
 }
 
 void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
@@ -385,14 +429,21 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *ent;
   size_t i;
+  ngtcp2_obj_pool rtb_entry_opl;
+  ngtcp2_obj_pool frc_opl;
 
-  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_obj_pool_init(&rtb_entry_opl);
+  ngtcp2_obj_pool_init(&frc_opl);
+
+  ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl,
+                   mem);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
 
   conn_stat_init(&cstat);
   ngtcp2_rst_init(&rst);
   ngtcp2_cc_reno_cc_init(&cc, &log, mem);
-  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL, mem);
+  ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
+                  &rtb_entry_opl, &frc_opl, mem);
 
   add_rtb_entry_range(&rtb, 0, 7, &cstat, mem);
 
@@ -413,4 +464,7 @@ void test_ngtcp2_rtb_remove_excessive_lost_pkt(void) {
   ngtcp2_rtb_free(&rtb);
   ngtcp2_cc_reno_cc_free(&cc, mem);
   ngtcp2_strm_free(&crypto);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
+  ngtcp2_rtb_entry_obj_pool_entry_list_del(&rtb_entry_opl, mem);
 }

@@ -33,11 +33,12 @@
 static uint8_t nulldata[1024];
 
 static void setup_strm_streamfrq_fixture(ngtcp2_strm *strm,
+                                         ngtcp2_obj_pool *frc_opl,
                                          const ngtcp2_mem *mem) {
   ngtcp2_frame_chain *frc;
   ngtcp2_vec *data;
 
-  ngtcp2_strm_init(strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, frc_opl, mem);
 
   ngtcp2_frame_chain_stream_datacnt_new(&frc, 2, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -85,9 +86,12 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   int rv;
   ngtcp2_vec *data;
+  ngtcp2_obj_pool frc_opl;
+
+  ngtcp2_obj_pool_init(&frc_opl);
 
   /* Get first chain */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 30);
@@ -105,7 +109,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* Get merged chain */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 76);
@@ -123,7 +127,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* Get merged chain partially */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 75);
@@ -152,7 +156,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* Not continuous merge */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 77);
@@ -186,7 +190,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* split; continuous */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 12);
@@ -224,7 +228,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* offset gap */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl, mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -260,7 +264,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* fin */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl, mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -292,7 +296,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* left == 0 and there is outstanding data */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 0);
@@ -301,6 +305,8 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(NULL == frc);
 
   ngtcp2_strm_free(&strm);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
 }
 
 void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
@@ -308,9 +314,13 @@ void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
   ngtcp2_frame_chain *frc;
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_vec *data;
+  ngtcp2_obj_pool frc_opl;
+
+  ngtcp2_obj_pool_init(&frc_opl);
 
   /* Everything acknowledged including fin */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_FIN_ACKED, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_FIN_ACKED, 0, 0, NULL, &frc_opl,
+                   mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -341,7 +351,7 @@ void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
   ngtcp2_strm_free(&strm);
 
   /* Everything acknowledged but fin */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl, mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -372,7 +382,7 @@ void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
   ngtcp2_strm_free(&strm);
 
   /* Unacked gap starts in the middle of stream to resend */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl, mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -392,7 +402,7 @@ void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
   ngtcp2_strm_free(&strm);
 
   /* Unacked gap starts after stream to resend */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl, mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -412,7 +422,7 @@ void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
   ngtcp2_strm_free(&strm);
 
   /* Unacked gap and stream overlap and gap starts before stream */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl, mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -430,6 +440,8 @@ void test_ngtcp2_strm_streamfrq_unacked_offset(void) {
   CU_ASSERT(977 == ngtcp2_strm_streamfrq_unacked_offset(&strm));
 
   ngtcp2_strm_free(&strm);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
 }
 
 void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
@@ -438,9 +450,13 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   const ngtcp2_mem *mem = ngtcp2_mem_default();
   ngtcp2_vec *data;
   int rv;
+  ngtcp2_obj_pool frc_opl;
+
+  ngtcp2_obj_pool_init(&frc_opl);
 
   /* Everything acknowledged including fin */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_FIN_ACKED, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_FIN_ACKED, 0, 0, NULL, &frc_opl,
+                   mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -475,7 +491,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* Everything acknowledged but fin */
-  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, mem);
+  ngtcp2_strm_init(&strm, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_opl, mem);
 
   ngtcp2_frame_chain_new(&frc, mem);
   frc->fr.stream.type = NGTCP2_FRAME_STREAM;
@@ -514,7 +530,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* Remove leading acknowledged data */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   ngtcp2_strm_ack_data(&strm, 0, 12);
 
@@ -531,7 +547,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   ngtcp2_strm_free(&strm);
 
   /* Creating a gap of acknowledged data */
-  setup_strm_streamfrq_fixture(&strm, mem);
+  setup_strm_streamfrq_fixture(&strm, &frc_opl, mem);
 
   ngtcp2_strm_ack_data(&strm, 32, 1);
 
@@ -546,4 +562,6 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
 
   ngtcp2_frame_chain_del(frc, mem);
   ngtcp2_strm_free(&strm);
+
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&frc_opl, mem);
 }

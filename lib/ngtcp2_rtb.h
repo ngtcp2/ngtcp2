@@ -192,6 +192,14 @@ void ngtcp2_frame_chain_list_obj_pool_del(ngtcp2_frame_chain *frc,
                                           ngtcp2_obj_pool *opl,
                                           const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_obj_pool_entry_list_del deletes all entries
+ * linked from opl->head assuming that it is of type
+ * ngtcp2_frame_chain.
+ */
+void ngtcp2_frame_chain_obj_pool_entry_list_del(ngtcp2_obj_pool *opl,
+                                                const ngtcp2_mem *mem);
+
 /* NGTCP2_RTB_ENTRY_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_RTB_ENTRY_FLAG_NONE 0x00
 /* NGTCP2_RTB_ENTRY_FLAG_PROBE indicates that the entry includes a
@@ -292,6 +300,13 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
 void ngtcp2_rtb_entry_obj_pool_del(ngtcp2_rtb_entry *ent, ngtcp2_obj_pool *opl,
                                    ngtcp2_obj_pool *frc_opl,
                                    const ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_rtb_entry_obj_pool_entry_list_del deletes all entries linked
+ * from opl->head assuming that it is of type ngtcp2_rtb_entry.
+ */
+void ngtcp2_rtb_entry_obj_pool_entry_list_del(ngtcp2_obj_pool *opl,
+                                              const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for

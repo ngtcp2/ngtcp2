@@ -1264,26 +1264,6 @@ static int delete_strms_each(void *data, void *ptr) {
   return 0;
 }
 
-static void rtb_entry_opl_del(ngtcp2_obj_pool *opl, const ngtcp2_mem *mem) {
-  ngtcp2_obj_pool_entry *oplent, *next;
-
-  for (oplent = opl->head; oplent; oplent = next) {
-    next = oplent->next;
-    ngtcp2_rtb_entry_del(ngtcp2_struct_of(oplent, ngtcp2_rtb_entry, oplent),
-                         mem);
-  }
-}
-
-static void frc_opl_del(ngtcp2_obj_pool *opl, const ngtcp2_mem *mem) {
-  ngtcp2_obj_pool_entry *oplent, *next;
-
-  for (oplent = opl->head; oplent; oplent = next) {
-    next = oplent->next;
-    ngtcp2_frame_chain_del(ngtcp2_struct_of(oplent, ngtcp2_frame_chain, oplent),
-                           mem);
-  }
-}
-
 void ngtcp2_conn_del(ngtcp2_conn *conn) {
   if (conn == NULL) {
     return;
@@ -1363,9 +1343,6 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   pktns_del(conn->hs_pktns, conn->mem);
   pktns_del(conn->in_pktns, conn->mem);
 
-  frc_opl_del(&conn->frc_opl, conn->mem);
-  rtb_entry_opl_del(&conn->rtb_entry_opl, conn->mem);
-
   cc_del(&conn->cc, conn->cc_algo, conn->mem);
 
   ngtcp2_mem_free(conn->mem, conn->qlog.buf.begin);
@@ -1385,6 +1362,9 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   delete_scid(&conn->scid.set, conn->mem);
   ngtcp2_ksl_free(&conn->scid.set);
   ngtcp2_gaptr_free(&conn->dcid.seqgap);
+
+  ngtcp2_rtb_entry_obj_pool_entry_list_del(&conn->rtb_entry_opl, conn->mem);
+  ngtcp2_frame_chain_obj_pool_entry_list_del(&conn->frc_opl, conn->mem);
 
   ngtcp2_mem_free(conn->mem, conn);
 }

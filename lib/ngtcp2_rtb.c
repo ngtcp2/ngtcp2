@@ -258,6 +258,20 @@ void ngtcp2_frame_chain_list_obj_pool_del(ngtcp2_frame_chain *frc,
   }
 }
 
+void ngtcp2_frame_chain_obj_pool_entry_list_del(ngtcp2_obj_pool *opl,
+                                                const ngtcp2_mem *mem) {
+  ngtcp2_obj_pool_entry *oplent, *next;
+
+  for (oplent = opl->head; oplent; oplent = next) {
+    next = oplent->next;
+
+    ngtcp2_frame_chain_del(ngtcp2_struct_of(oplent, ngtcp2_frame_chain, oplent),
+                           mem);
+  }
+
+  opl->head = NULL;
+}
+
 int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
                                   const ngtcp2_mem *mem) {
   *pbinder = ngtcp2_mem_calloc(mem, 1, sizeof(ngtcp2_frame_chain_binder));
@@ -355,6 +369,20 @@ void ngtcp2_rtb_entry_obj_pool_del(ngtcp2_rtb_entry *ent, ngtcp2_obj_pool *opl,
   ent->frc = NULL;
 
   ngtcp2_obj_pool_push(opl, &ent->oplent);
+}
+
+void ngtcp2_rtb_entry_obj_pool_entry_list_del(ngtcp2_obj_pool *opl,
+                                              const ngtcp2_mem *mem) {
+  ngtcp2_obj_pool_entry *oplent, *next;
+
+  for (oplent = opl->head; oplent; oplent = next) {
+    next = oplent->next;
+
+    ngtcp2_rtb_entry_del(ngtcp2_struct_of(oplent, ngtcp2_rtb_entry, oplent),
+                         mem);
+  }
+
+  opl->head = NULL;
 }
 
 static int greater(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
