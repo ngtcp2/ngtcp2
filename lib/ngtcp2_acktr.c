@@ -35,18 +35,6 @@ static void acktr_entry_init(ngtcp2_acktr_entry *ent, int64_t pkt_num,
   ent->tstamp = tstamp;
 }
 
-int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
-                           ngtcp2_tstamp tstamp, const ngtcp2_mem *mem) {
-  *ent = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_acktr_entry));
-  if (*ent == NULL) {
-    return NGTCP2_ERR_NOMEM;
-  }
-
-  acktr_entry_init(*ent, pkt_num, tstamp);
-
-  return 0;
-}
-
 int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
                                     ngtcp2_tstamp tstamp,
                                     ngtcp2_objalloc *objalloc) {
@@ -58,10 +46,6 @@ int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
   acktr_entry_init(*ent, pkt_num, tstamp);
 
   return 0;
-}
-
-void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, const ngtcp2_mem *mem) {
-  ngtcp2_mem_free(mem, ent);
 }
 
 void ngtcp2_acktr_entry_objalloc_del(ngtcp2_acktr_entry *ent,
