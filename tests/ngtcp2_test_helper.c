@@ -345,7 +345,7 @@ ngtcp2_strm *open_stream(ngtcp2_conn *conn, int64_t stream_id) {
   int rv;
   (void)rv;
 
-  strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+  strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
   assert(strm);
 
   rv = ngtcp2_conn_init_stream(conn, strm, stream_id, NULL);
