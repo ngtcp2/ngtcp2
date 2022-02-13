@@ -81,7 +81,7 @@ ngtcp2_objalloc_def(acktr_entry, ngtcp2_acktr_entry, oplent);
 int ngtcp2_acktr_entry_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
                            ngtcp2_tstamp tstamp, const ngtcp2_mem *mem);
 
-int ngtcp2_acktr_entry_obj_pool_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
+int ngtcp2_acktr_entry_objalloc_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
                                     ngtcp2_tstamp tstamp,
                                     ngtcp2_objalloc *objalloc);
 
@@ -91,7 +91,7 @@ int ngtcp2_acktr_entry_obj_pool_new(ngtcp2_acktr_entry **ent, int64_t pkt_num,
  */
 void ngtcp2_acktr_entry_del(ngtcp2_acktr_entry *ent, const ngtcp2_mem *mem);
 
-void ngtcp2_acktr_entry_obj_pool_del(ngtcp2_acktr_entry *ent,
+void ngtcp2_acktr_entry_objalloc_del(ngtcp2_acktr_entry *ent,
                                      ngtcp2_objalloc *objalloc);
 
 typedef struct ngtcp2_acktr_ack_entry {
