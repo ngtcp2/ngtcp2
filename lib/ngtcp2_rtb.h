@@ -122,8 +122,7 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_obj_pool_new behaves like
- * ngtcp2_frame_chain_new, but it can reuse ngtcp2_frame_chain in
- * |opl|.
+ * ngtcp2_frame_chain_new, but it uses |objalloc| to allocate the object.
  */
 int ngtcp2_frame_chain_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                     ngtcp2_objalloc *objalloc);
@@ -149,8 +148,8 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
 
 /*
  * ngtcp2_frame_chain_stream_datacnt_obj_pool_new behaves like
- * ngtcp2_frame_chain_stream_datacnt_new, but it can reuse
- * ngtcp2_frame_chain stored in |opl|.
+ * ngtcp2_frame_chain_stream_datacnt_new, but it uses |objalloc| to
+ * allocate the object.
  */
 int ngtcp2_frame_chain_stream_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
@@ -170,8 +169,8 @@ int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
 
 /*
  * ngtcp2_frame_chain_crypto_datacnt_obj_pool_new behaves like
- * ngtcp2_frame_chain_crypto_datacnt_new, but it can reuse
- * ngtcp2_frame_chain in |opl|.
+ * ngtcp2_frame_chain_crypto_datacnt_new, but it uses |objalloc| to
+ * allocate the object.
  */
 int ngtcp2_frame_chain_crypto_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
@@ -189,7 +188,7 @@ int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
 void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
 
 /*
- * ngtcp2_frame_chain_obj_pool_del adds |frc| to |opl| for reuse.  It
+ * ngtcp2_frame_chain_obj_pool_del adds |frc| to |objalloc| for reuse.  It
  * might just delete |frc| depending on the frame type and the size of
  * |frc|.
  */
@@ -211,7 +210,7 @@ void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
 
 /*
  * ngtcp2_frame_chain_list_obj_pool_del adds all ngtcp2_frame_chain
- * linked from |frc| to |opl| for reuse.  Depending on the frame type
+ * linked from |frc| to |objalloc| for reuse.  Depending on the frame type
  * and its size, ngtcp2_frame_chain might be deleted instead.
  */
 void ngtcp2_frame_chain_list_obj_pool_del(ngtcp2_frame_chain *frc,
@@ -307,7 +306,7 @@ int ngtcp2_rtb_entry_new(ngtcp2_rtb_entry **pent, const ngtcp2_pkt_hd *hd,
 
 /*
  * ngtcp2_rtb_entry_obj_pool_new behaves like ngtcp2_rtb_entry_new,
- * but it can reuse ngtcp2_rtb_entry in |opl|.
+ * but it uses |objalloc| to allocate the object.
  */
 int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
                                   const ngtcp2_pkt_hd *hd,
@@ -323,7 +322,7 @@ void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_objalloc *frc_objalloc,
                           const ngtcp2_mem *mem);
 
 /*
- * ngtcp2_rtb_entry_obj_pool_del adds |ent| to |opl| for reuse.
+ * ngtcp2_rtb_entry_obj_pool_del adds |ent| to |objalloc| for reuse.
  * ngtcp2_frame_chain linked from ent->frc are also added to
  * |frc_objalloc| depending on their frame type and size.
  */
