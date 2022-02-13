@@ -37,8 +37,9 @@ static int offset_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
 
 void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
                       uint64_t max_rx_offset, uint64_t max_tx_offset,
-                      void *stream_user_data, ngtcp2_obj_pool *frc_opl,
+                      void *stream_user_data, ngtcp2_objalloc *frc_objalloc,
                       const ngtcp2_mem *mem) {
+  strm->frc_objalloc = frc_objalloc;
   strm->cycle = 0;
   strm->tx.acked_offset = NULL;
   strm->tx.cont_acked_offset = 0;
@@ -56,7 +57,6 @@ void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
       max_rx_offset;
   strm->pe.index = NGTCP2_PQ_BAD_INDEX;
   strm->mem = mem;
-  strm->frc_opl = frc_opl;
   strm->app_error_code = 0;
 }
 
@@ -70,8 +70,8 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
   if (strm->tx.streamfrq) {
     for (it = ngtcp2_ksl_begin(strm->tx.streamfrq); !ngtcp2_ksl_it_end(&it);
          ngtcp2_ksl_it_next(&it)) {
-      ngtcp2_frame_chain_obj_pool_del(ngtcp2_ksl_it_get(&it), strm->frc_opl,
-                                      strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(ngtcp2_ksl_it_get(&it),
+                                      strm->frc_objalloc, strm->mem);
     }
 
     ngtcp2_ksl_free(strm->tx.streamfrq);
@@ -229,7 +229,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
     if (idx == fr->datacnt) {
       if (fr->fin) {
         if (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED) {
-          ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_opl, strm->mem);
+          ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
           assert(ngtcp2_ksl_len(strm->tx.streamfrq) == 0);
           return 0;
         }
@@ -249,7 +249,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
         return 0;
       }
 
-      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_opl, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       continue;
     }
 
@@ -289,9 +289,9 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
     }
 
     rv = ngtcp2_frame_chain_stream_datacnt_obj_pool_new(
-        &nfrc, fr->datacnt - end_idx, strm->frc_opl, strm->mem);
+        &nfrc, fr->datacnt - end_idx, strm->frc_objalloc, strm->mem);
     if (rv != 0) {
-      ngtcp2_frame_chain_del(frc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       return rv;
     }
 
@@ -313,8 +313,8 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
     rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
-      ngtcp2_frame_chain_del(nfrc, strm->mem);
-      ngtcp2_frame_chain_del(frc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_objalloc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       return rv;
     }
 
@@ -378,7 +378,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
       rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &fr->offset, frc);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
-        ngtcp2_frame_chain_del(frc, strm->mem);
+        ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
         return rv;
       }
       *pfrc = NULL;
@@ -397,10 +397,10 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     assert(bcnt > 0);
 
     rv = ngtcp2_frame_chain_stream_datacnt_obj_pool_new(
-        &nfrc, bcnt, strm->frc_opl, strm->mem);
+        &nfrc, bcnt, strm->frc_objalloc, strm->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
-      ngtcp2_frame_chain_del(frc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       return rv;
     }
 
@@ -416,16 +416,16 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
-      ngtcp2_frame_chain_del(nfrc, strm->mem);
-      ngtcp2_frame_chain_del(frc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_objalloc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       return rv;
     }
 
     rv = ngtcp2_frame_chain_stream_datacnt_obj_pool_new(
-        &nfrc, acnt, strm->frc_opl, strm->mem);
+        &nfrc, acnt, strm->frc_objalloc, strm->mem);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
-      ngtcp2_frame_chain_del(frc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       return rv;
     }
 
@@ -435,7 +435,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     nfr->datacnt = acnt;
     ngtcp2_vec_copy(nfr->data, a, acnt);
 
-    ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_opl, strm->mem);
+    ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
 
     *pfrc = nfrc;
 
@@ -457,7 +457,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     rv = strm_streamfrq_unacked_pop(strm, &nfrc);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
-      ngtcp2_frame_chain_del(frc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       return rv;
     }
     if (nfrc == NULL) {
@@ -468,7 +468,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
     if (nfr->fin && nfr->datacnt == 0) {
       fr->fin = 1;
-      ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_opl, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_objalloc, strm->mem);
       break;
     }
 
@@ -478,8 +478,8 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
       rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
-        ngtcp2_frame_chain_del(nfrc, strm->mem);
-        ngtcp2_frame_chain_del(frc, strm->mem);
+        ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_objalloc, strm->mem);
+        ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
         return rv;
       }
       break;
@@ -490,7 +490,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
     if (nfr->datacnt == 0) {
       fr->fin = nfr->fin;
-      ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_opl, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_objalloc, strm->mem);
       continue;
     }
 
@@ -498,8 +498,8 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
     rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
     if (rv != 0) {
-      ngtcp2_frame_chain_del(nfrc, strm->mem);
-      ngtcp2_frame_chain_del(frc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(nfrc, strm->frc_objalloc, strm->mem);
+      ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
       return rv;
     }
 
@@ -517,10 +517,10 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
   assert(acnt > fr->datacnt);
 
-  rv = ngtcp2_frame_chain_stream_datacnt_obj_pool_new(&nfrc, acnt,
-                                                      strm->frc_opl, strm->mem);
+  rv = ngtcp2_frame_chain_stream_datacnt_obj_pool_new(
+      &nfrc, acnt, strm->frc_objalloc, strm->mem);
   if (rv != 0) {
-    ngtcp2_frame_chain_del(frc, strm->mem);
+    ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
     return rv;
   }
 
@@ -529,7 +529,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   nfr->datacnt = acnt;
   ngtcp2_vec_copy(nfr->data, a, acnt);
 
-  ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_opl, strm->mem);
+  ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
 
   *pfrc = nfrc;
 
@@ -595,7 +595,7 @@ void ngtcp2_strm_streamfrq_clear(ngtcp2_strm *strm) {
   for (it = ngtcp2_ksl_begin(strm->tx.streamfrq); !ngtcp2_ksl_it_end(&it);
        ngtcp2_ksl_it_next(&it)) {
     frc = ngtcp2_ksl_it_get(&it);
-    ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_opl, strm->mem);
+    ngtcp2_frame_chain_obj_pool_del(frc, strm->frc_objalloc, strm->mem);
   }
   ngtcp2_ksl_clear(strm->tx.streamfrq);
 }

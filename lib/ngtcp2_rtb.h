@@ -34,8 +34,7 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
-#include "ngtcp2_obj_pool.h"
-#include "ngtcp2_balloc.h"
+#include "ngtcp2_objalloc.h"
 
 typedef struct ngtcp2_conn ngtcp2_conn;
 typedef struct ngtcp2_pktns ngtcp2_pktns;
@@ -85,6 +84,8 @@ struct ngtcp2_frame_chain {
   };
 };
 
+ngtcp2_objalloc_def(frame_chain, ngtcp2_frame_chain, oplent);
+
 /*
  * ngtcp2_bind_frame_chains binds two frame chains |a| and |b| using
  * new or existing ngtcp2_frame_chain_binder.  |a| might have non-NULL
@@ -125,8 +126,7 @@ int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem);
  * |opl|.
  */
 int ngtcp2_frame_chain_obj_pool_new(ngtcp2_frame_chain **pfrc,
-                                    ngtcp2_obj_pool *opl,
-                                    const ngtcp2_mem *mem);
+                                    ngtcp2_objalloc *objalloc);
 
 /*
  * ngtcp2_frame_chain_extralen_new works like ngtcp2_frame_chain_new,
@@ -154,7 +154,7 @@ int ngtcp2_frame_chain_stream_datacnt_new(ngtcp2_frame_chain **pfrc,
  */
 int ngtcp2_frame_chain_stream_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
-                                                   ngtcp2_obj_pool *opl,
+                                                   ngtcp2_objalloc *objalloc,
                                                    const ngtcp2_mem *mem);
 
 /*
@@ -175,7 +175,7 @@ int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
  */
 int ngtcp2_frame_chain_crypto_datacnt_obj_pool_new(ngtcp2_frame_chain **pfrc,
                                                    size_t datacnt,
-                                                   ngtcp2_obj_pool *opl,
+                                                   ngtcp2_objalloc *objalloc,
                                                    const ngtcp2_mem *mem);
 
 int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
@@ -194,7 +194,7 @@ void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
  * |frc|.
  */
 void ngtcp2_frame_chain_obj_pool_del(ngtcp2_frame_chain *frc,
-                                     ngtcp2_obj_pool *opl,
+                                     ngtcp2_objalloc *objalloc,
                                      const ngtcp2_mem *mem);
 
 /*
@@ -215,16 +215,8 @@ void ngtcp2_frame_chain_list_del(ngtcp2_frame_chain *frc,
  * and its size, ngtcp2_frame_chain might be deleted instead.
  */
 void ngtcp2_frame_chain_list_obj_pool_del(ngtcp2_frame_chain *frc,
-                                          ngtcp2_obj_pool *opl,
+                                          ngtcp2_objalloc *objalloc,
                                           const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_obj_pool_entry_list_del deletes all entries
- * linked from opl->head assuming that it is of type
- * ngtcp2_frame_chain.
- */
-void ngtcp2_frame_chain_obj_pool_entry_list_del(ngtcp2_obj_pool *opl,
-                                                const ngtcp2_mem *mem);
 
 /* NGTCP2_RTB_ENTRY_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_RTB_ENTRY_FLAG_NONE 0x00
@@ -327,32 +319,26 @@ int ngtcp2_rtb_entry_obj_pool_new(ngtcp2_rtb_entry **pent,
  * ngtcp2_rtb_entry_del deallocates |ent|.  It also frees memory
  * pointed by |ent|.
  */
-void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, const ngtcp2_mem *mem);
+void ngtcp2_rtb_entry_del(ngtcp2_rtb_entry *ent, ngtcp2_objalloc *frc_objalloc,
+                          const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_entry_obj_pool_del adds |ent| to |opl| for reuse.
- * ngtcp2_frame_chain linked from ent->frc are also added to |frc_opl|
- * depending on their frame type and size.
+ * ngtcp2_frame_chain linked from ent->frc are also added to
+ * |frc_objalloc| depending on their frame type and size.
  */
 void ngtcp2_rtb_entry_obj_pool_del(ngtcp2_rtb_entry *ent,
                                    ngtcp2_objalloc *objalloc,
-                                   ngtcp2_obj_pool *frc_opl,
+                                   ngtcp2_objalloc *frc_objalloc,
                                    const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_rtb_entry_obj_pool_entry_list_del deletes all entries linked
- * from opl->head assuming that it is of type ngtcp2_rtb_entry.
- */
-void ngtcp2_rtb_entry_obj_pool_entry_list_del(ngtcp2_obj_pool *opl,
-                                              const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb tracks sent packets, and its ACK timeout for
  * retransmission.
  */
 typedef struct ngtcp2_rtb {
+  ngtcp2_objalloc *frc_objalloc;
   ngtcp2_objalloc *rtb_entry_objalloc;
-  ngtcp2_obj_pool *frc_opl;
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
@@ -398,7 +384,7 @@ void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
                      ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
                      ngtcp2_log *log, ngtcp2_qlog *qlog,
                      ngtcp2_objalloc *rtb_entry_objalloc,
-                     ngtcp2_obj_pool *frc_opl, const ngtcp2_mem *mem);
+                     ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.
