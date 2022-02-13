@@ -60,6 +60,9 @@ set(ngtcp2_SOURCES
   ngtcp2_version.c
   ngtcp2_rst.c
   ngtcp2_window_filter.c
+  ngtcp2_obj_pool.c
+  ngtcp2_balloc.c
+  ngtcp2_objalloc.c
 )
 
 set(ngtcp2_INCLUDE_DIRS
