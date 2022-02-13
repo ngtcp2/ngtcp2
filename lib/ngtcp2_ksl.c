@@ -57,9 +57,8 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
                      const ngtcp2_mem *mem) {
   size_t nodelen = ksl_nodelen(keylen);
 
-  ngtcp2_balloc_init(&ksl->balloc, ((ksl_blklen(nodelen) + 0xfu) & ~0xfu) * 8,
-                     mem);
-  ngtcp2_obj_pool_init(&ksl->opl);
+  ngtcp2_objalloc_init(&ksl->blkalloc,
+                       ((ksl_blklen(nodelen) + 0xfu) & ~0xfu) * 8, mem);
 
   ksl->head = NULL;
   ksl->front = ksl->back = NULL;
@@ -71,10 +70,9 @@ void ngtcp2_ksl_init(ngtcp2_ksl *ksl, ngtcp2_ksl_compar compar, size_t keylen,
 
 static int ksl_head_init(ngtcp2_ksl *ksl) {
   size_t blklen = ksl_blklen(ksl->nodelen);
-  ngtcp2_ksl_blk *head;
-  int rv = ngtcp2_balloc_get(&ksl->balloc, (void **)&head, blklen);
-
-  if (rv != 0) {
+  ngtcp2_ksl_blk *head =
+      ngtcp2_objalloc_ksl_blk_len_get(&ksl->blkalloc, blklen);
+  if (!head) {
     return NGTCP2_ERR_NOMEM;
   }
 
@@ -93,30 +91,16 @@ void ngtcp2_ksl_free(ngtcp2_ksl *ksl) {
     return;
   }
 
-  ngtcp2_balloc_free(&ksl->balloc);
+  ngtcp2_objalloc_free(&ksl->blkalloc);
 }
 
 static ngtcp2_ksl_blk *ksl_blk_obj_pool_new(ngtcp2_ksl *ksl) {
-  ngtcp2_obj_pool_entry *ent = ngtcp2_obj_pool_pop(&ksl->opl);
-  ngtcp2_ksl_blk *blk;
-  int rv;
-
-  if (!ent) {
-    rv = ngtcp2_balloc_get(&ksl->balloc, (void **)&blk,
-                           ksl_blklen(ksl->nodelen));
-    if (rv != 0) {
-      assert(NGTCP2_ERR_NOMEM == rv);
-      return NULL;
-    }
-
-    return blk;
-  }
-
-  return ngtcp2_struct_of(ent, ngtcp2_ksl_blk, oplent);
+  return ngtcp2_objalloc_ksl_blk_len_get(&ksl->blkalloc,
+                                         ksl_blklen(ksl->nodelen));
 }
 
 static void ksl_blk_obj_pool_del(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
-  ngtcp2_obj_pool_push(&ksl->opl, &blk->oplent);
+  ngtcp2_objalloc_ksl_blk_release(&ksl->blkalloc, blk);
 }
 
 /*
@@ -740,8 +724,7 @@ void ngtcp2_ksl_clear(ngtcp2_ksl *ksl) {
   ksl->front = ksl->back = ksl->head = NULL;
   ksl->n = 0;
 
-  ngtcp2_obj_pool_clear(&ksl->opl);
-  ngtcp2_balloc_clear(&ksl->balloc);
+  ngtcp2_objalloc_clear(&ksl->blkalloc);
 }
 
 void ngtcp2_ksl_print(ngtcp2_ksl *ksl) {
