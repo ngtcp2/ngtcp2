@@ -340,6 +340,8 @@ ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry));
 
 struct ngtcp2_conn {
+  ngtcp2_objalloc rtb_entry_objalloc;
+  ngtcp2_obj_pool frc_opl;
   ngtcp2_conn_state state;
   ngtcp2_callbacks callbacks;
   /* rcid is a connection ID present in Initial or 0-RTT packet from
@@ -616,8 +618,6 @@ struct ngtcp2_conn {
   ngtcp2_cc_algo cc_algo;
   ngtcp2_cc cc;
   const ngtcp2_mem *mem;
-  ngtcp2_obj_pool rtb_entry_opl;
-  ngtcp2_obj_pool frc_opl;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
   void *user_data;
