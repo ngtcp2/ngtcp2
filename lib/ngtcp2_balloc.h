@@ -36,12 +36,7 @@
 typedef struct ngtcp2_memblock_hd ngtcp2_memblock_hd;
 
 struct ngtcp2_memblock_hd {
-  union {
-    ngtcp2_memblock_hd *next;
-    struct {
-      uint64_t p1, p2;
-    };
-  };
+  ngtcp2_memblock_hd *next;
 };
 
 typedef struct ngtcp2_balloc {

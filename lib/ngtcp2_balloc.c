@@ -30,7 +30,7 @@
 
 void ngtcp2_balloc_init(ngtcp2_balloc *balloc, size_t blklen,
                         const ngtcp2_mem *mem) {
-  assert(((uintptr_t)blklen & 0xfu) == 0);
+  assert(((uintptr_t)blklen & 0xfllu) == 0);
 
   balloc->mem = mem;
   balloc->blklen = blklen;
@@ -63,11 +63,10 @@ int ngtcp2_balloc_get(ngtcp2_balloc *balloc, void **pbuf, size_t n) {
   ngtcp2_memblock_hd *hd;
 
   assert(n <= balloc->blklen);
-  assert(((uintptr_t)balloc->buf.last & 0xfu) == 0);
 
   if (ngtcp2_buf_left(&balloc->buf) < n) {
     p = ngtcp2_mem_malloc(balloc->mem,
-                          sizeof(ngtcp2_memblock_hd) + balloc->blklen);
+                          sizeof(ngtcp2_memblock_hd) + 0xfllu + balloc->blklen);
     if (p == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
@@ -75,12 +74,17 @@ int ngtcp2_balloc_get(ngtcp2_balloc *balloc, void **pbuf, size_t n) {
     hd = (ngtcp2_memblock_hd *)(void *)p;
     hd->next = balloc->head;
     balloc->head = hd;
-    ngtcp2_buf_init(&balloc->buf, p + sizeof(ngtcp2_memblock_hd),
-                    balloc->blklen);
+    ngtcp2_buf_init(
+        &balloc->buf,
+        (uint8_t *)(((uintptr_t)p + sizeof(ngtcp2_memblock_hd) + 0xfllu) &
+                    ~0xfllu),
+        balloc->blklen);
   }
 
+  assert(((uintptr_t)balloc->buf.last & 0xfllu) == 0);
+
   *pbuf = balloc->buf.last;
-  balloc->buf.last += (n + 0xfu) & ~0xfu;
+  balloc->buf.last += (n + 0xfllu) & ~0xfllu;
 
   return 0;
 }

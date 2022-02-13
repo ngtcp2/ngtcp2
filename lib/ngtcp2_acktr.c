@@ -78,7 +78,8 @@ int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
   int rv;
 
   ngtcp2_objalloc_init(&acktr->objalloc,
-                       ((sizeof(ngtcp2_acktr_entry) + 0xfu) & 0xfu) * 32, mem);
+                       ((sizeof(ngtcp2_acktr_entry) + 0xfllu) & 0xfllu) * 32,
+                       mem);
 
   rv = ngtcp2_ringbuf_init(&acktr->acks, 32, sizeof(ngtcp2_acktr_ack_entry),
                            mem);

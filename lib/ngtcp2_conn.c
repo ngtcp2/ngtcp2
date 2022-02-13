@@ -1079,9 +1079,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   ngtcp2_objalloc_init(&(*pconn)->frc_objalloc,
-                       ((sizeof(ngtcp2_frame_chain) + 0xfu) & ~0xfu) * 64, mem);
+                       ((sizeof(ngtcp2_frame_chain) + 0xfllu) & ~0xfllu) * 64,
+                       mem);
   ngtcp2_objalloc_init(&(*pconn)->rtb_entry_objalloc,
-                       ((sizeof(ngtcp2_rtb_entry) + 0xfu) & ~0xfu) * 64, mem);
+                       ((sizeof(ngtcp2_rtb_entry) + 0xfllu) & ~0xfllu) * 64,
+                       mem);
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
