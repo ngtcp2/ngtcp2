@@ -982,14 +982,9 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_conn;
   }
 
-  ngtcp2_objalloc_init(&(*pconn)->frc_objalloc,
-                       ((sizeof(ngtcp2_frame_chain) + 0xfllu) & ~0xfllu) * 64,
-                       mem);
-  ngtcp2_objalloc_init(&(*pconn)->rtb_entry_objalloc,
-                       ((sizeof(ngtcp2_rtb_entry) + 0xfllu) & ~0xfllu) * 64,
-                       mem);
-  ngtcp2_objalloc_init(&(*pconn)->strm_objalloc,
-                       ((sizeof(ngtcp2_strm) + 0xfllu) & ~0xfllu) * 64, mem);
+  ngtcp2_objalloc_frame_chain_init(&(*pconn)->frc_objalloc, 64, mem);
+  ngtcp2_objalloc_rtb_entry_init(&(*pconn)->rtb_entry_objalloc, 64, mem);
+  ngtcp2_objalloc_strm_init(&(*pconn)->strm_objalloc, 64, mem);
 
   ngtcp2_static_ringbuf_dcid_bound_init(&(*pconn)->dcid.bound);
 
