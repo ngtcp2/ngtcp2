@@ -78,10 +78,15 @@ void ngtcp2_strm_free(ngtcp2_strm *strm) {
     ngtcp2_mem_free(strm->mem, strm->tx.streamfrq);
   }
 
-  ngtcp2_rob_free(strm->rx.rob);
-  ngtcp2_mem_free(strm->mem, strm->rx.rob);
-  ngtcp2_gaptr_free(strm->tx.acked_offset);
-  ngtcp2_mem_free(strm->mem, strm->tx.acked_offset);
+  if (strm->rx.rob) {
+    ngtcp2_rob_free(strm->rx.rob);
+    ngtcp2_mem_free(strm->mem, strm->rx.rob);
+  }
+
+  if (strm->tx.acked_offset) {
+    ngtcp2_gaptr_free(strm->tx.acked_offset);
+    ngtcp2_mem_free(strm->mem, strm->tx.acked_offset);
+  }
 }
 
 static int strm_rob_init(ngtcp2_strm *strm) {

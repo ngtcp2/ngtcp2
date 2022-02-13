@@ -982,6 +982,15 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_conn;
   }
 
+  ngtcp2_objalloc_init(&(*pconn)->frc_objalloc,
+                       ((sizeof(ngtcp2_frame_chain) + 0xfllu) & ~0xfllu) * 64,
+                       mem);
+  ngtcp2_objalloc_init(&(*pconn)->rtb_entry_objalloc,
+                       ((sizeof(ngtcp2_rtb_entry) + 0xfllu) & ~0xfllu) * 64,
+                       mem);
+  ngtcp2_objalloc_init(&(*pconn)->strm_objalloc,
+                       ((sizeof(ngtcp2_strm) + 0xfllu) & ~0xfllu) * 64, mem);
+
   ngtcp2_static_ringbuf_dcid_bound_init(&(*pconn)->dcid.bound);
 
   ngtcp2_static_ringbuf_dcid_unused_init(&(*pconn)->dcid.unused);
@@ -1077,13 +1086,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   default:
     assert(0);
   }
-
-  ngtcp2_objalloc_init(&(*pconn)->frc_objalloc,
-                       ((sizeof(ngtcp2_frame_chain) + 0xfllu) & ~0xfllu) * 64,
-                       mem);
-  ngtcp2_objalloc_init(&(*pconn)->rtb_entry_objalloc,
-                       ((sizeof(ngtcp2_rtb_entry) + 0xfllu) & ~0xfllu) * 64,
-                       mem);
 
   rv = pktns_new(&(*pconn)->in_pktns, NGTCP2_PKTNS_ID_INITIAL, &(*pconn)->rst,
                  &(*pconn)->cc, &(*pconn)->log, &(*pconn)->qlog,
@@ -1260,11 +1262,11 @@ static uint64_t conn_enforce_flow_control(ngtcp2_conn *conn, ngtcp2_strm *strm,
 }
 
 static int delete_strms_each(void *data, void *ptr) {
-  const ngtcp2_mem *mem = ptr;
+  ngtcp2_conn *conn = ptr;
   ngtcp2_strm *s = data;
 
   ngtcp2_strm_free(s);
-  ngtcp2_mem_free(mem, s);
+  ngtcp2_objalloc_strm_release(&conn->strm_objalloc, s);
 
   return 0;
 }
@@ -1360,7 +1362,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_idtr_free(&conn->remote.bidi.idtr);
   ngtcp2_mem_free(conn->mem, conn->tx.ack);
   ngtcp2_pq_free(&conn->tx.strmq);
-  ngtcp2_map_each_free(&conn->strms, delete_strms_each, (void *)conn->mem);
+  ngtcp2_map_each_free(&conn->strms, delete_strms_each, (void *)conn);
   ngtcp2_map_free(&conn->strms);
 
   ngtcp2_pq_free(&conn->scid.used);
@@ -1368,6 +1370,7 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   ngtcp2_ksl_free(&conn->scid.set);
   ngtcp2_gaptr_free(&conn->dcid.seqgap);
 
+  ngtcp2_objalloc_free(&conn->strm_objalloc);
   ngtcp2_objalloc_free(&conn->rtb_entry_objalloc);
   ngtcp2_objalloc_free(&conn->frc_objalloc);
 
@@ -5109,13 +5112,13 @@ static int conn_recv_max_stream_data(ngtcp2_conn *conn,
       return 0;
     }
 
-    strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+    strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
     if (strm == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
-      ngtcp2_mem_free(conn->mem, strm);
+      ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
       return rv;
     }
 
@@ -6550,14 +6553,14 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return 0;
     }
 
-    strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+    strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
     if (strm == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
     /* TODO Perhaps, call new_stream callback? */
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
-      ngtcp2_mem_free(conn->mem, strm);
+      ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
       return rv;
     }
 
@@ -6983,13 +6986,13 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
 
     /* Frame is received reset before we create ngtcp2_strm
        object. */
-    strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+    strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
     if (strm == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
-      ngtcp2_mem_free(conn->mem, strm);
+      ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
       return rv;
     }
 
@@ -10513,7 +10516,7 @@ int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
     return NGTCP2_ERR_STREAM_ID_BLOCKED;
   }
 
-  strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+  strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
   if (strm == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
@@ -10521,7 +10524,7 @@ int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,
   rv = ngtcp2_conn_init_stream(conn, strm, conn->local.bidi.next_stream_id,
                                stream_user_data);
   if (rv != 0) {
-    ngtcp2_mem_free(conn->mem, strm);
+    ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
     return rv;
   }
 
@@ -10540,7 +10543,7 @@ int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn, int64_t *pstream_id,
     return NGTCP2_ERR_STREAM_ID_BLOCKED;
   }
 
-  strm = ngtcp2_mem_malloc(conn->mem, sizeof(ngtcp2_strm));
+  strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
   if (strm == NULL) {
     return NGTCP2_ERR_NOMEM;
   }
@@ -10548,7 +10551,7 @@ int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn, int64_t *pstream_id,
   rv = ngtcp2_conn_init_stream(conn, strm, conn->local.uni.next_stream_id,
                                stream_user_data);
   if (rv != 0) {
-    ngtcp2_mem_free(conn->mem, strm);
+    ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
     return rv;
   }
   ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
@@ -11227,7 +11230,7 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
 
 fin:
   ngtcp2_strm_free(strm);
-  ngtcp2_mem_free(conn->mem, strm);
+  ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
 
   return rv;
 }
@@ -11445,7 +11448,7 @@ static int delete_strms_pq_each(void *data, void *ptr) {
   }
 
   ngtcp2_strm_free(s);
-  ngtcp2_mem_free(conn->mem, s);
+  ngtcp2_objalloc_strm_release(&conn->strm_objalloc, s);
 
   return 0;
 }

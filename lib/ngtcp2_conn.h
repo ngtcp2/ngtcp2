@@ -339,9 +339,12 @@ ngtcp2_static_ringbuf_def(dcid_retired, NGTCP2_MAX_DCID_RETIRED_SIZE,
 ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry));
 
+ngtcp2_objalloc_def(strm, ngtcp2_strm, oplent);
+
 struct ngtcp2_conn {
   ngtcp2_objalloc frc_objalloc;
   ngtcp2_objalloc rtb_entry_objalloc;
+  ngtcp2_objalloc strm_objalloc;
   ngtcp2_conn_state state;
   ngtcp2_callbacks callbacks;
   /* rcid is a connection ID present in Initial or 0-RTT packet from
