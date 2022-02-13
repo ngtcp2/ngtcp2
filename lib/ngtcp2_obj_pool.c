@@ -43,3 +43,5 @@ ngtcp2_obj_pool_entry *ngtcp2_obj_pool_pop(ngtcp2_obj_pool *opl) {
 
   return ent;
 }
+
+void ngtcp2_obj_pool_clear(ngtcp2_obj_pool *opl) { opl->head = NULL; }

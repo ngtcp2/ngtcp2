@@ -34,6 +34,7 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_obj_pool.h"
+#include "ngtcp2_balloc.h"
 
 /*
  * Skip List using single key instead of range.
@@ -130,6 +131,8 @@ struct ngtcp2_ksl_it {
  * ngtcp2_ksl is a deterministic paged skip list.
  */
 struct ngtcp2_ksl {
+  ngtcp2_balloc balloc;
+  ngtcp2_obj_pool opl;
   /* head points to the root block. */
   ngtcp2_ksl_blk *head;
   /* front points to the first leaf block. */
@@ -143,8 +146,6 @@ struct ngtcp2_ksl {
   /* nodelen is the actual size of ngtcp2_ksl_node including key
      storage. */
   size_t nodelen;
-  const ngtcp2_mem *mem;
-  ngtcp2_obj_pool opl;
 };
 
 /*

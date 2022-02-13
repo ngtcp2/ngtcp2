@@ -61,4 +61,6 @@ void ngtcp2_obj_pool_push(ngtcp2_obj_pool *opl, ngtcp2_obj_pool_entry *ent);
  */
 ngtcp2_obj_pool_entry *ngtcp2_obj_pool_pop(ngtcp2_obj_pool *opl);
 
+void ngtcp2_obj_pool_clear(ngtcp2_obj_pool *opl);
+
 #endif /* NGTCP2_OBJ_POOL_H */
