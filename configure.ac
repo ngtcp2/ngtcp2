@@ -84,6 +84,10 @@ AC_ARG_ENABLE([memdebug],
                     [Turn on memory allocation debug output])],
     [memdebug=$enableval], [memdebug=no])
 
+AC_ARG_ENABLE([mempool],
+    [AS_HELP_STRING([--enable-mempool], [Turn on memory pool [default=yes]])],
+    [mempool=$enableval], [mempool=yes])
+
 AC_ARG_ENABLE(asan,
     AS_HELP_STRING([--enable-asan],
                    [Enable AddressSanitizer (ASAN)]),
@@ -614,6 +618,10 @@ fi
 if test "x${memdebug}" = "xyes"; then
   AC_DEFINE([MEMDEBUG], [1],
             [Define to 1 to enable memory allocation debug output.])
+fi
+
+if test "x${mempool}" != "xyes"; then
+  AC_DEFINE([NOMEMPOOL], [1], [Define to 1 to disable memory pool.])
 fi
 
 # extra flags for API function visibility
