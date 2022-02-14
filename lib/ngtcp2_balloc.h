@@ -35,24 +35,57 @@
 
 typedef struct ngtcp2_memblock_hd ngtcp2_memblock_hd;
 
+/*
+ * ngtcp2_memblock_hd is the header of memory block.
+ */
 struct ngtcp2_memblock_hd {
   ngtcp2_memblock_hd *next;
 };
 
+/*
+ * ngtcp2_balloc is a custom memory allocator.  It allocates |blklen|
+ * bytes of memory at once on demand, and returns its slice when the
+ * allocation is requested.
+ */
 typedef struct ngtcp2_balloc {
+  /* mem is the underlying memory allocator. */
   const ngtcp2_mem *mem;
+  /* blklen is the size of memory block. */
   size_t blklen;
+  /* head points to the list of memory block allocated so far. */
   ngtcp2_memblock_hd *head;
+  /* buf wraps the current memory block for allocation requests. */
   ngtcp2_buf buf;
 } ngtcp2_balloc;
 
+/*
+ * ngtcp2_balloc_init initializes |balloc| with |blklen| which is the
+ * size of memory block.
+ */
 void ngtcp2_balloc_init(ngtcp2_balloc *balloc, size_t blklen,
                         const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_balloc_free releases all allocated memory blocks.
+ */
 void ngtcp2_balloc_free(ngtcp2_balloc *balloc);
 
+/*
+ * ngtcp2_balloc_get allocates |n| bytes of memory and assigns its
+ * pointer to |*pbuf|.
+ *
+ * It returns 0 if it succeeds, or one of the following negative error
+ * codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
 int ngtcp2_balloc_get(ngtcp2_balloc *balloc, void **pbuf, size_t n);
 
+/*
+ * ngtcp2_balloc_clear releases all allocated memory blocks and
+ * initializes its state.
+ */
 void ngtcp2_balloc_clear(ngtcp2_balloc *balloc);
 
 #endif /* NGTCP2_BALLOC_H */

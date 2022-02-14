@@ -35,16 +35,32 @@
 #include "ngtcp2_opl.h"
 #include "ngtcp2_macro.h"
 
+/*
+ * ngtcp2_objalloc combines ngtcp2_balloc and ngtcp2_opl, and provides
+ * an object pool with the custom allocator to reduce the allocation
+ * and deallocation overheads for small objects.
+ */
 typedef struct ngtcp2_objalloc {
   ngtcp2_balloc balloc;
   ngtcp2_opl opl;
 } ngtcp2_objalloc;
 
+/*
+ * ngtcp2_objalloc_init initializes |objalloc|.  |blklen| is directly
+ * passed to ngtcp2_balloc_init.
+ */
 void ngtcp2_objalloc_init(ngtcp2_objalloc *objalloc, size_t blklen,
                           const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_objalloc_free releases all allocated resources.
+ */
 void ngtcp2_objalloc_free(ngtcp2_objalloc *objalloc);
 
+/*
+ * ngtcp2_objalloc_clear releases all allocated resources and
+ * initializes its state.
+ */
 void ngtcp2_objalloc_clear(ngtcp2_objalloc *objalloc);
 
 #define ngtcp2_objalloc_def(NAME, TYPE, OPLENTFIELD)                           \
