@@ -94,12 +94,12 @@ void ngtcp2_ksl_free(ngtcp2_ksl *ksl) {
   ngtcp2_objalloc_free(&ksl->blkalloc);
 }
 
-static ngtcp2_ksl_blk *ksl_blk_obj_pool_new(ngtcp2_ksl *ksl) {
+static ngtcp2_ksl_blk *ksl_blk_objalloc_new(ngtcp2_ksl *ksl) {
   return ngtcp2_objalloc_ksl_blk_len_get(&ksl->blkalloc,
                                          ksl_blklen(ksl->nodelen));
 }
 
-static void ksl_blk_obj_pool_del(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
+static void ksl_blk_objalloc_del(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
   ngtcp2_objalloc_ksl_blk_release(&ksl->blkalloc, blk);
 }
 
@@ -114,7 +114,7 @@ static void ksl_blk_obj_pool_del(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
 static ngtcp2_ksl_blk *ksl_split_blk(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk) {
   ngtcp2_ksl_blk *rblk;
 
-  rblk = ksl_blk_obj_pool_new(ksl);
+  rblk = ksl_blk_objalloc_new(ksl);
   if (rblk == NULL) {
     return NULL;
   }
@@ -198,9 +198,9 @@ static int ksl_split_head(ngtcp2_ksl *ksl) {
 
   lblk = ksl->head;
 
-  nhead = ksl_blk_obj_pool_new(ksl);
+  nhead = ksl_blk_objalloc_new(ksl);
   if (nhead == NULL) {
-    ksl_blk_obj_pool_del(ksl, rblk);
+    ksl_blk_objalloc_del(ksl, rblk);
     return NGTCP2_ERR_NOMEM;
   }
   nhead->next = nhead->prev = NULL;
@@ -382,10 +382,10 @@ static ngtcp2_ksl_blk *ksl_merge_node(ngtcp2_ksl *ksl, ngtcp2_ksl_blk *blk,
     ksl->back = lblk;
   }
 
-  ksl_blk_obj_pool_del(ksl, rblk);
+  ksl_blk_objalloc_del(ksl, rblk);
 
   if (ksl->head == blk && blk->n == 2) {
-    ksl_blk_obj_pool_del(ksl, ksl->head);
+    ksl_blk_objalloc_del(ksl, ksl->head);
     ksl->head = lblk;
   } else {
     ksl_remove_node(ksl, blk, i + 1);
