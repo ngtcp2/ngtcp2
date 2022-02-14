@@ -11846,7 +11846,8 @@ int ngtcp2_conn_submit_new_token(ngtcp2_conn *conn, const uint8_t *token,
   assert(token);
   assert(tokenlen);
 
-  rv = ngtcp2_frame_chain_new_token_new(&nfrc, &tokenv, conn->mem);
+  rv = ngtcp2_frame_chain_new_token_objalloc_new(
+      &nfrc, &tokenv, &conn->frc_objalloc, conn->mem);
   if (rv != 0) {
     return rv;
   }

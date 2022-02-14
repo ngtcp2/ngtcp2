@@ -159,9 +159,10 @@ int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    ngtcp2_objalloc *objalloc,
                                                    const ngtcp2_mem *mem);
 
-int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
-                                     const ngtcp2_vec *token,
-                                     const ngtcp2_mem *mem);
+int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
+                                              const ngtcp2_vec *token,
+                                              ngtcp2_objalloc *objalloc,
+                                              const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
