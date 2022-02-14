@@ -449,7 +449,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
       rv = ngtcp2_strm_streamfrq_push(strm, nfrc);
       if (rv != 0) {
-        ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
+        ngtcp2_frame_chain_objalloc_del(nfrc, rtb->frc_objalloc, rtb->mem);
         return rv;
       }
       if (!ngtcp2_strm_is_tx_queued(strm)) {
@@ -490,7 +490,7 @@ static ngtcp2_ssize rtb_reclaim_frame(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                              &nfrc->fr.crypto.offset, nfrc);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
-        ngtcp2_frame_chain_objalloc_del(nfrc, &conn->frc_objalloc, conn->mem);
+        ngtcp2_frame_chain_objalloc_del(nfrc, rtb->frc_objalloc, rtb->mem);
         return rv;
       }
 
@@ -1428,12 +1428,12 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
       strm = ngtcp2_conn_find_stream(conn, sfr->stream_id);
       if (!strm) {
-        ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
+        ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
         break;
       }
       rv = ngtcp2_strm_streamfrq_push(strm, frc);
       if (rv != 0) {
-        ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
+        ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
         return rv;
       }
       if (!ngtcp2_strm_is_tx_queued(strm)) {
@@ -1454,7 +1454,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                              &frc->fr.crypto.offset, frc);
       if (rv != 0) {
         assert(ngtcp2_err_is_fatal(rv));
-        ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
+        ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
         return rv;
       }
       break;
@@ -1472,7 +1472,7 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 
       *pfrc = (*pfrc)->next;
 
-      ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
+      ngtcp2_frame_chain_objalloc_del(frc, rtb->frc_objalloc, rtb->mem);
       break;
     default:
       pfrc = &(*pfrc)->next;
