@@ -106,6 +106,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(19 == data[1].len);
   CU_ASSERT(2 == ngtcp2_ksl_len(strm.tx.streamfrq));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* Get merged chain */
@@ -123,6 +124,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(19 + 46 == data[1].len);
   CU_ASSERT(1 == ngtcp2_ksl_len(strm.tx.streamfrq));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* Get merged chain partially */
@@ -140,6 +142,8 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(19 + 45 == data[1].len);
   CU_ASSERT(2 == ngtcp2_ksl_len(strm.tx.streamfrq));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
+
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1);
 
@@ -149,6 +153,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(1 == frc->fr.stream.data[0].len);
   CU_ASSERT(nulldata + 30 + 17 + 28 == frc->fr.stream.data[0].base);
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* Not continuous merge */
@@ -168,6 +173,8 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(nulldata + 256 == data[2].base);
   CU_ASSERT(1 == ngtcp2_ksl_len(strm.tx.streamfrq));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
+
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
 
@@ -180,6 +187,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(30 == data[0].len);
   CU_ASSERT(nulldata + 256 + 1 == data[0].base);
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* split; continuous */
@@ -199,6 +207,8 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(1 == data[1].len);
   CU_ASSERT(nulldata + 11 == data[1].base);
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
+
   frc = NULL;
   rv = ngtcp2_strm_streamfrq_pop(&strm, &frc, 1024);
 
@@ -215,6 +225,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(1 == data[2].len);
   CU_ASSERT(nulldata + 512 == data[2].base);
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* offset gap */
@@ -251,6 +262,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(11 == frc->fr.stream.data[0].len);
   CU_ASSERT(1 == ngtcp2_ksl_len(strm.tx.streamfrq));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* fin */
@@ -283,6 +295,7 @@ void test_ngtcp2_strm_streamfrq_pop(void) {
   CU_ASSERT(1 == frc->fr.stream.fin);
   CU_ASSERT(1 == frc->fr.stream.datacnt);
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* left == 0 and there is outstanding data */
@@ -521,6 +534,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   CU_ASSERT(764 == frc->fr.stream.offset);
   CU_ASSERT(0 == ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* Remove leading acknowledged data */
@@ -537,6 +551,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   CU_ASSERT(1 == frc->fr.stream.datacnt);
   CU_ASSERT(43 == ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   /* Creating a gap of acknowledged data */
@@ -553,6 +568,7 @@ void test_ngtcp2_strm_streamfrq_unacked_pop(void) {
   CU_ASSERT(2 == frc->fr.stream.datacnt);
   CU_ASSERT(32 == ngtcp2_vec_len(frc->fr.stream.data, frc->fr.stream.datacnt));
 
+  ngtcp2_frame_chain_objalloc_del(frc, &frc_objalloc, mem);
   ngtcp2_strm_free(&strm);
 
   ngtcp2_objalloc_free(&frc_objalloc);
