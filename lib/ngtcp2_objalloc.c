@@ -27,7 +27,7 @@
 void ngtcp2_objalloc_init(ngtcp2_objalloc *objalloc, size_t blklen,
                           const ngtcp2_mem *mem) {
   ngtcp2_balloc_init(&objalloc->balloc, blklen, mem);
-  ngtcp2_obj_pool_init(&objalloc->opl);
+  ngtcp2_opl_init(&objalloc->opl);
 }
 
 void ngtcp2_objalloc_free(ngtcp2_objalloc *objalloc) {
@@ -35,6 +35,6 @@ void ngtcp2_objalloc_free(ngtcp2_objalloc *objalloc) {
 }
 
 void ngtcp2_objalloc_clear(ngtcp2_objalloc *objalloc) {
-  ngtcp2_obj_pool_clear(&objalloc->opl);
+  ngtcp2_opl_clear(&objalloc->opl);
   ngtcp2_balloc_clear(&objalloc->balloc);
 }

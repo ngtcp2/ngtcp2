@@ -80,7 +80,7 @@ struct ngtcp2_frame_chain {
       ngtcp2_frame fr;
     };
 
-    ngtcp2_obj_pool_entry oplent;
+    ngtcp2_opl_entry oplent;
   };
 };
 
@@ -258,7 +258,7 @@ struct ngtcp2_rtb_entry {
       uint8_t flags;
     };
 
-    ngtcp2_obj_pool_entry oplent;
+    ngtcp2_opl_entry oplent;
   };
 };
 

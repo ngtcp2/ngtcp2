@@ -32,12 +32,12 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_balloc.h"
-#include "ngtcp2_obj_pool.h"
+#include "ngtcp2_opl.h"
 #include "ngtcp2_macro.h"
 
 typedef struct ngtcp2_objalloc {
   ngtcp2_balloc balloc;
-  ngtcp2_obj_pool opl;
+  ngtcp2_opl opl;
 } ngtcp2_objalloc;
 
 void ngtcp2_objalloc_init(ngtcp2_objalloc *objalloc, size_t blklen,
@@ -56,7 +56,7 @@ void ngtcp2_objalloc_clear(ngtcp2_objalloc *objalloc);
                                                                                \
   inline static TYPE *ngtcp2_objalloc_##NAME##_get(                            \
       ngtcp2_objalloc *objalloc) {                                             \
-    ngtcp2_obj_pool_entry *oplent = ngtcp2_obj_pool_pop(&objalloc->opl);       \
+    ngtcp2_opl_entry *oplent = ngtcp2_opl_pop(&objalloc->opl);                 \
     TYPE *obj;                                                                 \
     int rv;                                                                    \
                                                                                \
@@ -74,7 +74,7 @@ void ngtcp2_objalloc_clear(ngtcp2_objalloc *objalloc);
                                                                                \
   inline static TYPE *ngtcp2_objalloc_##NAME##_len_get(                        \
       ngtcp2_objalloc *objalloc, size_t len) {                                 \
-    ngtcp2_obj_pool_entry *oplent = ngtcp2_obj_pool_pop(&objalloc->opl);       \
+    ngtcp2_opl_entry *oplent = ngtcp2_opl_pop(&objalloc->opl);                 \
     TYPE *obj;                                                                 \
     int rv;                                                                    \
                                                                                \
@@ -92,7 +92,7 @@ void ngtcp2_objalloc_clear(ngtcp2_objalloc *objalloc);
                                                                                \
   inline static void ngtcp2_objalloc_##NAME##_release(                         \
       ngtcp2_objalloc *objalloc, TYPE *obj) {                                  \
-    ngtcp2_obj_pool_push(&objalloc->opl, &obj->OPLENTFIELD);                   \
+    ngtcp2_opl_push(&objalloc->opl, &obj->OPLENTFIELD);                        \
   }
 
 #endif /* NGTCP2_OBJALLOC_H */

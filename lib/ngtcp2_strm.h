@@ -149,7 +149,7 @@ struct ngtcp2_strm {
       uint64_t app_error_code;
     };
 
-    ngtcp2_obj_pool_entry oplent;
+    ngtcp2_opl_entry oplent;
   };
 };
 

@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_OBJ_POOL_H
-#define NGTCP2_OBJ_POOL_H
+#ifndef NGTCP2_OPL_H
+#define NGTCP2_OPL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
@@ -31,36 +31,35 @@
 
 #include <ngtcp2/ngtcp2.h>
 
-typedef struct ngtcp2_obj_pool_entry ngtcp2_obj_pool_entry;
+typedef struct ngtcp2_opl_entry ngtcp2_opl_entry;
 
-struct ngtcp2_obj_pool_entry {
-  ngtcp2_obj_pool_entry *next;
+struct ngtcp2_opl_entry {
+  ngtcp2_opl_entry *next;
 };
 
 /*
- * ngtcp2_obj_pool is an object memory pool.
+ * ngtcp2_opl is an object memory pool.
  */
-typedef struct ngtcp2_obj_pool {
-  ngtcp2_obj_pool_entry *head;
-} ngtcp2_obj_pool;
+typedef struct ngtcp2_opl {
+  ngtcp2_opl_entry *head;
+} ngtcp2_opl;
 
 /*
- * ngtcp2_obj_pool_init initializes |opl|.
+ * ngtcp2_opl_init initializes |opl|.
  */
-void ngtcp2_obj_pool_init(ngtcp2_obj_pool *opl);
+void ngtcp2_opl_init(ngtcp2_opl *opl);
 
 /*
- * ngtcp2_obj_pool_push inserts |ent| to |opl| head.
+ * ngtcp2_opl_push inserts |ent| to |opl| head.
  */
-void ngtcp2_obj_pool_push(ngtcp2_obj_pool *opl, ngtcp2_obj_pool_entry *ent);
+void ngtcp2_opl_push(ngtcp2_opl *opl, ngtcp2_opl_entry *ent);
 
 /*
- * ngtcp2_obj_pool_pop removes the first ngtcp2_obj_pool_entry from
- * |opl| and returns it.  If |opl| does not have any entry, it returns
- * NULL.
+ * ngtcp2_opl_pop removes the first ngtcp2_opl_entry from |opl| and
+ * returns it.  If |opl| does not have any entry, it returns NULL.
  */
-ngtcp2_obj_pool_entry *ngtcp2_obj_pool_pop(ngtcp2_obj_pool *opl);
+ngtcp2_opl_entry *ngtcp2_opl_pop(ngtcp2_opl *opl);
 
-void ngtcp2_obj_pool_clear(ngtcp2_obj_pool *opl);
+void ngtcp2_opl_clear(ngtcp2_opl *opl);
 
-#endif /* NGTCP2_OBJ_POOL_H */
+#endif /* NGTCP2_OPL_H */

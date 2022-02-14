@@ -61,7 +61,7 @@ typedef struct ngtcp2_acktr_entry {
       ngtcp2_tstamp tstamp;
     };
 
-    ngtcp2_obj_pool_entry oplent;
+    ngtcp2_opl_entry oplent;
   };
 } ngtcp2_acktr_entry;
 

@@ -102,7 +102,7 @@ struct ngtcp2_ksl_blk {
       };
     };
 
-    ngtcp2_obj_pool_entry oplent;
+    ngtcp2_opl_entry oplent;
   };
 };
 

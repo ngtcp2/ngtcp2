@@ -22,17 +22,17 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ngtcp2_obj_pool.h"
+#include "ngtcp2_opl.h"
 
-void ngtcp2_obj_pool_init(ngtcp2_obj_pool *opl) { opl->head = NULL; }
+void ngtcp2_opl_init(ngtcp2_opl *opl) { opl->head = NULL; }
 
-void ngtcp2_obj_pool_push(ngtcp2_obj_pool *opl, ngtcp2_obj_pool_entry *ent) {
+void ngtcp2_opl_push(ngtcp2_opl *opl, ngtcp2_opl_entry *ent) {
   ent->next = opl->head;
   opl->head = ent;
 }
 
-ngtcp2_obj_pool_entry *ngtcp2_obj_pool_pop(ngtcp2_obj_pool *opl) {
-  ngtcp2_obj_pool_entry *ent = opl->head;
+ngtcp2_opl_entry *ngtcp2_opl_pop(ngtcp2_opl *opl) {
+  ngtcp2_opl_entry *ent = opl->head;
 
   if (!ent) {
     return NULL;
@@ -43,4 +43,4 @@ ngtcp2_obj_pool_entry *ngtcp2_obj_pool_pop(ngtcp2_obj_pool *opl) {
   return ent;
 }
 
-void ngtcp2_obj_pool_clear(ngtcp2_obj_pool *opl) { opl->head = NULL; }
+void ngtcp2_opl_clear(ngtcp2_opl *opl) { opl->head = NULL; }
