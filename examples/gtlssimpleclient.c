@@ -152,8 +152,9 @@ struct client {
   ev_timer idle_timer;
 };
 
-int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
-              unsigned int incoming, const gnutls_datum_t *msg) {
+static int hook_func(gnutls_session_t session, unsigned int htype,
+                     unsigned when, unsigned int incoming,
+                     const gnutls_datum_t *msg) {
   (void)session;
   (void)htype;
   (void)when;
@@ -164,10 +165,10 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
   return 0;
 }
 
-int secret_func(gnutls_session_t session,
-                gnutls_record_encryption_level_t gtls_level,
-                const void *rx_secret, const void *tx_secret,
-                size_t secret_size) {
+static int secret_func(gnutls_session_t session,
+                       gnutls_record_encryption_level_t gtls_level,
+                       const void *rx_secret, const void *tx_secret,
+                       size_t secret_size) {
   struct client *c = gnutls_session_get_ptr(session);
   ngtcp2_crypto_level level =
       ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
@@ -189,9 +190,10 @@ int secret_func(gnutls_session_t session,
   return 0;
 }
 
-int read_func(gnutls_session_t session, gnutls_record_encryption_level_t level,
-              gnutls_handshake_description_t htype, const void *data,
-              size_t data_size) {
+static int read_func(gnutls_session_t session,
+                     gnutls_record_encryption_level_t level,
+                     gnutls_handshake_description_t htype, const void *data,
+                     size_t data_size) {
   struct client *c = gnutls_session_get_ptr(session);
   int rv;
 
@@ -234,8 +236,8 @@ static int numeric_host(const char *hostname) {
          numeric_host_family(hostname, AF_INET6);
 }
 
-int tp_recv_func(gnutls_session_t session, const uint8_t *data,
-                 size_t data_size) {
+static int tp_recv_func(gnutls_session_t session, const uint8_t *data,
+                        size_t data_size) {
   struct client *c = gnutls_session_get_ptr(session);
   ngtcp2_transport_params params;
   int rv;
@@ -259,7 +261,7 @@ int tp_recv_func(gnutls_session_t session, const uint8_t *data,
   return 0;
 }
 
-int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
+static int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
   struct client *c = gnutls_session_get_ptr(session);
   ngtcp2_transport_params params;
   unsigned char buf[64];
@@ -272,11 +274,11 @@ int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
       buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
   if (nwrite < 0) {
     fprintf(stderr, "ngtcp2_encode_transport_params: %s\n",
-            ngtcp2_strerror(nwrite));
+            ngtcp2_strerror((int)nwrite));
     return -1;
   }
 
-  rv = gnutls_buffer_append_data(extdata, buf, nwrite);
+  rv = gnutls_buffer_append_data(extdata, buf, (size_t)nwrite);
   if (rv != 0) {
     fprintf(stderr, "gnutls_buffer_append_data failed: %s\n",
             gnutls_strerror(rv));
@@ -292,7 +294,7 @@ static const char priority[] =
     "+GROUP-SECP384R1:"
     "+GROUP-SECP521R1:%DISABLE_TLS13_COMPAT_MODE";
 
-static const gnutls_datum_t alpn = {ALPN, sizeof(ALPN) - 1};
+static const gnutls_datum_t alpn = {(uint8_t *)ALPN, sizeof(ALPN) - 1};
 
 static int client_gnutls_init(struct client *c) {
   int rv = gnutls_certificate_allocate_credentials(&c->cred);
