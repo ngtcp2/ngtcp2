@@ -112,15 +112,15 @@ h09server_SOURCES = h09server.cc h09server.h ${SERVER_SRCS} \
 endif # ENABLE_EXAMPLE_OPENSSL
 
 if ENABLE_EXAMPLE_GNUTLS
-noinst_PROGRAMS += gtlsclient gtlsserver simpleclient
+noinst_PROGRAMS += gtlsclient gtlsserver gtlssimpleclient
 
-simpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
+gtlssimpleclient_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@ -DWITH_EXAMPLE_OPENSSL
-simpleclient_LDADD = ${LDADD} \
+gtlssimpleclient_LDADD = ${LDADD} \
 	$(top_builddir)/crypto/gnutls/libngtcp2_crypto_gnutls.la \
 	@GNUTLS_LIBS@ \
 	@JEMALLOC_LIBS@
-simpleclient_SOURCES = simpleclient_gnutls.c
+gtlssimpleclient_SOURCES = gtlssimpleclient.c
 
 gtlsclient_CPPFLAGS = ${AM_CPPFLAGS} \
 	@JEMALLOC_CFLAGS@ @GNUTLS_CFLAGS@ -DWITH_EXAMPLE_GNUTLS
