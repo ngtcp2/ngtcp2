@@ -3,8 +3,7 @@
 
 git clone https://github.com/h2o/picotls/
 cd picotls
-git checkout 047c5fe20bb9ea91c1caded8977134f19681ec76
-patch -p1 < ../ci/0001-Fix-build-errors.patch
+git checkout 821997cb35ecf02d4518a1b5749a3cd6200b5b87
 git submodule update --init
 mkdir build
 cd build
