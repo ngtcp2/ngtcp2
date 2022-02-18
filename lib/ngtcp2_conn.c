@@ -9170,7 +9170,7 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
           return rv;
         }
 
-        return (ssize_t)pktlen;
+        return (ngtcp2_ssize)pktlen;
       }
 
       return nread;
