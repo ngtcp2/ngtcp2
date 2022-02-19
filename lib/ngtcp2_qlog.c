@@ -275,9 +275,9 @@ static const ngtcp2_vec *qlog_pkt_type(const ngtcp2_pkt_hd *hd) {
 
 static uint8_t *write_pkt_hd(uint8_t *p, const ngtcp2_pkt_hd *hd) {
   /*
-   * {"packet_type":"version_negotiation","packet_number":"0000000000000000000","token":{\"data\":\"\"}}
+   * {"packet_type":"version_negotiation","packet_number":"0000000000000000000","token":{"data":""}}
    */
-#define NGTCP2_QLOG_PKT_HD_OVERHEAD 99
+#define NGTCP2_QLOG_PKT_HD_OVERHEAD 95
 
   *p++ = '{';
   p = write_pair(p, "packet_type", qlog_pkt_type(hd));
