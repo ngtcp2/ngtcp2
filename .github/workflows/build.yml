@@ -141,6 +141,7 @@ jobs:
         EXTRA_AUTOTOOLS_OPTS="$EXTRA_AUTOTOOLS_OPTS --with-picotls"
         CMAKE_OPTS="$CMAKE_OPTS -DENABLE_PICOTLS=ON"
 
+        echo 'HAVE_PICOTLS=1' >> $GITHUB_ENV
         echo 'EXTRA_AUTOTOOLS_OPTS='"$EXTRA_AUTOTOOLS_OPTS" >> $GITHUB_ENV
         echo 'CMAKE_OPTS='"$CMAKE_OPTS" >> $GITHUB_ENV
     - name: Configure autotools
@@ -191,8 +192,16 @@ jobs:
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
         NETTLE_PATH=$NGTCP2_SOURCE_DIR/nettle-3.6/build/lib64
-        for client in client gtlsclient bsslclient; do
-          for server in server gtlsserver bsslserver; do
+
+        CLIENTS="client gtlsclient bsslclient"
+        SERVERS="server gtlsserver bsslserver"
+        if [ "$HAVE_PICOTLS" = "1" ]; then
+          CLIENTS="$CLIENTS ptlsclient"
+          SERVERS="$SERVERS ptlsserver"
+        fi
+
+        for client in $CLIENTS; do
+          for server in $SERVERS; do
             echo "# $client - $server"
             LD_LIBRARY_PATH=$NETTLE_PATH ./examples/$server localhost 4433 cert/server.key cert/server.crt &
             LD_LIBRARY_PATH=$NETTLE_PATH ./examples/$client localhost 4433 https://localhost/ --exit-on-first-stream-close
