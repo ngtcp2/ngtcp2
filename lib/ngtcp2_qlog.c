@@ -332,10 +332,7 @@ static uint8_t *write_ack_frame(uint8_t *p, const ngtcp2_ack *fr) {
 
   p = write_verbatim(p, "{\"frame_type\":\"ack\",");
   p = write_pair_duration(p, "ack_delay", fr->ack_delay_unscaled);
-  *p++ = ',';
-  p = write_string(p, "acked_ranges");
-  *p++ = ':';
-  *p++ = '[';
+  p = write_verbatim(p, ",\"acked_ranges\":[");
 
   largest_ack = fr->largest_ack;
   min_ack = fr->largest_ack - (int64_t)fr->first_ack_blklen;
@@ -500,9 +497,7 @@ static uint8_t *write_max_streams_frame(uint8_t *p,
    */
 #define NGTCP2_QLOG_MAX_STREAMS_FRAME_OVERHEAD 89
 
-  p = write_verbatim(p, "{\"frame_type\":\"max_streams\",");
-  p = write_string(p, "stream_type");
-  *p++ = ':';
+  p = write_verbatim(p, "{\"frame_type\":\"max_streams\",\"stream_type\":");
   if (fr->type == NGTCP2_FRAME_MAX_STREAMS_BIDI) {
     p = write_string(p, "bidirectional");
   } else {
@@ -632,9 +627,8 @@ write_connection_close_frame(uint8_t *p, const ngtcp2_connection_close *fr) {
    */
 #define NGTCP2_QLOG_CONNECTION_CLOSE_FRAME_OVERHEAD 131
 
-  p = write_verbatim(p, "{\"frame_type\":\"connection_close\",");
-  p = write_string(p, "error_space");
-  *p++ = ':';
+  p = write_verbatim(p,
+                     "{\"frame_type\":\"connection_close\",\"error_space\":");
   if (fr->type == NGTCP2_FRAME_CONNECTION_CLOSE) {
     p = write_string(p, "transport");
   } else {
