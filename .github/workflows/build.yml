@@ -35,6 +35,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Startup
+      run: |
+        echo 'NGTCP2_SOURCE_DIR='"$PWD" >> $GITHUB_ENV
     - name: Linux setup
       if: runner.os == 'Linux'
       run: |
@@ -153,16 +156,28 @@ jobs:
     - name: Configure cmake
       if: matrix.buildtool == 'cmake'
       run: |
+        autoreconf -i && ./configure
+        make dist
+
+        VERSION=$(grep PACKAGE_VERSION config.h | cut -d' ' -f3 | tr -d '"')
+        tar xf ngtcp2-$VERSION.tar.gz
+        cd ngtcp2-$VERSION
+        mkdir build
+        cd build
+
+        echo 'NGTCP2_BUILD_DIR='"$PWD" >> $GITHUB_ENV
+
         cmake $CMAKE_OPTS \
           -DENABLE_GNUTLS=ON \
           -DENABLE_BORINGSSL=ON \
           -DBORINGSSL_LIBRARIES="$BORINGSSL_LIBS" \
-          -DBORINGSSL_INCLUDE_DIR="$PWD/boringssl/include/" \
+          -DBORINGSSL_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/boringssl/include/" \
           -DPICOTLS_LIBRARIES="$PICOTLS_LIBS" \
-          -DPICOTLS_INCLUDE_DIR="$PWD/picotls/include/" .
+          -DPICOTLS_INCLUDE_DIR="$NGTCP2_SOURCE_DIR/picotls/include/" ..
     - name: Build ngtcp2
       if: matrix.buildtool != 'distcheck'
       run: |
+        [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         make
         make check
     - name: Build ngtcp2 with distcheck
@@ -173,8 +188,9 @@ jobs:
     - name: Integration test
       if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
       run: |
-        ./ci/gen-certificate.sh
-        NETTLE_PATH=$PWD/nettle-3.6/build/lib64
+        [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
+        "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
+        NETTLE_PATH=$NGTCP2_SOURCE_DIR/nettle-3.6/build/lib64
         for client in client gtlsclient bsslclient; do
           for server in server gtlsserver bsslserver; do
             echo "# $client - $server"
