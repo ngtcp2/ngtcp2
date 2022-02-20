@@ -253,7 +253,7 @@ if test "x${request_openssl}" != "xno"; then
     CFLAGS="$save_CFLAGS"
     LIBS="$save_LIBS"
 
-    if test "x${have_openssl_quic}" = "no"; then
+    if test "x${have_openssl_quic}" = "xno"; then
       AC_MSG_NOTICE([openssl does not have QUIC interface, disabling it])
       have_openssl=no
       OPENSSL_LIBS=
