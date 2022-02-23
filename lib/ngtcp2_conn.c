@@ -1143,6 +1143,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->user_data = user_data;
   (*pconn)->idle_ts = settings->initial_ts;
   (*pconn)->crypto.key_update.confirmed_ts = UINT64_MAX;
+  (*pconn)->crypto.key_update.last_tx_confirm_ts = UINT64_MAX;
   (*pconn)->tx.last_max_data_ts = UINT64_MAX;
   (*pconn)->tx.pacing.next_ts = UINT64_MAX;
   (*pconn)->early.discard_started_ts = UINT64_MAX;
@@ -2164,7 +2165,7 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
 
 static void conn_restart_timer_on_write(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->idle_ts = ts;
-  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
 }
 
 static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
@@ -2219,12 +2220,49 @@ static void conn_cancel_expired_keep_alive_timer(ngtcp2_conn *conn,
 static void conn_update_keep_alive_last_ts(ngtcp2_conn *conn,
                                            ngtcp2_tstamp ts) {
   conn->keep_alive.last_ts = ts;
-  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED;
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED;
 }
 
 void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
                                         ngtcp2_duration timeout) {
   conn->keep_alive.timeout = timeout;
+}
+
+static ngtcp2_tstamp conn_key_update_confirmation_expiry(ngtcp2_conn *conn) {
+  if (!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
+      (conn->flags &
+       NGTCP2_CONN_FLAG_KEY_UPDATE_CONFIRMATION_TIMER_CANCELLED)) {
+    return UINT64_MAX;
+  }
+
+  return conn->crypto.key_update.last_tx_confirm_ts +
+         conn_compute_pto(conn, &conn->pktns);
+}
+
+static int conn_key_update_confirmation_expired(ngtcp2_conn *conn,
+                                                ngtcp2_tstamp ts) {
+  return (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) &&
+         (conn->crypto.key_update.last_tx_confirm_ts == UINT64_MAX ||
+          conn->crypto.key_update.last_tx_confirm_ts +
+                  conn_compute_pto(conn, &conn->pktns) <=
+              ts);
+}
+
+static void
+conn_cancel_expired_key_update_confirmation_timer(ngtcp2_conn *conn,
+                                                  ngtcp2_tstamp ts) {
+  if (!(conn->flags &
+        NGTCP2_CONN_FLAG_KEY_UPDATE_CONFIRMATION_TIMER_CANCELLED) &&
+      conn_key_update_confirmation_expired(conn, ts)) {
+    conn->flags |= NGTCP2_CONN_FLAG_KEY_UPDATE_CONFIRMATION_TIMER_CANCELLED;
+  }
+}
+
+static void conn_update_key_update_last_tx_confirm_ts(ngtcp2_conn *conn,
+                                                      ngtcp2_tstamp ts) {
+  conn->crypto.key_update.last_tx_confirm_ts = ts;
+  conn->flags &=
+      (uint32_t)~NGTCP2_CONN_FLAG_KEY_UPDATE_CONFIRMATION_TIMER_CANCELLED;
 }
 
 /*
@@ -3226,6 +3264,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t delta;
   const ngtcp2_cid *scid;
   int keep_alive_expired = 0;
+  int key_update_confirmation_expired = 0;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -3844,8 +3883,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     }
 
     keep_alive_expired = conn_keep_alive_expired(conn, ts);
+    key_update_confirmation_expired =
+        conn_key_update_confirmation_expired(conn, ts);
 
-    if (conn->pktns.rtb.probe_pkt_left == 0 && !keep_alive_expired) {
+    if (conn->pktns.rtb.probe_pkt_left == 0 && !keep_alive_expired &&
+        !key_update_confirmation_expired) {
       return 0;
     }
   } else if (write_more) {
@@ -3882,7 +3924,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
     if (pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT ||
-        keep_alive_expired) {
+        keep_alive_expired || key_update_confirmation_expired) {
       lfr.type = NGTCP2_FRAME_PING;
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
@@ -3980,7 +4022,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn_handle_tx_ecn(conn, pi, NULL, pktns, hd, ts);
   }
 
-  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
 
   if (pktns->rtb.probe_pkt_left &&
       (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
@@ -3991,6 +4033,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   }
 
   conn_update_keep_alive_last_ts(conn, ts);
+
+  if (key_update_confirmation_expired &&
+      (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
+    conn_update_key_update_last_tx_confirm_ts(conn, ts);
+  }
 
   conn->dcid.current.bytes_sent += (uint64_t)nwrite;
 
@@ -4155,6 +4202,11 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
 
   if (path && ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     conn_update_keep_alive_last_ts(conn, ts);
+
+    if ((rtb_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) &&
+        conn_key_update_confirmation_expired(conn, ts)) {
+      conn_update_key_update_last_tx_confirm_ts(conn, ts);
+    }
   }
 
   conn->tx.pacing.pktlen += (size_t)nwrite;
@@ -10140,11 +10192,13 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp t4 = ngtcp2_conn_lost_pkt_expiry(conn);
   ngtcp2_tstamp t5 = conn_keep_alive_expiry(conn);
   ngtcp2_tstamp t6 = conn_handshake_expiry(conn);
+  ngtcp2_tstamp t7 = conn_key_update_confirmation_expiry(conn);
   ngtcp2_tstamp res = ngtcp2_min(t1, t2);
   res = ngtcp2_min(res, t3);
   res = ngtcp2_min(res, t4);
   res = ngtcp2_min(res, t5);
   res = ngtcp2_min(res, t6);
+  res = ngtcp2_min(res, t7);
   return ngtcp2_min(res, conn->tx.pacing.next_ts);
 }
 
@@ -10155,6 +10209,8 @@ int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
   conn_cancel_expired_keep_alive_timer(conn, ts);
+
+  conn_cancel_expired_key_update_confirmation_timer(conn, ts);
 
   conn_cancel_expired_pkt_tx_timer(conn, ts);
 
