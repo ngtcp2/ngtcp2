@@ -2164,7 +2164,7 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
 
 static void conn_restart_timer_on_write(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   conn->idle_ts = ts;
-  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE;
 }
 
 static void conn_restart_timer_on_read(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
@@ -2219,7 +2219,7 @@ static void conn_cancel_expired_keep_alive_timer(ngtcp2_conn *conn,
 static void conn_update_keep_alive_last_ts(ngtcp2_conn *conn,
                                            ngtcp2_tstamp ts) {
   conn->keep_alive.last_ts = ts;
-  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED;
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED;
 }
 
 void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
@@ -3157,6 +3157,29 @@ static size_t conn_min_short_pktlen(ngtcp2_conn *conn) {
 }
 
 /*
+ * conn_handle_unconfirmed_key_update_from_remote deals with key
+ * update which has not been confirmed yet and initiated by the remote
+ * endpoint.
+ *
+ * If key update was initiated by the remote endpoint, acknowledging a
+ * packet encrypted with the new key completes key update procedure.
+ */
+static void conn_handle_unconfirmed_key_update_from_remote(ngtcp2_conn *conn,
+                                                           int64_t largest_ack,
+                                                           ngtcp2_tstamp ts) {
+  if (!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED) ||
+      (conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR) ||
+      largest_ack < conn->pktns.crypto.rx.ckm->pkt_num) {
+    return;
+  }
+
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED;
+  conn->crypto.key_update.confirmed_ts = ts;
+
+  ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CRY, "key update confirmed");
+}
+
+/*
  * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.  |type| specifies the type of
  * packet.  It can be NGTCP2_PKT_SHORT or NGTCP2_PKT_0RTT.
@@ -3389,6 +3412,10 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         ngtcp2_acktr_commit_ack(&pktns->acktr);
         ngtcp2_acktr_add_ack(&pktns->acktr, hd->pkt_num,
                              ackfr->ack.largest_ack);
+        if (type == NGTCP2_PKT_SHORT) {
+          conn_handle_unconfirmed_key_update_from_remote(
+              conn, ackfr->ack.largest_ack, ts);
+        }
         pkt_empty = 0;
       }
     }
@@ -3980,7 +4007,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     conn_handle_tx_ecn(conn, pi, NULL, pktns, hd, ts);
   }
 
-  conn->flags &= (uint16_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
+  conn->flags &= (uint32_t)~NGTCP2_CONN_FLAG_PPE_PENDING;
 
   if (pktns->rtb.probe_pkt_left &&
       (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
@@ -4114,6 +4141,10 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   case NGTCP2_FRAME_ACK_ECN:
     ngtcp2_acktr_commit_ack(&pktns->acktr);
     ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, fr->ack.largest_ack);
+    if (type == NGTCP2_PKT_SHORT) {
+      conn_handle_unconfirmed_key_update_from_remote(conn, fr->ack.largest_ack,
+                                                     ts);
+    }
     break;
   }
 
@@ -7752,9 +7783,11 @@ static int conn_prepare_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
 
 /*
  * conn_rotate_keys rotates keys.  The current key moves to old key,
- * and new key moves to the current key.
+ * and new key moves to the current key.  If the local endpoint
+ * initiated this key update, pass nonzero as |initiator|.
  */
-static void conn_rotate_keys(ngtcp2_conn *conn, int64_t pkt_num) {
+static void conn_rotate_keys(ngtcp2_conn *conn, int64_t pkt_num,
+                             int initiator) {
   ngtcp2_pktns *pktns = &conn->pktns;
 
   assert(conn->crypto.key_update.new_rx_ckm);
@@ -7778,6 +7811,9 @@ static void conn_rotate_keys(ngtcp2_conn *conn, int64_t pkt_num) {
   pktns->crypto.tx.ckm->pkt_num = pktns->tx.last_pkt_num + 1;
 
   conn->flags |= NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED;
+  if (initiator) {
+    conn->flags |= NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR;
+  }
 }
 
 /*
@@ -8704,7 +8740,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   if (hd.type == NGTCP2_PKT_SHORT) {
     if (ckm == conn->crypto.key_update.new_rx_ckm) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "rotate keys");
-      conn_rotate_keys(conn, hd.pkt_num);
+      conn_rotate_keys(conn, hd.pkt_num, /* initiator = */ 0);
     } else if (ckm->pkt_num > hd.pkt_num) {
       ckm->pkt_num = hd.pkt_num;
     }
@@ -10008,7 +10044,7 @@ int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  conn_rotate_keys(conn, NGTCP2_MAX_PKT_NUM);
+  conn_rotate_keys(conn, NGTCP2_MAX_PKT_NUM, /* initiator = */ 1);
 
   return 0;
 }
