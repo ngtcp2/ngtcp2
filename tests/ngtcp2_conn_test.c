@@ -5567,27 +5567,15 @@ void test_ngtcp2_conn_key_update(void) {
   CU_ASSERT(NULL == conn->crypto.key_update.new_rx_ckm);
   CU_ASSERT(UINT64_MAX == conn->crypto.key_update.confirmed_ts);
   CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR));
 
   t += NGTCP2_SECONDS;
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
 
   CU_ASSERT(spktlen > 0);
-
-  fr.type = NGTCP2_FRAME_ACK;
-  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
-  fr.ack.ack_delay = 0;
-  fr.ack.first_ack_blklen = 0;
-  fr.ack.num_blks = 0;
-
-  pktlen = write_single_frame_pkt_flags(
-      buf, sizeof(buf), NGTCP2_PKT_FLAG_KEY_PHASE, &conn->oscid, ++pkt_num, &fr,
-      conn->pktns.crypto.rx.ckm);
-
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
-
-  CU_ASSERT(0 == rv);
   CU_ASSERT(t == conn->crypto.key_update.confirmed_ts);
   CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED));
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR));
 
   t += ngtcp2_conn_get_pto(conn) + 1;
 
@@ -5608,6 +5596,7 @@ void test_ngtcp2_conn_key_update(void) {
   CU_ASSERT(NULL == conn->crypto.key_update.new_tx_ckm);
   CU_ASSERT(NULL == conn->crypto.key_update.new_rx_ckm);
   CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED);
+  CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR);
 
   rv = ngtcp2_conn_open_uni_stream(conn, &stream_id, NULL);
 
@@ -5635,6 +5624,7 @@ void test_ngtcp2_conn_key_update(void) {
   CU_ASSERT(0 == rv);
   CU_ASSERT(t == conn->crypto.key_update.confirmed_ts);
   CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_NOT_CONFIRMED));
+  CU_ASSERT(!(conn->flags & NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR));
 
   ngtcp2_conn_del(conn);
 }

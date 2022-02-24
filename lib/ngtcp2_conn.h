@@ -206,6 +206,9 @@ void ngtcp2_path_challenge_entry_init(ngtcp2_path_challenge_entry *pcent,
    installed.  conn->early.ckm cannot be used for this purpose because
    it might be discarded when a certain condition is met. */
 #define NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED 0x8000
+/* NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR is set when the local
+   endpoint has initiated key update. */
+#define NGTCP2_CONN_FLAG_KEY_UPDATE_INITIATOR 0x10000
 
 typedef struct ngtcp2_crypto_data {
   ngtcp2_buf buf;
@@ -626,7 +629,7 @@ struct ngtcp2_conn {
   void *user_data;
   uint32_t version;
   /* flags is bitwise OR of zero or more of NGTCP2_CONN_FLAG_*. */
-  uint16_t flags;
+  uint32_t flags;
   int server;
 };
 
