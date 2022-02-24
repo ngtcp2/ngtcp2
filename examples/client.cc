@@ -1398,8 +1398,6 @@ int Client::initiate_key_update() {
     return -1;
   }
 
-  ev_io_start(loop_, &wev_);
-
   return 0;
 }
 
