@@ -5123,7 +5123,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     frs[i].new_connection_id.seq = i + 8;
     frs[i].new_connection_id.retire_prior_to = 8;
     ngtcp2_cid_init(&frs[i].new_connection_id.cid, cid, sizeof(cid));
-    frs[i].new_connection_id.cid.data[0] = (uint8_t)i + 8;
+    frs[i].new_connection_id.cid.data[0] = (uint8_t)(i + 8);
     memcpy(frs[i].new_connection_id.stateless_reset_token, token,
            sizeof(token));
   }
@@ -5133,7 +5133,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
     frs[i + 8].new_connection_id.seq = i + 16;
     frs[i + 8].new_connection_id.retire_prior_to = 16;
     ngtcp2_cid_init(&frs[i + 8].new_connection_id.cid, cid, sizeof(cid));
-    frs[i + 8].new_connection_id.cid.data[0] = (uint8_t)i + 16;
+    frs[i + 8].new_connection_id.cid.data[0] = (uint8_t)(i + 16);
     memcpy(frs[i + 8].new_connection_id.stateless_reset_token, token,
            sizeof(token));
   }
@@ -5148,7 +5148,7 @@ void test_ngtcp2_conn_recv_new_connection_id(void) {
   frs[0].new_connection_id.seq = 24;
   frs[0].new_connection_id.retire_prior_to = 17;
   ngtcp2_cid_init(&frs[0].new_connection_id.cid, cid, sizeof(cid));
-  frs[0].new_connection_id.cid.data[0] = (uint8_t)i + 24;
+  frs[0].new_connection_id.cid.data[0] = (uint8_t)(i + 24);
   memcpy(frs[0].new_connection_id.stateless_reset_token, token, sizeof(token));
 
   pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
