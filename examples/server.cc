@@ -1551,18 +1551,20 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
       // If rv indicates transport_parameters related error, we should
       // send TRANSPORT_PARAMETER_ERROR even if last_error_.code is
       // already set.  This is because OpenSSL might set Alert.
-      last_error_ = quic_err_transport(rv);
+      ngtcp2_connection_close_error_set_transport_error_liberr(&last_error_, rv,
+                                                               nullptr, 0);
       break;
     case NGTCP2_ERR_DROP_CONN:
       return NETWORK_ERR_DROP_CONN;
     case NGTCP2_ERR_CRYPTO:
-      if (!last_error_.code) {
+      if (!last_error_.error_code) {
         process_unhandled_tls_alert();
       }
       // fall through
     default:
-      if (!last_error_.code) {
-        last_error_ = quic_err_transport(rv);
+      if (!last_error_.error_code) {
+        ngtcp2_connection_close_error_set_transport_error_liberr(
+            &last_error_, rv, nullptr, 0);
       }
     }
     return handle_error();
@@ -1605,7 +1607,8 @@ int Handler::handle_expiry() {
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
-    last_error_ = quic_err_transport(rv);
+    ngtcp2_connection_close_error_set_transport_error_liberr(&last_error_, rv,
+                                                             nullptr, 0);
     return handle_error();
   }
 
@@ -1672,7 +1675,9 @@ int Handler::write_streams() {
       if (sveccnt < 0) {
         std::cerr << "nghttp3_conn_writev_stream: " << nghttp3_strerror(sveccnt)
                   << std::endl;
-        last_error_ = quic_err_app(sveccnt);
+        ngtcp2_connection_close_error_set_application_error(
+            &last_error_, nghttp3_err_infer_quic_app_error_code(sveccnt),
+            nullptr, 0);
         return handle_error();
       }
     }
@@ -1697,7 +1702,9 @@ int Handler::write_streams() {
             rv != 0) {
           std::cerr << "nghttp3_conn_block_stream: " << nghttp3_strerror(rv)
                     << std::endl;
-          last_error_ = quic_err_app(rv);
+          ngtcp2_connection_close_error_set_application_error(
+              &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr,
+              0);
           return handle_error();
         }
         continue;
@@ -1707,7 +1714,9 @@ int Handler::write_streams() {
             rv != 0) {
           std::cerr << "nghttp3_conn_shutdown_stream_write: "
                     << nghttp3_strerror(rv) << std::endl;
-          last_error_ = quic_err_app(rv);
+          ngtcp2_connection_close_error_set_application_error(
+              &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr,
+              0);
           return handle_error();
         }
         continue;
@@ -1718,7 +1727,9 @@ int Handler::write_streams() {
             rv != 0) {
           std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                     << std::endl;
-          last_error_ = quic_err_app(rv);
+          ngtcp2_connection_close_error_set_application_error(
+              &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr,
+              0);
           return handle_error();
         }
         continue;
@@ -1728,7 +1739,8 @@ int Handler::write_streams() {
 
       std::cerr << "ngtcp2_conn_writev_stream: " << ngtcp2_strerror(nwrite)
                 << std::endl;
-      last_error_ = quic_err_transport(nwrite);
+      ngtcp2_connection_close_error_set_transport_error_liberr(
+          &last_error_, nwrite, nullptr, 0);
       return handle_error();
     } else if (ndatalen >= 0) {
       if (auto rv =
@@ -1736,7 +1748,9 @@ int Handler::write_streams() {
           rv != 0) {
         std::cerr << "nghttp3_conn_add_write_offset: " << nghttp3_strerror(rv)
                   << std::endl;
-        last_error_ = quic_err_app(rv);
+        ngtcp2_connection_close_error_set_application_error(
+            &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr,
+            0);
         return handle_error();
       }
     }
@@ -1985,27 +1999,20 @@ int Handler::start_closing_period() {
   ngtcp2_path_storage_zero(&ps);
 
   ngtcp2_pkt_info pi;
-  if (last_error_.type == QUICErrorType::Transport) {
-    auto n = ngtcp2_conn_write_connection_close(
-        conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
-        last_error_.code, nullptr, 0, util::timestamp(loop_));
-    if (n < 0) {
-      std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
-                << std::endl;
-      return -1;
-    }
-    conn_closebuf_->push(n);
-  } else {
-    auto n = ngtcp2_conn_write_application_close(
-        conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
-        last_error_.code, nullptr, 0, util::timestamp(loop_));
-    if (n < 0) {
-      std::cerr << "ngtcp2_conn_write_application_close: " << ngtcp2_strerror(n)
-                << std::endl;
-      return -1;
-    }
-    conn_closebuf_->push(n);
+  auto n = ngtcp2_conn_write_connection_close2(
+      conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
+      &last_error_, util::timestamp(loop_));
+  if (n < 0) {
+    std::cerr << "ngtcp2_conn_write_connection_close2: " << ngtcp2_strerror(n)
+              << std::endl;
+    return -1;
   }
+
+  if (n == 0) {
+    return 0;
+  }
+
+  conn_closebuf_->push(n);
 
   return 0;
 }
@@ -2065,7 +2072,9 @@ int Handler::recv_stream_data(uint32_t flags, int64_t stream_id,
   if (nconsumed < 0) {
     std::cerr << "nghttp3_conn_read_stream: " << nghttp3_strerror(nconsumed)
               << std::endl;
-    last_error_ = quic_err_app(nconsumed);
+    ngtcp2_connection_close_error_set_application_error(
+        &last_error_, nghttp3_err_infer_quic_app_error_code(nconsumed), nullptr,
+        0);
     return -1;
   }
 
@@ -2132,7 +2141,8 @@ int Handler::on_stream_close(int64_t stream_id, uint64_t app_error_code) {
     default:
       std::cerr << "nghttp3_conn_close_stream: " << nghttp3_strerror(rv)
                 << std::endl;
-      last_error_ = quic_err_app(rv);
+      ngtcp2_connection_close_error_set_application_error(
+          &last_error_, nghttp3_err_infer_quic_app_error_code(rv), nullptr, 0);
       return -1;
     }
   }

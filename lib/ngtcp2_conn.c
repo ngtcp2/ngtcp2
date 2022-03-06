@@ -11233,6 +11233,91 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
   return res;
 }
 
+static void
+connection_close_error_init(ngtcp2_connection_close_error *ccerr,
+                            ngtcp2_connection_close_error_code_type type,
+                            uint64_t error_code, const uint8_t *reason,
+                            size_t reasonlen) {
+  ccerr->type = type;
+  ccerr->error_code = error_code;
+  ccerr->frame_type = 0;
+  ccerr->reason = (uint8_t *)reason;
+  ccerr->reasonlen = reasonlen;
+}
+
+void ngtcp2_connection_close_error_default(
+    ngtcp2_connection_close_error *ccerr) {
+  connection_close_error_init(ccerr,
+                              NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT,
+                              NGTCP2_NO_ERROR, NULL, 0);
+}
+
+void ngtcp2_connection_close_error_set_transport_error(
+    ngtcp2_connection_close_error *ccerr, uint64_t error_code,
+    const uint8_t *reason, size_t reasonlen) {
+  connection_close_error_init(ccerr,
+                              NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT,
+                              error_code, reason, reasonlen);
+}
+
+void ngtcp2_connection_close_error_set_transport_error_liberr(
+    ngtcp2_connection_close_error *ccerr, int liberr, const uint8_t *reason,
+    size_t reasonlen) {
+  if (liberr == NGTCP2_ERR_RECV_VERSION_NEGOTIATION) {
+    connection_close_error_init(
+        ccerr,
+        NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION,
+        NGTCP2_NO_ERROR, reason, reasonlen);
+
+    return;
+  };
+
+  ngtcp2_connection_close_error_set_transport_error(
+      ccerr, ngtcp2_err_infer_quic_transport_error_code(liberr), reason,
+      reasonlen);
+}
+
+void ngtcp2_connection_close_error_set_transport_error_tls_alert(
+    ngtcp2_connection_close_error *ccerr, uint8_t tls_alert,
+    const uint8_t *reason, size_t reasonlen) {
+  ngtcp2_connection_close_error_set_transport_error(
+      ccerr, NGTCP2_CRYPTO_ERROR | tls_alert, reason, reasonlen);
+}
+
+void ngtcp2_connection_close_error_set_transport_error_idle_close(
+    ngtcp2_connection_close_error *ccerr, const uint8_t *reason,
+    size_t reasonlen) {
+  connection_close_error_init(
+      ccerr, NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE,
+      NGTCP2_NO_ERROR, reason, reasonlen);
+}
+
+void ngtcp2_connection_close_error_set_application_error(
+    ngtcp2_connection_close_error *ccerr, uint64_t error_code,
+    const uint8_t *reason, size_t reasonlen) {
+  connection_close_error_init(
+      ccerr, NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION, error_code,
+      reason, reasonlen);
+}
+
+ngtcp2_ssize ngtcp2_conn_write_connection_close2_versioned(
+    ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
+    ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+    const ngtcp2_connection_close_error *ccerr, ngtcp2_tstamp ts) {
+  switch (ccerr->type) {
+  case NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT:
+    return ngtcp2_conn_write_connection_close_versioned(
+        conn, path, pkt_info_version, pi, dest, destlen, ccerr->error_code,
+        ccerr->reason, ccerr->reasonlen, ts);
+  case NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION:
+    return ngtcp2_conn_write_application_close_versioned(
+        conn, path, pkt_info_version, pi, dest, destlen, ccerr->error_code,
+        ccerr->reason, ccerr->reasonlen, ts);
+  default:
+    return 0;
+  }
+}
+
 int ngtcp2_conn_is_in_closing_period(ngtcp2_conn *conn) {
   return conn->state == NGTCP2_CS_CLOSING;
 }

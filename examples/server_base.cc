@@ -40,8 +40,9 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen}, begin(buf.data()), tail(begin + datalen) {}
 Buffer::Buffer(size_t datalen) : buf(datalen), begin(buf.data()), tail(begin) {}
 
-HandlerBase::HandlerBase()
-    : conn_(nullptr), last_error_{QUICErrorType::Transport, 0} {}
+HandlerBase::HandlerBase() : conn_(nullptr) {
+  ngtcp2_connection_close_error_default(&last_error_);
+}
 
 HandlerBase::~HandlerBase() {
   if (conn_) {
@@ -122,7 +123,8 @@ void HandlerBase::write_server_handshake(ngtcp2_crypto_level level,
 }
 
 void HandlerBase::set_tls_alert(uint8_t alert) {
-  last_error_ = quic_err_tls(alert);
+  ngtcp2_connection_close_error_set_transport_error_tls_alert(
+      &last_error_, alert, nullptr, 0);
 }
 
 ngtcp2_conn *HandlerBase::conn() const { return conn_; }

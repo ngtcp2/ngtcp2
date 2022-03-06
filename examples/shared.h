@@ -63,28 +63,6 @@ constexpr uint32_t QUIC_VER_DRAFT31 = 0xff00001fu;
 constexpr uint32_t QUIC_VER_DRAFT32 = 0xff000020u;
 constexpr uint32_t QUIC_VER_V1 = 0x00000001u;
 
-enum class QUICErrorType {
-  Application,
-  Transport,
-  TransportVersionNegotiation,
-  TransportIdleTimeout,
-};
-
-struct QUICError {
-  QUICError(QUICErrorType type, uint64_t code) : type(type), code(code) {}
-
-  QUICErrorType type;
-  uint64_t code;
-};
-
-QUICError quic_err_transport(int liberr);
-
-QUICError quic_err_idle_timeout();
-
-QUICError quic_err_tls(int alert);
-
-QUICError quic_err_app(int liberr);
-
 // msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
 // family from which packet is received.
 unsigned int msghdr_get_ecn(msghdr *msg, int family);

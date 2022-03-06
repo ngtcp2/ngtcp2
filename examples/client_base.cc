@@ -39,10 +39,9 @@ using namespace ngtcp2;
 
 extern Config config;
 
-ClientBase::ClientBase()
-    : qlog_(nullptr),
-      conn_(nullptr),
-      last_error_{QUICErrorType::Transport, 0} {}
+ClientBase::ClientBase() : qlog_(nullptr), conn_(nullptr) {
+  ngtcp2_connection_close_error_default(&last_error_);
+}
 
 ClientBase::~ClientBase() {
   if (conn_) {
@@ -268,7 +267,8 @@ void ClientBase::write_client_handshake(ngtcp2_crypto_level level,
 }
 
 void ClientBase::set_tls_alert(uint8_t alert) {
-  last_error_ = quic_err_tls(alert);
+  ngtcp2_connection_close_error_set_transport_error_tls_alert(
+      &last_error_, alert, nullptr, 0);
 }
 
 ngtcp2_conn *ClientBase::conn() const { return conn_; }
