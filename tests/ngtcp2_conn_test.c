@@ -8115,6 +8115,26 @@ void test_ngtcp2_accept(void) {
 
   CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
 
+  /* Unknown version and the UDP payload size is less than
+     NGTCP2_MAX_UDP_PAYLOAD_SIZE. */
+  memset(&hd, 0, sizeof(hd));
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1127;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen =
+      write_single_frame_handshake_pkt(buf, sizeof(buf), NGTCP2_PKT_INITIAL,
+                                       &dcid, &scid, 0, 0x2, &fr, &null_ckm);
+
+  CU_ASSERT(1199 == pktlen);
+
+  rv = ngtcp2_accept(&hd, buf, pktlen);
+
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
+
   /* Short packet */
   memset(&hd, 0, sizeof(hd));
 

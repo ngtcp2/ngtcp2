@@ -9821,6 +9821,10 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
   if (p->version != NGTCP2_PROTO_VER_V1 &&
       (p->version < NGTCP2_PROTO_VER_DRAFT_MIN ||
        NGTCP2_PROTO_VER_DRAFT_MAX < p->version)) {
+    if (pktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
     return NGTCP2_ERR_VERSION_NEGOTIATION;
   }
 

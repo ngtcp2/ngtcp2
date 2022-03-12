@@ -68,6 +68,7 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
   size_t len;
   uint32_t version;
   size_t dcidlen, scidlen;
+  int unsupported_version;
 
   assert(datalen);
 
@@ -102,15 +103,21 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
+    unsupported_version = version && version != NGTCP2_PROTO_VER_V1 &&
+                          (version < NGTCP2_PROTO_VER_DRAFT_MIN ||
+                           NGTCP2_PROTO_VER_DRAFT_MAX < version);
+
+    if (unsupported_version && datalen < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
+      return NGTCP2_ERR_INVALID_ARGUMENT;
+    }
+
     *pversion = version;
     *pdcid = &data[6];
     *pdcidlen = dcidlen;
     *pscid = &data[6 + dcidlen + 1];
     *pscidlen = scidlen;
 
-    if (version && version != NGTCP2_PROTO_VER_V1 &&
-        (version < NGTCP2_PROTO_VER_DRAFT_MIN ||
-         NGTCP2_PROTO_VER_DRAFT_MAX < version)) {
+    if (unsupported_version) {
       return NGTCP2_ERR_VERSION_NEGOTIATION;
     }
     return 0;
