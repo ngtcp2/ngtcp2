@@ -133,7 +133,8 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
 } // namespace
 
 void Client::idle_timeout() {
-  last_error_ = quic_err_idle_timeout();
+  ngtcp2_connection_close_error_set_transport_error_idle_close(&last_error_,
+                                                               nullptr, 0);
   disconnect();
 }
 
@@ -748,18 +749,20 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     case NGTCP2_ERR_TRANSPORT_PARAM:
     case NGTCP2_ERR_PROTO: // with failed TP validation, we get this.
       // If rv indicates transport_parameters related error, we should
-      // send TRANSPORT_PARAMETER_ERROR even if last_error_.code is
-      // already set.  This is because OpenSSL might set Alert.
-      last_error_ = quic_err_transport(rv);
+      // send TRANSPORT_PARAMETER_ERROR even if last_error_.error_code
+      // is already set.  This is because OpenSSL might set Alert.
+      ngtcp2_connection_close_error_set_transport_error_liberr(&last_error_, rv,
+                                                               nullptr, 0);
       break;
     case NGTCP2_ERR_CRYPTO:
-      if (!last_error_.code) {
+      if (!last_error_.error_code) {
         process_unhandled_tls_alert();
       }
       // fall through
     default:
-      if (!last_error_.code) {
-        last_error_ = quic_err_transport(rv);
+      if (!last_error_.error_code) {
+        ngtcp2_connection_close_error_set_transport_error_liberr(
+            &last_error_, rv, nullptr, 0);
       }
     }
     disconnect();
@@ -826,7 +829,6 @@ int Client::on_read(const Endpoint &ep) {
   }
 
   if (should_exit_) {
-    last_error_ = quic_err_app(0);
     disconnect();
     return -1;
   }
@@ -857,7 +859,8 @@ int Client::handle_expiry() {
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
-    last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
+    ngtcp2_connection_close_error_set_transport_error_liberr(
+        &last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
     disconnect();
     return -1;
   }
@@ -881,7 +884,6 @@ int Client::on_write() {
   }
 
   if (should_exit_) {
-    last_error_ = quic_err_app(0);
     disconnect();
     return -1;
   }
@@ -946,7 +948,8 @@ int Client::write_streams() {
 
       std::cerr << "ngtcp2_conn_write_stream: " << ngtcp2_strerror(nwrite)
                 << std::endl;
-      last_error_ = quic_err_transport(nwrite);
+      ngtcp2_connection_close_error_set_transport_error_liberr(
+          &last_error_, nwrite, nullptr, 0);
       disconnect();
       return -1;
     } else if (ndatalen >= 0) {
@@ -971,7 +974,8 @@ int Client::write_streams() {
             send_packet(ep, ps.path.remote, pi.ecn, tx_.data.data(), nwrite);
         rv != NETWORK_ERR_OK) {
       if (rv != NETWORK_ERR_SEND_BLOCKED) {
-        last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
+        ngtcp2_connection_close_error_set_transport_error_liberr(
+            &last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
         disconnect();
 
         return rv;
@@ -1419,7 +1423,8 @@ int Client::send_blocked_packet() {
       return 0;
     }
 
-    last_error_ = quic_err_transport(NGTCP2_ERR_INTERNAL);
+    ngtcp2_connection_close_error_set_transport_error_liberr(
+        &last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
     disconnect();
 
     return rv;
@@ -1435,11 +1440,6 @@ int Client::handle_error() {
     return 0;
   }
 
-  if (last_error_.type == QUICErrorType::TransportVersionNegotiation ||
-      last_error_.type == QUICErrorType::TransportIdleTimeout) {
-    return 0;
-  }
-
   std::array<uint8_t, NGTCP2_MAX_UDP_PAYLOAD_SIZE> buf;
 
   ngtcp2_path_storage ps;
@@ -1447,25 +1447,18 @@ int Client::handle_error() {
   ngtcp2_path_storage_zero(&ps);
 
   ngtcp2_pkt_info pi;
-  ngtcp2_ssize nwrite;
-  if (last_error_.type == QUICErrorType::Transport) {
-    nwrite = ngtcp2_conn_write_connection_close(
-        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code, nullptr,
-        0, util::timestamp(loop_));
-    if (nwrite < 0) {
-      std::cerr << "ngtcp2_conn_write_connection_close: "
-                << ngtcp2_strerror(nwrite) << std::endl;
-      return -1;
-    }
-  } else {
-    nwrite = ngtcp2_conn_write_application_close(
-        conn_, &ps.path, &pi, buf.data(), buf.size(), last_error_.code, nullptr,
-        0, util::timestamp(loop_));
-    if (nwrite < 0) {
-      std::cerr << "ngtcp2_conn_write_application_close: "
-                << ngtcp2_strerror(nwrite) << std::endl;
-      return -1;
-    }
+
+  auto nwrite = ngtcp2_conn_write_connection_close2(
+      conn_, &ps.path, &pi, buf.data(), buf.size(), &last_error_,
+      util::timestamp(loop_));
+  if (nwrite < 0) {
+    std::cerr << "ngtcp2_conn_write_connection_close2: "
+              << ngtcp2_strerror(nwrite) << std::endl;
+    return -1;
+  }
+
+  if (nwrite == 0) {
+    return 0;
   }
 
   return send_packet(*static_cast<Endpoint *>(ps.path.user_data),

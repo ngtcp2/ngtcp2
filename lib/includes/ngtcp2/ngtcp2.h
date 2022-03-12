@@ -4264,6 +4264,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
  *     Packet number is exhausted, and cannot send any more packet.
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
+ *
+ * TODO: Deprecated, remove this function in favor of
+ * ngtcp2_conn_write_connection_close2_versioned.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
@@ -4307,6 +4310,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
  *     Packet number is exhausted, and cannot send any more packet.
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
+ *
+ * TODO: Deprecated, remove this function in favor of
+ * ngtcp2_conn_write_connection_close2_versioned.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
@@ -4785,6 +4791,18 @@ typedef enum ngtcp2_connection_close_error_code_type {
    * indicates the error code is application error code.
    */
   NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION,
+  /**
+   * :enum:`NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION`
+   * is a special case of QUIC transport error, and it indicates that
+   * client receives Version Negotiation packet.
+   */
+  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION,
+  /**
+   * :enum:`NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE`
+   * is a special case of QUIC transport error, and it indicates that
+   * connection is closed because of idle timeout.
+   */
+  NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE
 } ngtcp2_connection_close_error_code_type;
 
 /**
@@ -4810,8 +4828,9 @@ typedef struct ngtcp2_connection_close_error {
   uint64_t frame_type;
   /**
    * :member:`reason` points to the buffer which contains a reason
-   * phrase.  It may be NULL if there is no reason phrase.  It is
-   * truncated to 1024 bytes.
+   * phrase.  It may be NULL if there is no reason phrase.  If it is
+   * received from a remote endpoint, it is truncated to at most 1024
+   * bytes.
    */
   uint8_t *reason;
   /**
@@ -4820,6 +4839,162 @@ typedef struct ngtcp2_connection_close_error {
    */
   size_t reasonlen;
 } ngtcp2_connection_close_error;
+
+/**
+ * @function
+ *
+ * `ngtcp2_connection_close_error_default` initializes |ccerr| with
+ * the default values.  It sets the following fields:
+ *
+ * - :member:`type <ngtcp2_connection_close_error.type>` =
+ *   :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`
+ * - :member:`error_code <ngtcp2_connection_close_error.error_code>` =
+ *   :macro:`NGTCP2_NO_ERROR`.
+ * - :member:`frame_type <ngtcp2_connection_close_error.frame_type>` =
+ *   0
+ * - :member:`reason <ngtcp2_connection_close_error.reason>` = NULL
+ * - :member:`reasonlen <ngtcp2_connection_close_error.reasonlen>` = 0
+ */
+NGTCP2_EXTERN void
+ngtcp2_connection_close_error_default(ngtcp2_connection_close_error *ccerr);
+
+/**
+ * @function
+ *
+ * `ngtcp2_connection_close_error_set_transport_error` sets
+ * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
+ * and :member:`ccerr->error_code
+ * <ngtcp2_connection_close_error.error_code>` to |error_code|.
+ * |reason| is the reason phrase of length |reasonlen|.  This function
+ * does not make a copy of the reason phrase.
+ */
+NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error(
+    ngtcp2_connection_close_error *ccerr, uint64_t error_code,
+    const uint8_t *reason, size_t reasonlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_connection_close_error_set_transport_error_liberr` sets
+ * type and error_code based on |liberr|.
+ *
+ * If |liberr| is :macro:`NGTCP2_ERR_RECV_VERSION_NEGOTIATION`,
+ * :member:`ccerr->type <ngtcp2_connection_close_error.type>` is set
+ * to
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION`,
+ * and :member:`ccerr->error_code
+ * <ngtcp2_connection_close_error.error_code>` to
+ * :macro:`NGTCP2_NO_ERROR`.  Otherwise, :member:`ccerr->type
+ * <ngtcp2_connection_close_error.type>` is set to
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
+ * and :member:`ccerr->error_code
+ * <ngtcp2_connection_close_error.error_code>` is set to an error code
+ * inferred by |liberr| (see
+ * `ngtcp2_err_infer_quic_transport_error_code`).  |reason| is the
+ * reason phrase of length |reasonlen|.  This function does not make a
+ * copy of the reason phrase.
+ */
+NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_liberr(
+    ngtcp2_connection_close_error *ccerr, int liberr, const uint8_t *reason,
+    size_t reasonlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_connection_close_error_set_transport_error_tls_alert` sets
+ * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
+ * and :member:`ccerr->error_code
+ * <ngtcp2_connection_close_error.error_code>` to bitwise-OR of
+ * :macro:`NGTCP2_CRYPTO_ERROR` and |tls_alert|.  |reason| is the
+ * reason phrase of length |reasonlen|.  This function does not make a
+ * copy of the reason phrase.
+ */
+NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_tls_alert(
+    ngtcp2_connection_close_error *ccerr, uint8_t tls_alert,
+    const uint8_t *reason, size_t reasonlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_connection_close_error_set_transport_error_idle_close` sets
+ * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE`,
+ * and :member:`ccerr->error_code
+ * <ngtcp2_connection_close_error.error_code>` to
+ * :macro:`NGTCP2_NO_ERROR`.  |reason| is the reason phrase of length
+ * |reasonlen|.  This function does not make a copy of the reason
+ * phrase.
+ */
+NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_idle_close(
+    ngtcp2_connection_close_error *ccerr, const uint8_t *reason,
+    size_t reasonlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_connection_close_error_set_application_error` sets
+ * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION`,
+ * and :member:`ccerr->error_code
+ * <ngtcp2_connection_close_error.error_code>` to |error_code|.
+ * |reason| is the reason phrase of length |reasonlen|.  This function
+ * does not make a copy of the reason phrase.
+ */
+NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
+    ngtcp2_connection_close_error *ccerr, uint64_t error_code,
+    const uint8_t *reason, size_t reasonlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_write_connection_close2` writes a packet which
+ * contains CONNECTION_CLOSE frame(s) (type 0x1c or 0x1d) in the
+ * buffer pointed by |dest| whose capacity is |datalen|.
+ *
+ * If |path| is not ``NULL``, this function stores the network path
+ * with which the packet should be sent.  Each addr field must point
+ * to the buffer which should be at least ``sizeof(struct
+ * sockaddr_storage)`` bytes long.  The assignment might not be done
+ * if nothing is written to |dest|.
+ *
+ * If |pi| is not ``NULL``, this function stores packet metadata in it
+ * if it succeeds.  The metadata includes ECN markings.
+ *
+ * If :member:`ccerr->type <ngtcp2_connection_close_error.type>` ==
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
+ * this function sends CONNECTION_CLOSE (type 0x1c) frame.  If
+ * :member:`ccerr->type <ngtcp2_connection_close_error.type>` ==
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION`,
+ * it sends CONNECTION_CLOSE (type 0x1d) frame.  Otherwise, it does
+ * not produce any data, and returns 0.
+ *
+ * This function must not be called from inside the callback
+ * functions.
+ *
+ * At the moment, successful call to this function makes connection
+ * close.  We may change this behaviour in the future to allow
+ * graceful shutdown.
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory
+ * :macro:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small
+ * :macro:`NGTCP2_ERR_INVALID_STATE`
+ *     The current state does not allow sending CONNECTION_CLOSE.
+ * :macro:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
+ *     Packet number is exhausted, and cannot send any more packet.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ *
+ * TODO: Rename this function to
+ * ngtcp2_conn_write_connection_close_versioned.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close2_versioned(
+    ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
+    ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
+    const ngtcp2_connection_close_error *ccerr, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -5157,6 +5332,9 @@ NGTCP2_EXTERN int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
  * `ngtcp2_conn_write_connection_close` is a wrapper around
  * `ngtcp2_conn_write_connection_close_versioned` to set the correct
  * struct version.
+ *
+ * TODO: Deprecated, remove this function in favor of
+ * ngtcp2_conn_write_connection_close2.
  */
 #define ngtcp2_conn_write_connection_close(CONN, PATH, PI, DEST, DESTLEN,      \
                                            ERROR_CODE, REASON, REASONLEN, TS)  \
@@ -5168,12 +5346,28 @@ NGTCP2_EXTERN int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
  * `ngtcp2_conn_write_application_close` is a wrapper around
  * `ngtcp2_conn_write_application_close_versioned` to set the correct
  * struct version.
+ *
+ * TODO: Deprecated, remove this function in favor of
+ * ngtcp2_conn_write_connection_close2.
  */
 #define ngtcp2_conn_write_application_close(                                   \
     CONN, PATH, PI, DEST, DESTLEN, APP_ERROR_CODE, REASON, REASONLEN, TS)      \
   ngtcp2_conn_write_application_close_versioned(                               \
       (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
       (APP_ERROR_CODE), (REASON), (REASONLEN), (TS))
+
+/*
+ * `ngtcp2_conn_write_connection_close2` is a wrapper around
+ * `ngtcp2_conn_write_connection_close2_versioned` to set the correct
+ * struct version.
+ *
+ * TODO: Rename this function to ngtcp2_conn_write_connection_close.
+ */
+#define ngtcp2_conn_write_connection_close2(CONN, PATH, PI, DEST, DESTLEN,     \
+                                            CCERR, TS)                         \
+  ngtcp2_conn_write_connection_close2_versioned(                               \
+      (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
+      (CCERR), (TS))
 
 /*
  * `ngtcp2_encode_transport_params` is a wrapper around

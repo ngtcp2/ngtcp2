@@ -187,7 +187,7 @@ public:
 protected:
   TLSServerSession tls_session_;
   ngtcp2_conn *conn_;
-  QUICError last_error_;
+  ngtcp2_connection_close_error last_error_;
   std::function<int()> application_tx_key_cb_;
 };
 
