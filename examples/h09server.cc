@@ -1822,7 +1822,7 @@ int Server::on_read(Endpoint &ep) {
       case 0:
         break;
       case NGTCP2_ERR_RETRY:
-        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
         continue;
       case NGTCP2_ERR_VERSION_NEGOTIATION:
         if (!config.quiet) {
@@ -1849,7 +1849,7 @@ int Server::on_read(Endpoint &ep) {
       if (config.validate_addr || hd.token.len) {
         std::cerr << "Perform stateless address validation" << std::endl;
         if (hd.token.len == 0) {
-          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+          send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
           continue;
         }
 
@@ -1872,7 +1872,8 @@ int Server::on_read(Endpoint &ep) {
         case NGTCP2_CRYPTO_TOKEN_MAGIC_REGULAR:
           if (verify_token(&hd, &su.sa, msg.msg_namelen) != 0) {
             if (config.validate_addr) {
-              send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+              send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen,
+                         nread * 3);
               continue;
             }
 
@@ -1885,7 +1886,8 @@ int Server::on_read(Endpoint &ep) {
             std::cerr << "Ignore unrecognized token" << std::endl;
           }
           if (config.validate_addr) {
-            send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+            send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen,
+                       nread * 3);
             continue;
           }
 
@@ -1907,7 +1909,7 @@ int Server::on_read(Endpoint &ep) {
       case 0:
         break;
       case NETWORK_ERR_RETRY:
-        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen);
+        send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
         continue;
       default:
         continue;
@@ -2045,7 +2047,7 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
 
 int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
                        const Address &local_addr, const sockaddr *sa,
-                       socklen_t salen) {
+                       socklen_t salen, size_t max_pktlen) {
   std::array<char, NI_MAXHOST> host;
   std::array<char, NI_MAXSERV> port;
 
@@ -2086,7 +2088,8 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
     util::hexdump(stderr, token.data(), tokenlen);
   }
 
-  Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
+  Buffer buf{
+      std::min(static_cast<size_t>(NGTCP2_MAX_UDP_PAYLOAD_SIZE), max_pktlen)};
 
   auto nwrite = ngtcp2_crypto_write_retry(buf.wpos(), buf.left(), chd->version,
                                           &chd->scid, &scid, &chd->dcid,

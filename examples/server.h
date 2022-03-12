@@ -229,8 +229,8 @@ public:
                                const Address &local_addr, const sockaddr *sa,
                                socklen_t salen);
   int send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
-                 const Address &local_addr, const sockaddr *sa,
-                 socklen_t salen);
+                 const Address &local_addr, const sockaddr *sa, socklen_t salen,
+                 size_t max_pktlen);
   int send_stateless_connection_close(const ngtcp2_pkt_hd *chd, Endpoint &ep,
                                       const Address &local_addr,
                                       const sockaddr *sa, socklen_t salen);
