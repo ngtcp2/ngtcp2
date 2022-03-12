@@ -4254,6 +4254,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
  * close.  We may change this behaviour in the future to allow
  * graceful shutdown.
  *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
+ *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
  * :macro:`NGTCP2_ERR_NOBUF`
@@ -4299,6 +4302,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
  * At the moment, successful call to this function makes connection
  * close.  We may change this behaviour in the future to allow
  * graceful shutdown.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
@@ -4976,6 +4982,9 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
  * At the moment, successful call to this function makes connection
  * close.  We may change this behaviour in the future to allow
  * graceful shutdown.
+ *
+ * This function returns the number of bytes written in |dest| if it
+ * succeeds, or one of the following negative error codes:
  *
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory
