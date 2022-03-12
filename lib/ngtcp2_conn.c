@@ -11105,6 +11105,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   uint8_t pkt_type;
   ngtcp2_ssize nwrite;
+  uint64_t server_tx_left;
   (void)pkt_info_version;
 
   conn->log.last_ts = ts;
@@ -11129,6 +11130,11 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
 
   if (pi) {
     pi->ecn = NGTCP2_ECN_NOT_ECT;
+  }
+
+  if (conn->server) {
+    server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
+    destlen = ngtcp2_min(destlen, server_tx_left);
   }
 
   if (conn->state == NGTCP2_CS_POST_HANDSHAKE ||
@@ -11162,6 +11168,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
   ngtcp2_frame fr;
+  uint64_t server_tx_left;
   (void)pkt_info_version;
 
   conn->log.last_ts = ts;
@@ -11186,6 +11193,11 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
 
   if (pi) {
     pi->ecn = NGTCP2_ECN_NOT_ECT;
+  }
+
+  if (conn->server) {
+    server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
+    destlen = ngtcp2_min(destlen, server_tx_left);
   }
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
