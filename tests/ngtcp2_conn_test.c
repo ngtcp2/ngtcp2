@@ -6398,7 +6398,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
   spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
                                                 sizeof(buf), &ccerr, 0);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
 
@@ -6427,6 +6427,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
 
@@ -6456,6 +6457,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   p = buf;
 
@@ -6484,6 +6486,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen,
                                       conn->dcid.current.cid.datalen);
@@ -6517,6 +6520,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   p = buf;
 
@@ -6564,6 +6568,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   p = buf;
 
@@ -6601,6 +6606,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen,
                                       conn->dcid.current.cid.datalen);
@@ -6636,7 +6642,7 @@ void test_ngtcp2_conn_write_application_close(void) {
   spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
                                                 sizeof(buf), &ccerr, 0);
 
-  CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
 
@@ -6666,6 +6672,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_long(&hd, buf, (size_t)spktlen);
 
@@ -6695,6 +6702,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   p = buf;
 
@@ -6723,6 +6731,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen,
                                       conn->dcid.current.cid.datalen);
@@ -6756,6 +6765,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   p = buf;
 
@@ -6801,6 +6811,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   p = buf;
 
@@ -6838,6 +6849,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                                 sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
+  CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, buf, (size_t)spktlen,
                                       conn->dcid.current.cid.datalen);

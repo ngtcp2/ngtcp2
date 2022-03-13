@@ -123,6 +123,16 @@ typedef enum {
    longer than this value, it is truncated. */
 #define NGTCP2_CONNECTION_CLOSE_ERROR_MAX_REASONLEN 1024
 
+/* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
+#define NGTCP2_WRITE_PKT_FLAG_NONE 0x00
+/* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
+   than Initial packet should be padded.  Initial packet might be
+   padded based on QUIC requirement regardless of this flag. */
+#define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING 0x01
+/* NGTCP2_WRITE_PKT_FLAG_MORE indicates that more frames might come
+   and it should be encoded into the current packet. */
+#define NGTCP2_WRITE_PKT_FLAG_MORE 0x02
+
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
  * frame.
@@ -805,11 +815,12 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
                                     ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
 
 /*
- * ngtcp2_conn_write_single_frame_pkt writes a packet which contains |fr|
- * frame only in the buffer pointed by |dest| whose length if
+ * ngtcp2_conn_write_single_frame_pkt writes a packet which contains
+ * |fr| frame only in the buffer pointed by |dest| whose length if
  * |destlen|.  |type| is a long packet type to send.  If |type| is 0,
  * Short packet is used.  |dcid| is used as a destination connection
- * ID.
+ * ID.  |flags| is zero or more of NGTCP2_WRITE_PKT_FLAG_*.  Only
+ * NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING is recognized.
  *
  * The packet written by this function will not be retransmitted.
  *
@@ -821,8 +832,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
  */
 ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
-    uint8_t type, const ngtcp2_cid *dcid, ngtcp2_frame *fr, uint8_t rtb_flags,
-    const ngtcp2_path *path, ngtcp2_tstamp ts);
+    uint8_t type, uint8_t flags, const ngtcp2_cid *dcid, ngtcp2_frame *fr,
+    uint8_t rtb_flags, const ngtcp2_path *path, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_commit_local_transport_params commits the local
