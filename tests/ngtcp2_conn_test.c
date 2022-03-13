@@ -844,7 +844,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 1, &fr,
                                   conn->pktns.crypto.rx.ckm);
 
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 1);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 1);
 
   CU_ASSERT(0 == rv);
 
@@ -859,7 +859,7 @@ void test_ngtcp2_conn_stream_open_close(void) {
   pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 2, &fr,
                                   conn->pktns.crypto.rx.ckm);
 
-  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 2);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, NULL, buf, pktlen, 2);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(NGTCP2_STRM_FLAG_SHUT_RD == strm->flags);
