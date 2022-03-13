@@ -57,7 +57,7 @@ static int null_retry_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 }
 
 void test_ngtcp2_pkt_decode_version_cid(void) {
-  uint8_t buf[1024];
+  uint8_t buf[NGTCP2_MAX_UDP_PAYLOAD_SIZE];
   uint32_t version;
   const uint8_t *dcid, *scid;
   size_t dcidlen, scidlen;
@@ -84,6 +84,26 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == scid);
 
   /* Unsupported QUIC version */
+  memset(buf, 0, sizeof(buf));
+  p = buf;
+  *p++ = NGTCP2_HEADER_FORM_BIT;
+  p = ngtcp2_put_uint32be(p, 0xffffff00);
+  *p++ = NGTCP2_MAX_CIDLEN;
+  p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN);
+  *p++ = NGTCP2_MAX_CIDLEN - 1;
+  ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN - 1);
+
+  rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
+                                     buf, sizeof(buf), 0);
+
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
+  CU_ASSERT(0xffffff00 == version);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN == dcidlen);
+  CU_ASSERT(&buf[6] == dcid);
+  CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == scidlen);
+  CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == scid);
+
+  /* Unsupported QUIC version with UDP payload size < 1200 */
   p = buf;
   *p++ = NGTCP2_HEADER_FORM_BIT;
   p = ngtcp2_put_uint32be(p, 0xffffff00);
@@ -95,12 +115,7 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
                                      buf, (size_t)(p - buf), 0);
 
-  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
-  CU_ASSERT(0xffffff00 == version);
-  CU_ASSERT(NGTCP2_MAX_CIDLEN == dcidlen);
-  CU_ASSERT(&buf[6] == dcid);
-  CU_ASSERT(NGTCP2_MAX_CIDLEN - 1 == scidlen);
-  CU_ASSERT(&buf[6 + NGTCP2_MAX_CIDLEN + 1] == scid);
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 
   /* Supported QUIC version with long CID */
   p = buf;
@@ -117,16 +132,17 @@ void test_ngtcp2_pkt_decode_version_cid(void) {
   CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 
   /* Unsupported QUIC version with long CID */
+  memset(buf, 0, sizeof(buf));
   p = buf;
   *p++ = NGTCP2_HEADER_FORM_BIT;
   p = ngtcp2_put_uint32be(p, 0xffffff00);
   *p++ = NGTCP2_MAX_CIDLEN + 1;
   p = ngtcp2_setmem(p, 0xf1, NGTCP2_MAX_CIDLEN + 1);
   *p++ = NGTCP2_MAX_CIDLEN;
-  p = ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN);
+  ngtcp2_setmem(p, 0xf2, NGTCP2_MAX_CIDLEN);
 
   rv = ngtcp2_pkt_decode_version_cid(&version, &dcid, &dcidlen, &scid, &scidlen,
-                                     buf, (size_t)(p - buf), 0);
+                                     buf, sizeof(buf), 0);
 
   CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
   CU_ASSERT(0xffffff00 == version);
