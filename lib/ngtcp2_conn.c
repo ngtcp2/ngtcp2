@@ -9259,6 +9259,7 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
                                    ngtcp2_tstamp ts) {
   int rv = 0;
   ngtcp2_ssize nread = 0;
+  const ngtcp2_pkt_info zero_pi = {0};
   (void)pkt_info_version;
 
   conn->log.last_ts = ts;
@@ -9278,6 +9279,10 @@ int ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "ignore packet from unknown path");
     return 0;
+  }
+
+  if (!pi) {
+    pi = &zero_pi;
   }
 
   switch (conn->state) {

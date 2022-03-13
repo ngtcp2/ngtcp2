@@ -3404,8 +3404,8 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * `ngtcp2_conn_read_pkt` decrypts QUIC packet given in |pkt| of
  * length |pktlen| and processes it.  |path| is the network path the
  * packet is delivered and must not be ``NULL``.  |pi| is packet
- * metadata and must not be ``NULL``. This function performs QUIC
- * handshake as well.
+ * metadata and may be ``NULL``. This function performs QUIC handshake
+ * as well.
  *
  * This function must not be called from inside the callback
  * functions.
