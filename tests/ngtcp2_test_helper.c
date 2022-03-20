@@ -247,7 +247,7 @@ static size_t write_single_frame_handshake_pkt_generic(
   }
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid,
-                     pkt_num, 4, version, 0);
+                     pkt_num, 4, NGTCP2_PROTO_VER_V1, 0);
 
   hd.token.base = (uint8_t *)token;
   hd.token.len = tokenlen;
@@ -255,6 +255,7 @@ static size_t write_single_frame_handshake_pkt_generic(
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
   assert(0 == rv);
+  ngtcp2_put_uint32be(&out[1], version);
   rv = ngtcp2_ppe_encode_frame(&ppe, fr);
   assert(0 == rv);
   n = ngtcp2_ppe_final(&ppe, NULL);

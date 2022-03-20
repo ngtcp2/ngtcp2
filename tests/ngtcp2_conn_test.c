@@ -8133,7 +8133,10 @@ void test_ngtcp2_accept(void) {
 
   rv = ngtcp2_accept(&hd, buf, pktlen);
 
-  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION == rv);
+  /* Unknown version should be filtered out by earlier call of
+     ngtcp2_pkt_decode_version_cid, that is, only supported versioned
+     packet should be passed to ngtcp2_accept. */
+  CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 
   /* Unknown version and the UDP payload size is less than
      NGTCP2_MAX_UDP_PAYLOAD_SIZE. */

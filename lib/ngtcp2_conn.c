@@ -6205,6 +6205,7 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
   ngtcp2_ssize nread;
   size_t dgramlen = pktlen;
   const uint8_t *origpkt = pkt;
+  uint32_t version;
 
   if (ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     conn->dcid.current.bytes_recv += dgramlen;
@@ -6222,35 +6223,36 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
         return NGTCP2_ERR_DRAINING;
       }
 
-      if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) &&
-          /* Not a Version Negotiation packet */
-          pktlen > 4 && ngtcp2_get_uint32(&pkt[1]) > 0 &&
-          ngtcp2_pkt_get_type_long(pkt[0]) == NGTCP2_PKT_INITIAL) {
-        if (conn->server) {
+      if ((pkt[0] & NGTCP2_HEADER_FORM_BIT) && pktlen > 4) {
+        /* Not a Version Negotiation packet */
+        version = ngtcp2_get_uint32(&pkt[1]);
+        if (ngtcp2_pkt_get_type_long(version, pkt[0]) == NGTCP2_PKT_INITIAL) {
+          if (conn->server) {
+            if (is_crypto_error((int)nread)) {
+              /* If server gets crypto error from TLS stack, it is
+                 unrecoverable, therefore drop connection. */
+              return nread;
+            }
+
+            /* If server discards first Initial, then drop connection
+               state.  This is because SCID in packet might be corrupted
+               and the current connection state might wrongly discard
+               valid packet and prevent the handshake from
+               completing. */
+            if (conn->in_pktns && conn->in_pktns->rx.max_pkt_num == -1) {
+              return NGTCP2_ERR_DROP_CONN;
+            }
+
+            return (ngtcp2_ssize)dgramlen;
+          }
+          /* client */
           if (is_crypto_error((int)nread)) {
-            /* If server gets crypto error from TLS stack, it is
+            /* If client gets crypto error from TLS stack, it is
                unrecoverable, therefore drop connection. */
             return nread;
           }
-
-          /* If server discards first Initial, then drop connection
-             state.  This is because SCID in packet might be corrupted
-             and the current connection state might wrongly discard
-             valid packet and prevent the handshake from
-             completing. */
-          if (conn->in_pktns && conn->in_pktns->rx.max_pkt_num == -1) {
-            return NGTCP2_ERR_DROP_CONN;
-          }
-
           return (ngtcp2_ssize)dgramlen;
         }
-        /* client */
-        if (is_crypto_error((int)nread)) {
-          /* If client gets crypto error from TLS stack, it is
-             unrecoverable, therefore drop connection. */
-          return nread;
-        }
-        return (ngtcp2_ssize)dgramlen;
       }
 
       if (nread == NGTCP2_ERR_DISCARD_PKT) {
@@ -9733,8 +9735,8 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
 
     /* If spktlen > 0, we are making a compound packet.  If Initial
        packet is written, we have to pad bytes to 0-RTT packet. */
-    if (spktlen > 0 &&
-        ngtcp2_pkt_get_type_long(dest[0]) == NGTCP2_PKT_INITIAL) {
+    if (spktlen > 0 && ngtcp2_pkt_get_type_long(conn->version, dest[0]) ==
+                           NGTCP2_PKT_INITIAL) {
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
       conn->pkt.require_padding = 1;
     } else {
@@ -9818,16 +9820,6 @@ int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt, size_t pktlen) {
   nread = ngtcp2_pkt_decode_hd_long(p, pkt, pktlen);
   if (nread < 0) {
     return (int)nread;
-  }
-
-  if (p->version != NGTCP2_PROTO_VER_V1 &&
-      (p->version < NGTCP2_PROTO_VER_DRAFT_MIN ||
-       NGTCP2_PROTO_VER_DRAFT_MAX < p->version)) {
-    if (pktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
-      return NGTCP2_ERR_INVALID_ARGUMENT;
-    }
-
-    return NGTCP2_ERR_VERSION_NEGOTIATION;
   }
 
   switch (p->type) {
@@ -10798,7 +10790,8 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     assert(nwrite);
     assert(dest[0] & NGTCP2_HEADER_FORM_BIT);
 
-    if (ngtcp2_pkt_get_type_long(dest[0]) == NGTCP2_PKT_INITIAL) {
+    if (ngtcp2_pkt_get_type_long(conn->version, dest[0]) ==
+        NGTCP2_PKT_INITIAL) {
       /* We have added padding already, but in that case, there is no
          space left to write Short packet. */
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
