@@ -157,6 +157,7 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   size_t len = 0;
   /* For some reason, gcc 7.3.0 requires this initialization. */
   size_t preferred_addrlen = 0;
+  size_t version_infolen = 0;
   (void)transport_params_version;
 
   switch (exttype) {
@@ -257,6 +258,11 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   if (params->grease_quic_bit) {
     len += ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
            ngtcp2_put_varint_len(0);
+  }
+  if (params->version_info_present) {
+    version_infolen = sizeof(uint32_t) + params->version_info.other_versionslen;
+    len += ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
+           ngtcp2_put_varint_len(version_infolen) + version_infolen;
   }
 
   if (destlen < len) {
@@ -392,6 +398,14 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   if (params->grease_quic_bit) {
     p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT);
     p = ngtcp2_put_varint(p, 0);
+  }
+
+  if (params->version_info_present) {
+    p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION);
+    p = ngtcp2_put_varint(p, version_infolen);
+    p = ngtcp2_put_uint32be(p, params->version_info.chosen_version);
+    p = ngtcp2_cpymem(p, params->version_info.other_versions,
+                      params->version_info.other_versionslen);
   }
 
   assert((size_t)(p - dest) == len);
@@ -531,6 +545,7 @@ int ngtcp2_decode_transport_params_versioned(
   memset(&params->retry_scid, 0, sizeof(params->retry_scid));
   memset(&params->initial_scid, 0, sizeof(params->initial_scid));
   memset(&params->original_dcid, 0, sizeof(params->original_dcid));
+  params->version_info_present = 0;
 
   p = data;
   end = data + datalen;
@@ -767,6 +782,27 @@ int ngtcp2_decode_transport_params_versioned(
       }
       p += nread;
       params->grease_quic_bit = 1;
+      break;
+    case NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION:
+      nread = decode_varint(&valuelen, p, end);
+      if (nread < 0) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      p += nread;
+      if ((size_t)(end - p) < valuelen) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      if (valuelen < sizeof(uint32_t) || (valuelen & 0x3)) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
+      params->version_info.chosen_version = ngtcp2_get_uint32(p);
+      p += sizeof(uint32_t);
+      if (valuelen > sizeof(uint32_t)) {
+        params->version_info.other_versions = (uint8_t *)p;
+        params->version_info.other_versionslen = valuelen - sizeof(uint32_t);
+        p += valuelen - sizeof(uint32_t);
+      }
+      params->version_info_present = 1;
       break;
     default:
       /* Ignore unknown parameter */

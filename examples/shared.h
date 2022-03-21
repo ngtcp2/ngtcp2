@@ -62,6 +62,7 @@ constexpr uint32_t QUIC_VER_DRAFT30 = 0xff00001eu;
 constexpr uint32_t QUIC_VER_DRAFT31 = 0xff00001fu;
 constexpr uint32_t QUIC_VER_DRAFT32 = 0xff000020u;
 constexpr uint32_t QUIC_VER_V1 = 0x00000001u;
+constexpr uint32_t QUIC_VER_V2 = NGTCP2_PROTO_VER_V2;
 
 // msghdr_get_ecn gets ECN bits from |msg|.  |family| is the address
 // family from which packet is received.

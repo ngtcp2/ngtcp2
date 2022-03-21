@@ -43,6 +43,7 @@ void test_ngtcp2_encode_transport_params(void) {
   int rv;
   size_t i, len;
   ngtcp2_cid rcid, scid, dcid;
+  uint8_t other_versions[sizeof(uint32_t) * 3];
 
   rcid_init(&rcid);
   scid_init(&scid);
@@ -50,6 +51,10 @@ void test_ngtcp2_encode_transport_params(void) {
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
+
+  for (i = 0; i < sizeof(other_versions); i += sizeof(uint32_t)) {
+    ngtcp2_put_uint32be(&other_versions[i], (uint32_t)(0xff000000u + i));
+  }
 
   /* CH, required parameters only */
   params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
@@ -162,6 +167,10 @@ void test_ngtcp2_encode_transport_params(void) {
   params.active_connection_id_limit = 1000000007;
   params.max_datagram_frame_size = 65535;
   params.grease_quic_bit = 1;
+  params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
+  params.version_info.other_versions = other_versions;
+  params.version_info.other_versionslen = sizeof(other_versions);
+  params.version_info_present = 1;
 
   for (i = 0;
        i <
@@ -199,7 +208,12 @@ void test_ngtcp2_encode_transport_params(void) {
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
                            params.max_datagram_frame_size) +
            (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
-            ngtcp2_put_varint_len(0));
+            ngtcp2_put_varint_len(0)) +
+           (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
+            ngtcp2_put_varint_len(sizeof(params.version_info.chosen_version) +
+                                  params.version_info.other_versionslen) +
+            sizeof(params.version_info.chosen_version) +
+            params.version_info.other_versionslen);
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
@@ -234,6 +248,12 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.active_connection_id_limit);
   CU_ASSERT(params.max_datagram_frame_size == nparams.max_datagram_frame_size);
   CU_ASSERT(params.grease_quic_bit == nparams.grease_quic_bit);
+  CU_ASSERT(params.version_info_present == nparams.version_info_present);
+  CU_ASSERT(params.version_info.chosen_version ==
+            nparams.version_info.chosen_version);
+  CU_ASSERT(0 == memcmp(params.version_info.other_versions,
+                        nparams.version_info.other_versions,
+                        params.version_info.other_versionslen));
 
   memset(&params, 0, sizeof(params));
   memset(&nparams, 0, sizeof(nparams));
@@ -272,6 +292,10 @@ void test_ngtcp2_encode_transport_params(void) {
   params.active_connection_id_limit = 1073741824;
   params.max_datagram_frame_size = 63;
   params.grease_quic_bit = 1;
+  params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
+  params.version_info.other_versions = other_versions;
+  params.version_info.other_versionslen = arraylen(other_versions);
+  params.version_info_present = 1;
 
   for (i = 0;
        i <
@@ -327,7 +351,12 @@ void test_ngtcp2_encode_transport_params(void) {
            varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
                            params.max_datagram_frame_size) +
            (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
-            ngtcp2_put_varint_len(0));
+            ngtcp2_put_varint_len(0)) +
+           (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
+            ngtcp2_put_varint_len(sizeof(params.version_info.chosen_version) +
+                                  params.version_info.other_versionslen) +
+            sizeof(params.version_info.chosen_version) +
+            params.version_info.other_versionslen);
        ++i) {
     nwrite = ngtcp2_encode_transport_params(
         buf, i, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
@@ -393,4 +422,10 @@ void test_ngtcp2_encode_transport_params(void) {
             nparams.active_connection_id_limit);
   CU_ASSERT(params.max_datagram_frame_size == nparams.max_datagram_frame_size);
   CU_ASSERT(params.grease_quic_bit = nparams.grease_quic_bit);
+  CU_ASSERT(params.version_info_present == nparams.version_info_present);
+  CU_ASSERT(params.version_info.chosen_version ==
+            nparams.version_info.chosen_version);
+  CU_ASSERT(0 == memcmp(params.version_info.other_versions,
+                        nparams.version_info.other_versions,
+                        params.version_info.other_versionslen));
 }

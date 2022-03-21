@@ -104,6 +104,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_VERSION_NEGOTIATION";
   case NGTCP2_ERR_HANDSHAKE_TIMEOUT:
     return "ERR_HANDSHAKE_TIMEOUT";
+  case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
+    return "ERR_VERSION_NEGOTIATION_FAILURE";
   default:
     return "(unknown)";
   }
@@ -142,6 +144,8 @@ uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr) {
     return NGTCP2_AEAD_LIMIT_REACHED;
   case NGTCP2_ERR_NO_VIABLE_PATH:
     return NGTCP2_NO_VIABLE_PATH;
+  case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
+    return NGTCP2_VERSION_NEGOTIATION_ERROR;
   default:
     return NGTCP2_PROTOCOL_VIOLATION;
   }

@@ -124,6 +124,19 @@
    v1. */
 #define NGTCP2_PKT_TYPE_RETRY_V1 0x3
 
+/* NGTCP2_PKT_TYPE_INITIAL_V2 is Initial long header packet type for
+   QUIC v2. */
+#define NGTCP2_PKT_TYPE_INITIAL_V2 0x1
+/* NGTCP2_PKT_TYPE_0RTT_V2 is 0RTT long header packet type for QUIC
+   v2. */
+#define NGTCP2_PKT_TYPE_0RTT_V2 0x2
+/* NGTCP2_PKT_TYPE_HANDSHAKE_V2 is Handshake long header packet type
+   for QUIC v2. */
+#define NGTCP2_PKT_TYPE_HANDSHAKE_V2 0x3
+/* NGTCP2_PKT_TYPE_RETRY_V2 is Retry long header packet type for QUIC
+   v2. */
+#define NGTCP2_PKT_TYPE_RETRY_V2 0x0
+
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   ngtcp2_vec token;

@@ -181,7 +181,7 @@ int append_local_transport_params(const ClientBase *client,
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(conn, &params);
 
-  std::array<uint8_t, 64> buf;
+  std::array<uint8_t, 256> buf;
 
   auto nwrite = ngtcp2_encode_transport_params(
       buf.data(), buf.size(), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
@@ -247,7 +247,7 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   if (auto rv = gnutls_session_ext_register(
           session_, "QUIC Transport Parameters",
-          (quic_version & 0xff000000)
+          (quic_version & 0xff000000) == 0xff000000
               ? NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT
               : NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1,
           GNUTLS_EXT_TLS, tp_recv_func, tp_send_func, nullptr, nullptr, nullptr,

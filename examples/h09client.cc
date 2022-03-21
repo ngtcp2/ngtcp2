@@ -604,6 +604,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       nullptr, // ack_datagram
       nullptr, // lost_datagram
       ngtcp2_crypto_get_path_challenge_data_cb,
+      nullptr, // stream_stop_sending
+      ngtcp2_crypto_version_negotiation_cb,
   };
 
   ngtcp2_cid scid, dcid;

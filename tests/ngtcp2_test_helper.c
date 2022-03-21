@@ -134,7 +134,7 @@ size_t write_single_frame_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
-                     NGTCP2_PROTO_VER_MAX, 0);
+                     NGTCP2_PROTO_VER_V1, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -172,7 +172,7 @@ size_t write_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
-                     NGTCP2_PROTO_VER_MAX, 0);
+                     NGTCP2_PROTO_VER_V1, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -206,7 +206,7 @@ size_t write_single_frame_pkt_without_conn_id(uint8_t *out, size_t outlen,
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL,
-                     pkt_num, 4, NGTCP2_PROTO_VER_MAX, 0);
+                     pkt_num, 4, NGTCP2_PROTO_VER_V1, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
   rv = ngtcp2_ppe_encode_hd(&ppe, &hd);
@@ -246,8 +246,16 @@ static size_t write_single_frame_handshake_pkt_generic(
     assert(0);
   }
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid,
-                     pkt_num, 4, NGTCP2_PROTO_VER_V1, 0);
+  /* ngtcp2_pkt_encode_hd_long requires known QUIC version.  If we
+     need to write unsupported version for testing purpose, just
+     pretend that it is QUIC v1 here and rewrite the version field
+     later. */
+  ngtcp2_pkt_hd_init(
+      &hd, NGTCP2_PKT_FLAG_LONG_FORM, pkt_type, dcid, scid, pkt_num, 4,
+      version != NGTCP2_PROTO_VER_V1 && version != NGTCP2_PROTO_VER_V2
+          ? NGTCP2_PROTO_VER_V1
+          : version,
+      0);
 
   hd.token.base = (uint8_t *)token;
   hd.token.len = tokenlen;
