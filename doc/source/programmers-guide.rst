@@ -65,7 +65,8 @@ callback functions must be set:
   <ngtcp2_callbacks.delete_crypto_cipher_ctx>`:
   `ngtcp2_crypto_delete_crypto_cipher_ctx_cb()` can be passed
   directly.
-* :member:`get_path_challenge_data <ngtcp2_get_path_challenge_data>`:
+* :member:`get_path_challenge_data
+  <ngtcp2_callbacks.get_path_challenge_data>`:
   `ngtcp2_crypto_get_path_challenge_data_cb()` can be passed directly.
 * :member:`version_negotiation
   <ngtcp2_callbacks.version_negotiation>`:
@@ -96,7 +97,8 @@ For server application, the following callback functions must be set:
   <ngtcp2_callbacks.delete_crypto_cipher_ctx>`:
   `ngtcp2_crypto_delete_crypto_cipher_ctx_cb()` can be passed
   directly.
-* :member:`get_path_challenge_data <ngtcp2_get_path_challenge_data>`:
+* :member:`get_path_challenge_data
+  <ngtcp2_callbacks.get_path_challenge_data>`:
   `ngtcp2_crypto_get_path_challenge_data_cb()` can be passed directly.
 * :member:`version_negotiation
   <ngtcp2_callbacks.version_negotiation>`:
