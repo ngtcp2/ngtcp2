@@ -1283,10 +1283,16 @@ ngtcp2_ssize ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen,
 
   ngtcp2_crypto_aead_retry(&aead);
 
-  if (version == NGTCP2_PROTO_VER_V1) {
+  switch (version) {
+  case NGTCP2_PROTO_VER_V1:
     key = (const uint8_t *)NGTCP2_RETRY_KEY_V1;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
-  } else {
+    break;
+  case NGTCP2_PROTO_VER_V2:
+    key = (const uint8_t *)NGTCP2_RETRY_KEY_V2;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
+    break;
+  default:
     key = (const uint8_t *)NGTCP2_RETRY_KEY_DRAFT;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_DRAFT) - 1;
   }
