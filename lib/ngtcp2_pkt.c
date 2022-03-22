@@ -362,7 +362,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_short(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
 
   p = &pkt[1];
 
-  dest->type = NGTCP2_PKT_SHORT;
+  dest->type = NGTCP2_PKT_1RTT;
 
   ngtcp2_cid_init(&dest->dcid, p, dcidlen);
   p += dcidlen;

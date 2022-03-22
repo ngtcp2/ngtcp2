@@ -68,7 +68,7 @@ void test_ngtcp2_rtb_add(void) {
   ngtcp2_rtb_init(&rtb, pktns_id, &crypto, &rst, &cc, &log, NULL,
                   &rtb_entry_objalloc, &frc_objalloc, mem);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                      1000000007, 1, NGTCP2_PROTO_VER_V1, 0);
 
   rv = ngtcp2_rtb_entry_objalloc_new(
@@ -78,7 +78,7 @@ void test_ngtcp2_rtb_add(void) {
 
   ngtcp2_rtb_add(&rtb, ent, &cstat);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                      1000000008, 2, NGTCP2_PROTO_VER_V1, 0);
 
   rv = ngtcp2_rtb_entry_objalloc_new(
@@ -88,7 +88,7 @@ void test_ngtcp2_rtb_add(void) {
 
   ngtcp2_rtb_add(&rtb, ent, &cstat);
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                      1000000009, 4, NGTCP2_PROTO_VER_V1, 0);
 
   rv = ngtcp2_rtb_entry_objalloc_new(
@@ -137,7 +137,7 @@ static void add_rtb_entry_range(ngtcp2_rtb *rtb, int64_t base_pkt_num,
   dcid_init(&dcid);
 
   for (i = 0; i < len; ++i) {
-    ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, &dcid, NULL,
+    ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, &dcid, NULL,
                        base_pkt_num + (int64_t)i, 1, NGTCP2_PROTO_VER_V1, 0);
     ngtcp2_rtb_entry_objalloc_new(&ent, &hd, NULL, 0, 0,
                                   NGTCP2_RTB_ENTRY_FLAG_NONE, objalloc);
@@ -188,7 +188,7 @@ void test_ngtcp2_rtb_recv_ack(void) {
   ngtcp2_strm_init(&crypto, 0, NGTCP2_STRM_FLAG_NONE, 0, 0, NULL, &frc_objalloc,
                    mem);
   ngtcp2_log_init(&log, NULL, NULL, 0, NULL);
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL, 0,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, NULL, NULL, 0,
                      1, NGTCP2_PROTO_VER_V1, 0);
 
   /* no ack block */

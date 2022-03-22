@@ -6512,7 +6512,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
                                       conn->dcid.current.cid.datalen);
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 
@@ -6532,7 +6532,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                       conn->dcid.current.cid.datalen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 
@@ -6634,7 +6634,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                       conn->dcid.current.cid.datalen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 
@@ -6654,7 +6654,7 @@ void test_ngtcp2_conn_write_connection_close(void) {
                                       conn->dcid.current.cid.datalen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 }
@@ -6761,7 +6761,7 @@ void test_ngtcp2_conn_write_application_close(void) {
   shdlen = ngtcp2_pkt_decode_hd_short(&hd, p, (size_t)spktlen,
                                       conn->dcid.current.cid.datalen);
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 
@@ -6781,7 +6781,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                       conn->dcid.current.cid.datalen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 
@@ -6881,7 +6881,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                       conn->dcid.current.cid.datalen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 
@@ -6901,7 +6901,7 @@ void test_ngtcp2_conn_write_application_close(void) {
                                       conn->dcid.current.cid.datalen);
 
   CU_ASSERT(shdlen > 0);
-  CU_ASSERT(NGTCP2_PKT_SHORT == hd.type);
+  CU_ASSERT(NGTCP2_PKT_1RTT == hd.type);
 
   ngtcp2_conn_del(conn);
 }

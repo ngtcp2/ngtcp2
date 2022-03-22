@@ -266,7 +266,7 @@ static const ngtcp2_vec *qlog_pkt_type(const ngtcp2_pkt_hd *hd) {
     return &vec_pkt_type_version_negotiation;
   case NGTCP2_PKT_STATELESS_RESET:
     return &vec_pkt_type_stateless_reset;
-  case NGTCP2_PKT_SHORT:
+  case NGTCP2_PKT_1RTT:
     return &vec_pkt_type_1rtt;
   default:
     return &vec_pkt_type_unknown;
