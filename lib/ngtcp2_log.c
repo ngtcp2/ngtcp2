@@ -79,7 +79,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
  *   Packet number.
  *
  * <PKTNAME>:
- *   Packet name.  (e.g., Initial, Handshake, Short)
+ *   Packet name.  (e.g., Initial, Handshake, 1RTT)
  *
  * <FRAMENAME>:
  *   Frame name.  (e.g., STREAM, ACK, PING)
@@ -178,8 +178,8 @@ static const char *strpkttype(const ngtcp2_pkt_hd *hd) {
     return "VN";
   case NGTCP2_PKT_STATELESS_RESET:
     return "SR";
-  case NGTCP2_PKT_SHORT:
-    return "Short";
+  case NGTCP2_PKT_1RTT:
+    return "1RTT";
   default:
     return "(unknown)";
   }
@@ -751,7 +751,7 @@ static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     return;
   }
 
-  if (hd->type == NGTCP2_PKT_SHORT) {
+  if (hd->type == NGTCP2_PKT_1RTT) {
     ngtcp2_log_info(
         log, NGTCP2_LOG_EVENT_PKT, "%s pkn=%" PRId64 " dcid=0x%s type=%s k=%d",
         dir, hd->pkt_num,

@@ -133,7 +133,7 @@ size_t write_single_frame_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   cc.ckm = ckm;
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
-  ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
+  ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_1RTT, dcid, NULL, pkt_num, 4,
                      NGTCP2_PROTO_VER_V1, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
@@ -171,7 +171,7 @@ size_t write_pkt_flags(uint8_t *out, size_t outlen, uint8_t flags,
   cc.ckm = ckm;
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
-  ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_SHORT, dcid, NULL, pkt_num, 4,
+  ngtcp2_pkt_hd_init(&hd, flags, NGTCP2_PKT_1RTT, dcid, NULL, pkt_num, 4,
                      NGTCP2_PROTO_VER_V1, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);
@@ -205,7 +205,7 @@ size_t write_single_frame_pkt_without_conn_id(uint8_t *out, size_t outlen,
   cc.ckm = ckm;
   cc.aead.max_overhead = NGTCP2_FAKE_AEAD_OVERHEAD;
 
-  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_SHORT, NULL, NULL,
+  ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_NONE, NGTCP2_PKT_1RTT, NULL, NULL,
                      pkt_num, 4, NGTCP2_PROTO_VER_V1, 0);
 
   ngtcp2_ppe_init(&ppe, out, outlen, &cc);

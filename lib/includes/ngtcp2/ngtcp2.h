@@ -869,9 +869,9 @@ typedef enum ngtcp2_pkt_type {
    */
   NGTCP2_PKT_RETRY = 0x13,
   /**
-   * :enum:`NGTCP2_PKT_SHORT` is defined by libngtcp2 for convenience.
+   * :enum:`NGTCP2_PKT_1RTT` is defined by libngtcp2 for convenience.
    */
-  NGTCP2_PKT_SHORT = 0x40
+  NGTCP2_PKT_1RTT = 0x40
 } ngtcp2_pkt_type;
 
 /**
@@ -2069,7 +2069,7 @@ typedef struct ngtcp2_crypto_cipher_ctx {
  * :type:`ngtcp2_crypto_ctx` is a convenient structure to bind all
  * crypto related objects in one place.  Use
  * `ngtcp2_crypto_ctx_initial` to initialize this struct for Initial
- * packet encryption.  For Handshake and Short packets, use
+ * packet encryption.  For Handshake and 1RTT packets, use
  * `ngtcp2_crypto_ctx_tls`.
  */
 typedef struct ngtcp2_crypto_ctx {
@@ -4850,7 +4850,7 @@ ngtcp2_conn_get_initial_crypto_ctx(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_set_crypto_ctx` sets |ctx| for Handshake/Short packet
+ * `ngtcp2_conn_set_crypto_ctx` sets |ctx| for Handshake/1RTT packet
  * encryption.  The passed data will be passed to
  * :type:`ngtcp2_encrypt`, :type:`ngtcp2_decrypt` and
  * :type:`ngtcp2_hp_mask` callbacks.
@@ -4899,7 +4899,7 @@ ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn, const ngtcp2_crypto_aead *aead,
  * @function
  *
  * `ngtcp2_conn_get_crypto_ctx` returns :type:`ngtcp2_crypto_ctx`
- * object for Handshake/Short packet encryption.
+ * object for Handshake/1RTT packet encryption.
  */
 NGTCP2_EXTERN const ngtcp2_crypto_ctx *
 ngtcp2_conn_get_crypto_ctx(ngtcp2_conn *conn);

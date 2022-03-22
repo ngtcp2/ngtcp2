@@ -1551,7 +1551,7 @@ static int conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
     ack->first_ack_blklen = 0;
   }
 
-  if (type == NGTCP2_PKT_SHORT) {
+  if (type == NGTCP2_PKT_1RTT) {
     ack->ack_delay_unscaled = ts - largest_ack_ts;
     ack->ack_delay = ack->ack_delay_unscaled / NGTCP2_MICROSECONDS /
                      (1ULL << ack_delay_exponent);
@@ -2143,7 +2143,7 @@ static int conn_verify_dcid(ngtcp2_conn *conn, int *pnew_cid_used,
  * conn_should_pad_pkt returns nonzero if the packet should be padded.
  * |type| is the type of packet.  |left| is the space left in packet
  * buffer.  |write_datalen| is the number of bytes which will be sent
- * in the next, coalesced 0-RTT or Short packet.
+ * in the next, coalesced 0-RTT or 1RTT packet.
  */
 static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
                                uint64_t write_datalen, int ack_eliciting,
@@ -2178,7 +2178,7 @@ static int conn_should_pad_pkt(ngtcp2_conn *conn, uint8_t type, size_t left,
                  write_datalen == 0) {
         return 1;
       } else {
-        /* If we have something to send in 0RTT or Short packet, then
+        /* If we have something to send in 0RTT or 1RTT packet, then
            add PADDING in that packet.  Take maximum in case that
            write_datalen includes DATAGRAM which cannot be split. */
         min_payloadlen =
@@ -2328,7 +2328,7 @@ static uint8_t conn_pkt_flags_short(ngtcp2_conn *conn) {
  * NGTCP2_PKT_HANDSHAKE_PKT.
  *
  * |write_datalen| is the minimum length of application data ready to
- * send in subsequent 0RTT or Short packet.
+ * send in subsequent 0RTT or 1RTT packet.
  *
  * This function returns the number of bytes written in |dest| if it
  * succeeds, or one of the following negative error codes:
@@ -2664,7 +2664,7 @@ static ngtcp2_ssize conn_write_ack_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
     ack_delay = 0;
     ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
     break;
-  case NGTCP2_PKT_SHORT:
+  case NGTCP2_PKT_1RTT:
     pktns = &conn->pktns;
     ack_delay = conn_compute_ack_delay(conn);
     ack_delay_exponent = conn->local.transport_params.ack_delay_exponent;
@@ -3234,7 +3234,7 @@ static void conn_handle_unconfirmed_key_update_from_remote(ngtcp2_conn *conn,
 /*
  * conn_write_pkt writes a protected packet in the buffer pointed by
  * |dest| whose length if |destlen|.  |type| specifies the type of
- * packet.  It can be NGTCP2_PKT_SHORT or NGTCP2_PKT_0RTT.
+ * packet.  It can be NGTCP2_PKT_1RTT or NGTCP2_PKT_0RTT.
  *
  * This function can send new stream data.  In order to send stream
  * data, specify the underlying stream and parameters to
@@ -3332,7 +3332,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   if (!ppe_pending) {
     switch (type) {
-    case NGTCP2_PKT_SHORT:
+    case NGTCP2_PKT_1RTT:
       hd_flags = conn_pkt_flags_short(conn);
       scid = NULL;
       cc->aead = pktns->crypto.ctx.aead;
@@ -3470,7 +3470,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         ngtcp2_acktr_commit_ack(&pktns->acktr);
         ngtcp2_acktr_add_ack(&pktns->acktr, hd->pkt_num,
                              ackfr->ack.largest_ack);
-        if (type == NGTCP2_PKT_SHORT) {
+        if (type == NGTCP2_PKT_1RTT) {
           conn_handle_unconfirmed_key_update_from_remote(
               conn, ackfr->ack.largest_ack, ts);
         }
@@ -4130,8 +4130,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     cc.ckm = pktns->crypto.tx.ckm;
     cc.hp_ctx = pktns->crypto.tx.hp_ctx;
     break;
-  case NGTCP2_PKT_SHORT:
-    /* 0 means Short packet. */
+  case NGTCP2_PKT_1RTT:
     pktns = &conn->pktns;
     hd_flags = conn_pkt_flags_short(conn);
     scid = NULL;
@@ -4189,7 +4188,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
       }
       break;
     default:
-      if (type == NGTCP2_PKT_SHORT) {
+      if (type == NGTCP2_PKT_1RTT) {
         lfr.padding.len =
             ngtcp2_ppe_padding_size(&ppe, conn_min_short_pktlen(conn));
       } else {
@@ -4208,7 +4207,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     return nwrite;
   }
 
-  if (type == NGTCP2_PKT_SHORT) {
+  if (type == NGTCP2_PKT_1RTT) {
     ++cc.ckm->use_count;
   }
 
@@ -4220,7 +4219,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
   case NGTCP2_FRAME_ACK_ECN:
     ngtcp2_acktr_commit_ack(&pktns->acktr);
     ngtcp2_acktr_add_ack(&pktns->acktr, hd.pkt_num, fr->ack.largest_ack);
-    if (type == NGTCP2_PKT_SHORT) {
+    if (type == NGTCP2_PKT_1RTT) {
       conn_handle_unconfirmed_key_update_from_remote(conn, fr->ack.largest_ack,
                                                      ts);
     }
@@ -4277,7 +4276,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
 }
 
 /*
- * conn_process_early_rtb makes any pending 0RTT packet Short packet.
+ * conn_process_early_rtb makes any pending 0RTT packet 1RTT packet.
  */
 static void conn_process_early_rtb(ngtcp2_conn *conn) {
   ngtcp2_rtb_entry *ent;
@@ -4293,9 +4292,9 @@ static void conn_process_early_rtb(ngtcp2_conn *conn) {
       continue;
     }
 
-    /*  0-RTT packet is retransmitted as a Short packet. */
+    /*  0-RTT packet is retransmitted as a 1RTT packet. */
     ent->hd.flags &= (uint8_t)~NGTCP2_PKT_FLAG_LONG_FORM;
-    ent->hd.type = NGTCP2_PKT_SHORT;
+    ent->hd.type = NGTCP2_PKT_1RTT;
   }
 }
 
@@ -4674,7 +4673,7 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
   ngtcp2_pv_add_entry(pv, lfr.path_challenge.data, expiry, flags, ts);
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
-      conn, pi, dest, destlen, NGTCP2_PKT_SHORT, NGTCP2_WRITE_PKT_FLAG_NONE,
+      conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
       &pv->dcid.cid, &lfr, NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING,
       &pv->dcid.ps.path, ts);
   if (nwrite <= 0) {
@@ -4780,7 +4779,7 @@ static ngtcp2_ssize conn_write_path_response(ngtcp2_conn *conn,
   memcpy(lfr.path_response.data, pcent->data, sizeof(lfr.path_response.data));
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
-      conn, pi, dest, destlen, NGTCP2_PKT_SHORT, NGTCP2_WRITE_PKT_FLAG_NONE,
+      conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
       &dcid->cid, &lfr, NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING, &pcent->ps.path,
       ts);
   if (nwrite <= 0) {
@@ -5846,8 +5845,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (!(pkt[0] & NGTCP2_HEADER_FORM_BIT)) {
     if (conn->state == NGTCP2_CS_SERVER_INITIAL) {
-      /* Ignore Short packet unless server's first Handshake packet
-         has been transmitted. */
+      /* Ignore 1RTT packet unless server's first Handshake packet has
+         been transmitted. */
       return (ngtcp2_ssize)pktlen;
     }
 
@@ -5856,7 +5855,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                    "buffering Short packet len=%zu", pktlen);
+                    "buffering 1RTT packet len=%zu", pktlen);
 
     rv = conn_buffer_pkt(conn, &conn->pktns, path, pi, pkt, pktlen, dgramlen,
                          ts);
@@ -6368,7 +6367,7 @@ static int is_crypto_error(int liberr) {
 /*
  * conn_recv_handshake_cpkt processes compound packet during
  * handshake.  The buffer pointed by |pkt| might contain multiple
- * packets.  The Short packet must be the last one because it does not
+ * packets.  The 1RTT packet must be the last one because it does not
  * have payload length field.
  *
  * This function returns the same error code returned by
@@ -8181,7 +8180,7 @@ static int conn_recv_non_probing_pkt_on_new_path(ngtcp2_conn *conn,
 }
 
 /*
- * conn_recv_pkt_from_new_path is called when a Short packet is
+ * conn_recv_pkt_from_new_path is called when a 1RTT packet is
  * received from new path (not current path).  This packet would be a
  * packet which only contains probing frame, or reordered packet, or a
  * path is being validated.
@@ -8539,7 +8538,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
 
-  if (hd.type == NGTCP2_PKT_SHORT) {
+  if (hd.type == NGTCP2_PKT_1RTT) {
     key_phase_bit_changed = conn_key_phase_changed(conn, &hd);
   }
 
@@ -8549,7 +8548,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (key_phase_bit_changed) {
-    assert(hd.type == NGTCP2_PKT_SHORT);
+    assert(hd.type == NGTCP2_PKT_1RTT);
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT, "unexpected KEY_PHASE");
 
@@ -8592,7 +8591,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     assert(NGTCP2_ERR_DECRYPT == nwrite);
 
-    if (hd.type == NGTCP2_PKT_SHORT &&
+    if (hd.type == NGTCP2_PKT_1RTT &&
         ++conn->crypto.decryption_failure_count >=
             pktns->crypto.ctx.max_decryption_failure) {
       return NGTCP2_ERR_AEAD_LIMIT_REACHED;
@@ -8896,7 +8895,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
   }
 
-  if (conn->server && hd.type == NGTCP2_PKT_SHORT &&
+  if (conn->server && hd.type == NGTCP2_PKT_1RTT &&
       !ngtcp2_path_eq(&conn->dcid.current.ps.path, path)) {
     if (non_probing_pkt && pktns->rx.max_pkt_num < hd.pkt_num &&
         !conn_path_validation_in_progress(conn, path)) {
@@ -8924,7 +8923,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     }
   }
 
-  if (hd.type == NGTCP2_PKT_SHORT) {
+  if (hd.type == NGTCP2_PKT_1RTT) {
     if (ckm == conn->crypto.key_update.new_rx_ckm) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON, "rotate keys");
       conn_rotate_keys(conn, hd.pkt_num, /* initiator = */ 0);
@@ -8974,8 +8973,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 }
 
 /*
- * conn_process_buffered_protected_pkt processes buffered 0RTT or
- * Short packets.
+ * conn_process_buffered_protected_pkt processes buffered 0RTT or 1RTT
+ * packets.
  *
  * This function returns 0 if it succeeds, or the same negative error
  * codes from conn_recv_pkt.
@@ -9140,7 +9139,7 @@ static int conn_handshake_completed(ngtcp2_conn *conn) {
 
 /*
  * conn_recv_cpkt processes compound packet after handshake.  The
- * buffer pointed by |pkt| might contain multiple packets.  The Short
+ * buffer pointed by |pkt| might contain multiple packets.  The 1RTT
  * packet must be the last one because it does not have payload length
  * field.
  *
@@ -9242,10 +9241,10 @@ static int conn_enqueue_handshake_done(ngtcp2_conn *conn) {
  * |pktlen| is the length of the buffer.  |path| is the network path.
  *
  * This function returns the number of bytes processed.  Unless the
- * last packet is Short packet and an application decryption key has
+ * last packet is 1RTT packet and an application decryption key has
  * been installed, it returns |pktlen| if it succeeds.  If it finds
- * Short packet and an application decryption key has been installed,
- * it returns the number of bytes just before Short packet begins.
+ * 1RTT packet and an application decryption key has been installed,
+ * it returns the number of bytes just before 1RTT packet begins.
  *
  * This function returns the number of bytes processed if it succeeds,
  * or one of the following negative error codes: (TBD).
@@ -9380,10 +9379,10 @@ static ngtcp2_ssize conn_read_handshake(ngtcp2_conn *conn,
       }
 
       if ((size_t)nread < pktlen) {
-        /* We have Short packet and application rx key, but the
+        /* We have 1RTT packet and application rx key, but the
            handshake has not completed yet. */
         ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                        "buffering Short packet len=%zu",
+                        "buffering 1RTT packet len=%zu",
                         pktlen - (size_t)nread);
 
         rv = conn_buffer_pkt(conn, &conn->pktns, path, pi, pkt + nread,
@@ -9616,7 +9615,7 @@ static int conn_validate_early_transport_params_limits(ngtcp2_conn *conn) {
 /*
  * conn_write_handshake writes QUIC handshake packets to the buffer
  * pointed by |dest| of length |destlen|.  |write_datalen| specifies
- * the expected length of 0RTT or Short packet payload.  Specify 0 to
+ * the expected length of 0RTT or 1RTT packet payload.  Specify 0 to
  * |write_datalen| if there is no such data.
  *
  * This function returns the number of bytes written to the buffer, or
@@ -11080,14 +11079,14 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     if (ngtcp2_pkt_get_type_long(conn->negotiated_version, dest[0]) ==
         NGTCP2_PKT_INITIAL) {
       /* We have added padding already, but in that case, there is no
-         space left to write Short packet. */
+         space left to write 1RTT packet. */
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
     }
 
     res = nwrite;
     dest += nwrite;
     destlen -= (size_t)nwrite;
-    /* Break here so that we can coalesces Short packets. */
+    /* Break here so that we can coalesces 1RTT packet. */
     break;
   case NGTCP2_CS_SERVER_INITIAL:
   case NGTCP2_CS_SERVER_WAIT_HANDSHAKE:
@@ -11158,7 +11157,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
           if (rtbent->hd.pkt_num != prev_in_pkt_num &&
               (rtbent->flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
             /* We have added padding already, but in that case, there
-               is no space left to write Short packet. */
+               is no space left to write 1RTT packet. */
             wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
           }
         }
@@ -11210,7 +11209,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     }
     /* dest and destlen have already been adjusted in ppe in the first
        run.  They are adjusted for probe packet later. */
-    nwrite = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_SHORT,
+    nwrite = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_1RTT,
                             wflags, ts);
     goto fin;
   } else {
@@ -11283,13 +11282,13 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
                     "transmit probe pkt left=%zu",
                     conn->pktns.rtb.probe_pkt_left);
 
-    nwrite = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_SHORT,
+    nwrite = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_1RTT,
                             wflags, ts);
 
     goto fin;
   }
 
-  nwrite = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_SHORT,
+  nwrite = conn_write_pkt(conn, pi, dest, destlen, vmsg, NGTCP2_PKT_1RTT,
                           wflags, ts);
   if (nwrite) {
     assert(nwrite != NGTCP2_ERR_NOBUF);
@@ -11297,7 +11296,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   }
 
   if (res == 0) {
-    nwrite = conn_write_ack_pkt(conn, pi, dest, origlen, NGTCP2_PKT_SHORT, ts);
+    nwrite = conn_write_ack_pkt(conn, pi, dest, origlen, NGTCP2_PKT_1RTT, ts);
   }
 
 fin:
@@ -11428,7 +11427,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
 
   if (conn->state == NGTCP2_CS_POST_HANDSHAKE ||
       (conn->server && conn->pktns.crypto.tx.ckm)) {
-    pkt_type = NGTCP2_PKT_SHORT;
+    pkt_type = NGTCP2_PKT_1RTT;
   } else if (hs_pktns && hs_pktns->crypto.tx.ckm) {
     pkt_type = NGTCP2_PKT_HANDSHAKE;
   } else if (in_pktns && in_pktns->crypto.tx.ckm) {
@@ -11520,7 +11519,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
   fr.connection_close.reason = (uint8_t *)reason;
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
-      conn, pi, dest, destlen, NGTCP2_PKT_SHORT, NGTCP2_WRITE_PKT_FLAG_NONE,
+      conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
       &conn->dcid.current.cid, &fr, NGTCP2_RTB_ENTRY_FLAG_NONE, NULL, ts);
 
   if (nwrite < 0) {
