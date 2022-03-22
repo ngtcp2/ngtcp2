@@ -70,7 +70,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
  *
  * # Frame event
  *
- * <DIR> <PKN> <PKTNAME>(<PKTTYPE>) <FRAMENAME>(<FRAMETYPE>)
+ * <DIR> <PKN> <PKTNAME> <FRAMENAME>(<FRAMETYPE>)
  *
  * <DIR>:
  *   Flow direction.  tx=transmission, rx=reception
@@ -79,10 +79,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
  *   Packet number.
  *
  * <PKTNAME>:
- *   Packet name.  (e.g., Initial, Handshake, S01)
- *
- * <PKTTYPE>:
- *   Packet type in hex string.
+ *   Packet name.  (e.g., Initial, Handshake, Short)
  *
  * <FRAMENAME>:
  *   Frame name.  (e.g., STREAM, ACK, PING)
@@ -95,16 +92,16 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
 
 /* TODO Split second and remaining fraction with comma */
 #define NGTCP2_LOG_HD "I%08" PRIu64 " 0x%s %s"
-#define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %s %" PRId64 " %s(0x%02x)"
+#define NGTCP2_LOG_PKT NGTCP2_LOG_HD " %s %" PRId64 " %s"
 #define NGTCP2_LOG_TP NGTCP2_LOG_HD " remote transport_parameters"
 
 #define NGTCP2_LOG_FRM_HD_FIELDS(DIR)                                          \
   timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "frm",      \
-      (DIR), hd->pkt_num, strpkttype(hd), hd->type
+      (DIR), hd->pkt_num, strpkttype(hd)
 
 #define NGTCP2_LOG_PKT_HD_FIELDS(DIR)                                          \
   timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "pkt",      \
-      (DIR), hd->pkt_num, strpkttype(hd), hd->type
+      (DIR), hd->pkt_num, strpkttype(hd)
 
 #define NGTCP2_LOG_TP_HD_FIELDS                                                \
   timestamp_cast(log->last_ts - log->ts), (const char *)log->scid, "cry"
@@ -741,8 +738,8 @@ void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
   }
 
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_RCV,
-                  "pkn=%" PRId64 " lost type=%s(0x%02x) sent_ts=%" PRIu64,
-                  pkt_num, strpkttype_type_flags(type, flags), type, sent_ts);
+                  "pkn=%" PRId64 " lost type=%s sent_ts=%" PRIu64, pkt_num,
+                  strpkttype_type_flags(type, flags), sent_ts);
 }
 
 static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
@@ -756,19 +753,18 @@ static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
 
   if (hd->type == NGTCP2_PKT_SHORT) {
     ngtcp2_log_info(
-        log, NGTCP2_LOG_EVENT_PKT,
-        "%s pkn=%" PRId64 " dcid=0x%s type=%s(0x%02x) k=%d", dir, hd->pkt_num,
+        log, NGTCP2_LOG_EVENT_PKT, "%s pkn=%" PRId64 " dcid=0x%s type=%s k=%d",
+        dir, hd->pkt_num,
         (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
-        strpkttype(hd), hd->type, (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) != 0);
+        strpkttype(hd), (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) != 0);
   } else {
     ngtcp2_log_info(
         log, NGTCP2_LOG_EVENT_PKT,
-        "%s pkn=%" PRId64
-        " dcid=0x%s scid=0x%s version=0x%08x type=%s(0x%02x) len=%zu",
+        "%s pkn=%" PRId64 " dcid=0x%s scid=0x%s version=0x%08x type=%s len=%zu",
         dir, hd->pkt_num,
         (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
         (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
-        hd->version, strpkttype(hd), hd->type, hd->len);
+        hd->version, strpkttype(hd), hd->len);
   }
 }
 
@@ -805,6 +801,6 @@ void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
 
 void ngtcp2_log_tx_cancel(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {
   ngtcp2_log_info(log, NGTCP2_LOG_EVENT_PKT,
-                  "cancel tx pkn=%" PRId64 " type=%s(0x%02x)", hd->pkt_num,
-                  strpkttype(hd), hd->type);
+                  "cancel tx pkn=%" PRId64 " type=%s", hd->pkt_num,
+                  strpkttype(hd));
 }
