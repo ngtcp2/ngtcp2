@@ -252,7 +252,7 @@ typedef struct ngtcp2_mem {
  *
  * :macro:`NGTCP2_PROTO_VER_V1` is the QUIC version 1.
  */
-#define NGTCP2_PROTO_VER_V1 0x00000001u
+#define NGTCP2_PROTO_VER_V1 ((uint32_t)0x00000001u)
 
 /**
  * @macro
@@ -261,7 +261,7 @@ typedef struct ngtcp2_mem {
  *
  * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
  */
-#define NGTCP2_PROTO_VER_V2 0x709a50c4u
+#define NGTCP2_PROTO_VER_V2 ((uint32_t)0x709a50c4u)
 
 /**
  * @macro
