@@ -801,7 +801,8 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
 /**
  * @enum
  *
- * :type:`ngtcp2_pkt_type` defines QUIC packet types.
+ * :type:`ngtcp2_pkt_type` defines QUIC version-independent QUIC
+ * packet types.
  */
 typedef enum ngtcp2_pkt_type {
   /**
@@ -817,19 +818,19 @@ typedef enum ngtcp2_pkt_type {
   /**
    * :enum:`NGTCP2_PKT_INITIAL` indicates Initial packet.
    */
-  NGTCP2_PKT_INITIAL = 0x0,
+  NGTCP2_PKT_INITIAL = 0x10,
   /**
    * :enum:`NGTCP2_PKT_0RTT` indicates 0RTT packet.
    */
-  NGTCP2_PKT_0RTT = 0x1,
+  NGTCP2_PKT_0RTT = 0x11,
   /**
    * :enum:`NGTCP2_PKT_HANDSHAKE` indicates Handshake packet.
    */
-  NGTCP2_PKT_HANDSHAKE = 0x2,
+  NGTCP2_PKT_HANDSHAKE = 0x12,
   /**
    * :enum:`NGTCP2_PKT_RETRY` indicates Retry packet.
    */
-  NGTCP2_PKT_RETRY = 0x3,
+  NGTCP2_PKT_RETRY = 0x13,
   /**
    * :enum:`NGTCP2_PKT_SHORT` is defined by libngtcp2 for convenience.
    */
@@ -3313,18 +3314,15 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
  * whether packet |pkt| of length |pktlen| from client is acceptable
  * for the very initial packet to a connection.
  *
- * If |dest| is not ``NULL`` and the function returns 0,
- * :macro:`NGTCP2_ERR_RETRY`, or
- * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`, the decoded packet header
- * is stored to the object pointed by |dest|.
+ * If |dest| is not ``NULL`` and the function returns 0, or
+ * :macro:`NGTCP2_ERR_RETRY`, the decoded packet header is stored to
+ * the object pointed by |dest|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * :macro:`NGTCP2_ERR_RETRY`
  *     Retry packet should be sent.
- * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION`
- *     Version Negotiation packet should be sent.
  * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
  *     The packet is not acceptable for the very first packet to a new
  *     connection; or it failed to parse the packet header.

@@ -1824,15 +1824,6 @@ int Server::on_read(Endpoint &ep) {
       case NGTCP2_ERR_RETRY:
         send_retry(&hd, ep, *local_addr, &su.sa, msg.msg_namelen, nread * 3);
         continue;
-      case NGTCP2_ERR_VERSION_NEGOTIATION:
-        if (!config.quiet) {
-          std::cerr << "Unsupported version: Send Version Negotiation"
-                    << std::endl;
-        }
-        send_version_negotiation(hd.version, hd.scid.data, hd.scid.datalen,
-                                 hd.dcid.data, hd.dcid.datalen, ep, *local_addr,
-                                 &su.sa, msg.msg_namelen);
-        continue;
       default:
         if (!config.quiet) {
           std::cerr << "Unexpected packet received: length=" << nread

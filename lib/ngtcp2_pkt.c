@@ -201,8 +201,10 @@ ngtcp2_ssize ngtcp2_pkt_decode_hd_long(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
       flags |= NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR;
     }
 
-    type = ngtcp2_pkt_get_type_long(pkt[0]);
+    type = ngtcp2_pkt_get_type_long(version, pkt[0]);
     switch (type) {
+    case 0:
+      return NGTCP2_ERR_INVALID_ARGUMENT;
     case NGTCP2_PKT_INITIAL:
       len = 1 /* Token Length */ + NGTCP2_MIN_LONG_HEADERLEN -
             1; /* Cut packet number field */
@@ -399,7 +401,8 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 
   p = out;
 
-  *p = (uint8_t)(NGTCP2_HEADER_FORM_BIT | (hd->type << 4) |
+  *p = (uint8_t)(NGTCP2_HEADER_FORM_BIT |
+                 (ngtcp2_pkt_versioned_type(hd->version, hd->type) << 4) |
                  (uint8_t)(hd->pkt_numlen - 1));
   if (!(hd->flags & NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR)) {
     *p |= NGTCP2_FIXED_BIT_MASK;
@@ -2455,8 +2458,51 @@ size_t ngtcp2_pkt_datagram_framelen(size_t len) {
   return 1 /* type */ + ngtcp2_put_varint_len(len) + len;
 }
 
-uint8_t ngtcp2_pkt_get_type_long(uint8_t c) {
-  return (uint8_t)((c & NGTCP2_LONG_TYPE_MASK) >> 4);
+int ngtcp2_pkt_is_supported_version(uint32_t version) {
+  switch (version) {
+  case NGTCP2_PROTO_VER_V1:
+    return 1;
+  default:
+    return NGTCP2_PROTO_VER_DRAFT_MIN <= version &&
+           version <= NGTCP2_PROTO_VER_DRAFT_MAX;
+  }
+}
+
+uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
+  if (!ngtcp2_pkt_is_supported_version(version)) {
+    return 0;
+  }
+
+  switch ((c & NGTCP2_LONG_TYPE_MASK) >> 4) {
+  case NGTCP2_PKT_TYPE_INITIAL_V1:
+    return NGTCP2_PKT_INITIAL;
+  case NGTCP2_PKT_TYPE_0RTT_V1:
+    return NGTCP2_PKT_0RTT;
+  case NGTCP2_PKT_TYPE_HANDSHAKE_V1:
+    return NGTCP2_PKT_HANDSHAKE;
+  case NGTCP2_PKT_TYPE_RETRY_V1:
+    return NGTCP2_PKT_RETRY;
+  default:
+    return 0;
+  }
+}
+
+uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
+  assert(ngtcp2_pkt_is_supported_version(version));
+
+  switch(pkt_type) {
+  case NGTCP2_PKT_INITIAL:
+    return NGTCP2_PKT_TYPE_INITIAL_V1;
+  case NGTCP2_PKT_0RTT:
+    return NGTCP2_PKT_TYPE_0RTT_V1;
+  case NGTCP2_PKT_HANDSHAKE:
+    return NGTCP2_PKT_TYPE_HANDSHAKE_V1;
+  case NGTCP2_PKT_RETRY:
+    return NGTCP2_PKT_TYPE_RETRY_V1;
+  default:
+    assert(0);
+    abort();
+  }
 }
 
 int ngtcp2_pkt_verify_reserved_bits(uint8_t c) {

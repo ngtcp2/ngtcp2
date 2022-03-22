@@ -238,7 +238,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
 
   /* Handshake */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
-                     &dcid, &scid, 0xe1e2e3e4u, 4, 0x000000ff, 16383);
+                     &dcid, &scid, 0xe1e2e3e4u, 4, NGTCP2_PROTO_VER_V1, 16383);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
@@ -261,7 +261,8 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   /* Handshake without Fixed Bit set */
   ngtcp2_pkt_hd_init(
       &hd, NGTCP2_PKT_FLAG_LONG_FORM | NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR,
-      NGTCP2_PKT_HANDSHAKE, &dcid, &scid, 0xe1e2e3e4u, 4, 0x000000ff, 16383);
+      NGTCP2_PKT_HANDSHAKE, &dcid, &scid, 0xe1e2e3e4u, 4, NGTCP2_PROTO_VER_V1,
+      16383);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
 
@@ -284,9 +285,11 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   /* VN */
   /* Set random packet type */
   ngtcp2_pkt_hd_init(&hd, NGTCP2_PKT_FLAG_LONG_FORM, NGTCP2_PKT_HANDSHAKE,
-                     &dcid, &scid, 0, 4, 0, 0);
+                     &dcid, &scid, 0, 4, NGTCP2_PROTO_VER_V1, 0);
 
   rv = ngtcp2_pkt_encode_hd_long(buf, sizeof(buf), &hd);
+  /* Set version field to 0 */
+  memset(&buf[1], 0, 4);
 
   len = 1 + 4 + 1 + dcid.datalen + 1 + scid.datalen;
 
@@ -300,7 +303,7 @@ void test_ngtcp2_pkt_decode_hd_long(void) {
   CU_ASSERT(ngtcp2_cid_eq(&hd.dcid, &nhd.dcid));
   CU_ASSERT(ngtcp2_cid_eq(&hd.scid, &nhd.scid));
   CU_ASSERT(hd.pkt_num == nhd.pkt_num);
-  CU_ASSERT(hd.version == nhd.version);
+  CU_ASSERT(0 == nhd.version);
   CU_ASSERT(hd.len == nhd.len);
 }
 
