@@ -625,6 +625,25 @@ struct ngtcp2_conn {
     ngtcp2_duration timeout;
   } keep_alive;
 
+  struct {
+    /* Initial keys for negotiated version.  If original version ==
+       negotiated version, these fields are not used. */
+    struct {
+      ngtcp2_crypto_km *ckm;
+      ngtcp2_crypto_cipher_ctx hp_ctx;
+    } rx;
+    struct {
+      ngtcp2_crypto_km *ckm;
+      ngtcp2_crypto_cipher_ctx hp_ctx;
+    } tx;
+    /* version is QUIC version that the above Initial keys are created
+       for. */
+    uint32_t version;
+    /* other_versions is the versions that the local endpoint sends in
+       version_information transport parameter. */
+    uint8_t other_versions[sizeof(uint32_t) * 2];
+  } vneg;
+
   ngtcp2_map strms;
   ngtcp2_conn_stat cstat;
   ngtcp2_pv *pv;
@@ -637,7 +656,8 @@ struct ngtcp2_conn {
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
   void *user_data;
-  uint32_t version;
+  uint32_t original_version;
+  uint32_t negotiated_version;
   /* flags is bitwise OR of zero or more of NGTCP2_CONN_FLAG_*. */
   uint32_t flags;
   int server;

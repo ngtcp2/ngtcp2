@@ -257,6 +257,15 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
+ * :macro:`NGTCP2_PROTO_VER_V2` is the QUIC version 2.
+ *
+ * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ */
+#define NGTCP2_PROTO_VER_V2 0x709a50c4u
+
+/**
+ * @macro
+ *
  * :macro:`NGTCP2_PROTO_VER_DRAFT_MAX` is the maximum QUIC draft
  * version that this library supports.
  */
@@ -276,7 +285,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version that this
  * library supports.
  */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_V1
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_V2
 
 /**
  * @macro
@@ -372,6 +381,27 @@ typedef struct ngtcp2_mem {
  * tag of Retry packet.  It is used for QUIC v1.
  */
 #define NGTCP2_RETRY_NONCE_V1 "\x46\x15\x99\xd3\x5d\x63\x2b\xf2\x23\x98\x25\xbb"
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_RETRY_KEY_V2` is an encryption key to create
+ * integrity tag of Retry packet.  It is used for QUIC v2.
+ *
+ * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ */
+#define NGTCP2_RETRY_KEY_V2                                                    \
+  "\xba\x85\x8d\xc7\xb4\x3d\xe5\xdb\xf8\x76\x17\xff\x4a\xb2\x53\xdb"
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_RETRY_NONCE_V2` is nonce used when generating
+ * integrity tag of Retry packet.  It is used for QUIC v2.
+ *
+ * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ */
+#define NGTCP2_RETRY_NONCE_V2 "\x14\x1b\x99\xc2\x39\xb0\x3e\x78\x5d\x6a\x2e\x9f"
 
 /**
  * @macro
@@ -743,6 +773,13 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
 /**
  * @macro
  *
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE` indicates the
+ * version negotiation failed.
+ */
+#define NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE -247
+/**
+ * @macro
+ *
  * :macro:`NGTCP2_ERR_FATAL` indicates that error codes less than this
  * value is fatal error.  When this error is returned, an endpoint
  * should drop connection immediately.
@@ -985,6 +1022,16 @@ typedef enum ngtcp2_pkt_type {
  * ``CRYPTO_ERROR``.
  */
 #define NGTCP2_CRYPTO_ERROR 0x100u
+
+/**
+ * @macro
+ *
+ * :macro:`NGTCP2_VERSION_NEGOTIATION_ERROR` is QUIC transport error
+ * code ``VERSION_NEGOTIATION_ERROR``.
+ *
+ * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
+ */
+#define NGTCP2_VERSION_NEGOTIATION_ERROR 0x53f8u
 
 /**
  * @enum
@@ -1266,6 +1313,29 @@ typedef struct ngtcp2_preferred_addr {
   uint8_t stateless_reset_token[NGTCP2_STATELESS_RESET_TOKENLEN];
 } ngtcp2_preferred_addr;
 
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_version_info` represents version_information
+ * structure.
+ */
+typedef struct ngtcp2_version_info {
+  /**
+   * :member:`chosen_version` is the version chosen by the sender.
+   */
+  uint32_t chosen_version;
+  /**
+   * :member:`other_versions` points the wire image of other_versions
+   * field.  The each version is therefore in network byte order.
+   */
+  uint8_t *other_versions;
+  /**
+   * :member:`other_versionslen` is the number of bytes pointed by
+   * :member:`other_versions`, not the number of versions included.
+   */
+  size_t other_versionslen;
+} ngtcp2_version_info;
+
 #define NGTCP2_TRANSPORT_PARAMS_VERSION_V1 1
 #define NGTCP2_TRANSPORT_PARAMS_VERSION NGTCP2_TRANSPORT_PARAMS_VERSION_V1
 
@@ -1408,6 +1478,18 @@ typedef struct ngtcp2_transport_params {
    * regardless of this field value.
    */
   uint8_t grease_quic_bit;
+  /**
+   * :member:`version_info` contains version_information field if
+   * :member:`version_info_present` is nonzero.  Application should
+   * not specify this field.
+   */
+  ngtcp2_version_info version_info;
+  /**
+   * :member:`version_info_present` is nonzero if
+   * :member:`version_info` is set.  Application should not specify
+   * this field.
+   */
+  uint8_t version_info_present;
 } ngtcp2_transport_params;
 
 /**
@@ -3011,6 +3093,27 @@ typedef int (*ngtcp2_stream_stop_sending)(ngtcp2_conn *conn, int64_t stream_id,
                                           void *user_data,
                                           void *stream_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_version_negotiation` is invoked when the compatible
+ * version negotiation takes place.  For client, it is called when it
+ * sees a change in version field of a long header packet.  This
+ * callback function might be called multiple times for client.  For
+ * server, it is called once when the version is negotiated.
+ *
+ * The implementation of this callback must install new Initial keys
+ * for |version|.  Use `ngtcp2_conn_install_vneg_initial_key` to
+ * install keys.
+ *
+ * The callback function must return 0 if it succeeds.  Returning
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
+ * immediately.
+ */
+typedef int (*ngtcp2_version_negotiation)(ngtcp2_conn *conn, uint32_t version,
+                                          const ngtcp2_cid *client_dcid,
+                                          void *user_data);
+
 #define NGTCP2_CALLBACKS_VERSION_V1 1
 #define NGTCP2_CALLBACKS_VERSION NGTCP2_CALLBACKS_VERSION_V1
 
@@ -3249,6 +3352,12 @@ typedef struct ngtcp2_callbacks {
    * optional.
    */
   ngtcp2_stream_stop_sending stream_stop_sending;
+  /**
+   * :member:`version_negotiation` is a callback function which is
+   * invoked when the compatible version negotiation takes place.
+   * This callback function must be specified.
+   */
+  ngtcp2_version_negotiation version_negotiation;
 } ngtcp2_callbacks;
 
 /**
@@ -3492,6 +3601,42 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
 NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
     ngtcp2_conn *conn, const ngtcp2_crypto_aead_ctx *rx_aead_ctx,
     const uint8_t *rx_iv, const ngtcp2_crypto_cipher_ctx *rx_hp_ctx,
+    const ngtcp2_crypto_aead_ctx *tx_aead_ctx, const uint8_t *tx_iv,
+    const ngtcp2_crypto_cipher_ctx *tx_hp_ctx, size_t ivlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_install_vneg_initial_key` installs packet protection
+ * keying materials for Initial packets on compatible version
+ * negotiation for |version|.  |rx_aead_ctx| is AEAD cipher context
+ * object and must be initialized with a decryption key.  |rx_iv| is
+ * IV of length |rx_ivlen| for decryption.  |rx_hp_ctx| is a packet
+ * header protection cipher context object for decryption.  Similarly,
+ * |tx_aead_ctx|, |tx_iv| and |tx_hp_ctx| are for encrypting outgoing
+ * packets and are the same length with the decryption counterpart .
+ * If they have already been set, they are overwritten.
+ *
+ * |ivlen| must be the minimum length of AEAD nonce, or 8 bytes if
+ * that is larger.
+ *
+ * If this function succeeds, |conn| takes ownership of |rx_aead_ctx|,
+ * |rx_hp_ctx|, |tx_aead_ctx|, and |tx_hp_ctx|.
+ * :type:`ngtcp2_delete_crypto_aead_ctx` and
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
+ * these objects when they are no longer used.  If this function
+ * fails, the caller is responsible to delete them.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_install_vneg_initial_key(
+    ngtcp2_conn *conn, uint32_t version,
+    const ngtcp2_crypto_aead_ctx *rx_aead_ctx, const uint8_t *rx_iv,
+    const ngtcp2_crypto_cipher_ctx *rx_hp_ctx,
     const ngtcp2_crypto_aead_ctx *tx_aead_ctx, const uint8_t *tx_iv,
     const ngtcp2_crypto_cipher_ctx *tx_hp_ctx, size_t ivlen);
 
@@ -4494,6 +4639,8 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_get_original_version(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_get_negotiated_version` returns the negotiated version.
+ *
+ * Until the version is negotiated, this function returns 0.
  */
 NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
 

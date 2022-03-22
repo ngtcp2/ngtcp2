@@ -710,6 +710,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       nullptr, // ack_datagram
       nullptr, // lost_datagram
       ngtcp2_crypto_get_path_challenge_data_cb,
+      nullptr, // stream_stop_sending
+      ngtcp2_crypto_version_negotiation_cb,
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;

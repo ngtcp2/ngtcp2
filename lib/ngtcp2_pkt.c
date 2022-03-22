@@ -68,7 +68,7 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
   size_t len;
   uint32_t version;
   size_t dcidlen, scidlen;
-  int unsupported_version;
+  int supported_version;
 
   assert(datalen);
 
@@ -96,18 +96,15 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
 
     version = ngtcp2_get_uint32(&data[1]);
 
-    if ((version == 0 || version == NGTCP2_PROTO_VER_V1 ||
-         (NGTCP2_PROTO_VER_DRAFT_MIN <= version &&
-          version <= NGTCP2_PROTO_VER_DRAFT_MAX)) &&
+    supported_version = ngtcp2_pkt_is_supported_version(version);
+
+    if (supported_version &&
         (dcidlen > NGTCP2_MAX_CIDLEN || scidlen > NGTCP2_MAX_CIDLEN)) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
-    unsupported_version = version && version != NGTCP2_PROTO_VER_V1 &&
-                          (version < NGTCP2_PROTO_VER_DRAFT_MIN ||
-                           NGTCP2_PROTO_VER_DRAFT_MAX < version);
-
-    if (unsupported_version && datalen < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
+    if (version && !supported_version &&
+        datalen < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
       return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
@@ -117,7 +114,12 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
     *pscid = &data[6 + dcidlen + 1];
     *pscidlen = scidlen;
 
-    if (unsupported_version) {
+    if (!version) {
+      /* VN */
+      return 0;
+    }
+
+    if (!supported_version) {
       return NGTCP2_ERR_VERSION_NEGOTIATION;
     }
     return 0;
@@ -2461,6 +2463,7 @@ size_t ngtcp2_pkt_datagram_framelen(size_t len) {
 int ngtcp2_pkt_is_supported_version(uint32_t version) {
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
+  case NGTCP2_PROTO_VER_V2:
     return 1;
   default:
     return NGTCP2_PROTO_VER_DRAFT_MIN <= version &&
@@ -2469,36 +2472,79 @@ int ngtcp2_pkt_is_supported_version(uint32_t version) {
 }
 
 uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
+  uint8_t pkt_type;
+
   if (!ngtcp2_pkt_is_supported_version(version)) {
     return 0;
   }
 
-  switch ((c & NGTCP2_LONG_TYPE_MASK) >> 4) {
-  case NGTCP2_PKT_TYPE_INITIAL_V1:
-    return NGTCP2_PKT_INITIAL;
-  case NGTCP2_PKT_TYPE_0RTT_V1:
-    return NGTCP2_PKT_0RTT;
-  case NGTCP2_PKT_TYPE_HANDSHAKE_V1:
-    return NGTCP2_PKT_HANDSHAKE;
-  case NGTCP2_PKT_TYPE_RETRY_V1:
-    return NGTCP2_PKT_RETRY;
+  pkt_type = (uint8_t)((c & NGTCP2_LONG_TYPE_MASK) >> 4);
+
+  switch (version) {
+  case NGTCP2_PROTO_VER_V1:
+    switch (pkt_type) {
+    case NGTCP2_PKT_TYPE_INITIAL_V1:
+      return NGTCP2_PKT_INITIAL;
+    case NGTCP2_PKT_TYPE_0RTT_V1:
+      return NGTCP2_PKT_0RTT;
+    case NGTCP2_PKT_TYPE_HANDSHAKE_V1:
+      return NGTCP2_PKT_HANDSHAKE;
+    case NGTCP2_PKT_TYPE_RETRY_V1:
+      return NGTCP2_PKT_RETRY;
+    default:
+      return 0;
+    }
+  case NGTCP2_PROTO_VER_V2:
+    switch (pkt_type) {
+    case NGTCP2_PKT_TYPE_INITIAL_V2:
+      return NGTCP2_PKT_INITIAL;
+    case NGTCP2_PKT_TYPE_0RTT_V2:
+      return NGTCP2_PKT_0RTT;
+    case NGTCP2_PKT_TYPE_HANDSHAKE_V2:
+      return NGTCP2_PKT_HANDSHAKE;
+    case NGTCP2_PKT_TYPE_RETRY_V2:
+      return NGTCP2_PKT_RETRY;
+    default:
+      return 0;
+    }
   default:
-    return 0;
+    assert(0);
+    abort();
   }
 }
 
 uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
   assert(ngtcp2_pkt_is_supported_version(version));
 
-  switch(pkt_type) {
-  case NGTCP2_PKT_INITIAL:
-    return NGTCP2_PKT_TYPE_INITIAL_V1;
-  case NGTCP2_PKT_0RTT:
-    return NGTCP2_PKT_TYPE_0RTT_V1;
-  case NGTCP2_PKT_HANDSHAKE:
-    return NGTCP2_PKT_TYPE_HANDSHAKE_V1;
-  case NGTCP2_PKT_RETRY:
-    return NGTCP2_PKT_TYPE_RETRY_V1;
+  switch (version) {
+  case NGTCP2_PROTO_VER_V1:
+    switch (pkt_type) {
+    case NGTCP2_PKT_INITIAL:
+      return NGTCP2_PKT_TYPE_INITIAL_V1;
+    case NGTCP2_PKT_0RTT:
+      return NGTCP2_PKT_TYPE_0RTT_V1;
+    case NGTCP2_PKT_HANDSHAKE:
+      return NGTCP2_PKT_TYPE_HANDSHAKE_V1;
+    case NGTCP2_PKT_RETRY:
+      return NGTCP2_PKT_TYPE_RETRY_V1;
+    default:
+      assert(0);
+      abort();
+    }
+  case NGTCP2_PROTO_VER_V2:
+    switch (pkt_type) {
+    case NGTCP2_PKT_INITIAL:
+      return NGTCP2_PKT_TYPE_INITIAL_V2;
+    case NGTCP2_PKT_0RTT:
+      return NGTCP2_PKT_TYPE_0RTT_V2;
+    case NGTCP2_PKT_HANDSHAKE:
+      return NGTCP2_PKT_TYPE_HANDSHAKE_V2;
+    case NGTCP2_PKT_RETRY:
+      return NGTCP2_PKT_TYPE_RETRY_V2;
+    default:
+      assert(0);
+      abort();
+    }
   default:
     assert(0);
     abort();

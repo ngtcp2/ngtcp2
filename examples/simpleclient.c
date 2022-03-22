@@ -378,6 +378,7 @@ static int client_quic_init(struct client *c,
       NULL, /* lost_datagram */
       ngtcp2_crypto_get_path_challenge_data_cb,
       NULL, /* stream_stop_sending */
+      ngtcp2_crypto_version_negotiation_cb,
   };
   ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;

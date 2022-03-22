@@ -34,6 +34,7 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_vec.h"
 #include "ngtcp2_macro.h"
+#include "ngtcp2_conv.h"
 
 void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
                      ngtcp2_printf log_printf, ngtcp2_tstamp ts,
@@ -140,6 +141,8 @@ static const char *strerrorcode(uint64_t error_code) {
     return "CRYPTO_BUFFER_EXCEEDED";
   case NGTCP2_KEY_UPDATE_ERROR:
     return "KEY_UPDATE_ERROR";
+  case NGTCP2_VERSION_NEGOTIATION_ERROR:
+    return "VERSION_NEGOTIATION_ERROR";
   default:
     if (0x100u <= error_code && error_code <= 0x1ffu) {
       return "CRYPTO_ERROR";
@@ -597,6 +600,7 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
   uint8_t token[NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1];
   uint8_t addr[16 * 2 + 7 + 1];
   uint8_t cid[NGTCP2_MAX_CIDLEN * 2 + 1];
+  size_t i;
 
   if (!log->log_printf) {
     return;
@@ -710,6 +714,24 @@ void ngtcp2_log_remote_tp(ngtcp2_log *log, uint8_t exttype,
                   NGTCP2_LOG_TP_HD_FIELDS, params->max_datagram_frame_size);
   log->log_printf(log->user_data, (NGTCP2_LOG_TP " grease_quic_bit=%d"),
                   NGTCP2_LOG_TP_HD_FIELDS, params->grease_quic_bit);
+
+  if (params->version_info_present) {
+    log->log_printf(
+        log->user_data,
+        (NGTCP2_LOG_TP " version_information.chosen_version=0x%08x"),
+        NGTCP2_LOG_TP_HD_FIELDS, params->version_info.chosen_version);
+
+    assert(!(params->version_info.other_versionslen & 0x3));
+
+    for (i = 0; i < params->version_info.other_versionslen;
+         i += sizeof(uint32_t)) {
+      log->log_printf(
+          log->user_data,
+          (NGTCP2_LOG_TP " version_information.other_versions[%zu]=0x%08x"),
+          NGTCP2_LOG_TP_HD_FIELDS, i >> 2,
+          ngtcp2_get_uint32(&params->version_info.other_versions[i]));
+    }
+  }
 }
 
 void ngtcp2_log_pkt_lost(ngtcp2_log *log, int64_t pkt_num, uint8_t type,
@@ -732,14 +754,22 @@ static void log_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
     return;
   }
 
-  ngtcp2_log_info(
-      log, NGTCP2_LOG_EVENT_PKT,
-      "%s pkn=%" PRId64 " dcid=0x%s scid=0x%s type=%s(0x%02x) len=%zu k=%d",
-      dir, hd->pkt_num,
-      (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
-      (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
-      strpkttype(hd), hd->type, hd->len,
-      (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) != 0);
+  if (hd->type == NGTCP2_PKT_SHORT) {
+    ngtcp2_log_info(
+        log, NGTCP2_LOG_EVENT_PKT,
+        "%s pkn=%" PRId64 " dcid=0x%s type=%s(0x%02x) k=%d", dir, hd->pkt_num,
+        (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
+        strpkttype(hd), hd->type, (hd->flags & NGTCP2_PKT_FLAG_KEY_PHASE) != 0);
+  } else {
+    ngtcp2_log_info(
+        log, NGTCP2_LOG_EVENT_PKT,
+        "%s pkn=%" PRId64
+        " dcid=0x%s scid=0x%s version=0x%08x type=%s(0x%02x) len=%zu",
+        dir, hd->pkt_num,
+        (const char *)ngtcp2_encode_hex(dcid, hd->dcid.data, hd->dcid.datalen),
+        (const char *)ngtcp2_encode_hex(scid, hd->scid.data, hd->scid.datalen),
+        hd->version, strpkttype(hd), hd->type, hd->len);
+  }
 }
 
 void ngtcp2_log_rx_pkt_hd(ngtcp2_log *log, const ngtcp2_pkt_hd *hd) {

@@ -67,6 +67,9 @@ callback functions must be set:
   directly.
 * :member:`get_path_challenge_data <ngtcp2_get_path_challenge_data>`:
   `ngtcp2_crypto_get_path_challenge_data_cb()` can be passed directly.
+* :member:`version_negotiation
+  <ngtcp2_callbacks.version_negotiation>`:
+  `ngtcp2_crypto_version_negotiation_cb()` can be passed directly.
 
 For server application, the following callback functions must be set:
 
@@ -95,6 +98,9 @@ For server application, the following callback functions must be set:
   directly.
 * :member:`get_path_challenge_data <ngtcp2_get_path_challenge_data>`:
   `ngtcp2_crypto_get_path_challenge_data_cb()` can be passed directly.
+* :member:`version_negotiation
+  <ngtcp2_callbacks.version_negotiation>`:
+  `ngtcp2_crypto_version_negotiation_cb()` can be passed directly.
 
 ``ngtcp2_crypto_*`` functions are a part of :doc:`ngtcp2 crypto API
 <crypto_apiref>` which provides easy integration with the supported

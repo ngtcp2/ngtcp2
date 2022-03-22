@@ -58,7 +58,7 @@ int set_additional_extensions(ptls_handshake_properties_t &hsprops,
 
   ngtcp2_conn_get_local_transport_params(conn, &params);
 
-  constexpr size_t paramsbuflen = 64;
+  constexpr size_t paramsbuflen = 256;
   auto paramsbuf = std::make_unique<uint8_t[]>(paramsbuflen);
 
   auto nwrite = ngtcp2_encode_transport_params(

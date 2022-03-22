@@ -836,6 +836,21 @@ NGTCP2_EXTERN int ngtcp2_crypto_get_path_challenge_data_cb(ngtcp2_conn *conn,
                                                            uint8_t *data,
                                                            void *user_data);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_version_negotiation_cb` installs Initial keys for
+ * |version| which is negotiated or being negotiated.  |client_dcid|
+ * is the destination connection ID in first Initial packet of client.
+ *
+ * This function can be directly passed to
+ * :member:`ngtcp2_callbacks.version_negotiation` field.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_version_negotiation_cb(ngtcp2_conn *conn, uint32_t version,
+                                     const ngtcp2_cid *client_dcid,
+                                     void *user_data);
+
 #ifdef __cplusplus
 }
 #endif
