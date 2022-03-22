@@ -75,8 +75,8 @@ int alpn_select_proto_h3_cb(SSL *ssl, const unsigned char **out,
     alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_DRAFT32);
     alpnlen = str_size(H3_ALPN_DRAFT32);
     break;
-  case QUIC_VER_V1:
-  case QUIC_VER_V2:
+  case NGTCP2_PROTO_VER_V1:
+  case NGTCP2_PROTO_VER_V2:
     alpn = reinterpret_cast<const uint8_t *>(H3_ALPN_V1);
     alpnlen = str_size(H3_ALPN_V1);
     break;
@@ -132,8 +132,8 @@ int alpn_select_proto_hq_cb(SSL *ssl, const unsigned char **out,
     alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_DRAFT32);
     alpnlen = str_size(HQ_ALPN_DRAFT32);
     break;
-  case QUIC_VER_V1:
-  case QUIC_VER_V2:
+  case NGTCP2_PROTO_VER_V1:
+  case NGTCP2_PROTO_VER_V2:
     alpn = reinterpret_cast<const uint8_t *>(HQ_ALPN_V1);
     alpnlen = str_size(HQ_ALPN_V1);
     break;
