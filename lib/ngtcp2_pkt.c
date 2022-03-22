@@ -2284,10 +2284,16 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(
     return pseudo_retrylen;
   }
 
-  if (version == NGTCP2_PROTO_VER_V1) {
+  switch (version) {
+  case NGTCP2_PROTO_VER_V1:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
-  } else {
+    break;
+  case NGTCP2_PROTO_VER_V2:
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
+    break;
+  default:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_DRAFT;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_DRAFT) - 1;
   }
@@ -2370,10 +2376,16 @@ int ngtcp2_pkt_verify_retry_tag(uint32_t version, const ngtcp2_pkt_retry *retry,
 
   pseudo_retrylen = (size_t)(p - pseudo_retry);
 
-  if (version == NGTCP2_PROTO_VER_V1) {
+  switch (version) {
+  case NGTCP2_PROTO_VER_V1:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
-  } else {
+    break;
+  case NGTCP2_PROTO_VER_V2:
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
+    break;
+  default:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_DRAFT;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_DRAFT) - 1;
   }
@@ -2472,28 +2484,9 @@ int ngtcp2_pkt_is_supported_version(uint32_t version) {
 }
 
 uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
-  uint8_t pkt_type;
-
-  if (!ngtcp2_pkt_is_supported_version(version)) {
-    return 0;
-  }
-
-  pkt_type = (uint8_t)((c & NGTCP2_LONG_TYPE_MASK) >> 4);
+  uint8_t pkt_type = (uint8_t)((c & NGTCP2_LONG_TYPE_MASK) >> 4);
 
   switch (version) {
-  case NGTCP2_PROTO_VER_V1:
-    switch (pkt_type) {
-    case NGTCP2_PKT_TYPE_INITIAL_V1:
-      return NGTCP2_PKT_INITIAL;
-    case NGTCP2_PKT_TYPE_0RTT_V1:
-      return NGTCP2_PKT_0RTT;
-    case NGTCP2_PKT_TYPE_HANDSHAKE_V1:
-      return NGTCP2_PKT_HANDSHAKE;
-    case NGTCP2_PKT_TYPE_RETRY_V1:
-      return NGTCP2_PKT_RETRY;
-    default:
-      return 0;
-    }
   case NGTCP2_PROTO_VER_V2:
     switch (pkt_type) {
     case NGTCP2_PKT_TYPE_INITIAL_V2:
@@ -2508,8 +2501,24 @@ uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
       return 0;
     }
   default:
-    assert(0);
-    abort();
+    if (!ngtcp2_pkt_is_supported_version(version)) {
+      return 0;
+    }
+
+    /* QUIC v1 and draft versions share the same numeric packet
+       types. */
+    switch (pkt_type) {
+    case NGTCP2_PKT_TYPE_INITIAL_V1:
+      return NGTCP2_PKT_INITIAL;
+    case NGTCP2_PKT_TYPE_0RTT_V1:
+      return NGTCP2_PKT_0RTT;
+    case NGTCP2_PKT_TYPE_HANDSHAKE_V1:
+      return NGTCP2_PKT_HANDSHAKE;
+    case NGTCP2_PKT_TYPE_RETRY_V1:
+      return NGTCP2_PKT_RETRY;
+    default:
+      return 0;
+    }
   }
 }
 
@@ -2517,20 +2526,6 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
   assert(ngtcp2_pkt_is_supported_version(version));
 
   switch (version) {
-  case NGTCP2_PROTO_VER_V1:
-    switch (pkt_type) {
-    case NGTCP2_PKT_INITIAL:
-      return NGTCP2_PKT_TYPE_INITIAL_V1;
-    case NGTCP2_PKT_0RTT:
-      return NGTCP2_PKT_TYPE_0RTT_V1;
-    case NGTCP2_PKT_HANDSHAKE:
-      return NGTCP2_PKT_TYPE_HANDSHAKE_V1;
-    case NGTCP2_PKT_RETRY:
-      return NGTCP2_PKT_TYPE_RETRY_V1;
-    default:
-      assert(0);
-      abort();
-    }
   case NGTCP2_PROTO_VER_V2:
     switch (pkt_type) {
     case NGTCP2_PKT_INITIAL:
@@ -2546,8 +2541,21 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
       abort();
     }
   default:
-    assert(0);
-    abort();
+    /* QUIC v1 and draft versions share the same numeric packet
+       types. */
+    switch (pkt_type) {
+    case NGTCP2_PKT_INITIAL:
+      return NGTCP2_PKT_TYPE_INITIAL_V1;
+    case NGTCP2_PKT_0RTT:
+      return NGTCP2_PKT_TYPE_0RTT_V1;
+    case NGTCP2_PKT_HANDSHAKE:
+      return NGTCP2_PKT_TYPE_HANDSHAKE_V1;
+    case NGTCP2_PKT_RETRY:
+      return NGTCP2_PKT_TYPE_RETRY_V1;
+    default:
+      assert(0);
+      abort();
+    }
   }
 }
 
