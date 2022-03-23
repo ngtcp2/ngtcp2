@@ -26,7 +26,6 @@
 
 #include <assert.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "ngtcp2_conv.h"
 #include "ngtcp2_str.h"
