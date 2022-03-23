@@ -146,7 +146,7 @@ struct client {
     size_t nwrite;
   } stream;
 
-  uint64_t last_error;
+  ngtcp2_connection_close_error last_error;
 
   ev_io rev;
   ev_timer timer;
@@ -203,7 +203,8 @@ static int send_alert(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
   struct client *c = SSL_get_app_data(ssl);
   (void)ossl_level;
 
-  c->last_error = NGTCP2_CRYPTO_ERROR | alert;
+  ngtcp2_connection_close_error_set_transport_error_tls_alert(&c->last_error,
+                                                              alert, NULL, 0);
 
   return 1;
 }
@@ -472,11 +473,13 @@ static int client_read(struct client *c) {
       case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
       case NGTCP2_ERR_TRANSPORT_PARAM:
       case NGTCP2_ERR_PROTO:
-        c->last_error = ngtcp2_err_infer_quic_transport_error_code(rv);
+        ngtcp2_connection_close_error_set_transport_error_liberr(&c->last_error,
+                                                                 rv, NULL, 0);
         break;
       default:
-        if (!c->last_error) {
-          c->last_error = ngtcp2_err_infer_quic_transport_error_code(rv);
+        if (!c->last_error.error_code) {
+          ngtcp2_connection_close_error_set_transport_error_liberr(
+              &c->last_error, rv, NULL, 0);
         }
         break;
       }
@@ -568,7 +571,8 @@ static int client_write_streams(struct client *c) {
       default:
         fprintf(stderr, "ngtcp2_conn_writev_stream: %s\n",
                 ngtcp2_strerror((int)nwrite));
-        c->last_error = ngtcp2_err_infer_quic_transport_error_code((int)nwrite);
+        ngtcp2_connection_close_error_set_transport_error_liberr(
+            &c->last_error, (int)nwrite, NULL, 0);
         return -1;
       }
     }
@@ -626,15 +630,14 @@ static void client_close(struct client *c) {
   ngtcp2_path_storage ps;
   uint8_t buf[1280];
 
-  if (ngtcp2_conn_is_in_closing_period(c->conn) || !c->last_error) {
+  if (ngtcp2_conn_is_in_closing_period(c->conn) || !c->last_error.error_code) {
     goto fin;
   }
 
   ngtcp2_path_storage_zero(&ps);
 
-  nwrite = ngtcp2_conn_write_connection_close(c->conn, &ps.path, &pi, buf,
-                                              sizeof(buf), c->last_error, NULL,
-                                              0, timestamp());
+  nwrite = ngtcp2_conn_write_connection_close(
+      c->conn, &ps.path, &pi, buf, sizeof(buf), &c->last_error, timestamp());
   if (nwrite < 0) {
     fprintf(stderr, "ngtcp2_conn_write_connection_close: %s\n",
             ngtcp2_strerror((int)nwrite));
@@ -692,6 +695,8 @@ static int client_init(struct client *c) {
   socklen_t remote_addrlen, local_addrlen = sizeof(local_addr);
 
   memset(c, 0, sizeof(*c));
+
+  ngtcp2_connection_close_error_default(&c->last_error);
 
   c->fd = create_sock((struct sockaddr *)&remote_addr, &remote_addrlen,
                       REMOTE_HOST, REMOTE_PORT);

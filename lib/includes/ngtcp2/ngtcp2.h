@@ -4236,8 +4236,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  *
  * When application sees :macro:`NGTCP2_ERR_WRITE_MORE`, it must not
  * call other ngtcp2 API functions (application can still call
- * `ngtcp2_conn_write_connection_close` or
- * `ngtcp2_conn_write_application_close` to handle error from this
+ * `ngtcp2_conn_write_connection_close` to handle error from this
  * function).  Just keep calling `ngtcp2_conn_writev_stream`,
  * `ngtcp2_conn_write_pkt`, or `ngtcp2_conn_writev_datagram` until it
  * returns a positive number (which indicates a complete packet is
@@ -4367,8 +4366,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  *
  * When application sees :macro:`NGTCP2_ERR_WRITE_MORE`, it must not
  * call other ngtcp2 API functions (application can still call
- * `ngtcp2_conn_write_connection_close` or
- * `ngtcp2_conn_write_application_close` to handle error from this
+ * `ngtcp2_conn_write_connection_close` to handle error from this
  * function).  Just keep calling `ngtcp2_conn_writev_datagram`,
  * `ngtcp2_conn_writev_stream` or `ngtcp2_conn_write_pkt` until it
  * returns a positive number (which indicates a complete packet is
@@ -4405,100 +4403,6 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, int *paccepted,
     uint32_t flags, uint64_t dgram_id, const ngtcp2_vec *datav, size_t datavcnt,
     ngtcp2_tstamp ts);
-
-/**
- * @function
- *
- * `ngtcp2_conn_write_connection_close` writes a packet which contains
- * a CONNECTION_CLOSE frame (type 0x1c) in the buffer pointed by
- * |dest| whose capacity is |datalen|.
- *
- * If |path| is not ``NULL``, this function stores the network path
- * with which the packet should be sent.  Each addr field must point
- * to the buffer which should be at least ``sizeof(struct
- * sockaddr_storage)`` bytes long.  The assignment might not be done
- * if nothing is written to |dest|.
- *
- * If |pi| is not ``NULL``, this function stores packet metadata in it
- * if it succeeds.  The metadata includes ECN markings.
- *
- * This function must not be called from inside the callback
- * functions.
- *
- * At the moment, successful call to this function makes connection
- * close.  We may change this behaviour in the future to allow
- * graceful shutdown.
- *
- * This function returns the number of bytes written in |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * :macro:`NGTCP2_ERR_NOMEM`
- *     Out of memory
- * :macro:`NGTCP2_ERR_NOBUF`
- *     Buffer is too small
- * :macro:`NGTCP2_ERR_INVALID_STATE`
- *     The current state does not allow sending CONNECTION_CLOSE.
- * :macro:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
- *     Packet number is exhausted, and cannot send any more packet.
- * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
- *     User callback failed
- *
- * TODO: Deprecated, remove this function in favor of
- * ngtcp2_conn_write_connection_close2_versioned.
- */
-NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
-    ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
-    ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, uint64_t error_code,
-    const uint8_t *reason, size_t reasonlen, ngtcp2_tstamp ts);
-
-/**
- * @function
- *
- * `ngtcp2_conn_write_application_close` writes a packet which
- * contains a CONNECTION_CLOSE frame (type 0x1d) in the buffer pointed
- * by |dest| whose capacity is |datalen|.
- *
- * If |path| is not ``NULL``, this function stores the network path
- * with which the packet should be sent.  Each addr field must point
- * to the buffer which should be at least ``sizeof(struct
- * sockaddr_storage)`` bytes long.  The assignment might not be done
- * if nothing is written to |dest|.
- *
- * If |pi| is not ``NULL``, this function stores packet metadata in it
- * if it succeeds.  The metadata includes ECN markings.
- *
- * If handshake has not been confirmed yet, CONNECTION_CLOSE (type
- * 0x1c) with error code :macro:`NGTCP2_APPLICATION_ERROR` is written
- * instead.
- *
- * This function must not be called from inside the callback
- * functions.
- *
- * At the moment, successful call to this function makes connection
- * close.  We may change this behaviour in the future to allow
- * graceful shutdown.
- *
- * This function returns the number of bytes written in |dest| if it
- * succeeds, or one of the following negative error codes:
- *
- * :macro:`NGTCP2_ERR_NOMEM`
- *     Out of memory
- * :macro:`NGTCP2_ERR_NOBUF`
- *     Buffer is too small
- * :macro:`NGTCP2_ERR_INVALID_STATE`
- *     The current state does not allow sending CONNECTION_CLOSE.
- * :macro:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
- *     Packet number is exhausted, and cannot send any more packet.
- * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
- *     User callback failed
- *
- * TODO: Deprecated, remove this function in favor of
- * ngtcp2_conn_write_connection_close2_versioned.
- */
-NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
-    ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
-    ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, uint64_t app_error_code,
-    const uint8_t *reason, size_t reasonlen, ngtcp2_tstamp ts);
 
 /**
  * @function
@@ -5132,9 +5036,9 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
 /**
  * @function
  *
- * `ngtcp2_conn_write_connection_close2` writes a packet which
- * contains CONNECTION_CLOSE frame(s) (type 0x1c or 0x1d) in the
- * buffer pointed by |dest| whose capacity is |datalen|.
+ * `ngtcp2_conn_write_connection_close` writes a packet which contains
+ * CONNECTION_CLOSE frame(s) (type 0x1c or 0x1d) in the buffer pointed
+ * by |dest| whose capacity is |datalen|.
  *
  * If |path| is not ``NULL``, this function stores the network path
  * with which the packet should be sent.  Each addr field must point
@@ -5173,11 +5077,8 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
  *     Packet number is exhausted, and cannot send any more packet.
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
- *
- * TODO: Rename this function to
- * ngtcp2_conn_write_connection_close_versioned.
  */
-NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close2_versioned(
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
     const ngtcp2_connection_close_error *ccerr, ngtcp2_tstamp ts);
@@ -5526,40 +5427,10 @@ NGTCP2_EXTERN int ngtcp2_is_supported_version(uint32_t version);
  * `ngtcp2_conn_write_connection_close` is a wrapper around
  * `ngtcp2_conn_write_connection_close_versioned` to set the correct
  * struct version.
- *
- * TODO: Deprecated, remove this function in favor of
- * ngtcp2_conn_write_connection_close2.
  */
 #define ngtcp2_conn_write_connection_close(CONN, PATH, PI, DEST, DESTLEN,      \
-                                           ERROR_CODE, REASON, REASONLEN, TS)  \
+                                           CCERR, TS)                          \
   ngtcp2_conn_write_connection_close_versioned(                                \
-      (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
-      (ERROR_CODE), (REASON), (REASONLEN), (TS))
-
-/*
- * `ngtcp2_conn_write_application_close` is a wrapper around
- * `ngtcp2_conn_write_application_close_versioned` to set the correct
- * struct version.
- *
- * TODO: Deprecated, remove this function in favor of
- * ngtcp2_conn_write_connection_close2.
- */
-#define ngtcp2_conn_write_application_close(                                   \
-    CONN, PATH, PI, DEST, DESTLEN, APP_ERROR_CODE, REASON, REASONLEN, TS)      \
-  ngtcp2_conn_write_application_close_versioned(                               \
-      (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
-      (APP_ERROR_CODE), (REASON), (REASONLEN), (TS))
-
-/*
- * `ngtcp2_conn_write_connection_close2` is a wrapper around
- * `ngtcp2_conn_write_connection_close2_versioned` to set the correct
- * struct version.
- *
- * TODO: Rename this function to ngtcp2_conn_write_connection_close.
- */
-#define ngtcp2_conn_write_connection_close2(CONN, PATH, PI, DEST, DESTLEN,     \
-                                            CCERR, TS)                         \
-  ngtcp2_conn_write_connection_close2_versioned(                               \
       (CONN), (PATH), NGTCP2_PKT_INFO_VERSION, (PI), (DEST), (DESTLEN),        \
       (CCERR), (TS))
 
