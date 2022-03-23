@@ -1830,6 +1830,37 @@ typedef struct ngtcp2_settings {
    * field is set to ``UINT64_MAX``, no handshake timeout is set.
    */
   ngtcp2_duration handshake_timeout;
+  /**
+   * :member:`preferred_versions` is the array of versions that are
+   * preferred by server.  All versions set in this array must be
+   * supported by the library, and compatible to QUIC v1.  They are
+   * sorted in the order of preference.  On compatible version
+   * negotiation, server will negotiate one of those versions
+   * contained in this array if a client initially chooses a less
+   * preferred version.
+   *
+   * This field is only used by server.
+   */
+  uint32_t *preferred_versions;
+  /**
+   * :member:`preferred_versionslen` is the number of versions that
+   * are contained in the array pointed by
+   * :member:`preferred_versions`.
+   *
+   * This field is only used by server.
+   */
+  size_t preferred_versionslen;
+  /**
+   * :member:`other_versions` is the array of versions that are set in
+   * :member:`other_versions <ngtcp2_version_info.other_versions>`
+   * field of outgoing version_information QUIC transport parameter.
+   */
+  uint32_t *other_versions;
+  /**
+   * :member:`other_versionslen` is the number of versions that are
+   * contained in the array pointed by :member:`other_versions`.
+   */
+  size_t other_versionslen;
 } ngtcp2_settings;
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
@@ -5427,6 +5458,14 @@ NGTCP2_EXTERN void ngtcp2_path_copy(ngtcp2_path *dest, const ngtcp2_path *src);
  * local and remote addresses.
  */
 NGTCP2_EXTERN int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
+
+/**
+ * @function
+ *
+ * `ngtcp2_is_supported_version` returns nonzero if the library supports
+ * QUIC version |version|.
+ */
+NGTCP2_EXTERN int ngtcp2_is_supported_version(uint32_t version);
 
 /*
  * Versioned function wrappers

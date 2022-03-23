@@ -404,8 +404,10 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
     p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION);
     p = ngtcp2_put_varint(p, version_infolen);
     p = ngtcp2_put_uint32be(p, params->version_info.chosen_version);
-    p = ngtcp2_cpymem(p, params->version_info.other_versions,
-                      params->version_info.other_versionslen);
+    if (params->version_info.other_versionslen) {
+      p = ngtcp2_cpymem(p, params->version_info.other_versions,
+                        params->version_info.other_versionslen);
+    }
   }
 
   assert((size_t)(p - dest) == len);

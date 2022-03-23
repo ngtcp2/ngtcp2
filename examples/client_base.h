@@ -169,6 +169,9 @@ struct Config {
   // handshake_timeout is the period of time before giving up QUIC
   // connection establishment.
   ngtcp2_duration handshake_timeout;
+  // other_versions includes QUIC versions that are sent in
+  // other_versions field of version_information transport_parameter.
+  std::vector<uint32_t> other_versions;
 };
 
 class ClientBase {

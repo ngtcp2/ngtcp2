@@ -639,9 +639,23 @@ struct ngtcp2_conn {
     /* version is QUIC version that the above Initial keys are created
        for. */
     uint32_t version;
+    /* preferred_versions is the array of versions that are preferred
+       by server.  It negotiates one of those versions in this array
+       if a client initially selects a less preferred version.  This
+       field is only used by server. */
+    uint32_t *preferred_versions;
+    /* preferred_versionslen is the number of versions stored in the
+       array pointed by preferred_versions.  This field is only used
+       by server. */
+    size_t preferred_versionslen;
     /* other_versions is the versions that the local endpoint sends in
-       version_information transport parameter. */
-    uint8_t other_versions[sizeof(uint32_t) * 2];
+       version_information transport parameter.  This is the wire
+       image of other_versions field of version_information transport
+       parameter. */
+    uint8_t *other_versions;
+    /* other_versionslen is the length of data pointed by
+       other_versions field. */
+    size_t other_versionslen;
   } vneg;
 
   ngtcp2_map strms;
@@ -949,5 +963,14 @@ int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
  * fine if such sequence number is not found.
  */
 void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
+
+/*
+ * ngtcp2_conn_server_negotiate_version negotiates QUIC version.  It
+ * is compatible version negotiation.  It returns the negotiated QUIC
+ * version.  This function must not be called by client.
+ */
+uint32_t
+ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
+                                     const ngtcp2_version_info *version_info);
 
 #endif /* NGTCP2_CONN_H */

@@ -1221,12 +1221,6 @@ int ngtcp2_pkt_verify_retry_tag(uint32_t version, const ngtcp2_pkt_retry *retry,
                                 const ngtcp2_crypto_aead_ctx *aead_ctx);
 
 /*
- * ngtcp2_pkt_is_supported_version returns nonzero if the library
- * supports QUIC version |version|.
- */
-int ngtcp2_pkt_is_supported_version(uint32_t version);
-
-/*
  * ngtcp2_pkt_versioned_type returns versioned packet type for a
  * version |version| that corresponds to the version-independent
  * |pkt_type|.

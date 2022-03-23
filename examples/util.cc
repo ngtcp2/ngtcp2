@@ -592,6 +592,28 @@ int create_nonblock_socket(int domain, int type, int protocol) {
   return fd;
 }
 
+std::vector<std::string> split_str(const std::string &s, char delim) {
+  size_t len = 1;
+  auto last = std::end(s);
+  std::string::const_iterator d;
+  for (auto first = std::begin(s); (d = std::find(first, last, delim)) != last;
+       ++len, first = d + 1)
+    ;
+
+  auto list = std::vector<std::string>(len);
+
+  len = 0;
+  for (auto first = std::begin(s);; ++len) {
+    auto stop = std::find(first, last, delim);
+    list[len] = std::string{first, stop};
+    if (stop == last) {
+      break;
+    }
+    first = stop + 1;
+  }
+  return list;
+}
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid) {
