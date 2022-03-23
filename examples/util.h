@@ -338,6 +338,11 @@ const char *crypto_default_ciphers();
 
 const char *crypto_default_groups();
 
+// split_str parses delimited strings in |s| and returns substrings
+// delimited by |delim|.  The any white spaces around substring are
+// treated as a part of substring.
+std::vector<std::string> split_str(const std::string &s, char delim = ',');
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
