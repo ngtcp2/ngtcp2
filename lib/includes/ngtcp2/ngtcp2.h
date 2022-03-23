@@ -4996,13 +4996,13 @@ typedef enum ngtcp2_connection_close_error_code_type {
  */
 typedef struct ngtcp2_connection_close_error {
   /**
-   * :member:`error_code` is the error code for connection closure.
-   */
-  uint64_t error_code;
-  /**
    * :member:`type` is the type of :member:`error_code`.
    */
   ngtcp2_connection_close_error_code_type type;
+  /**
+   * :member:`error_code` is the error code for connection closure.
+   */
+  uint64_t error_code;
   /**
    * :member:`frame_type` is the type of QUIC frame which triggers
    * this connection error.  This field is set to 0 if the frame type
