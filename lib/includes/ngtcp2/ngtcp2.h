@@ -2883,7 +2883,8 @@ typedef int (*ngtcp2_update_key)(
  * @macro
  *
  * :macro:`NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR` indicates the
- * validation involving server preferred address.
+ * validation involving server preferred address.  This flag is only
+ * set for client.
  */
 #define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01
 
