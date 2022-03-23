@@ -96,7 +96,7 @@ int ngtcp2_pkt_decode_version_cid(uint32_t *pversion, const uint8_t **pdcid,
 
     version = ngtcp2_get_uint32(&data[1]);
 
-    supported_version = ngtcp2_pkt_is_supported_version(version);
+    supported_version = ngtcp2_is_supported_version(version);
 
     if (supported_version &&
         (dcidlen > NGTCP2_MAX_CIDLEN || scidlen > NGTCP2_MAX_CIDLEN)) {
@@ -2472,7 +2472,7 @@ size_t ngtcp2_pkt_datagram_framelen(size_t len) {
   return 1 /* type */ + ngtcp2_put_varint_len(len) + len;
 }
 
-int ngtcp2_pkt_is_supported_version(uint32_t version) {
+int ngtcp2_is_supported_version(uint32_t version) {
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
   case NGTCP2_PROTO_VER_V2:
@@ -2501,7 +2501,7 @@ uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
       return 0;
     }
   default:
-    if (!ngtcp2_pkt_is_supported_version(version)) {
+    if (!ngtcp2_is_supported_version(version)) {
       return 0;
     }
 
@@ -2523,7 +2523,7 @@ uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
 }
 
 uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
-  assert(ngtcp2_pkt_is_supported_version(version));
+  assert(ngtcp2_is_supported_version(version));
 
   switch (version) {
   case NGTCP2_PROTO_VER_V2:

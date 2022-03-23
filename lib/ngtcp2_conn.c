@@ -960,6 +960,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   ngtcp2_scid *scident;
   uint8_t *buf;
   uint8_t fixed_bit_byte;
+  size_t i;
   (void)callbacks_version;
   (void)settings_version;
   (void)transport_params_version;
@@ -986,7 +987,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(callbacks->delete_crypto_aead_ctx);
   assert(callbacks->delete_crypto_cipher_ctx);
   assert(callbacks->get_path_challenge_data);
-  assert(ngtcp2_pkt_is_supported_version(original_version));
+  assert(ngtcp2_is_supported_version(original_version));
 
   if (mem == NULL) {
     mem = ngtcp2_mem_default();
@@ -1144,6 +1145,22 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     goto fail_seqgap_push;
   }
 
+  if (settings->other_versionslen) {
+    buf =
+        ngtcp2_mem_malloc(mem, sizeof(uint32_t) * settings->other_versionslen);
+    if (buf == NULL) {
+      goto fail_other_versions;
+    }
+
+    (*pconn)->vneg.other_versions = buf;
+    (*pconn)->vneg.other_versionslen =
+        sizeof(uint32_t) * settings->other_versionslen;
+
+    for (i = 0; i < settings->other_versionslen; ++i) {
+      buf = ngtcp2_put_uint32be(buf, settings->other_versions[i]);
+    }
+  }
+
   callbacks->rand(&fixed_bit_byte, 1, &settings->rand_ctx);
   if (fixed_bit_byte & 1) {
     (*pconn)->flags |= NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT;
@@ -1170,6 +1187,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   return 0;
 
+fail_other_versions:
 fail_seqgap_push:
 fail_scid_set_insert:
   ngtcp2_mem_free(mem, scident);
@@ -1205,7 +1223,6 @@ int ngtcp2_conn_client_new_versioned(
     const ngtcp2_transport_params *params, const ngtcp2_mem *mem,
     void *user_data) {
   int rv;
-  uint8_t *p;
 
   rv = conn_new(pconn, dcid, scid, path, original_version, callbacks_version,
                 callbacks, settings_version, settings, transport_params_version,
@@ -1217,10 +1234,6 @@ int ngtcp2_conn_client_new_versioned(
   (*pconn)->state = NGTCP2_CS_CLIENT_INITIAL;
   (*pconn)->local.bidi.next_stream_id = 0;
   (*pconn)->local.uni.next_stream_id = 2;
-
-  p = (*pconn)->vneg.other_versions;
-  p = ngtcp2_put_uint32be(p, NGTCP2_PROTO_VER_V2);
-  ngtcp2_put_uint32be(p, NGTCP2_PROTO_VER_V1);
 
   rv = ngtcp2_conn_commit_local_transport_params(*pconn);
   if (rv != 0) {
@@ -1239,7 +1252,8 @@ int ngtcp2_conn_server_new_versioned(
     const ngtcp2_transport_params *params, const ngtcp2_mem *mem,
     void *user_data) {
   int rv;
-  uint8_t *p;
+  uint32_t *preferred_versions;
+  size_t i;
 
   rv = conn_new(pconn, dcid, scid, path, original_version, callbacks_version,
                 callbacks, settings_version, settings, transport_params_version,
@@ -1247,13 +1261,27 @@ int ngtcp2_conn_server_new_versioned(
   if (rv != 0) {
     return rv;
   }
+
+  if (settings->preferred_versionslen) {
+    preferred_versions = ngtcp2_mem_malloc(
+        (*pconn)->mem, sizeof(uint32_t) * settings->preferred_versionslen);
+    if (preferred_versions == NULL) {
+      ngtcp2_conn_del(*pconn);
+      return NGTCP2_ERR_NOMEM;
+    }
+
+    for (i = 0; i < settings->preferred_versionslen; ++i) {
+      assert(ngtcp2_is_supported_version(settings->preferred_versions[i]));
+      preferred_versions[i] = settings->preferred_versions[i];
+    }
+
+    (*pconn)->vneg.preferred_versions = preferred_versions;
+    (*pconn)->vneg.preferred_versionslen = settings->preferred_versionslen;
+  }
+
   (*pconn)->state = NGTCP2_CS_SERVER_INITIAL;
   (*pconn)->local.bidi.next_stream_id = 1;
   (*pconn)->local.uni.next_stream_id = 3;
-
-  p = (*pconn)->vneg.other_versions;
-  p = ngtcp2_put_uint32be(p, NGTCP2_PROTO_VER_V2);
-  ngtcp2_put_uint32be(p, NGTCP2_PROTO_VER_V1);
 
   if ((*pconn)->local.settings.token.len) {
     /* Usage of token lifts amplification limit */
@@ -1307,6 +1335,9 @@ static void conn_vneg_free(ngtcp2_conn *conn) {
 
   ngtcp2_crypto_km_del(conn->vneg.rx.ckm, conn->mem);
   ngtcp2_crypto_km_del(conn->vneg.tx.ckm, conn->mem);
+
+  ngtcp2_mem_free(conn->mem, conn->vneg.preferred_versions);
+  ngtcp2_mem_free(conn->mem, conn->vneg.other_versions);
 }
 
 void ngtcp2_conn_del(ngtcp2_conn *conn) {
@@ -5760,6 +5791,10 @@ static int vneg_other_versions_includes(const uint8_t *other_versions,
 
   assert(!(other_versionslen & 0x3));
 
+  if (other_versionslen == 0) {
+    return 0;
+  }
+
   for (i = 0; i < other_versionslen; i += sizeof(uint32_t)) {
     if (version == ngtcp2_get_uint32(&other_versions[i])) {
       return 1;
@@ -5943,6 +5978,10 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   pktlen = (size_t)nread + hd.len;
 
+  if (!ngtcp2_is_supported_version(hd.version)) {
+    return NGTCP2_ERR_DISCARD_PKT;
+  }
+
   if (conn->server) {
     if (hd.version != conn->original_version &&
         (!conn->negotiated_version || hd.version != conn->negotiated_version)) {
@@ -6041,7 +6080,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       if (hd.version != conn->original_version && !conn->negotiated_version &&
           conn->vneg.version != hd.version) {
         if (!vneg_other_versions_includes(conn->vneg.other_versions,
-                                          sizeof(conn->vneg.other_versions),
+                                          conn->vneg.other_versionslen,
                                           hd.version)) {
           return NGTCP2_ERR_DISCARD_PKT;
         }
@@ -10590,6 +10629,39 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
   return 0;
 }
 
+uint32_t
+ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
+                                     const ngtcp2_version_info *version_info) {
+  size_t i, j, preferred_versionslen = conn->vneg.preferred_versionslen;
+
+  assert(conn->server);
+  assert(conn->original_version == version_info->chosen_version);
+
+  if (!preferred_versionslen || !version_info->other_versionslen) {
+    return conn->original_version;
+  }
+
+  for (i = 0; i < preferred_versionslen; ++i) {
+    if (conn->vneg.preferred_versions[i] == version_info->chosen_version) {
+      preferred_versionslen = i;
+      break;
+    }
+  }
+
+  for (i = 0; i < preferred_versionslen; ++i) {
+    for (j = 0; j < version_info->other_versionslen; j += sizeof(uint32_t)) {
+      if (conn->vneg.preferred_versions[i] !=
+          ngtcp2_get_uint32(&version_info->other_versions[j])) {
+        continue;
+      }
+
+      return conn->vneg.preferred_versions[i];
+    }
+  }
+
+  return conn->original_version;
+}
+
 int ngtcp2_conn_set_remote_transport_params_versioned(
     ngtcp2_conn *conn, int transport_params_version,
     const ngtcp2_transport_params *params) {
@@ -10622,19 +10694,14 @@ int ngtcp2_conn_set_remote_transport_params_versioned(
         return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
       }
 
-      if (params->version_info.chosen_version != NGTCP2_PROTO_VER_V2 &&
-          vneg_other_versions_includes(params->version_info.other_versions,
-                                       params->version_info.other_versionslen,
-                                       NGTCP2_PROTO_VER_V2)) {
-        rv = conn_call_version_negotiation(conn, NGTCP2_PROTO_VER_V2,
+      conn->negotiated_version =
+          ngtcp2_conn_server_negotiate_version(conn, &params->version_info);
+      if (conn->negotiated_version != conn->original_version) {
+        rv = conn_call_version_negotiation(conn, conn->negotiated_version,
                                            &conn->rcid);
         if (rv != 0) {
           return rv;
         }
-
-        conn->negotiated_version = NGTCP2_PROTO_VER_V2;
-      } else {
-        conn->negotiated_version = conn->original_version;
       }
     } else {
       conn->negotiated_version = conn->original_version;
@@ -10817,7 +10884,7 @@ void ngtcp2_conn_get_local_transport_params_versioned(
   }
 
   params->version_info.other_versions = conn->vneg.other_versions;
-  params->version_info.other_versionslen = sizeof(conn->vneg.other_versions);
+  params->version_info.other_versionslen = conn->vneg.other_versionslen;
   params->version_info_present = 1;
 }
 
