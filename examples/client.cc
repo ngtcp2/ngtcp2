@@ -1552,11 +1552,11 @@ int Client::handle_error() {
 
   ngtcp2_pkt_info pi;
 
-  auto nwrite = ngtcp2_conn_write_connection_close2(
+  auto nwrite = ngtcp2_conn_write_connection_close(
       conn_, &ps.path, &pi, buf.data(), buf.size(), &last_error_,
       util::timestamp(loop_));
   if (nwrite < 0) {
-    std::cerr << "ngtcp2_conn_write_connection_close2: "
+    std::cerr << "ngtcp2_conn_write_connection_close: "
               << ngtcp2_strerror(nwrite) << std::endl;
     return -1;
   }

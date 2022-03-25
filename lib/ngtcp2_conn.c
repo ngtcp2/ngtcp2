@@ -11451,16 +11451,15 @@ conn_write_connection_close(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   return res;
 }
 
-ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
-    ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
-    ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, uint64_t error_code,
-    const uint8_t *reason, size_t reasonlen, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
+    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+    size_t destlen, uint64_t error_code, const uint8_t *reason,
+    size_t reasonlen, ngtcp2_tstamp ts) {
   ngtcp2_pktns *in_pktns = conn->in_pktns;
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
   uint8_t pkt_type;
   ngtcp2_ssize nwrite;
   uint64_t server_tx_left;
-  (void)pkt_info_version;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -11515,15 +11514,14 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
   return nwrite;
 }
 
-ngtcp2_ssize ngtcp2_conn_write_application_close_versioned(
-    ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
-    ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen, uint64_t app_error_code,
-    const uint8_t *reason, size_t reasonlen, ngtcp2_tstamp ts) {
+ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
+    ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
+    size_t destlen, uint64_t app_error_code, const uint8_t *reason,
+    size_t reasonlen, ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
   ngtcp2_ssize res = 0;
   ngtcp2_frame fr;
   uint64_t server_tx_left;
-  (void)pkt_info_version;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -11670,19 +11668,21 @@ void ngtcp2_connection_close_error_set_application_error(
       reason, reasonlen);
 }
 
-ngtcp2_ssize ngtcp2_conn_write_connection_close2_versioned(
+ngtcp2_ssize ngtcp2_conn_write_connection_close_versioned(
     ngtcp2_conn *conn, ngtcp2_path *path, int pkt_info_version,
     ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
     const ngtcp2_connection_close_error *ccerr, ngtcp2_tstamp ts) {
+  (void)pkt_info_version;
+
   switch (ccerr->type) {
   case NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT:
-    return ngtcp2_conn_write_connection_close_versioned(
-        conn, path, pkt_info_version, pi, dest, destlen, ccerr->error_code,
-        ccerr->reason, ccerr->reasonlen, ts);
+    return ngtcp2_conn_write_connection_close_pkt(
+        conn, path, pi, dest, destlen, ccerr->error_code, ccerr->reason,
+        ccerr->reasonlen, ts);
   case NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION:
-    return ngtcp2_conn_write_application_close_versioned(
-        conn, path, pkt_info_version, pi, dest, destlen, ccerr->error_code,
-        ccerr->reason, ccerr->reasonlen, ts);
+    return ngtcp2_conn_write_application_close_pkt(
+        conn, path, pi, dest, destlen, ccerr->error_code, ccerr->reason,
+        ccerr->reasonlen, ts);
   default:
     return 0;
   }

@@ -6447,8 +6447,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_connection_close_error_set_transport_error(&ccerr, NGTCP2_NO_ERROR,
                                                     (const uint8_t *)"foo", 3);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
@@ -6476,8 +6476,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
 
   ngtcp2_connection_close_error_set_transport_error_liberr(&ccerr, 0, NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6507,8 +6507,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_connection_close_error_set_transport_error(&ccerr, NGTCP2_NO_ERROR,
                                                     NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6536,8 +6536,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_connection_close_error_set_transport_error(&ccerr, NGTCP2_NO_ERROR,
                                                     NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6571,8 +6571,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_connection_close_error_set_transport_error(&ccerr, NGTCP2_NO_ERROR,
                                                     NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6620,8 +6620,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_connection_close_error_set_transport_error(&ccerr, NGTCP2_NO_ERROR,
                                                     NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6658,8 +6658,8 @@ void test_ngtcp2_conn_write_connection_close(void) {
   ngtcp2_connection_close_error_set_transport_error(&ccerr, NGTCP2_NO_ERROR,
                                                     NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6695,8 +6695,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_connection_close_error_set_application_error(
       &ccerr, app_err_code, (const uint8_t *)"foo", 3);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen >= NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
@@ -6725,8 +6725,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_connection_close_error_set_application_error(&ccerr, app_err_code,
                                                       NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6756,8 +6756,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_connection_close_error_set_application_error(&ccerr, app_err_code,
                                                       NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6785,8 +6785,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_connection_close_error_set_application_error(&ccerr, app_err_code,
                                                       NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6820,8 +6820,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_connection_close_error_set_application_error(&ccerr, app_err_code,
                                                       NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6867,8 +6867,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_connection_close_error_set_application_error(&ccerr, app_err_code,
                                                       NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);
@@ -6905,8 +6905,8 @@ void test_ngtcp2_conn_write_application_close(void) {
   ngtcp2_connection_close_error_set_application_error(&ccerr, app_err_code,
                                                       NULL, 0);
 
-  spktlen = ngtcp2_conn_write_connection_close2(conn, NULL, NULL, buf,
-                                                sizeof(buf), &ccerr, 0);
+  spktlen = ngtcp2_conn_write_connection_close(conn, NULL, NULL, buf,
+                                               sizeof(buf), &ccerr, 0);
 
   CU_ASSERT(spktlen > 0);
   CU_ASSERT(spktlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE);

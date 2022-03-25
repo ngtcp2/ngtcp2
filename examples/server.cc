@@ -2008,7 +2008,7 @@ int Handler::start_closing_period() {
   ngtcp2_path_storage_zero(&ps);
 
   ngtcp2_pkt_info pi;
-  auto n = ngtcp2_conn_write_connection_close2(
+  auto n = ngtcp2_conn_write_connection_close(
       conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
       &last_error_, util::timestamp(loop_));
   if (n < 0) {
