@@ -257,11 +257,12 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_PROTO_VER_V2` is the QUIC version 2.
+ * :macro:`NGTCP2_PROTO_VER_V2_DRAFT` is the provisional version
+ * number for QUIC version 2 draft.
  *
  * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
  */
-#define NGTCP2_PROTO_VER_V2 ((uint32_t)0x709a50c4u)
+#define NGTCP2_PROTO_VER_V2_DRAFT ((uint32_t)0x709a50c4u)
 
 /**
  * @macro
@@ -285,7 +286,7 @@ typedef struct ngtcp2_mem {
  * :macro:`NGTCP2_PROTO_VER_MAX` is the highest QUIC version that this
  * library supports.
  */
-#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_V2
+#define NGTCP2_PROTO_VER_MAX NGTCP2_PROTO_VER_V1
 
 /**
  * @macro
@@ -385,23 +386,24 @@ typedef struct ngtcp2_mem {
 /**
  * @macro
  *
- * :macro:`NGTCP2_RETRY_KEY_V2` is an encryption key to create
- * integrity tag of Retry packet.  It is used for QUIC v2.
+ * :macro:`NGTCP2_RETRY_KEY_V2_DRAFT` is an encryption key to create
+ * integrity tag of Retry packet.  It is used for QUIC v2 draft.
  *
  * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
  */
-#define NGTCP2_RETRY_KEY_V2                                                    \
+#define NGTCP2_RETRY_KEY_V2_DRAFT                                              \
   "\xba\x85\x8d\xc7\xb4\x3d\xe5\xdb\xf8\x76\x17\xff\x4a\xb2\x53\xdb"
 
 /**
  * @macro
  *
- * :macro:`NGTCP2_RETRY_NONCE_V2` is nonce used when generating
- * integrity tag of Retry packet.  It is used for QUIC v2.
+ * :macro:`NGTCP2_RETRY_NONCE_V2_DRAFT` is nonce used when generating
+ * integrity tag of Retry packet.  It is used for QUIC v2 draft.
  *
  * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
  */
-#define NGTCP2_RETRY_NONCE_V2 "\x14\x1b\x99\xc2\x39\xb0\x3e\x78\x5d\x6a\x2e\x9f"
+#define NGTCP2_RETRY_NONCE_V2_DRAFT                                            \
+  "\x14\x1b\x99\xc2\x39\xb0\x3e\x78\x5d\x6a\x2e\x9f"
 
 /**
  * @macro
@@ -1026,12 +1028,12 @@ typedef enum ngtcp2_pkt_type {
 /**
  * @macro
  *
- * :macro:`NGTCP2_VERSION_NEGOTIATION_ERROR` is QUIC transport error
- * code ``VERSION_NEGOTIATION_ERROR``.
+ * :macro:`NGTCP2_VERSION_NEGOTIATION_ERROR_DRAFT` is QUIC transport
+ * error code ``VERSION_NEGOTIATION_ERROR``.
  *
  * https://quicwg.org/quic-v2/draft-ietf-quic-v2.html
  */
-#define NGTCP2_VERSION_NEGOTIATION_ERROR 0x53f8u
+#define NGTCP2_VERSION_NEGOTIATION_ERROR_DRAFT 0x53f8u
 
 /**
  * @enum
