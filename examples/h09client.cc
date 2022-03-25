@@ -666,6 +666,11 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     }
   }
 
+  if (!config.other_versions.empty()) {
+    settings.other_versions = config.other_versions.data();
+    settings.other_versionslen = config.other_versions.size();
+  }
+
   ngtcp2_transport_params params;
   ngtcp2_transport_params_default(&params);
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
@@ -1825,9 +1830,21 @@ Options:
               list  is  less than  <N>,  <URI>  list is  wrapped.   It
               defaults to 0 which means the number of <URI> specified.
   -v, --version=<HEX>
-              Specify QUIC version to use in hex string.
+              Specify QUIC version to use in hex string.  This must be
+              a version  that is  supported by libngtcp2.   Instead of
+              specifying  hex   string,  there  are   special  aliases
+              available:  "v1"   indicates  QUIC  v1,   and  "v2draft"
+              indicates QUIC v2 draft.
               Default: )"
             << std::hex << "0x" << config.version << std::dec << R"(
+  --other-versions=<HEX>[[,<HEX>]...]
+              Specify QUIC  versions in  hex string  that are  sent in
+              other_versions  field  of version_information  transport
+              parameter.  This list can include a version which is not
+              supported  by  libngtcp2.   Instead  of  specifying  hex
+              string,  there  are   special  aliases  available:  "v1"
+              indicates  QUIC  v1,  and "v2draft"  indicates  QUIC  v2
+              draft.
   -q, --quiet Suppress debug output.
   -s, --show-secret
               Print out secrets unless --quiet is used.
@@ -2016,6 +2033,7 @@ int main(int argc, char **argv) {
         {"initial-rtt", required_argument, &flag, 31},
         {"max-udp-payload-size", required_argument, &flag, 32},
         {"handshake-timeout", required_argument, &flag, 36},
+        {"other-versions", required_argument, &flag, 37},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2068,7 +2086,19 @@ int main(int argc, char **argv) {
       break;
     case 'v':
       // --version
+      if (optarg == std::string_view{"v1"}) {
+        config.version = NGTCP2_PROTO_VER_V1;
+        break;
+      }
+      if (optarg == std::string_view{"v2draft"}) {
+        config.version = NGTCP2_PROTO_VER_V2_DRAFT;
+        break;
+      }
       config.version = strtol(optarg, nullptr, 16);
+      if (!ngtcp2_is_supported_version(config.version)) {
+        std::cerr << "version: version not supported" << std::endl;
+        exit(EXIT_FAILURE);
+      }
       break;
     case '?':
       print_usage();
@@ -2305,6 +2335,24 @@ int main(int argc, char **argv) {
           config.handshake_timeout = *t;
         }
         break;
+      case 37: {
+        // --other-versions
+        auto l = util::split_str(optarg);
+        config.other_versions.resize(l.size());
+        auto it = std::begin(config.other_versions);
+        for (const auto &v : l) {
+          if (v == "v1") {
+            *it++ = NGTCP2_PROTO_VER_V1;
+            continue;
+          }
+          if (v == "v2draft") {
+            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
+            continue;
+          }
+          *it++ = strtol(v.c_str(), nullptr, 16);
+        }
+        break;
+      }
       }
       break;
     default:
