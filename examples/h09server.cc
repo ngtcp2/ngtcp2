@@ -749,6 +749,14 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
     settings.qlog.write = ::write_qlog;
     settings.qlog.odcid = *scid;
   }
+  if (!config.preferred_versions.empty()) {
+    settings.preferred_versions = config.preferred_versions.data();
+    settings.preferred_versionslen = config.preferred_versions.size();
+  }
+  if (!config.other_versions.empty()) {
+    settings.other_versions = config.other_versions.data();
+    settings.other_versionslen = config.other_versions.size();
+  }
 
   ngtcp2_transport_params params;
   ngtcp2_transport_params_default(&params);
@@ -2567,6 +2575,22 @@ Options:
               Set the QUIC handshake timeout.
               Default: )"
             << util::format_duration(config.handshake_timeout) << R"(
+  --preferred-versions=<HEX>[[,<HEX>]...]
+              Specify  QUIC versions  in hex  string in  the order  of
+              preference.  Server negotiates one  of those versions if
+              client  initially  selects  a  less  preferred  version.
+              These versions must be  supported by libngtcp2.  Instead
+              of  specifying hex  string,  there  are special  aliases
+              available:  "v1"   indicates  QUIC  v1,   and  "v2draft"
+              indicates QUIC v2 draft.
+  --other-versions=<HEX>[[,<HEX>]...]
+              Specify QUIC  versions in  hex string  that are  sent in
+              other_versions  field  of version_information  transport
+              parameter.  This list can include a version which is not
+              supported  by  libngtcp2.   Instead  of  specifying  hex
+              string,  there  are   special  aliases  available:  "v1"
+              indicates  QUIC  v1,  and "v2draft"  indicates  QUIC  v2
+              draft.
   -h, --help  Display this help and exit.
 
 ---
@@ -2621,6 +2645,8 @@ int main(int argc, char **argv) {
         {"send-trailers", no_argument, &flag, 22},
         {"max-gso-dgrams", required_argument, &flag, 25},
         {"handshake-timeout", required_argument, &flag, 26},
+        {"preferred-versions", required_argument, &flag, 27},
+        {"other-versions", required_argument, &flag, 28},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -2857,6 +2883,48 @@ int main(int argc, char **argv) {
           config.handshake_timeout = *t;
         }
         break;
+      case 27: {
+        // --preferred-versions
+        auto l = util::split_str(optarg);
+        config.preferred_versions.resize(l.size());
+        auto it = std::begin(config.preferred_versions);
+        for (const auto &k : l) {
+          if (k == "v1") {
+            *it++ = NGTCP2_PROTO_VER_V1;
+            continue;
+          }
+          if (k == "v2draft") {
+            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
+            continue;
+          }
+          auto v = strtol(k.c_str(), nullptr, 16);
+          if (!ngtcp2_is_supported_version(v)) {
+            std::cerr << "preferred-versions: version not supported: " << k
+                      << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          *it++ = v;
+        }
+        break;
+      }
+      case 28: {
+        // --other-versions
+        auto l = util::split_str(optarg);
+        config.other_versions.resize(l.size());
+        auto it = std::begin(config.other_versions);
+        for (const auto &v : l) {
+          if (v == "v1") {
+            *it++ = NGTCP2_PROTO_VER_V1;
+            continue;
+          }
+          if (v == "v2draft") {
+            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
+            continue;
+          }
+          *it++ = strtol(v.c_str(), nullptr, 16);
+        }
+        break;
+      }
       }
       break;
     default:
