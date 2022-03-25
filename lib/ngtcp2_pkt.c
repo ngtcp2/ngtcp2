@@ -2288,9 +2288,9 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
     break;
-  case NGTCP2_PROTO_VER_V2:
-    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
+  case NGTCP2_PROTO_VER_V2_DRAFT:
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2_DRAFT;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2_DRAFT) - 1;
     break;
   default:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_DRAFT;
@@ -2380,9 +2380,9 @@ int ngtcp2_pkt_verify_retry_tag(uint32_t version, const ngtcp2_pkt_retry *retry,
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
     noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
     break;
-  case NGTCP2_PROTO_VER_V2:
-    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
+  case NGTCP2_PROTO_VER_V2_DRAFT:
+    nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2_DRAFT;
+    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2_DRAFT) - 1;
     break;
   default:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_DRAFT;
@@ -2474,7 +2474,7 @@ size_t ngtcp2_pkt_datagram_framelen(size_t len) {
 int ngtcp2_is_supported_version(uint32_t version) {
   switch (version) {
   case NGTCP2_PROTO_VER_V1:
-  case NGTCP2_PROTO_VER_V2:
+  case NGTCP2_PROTO_VER_V2_DRAFT:
     return 1;
   default:
     return NGTCP2_PROTO_VER_DRAFT_MIN <= version &&
@@ -2486,15 +2486,15 @@ uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
   uint8_t pkt_type = (uint8_t)((c & NGTCP2_LONG_TYPE_MASK) >> 4);
 
   switch (version) {
-  case NGTCP2_PROTO_VER_V2:
+  case NGTCP2_PROTO_VER_V2_DRAFT:
     switch (pkt_type) {
-    case NGTCP2_PKT_TYPE_INITIAL_V2:
+    case NGTCP2_PKT_TYPE_INITIAL_V2_DRAFT:
       return NGTCP2_PKT_INITIAL;
-    case NGTCP2_PKT_TYPE_0RTT_V2:
+    case NGTCP2_PKT_TYPE_0RTT_V2_DRAFT:
       return NGTCP2_PKT_0RTT;
-    case NGTCP2_PKT_TYPE_HANDSHAKE_V2:
+    case NGTCP2_PKT_TYPE_HANDSHAKE_V2_DRAFT:
       return NGTCP2_PKT_HANDSHAKE;
-    case NGTCP2_PKT_TYPE_RETRY_V2:
+    case NGTCP2_PKT_TYPE_RETRY_V2_DRAFT:
       return NGTCP2_PKT_RETRY;
     default:
       return 0;
@@ -2525,16 +2525,16 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
   assert(ngtcp2_is_supported_version(version));
 
   switch (version) {
-  case NGTCP2_PROTO_VER_V2:
+  case NGTCP2_PROTO_VER_V2_DRAFT:
     switch (pkt_type) {
     case NGTCP2_PKT_INITIAL:
-      return NGTCP2_PKT_TYPE_INITIAL_V2;
+      return NGTCP2_PKT_TYPE_INITIAL_V2_DRAFT;
     case NGTCP2_PKT_0RTT:
-      return NGTCP2_PKT_TYPE_0RTT_V2;
+      return NGTCP2_PKT_TYPE_0RTT_V2_DRAFT;
     case NGTCP2_PKT_HANDSHAKE:
-      return NGTCP2_PKT_TYPE_HANDSHAKE_V2;
+      return NGTCP2_PKT_TYPE_HANDSHAKE_V2_DRAFT;
     case NGTCP2_PKT_RETRY:
-      return NGTCP2_PKT_TYPE_RETRY_V2;
+      return NGTCP2_PKT_TYPE_RETRY_V2_DRAFT;
     default:
       assert(0);
       abort();

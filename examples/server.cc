@@ -3265,15 +3265,16 @@ Options:
               client  initially  selects  a  less  preferred  version.
               These versions must be  supported by libngtcp2.  Instead
               of  specifying hex  string,  there  are special  aliases
-              available: "v1"  indicates QUIC  v1, and  "v2" indicates
-              QUIC v2.
+              available:  "v1"   indicates  QUIC  v1,   and  "v2draft"
+              indicates QUIC v2 draft.
   --other-versions=<HEX>[[,<HEX>]...]
               Specify QUIC  versions in  hex string  that are  sent in
               other_versions  field  of version_information  transport
               parameter.  This list can include a version which is not
               supported  by  libngtcp2.   Instead  of  specifying  hex
               string,  there  are   special  aliases  available:  "v1"
-              indicates QUIC v1, and "v2" indicates QUIC v2.
+              indicates  QUIC  v1,  and "v2draft"  indicates  QUIC  v2
+              draft.
   -h, --help  Display this help and exit.
 
 ---
@@ -3596,8 +3597,8 @@ int main(int argc, char **argv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (k == "v2") {
-            *it++ = NGTCP2_PROTO_VER_V2;
+          if (k == "v2draft") {
+            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
           auto v = strtol(k.c_str(), nullptr, 16);
@@ -3620,8 +3621,8 @@ int main(int argc, char **argv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (v == "v2") {
-            *it++ = NGTCP2_PROTO_VER_V2;
+          if (v == "v2draft") {
+            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
           *it++ = strtol(v.c_str(), nullptr, 16);

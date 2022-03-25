@@ -2250,8 +2250,8 @@ Options:
               Specify QUIC version to use in hex string.  This must be
               a version  that is  supported by libngtcp2.   Instead of
               specifying  hex   string,  there  are   special  aliases
-              available: "v1"  indicates QUIC  v1, and  "v2" indicates
-              QUIC v2.
+              available:  "v1"   indicates  QUIC  v1,   and  "v2draft"
+              indicates QUIC v2 draft.
               Default: )"
             << std::hex << "0x" << config.version << std::dec << R"(
   --other-versions=<HEX>[[,<HEX>]...]
@@ -2260,7 +2260,8 @@ Options:
               parameter.  This list can include a version which is not
               supported  by  libngtcp2.   Instead  of  specifying  hex
               string,  there  are   special  aliases  available:  "v1"
-              indicates QUIC v1, and "v2" indicates QUIC v2.
+              indicates  QUIC  v1,  and "v2draft"  indicates  QUIC  v2
+              draft.
   -q, --quiet Suppress debug output.
   -s, --show-secret
               Print out secrets unless --quiet is used.
@@ -2526,8 +2527,8 @@ int main(int argc, char **argv) {
         config.version = NGTCP2_PROTO_VER_V1;
         break;
       }
-      if (optarg == std::string_view{"v2"}) {
-        config.version = NGTCP2_PROTO_VER_V2;
+      if (optarg == std::string_view{"v2draft"}) {
+        config.version = NGTCP2_PROTO_VER_V2_DRAFT;
         break;
       }
       config.version = strtol(optarg, nullptr, 16);
@@ -2808,8 +2809,8 @@ int main(int argc, char **argv) {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (v == "v2") {
-            *it++ = NGTCP2_PROTO_VER_V2;
+          if (v == "v2draft") {
+            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
           *it++ = strtol(v.c_str(), nullptr, 16);
