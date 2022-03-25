@@ -20,7 +20,7 @@ list of TLS stacks which are supposed to provide such interface and
 for which we provide crypto helper libraries:
 
 * `OpenSSL with QUIC support
-  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1m+quic>`_
+  <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1n+quic>`_
 * GnuTLS >= 3.7.2
 * BoringSSL
 * Picotls
