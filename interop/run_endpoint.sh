@@ -9,7 +9,7 @@
 # - CLIENT_PARAMS contains user-supplied command line parameters
 
 case $TESTCASE in
-    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect|zerortt|chacha20|keyupdate|ecn)
+    versionnegotiation|handshake|transfer|retry|resumption|http3|multiconnect|zerortt|chacha20|keyupdate|ecn|v2)
 	:
 	;;
     *)
@@ -41,6 +41,9 @@ if [ "$ROLE" == "client" ]; then
     if [ "$TESTCASE" == "keyupdate" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --delay-stream 10ms --key-update 1ms"
     fi
+    if [ "$TESTCASE" == "v2" ]; then
+	CLIENT_ARGS="$CLIENT_ARGS --other-versions v2draft,v1"
+    fi
     if [ "$TESTCASE" == "resumption" ] || [ "$TESTCASE" == "zerortt" ]; then
 	CLIENT_ARGS="$CLIENT_ARGS --session-file session.txt --tp-file tp.txt"
 	if [ "$TESTCASE" == "resumption" ]; then
@@ -70,6 +73,8 @@ elif [ "$ROLE" == "server" ]; then
 	SERVER_ARGS="$SERVER_ARGS -V"
     elif [ "$TESTCASE" == "multiconnect" ]; then
 	SERVER_ARGS="$SERVER_ARGS --timeout=180s --handshake-timeout=180s"
+    elif [ "$TESTCASE" == "v2" ]; then
+	SERVER_ARGS="$SERVER_ARGS --preferred-versions v2draft"
     fi
 
     $SERVER_BIN '*' 443 $SERVER_ARGS $SERVER_PARAMS &> $LOG
