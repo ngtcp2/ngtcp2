@@ -2522,8 +2522,6 @@ uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
 }
 
 uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
-  assert(ngtcp2_is_supported_version(version));
-
   switch (version) {
   case NGTCP2_PROTO_VER_V2_DRAFT:
     switch (pkt_type) {
@@ -2540,6 +2538,10 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type) {
       abort();
     }
   default:
+    /* Assume that unsupported versions share the numeric long packet
+       types with QUIC v1 in order to send a packet to elicit Version
+       Negotiation packet. */
+
     /* QUIC v1 and draft versions share the same numeric packet
        types. */
     switch (pkt_type) {

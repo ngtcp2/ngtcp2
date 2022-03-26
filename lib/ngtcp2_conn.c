@@ -987,7 +987,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   assert(callbacks->delete_crypto_aead_ctx);
   assert(callbacks->delete_crypto_cipher_ctx);
   assert(callbacks->get_path_challenge_data);
-  assert(ngtcp2_is_supported_version(original_version));
 
   if (mem == NULL) {
     mem = ngtcp2_mem_default();
