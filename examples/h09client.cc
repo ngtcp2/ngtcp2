@@ -1830,11 +1830,12 @@ Options:
               list  is  less than  <N>,  <URI>  list is  wrapped.   It
               defaults to 0 which means the number of <URI> specified.
   -v, --version=<HEX>
-              Specify QUIC version to use in hex string.  This must be
-              a version  that is  supported by libngtcp2.   Instead of
-              specifying  hex   string,  there  are   special  aliases
-              available:  "v1"   indicates  QUIC  v1,   and  "v2draft"
-              indicates QUIC v2 draft.
+              Specify QUIC version to use in hex string.  If the given
+              version is  not supported by libngtcp2,  client will use
+              QUIC v1  long packet  types.  Instead of  specifying hex
+              string,  there  are   special  aliases  available:  "v1"
+              indicates  QUIC  v1,  and "v2draft"  indicates  QUIC  v2
+              draft.
               Default: )"
             << std::hex << "0x" << config.version << std::dec << R"(
   --other-versions=<HEX>[[,<HEX>]...]
@@ -2095,10 +2096,6 @@ int main(int argc, char **argv) {
         break;
       }
       config.version = strtol(optarg, nullptr, 16);
-      if (!ngtcp2_is_supported_version(config.version)) {
-        std::cerr << "version: version not supported" << std::endl;
-        exit(EXIT_FAILURE);
-      }
       break;
     case '?':
       print_usage();
