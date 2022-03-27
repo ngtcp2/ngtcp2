@@ -221,6 +221,9 @@ void ngtcp2_frame_chain_list_objalloc_del(ngtcp2_frame_chain *frc,
 /* NGTCP2_RTB_ENTRY_FLAG_DATAGRAM indicates that the entry includes
    DATAGRAM frame. */
 #define NGTCP2_RTB_ENTRY_FLAG_DATAGRAM 0x40
+/* NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE indicates that the entry includes
+   a PMTUD probe packet. */
+#define NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE 0x80
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 

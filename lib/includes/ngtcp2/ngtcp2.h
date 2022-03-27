@@ -1807,20 +1807,12 @@ typedef struct ngtcp2_settings {
    */
   size_t ack_thresh;
   /**
-   * :member:`assume_symmetric_path`, if set to nonzero, assumes that
-   * a network path is symmetric and extends the UDP payload size up to
-   * the incoming UDP payload size.  The size is still capped by
-   * :member:`max_udp_payload_size`.  This field is ignored if
-   * :member:`no_udp_payload_size_shaping` is set to nonzero.
-   */
-  int assume_symmetric_path;
-  /**
    * :member:`no_udp_payload_size_shaping`, if set to nonzero,
    * instructs the library not to limit the UDP payload size to
-   * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE` (which can be extended, see
-   * :member:`assume_symmetric_path`) and instead fully utilize the
-   * given buffer size or :member:`max_udp_payload_size` which is
-   * smaller.
+   * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE` (which can be extended by
+   * Path MTU Discovery) and instead use the mininum size among the
+   * given buffer size, :member:`max_udp_payload_size`, and the
+   * received max_udp_payload QUIC transport parameter.
    */
   int no_udp_payload_size_shaping;
   /**
@@ -1863,6 +1855,11 @@ typedef struct ngtcp2_settings {
    * contained in the array pointed by :member:`other_versions`.
    */
   size_t other_versionslen;
+  /**
+   * :member:`no_pmtud`, if set to nonzero, disables Path MTU
+   * Discovery.
+   */
+  int no_pmtud;
 } ngtcp2_settings;
 
 #ifdef NGTCP2_USE_GENERIC_SOCKADDR
@@ -4170,6 +4167,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * pointed by |dest| of length |destlen|.  This function performs QUIC
  * handshake as well.
  *
+ * |destlen| should be at least
+ * :member:`ngtcp2_settings.max_udp_payload_size`.
+ *
  * Specifying -1 to |stream_id| means no new stream data to send.
  *
  * If |path| is not ``NULL``, this function stores the network path
@@ -4321,6 +4321,9 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * data in DATAGRAM frame.  The buffer of the packet is pointed by
  * |dest| of length |destlen|.  This function performs QUIC handshake
  * as well.
+ *
+ * |destlen| should be at least
+ * :member:`ngtcp2_settings.max_udp_payload_size`.
  *
  * For |path| and |pi| parameters, refer to
  * `ngtcp2_conn_writev_stream`.
@@ -4666,18 +4669,19 @@ NGTCP2_EXTERN void ngtcp2_conn_set_path_user_data(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_path_max_udp_payload_size` returns the maximum
- * outgoing UDP payload size for the current path.
+ * `ngtcp2_conn_get_path` returns the current path.
  */
-NGTCP2_EXTERN size_t
-ngtcp2_conn_get_path_max_udp_payload_size(ngtcp2_conn *conn);
+NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
 
 /**
  * @function
  *
- * `ngtcp2_conn_get_path` returns the current path.
+ * `ngtcp2_conn_get_max_udp_payload_size` returns the maximum UDP
+ * payload size that this local endpoint would send.  This is the
+ * value of :member:`ngtcp2_settings.max_udp_payload_size` that is
+ * passed to `ngtcp2_conn_client_new` or `ngtcp2_conn_server_new`.
  */
-NGTCP2_EXTERN const ngtcp2_path *ngtcp2_conn_get_path(ngtcp2_conn *conn);
+NGTCP2_EXTERN size_t ngtcp2_conn_get_max_udp_payload_size(ngtcp2_conn *conn);
 
 /**
  * @function

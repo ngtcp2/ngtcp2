@@ -47,6 +47,7 @@
 #include "ngtcp2_vec_test.h"
 #include "ngtcp2_strm_test.h"
 #include "ngtcp2_pv_test.h"
+#include "ngtcp2_pmtud_test.h"
 #include "ngtcp2_str_test.h"
 
 static int init_suite1(void) { return 0; }
@@ -320,6 +321,7 @@ int main(void) {
                    test_ngtcp2_strm_streamfrq_unacked_pop) ||
       !CU_add_test(pSuite, "pv_add_entry", test_ngtcp2_pv_add_entry) ||
       !CU_add_test(pSuite, "pv_validate", test_ngtcp2_pv_validate) ||
+      !CU_add_test(pSuite, "pmtud_probe", test_ngtcp2_pmtud_probe) ||
       !CU_add_test(pSuite, "encode_ipv4", test_ngtcp2_encode_ipv4) ||
       !CU_add_test(pSuite, "encode_ipv6", test_ngtcp2_encode_ipv6)) {
     CU_cleanup_registry();

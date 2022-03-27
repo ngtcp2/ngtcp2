@@ -1,8 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
- * Copyright (c) 2016 nghttp2 contributors
+ * Copyright (c) 2022 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,61 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NETWORK_H
-#define NETWORK_H
+#ifndef NGTCP2_PMTUD_TEST_H
+#define NGTCP2_PMTUD_TEST_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // HAVE_CONFIG_H
+#endif /* HAVE_CONFIG_H */
 
-#include <sys/types.h>
-#ifdef HAVE_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif // HAVE_SYS_SOCKET_H
-#include <sys/un.h>
-#ifdef HAVE_NETINET_IN_H
-#  include <netinet/in.h>
-#endif // HAVE_NETINET_IN_H
-#ifdef HAVE_ARPA_INET_H
-#  include <arpa/inet.h>
-#endif // HAVE_ARPA_INET_H
+void test_ngtcp2_pmtud_probe(void);
 
-#include <array>
-
-#include <ngtcp2/ngtcp2.h>
-
-namespace ngtcp2 {
-
-constexpr size_t server_max_udp_payload_size = 1472;
-constexpr size_t client_max_udp_payload_size = 1472;
-
-enum network_error {
-  NETWORK_ERR_OK = 0,
-  NETWORK_ERR_FATAL = -10,
-  NETWORK_ERR_SEND_BLOCKED = -11,
-  NETWORK_ERR_CLOSE_WAIT = -12,
-  NETWORK_ERR_RETRY = -13,
-  NETWORK_ERR_DROP_CONN = -14,
-};
-
-union in_addr_union {
-  in_addr in;
-  in6_addr in6;
-};
-
-union sockaddr_union {
-  sockaddr_storage storage;
-  sockaddr sa;
-  sockaddr_in6 in6;
-  sockaddr_in in;
-};
-
-struct Address {
-  socklen_t len;
-  union sockaddr_union su;
-  uint32_t ifindex;
-};
-
-} // namespace ngtcp2
-
-#endif // NETWORK_H
+#endif /* NGTCP2_PMTUD_TEST_H */

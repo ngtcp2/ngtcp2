@@ -693,8 +693,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.max_window = config.max_window;
   settings.max_stream_window = config.max_stream_window;
   settings.max_udp_payload_size = config.max_udp_payload_size;
-  settings.no_udp_payload_size_shaping = 1;
   settings.handshake_timeout = config.handshake_timeout;
+  settings.no_pmtud = config.no_pmtud;
 
   std::string token;
 
@@ -950,7 +950,7 @@ int Client::write_streams() {
   std::array<nghttp3_vec, 16> vec;
   ngtcp2_path_storage ps;
   size_t pktcnt = 0;
-  auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
+  auto max_udp_payload_size = ngtcp2_conn_get_max_udp_payload_size(conn_);
   size_t max_pktcnt =
       (config.cc_algo == NGTCP2_CC_ALGO_BBR ||
        config.cc_algo == NGTCP2_CC_ALGO_BBR2)
@@ -1200,6 +1200,8 @@ int udp_sock(int family) {
   }
 
   fd_set_recv_ecn(fd, family);
+  fd_set_ip_mtu_discover(fd, family);
+  fd_set_ip_dontfrag(fd, family);
 
   return fd;
 }
@@ -1463,6 +1465,9 @@ int Client::send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
       return NETWORK_ERR_SEND_BLOCKED;
     }
     std::cerr << "sendmsg: " << strerror(errno) << std::endl;
+    if (errno == EMSGSIZE) {
+      return 0;
+    }
     return NETWORK_ERR_FATAL;
   }
 
@@ -2402,6 +2407,7 @@ Options:
               Set the QUIC handshake timeout.
               Default: )"
             << util::format_duration(config.handshake_timeout) << R"(
+  --no-pmtud  Disables Path MTU Discovery.
   -h, --help  Display this help and exit.
 
 ---
@@ -2472,6 +2478,7 @@ int main(int argc, char **argv) {
         {"max-udp-payload-size", required_argument, &flag, 35},
         {"handshake-timeout", required_argument, &flag, 36},
         {"other-versions", required_argument, &flag, 37},
+        {"no-pmtud", no_argument, &flag, 38},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2814,6 +2821,10 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 38:
+        // --no-pmtud
+        config.no_pmtud = true;
+        break;
       }
       break;
     default:

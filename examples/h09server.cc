@@ -728,12 +728,12 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.cc_algo = config.cc_algo;
   settings.initial_rtt = config.initial_rtt;
   settings.handshake_timeout = config.handshake_timeout;
+  settings.no_pmtud = config.no_pmtud;
   if (config.max_udp_payload_size) {
     settings.max_udp_payload_size = config.max_udp_payload_size;
     settings.no_udp_payload_size_shaping = 1;
   } else {
     settings.max_udp_payload_size = server_max_udp_payload_size;
-    settings.assume_symmetric_path = 1;
   }
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
@@ -980,7 +980,7 @@ int Handler::write_streams() {
   ngtcp2_path_storage ps, prev_ps;
   uint32_t prev_ecn = 0;
   size_t pktcnt = 0;
-  auto max_udp_payload_size = ngtcp2_conn_get_path_max_udp_payload_size(conn_);
+  auto max_udp_payload_size = ngtcp2_conn_get_max_udp_payload_size(conn_);
   size_t max_pktcnt =
       std::min(static_cast<size_t>(64_k), ngtcp2_conn_get_send_quantum(conn_)) /
       max_udp_payload_size;
@@ -1613,6 +1613,8 @@ int create_sock(Address &local_addr, const char *addr, const char *port,
   }
 
   fd_set_recv_ecn(fd, rp->ai_family);
+  fd_set_ip_mtu_discover(fd, rp->ai_family);
+  fd_set_ip_dontfrag(fd, family);
 
   socklen_t len = sizeof(local_addr.su.storage);
   if (getsockname(fd, &local_addr.su.sa, &len) == -1) {
@@ -1690,6 +1692,8 @@ int add_endpoint(std::vector<Endpoint> &endpoints, const Address &addr) {
   }
 
   fd_set_recv_ecn(fd, addr.su.sa.sa_family);
+  fd_set_ip_mtu_discover(fd, addr.su.sa.sa_family);
+  fd_set_ip_dontfrag(fd, addr.su.sa.sa_family);
 
   endpoints.emplace_back(Endpoint{});
   auto &ep = endpoints.back();
@@ -2591,6 +2595,7 @@ Options:
               string,  there  are   special  aliases  available:  "v1"
               indicates  QUIC  v1,  and "v2draft"  indicates  QUIC  v2
               draft.
+  --no-pmtud  Disables Path MTU Discovery.
   -h, --help  Display this help and exit.
 
 ---
@@ -2647,6 +2652,7 @@ int main(int argc, char **argv) {
         {"handshake-timeout", required_argument, &flag, 26},
         {"preferred-versions", required_argument, &flag, 27},
         {"other-versions", required_argument, &flag, 28},
+        {"no-pmtud", no_argument, &flag, 29},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -2925,6 +2931,10 @@ int main(int argc, char **argv) {
         }
         break;
       }
+      case 29:
+        // --no-pmtud
+        config.no_pmtud = true;
+        break;
       }
       break;
     default:

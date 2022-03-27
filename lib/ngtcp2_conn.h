@@ -45,6 +45,7 @@
 #include "ngtcp2_bbr.h"
 #include "ngtcp2_bbr2.h"
 #include "ngtcp2_pv.h"
+#include "ngtcp2_pmtud.h"
 #include "ngtcp2_cid.h"
 #include "ngtcp2_buf.h"
 #include "ngtcp2_ppe.h"
@@ -661,6 +662,7 @@ struct ngtcp2_conn {
   ngtcp2_map strms;
   ngtcp2_conn_stat cstat;
   ngtcp2_pv *pv;
+  ngtcp2_pmtud *pmtud;
   ngtcp2_log log;
   ngtcp2_qlog qlog;
   ngtcp2_rst rst;
@@ -1060,5 +1062,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
     ngtcp2_conn *conn, ngtcp2_path *path, ngtcp2_pkt_info *pi, uint8_t *dest,
     size_t destlen, uint64_t app_error_code, const uint8_t *reason,
     size_t reasonlen, ngtcp2_tstamp ts);
+
+void ngtcp2_conn_stop_pmtud(ngtcp2_conn *conn);
 
 #endif /* NGTCP2_CONN_H */
