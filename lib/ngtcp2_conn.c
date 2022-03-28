@@ -6128,6 +6128,14 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     assert(conn->in_pktns);
 
     if (conn->server) {
+      if (dgramlen < NGTCP2_MAX_UDP_PAYLOAD_SIZE) {
+        ngtcp2_log_info(
+            &conn->log, NGTCP2_LOG_EVENT_PKT,
+            "Initial packet was ignored because it is included in UDP datagram "
+            "less than %zu bytes: %s bytes",
+            NGTCP2_MAX_UDP_PAYLOAD_SIZE, dgramlen);
+        return NGTCP2_ERR_DISCARD_PKT;
+      }
       if (conn->local.settings.token.len) {
         rv = verify_token(&conn->local.settings.token, &hd);
         if (rv != 0) {
