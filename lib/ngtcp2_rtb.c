@@ -591,7 +591,8 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
                     ts);
   }
 
-  if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE)) {
+  if (!(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PROBE) &&
+      !(ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE)) {
     if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PTO_RECLAIMED) {
       ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                       "pkn=%" PRId64 " has already been reclaimed on PTO",
@@ -638,10 +639,17 @@ static int rtb_on_pkt_lost(ngtcp2_rtb *rtb, ngtcp2_ksl_it *it,
     return 0;
   }
 
-  ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
-                  "pkn=%" PRId64
-                  " is a probe packet, no retransmission is necessary",
-                  ent->hd.pkt_num);
+  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) {
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                    "pkn=%" PRId64
+                    " is a PMTUD probe packet, no retransmission is necessary",
+                    ent->hd.pkt_num);
+  } else {
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                    "pkn=%" PRId64
+                    " is a probe packet, no retransmission is necessary",
+                    ent->hd.pkt_num);
+  }
 
   rv = ngtcp2_ksl_remove_hint(&rtb->ents, it, it, &ent->hd.pkt_num);
   assert(0 == rv);
@@ -723,6 +731,18 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   uint64_t datalen;
   ngtcp2_strm *crypto = rtb->crypto;
   ngtcp2_pktns *pktns;
+
+  if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) && conn->pmtud &&
+      conn->pmtud->tx_pkt_num <= ent->hd.pkt_num) {
+    ngtcp2_pmtud_probe_success(conn->pmtud, ent->pktlen);
+
+    conn->dcid.current.max_udp_payload_size =
+        ngtcp2_max(conn->dcid.current.max_udp_payload_size, ent->pktlen);
+
+    if (ngtcp2_pmtud_finished(conn->pmtud)) {
+      ngtcp2_conn_stop_pmtud(conn);
+    }
+  }
 
   for (frc = ent->frc; frc; frc = frc->next) {
     if (frc->binder) {
@@ -1388,6 +1408,14 @@ static int rtb_on_pkt_lost_resched_move(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
     ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
                     "pkn=%" PRId64
                     " is a probe packet, no retransmission is necessary",
+                    ent->hd.pkt_num);
+    return 0;
+  }
+
+  if (ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) {
+    ngtcp2_log_info(rtb->log, NGTCP2_LOG_EVENT_RCV,
+                    "pkn=%" PRId64
+                    " is a PMTUD probe packet, no retransmission is necessary",
                     ent->hd.pkt_num);
     return 0;
   }

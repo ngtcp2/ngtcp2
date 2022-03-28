@@ -145,6 +145,8 @@ struct Config {
   // other_versions includes QUIC versions that are sent in
   // other_versions field of version_information transport_parameter.
   std::vector<uint32_t> other_versions;
+  // no_pmtud disables Path MTU Discovery.
+  bool no_pmtud;
 };
 
 struct Buffer {

@@ -106,6 +106,53 @@ void fd_set_recv_ecn(int fd, int family) {
   }
 }
 
+void fd_set_ip_mtu_discover(int fd, int family) {
+#if defined(IP_MTU_DISCOVER) && defined(IPV6_MTU_DISCOVER)
+  int val;
+
+  switch (family) {
+  case AF_INET:
+    val = IP_PMTUDISC_DO;
+    if (setsockopt(fd, IPPROTO_IP, IP_MTU_DISCOVER, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      std::cerr << "setsockopt: IP_MTU_DISCOVER: " << strerror(errno)
+                << std::endl;
+    }
+    break;
+  case AF_INET6:
+    val = IPV6_PMTUDISC_DO;
+    if (setsockopt(fd, IPPROTO_IPV6, IPV6_MTU_DISCOVER, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      std::cerr << "setsockopt: IPV6_MTU_DISCOVER: " << strerror(errno)
+                << std::endl;
+    }
+    break;
+  }
+#endif // defined(IP_MTU_DISCOVER) && defined(IPV6_MTU_DISCOVER)
+}
+
+void fd_set_ip_dontfrag(int fd, int family) {
+#if defined(IP_DONTFRAG) && defined(IPV6_DONTFRAG)
+  int val = 1;
+
+  switch (family) {
+  case AF_INET:
+    if (setsockopt(fd, IPPROTO_IP, IP_DONTFRAG, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      std::cerr << "setsockopt: IP_DONTFRAG: " << strerror(errno) << std::endl;
+    }
+    break;
+  case AF_INET6:
+    if (setsockopt(fd, IPPROTO_IPV6, IPV6_DONTFRAG, &val,
+                   static_cast<socklen_t>(sizeof(val))) == -1) {
+      std::cerr << "setsockopt: IPV6_DONTFRAG: " << strerror(errno)
+                << std::endl;
+    }
+    break;
+  }
+#endif // defined(IP_DONTFRAG) && defined(IPV6_DONTFRAG)
+}
+
 std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
   switch (family) {
   case AF_INET:

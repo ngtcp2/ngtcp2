@@ -74,6 +74,13 @@ void fd_set_ecn(int fd, int family, unsigned int ecn);
 // ECN bits.
 void fd_set_recv_ecn(int fd, int family);
 
+// fd_set_ip_mtu_discover sets IP(V6)_MTU_DISCOVER socket option to
+// |fd|.
+void fd_set_ip_mtu_discover(int fd, int family);
+
+// fd_set_ip_dontfrag sets IP(V6)_DONTFRAG socket option to |fd|.
+void fd_set_ip_dontfrag(int fd, int family);
+
 std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family);
 
 void set_port(Address &dst, Address &src);

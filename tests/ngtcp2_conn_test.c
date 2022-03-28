@@ -677,6 +677,8 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   remote_params->initial_max_streams_uni = 1;
   remote_params->initial_max_data = 64 * 1024;
   remote_params->active_connection_id_limit = 8;
+  remote_params->max_udp_payload_size =
+      NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
   (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
   (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
   (*pconn)->tx.max_offset = remote_params->initial_max_data;
@@ -729,6 +731,8 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   remote_params->initial_max_streams_uni = 1;
   remote_params->initial_max_data = 64 * 1024;
   remote_params->active_connection_id_limit = 8;
+  remote_params->max_udp_payload_size =
+      NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
   (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
   (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
   (*pconn)->tx.max_offset = remote_params->initial_max_data;
@@ -849,6 +853,7 @@ static void setup_early_client(ngtcp2_conn **pconn) {
   params.initial_max_streams_uni = 1;
   params.initial_max_data = 64 * 1024;
   params.active_connection_id_limit = 8;
+  params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
 
   ngtcp2_conn_set_early_remote_transport_params(*pconn, &params);
 }
