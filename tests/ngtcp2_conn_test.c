@@ -2965,7 +2965,7 @@ void test_ngtcp2_conn_handshake_error(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 551;
+  fr.crypto.data[0].len = 1200;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -2985,7 +2985,7 @@ void test_ngtcp2_conn_handshake_error(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 551;
+  fr.crypto.data[0].len = 1201;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -4084,7 +4084,7 @@ void test_ngtcp2_conn_recv_early_data(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 121;
+  fr.crypto.data[0].len = 1221;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -4209,7 +4209,7 @@ void test_ngtcp2_conn_recv_compound_pkt(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 131;
+  fr.crypto.data[0].len = 611;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -4285,7 +4285,6 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   ngtcp2_conn *conn;
   uint8_t buf[2048];
   size_t pktlen;
-  ngtcp2_ssize spktlen;
   ngtcp2_frame fr;
   int64_t pkt_num = 1;
   ngtcp2_tstamp t = 0;
@@ -4296,13 +4295,11 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   /* Payload length is invalid */
   setup_handshake_server(&conn);
 
-  fr.type = NGTCP2_FRAME_STREAM;
-  fr.stream.stream_id = 0;
-  fr.stream.fin = 0;
-  fr.stream.offset = 0;
-  fr.stream.datacnt = 1;
-  fr.stream.data[0].len = 131;
-  fr.stream.data[0].base = null_data;
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1231;
+  fr.crypto.data[0].base = null_data;
 
   dcid = ngtcp2_conn_get_dcid(conn);
 
@@ -4321,10 +4318,26 @@ void test_ngtcp2_conn_pkt_payloadlen(void) {
   CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
   CU_ASSERT(NGTCP2_CS_SERVER_INITIAL == conn->state);
 
-  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+  ngtcp2_conn_del(conn);
 
-  CU_ASSERT(spktlen == 0);
-  CU_ASSERT(0 == ngtcp2_ksl_len(&conn->in_pktns->acktr.ents));
+  /* Client Initial packet included in UDP datagram smaller than 1200
+     is discarded. */
+  setup_handshake_server(&conn);
+
+  fr.type = NGTCP2_FRAME_CRYPTO;
+  fr.crypto.offset = 0;
+  fr.crypto.datacnt = 1;
+  fr.crypto.data[0].len = 1000;
+  fr.crypto.data[0].base = null_data;
+
+  pktlen = write_single_frame_handshake_pkt(
+      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &conn->oscid,
+      ngtcp2_conn_get_dcid(conn), 0, NGTCP2_PROTO_VER_V1, &fr, &null_ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(NGTCP2_ERR_DROP_CONN == rv);
+  CU_ASSERT(NGTCP2_CS_SERVER_INITIAL == conn->state);
 
   ngtcp2_conn_del(conn);
 }
@@ -4663,7 +4676,7 @@ void test_ngtcp2_conn_recv_datagram(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 121;
+  fr.crypto.data[0].len = 1199;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -5810,14 +5823,7 @@ void test_ngtcp2_conn_handshake_loss(void) {
   size_t pktlen;
   uint8_t buf[1252];
   ngtcp2_frame fr;
-  union {
-    ngtcp2_frame fr;
-    struct {
-      ngtcp2_frame fr;
-      ngtcp2_vec data[8];
-    } crypto;
-  } crypto;
-  ngtcp2_frame *cfr;
+  ngtcp2_frame frs[2];
   ngtcp2_cid rcid;
   int rv;
   int64_t pkt_num = -1;
@@ -5828,16 +5834,18 @@ void test_ngtcp2_conn_handshake_loss(void) {
   setup_handshake_server(&conn);
   conn->callbacks.recv_crypto_data = recv_crypto_data;
 
-  cfr = &crypto.fr;
-  cfr->type = NGTCP2_FRAME_CRYPTO;
-  cfr->crypto.offset = 0;
-  cfr->crypto.datacnt = 1;
-  cfr->crypto.data[0].len = 123;
-  cfr->crypto.data[0].base = null_data;
+  frs[0].type = NGTCP2_FRAME_CRYPTO;
+  frs[0].crypto.offset = 0;
+  frs[0].crypto.datacnt = 1;
+  frs[0].crypto.data[0].len = 123;
+  frs[0].crypto.data[0].base = null_data;
 
-  pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, ngtcp2_conn_get_dcid(conn),
-      ++pkt_num, conn->original_version, cfr, &null_ckm);
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1005;
+
+  pktlen = write_handshake_pkt(buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid,
+                               ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                               conn->original_version, frs, 2, &null_ckm);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
@@ -5950,16 +5958,18 @@ void test_ngtcp2_conn_handshake_loss(void) {
   setup_handshake_server(&conn);
   conn->callbacks.recv_crypto_data = recv_crypto_data;
 
-  cfr = &crypto.fr;
-  cfr->type = NGTCP2_FRAME_CRYPTO;
-  cfr->crypto.offset = 0;
-  cfr->crypto.datacnt = 1;
-  cfr->crypto.data[0].len = 123;
-  cfr->crypto.data[0].base = null_data;
+  frs[0].type = NGTCP2_FRAME_CRYPTO;
+  frs[0].crypto.offset = 0;
+  frs[0].crypto.datacnt = 1;
+  frs[0].crypto.data[0].len = 123;
+  frs[0].crypto.data[0].base = null_data;
 
-  pktlen = write_single_frame_handshake_pkt(
-      buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid, ngtcp2_conn_get_dcid(conn),
-      ++pkt_num, conn->original_version, cfr, &null_ckm);
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1005;
+
+  pktlen = write_handshake_pkt(buf, sizeof(buf), NGTCP2_PKT_INITIAL, &rcid,
+                               ngtcp2_conn_get_dcid(conn), ++pkt_num,
+                               conn->original_version, frs, 2, &null_ckm);
 
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
@@ -6102,7 +6112,7 @@ void test_ngtcp2_conn_recv_client_initial_retry(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 1;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 45;
+  fr.crypto.data[0].len = 1245;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -6143,7 +6153,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 45;
+  fr.crypto.data[0].len = 1181;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_initial_pkt(
@@ -6153,7 +6163,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
 
   CU_ASSERT(0 == rv);
-  CU_ASSERT(45 == ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm));
+  CU_ASSERT(1181 == ngtcp2_strm_rx_offset(&conn->in_pktns->crypto.strm));
 
   ngtcp2_conn_del(conn);
 
@@ -6170,7 +6180,7 @@ void test_ngtcp2_conn_recv_client_initial_token(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 45;
+  fr.crypto.data[0].len = 1179;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_initial_pkt(
@@ -7960,6 +7970,7 @@ void test_ngtcp2_conn_buffer_pkt(void) {
   int rv;
   uint8_t buf[2048];
   ngtcp2_frame fr;
+  ngtcp2_frame frs[2];
   size_t pktlen, in_pktlen;
   int64_t pkt_num = 0;
   ngtcp2_tstamp t = 0;
@@ -7976,7 +7987,7 @@ void test_ngtcp2_conn_buffer_pkt(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 133;
+  fr.crypto.data[0].len = 1193;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
@@ -8008,8 +8019,12 @@ void test_ngtcp2_conn_buffer_pkt(void) {
       ngtcp2_conn_get_dcid(conn), pkt_num++, NGTCP2_PROTO_VER_V1, &fr,
       &null_ckm);
 
-  pktlen = write_single_frame_pkt(buf + in_pktlen, sizeof(buf) - in_pktlen,
-                                  &conn->oscid, pkt_num++, &fr, &null_ckm);
+  frs[0].type = NGTCP2_FRAME_PING;
+  frs[1].type = NGTCP2_FRAME_PADDING;
+  frs[1].padding.len = 1200;
+
+  pktlen = write_pkt(buf + in_pktlen, sizeof(buf) - in_pktlen, &conn->oscid,
+                     pkt_num++, frs, 2, &null_ckm);
 
   CU_ASSERT(!conn->pktns.rx.buffed_pkts);
 
@@ -8200,7 +8215,7 @@ void test_ngtcp2_conn_version_negotiation(void) {
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;
   fr.crypto.datacnt = 1;
-  fr.crypto.data[0].len = 133;
+  fr.crypto.data[0].len = 1233;
   fr.crypto.data[0].base = null_data;
 
   pktlen = write_single_frame_handshake_pkt(
