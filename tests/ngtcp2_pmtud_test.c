@@ -75,11 +75,11 @@ void test_ngtcp2_pmtud_probe(void) {
 
   ngtcp2_pmtud_probe_success(pmtud, ngtcp2_pmtud_probelen(pmtud));
 
-  CU_ASSERT(2 == pmtud->mtu_idx);
+  CU_ASSERT(3 == pmtud->mtu_idx);
   CU_ASSERT(UINT64_MAX == pmtud->expiry);
   CU_ASSERT(0 == pmtud->num_pkts_sent);
   CU_ASSERT(ngtcp2_pmtud_require_probe(pmtud));
-  CU_ASSERT(1500 - 48 == ngtcp2_pmtud_probelen(pmtud));
+  CU_ASSERT(1492 - 48 == ngtcp2_pmtud_probelen(pmtud));
 
   ngtcp2_pmtud_probe_sent(pmtud, 2, 10);
   ngtcp2_pmtud_handle_expiry(pmtud, 12);
@@ -88,12 +88,12 @@ void test_ngtcp2_pmtud_probe(void) {
   ngtcp2_pmtud_probe_sent(pmtud, 2, 14);
   ngtcp2_pmtud_handle_expiry(pmtud, 20);
 
-  CU_ASSERT(1500 - 48 == pmtud->min_fail_udp_payload_size);
+  CU_ASSERT(1492 - 48 == pmtud->min_fail_udp_payload_size);
   CU_ASSERT(ngtcp2_pmtud_finished(pmtud));
 
   ngtcp2_pmtud_del(pmtud);
 
-  /* Failing first probe should skip the third probe */
+  /* Failing 2nd probe should skip the third probe */
   rv = ngtcp2_pmtud_new(&pmtud, NGTCP2_MAX_UDP_PAYLOAD_SIZE, 1452, 0, mem);
 
   ngtcp2_pmtud_probe_sent(pmtud, 2, 0);
@@ -105,6 +105,16 @@ void test_ngtcp2_pmtud_probe(void) {
 
   CU_ASSERT(1454 - 48 == pmtud->min_fail_udp_payload_size);
   CU_ASSERT(1 == pmtud->mtu_idx);
+
+  ngtcp2_pmtud_probe_sent(pmtud, 2, 10);
+  ngtcp2_pmtud_handle_expiry(pmtud, 12);
+  ngtcp2_pmtud_probe_sent(pmtud, 2, 12);
+  ngtcp2_pmtud_handle_expiry(pmtud, 14);
+  ngtcp2_pmtud_probe_sent(pmtud, 2, 14);
+  ngtcp2_pmtud_handle_expiry(pmtud, 20);
+
+  CU_ASSERT(1390 - 48 == pmtud->min_fail_udp_payload_size);
+  CU_ASSERT(2 == pmtud->mtu_idx);
 
   ngtcp2_pmtud_probe_sent(pmtud, 2, 10);
   ngtcp2_pmtud_probe_success(pmtud, 1280 - 48);
@@ -124,7 +134,7 @@ void test_ngtcp2_pmtud_probe(void) {
 
   /* PMTUD finishes immediately because we know that all candidates
      are lower than the current maximum. */
-  rv = ngtcp2_pmtud_new(&pmtud, 1500 - 48, 1452, 0, mem);
+  rv = ngtcp2_pmtud_new(&pmtud, 1492 - 48, 1452, 0, mem);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_pmtud_finished(pmtud));

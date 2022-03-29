@@ -36,8 +36,9 @@
 static size_t mtu_probes[] = {
     1454 - 48, /* The well known MTU used by a domestic optic fiber
                   service in Japan. */
+    1390 - 48, /* Typical Tunneled MTU */
     1280 - 48, /* IPv6 minimum MTU */
-    1500 - 48, /* Standard Ethernet MTU */
+    1492 - 48, /* PPPoE */
 };
 
 static size_t mtu_probeslen = sizeof(mtu_probes) / sizeof(mtu_probes[0]);
