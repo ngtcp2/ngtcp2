@@ -1739,6 +1739,12 @@ static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
           ? ngtcp2_cc_compute_initcwnd(conn->cstat.max_udp_payload_size)
           : conn->cstat.cwnd;
 
+  if (bytes_in_flight >= cwnd) {
+    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
+                    "cwnd limited bytes_in_flight=%lu cwnd=%lu",
+                    bytes_in_flight, cwnd);
+  }
+
   return bytes_in_flight >= cwnd;
 }
 
