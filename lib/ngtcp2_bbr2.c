@@ -673,7 +673,7 @@ static void bbr_start_probe_bw_down(ngtcp2_bbr2_cc *bbr, ngtcp2_tstamp ts) {
   bbr_start_round(bbr);
 
   bbr->state = NGTCP2_BBR2_STATE_PROBE_BW_DOWN;
-  bbr->pacing_gain = 0.75;
+  bbr->pacing_gain = 0.9;
   bbr->cwnd_gain = 2;
 }
 
@@ -771,6 +771,8 @@ static void bbr_update_probe_bw_cycle_phase(ngtcp2_bbr2_cc *bbr,
 
 static int bbr_check_time_to_cruise(ngtcp2_bbr2_cc *bbr,
                                     ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts) {
+  (void)ts;
+
   if (cstat->bytes_in_flight > bbr_inflight_with_headroom(bbr, cstat)) {
     return 0;
   }
@@ -779,7 +781,7 @@ static int bbr_check_time_to_cruise(ngtcp2_bbr2_cc *bbr,
     return 1;
   }
 
-  return bbr_has_elapsed_in_phase(bbr, bbr->min_rtt, ts);
+  return 0;
 }
 
 static int bbr_has_elapsed_in_phase(ngtcp2_bbr2_cc *bbr,
