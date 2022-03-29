@@ -131,6 +131,7 @@ typedef struct ngtcp2_bbr2_cc {
   int packet_conservation;
   uint64_t max_inflight;
   ngtcp2_tstamp congestion_recovery_start_ts;
+  uint64_t congestion_recovery_next_round_delivered;
 
   uint64_t prior_inflight_lo;
   uint64_t prior_inflight_hi;

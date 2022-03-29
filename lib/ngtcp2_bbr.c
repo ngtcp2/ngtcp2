@@ -291,7 +291,7 @@ static void bbr_update_round(ngtcp2_bbr_cc *cc, const ngtcp2_cc_ack *ack) {
 static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_ack *ack) {
   if (cc->in_loss_recovery) {
-    if (cc->round_start) {
+    if (ack->pkt_delivered >= cc->congestion_recovery_next_round_delivered) {
       cc->packet_conservation = 0;
     }
 
@@ -313,6 +313,7 @@ static void bbr_handle_recovery(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
     cstat->congestion_recovery_start_ts = cc->congestion_recovery_start_ts;
     cc->congestion_recovery_start_ts = UINT64_MAX;
     cc->packet_conservation = 1;
+    cc->congestion_recovery_next_round_delivered = cc->rst->delivered;
   }
 }
 
@@ -487,6 +488,7 @@ static void bbr_init(ngtcp2_bbr_cc *cc, ngtcp2_conn_stat *cstat,
   cc->probe_rtt_round_done = 0;
 
   cc->congestion_recovery_start_ts = UINT64_MAX;
+  cc->congestion_recovery_next_round_delivered = 0;
   cc->in_loss_recovery = 0;
 
   cstat->send_quantum = cstat->max_udp_payload_size * 10;

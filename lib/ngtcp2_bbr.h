@@ -90,6 +90,7 @@ typedef struct ngtcp2_bbr_cc {
   /* congestion_recovery_start_ts is the time when congestion recovery
      period started.*/
   ngtcp2_tstamp congestion_recovery_start_ts;
+  uint64_t congestion_recovery_next_round_delivered;
   size_t full_bw_count;
   size_t cycle_index;
   ngtcp2_bbr_state state;

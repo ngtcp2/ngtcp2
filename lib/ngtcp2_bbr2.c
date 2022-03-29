@@ -336,6 +336,7 @@ static void bbr_on_init(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
   bbr->max_inflight = 0;
 
   bbr->congestion_recovery_start_ts = UINT64_MAX;
+  bbr->congestion_recovery_next_round_delivered = 0;
 
   bbr->prior_inflight_lo = 0;
   bbr->prior_inflight_hi = 0;
@@ -1301,7 +1302,7 @@ static int in_congestion_recovery(const ngtcp2_conn_stat *cstat,
 static void bbr_handle_recovery(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
                                 const ngtcp2_cc_ack *ack) {
   if (bbr->in_loss_recovery) {
-    if (bbr->round_start) {
+    if (ack->pkt_delivered >= bbr->congestion_recovery_next_round_delivered) {
       bbr->packet_conservation = 0;
     }
 
@@ -1323,6 +1324,7 @@ static void bbr_handle_recovery(ngtcp2_bbr2_cc *bbr, ngtcp2_conn_stat *cstat,
     cstat->congestion_recovery_start_ts = bbr->congestion_recovery_start_ts;
     bbr->congestion_recovery_start_ts = UINT64_MAX;
     bbr->packet_conservation = 1;
+    bbr->congestion_recovery_next_round_delivered = bbr->rst->delivered;
     bbr->prior_inflight_lo = bbr->inflight_lo;
     bbr->prior_bw_lo = bbr->bw_lo;
   }
