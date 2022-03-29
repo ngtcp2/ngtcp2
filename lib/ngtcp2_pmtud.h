@@ -52,6 +52,9 @@ typedef struct ngtcp2_pmtud {
   /* max_udp_payload_size is the maximum UDP payload size which is
      known to work. */
   size_t max_udp_payload_size;
+  /* hard_max_udp_payload_size is the maximum UDP payload size that is
+     going to be probed. */
+  size_t hard_max_udp_payload_size;
   /* min_fail_udp_payload_size is the minimum UDP payload size that is
      known to fail. */
   size_t min_fail_udp_payload_size;
@@ -74,7 +77,8 @@ typedef struct ngtcp2_pmtud {
  *     Out of memory.
  */
 int ngtcp2_pmtud_new(ngtcp2_pmtud **ppmtud, size_t max_udp_payload_size,
-                     int64_t tx_pkt_num, const ngtcp2_mem *mem);
+                     size_t hard_max_udp_payload_size, int64_t tx_pkt_num,
+                     const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_pmtud_del deletes |pmtud|.

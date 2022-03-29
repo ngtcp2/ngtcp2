@@ -4501,6 +4501,7 @@ static int conn_start_pmtud(ngtcp2_conn *conn) {
   assert(conn_is_handshake_completed(conn));
 
   rv = ngtcp2_pmtud_new(&conn->pmtud, conn->dcid.current.max_udp_payload_size,
+                        conn->local.settings.max_udp_payload_size,
                         conn->pktns.tx.last_pkt_num + 1, conn->mem);
   if (rv != 0) {
     return rv;
@@ -12953,7 +12954,7 @@ void ngtcp2_settings_default_versioned(int settings_version,
   settings->cc_algo = NGTCP2_CC_ALGO_CUBIC;
   settings->initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   settings->ack_thresh = 2;
-  settings->max_udp_payload_size = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
+  settings->max_udp_payload_size = 1500 - 48;
   settings->handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
 }
 

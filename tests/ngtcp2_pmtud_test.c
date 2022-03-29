@@ -35,7 +35,7 @@ void test_ngtcp2_pmtud_probe(void) {
   int rv;
 
   /* Send probe and get success */
-  rv = ngtcp2_pmtud_new(&pmtud, NGTCP2_MAX_UDP_PAYLOAD_SIZE, 0, mem);
+  rv = ngtcp2_pmtud_new(&pmtud, NGTCP2_MAX_UDP_PAYLOAD_SIZE, 1452, 0, mem);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(0 == pmtud->mtu_idx);
@@ -94,7 +94,7 @@ void test_ngtcp2_pmtud_probe(void) {
   ngtcp2_pmtud_del(pmtud);
 
   /* Failing first probe should skip the third probe */
-  rv = ngtcp2_pmtud_new(&pmtud, NGTCP2_MAX_UDP_PAYLOAD_SIZE, 0, mem);
+  rv = ngtcp2_pmtud_new(&pmtud, NGTCP2_MAX_UDP_PAYLOAD_SIZE, 1452, 0, mem);
 
   ngtcp2_pmtud_probe_sent(pmtud, 2, 0);
   ngtcp2_pmtud_handle_expiry(pmtud, 2);
@@ -113,8 +113,28 @@ void test_ngtcp2_pmtud_probe(void) {
 
   ngtcp2_pmtud_del(pmtud);
 
-  /* PMTUD finishes immediately */
-  rv = ngtcp2_pmtud_new(&pmtud, 1500 - 48, 0, mem);
+  /* Skip 1st probe because it is larger than hard max. */
+  rv = ngtcp2_pmtud_new(&pmtud, NGTCP2_MAX_UDP_PAYLOAD_SIZE, 1454 - 48 - 1, 0,
+                        mem);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(1 == pmtud->mtu_idx);
+
+  ngtcp2_pmtud_del(pmtud);
+
+  /* PMTUD finishes immediately because we know that all candidates
+     are lower than the current maximum. */
+  rv = ngtcp2_pmtud_new(&pmtud, 1500 - 48, 1452, 0, mem);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(ngtcp2_pmtud_finished(pmtud));
+
+  ngtcp2_pmtud_del(pmtud);
+
+  /* PMTUD finishes immediately because the hard maximum size is lower
+     than the candidates. */
+  rv = ngtcp2_pmtud_new(&pmtud, NGTCP2_MAX_UDP_PAYLOAD_SIZE,
+                        NGTCP2_MAX_UDP_PAYLOAD_SIZE, 0, mem);
 
   CU_ASSERT(0 == rv);
   CU_ASSERT(ngtcp2_pmtud_finished(pmtud));

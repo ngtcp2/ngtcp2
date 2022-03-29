@@ -43,7 +43,8 @@ static size_t mtu_probes[] = {
 static size_t mtu_probeslen = sizeof(mtu_probes) / sizeof(mtu_probes[0]);
 
 int ngtcp2_pmtud_new(ngtcp2_pmtud **ppmtud, size_t max_udp_payload_size,
-                     int64_t tx_pkt_num, const ngtcp2_mem *mem) {
+                     size_t hard_max_udp_payload_size, int64_t tx_pkt_num,
+                     const ngtcp2_mem *mem) {
   ngtcp2_pmtud *pmtud = ngtcp2_mem_malloc(mem, sizeof(ngtcp2_pmtud));
 
   if (pmtud == NULL) {
@@ -56,9 +57,13 @@ int ngtcp2_pmtud_new(ngtcp2_pmtud **ppmtud, size_t max_udp_payload_size,
   pmtud->expiry = UINT64_MAX;
   pmtud->tx_pkt_num = tx_pkt_num;
   pmtud->max_udp_payload_size = max_udp_payload_size;
+  pmtud->hard_max_udp_payload_size = hard_max_udp_payload_size;
   pmtud->min_fail_udp_payload_size = SIZE_MAX;
 
   for (; pmtud->mtu_idx < mtu_probeslen; ++pmtud->mtu_idx) {
+    if (mtu_probes[pmtud->mtu_idx] > pmtud->hard_max_udp_payload_size) {
+      continue;
+    }
     if (mtu_probes[pmtud->mtu_idx] > pmtud->max_udp_payload_size) {
       break;
     }
@@ -108,7 +113,8 @@ static void pmtud_next_probe(ngtcp2_pmtud *pmtud) {
   pmtud->expiry = UINT64_MAX;
 
   for (; pmtud->mtu_idx < mtu_probeslen; ++pmtud->mtu_idx) {
-    if (mtu_probes[pmtud->mtu_idx] <= pmtud->max_udp_payload_size) {
+    if (mtu_probes[pmtud->mtu_idx] <= pmtud->max_udp_payload_size ||
+        mtu_probes[pmtud->mtu_idx] > pmtud->hard_max_udp_payload_size) {
       continue;
     }
 
