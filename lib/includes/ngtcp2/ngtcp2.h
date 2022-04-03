@@ -5044,7 +5044,10 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_application_error(
  *
  * `ngtcp2_conn_write_connection_close` writes a packet which contains
  * CONNECTION_CLOSE frame(s) (type 0x1c or 0x1d) in the buffer pointed
- * by |dest| whose capacity is |datalen|.
+ * by |dest| whose capacity is |destlen|.
+ *
+ * For client, |destlen| should be at least
+ * :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`.
  *
  * If |path| is not ``NULL``, this function stores the network path
  * with which the packet should be sent.  Each addr field must point
