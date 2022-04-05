@@ -10508,13 +10508,15 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
   if (!ngtcp2_pq_empty(&conn->scid.used)) {
     scid = ngtcp2_struct_of(ngtcp2_pq_top(&conn->scid.used), ngtcp2_scid, pe);
     if (scid->retired_ts != UINT64_MAX) {
-      res = ngtcp2_min(res, scid->retired_ts + pto);
+      t = scid->retired_ts + pto;
+      res = ngtcp2_min(res, t);
     }
   }
 
   if (ngtcp2_ringbuf_len(&conn->dcid.retired.rb)) {
     dcid = ngtcp2_ringbuf_get(&conn->dcid.retired.rb, 0);
-    res = ngtcp2_min(res, dcid->retired_ts + pto);
+    t = dcid->retired_ts + pto;
+    res = ngtcp2_min(res, t);
   }
 
   if (conn->dcid.current.cid.datalen) {
@@ -10525,7 +10527,8 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn) {
       assert(dcid->cid.datalen);
       assert(dcid->bound_ts != UINT64_MAX);
 
-      res = ngtcp2_min(res, dcid->bound_ts + 3 * pto);
+      t = dcid->bound_ts + 3 * pto;
+      res = ngtcp2_min(res, t);
     }
   }
 
