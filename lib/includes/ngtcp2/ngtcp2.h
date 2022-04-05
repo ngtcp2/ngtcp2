@@ -782,6 +782,13 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
 /**
  * @macro
  *
+ * :macro:`NGTCP2_ERR_IDLE_CLOSE` indicates the connection should be
+ * closed silently because of idle timeout.
+ */
+#define NGTCP2_ERR_IDLE_CLOSE -248
+/**
+ * @macro
+ *
  * :macro:`NGTCP2_ERR_FATAL` indicates that error codes less than this
  * value is fatal error.  When this error is returned, an endpoint
  * should drop connection immediately.
@@ -3888,15 +3895,6 @@ NGTCP2_EXTERN int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_idle_expiry` returns the time when a connection
- * should be closed if it continues to be idle.  If idle timeout is
- * disabled, this function returns ``UINT64_MAX``.
- */
-NGTCP2_EXTERN ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn);
-
-/**
- * @function
- *
  * `ngtcp2_conn_get_pto` returns Probe Timeout (PTO).
  */
 NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
@@ -4978,6 +4976,12 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error(
  * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION`,
  * and :member:`ccerr->error_code
  * <ngtcp2_connection_close_error.error_code>` to
+ * :macro:`NGTCP2_NO_ERROR`.  If |liberr| is
+ * :macro:`NGTCP2_ERR_IDLE_CLOSE`, :member:`ccerr->type
+ * <ngtcp2_connection_close_error.type>` is set to
+ * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE`,
+ * and :member:`ccerr->error_code
+ * <ngtcp2_connection_close_error.error_code>` to
  * :macro:`NGTCP2_NO_ERROR`.  Otherwise, :member:`ccerr->type
  * <ngtcp2_connection_close_error.type>` is set to
  * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT`,
@@ -5007,22 +5011,6 @@ NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_liberr(
 NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_tls_alert(
     ngtcp2_connection_close_error *ccerr, uint8_t tls_alert,
     const uint8_t *reason, size_t reasonlen);
-
-/**
- * @function
- *
- * `ngtcp2_connection_close_error_set_transport_error_idle_close` sets
- * :member:`ccerr->type <ngtcp2_connection_close_error.type>` to
- * :enum:`ngtcp2_connection_close_error_code_type.NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE`,
- * and :member:`ccerr->error_code
- * <ngtcp2_connection_close_error.error_code>` to
- * :macro:`NGTCP2_NO_ERROR`.  |reason| is the reason phrase of length
- * |reasonlen|.  This function does not make a copy of the reason
- * phrase.
- */
-NGTCP2_EXTERN void ngtcp2_connection_close_error_set_transport_error_idle_close(
-    ngtcp2_connection_close_error *ccerr, const uint8_t *reason,
-    size_t reasonlen);
 
 /**
  * @function

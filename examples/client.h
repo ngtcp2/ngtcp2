@@ -86,7 +86,7 @@ public:
   int feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                 const ngtcp2_pkt_info *pi, uint8_t *data, size_t datalen);
   int handle_expiry();
-  void schedule_retransmit();
+  void update_timer();
   int handshake_completed();
   int handshake_confirmed();
 
@@ -127,10 +127,6 @@ public:
   int stop_sending(int64_t stream_id, uint64_t app_error_code);
   int http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
-  void reset_idle_timer();
-
-  void idle_timeout();
-
   void on_send_blocked(const Endpoint &ep, const ngtcp2_addr &remote_addr,
                        unsigned int ecn, size_t datalen);
   void start_wev_endpoint(const Endpoint &ep);
@@ -141,7 +137,6 @@ private:
   Address remote_addr_;
   ev_io wev_;
   ev_timer timer_;
-  ev_timer rttimer_;
   ev_timer change_local_addr_timer_;
   ev_timer key_update_timer_;
   ev_timer delay_stream_timer_;

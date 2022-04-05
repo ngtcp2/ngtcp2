@@ -571,11 +571,12 @@ void writecb(struct ev_loop *loop, ev_io *w, int revents) {
 } // namespace
 
 namespace {
-void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
+void close_waitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   auto h = static_cast<Handler *>(w->data);
   auto s = h->server();
+  auto conn = h->conn();
 
-  if (ngtcp2_conn_is_in_closing_period(h->conn())) {
+  if (ngtcp2_conn_is_in_closing_period(conn)) {
     if (!config.quiet) {
       std::cerr << "Closing Period is over" << std::endl;
     }
@@ -583,7 +584,7 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
     s->remove(h);
     return;
   }
-  if (h->draining()) {
+  if (ngtcp2_conn_is_in_draining_period(conn)) {
     if (!config.quiet) {
       std::cerr << "Draining Period is over" << std::endl;
     }
@@ -592,16 +593,12 @@ void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
     return;
   }
 
-  if (!config.quiet) {
-    std::cerr << "Timeout" << std::endl;
-  }
-
-  h->start_draining_period();
+  assert(0);
 }
 } // namespace
 
 namespace {
-void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
+void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
   int rv;
 
   auto h = static_cast<Handler *>(w->data);
@@ -642,17 +639,13 @@ Handler::Handler(struct ev_loop *loop, Server *server)
       scid_{},
       httpconn_{nullptr},
       nkey_update_(0),
-      draining_(false),
       tx_{
           .data = std::unique_ptr<uint8_t[]>(new uint8_t[64_k]),
       } {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
-  ev_timer_init(&timer_, timeoutcb, 0.,
-                static_cast<double>(config.timeout) / NGTCP2_SECONDS);
+  ev_timer_init(&timer_, timeoutcb, 0., 0.);
   timer_.data = this;
-  ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
-  rttimer_.data = this;
 
   application_tx_key_cb_ = [this]() { return setup_httpconn(); };
 }
@@ -662,7 +655,6 @@ Handler::~Handler() {
     std::cerr << scid_ << " Closing QUIC connection " << std::endl;
   }
 
-  ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
   ev_io_stop(loop_, &wev_);
 
@@ -1523,7 +1515,6 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   ngtcp2_conn_set_tls_native_handle(conn_, tls_session_.get_native_handle());
 
   ev_io_set(&wev_, ep.fd, EV_WRITE);
-  ev_timer_again(loop_, &timer_);
 
   return 0;
 }
@@ -1590,25 +1581,9 @@ int Handler::on_read(const Endpoint &ep, const Address &local_addr,
     return rv;
   }
 
-  reset_idle_timer();
+  update_timer();
 
   return 0;
-}
-
-void Handler::reset_idle_timer() {
-  auto now = util::timestamp(loop_);
-  auto idle_expiry = ngtcp2_conn_get_idle_expiry(conn_);
-  timer_.repeat =
-      idle_expiry > now
-          ? static_cast<ev_tstamp>(idle_expiry - now) / NGTCP2_SECONDS
-          : 1e-9;
-
-  if (!config.quiet) {
-    std::cerr << "Set idle timer=" << std::fixed << timer_.repeat << "s"
-              << std::defaultfloat << std::endl;
-  }
-
-  ev_timer_again(loop_, &timer_);
 }
 
 int Handler::handle_expiry() {
@@ -1644,7 +1619,7 @@ int Handler::on_write() {
     return rv;
   }
 
-  schedule_retransmit();
+  update_timer();
 
   return 0;
 }
@@ -1781,11 +1756,8 @@ int Handler::write_streams() {
 
           start_wev_endpoint(ep);
           ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-          reset_idle_timer();
           return 0;
         }
-
-        reset_idle_timer();
       }
 
       ev_io_stop(loop_, &wev_);
@@ -1838,7 +1810,6 @@ int Handler::write_streams() {
       }
 
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      reset_idle_timer();
       return 0;
     }
 
@@ -1860,12 +1831,9 @@ int Handler::write_streams() {
 
       start_wev_endpoint(ep);
       ngtcp2_conn_update_pkt_tx_time(conn_, ts);
-      reset_idle_timer();
       return 0;
     }
 #else  // !NGTCP2_ENABLE_UDP_GSO
-    reset_idle_timer();
-
     auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
     auto data = tx_.data.get();
     auto datalen = bufpos - data;
@@ -1966,14 +1934,10 @@ int Handler::send_blocked_packet() {
 
 void Handler::signal_write() { ev_io_start(loop_, &wev_); }
 
-bool Handler::draining() const { return draining_; }
-
 void Handler::start_draining_period() {
-  draining_ = true;
-
-  ev_timer_stop(loop_, &rttimer_);
   ev_io_stop(loop_, &wev_);
 
+  ev_set_cb(&timer_, close_waitcb);
   timer_.repeat =
       static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
   ev_timer_again(loop_, &timer_);
@@ -1985,13 +1949,14 @@ void Handler::start_draining_period() {
 }
 
 int Handler::start_closing_period() {
-  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_) ||
+      ngtcp2_conn_is_in_draining_period(conn_)) {
     return 0;
   }
 
-  ev_timer_stop(loop_, &rttimer_);
   ev_io_stop(loop_, &wev_);
 
+  ev_set_cb(&timer_, close_waitcb);
   timer_.repeat =
       static_cast<ev_tstamp>(ngtcp2_conn_get_pto(conn_)) / NGTCP2_SECONDS * 3;
   ev_timer_again(loop_, &timer_);
@@ -2027,8 +1992,17 @@ int Handler::start_closing_period() {
 }
 
 int Handler::handle_error() {
+  if (last_error_.type ==
+      NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE) {
+    return -1;
+  }
+
   if (start_closing_period() != 0) {
     return -1;
+  }
+
+  if (ngtcp2_conn_is_in_draining_period(conn_)) {
+    return NETWORK_ERR_CLOSE_WAIT;
   }
 
   if (auto rv = send_conn_close(); rv != NETWORK_ERR_OK) {
@@ -2045,6 +2019,7 @@ int Handler::send_conn_close() {
 
   assert(conn_closebuf_ && conn_closebuf_->size());
   assert(conn_);
+  assert(!ngtcp2_conn_is_in_draining_period(conn_));
 
   auto path = ngtcp2_conn_get_path(conn_);
 
@@ -2053,7 +2028,7 @@ int Handler::send_conn_close() {
       /* ecn = */ 0, conn_closebuf_->rpos(), conn_closebuf_->size(), 0);
 }
 
-void Handler::schedule_retransmit() {
+void Handler::update_timer() {
   auto expiry = ngtcp2_conn_get_expiry(conn_);
   auto now = util::timestamp(loop_);
   auto t = expiry < now ? 1e-9
@@ -2062,8 +2037,8 @@ void Handler::schedule_retransmit() {
     std::cerr << "Set timer=" << std::fixed << t << "s" << std::defaultfloat
               << std::endl;
   }
-  rttimer_.repeat = t;
-  ev_timer_again(loop_, &rttimer_);
+  timer_.repeat = t;
+  ev_timer_again(loop_, &timer_);
 }
 
 int Handler::recv_stream_data(uint32_t flags, int64_t stream_id,
@@ -2617,7 +2592,8 @@ int Server::on_read(Endpoint &ep) {
     }
 
     auto h = (*handler_it).second;
-    if (ngtcp2_conn_is_in_closing_period(h->conn())) {
+    auto conn = h->conn();
+    if (ngtcp2_conn_is_in_closing_period(conn)) {
       // TODO do exponential backoff.
       switch (h->send_conn_close()) {
       case 0:
@@ -2627,7 +2603,7 @@ int Server::on_read(Endpoint &ep) {
       }
       continue;
     }
-    if (h->draining()) {
+    if (ngtcp2_conn_is_in_draining_period(conn)) {
       continue;
     }
 

@@ -122,7 +122,7 @@ public:
   int feed_data(const Endpoint &ep, const Address &local_addr,
                 const sockaddr *sa, socklen_t salen, const ngtcp2_pkt_info *pi,
                 uint8_t *data, size_t datalen);
-  void schedule_retransmit();
+  void update_timer();
   int handle_expiry();
   void signal_write();
   int handshake_completed();
@@ -136,7 +136,6 @@ public:
   int on_stream_close(int64_t stream_id, uint64_t app_error_code);
   void start_draining_period();
   int start_closing_period();
-  bool draining() const;
   int handle_error();
   int send_conn_close();
 
@@ -165,8 +164,6 @@ public:
   int http_stop_sending(int64_t stream_id, uint64_t app_error_code);
   int http_reset_stream(int64_t stream_id, uint64_t app_error_code);
 
-  void reset_idle_timer();
-
   void write_qlog(const void *data, size_t datalen);
 
   void on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
@@ -181,7 +178,6 @@ private:
   Server *server_;
   ev_io wev_;
   ev_timer timer_;
-  ev_timer rttimer_;
   FILE *qlog_;
   ngtcp2_cid scid_;
   nghttp3_conn *httpconn_;
@@ -192,8 +188,6 @@ private:
   std::unique_ptr<Buffer> conn_closebuf_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
-  // draining_ becomes true when draining period starts.
-  bool draining_;
 
   struct {
     bool send_blocked;

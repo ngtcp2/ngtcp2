@@ -4976,10 +4976,6 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
     goto fin;
   }
 
-  /* TODO Just move to the terminal state for now in order not to
-     send CONNECTION_CLOSE frame. */
-  conn->state = NGTCP2_CS_DRAINING;
-
 fin:
   if (p != sv) {
     ngtcp2_mem_free(conn->mem, p);
@@ -10569,17 +10565,23 @@ ngtcp2_tstamp ngtcp2_conn_get_expiry(ngtcp2_conn *conn) {
   ngtcp2_tstamp t4 = ngtcp2_conn_lost_pkt_expiry(conn);
   ngtcp2_tstamp t5 = conn_keep_alive_expiry(conn);
   ngtcp2_tstamp t6 = conn_handshake_expiry(conn);
+  ngtcp2_tstamp t7 = ngtcp2_conn_get_idle_expiry(conn);
   ngtcp2_tstamp res = ngtcp2_min(t1, t2);
   res = ngtcp2_min(res, t3);
   res = ngtcp2_min(res, t4);
   res = ngtcp2_min(res, t5);
   res = ngtcp2_min(res, t6);
+  res = ngtcp2_min(res, t7);
   return ngtcp2_min(res, conn->tx.pacing.next_ts);
 }
 
 int ngtcp2_conn_handle_expiry(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_duration pto = conn_compute_pto(conn, &conn->pktns);
+
+  if (ngtcp2_conn_get_idle_expiry(conn) <= ts) {
+    return NGTCP2_ERR_IDLE_CLOSE;
+  }
 
   ngtcp2_conn_cancel_expired_ack_delay_timer(conn, ts);
 
@@ -11607,9 +11609,10 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
+    return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
-    return NGTCP2_ERR_INVALID_STATE;
+    return 0;
   default:
     break;
   }
@@ -11671,9 +11674,10 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
 
   switch (conn->state) {
   case NGTCP2_CS_CLIENT_INITIAL:
+    return NGTCP2_ERR_INVALID_STATE;
   case NGTCP2_CS_CLOSING:
   case NGTCP2_CS_DRAINING:
-    return NGTCP2_ERR_INVALID_STATE;
+    return 0;
   default:
     break;
   }
@@ -11772,10 +11776,17 @@ void ngtcp2_connection_close_error_set_transport_error(
 void ngtcp2_connection_close_error_set_transport_error_liberr(
     ngtcp2_connection_close_error *ccerr, int liberr, const uint8_t *reason,
     size_t reasonlen) {
-  if (liberr == NGTCP2_ERR_RECV_VERSION_NEGOTIATION) {
+  switch (liberr) {
+  case NGTCP2_ERR_RECV_VERSION_NEGOTIATION:
     connection_close_error_init(
         ccerr,
         NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION,
+        NGTCP2_NO_ERROR, reason, reasonlen);
+
+    return;
+  case NGTCP2_ERR_IDLE_CLOSE:
+    connection_close_error_init(
+        ccerr, NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE,
         NGTCP2_NO_ERROR, reason, reasonlen);
 
     return;
@@ -11791,14 +11802,6 @@ void ngtcp2_connection_close_error_set_transport_error_tls_alert(
     const uint8_t *reason, size_t reasonlen) {
   ngtcp2_connection_close_error_set_transport_error(
       ccerr, NGTCP2_CRYPTO_ERROR | tls_alert, reason, reasonlen);
-}
-
-void ngtcp2_connection_close_error_set_transport_error_idle_close(
-    ngtcp2_connection_close_error *ccerr, const uint8_t *reason,
-    size_t reasonlen) {
-  connection_close_error_init(
-      ccerr, NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE,
-      NGTCP2_NO_ERROR, reason, reasonlen);
 }
 
 void ngtcp2_connection_close_error_set_application_error(

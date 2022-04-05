@@ -534,7 +534,7 @@ static void server_default_transport_params(ngtcp2_transport_params *params) {
   params->initial_max_data = 128 * 1024;
   params->initial_max_streams_bidi = 3;
   params->initial_max_streams_uni = 2;
-  params->max_idle_timeout = 60;
+  params->max_idle_timeout = 60 * NGTCP2_SECONDS;
   params->max_udp_payload_size = 65535;
   params->stateless_reset_token_present = 1;
   params->active_connection_id_limit = 8;
@@ -583,7 +583,7 @@ static void client_default_transport_params(ngtcp2_transport_params *params) {
   params->initial_max_data = 128 * 1024;
   params->initial_max_streams_bidi = 0;
   params->initial_max_streams_uni = 2;
-  params->max_idle_timeout = 60;
+  params->max_idle_timeout = 60 * NGTCP2_SECONDS;
   params->max_udp_payload_size = 65535;
   params->stateless_reset_token_present = 0;
   params->active_connection_id_limit = 8;
@@ -7700,6 +7700,7 @@ void test_ngtcp2_conn_keep_alive(void) {
   ngtcp2_ssize spktlen;
   ngtcp2_pkt_info pi;
   ngtcp2_tstamp t = 0;
+  int rv;
 
   setup_default_client(&conn);
 
@@ -7719,8 +7720,9 @@ void test_ngtcp2_conn_keep_alive(void) {
 
   t += 10 * NGTCP2_SECONDS;
 
-  ngtcp2_conn_handle_expiry(conn, t);
+  rv = ngtcp2_conn_handle_expiry(conn, t);
 
+  CU_ASSERT(0 == rv);
   CU_ASSERT(conn->flags & NGTCP2_CONN_FLAG_KEEP_ALIVE_CANCELLED);
 
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, &pi, buf, sizeof(buf), t);
