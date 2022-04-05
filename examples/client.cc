@@ -120,24 +120,6 @@ void readcb(struct ev_loop *loop, ev_io *w, int revents) {
 
 namespace {
 void timeoutcb(struct ev_loop *loop, ev_timer *w, int revents) {
-  auto c = static_cast<Client *>(w->data);
-
-  if (!config.quiet) {
-    std::cerr << "Timeout" << std::endl;
-  }
-
-  c->idle_timeout();
-}
-} // namespace
-
-void Client::idle_timeout() {
-  ngtcp2_connection_close_error_set_transport_error_idle_close(&last_error_,
-                                                               nullptr, 0);
-  disconnect();
-}
-
-namespace {
-void retransmitcb(struct ev_loop *loop, ev_timer *w, int revents) {
   int rv;
   auto c = static_cast<Client *>(w->data);
 
@@ -200,11 +182,8 @@ Client::Client(struct ev_loop *loop)
       tx_{} {
   ev_io_init(&wev_, writecb, 0, EV_WRITE);
   wev_.data = this;
-  ev_timer_init(&timer_, timeoutcb, 0.,
-                static_cast<double>(config.timeout) / NGTCP2_SECONDS);
+  ev_timer_init(&timer_, timeoutcb, 0., 0.);
   timer_.data = this;
-  ev_timer_init(&rttimer_, retransmitcb, 0., 0.);
-  rttimer_.data = this;
   ev_timer_init(&change_local_addr_timer_, change_local_addrcb,
                 static_cast<double>(config.change_local_addr) / NGTCP2_SECONDS,
                 0.);
@@ -239,7 +218,6 @@ void Client::disconnect() {
   ev_timer_stop(loop_, &delay_stream_timer_);
   ev_timer_stop(loop_, &key_update_timer_);
   ev_timer_stop(loop_, &change_local_addr_timer_);
-  ev_timer_stop(loop_, &rttimer_);
   ev_timer_stop(loop_, &timer_);
 
   ev_io_stop(loop_, &wev_);
@@ -768,7 +746,6 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   }
 
   ev_io_start(loop_, &ep.rev);
-  ev_timer_again(loop_, &timer_);
 
   ev_signal_start(loop_, &sigintev_);
 
@@ -885,25 +862,9 @@ int Client::on_read(const Endpoint &ep) {
     return -1;
   }
 
-  reset_idle_timer();
+  update_timer();
 
   return 0;
-}
-
-void Client::reset_idle_timer() {
-  auto now = util::timestamp(loop_);
-  auto idle_expiry = ngtcp2_conn_get_idle_expiry(conn_);
-  timer_.repeat =
-      idle_expiry > now
-          ? static_cast<ev_tstamp>(idle_expiry - now) / NGTCP2_SECONDS
-          : 1e-9;
-
-  if (!config.quiet) {
-    std::cerr << "Set idle timer=" << std::fixed << timer_.repeat << "s"
-              << std::defaultfloat << std::endl;
-  }
-
-  ev_timer_again(loop_, &timer_);
 }
 
 int Client::handle_expiry() {
@@ -911,8 +872,8 @@ int Client::handle_expiry() {
   if (auto rv = ngtcp2_conn_handle_expiry(conn_, now); rv != 0) {
     std::cerr << "ngtcp2_conn_handle_expiry: " << ngtcp2_strerror(rv)
               << std::endl;
-    ngtcp2_connection_close_error_set_transport_error_liberr(
-        &last_error_, NGTCP2_ERR_INTERNAL, nullptr, 0);
+    ngtcp2_connection_close_error_set_transport_error_liberr(&last_error_, rv,
+                                                             nullptr, 0);
     disconnect();
     return -1;
   }
@@ -942,7 +903,7 @@ int Client::on_write() {
     return -1;
   }
 
-  schedule_retransmit();
+  update_timer();
   return 0;
 }
 
@@ -1066,8 +1027,6 @@ int Client::write_streams() {
       return 0;
     }
 
-    reset_idle_timer();
-
     auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
 
     if (auto rv =
@@ -1095,7 +1054,7 @@ int Client::write_streams() {
   }
 }
 
-void Client::schedule_retransmit() {
+void Client::update_timer() {
   auto expiry = ngtcp2_conn_get_expiry(conn_);
   auto now = util::timestamp(loop_);
   auto t = expiry < now ? 1e-9
@@ -1104,8 +1063,8 @@ void Client::schedule_retransmit() {
     std::cerr << "Set timer=" << std::fixed << t << "s" << std::defaultfloat
               << std::endl;
   }
-  rttimer_.repeat = t;
-  ev_timer_again(loop_, &rttimer_);
+  timer_.repeat = t;
+  ev_timer_again(loop_, &timer_);
 }
 
 #ifdef HAVE_LINUX_RTNETLINK_H
@@ -1545,7 +1504,8 @@ int Client::send_blocked_packet() {
 }
 
 int Client::handle_error() {
-  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_)) {
+  if (!conn_ || ngtcp2_conn_is_in_closing_period(conn_) ||
+      ngtcp2_conn_is_in_draining_period(conn_)) {
     return 0;
   }
 

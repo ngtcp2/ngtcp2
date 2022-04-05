@@ -945,6 +945,15 @@ void ngtcp2_conn_cancel_expired_ack_delay_timer(ngtcp2_conn *conn,
  */
 ngtcp2_tstamp ngtcp2_conn_loss_detection_expiry(ngtcp2_conn *conn);
 
+/**
+ * @function
+ *
+ * `ngtcp2_conn_get_idle_expiry` returns the time when a connection
+ * should be closed if it continues to be idle.  If idle timeout is
+ * disabled, this function returns ``UINT64_MAX``.
+ */
+ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn);
+
 ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn, ngtcp2_pktns *pktns);
 
 /*

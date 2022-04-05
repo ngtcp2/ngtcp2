@@ -251,9 +251,9 @@ endpoint and no longer used by the library.
 Timers
 ------
 
-The library does not ask an operating system any timestamp.  Instead,
-an application has to supply timestamp to the library.  The type of
-timestamp in ngtcp2 library is :type:`ngtcp2_tstamp` which is
+The library does not ask an operating system for any timestamp.
+Instead, an application has to supply timestamp to the library.  The
+type of timestamp in ngtcp2 library is :type:`ngtcp2_tstamp` which is
 nanosecond resolution.  The library only cares the difference of
 timestamp, so it does not have to be a system clock.  A monotonic
 clock should work better.  It should be same clock passed to
@@ -265,11 +265,6 @@ When timer fires, call `ngtcp2_conn_handle_expiry()` and
 
 After calling these functions, new expiry will be set.  The
 application should call `ngtcp2_conn_get_expiry()` to restart timer.
-
-Application also handles connection idle timeout.
-`ngtcp2_conn_get_idle_expiry()` returns the current idle expiry.  If
-idle timer is expired, the connection should be closed without calling
-`ngtcp2_conn_write_connection_close()`.
 
 Connection migration
 --------------------
@@ -284,21 +279,21 @@ Closing connection
 ------------------
 
 In order to close QUIC connection, call
-`ngtcp2_conn_write_connection_close()` or
-`ngtcp2_conn_write_application_close()`.
+`ngtcp2_conn_write_connection_close()`.
 
 Error handling in general
 -------------------------
 
 In general, when error is returned from the ngtcp2 library function,
-call `ngtcp2_conn_write_connection_close()` or
-`ngtcp2_conn_write_application_close()` to get terminal packet.
+call `ngtcp2_conn_write_connection_close()` to get terminal packet.
 Sending it finishes QUIC connection.
 
 If :macro:`NGTCP2_ERR_DROP_CONN` is returned from
 `ngtcp2_conn_read_pkt`, a connection should be dropped without calling
-`ngtcp2_conn_write_connection_close()` or
-`ngtcp2_conn_write_application_close()`.
+`ngtcp2_conn_write_connection_close()`.  Similarly, if
+:macro:`NGTCP2_ERR_IDLE_CLOSE` is returned from
+`ngtcp2_conn_handle_expiry`, a connection should be dropped without
+calling `ngtcp2_conn_write_connection_close()`.
 
 The following error codes must be considered as transitional, and
 application should keep connection alive:

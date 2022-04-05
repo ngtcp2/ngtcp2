@@ -106,6 +106,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_HANDSHAKE_TIMEOUT";
   case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
     return "ERR_VERSION_NEGOTIATION_FAILURE";
+  case NGTCP2_ERR_IDLE_CLOSE:
+    return "ERR_IDLE_CLOSE";
   default:
     return "(unknown)";
   }
