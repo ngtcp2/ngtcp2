@@ -1298,7 +1298,7 @@ int Handler::start_closing_period() {
       conn_, &ps.path, &pi, conn_closebuf_->wpos(), conn_closebuf_->left(),
       &last_error_, util::timestamp(loop_));
   if (n < 0) {
-    std::cerr << "ngtcp2_conn_write_connection_close2: " << ngtcp2_strerror(n)
+    std::cerr << "ngtcp2_conn_write_connection_close: " << ngtcp2_strerror(n)
               << std::endl;
     return -1;
   }
