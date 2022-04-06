@@ -1775,7 +1775,8 @@ int Handler::write_streams() {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
       gso_size = nwrite;
-    } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn) {
+    } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn ||
+               static_cast<size_t>(nwrite) > gso_size) {
       auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
       auto data = tx_.data.get();
       auto datalen = bufpos - data - nwrite;
@@ -1791,7 +1792,7 @@ int Handler::write_streams() {
 
         on_send_blocked(*static_cast<Endpoint *>(ps.path.user_data),
                         ps.path.local, ps.path.remote, pi.ecn, bufpos - nwrite,
-                        nwrite, gso_size);
+                        nwrite, 0);
 
         start_wev_endpoint(ep);
       } else {
@@ -1799,12 +1800,12 @@ int Handler::write_streams() {
         auto data = bufpos - nwrite;
 
         if (auto rv = server_->send_packet(ep, ps.path.local, ps.path.remote,
-                                           pi.ecn, data, nwrite, gso_size);
+                                           pi.ecn, data, nwrite, 0);
             rv != 0) {
           assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
           on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, data,
-                          nwrite, gso_size);
+                          nwrite, 0);
         }
 
         start_wev_endpoint(ep);
@@ -1814,7 +1815,7 @@ int Handler::write_streams() {
       return 0;
     }
 
-    if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) != gso_size) {
+    if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < gso_size) {
       auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
       auto data = tx_.data.get();
       auto datalen = bufpos - data;
