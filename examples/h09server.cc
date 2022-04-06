@@ -986,6 +986,7 @@ int Handler::write_streams() {
       max_udp_payload_size;
   uint8_t *bufpos = tx_.data.get();
   ngtcp2_pkt_info pi;
+  size_t gso_size = 0;
   auto ts = util::timestamp(loop_);
 
   ngtcp2_path_storage_zero(&ps);
@@ -1058,12 +1059,12 @@ int Handler::write_streams() {
 
         if (auto rv = server_->send_packet(ep, prev_ps.path.local,
                                            prev_ps.path.remote, prev_ecn, data,
-                                           datalen, max_udp_payload_size);
+                                           datalen, gso_size);
             rv != NETWORK_ERR_OK) {
           assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
           on_send_blocked(ep, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
-                          data, datalen, max_udp_payload_size);
+                          data, datalen, gso_size);
 
           start_wev_endpoint(ep);
           ngtcp2_conn_update_pkt_tx_time(conn_, ts);
@@ -1087,37 +1088,37 @@ int Handler::write_streams() {
     if (pktcnt == 0) {
       ngtcp2_path_copy(&prev_ps.path, &ps.path);
       prev_ecn = pi.ecn;
+      gso_size = nwrite;
     } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn) {
       auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
       auto data = tx_.data.get();
       auto datalen = bufpos - data - nwrite;
 
-      if (auto rv = server_->send_packet(ep, prev_ps.path.local,
-                                         prev_ps.path.remote, prev_ecn, data,
-                                         datalen, max_udp_payload_size);
+      if (auto rv =
+              server_->send_packet(ep, prev_ps.path.local, prev_ps.path.remote,
+                                   prev_ecn, data, datalen, gso_size);
           rv != 0) {
         assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
         on_send_blocked(ep, prev_ps.path.local, prev_ps.path.remote, prev_ecn,
-                        data, datalen, max_udp_payload_size);
+                        data, datalen, gso_size);
 
         on_send_blocked(*static_cast<Endpoint *>(ps.path.user_data),
                         ps.path.local, ps.path.remote, pi.ecn, bufpos - nwrite,
-                        nwrite, max_udp_payload_size);
+                        nwrite, gso_size);
 
         start_wev_endpoint(ep);
       } else {
         auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
         auto data = bufpos - nwrite;
 
-        if (auto rv =
-                server_->send_packet(ep, ps.path.local, ps.path.remote, pi.ecn,
-                                     data, nwrite, max_udp_payload_size);
+        if (auto rv = server_->send_packet(ep, ps.path.local, ps.path.remote,
+                                           pi.ecn, data, nwrite, gso_size);
             rv != 0) {
           assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
           on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, data,
-                          nwrite, max_udp_payload_size);
+                          nwrite, gso_size);
         }
 
         start_wev_endpoint(ep);
@@ -1128,20 +1129,18 @@ int Handler::write_streams() {
       return 0;
     }
 
-    if (++pktcnt == max_pktcnt ||
-        static_cast<size_t>(nwrite) < max_udp_payload_size) {
+    if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) != gso_size) {
       auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
       auto data = tx_.data.get();
       auto datalen = bufpos - data;
 
-      if (auto rv =
-              server_->send_packet(ep, ps.path.local, ps.path.remote, pi.ecn,
-                                   data, datalen, max_udp_payload_size);
+      if (auto rv = server_->send_packet(ep, ps.path.local, ps.path.remote,
+                                         pi.ecn, data, datalen, gso_size);
           rv != 0) {
         assert(NETWORK_ERR_SEND_BLOCKED == rv);
 
         on_send_blocked(ep, ps.path.local, ps.path.remote, pi.ecn, data,
-                        datalen, max_udp_payload_size);
+                        datalen, gso_size);
       }
 
       start_wev_endpoint(ep);
@@ -1183,7 +1182,7 @@ int Handler::write_streams() {
 void Handler::on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
                               const ngtcp2_addr &remote_addr, unsigned int ecn,
                               const uint8_t *data, size_t datalen,
-                              size_t max_udp_payload_size) {
+                              size_t gso_size) {
   assert(tx_.num_blocked || !tx_.send_blocked);
   assert(tx_.num_blocked < 2);
 
@@ -1200,7 +1199,7 @@ void Handler::on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
   p.ecn = ecn;
   p.data = data;
   p.datalen = datalen;
-  p.max_udp_payload_size = max_udp_payload_size;
+  p.gso_size = gso_size;
 }
 
 void Handler::start_wev_endpoint(const Endpoint &ep) {
@@ -1233,7 +1232,7 @@ int Handler::send_blocked_packet() {
     };
 
     auto rv = server_->send_packet(*p.endpoint, local_addr, remote_addr, p.ecn,
-                                   p.data, p.datalen, p.max_udp_payload_size);
+                                   p.data, p.datalen, p.gso_size);
     if (rv != 0) {
       assert(NETWORK_ERR_SEND_BLOCKED == rv);
 

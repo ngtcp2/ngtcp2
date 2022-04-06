@@ -152,8 +152,7 @@ public:
 
   void on_send_blocked(Endpoint &ep, const ngtcp2_addr &local_addr,
                        const ngtcp2_addr &remote_addr, unsigned int ecn,
-                       const uint8_t *data, size_t datalen,
-                       size_t max_udp_payload_size);
+                       const uint8_t *data, size_t datalen, size_t gso_size);
   void start_wev_endpoint(const Endpoint &ep);
   int send_blocked_packet();
 
@@ -188,7 +187,7 @@ private:
       unsigned int ecn;
       const uint8_t *data;
       size_t datalen;
-      size_t max_udp_payload_size;
+      size_t gso_size;
     } blocked[2];
     std::unique_ptr<uint8_t[]> data;
   } tx_;
