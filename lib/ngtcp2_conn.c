@@ -12136,24 +12136,22 @@ int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn) {
   return 0;
 }
 
-void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
-                            ngtcp2_duration ack_delay, ngtcp2_tstamp ts) {
+int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
+                           ngtcp2_duration ack_delay, ngtcp2_tstamp ts) {
   ngtcp2_conn_stat *cstat = &conn->cstat;
-  ngtcp2_duration min_rtt;
-
-  cstat->latest_rtt = rtt;
 
   if (cstat->min_rtt == UINT64_MAX) {
+    cstat->latest_rtt = rtt;
     cstat->min_rtt = rtt;
     cstat->smoothed_rtt = rtt;
     cstat->rttvar = rtt / 2;
     cstat->first_rtt_sample_ts = ts;
   } else {
-    min_rtt = ngtcp2_min(cstat->min_rtt, rtt);
     if (conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED) {
       ack_delay =
           ngtcp2_min(ack_delay, conn->remote.transport_params.max_ack_delay);
-    } else if (ack_delay > 0 && rtt < cstat->min_rtt + ack_delay) {
+    } else if (ack_delay > 0 && rtt >= cstat->min_rtt &&
+               rtt < cstat->min_rtt + ack_delay) {
       /* Ignore RTT sample if adjusting ack_delay causes the sample
          less than min_rtt before handshake confirmation. */
       ngtcp2_log_info(
@@ -12163,14 +12161,16 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
           (uint64_t)(rtt / NGTCP2_MILLISECONDS),
           (uint64_t)(cstat->min_rtt / NGTCP2_MILLISECONDS),
           (uint64_t)(ack_delay / NGTCP2_MILLISECONDS));
-      return;
+      return NGTCP2_ERR_INVALID_ARGUMENT;
     }
 
-    if (rtt > min_rtt + ack_delay) {
+    cstat->latest_rtt = rtt;
+    cstat->min_rtt = ngtcp2_min(cstat->min_rtt, rtt);
+
+    if (rtt >= cstat->min_rtt + ack_delay) {
       rtt -= ack_delay;
     }
 
-    cstat->min_rtt = min_rtt;
     cstat->rttvar = (cstat->rttvar * 3 + (cstat->smoothed_rtt < rtt
                                               ? rtt - cstat->smoothed_rtt
                                               : cstat->smoothed_rtt - rtt)) /
@@ -12187,6 +12187,8 @@ void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
                   cstat->smoothed_rtt / NGTCP2_MILLISECONDS,
                   cstat->rttvar / NGTCP2_MILLISECONDS,
                   (uint64_t)(ack_delay / NGTCP2_MILLISECONDS));
+
+  return 0;
 }
 
 void ngtcp2_conn_get_conn_stat_versioned(ngtcp2_conn *conn,

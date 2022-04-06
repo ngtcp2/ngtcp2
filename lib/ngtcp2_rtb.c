@@ -1023,8 +1023,8 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
   if (largest_pkt_sent_ts != UINT64_MAX && ack_eliciting_pkt_acked) {
     cc_ack.rtt = pkt_ts - largest_pkt_sent_ts;
 
-    ngtcp2_conn_update_rtt(conn, cc_ack.rtt, fr->ack_delay_unscaled, ts);
-    if (cc->new_rtt_sample) {
+    rv = ngtcp2_conn_update_rtt(conn, cc_ack.rtt, fr->ack_delay_unscaled, ts);
+    if (rv == 0 && cc->new_rtt_sample) {
       cc->new_rtt_sample(cc, cstat, ts);
     }
   }
