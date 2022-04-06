@@ -1317,8 +1317,19 @@ int Handler::send_conn_close() {
 void Handler::update_timer() {
   auto expiry = ngtcp2_conn_get_expiry(conn_);
   auto now = util::timestamp(loop_);
-  auto t = expiry < now ? 1e-9
-                        : static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
+
+  if (expiry <= now) {
+    if (!config.quiet) {
+      auto t = static_cast<ev_tstamp>(now - expiry) / NGTCP2_SECONDS;
+      std::cerr << "Timer has already expired: " << t << "s" << std::endl;
+    }
+
+    ev_feed_event(loop_, &timer_, EV_TIMER);
+
+    return;
+  }
+
+  auto t = static_cast<ev_tstamp>(expiry - now) / NGTCP2_SECONDS;
   if (!config.quiet) {
     std::cerr << "Set timer=" << std::fixed << t << "s" << std::defaultfloat
               << std::endl;
