@@ -1069,13 +1069,6 @@ int udp_sock(int family) {
     return -1;
   }
 
-  auto val = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &val,
-                 static_cast<socklen_t>(sizeof(val))) == -1) {
-    close(fd);
-    return -1;
-  }
-
   fd_set_recv_ecn(fd, family);
   fd_set_ip_mtu_discover(fd, family);
   fd_set_ip_dontfrag(fd, family);
