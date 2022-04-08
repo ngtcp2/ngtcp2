@@ -3777,6 +3777,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         if (stream_offset == (uint64_t)-1) {
           ngtcp2_strm_streamfrq_clear(strm);
           ngtcp2_conn_tx_strmq_pop(conn);
+          assert(conn->tx.strmq_nretrans);
+          --conn->tx.strmq_nretrans;
           continue;
         }
 
@@ -3814,6 +3816,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         if (ngtcp2_strm_streamfrq_empty(strm)) {
           ngtcp2_conn_tx_strmq_pop(conn);
+          assert(conn->tx.strmq_nretrans);
+          --conn->tx.strmq_nretrans;
           continue;
         }
 
@@ -5013,6 +5017,7 @@ int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
   ngtcp2_stream *sfr;
   ngtcp2_strm *strm;
   int rv;
+  int streamfrq_empty;
 
   if (*pfrc == NULL) {
     return 0;
@@ -5032,6 +5037,7 @@ int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
         ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
         break;
       }
+      streamfrq_empty = ngtcp2_strm_streamfrq_empty(strm);
       rv = ngtcp2_strm_streamfrq_push(strm, frc);
       if (rv != 0) {
         ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
@@ -5043,6 +5049,9 @@ int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
         if (rv != 0) {
           return rv;
         }
+      }
+      if (streamfrq_empty) {
+        ++conn->tx.strmq_nretrans;
       }
       break;
     case NGTCP2_FRAME_CRYPTO:
@@ -7343,6 +7352,11 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
   }
 
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_SENT_RST;
+
+  if (ngtcp2_strm_is_tx_queued(strm) && !ngtcp2_strm_streamfrq_empty(strm)) {
+    assert(conn->tx.strmq_nretrans);
+    --conn->tx.strmq_nretrans;
+  }
 
   ngtcp2_strm_streamfrq_clear(strm);
 
@@ -11102,14 +11116,9 @@ static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
                                             ngtcp2_pkt_info *pi, uint8_t *dest,
                                             size_t destlen, ngtcp2_vmsg *vmsg,
                                             ngtcp2_tstamp ts) {
-  ngtcp2_pktns *in_pktns = conn->in_pktns;
-  ngtcp2_pktns *hs_pktns = conn->hs_pktns;
-  ngtcp2_pktns *pktns = &conn->pktns;
-  int no_retrans = (!in_pktns || in_pktns->rtb.num_retransmittable == 0) &&
-                   (!hs_pktns || hs_pktns->rtb.num_retransmittable == 0) &&
-                   pktns->rtb.num_retransmittable == 0;
   ngtcp2_conn_stat *cstat = &conn->cstat;
   ngtcp2_ssize nwrite;
+  int undersized;
 
   nwrite = ngtcp2_conn_write_vmsg(conn, path, pkt_info_version, pi, dest,
                                   destlen, vmsg, ts);
@@ -11121,11 +11130,20 @@ static ngtcp2_ssize conn_write_vmsg_wrapper(ngtcp2_conn *conn,
     conn->rst.is_cwnd_limited = 1;
   }
 
-  if (nwrite == 0 && cstat->bytes_in_flight < cstat->cwnd && no_retrans) {
-    conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
+  if (vmsg == NULL && cstat->bytes_in_flight < cstat->cwnd &&
+      conn->tx.strmq_nretrans == 0) {
+    if (conn->local.settings.no_udp_payload_size_shaping) {
+      undersized = (size_t)nwrite < conn->local.settings.max_udp_payload_size;
+    } else {
+      undersized = (size_t)nwrite < conn->dcid.current.max_udp_payload_size;
+    }
 
-    if (conn->rst.app_limited == 0) {
-      conn->rst.app_limited = cstat->max_udp_payload_size;
+    if (undersized) {
+      conn->rst.app_limited = conn->rst.delivered + cstat->bytes_in_flight;
+
+      if (conn->rst.app_limited == 0) {
+        conn->rst.app_limited = cstat->max_udp_payload_size;
+      }
     }
   }
 
@@ -11859,6 +11877,10 @@ int ngtcp2_conn_close_stream(ngtcp2_conn *conn, ngtcp2_strm *strm) {
 
   if (ngtcp2_strm_is_tx_queued(strm)) {
     ngtcp2_pq_remove(&conn->tx.strmq, &strm->pe);
+    if (!ngtcp2_strm_streamfrq_empty(strm)) {
+      assert(conn->tx.strmq_nretrans);
+      --conn->tx.strmq_nretrans;
+    }
   }
 
 fin:
@@ -12078,6 +12100,10 @@ static int delete_strms_pq_each(void *data, void *ptr) {
 
   if (ngtcp2_strm_is_tx_queued(s)) {
     ngtcp2_pq_remove(&conn->tx.strmq, &s->pe);
+    if (!ngtcp2_strm_streamfrq_empty(s)) {
+      assert(conn->tx.strmq_nretrans);
+      --conn->tx.strmq_nretrans;
+    }
   }
 
   ngtcp2_strm_free(s);
