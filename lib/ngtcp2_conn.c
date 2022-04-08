@@ -2318,7 +2318,7 @@ void ngtcp2_conn_set_keep_alive_timeout(ngtcp2_conn *conn,
  * is involved (which includes other stuff, like reading packets etc
  * in a typical single threaded use case).
  */
-#define NGTCP2_PKT_PACING_OVERHEAD (500 * NGTCP2_MICROSECONDS)
+#define NGTCP2_PKT_PACING_OVERHEAD NGTCP2_MILLISECONDS
 
 static void conn_cancel_expired_pkt_tx_timer(ngtcp2_conn *conn,
                                              ngtcp2_tstamp ts) {
