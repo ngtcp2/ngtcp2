@@ -627,7 +627,10 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   settings.cc_algo = config.cc_algo;
   settings.initial_ts = util::timestamp(loop_);
   settings.initial_rtt = config.initial_rtt;
-  settings.max_udp_payload_size = config.max_udp_payload_size;
+  if (config.max_udp_payload_size) {
+    settings.max_udp_payload_size = config.max_udp_payload_size;
+    settings.no_udp_payload_size_shaping = 1;
+  }
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
 
@@ -1770,7 +1773,6 @@ void config_set_default(Config &config) {
   config.max_streams_uni = 100;
   config.cc_algo = NGTCP2_CC_ALGO_CUBIC;
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
-  config.max_udp_payload_size = client_max_udp_payload_size;
   config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
 }
 } // namespace
@@ -1935,8 +1937,6 @@ Options:
             << util::format_duration(config.initial_rtt) << R"(
   --max-udp-payload-size=<SIZE>
               Override maximum UDP payload size that client transmits.
-              Default: )"
-            << config.max_udp_payload_size << R"(
   --handshake-timeout=<DURATION>
               Set the QUIC handshake timeout.
               Default: )"

@@ -1398,8 +1398,6 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   if (config.max_udp_payload_size) {
     settings.max_udp_payload_size = config.max_udp_payload_size;
     settings.no_udp_payload_size_shaping = 1;
-  } else {
-    settings.max_udp_payload_size = server_max_udp_payload_size;
   }
   if (!config.qlog_dir.empty()) {
     auto path = std::string{config.qlog_dir};
