@@ -64,7 +64,7 @@ typedef enum ngtcp2_transport_param_id {
   NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE = 0x0020,
   NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT = 0x2ab2,
   /* https://quicwg.org/quic-v2/draft-ietf-quic-v2.html */
-  NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION = 0xff73db,
+  NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT = 0xff73db,
 } ngtcp2_transport_param_id;
 
 /* NGTCP2_CRYPTO_KM_FLAG_NONE indicates that no flag is set. */

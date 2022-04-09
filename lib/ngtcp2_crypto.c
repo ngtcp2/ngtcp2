@@ -261,7 +261,8 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   }
   if (params->version_info_present) {
     version_infolen = sizeof(uint32_t) + params->version_info.other_versionslen;
-    len += ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
+    len += ngtcp2_put_varint_len(
+               NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
            ngtcp2_put_varint_len(version_infolen) + version_infolen;
   }
 
@@ -401,7 +402,7 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
   }
 
   if (params->version_info_present) {
-    p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION);
+    p = ngtcp2_put_varint(p, NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT);
     p = ngtcp2_put_varint(p, version_infolen);
     p = ngtcp2_put_uint32be(p, params->version_info.chosen_version);
     if (params->version_info.other_versionslen) {
@@ -785,7 +786,7 @@ int ngtcp2_decode_transport_params_versioned(
       p += nread;
       params->grease_quic_bit = 1;
       break;
-    case NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION:
+    case NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT:
       nread = decode_varint(&valuelen, p, end);
       if (nread < 0) {
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;

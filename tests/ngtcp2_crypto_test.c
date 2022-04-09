@@ -209,7 +209,8 @@ void test_ngtcp2_encode_transport_params(void) {
                            params.max_datagram_frame_size) +
            (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
             ngtcp2_put_varint_len(0)) +
-           (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
             ngtcp2_put_varint_len(sizeof(params.version_info.chosen_version) +
                                   params.version_info.other_versionslen) +
             sizeof(params.version_info.chosen_version) +
@@ -352,7 +353,8 @@ void test_ngtcp2_encode_transport_params(void) {
                            params.max_datagram_frame_size) +
            (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
             ngtcp2_put_varint_len(0)) +
-           (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION) +
+           (ngtcp2_put_varint_len(
+                NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
             ngtcp2_put_varint_len(sizeof(params.version_info.chosen_version) +
                                   params.version_info.other_versionslen) +
             sizeof(params.version_info.chosen_version) +
