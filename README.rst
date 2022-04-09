@@ -200,7 +200,7 @@ QUIC protocol extensions
 The library implements the following QUIC protocol extensions:
 
 - `An Unreliable Datagram Extension to QUIC
-  <https://datatracker.ietf.org/doc/html/draft-ietf-quic-datagram>`_
+  <https://datatracker.ietf.org/doc/html/rfc9221>`_
 - `Greasing the QUIC Bit
   <https://datatracker.ietf.org/doc/html/draft-ietf-quic-bit-grease>`_
 - `Compatible Version Negotiation for QUIC

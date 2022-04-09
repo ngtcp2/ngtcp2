@@ -1452,7 +1452,7 @@ typedef struct ngtcp2_transport_params {
    * :member:`max_datagram_frame_size` is the maximum size of DATAGRAM
    * frame that this endpoint willingly receives.  Specifying 0
    * disables DATAGRAM support.  See
-   * https://tools.ietf.org/html/draft-ietf-quic-datagram-01
+   * https://datatracker.ietf.org/doc/html/rfc9221
    */
   uint64_t max_datagram_frame_size;
   /**

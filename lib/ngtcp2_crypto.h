@@ -61,6 +61,7 @@ typedef enum ngtcp2_transport_param_id {
   NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT = 0x000e,
   NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID = 0x000f,
   NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID = 0x0010,
+  /* https://datatracker.ietf.org/doc/html/rfc9221 */
   NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE = 0x0020,
   NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT = 0x2ab2,
   /* https://quicwg.org/quic-v2/draft-ietf-quic-v2.html */
