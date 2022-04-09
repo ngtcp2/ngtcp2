@@ -5,7 +5,7 @@ curl -LO https://ftp.gnu.org/gnu/nettle/nettle-3.6.tar.gz
 tar xf nettle-3.6.tar.gz
 cd nettle-3.6
 ./configure --prefix=$PWD/build
-make
+make -j$(nproc)
 make install
 cd ..
 
