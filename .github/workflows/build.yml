@@ -179,12 +179,12 @@ jobs:
       if: matrix.buildtool != 'distcheck'
       run: |
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
-        make -j$(nproc)
-        make -j$(nproc) check
+        make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)"
+        make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)" check
     - name: Build ngtcp2 with distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
-        make -j$(nproc) distcheck \
+        make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)" distcheck \
           DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS"
     - name: Integration test
       if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
