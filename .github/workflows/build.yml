@@ -57,7 +57,7 @@ jobs:
     - name: MacOS setup
       if: runner.os == 'macOS'
       run: |
-        brew install libev cunit autoconf automake pkg-config libtool
+        brew install libev gnutls cunit autoconf automake pkg-config libtool
     - name: Setup clang (Linux)
       if: runner.os == 'Linux' && matrix.compiler == 'clang'
       run: |
@@ -82,6 +82,7 @@ jobs:
       run: |
         ./ci/build_openssl3.sh
     - name: Build GnuTLS
+      if: runner.os == 'Linux'
       run: |
         ./ci/build_gnutls.sh
     - name: Build BoringSSL
