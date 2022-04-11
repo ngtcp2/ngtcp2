@@ -201,9 +201,8 @@ void ngtcp2_frame_chain_list_objalloc_del(ngtcp2_frame_chain *frc,
 /* NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE indicates that the entry
    includes a frame which must be retransmitted until it is
    acknowledged.  In most cases, this flag is used along with
-   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING.  We have these 2 flags because
-   NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE triggers PTO, but just
-   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING does not. */
+   NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING and
+   NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING. */
 #define NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE 0x02
 /* NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING indicates that the entry
    elicits acknowledgement. */
@@ -224,6 +223,9 @@ void ngtcp2_frame_chain_list_objalloc_del(ngtcp2_frame_chain *frc,
 /* NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE indicates that the entry includes
    a PMTUD probe packet. */
 #define NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE 0x80
+/* NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING indicates that the entry
+   includes a packet which elicits PTO probe packets. */
+#define NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING 0x100
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
@@ -259,7 +261,7 @@ struct ngtcp2_rtb_entry {
       } rst;
       /* flags is bitwise-OR of zero or more of
          NGTCP2_RTB_ENTRY_FLAG_*. */
-      uint8_t flags;
+      uint16_t flags;
     };
 
     ngtcp2_opl_entry oplent;
@@ -275,7 +277,7 @@ ngtcp2_objalloc_def(rtb_entry, ngtcp2_rtb_entry, oplent);
 int ngtcp2_rtb_entry_objalloc_new(ngtcp2_rtb_entry **pent,
                                   const ngtcp2_pkt_hd *hd,
                                   ngtcp2_frame_chain *frc, ngtcp2_tstamp ts,
-                                  size_t pktlen, uint8_t flags,
+                                  size_t pktlen, uint16_t flags,
                                   ngtcp2_objalloc *objalloc);
 
 /*
@@ -313,6 +315,9 @@ typedef struct ngtcp2_rtb {
   /* num_retransmittable is the number of packets which contain frames
      that must be retransmitted on loss. */
   size_t num_retransmittable;
+  /* num_pto_eliciting is the number of packets that elicit PTO probe
+     packets. */
+  size_t num_pto_eliciting;
   /* probe_pkt_left is the number of probe packet to send */
   size_t probe_pkt_left;
   /* pktns_id is the identifier of packet number space. */
