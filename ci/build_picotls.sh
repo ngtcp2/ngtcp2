@@ -8,4 +8,4 @@ git submodule update --init
 mkdir build
 cd build
 PKG_CONFIG_PATH=$PWD/../../openssl/build/lib/pkgconfig cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON ..
-make -j$(nproc)
+make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)"

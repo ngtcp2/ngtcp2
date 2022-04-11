@@ -5,7 +5,7 @@ curl -LO https://ftp.gnu.org/gnu/nettle/nettle-3.6.tar.gz
 tar xf nettle-3.6.tar.gz
 cd nettle-3.6
 ./configure --prefix=$PWD/build
-make -j$(nproc)
+make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)"
 make install
 cd ..
 
@@ -17,5 +17,5 @@ cd gnutls-3.7.2
 	    --with-included-libtasn1 \
 	    --without-p11-kit \
 	    PKG_CONFIG_PATH="$PWD/../nettle-3.6/build/lib64/pkgconfig"
-make -j$(nproc)
+make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)"
 make install
