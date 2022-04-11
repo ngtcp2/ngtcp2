@@ -1774,7 +1774,7 @@ int Handler::write_streams() {
       prev_ecn = pi.ecn;
       gso_size = nwrite;
     } else if (!ngtcp2_path_eq(&prev_ps.path, &ps.path) || prev_ecn != pi.ecn ||
-               static_cast<size_t>(nwrite) > gso_size) {
+               static_cast<size_t>(nwrite) != gso_size) {
       auto &ep = *static_cast<Endpoint *>(prev_ps.path.user_data);
       auto data = tx_.data.get();
       auto datalen = bufpos - data - nwrite;
@@ -1813,7 +1813,7 @@ int Handler::write_streams() {
       return 0;
     }
 
-    if (++pktcnt == max_pktcnt || static_cast<size_t>(nwrite) < gso_size) {
+    if (++pktcnt == max_pktcnt) {
       auto &ep = *static_cast<Endpoint *>(ps.path.user_data);
       auto data = tx_.data.get();
       auto datalen = bufpos - data;
