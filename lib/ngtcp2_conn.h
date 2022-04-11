@@ -613,7 +613,9 @@ struct ngtcp2_conn {
     ngtcp2_frame_chain **pfrc;
     int pkt_empty;
     int hd_logged;
-    uint8_t rtb_entry_flags;
+    /* flags is bitwise OR of zero or more of
+       NGTCP2_RTB_ENTRY_FLAG_*. */
+    uint16_t rtb_entry_flags;
     ngtcp2_ssize hs_spktlen;
     int require_padding;
   } pkt;
@@ -878,7 +880,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
 ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
     uint8_t type, uint8_t flags, const ngtcp2_cid *dcid, ngtcp2_frame *fr,
-    uint8_t rtb_flags, const ngtcp2_path *path, ngtcp2_tstamp ts);
+    uint16_t rtb_entry_flags, const ngtcp2_path *path, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_commit_local_transport_params commits the local

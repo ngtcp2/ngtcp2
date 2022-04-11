@@ -856,7 +856,7 @@ ngtcp2_duration ngtcp2_conn_compute_pto(ngtcp2_conn *conn,
 }
 
 static void conn_handle_tx_ecn(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
-                               uint8_t *prtb_entry_flags, ngtcp2_pktns *pktns,
+                               uint16_t *prtb_entry_flags, ngtcp2_pktns *pktns,
                                const ngtcp2_pkt_hd *hd, ngtcp2_tstamp ts) {
   assert(pi);
 
@@ -2390,7 +2390,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
   ngtcp2_rtb_entry *rtbent;
   ngtcp2_pktns *pktns;
   size_t left;
-  uint8_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
+  uint16_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
   int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
   int pkt_empty = 1;
   int padded = 0;
@@ -2519,6 +2519,7 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 
       pkt_empty = 0;
       rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                         NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                          NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
     }
 
@@ -2539,12 +2540,14 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
          send any probe packet.  Client needs to send probe packets
          until it knows that server has completed address validation or
          handshake has been confirmed. */
-      if (pktns->rtb.num_retransmittable == 0 &&
+      if (pktns->rtb.num_pto_eliciting == 0 &&
           (conn->server ||
            (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
                            NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
         pktns->rtb.probe_pkt_left = 0;
         ngtcp2_conn_set_loss_detection_timer(conn, ts);
+        /* TODO If packet is empty, we should return now if cwnd is
+           zero. */
       }
     }
 
@@ -3319,7 +3322,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t datalen = 0;
   ngtcp2_vec data[NGTCP2_MAX_STREAM_DATACNT];
   size_t datacnt;
-  uint8_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
+  uint16_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
   int hd_logged = 0;
   ngtcp2_path_challenge_entry *pcent;
   uint8_t hd_flags;
@@ -3602,6 +3605,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
       pkt_empty = 0;
       rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                         NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                          NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
       pfrc = &(*pfrc)->next;
     }
@@ -3642,6 +3646,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         pkt_empty = 0;
         rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                            NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
       }
     }
@@ -3674,6 +3679,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       } else {
         pkt_empty = 0;
         rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                            NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
         pfrc = &(*pfrc)->next;
       }
@@ -3706,6 +3712,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
         } else {
           pkt_empty = 0;
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                             NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                              NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
           pfrc = &(*pfrc)->next;
         }
@@ -3762,6 +3769,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
           pkt_empty = 0;
           rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                             NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                              NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
           pfrc = &(*pfrc)->next;
           strm->rx.max_offset = strm->rx.unsent_max_offset =
@@ -3812,6 +3820,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
         pkt_empty = 0;
         rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                           NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                            NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
 
         if (ngtcp2_strm_streamfrq_empty(strm)) {
@@ -3847,9 +3856,11 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
          those packets have been acknowledged (i.e., retransmission in
          another packet).  In this case, we don't have to send any
          probe packet. */
-      if (pktns->rtb.num_retransmittable == 0) {
+      if (pktns->rtb.num_pto_eliciting == 0) {
         pktns->rtb.probe_pkt_left = 0;
         ngtcp2_conn_set_loss_detection_timer(conn, ts);
+        /* TODO If packet is empty, we should return now if cwnd is
+           zero. */
       }
     }
   } else {
@@ -3901,6 +3912,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
     pkt_empty = 0;
     rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+                       NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
                        NGTCP2_RTB_ENTRY_FLAG_RETRANSMITTABLE;
 
     vmsg->stream.strm->tx.offset += ndatalen;
@@ -4008,7 +4020,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 
   if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING)) {
     if (pktns->tx.num_non_ack_pkt >= NGTCP2_MAX_NON_ACK_TX_PKT ||
-        keep_alive_expired) {
+        keep_alive_expired || conn->pktns.rtb.probe_pkt_left) {
       lfr.type = NGTCP2_FRAME_PING;
 
       rv = conn_ppe_write_frame_hd_log(conn, ppe, &hd_logged, hd, &lfr);
@@ -4018,6 +4030,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
            packet is still empty. */
       } else {
         rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING;
+        if (conn->pktns.rtb.probe_pkt_left) {
+          rtb_entry_flags |= NGTCP2_RTB_ENTRY_FLAG_PROBE;
+        }
         pktns->tx.num_non_ack_pkt = 0;
       }
     } else {
@@ -4132,7 +4147,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
 ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest, size_t destlen,
     uint8_t type, uint8_t flags, const ngtcp2_cid *dcid, ngtcp2_frame *fr,
-    uint8_t rtb_flags, const ngtcp2_path *path, ngtcp2_tstamp ts) {
+    uint16_t rtb_entry_flags, const ngtcp2_path *path, ngtcp2_tstamp ts) {
   int rv;
   ngtcp2_ppe ppe;
   ngtcp2_pkt_hd hd;
@@ -4267,14 +4282,15 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     break;
   }
 
-  if (((rtb_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) || padded) &&
+  if (((rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) || padded) &&
       (!path || ngtcp2_path_eq(&conn->dcid.current.ps.path, path))) {
     if (pi) {
-      conn_handle_tx_ecn(conn, pi, &rtb_flags, pktns, &hd, ts);
+      conn_handle_tx_ecn(conn, pi, &rtb_entry_flags, pktns, &hd, ts);
     }
 
     rv = ngtcp2_rtb_entry_objalloc_new(&rtbent, &hd, NULL, ts, (size_t)nwrite,
-                                       rtb_flags, &conn->rtb_entry_objalloc);
+                                       rtb_entry_flags,
+                                       &conn->rtb_entry_objalloc);
     if (rv != 0) {
       return rv;
     }
@@ -4286,7 +4302,7 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
       return rv;
     }
 
-    if (rtb_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
+    if (rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) {
       if (conn->flags & NGTCP2_CONN_FLAG_RESTART_IDLE_TIMER_ON_WRITE) {
         conn_restart_timer_on_write(conn, ts);
       }
@@ -4349,9 +4365,9 @@ static int conn_handshake_remnants_left(ngtcp2_conn *conn) {
   ngtcp2_pktns *hs_pktns = conn->hs_pktns;
 
   return !conn_is_handshake_completed(conn) ||
-         (in_pktns && (in_pktns->rtb.num_retransmittable ||
+         (in_pktns && (in_pktns->rtb.num_pto_eliciting ||
                        ngtcp2_ksl_len(&in_pktns->crypto.tx.frq))) ||
-         (hs_pktns && (hs_pktns->rtb.num_retransmittable ||
+         (hs_pktns && (hs_pktns->rtb.num_pto_eliciting ||
                        ngtcp2_ksl_len(&hs_pktns->crypto.tx.frq)));
 }
 
@@ -4555,7 +4571,9 @@ static ngtcp2_ssize conn_write_pmtud_probe(ngtcp2_conn *conn,
   nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, pi, dest, probelen, NGTCP2_PKT_1RTT,
       NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING, &conn->dcid.current.cid, &lfr,
-      NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING | NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE,
+      NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING |
+          NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING |
+          NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE,
       NULL, ts);
   if (nwrite < 0) {
     return nwrite;
@@ -4784,7 +4802,8 @@ static ngtcp2_ssize conn_write_path_challenge(ngtcp2_conn *conn,
 
   nwrite = ngtcp2_conn_write_single_frame_pkt(
       conn, pi, dest, destlen, NGTCP2_PKT_1RTT, NGTCP2_WRITE_PKT_FLAG_NONE,
-      &pv->dcid.cid, &lfr, NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING,
+      &pv->dcid.cid, &lfr,
+      NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING | NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING,
       &pv->dcid.ps.path, ts);
   if (nwrite <= 0) {
     return nwrite;
@@ -12234,7 +12253,7 @@ static ngtcp2_pktns *conn_get_earliest_pktns(ngtcp2_conn *conn,
   ngtcp2_tstamp earliest_ts = UINT64_MAX;
 
   for (i = NGTCP2_PKTNS_ID_INITIAL; i < NGTCP2_PKTNS_ID_MAX; ++i) {
-    if (ns[i] == NULL || ns[i]->rtb.num_retransmittable == 0 ||
+    if (ns[i] == NULL || ns[i]->rtb.num_pto_eliciting == 0 ||
         (times[i] == UINT64_MAX ||
          (earliest_ts != UINT64_MAX && times[i] >= earliest_ts) ||
          (i == NGTCP2_PKTNS_ID_APPLICATION &&
@@ -12273,7 +12292,7 @@ static ngtcp2_tstamp conn_get_earliest_pto_expiry(ngtcp2_conn *conn,
       (1ULL << pto_count);
 
   for (i = NGTCP2_PKTNS_ID_INITIAL; i < NGTCP2_PKTNS_ID_MAX; ++i) {
-    if (ns[i] == NULL || ns[i]->rtb.num_retransmittable == 0 ||
+    if (ns[i] == NULL || ns[i]->rtb.num_pto_eliciting == 0 ||
         (times[i] == UINT64_MAX ||
          (i == NGTCP2_PKTNS_ID_APPLICATION &&
           !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)))) {
@@ -12317,9 +12336,9 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
     return;
   }
 
-  if ((!in_pktns || in_pktns->rtb.num_retransmittable == 0) &&
-      (!hs_pktns || hs_pktns->rtb.num_retransmittable == 0) &&
-      (pktns->rtb.num_retransmittable == 0 ||
+  if ((!in_pktns || in_pktns->rtb.num_pto_eliciting == 0) &&
+      (!hs_pktns || hs_pktns->rtb.num_pto_eliciting == 0) &&
+      (pktns->rtb.num_pto_eliciting == 0 ||
        !(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) &&
       (conn->server ||
        (conn->flags & (NGTCP2_CONN_FLAG_SERVER_ADDR_VERIFIED |
@@ -12390,16 +12409,16 @@ int ngtcp2_conn_on_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts) {
       in_pktns->rtb.probe_pkt_left = 1;
     }
   } else {
-    if (in_pktns && in_pktns->rtb.num_retransmittable) {
+    if (in_pktns && in_pktns->rtb.num_pto_eliciting) {
       in_pktns->rtb.probe_pkt_left = 1;
 
       assert(hs_pktns);
 
-      if (conn->server && hs_pktns->rtb.num_retransmittable) {
+      if (conn->server && hs_pktns->rtb.num_pto_eliciting) {
         /* let server coalesce packets */
         hs_pktns->rtb.probe_pkt_left = 1;
       }
-    } else if (hs_pktns && hs_pktns->rtb.num_retransmittable) {
+    } else if (hs_pktns && hs_pktns->rtb.num_pto_eliciting) {
       hs_pktns->rtb.probe_pkt_left = 1;
     } else {
       conn->pktns.rtb.probe_pkt_left = 2;
