@@ -1729,15 +1729,21 @@ static size_t pktns_select_pkt_numlen(ngtcp2_pktns *pktns) {
 }
 
 /*
+ * conn_get_cwnd returns cwnd for the current path.
+ */
+static uint64_t conn_get_cwnd(ngtcp2_conn *conn) {
+  return conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
+             ? ngtcp2_cc_compute_initcwnd(conn->cstat.max_udp_payload_size)
+             : conn->cstat.cwnd;
+}
+
+/*
  * conn_cwnd_is_zero returns nonzero if the number of bytes the local
  * endpoint can sent at this time is zero.
  */
 static uint64_t conn_cwnd_is_zero(ngtcp2_conn *conn) {
   uint64_t bytes_in_flight = conn->cstat.bytes_in_flight;
-  uint64_t cwnd =
-      conn->pv && (conn->pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)
-          ? ngtcp2_cc_compute_initcwnd(conn->cstat.max_udp_payload_size)
-          : conn->cstat.cwnd;
+  uint64_t cwnd = conn_get_cwnd(conn);
 
   if (bytes_in_flight >= cwnd) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_RCV,
@@ -12817,6 +12823,17 @@ uint64_t ngtcp2_conn_get_streams_uni_left(ngtcp2_conn *conn) {
 
   return n > conn->local.uni.max_streams ? 0
                                          : conn->local.uni.max_streams - n + 1;
+}
+
+uint64_t ngtcp2_conn_get_cwnd_left(ngtcp2_conn *conn) {
+  uint64_t bytes_in_flight = conn->cstat.bytes_in_flight;
+  uint64_t cwnd = conn_get_cwnd(conn);
+
+  if (cwnd > bytes_in_flight) {
+    return cwnd - bytes_in_flight;
+  }
+
+  return 0;
 }
 
 ngtcp2_tstamp ngtcp2_conn_get_idle_expiry(ngtcp2_conn *conn) {
