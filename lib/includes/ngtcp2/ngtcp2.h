@@ -3482,38 +3482,10 @@ NGTCP2_EXTERN int ngtcp2_accept(ngtcp2_pkt_hd *dest, const uint8_t *pkt,
  *
  * `ngtcp2_conn_client_new` creates new :type:`ngtcp2_conn`, and
  * initializes it as client.  |dcid| is randomized destination
- * connection ID.  |scid| is source connection ID.  |version| is a
- * QUIC version to use.  |path| is the network path where this QUIC
- * connection is being established and must not be ``NULL``.
- * |callbacks|, |settings|, and |params| must not be ``NULL``, and the
- * function make a copy of each of them.  |params| is local QUIC
- * transport parameters and sent to a remote endpoint during
- * handshake.  |user_data| is the arbitrary pointer which is passed to
- * the user-defined callback functions.  If |mem| is ``NULL``, the
- * memory allocator returned by `ngtcp2_mem_default()` is used.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * :macro:`NGTCP2_ERR_NOMEM`
- *     Out of memory.
- */
-NGTCP2_EXTERN int ngtcp2_conn_client_new_versioned(
-    ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-    const ngtcp2_path *path, uint32_t version, int callbacks_version,
-    const ngtcp2_callbacks *callbacks, int settings_version,
-    const ngtcp2_settings *settings, int transport_params_version,
-    const ngtcp2_transport_params *params, const ngtcp2_mem *mem,
-    void *user_data);
-
-/**
- * @function
- *
- * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
- * initializes it as server.  |dcid| is a destination connection ID.
- * |scid| is a source connection ID.  |path| is the network path where
- * this QUIC connection is being established and must not be ``NULL``.
- * |version| is a QUIC version to use.  |callbacks|, |settings|, and
+ * connection ID.  |scid| is source connection ID.
+ * |client_chosen_version| is a QUIC version that a cilent chooses.
+ * |path| is the network path where this QUIC connection is being
+ * established and must not be ``NULL``.  |callbacks|, |settings|, and
  * |params| must not be ``NULL``, and the function make a copy of each
  * of them.  |params| is local QUIC transport parameters and sent to a
  * remote endpoint during handshake.  |user_data| is the arbitrary
@@ -3527,13 +3499,42 @@ NGTCP2_EXTERN int ngtcp2_conn_client_new_versioned(
  * :macro:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
+NGTCP2_EXTERN int ngtcp2_conn_client_new_versioned(
+    ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
+    const ngtcp2_path *path, uint32_t client_chosen_version,
+    int callbacks_version, const ngtcp2_callbacks *callbacks,
+    int settings_version, const ngtcp2_settings *settings,
+    int transport_params_version, const ngtcp2_transport_params *params,
+    const ngtcp2_mem *mem, void *user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_server_new` creates new :type:`ngtcp2_conn`, and
+ * initializes it as server.  |dcid| is a destination connection ID.
+ * |scid| is a source connection ID.  |path| is the network path where
+ * this QUIC connection is being established and must not be ``NULL``.
+ * |client_chosen_version| is a QUIC version that a client chooses.
+ * |callbacks|, |settings|, and |params| must not be ``NULL``, and the
+ * function make a copy of each of them.  |params| is local QUIC
+ * transport parameters and sent to a remote endpoint during
+ * handshake.  |user_data| is the arbitrary pointer which is passed to
+ * the user-defined callback functions.  If |mem| is ``NULL``, the
+ * memory allocator returned by `ngtcp2_mem_default()` is used.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
 NGTCP2_EXTERN int ngtcp2_conn_server_new_versioned(
     ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-    const ngtcp2_path *path, uint32_t version, int callbacks_version,
-    const ngtcp2_callbacks *callbacks, int settings_version,
-    const ngtcp2_settings *settings, int transport_params_version,
-    const ngtcp2_transport_params *params, const ngtcp2_mem *mem,
-    void *user_data);
+    const ngtcp2_path *path, uint32_t client_chosen_version,
+    int callbacks_version, const ngtcp2_callbacks *callbacks,
+    int settings_version, const ngtcp2_settings *settings,
+    int transport_params_version, const ngtcp2_transport_params *params,
+    const ngtcp2_mem *mem, void *user_data);
 
 /**
  * @function
@@ -4570,9 +4571,10 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_original_version` returns the original version.
+ * `ngtcp2_conn_get_client_chosen_version` returns the client chosen
+ * version.
  */
-NGTCP2_EXTERN uint32_t ngtcp2_conn_get_original_version(ngtcp2_conn *conn);
+NGTCP2_EXTERN uint32_t ngtcp2_conn_get_client_chosen_version(ngtcp2_conn *conn);
 
 /**
  * @function

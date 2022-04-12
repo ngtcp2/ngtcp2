@@ -677,7 +677,7 @@ struct ngtcp2_conn {
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
   void *user_data;
-  uint32_t original_version;
+  uint32_t client_chosen_version;
   uint32_t negotiated_version;
   /* flags is bitwise OR of zero or more of NGTCP2_CONN_FLAG_*. */
   uint32_t flags;

@@ -950,7 +950,7 @@ static void conn_reset_ecn_validation_state(ngtcp2_conn *conn) {
 
 static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                     const ngtcp2_cid *scid, const ngtcp2_path *path,
-                    uint32_t original_version, int callbacks_version,
+                    uint32_t client_chosen_version, int callbacks_version,
                     const ngtcp2_callbacks *callbacks, int settings_version,
                     const ngtcp2_settings *settings,
                     int transport_params_version,
@@ -1170,7 +1170,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->server = server;
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
-  (*pconn)->original_version = original_version;
+  (*pconn)->client_chosen_version = client_chosen_version;
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
   (*pconn)->idle_ts = settings->initial_ts;
@@ -1216,16 +1216,16 @@ fail_conn:
 
 int ngtcp2_conn_client_new_versioned(
     ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-    const ngtcp2_path *path, uint32_t original_version, int callbacks_version,
-    const ngtcp2_callbacks *callbacks, int settings_version,
-    const ngtcp2_settings *settings, int transport_params_version,
-    const ngtcp2_transport_params *params, const ngtcp2_mem *mem,
-    void *user_data) {
+    const ngtcp2_path *path, uint32_t client_chosen_version,
+    int callbacks_version, const ngtcp2_callbacks *callbacks,
+    int settings_version, const ngtcp2_settings *settings,
+    int transport_params_version, const ngtcp2_transport_params *params,
+    const ngtcp2_mem *mem, void *user_data) {
   int rv;
 
-  rv = conn_new(pconn, dcid, scid, path, original_version, callbacks_version,
-                callbacks, settings_version, settings, transport_params_version,
-                params, mem, user_data, 0);
+  rv = conn_new(pconn, dcid, scid, path, client_chosen_version,
+                callbacks_version, callbacks, settings_version, settings,
+                transport_params_version, params, mem, user_data, 0);
   if (rv != 0) {
     return rv;
   }
@@ -1245,18 +1245,18 @@ int ngtcp2_conn_client_new_versioned(
 
 int ngtcp2_conn_server_new_versioned(
     ngtcp2_conn **pconn, const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-    const ngtcp2_path *path, uint32_t original_version, int callbacks_version,
-    const ngtcp2_callbacks *callbacks, int settings_version,
-    const ngtcp2_settings *settings, int transport_params_version,
-    const ngtcp2_transport_params *params, const ngtcp2_mem *mem,
-    void *user_data) {
+    const ngtcp2_path *path, uint32_t client_chosen_version,
+    int callbacks_version, const ngtcp2_callbacks *callbacks,
+    int settings_version, const ngtcp2_settings *settings,
+    int transport_params_version, const ngtcp2_transport_params *params,
+    const ngtcp2_mem *mem, void *user_data) {
   int rv;
   uint32_t *preferred_versions;
   size_t i;
 
-  rv = conn_new(pconn, dcid, scid, path, original_version, callbacks_version,
-                callbacks, settings_version, settings, transport_params_version,
-                params, mem, user_data, 1);
+  rv = conn_new(pconn, dcid, scid, path, client_chosen_version,
+                callbacks_version, callbacks, settings_version, settings,
+                transport_params_version, params, mem, user_data, 1);
   if (rv != 0) {
     return rv;
   }
@@ -2413,8 +2413,8 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
     assert(conn->in_pktns->crypto.tx.ckm);
     pktns = conn->in_pktns;
     version = conn->negotiated_version ? conn->negotiated_version
-                                       : conn->original_version;
-    if (version == conn->original_version) {
+                                       : conn->client_chosen_version;
+    if (version == conn->client_chosen_version) {
       cc.ckm = pktns->crypto.tx.ckm;
       cc.hp_ctx = pktns->crypto.tx.hp_ctx;
     } else {
@@ -3412,7 +3412,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       cc->hp = conn->early.ctx.hp;
       cc->ckm = conn->early.ckm;
       cc->hp_ctx = conn->early.hp_ctx;
-      version = conn->original_version;
+      version = conn->client_chosen_version;
       break;
     default:
       /* Unreachable */
@@ -4173,8 +4173,8 @@ ngtcp2_ssize ngtcp2_conn_write_single_frame_pkt(
     hd_flags = conn_pkt_flags_long(conn);
     scid = &conn->oscid;
     version = conn->negotiated_version ? conn->negotiated_version
-                                       : conn->original_version;
-    if (version == conn->original_version) {
+                                       : conn->client_chosen_version;
+    if (version == conn->client_chosen_version) {
       cc.ckm = pktns->crypto.tx.ckm;
       cc.hp_ctx = pktns->crypto.tx.hp_ctx;
     } else {
@@ -4990,7 +4990,7 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
   ngtcp2_qlog_version_negotiation_pkt_received(&conn->qlog, hd, p, nsv);
 
   for (i = 0; i < nsv; ++i) {
-    if (p[i] == conn->original_version) {
+    if (p[i] == conn->client_chosen_version) {
       ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                       "ignore Version Negotiation because it contains version "
                       "selected by client");
@@ -5147,7 +5147,7 @@ static int conn_on_retry(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
   retry.odcid = conn->dcid.current.cid;
 
   rv = ngtcp2_pkt_verify_retry_tag(
-      conn->original_version, &retry, pkt, pktlen, conn->callbacks.encrypt,
+      conn->client_chosen_version, &retry, pkt, pktlen, conn->callbacks.encrypt,
       &conn->crypto.retry_aead, &conn->crypto.retry_aead_ctx);
   if (rv != 0) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
@@ -6073,7 +6073,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    if (conn->original_version != hd.version) {
+    if (conn->client_chosen_version != hd.version) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
@@ -6098,11 +6098,12 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   if (conn->server) {
-    if (hd.version != conn->original_version &&
+    if (hd.version != conn->client_chosen_version &&
         (!conn->negotiated_version || hd.version != conn->negotiated_version)) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
-  } else if (hd.version != conn->original_version && conn->negotiated_version &&
+  } else if (hd.version != conn->client_chosen_version &&
+             conn->negotiated_version &&
              hd.version != conn->negotiated_version) {
     return NGTCP2_ERR_DISCARD_PKT;
   }
@@ -6123,7 +6124,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
-    if (hd.version != conn->original_version) {
+    if (hd.version != conn->client_chosen_version) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
 
@@ -6200,8 +6201,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
         return NGTCP2_ERR_DISCARD_PKT;
       }
 
-      if (hd.version != conn->original_version && !conn->negotiated_version &&
-          conn->vneg.version != hd.version) {
+      if (hd.version != conn->client_chosen_version &&
+          !conn->negotiated_version && conn->vneg.version != hd.version) {
         if (!vneg_other_versions_includes(conn->vneg.other_versions,
                                           conn->vneg.other_versionslen,
                                           hd.version)) {
@@ -6226,7 +6227,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     crypto = &pktns->crypto.strm;
     crypto_level = NGTCP2_CRYPTO_LEVEL_INITIAL;
 
-    if (hd.version == conn->original_version) {
+    if (hd.version == conn->client_chosen_version) {
       ckm = pktns->crypto.rx.ckm;
       hp_ctx = &pktns->crypto.rx.hp_ctx;
     } else {
@@ -6351,7 +6352,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_PROTO;
   }
 
-  if (!conn->server && hd.version != conn->original_version &&
+  if (!conn->server && hd.version != conn->client_chosen_version &&
       !conn->negotiated_version) {
     conn->negotiated_version = hd.version;
 
@@ -8603,7 +8604,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     assert(conn->negotiated_version);
 
-    if (hd.version != conn->original_version &&
+    if (hd.version != conn->client_chosen_version &&
         hd.version != conn->negotiated_version) {
       return NGTCP2_ERR_DISCARD_PKT;
     }
@@ -8644,7 +8645,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       decrypt = conn->callbacks.decrypt;
       break;
     case NGTCP2_PKT_0RTT:
-      if (!conn->server || hd.version != conn->original_version) {
+      if (!conn->server || hd.version != conn->client_chosen_version) {
         return NGTCP2_ERR_DISCARD_PKT;
       }
 
@@ -10109,7 +10110,7 @@ static ngtcp2_ssize conn_client_write_handshake(ngtcp2_conn *conn,
     /* If spktlen > 0, we are making a compound packet.  If Initial
        packet is written, we have to pad bytes to 0-RTT packet. */
     version = conn->negotiated_version ? conn->negotiated_version
-                                       : conn->original_version;
+                                       : conn->client_chosen_version;
     if (spktlen > 0 &&
         ngtcp2_pkt_get_type_long(version, dest[0]) == NGTCP2_PKT_INITIAL) {
       wflags |= NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING;
@@ -10788,7 +10789,7 @@ conn_client_validate_transport_params(ngtcp2_conn *conn,
     if (conn->negotiated_version != params->version_info.chosen_version) {
       return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
     }
-  } else if (conn->original_version != conn->negotiated_version) {
+  } else if (conn->client_chosen_version != conn->negotiated_version) {
     return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
   }
 
@@ -10801,10 +10802,10 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
   size_t i, j, preferred_versionslen = conn->vneg.preferred_versionslen;
 
   assert(conn->server);
-  assert(conn->original_version == version_info->chosen_version);
+  assert(conn->client_chosen_version == version_info->chosen_version);
 
   if (!preferred_versionslen || !version_info->other_versionslen) {
-    return conn->original_version;
+    return conn->client_chosen_version;
   }
 
   for (i = 0; i < preferred_versionslen; ++i) {
@@ -10825,7 +10826,7 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
     }
   }
 
-  return conn->original_version;
+  return conn->client_chosen_version;
 }
 
 int ngtcp2_conn_set_remote_transport_params_versioned(
@@ -10856,13 +10857,13 @@ int ngtcp2_conn_set_remote_transport_params_versioned(
 
   if (conn->server) {
     if (params->version_info_present) {
-      if (params->version_info.chosen_version != conn->original_version) {
+      if (params->version_info.chosen_version != conn->client_chosen_version) {
         return NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE;
       }
 
       conn->negotiated_version =
           ngtcp2_conn_server_negotiate_version(conn, &params->version_info);
-      if (conn->negotiated_version != conn->original_version) {
+      if (conn->negotiated_version != conn->client_chosen_version) {
         rv = conn_call_version_negotiation(conn, conn->negotiated_version,
                                            &conn->rcid);
         if (rv != 0) {
@@ -10870,7 +10871,7 @@ int ngtcp2_conn_set_remote_transport_params_versioned(
         }
       }
     } else {
-      conn->negotiated_version = conn->original_version;
+      conn->negotiated_version = conn->client_chosen_version;
     }
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
@@ -11053,7 +11054,7 @@ void ngtcp2_conn_get_local_transport_params_versioned(
   if (conn->server) {
     params->version_info.chosen_version = conn->negotiated_version;
   } else {
-    params->version_info.chosen_version = conn->original_version;
+    params->version_info.chosen_version = conn->client_chosen_version;
   }
 
   params->version_info.other_versions = conn->vneg.other_versions;
@@ -12111,8 +12112,8 @@ const ngtcp2_cid *ngtcp2_conn_get_client_initial_dcid(ngtcp2_conn *conn) {
   return &conn->rcid;
 }
 
-uint32_t ngtcp2_conn_get_original_version(ngtcp2_conn *conn) {
-  return conn->original_version;
+uint32_t ngtcp2_conn_get_client_chosen_version(ngtcp2_conn *conn) {
+  return conn->client_chosen_version;
 }
 
 uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn) {
