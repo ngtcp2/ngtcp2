@@ -137,6 +137,10 @@
    QUIC v2 draft. */
 #define NGTCP2_PKT_TYPE_RETRY_V2_DRAFT 0x0
 
+/* NGTCP2_RESERVED_VERSION_MASK is the bit mask of reserved
+   version. */
+#define NGTCP2_RESERVED_VERSION_MASK 0x0a0a0a0au
+
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   ngtcp2_vec token;
@@ -1236,5 +1240,11 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type);
  * library, it returns 0.
  */
 uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c);
+
+/*
+ * ngtcp2_is_reserved_version returns nonzero if |version| is a
+ * reserved version.
+ */
+int ngtcp2_is_reserved_version(uint32_t version);
 
 #endif /* NGTCP2_PKT_H */

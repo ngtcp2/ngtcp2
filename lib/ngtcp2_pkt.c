@@ -2482,6 +2482,11 @@ int ngtcp2_is_supported_version(uint32_t version) {
   }
 }
 
+int ngtcp2_is_reserved_version(uint32_t version) {
+  return (version & NGTCP2_RESERVED_VERSION_MASK) ==
+         NGTCP2_RESERVED_VERSION_MASK;
+}
+
 uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c) {
   uint8_t pkt_type = (uint8_t)((c & NGTCP2_LONG_TYPE_MASK) >> 4);
 

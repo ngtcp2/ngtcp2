@@ -776,6 +776,10 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
+  uint32_t preferred_versions[] = {
+      NGTCP2_PROTO_VER_V2_DRAFT,
+      NGTCP2_PROTO_VER_V1,
+  };
   uint32_t other_versions[] = {
       NGTCP2_PROTO_VER_V1,
       NGTCP2_PROTO_VER_V2_DRAFT,
@@ -789,6 +793,9 @@ static void setup_handshake_client(ngtcp2_conn **pconn) {
   client_default_callbacks(&cb);
   client_default_settings(&settings);
   client_default_transport_params(&params);
+
+  settings.preferred_versions = preferred_versions;
+  settings.preferred_versionslen = arraylen(preferred_versions);
 
   settings.other_versions = other_versions;
   settings.other_versionslen = arraylen(other_versions);
@@ -6276,6 +6283,33 @@ void test_ngtcp2_conn_recv_version_negotiation(void) {
   CU_ASSERT(0 == rv);
 
   ngtcp2_conn_del(conn);
+
+  /* Ignore Version Negotiation if client reacted upon Version
+     Negotiation */
+  setup_handshake_client(&conn);
+
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+
+  spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  dcid = ngtcp2_conn_get_dcid(conn);
+
+  nsv[0] = 0xffffffff;
+
+  spktlen = ngtcp2_pkt_write_version_negotiation(
+      buf, sizeof(buf), 0xfe, conn->oscid.data, conn->oscid.datalen, dcid->data,
+      dcid->datalen, nsv, 1);
+
+  CU_ASSERT(spktlen > 0);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf,
+                            (size_t)spktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
 }
 
 void test_ngtcp2_conn_send_initial_token(void) {
@@ -6332,6 +6366,7 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   ngtcp2_transport_params params;
   int rv;
   ngtcp2_cid dcid;
+  uint8_t other_versions[2 * sizeof(uint32_t)];
 
   dcid_init(&dcid);
 
@@ -6439,6 +6474,115 @@ void test_ngtcp2_conn_set_remote_transport_params(void) {
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
 
   CU_ASSERT(NGTCP2_ERR_TRANSPORT_PARAM == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: No version_information after Version Negotiation */
+  setup_handshake_client(&conn);
+
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->negotiated_version = conn->client_chosen_version;
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: other_versions includes the version that the client
+     initially attempted. */
+  setup_handshake_client(&conn);
+
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->negotiated_version = conn->client_chosen_version;
+
+  ngtcp2_put_uint32be(other_versions, NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32be(other_versions + sizeof(uint32_t),
+                      NGTCP2_PROTO_VER_V2_DRAFT);
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+  params.version_info_present = 1;
+  params.version_info.chosen_version = conn->negotiated_version;
+  params.version_info.other_versions = other_versions;
+  params.version_info.other_versionslen = 2 * sizeof(uint32_t);
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: client is unable to choose client chosen version from
+     server's other_versions and chosen version. */
+  setup_handshake_client(&conn);
+
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->negotiated_version = 0xff000000u;
+
+  conn->local.settings.preferred_versions[0] = 0xff000001u;
+  conn->local.settings.preferred_versionslen = 1;
+
+  ngtcp2_put_uint32be(conn->vneg.other_versions, NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32be(conn->vneg.other_versions + sizeof(uint32_t),
+                      0xff000000u);
+
+  ngtcp2_put_uint32be(other_versions, 0xff000000u);
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+  params.version_info_present = 1;
+  params.version_info.chosen_version = conn->negotiated_version;
+  params.version_info.other_versions = other_versions;
+  params.version_info.other_versionslen = 1;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client: client chooses version which differs from client chosen
+     version from server's other_versions and chosen version. */
+  setup_handshake_client(&conn);
+
+  conn->local.settings.original_version = NGTCP2_PROTO_VER_V2_DRAFT;
+  conn->negotiated_version = 0xff000000u;
+
+  conn->local.settings.preferred_versions[0] = 0xff000000u;
+  conn->local.settings.preferred_versionslen = 1;
+
+  ngtcp2_put_uint32be(conn->vneg.other_versions, NGTCP2_PROTO_VER_V1);
+  ngtcp2_put_uint32be(conn->vneg.other_versions + sizeof(uint32_t),
+                      0xff000000u);
+
+  ngtcp2_put_uint32be(other_versions, 0xff000000u);
+
+  memset(&params, 0, sizeof(params));
+  params.active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  params.max_udp_payload_size = 1450;
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+  params.version_info_present = 1;
+  params.version_info.chosen_version = conn->negotiated_version;
+  params.version_info.other_versions = other_versions;
+  params.version_info.other_versionslen = 1;
+
+  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+
+  CU_ASSERT(NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE == rv);
 
   ngtcp2_conn_del(conn);
 }

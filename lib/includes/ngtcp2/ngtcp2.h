@@ -1833,14 +1833,21 @@ typedef struct ngtcp2_settings {
   ngtcp2_duration handshake_timeout;
   /**
    * :member:`preferred_versions` is the array of versions that are
-   * preferred by server.  All versions set in this array must be
-   * supported by the library, and compatible to QUIC v1.  They are
-   * sorted in the order of preference.  On compatible version
-   * negotiation, server will negotiate one of those versions
-   * contained in this array if a client initially chooses a less
-   * preferred version.
+   * preferred by the local endpoint.  All versions set in this array
+   * must be supported by the library, and compatible to QUIC v1.  The
+   * reserved versions are not allowed.  They are sorted in the order
+   * of preference.
    *
-   * This field is only used by server.
+   * On compatible version negotiation, server will negotiate one of
+   * those versions contained in this array if a client initially
+   * chooses a less preferred version.  This version set corresponds
+   * to Offered Versions in QUIC Version Negotiation draft, and it should
+   * be sent in Version Negotiation packet.
+   *
+   * Client uses this field and :member:`original_version` to prevent
+   * version downgrade attack if it reacted upon Version Negotiation
+   * packet.  If this field is specified, client must include
+   * |client_chosen_version| passed to `ngtcp2_conn_client_new`.
    */
   uint32_t *preferred_versions;
   /**
@@ -1855,6 +1862,15 @@ typedef struct ngtcp2_settings {
    * :member:`other_versions` is the array of versions that are set in
    * :member:`other_versions <ngtcp2_version_info.other_versions>`
    * field of outgoing version_information QUIC transport parameter.
+   *
+   * For server, this corresponds to Fully-Deployed Versions in QUIC
+   * Version Negotiation draft.  Server which sends Version
+   * Negotiation packet must specify this field with non-empty array.
+   *
+   * Client must include |client_chosen_version| passed to
+   * `ngtcp2_conn_client_new` in this array if this field is set.  If
+   * it is not set, |client_chosen_version| passed to
+   * `ngtcp2_conn_client_new` is set in this field.
    */
   uint32_t *other_versions;
   /**
@@ -1862,6 +1878,14 @@ typedef struct ngtcp2_settings {
    * contained in the array pointed by :member:`other_versions`.
    */
   size_t other_versionslen;
+  /**
+   * :member:`original_version` is the original version that client
+   * initially used to make a connection attempt.  If it is set, and
+   * it differs from |client_chosen_version| passed to
+   * `ngtcp2_conn_client_new`, the library assumes that client reacted
+   * upon Version Negotiation packet.  Server does not use this field.
+   */
+  uint32_t original_version;
   /**
    * :member:`no_pmtud`, if set to nonzero, disables Path MTU
    * Discovery.

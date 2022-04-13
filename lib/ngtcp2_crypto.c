@@ -521,6 +521,7 @@ int ngtcp2_decode_transport_params_versioned(
   ngtcp2_ssize nread;
   int initial_scid_present = 0;
   int original_dcid_present = 0;
+  size_t i;
   (void)transport_params_version;
 
   if (datalen == 0) {
@@ -799,11 +800,20 @@ int ngtcp2_decode_transport_params_versioned(
         return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
       }
       params->version_info.chosen_version = ngtcp2_get_uint32(p);
+      if (params->version_info.chosen_version == 0) {
+        return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+      }
       p += sizeof(uint32_t);
       if (valuelen > sizeof(uint32_t)) {
         params->version_info.other_versions = (uint8_t *)p;
         params->version_info.other_versionslen = valuelen - sizeof(uint32_t);
-        p += valuelen - sizeof(uint32_t);
+
+        for (i = sizeof(uint32_t); i < valuelen;
+             i += sizeof(uint32_t), p += sizeof(uint32_t)) {
+          if (ngtcp2_get_uint32(p) == 0) {
+            return NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM;
+          }
+        }
       }
       params->version_info_present = 1;
       break;
