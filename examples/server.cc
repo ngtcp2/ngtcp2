@@ -73,6 +73,10 @@ constexpr size_t MAX_DYNBUFLEN = 10 * 1024 * 1024;
 } // namespace
 
 namespace {
+constexpr size_t max_preferred_versionslen = 4;
+} // namespace
+
+namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
@@ -2662,23 +2666,25 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
   Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
   std::array<uint32_t, 16> sv;
 
-  static_assert(sv.size() >= 2 + (NGTCP2_PROTO_VER_DRAFT_MAX -
-                                  NGTCP2_PROTO_VER_DRAFT_MIN + 1));
+  auto p = std::begin(sv);
 
-  sv[0] = generate_reserved_version(sa, salen, version);
-  sv[1] = NGTCP2_PROTO_VER_V1;
+  *p++ = generate_reserved_version(sa, salen, version);
 
-  size_t svlen = 2;
-  for (auto v = NGTCP2_PROTO_VER_DRAFT_MIN; v <= NGTCP2_PROTO_VER_DRAFT_MAX;
-       ++v) {
-    sv[svlen++] = v;
+  if (config.preferred_versions.empty()) {
+    *p++ = NGTCP2_PROTO_VER_V1;
+  } else {
+    assert(sv.size() >= 1 + config.preferred_versions.size());
+
+    for (auto v : config.preferred_versions) {
+      *p++ = v;
+    }
   }
 
   auto nwrite = ngtcp2_pkt_write_version_negotiation(
       buf.wpos(), buf.left(),
       std::uniform_int_distribution<uint8_t>(
           0, std::numeric_limits<uint8_t>::max())(randgen),
-      dcid, dcidlen, scid, scidlen, sv.data(), svlen);
+      dcid, dcidlen, scid, scidlen, sv.data(), p - std::begin(sv));
   if (nwrite < 0) {
     std::cerr << "ngtcp2_pkt_write_version_negotiation: "
               << ngtcp2_strerror(nwrite) << std::endl;
@@ -3581,6 +3587,10 @@ int main(int argc, char **argv) {
       case 27: {
         // --preferred-versions
         auto l = util::split_str(optarg);
+        if (l.size() > max_preferred_versionslen) {
+          std::cerr << "preferred-versions: too many versions > "
+                    << max_preferred_versionslen << std::endl;
+        }
         config.preferred_versions.resize(l.size());
         auto it = std::begin(config.preferred_versions);
         for (const auto &k : l) {
