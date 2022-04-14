@@ -646,9 +646,11 @@ struct ngtcp2_conn {
        for. */
     uint32_t version;
     /* preferred_versions is the array of versions that are preferred
-       by server.  It negotiates one of those versions in this array
-       if a client initially selects a less preferred version.  This
-       field is only used by server. */
+       by the local endpoint.  Server negotiates one of those versions
+       in this array if a client initially selects a less preferred
+       version.  Client uses this field and original_version field to
+       prevent version downgrade attack if it reacted upon Version
+       Negotiation packet. */
     uint32_t *preferred_versions;
     /* preferred_versionslen is the number of versions stored in the
        array pointed by preferred_versions.  This field is only used
