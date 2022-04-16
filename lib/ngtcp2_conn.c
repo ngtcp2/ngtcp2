@@ -5026,14 +5026,16 @@ static int conn_on_version_negotiation(ngtcp2_conn *conn,
 
   ngtcp2_qlog_version_negotiation_pkt_received(&conn->qlog, hd, p, nsv);
 
-  for (i = 0; i < nsv; ++i) {
-    if (p[i] == conn->local.settings.original_version) {
-      ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                      "ignore Version Negotiation because it contains the "
-                      "original version");
+  if (!ngtcp2_is_reserved_version(conn->local.settings.original_version)) {
+    for (i = 0; i < nsv; ++i) {
+      if (p[i] == conn->local.settings.original_version) {
+        ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
+                        "ignore Version Negotiation because it contains the "
+                        "original version");
 
-      rv = NGTCP2_ERR_INVALID_ARGUMENT;
-      goto fin;
+        rv = NGTCP2_ERR_INVALID_ARGUMENT;
+        goto fin;
+      }
     }
   }
 
