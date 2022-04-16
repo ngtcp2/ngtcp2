@@ -1995,7 +1995,7 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
                                      const Address &local_addr,
                                      const sockaddr *sa, socklen_t salen) {
   Buffer buf{NGTCP2_MAX_UDP_PAYLOAD_SIZE};
-  std::array<uint32_t, 16> sv;
+  std::array<uint32_t, 1 + max_preferred_versionslen> sv;
 
   auto p = std::begin(sv);
 
@@ -2003,9 +2003,8 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
 
   if (config.preferred_versions.empty()) {
     *p++ = NGTCP2_PROTO_VER_V1;
+    *p++ = NGTCP2_PROTO_VER_V2_DRAFT;
   } else {
-    assert(sv.size() >= 1 + config.preferred_versions.size());
-
     for (auto v : config.preferred_versions) {
       *p++ = v;
     }
