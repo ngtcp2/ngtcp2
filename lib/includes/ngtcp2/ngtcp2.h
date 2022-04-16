@@ -1847,7 +1847,8 @@ typedef struct ngtcp2_settings {
    * Client uses this field and :member:`original_version` to prevent
    * version downgrade attack if it reacted upon Version Negotiation
    * packet.  If this field is specified, client must include
-   * |client_chosen_version| passed to `ngtcp2_conn_client_new`.
+   * |client_chosen_version| passed to `ngtcp2_conn_client_new` unless
+   * |client_chosen_version| is a reserved version.
    */
   uint32_t *preferred_versions;
   /**
@@ -1868,9 +1869,11 @@ typedef struct ngtcp2_settings {
    * Negotiation packet must specify this field with non-empty array.
    *
    * Client must include |client_chosen_version| passed to
-   * `ngtcp2_conn_client_new` in this array if this field is set.  If
-   * it is not set, |client_chosen_version| passed to
-   * `ngtcp2_conn_client_new` is set in this field.
+   * `ngtcp2_conn_client_new` in this array if this field is set and
+   * |client_chosen_version| is not a reserved version.  If this field
+   * is not set, |client_chosen_version| passed to
+   * `ngtcp2_conn_client_new` will be set in this field internally
+   * unless |client_chosen_version| is a reserved version.
    */
   uint32_t *other_versions;
   /**

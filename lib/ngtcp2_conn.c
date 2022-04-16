@@ -134,6 +134,7 @@ static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
   case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
   case NGTCP2_ERR_TRANSPORT_PARAM:
   case NGTCP2_ERR_PROTO:
+  case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return rv;
   default:
@@ -1151,6 +1152,16 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   if (settings->preferred_versionslen) {
+    if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
+      for (i = 0; i < settings->preferred_versionslen; ++i) {
+        if (settings->preferred_versions[i] == client_chosen_version) {
+          break;
+        }
+      }
+
+      assert(i < settings->preferred_versionslen);
+    }
+
     preferred_versions = ngtcp2_mem_malloc(
         mem, sizeof(uint32_t) * settings->preferred_versionslen);
     if (preferred_versions == NULL) {
@@ -1169,7 +1180,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   if (settings->other_versionslen) {
-    if (!server) {
+    if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
       for (i = 0; i < settings->other_versionslen; ++i) {
         if (settings->other_versions[i] == client_chosen_version) {
           break;
@@ -1195,7 +1206,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
       buf = ngtcp2_put_uint32be(buf, settings->other_versions[i]);
     }
-  } else if (!server) {
+  } else if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
     buf = ngtcp2_mem_malloc(mem, sizeof(uint32_t));
     if (buf == NULL) {
       rv = NGTCP2_ERR_NOMEM;
@@ -6552,12 +6563,13 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                            : (ngtcp2_ssize)pktlen;
 }
 
-static int is_crypto_error(int liberr) {
+static int is_unrecoverable_error(int liberr) {
   switch (liberr) {
   case NGTCP2_ERR_CRYPTO:
   case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
   case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
   case NGTCP2_ERR_TRANSPORT_PARAM:
+  case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
     return 1;
   }
 
@@ -6604,7 +6616,7 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
         version = ngtcp2_get_uint32(&pkt[1]);
         if (ngtcp2_pkt_get_type_long(version, pkt[0]) == NGTCP2_PKT_INITIAL) {
           if (conn->server) {
-            if (is_crypto_error((int)nread)) {
+            if (is_unrecoverable_error((int)nread)) {
               /* If server gets crypto error from TLS stack, it is
                  unrecoverable, therefore drop connection. */
               return nread;
@@ -6622,7 +6634,7 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
             return (ngtcp2_ssize)dgramlen;
           }
           /* client */
-          if (is_crypto_error((int)nread)) {
+          if (is_unrecoverable_error((int)nread)) {
             /* If client gets crypto error from TLS stack, it is
                unrecoverable, therefore drop connection. */
             return nread;
