@@ -134,6 +134,7 @@ static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
   case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
   case NGTCP2_ERR_TRANSPORT_PARAM:
   case NGTCP2_ERR_PROTO:
+  case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return rv;
   default:
@@ -6562,12 +6563,13 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
                                            : (ngtcp2_ssize)pktlen;
 }
 
-static int is_crypto_error(int liberr) {
+static int is_unrecoverable_error(int liberr) {
   switch (liberr) {
   case NGTCP2_ERR_CRYPTO:
   case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
   case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
   case NGTCP2_ERR_TRANSPORT_PARAM:
+  case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
     return 1;
   }
 
@@ -6614,7 +6616,7 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
         version = ngtcp2_get_uint32(&pkt[1]);
         if (ngtcp2_pkt_get_type_long(version, pkt[0]) == NGTCP2_PKT_INITIAL) {
           if (conn->server) {
-            if (is_crypto_error((int)nread)) {
+            if (is_unrecoverable_error((int)nread)) {
               /* If server gets crypto error from TLS stack, it is
                  unrecoverable, therefore drop connection. */
               return nread;
@@ -6632,7 +6634,7 @@ static ngtcp2_ssize conn_recv_handshake_cpkt(ngtcp2_conn *conn,
             return (ngtcp2_ssize)dgramlen;
           }
           /* client */
-          if (is_crypto_error((int)nread)) {
+          if (is_unrecoverable_error((int)nread)) {
             /* If client gets crypto error from TLS stack, it is
                unrecoverable, therefore drop connection. */
             return nread;
