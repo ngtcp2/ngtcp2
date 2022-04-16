@@ -13204,3 +13204,26 @@ ngtcp2_ssize ngtcp2_pkt_write_connection_close(
 }
 
 int ngtcp2_is_bidi_stream(int64_t stream_id) { return bidi_stream(stream_id); }
+
+uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
+                               size_t preferred_versionslen,
+                               const uint32_t *offered_versions,
+                               size_t offered_versionslen) {
+  size_t i, j;
+
+  if (!preferred_versionslen || !offered_versionslen) {
+    return 0;
+  }
+
+  for (i = 0; i < preferred_versionslen; ++i) {
+    assert(ngtcp2_is_supported_version(preferred_versions[i]));
+
+    for (j = 0; j < offered_versionslen; ++j) {
+      if (preferred_versions[i] == offered_versions[j]) {
+        return preferred_versions[i];
+      }
+    }
+  }
+
+  return 0;
+}

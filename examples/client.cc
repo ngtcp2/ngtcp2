@@ -55,6 +55,10 @@ namespace {
 auto randgen = util::make_mt19937();
 } // namespace
 
+namespace {
+constexpr size_t max_preferred_versionslen = 4;
+} // namespace
+
 Config config{};
 
 Stream::Stream(const Request &req, int64_t stream_id)
@@ -166,7 +170,8 @@ void siginthandler(struct ev_loop *loop, ev_signal *w, int revents) {
 }
 } // namespace
 
-Client::Client(struct ev_loop *loop)
+Client::Client(struct ev_loop *loop, uint32_t client_chosen_version,
+               uint32_t original_version)
     : remote_addr_{},
       loop_(loop),
       httpconn_(nullptr),
@@ -175,7 +180,8 @@ Client::Client(struct ev_loop *loop)
       nstreams_done_(0),
       nstreams_closed_(0),
       nkey_update_(0),
-      version_(0),
+      client_chosen_version_(client_chosen_version),
+      original_version_(original_version),
       early_data_(false),
       should_exit_(false),
       handshake_confirmed_(false),
@@ -354,6 +360,22 @@ int Client::handshake_confirmed() {
   }
 
   return 0;
+}
+
+namespace {
+int recv_version_negotiation(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
+                             const uint32_t *sv, size_t nsv, void *user_data) {
+  auto c = static_cast<Client *>(user_data);
+
+  c->recv_version_negotiation(sv, nsv);
+
+  return 0;
+}
+} // namespace
+
+void Client::recv_version_negotiation(const uint32_t *sv, size_t nsv) {
+  offered_versions_.resize(nsv);
+  std::copy_n(sv, nsv, std::begin(offered_versions_));
 }
 
 namespace {
@@ -566,7 +588,7 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 } // namespace
 
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
-                 const char *addr, const char *port, uint32_t version,
+                 const char *addr, const char *port,
                  TLSClientContext &tls_ctx) {
   endpoints_.reserve(4);
 
@@ -581,14 +603,13 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
   remote_addr_ = remote_addr;
   addr_ = addr;
   port_ = port;
-  version_ = version;
 
   auto callbacks = ngtcp2_callbacks{
       ngtcp2_crypto_client_initial_cb,
       nullptr, // recv_client_initial
       ::recv_crypto_data,
       ::handshake_completed,
-      nullptr, // recv_version_negotiation
+      ::recv_version_negotiation,
       ngtcp2_crypto_encrypt_cb,
       ngtcp2_crypto_decrypt_cb,
       do_hp_mask,
@@ -695,6 +716,13 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
     settings.other_versionslen = config.other_versions.size();
   }
 
+  if (!config.preferred_versions.empty()) {
+    settings.preferred_versions = config.preferred_versions.data();
+    settings.preferred_versionslen = config.preferred_versions.size();
+  }
+
+  settings.original_version = original_version_;
+
   ngtcp2_transport_params params;
   ngtcp2_transport_params_default(&params);
   params.initial_max_stream_data_bidi_local = config.max_stream_data_bidi_local;
@@ -718,17 +746,17 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       },
       &ep,
   };
-  auto rv =
-      ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path, version, &callbacks,
-                             &settings, &params, nullptr, this);
+  auto rv = ngtcp2_conn_client_new(&conn_, &dcid, &scid, &path,
+                                   client_chosen_version_, &callbacks,
+                                   &settings, &params, nullptr, this);
 
   if (rv != 0) {
     std::cerr << "ngtcp2_conn_client_new: " << ngtcp2_strerror(rv) << std::endl;
     return -1;
   }
 
-  if (tls_session_.init(early_data_, tls_ctx, addr_, this, version,
-                        AppProtocol::H3) != 0) {
+  if (tls_session_.init(early_data_, tls_ctx, addr_, this,
+                        client_chosen_version_, AppProtocol::H3) != 0) {
     return -1;
   }
 
@@ -2047,6 +2075,10 @@ int Client::setup_httpconn() {
   return 0;
 }
 
+const std::vector<uint32_t> &Client::get_offered_versions() const {
+  return offered_versions_;
+}
+
 namespace {
 int run(Client &c, const char *addr, const char *port,
         TLSClientContext &tls_ctx) {
@@ -2077,8 +2109,7 @@ int run(Client &c, const char *addr, const char *port,
   }
 #endif // !HAVE_LINUX_RTNETLINK_H
 
-  if (c.init(fd, local_addr, remote_addr, addr, port, config.version,
-             tls_ctx) != 0) {
+  if (c.init(fd, local_addr, remote_addr, addr, port, tls_ctx) != 0) {
     return -1;
   }
 
@@ -2226,6 +2257,14 @@ Options:
               draft.
               Default: )"
             << std::hex << "0x" << config.version << std::dec << R"(
+  --preferred-versions=<HEX>[[,<HEX>]...]
+              Specify  QUIC versions  in hex  string in  the order  of
+              preference.   Client chooses  one of  those versions  if
+              client received Version  Negotiation packet from server.
+              These versions must be  supported by libngtcp2.  Instead
+              of  specifying hex  string,  there  are special  aliases
+              available:  "v1"   indicates  QUIC  v1,   and  "v2draft"
+              indicates QUIC v2 draft.
   --other-versions=<HEX>[[,<HEX>]...]
               Specify QUIC  versions in  hex string  that are  sent in
               other_versions  field  of version_information  transport
@@ -2443,6 +2482,7 @@ int main(int argc, char **argv) {
         {"handshake-timeout", required_argument, &flag, 36},
         {"other-versions", required_argument, &flag, 37},
         {"no-pmtud", no_argument, &flag, 38},
+        {"preferred-versions", required_argument, &flag, 39},
         {nullptr, 0, nullptr, 0},
     };
 
@@ -2789,6 +2829,34 @@ int main(int argc, char **argv) {
         // --no-pmtud
         config.no_pmtud = true;
         break;
+      case 39: {
+        // --preferred-versions
+        auto l = util::split_str(optarg);
+        if (l.size() > max_preferred_versionslen) {
+          std::cerr << "preferred-versions: too many versions > "
+                    << max_preferred_versionslen << std::endl;
+        }
+        config.preferred_versions.resize(l.size());
+        auto it = std::begin(config.preferred_versions);
+        for (const auto &k : l) {
+          if (k == "v1") {
+            *it++ = NGTCP2_PROTO_VER_V1;
+            continue;
+          }
+          if (k == "v2draft") {
+            *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
+            continue;
+          }
+          auto v = strtol(k.c_str(), nullptr, 16);
+          if (!ngtcp2_is_supported_version(v)) {
+            std::cerr << "preferred-versions: version not supported: " << k
+                      << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          *it++ = v;
+        }
+        break;
+      }
       }
       break;
     default:
@@ -2845,6 +2913,26 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  if (!ngtcp2_is_reserved_version(config.version)) {
+    if (!config.preferred_versions.empty() &&
+        std::find(std::begin(config.preferred_versions),
+                  std::end(config.preferred_versions),
+                  config.version) == std::end(config.preferred_versions)) {
+      std::cerr << "preferred-version: must include version "
+                << "0x" << config.version << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (!config.other_versions.empty() &&
+        std::find(std::begin(config.other_versions),
+                  std::end(config.other_versions),
+                  config.version) == std::end(config.other_versions)) {
+      std::cerr << "other-versions: must include version "
+                << "0x" << config.version << std::endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
   if (config.nstreams == 0) {
     config.nstreams = config.requests.size();
   }
@@ -2870,10 +2958,37 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  Client c(EV_DEFAULT);
+  auto client_chosen_version = config.version;
 
-  if (run(c, addr, port, tls_ctx) != 0) {
-    exit(EXIT_FAILURE);
+  for (;;) {
+    Client c(EV_DEFAULT, client_chosen_version, config.version);
+
+    if (run(c, addr, port, tls_ctx) != 0) {
+      exit(EXIT_FAILURE);
+    }
+
+    if (config.preferred_versions.empty()) {
+      break;
+    }
+
+    auto &offered_versions = c.get_offered_versions();
+    if (offered_versions.empty()) {
+      break;
+    }
+
+    client_chosen_version = ngtcp2_select_version(
+        config.preferred_versions.data(), config.preferred_versions.size(),
+        offered_versions.data(), offered_versions.size());
+
+    if (client_chosen_version == 0) {
+      std::cerr << "Unable to select a version" << std::endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (!config.quiet) {
+      std::cerr << "Client selected version " << std::hex << "0x"
+                << client_chosen_version << std::dec << std::endl;
+    }
   }
 
   return EXIT_SUCCESS;
