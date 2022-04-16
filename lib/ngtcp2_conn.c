@@ -1151,6 +1151,16 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   if (settings->preferred_versionslen) {
+    if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
+      for (i = 0; i < settings->preferred_versionslen; ++i) {
+        if (settings->preferred_versions[i] == client_chosen_version) {
+          break;
+        }
+      }
+
+      assert(i < settings->preferred_versionslen);
+    }
+
     preferred_versions = ngtcp2_mem_malloc(
         mem, sizeof(uint32_t) * settings->preferred_versionslen);
     if (preferred_versions == NULL) {
@@ -1169,7 +1179,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   if (settings->other_versionslen) {
-    if (!server) {
+    if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
       for (i = 0; i < settings->other_versionslen; ++i) {
         if (settings->other_versions[i] == client_chosen_version) {
           break;
@@ -1195,7 +1205,7 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
       buf = ngtcp2_put_uint32be(buf, settings->other_versions[i]);
     }
-  } else if (!server) {
+  } else if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
     buf = ngtcp2_mem_malloc(mem, sizeof(uint32_t));
     if (buf == NULL) {
       rv = NGTCP2_ERR_NOMEM;
