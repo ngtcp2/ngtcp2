@@ -72,12 +72,12 @@ struct Endpoint {
 
 class Client : public ClientBase {
 public:
-  Client(struct ev_loop *loop);
+  Client(struct ev_loop *loop, uint32_t client_chosen_version,
+         uint32_t original_version);
   ~Client();
 
   int init(int fd, const Address &local_addr, const Address &remote_addr,
-           const char *addr, const char *port, uint32_t version,
-           TLSClientContext &tls_ctx);
+           const char *addr, const char *port, TLSClientContext &tls_ctx);
   void disconnect();
 
   int on_read(const Endpoint &ep);
@@ -89,6 +89,7 @@ public:
   void update_timer();
   int handshake_completed();
   int handshake_confirmed();
+  void recv_version_negotiation(const uint32_t *sv, size_t nsv);
 
   int send_packet(const Endpoint &ep, const ngtcp2_addr &remote_addr,
                   unsigned int ecn, const uint8_t *data, size_t datalen);
@@ -132,6 +133,8 @@ public:
   void start_wev_endpoint(const Endpoint &ep);
   int send_blocked_packet();
 
+  const std::vector<uint32_t> &get_offered_versions() const;
+
 private:
   std::vector<Endpoint> endpoints_;
   Address remote_addr_;
@@ -143,6 +146,7 @@ private:
   ev_signal sigintev_;
   struct ev_loop *loop_;
   std::map<int64_t, std::unique_ptr<Stream>> streams_;
+  std::vector<uint32_t> offered_versions_;
   nghttp3_conn *httpconn_;
   // addr_ is the server host address.
   const char *addr_;
@@ -154,7 +158,8 @@ private:
   size_t nstreams_closed_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
-  uint32_t version_;
+  uint32_t client_chosen_version_;
+  uint32_t original_version_;
   // early_data_ is true if client attempts to do 0RTT data transfer.
   bool early_data_;
   // should_exit_ is true if client should exit rather than waiting

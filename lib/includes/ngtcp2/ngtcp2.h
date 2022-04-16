@@ -297,6 +297,14 @@ typedef struct ngtcp2_mem {
 #define NGTCP2_PROTO_VER_MIN NGTCP2_PROTO_VER_DRAFT_MIN
 
 /**
+ * @macro
+ *
+ * :macro:`NGTCP2_RESERVED_VERSION_MASK` is the bit mask of reserved
+ * version.
+ */
+#define NGTCP2_RESERVED_VERSION_MASK 0x0a0a0a0au
+
+/**
  * @macrosection
  *
  * IP packet related macros
@@ -5402,6 +5410,33 @@ NGTCP2_EXTERN int ngtcp2_path_eq(const ngtcp2_path *a, const ngtcp2_path *b);
  * QUIC version |version|.
  */
 NGTCP2_EXTERN int ngtcp2_is_supported_version(uint32_t version);
+
+/*
+ * @function
+ *
+ * `ngtcp2_is_reserved_version` returns nonzero if |version| is a
+ * reserved version.
+ */
+NGTCP2_EXTERN int ngtcp2_is_reserved_version(uint32_t version);
+
+/**
+ * @function
+ *
+ * `ngtcp2_select_version` selects and returns a version from the
+ * version set |offered_versions| of |offered_versionslen| elements.
+ * |preferred_versions| of |preferred_versionslen| elements specifies
+ * the preference of versions, which is sorted in the order of
+ * preference.  All versions included in |preferred_versions| must be
+ * supported by the library, that is, passing a version to
+ * `ngtcp2_is_supported_version` must return nonzero.  This function
+ * is intended to be used by client when it receives Version
+ * Negotiation packet.  If no version is selected, this function
+ * returns 0.
+ */
+NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
+                                             size_t preferred_versionslen,
+                                             const uint32_t *offered_versions,
+                                             size_t offered_versionslen);
 
 /*
  * Versioned function wrappers

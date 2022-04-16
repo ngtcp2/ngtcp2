@@ -300,6 +300,7 @@ int main(void) {
       !CU_add_test(pSuite, "conn_server_negotiate_version",
                    test_ngtcp2_conn_server_negotiate_version) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||
+      !CU_add_test(pSuite, "select_version", test_ngtcp2_select_version) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
                    test_ngtcp2_pkt_write_connection_close) ||
       !CU_add_test(pSuite, "map", test_ngtcp2_map) ||

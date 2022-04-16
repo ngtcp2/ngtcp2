@@ -8610,6 +8610,32 @@ void test_ngtcp2_accept(void) {
   CU_ASSERT(NGTCP2_ERR_INVALID_ARGUMENT == rv);
 }
 
+void test_ngtcp2_select_version(void) {
+  CU_ASSERT(0 == ngtcp2_select_version(NULL, 0, NULL, 0));
+
+  {
+    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1,
+                                     NGTCP2_PROTO_VER_V2_DRAFT};
+    uint32_t offered_versions[] = {0x00000004, 0x00000003,
+                                   NGTCP2_PROTO_VER_V2_DRAFT};
+
+    CU_ASSERT(
+        NGTCP2_PROTO_VER_V2_DRAFT ==
+        ngtcp2_select_version(preferred_versions, arraylen(preferred_versions),
+                              offered_versions, arraylen(offered_versions)));
+  }
+
+  {
+    uint32_t preferred_versions[] = {NGTCP2_PROTO_VER_V1,
+                                     NGTCP2_PROTO_VER_V2_DRAFT};
+    uint32_t offered_versions[] = {0x00000004, 0x00000003};
+
+    CU_ASSERT(0 == ngtcp2_select_version(
+                       preferred_versions, arraylen(preferred_versions),
+                       offered_versions, arraylen(offered_versions)));
+  }
+}
+
 void test_ngtcp2_pkt_write_connection_close(void) {
   ngtcp2_ssize spktlen;
   uint8_t buf[1200];
