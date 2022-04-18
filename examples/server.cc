@@ -3117,6 +3117,7 @@ void config_set_default(Config &config) {
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_gso_dgrams = 10;
   config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
+  config.other_versions = {NGTCP2_PROTO_VER_V1, NGTCP2_PROTO_VER_V2_DRAFT};
 }
 } // namespace
 
@@ -3613,19 +3614,29 @@ int main(int argc, char **argv) {
       }
       case 28: {
         // --other-versions
+        if (strlen(optarg) == 0) {
+          config.other_versions.resize(0);
+          break;
+        }
         auto l = util::split_str(optarg);
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
-        for (const auto &v : l) {
-          if (v == "v1") {
+        for (const auto &k : l) {
+          if (k == "v1") {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (v == "v2draft") {
+          if (k == "v2draft") {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
-          *it++ = strtol(v.c_str(), nullptr, 16);
+          auto rv = util::parse_version(k);
+          if (!rv) {
+            std::cerr << "other-versions: invalid version " << std::quoted(k)
+                      << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          *it++ = *rv;
         }
         break;
       }
