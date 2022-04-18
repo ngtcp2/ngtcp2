@@ -44,6 +44,7 @@
 #include <fstream>
 #include <algorithm>
 #include <limits>
+#include <charconv>
 
 #include "template.h"
 
@@ -612,6 +613,21 @@ std::vector<std::string> split_str(const std::string &s, char delim) {
     first = stop + 1;
   }
   return list;
+}
+
+std::optional<uint32_t> parse_version(const std::string_view &s) {
+  auto k = s;
+  if (!util::istarts_with_l(k, "0x")) {
+    return {};
+  }
+  k = k.substr(2);
+  uint32_t v;
+  auto rv = std::from_chars(k.data(), k.data() + k.size(), v, 16);
+  if (rv.ptr != k.data() + k.size() || rv.ec != std::errc{}) {
+    return {};
+  }
+
+  return v;
 }
 
 } // namespace util
