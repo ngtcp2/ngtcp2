@@ -2533,7 +2533,7 @@ int main(int argc, char **argv) {
       // --tx-loss
       config.tx_loss_prob = strtod(optarg, nullptr);
       break;
-    case 'v':
+    case 'v': {
       // --version
       if (optarg == std::string_view{"v1"}) {
         config.version = NGTCP2_PROTO_VER_V1;
@@ -2543,8 +2543,15 @@ int main(int argc, char **argv) {
         config.version = NGTCP2_PROTO_VER_V2_DRAFT;
         break;
       }
-      config.version = strtol(optarg, nullptr, 16);
+      auto rv = util::parse_version(optarg);
+      if (!rv) {
+        std::cerr << "version: invalid version " << std::quoted(optarg)
+                  << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      config.version = *rv;
       break;
+    }
     case '?':
       print_usage();
       exit(EXIT_FAILURE);
@@ -2809,19 +2816,29 @@ int main(int argc, char **argv) {
         break;
       case 37: {
         // --other-versions
+        if (strlen(optarg) == 0) {
+          config.other_versions.resize(0);
+          break;
+        }
         auto l = util::split_str(optarg);
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
-        for (const auto &v : l) {
-          if (v == "v1") {
+        for (const auto &k : l) {
+          if (k == "v1") {
             *it++ = NGTCP2_PROTO_VER_V1;
             continue;
           }
-          if (v == "v2draft") {
+          if (k == "v2draft") {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
-          *it++ = strtol(v.c_str(), nullptr, 16);
+          auto rv = util::parse_version(k);
+          if (!rv) {
+            std::cerr << "other-versions: invalid version " << std::quoted(k)
+                      << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          *it++ = *rv;
         }
         break;
       }
@@ -2847,13 +2864,18 @@ int main(int argc, char **argv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
-          auto v = strtol(k.c_str(), nullptr, 16);
-          if (!ngtcp2_is_supported_version(v)) {
+          auto rv = util::parse_version(k);
+          if (!rv) {
+            std::cerr << "preferred-versions: invalid version "
+                      << std::quoted(k) << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          if (!ngtcp2_is_supported_version(*rv)) {
             std::cerr << "preferred-versions: version not supported: " << k
                       << std::endl;
             exit(EXIT_FAILURE);
           }
-          *it++ = v;
+          *it++ = *rv;
         }
         break;
       }

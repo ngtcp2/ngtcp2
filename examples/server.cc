@@ -3602,13 +3602,18 @@ int main(int argc, char **argv) {
             *it++ = NGTCP2_PROTO_VER_V2_DRAFT;
             continue;
           }
-          auto v = strtol(k.c_str(), nullptr, 16);
-          if (!ngtcp2_is_supported_version(v)) {
+          auto rv = util::parse_version(k);
+          if (!rv) {
+            std::cerr << "preferred-versions: invalid version "
+                      << std::quoted(k) << std::endl;
+            exit(EXIT_FAILURE);
+          }
+          if (!ngtcp2_is_supported_version(*rv)) {
             std::cerr << "preferred-versions: version not supported: " << k
                       << std::endl;
             exit(EXIT_FAILURE);
           }
-          *it++ = v;
+          *it++ = *rv;
         }
         break;
       }
