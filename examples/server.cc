@@ -3282,7 +3282,11 @@ Options:
   is 1 second and 500ms is 500  milliseconds).  Units are h, m, s, ms,
   us, or ns (hours,  minutes, seconds, milliseconds, microseconds, and
   nanoseconds respectively).  If  a unit is omitted, a  second is used
-  as unit.)" << std::endl;
+  as unit.
+
+  The  <HEX> argument  is an  hex string  which must  start with  "0x"
+  (e.g., 0x00000001).)"
+            << std::endl;
 }
 } // namespace
 
@@ -3609,8 +3613,8 @@ int main(int argc, char **argv) {
             exit(EXIT_FAILURE);
           }
           if (!ngtcp2_is_supported_version(*rv)) {
-            std::cerr << "preferred-versions: version not supported: " << k
-                      << std::endl;
+            std::cerr << "preferred-versions: unsupported version "
+                      << std::quoted(k) << std::endl;
             exit(EXIT_FAILURE);
           }
           *it++ = *rv;
