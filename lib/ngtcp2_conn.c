@@ -5590,21 +5590,17 @@ static ngtcp2_ssize decrypt_pkt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  *     User-defined callback function failed; or it does not return
  *     expected result.
  */
-static ngtcp2_ssize decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest,
-                               const ngtcp2_crypto_cipher *hp,
-                               const uint8_t *pkt, size_t pktlen,
-                               size_t pkt_num_offset, ngtcp2_crypto_km *ckm,
-                               const ngtcp2_crypto_cipher_ctx *hp_ctx,
-                               ngtcp2_hp_mask hp_mask) {
+static ngtcp2_ssize
+decrypt_hp(ngtcp2_pkt_hd *hd, uint8_t *dest, const ngtcp2_crypto_cipher *hp,
+           const uint8_t *pkt, size_t pktlen, size_t pkt_num_offset,
+           const ngtcp2_crypto_cipher_ctx *hp_ctx, ngtcp2_hp_mask hp_mask) {
   size_t sample_offset;
   uint8_t *p = dest;
   uint8_t mask[NGTCP2_HP_SAMPLELEN];
   size_t i;
   int rv;
-  (void)ckm;
 
   assert(hp_mask);
-  assert(ckm);
 
   if (pkt_num_offset + 4 + NGTCP2_HP_SAMPLELEN > pktlen) {
     return NGTCP2_ERR_PROTO;
@@ -6341,7 +6337,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   nwrite = decrypt_hp(&hd, conn->crypto.decrypt_hp_buf.base, hp, pkt, pktlen,
-                      (size_t)nread, ckm, hp_ctx, hp_mask);
+                      (size_t)nread, hp_ctx, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -8741,7 +8737,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   }
 
   nwrite = decrypt_hp(&hd, conn->crypto.decrypt_hp_buf.base, hp, pkt, pktlen,
-                      (size_t)nread, ckm, hp_ctx, hp_mask);
+                      (size_t)nread, hp_ctx, hp_mask);
   if (nwrite < 0) {
     if (ngtcp2_err_is_fatal((int)nwrite)) {
       return nwrite;
@@ -11368,7 +11364,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
                                     uint8_t *dest, size_t destlen,
                                     ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts) {
   ngtcp2_ssize nwrite;
-  ngtcp2_pktns *pktns = &conn->pktns;
   size_t origlen;
   size_t origdestlen = destlen;
   int rv;
@@ -11383,7 +11378,6 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
   ngtcp2_ksl_it it;
   ngtcp2_rtb_entry *rtbent;
   (void)pkt_info_version;
-  (void)pktns;
 
   conn->log.last_ts = ts;
   conn->qlog.last_ts = ts;
@@ -11524,7 +11518,7 @@ ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
     return 0;
   }
 
-  assert(pktns->crypto.tx.ckm);
+  assert(conn->pktns.crypto.tx.ckm);
 
   if (conn_check_pkt_num_exhausted(conn)) {
     return NGTCP2_ERR_PKT_NUM_EXHAUSTED;
