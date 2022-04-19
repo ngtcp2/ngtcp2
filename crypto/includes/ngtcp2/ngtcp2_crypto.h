@@ -642,17 +642,17 @@ NGTCP2_EXTERN int ngtcp2_crypto_generate_stateless_reset_token(
  * successfully generated token starts with
  * :macro:`NGTCP2_CRYPTO_TOKEN_MAGIC_RETRY`.  |secret| of length
  * |secretlen| is an initial keying material to generate keys to
- * encrypt the token.  |remote_addr| of length |remote_addrlen| is an
- * address of client.  |retry_scid| is a Source Connection ID chosen
- * by server and set in Retry packet.  |odcid| is a Destination
- * Connection ID in Initial packet sent by client.  |ts| is the
- * timestamp when the token is generated.
+ * encrypt the token.  |version| is QUIC version.  |remote_addr| of
+ * length |remote_addrlen| is an address of client.  |retry_scid| is a
+ * Source Connection ID chosen by server and set in Retry packet.
+ * |odcid| is a Destination Connection ID in Initial packet sent by
+ * client.  |ts| is the timestamp when the token is generated.
  *
  * This function returns the length of generated token if it succeeds,
  * or -1.
  */
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
-    uint8_t *token, const uint8_t *secret, size_t secretlen,
+    uint8_t *token, const uint8_t *secret, size_t secretlen, uint32_t version,
     const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
     const ngtcp2_cid *retry_scid, const ngtcp2_cid *odcid, ngtcp2_tstamp ts);
 
@@ -662,22 +662,23 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
  * `ngtcp2_crypto_verify_retry_token` verifies Retry token stored in
  * the buffer pointed by |token| of length |tokenlen|.  |secret| of
  * length |secretlen| is an initial keying material to generate keys
- * to decrypt the token.  |remote_addr| of length |remote_addrlen| is
- * an address of client.  |dcid| is a Destination Connection ID in
- * Initial packet sent by client.  |timeout| is the period during
- * which the token is valid.  |ts| is the current timestamp.  When
- * validation succeeds, the extracted Destination Connection ID (which
- * is the Destination Connection ID in Initial packet sent by client
- * that triggered Retry packet) is stored to the buffer pointed by
- * |odcid|.
+ * to decrypt the token.  |version| is QUIC version of the Initial
+ * packet that contains this token.  |remote_addr| of length
+ * |remote_addrlen| is an address of client.  |dcid| is a Destination
+ * Connection ID in Initial packet sent by client.  |timeout| is the
+ * period during which the token is valid.  |ts| is the current
+ * timestamp.  When validation succeeds, the extracted Destination
+ * Connection ID (which is the Destination Connection ID in Initial
+ * packet sent by client that triggered Retry packet) is stored to the
+ * buffer pointed by |odcid|.
  *
  * This function returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_verify_retry_token(
     ngtcp2_cid *odcid, const uint8_t *token, size_t tokenlen,
-    const uint8_t *secret, size_t secretlen, const ngtcp2_sockaddr *remote_addr,
-    ngtcp2_socklen remote_addrlen, const ngtcp2_cid *dcid,
-    ngtcp2_duration timeout, ngtcp2_tstamp ts);
+    const uint8_t *secret, size_t secretlen, uint32_t version,
+    const ngtcp2_sockaddr *remote_addr, ngtcp2_socklen remote_addrlen,
+    const ngtcp2_cid *dcid, ngtcp2_duration timeout, ngtcp2_tstamp ts);
 
 /**
  * @function

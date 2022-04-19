@@ -2741,7 +2741,7 @@ int Server::send_retry(const ngtcp2_pkt_hd *chd, Endpoint &ep,
 
   auto tokenlen = ngtcp2_crypto_generate_retry_token(
       token.data(), config.static_secret.data(), config.static_secret.size(),
-      sa, salen, &scid, &chd->dcid, t);
+      chd->version, sa, salen, &scid, &chd->dcid, t);
   if (tokenlen < 0) {
     return -1;
   }
@@ -2839,7 +2839,7 @@ int Server::verify_retry_token(ngtcp2_cid *ocid, const ngtcp2_pkt_hd *hd,
 
   if (ngtcp2_crypto_verify_retry_token(
           ocid, hd->token.base, hd->token.len, config.static_secret.data(),
-          config.static_secret.size(), sa, salen, &hd->dcid,
+          config.static_secret.size(), hd->version, sa, salen, &hd->dcid,
           10 * NGTCP2_SECONDS, t) != 0) {
     std::cerr << "Could not verify Retry token" << std::endl;
 
