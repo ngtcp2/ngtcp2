@@ -35,6 +35,7 @@
 #include <assert.h>
 
 #include "ngtcp2_macro.h"
+#include "ngtcp2_net.h"
 
 ngtcp2_crypto_md *ngtcp2_crypto_md_init(ngtcp2_crypto_md *md,
                                         void *md_native_handle) {
@@ -883,7 +884,7 @@ static size_t crypto_generate_retry_token_aad(uint8_t *dest, uint32_t version,
                                               const ngtcp2_cid *retry_scid) {
   uint8_t *p = dest;
 
-  /* Host byte order */
+  version = ngtcp2_htonl(version);
   memcpy(p, &version, sizeof(version));
   memcpy(p, sa, salen);
   p += salen;
@@ -913,6 +914,7 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
               NGTCP2_MAX_CIDLEN];
   size_t aadlen;
   uint8_t *p = plaintext;
+  ngtcp2_tstamp ts_be = ngtcp2_htonl64(ts);
   int rv;
 
   memset(plaintext, 0, sizeof(plaintext));
@@ -920,9 +922,8 @@ ngtcp2_ssize ngtcp2_crypto_generate_retry_token(
   *p++ = (uint8_t)odcid->datalen;
   memcpy(p, odcid->data, odcid->datalen);
   p += NGTCP2_MAX_CIDLEN;
-  /* Host byte order */
-  memcpy(p, &ts, sizeof(ts));
-  p += sizeof(ts);
+  memcpy(p, &ts_be, sizeof(ts_be));
+  p += sizeof(ts_be);
 
   plaintextlen = (size_t)(p - plaintext);
 
@@ -1038,10 +1039,10 @@ int ngtcp2_crypto_verify_retry_token(
 
   assert(cil == 0 || (cil >= NGTCP2_MIN_CIDLEN && cil <= NGTCP2_MAX_CIDLEN));
 
-  /* Host byte order */
   memcpy(&gen_ts, plaintext + /* cid len = */ 1 + NGTCP2_MAX_CIDLEN,
          sizeof(gen_ts));
 
+  gen_ts = ngtcp2_ntohl64(gen_ts);
   if (gen_ts + timeout <= ts) {
     return -1;
   }
@@ -1095,12 +1096,12 @@ ngtcp2_ssize ngtcp2_crypto_generate_regular_token(
   uint8_t aad[sizeof(ngtcp2_sockaddr_in6)];
   size_t aadlen;
   uint8_t *p = plaintext;
+  ngtcp2_tstamp ts_be = ngtcp2_htonl64(ts);
   int rv;
   (void)remote_addrlen;
 
-  /* Host byte order */
-  memcpy(p, &ts, sizeof(ts));
-  p += sizeof(ts);
+  memcpy(p, &ts_be, sizeof(ts_be));
+  p += sizeof(ts_be);
 
   plaintextlen = (size_t)(p - plaintext);
 
@@ -1209,9 +1210,9 @@ int ngtcp2_crypto_verify_regular_token(const uint8_t *token, size_t tokenlen,
     return -1;
   }
 
-  /* Host byte order */
   memcpy(&gen_ts, plaintext, sizeof(gen_ts));
 
+  gen_ts = ngtcp2_ntohl64(gen_ts);
   if (gen_ts + timeout <= ts) {
     return -1;
   }
