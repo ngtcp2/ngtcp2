@@ -29,6 +29,7 @@
 #include "ngtcp2_str.h"
 #include "ngtcp2_vec.h"
 #include "ngtcp2_conv.h"
+#include "ngtcp2_net.h"
 
 void ngtcp2_qlog_init(ngtcp2_qlog *qlog, ngtcp2_qlog_write write,
                       ngtcp2_tstamp ts, void *user_data) {

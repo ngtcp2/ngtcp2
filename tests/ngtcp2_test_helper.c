@@ -31,6 +31,7 @@
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_ppe.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_net.h"
 
 size_t ngtcp2_t_encode_stream_frame(uint8_t *out, uint8_t flags,
                                     uint64_t stream_id, uint64_t offset,
