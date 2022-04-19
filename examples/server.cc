@@ -2672,7 +2672,6 @@ int Server::send_version_negotiation(uint32_t version, const uint8_t *dcid,
 
   if (config.preferred_versions.empty()) {
     *p++ = NGTCP2_PROTO_VER_V1;
-    *p++ = NGTCP2_PROTO_VER_V2_DRAFT;
   } else {
     for (auto v : config.preferred_versions) {
       *p++ = v;
@@ -3117,7 +3116,6 @@ void config_set_default(Config &config) {
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_gso_dgrams = 10;
   config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
-  config.other_versions = {NGTCP2_PROTO_VER_V1, NGTCP2_PROTO_VER_V2_DRAFT};
 }
 } // namespace
 
@@ -3623,10 +3621,6 @@ int main(int argc, char **argv) {
       }
       case 28: {
         // --other-versions
-        if (strlen(optarg) == 0) {
-          config.other_versions.resize(0);
-          break;
-        }
         auto l = util::split_str(optarg);
         config.other_versions.resize(l.size());
         auto it = std::begin(config.other_versions);
