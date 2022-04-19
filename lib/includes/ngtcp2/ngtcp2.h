@@ -1863,8 +1863,6 @@ typedef struct ngtcp2_settings {
    * :member:`preferred_versionslen` is the number of versions that
    * are contained in the array pointed by
    * :member:`preferred_versions`.
-   *
-   * This field is only used by server.
    */
   size_t preferred_versionslen;
   /**
