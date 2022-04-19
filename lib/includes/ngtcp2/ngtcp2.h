@@ -1873,8 +1873,11 @@ typedef struct ngtcp2_settings {
    * field of outgoing version_information QUIC transport parameter.
    *
    * For server, this corresponds to Fully-Deployed Versions in QUIC
-   * Version Negotiation draft.  Server which sends Version
-   * Negotiation packet must specify this field with non-empty array.
+   * Version Negotiation draft.  If this field is set not, it is set
+   * to :member:`preferred_versions` internally if
+   * :member:`preferred_versionslen` is not zero.  If this field is
+   * not set, and :member:`preferred_versionslen` is zero, this field
+   * is set to :macro:`NGTCP2_PROTO_VER_V1` internally.
    *
    * Client must include |client_chosen_version| passed to
    * `ngtcp2_conn_client_new` in this array if this field is set and

@@ -949,6 +949,41 @@ static void conn_reset_ecn_validation_state(ngtcp2_conn *conn) {
   pktns->tx.ecn.validation_pkt_lost = 0;
 }
 
+/* server_default_other_versions is the default other_versions field
+   sent by server. */
+static uint8_t server_default_other_versions[] = {0, 0, 0, 1};
+
+/*
+ * other_versions_new allocates new buffer, and writes |versions| of
+ * length |versionslen| in network byte order, suitable for sending in
+ * other_versions field of version_information QUIC transport
+ * parameter.  The pointer to the allocated buffer is assigned to
+ * |*pbuf|.
+ *
+ * This function returns 0 if it succeeds, or one of the negative
+ * error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+static int other_versions_new(uint8_t **pbuf, const uint32_t *versions,
+                              size_t versionslen, const ngtcp2_mem *mem) {
+  size_t i;
+  uint8_t *buf = ngtcp2_mem_malloc(mem, sizeof(uint32_t) * versionslen);
+
+  if (buf == NULL) {
+    return NGTCP2_ERR_NOMEM;
+  }
+
+  *pbuf = buf;
+
+  for (i = 0; i < versionslen; ++i) {
+    buf = ngtcp2_put_uint32be(buf, versions[i]);
+  }
+
+  return 0;
+}
+
 static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                     const ngtcp2_cid *scid, const ngtcp2_path *path,
                     uint32_t client_chosen_version, int callbacks_version,
@@ -1190,32 +1225,38 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
       assert(i < settings->other_versionslen);
     }
 
-    buf =
-        ngtcp2_mem_malloc(mem, sizeof(uint32_t) * settings->other_versionslen);
-    if (buf == NULL) {
-      rv = NGTCP2_ERR_NOMEM;
+    rv = other_versions_new(&buf, settings->other_versions,
+                            settings->other_versionslen, mem);
+    if (rv != 0) {
       goto fail_other_versions;
     }
 
     (*pconn)->vneg.other_versions = buf;
     (*pconn)->vneg.other_versionslen =
         sizeof(uint32_t) * settings->other_versionslen;
+  } else if (server) {
+    if (settings->preferred_versionslen) {
+      rv = other_versions_new(&buf, settings->preferred_versions,
+                              settings->preferred_versionslen, mem);
+      if (rv != 0) {
+        goto fail_other_versions;
+      }
 
-    for (i = 0; i < settings->other_versionslen; ++i) {
-      assert(settings->other_versions[i]);
-
-      buf = ngtcp2_put_uint32be(buf, settings->other_versions[i]);
+      (*pconn)->vneg.other_versions = buf;
+      (*pconn)->vneg.other_versionslen =
+          sizeof(uint32_t) * settings->preferred_versionslen;
+    } else {
+      (*pconn)->vneg.other_versions = server_default_other_versions;
+      (*pconn)->vneg.other_versionslen = sizeof(server_default_other_versions);
     }
   } else if (!server && !ngtcp2_is_reserved_version(client_chosen_version)) {
-    buf = ngtcp2_mem_malloc(mem, sizeof(uint32_t));
-    if (buf == NULL) {
-      rv = NGTCP2_ERR_NOMEM;
+    rv = other_versions_new(&buf, &client_chosen_version, 1, mem);
+    if (rv != 0) {
       goto fail_other_versions;
     }
 
     (*pconn)->vneg.other_versions = buf;
     (*pconn)->vneg.other_versionslen = sizeof(uint32_t);
-    ngtcp2_put_uint32be(buf, client_chosen_version);
   }
 
   callbacks->rand(&fixed_bit_byte, 1, &settings->rand_ctx);
@@ -1446,7 +1487,9 @@ void ngtcp2_conn_del(ngtcp2_conn *conn) {
   conn_vneg_crypto_free(conn);
 
   ngtcp2_mem_free(conn->mem, conn->vneg.preferred_versions);
-  ngtcp2_mem_free(conn->mem, conn->vneg.other_versions);
+  if (conn->vneg.other_versions != server_default_other_versions) {
+    ngtcp2_mem_free(conn->mem, conn->vneg.other_versions);
+  }
 
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_buf.base);
   ngtcp2_mem_free(conn->mem, conn->crypto.decrypt_hp_buf.base);
