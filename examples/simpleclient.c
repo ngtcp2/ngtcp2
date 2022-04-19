@@ -250,6 +250,9 @@ static int client_ssl_init(struct client *c) {
     SSL_set_tlsext_host_name(c->ssl, REMOTE_HOST);
   }
 
+  /* For NGTCP2_PROTO_VER_V1 */
+  SSL_set_quic_transport_version(c->ssl, TLSEXT_TYPE_quic_transport_parameters);
+
   return 0;
 }
 
@@ -405,6 +408,7 @@ static int client_quic_init(struct client *c,
   ngtcp2_transport_params_default(&params);
 
   params.initial_max_streams_uni = 3;
+  params.initial_max_streams_bidi = 3;
   params.initial_max_stream_data_bidi_local = 128 * 1024;
   params.initial_max_data = 1024 * 1024;
 
