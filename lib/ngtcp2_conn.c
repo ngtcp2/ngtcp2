@@ -1310,6 +1310,9 @@ fail_qlog_buf:
   delete_scid(&(*pconn)->scid.set, mem);
   ngtcp2_ksl_free(&(*pconn)->scid.set);
   ngtcp2_gaptr_free(&(*pconn)->dcid.seqgap);
+  ngtcp2_objalloc_free(&(*pconn)->strm_objalloc);
+  ngtcp2_objalloc_free(&(*pconn)->rtb_entry_objalloc);
+  ngtcp2_objalloc_free(&(*pconn)->frc_objalloc);
   ngtcp2_mem_free(mem, *pconn);
 fail_conn:
   return rv;
