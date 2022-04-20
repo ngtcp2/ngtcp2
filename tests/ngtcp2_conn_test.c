@@ -8488,8 +8488,8 @@ typedef struct failmalloc {
   size_t fail_start;
 } failmalloc;
 
-static void *failmalloc_malloc(size_t size, void *mem_user_data) {
-  failmalloc *mc = mem_user_data;
+static void *failmalloc_malloc(size_t size, void *user_data) {
+  failmalloc *mc = user_data;
 
   if (mc->fail_start <= ++mc->nmalloc) {
     return NULL;
@@ -8498,14 +8498,14 @@ static void *failmalloc_malloc(size_t size, void *mem_user_data) {
   return malloc(size);
 }
 
-static void failmalloc_free(void *ptr, void *mem_user_data) {
-  (void)mem_user_data;
+static void failmalloc_free(void *ptr, void *user_data) {
+  (void)user_data;
 
   free(ptr);
 }
 
-static void *failmalloc_calloc(size_t nmemb, size_t size, void *mem_user_data) {
-  failmalloc *mc = mem_user_data;
+static void *failmalloc_calloc(size_t nmemb, size_t size, void *user_data) {
+  failmalloc *mc = user_data;
 
   if (mc->fail_start <= ++mc->nmalloc) {
     return NULL;
@@ -8514,8 +8514,8 @@ static void *failmalloc_calloc(size_t nmemb, size_t size, void *mem_user_data) {
   return calloc(nmemb, size);
 }
 
-static void *failmalloc_realloc(void *ptr, size_t size, void *mem_user_data) {
-  failmalloc *mc = mem_user_data;
+static void *failmalloc_realloc(void *ptr, size_t size, void *user_data) {
+  failmalloc *mc = user_data;
 
   if (mc->fail_start <= ++mc->nmalloc) {
     return NULL;
