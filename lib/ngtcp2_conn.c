@@ -1292,8 +1292,6 @@ fail_seqgap_push:
 fail_scid_set_insert:
   ngtcp2_mem_free(mem, scident);
 fail_scident:
-  ngtcp2_mem_free(mem, (*pconn)->local.settings.token.base);
-fail_token:
   pktns_free(&(*pconn)->pktns, mem);
 fail_pktns_init:
   pktns_del((*pconn)->hs_pktns, mem);
@@ -1302,6 +1300,8 @@ fail_hs_pktns_init:
 fail_in_pktns_init:
   cc_del(&(*pconn)->cc, settings->cc_algo, mem);
 fail_cc_init:
+  ngtcp2_mem_free(mem, (*pconn)->local.settings.token.base);
+fail_token:
   ngtcp2_mem_free(mem, (*pconn)->qlog.buf.begin);
 fail_qlog_buf:
   ngtcp2_idtr_free(&(*pconn)->remote.uni.idtr);

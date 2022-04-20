@@ -38,6 +38,14 @@
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_addr.h"
 
+static void qlog_write(void *user_data, uint32_t flags, const void *data,
+                       size_t datalen) {
+  (void)user_data;
+  (void)flags;
+  (void)data;
+  (void)datalen;
+}
+
 static int null_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                         const uint8_t *plaintext, size_t plaintextlen,
@@ -8471,6 +8479,168 @@ void test_ngtcp2_conn_server_negotiate_version(void) {
 
   CU_ASSERT(conn->client_chosen_version ==
             ngtcp2_conn_server_negotiate_version(conn, &version_info));
+
+  ngtcp2_conn_del(conn);
+}
+
+typedef struct failmalloc {
+  size_t nmalloc;
+  size_t fail_start;
+} failmalloc;
+
+static void *failmalloc_malloc(size_t size, void *mem_user_data) {
+  failmalloc *mc = mem_user_data;
+
+  if (mc->fail_start <= ++mc->nmalloc) {
+    return NULL;
+  }
+
+  return malloc(size);
+}
+
+static void failmalloc_free(void *ptr, void *mem_user_data) {
+  (void)mem_user_data;
+
+  free(ptr);
+}
+
+static void *failmalloc_calloc(size_t nmemb, size_t size, void *mem_user_data) {
+  failmalloc *mc = mem_user_data;
+
+  if (mc->fail_start <= ++mc->nmalloc) {
+    return NULL;
+  }
+
+  return calloc(nmemb, size);
+}
+
+static void *failmalloc_realloc(void *ptr, size_t size, void *mem_user_data) {
+  failmalloc *mc = mem_user_data;
+
+  if (mc->fail_start <= ++mc->nmalloc) {
+    return NULL;
+  }
+
+  return realloc(ptr, size);
+}
+
+void test_ngtcp2_conn_new_failmalloc(void) {
+  ngtcp2_conn *conn;
+  ngtcp2_callbacks cb;
+  ngtcp2_settings settings;
+  ngtcp2_transport_params params;
+  failmalloc mc;
+  ngtcp2_mem mem = {
+      &mc,
+      failmalloc_malloc,
+      failmalloc_free,
+      failmalloc_calloc,
+      failmalloc_realloc,
+  };
+  ngtcp2_vec token = {
+      (uint8_t *)"token",
+      sizeof("token") - 1,
+  };
+  uint32_t preferred_versions[] = {
+      NGTCP2_PROTO_VER_V1,
+      NGTCP2_PROTO_VER_V2_DRAFT,
+  };
+  uint32_t other_versions[] = {
+      NGTCP2_PROTO_VER_V2_DRAFT,
+      NGTCP2_PROTO_VER_V1,
+      0x5a9aeaca,
+  };
+  ngtcp2_cid dcid, scid;
+  int rv;
+  size_t i;
+  size_t nmalloc;
+
+  dcid_init(&dcid);
+  scid_init(&scid);
+
+  ngtcp2_settings_default(&settings);
+  ngtcp2_transport_params_default(&params);
+
+  settings.qlog.write = qlog_write;
+  settings.token = token;
+  settings.preferred_versions = preferred_versions;
+  settings.preferred_versionslen = arraylen(preferred_versions);
+  settings.other_versions = other_versions;
+  settings.other_versionslen = arraylen(other_versions);
+
+  /* server */
+  server_default_callbacks(&cb);
+
+  mc.nmalloc = 0;
+  mc.fail_start = SIZE_MAX;
+
+  rv = ngtcp2_conn_server_new(&conn, &dcid, &scid, &null_path.path,
+                              NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                              &mem, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  nmalloc = mc.nmalloc;
+
+  for (i = 0; i <= nmalloc; ++i) {
+    mc.nmalloc = 0;
+    mc.fail_start = i;
+
+    rv = ngtcp2_conn_server_new(&conn, &dcid, &scid, &null_path.path,
+                                NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                                &mem, NULL);
+
+    CU_ASSERT(NGTCP2_ERR_NOMEM == rv);
+  }
+
+  mc.nmalloc = 0;
+  mc.fail_start = nmalloc + 1;
+
+  rv = ngtcp2_conn_server_new(&conn, &dcid, &scid, &null_path.path,
+                              NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                              &mem, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  /* client */
+  client_default_callbacks(&cb);
+
+  mc.nmalloc = 0;
+  mc.fail_start = SIZE_MAX;
+
+  rv = ngtcp2_conn_client_new(&conn, &dcid, &scid, &null_path.path,
+                              NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                              &mem, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  ngtcp2_conn_del(conn);
+
+  nmalloc = mc.nmalloc;
+
+  for (i = 0; i <= nmalloc; ++i) {
+    mc.nmalloc = 0;
+    mc.fail_start = i;
+
+    rv = ngtcp2_conn_client_new(&conn, &dcid, &scid, &null_path.path,
+                                NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                                &mem, NULL);
+
+    CU_ASSERT(NGTCP2_ERR_NOMEM == rv);
+  }
+
+  mc.nmalloc = 0;
+  mc.fail_start = nmalloc + 1;
+
+  rv = ngtcp2_conn_client_new(&conn, &dcid, &scid, &null_path.path,
+                              NGTCP2_PROTO_VER_V1, &cb, &settings, &params,
+                              &mem, NULL);
+
+  CU_ASSERT(0 == rv);
 
   ngtcp2_conn_del(conn);
 }
