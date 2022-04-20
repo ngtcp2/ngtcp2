@@ -299,6 +299,8 @@ int main(void) {
                    test_ngtcp2_conn_version_negotiation) ||
       !CU_add_test(pSuite, "conn_server_negotiate_version",
                    test_ngtcp2_conn_server_negotiate_version) ||
+      !CU_add_test(pSuite, "conn_new_failmalloc",
+                   test_ngtcp2_conn_new_failmalloc) ||
       !CU_add_test(pSuite, "accept", test_ngtcp2_accept) ||
       !CU_add_test(pSuite, "select_version", test_ngtcp2_select_version) ||
       !CU_add_test(pSuite, "pkt_write_connection_close",
