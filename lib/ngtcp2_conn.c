@@ -1225,6 +1225,11 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
       assert(i < settings->other_versionslen);
     }
 
+    for (i = 0; i < settings->other_versionslen; ++i) {
+      assert(ngtcp2_is_reserved_version(settings->other_versions[i]) ||
+             ngtcp2_is_supported_version(settings->other_versions[i]));
+    }
+
     rv = other_versions_new(&buf, settings->other_versions,
                             settings->other_versionslen, mem);
     if (rv != 0) {
