@@ -115,10 +115,10 @@ All fields must be set.  Application should call
 very useful to enable debug logging by setting logging function to
 :member:`ngtcp2_settings.log_printf` field.  ngtcp2 library relies on
 the timestamp fed from application.  The initial timestamp must be
-passed to ``initial_ts`` field in nanosecond resolution.  ngtcp2 cares
-about the difference from that initial value.  It could be any
-timestamp which increases monotonically, and actual value does not
-matter.
+passed to :member:`ngtcp2_settings.initial_ts` field in nanosecond
+resolution.  ngtcp2 cares about the difference from that initial
+value.  It could be any timestamp which increases monotonically, and
+actual value does not matter.
 
 :type:`ngtcp2_transport_params` contains QUIC transport parameters
 which is sent to a remote endpoint during handshake.  All fields must
@@ -257,7 +257,8 @@ type of timestamp in ngtcp2 library is :type:`ngtcp2_tstamp` which is
 nanosecond resolution.  The library only cares the difference of
 timestamp, so it does not have to be a system clock.  A monotonic
 clock should work better.  It should be same clock passed to
-:type:`ngtcp2_settings`.
+:member:`ngtcp2_settings.initial_ts`.  The duration in ngtcp2 library
+is :type:`ngtcp2_duration` which is also nanosecond resolution.
 
 `ngtcp2_conn_get_expiry()` tells an application when timer fires.
 When timer fires, call `ngtcp2_conn_handle_expiry()` and
@@ -265,6 +266,10 @@ When timer fires, call `ngtcp2_conn_handle_expiry()` and
 
 After calling these functions, new expiry will be set.  The
 application should call `ngtcp2_conn_get_expiry()` to restart timer.
+If `ngtcp2_conn_get_expiry()` returned :macro:`NGTCP2_ERR_IDLE_CLOSE`,
+it means that an idle timer has expired for this particular
+connection.  In this case, drop the connection without calling
+`ngtcp2_conn_write_connection_close()`.
 
 Connection migration
 --------------------
@@ -275,11 +280,12 @@ address without checking reachability.  On the other hand,
 `ngtcp2_conn_initiate_migration()` migrates to a new local address
 after a new path is validated (thus reachability is established).
 
-Closing connection
-------------------
+Closing connection abruptly
+---------------------------
 
-In order to close QUIC connection, call
-`ngtcp2_conn_write_connection_close()`.
+In order to close QUIC connection abruptly, call
+`ngtcp2_conn_write_connection_close()` and get a terminal packet.
+Sending it closes the connection abruptly.
 
 Error handling in general
 -------------------------
