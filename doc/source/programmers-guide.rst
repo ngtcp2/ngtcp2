@@ -308,3 +308,66 @@ application should keep connection alive:
 * :macro:`NGTCP2_ERR_STREAM_SHUT_WR`
 * :macro:`NGTCP2_ERR_STREAM_NOT_FOUND`
 * :macro:`NGTCP2_ERR_STREAM_ID_BLOCKED`
+
+Version negotiation
+-------------------
+
+Version negotiation is configured with the following
+:type:`ngtcp2_settings` fields:
+
+* :member:`ngtcp2_settings.preferred_versions` and
+  :member:`ngtcp2_settings.preferred_versionslen`
+* :member:`ngtcp2_settings.other_versions` and
+  :member:`ngtcp2_settings.other_versionslen`
+* :member:`ngtcp2_settings.original_version`
+
+*client_chosen_version* passed to `ngtcp2_conn_client_new` also
+influence the version negotiation process.
+
+By default, client sends *client_chosen_version* passed to
+`ngtcp2_conn_client_new` in other_versions field of
+version_information QUIC transport parameter.  That means there is no
+chance for server to select the other compatible version.  Meanwhile,
+ngtcp2 supports QUIC v2 draft version
+(:macro:`NGTCP2_PROTO_VER_V2_DRAFT`).  Including both
+:macro:`NGTCP2_PROTO_VER_V1` and :macro:`NGTCP2_PROTO_VER_V2_DRAFT` in
+:member:`ngtcp2_settings.other_versions` field allows server to choose
+:macro:`NGTCP2_PROTO_VER_V2_DRAFT` which is compatible to
+:macro:`NGTCP2_PROTO_VER_V1`.
+
+By default, server sends :macro:`NGTCP2_PROTO_VER_V1` in
+other_versions field of version_information QUIC transport parameter.
+Because there is no particular preferred versions specified, server
+will accept any supported version.  In order to set the version
+preference, specify :member:`ngtcp2_settings.preferred_versions`
+field.  If it is specified, server sends them in other_versions field
+of version_information QUIC transport parameter unless
+:member:`ngtcp2_settings.other_versionslen` is not zero.  Specifying
+:member:`ngtcp2_settings.other_versions` overrides the above mentioned
+default behavior.  Even if there is no overlap between
+:member:`ngtcp2_settings.preferred_versions` and other_versions field
+plus *client_chosen_version* from client, as long as
+*client_chosen_version* is supported by server, server accepts
+*client_chosen_version*.
+
+If client receives Version Negotiation packet from server,
+`ngtcp2_conn_read_pkt` returns
+:macro:`NGTCP2_ERR_RECV_VERSION_NEGOTIATION`.
+:member:`ngtcp2_callbacks.recv_version_negotiation` is also invoked if
+set.  It will provide the versions contained in the packet.  Client
+then either gives up the connection attempt, or selects the version
+from Version Negotiation packet, and starts new connection attempt
+with that version.  In the latter case, the initial version that used
+in the first connection attempt must be set to
+:member:`ngtcp2_settings.original_version`.  The client version
+preference that is used when selecting a version from Version
+Negotiation packet must be set to
+:member:`ngtcp2_settings.preferred_versions`.
+:member:`ngtcp2_settings.other_versions` must include the selected
+version.  The selected version becomes *client_chosen_version* in the
+second connection attempt, and must be passed to
+`ngtcp2_conn_client_new`.
+
+Server never know whether client reacted upon Version Negotiation
+packet or not, and there is no particular setup for server to make
+this incompatible version negotiation work.
