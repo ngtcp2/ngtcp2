@@ -250,6 +250,9 @@ static int client_ssl_init(struct client *c) {
     SSL_set_tlsext_host_name(c->ssl, REMOTE_HOST);
   }
 
+  /* For NGTCP2_PROTO_VER_V1 */
+  SSL_set_quic_transport_version(c->ssl, TLSEXT_TYPE_quic_transport_parameters);
+
   return 0;
 }
 
