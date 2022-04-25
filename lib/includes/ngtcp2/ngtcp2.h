@@ -1191,8 +1191,8 @@ typedef struct ngtcp2_pkt_hd {
    */
   uint8_t type;
   /**
-   * :member:`flags` is zero or more of NGTCP2_PKT_FLAG_*.  See
-   * :macro:`NGTCP2_PKT_FLAG_NONE`.
+   * :member:`flags` is zero or more of :macro:`NGTCP2_PKT_FLAG_*
+   * <NGTCP2_PKT_FLAG_NONE>`.
    */
   uint8_t flags;
 } ngtcp2_pkt_hd;
@@ -1718,8 +1718,8 @@ typedef struct ngtcp2_rand_ctx {
  *
  * :type:`ngtcp2_qlog_write` is a callback function which is called to
  * write qlog |data| of length |datalen| bytes.  |flags| is bitwise OR
- * of zero or more of NGTCP2_QLOG_WRITE_FLAG_*.  See
- * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE`.  If
+ * of zero or more of :macro:`NGTCP2_QLOG_WRITE_FLAG_*
+ * <NGTCP2_QLOG_WRITE_FLAG_NONE>`.  If
  * :macro:`NGTCP2_QLOG_WRITE_FLAG_FIN` is set, |datalen| may be 0.
  */
 typedef void (*ngtcp2_qlog_write)(void *user_data, uint32_t flags,
@@ -2667,8 +2667,8 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  *
  * :type:`ngtcp2_recv_stream_data` is invoked when stream data is
  * received.  The stream is specified by |stream_id|.  |flags| is the
- * bitwise-OR of zero or more of NGTCP2_STREAM_DATA_FLAG_*.  See
- * :macro:`NGTCP2_STREAM_DATA_FLAG_NONE`.  If |flags| &
+ * bitwise-OR of zero or more of :macro:`NGTCP2_STREAM_DATA_FLAG_*
+ * <NGTCP2_STREAM_DATA_FLAG_NONE>`.  If |flags| &
  * :macro:`NGTCP2_STREAM_DATA_FLAG_FIN` is nonzero, this portion of
  * the data is the last data in this stream.  |offset| is the offset
  * where this data begins.  The library ensures that data is passed to
@@ -2731,9 +2731,9 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  * :type:`ngtcp2_stream_close` is invoked when a stream is closed.
  * This callback is not called when QUIC connection is closed before
  * existing streams are closed.  |flags| is the bitwise-OR of zero or
- * more of NGTCP2_STREAM_CLOSE_FLAG_*.  See
- * :macro:`NGTCP2_STREAM_CLOSE_FLAG_NONE`.  |app_error_code| indicates
- * the error code of this closure if
+ * more of :macro:`NGTCP2_STREAM_CLOSE_FLAG_*
+ * <NGTCP2_STREAM_CLOSE_FLAG_NONE>`.  |app_error_code| indicates the
+ * error code of this closure if
  * :macro:`NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET` is set in
  * |flags|.  If it is not set, the stream was closed without any error
  * code, which generally means success.
@@ -2942,9 +2942,9 @@ typedef int (*ngtcp2_update_key)(
  *
  * :type:`ngtcp2_path_validation` is a callback function which tells
  * the application the outcome of path validation.  |flags| is zero or
- * more of NGTCP2_PATH_VALIDATION_FLAG_*.  See
- * :macro:`NGTCP2_PATH_VALIDATION_FLAG_NONE`.  |path| is the path that
- * was validated.  If |res| is
+ * more of :macro:`NGTCP2_PATH_VALIDATION_FLAG_*
+ * <NGTCP2_PATH_VALIDATION_FLAG_NONE>`.  |path| is the path that was
+ * validated.  If |res| is
  * :enum:`ngtcp2_path_validation_result.NGTCP2_PATH_VALIDATION_RESULT_SUCCESS`,
  * the path validation succeeded.  If |res| is
  * :enum:`ngtcp2_path_validation_result.NGTCP2_PATH_VALIDATION_RESULT_FAILURE`,
@@ -3097,7 +3097,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  *
  * :type:`ngtcp2_recv_datagram` is invoked when DATAGRAM frame is
  * received.  |flags| is bitwise-OR of zero or more of
- * NGTCP2_DATAGRAM_FLAG_*.  See :macro:`NGTCP2_DATAGRAM_FLAG_NONE`.
+ * :macro:`NGTCP2_DATAGRAM_FLAG_* <NGTCP2_DATAGRAM_FLAG_NONE>`.
  *
  * If :macro:`NGTCP2_DATAGRAM_FLAG_EARLY` is set in |flags|, it
  * indicates that DATAGRAM frame was received in 0RTT packet and a
