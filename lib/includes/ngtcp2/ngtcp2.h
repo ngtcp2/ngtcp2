@@ -2625,8 +2625,8 @@ typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * :macro:`NGTCP2_HP_SAMPLELEN` bytes available for convenience.
  *
  * The callback function must return 0 if it succeeds, or
- *  :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
- *  return immediately.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
+ * return immediately.
  */
 typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
                               const ngtcp2_crypto_cipher_ctx *hp_ctx,
