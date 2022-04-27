@@ -2394,8 +2394,8 @@ typedef struct ngtcp2_conn ngtcp2_conn;
  * `ngtcp2_conn_submit_crypto_data` function.  Make sure that before
  * calling `ngtcp2_conn_submit_crypto_data` function, client
  * application must create initial packet protection keys and IVs, and
- * provide them to ngtcp2 library using `ngtcp2_conn_set_initial_key`
- * and
+ * provide them to ngtcp2 library using
+ * `ngtcp2_conn_install_initial_key`.
  *
  * This callback function must return 0 if it succeeds, or
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
@@ -2413,7 +2413,7 @@ typedef int (*ngtcp2_client_initial)(ngtcp2_conn *conn, void *user_data);
  * Initial packet from client.  An server application must implement
  * this callback, and generate initial keys and IVs for both
  * transmission and reception.  Install them using
- * `ngtcp2_conn_set_initial_key`.  |dcid| is the destination
+ * `ngtcp2_conn_install_initial_key`.  |dcid| is the destination
  * connection ID which client generated randomly.  It is used to
  * derive initial packet protection keys.
  *
