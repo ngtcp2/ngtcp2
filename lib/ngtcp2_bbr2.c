@@ -531,7 +531,7 @@ static void bbr_update_congestion_signals(ngtcp2_bbr2_cc *bbr,
 
 static void bbr_adapt_lower_bounds_from_congestion(ngtcp2_bbr2_cc *bbr,
                                                    ngtcp2_conn_stat *cstat) {
-  if (bbr_is_in_probe_bw_state(bbr)) {
+  if (!bbr->filled_pipe || bbr_is_in_probe_bw_state(bbr)) {
     return;
   }
 
@@ -1366,7 +1366,7 @@ static void bbr2_cc_congestion_event(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                                      ngtcp2_tstamp sent_ts, ngtcp2_tstamp ts) {
   ngtcp2_bbr2_cc *bbr = ngtcp2_struct_of(ccx->ccb, ngtcp2_bbr2_cc, ccb);
 
-  if (bbr->in_loss_recovery ||
+  if (!bbr->filled_pipe || bbr->in_loss_recovery ||
       bbr->congestion_recovery_start_ts != UINT64_MAX ||
       in_congestion_recovery(cstat, sent_ts)) {
     return;
