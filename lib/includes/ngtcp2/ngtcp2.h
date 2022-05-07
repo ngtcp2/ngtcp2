@@ -4729,6 +4729,19 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_max_udp_payload_size(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_path_max_udp_payload_size` returns the maximum UDP
+ * payload size for the current path.  If
+ * :member:`ngtcp2_settings.no_udp_payload_size_shaping` is set to
+ * nonzero, this function is equivalent to
+ * `ngtcp2_conn_get_max_udp_payload_size`.  Otherwise, it returns the
+ * maximum UDP payload size that is probed for the current path.
+ */
+NGTCP2_EXTERN size_t
+ngtcp2_conn_get_path_max_udp_payload_size(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_initiate_immediate_migration` starts connection
  * migration to the given |path|.
  * Only client can initiate migration.  This function does
