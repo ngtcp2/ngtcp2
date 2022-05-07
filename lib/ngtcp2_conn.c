@@ -4614,13 +4614,20 @@ static int conn_bind_dcid(ngtcp2_conn *conn, ngtcp2_dcid **pdcid,
 
 static int conn_start_pmtud(ngtcp2_conn *conn) {
   int rv;
+  size_t hard_max_udp_payload_size;
 
   assert(!conn->local.settings.no_pmtud);
   assert(!conn->pmtud);
   assert(conn_is_handshake_completed(conn));
+  assert(conn->remote.transport_params.max_udp_payload_size >=
+         NGTCP2_MAX_UDP_PAYLOAD_SIZE);
+
+  hard_max_udp_payload_size =
+      ngtcp2_min(conn->remote.transport_params.max_udp_payload_size,
+                 conn->local.settings.max_udp_payload_size);
 
   rv = ngtcp2_pmtud_new(&conn->pmtud, conn->dcid.current.max_udp_payload_size,
-                        conn->local.settings.max_udp_payload_size,
+                        hard_max_udp_payload_size,
                         conn->pktns.tx.last_pkt_num + 1, conn->mem);
   if (rv != 0) {
     return rv;
