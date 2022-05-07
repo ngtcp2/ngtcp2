@@ -12834,6 +12834,14 @@ size_t ngtcp2_conn_get_max_udp_payload_size(ngtcp2_conn *conn) {
   return conn->local.settings.max_udp_payload_size;
 }
 
+size_t ngtcp2_conn_get_path_max_udp_payload_size(ngtcp2_conn *conn) {
+  if (conn->local.settings.no_udp_payload_size_shaping) {
+    return ngtcp2_conn_get_max_udp_payload_size(conn);
+  }
+
+  return conn->dcid.current.max_udp_payload_size;
+}
+
 static int conn_initiate_migration_precheck(ngtcp2_conn *conn,
                                             const ngtcp2_addr *local_addr) {
   if (conn->remote.transport_params.disable_active_migration ||
