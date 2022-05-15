@@ -39,7 +39,7 @@ using namespace ngtcp2;
 
 extern Config config;
 
-ClientBase::ClientBase() : qlog_(nullptr), conn_(nullptr) {
+ClientBase::ClientBase() : qlog_(nullptr), conn_(nullptr), tls_alert_(0) {
   ngtcp2_connection_close_error_default(&last_error_);
 }
 
@@ -261,15 +261,22 @@ int ClientBase::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
   return 0;
 }
 
-void ClientBase::write_client_handshake(ngtcp2_crypto_level level,
-                                        const uint8_t *data, size_t datalen) {
-  ngtcp2_conn_submit_crypto_data(conn_, level, data, datalen);
+int ClientBase::write_client_handshake(ngtcp2_crypto_level level,
+                                       const uint8_t *data, size_t datalen) {
+  auto rv = ngtcp2_conn_submit_crypto_data(conn_, level, data, datalen);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_submit_crypto_data: " << ngtcp2_strerror(rv)
+              << std::endl;
+
+    ngtcp2_conn_set_tls_error(conn_, rv);
+
+    return -1;
+  }
+
+  return 0;
 }
 
-void ClientBase::set_tls_alert(uint8_t alert) {
-  ngtcp2_connection_close_error_set_transport_error_tls_alert(
-      &last_error_, alert, nullptr, 0);
-}
+void ClientBase::set_tls_alert(uint8_t alert) { tls_alert_ = alert; }
 
 ngtcp2_conn *ClientBase::conn() const { return conn_; }
 

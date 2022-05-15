@@ -223,7 +223,9 @@ int add_handshake_data(SSL *ssl, enum ssl_encryption_level_t ssl_level,
                        const uint8_t *data, size_t len) {
   auto h = static_cast<HandlerBase *>(SSL_get_app_data(ssl));
   auto level = ngtcp2_crypto_boringssl_from_ssl_encryption_level(ssl_level);
-  h->write_server_handshake(level, data, len);
+  if (h->write_server_handshake(level, data, len) != 0) {
+    return 0;
+  }
   return 1;
 }
 } // namespace

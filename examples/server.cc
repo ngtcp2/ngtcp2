@@ -1547,22 +1547,15 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
       return NETWORK_ERR_CLOSE_WAIT;
     case NGTCP2_ERR_RETRY:
       return NETWORK_ERR_RETRY;
-    case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
-    case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
-    case NGTCP2_ERR_TRANSPORT_PARAM:
-      // If rv indicates transport_parameters related error, we should
-      // send TRANSPORT_PARAMETER_ERROR even if last_error_.code is
-      // already set.  This is because OpenSSL might set Alert.
-      ngtcp2_connection_close_error_set_transport_error_liberr(&last_error_, rv,
-                                                               nullptr, 0);
-      break;
     case NGTCP2_ERR_DROP_CONN:
       return NETWORK_ERR_DROP_CONN;
     case NGTCP2_ERR_CRYPTO:
       if (!last_error_.error_code) {
         process_unhandled_tls_alert();
+        ngtcp2_connection_close_error_set_transport_error_tls_alert(
+            &last_error_, tls_alert_, nullptr, 0);
       }
-      // fall through
+      break;
     default:
       if (!last_error_.error_code) {
         ngtcp2_connection_close_error_set_transport_error_liberr(

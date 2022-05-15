@@ -117,9 +117,11 @@ int read_func(gnutls_session_t session, gnutls_record_encryption_level_t level,
   }
 
   auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
-  c->write_client_handshake(
-      ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(level),
-      reinterpret_cast<const uint8_t *>(data), data_size);
+  if (c->write_client_handshake(
+          ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(level),
+          reinterpret_cast<const uint8_t *>(data), data_size) != 0) {
+    return -1;
+  }
   return 0;
 }
 } // namespace
@@ -148,6 +150,7 @@ int set_remote_transport_params(const ClientBase *client, const uint8_t *data,
       rv != 0) {
     std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
               << std::endl;
+    ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
   }
 
@@ -155,6 +158,7 @@ int set_remote_transport_params(const ClientBase *client, const uint8_t *data,
       rv != 0) {
     std::cerr << "ngtcp2_conn_set_remote_transport_params: "
               << ngtcp2_strerror(rv) << std::endl;
+    ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
   }
 

@@ -191,8 +191,8 @@ public:
                 size_t secretlen);
   int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
                 size_t secretlen);
-  void write_client_handshake(ngtcp2_crypto_level crypto_level,
-                              const uint8_t *data, size_t datalen);
+  int write_client_handshake(ngtcp2_crypto_level crypto_level,
+                             const uint8_t *data, size_t datalen);
   void set_tls_alert(uint8_t alert);
 
   int write_transport_params(const char *path,
@@ -210,6 +210,7 @@ protected:
   FILE *qlog_;
   ngtcp2_conn *conn_;
   ngtcp2_connection_close_error last_error_;
+  uint8_t tls_alert_;
   std::function<int()> application_rx_key_cb_;
 };
 

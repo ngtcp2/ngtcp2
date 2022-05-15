@@ -113,6 +113,7 @@ int collected_extensions(ptls_t *ptls,
       rv != 0) {
     std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
               << std::endl;
+    ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
   }
 
@@ -120,6 +121,7 @@ int collected_extensions(ptls_t *ptls,
       rv != 0) {
     std::cerr << "ngtcp2_conn_set_remote_transport_params: "
               << ngtcp2_strerror(rv) << std::endl;
+    ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
   }
 
