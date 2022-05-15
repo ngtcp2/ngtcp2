@@ -34,7 +34,7 @@ jobs:
           openssl: openssl3
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Startup
       run: |
         echo 'NGTCP2_SOURCE_DIR='"$PWD" >> $GITHUB_ENV
@@ -215,7 +215,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Configure cmake
       run: |
         mkdir build
