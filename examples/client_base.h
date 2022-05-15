@@ -210,6 +210,7 @@ protected:
   FILE *qlog_;
   ngtcp2_conn *conn_;
   ngtcp2_connection_close_error last_error_;
+  uint8_t tls_alert_;
   std::function<int()> application_rx_key_cb_;
 };
 

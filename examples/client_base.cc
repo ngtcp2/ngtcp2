@@ -39,7 +39,7 @@ using namespace ngtcp2;
 
 extern Config config;
 
-ClientBase::ClientBase() : qlog_(nullptr), conn_(nullptr) {
+ClientBase::ClientBase() : qlog_(nullptr), conn_(nullptr), tls_alert_(0) {
   ngtcp2_connection_close_error_default(&last_error_);
 }
 
@@ -276,10 +276,7 @@ int ClientBase::write_client_handshake(ngtcp2_crypto_level level,
   return 0;
 }
 
-void ClientBase::set_tls_alert(uint8_t alert) {
-  ngtcp2_connection_close_error_set_transport_error_tls_alert(
-      &last_error_, alert, nullptr, 0);
-}
+void ClientBase::set_tls_alert(uint8_t alert) { tls_alert_ = alert; }
 
 ngtcp2_conn *ClientBase::conn() const { return conn_; }
 

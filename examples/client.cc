@@ -801,24 +801,12 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
                                      util::timestamp(loop_));
       rv != 0) {
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
-    switch (rv) {
-    case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
-    case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
-    case NGTCP2_ERR_TRANSPORT_PARAM:
-    case NGTCP2_ERR_PROTO: // with failed TP validation, we get this.
-      // If rv indicates transport_parameters related error, we should
-      // send TRANSPORT_PARAMETER_ERROR even if last_error_.error_code
-      // is already set.  This is because OpenSSL might set Alert.
-      ngtcp2_connection_close_error_set_transport_error_liberr(&last_error_, rv,
-                                                               nullptr, 0);
-      break;
-    case NGTCP2_ERR_CRYPTO:
-      if (!last_error_.error_code) {
+    if (!last_error_.error_code) {
+      if (rv == NGTCP2_ERR_CRYPTO) {
         process_unhandled_tls_alert();
-      }
-      // fall through
-    default:
-      if (!last_error_.error_code) {
+        ngtcp2_connection_close_error_set_transport_error_tls_alert(
+            &last_error_, tls_alert_, nullptr, 0);
+      } else {
         ngtcp2_connection_close_error_set_transport_error_liberr(
             &last_error_, rv, nullptr, 0);
       }
