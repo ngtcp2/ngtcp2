@@ -7,7 +7,7 @@ RUN apt-get update && \
         libev4 libjemalloc2 ca-certificates mime-support \
         libasan5 libubsan1 && \
     git clone --depth 1 -b OpenSSL_1_1_1o+quic https://github.com/quictls/openssl && \
-    cd openssl && ./config enable-tls1_3 --openssldir=/etc/ssl && make -j$(nproc) && make install_sw && cd .. && rm -rf openssl && \
+    cd openssl && ./config --openssldir=/etc/ssl && make -j$(nproc) && make install_sw && cd .. && rm -rf openssl && \
     git clone --depth 1 https://github.com/ngtcp2/nghttp3 && \
     cd nghttp3 && autoreconf -i && \
     ./configure --enable-lib-only \
