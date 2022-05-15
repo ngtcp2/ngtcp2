@@ -10896,12 +10896,11 @@ static uint32_t select_preferred_version(const uint32_t *preferred_versions,
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * NGTCP2_ERR_PROTO
- *     Validation against either of original_dcid and retry_scid is
- *     failed.
  * NGTCP2_ERR_TRANSPORT_PARAM
  *     params contains preferred address but server chose zero-length
  *     connection ID.
+ * NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE
+ *     Validation against version negotiation parameters failed.
  */
 static int
 conn_client_validate_transport_params(ngtcp2_conn *conn,
