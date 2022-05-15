@@ -226,12 +226,10 @@ int ngtcp2_map_insert(ngtcp2_map *map, ngtcp2_map_key_type key, void *data) {
         return rv;
       }
     } else {
-      map->tablelen = 1 << NGTCP2_INITIAL_TABLE_LENBITS;
-      map->tablelenbits = NGTCP2_INITIAL_TABLE_LENBITS;
-      map->table =
-          ngtcp2_mem_calloc(map->mem, map->tablelen, sizeof(ngtcp2_map_bucket));
-      if (map->table == NULL) {
-        return NGTCP2_ERR_NOMEM;
+      rv = map_resize(map, 1 << NGTCP2_INITIAL_TABLE_LENBITS,
+                      NGTCP2_INITIAL_TABLE_LENBITS);
+      if (rv != 0) {
+        return rv;
       }
     }
   }
