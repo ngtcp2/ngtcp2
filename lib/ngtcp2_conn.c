@@ -135,6 +135,7 @@ static int conn_call_recv_crypto_data(ngtcp2_conn *conn,
   case NGTCP2_ERR_TRANSPORT_PARAM:
   case NGTCP2_ERR_PROTO:
   case NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE:
+  case NGTCP2_ERR_NOMEM:
   case NGTCP2_ERR_CALLBACK_FAILURE:
     return rv;
   default:
