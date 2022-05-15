@@ -2473,12 +2473,24 @@ typedef enum ngtcp2_crypto_level {
  *
  * The application should provide the given data to TLS stack.
  *
- * The callback function must return 0 if it succeeds.  If TLS stack
- * reported error, return :macro:`NGTCP2_ERR_CRYPTO`.  If application
- * encounters fatal error, return :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
- * which makes the library call return immediately.  If the other
- * value is returned, it is treated as
+ * The callback function must return 0 if it succeeds, or one of the
+ * following negative error codes:
+ *
+ * - :macro:`NGTCP2_ERR_CRYPTO`
+ * - :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM`
+ * - :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
+ * - :macro:`NGTCP2_ERR_TRANSPORT_PARAM`
+ * - :macro:`NGTCP2_ERR_PROTO`
+ * - :macro:`NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE`
+ * - :macro:`NGTCP2_ERR_NOMEM`
+ * - :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *
+ * If the other value is returned, it is treated as
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ *
+ * If application encounters fatal error, return
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE` which makes the library call
+ * return immediately.
  */
 typedef int (*ngtcp2_recv_crypto_data)(ngtcp2_conn *conn,
                                        ngtcp2_crypto_level crypto_level,
