@@ -117,9 +117,19 @@ int HandlerBase::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
   return 0;
 }
 
-void HandlerBase::write_server_handshake(ngtcp2_crypto_level level,
-                                         const uint8_t *data, size_t datalen) {
-  ngtcp2_conn_submit_crypto_data(conn_, level, data, datalen);
+int HandlerBase::write_server_handshake(ngtcp2_crypto_level level,
+                                        const uint8_t *data, size_t datalen) {
+  auto rv = ngtcp2_conn_submit_crypto_data(conn_, level, data, datalen);
+  if (rv != 0) {
+    std::cerr << "ngtcp2_conn_submit_crypto_data: " << ngtcp2_strerror(rv)
+              << std::endl;
+
+    ngtcp2_conn_set_tls_error(conn_, rv);
+
+    return -1;
+  }
+
+  return 0;
 }
 
 void HandlerBase::set_tls_alert(uint8_t alert) {

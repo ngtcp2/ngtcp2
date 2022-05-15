@@ -84,10 +84,12 @@ int read_func(gnutls_session_t session, gnutls_record_encryption_level_t level,
   }
 
   auto h = static_cast<HandlerBase *>(gnutls_session_get_ptr(session));
-  h->write_server_handshake(
-      ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(level),
-      reinterpret_cast<const uint8_t *>(data), data_size);
-  return 1;
+  if (h->write_server_handshake(
+          ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(level),
+          reinterpret_cast<const uint8_t *>(data), data_size) != 0) {
+    return -1;
+  }
+  return 0;
 }
 } // namespace
 

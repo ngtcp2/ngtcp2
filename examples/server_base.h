@@ -182,8 +182,8 @@ public:
   int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
                 size_t secretlen);
 
-  void write_server_handshake(ngtcp2_crypto_level crypto_level,
-                              const uint8_t *data, size_t datalen);
+  int write_server_handshake(ngtcp2_crypto_level crypto_level,
+                             const uint8_t *data, size_t datalen);
 
   void set_tls_alert(uint8_t alert);
 
