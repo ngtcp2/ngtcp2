@@ -54,10 +54,14 @@ jobs:
           libev-dev \
           cmake \
           cmake-data
+
+        echo 'NPROC='"$(nproc)" >> $GITHUB_ENV
     - name: MacOS setup
       if: runner.os == 'macOS'
       run: |
         brew install libev gnutls cunit autoconf automake pkg-config libtool
+
+        echo 'NPROC='"$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
     - name: Setup clang (Linux)
       if: runner.os == 'Linux' && matrix.compiler == 'clang'
       run: |
@@ -180,12 +184,12 @@ jobs:
       if: matrix.buildtool != 'distcheck'
       run: |
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
-        make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)"
-        make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)" check
+        make -j"$NPROC"
+        make -j"$NPROC" check
     - name: Build ngtcp2 with distcheck
       if: matrix.buildtool == 'distcheck'
       run: |
-        make -j"$(nproc 2> /dev/null || sysctl -n hw.ncpu)" distcheck \
+        make -j"$NPROC" distcheck \
           DISTCHECK_CONFIGURE_FLAGS="--enable-werror --with-openssl --with-gnutls --with-boringssl $EXTRA_AUTOTOOLS_OPTS"
     - name: Integration test
       if: matrix.buildtool != 'distcheck' && matrix.sockaddr == 'native-sockaddr'
