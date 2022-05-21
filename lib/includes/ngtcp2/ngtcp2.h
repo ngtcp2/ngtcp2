@@ -32,7 +32,7 @@
 #  define WIN32
 #endif
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #  pragma warning(push)
 #  pragma warning(disable : 4324)
 #endif
@@ -90,11 +90,11 @@
 #  endif /* !BUILDING_NGTCP2 */
 #endif   /* !defined(WIN32) */
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #  define NGTCP2_ALIGN(N) __declspec(align(N))
-#else /* !WIN32 */
+#else /* !_MSC_VER */
 #  define NGTCP2_ALIGN(N) __attribute__((aligned(N)))
-#endif /* !WIN32 */
+#endif /* !_MSC_VER */
 
 #ifdef __cplusplus
 extern "C" {
@@ -5656,7 +5656,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
 #define ngtcp2_settings_default(SETTINGS)                                      \
   ngtcp2_settings_default_versioned(NGTCP2_SETTINGS_VERSION, (SETTINGS))
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #  pragma warning(pop)
 #endif
 
