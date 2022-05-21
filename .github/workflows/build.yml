@@ -215,6 +215,49 @@ jobs:
           done
         done
 
+  build-cross:
+    strategy:
+      matrix:
+        host: [x86_64-w64-mingw32, i686-w64-mingw32]
+        include:
+        - host: x86_64-w64-mingw32
+          oscc: mingw64
+        - host: i686-w64-mingw32
+          oscc: mingw
+
+    runs-on: ubuntu-22.04
+
+    env:
+      HOST: ${{ matrix.host }}
+      OSCC: ${{ matrix.oscc }}
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Linux setup
+      run: |
+        sudo apt-get install \
+          gcc-mingw-w64 \
+          autoconf \
+          automake \
+          autotools-dev \
+          libtool \
+          pkg-config
+    - name: Build OpenSSL v1.1.1
+      run: |
+        ./ci/build_openssl1_cross.sh
+    - name: Setup environment variables
+      run: |
+        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig"
+
+        echo 'PKG_CONFIG_PATH='"$PKG_CONFIG_PATH" >> $GITHUB_ENV
+    - name: Configure autotools
+      run: |
+        autoreconf -i && \
+        ./configure --enable-werror --with-openssl --host="$HOST"
+    - name: Build ngtcp2
+      run: |
+        make -j$(nproc)
+
   build-windows:
     runs-on: windows-latest
 
