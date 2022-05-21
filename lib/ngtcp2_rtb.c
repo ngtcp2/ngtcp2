@@ -721,7 +721,7 @@ static int rtb_process_acked_pkt(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
   int rv;
   uint64_t datalen;
   ngtcp2_strm *crypto = rtb->crypto;
-  ngtcp2_pktns *pktns;
+  ngtcp2_pktns *pktns = NULL;
 
   if ((ent->flags & NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE) && conn->pmtud &&
       conn->pmtud->tx_pkt_num <= ent->hd.pkt_num) {

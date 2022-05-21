@@ -886,7 +886,7 @@ static size_t crypto_generate_retry_token_aad(uint8_t *dest, uint32_t version,
 
   version = ngtcp2_htonl(version);
   memcpy(p, &version, sizeof(version));
-  memcpy(p, sa, salen);
+  memcpy(p, sa, (size_t)salen);
   p += salen;
   memcpy(p, retry_scid->data, retry_scid->datalen);
   p += retry_scid->datalen;
