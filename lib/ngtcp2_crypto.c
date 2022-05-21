@@ -807,7 +807,8 @@ int ngtcp2_decode_transport_params_versioned(
       p += sizeof(uint32_t);
       if (valuelen > sizeof(uint32_t)) {
         params->version_info.other_versions = (uint8_t *)p;
-        params->version_info.other_versionslen = valuelen - sizeof(uint32_t);
+        params->version_info.other_versionslen =
+            (size_t)valuelen - sizeof(uint32_t);
 
         for (i = sizeof(uint32_t); i < valuelen;
              i += sizeof(uint32_t), p += sizeof(uint32_t)) {

@@ -3425,7 +3425,7 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint16_t rtb_entry_flags = NGTCP2_RTB_ENTRY_FLAG_NONE;
   int hd_logged = 0;
   ngtcp2_path_challenge_entry *pcent;
-  uint8_t hd_flags;
+  uint8_t hd_flags = NGTCP2_PKT_FLAG_NONE;
   int require_padding = (flags & NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING) != 0;
   int write_more = (flags & NGTCP2_WRITE_PKT_FLAG_MORE) != 0;
   int ppe_pending = (conn->flags & NGTCP2_CONN_FLAG_PPE_PENDING) != 0;
@@ -3439,9 +3439,9 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
   uint64_t target_max_data;
   ngtcp2_conn_stat *cstat = &conn->cstat;
   uint64_t delta;
-  const ngtcp2_cid *scid;
+  const ngtcp2_cid *scid = NULL;
   int keep_alive_expired = 0;
-  uint32_t version;
+  uint32_t version = 0;
 
   /* Return 0 if destlen is less than minimum packet length which can
      trigger Stateless Reset */
@@ -4624,8 +4624,8 @@ static int conn_start_pmtud(ngtcp2_conn *conn) {
          NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
   hard_max_udp_payload_size =
-      ngtcp2_min(conn->remote.transport_params.max_udp_payload_size,
-                 conn->local.settings.max_udp_payload_size);
+      (size_t)ngtcp2_min(conn->remote.transport_params.max_udp_payload_size,
+                         (uint64_t)conn->local.settings.max_udp_payload_size);
 
   rv = ngtcp2_pmtud_new(&conn->pmtud, conn->dcid.current.max_udp_payload_size,
                         hard_max_udp_payload_size,
@@ -4773,8 +4773,9 @@ static size_t conn_shape_udp_payload(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
     assert(conn->remote.transport_params.max_udp_payload_size >=
            NGTCP2_MAX_UDP_PAYLOAD_SIZE);
 
-    payloadlen = ngtcp2_min(payloadlen,
-                            conn->remote.transport_params.max_udp_payload_size);
+    payloadlen =
+        (size_t)ngtcp2_min((uint64_t)payloadlen,
+                           conn->remote.transport_params.max_udp_payload_size);
   }
 
   payloadlen =
@@ -11831,7 +11832,7 @@ ngtcp2_ssize ngtcp2_conn_write_connection_close_pkt(
 
   if (conn->server) {
     server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
-    destlen = ngtcp2_min(destlen, server_tx_left);
+    destlen = (size_t)ngtcp2_min((uint64_t)destlen, server_tx_left);
   }
 
   if (conn->state == NGTCP2_CS_POST_HANDSHAKE ||
@@ -11896,7 +11897,7 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
 
   if (conn->server) {
     server_tx_left = conn_server_tx_left(conn, &conn->dcid.current);
-    destlen = ngtcp2_min(destlen, server_tx_left);
+    destlen = (size_t)ngtcp2_min((uint64_t)destlen, server_tx_left);
   }
 
   if (!(conn->flags & NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED)) {
@@ -12825,7 +12826,8 @@ size_t ngtcp2_conn_get_active_dcid(ngtcp2_conn *conn, ngtcp2_cid_token *dest) {
 void ngtcp2_conn_set_local_addr(ngtcp2_conn *conn, const ngtcp2_addr *addr) {
   ngtcp2_addr *dest = &conn->dcid.current.ps.path.local;
 
-  assert(addr->addrlen <= sizeof(conn->dcid.current.ps.local_addrbuf));
+  assert(addr->addrlen <=
+         (ngtcp2_socklen)sizeof(conn->dcid.current.ps.local_addrbuf));
   ngtcp2_addr_copy(dest, addr);
 }
 
