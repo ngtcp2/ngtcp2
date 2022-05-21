@@ -52,6 +52,7 @@ jobs:
           libcunit1-dev \
           libssl-dev \
           libev-dev \
+          libgnutls28-dev \
           cmake \
           cmake-data
 
@@ -85,10 +86,6 @@ jobs:
       if: matrix.openssl == 'openssl3'
       run: |
         ./ci/build_openssl3.sh
-    - name: Build GnuTLS
-      if: runner.os == 'Linux'
-      run: |
-        ./ci/build_gnutls.sh
     - name: Build BoringSSL
       run: |
         ./ci/build_boringssl.sh
@@ -101,8 +98,8 @@ jobs:
         ./ci/build_nghttp3.sh
     - name: Setup environment variables
       run: |
-        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/openssl/build/lib64/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig:$PWD/gnutls-3.7.2/build/lib/pkgconfig:$PWD/nettle-3.6/build/lib64/pkgconfig"
-        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/openssl/build/lib64 -Wl,-rpath,$PWD/nettle-3.6/build/lib64"
+        PKG_CONFIG_PATH="$PWD/openssl/build/lib/pkgconfig:$PWD/openssl/build/lib64/pkgconfig:$PWD/nghttp3/build/lib/pkgconfig"
+        LDFLAGS="$EXTRA_LDFLAGS -Wl,-rpath,$PWD/openssl/build/lib -Wl,-rpath,$PWD/openssl/build/lib64"
         BORINGSSL_CFLAGS="-I$PWD/boringssl/include/"
         BORINGSSL_LIBS="-L$PWD/boringssl/build/ssl -lssl -L$PWD/boringssl/build/crypto -lcrypto"
         PICOTLS_CFLAGS="-I$PWD/picotls/include/"
@@ -196,7 +193,6 @@ jobs:
       run: |
         [ -n "$NGTCP2_BUILD_DIR" ] && cd "$NGTCP2_BUILD_DIR"
         "$NGTCP2_SOURCE_DIR"/ci/gen-certificate.sh
-        NETTLE_PATH=$NGTCP2_SOURCE_DIR/nettle-3.6/build/lib64
 
         CLIENTS="client gtlsclient bsslclient"
         SERVERS="server gtlsserver bsslserver"
@@ -208,8 +204,8 @@ jobs:
         for client in $CLIENTS; do
           for server in $SERVERS; do
             echo "# $client - $server"
-            LD_LIBRARY_PATH=$NETTLE_PATH ./examples/$server localhost 4433 cert/server.key cert/server.crt &
-            LD_LIBRARY_PATH=$NETTLE_PATH ./examples/$client localhost 4433 https://localhost/ --exit-on-first-stream-close
+            ./examples/$server localhost 4433 cert/server.key cert/server.crt &
+            ./examples/$client localhost 4433 https://localhost/ --exit-on-first-stream-close
             killall -INT $server
             sleep 1
           done
