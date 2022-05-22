@@ -17,7 +17,6 @@ RUN apt-get update && \
     git clone --depth 1 https://github.com/ngtcp2/ngtcp2 && \
     cd ngtcp2 && autoreconf -i && \
     ./configure \
-        CXXFLAGS=-DNGTCP2_ENABLE_UDP_GSO=0 \
         LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined" \
         CPPFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=undefined -g3" && \
     make -j$(nproc) && make install && \
