@@ -187,6 +187,7 @@ private:
   std::unique_ptr<Buffer> conn_closebuf_;
   // nkey_update_ is the number of key update occurred.
   size_t nkey_update_;
+  bool no_gso_;
 
   struct {
     bool send_blocked;
@@ -233,7 +234,12 @@ public:
                    socklen_t salen);
   int send_packet(Endpoint &ep, const ngtcp2_addr &local_addr,
                   const ngtcp2_addr &remote_addr, unsigned int ecn,
-                  const uint8_t *data, size_t datalen, size_t gso_size);
+                  const uint8_t *data, size_t datalen);
+  std::pair<size_t, int> send_packet(Endpoint &ep, bool &no_gso,
+                                     const ngtcp2_addr &local_addr,
+                                     const ngtcp2_addr &remote_addr,
+                                     unsigned int ecn, const uint8_t *data,
+                                     size_t datalen, size_t gso_size);
   void remove(const Handler *h);
 
   void associate_cid(const ngtcp2_cid *cid, Handler *h);
