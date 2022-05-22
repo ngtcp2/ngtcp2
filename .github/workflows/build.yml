@@ -4,8 +4,6 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
         os: [ubuntu-22.04, macos-11]
@@ -32,6 +30,8 @@ jobs:
           compiler: gcc
         - os: macos-11
           openssl: openssl3
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v3
