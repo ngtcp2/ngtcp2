@@ -3983,9 +3983,12 @@ NGTCP2_EXTERN int ngtcp2_conn_set_remote_transport_params_versioned(
 /**
  * @function
  *
- * `ngtcp2_conn_get_remote_transport_params` fills settings values in
- * |params|.  original_connection_id and
- * original_connection_id_present are always zero filled.
+ * `ngtcp2_conn_get_remote_transport_params` fills remote QUIC
+ * transport parameters in |params|.  The following fields are always
+ * omitted and filled with zeros:
+ *
+ * - :member:`ngtcp2_transport_params.version_info`
+ * - :member:`ngtcp2_transport_params.version_info_present`
  */
 NGTCP2_EXTERN void ngtcp2_conn_get_remote_transport_params_versioned(
     ngtcp2_conn *conn, int transport_params_version,

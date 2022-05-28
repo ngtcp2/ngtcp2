@@ -1081,6 +1081,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
 
   /* grease_quic_bit is always enabled. */
   (*pconn)->local.transport_params.grease_quic_bit = 1;
+  /* Nullify local transport parameters version_info */
+  (*pconn)->local.transport_params.version_info_present = 0;
+  memset(&(*pconn)->local.transport_params.version_info, 0,
+         sizeof((*pconn)->local.transport_params.version_info));
 
   if (settings->token.len) {
     buf = ngtcp2_mem_malloc(mem, settings->token.len);
@@ -11053,8 +11057,18 @@ int ngtcp2_conn_set_remote_transport_params_versioned(
     conn->remote.transport_params = *params;
     conn_sync_stream_id_limit(conn);
     conn->tx.max_offset = conn->remote.transport_params.initial_max_data;
+
+    /* Nullify remote transport parameters version_info */
+    conn->remote.transport_params.version_info_present = 0;
+    memset(&conn->remote.transport_params.version_info, 0,
+           sizeof(conn->remote.transport_params.version_info));
   } else {
     conn->remote.pending_transport_params = *params;
+
+    /* Nullify remote transport parameters version_info */
+    conn->remote.pending_transport_params.version_info_present = 0;
+    memset(&conn->remote.pending_transport_params.version_info, 0,
+           sizeof(conn->remote.pending_transport_params.version_info));
   }
 
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
@@ -11145,6 +11159,11 @@ int ngtcp2_conn_set_local_transport_params_versioned(
   }
 
   conn->local.transport_params = *params;
+
+  /* Nullify local transport parameters version_info */
+  conn->local.transport_params.version_info_present = 0;
+  memset(&conn->local.transport_params.version_info, 0,
+         sizeof(conn->local.transport_params.version_info));
 
   return 0;
 }
