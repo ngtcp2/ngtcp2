@@ -326,17 +326,10 @@ fail:
  * This function returns 0 if it succeeds, or -1.
  */
 static int crypto_set_local_transport_params(ngtcp2_conn *conn, void *tls) {
-  ngtcp2_transport_params_type exttype =
-      ngtcp2_conn_is_server(conn)
-          ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-          : NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO;
-  ngtcp2_transport_params params;
   ngtcp2_ssize nwrite;
   uint8_t buf[256];
 
-  ngtcp2_conn_get_local_transport_params(conn, &params);
-
-  nwrite = ngtcp2_encode_transport_params(buf, sizeof(buf), exttype, &params);
+  nwrite = ngtcp2_conn_encode_local_transport_params(conn, buf, sizeof(buf));
   if (nwrite < 0) {
     return -1;
   }
