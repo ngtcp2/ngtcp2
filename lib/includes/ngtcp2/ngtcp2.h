@@ -3967,18 +3967,48 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
- * |params| to |conn|.
+ * |params| from a remote endpoint to |conn|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :macro:`NGTCP2_ERR_PROTO`
- *     If |conn| is server, and negotiated_version field is not the
- *     same as the used version.
+ * :macro:`NGTCP2_ERR_TRANSPORT_PARAM`
+ *     Failed to validate a remote transport parameters.
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE`
+ *     Version negotiation failure.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_remote_transport_params_versioned(
     ngtcp2_conn *conn, int transport_params_version,
     const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_decode_remote_transport_params` decodes QUIC transport
+ * parameters from the buffer pointed by |data| of length |datalen|,
+ * and sets the result to |conn|.  This is equivalent to calling
+ * `ngtcp2_decode_transport_params` and then
+ * `ngtcp2_conn_set_remote_transport_params`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM`
+ *     The required parameter is missing.
+ * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
+ *     The input is malformed.
+ * :macro:`NGTCP2_ERR_TRANSPORT_PARAM`
+ *     Failed to validate the remote QUIC transport parameters.
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE`
+ *     Version negotiation failure.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
+                                           const uint8_t *data, size_t datalen);
 
 /**
  * @function
@@ -4058,6 +4088,23 @@ NGTCP2_EXTERN int ngtcp2_conn_set_local_transport_params_versioned(
 NGTCP2_EXTERN void ngtcp2_conn_get_local_transport_params_versioned(
     ngtcp2_conn *conn, int transport_params_version,
     ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_encode_local_transport_params` encodes the local QUIC
+ * transport parameters in |dest| of length |destlen|.  This is
+ * equivalent to calling `ngtcp2_conn_get_local_transport_params` and
+ * then `ngtcp2_encode_transport_params`.
+ *
+ * This function returns the number of written, or one of the
+ * following negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_NOBUF`
+ *     Buffer is too small.
+ */
+NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
+    ngtcp2_conn *conn, uint8_t *dest, size_t destlen);
 
 /**
  * @function

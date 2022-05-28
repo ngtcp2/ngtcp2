@@ -985,6 +985,27 @@ static int other_versions_new(uint8_t **pbuf, const uint32_t *versions,
   return 0;
 }
 
+static void
+conn_set_local_transport_params(ngtcp2_conn *conn,
+                                const ngtcp2_transport_params *params) {
+  ngtcp2_transport_params *p = &conn->local.transport_params;
+  uint32_t chosen_version = p->version_info.chosen_version;
+
+  *p = *params;
+
+  /* grease_quic_bit is always enabled. */
+  p->grease_quic_bit = 1;
+
+  if (conn->server) {
+    p->version_info.chosen_version = chosen_version;
+  } else {
+    p->version_info.chosen_version = conn->client_chosen_version;
+  }
+  p->version_info.other_versions = conn->vneg.other_versions;
+  p->version_info.other_versionslen = conn->vneg.other_versionslen;
+  p->version_info_present = 1;
+}
+
 static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
                     const ngtcp2_cid *scid, const ngtcp2_path *path,
                     uint32_t client_chosen_version, int callbacks_version,
@@ -1077,14 +1098,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   }
 
   (*pconn)->local.settings = *settings;
-  (*pconn)->local.transport_params = *params;
-
-  /* grease_quic_bit is always enabled. */
-  (*pconn)->local.transport_params.grease_quic_bit = 1;
-  /* Nullify local transport parameters version_info */
-  (*pconn)->local.transport_params.version_info_present = 0;
-  memset(&(*pconn)->local.transport_params.version_info, 0,
-         sizeof((*pconn)->local.transport_params.version_info));
 
   if (settings->token.len) {
     buf = ngtcp2_mem_malloc(mem, settings->token.len);
@@ -1269,6 +1282,10 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
     (*pconn)->vneg.other_versionslen = sizeof(uint32_t);
   }
 
+  (*pconn)->client_chosen_version = client_chosen_version;
+
+  conn_set_local_transport_params(*pconn, params);
+
   callbacks->rand(&fixed_bit_byte, 1, &settings->rand_ctx);
   if (fixed_bit_byte & 1) {
     (*pconn)->flags |= NGTCP2_CONN_FLAG_CLEAR_FIXED_BIT;
@@ -1279,7 +1296,6 @@ static int conn_new(ngtcp2_conn **pconn, const ngtcp2_cid *dcid,
   (*pconn)->server = server;
   (*pconn)->oscid = *scid;
   (*pconn)->callbacks = *callbacks;
-  (*pconn)->client_chosen_version = client_chosen_version;
   (*pconn)->mem = mem;
   (*pconn)->user_data = user_data;
   (*pconn)->idle_ts = settings->initial_ts;
@@ -11034,6 +11050,9 @@ int ngtcp2_conn_set_remote_transport_params_versioned(
       conn->negotiated_version = conn->client_chosen_version;
     }
 
+    conn->local.transport_params.version_info.chosen_version =
+        conn->negotiated_version;
+
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
                     "the negotiated version is %08x", conn->negotiated_version);
   } else {
@@ -11074,6 +11093,24 @@ int ngtcp2_conn_set_remote_transport_params_versioned(
   conn->flags |= NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED;
 
   return 0;
+}
+
+int ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
+                                               const uint8_t *data,
+                                               size_t datalen) {
+  ngtcp2_transport_params params;
+  int rv;
+
+  rv = ngtcp2_decode_transport_params(
+      &params,
+      conn->server ? NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO
+                   : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+      data, datalen);
+  if (rv != 0) {
+    return rv;
+  }
+
+  return ngtcp2_conn_set_remote_transport_params(conn, &params);
 }
 
 void ngtcp2_conn_get_remote_transport_params_versioned(
@@ -11158,12 +11195,7 @@ int ngtcp2_conn_set_local_transport_params_versioned(
     return NGTCP2_ERR_INVALID_STATE;
   }
 
-  conn->local.transport_params = *params;
-
-  /* Nullify local transport parameters version_info */
-  conn->local.transport_params.version_info_present = 0;
-  memset(&conn->local.transport_params.version_info, 0,
-         sizeof(conn->local.transport_params.version_info));
+  conn_set_local_transport_params(conn, params);
 
   return 0;
 }
@@ -11225,16 +11257,16 @@ void ngtcp2_conn_get_local_transport_params_versioned(
   (void)transport_params_version;
 
   *params = conn->local.transport_params;
+}
 
-  if (conn->server) {
-    params->version_info.chosen_version = conn->negotiated_version;
-  } else {
-    params->version_info.chosen_version = conn->client_chosen_version;
-  }
-
-  params->version_info.other_versions = conn->vneg.other_versions;
-  params->version_info.other_versionslen = conn->vneg.other_versionslen;
-  params->version_info_present = 1;
+ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(ngtcp2_conn *conn,
+                                                       uint8_t *dest,
+                                                       size_t destlen) {
+  return ngtcp2_encode_transport_params(
+      dest, destlen,
+      conn->server ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
+                   : NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
+      &conn->local.transport_params);
 }
 
 int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn, int64_t *pstream_id,

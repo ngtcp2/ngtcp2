@@ -39,19 +39,14 @@ extern Config config;
 namespace {
 int set_additional_extensions(ptls_handshake_properties_t &hsprops,
                               ngtcp2_conn *conn) {
-  ngtcp2_transport_params params;
-
-  ngtcp2_conn_get_local_transport_params(conn, &params);
-
   constexpr size_t paramsbuflen = 256;
   auto paramsbuf = std::make_unique<uint8_t[]>(paramsbuflen);
 
-  auto nwrite = ngtcp2_encode_transport_params(
-      paramsbuf.get(), paramsbuflen,
-      NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, &params);
+  auto nwrite = ngtcp2_conn_encode_local_transport_params(conn, paramsbuf.get(),
+                                                          paramsbuflen);
   if (nwrite < 0) {
-    std::cerr << "ngtcp2_encode_transport_params: " << ngtcp2_strerror(nwrite)
-              << std::endl;
+    std::cerr << "ngtcp2_conn_encode_local_transport_params: "
+              << ngtcp2_strerror(nwrite) << std::endl;
     return -1;
   }
 

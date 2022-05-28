@@ -142,21 +142,9 @@ int set_remote_transport_params(const ClientBase *client, const uint8_t *data,
                                 size_t datalen) {
   auto conn = client->conn();
 
-  ngtcp2_transport_params params;
-
-  if (auto rv = ngtcp2_decode_transport_params(
-          &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, data,
-          datalen);
+  if (auto rv = ngtcp2_conn_decode_remote_transport_params(conn, data, datalen);
       rv != 0) {
-    std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
-              << std::endl;
-    ngtcp2_conn_set_tls_error(conn, rv);
-    return -1;
-  }
-
-  if (auto rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
-      rv != 0) {
-    std::cerr << "ngtcp2_conn_set_remote_transport_params: "
+    std::cerr << "ngtcp2_conn_decode_remote_transport_params: "
               << ngtcp2_strerror(rv) << std::endl;
     ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
@@ -182,17 +170,13 @@ int append_local_transport_params(const ClientBase *client,
                                   gnutls_buffer_t extdata) {
   auto conn = client->conn();
 
-  ngtcp2_transport_params params;
-  ngtcp2_conn_get_local_transport_params(conn, &params);
-
   std::array<uint8_t, 256> buf;
 
-  auto nwrite = ngtcp2_encode_transport_params(
-      buf.data(), buf.size(), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
-      &params);
+  auto nwrite =
+      ngtcp2_conn_encode_local_transport_params(conn, buf.data(), buf.size());
   if (nwrite < 0) {
-    std::cerr << "ngtcp2_encode_transport_params: " << ngtcp2_strerror(nwrite)
-              << std::endl;
+    std::cerr << "ngtcp2_conn_encode_local_transport_params: "
+              << ngtcp2_strerror(nwrite) << std::endl;
     return -1;
   }
 

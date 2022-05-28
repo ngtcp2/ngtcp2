@@ -54,19 +54,14 @@ TLSClientSession::~TLSClientSession() {
 namespace {
 int set_additional_extensions(ptls_handshake_properties_t &hsprops,
                               ngtcp2_conn *conn) {
-  ngtcp2_transport_params params;
-
-  ngtcp2_conn_get_local_transport_params(conn, &params);
-
   constexpr size_t paramsbuflen = 256;
   auto paramsbuf = std::make_unique<uint8_t[]>(paramsbuflen);
 
-  auto nwrite = ngtcp2_encode_transport_params(
-      paramsbuf.get(), paramsbuflen, NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
-      &params);
+  auto nwrite = ngtcp2_conn_encode_local_transport_params(conn, paramsbuf.get(),
+                                                          paramsbuflen);
   if (nwrite < 0) {
-    std::cerr << "ngtcp2_encode_transport_params: " << ngtcp2_strerror(nwrite)
-              << std::endl;
+    std::cerr << "ngtcp2_conn_encode_local_transport_params: "
+              << ngtcp2_strerror(nwrite) << std::endl;
     return -1;
   }
 
@@ -105,21 +100,10 @@ int collected_extensions(ptls_t *ptls,
   auto c = static_cast<ClientBase *>(*ptls_get_data_ptr(ptls));
   auto conn = c->conn();
 
-  ngtcp2_transport_params params;
-
-  if (auto rv = ngtcp2_decode_transport_params(
-          &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-          extensions->data.base, extensions->data.len);
+  if (auto rv = ngtcp2_conn_decode_remote_transport_params(
+          conn, extensions->data.base, extensions->data.len);
       rv != 0) {
-    std::cerr << "ngtcp2_decode_transport_params: " << ngtcp2_strerror(rv)
-              << std::endl;
-    ngtcp2_conn_set_tls_error(conn, rv);
-    return -1;
-  }
-
-  if (auto rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
-      rv != 0) {
-    std::cerr << "ngtcp2_conn_set_remote_transport_params: "
+    std::cerr << "ngtcp2_conn_decode_remote_transport_params: "
               << ngtcp2_strerror(rv) << std::endl;
     ngtcp2_conn_set_tls_error(conn, rv);
     return -1;

@@ -455,24 +455,13 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
 
 int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
   SSL *ssl = tls;
-  ngtcp2_transport_params_type exttype =
-      ngtcp2_conn_is_server(conn)
-          ? NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO
-          : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS;
   const uint8_t *tp;
   size_t tplen;
-  ngtcp2_transport_params params;
   int rv;
 
   SSL_get_peer_quic_transport_params(ssl, &tp, &tplen);
 
-  rv = ngtcp2_decode_transport_params(&params, exttype, tp, tplen);
-  if (rv != 0) {
-    ngtcp2_conn_set_tls_error(conn, rv);
-    return -1;
-  }
-
-  rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
+  rv = ngtcp2_conn_decode_remote_transport_params(conn, tp, tplen);
   if (rv != 0) {
     ngtcp2_conn_set_tls_error(conn, rv);
     return -1;
