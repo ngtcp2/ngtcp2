@@ -43,8 +43,6 @@ public:
   std::string get_cipher_name() const;
   std::string get_selected_alpn() const;
   void enable_keylog();
-  // alert is notified by callback.
-  uint8_t get_tls_alert() const { return 0; };
 
 protected:
   gnutls_session_t session_;

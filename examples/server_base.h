@@ -36,7 +36,7 @@
 #include <string_view>
 #include <functional>
 
-#include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 
 #include "tls_server_session.h"
 #include "network.h"
@@ -182,23 +182,15 @@ public:
   int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
                 size_t secretlen);
 
-  int write_server_handshake(ngtcp2_crypto_level crypto_level,
-                             const uint8_t *data, size_t datalen);
-
-  void set_tls_alert(uint8_t alert);
-
-  int call_application_tx_key_cb() const;
-
   TLSServerSession *get_session() { return &tls_session_; }
 
-  void process_unhandled_tls_alert();
+  ngtcp2_crypto_conn_ref *conn_ref();
 
 protected:
+  ngtcp2_crypto_conn_ref conn_ref_;
   TLSServerSession tls_session_;
   ngtcp2_conn *conn_;
   ngtcp2_connection_close_error last_error_;
-  uint8_t tls_alert_;
-  std::function<int()> application_tx_key_cb_;
 };
 
 #endif // SERVER_BASE_H

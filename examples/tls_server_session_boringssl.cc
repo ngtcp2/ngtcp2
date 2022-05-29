@@ -49,7 +49,7 @@ int TLSServerSession::init(const TLSServerContext &tls_ctx,
     return -1;
   }
 
-  SSL_set_app_data(ssl_, handler);
+  SSL_set_app_data(ssl_, handler->conn_ref());
   SSL_set_accept_state(ssl_);
   SSL_set_early_data_enabled(ssl_, 1);
   SSL_set_quic_use_legacy_codepoint(ssl_, 0);

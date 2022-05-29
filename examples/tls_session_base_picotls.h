@@ -46,7 +46,6 @@ public:
   std::string get_selected_alpn() const;
   // TODO make keylog work with picotls
   void enable_keylog(){};
-  uint8_t get_tls_alert() const;
 
 protected:
   ngtcp2_crypto_picotls_ctx cptls_;

@@ -41,36 +41,6 @@ TLSServerSession::TLSServerSession() {}
 
 TLSServerSession::~TLSServerSession() {}
 
-namespace {
-int collect_extension(ptls_t *ptls,
-                      struct st_ptls_handshake_properties_t *properties,
-                      uint16_t type) {
-  return type == NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1;
-}
-} // namespace
-
-namespace {
-int collected_extensions(ptls_t *ptls,
-                         struct st_ptls_handshake_properties_t *properties,
-                         ptls_raw_extension_t *extensions) {
-  assert(extensions->type == NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1);
-
-  auto h = static_cast<HandlerBase *>(*ptls_get_data_ptr(ptls));
-  auto conn = h->conn();
-
-  if (auto rv = ngtcp2_conn_decode_remote_transport_params(
-          conn, extensions->data.base, extensions->data.len);
-      rv != 0) {
-    std::cerr << "ngtcp2_conn_decode_remote_transport_params: "
-              << ngtcp2_strerror(rv) << std::endl;
-    ngtcp2_conn_set_tls_error(conn, rv);
-    return -1;
-  }
-
-  return 0;
-}
-} // namespace
-
 int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
   cptls_.ptls = ptls_server_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {
@@ -78,12 +48,23 @@ int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
     return -1;
   }
 
-  *ptls_get_data_ptr(cptls_.ptls) = handler;
+  *ptls_get_data_ptr(cptls_.ptls) = handler->conn_ref();
 
-  auto &hsprops = cptls_.handshake_properties;
+  cptls_.handshake_properties.additional_extensions =
+      new ptls_raw_extension_t[2]{
+          {
+              .type = UINT16_MAX,
+          },
+          {
+              .type = UINT16_MAX,
+          },
+      };
 
-  hsprops.collect_extension = collect_extension;
-  hsprops.collected_extensions = collected_extensions;
+  if (ngtcp2_crypto_picotls_configure_server_session(&cptls_) != 0) {
+    std::cerr << "ngtcp2_crypto_picotls_configure_server_session failed"
+              << std::endl;
+    return -1;
+  }
 
   return 0;
 }

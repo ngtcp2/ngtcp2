@@ -78,129 +78,6 @@ int hook_func(gnutls_session_t session, unsigned int htype, unsigned when,
 }
 } // namespace
 
-namespace {
-int secret_func(gnutls_session_t session,
-                gnutls_record_encryption_level_t gtls_level,
-                const void *secret_read, const void *secret_write,
-                size_t secret_size) {
-  auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
-  auto level =
-      ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
-  if (secret_read) {
-    if (c->on_rx_key(level, reinterpret_cast<const uint8_t *>(secret_read),
-                     secret_size) != 0) {
-      return -1;
-    }
-
-    if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
-        c->call_application_rx_key_cb() != 0) {
-      return -1;
-    }
-  }
-  if (secret_write &&
-      c->on_tx_key(level, reinterpret_cast<const uint8_t *>(secret_write),
-                   secret_size) != 0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-} // namespace
-
-namespace {
-int read_func(gnutls_session_t session, gnutls_record_encryption_level_t level,
-              gnutls_handshake_description_t htype, const void *data,
-              size_t data_size) {
-  if (htype == GNUTLS_HANDSHAKE_CHANGE_CIPHER_SPEC) {
-    return 0;
-  }
-
-  auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
-  if (c->write_client_handshake(
-          ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(level),
-          reinterpret_cast<const uint8_t *>(data), data_size) != 0) {
-    return -1;
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int alert_read_func(gnutls_session_t session,
-                    gnutls_record_encryption_level_t level,
-                    gnutls_alert_level_t alert_level,
-                    gnutls_alert_description_t alert_desc) {
-  auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
-  c->set_tls_alert(alert_desc);
-  return 0;
-}
-} // namespace
-
-namespace {
-int set_remote_transport_params(const ClientBase *client, const uint8_t *data,
-                                size_t datalen) {
-  auto conn = client->conn();
-
-  if (auto rv = ngtcp2_conn_decode_remote_transport_params(conn, data, datalen);
-      rv != 0) {
-    std::cerr << "ngtcp2_conn_decode_remote_transport_params: "
-              << ngtcp2_strerror(rv) << std::endl;
-    ngtcp2_conn_set_tls_error(conn, rv);
-    return -1;
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
-int tp_recv_func(gnutls_session_t session, const uint8_t *data,
-                 size_t data_size) {
-  auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
-  if (set_remote_transport_params(c, data, data_size) != 0) {
-    return -1;
-  }
-  return 0;
-}
-} // namespace
-
-namespace {
-int append_local_transport_params(const ClientBase *client,
-                                  gnutls_buffer_t extdata) {
-  auto conn = client->conn();
-
-  std::array<uint8_t, 256> buf;
-
-  auto nwrite =
-      ngtcp2_conn_encode_local_transport_params(conn, buf.data(), buf.size());
-  if (nwrite < 0) {
-    std::cerr << "ngtcp2_conn_encode_local_transport_params: "
-              << ngtcp2_strerror(nwrite) << std::endl;
-    return -1;
-  }
-
-  if (auto rv = gnutls_buffer_append_data(extdata, buf.data(), nwrite);
-      rv != 0) {
-    std::cerr << "gnutls_buffer_append_data failed: " << gnutls_strerror(rv)
-              << std::endl;
-    return -1;
-  }
-
-  return 0;
-}
-} // namespace
-
-namespace {
-int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
-  auto c = static_cast<ClientBase *>(gnutls_session_get_ptr(session));
-  if (append_local_transport_params(c, extdata) != 0) {
-    return -1;
-  }
-  return 0;
-}
-} // namespace
-
 int TLSClientSession::init(bool &early_data_enabled,
                            const TLSClientContext &tls_ctx,
                            const char *remote_addr, ClientBase *client,
@@ -229,20 +106,9 @@ int TLSClientSession::init(bool &early_data_enabled,
 
   gnutls_handshake_set_hook_function(session_, GNUTLS_HANDSHAKE_ANY,
                                      GNUTLS_HOOK_POST, hook_func);
-  gnutls_handshake_set_secret_function(session_, secret_func);
-  gnutls_handshake_set_read_function(session_, read_func);
-  gnutls_alert_set_read_function(session_, alert_read_func);
 
-  if (auto rv = gnutls_session_ext_register(
-          session_, "QUIC Transport Parameters",
-          (quic_version & 0xff000000) == 0xff000000
-              ? NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_DRAFT
-              : NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1,
-          GNUTLS_EXT_TLS, tp_recv_func, tp_send_func, nullptr, nullptr, nullptr,
-          GNUTLS_EXT_FLAG_TLS | GNUTLS_EXT_FLAG_CLIENT_HELLO |
-              GNUTLS_EXT_FLAG_EE);
-      rv != 0) {
-    std::cerr << "gnutls_session_ext_register failed: " << gnutls_strerror(rv)
+  if (ngtcp2_crypto_gnutls_configure_client_session(session_) != 0) {
+    std::cerr << "ngtcp2_crypto_gnutls_configure_client_session failed"
               << std::endl;
     return -1;
   }
@@ -283,7 +149,7 @@ int TLSClientSession::init(bool &early_data_enabled,
     }
   }
 
-  gnutls_session_set_ptr(session_, client);
+  gnutls_session_set_ptr(session_, client->conn_ref());
 
   if (auto rv = gnutls_credentials_set(session_, GNUTLS_CRD_CERTIFICATE,
                                        tls_ctx.get_native_handle());

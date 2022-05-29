@@ -37,39 +37,6 @@
 extern Config config;
 
 namespace {
-int update_traffic_key_cb(ptls_update_traffic_key_t *self, ptls_t *ptls,
-                          int is_enc, size_t epoch, const void *secret) {
-  auto c = static_cast<ClientBase *>(*ptls_get_data_ptr(ptls));
-  auto level = ngtcp2_crypto_picotls_from_epoch(epoch);
-  auto cipher = ptls_get_cipher(ptls);
-  auto secretlen = cipher->hash->digest_size;
-
-  if (is_enc) {
-    if (c->on_tx_key(level, static_cast<const uint8_t *>(secret), secretlen) !=
-        0) {
-      return -1;
-    }
-
-    return 0;
-  }
-
-  if (c->on_rx_key(level, static_cast<const uint8_t *>(secret), secretlen) !=
-      0) {
-    return -1;
-  }
-
-  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
-      c->call_application_rx_key_cb() != 0) {
-    return 0;
-  }
-
-  return 0;
-}
-
-ptls_update_traffic_key_t update_traffic_key = {update_traffic_key_cb};
-} // namespace
-
-namespace {
 int save_ticket_cb(ptls_save_ticket_t *self, ptls_t *ptls, ptls_iovec_t input) {
   auto f = BIO_new_file(config.session_file, "w");
   if (f == nullptr) {
@@ -113,8 +80,6 @@ TLSClientContext::TLSClientContext()
           .key_exchanges = key_exchanges,
           .cipher_suites = cipher_suites,
           .require_dhe_on_psk = 1,
-          .omit_end_of_early_data = 1,
-          .update_traffic_key = &update_traffic_key,
       } {}
 
 TLSClientContext::~TLSClientContext() {
@@ -132,6 +97,12 @@ ptls_context_t *TLSClientContext::get_native_handle() { return &ctx_; }
 
 int TLSClientContext::init(const char *private_key_file,
                            const char *cert_file) {
+  if (ngtcp2_crypto_picotls_configure_client_context(&ctx_) != 0) {
+    std::cerr << "ngtcp2_crypto_picotls_configure_client_context failed"
+              << std::endl;
+    return -1;
+  }
+
   if (config.session_file) {
     ctx_.save_ticket = &save_ticket;
   }

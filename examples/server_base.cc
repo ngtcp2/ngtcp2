@@ -28,8 +28,6 @@
 #include <array>
 #include <iostream>
 
-#include <ngtcp2/ngtcp2_crypto.h>
-
 #include "debug.h"
 
 using namespace ngtcp2;
@@ -40,7 +38,12 @@ Buffer::Buffer(const uint8_t *data, size_t datalen)
     : buf{data, data + datalen}, begin(buf.data()), tail(begin + datalen) {}
 Buffer::Buffer(size_t datalen) : buf(datalen), begin(buf.data()), tail(begin) {}
 
-HandlerBase::HandlerBase() : conn_(nullptr), tls_alert_(0) {
+static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
+  auto h = static_cast<HandlerBase *>(conn_ref->user_data);
+  return h->conn();
+}
+
+HandlerBase::HandlerBase() : conn_ref_{get_conn, this}, conn_(nullptr) {
   ngtcp2_connection_close_error_default(&last_error_);
 }
 
@@ -117,34 +120,6 @@ int HandlerBase::on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
   return 0;
 }
 
-int HandlerBase::write_server_handshake(ngtcp2_crypto_level level,
-                                        const uint8_t *data, size_t datalen) {
-  auto rv = ngtcp2_conn_submit_crypto_data(conn_, level, data, datalen);
-  if (rv != 0) {
-    std::cerr << "ngtcp2_conn_submit_crypto_data: " << ngtcp2_strerror(rv)
-              << std::endl;
-
-    ngtcp2_conn_set_tls_error(conn_, rv);
-
-    return -1;
-  }
-
-  return 0;
-}
-
-void HandlerBase::set_tls_alert(uint8_t alert) { tls_alert_ = alert; }
-
 ngtcp2_conn *HandlerBase::conn() const { return conn_; }
 
-int HandlerBase::call_application_tx_key_cb() const {
-  if (!application_tx_key_cb_) {
-    return 0;
-  }
-  return application_tx_key_cb_();
-}
-
-void HandlerBase::process_unhandled_tls_alert() {
-  if (auto alert = tls_session_.get_tls_alert(); alert) {
-    set_tls_alert(alert);
-  }
-}
+ngtcp2_crypto_conn_ref *HandlerBase::conn_ref() { return &conn_ref_; }

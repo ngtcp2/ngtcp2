@@ -132,6 +132,7 @@ static int connect_sock(struct sockaddr *local_addr, socklen_t *plocal_addrlen,
 }
 
 struct client {
+  ngtcp2_crypto_conn_ref conn_ref;
   int fd;
   struct sockaddr_storage local_addr;
   socklen_t local_addrlen;
@@ -152,69 +153,6 @@ struct client {
   ev_timer timer;
 };
 
-static int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
-                                  const uint8_t *rx_secret,
-                                  const uint8_t *tx_secret, size_t secretlen) {
-  struct client *c = SSL_get_app_data(ssl);
-  ngtcp2_crypto_level level =
-      ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
-
-  if (rx_secret &&
-      ngtcp2_crypto_derive_and_install_rx_key(c->conn, NULL, NULL, NULL, level,
-                                              rx_secret, secretlen) != 0) {
-    fprintf(stderr, "ngtcp2_crypto_derive_and_install_rx_key failed\n");
-    return 0;
-  }
-
-  if (ngtcp2_crypto_derive_and_install_tx_key(c->conn, NULL, NULL, NULL, level,
-                                              tx_secret, secretlen) != 0) {
-    fprintf(stderr, "ngtcp2_crypto_derive_and_install_tx_key failed\n");
-    return 0;
-  }
-
-  return 1;
-}
-
-static int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
-                              const uint8_t *data, size_t len) {
-  struct client *c = SSL_get_app_data(ssl);
-  ngtcp2_crypto_level level =
-      ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
-  int rv;
-
-  rv = ngtcp2_conn_submit_crypto_data(c->conn, level, data, len);
-  if (rv != 0) {
-    fprintf(stderr, "ngtcp2_conn_submit_crypto_data: %s\n",
-            ngtcp2_strerror(rv));
-    return 0;
-  }
-
-  return 1;
-}
-
-static int flush_flight(SSL *ssl) {
-  (void)ssl;
-  return 1;
-}
-
-static int send_alert(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
-                      uint8_t alert) {
-  struct client *c = SSL_get_app_data(ssl);
-  (void)ossl_level;
-
-  ngtcp2_connection_close_error_set_transport_error_tls_alert(&c->last_error,
-                                                              alert, NULL, 0);
-
-  return 1;
-}
-
-static SSL_QUIC_METHOD quic_method = {
-    set_encryption_secrets,
-    add_handshake_data,
-    flush_flight,
-    send_alert,
-};
-
 static int numeric_host_family(const char *hostname, int family) {
   uint8_t dst[sizeof(struct in6_addr)];
   return inet_pton(family, hostname, dst) == 1;
@@ -233,9 +171,10 @@ static int client_ssl_init(struct client *c) {
     return -1;
   }
 
-  SSL_CTX_set_min_proto_version(c->ssl_ctx, TLS1_3_VERSION);
-  SSL_CTX_set_max_proto_version(c->ssl_ctx, TLS1_3_VERSION);
-  SSL_CTX_set_quic_method(c->ssl_ctx, &quic_method);
+  if (ngtcp2_crypto_openssl_configure_client_context(c->ssl_ctx) != 0) {
+    fprintf(stderr, "ngtcp2_crypto_openssl_configure_client_context failed\n");
+    return -1;
+  }
 
   c->ssl = SSL_new(c->ssl_ctx);
   if (!c->ssl) {
@@ -243,7 +182,7 @@ static int client_ssl_init(struct client *c) {
     return -1;
   }
 
-  SSL_set_app_data(c->ssl, c);
+  SSL_set_app_data(c->ssl, &c->conn_ref);
   SSL_set_connect_state(c->ssl);
   SSL_set_alpn_protos(c->ssl, (const unsigned char *)ALPN, sizeof(ALPN) - 1);
   if (!numeric_host(REMOTE_HOST)) {
@@ -382,6 +321,8 @@ static int client_quic_init(struct client *c,
       ngtcp2_crypto_get_path_challenge_data_cb,
       NULL, /* stream_stop_sending */
       ngtcp2_crypto_version_negotiation_cb,
+      NULL, /* recv_rx_key */
+      NULL, /* recv_tx_key */
   };
   ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;
@@ -460,20 +401,14 @@ static int client_read(struct client *c) {
                               timestamp());
     if (rv != 0) {
       fprintf(stderr, "ngtcp2_conn_read_pkt: %s\n", ngtcp2_strerror(rv));
-      switch (rv) {
-      case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
-      case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
-      case NGTCP2_ERR_TRANSPORT_PARAM:
-      case NGTCP2_ERR_PROTO:
-        ngtcp2_connection_close_error_set_transport_error_liberr(&c->last_error,
-                                                                 rv, NULL, 0);
-        break;
-      default:
-        if (!c->last_error.error_code) {
+      if (!c->last_error.error_code) {
+        if (rv == NGTCP2_ERR_CRYPTO) {
+          ngtcp2_connection_close_error_set_transport_error_tls_alert(
+              &c->last_error, ngtcp2_conn_get_tls_alert(c->conn), NULL, 0);
+        } else {
           ngtcp2_connection_close_error_set_transport_error_liberr(
               &c->last_error, rv, NULL, 0);
         }
-        break;
       }
       return -1;
     }
@@ -669,6 +604,11 @@ static void timer_cb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
 }
 
+static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
+  struct client *c = conn_ref->user_data;
+  return c->conn;
+}
+
 static int client_init(struct client *c) {
   struct sockaddr_storage remote_addr, local_addr;
   socklen_t remote_addrlen, local_addrlen = sizeof(local_addr);
@@ -701,6 +641,9 @@ static int client_init(struct client *c) {
   }
 
   c->stream.stream_id = -1;
+
+  c->conn_ref.get_conn = get_conn;
+  c->conn_ref.user_data = c;
 
   ev_io_init(&c->rev, read_cb, c->fd, EV_READ);
   c->rev.data = c;

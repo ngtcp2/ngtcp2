@@ -519,3 +519,126 @@ int ngtcp2_crypto_random(uint8_t *data, size_t datalen) {
 
   return 0;
 }
+
+static int secret_func(gnutls_session_t session,
+                       gnutls_record_encryption_level_t gtls_level,
+                       const void *rx_secret, const void *tx_secret,
+                       size_t secretlen) {
+  ngtcp2_crypto_conn_ref *conn_ref = gnutls_session_get_ptr(session);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  ngtcp2_crypto_level level =
+      ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
+
+  if (rx_secret &&
+      ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL, level,
+                                              rx_secret, secretlen) != 0) {
+    return -1;
+  }
+
+  if (tx_secret &&
+      ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL, level,
+                                              tx_secret, secretlen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int read_func(gnutls_session_t session,
+                     gnutls_record_encryption_level_t gtls_level,
+                     gnutls_handshake_description_t htype, const void *data,
+                     size_t datalen) {
+  ngtcp2_crypto_conn_ref *conn_ref = gnutls_session_get_ptr(session);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  ngtcp2_crypto_level level =
+      ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
+  int rv;
+
+  if (htype == GNUTLS_HANDSHAKE_CHANGE_CIPHER_SPEC) {
+    return 0;
+  }
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, level, data, datalen);
+  if (rv != 0) {
+    ngtcp2_conn_set_tls_error(conn, rv);
+    return -1;
+  }
+
+  return 0;
+}
+
+static int alert_read_func(gnutls_session_t session,
+                           gnutls_record_encryption_level_t gtls_level,
+                           gnutls_alert_level_t alert_level,
+                           gnutls_alert_description_t alert_desc) {
+  ngtcp2_crypto_conn_ref *conn_ref = gnutls_session_get_ptr(session);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  (void)gtls_level;
+  (void)alert_level;
+
+  ngtcp2_conn_set_tls_alert(conn, (uint8_t)alert_desc);
+
+  return 0;
+}
+
+static int tp_recv_func(gnutls_session_t session, const uint8_t *data,
+                        size_t datalen) {
+  ngtcp2_crypto_conn_ref *conn_ref = gnutls_session_get_ptr(session);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  int rv;
+
+  rv = ngtcp2_conn_decode_remote_transport_params(conn, data, datalen);
+  if (rv != 0) {
+    ngtcp2_conn_set_tls_error(conn, rv);
+    return -1;
+  }
+
+  return 0;
+}
+
+static int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
+  ngtcp2_crypto_conn_ref *conn_ref = gnutls_session_get_ptr(session);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  uint8_t buf[256];
+  ngtcp2_ssize nwrite;
+  int rv;
+
+  nwrite = ngtcp2_conn_encode_local_transport_params(conn, buf, sizeof(buf));
+  if (nwrite < 0) {
+    return -1;
+  }
+
+  rv = gnutls_buffer_append_data(extdata, buf, (size_t)nwrite);
+  if (rv != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int crypto_gnutls_configure_session(gnutls_session_t session) {
+  int rv;
+
+  gnutls_handshake_set_secret_function(session, secret_func);
+  gnutls_handshake_set_read_function(session, read_func);
+  gnutls_alert_set_read_function(session, alert_read_func);
+
+  rv = gnutls_session_ext_register(
+      session, "QUIC Transport Parameters",
+      NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1, GNUTLS_EXT_TLS, tp_recv_func,
+      tp_send_func, NULL, NULL, NULL,
+      GNUTLS_EXT_FLAG_TLS | GNUTLS_EXT_FLAG_CLIENT_HELLO | GNUTLS_EXT_FLAG_EE);
+  if (rv != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int ngtcp2_crypto_gnutls_configure_server_session(gnutls_session_t session) {
+  return crypto_gnutls_configure_session(session);
+}
+
+int ngtcp2_crypto_gnutls_configure_client_session(gnutls_session_t session) {
+  return crypto_gnutls_configure_session(session);
+}

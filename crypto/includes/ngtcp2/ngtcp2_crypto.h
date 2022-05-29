@@ -852,6 +852,37 @@ ngtcp2_crypto_version_negotiation_cb(ngtcp2_conn *conn, uint32_t version,
                                      const ngtcp2_cid *client_dcid,
                                      void *user_data);
 
+typedef struct ngtcp2_crypto_conn_ref ngtcp2_crypto_conn_ref;
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_crypto_get_conn` is a callback function to get a
+ * pointer to :type:`ngtcp2_conn` from |conn_ref|.  The implementation
+ * must return non-NULL :type:`ngtcp2_conn` object.
+ */
+typedef ngtcp2_conn *(*ngtcp2_crypto_get_conn)(
+    ngtcp2_crypto_conn_ref *conn_ref);
+
+/**
+ * @struct
+ *
+ * :type:`ngtcp2_crypto_conn_ref` is a structure to get a pointer to
+ * :type:`ngtcp2_conn`.  It is meant to be set to TLS native handle as
+ * an application specific data (e.g. SSL_set_app_data in OpenSSL).
+ */
+typedef struct ngtcp2_crypto_conn_ref {
+  /**
+   * :member:`get_conn` is a callback function to get a pointer to
+   * :type:`ngtcp2_conn` object.
+   */
+  ngtcp2_crypto_get_conn get_conn;
+  /**
+   * :member:`user_data` is a pointer to arbitrary user data.
+   */
+  void *user_data;
+} ngtcp2_crypto_conn_ref;
+
 #ifdef __cplusplus
 }
 #endif

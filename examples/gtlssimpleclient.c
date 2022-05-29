@@ -131,6 +131,7 @@ static int connect_sock(struct sockaddr *local_addr, socklen_t *plocal_addrlen,
 }
 
 struct client {
+  ngtcp2_crypto_conn_ref conn_ref;
   int fd;
   struct sockaddr_storage local_addr;
   socklen_t local_addrlen;
@@ -164,68 +165,6 @@ static int hook_func(gnutls_session_t session, unsigned int htype,
   return 0;
 }
 
-static int secret_func(gnutls_session_t session,
-                       gnutls_record_encryption_level_t gtls_level,
-                       const void *rx_secret, const void *tx_secret,
-                       size_t secret_size) {
-  struct client *c = gnutls_session_get_ptr(session);
-  ngtcp2_crypto_level level =
-      ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(gtls_level);
-
-  if (rx_secret &&
-      ngtcp2_crypto_derive_and_install_rx_key(c->conn, NULL, NULL, NULL, level,
-                                              rx_secret, secret_size) != 0) {
-    fprintf(stderr, "ngtcp2_crypto_derive_and_install_rx_key failed\n");
-    return -1;
-  }
-
-  if (tx_secret &&
-      ngtcp2_crypto_derive_and_install_tx_key(c->conn, NULL, NULL, NULL, level,
-                                              tx_secret, secret_size) != 0) {
-    fprintf(stderr, "ngtcp2_crypto_derive_and_install_tx_key failed\n");
-    return -1;
-  }
-
-  return 0;
-}
-
-static int read_func(gnutls_session_t session,
-                     gnutls_record_encryption_level_t level,
-                     gnutls_handshake_description_t htype, const void *data,
-                     size_t data_size) {
-  struct client *c = gnutls_session_get_ptr(session);
-  int rv;
-
-  if (htype == GNUTLS_HANDSHAKE_CHANGE_CIPHER_SPEC) {
-    return 0;
-  }
-
-  if ((rv = ngtcp2_conn_submit_crypto_data(
-           c->conn,
-           ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(level),
-           data, data_size)) != 0) {
-    fprintf(stderr, "ngtcp2_conn_submit_crypto_data: %s\n",
-            ngtcp2_strerror(rv));
-    return -1;
-  }
-
-  return 0;
-}
-
-static int alert_read_func(gnutls_session_t session,
-                           gnutls_record_encryption_level_t level,
-                           gnutls_alert_level_t alert_level,
-                           gnutls_alert_description_t alert_desc) {
-  struct client *c = gnutls_session_get_ptr(session);
-  (void)level;
-  (void)alert_level;
-
-  ngtcp2_connection_close_error_set_transport_error_tls_alert(
-      &c->last_error, (uint8_t)alert_desc, NULL, 0);
-
-  return 0;
-}
-
 static int numeric_host_family(const char *hostname, int family) {
   uint8_t dst[sizeof(struct in6_addr)];
   return inet_pton(family, hostname, dst) == 1;
@@ -234,58 +173,6 @@ static int numeric_host_family(const char *hostname, int family) {
 static int numeric_host(const char *hostname) {
   return numeric_host_family(hostname, AF_INET) ||
          numeric_host_family(hostname, AF_INET6);
-}
-
-static int tp_recv_func(gnutls_session_t session, const uint8_t *data,
-                        size_t data_size) {
-  struct client *c = gnutls_session_get_ptr(session);
-  ngtcp2_transport_params params;
-  int rv;
-
-  rv = ngtcp2_decode_transport_params(
-      &params, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, data,
-      data_size);
-  if (rv != 0) {
-    fprintf(stderr, "ngtcp2_decode_transport_params: %s\n",
-            ngtcp2_strerror(rv));
-    return -1;
-  }
-
-  rv = ngtcp2_conn_set_remote_transport_params(c->conn, &params);
-  if (rv != 0) {
-    fprintf(stderr, "ngtcp2_conn_set_remote_transport_params: %s\n",
-            ngtcp2_strerror(rv));
-    return -1;
-  }
-
-  return 0;
-}
-
-static int tp_send_func(gnutls_session_t session, gnutls_buffer_t extdata) {
-  struct client *c = gnutls_session_get_ptr(session);
-  ngtcp2_transport_params params;
-  unsigned char buf[64];
-  ngtcp2_ssize nwrite;
-  int rv;
-
-  ngtcp2_conn_get_local_transport_params(c->conn, &params);
-
-  nwrite = ngtcp2_encode_transport_params(
-      buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO, &params);
-  if (nwrite < 0) {
-    fprintf(stderr, "ngtcp2_encode_transport_params: %s\n",
-            ngtcp2_strerror((int)nwrite));
-    return -1;
-  }
-
-  rv = gnutls_buffer_append_data(extdata, buf, (size_t)nwrite);
-  if (rv != 0) {
-    fprintf(stderr, "gnutls_buffer_append_data failed: %s\n",
-            gnutls_strerror(rv));
-    return -1;
-  }
-
-  return 0;
 }
 
 static const char priority[] =
@@ -313,6 +200,11 @@ static int client_gnutls_init(struct client *c) {
     return -1;
   }
 
+  if (ngtcp2_crypto_gnutls_configure_client_session(c->session) != 0) {
+    fprintf(stderr, "ngtcp2_crypto_gnutls_configure_client_session failed\n");
+    return -1;
+  }
+
   rv = gnutls_priority_set_direct(c->session, priority, NULL);
   if (rv != 0) {
     fprintf(stderr, "gnutls_priority_set_direct: %s\n", gnutls_strerror(rv));
@@ -321,22 +213,8 @@ static int client_gnutls_init(struct client *c) {
 
   gnutls_handshake_set_hook_function(c->session, GNUTLS_HANDSHAKE_ANY,
                                      GNUTLS_HOOK_POST, hook_func);
-  gnutls_handshake_set_secret_function(c->session, secret_func);
-  gnutls_handshake_set_read_function(c->session, read_func);
-  gnutls_alert_set_read_function(c->session, alert_read_func);
 
-  rv = gnutls_session_ext_register(
-      c->session, "QUIC Transport Parameters",
-      NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1, GNUTLS_EXT_TLS, tp_recv_func,
-      tp_send_func, NULL, NULL, NULL,
-      GNUTLS_EXT_FLAG_TLS | GNUTLS_EXT_FLAG_CLIENT_HELLO | GNUTLS_EXT_FLAG_EE);
-
-  if (rv != 0) {
-    fprintf(stderr, "gnutls_session_ext_register: %s\n", gnutls_strerror(rv));
-    return -1;
-  }
-
-  gnutls_session_set_ptr(c->session, c);
+  gnutls_session_set_ptr(c->session, &c->conn_ref);
 
   rv = gnutls_credentials_set(c->session, GNUTLS_CRD_CERTIFICATE, c->cred);
 
@@ -482,6 +360,8 @@ static int client_quic_init(struct client *c,
       ngtcp2_crypto_get_path_challenge_data_cb,
       NULL, /* stream_stop_sending */
       ngtcp2_crypto_version_negotiation_cb,
+      NULL, /* recv_rx_key */
+      NULL, /* recv_tx_key */
   };
   ngtcp2_cid dcid, scid;
   ngtcp2_settings settings;
@@ -560,20 +440,14 @@ static int client_read(struct client *c) {
                               timestamp());
     if (rv != 0) {
       fprintf(stderr, "ngtcp2_conn_read_pkt: %s\n", ngtcp2_strerror(rv));
-      switch (rv) {
-      case NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM:
-      case NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM:
-      case NGTCP2_ERR_TRANSPORT_PARAM:
-      case NGTCP2_ERR_PROTO:
-        ngtcp2_connection_close_error_set_transport_error_liberr(&c->last_error,
-                                                                 rv, NULL, 0);
-        break;
-      default:
-        if (!c->last_error.error_code) {
+      if (!c->last_error.error_code) {
+        if (rv == NGTCP2_ERR_CRYPTO) {
+          ngtcp2_connection_close_error_set_transport_error_tls_alert(
+              &c->last_error, ngtcp2_conn_get_tls_alert(c->conn), NULL, 0);
+        } else {
           ngtcp2_connection_close_error_set_transport_error_liberr(
               &c->last_error, rv, NULL, 0);
         }
-        break;
       }
       return -1;
     }
@@ -769,6 +643,11 @@ static void timer_cb(struct ev_loop *loop, ev_timer *w, int revents) {
   }
 }
 
+static ngtcp2_conn *get_conn(ngtcp2_crypto_conn_ref *conn_ref) {
+  struct client *c = conn_ref->user_data;
+  return c->conn;
+}
+
 static int client_init(struct client *c) {
   struct sockaddr_storage remote_addr, local_addr;
   socklen_t remote_addrlen, local_addrlen = sizeof(local_addr);
@@ -801,6 +680,9 @@ static int client_init(struct client *c) {
   }
 
   c->stream.stream_id = -1;
+
+  c->conn_ref.get_conn = get_conn;
+  c->conn_ref.user_data = c;
 
   ev_io_init(&c->rev, read_cb, c->fd, EV_READ);
   c->rev.data = c;

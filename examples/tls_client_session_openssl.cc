@@ -55,7 +55,7 @@ int TLSClientSession::init(bool &early_data_enabled,
     return -1;
   }
 
-  SSL_set_app_data(ssl_, client);
+  SSL_set_app_data(ssl_, client->conn_ref());
   SSL_set_connect_state(ssl_);
 
   if ((quic_version & 0xff000000) == 0xff000000) {
