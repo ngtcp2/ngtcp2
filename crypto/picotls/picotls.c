@@ -325,7 +325,10 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
 
   ptls_aead_xor_iv(actx, nonce, noncelen);
 
-  ptls_aead_decrypt(actx, dest, ciphertext, ciphertextlen, 0, aad, aadlen);
+  if (ptls_aead_decrypt(actx, dest, ciphertext, ciphertextlen, 0, aad,
+                        aadlen) == SIZE_MAX) {
+    return -1;
+  }
 
   /* zero-out static iv once again */
   ptls_aead_xor_iv(actx, nonce, noncelen);
