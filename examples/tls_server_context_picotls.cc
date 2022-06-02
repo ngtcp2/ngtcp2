@@ -37,82 +37,6 @@
 extern Config config;
 
 namespace {
-int set_additional_extensions(ptls_handshake_properties_t &hsprops,
-                              ngtcp2_conn *conn) {
-  constexpr size_t paramsbuflen = 256;
-  auto paramsbuf = std::make_unique<uint8_t[]>(paramsbuflen);
-
-  auto nwrite = ngtcp2_conn_encode_local_transport_params(conn, paramsbuf.get(),
-                                                          paramsbuflen);
-  if (nwrite < 0) {
-    std::cerr << "ngtcp2_conn_encode_local_transport_params: "
-              << ngtcp2_strerror(nwrite) << std::endl;
-    return -1;
-  }
-
-  hsprops.additional_extensions = new ptls_raw_extension_t[2]{
-      {
-          .type = NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1,
-          .data =
-              {
-                  .base = paramsbuf.release(),
-                  .len = static_cast<size_t>(nwrite),
-              },
-      },
-      {
-          .type = UINT16_MAX,
-      },
-  };
-
-  return 0;
-}
-} // namespace
-
-namespace {
-int update_traffic_key_cb(ptls_update_traffic_key_t *self, ptls_t *ptls,
-                          int is_enc, size_t epoch, const void *secret) {
-  auto h = static_cast<HandlerBase *>(*ptls_get_data_ptr(ptls));
-  auto level = ngtcp2_crypto_picotls_from_epoch(epoch);
-  auto cipher = ptls_get_cipher(ptls);
-  auto secretlen = cipher->hash->digest_size;
-
-  if (is_enc) {
-    if (h->on_tx_key(level, static_cast<const uint8_t *>(secret), secretlen) !=
-        0) {
-      return -1;
-    }
-
-    if (level == NGTCP2_CRYPTO_LEVEL_HANDSHAKE) {
-      // libngtcp2 allows an application to change QUIC transport
-      // parameters before installing Handshake tx key.  We need to
-      // wait for the key to get the correct local transport
-      // parameters from ngtcp2_conn.
-      auto session = h->get_session();
-      auto cptls = session->get_native_handle();
-
-      set_additional_extensions(cptls->handshake_properties, h->conn());
-    }
-
-    if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
-        h->call_application_tx_key_cb() != 0) {
-      return 0;
-    }
-
-    return 0;
-  }
-
-  if (h->on_rx_key(level, static_cast<const uint8_t *>(secret), secretlen) !=
-      0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-ptls_update_traffic_key_t update_traffic_key = {update_traffic_key_cb};
-} // namespace
-
-namespace {
 int on_client_hello_cb(ptls_on_client_hello_t *self, ptls_t *ptls,
                        ptls_on_client_hello_parameters_t *params) {
   auto &negprotos = params->negotiated_protocols;
@@ -245,12 +169,9 @@ TLSServerContext::TLSServerContext()
           .cipher_suites = cipher_suites,
           .on_client_hello =  &on_client_hello,
           .ticket_lifetime = 86400,
-          .max_early_data_size = UINT32_MAX,
           .require_dhe_on_psk = 1,
-          .omit_end_of_early_data = 1,
           .server_cipher_preference = 1,
           .encrypt_ticket = &encrypt_ticket,
-          .update_traffic_key = &update_traffic_key,
       },
       sign_cert_{}
 {}
@@ -270,6 +191,12 @@ ptls_context_t *TLSServerContext::get_native_handle() { return &ctx_; }
 
 int TLSServerContext::init(const char *private_key_file, const char *cert_file,
                            AppProtocol app_proto) {
+  if (ngtcp2_crypto_picotls_configure_server_context(&ctx_) != 0) {
+    std::cerr << "ngtcp2_crypto_picotls_configure_server_context failed"
+              << std::endl;
+    return -1;
+  }
+
   if (ptls_load_certificates(&ctx_, cert_file) != 0) {
     std::cerr << "ptls_load_certificates failed" << std::endl;
     return -1;

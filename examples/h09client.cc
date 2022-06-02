@@ -605,6 +605,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       ngtcp2_crypto_get_path_challenge_data_cb,
       nullptr, // stream_stop_sending
       ngtcp2_crypto_version_negotiation_cb,
+      nullptr, // recv_rx_key
+      nullptr, // recv_tx_key
   };
 
   ngtcp2_cid scid, dcid;
@@ -760,9 +762,8 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
-        process_unhandled_tls_alert();
         ngtcp2_connection_close_error_set_transport_error_tls_alert(
-            &last_error_, tls_alert_, nullptr, 0);
+            &last_error_, ngtcp2_conn_get_tls_alert(conn_), nullptr, 0);
       } else {
         ngtcp2_connection_close_error_set_transport_error_liberr(
             &last_error_, rv, nullptr, 0);

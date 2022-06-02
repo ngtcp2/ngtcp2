@@ -707,6 +707,8 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
       ngtcp2_crypto_get_path_challenge_data_cb,
       nullptr, // stream_stop_sending
       ngtcp2_crypto_version_negotiation_cb,
+      nullptr, // recv_rx_key
+      nullptr, // recv_tx_key
   };
 
   scid_.datalen = NGTCP2_SV_SCIDLEN;
@@ -876,9 +878,8 @@ int Handler::feed_data(const Endpoint &ep, const Address &local_addr,
       return NETWORK_ERR_DROP_CONN;
     case NGTCP2_ERR_CRYPTO:
       if (!last_error_.error_code) {
-        process_unhandled_tls_alert();
         ngtcp2_connection_close_error_set_transport_error_tls_alert(
-            &last_error_, tls_alert_, nullptr, 0);
+            &last_error_, ngtcp2_conn_get_tls_alert(conn_), nullptr, 0);
       }
       break;
     default:

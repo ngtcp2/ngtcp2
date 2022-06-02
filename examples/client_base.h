@@ -35,7 +35,7 @@
 #include <string_view>
 #include <functional>
 
-#include <ngtcp2/ngtcp2.h>
+#include <ngtcp2/ngtcp2_crypto.h>
 
 #include "tls_client_session.h"
 #include "network.h"
@@ -191,9 +191,6 @@ public:
                 size_t secretlen);
   int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
                 size_t secretlen);
-  int write_client_handshake(ngtcp2_crypto_level crypto_level,
-                             const uint8_t *data, size_t datalen);
-  void set_tls_alert(uint8_t alert);
 
   int write_transport_params(const char *path,
                              const ngtcp2_transport_params *params);
@@ -201,17 +198,14 @@ public:
 
   void write_qlog(const void *data, size_t datalen);
 
-  int call_application_rx_key_cb() const;
-
-  void process_unhandled_tls_alert();
+  ngtcp2_crypto_conn_ref *conn_ref();
 
 protected:
+  ngtcp2_crypto_conn_ref conn_ref_;
   TLSClientSession tls_session_;
   FILE *qlog_;
   ngtcp2_conn *conn_;
   ngtcp2_connection_close_error last_error_;
-  uint8_t tls_alert_;
-  std::function<int()> application_rx_key_cb_;
 };
 
 void qlog_write_cb(void *user_data, uint32_t flags, const void *data,

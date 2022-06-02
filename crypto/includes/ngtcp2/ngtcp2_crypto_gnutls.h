@@ -54,6 +54,52 @@ ngtcp2_crypto_gnutls_from_gnutls_record_encryption_level(
 NGTCP2_EXTERN gnutls_record_encryption_level_t
 ngtcp2_crypto_gnutls_from_ngtcp2_level(ngtcp2_crypto_level crypto_level);
 
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_gnutls_configure_server_session` configures
+ * |session| for server side QUIC connection.  It performs the
+ * following modifications:
+ *
+ * - Set gnutls_handshake_set_secret_function.
+ * - Set gnutls_handshake_set_read_function.
+ * - Set gnutls_alert_set_read_function.
+ * - Register a TLS extension handler for QUIC Transport Parameters.
+ *
+ * Application must set a pointer to :type:`ngtcp2_crypto_conn_ref` to
+ * gnutls_session_t object by calling gnutls_session_set_ptr, and
+ * :type:`ngtcp2_crypto_conn_ref` object must have
+ * :member:`ngtcp2_crypto_conn_ref.get_conn` field assigned to get
+ * :type:`ngtcp2_conn`.
+ *
+ * It returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_gnutls_configure_server_session(gnutls_session_t session);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_gnutls_configure_client_session` configures
+ * |session| for client side QUIC connection.  It performs the
+ * following modifications:
+ *
+ * - Set gnutls_handshake_set_secret_function.
+ * - Set gnutls_handshake_set_read_function.
+ * - Set gnutls_alert_set_read_function.
+ * - Register a TLS extension handler for QUIC Transport Parameters.
+ *
+ * Application must set a pointer to :type:`ngtcp2_crypto_conn_ref` to
+ * gnutls_session_t object by calling gnutls_session_set_ptr, and
+ * :type:`ngtcp2_crypto_conn_ref` object must have
+ * :member:`ngtcp2_crypto_conn_ref.get_conn` field assigned to get
+ * :type:`ngtcp2_conn`.
+ *
+ * It returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_gnutls_configure_client_session(gnutls_session_t session);
+
 #ifdef __cplusplus
 }
 #endif

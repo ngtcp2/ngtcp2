@@ -27,15 +27,12 @@
 TLSSessionBase::TLSSessionBase() { ngtcp2_crypto_picotls_ctx_init(&cptls_); }
 
 TLSSessionBase::~TLSSessionBase() {
+  ngtcp2_crypto_picotls_deconfigure_session(&cptls_);
+
+  delete[] cptls_.handshake_properties.additional_extensions;
+
   if (cptls_.ptls) {
     ptls_free(cptls_.ptls);
-  }
-
-  auto &hsprops = cptls_.handshake_properties;
-
-  if (auto exts = hsprops.additional_extensions; exts) {
-    delete[] exts[0].data.base;
-    delete[] exts;
   }
 }
 
@@ -57,5 +54,3 @@ std::string TLSSessionBase::get_selected_alpn() const {
 
   return alpn;
 }
-
-uint8_t TLSSessionBase::get_tls_alert() const { return cptls_.alert; }

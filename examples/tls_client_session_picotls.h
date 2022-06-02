@@ -47,9 +47,6 @@ public:
            AppProtocol app_proto);
 
   bool get_early_data_accepted() const;
-
-private:
-  size_t max_early_data_size_;
 };
 
 #endif // TLS_CLIENT_SESSION_PICOTLS_H

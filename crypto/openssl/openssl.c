@@ -724,3 +724,86 @@ int ngtcp2_crypto_random(uint8_t *data, size_t datalen) {
 
   return 0;
 }
+
+static int set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
+                                  const uint8_t *rx_secret,
+                                  const uint8_t *tx_secret, size_t secretlen) {
+  ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  ngtcp2_crypto_level level =
+      ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
+
+  if (rx_secret &&
+      ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL, level,
+                                              rx_secret, secretlen) != 0) {
+    return 0;
+  }
+
+  if (tx_secret &&
+      ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL, level,
+                                              tx_secret, secretlen) != 0) {
+    return 0;
+  }
+
+  return 1;
+}
+
+static int add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL ossl_level,
+                              const uint8_t *data, size_t datalen) {
+  ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  ngtcp2_crypto_level level =
+      ngtcp2_crypto_openssl_from_ossl_encryption_level(ossl_level);
+  int rv;
+
+  rv = ngtcp2_conn_submit_crypto_data(conn, level, data, datalen);
+  if (rv != 0) {
+    ngtcp2_conn_set_tls_error(conn, rv);
+    return 0;
+  }
+
+  return 1;
+}
+
+static int flush_flight(SSL *ssl) {
+  (void)ssl;
+  return 1;
+}
+
+static int send_alert(SSL *ssl, enum ssl_encryption_level_t level,
+                      uint8_t alert) {
+  ngtcp2_crypto_conn_ref *conn_ref = SSL_get_app_data(ssl);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  (void)level;
+
+  ngtcp2_conn_set_tls_alert(conn, alert);
+
+  return 1;
+}
+
+static SSL_QUIC_METHOD quic_method = {
+    set_encryption_secrets,
+    add_handshake_data,
+    flush_flight,
+    send_alert,
+};
+
+static void crypto_openssl_configure_context(SSL_CTX *ssl_ctx) {
+  SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_3_VERSION);
+  SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_3_VERSION);
+  SSL_CTX_set_quic_method(ssl_ctx, &quic_method);
+}
+
+int ngtcp2_crypto_openssl_configure_server_context(SSL_CTX *ssl_ctx) {
+  crypto_openssl_configure_context(ssl_ctx);
+
+  SSL_CTX_set_max_early_data(ssl_ctx, UINT32_MAX);
+
+  return 0;
+}
+
+int ngtcp2_crypto_openssl_configure_client_context(SSL_CTX *ssl_ctx) {
+  crypto_openssl_configure_context(ssl_ctx);
+
+  return 0;
+}

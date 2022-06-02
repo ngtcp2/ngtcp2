@@ -43,75 +43,13 @@ using namespace std::literals;
 
 extern Config config;
 
-TLSClientSession::TLSClientSession() : max_early_data_size_{0} {}
+TLSClientSession::TLSClientSession() {}
 
 TLSClientSession::~TLSClientSession() {
   auto &hsprops = cptls_.handshake_properties;
 
   delete[] hsprops.client.session_ticket.base;
 }
-
-namespace {
-int set_additional_extensions(ptls_handshake_properties_t &hsprops,
-                              ngtcp2_conn *conn) {
-  constexpr size_t paramsbuflen = 256;
-  auto paramsbuf = std::make_unique<uint8_t[]>(paramsbuflen);
-
-  auto nwrite = ngtcp2_conn_encode_local_transport_params(conn, paramsbuf.get(),
-                                                          paramsbuflen);
-  if (nwrite < 0) {
-    std::cerr << "ngtcp2_conn_encode_local_transport_params: "
-              << ngtcp2_strerror(nwrite) << std::endl;
-    return -1;
-  }
-
-  hsprops.additional_extensions = new ptls_raw_extension_t[2]{
-      {
-          .type = NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1,
-          .data =
-              {
-                  .base = paramsbuf.release(),
-                  .len = static_cast<size_t>(nwrite),
-              },
-      },
-      {
-          .type = UINT16_MAX,
-      },
-  };
-
-  return 0;
-}
-} // namespace
-
-namespace {
-int collect_extension(ptls_t *ptls,
-                      struct st_ptls_handshake_properties_t *properties,
-                      uint16_t type) {
-  return type == NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1;
-}
-} // namespace
-
-namespace {
-int collected_extensions(ptls_t *ptls,
-                         struct st_ptls_handshake_properties_t *properties,
-                         ptls_raw_extension_t *extensions) {
-  assert(extensions->type == NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1);
-
-  auto c = static_cast<ClientBase *>(*ptls_get_data_ptr(ptls));
-  auto conn = c->conn();
-
-  if (auto rv = ngtcp2_conn_decode_remote_transport_params(
-          conn, extensions->data.base, extensions->data.len);
-      rv != 0) {
-    std::cerr << "ngtcp2_conn_decode_remote_transport_params: "
-              << ngtcp2_strerror(rv) << std::endl;
-    ngtcp2_conn_set_tls_error(conn, rv);
-    return -1;
-  }
-
-  return 0;
-}
-} // namespace
 
 namespace {
 auto negotiated_protocols = std::array<ptls_iovec_t, 1>{{
@@ -131,18 +69,26 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
     return -1;
   }
 
-  *ptls_get_data_ptr(cptls_.ptls) = client;
+  *ptls_get_data_ptr(cptls_.ptls) = client->conn_ref();
 
   auto conn = client->conn();
   auto &hsprops = cptls_.handshake_properties;
 
-  if (set_additional_extensions(hsprops, conn) != 0) {
+  hsprops.additional_extensions = new ptls_raw_extension_t[2]{
+      {
+          .type = UINT16_MAX,
+      },
+      {
+          .type = UINT16_MAX,
+      },
+  };
+
+  if (ngtcp2_crypto_picotls_configure_client_session(&cptls_, conn) != 0) {
+    std::cerr << "ngtcp2_crypto_picotls_configure_client_session failed"
+              << std::endl;
     return -1;
   }
 
-  hsprops.collect_extension = collect_extension;
-  hsprops.collected_extensions = collected_extensions;
-  hsprops.client.max_early_data_size = &max_early_data_size_;
   hsprops.client.negotiated_protocols.list = negotiated_protocols.data();
   hsprops.client.negotiated_protocols.count = negotiated_protocols.size();
 

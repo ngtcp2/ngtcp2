@@ -201,8 +201,6 @@ Client::Client(struct ev_loop *loop, uint32_t client_chosen_version,
                 static_cast<double>(config.delay_stream) / NGTCP2_SECONDS, 0.);
   delay_stream_timer_.data = this;
   ev_signal_init(&sigintev_, siginthandler, SIGINT);
-
-  application_rx_key_cb_ = [this]() { return setup_httpconn(); };
 }
 
 Client::~Client() {
@@ -587,6 +585,21 @@ int recv_new_token(ngtcp2_conn *conn, const ngtcp2_vec *token,
 }
 } // namespace
 
+namespace {
+int recv_rx_key(ngtcp2_conn *conn, ngtcp2_crypto_level level, void *user_data) {
+  if (level != NGTCP2_CRYPTO_LEVEL_APPLICATION) {
+    return 0;
+  }
+
+  auto c = static_cast<Client *>(user_data);
+  if (c->setup_httpconn() != 0) {
+    return NGTCP2_ERR_CALLBACK_FAILURE;
+  }
+
+  return 0;
+}
+} // namespace
+
 int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
                  const char *addr, const char *port,
                  TLSClientContext &tls_ctx) {
@@ -642,6 +655,8 @@ int Client::init(int fd, const Address &local_addr, const Address &remote_addr,
       ngtcp2_crypto_get_path_challenge_data_cb,
       stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
+      ::recv_rx_key,
+      nullptr, // recv_tx_key
   };
 
   ngtcp2_cid scid, dcid;
@@ -803,9 +818,8 @@ int Client::feed_data(const Endpoint &ep, const sockaddr *sa, socklen_t salen,
     std::cerr << "ngtcp2_conn_read_pkt: " << ngtcp2_strerror(rv) << std::endl;
     if (!last_error_.error_code) {
       if (rv == NGTCP2_ERR_CRYPTO) {
-        process_unhandled_tls_alert();
         ngtcp2_connection_close_error_set_transport_error_tls_alert(
-            &last_error_, tls_alert_, nullptr, 0);
+            &last_error_, ngtcp2_conn_get_tls_alert(conn_), nullptr, 0);
       } else {
         ngtcp2_connection_close_error_set_transport_error_liberr(
             &last_error_, rv, nullptr, 0);

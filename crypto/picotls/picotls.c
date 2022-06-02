@@ -369,7 +369,7 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
                            datalen, &cptls->handshake_properties);
   if (rv != 0 && rv != PTLS_ERROR_IN_PROGRESS) {
     if (PTLS_ERROR_GET_CLASS(rv) == PTLS_ERROR_CLASS_SELF_ALERT) {
-      cptls->alert = (uint8_t)PTLS_ERROR_TO_ALERT(rv);
+      ngtcp2_conn_set_tls_alert(conn, (uint8_t)PTLS_ERROR_TO_ALERT(rv));
     }
 
     rv = -1;
@@ -487,5 +487,214 @@ int ngtcp2_crypto_random(uint8_t *data, size_t datalen) {
 void ngtcp2_crypto_picotls_ctx_init(ngtcp2_crypto_picotls_ctx *cptls) {
   cptls->ptls = NULL;
   memset(&cptls->handshake_properties, 0, sizeof(cptls->handshake_properties));
-  cptls->alert = 0;
+}
+
+static int set_additional_extensions(ptls_handshake_properties_t *hsprops,
+                                     ngtcp2_conn *conn) {
+  const size_t buflen = 256;
+  uint8_t *buf;
+  ngtcp2_ssize nwrite;
+  ptls_raw_extension_t *exts = hsprops->additional_extensions;
+
+  assert(exts);
+
+  buf = malloc(buflen);
+  if (buf == NULL) {
+    return -1;
+  }
+
+  nwrite = ngtcp2_conn_encode_local_transport_params(conn, buf, buflen);
+  if (nwrite < 0) {
+    goto fail;
+  }
+
+  exts[0].type = NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1;
+  exts[0].data.base = buf;
+  exts[0].data.len = (size_t)nwrite;
+
+  return 0;
+
+fail:
+  free(buf);
+
+  return -1;
+}
+
+int ngtcp2_crypto_picotls_collect_extension(
+    ptls_t *ptls, struct st_ptls_handshake_properties_t *properties,
+    uint16_t type) {
+  (void)ptls;
+  (void)properties;
+
+  return type == NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1;
+}
+
+int ngtcp2_crypto_picotls_collected_extensions(
+    ptls_t *ptls, struct st_ptls_handshake_properties_t *properties,
+    ptls_raw_extension_t *extensions) {
+  ngtcp2_crypto_conn_ref *conn_ref;
+  ngtcp2_conn *conn;
+  int rv;
+
+  (void)properties;
+
+  for (; extensions->type != UINT16_MAX; ++extensions) {
+    if (extensions->type != NGTCP2_TLSEXT_QUIC_TRANSPORT_PARAMETERS_V1) {
+      continue;
+    }
+
+    conn_ref = *ptls_get_data_ptr(ptls);
+    conn = conn_ref->get_conn(conn_ref);
+
+    rv = ngtcp2_conn_decode_remote_transport_params(conn, extensions->data.base,
+                                                    extensions->data.len);
+    if (rv != 0) {
+      ngtcp2_conn_set_tls_error(conn, rv);
+      return -1;
+    }
+
+    return 0;
+  }
+
+  return 0;
+}
+
+static int update_traffic_key_server_cb(ptls_update_traffic_key_t *self,
+                                        ptls_t *ptls, int is_enc, size_t epoch,
+                                        const void *secret) {
+  ngtcp2_crypto_conn_ref *conn_ref = *ptls_get_data_ptr(ptls);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  ngtcp2_crypto_level level = ngtcp2_crypto_picotls_from_epoch(epoch);
+  ptls_cipher_suite_t *cipher = ptls_get_cipher(ptls);
+  size_t secretlen = cipher->hash->digest_size;
+  ngtcp2_crypto_picotls_ctx *cptls;
+
+  (void)self;
+
+  if (is_enc) {
+    if (ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL, level,
+                                                secret, secretlen) != 0) {
+      return -1;
+    }
+
+    if (level == NGTCP2_CRYPTO_LEVEL_HANDSHAKE) {
+      /* libngtcp2 allows an application to change QUIC transport
+       * parameters before installing Handshake tx key.  We need to
+       * wait for the key to get the correct local transport
+       * parameters from ngtcp2_conn.
+       */
+      cptls = ngtcp2_conn_get_tls_native_handle(conn);
+
+      if (set_additional_extensions(&cptls->handshake_properties, conn) != 0) {
+        return -1;
+      }
+    }
+
+    return 0;
+  }
+
+  if (ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL, level,
+                                              secret, secretlen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static ptls_update_traffic_key_t update_traffic_key_server = {
+    update_traffic_key_server_cb,
+};
+
+static int update_traffic_key_cb(ptls_update_traffic_key_t *self, ptls_t *ptls,
+                                 int is_enc, size_t epoch, const void *secret) {
+  ngtcp2_crypto_conn_ref *conn_ref = *ptls_get_data_ptr(ptls);
+  ngtcp2_conn *conn = conn_ref->get_conn(conn_ref);
+  ngtcp2_crypto_level level = ngtcp2_crypto_picotls_from_epoch(epoch);
+  ptls_cipher_suite_t *cipher = ptls_get_cipher(ptls);
+  size_t secretlen = cipher->hash->digest_size;
+
+  (void)self;
+
+  if (is_enc) {
+    if (ngtcp2_crypto_derive_and_install_tx_key(conn, NULL, NULL, NULL, level,
+                                                secret, secretlen) != 0) {
+      return -1;
+    }
+
+    return 0;
+  }
+
+  if (ngtcp2_crypto_derive_and_install_rx_key(conn, NULL, NULL, NULL, level,
+                                              secret, secretlen) != 0) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static ptls_update_traffic_key_t update_traffic_key = {update_traffic_key_cb};
+
+int ngtcp2_crypto_picotls_configure_server_context(ptls_context_t *ctx) {
+  ctx->max_early_data_size = UINT32_MAX;
+  ctx->omit_end_of_early_data = 1;
+  ctx->update_traffic_key = &update_traffic_key_server;
+
+  return 0;
+}
+
+int ngtcp2_crypto_picotls_configure_client_context(ptls_context_t *ctx) {
+  ctx->omit_end_of_early_data = 1;
+  ctx->update_traffic_key = &update_traffic_key;
+
+  return 0;
+}
+
+int ngtcp2_crypto_picotls_configure_server_session(
+    ngtcp2_crypto_picotls_ctx *cptls) {
+  ptls_handshake_properties_t *hsprops = &cptls->handshake_properties;
+
+  hsprops->collect_extension = ngtcp2_crypto_picotls_collect_extension;
+  hsprops->collected_extensions = ngtcp2_crypto_picotls_collected_extensions;
+
+  return 0;
+}
+
+int ngtcp2_crypto_picotls_configure_client_session(
+    ngtcp2_crypto_picotls_ctx *cptls, ngtcp2_conn *conn) {
+  ptls_handshake_properties_t *hsprops = &cptls->handshake_properties;
+
+  hsprops->client.max_early_data_size = calloc(1, sizeof(uint32_t));
+  if (hsprops->client.max_early_data_size == NULL) {
+    return -1;
+  }
+
+  if (set_additional_extensions(hsprops, conn) != 0) {
+    free(hsprops->client.max_early_data_size);
+    hsprops->client.max_early_data_size = NULL;
+    return -1;
+  }
+
+  hsprops->collect_extension = ngtcp2_crypto_picotls_collect_extension;
+  hsprops->collected_extensions = ngtcp2_crypto_picotls_collected_extensions;
+
+  return 0;
+}
+
+void ngtcp2_crypto_picotls_deconfigure_session(
+    ngtcp2_crypto_picotls_ctx *cptls) {
+  ptls_handshake_properties_t *hsprops;
+  ptls_raw_extension_t *exts;
+
+  if (cptls == NULL) {
+    return;
+  }
+
+  hsprops = &cptls->handshake_properties;
+
+  free(hsprops->client.max_early_data_size);
+
+  exts = hsprops->additional_extensions;
+  if (exts) {
+    free(hsprops->additional_extensions[0].data.base);
+  }
 }

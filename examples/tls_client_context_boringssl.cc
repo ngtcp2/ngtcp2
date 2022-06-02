@@ -62,72 +62,6 @@ int new_session_cb(SSL *ssl, SSL_SESSION *session) {
 }
 } // namespace
 
-namespace {
-int set_read_secret(SSL *ssl, enum ssl_encryption_level_t ssl_level,
-                    const SSL_CIPHER *cipher, const uint8_t *secret,
-                    size_t secretlen) {
-  auto c = static_cast<ClientBase *>(SSL_get_app_data(ssl));
-  auto level = ngtcp2_crypto_boringssl_from_ssl_encryption_level(ssl_level);
-
-  if (c->on_rx_key(level, secret, secretlen) != 0) {
-    return 0;
-  }
-
-  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION &&
-      c->call_application_rx_key_cb() != 0) {
-    return 0;
-  }
-
-  return 1;
-}
-} // namespace
-
-namespace {
-int set_write_secret(SSL *ssl, enum ssl_encryption_level_t ssl_level,
-                     const SSL_CIPHER *cipher, const uint8_t *secret,
-                     size_t secretlen) {
-  auto c = static_cast<ClientBase *>(SSL_get_app_data(ssl));
-  auto level = ngtcp2_crypto_boringssl_from_ssl_encryption_level(ssl_level);
-
-  if (c->on_tx_key(level, secret, secretlen) != 0) {
-    return 0;
-  }
-
-  return 1;
-}
-} // namespace
-
-namespace {
-int add_handshake_data(SSL *ssl, enum ssl_encryption_level_t ssl_level,
-                       const uint8_t *data, size_t len) {
-  auto c = static_cast<ClientBase *>(SSL_get_app_data(ssl));
-  auto level = ngtcp2_crypto_boringssl_from_ssl_encryption_level(ssl_level);
-  if (c->write_client_handshake(level, data, len) != 0) {
-    return 0;
-  }
-  return 1;
-}
-} // namespace
-
-namespace {
-int flush_flight(SSL *ssl) { return 1; }
-} // namespace
-
-namespace {
-int send_alert(SSL *ssl, enum ssl_encryption_level_t level, uint8_t alert) {
-  auto c = static_cast<ClientBase *>(SSL_get_app_data(ssl));
-  c->set_tls_alert(alert);
-  return 1;
-}
-} // namespace
-
-namespace {
-auto quic_method = SSL_QUIC_METHOD{
-    set_read_secret, set_write_secret, add_handshake_data,
-    flush_flight,    send_alert,
-};
-} // namespace
-
 int TLSClientContext::init(const char *private_key_file,
                            const char *cert_file) {
   ssl_ctx_ = SSL_CTX_new(TLS_client_method());
@@ -137,8 +71,11 @@ int TLSClientContext::init(const char *private_key_file,
     return -1;
   }
 
-  SSL_CTX_set_min_proto_version(ssl_ctx_, TLS1_3_VERSION);
-  SSL_CTX_set_max_proto_version(ssl_ctx_, TLS1_3_VERSION);
+  if (ngtcp2_crypto_boringssl_configure_client_context(ssl_ctx_) != 0) {
+    std::cerr << "ngtcp2_crypto_boringssl_configure_client_context failed"
+              << std::endl;
+    return -1;
+  }
 
   SSL_CTX_set_default_verify_paths(ssl_ctx_);
 
@@ -161,8 +98,6 @@ int TLSClientContext::init(const char *private_key_file,
       return -1;
     }
   }
-
-  SSL_CTX_set_quic_method(ssl_ctx_, &quic_method);
 
   if (config.session_file) {
     SSL_CTX_set_session_cache_mode(
