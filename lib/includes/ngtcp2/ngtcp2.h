@@ -4075,6 +4075,8 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
  *     Version negotiation failure.
  * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
  *     User callback failed
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_conn_set_remote_transport_params_versioned(
     ngtcp2_conn *conn, int transport_params_version,
@@ -4110,16 +4112,12 @@ ngtcp2_conn_decode_remote_transport_params(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_get_remote_transport_params` fills remote QUIC
- * transport parameters in |params|.  The following fields are always
- * omitted and filled with zeros:
- *
- * - :member:`ngtcp2_transport_params.version_info`
- * - :member:`ngtcp2_transport_params.version_info_present`
+ * `ngtcp2_conn_get_remote_transport_params` returns a pointer to the
+ * remote QUIC transport parameters.  If no remote transport
+ * parameters are set, it returns NULL.
  */
-NGTCP2_EXTERN void ngtcp2_conn_get_remote_transport_params_versioned(
-    ngtcp2_conn *conn, int transport_params_version,
-    ngtcp2_transport_params *params);
+NGTCP2_EXTERN const ngtcp2_transport_params *
+ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn);
 
 /**
  * @function
@@ -5740,15 +5738,6 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_set_remote_transport_params(CONN, PARAMS)                  \
   ngtcp2_conn_set_remote_transport_params_versioned(                           \
-      (CONN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
-
-/*
- * `ngtcp2_conn_get_remote_transport_params` is a wrapper
- * around `ngtcp2_conn_get_remote_transport_params_versioned` to set
- * the correct struct version.
- */
-#define ngtcp2_conn_get_remote_transport_params(CONN, PARAMS)                  \
-  ngtcp2_conn_get_remote_transport_params_versioned(                           \
       (CONN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
 
 /*

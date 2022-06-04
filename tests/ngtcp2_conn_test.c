@@ -236,8 +236,8 @@ static int client_initial_large_crypto_early_data(ngtcp2_conn *conn,
   return 0;
 }
 
-static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
-                               void *user_data) {
+static int recv_client_initial_no_remote_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_cid *dcid, void *user_data) {
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx ctx;
@@ -259,6 +259,20 @@ static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
                                        sizeof(null_iv), &hp_ctx);
   ngtcp2_conn_install_tx_handshake_key(conn, &aead_ctx, null_iv,
                                        sizeof(null_iv), &hp_ctx);
+
+  return 0;
+}
+
+static int recv_client_initial(ngtcp2_conn *conn, const ngtcp2_cid *dcid,
+                               void *user_data) {
+  ngtcp2_transport_params params;
+
+  recv_client_initial_no_remote_transport_params(conn, dcid, user_data);
+
+  ngtcp2_transport_params_default(&params);
+  params.initial_scid = conn->dcid.current.cid;
+  params.original_dcid = conn->rcid;
+  ngtcp2_conn_set_remote_transport_params(conn, &params);
 
   return 0;
 }
@@ -644,7 +658,7 @@ static void setup_default_server(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
-  ngtcp2_transport_params *remote_params;
+  ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
@@ -677,19 +691,20 @@ static void setup_default_server(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
-  remote_params = &(*pconn)->remote.transport_params;
-  remote_params->initial_max_stream_data_bidi_local = 64 * 1024;
-  remote_params->initial_max_stream_data_bidi_remote = 64 * 1024;
-  remote_params->initial_max_stream_data_uni = 64 * 1024;
-  remote_params->initial_max_streams_bidi = 0;
-  remote_params->initial_max_streams_uni = 1;
-  remote_params->initial_max_data = 64 * 1024;
-  remote_params->active_connection_id_limit = 8;
-  remote_params->max_udp_payload_size =
-      NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
-  (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = remote_params->initial_max_data;
+  memset(&remote_params, 0, sizeof(remote_params));
+  remote_params.initial_max_stream_data_bidi_local = 64 * 1024;
+  remote_params.initial_max_stream_data_bidi_remote = 64 * 1024;
+  remote_params.initial_max_stream_data_uni = 64 * 1024;
+  remote_params.initial_max_streams_bidi = 0;
+  remote_params.initial_max_streams_uni = 1;
+  remote_params.initial_max_data = 64 * 1024;
+  remote_params.active_connection_id_limit = 8;
+  remote_params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+  ngtcp2_transport_params_copy_new(&(*pconn)->remote.transport_params,
+                                   &remote_params, (*pconn)->mem);
+  (*pconn)->local.bidi.max_streams = remote_params.initial_max_streams_bidi;
+  (*pconn)->local.uni.max_streams = remote_params.initial_max_streams_uni;
+  (*pconn)->tx.max_offset = remote_params.initial_max_data;
   (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
 }
 
@@ -698,7 +713,7 @@ static void setup_default_client(ngtcp2_conn **pconn) {
   ngtcp2_settings settings;
   ngtcp2_transport_params params;
   ngtcp2_cid dcid, scid;
-  ngtcp2_transport_params *remote_params;
+  ngtcp2_transport_params remote_params;
   ngtcp2_crypto_aead_ctx aead_ctx = {0};
   ngtcp2_crypto_cipher_ctx hp_ctx = {0};
   ngtcp2_crypto_ctx crypto_ctx;
@@ -731,19 +746,20 @@ static void setup_default_client(ngtcp2_conn **pconn) {
                      NGTCP2_CONN_FLAG_HANDSHAKE_CONFIRMED;
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_PATH_VALIDATED;
   conn_set_scid_used(*pconn);
-  remote_params = &(*pconn)->remote.transport_params;
-  remote_params->initial_max_stream_data_bidi_local = 64 * 1024;
-  remote_params->initial_max_stream_data_bidi_remote = 64 * 1024;
-  remote_params->initial_max_stream_data_uni = 64 * 1024;
-  remote_params->initial_max_streams_bidi = 1;
-  remote_params->initial_max_streams_uni = 1;
-  remote_params->initial_max_data = 64 * 1024;
-  remote_params->active_connection_id_limit = 8;
-  remote_params->max_udp_payload_size =
-      NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
-  (*pconn)->local.bidi.max_streams = remote_params->initial_max_streams_bidi;
-  (*pconn)->local.uni.max_streams = remote_params->initial_max_streams_uni;
-  (*pconn)->tx.max_offset = remote_params->initial_max_data;
+  memset(&remote_params, 0, sizeof(remote_params));
+  remote_params.initial_max_stream_data_bidi_local = 64 * 1024;
+  remote_params.initial_max_stream_data_bidi_remote = 64 * 1024;
+  remote_params.initial_max_stream_data_uni = 64 * 1024;
+  remote_params.initial_max_streams_bidi = 1;
+  remote_params.initial_max_streams_uni = 1;
+  remote_params.initial_max_data = 64 * 1024;
+  remote_params.active_connection_id_limit = 8;
+  remote_params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+  ngtcp2_transport_params_copy_new(&(*pconn)->remote.transport_params,
+                                   &remote_params, (*pconn)->mem);
+  (*pconn)->local.bidi.max_streams = remote_params.initial_max_streams_bidi;
+  (*pconn)->local.uni.max_streams = remote_params.initial_max_streams_uni;
+  (*pconn)->tx.max_offset = remote_params.initial_max_data;
   (*pconn)->negotiated_version = (*pconn)->client_chosen_version;
 
   (*pconn)->dcid.current.flags |= NGTCP2_DCID_FLAG_TOKEN_PRESENT;
@@ -1078,7 +1094,7 @@ void test_ngtcp2_conn_stream_tx_flow_control(void) {
 
   setup_default_client(&conn);
 
-  conn->remote.transport_params.initial_max_stream_data_bidi_remote = 2047;
+  conn->remote.transport_params->initial_max_stream_data_bidi_remote = 2047;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -1264,7 +1280,7 @@ void test_ngtcp2_conn_tx_flow_control(void) {
 
   setup_default_client(&conn);
 
-  conn->remote.transport_params.initial_max_data = 2048;
+  conn->remote.transport_params->initial_max_data = 2048;
   conn->tx.max_offset = 2048;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
@@ -3092,7 +3108,7 @@ void test_ngtcp2_conn_retransmit_protected(void) {
   setup_default_client(&conn);
 
   conn->callbacks.ack_datagram = ack_datagram;
-  conn->remote.transport_params.max_datagram_frame_size = 65535;
+  conn->remote.transport_params->max_datagram_frame_size = 65535;
 
   ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), ++t);
@@ -4496,7 +4512,6 @@ void test_ngtcp2_conn_writev_datagram(void) {
   ngtcp2_vec datav = {null_data, 10};
   ngtcp2_vec vec;
   int accepted;
-  ngtcp2_transport_params params;
   my_user_data ud;
   ngtcp2_frame fr;
   size_t pktlen;
@@ -4504,7 +4519,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   setup_default_client(&conn);
   conn->callbacks.ack_datagram = ack_datagram;
-  conn->remote.transport_params.max_datagram_frame_size = 1 + 1 + 10;
+  conn->remote.transport_params->max_datagram_frame_size = 1 + 1 + 10;
   conn->user_data = &ud;
 
   spktlen = ngtcp2_conn_writev_datagram(
@@ -4533,7 +4548,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
 
   /* Coalesces multiple DATAGRAM frames into a single QUIC packet */
   setup_default_client(&conn);
-  conn->remote.transport_params.max_datagram_frame_size = 65535;
+  conn->remote.transport_params->max_datagram_frame_size = 65535;
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
@@ -4561,7 +4576,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
   /* DATAGRAM cannot fit into QUIC packet because the other frames
      occupy the space */
   setup_default_client(&conn);
-  conn->remote.transport_params.max_datagram_frame_size =
+  conn->remote.transport_params->max_datagram_frame_size =
       1 + ngtcp2_put_varint_len(2000) + 2000;
 
   vec.base = null_data;
@@ -4598,7 +4613,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
   /* Sending DATAGRAM which is larger than the value of received
      max_datagram_frame_size is an error */
   setup_default_client(&conn);
-  conn->remote.transport_params.max_datagram_frame_size = 9;
+  conn->remote.transport_params->max_datagram_frame_size = 9;
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
@@ -4611,10 +4626,7 @@ void test_ngtcp2_conn_writev_datagram(void) {
   /* Send DATAGRAM frame in a 0RTT packet */
   setup_early_client(&conn);
 
-  params = conn->remote.transport_params;
-  params.max_datagram_frame_size = 4311;
-
-  ngtcp2_conn_set_early_remote_transport_params(conn, &params);
+  conn->remote.transport_params->max_datagram_frame_size = 4311;
 
   spktlen = ngtcp2_conn_writev_datagram(
       conn, NULL, NULL, buf, sizeof(buf), &accepted,
@@ -5246,7 +5258,7 @@ void test_ngtcp2_conn_recv_retire_connection_id(void) {
   uint64_t seq;
 
   setup_default_client(&conn);
-  conn->remote.transport_params.active_connection_id_limit = 7;
+  conn->remote.transport_params->active_connection_id_limit = 7;
 
   /* This will send NEW_CONNECTION_ID frames */
   spktlen = ngtcp2_conn_write_pkt(conn, NULL, NULL, buf, sizeof(buf), t);
@@ -7158,7 +7170,7 @@ void test_ngtcp2_conn_rtb_reclaim_on_pto_datagram(void) {
   setup_default_client(&conn);
 
   conn->callbacks.ack_datagram = ack_datagram;
-  conn->remote.transport_params.max_datagram_frame_size = 65535;
+  conn->remote.transport_params->max_datagram_frame_size = 65535;
 
   rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
 
@@ -8367,6 +8379,9 @@ void test_ngtcp2_conn_version_negotiation(void) {
   /* Server sees client supports QUIC v2.  It chooses QUIC v2 as the
      negotiated version, and generates new Initial keys. */
   setup_handshake_server(&conn);
+
+  conn->callbacks.recv_client_initial =
+      recv_client_initial_no_remote_transport_params;
 
   fr.type = NGTCP2_FRAME_CRYPTO;
   fr.crypto.offset = 0;

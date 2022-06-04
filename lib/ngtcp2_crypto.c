@@ -848,7 +848,7 @@ int ngtcp2_decode_transport_params_versioned(
 }
 
 static int transport_params_copy_new(ngtcp2_transport_params **pdest,
-                                     ngtcp2_transport_params *src,
+                                     const ngtcp2_transport_params *src,
                                      const ngtcp2_mem *mem) {
   size_t len = sizeof(**pdest);
   ngtcp2_transport_params *dest;
@@ -907,4 +907,15 @@ void ngtcp2_transport_params_del(ngtcp2_transport_params *params,
   }
 
   ngtcp2_mem_free(mem, params);
+}
+
+int ngtcp2_transport_params_copy_new(ngtcp2_transport_params **pdest,
+                                     const ngtcp2_transport_params *src,
+                                     const ngtcp2_mem *mem) {
+  if (src == NULL) {
+    *pdest = NULL;
+    return 0;
+  }
+
+  return transport_params_copy_new(pdest, src, mem);
 }

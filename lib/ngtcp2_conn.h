@@ -536,11 +536,11 @@ struct ngtcp2_conn {
   struct {
     /* transport_params is the received transport parameters during
        handshake.  It is used for Short packet only. */
-    ngtcp2_transport_params transport_params;
+    ngtcp2_transport_params *transport_params;
     /* pending_transport_params is received transport parameters
        during handshake.  It is copied to transport_params when 1RTT
        key is available. */
-    ngtcp2_transport_params pending_transport_params;
+    ngtcp2_transport_params *pending_transport_params;
     struct {
       ngtcp2_idtr idtr;
       /* unsent_max_streams is the maximum number of streams of peer

@@ -325,6 +325,15 @@ int Client::handshake_completed() {
               << std::endl;
   }
 
+  if (config.tp_file) {
+    auto params = ngtcp2_conn_get_remote_transport_params(conn_);
+
+    if (write_transport_params(config.tp_file, params) != 0) {
+      std::cerr << "Could not write transport parameters in " << config.tp_file
+                << std::endl;
+    }
+  }
+
   return 0;
 }
 

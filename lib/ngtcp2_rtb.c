@@ -1162,6 +1162,7 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
   ngtcp2_tstamp start_ts;
   ngtcp2_duration pto = ngtcp2_conn_compute_pto(conn, pktns);
   uint64_t prior_bytes_in_flight = cstat->bytes_in_flight;
+  ngtcp2_duration max_ack_delay;
 
   pkt_thres = ngtcp2_max(pkt_thres, NGTCP2_PKT_THRESHOLD);
   pkt_thres = ngtcp2_min(pkt_thres, 256);
@@ -1182,11 +1183,14 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
       last_lost_pkt_num = ent->hd.pkt_num;
+      max_ack_delay = conn->remote.transport_params
+                          ? conn->remote.transport_params->max_ack_delay
+                          : 0;
 
-      congestion_period = (cstat->smoothed_rtt +
-                           ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY) +
-                           conn->remote.transport_params.max_ack_delay) *
-                          NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
+      congestion_period =
+          (cstat->smoothed_rtt +
+           ngtcp2_max(4 * cstat->rttvar, NGTCP2_GRANULARITY) + max_ack_delay) *
+          NGTCP2_PERSISTENT_CONGESTION_THRESHOLD;
 
       start_ts = ngtcp2_max(rtb->persistent_congestion_start_ts,
                             cstat->first_rtt_sample_ts);

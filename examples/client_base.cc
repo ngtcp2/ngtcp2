@@ -222,19 +222,6 @@ int ClientBase::on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
                          ivlen, hp_key.data(), keylen);
   }
 
-  if (level == NGTCP2_CRYPTO_LEVEL_APPLICATION) {
-    if (config.tp_file) {
-      ngtcp2_transport_params params;
-
-      ngtcp2_conn_get_remote_transport_params(conn_, &params);
-
-      if (write_transport_params(config.tp_file, &params) != 0) {
-        std::cerr << "Could not write transport parameters in "
-                  << config.tp_file << std::endl;
-      }
-    }
-  }
-
   return 0;
 }
 
