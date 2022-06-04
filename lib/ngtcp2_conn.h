@@ -1089,4 +1089,25 @@ ngtcp2_ssize ngtcp2_conn_write_application_close_pkt(
 
 void ngtcp2_conn_stop_pmtud(ngtcp2_conn *conn);
 
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_remote_transport_params` sets transport parameter
+ * |params| from a remote endpoint to |conn|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_TRANSPORT_PARAM`
+ *     Failed to validate a remote transport parameters.
+ * :macro:`NGTCP2_ERR_VERSION_NEGOTIATION_FAILURE`
+ *     Version negotiation failure.
+ * :macro:`NGTCP2_ERR_CALLBACK_FAILURE`
+ *     User callback failed
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+int ngtcp2_conn_set_remote_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params);
+
 #endif /* NGTCP2_CONN_H */
