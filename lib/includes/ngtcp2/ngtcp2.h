@@ -2213,6 +2213,12 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
  * If the optional parameters are missing, the default value is
  * assigned.
  *
+ * The following fields may point to somewhere inside the buffer
+ * pointed by |data| of length |datalen|:
+ *
+ * - :member:`ngtcp2_transport_params.version_info.other_versions
+ *   <ngtcp2_version_info.other_versions>`
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -2220,12 +2226,59 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
  *     The required parameter is missing.
  * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
  *     The input is malformed.
- * :macro:`NGTCP2_ERR_INVALID_ARGUMENT`
- *     |exttype| is invalid.
  */
 NGTCP2_EXTERN int ngtcp2_decode_transport_params_versioned(
     int transport_params_version, ngtcp2_transport_params *params,
     ngtcp2_transport_params_type exttype, const uint8_t *data, size_t datalen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_decode_transport_params_new` decodes transport parameters
+ * in |data| of length |datalen|, and stores the result in the object
+ * allocated dynamically.  The pointer to the allocated object is
+ * assigned to |*pparams|.  Unlike `ngtcp2_decode_transport_params`,
+ * all direct and indirect fields are also allocated dynamically if
+ * needed.
+ *
+ * |mem| is a memory allocator to allocate memory.  If |mem| is
+ * ``NULL``, the memory allocator returned by `ngtcp2_mem_default()`
+ * is used.
+ *
+ * If the optional parameters are missing, the default value is
+ * assigned.
+ *
+ * `ngtcp2_transport_params_del` frees the memory allocated by this
+ * function.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGTCP2_ERR_REQUIRED_TRANSPORT_PARAM`
+ *     The required parameter is missing.
+ * :macro:`NGTCP2_ERR_MALFORMED_TRANSPORT_PARAM`
+ *     The input is malformed.
+ * :macro:`NGTCP2_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGTCP2_EXTERN int ngtcp2_decode_transport_params_new(
+    ngtcp2_transport_params **pparams, ngtcp2_transport_params_type exttype,
+    const uint8_t *data, size_t datalen, const ngtcp2_mem *mem);
+
+/**
+ * @function
+ *
+ * `ngtcp2_transport_params_del` frees the |params| which must be
+ * dynamically allocated by `ngtcp2_decode_transport_params_new`.
+ *
+ * |mem| is a memory allocator that allocated |params|.  If |mem| is
+ * ``NULL``, the memory allocator returned by `ngtcp2_mem_default()`
+ * is used.
+ *
+ * If |params| is ``NULL``, this function does nothing.
+ */
+NGTCP2_EXTERN void ngtcp2_transport_params_del(ngtcp2_transport_params *params,
+                                               const ngtcp2_mem *mem);
 
 /**
  * @function

@@ -431,3 +431,241 @@ void test_ngtcp2_encode_transport_params(void) {
                         nparams.version_info.other_versions,
                         params.version_info.other_versionslen));
 }
+
+void test_ngtcp2_decode_transport_params_new(void) {
+  ngtcp2_transport_params params, *nparams;
+  uint8_t buf[512];
+  ngtcp2_ssize nwrite;
+  int rv;
+  size_t i, len;
+  ngtcp2_cid rcid, scid, dcid;
+  uint8_t other_versions[sizeof(uint32_t) * 3];
+
+  rcid_init(&rcid);
+  scid_init(&scid);
+  dcid_init(&dcid);
+
+  memset(&params, 0, sizeof(params));
+  memset(&nparams, 0, sizeof(nparams));
+
+  for (i = 0; i < sizeof(other_versions); i += sizeof(uint32_t)) {
+    ngtcp2_put_uint32be(&other_versions[i], (uint32_t)(0xff000000u + i));
+  }
+
+  /* EE, required parameters only */
+  params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
+  params.ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
+  params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
+  params.original_dcid = dcid;
+  params.initial_scid = scid;
+
+  len = (ngtcp2_put_varint_len(
+             NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID) +
+         ngtcp2_put_varint_len(params.original_dcid.datalen) +
+         params.original_dcid.datalen) +
+        (ngtcp2_put_varint_len(
+             NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID) +
+         ngtcp2_put_varint_len(params.initial_scid.datalen) +
+         params.initial_scid.datalen);
+
+  nwrite = ngtcp2_encode_transport_params(
+      buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+      &params);
+
+  CU_ASSERT((ngtcp2_ssize)len == nwrite);
+
+  rv = ngtcp2_decode_transport_params_new(
+      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
+      (size_t)nwrite, NULL);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(params.initial_max_stream_data_bidi_local ==
+            nparams->initial_max_stream_data_bidi_local);
+  CU_ASSERT(params.initial_max_stream_data_bidi_remote ==
+            nparams->initial_max_stream_data_bidi_remote);
+  CU_ASSERT(params.initial_max_stream_data_uni ==
+            nparams->initial_max_stream_data_uni);
+  CU_ASSERT(params.initial_max_data == nparams->initial_max_data);
+  CU_ASSERT(params.initial_max_streams_bidi ==
+            nparams->initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_streams_uni == nparams->initial_max_streams_uni);
+  CU_ASSERT(params.max_idle_timeout == nparams->max_idle_timeout);
+  CU_ASSERT(params.max_udp_payload_size == nparams->max_udp_payload_size);
+  CU_ASSERT(params.stateless_reset_token_present ==
+            nparams->stateless_reset_token_present);
+  CU_ASSERT(params.ack_delay_exponent == nparams->ack_delay_exponent);
+  CU_ASSERT(params.disable_active_migration ==
+            nparams->disable_active_migration);
+  CU_ASSERT(params.max_ack_delay == nparams->max_ack_delay);
+  CU_ASSERT(ngtcp2_cid_eq(&params.original_dcid, &nparams->original_dcid));
+  CU_ASSERT(ngtcp2_cid_eq(&params.initial_scid, &nparams->initial_scid));
+  CU_ASSERT(params.retry_scid_present == nparams->retry_scid_present);
+
+  ngtcp2_transport_params_del(nparams, NULL);
+  memset(&params, 0, sizeof(params));
+
+  /* EE, all parameters */
+  params.initial_max_stream_data_bidi_local = 1000000007;
+  params.initial_max_stream_data_bidi_remote = 961748941;
+  params.initial_max_stream_data_uni = 982451653;
+  params.initial_max_data = 1000000009;
+  params.initial_max_streams_bidi = 908;
+  params.initial_max_streams_uni = 16383;
+  params.max_idle_timeout = 16363 * NGTCP2_MILLISECONDS;
+  params.max_udp_payload_size = 1200;
+  params.stateless_reset_token_present = 1;
+  memset(params.stateless_reset_token, 0xf1,
+         sizeof(params.stateless_reset_token));
+  params.ack_delay_exponent = 20;
+  params.preferred_address_present = 1;
+  memset(params.preferred_address.ipv4_addr, 0,
+         sizeof(params.preferred_address.ipv4_addr));
+  params.preferred_address.ipv4_port = 0;
+  params.preferred_address.ipv4_present = 0;
+  memset(params.preferred_address.ipv6_addr, 0xe1,
+         sizeof(params.preferred_address.ipv6_addr));
+  params.preferred_address.ipv6_port = 63111;
+  params.preferred_address.ipv6_present = 1;
+  scid_init(&params.preferred_address.cid);
+  memset(params.preferred_address.stateless_reset_token, 0xd1,
+         sizeof(params.preferred_address.stateless_reset_token));
+  params.disable_active_migration = 1;
+  params.max_ack_delay = 63 * NGTCP2_MILLISECONDS;
+  params.retry_scid_present = 1;
+  params.retry_scid = rcid;
+  params.original_dcid = dcid;
+  params.initial_scid = scid;
+  params.active_connection_id_limit = 1073741824;
+  params.max_datagram_frame_size = 63;
+  params.grease_quic_bit = 1;
+  params.version_info.chosen_version = NGTCP2_PROTO_VER_V1;
+  params.version_info.other_versions = other_versions;
+  params.version_info.other_versionslen = arraylen(other_versions);
+  params.version_info_present = 1;
+
+  len =
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,
+                      params.initial_max_stream_data_bidi_local) +
+      varint_paramlen(
+          NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,
+          params.initial_max_stream_data_bidi_remote) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAM_DATA_UNI,
+                      params.initial_max_stream_data_uni) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_DATA,
+                      params.initial_max_data) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_BIDI,
+                      params.initial_max_streams_bidi) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_INITIAL_MAX_STREAMS_UNI,
+                      params.initial_max_streams_uni) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_IDLE_TIMEOUT,
+                      params.max_idle_timeout / NGTCP2_MILLISECONDS) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_UDP_PAYLOAD_SIZE,
+                      params.max_udp_payload_size) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACK_DELAY_EXPONENT,
+                      params.ack_delay_exponent) +
+      (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_DISABLE_ACTIVE_MIGRATION) +
+       ngtcp2_put_varint_len(0)) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_ACK_DELAY,
+                      params.max_ack_delay / NGTCP2_MILLISECONDS) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_ACTIVE_CONNECTION_ID_LIMIT,
+                      params.active_connection_id_limit) +
+      (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_STATELESS_RESET_TOKEN) +
+       ngtcp2_put_varint_len(NGTCP2_STATELESS_RESET_TOKENLEN) +
+       NGTCP2_STATELESS_RESET_TOKENLEN) +
+      (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_PREFERRED_ADDRESS) +
+       ngtcp2_put_varint_len(4 + 2 + 16 + 2 + 1 +
+                             params.preferred_address.cid.datalen +
+                             NGTCP2_STATELESS_RESET_TOKENLEN) +
+       4 + 2 + 16 + 2 + 1 + params.preferred_address.cid.datalen +
+       NGTCP2_STATELESS_RESET_TOKENLEN) +
+      (ngtcp2_put_varint_len(
+           NGTCP2_TRANSPORT_PARAM_RETRY_SOURCE_CONNECTION_ID) +
+       ngtcp2_put_varint_len(params.retry_scid.datalen) +
+       params.retry_scid.datalen) +
+      (ngtcp2_put_varint_len(
+           NGTCP2_TRANSPORT_PARAM_ORIGINAL_DESTINATION_CONNECTION_ID) +
+       ngtcp2_put_varint_len(params.original_dcid.datalen) +
+       params.original_dcid.datalen) +
+      (ngtcp2_put_varint_len(
+           NGTCP2_TRANSPORT_PARAM_INITIAL_SOURCE_CONNECTION_ID) +
+       ngtcp2_put_varint_len(params.initial_scid.datalen) +
+       params.initial_scid.datalen) +
+      varint_paramlen(NGTCP2_TRANSPORT_PARAM_MAX_DATAGRAM_FRAME_SIZE,
+                      params.max_datagram_frame_size) +
+      (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_GREASE_QUIC_BIT) +
+       ngtcp2_put_varint_len(0)) +
+      (ngtcp2_put_varint_len(NGTCP2_TRANSPORT_PARAM_VERSION_INFORMATION_DRAFT) +
+       ngtcp2_put_varint_len(sizeof(params.version_info.chosen_version) +
+                             params.version_info.other_versionslen) +
+       sizeof(params.version_info.chosen_version) +
+       params.version_info.other_versionslen);
+
+  nwrite = ngtcp2_encode_transport_params(
+      buf, sizeof(buf), NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
+      &params);
+
+  CU_ASSERT((ngtcp2_ssize)len == nwrite);
+
+  rv = ngtcp2_decode_transport_params_new(
+      &nparams, NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS, buf,
+      (size_t)nwrite, NULL);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(params.initial_max_stream_data_bidi_local ==
+            nparams->initial_max_stream_data_bidi_local);
+  CU_ASSERT(params.initial_max_stream_data_bidi_remote ==
+            nparams->initial_max_stream_data_bidi_remote);
+  CU_ASSERT(params.initial_max_stream_data_uni ==
+            nparams->initial_max_stream_data_uni);
+  CU_ASSERT(params.initial_max_data == nparams->initial_max_data);
+  CU_ASSERT(params.initial_max_streams_bidi ==
+            nparams->initial_max_streams_bidi);
+  CU_ASSERT(params.initial_max_streams_uni == nparams->initial_max_streams_uni);
+  CU_ASSERT(params.max_idle_timeout == nparams->max_idle_timeout);
+  CU_ASSERT(params.max_udp_payload_size == nparams->max_udp_payload_size);
+  CU_ASSERT(0 == memcmp(params.stateless_reset_token,
+                        nparams->stateless_reset_token,
+                        sizeof(params.stateless_reset_token)));
+  CU_ASSERT(params.ack_delay_exponent == nparams->ack_delay_exponent);
+  CU_ASSERT(params.preferred_address_present ==
+            nparams->preferred_address_present);
+  CU_ASSERT(0 == memcmp(params.preferred_address.ipv4_addr,
+                        nparams->preferred_address.ipv4_addr,
+                        sizeof(params.preferred_address.ipv4_addr)));
+  CU_ASSERT(params.preferred_address.ipv4_port ==
+            nparams->preferred_address.ipv4_port);
+  CU_ASSERT(params.preferred_address.ipv4_present ==
+            nparams->preferred_address.ipv4_present);
+  CU_ASSERT(0 == memcmp(params.preferred_address.ipv6_addr,
+                        nparams->preferred_address.ipv6_addr,
+                        sizeof(params.preferred_address.ipv6_addr)));
+  CU_ASSERT(params.preferred_address.ipv6_port ==
+            nparams->preferred_address.ipv6_port);
+  CU_ASSERT(params.preferred_address.ipv6_present ==
+            nparams->preferred_address.ipv6_present);
+  CU_ASSERT(ngtcp2_cid_eq(&params.preferred_address.cid,
+                          &nparams->preferred_address.cid));
+  CU_ASSERT(0 ==
+            memcmp(params.preferred_address.stateless_reset_token,
+                   nparams->preferred_address.stateless_reset_token,
+                   sizeof(params.preferred_address.stateless_reset_token)));
+  CU_ASSERT(params.disable_active_migration ==
+            nparams->disable_active_migration);
+  CU_ASSERT(params.max_ack_delay == nparams->max_ack_delay);
+  CU_ASSERT(params.retry_scid_present == nparams->retry_scid_present);
+  CU_ASSERT(ngtcp2_cid_eq(&params.retry_scid, &nparams->retry_scid));
+  CU_ASSERT(ngtcp2_cid_eq(&params.initial_scid, &nparams->initial_scid));
+  CU_ASSERT(ngtcp2_cid_eq(&params.original_dcid, &nparams->original_dcid));
+  CU_ASSERT(params.active_connection_id_limit ==
+            nparams->active_connection_id_limit);
+  CU_ASSERT(params.max_datagram_frame_size == nparams->max_datagram_frame_size);
+  CU_ASSERT(params.grease_quic_bit = nparams->grease_quic_bit);
+  CU_ASSERT(params.version_info_present == nparams->version_info_present);
+  CU_ASSERT(params.version_info.chosen_version ==
+            nparams->version_info.chosen_version);
+  CU_ASSERT(0 == memcmp(params.version_info.other_versions,
+                        nparams->version_info.other_versions,
+                        params.version_info.other_versionslen));
+
+  ngtcp2_transport_params_del(nparams, NULL);
+}
