@@ -11080,11 +11080,9 @@ ngtcp2_conn_server_negotiate_version(ngtcp2_conn *conn,
       version_info->other_versionslen, version_info->chosen_version);
 }
 
-int ngtcp2_conn_set_remote_transport_params_versioned(
-    ngtcp2_conn *conn, int transport_params_version,
-    const ngtcp2_transport_params *params) {
+int ngtcp2_conn_set_remote_transport_params(
+    ngtcp2_conn *conn, const ngtcp2_transport_params *params) {
   int rv;
-  (void)transport_params_version;
 
   assert(!(conn->flags & NGTCP2_CONN_FLAG_TRANSPORT_PARAM_RECVED));
 
