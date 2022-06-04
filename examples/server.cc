@@ -1239,11 +1239,10 @@ int Handler::setup_httpconn() {
     return -1;
   }
 
-  ngtcp2_transport_params params;
-  ngtcp2_conn_get_local_transport_params(conn_, &params);
+  auto params = ngtcp2_conn_get_local_transport_params(conn_);
 
   nghttp3_conn_set_max_client_streams_bidi(httpconn_,
-                                           params.initial_max_streams_bidi);
+                                           params->initial_max_streams_bidi);
 
   int64_t ctrl_stream_id;
 

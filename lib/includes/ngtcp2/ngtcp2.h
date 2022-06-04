@@ -4155,12 +4155,11 @@ NGTCP2_EXTERN int ngtcp2_conn_set_local_transport_params_versioned(
 /**
  * @function
  *
- * `ngtcp2_conn_get_local_transport_params` fills settings values in
- * |params|.
+ * `ngtcp2_conn_get_local_transport_params` returns a pointer to the
+ * local QUIC transport parameters.
  */
-NGTCP2_EXTERN void ngtcp2_conn_get_local_transport_params_versioned(
-    ngtcp2_conn *conn, int transport_params_version,
-    ngtcp2_transport_params *params);
+NGTCP2_EXTERN const ngtcp2_transport_params *
+ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn);
 
 /**
  * @function
@@ -5725,15 +5724,6 @@ NGTCP2_EXTERN uint32_t ngtcp2_select_version(const uint32_t *preferred_versions,
  */
 #define ngtcp2_conn_set_local_transport_params(CONN, PARAMS)                   \
   ngtcp2_conn_set_local_transport_params_versioned(                            \
-      (CONN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
-
-/*
- * `ngtcp2_conn_get_local_transport_params` is a wrapper around
- * `ngtcp2_conn_get_local_transport_params_versioned` to set the
- * correct struct version.
- */
-#define ngtcp2_conn_get_local_transport_params(CONN, PARAMS)                   \
-  ngtcp2_conn_get_local_transport_params_versioned(                            \
       (CONN), NGTCP2_TRANSPORT_PARAMS_VERSION, (PARAMS))
 
 /*

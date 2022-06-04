@@ -11328,12 +11328,9 @@ int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn) {
   return 0;
 }
 
-void ngtcp2_conn_get_local_transport_params_versioned(
-    ngtcp2_conn *conn, int transport_params_version,
-    ngtcp2_transport_params *params) {
-  (void)transport_params_version;
-
-  *params = conn->local.transport_params;
+const ngtcp2_transport_params *
+ngtcp2_conn_get_local_transport_params(ngtcp2_conn *conn) {
+  return &conn->local.transport_params;
 }
 
 ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(ngtcp2_conn *conn,
