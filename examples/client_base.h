@@ -187,11 +187,6 @@ public:
 
   ngtcp2_conn *conn() const;
 
-  int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                size_t secretlen);
-  int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                size_t secretlen);
-
   int write_transport_params(const char *path,
                              const ngtcp2_transport_params *params);
   int read_transport_params(const char *path, ngtcp2_transport_params *params);

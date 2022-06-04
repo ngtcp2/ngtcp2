@@ -177,11 +177,6 @@ public:
 
   ngtcp2_conn *conn() const;
 
-  int on_rx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                size_t secretlen);
-  int on_tx_key(ngtcp2_crypto_level level, const uint8_t *secret,
-                size_t secretlen);
-
   TLSServerSession *get_session() { return &tls_session_; }
 
   ngtcp2_crypto_conn_ref *conn_ref();
