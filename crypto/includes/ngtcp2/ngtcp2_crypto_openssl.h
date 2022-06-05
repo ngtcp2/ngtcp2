@@ -91,8 +91,6 @@ ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
  * following modifications:
  *
  * - Set minimum and maximum TLS version to TLSv1.3.
- * - Set max early data to UINT32_MAX by calling
- *   SSL_CTX_set_max_early_data.
  * - Set SSL_QUIC_METHOD by calling SSL_CTX_set_quic_method.
  *
  * Application must set a pointer to :type:`ngtcp2_crypto_conn_ref` to
