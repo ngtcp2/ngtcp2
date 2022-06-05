@@ -10524,7 +10524,17 @@ int ngtcp2_conn_install_rx_handshake_key(
 
   pktns->crypto.rx.hp_ctx = *hp_ctx;
 
-  return conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE);
+  rv = conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE);
+  if (rv != 0) {
+    ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
+    pktns->crypto.rx.ckm = NULL;
+
+    memset(&pktns->crypto.rx.hp_ctx, 0, sizeof(pktns->crypto.rx.hp_ctx));
+
+    return rv;
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_install_tx_handshake_key(
@@ -10553,7 +10563,17 @@ int ngtcp2_conn_install_tx_handshake_key(
     }
   }
 
-  return conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE);
+  rv = conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_HANDSHAKE);
+  if (rv != 0) {
+    ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
+    pktns->crypto.tx.ckm = NULL;
+
+    memset(&pktns->crypto.tx.hp_ctx, 0, sizeof(pktns->crypto.tx.hp_ctx));
+
+    return rv;
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
@@ -10577,10 +10597,20 @@ int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
   conn->flags |= NGTCP2_CONN_FLAG_EARLY_KEY_INSTALLED;
 
   if (conn->server) {
-    return conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_EARLY);
+    rv = conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_EARLY);
+  } else {
+    rv = conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_EARLY);
+  }
+  if (rv != 0) {
+    ngtcp2_crypto_km_del(conn->early.ckm, conn->mem);
+    conn->early.ckm = NULL;
+
+    memset(&conn->early.hp_ctx, 0, sizeof(conn->early.hp_ctx));
+
+    return rv;
   }
 
-  return conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_EARLY);
+  return 0;
 }
 
 int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
@@ -10618,7 +10648,17 @@ int ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
     }
   }
 
-  return conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION);
+  rv = conn_call_recv_rx_key(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION);
+  if (rv != 0) {
+    ngtcp2_crypto_km_del(pktns->crypto.rx.ckm, conn->mem);
+    pktns->crypto.rx.ckm = NULL;
+
+    memset(&pktns->crypto.rx.hp_ctx, 0, sizeof(pktns->crypto.rx.hp_ctx));
+
+    return rv;
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
@@ -10654,7 +10694,17 @@ int ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
     conn_discard_early_key(conn);
   }
 
-  return conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION);
+  rv = conn_call_recv_tx_key(conn, NGTCP2_CRYPTO_LEVEL_APPLICATION);
+  if (rv != 0) {
+    ngtcp2_crypto_km_del(pktns->crypto.tx.ckm, conn->mem);
+    pktns->crypto.tx.ckm = NULL;
+
+    memset(&pktns->crypto.tx.hp_ctx, 0, sizeof(pktns->crypto.tx.hp_ctx));
+
+    return rv;
+  }
+
+  return 0;
 }
 
 int ngtcp2_conn_initiate_key_update(ngtcp2_conn *conn, ngtcp2_tstamp ts) {

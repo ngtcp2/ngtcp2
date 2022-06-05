@@ -797,8 +797,6 @@ static void crypto_openssl_configure_context(SSL_CTX *ssl_ctx) {
 int ngtcp2_crypto_openssl_configure_server_context(SSL_CTX *ssl_ctx) {
   crypto_openssl_configure_context(ssl_ctx);
 
-  SSL_CTX_set_max_early_data(ssl_ctx, UINT32_MAX);
-
   return 0;
 }
 

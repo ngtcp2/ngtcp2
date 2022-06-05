@@ -211,6 +211,8 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
     return -1;
   }
 
+  SSL_CTX_set_max_early_data(ssl_ctx_, UINT32_MAX);
+
   constexpr auto ssl_opts = (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                             SSL_OP_SINGLE_ECDH_USE |
                             SSL_OP_CIPHER_SERVER_PREFERENCE |
