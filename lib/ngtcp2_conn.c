@@ -13155,6 +13155,17 @@ uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn) {
   return conn->tx.max_offset - conn->tx.offset;
 }
 
+uint64_t ngtcp2_conn_get_max_stream_data_left(ngtcp2_conn *conn,
+                                              int64_t stream_id) {
+  ngtcp2_strm *strm = ngtcp2_conn_find_stream(conn, stream_id);
+
+  if (strm == NULL) {
+    return 0;
+  }
+
+  return strm->tx.max_offset - strm->tx.offset;
+}
+
 uint64_t ngtcp2_conn_get_streams_bidi_left(ngtcp2_conn *conn) {
   uint64_t n = ngtcp2_ord_stream_id(conn->local.bidi.next_stream_id);
 
