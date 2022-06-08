@@ -4951,6 +4951,16 @@ NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_data_left(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_get_max_stream_data_left` returns the number of bytes
+ * that this local endpoint can send to a stream identified by
+ * |stream_id|.  If no such stream is found, this function returns 0.
+ */
+NGTCP2_EXTERN uint64_t ngtcp2_conn_get_max_stream_data_left(ngtcp2_conn *conn,
+                                                            int64_t stream_id);
+
+/**
+ * @function
+ *
  * `ngtcp2_conn_get_streams_bidi_left` returns the number of
  * bidirectional streams which the local endpoint can open without
  * violating stream concurrency limit.
