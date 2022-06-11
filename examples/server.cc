@@ -1412,6 +1412,7 @@ int Handler::init(const Endpoint &ep, const Address &local_addr,
   settings.max_stream_window = config.max_stream_window;
   settings.handshake_timeout = config.handshake_timeout;
   settings.no_pmtud = config.no_pmtud;
+  settings.ack_thresh = config.ack_thresh;
   if (config.max_udp_payload_size) {
     settings.max_udp_payload_size = config.max_udp_payload_size;
     settings.no_udp_payload_size_shaping = 1;
@@ -3151,6 +3152,7 @@ void config_set_default(Config &config) {
   config.initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT;
   config.max_gso_dgrams = 10;
   config.handshake_timeout = NGTCP2_DEFAULT_HANDSHAKE_TIMEOUT;
+  config.ack_thresh = 2;
 }
 } // namespace
 
@@ -3304,6 +3306,10 @@ Options:
               indicates  QUIC  v1,  and "v2draft"  indicates  QUIC  v2
               draft.
   --no-pmtud  Disables Path MTU Discovery.
+  --ack-thresh=<N>
+              Override   ACK  threshold,   aka,   maximum  number   of
+              unacknowledged   packets    before   sending    an   ACK
+              immediately.
   -h, --help  Display this help and exit.
 
 ---
@@ -3367,6 +3373,7 @@ int main(int argc, char **argv) {
         {"preferred-versions", required_argument, &flag, 27},
         {"other-versions", required_argument, &flag, 28},
         {"no-pmtud", no_argument, &flag, 29},
+        {"ack-thresh", required_argument, &flag, 30},
         {nullptr, 0, nullptr, 0}};
 
     auto optidx = 0;
@@ -3681,6 +3688,18 @@ int main(int argc, char **argv) {
       case 29:
         // --no-pmtud
         config.no_pmtud = true;
+        break;
+      case 30:
+        // --ack-thresh
+        if (auto n = util::parse_uint_iec(optarg); !n) {
+          std::cerr << "ack-thresh: invalid argument" << std::endl;
+          exit(EXIT_FAILURE);
+        } else if (*n > 100) {
+          std::cerr << "ack-thresh: must not exceed 100" << std::endl;
+          exit(EXIT_FAILURE);
+        } else {
+          config.ack_thresh = *n;
+        }
         break;
       }
       break;
