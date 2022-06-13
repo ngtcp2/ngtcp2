@@ -842,7 +842,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  *
  * :macro:`NGTCP2_PKT_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_PKT_FLAG_NONE 0
+#define NGTCP2_PKT_FLAG_NONE 0x00u
 
 /**
  * @macro
@@ -850,7 +850,7 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_PKT_FLAG_LONG_FORM` indicates the Long packet
  * header.
  */
-#define NGTCP2_PKT_FLAG_LONG_FORM 0x01
+#define NGTCP2_PKT_FLAG_LONG_FORM 0x01u
 
 /**
  * @macro
@@ -858,14 +858,14 @@ typedef struct NGTCP2_ALIGN(8) ngtcp2_pkt_info {
  * :macro:`NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR` indicates that Fixed Bit
  * (aka QUIC bit) is not set.
  */
-#define NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR 0x02
+#define NGTCP2_PKT_FLAG_FIXED_BIT_CLEAR 0x02u
 
 /**
  * @macro
  *
  * :macro:`NGTCP2_PKT_FLAG_KEY_PHASE` indicates Key Phase bit set.
  */
-#define NGTCP2_PKT_FLAG_KEY_PHASE 0x04
+#define NGTCP2_PKT_FLAG_KEY_PHASE 0x04u
 
 /**
  * @enum
@@ -1696,14 +1696,14 @@ typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
  *
  * :macro:`NGTCP2_QLOG_WRITE_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_QLOG_WRITE_FLAG_NONE 0
+#define NGTCP2_QLOG_WRITE_FLAG_NONE 0x00u
 /**
  * @macro
  *
  * :macro:`NGTCP2_QLOG_WRITE_FLAG_FIN` indicates that this is the
  * final call to :type:`ngtcp2_qlog_write` in the current connection.
  */
-#define NGTCP2_QLOG_WRITE_FLAG_FIN 0x01
+#define NGTCP2_QLOG_WRITE_FLAG_FIN 0x01u
 
 /**
  * @struct
@@ -2716,7 +2716,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  *
  * :macro:`NGTCP2_STREAM_DATA_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_STREAM_DATA_FLAG_NONE 0x00
+#define NGTCP2_STREAM_DATA_FLAG_NONE 0x00u
 
 /**
  * @macro
@@ -2724,7 +2724,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * :macro:`NGTCP2_STREAM_DATA_FLAG_FIN` indicates that this chunk of
  * data is final piece of an incoming stream.
  */
-#define NGTCP2_STREAM_DATA_FLAG_FIN 0x01
+#define NGTCP2_STREAM_DATA_FLAG_FIN 0x01u
 
 /**
  * @macro
@@ -2733,7 +2733,7 @@ typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * data contains data received in 0RTT packet and the handshake has
  * not completed yet, which means that the data might be replayed.
  */
-#define NGTCP2_STREAM_DATA_FLAG_EARLY 0x02
+#define NGTCP2_STREAM_DATA_FLAG_EARLY 0x02u
 
 /**
  * @functypedef
@@ -2788,7 +2788,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  *
  * :macro:`NGTCP2_STREAM_CLOSE_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_STREAM_CLOSE_FLAG_NONE 0x00
+#define NGTCP2_STREAM_CLOSE_FLAG_NONE 0x00u
 
 /**
  * @macro
@@ -2796,7 +2796,7 @@ typedef int (*ngtcp2_stream_open)(ngtcp2_conn *conn, int64_t stream_id,
  * :macro:`NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET` indicates that
  * app_error_code parameter is set.
  */
-#define NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET 0x01
+#define NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET 0x01u
 
 /**
  * @functypedef
@@ -2999,7 +2999,7 @@ typedef int (*ngtcp2_update_key)(
  *
  * :macro:`NGTCP2_PATH_VALIDATION_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_NONE 0
+#define NGTCP2_PATH_VALIDATION_FLAG_NONE 0x00u
 
 /**
  * @macro
@@ -3008,7 +3008,7 @@ typedef int (*ngtcp2_update_key)(
  * validation involving server preferred address.  This flag is only
  * set for client.
  */
-#define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01
+#define NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR 0x01u
 
 /**
  * @functypedef
@@ -3154,7 +3154,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  *
  * :macro:`NGTCP2_DATAGRAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_DATAGRAM_FLAG_NONE 0x00
+#define NGTCP2_DATAGRAM_FLAG_NONE 0x00u
 
 /**
  * @macro
@@ -3163,7 +3163,7 @@ typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
  * is received in 0RTT packet and the handshake has not completed yet,
  * which means that the data might be replayed.
  */
-#define NGTCP2_DATAGRAM_FLAG_EARLY 0x01
+#define NGTCP2_DATAGRAM_FLAG_EARLY 0x01u
 
 /**
  * @functypedef
@@ -4312,7 +4312,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  *
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_NONE 0x00
+#define NGTCP2_WRITE_STREAM_FLAG_NONE 0x00u
 
 /**
  * @macro
@@ -4320,7 +4320,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_MORE` indicates that more data may
  * come and should be coalesced into the same packet if possible.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01
+#define NGTCP2_WRITE_STREAM_FLAG_MORE 0x01u
 
 /**
  * @macro
@@ -4328,7 +4328,7 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_read(ngtcp2_conn *conn,
  * :macro:`NGTCP2_WRITE_STREAM_FLAG_FIN` indicates that the passed
  * data is the final part of a stream.
  */
-#define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02
+#define NGTCP2_WRITE_STREAM_FLAG_FIN 0x02u
 
 /**
  * @function
@@ -4488,7 +4488,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  *
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_NONE` indicates no flag set.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_NONE 0x00
+#define NGTCP2_WRITE_DATAGRAM_FLAG_NONE 0x00u
 
 /**
  * @macro
@@ -4496,7 +4496,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
  * :macro:`NGTCP2_WRITE_DATAGRAM_FLAG_MORE` indicates that more data
  * may come and should be coalesced into the same packet if possible.
  */
-#define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01
+#define NGTCP2_WRITE_DATAGRAM_FLAG_MORE 0x01u
 
 /**
  * @function
