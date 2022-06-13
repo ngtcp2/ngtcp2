@@ -111,8 +111,8 @@ int TLSClientContext::init(const char *private_key_file,
   }
 
   if (config.session_file) {
-    SSL_CTX_set_session_cache_mode(
-        ssl_ctx_, SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
+    SSL_CTX_set_session_cache_mode(ssl_ctx_, SSL_SESS_CACHE_CLIENT |
+                                                 SSL_SESS_CACHE_NO_INTERNAL);
     SSL_CTX_sess_set_new_cb(ssl_ctx_, new_session_cb);
   }
 
