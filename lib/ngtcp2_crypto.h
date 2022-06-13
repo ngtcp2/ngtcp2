@@ -69,10 +69,10 @@ typedef enum ngtcp2_transport_param_id {
 } ngtcp2_transport_param_id;
 
 /* NGTCP2_CRYPTO_KM_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_CRYPTO_KM_FLAG_NONE 0x00
+#define NGTCP2_CRYPTO_KM_FLAG_NONE 0x00u
 /* NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE is set if key phase bit is
    set. */
-#define NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE 0x01
+#define NGTCP2_CRYPTO_KM_FLAG_KEY_PHASE_ONE 0x01u
 
 typedef struct ngtcp2_crypto_km {
   ngtcp2_vec secret;

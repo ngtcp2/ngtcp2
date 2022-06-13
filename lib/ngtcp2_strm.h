@@ -40,44 +40,44 @@
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /* NGTCP2_STRM_FLAG_NONE indicates that no flag is set. */
-#define NGTCP2_STRM_FLAG_NONE 0x00
+#define NGTCP2_STRM_FLAG_NONE 0x00u
 /* NGTCP2_STRM_FLAG_SHUT_RD indicates that further reception of stream
    data is not allowed. */
-#define NGTCP2_STRM_FLAG_SHUT_RD 0x01
+#define NGTCP2_STRM_FLAG_SHUT_RD 0x01u
 /* NGTCP2_STRM_FLAG_SHUT_WR indicates that further transmission of
    stream data is not allowed. */
-#define NGTCP2_STRM_FLAG_SHUT_WR 0x02
+#define NGTCP2_STRM_FLAG_SHUT_WR 0x02u
 #define NGTCP2_STRM_FLAG_SHUT_RDWR                                             \
   (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_SHUT_WR)
 /* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is sent from
    the local endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_WR is also
    set. */
-#define NGTCP2_STRM_FLAG_SENT_RST 0x04
+#define NGTCP2_STRM_FLAG_SENT_RST 0x04u
 /* NGTCP2_STRM_FLAG_SENT_RST indicates that RST_STREAM is received
    from the remote endpoint.  In this case, NGTCP2_STRM_FLAG_SHUT_RD
    is also set. */
-#define NGTCP2_STRM_FLAG_RECV_RST 0x08
+#define NGTCP2_STRM_FLAG_RECV_RST 0x08u
 /* NGTCP2_STRM_FLAG_STOP_SENDING indicates that STOP_SENDING is sent
    from the local endpoint. */
-#define NGTCP2_STRM_FLAG_STOP_SENDING 0x10
+#define NGTCP2_STRM_FLAG_STOP_SENDING 0x10u
 /* NGTCP2_STRM_FLAG_RST_ACKED indicates that the outgoing RST_STREAM
    is acknowledged by peer. */
-#define NGTCP2_STRM_FLAG_RST_ACKED 0x20
+#define NGTCP2_STRM_FLAG_RST_ACKED 0x20u
 /* NGTCP2_STRM_FLAG_FIN_ACKED indicates that a STREAM with FIN bit set
    is acknowledged by a remote endpoint. */
-#define NGTCP2_STRM_FLAG_FIN_ACKED 0x40
+#define NGTCP2_STRM_FLAG_FIN_ACKED 0x40u
 /* NGTCP2_STRM_FLAG_ANY_ACKED indicates that any portion of stream
    data, including 0 length segment, is acknowledged. */
-#define NGTCP2_STRM_FLAG_ANY_ACKED 0x80
+#define NGTCP2_STRM_FLAG_ANY_ACKED 0x80u
 /* NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET indicates that app_error_code
    field is set.  This resolves the ambiguity that the initial
    app_error_code value 0 might be a proper application error code.
    In this case, without this flag, we are unable to distinguish
    assigned value from unassigned one.  */
-#define NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET 0x100
+#define NGTCP2_STRM_FLAG_APP_ERROR_CODE_SET 0x100u
 /* NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED is set when
    stream_stop_sending callback is called. */
-#define NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED 0x200
+#define NGTCP2_STRM_FLAG_STREAM_STOP_SENDING_CALLED 0x200u
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 

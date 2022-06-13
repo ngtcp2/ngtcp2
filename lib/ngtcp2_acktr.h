@@ -97,16 +97,16 @@ typedef struct ngtcp2_acktr_ack_entry {
 } ngtcp2_acktr_ack_entry;
 
 /* NGTCP2_ACKTR_FLAG_NONE indicates that no flag set. */
-#define NGTCP2_ACKTR_FLAG_NONE 0x00
+#define NGTCP2_ACKTR_FLAG_NONE 0x00u
 /* NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK indicates that immediate
    acknowledgement is required. */
-#define NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK 0x01
+#define NGTCP2_ACKTR_FLAG_IMMEDIATE_ACK 0x01u
 /* NGTCP2_ACKTR_FLAG_ACTIVE_ACK indicates that there are pending
    protected packet to be acknowledged. */
-#define NGTCP2_ACKTR_FLAG_ACTIVE_ACK 0x02
+#define NGTCP2_ACKTR_FLAG_ACTIVE_ACK 0x02u
 /* NGTCP2_ACKTR_FLAG_CANCEL_TIMER is set when ACK delay timer is
    expired and canceled. */
-#define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100
+#define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100u
 
 /*
  * ngtcp2_acktr tracks received packets which we have to send ack.
