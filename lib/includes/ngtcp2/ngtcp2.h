@@ -2191,6 +2191,10 @@ typedef struct ngtcp2_crypto_ctx {
  * `ngtcp2_encode_transport_params` encodes |params| in |dest| of
  * length |destlen|.
  *
+ * If |dest| is NULL, and |destlen| is zero, this function just
+ * returns the number of bytes required to store the encoded transport
+ * parameters.
+ *
  * This function returns the number of written, or one of the
  * following negative error codes:
  *

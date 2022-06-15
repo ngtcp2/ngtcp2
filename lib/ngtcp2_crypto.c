@@ -267,6 +267,10 @@ ngtcp2_ssize ngtcp2_encode_transport_params_versioned(
            ngtcp2_put_varint_len(version_infolen) + version_infolen;
   }
 
+  if (dest == NULL && destlen == 0) {
+    return (ngtcp2_ssize)len;
+  }
+
   if (destlen < len) {
     return NGTCP2_ERR_NOBUF;
   }
