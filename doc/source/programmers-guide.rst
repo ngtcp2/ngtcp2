@@ -156,15 +156,49 @@ recommended because it vastly simplifies the TLS integration.
 
 The most of the TLS work is done by the callback functions passed to
 :type:`ngtcp2_callbacks` object.  There are some operations left to
-application has to perform to make TLS integration work.
+application in order to make TLS integration work.  We have a set of
+helper functions to make it easier for applications to configure TLS
+stack object to work with QUIC and ngtcp2.  They are specific to each
+supported TLS stack:
 
-When TLS stack generates new secrets, they have to be installed to
-:type:`ngtcp2_conn` by calling
+- OpenSSL
+
+  * `ngtcp2_crypto_openssl_configure_client_context`
+  * `ngtcp2_crypto_openssl_configure_server_context`
+
+- BoringSSL
+
+  * `ngtcp2_crypto_boringssl_configure_client_context`
+  * `ngtcp2_crypto_boringssl_configure_server_context`
+
+- GnuTLS
+
+  * `ngtcp2_crypto_gnutls_configure_client_session`
+  * `ngtcp2_crypto_gnutls_configure_server_session`
+
+- Picotls
+
+  * `ngtcp2_crypto_picotls_configure_client_context`
+  * `ngtcp2_crypto_picotls_configure_server_context`
+  * `ngtcp2_crypto_picotls_configure_client_session`
+  * `ngtcp2_crypto_picotls_configure_server_session`
+
+They make the minimal QUIC specific changes to TLS stack object.  See
+the ngtcp2 crypto API header files for each supported TLS stack.  In
+order to make these functions work, we require that a pointer to
+:type:`ngtcp2_crypto_conn_ref` must be set as a user data in TLS stack
+object, and its :member:`ngtcp2_crypto_conn_ref.get_conn` must point
+to a function which returns :type:`ngtcp2_conn` of the underlying QUIC
+connection.
+
+If you do not use the above helper functions, you need to generate and
+install keys to :type:`ngtcp2_conn`, and pass handshake messages to
+:type:`ngtcp2_conn` as well.  When TLS stack generates new secrets,
+they have to be installed to :type:`ngtcp2_conn` by calling
 `ngtcp2_crypto_derive_and_install_rx_key()` and
-`ngtcp2_crypto_derive_and_install_tx_key()`.
-
-When TLS stack generates new crypto data to send, they must be passed
-to :type:`ngtcp2_conn` by calling `ngtcp2_conn_submit_crypto_data()`.
+`ngtcp2_crypto_derive_and_install_tx_key()`.  When TLS stack generates
+new crypto data to send, they must be passed to :type:`ngtcp2_conn` by
+calling `ngtcp2_conn_submit_crypto_data()`.
 
 When QUIC handshake is completed,
 :member:`ngtcp2_callbacks.handshake_completed` callback function is
