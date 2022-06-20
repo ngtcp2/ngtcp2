@@ -4069,9 +4069,7 @@ NGTCP2_EXTERN ngtcp2_duration ngtcp2_conn_get_pto(ngtcp2_conn *conn);
  *
  * `ngtcp2_conn_decode_remote_transport_params` decodes QUIC transport
  * parameters from the buffer pointed by |data| of length |datalen|,
- * and sets the result to |conn|.  This is equivalent to calling
- * `ngtcp2_decode_transport_params` and then
- * `ngtcp2_conn_set_remote_transport_params`.
+ * and sets the result to |conn|.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4193,7 +4191,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_encode_local_transport_params(
  * 0RTT packet, application can call this function after calling
  * `ngtcp2_conn_set_early_remote_transport_params`.  For 1RTT packet,
  * application can call this function after calling
- * `ngtcp2_conn_set_remote_transport_params` and
+ * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
  * used, application can call this function after calling
  * `ngtcp2_crypto_derive_and_install_tx_key` for 1RTT packet.
@@ -4221,7 +4219,7 @@ NGTCP2_EXTERN int ngtcp2_conn_open_bidi_stream(ngtcp2_conn *conn,
  * 0RTT packet, application can call this function after calling
  * `ngtcp2_conn_set_early_remote_transport_params`.  For 1RTT packet,
  * application can call this function after calling
- * `ngtcp2_conn_set_remote_transport_params` and
+ * `ngtcp2_conn_decode_remote_transport_params` and
  * `ngtcp2_conn_install_tx_key`.  If ngtcp2 crypto support library is
  * used, application can call this function after calling
  * `ngtcp2_crypto_derive_and_install_tx_key` for 1RTT packet.

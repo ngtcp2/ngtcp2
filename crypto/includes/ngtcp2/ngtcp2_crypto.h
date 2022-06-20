@@ -366,7 +366,7 @@ ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * function retrieves a remote QUIC transport parameters extension
  * from an object obtained by `ngtcp2_conn_get_tls_native_handle` and
  * sets it to |conn| by calling
- * `ngtcp2_conn_set_remote_transport_params`.
+ * `ngtcp2_conn_decode_remote_transport_params`.
  *
  * This function returns 0 if it succeeds, or -1.
  */
@@ -413,7 +413,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  * function retrieves a remote QUIC transport parameters extension
  * from an object obtained by `ngtcp2_conn_get_tls_native_handle` and
  * sets it to |conn| by calling
- * `ngtcp2_conn_set_remote_transport_params`.
+ * `ngtcp2_conn_decode_remote_transport_params`.
  *
  * This function returns 0 if it succeeds, or -1.
  */
