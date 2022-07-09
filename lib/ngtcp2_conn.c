@@ -12275,7 +12275,9 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
  */
 static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                       uint64_t app_error_code) {
-  if (strm->flags & NGTCP2_STRM_FLAG_SENT_RST) {
+  if ((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) ||
+      ((strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) &&
+       ngtcp2_strm_is_all_tx_data_acked(strm))) {
     return 0;
   }
 
