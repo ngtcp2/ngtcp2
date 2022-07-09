@@ -1953,6 +1953,32 @@ int Client::stop_sending(int64_t stream_id, uint64_t app_error_code) {
 }
 
 namespace {
+int http_reset_stream(nghttp3_conn *conn, int64_t stream_id,
+                      uint64_t app_error_code, void *user_data,
+                      void *stream_user_data) {
+  auto c = static_cast<Client *>(user_data);
+  if (c->reset_stream(stream_id, app_error_code) != 0) {
+    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  }
+  return 0;
+}
+} // namespace
+
+int Client::reset_stream(int64_t stream_id, uint64_t app_error_code) {
+  if (auto rv =
+          ngtcp2_conn_shutdown_stream_write(conn_, stream_id, app_error_code);
+      rv != 0) {
+    std::cerr << "ngtcp2_conn_shutdown_stream_write: " << ngtcp2_strerror(rv)
+              << std::endl;
+    if (rv == NGTCP2_ERR_STREAM_NOT_FOUND) {
+      return 0;
+    }
+    return -1;
+  }
+  return 0;
+}
+
+namespace {
 int http_stream_close(nghttp3_conn *conn, int64_t stream_id,
                       uint64_t app_error_code, void *conn_user_data,
                       void *stream_user_data) {
@@ -2015,6 +2041,9 @@ int Client::setup_httpconn() {
       ::http_recv_trailer,
       ::http_end_trailers,
       ::http_stop_sending,
+      nullptr, /* end_stream */
+      ::http_reset_stream,
+      nullptr, /* shutdown */
   };
   nghttp3_settings settings;
   nghttp3_settings_default(&settings);

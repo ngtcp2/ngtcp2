@@ -126,6 +126,7 @@ public:
   int on_stream_stop_sending(int64_t stream_id);
   int extend_max_stream_data(int64_t stream_id, uint64_t max_data);
   int stop_sending(int64_t stream_id, uint64_t app_error_code);
+  int reset_stream(int64_t stream_id, uint64_t app_error_code);
   int http_stream_close(int64_t stream_id, uint64_t app_error_code);
 
   void on_send_blocked(const Endpoint &ep, const ngtcp2_addr &remote_addr,
