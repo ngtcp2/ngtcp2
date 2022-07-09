@@ -8066,8 +8066,8 @@ void test_ngtcp2_conn_stream_close(void) {
 
   CU_ASSERT(0 == rv);
 
-  CU_ASSERT((NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET |
-             ud.stream_close.flags) != 0);
+  CU_ASSERT(NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET &
+            ud.stream_close.flags);
   CU_ASSERT(0 == ud.stream_close.stream_id);
   CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
 
@@ -8125,8 +8125,8 @@ void test_ngtcp2_conn_stream_close(void) {
 
   CU_ASSERT(0 == rv);
 
-  CU_ASSERT((NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET |
-             ud.stream_close.flags) != 0);
+  CU_ASSERT(NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET &
+            ud.stream_close.flags);
   CU_ASSERT(0 == ud.stream_close.stream_id);
   CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
 
