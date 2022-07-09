@@ -618,6 +618,11 @@ int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm) {
          strm->tx.offset;
 }
 
+int ngtcp2_strm_is_all_tx_data_fin_acked(ngtcp2_strm *strm) {
+  return (strm->flags & NGTCP2_STRM_FLAG_FIN_ACKED) &&
+         ngtcp2_strm_is_all_tx_data_acked(strm);
+}
+
 ngtcp2_range ngtcp2_strm_get_unacked_range_after(ngtcp2_strm *strm,
                                                  uint64_t offset) {
   ngtcp2_range gap;

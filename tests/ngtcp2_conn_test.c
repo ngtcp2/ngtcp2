@@ -2281,8 +2281,23 @@ void test_ngtcp2_conn_recv_stop_sending(void) {
 
   CU_ASSERT(0 == rv);
 
-  strm = ngtcp2_conn_find_stream(conn, stream_id);
-  ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_WR);
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_FIN, stream_id,
+                                     null_data, 1, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  fr.type = NGTCP2_FRAME_ACK;
+  fr.ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  fr.ack.ack_delay = 0;
+  fr.ack.first_ack_blklen = 0;
+  fr.ack.num_blks = 0;
+
+  pktlen = write_single_frame_pkt(buf, sizeof(buf), &conn->oscid, 0, &fr,
+                                  conn->pktns.crypto.rx.ckm);
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, 1);
+
+  CU_ASSERT(0 == rv);
 
   fr.type = NGTCP2_FRAME_STOP_SENDING;
   fr.stop_sending.stream_id = stream_id;
@@ -8056,6 +8071,7 @@ void test_ngtcp2_conn_stream_close(void) {
   ngtcp2_strm *strm;
   ngtcp2_tstamp t = 0;
   ngtcp2_ssize spktlen;
+  int64_t stream_id;
 
   /* Receive RESET_STREAM and STOP_SENDING from client */
   setup_default_server(&conn);
@@ -8168,6 +8184,67 @@ void test_ngtcp2_conn_stream_close(void) {
   CU_ASSERT(NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET &
             ud.stream_close.flags);
   CU_ASSERT(0 == ud.stream_close.stream_id);
+  CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
+
+  ngtcp2_conn_del(conn);
+
+  /* Client calls ngtcp2_conn_shutdown_stream, and before sending
+     STOP_SENDING, it receives STREAM with fin bit set. */
+  pkt_num = 0;
+
+  setup_default_client(&conn);
+  conn->callbacks.stream_close = stream_close;
+  conn->user_data = &ud;
+
+  rv = ngtcp2_conn_open_bidi_stream(conn, &stream_id, NULL);
+
+  CU_ASSERT(0 == rv);
+
+  spktlen = ngtcp2_conn_write_stream(conn, NULL, NULL, buf, sizeof(buf), NULL,
+                                     NGTCP2_WRITE_STREAM_FLAG_FIN, stream_id,
+                                     null_data, 1, ++t);
+
+  CU_ASSERT(spktlen > 0);
+
+  frs[0].type = NGTCP2_FRAME_ACK;
+  frs[0].ack.largest_ack = conn->pktns.tx.last_pkt_num;
+  frs[0].ack.ack_delay = 0;
+  frs[0].ack.first_ack_blklen = 0;
+  frs[0].ack.num_blks = 0;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
+                     conn->pktns.crypto.tx.ckm);
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+
+  rv = ngtcp2_conn_shutdown_stream(conn, stream_id, NGTCP2_APP_ERR01);
+
+  CU_ASSERT(0 == rv);
+
+  frs[0].type = NGTCP2_FRAME_STREAM;
+  frs[0].stream.flags = 0;
+  frs[0].stream.fin = 1;
+  frs[0].stream.stream_id = stream_id;
+  frs[0].stream.offset = 0;
+  frs[0].stream.datacnt = 1;
+  frs[0].stream.data[0].len = 97;
+  frs[0].stream.data[0].base = null_data;
+
+  pktlen = write_pkt(buf, sizeof(buf), &conn->oscid, ++pkt_num, frs, 1,
+                     conn->pktns.crypto.tx.ckm);
+
+  ud.stream_close.flags = NGTCP2_STREAM_CLOSE_FLAG_NONE;
+  ud.stream_close.stream_id = -1;
+  ud.stream_close.app_error_code = 0;
+
+  rv = ngtcp2_conn_read_pkt(conn, &null_path.path, &null_pi, buf, pktlen, ++t);
+
+  CU_ASSERT(0 == rv);
+  CU_ASSERT(NGTCP2_STREAM_CLOSE_FLAG_APP_ERROR_CODE_SET &
+            ud.stream_close.flags);
+  CU_ASSERT(stream_id == ud.stream_close.stream_id);
   CU_ASSERT(NGTCP2_APP_ERR01 == ud.stream_close.app_error_code);
 
   ngtcp2_conn_del(conn);
