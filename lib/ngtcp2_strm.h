@@ -262,6 +262,13 @@ int ngtcp2_strm_is_tx_queued(ngtcp2_strm *strm);
 int ngtcp2_strm_is_all_tx_data_acked(ngtcp2_strm *strm);
 
 /*
+ * ngtcp2_strm_is_all_tx_data_fin_acked behaves like
+ * ngtcp2_strm_is_all_tx_data_acked, but it also requires that STREAM
+ * frame with fin bit set is acknowledged.
+ */
+int ngtcp2_strm_is_all_tx_data_fin_acked(ngtcp2_strm *strm);
+
+/*
  * ngtcp2_strm_get_unacked_range_after returns the range that is not
  * acknowledged yet and intersects or comes after |offset|.
  */
