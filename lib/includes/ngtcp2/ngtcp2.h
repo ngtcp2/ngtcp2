@@ -4791,7 +4791,7 @@ NGTCP2_EXTERN uint32_t ngtcp2_conn_get_negotiated_version(ngtcp2_conn *conn);
  * Application which wishes to retransmit early data, it has to open
  * streams and send stream data again.
  */
-NGTCP2_EXTERN int ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
+NGTCP2_EXTERN void ngtcp2_conn_early_data_rejected(ngtcp2_conn *conn);
 
 /**
  * @function

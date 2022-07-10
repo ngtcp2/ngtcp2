@@ -301,11 +301,7 @@ int Client::handshake_completed() {
       std::cerr << "Early data was rejected by server" << std::endl;
     }
 
-    if (auto rv = ngtcp2_conn_early_data_rejected(conn_); rv != 0) {
-      std::cerr << "ngtcp2_conn_early_data_rejected: " << ngtcp2_strerror(rv)
-                << std::endl;
-      return -1;
-    }
+    ngtcp2_conn_early_data_rejected(conn_);
 
     nghttp3_conn_del(httpconn_);
     httpconn_ = nullptr;
