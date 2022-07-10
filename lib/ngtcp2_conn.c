@@ -7139,8 +7139,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return NGTCP2_ERR_FINAL_SIZE;
       }
 
-      if (strm->flags &
-          (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST)) {
+      if (strm->flags & NGTCP2_STRM_FLAG_RECV_RST) {
         return 0;
       }
 
@@ -7153,10 +7152,6 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       strm->rx.last_offset = fr_end_offset;
 
       ngtcp2_strm_shutdown(strm, NGTCP2_STRM_FLAG_SHUT_RD);
-
-      if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
-        return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
-      }
     }
   } else {
     if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
@@ -7170,8 +7165,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
       return 0;
     }
 
-    if (strm->flags &
-        (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RECV_RST)) {
+    if (strm->flags & NGTCP2_STRM_FLAG_RECV_RST) {
       return 0;
     }
   }
@@ -7194,6 +7188,10 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     } else {
       data = NULL;
       datalen = 0;
+    }
+
+    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+      return ngtcp2_conn_close_stream_if_shut_rdwr(conn, strm);
     }
 
     fin = (strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
@@ -12252,12 +12250,10 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RDWR) ==
           NGTCP2_STRM_FLAG_SHUT_RDWR &&
       ((strm->flags & NGTCP2_STRM_FLAG_RECV_RST) ||
-       (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) ||
        ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset) &&
       (((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
         (strm->flags & NGTCP2_STRM_FLAG_RST_ACKED)) ||
-       (!(strm->flags & NGTCP2_STRM_FLAG_SENT_RST) &&
-        ngtcp2_strm_is_all_tx_data_fin_acked(strm)))) {
+       ngtcp2_strm_is_all_tx_data_fin_acked(strm))) {
     return ngtcp2_conn_close_stream(conn, strm);
   }
   return 0;
