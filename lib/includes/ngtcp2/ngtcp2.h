@@ -317,7 +317,7 @@ typedef struct ngtcp2_mem {
 /**
  * @macrosection
  *
- * IP packet related macros
+ * UDP datagram related macros
  */
 
 /**
