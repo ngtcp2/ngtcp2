@@ -3,7 +3,7 @@
 
 git clone https://github.com/h2o/picotls/
 cd picotls
-git checkout c4b9f6b834fac7533020565c77bd3af5ca2fae6c
+git checkout 7970614ad049d194fe1691bdf0cc66c6930a3a2f
 git submodule update --init
 mkdir build
 cd build

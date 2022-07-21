@@ -59,7 +59,7 @@ directory require at least one of the following TLS backends:
   <https://github.com/quictls/openssl/tree/OpenSSL_1_1_1q+quic>`_
 - GnuTLS >= 3.7.2
 - BoringSSL (commit b95124305ab15c7523d3e21437309fa5dd717ee8)
-- Picotls (commit c4b9f6b834fac7533020565c77bd3af5ca2fae6c)
+- Picotls (commit 7970614ad049d194fe1691bdf0cc66c6930a3a2f)
 
 Build from git
 --------------
