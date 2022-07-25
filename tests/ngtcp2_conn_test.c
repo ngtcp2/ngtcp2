@@ -1356,7 +1356,7 @@ void test_ngtcp2_conn_shutdown_stream_write(void) {
 
   rv = ngtcp2_conn_shutdown_stream_write(conn, 4, NGTCP2_APP_ERR01);
 
-  CU_ASSERT(NGTCP2_ERR_STREAM_NOT_FOUND == rv);
+  CU_ASSERT(0 == rv);
 
   ngtcp2_conn_del(conn);
 

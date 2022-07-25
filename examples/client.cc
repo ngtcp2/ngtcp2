@@ -1940,9 +1940,6 @@ int Client::stop_sending(int64_t stream_id, uint64_t app_error_code) {
       rv != 0) {
     std::cerr << "ngtcp2_conn_shutdown_stream_read: " << ngtcp2_strerror(rv)
               << std::endl;
-    if (rv == NGTCP2_ERR_STREAM_NOT_FOUND) {
-      return 0;
-    }
     return -1;
   }
   return 0;
@@ -1966,9 +1963,6 @@ int Client::reset_stream(int64_t stream_id, uint64_t app_error_code) {
       rv != 0) {
     std::cerr << "ngtcp2_conn_shutdown_stream_write: " << ngtcp2_strerror(rv)
               << std::endl;
-    if (rv == NGTCP2_ERR_STREAM_NOT_FOUND) {
-      return 0;
-    }
     return -1;
   }
   return 0;
