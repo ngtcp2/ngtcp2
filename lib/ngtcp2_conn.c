@@ -11174,7 +11174,8 @@ int ngtcp2_conn_set_remote_transport_params(
         conn->negotiated_version;
 
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_CON,
-                    "the negotiated version is %08x", conn->negotiated_version);
+                    "the negotiated version is 0x%08x",
+                    conn->negotiated_version);
   } else {
     rv = conn_client_validate_transport_params(conn, params);
     if (rv != 0) {
