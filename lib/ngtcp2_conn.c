@@ -8750,6 +8750,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   ngtcp2_max_frame mfr;
   ngtcp2_frame *fr = &mfr.fr;
   int require_ack = 0;
+  int require_immediate_ack = 0;
   ngtcp2_crypto_aead *aead;
   ngtcp2_crypto_cipher *hp;
   ngtcp2_crypto_km *ckm;
@@ -9089,6 +9090,9 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     case NGTCP2_FRAME_CONNECTION_CLOSE:
     case NGTCP2_FRAME_CONNECTION_CLOSE_APP:
       break;
+    case NGTCP2_FRAME_PING:
+      require_immediate_ack = 1;
+      /* Fallthrough */
     default:
       require_ack = 1;
     }
@@ -9301,7 +9305,8 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   if (require_ack &&
       (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
-       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
+       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE ||
+       require_immediate_ack)) {
     ngtcp2_acktr_immediate_ack(&pktns->acktr);
   }
 
