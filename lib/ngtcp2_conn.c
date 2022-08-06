@@ -12272,6 +12272,8 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn,
  */
 static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                       uint64_t app_error_code) {
+  ngtcp2_strm_set_app_error_code(strm, app_error_code);
+
   if ((strm->flags & NGTCP2_STRM_FLAG_SENT_RST) ||
       ngtcp2_strm_is_all_tx_data_fin_acked(strm)) {
     return 0;
@@ -12280,7 +12282,6 @@ static int conn_shutdown_stream_write(ngtcp2_conn *conn, ngtcp2_strm *strm,
   /* Set this flag so that we don't accidentally send DATA to this
      stream. */
   strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_SENT_RST;
-  ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
   ngtcp2_strm_streamfrq_clear(strm);
 
