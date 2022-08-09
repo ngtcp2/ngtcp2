@@ -6868,7 +6868,7 @@ static int conn_emit_pending_stream_data(ngtcp2_conn *conn, ngtcp2_strm *strm,
     /* Stop calling callback if application has called
        ngtcp2_conn_shutdown_stream_read() inside the callback.
        Because it doubly counts connection window. */
-    if (strm->flags & (NGTCP2_STRM_FLAG_STOP_SENDING)) {
+    if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
       return 0;
     }
 
