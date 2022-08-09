@@ -2267,8 +2267,8 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(
 
   /* Retry packet is sent at most once per one connection attempt.  In
      the first connection attempt, client has to send random DCID
-     which is at least 8 bytes long. */
-  if (odcid->datalen < 8) {
+     which is at least NGTCP2_MIN_INITIAL_DCIDLEN bytes long. */
+  if (odcid->datalen < NGTCP2_MIN_INITIAL_DCIDLEN) {
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
