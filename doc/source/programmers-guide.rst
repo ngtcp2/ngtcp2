@@ -319,7 +319,25 @@ Closing connection abruptly
 
 In order to close QUIC connection abruptly, call
 `ngtcp2_conn_write_connection_close()` and get a terminal packet.
-Sending it closes the connection abruptly.
+After the call, the connection enters the closing state.
+
+The closing and draining state
+------------------------------
+
+After the successful call of `ngtcp2_conn_write_connection_close()`,
+the connection enters the closing state.  When
+`ngtcp2_conn_read_pkt()` returns :macro:`NGTCP2_ERR_DRAINING`, the
+connection has entered the draining state.  In these states,
+`ngtcp2_conn_writev_stream()` and `ngtcp2_conn_read_pkt()` return an
+error (either :macro:`NGTCP2_ERR_CLOSING` or
+:macro:`NGTCP2_ERR_DRAINING` depending on the state).
+`ngtcp2_conn_write_connection_close()` returns 0 in these states.  If
+an application needs to send a packet containing CONNECTION_CLOSE
+frame in the closing state, resend the packet produced by the first
+call of `ngtcp2_conn_write_connection_close()`.  Therefore, after a
+connection has entered one of these states, the application can
+discard :type:`ngtcp2_conn` object.  The closing and draining state
+should persist at least 3 times the current PTO.
 
 Error handling in general
 -------------------------
