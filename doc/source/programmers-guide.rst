@@ -333,7 +333,10 @@ If :macro:`NGTCP2_ERR_DROP_CONN` is returned from
 `ngtcp2_conn_write_connection_close()`.  Similarly, if
 :macro:`NGTCP2_ERR_IDLE_CLOSE` is returned from
 `ngtcp2_conn_handle_expiry`, a connection should be dropped without
-calling `ngtcp2_conn_write_connection_close()`.
+calling `ngtcp2_conn_write_connection_close()`.  If
+:macro:`NGTCP2_ERR_DRAINING` is returned from `ngtcp2_conn_read_pkt`,
+a connection has entered the draining state, and no further packet
+transmission is allowed.
 
 The following error codes must be considered as transitional, and
 application should keep connection alive:
