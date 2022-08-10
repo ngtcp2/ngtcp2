@@ -89,7 +89,7 @@ constexpr char NGTCP2_SERVER[] = "nghttp3/ngtcp2 server";
 
 namespace {
 std::string make_status_body(unsigned int status_code) {
-  auto status_string = std::to_string(status_code);
+  auto status_string = util::format_uint(status_code);
   auto reason_phrase = http::get_reason_phrase(status_code);
 
   std::string body;
@@ -104,7 +104,7 @@ std::string make_status_body(unsigned int status_code) {
   body += "</h1><hr><address>";
   body += NGTCP2_SERVER;
   body += " at port ";
-  body += std::to_string(config.port);
+  body += util::format_uint(config.port);
   body += "</address>";
   body += "</body></html>";
   return body;
@@ -324,7 +324,7 @@ nghttp3_ssize dyn_read_data(nghttp3_conn *conn, int64_t stream_id,
     *pflags |= NGHTTP3_DATA_FLAG_EOF;
     if (config.send_trailers) {
       *pflags |= NGHTTP3_DATA_FLAG_NO_END_STREAM;
-      auto stream_id_str = std::to_string(stream_id);
+      auto stream_id_str = util::format_uint(stream_id);
       std::array<nghttp3_nv, 1> trailers{
           util::make_nv("x-ngtcp2-stream-id", stream_id_str),
       };
@@ -358,8 +358,8 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
                                  const std::vector<HTTPHeader> &extra_headers) {
   status_resp_body = make_status_body(status_code);
 
-  auto status_code_str = std::to_string(status_code);
-  auto content_length_str = std::to_string(status_resp_body.size());
+  auto status_code_str = util::format_uint(status_code);
+  auto content_length_str = util::format_uint(status_resp_body.size());
 
   std::vector<nghttp3_nv> nva(4 + extra_headers.size());
   nva[0] = util::make_nv(":status", status_code_str);
@@ -387,7 +387,7 @@ int Stream::send_status_response(nghttp3_conn *httpconn,
   }
 
   if (config.send_trailers) {
-    auto stream_id_str = std::to_string(stream_id);
+    auto stream_id_str = util::format_uint(stream_id);
     std::array<nghttp3_nv, 1> trailers{
         util::make_nv("x-ngtcp2-stream-id", stream_id_str),
     };
@@ -474,7 +474,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
     content_type = "application/octet-stream";
   }
 
-  auto content_length_str = std::to_string(content_length);
+  auto content_length_str = util::format_uint(content_length);
 
   std::array<nghttp3_nv, 5> nva{
       util::make_nv(":status", "200"),
@@ -534,7 +534,7 @@ int Stream::start_response(nghttp3_conn *httpconn) {
   }
 
   if (config.send_trailers && dyn_len == -1) {
-    auto stream_id_str = std::to_string(stream_id);
+    auto stream_id_str = util::format_uint(stream_id);
     std::array<nghttp3_nv, 1> trailers{
         util::make_nv("x-ngtcp2-stream-id", stream_id_str),
     };

@@ -83,7 +83,7 @@ constexpr char NGTCP2_SERVER[] = "ngtcp2 server";
 
 namespace {
 std::string make_status_body(unsigned int status_code) {
-  auto status_string = std::to_string(status_code);
+  auto status_string = util::format_uint(status_code);
   auto reason_phrase = http::get_reason_phrase(status_code);
 
   std::string body;
@@ -98,7 +98,7 @@ std::string make_status_body(unsigned int status_code) {
   body += "</h1><hr><address>";
   body += NGTCP2_SERVER;
   body += " at port ";
-  body += std::to_string(config.port);
+  body += util::format_uint(config.port);
   body += "</address>";
   body += "</body></html>";
   return body;
