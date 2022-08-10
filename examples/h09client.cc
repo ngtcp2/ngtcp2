@@ -1641,7 +1641,8 @@ int Client::select_preferred_address(Address &selected_addr,
   hints.ai_family = af;
   hints.ai_socktype = SOCK_DGRAM;
 
-  if (auto rv = getaddrinfo(host, std::to_string(port).c_str(), &hints, &res);
+  if (auto rv =
+          getaddrinfo(host, util::format_uint(port).c_str(), &hints, &res);
       rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
     return -1;

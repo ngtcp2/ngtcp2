@@ -48,6 +48,8 @@
 
 #include "template.h"
 
+using namespace std::literals;
+
 namespace ngtcp2 {
 
 namespace util {
@@ -79,11 +81,11 @@ std::string format_hex(const uint8_t *s, size_t len) {
   return res;
 }
 
-std::string format_hex(const std::string &s) {
+std::string format_hex(const std::string_view &s) {
   return format_hex(reinterpret_cast<const uint8_t *>(s.data()), s.size());
 }
 
-std::string decode_hex(const std::string &s) {
+std::string decode_hex(const std::string_view &s) {
   assert(s.size() % 2 == 0);
   std::string res(s.size() / 2, '0');
   auto p = std::begin(res);
@@ -125,9 +127,9 @@ uint64_t round2even(uint64_t n) {
 } // namespace
 
 std::string format_durationf(uint64_t ns) {
-  static constexpr const char *units[] = {"us", "ms", "s"};
+  static constexpr const std::string_view units[] = {"us"sv, "ms"sv, "s"sv};
   if (ns < 1000) {
-    return std::to_string(ns) + "ns";
+    return format_uint(ns) + "ns";
   }
   auto unit = 0;
   if (ns < 1000000) {
@@ -147,7 +149,11 @@ std::string format_durationf(uint64_t ns) {
     ++unit;
   }
 
-  return std::to_string(ns / 1000) + format_fraction2(ns % 1000) + units[unit];
+  auto res = format_uint(ns / 1000);
+  res += format_fraction2(ns % 1000);
+  res += units[unit];
+
+  return res;
 }
 
 std::mt19937 make_mt19937() {
@@ -265,13 +271,13 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
 std::string_view strccalgo(ngtcp2_cc_algo cc_algo) {
   switch (cc_algo) {
   case NGTCP2_CC_ALGO_RENO:
-    return "reno";
+    return "reno"sv;
   case NGTCP2_CC_ALGO_CUBIC:
-    return "cubic";
+    return "cubic"sv;
   case NGTCP2_CC_ALGO_BBR:
-    return "bbr";
+    return "bbr"sv;
   case NGTCP2_CC_ALGO_BBR2:
-    return "bbr2";
+    return "bbr2"sv;
   default:
     assert(0);
     abort();
@@ -506,7 +512,7 @@ template <typename InputIt> InputIt eat_dir(InputIt first, InputIt last) {
 }
 } // namespace
 
-std::string normalize_path(const std::string &path) {
+std::string normalize_path(const std::string_view &path) {
   assert(path.size() <= 1024);
   assert(path.size() > 0);
   assert(path[0] == '/');
@@ -593,20 +599,21 @@ int create_nonblock_socket(int domain, int type, int protocol) {
   return fd;
 }
 
-std::vector<std::string> split_str(const std::string &s, char delim) {
+std::vector<std::string_view> split_str(const std::string_view &s, char delim) {
   size_t len = 1;
   auto last = std::end(s);
-  std::string::const_iterator d;
+  std::string_view::const_iterator d;
   for (auto first = std::begin(s); (d = std::find(first, last, delim)) != last;
        ++len, first = d + 1)
     ;
 
-  auto list = std::vector<std::string>(len);
+  auto list = std::vector<std::string_view>(len);
 
   len = 0;
   for (auto first = std::begin(s);; ++len) {
     auto stop = std::find(first, last, delim);
-    list[len] = std::string{first, stop};
+    // xcode clang does not understand std::string_view{first, stop}.
+    list[len] = std::string_view{first, static_cast<size_t>(stop - first)};
     if (stop == last) {
       break;
     }

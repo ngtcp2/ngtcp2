@@ -1679,7 +1679,7 @@ int Client::submit_http_request(const Stream *stream) {
   };
   size_t nvlen = 5;
   if (config.fd != -1) {
-    content_length_str = std::to_string(config.datalen);
+    content_length_str = util::format_uint(config.datalen);
     nva[nvlen++] = util::make_nv("content-length", content_length_str);
   }
 
@@ -1779,7 +1779,8 @@ int Client::select_preferred_address(Address &selected_addr,
   hints.ai_family = af;
   hints.ai_socktype = SOCK_DGRAM;
 
-  if (auto rv = getaddrinfo(host, std::to_string(port).c_str(), &hints, &res);
+  if (auto rv =
+          getaddrinfo(host, util::format_uint(port).c_str(), &hints, &res);
       rv != 0) {
     std::cerr << "getaddrinfo: " << gai_strerror(rv) << std::endl;
     return -1;

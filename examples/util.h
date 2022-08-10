@@ -69,13 +69,13 @@ std::string format_hex(uint8_t c);
 
 std::string format_hex(const uint8_t *s, size_t len);
 
-std::string format_hex(const std::string &s);
+std::string format_hex(const std::string_view &s);
 
 template <size_t N> std::string format_hex(const uint8_t (&s)[N]) {
   return format_hex(s, N);
 }
 
-std::string decode_hex(const std::string &s);
+std::string decode_hex(const std::string_view &s);
 
 // format_durationf formats |ns| in human readable manner.  |ns| must
 // be nanoseconds resolution.  This function uses the largest unit so
@@ -279,7 +279,7 @@ int generate_secret(uint8_t *secret, size_t secretlen);
 // normalize_path removes ".." by consuming a previous path component.
 // It also removes ".".  It assumes that |path| starts with "/".  If
 // it cannot consume a previous path component, it just removes "..".
-std::string normalize_path(const std::string &path);
+std::string normalize_path(const std::string_view &path);
 
 constexpr bool is_digit(const char c) { return '0' <= c && c <= '9'; }
 
@@ -341,7 +341,8 @@ const char *crypto_default_groups();
 // split_str parses delimited strings in |s| and returns substrings
 // delimited by |delim|.  The any white spaces around substring are
 // treated as a part of substring.
-std::vector<std::string> split_str(const std::string &s, char delim = ',');
+std::vector<std::string_view> split_str(const std::string_view &s,
+                                        char delim = ',');
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
 // hex string and must start with "0x" (.e.g, 0x00000001).
