@@ -3714,10 +3714,12 @@ NGTCP2_EXTERN void ngtcp2_conn_del(ngtcp2_conn *conn);
  * frame) and discard connection state.  If
  * :macro:`NGTCP2_ERR_DRAINING` is returned, a connection has entered
  * the draining state, and no further packet transmission is allowed.
+ * If :macro:`NGTCP2_ERR_CRYPTO` is returned, the error happened in
+ * TLS stack and `ngtcp2_conn_get_tls_alert` returns TLS alert if set.
  *
  * If any other negative errors are returned, call
  * `ngtcp2_conn_write_connection_close` to get terminal packet, and
- * sending it finishes QUIC connection.
+ * sending it makes QUIC connection enter the closing state.
  */
 NGTCP2_EXTERN int
 ngtcp2_conn_read_pkt_versioned(ngtcp2_conn *conn, const ngtcp2_path *path,
@@ -4596,7 +4598,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
  * @function
  *
  * `ngtcp2_conn_is_in_closing_period` returns nonzero if |conn| is in
- * closing period.
+ * the closing period.
  */
 NGTCP2_EXTERN int ngtcp2_conn_is_in_closing_period(ngtcp2_conn *conn);
 
@@ -4604,7 +4606,7 @@ NGTCP2_EXTERN int ngtcp2_conn_is_in_closing_period(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_is_in_draining_period` returns nonzero if |conn| is in
- * draining period.
+ * the draining period.
  */
 NGTCP2_EXTERN int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn);
 

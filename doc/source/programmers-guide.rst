@@ -344,7 +344,8 @@ Error handling in general
 
 In general, when error is returned from the ngtcp2 library function,
 call `ngtcp2_conn_write_connection_close()` to get terminal packet.
-Sending it finishes QUIC connection.
+If the successful call of the function creates non-empty packet, the
+QUIC connection enters the closing state.
 
 If :macro:`NGTCP2_ERR_DROP_CONN` is returned from
 `ngtcp2_conn_read_pkt`, a connection should be dropped without calling
