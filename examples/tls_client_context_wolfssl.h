@@ -22,31 +22,30 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_CONTEXT_H
-#define TLS_SERVER_CONTEXT_H
+#ifndef TLS_CLIENT_CONTEXT_WOLFSSL_H
+#define TLS_CLIENT_CONTEXT_WOLFSSL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_context_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include <wolfssl/options.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/quic.h>
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_context_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+class TLSClientContext {
+public:
+  TLSClientContext();
+  ~TLSClientContext();
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_context_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+  int init(const char *private_key_file, const char *cert_file);
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_server_context_picotls.h"
-#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+  WOLFSSL_CTX *get_native_handle() const;
 
-#if defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
-#  include "tls_server_context_wolfssl.h"
-#endif // ENABLE_EXAMPLE_WOLFSSL && WITH_EXAMPLE_WOLFSSL
+  void enable_keylog();
 
-#endif // TLS_SERVER_CONTEXT_H
+private:
+  WOLFSSL_CTX *ssl_ctx_;
+};
+
+#endif // TLS_CLIENT_CONTEXT_WOLFSSL_H

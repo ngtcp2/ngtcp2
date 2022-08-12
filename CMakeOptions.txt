@@ -11,5 +11,6 @@ option(ENABLE_GNUTLS    "Enable GnuTLS crypto backend" OFF)
 option(ENABLE_OPENSSL   "Enable OpenSSL crypto backend (required for examples)" ON)
 option(ENABLE_BORINGSSL "Enable BoringSSL crypto backend" OFF)
 option(ENABLE_PICOTLS "Enable Picotls crypto backend" OFF)
+option(ENABLE_WOLFSSL   "Enable wolfSSL crypto backend" OFF)
 
 # vim: ft=cmake:

@@ -282,3 +282,68 @@ if(LIBEV_FOUND AND HAVE_PICOTLS AND LIBNGHTTP3_FOUND)
 
   # TODO prevent ptlsclient and example ptlsservers from being installed?
 endif()
+
+if(LIBEV_FOUND AND HAVE_WOLFSSL AND LIBNGHTTP3_FOUND)
+  set(wsslclient_SOURCES
+    client.cc
+    client_base.cc
+    debug.cc
+    util.cc
+    shared.cc
+    tls_client_context_wolfssl.cc
+    tls_client_session_wolfssl.cc
+    tls_session_base_wolfssl.cc
+    util_wolfssl.cc
+  )
+
+  set(wsslserver_SOURCES
+    server.cc
+    server_base.cc
+    debug.cc
+    util.cc
+    http.cc
+    shared.cc
+    tls_server_context_wolfssl.cc
+    tls_server_session_wolfssl.cc
+    tls_session_base_wolfssl.cc
+    util_wolfssl.cc
+  )
+
+  set(wolfssl_INCLUDE_DIRS
+    ${CMAKE_SOURCE_DIR}/lib/includes
+    ${CMAKE_BINARY_DIR}/lib/includes
+    ${CMAKE_SOURCE_DIR}/third-party
+    ${CMAKE_SOURCE_DIR}/crypto/includes
+
+    ${WOLFSSL_INCLUDE_DIRS}
+    ${LIBEV_INCLUDE_DIRS}
+    ${LIBNGHTTP3_INCLUDE_DIRS}
+  )
+
+  set(wolfssl_LIBS
+    ngtcp2_crypto_wolfssl_static
+    ngtcp2
+    ${WOLFSSL_LIBRARIES}
+    ${LIBEV_LIBRARIES}
+    ${LIBNGHTTP3_LIBRARIES}
+  )
+
+  add_executable(wsslclient ${wsslclient_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  add_executable(wsslserver ${wsslserver_SOURCES} $<TARGET_OBJECTS:http-parser>)
+  set_target_properties(wsslclient PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_WOLFSSL -DWITH_EXAMPLE_WOLFSSL"
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+  )
+  set_target_properties(wsslserver PROPERTIES
+    COMPILE_FLAGS "${WARNCXXFLAGS} -DENABLE_EXAMPLE_WOLFSSL -DWITH_EXAMPLE_WOLFSSL"
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+  )
+  target_include_directories(wsslclient PUBLIC ${wolfssl_INCLUDE_DIRS})
+  target_include_directories(wsslserver PUBLIC ${wolfssl_INCLUDE_DIRS})
+  target_link_libraries(wsslclient ${wolfssl_LIBS})
+  target_link_libraries(wsslserver ${wolfssl_LIBS})
+
+  # TODO prevent wsslclient and example wsslserver from being installed?
+endif()

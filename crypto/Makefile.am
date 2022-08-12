@@ -42,4 +42,8 @@ if HAVE_PICOTLS
 SUBDIRS += picotls
 endif
 
+if HAVE_WOLFSSL
+SUBDIRS += wolfssl
+endif
+
 EXTRA_DIST = CMakeLists.txt

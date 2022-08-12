@@ -190,6 +190,28 @@ ptlsserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
 	util_openssl.cc
 endif # ENABLE_EXAMPLE_PICOTLS
 
+if ENABLE_EXAMPLE_WOLFSSL
+noinst_PROGRAMS += wsslclient wsslserver
+
+wsslclient_CPPFLAGS = ${AM_CPPFLAGS} @WOLFSSL_CFLAGS@ -DWITH_EXAMPLE_WOLFSSL
+wsslclient_LDADD = ${LDADD} \
+	$(top_builddir)/crypto/wolfssl/libngtcp2_crypto_wolfssl.la \
+	@WOLFSSL_LIBS@
+wsslclient_SOURCES = client.cc client.h ${CLIENT_SRCS} \
+	tls_client_context_wolfssl.cc tls_client_context_wolfssl.h \
+	tls_client_session_wolfssl.cc tls_client_session_wolfssl.h \
+	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
+	util_wolfssl.cc
+
+wsslserver_CPPFLAGS = ${wsslclient_CPPFLAGS}
+wsslserver_LDADD = ${wsslclient_LDADD}
+wsslserver_SOURCES = server.cc server.h ${SERVER_SRCS} \
+	tls_server_context_wolfssl.cc tls_server_context_wolfssl.h \
+	tls_server_session_wolfssl.cc tls_server_session_wolfssl.h \
+	tls_session_base_wolfssl.cc tls_session_base_wolfssl.h \
+	util_wolfssl.cc
+endif # ENABLE_EXAMPLE_WOLFSSL
+
 if HAVE_CUNIT
 check_PROGRAMS = examplestest
 examplestest_SOURCES = examplestest.cc \

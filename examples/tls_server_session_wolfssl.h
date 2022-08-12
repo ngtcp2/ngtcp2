@@ -22,31 +22,26 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_CONTEXT_H
-#define TLS_SERVER_CONTEXT_H
+#ifndef TLS_SERVER_SESSION_WOLFSSL_H
+#define TLS_SERVER_SESSION_WOLFSSL_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif // HAVE_CONFIG_H
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_context_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include "tls_session_base_wolfssl.h"
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_context_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+class TLSServerContext;
+class HandlerBase;
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_context_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+class TLSServerSession : public TLSSessionBase {
+public:
+  TLSServerSession();
+  ~TLSServerSession();
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_server_context_picotls.h"
-#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+  int init(const TLSServerContext &tls_ctx, HandlerBase *handler);
+  // ticket is sent automatically.
+  int send_session_ticket() { return 0; }
+};
 
-#if defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
-#  include "tls_server_context_wolfssl.h"
-#endif // ENABLE_EXAMPLE_WOLFSSL && WITH_EXAMPLE_WOLFSSL
-
-#endif // TLS_SERVER_CONTEXT_H
+#endif // TLS_SERVER_SESSION_WOLFSSL_H
