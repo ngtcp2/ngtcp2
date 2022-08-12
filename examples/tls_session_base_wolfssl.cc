@@ -22,31 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_CONTEXT_H
-#define TLS_SERVER_CONTEXT_H
+#include "tls_session_base_wolfssl.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+#include <array>
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_context_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include "util.h"
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_context_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+using namespace ngtcp2;
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_context_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+TLSSessionBase::TLSSessionBase() : ssl_{nullptr} {}
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_server_context_picotls.h"
-#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+TLSSessionBase::~TLSSessionBase() {
+  if (ssl_) {
+    wolfSSL_free(ssl_);
+  }
+}
 
-#if defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
-#  include "tls_server_context_wolfssl.h"
-#endif // ENABLE_EXAMPLE_WOLFSSL && WITH_EXAMPLE_WOLFSSL
+WOLFSSL *TLSSessionBase::get_native_handle() const { return ssl_; }
 
-#endif // TLS_SERVER_CONTEXT_H
+std::string TLSSessionBase::get_cipher_name() const {
+  return wolfSSL_get_cipher_name(ssl_);
+}
+
+std::string TLSSessionBase::get_selected_alpn() const {
+  char *alpn = nullptr;
+  unsigned short alpnlen;
+
+  wolfSSL_ALPN_GetProtocol(ssl_, &alpn, &alpnlen);
+
+  return std::string{alpn, alpn + alpnlen};
+}

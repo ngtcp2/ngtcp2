@@ -45,4 +45,8 @@
 #  include "tls_client_session_picotls.h"
 #endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
 
+#if defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
+#  include "tls_client_session_wolfssl.h"
+#endif // ENABLE_EXAMPLE_WOLFSSL && WITH_EXAMPLE_WOLFSSL
+
 #endif // TLS_CLIENT_SESSION_H

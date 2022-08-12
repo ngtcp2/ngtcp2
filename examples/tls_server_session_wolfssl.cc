@@ -22,31 +22,33 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_SERVER_CONTEXT_H
-#define TLS_SERVER_CONTEXT_H
+#include "tls_server_session_wolfssl.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // HAVE_CONFIG_H
+#include <iostream>
 
-#if defined(ENABLE_EXAMPLE_OPENSSL) && defined(WITH_EXAMPLE_OPENSSL)
-#  include "tls_server_context_openssl.h"
-#endif // ENABLE_EXAMPLE_OPENSSL && WITH_EXAMPLE_OPENSSL
+#include "tls_server_context_wolfssl.h"
+#include "server_base.h"
 
-#if defined(ENABLE_EXAMPLE_GNUTLS) && defined(WITH_EXAMPLE_GNUTLS)
-#  include "tls_server_context_gnutls.h"
-#endif // ENABLE_EXAMPLE_GNUTLS && WITH_EXAMPLE_GNUTLS
+TLSServerSession::TLSServerSession() {}
 
-#if defined(ENABLE_EXAMPLE_BORINGSSL) && defined(WITH_EXAMPLE_BORINGSSL)
-#  include "tls_server_context_boringssl.h"
-#endif // ENABLE_EXAMPLE_BORINGSSL && WITH_EXAMPLE_BORINGSSL
+TLSServerSession::~TLSServerSession() {}
 
-#if defined(ENABLE_EXAMPLE_PICOTLS) && defined(WITH_EXAMPLE_PICOTLS)
-#  include "tls_server_context_picotls.h"
-#endif // ENABLE_EXAMPLE_PICOTLS && WITH_EXAMPLE_PICOTLS
+int TLSServerSession::init(const TLSServerContext &tls_ctx,
+                           HandlerBase *handler) {
+  auto ssl_ctx = tls_ctx.get_native_handle();
 
-#if defined(ENABLE_EXAMPLE_WOLFSSL) && defined(WITH_EXAMPLE_WOLFSSL)
-#  include "tls_server_context_wolfssl.h"
-#endif // ENABLE_EXAMPLE_WOLFSSL && WITH_EXAMPLE_WOLFSSL
+  ssl_ = wolfSSL_new(ssl_ctx);
+  if (!ssl_) {
+    std::cerr << "wolfSSL_new: " << wolfSSL_ERR_error_string(wolfSSL_ERR_get_error(), nullptr)
+              << std::endl;
+    return -1;
+  }
 
-#endif // TLS_SERVER_CONTEXT_H
+  wolfSSL_set_app_data(ssl_, handler->conn_ref());
+  wolfSSL_set_accept_state(ssl_);
+#ifdef WOLFSSL_EARLY_DATA
+  wolfSSL_set_quic_early_data_enabled(ssl_, 1);
+#endif
+
+  return 0;
+}

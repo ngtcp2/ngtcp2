@@ -39,3 +39,7 @@ endif
 if HAVE_PICOTLS
 nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_picotls.h
 endif
+
+if HAVE_WOLFSSL
+nobase_include_HEADERS += ngtcp2/ngtcp2_crypto_wolfssl.h
+endif
